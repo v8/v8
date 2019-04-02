@@ -52,6 +52,7 @@ struct WasmCompilationResult {
   MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmCompilationResult);
 
   bool succeeded() const { return code_desc.buffer != nullptr; }
+  bool failed() const { return !succeeded(); }
   operator bool() const { return succeeded(); }
 
   CodeDesc code_desc;

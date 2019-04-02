@@ -433,19 +433,25 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   return AddAndPublishAnonymousCode(code, WasmCode::kFunction);
 }
 
-void NativeModule::SetLazyBuiltin() {
-  uint32_t num_wasm_functions = module_->num_declared_functions;
-  if (num_wasm_functions == 0) return;
-  // Fill the jump table with jumps to the lazy compile stub.
-  Address lazy_compile_target = runtime_stub_entry(WasmCode::kWasmCompileLazy);
-  for (uint32_t i = 0; i < num_wasm_functions; ++i) {
-    JumpTableAssembler::EmitLazyCompileJumpSlot(
-        jump_table_->instruction_start(), i,
-        i + module_->num_imported_functions, lazy_compile_target,
-        WasmCode::kNoFlushICache);
+void NativeModule::UseLazyStubs() {
+  uint32_t start = module_->num_imported_functions;
+  uint32_t end = start + module_->num_declared_functions;
+  for (uint32_t func_index = start; func_index < end; func_index++) {
+    UseLazyStub(func_index);
   }
-  FlushInstructionCache(jump_table_->instructions().start(),
-                        jump_table_->instructions().size());
+}
+
+void NativeModule::UseLazyStub(uint32_t func_index) {
+  DCHECK_LE(module_->num_imported_functions, func_index);
+  DCHECK_LT(func_index,
+            module_->num_imported_functions + module_->num_declared_functions);
+
+  // Add jump table entry for jump to the lazy compile stub.
+  uint32_t slot_index = func_index - module_->num_imported_functions;
+  DCHECK_NE(runtime_stub_entry(WasmCode::kWasmCompileLazy), kNullAddress);
+  JumpTableAssembler::EmitLazyCompileJumpSlot(
+      jump_table_->instruction_start(), slot_index, func_index,
+      runtime_stub_entry(WasmCode::kWasmCompileLazy), WasmCode::kFlushICache);
 }
 
 // TODO(mstarzinger): Remove {Isolate} parameter once {V8_EMBEDDED_BUILTINS}
@@ -581,7 +587,7 @@ WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
   new_code->MaybePrint(name);
   new_code->Validate();
 
-  return PublishCode(std::move(new_code));
+  return PublishCode(std::move(new_code)).code;
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCode(
@@ -667,39 +673,101 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   return code;
 }
 
-WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
+WasmCodeUpdate NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
   base::MutexGuard lock(&allocation_mutex_);
   return PublishCodeLocked(std::move(code));
 }
 
-WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
+namespace {
+WasmCode::Tier GetCodeTierForExecutionTier(ExecutionTier tier) {
+  switch (tier) {
+    case ExecutionTier::kInterpreter:
+      return WasmCode::Tier::kOther;
+    case ExecutionTier::kBaseline:
+      return WasmCode::Tier::kLiftoff;
+    case ExecutionTier::kOptimized:
+      return WasmCode::Tier::kTurbofan;
+  }
+}
+
+WasmCode::Kind GetCodeKindForExecutionTier(ExecutionTier tier) {
+  switch (tier) {
+    case ExecutionTier::kInterpreter:
+      return WasmCode::Kind::kInterpreterEntry;
+    case ExecutionTier::kBaseline:
+    case ExecutionTier::kOptimized:
+      return WasmCode::Kind::kFunction;
+  }
+}
+
+// TODO(frgossen): We should merge ExecutionTier with WasmCode::Tier.
+base::Optional<ExecutionTier> GetExecutionTier(WasmCode* code) {
+  if (code == nullptr) return {};
+  switch (code->tier()) {
+    case WasmCode::Tier::kLiftoff:
+      DCHECK_EQ(code->kind(), WasmCode::Kind::kFunction);
+      return ExecutionTier::kBaseline;
+    case WasmCode::Tier::kTurbofan:
+      DCHECK_EQ(code->kind(), WasmCode::Kind::kFunction);
+      return ExecutionTier::kOptimized;
+    case WasmCode::Tier::kOther:
+      if (code->kind() == WasmCode::Kind::kInterpreterEntry)
+        return ExecutionTier::kInterpreter;
+      return {};
+  }
+  UNREACHABLE();
+}
+}  // namespace
+
+WasmCodeUpdate NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
   // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
   DCHECK(!allocation_mutex_.TryLock());
-  // Skip publishing code if there is an active redirection to the interpreter
-  // for the given function index, in order to preserve the redirection.
-  if (!code->IsAnonymous() && !has_interpreter_redirection(code->index())) {
+  WasmCodeUpdate update;
+
+  if (!code->IsAnonymous()) {
     DCHECK_LT(code->index(), num_functions());
     DCHECK_LE(module_->num_imported_functions, code->index());
 
-    // Update code table, except for interpreter entries that would overwrite
-    // existing code.
+    // Assume an order of execution tiers that represents the quality of their
+    // generated code.
+    static_assert(ExecutionTier::kInterpreter < ExecutionTier::kBaseline &&
+                      ExecutionTier::kBaseline < ExecutionTier::kOptimized,
+                  "Assume an order on execution tiers");
+
+    // Update code table but avoid to fall back to less optimized code. We use
+    // the new code if it was compiled with a higher tier and also if we cannot
+    // determine the tier.
     uint32_t slot_idx = code->index() - module_->num_imported_functions;
-    if (code->kind() != WasmCode::kInterpreterEntry ||
-        code_table_[slot_idx] == nullptr) {
+    WasmCode* prior_code = code_table_[slot_idx];
+    update.prior_tier = GetExecutionTier(prior_code);
+    update.tier = GetExecutionTier(code.get());
+    bool update_code_table = !update.prior_tier.has_value() ||
+                             !update.tier.has_value() ||
+                             update.prior_tier.value() < update.tier.value();
+    if (update_code_table) {
       code_table_[slot_idx] = code.get();
     }
 
-    // Patch jump table.
-    JumpTableAssembler::PatchJumpTableSlot(jump_table_->instruction_start(),
-                                           slot_idx, code->instruction_start(),
-                                           WasmCode::kFlushICache);
+    // Populate optimized code to the jump table unless there is an active
+    // redirection to the interpreter that should be preserved.
+    bool update_jump_table =
+        update_code_table && !has_interpreter_redirection(code->index());
+
+    // Ensure that interpreter entries always populate to the jump table.
+    if (code->kind_ == WasmCode::Kind::kInterpreterEntry) {
+      SetInterpreterRedirection(code->index());
+      update_jump_table = true;
+    }
+
+    if (update_jump_table) {
+      JumpTableAssembler::PatchJumpTableSlot(
+          jump_table_->instruction_start(), slot_idx, code->instruction_start(),
+          WasmCode::kFlushICache);
+    }
   }
-  if (code->kind_ == WasmCode::Kind::kInterpreterEntry) {
-    SetInterpreterRedirection(code->index());
-  }
-  WasmCode* ret = code.get();
+  update.code = code.get();
   owned_code_.emplace_back(std::move(code));
-  return ret;
+  return update;
 }
 
 WasmCode* NativeModule::AddDeserializedCode(
@@ -726,7 +794,7 @@ WasmCode* NativeModule::AddDeserializedCode(
   // Note: we do not flush the i-cache here, since the code needs to be
   // relocated anyway. The caller is responsible for flushing the i-cache later.
 
-  return PublishCode(std::move(code));
+  return PublishCode(std::move(code)).code;
 }
 
 std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
@@ -758,7 +826,7 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {
       OwnedVector<const uint8_t>{},             // source_pos
       WasmCode::kJumpTable,                     // kind
       WasmCode::kOther}};                       // tier
-  return PublishCode(std::move(code));
+  return PublishCode(std::move(code)).code;
 }
 
 Vector<byte> NativeModule::AllocateForCode(size_t size) {
@@ -1202,34 +1270,11 @@ void NativeModule::SampleCodeSize(
   histogram->AddSample(code_size_mb);
 }
 
-namespace {
-WasmCode::Tier GetCodeTierForExecutionTier(ExecutionTier tier) {
-  switch (tier) {
-    case ExecutionTier::kInterpreter:
-      return WasmCode::Tier::kOther;
-    case ExecutionTier::kBaseline:
-      return WasmCode::Tier::kLiftoff;
-    case ExecutionTier::kOptimized:
-      return WasmCode::Tier::kTurbofan;
-  }
-}
-
-WasmCode::Kind GetCodeKindForExecutionTier(ExecutionTier tier) {
-  switch (tier) {
-    case ExecutionTier::kInterpreter:
-      return WasmCode::Kind::kInterpreterEntry;
-    case ExecutionTier::kBaseline:
-    case ExecutionTier::kOptimized:
-      return WasmCode::Kind::kFunction;
-  }
-}
-}  // namespace
-
-WasmCode* NativeModule::AddCompiledCode(WasmCompilationResult result) {
+WasmCodeUpdate NativeModule::AddCompiledCode(WasmCompilationResult result) {
   return AddCompiledCode({&result, 1})[0];
 }
 
-std::vector<WasmCode*> NativeModule::AddCompiledCode(
+std::vector<WasmCodeUpdate> NativeModule::AddCompiledCode(
     Vector<WasmCompilationResult> results) {
   DCHECK(!results.is_empty());
   // First, allocate code space for all the results.
@@ -1259,16 +1304,15 @@ std::vector<WasmCode*> NativeModule::AddCompiledCode(
   DCHECK_EQ(0, code_space.size());
 
   // Under the {allocation_mutex_}, publish the code.
-  std::vector<WasmCode*> returned_code;
-  returned_code.reserve(results.size());
+  std::vector<WasmCodeUpdate> code_updates;
+  code_updates.reserve(results.size());
   {
     base::MutexGuard lock(&allocation_mutex_);
-    for (auto& result : generated_code) {
-      returned_code.push_back(PublishCodeLocked(std::move(result)));
-    }
+    for (auto& result : generated_code)
+      code_updates.push_back(PublishCodeLocked(std::move(result)));
   }
 
-  return returned_code;
+  return code_updates;
 }
 
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {

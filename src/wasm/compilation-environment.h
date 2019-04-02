@@ -21,6 +21,7 @@ namespace wasm {
 
 class NativeModule;
 class WasmCode;
+struct WasmCompilationResult;
 class WasmError;
 
 enum RuntimeExceptionSupport : bool {
@@ -120,7 +121,8 @@ class CompilationState {
 
   bool failed() const;
 
-  void OnFinishedUnit(ExecutionTier, WasmCode*);
+  void FinishUnit(WasmCompilationResult);
+  void FinishUnits(Vector<WasmCompilationResult>);
 
  private:
   friend class NativeModule;

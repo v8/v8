@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/builtins/builtins-definitions.h"
 #include "src/handles.h"
 #include "src/trap-handler/trap-handler.h"
@@ -70,6 +71,12 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
   std::list<base::AddressRegion> regions_;
 
   DISALLOW_COPY_AND_ASSIGN(DisjointAllocationPool);
+};
+
+struct WasmCodeUpdate {
+  WasmCode* code = nullptr;
+  base::Optional<ExecutionTier> tier;
+  base::Optional<ExecutionTier> prior_tier;
 };
 
 class V8_EXPORT_PRIVATE WasmCode final {
@@ -270,9 +277,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // {PublishCode} makes the code available to the system by entering it into
   // the code table and patching the jump table. It returns a raw pointer to the
   // given {WasmCode} object.
-  WasmCode* PublishCode(std::unique_ptr<WasmCode>);
+  WasmCodeUpdate PublishCode(std::unique_ptr<WasmCode>);
   // Hold the {allocation_mutex_} when calling {PublishCodeLocked}.
-  WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>);
+  WasmCodeUpdate PublishCodeLocked(std::unique_ptr<WasmCode>);
 
   WasmCode* AddDeserializedCode(
       uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
@@ -288,10 +295,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(Handle<Code> code);
 
-  // Use this to start lazy compilation for the entire module. It will use the
-  // existing {WasmCode::kWasmCompileLazy} runtime stub and populate the jump
-  // table with trampolines to that runtime stub.
-  void SetLazyBuiltin();
+  // Use this to setup lazy compilation for the entire module ({UseLazyStubs})
+  // or for individual functions ({UseLazyStub}). It will use the existing
+  // {WasmCode::kWasmCompileLazy} runtime stub and populate the jump table with
+  // trampolines to that runtime stub.
+  void UseLazyStubs();
+  void UseLazyStub(uint32_t func_index);
 
   // Initializes all runtime stubs by setting up entry addresses in the runtime
   // stub table. It must be called exactly once per native module before adding
@@ -370,6 +379,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   UseTrapHandler use_trap_handler() const { return use_trap_handler_; }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
+  void set_lazy_compilation(bool lazy) { lazy_compilation_ = lazy; }
+  bool lazy_compilation() const { return lazy_compilation_; }
   Vector<const uint8_t> wire_bytes() const { return wire_bytes_->as_vector(); }
   const WasmModule* module() const { return module_.get(); }
   std::shared_ptr<const WasmModule> shared_module() const { return module_; }
@@ -394,8 +405,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   enum CodeSamplingTime : int8_t { kAfterBaseline, kAfterTopTier, kSampling };
   void SampleCodeSize(Counters*, CodeSamplingTime) const;
 
-  WasmCode* AddCompiledCode(WasmCompilationResult);
-  std::vector<WasmCode*> AddCompiledCode(Vector<WasmCompilationResult>);
+  WasmCodeUpdate AddCompiledCode(WasmCompilationResult);
+  std::vector<WasmCodeUpdate> AddCompiledCode(Vector<WasmCompilationResult>);
 
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all
@@ -524,6 +535,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   UseTrapHandler use_trap_handler_ = kNoTrapHandler;
   bool is_executable_ = false;
   bool lazy_compile_frozen_ = false;
+  bool lazy_compilation_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(NativeModule);
 };
