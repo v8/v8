@@ -1183,6 +1183,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
       reinterpret_cast<wasm::MemoryTracingInfo*>(info_addr.ptr());
 
   // Find the caller wasm frame.
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
   StackTraceFrameIterator it(isolate);
   DCHECK(!it.done());
   DCHECK(it.is_wasm());

@@ -93,6 +93,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
       return v8_buffer_.start();
     }
 
+    wasm::WasmCodeRefScope wasm_code_ref_scope;
     wasm::WasmCode* wasm_code =
         isolate_ ? isolate_->wasm_engine()->code_manager()->LookupCode(
                        reinterpret_cast<Address>(pc))

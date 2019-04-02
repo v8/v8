@@ -185,6 +185,7 @@ void TestReturnMultipleValues(MachineType type) {
 
       std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
           handles.main_isolate(), code->raw_instruction_size());
+      wasm::WasmCodeRefScope wasm_code_ref_scope;
       byte* code_start =
           module->AddCodeForTesting(code)->instructions().start();
 
@@ -274,6 +275,7 @@ void ReturnLastValue(MachineType type) {
 
     std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
+    wasm::WasmCodeRefScope wasm_code_ref_scope;
     byte* code_start = module->AddCodeForTesting(code)->instructions().start();
 
     // Generate caller.
@@ -335,6 +337,7 @@ void ReturnSumOfReturns(MachineType type) {
 
     std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
+    wasm::WasmCodeRefScope wasm_code_ref_scope;
     byte* code_start = module->AddCodeForTesting(code)->instructions().start();
 
     // Generate caller.

@@ -480,6 +480,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     Address pc = *(state->pc_address);
     // If the {pc} does not point into WebAssembly code we can rely on the
     // returned {wasm_code} to be null and fall back to {GetContainingCode}.
+    wasm::WasmCodeRefScope code_ref_scope;
     wasm::WasmCode* wasm_code =
         iterator->isolate()->wasm_engine()->code_manager()->LookupCode(pc);
     if (wasm_code != nullptr) {
@@ -1840,6 +1841,9 @@ int WasmCompiledFrame::position() const {
 
 void WasmCompiledFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
+  // The {WasmCode*} escapes this scope via the {FrameSummary}, which is fine,
+  // since this code object is part of our stack.
+  wasm::WasmCodeRefScope code_ref_scope;
   wasm::WasmCode* code = wasm_code();
   int offset = static_cast<int>(pc() - code->instruction_start());
   Handle<WasmInstanceObject> instance(wasm_instance(), isolate());

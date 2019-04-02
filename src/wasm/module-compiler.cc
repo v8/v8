@@ -472,6 +472,7 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
       &env, compilation_state->GetWireBytesStorage(), isolate->counters(),
       compilation_state->detected_features());
+  WasmCodeRefScope code_ref_scope;
   WasmCodeUpdate update = native_module->AddCompiledCode(std::move(result));
   WasmCode* code = update.code;
 
@@ -1769,6 +1770,7 @@ void CompilationStateImpl::FinishUnits(
 
   auto module = native_module_->module();
   auto enabled_features = native_module_->enabled_features();
+  WasmCodeRefScope code_ref_scope;
   std::vector<WasmCodeUpdate> code_update_vector =
       native_module_->AddCompiledCode(compilation_results);
 

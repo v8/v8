@@ -395,12 +395,14 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   if (num_wasm_functions > 0) {
     code_table_.reset(new WasmCode* [num_wasm_functions] {});
 
+    WasmCodeRefScope code_ref_scope;
     jump_table_ = CreateEmptyJumpTable(
         JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
   }
 }
 
 void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
+  WasmCodeRefScope code_ref_scope;
   DCHECK_LE(num_functions(), max_functions);
   WasmCode** new_table = new WasmCode* [max_functions] {};
   if (module_->num_declared_functions > 0) {
@@ -459,6 +461,7 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
 void NativeModule::SetRuntimeStubs(Isolate* isolate) {
   DCHECK_EQ(kNullAddress, runtime_stub_entries_[0]);  // Only called once.
 #ifdef V8_EMBEDDED_BUILTINS
+  WasmCodeRefScope code_ref_scope;
   WasmCode* jump_table =
       CreateEmptyJumpTable(JumpTableAssembler::SizeForNumberOfStubSlots(
           WasmCode::kRuntimeStubCount));

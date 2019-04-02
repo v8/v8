@@ -633,6 +633,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   native_module->set_lazy_compilation(FLAG_wasm_lazy_compilation);
 
   NativeModuleDeserializer deserializer(native_module);
+  WasmCodeRefScope wasm_code_ref_scope;
 
   Reader reader(data + kVersionSize);
   if (!deserializer.Read(&reader)) return {};

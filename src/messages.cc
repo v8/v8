@@ -1044,6 +1044,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   RETURN_ON_EXCEPTION(isolate, AppendErrorString(isolate, error, &builder),
                       Object);
 
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
+
   for (FrameArrayIterator it(isolate, elems); it.HasFrame(); it.Advance()) {
     builder.AppendCString("\n    at ");
 

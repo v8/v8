@@ -231,6 +231,7 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
       &env, native_module->compilation_state()->GetWireBytesStorage(),
       isolate->counters(), detected);
   if (result.succeeded()) {
+    WasmCodeRefScope code_ref_scope;
     native_module->AddCompiledCode(std::move(result));
   } else {
     native_module->compilation_state()->SetError();

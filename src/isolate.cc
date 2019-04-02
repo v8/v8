@@ -405,6 +405,7 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   }
 
   // Iterate over pointers on native execution stack.
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
   for (StackFrameIterator it(this, thread); !it.done(); it.Advance()) {
     it.frame()->Iterate(v);
   }
@@ -981,6 +982,7 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
                                  CaptureStackTraceOptions options) {
   DisallowJavascriptExecution no_js(isolate);
 
+  wasm::WasmCodeRefScope code_ref_scope;
   FrameArrayBuilder builder(isolate, options.skip_mode, options.limit, caller,
                             options.filter_mode);
 
@@ -1262,6 +1264,7 @@ static void PrintFrames(Isolate* isolate,
 
 void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
   HandleScope scope(this);
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
   DCHECK(accumulator->IsMentionedObjectCacheClear(this));
 
   // Avoid printing anything if there are no frames.
@@ -1668,6 +1671,10 @@ Object Isolate::UnwindAndFindHandler() {
 
         // For WebAssembly frames we perform a lookup in the handler table.
         if (!catchable_by_js) break;
+        // This code ref scope is here to avoid a check failure when looking up
+        // the code. It's not actually necessary to keep the code alive as it's
+        // currently being executed.
+        wasm::WasmCodeRefScope code_ref_scope;
         WasmCompiledFrame* wasm_frame = static_cast<WasmCompiledFrame*>(frame);
         int stack_slots = 0;  // Will contain stack slot count of frame.
         int offset = wasm_frame->LookupExceptionHandlerInTable(&stack_slots);
@@ -1725,6 +1732,7 @@ Object Isolate::UnwindAndFindHandler() {
         // Some stubs are able to handle exceptions.
         if (!catchable_by_js) break;
         StubFrame* stub_frame = static_cast<StubFrame*>(frame);
+        wasm::WasmCodeRefScope code_ref_scope;
         wasm::WasmCode* wasm_code =
             wasm_engine()->code_manager()->LookupCode(frame->pc());
         if (wasm_code != nullptr) {
@@ -2046,6 +2054,7 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   // baseline code. For optimized code this will use the deoptimization
   // information to get canonical location information.
   std::vector<FrameSummary> frames;
+  wasm::WasmCodeRefScope code_ref_scope;
   frame->Summarize(&frames);
   FrameSummary& summary = frames.back();
   summary.EnsureSourcePositionsAvailable();

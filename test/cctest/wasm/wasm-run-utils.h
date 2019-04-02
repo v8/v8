@@ -546,6 +546,9 @@ class WasmRunner : public WasmRunnerBase {
   Handle<Code> GetWrapperCode() { return wrapper_.GetWrapperCode(); }
 
  private:
+  wasm::WasmCodeRefScope code_ref_scope_;
+  std::vector<Handle<JSFunction>> jsfuncs_;
+
   void SetThreadInWasmFlag() {
     *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
         true;
@@ -555,7 +558,6 @@ class WasmRunner : public WasmRunnerBase {
     *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
         false;
   }
-  std::vector<Handle<JSFunction>> jsfuncs_;
 };
 
 // A macro to define tests that run in different engine configurations.

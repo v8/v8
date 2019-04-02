@@ -196,6 +196,7 @@ class InterpreterHandle {
 
     uint32_t activation_id = StartActivation(frame_pointer);
 
+    WasmCodeRefScope code_ref_scope;
     WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
     thread->InitFrame(&module()->functions[func_index], wasm_args.start());
     bool finished = false;
@@ -578,6 +579,7 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
     DCHECK_GT(module->functions.size(), func_index);
     if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) continue;
 
+    wasm::WasmCodeRefScope code_ref_scope;
     wasm::WasmCompilationResult result = compiler::CompileWasmInterpreterEntry(
         isolate->wasm_engine(), native_module->enabled_features(), func_index,
         module->functions[func_index].sig);

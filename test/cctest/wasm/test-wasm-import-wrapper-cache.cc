@@ -31,6 +31,7 @@ TEST(CacheHit) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   auto module = NewModule(isolate);
   TestSignatures sigs;
+  WasmCodeRefScope wasm_code_ref_scope;
 
   auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
 
@@ -51,6 +52,7 @@ TEST(CacheMissSig) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   auto module = NewModule(isolate);
   TestSignatures sigs;
+  WasmCodeRefScope wasm_code_ref_scope;
 
   auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
 
@@ -71,6 +73,7 @@ TEST(CacheMissKind) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   auto module = NewModule(isolate);
   TestSignatures sigs;
+  WasmCodeRefScope wasm_code_ref_scope;
 
   auto kind1 = compiler::WasmImportCallKind::kJSFunctionArityMatch;
   auto kind2 = compiler::WasmImportCallKind::kJSFunctionArityMismatch;
@@ -92,6 +95,7 @@ TEST(CacheHitMissSig) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   auto module = NewModule(isolate);
   TestSignatures sigs;
+  WasmCodeRefScope wasm_code_ref_scope;
 
   auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
 
