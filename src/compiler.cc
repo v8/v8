@@ -174,6 +174,7 @@ void UnoptimizedCompilationJob::RecordCompilationStats(Isolate* isolate) const {
   counters->total_baseline_compile_count()->Increment(1);
 
   // TODO(5203): Add timers for each phase of compilation.
+  // Also add total time (there's now already timer_ on the base class).
 }
 
 void UnoptimizedCompilationJob::RecordFunctionCompilation(
@@ -249,7 +250,8 @@ CompilationJob::Status OptimizedCompilationJob::AbortOptimization(
   return UpdateState(FAILED, State::kFailed);
 }
 
-void OptimizedCompilationJob::RecordCompilationStats() const {
+void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
+                                                     Isolate* isolate) const {
   DCHECK(compilation_info()->IsOptimizing());
   Handle<JSFunction> function = compilation_info()->closure();
   double ms_creategraph = time_taken_to_prepare_.InMillisecondsF();
@@ -271,6 +273,43 @@ void OptimizedCompilationJob::RecordCompilationStats() const {
     code_size += function->shared()->SourceSize();
     PrintF("Compiled: %d functions with %d byte source size in %fms.\n",
            compiled_functions, code_size, compilation_time);
+  }
+  Counters* const counters = isolate->counters();
+  if (compilation_info()->is_osr()) {
+    counters->turbofan_osr_prepare()->AddSample(
+        static_cast<int>(time_taken_to_prepare_.InMicroseconds()));
+    counters->turbofan_osr_execute()->AddSample(
+        static_cast<int>(time_taken_to_execute_.InMicroseconds()));
+    counters->turbofan_osr_finalize()->AddSample(
+        static_cast<int>(time_taken_to_finalize_.InMicroseconds()));
+    counters->turbofan_osr_total_time()->AddSample(
+        static_cast<int>(ElapsedTime().InMicroseconds()));
+  } else {
+    counters->turbofan_optimize_prepare()->AddSample(
+        static_cast<int>(time_taken_to_prepare_.InMicroseconds()));
+    counters->turbofan_optimize_execute()->AddSample(
+        static_cast<int>(time_taken_to_execute_.InMicroseconds()));
+    counters->turbofan_optimize_finalize()->AddSample(
+        static_cast<int>(time_taken_to_finalize_.InMicroseconds()));
+    counters->turbofan_optimize_total_time()->AddSample(
+        static_cast<int>(ElapsedTime().InMicroseconds()));
+
+    // Compute foreground / background time.
+    base::TimeDelta time_background;
+    base::TimeDelta time_foreground =
+        time_taken_to_prepare_ + time_taken_to_execute_;
+    switch (mode) {
+      case OptimizedCompilationJob::kConcurrent:
+        time_background += time_taken_to_execute_;
+        break;
+      case OptimizedCompilationJob::kSynchronous:
+        time_foreground += time_taken_to_execute_;
+        break;
+    }
+    counters->turbofan_optimize_total_background()->AddSample(
+        static_cast<int>(time_background.InMicroseconds()));
+    counters->turbofan_optimize_total_foreground()->AddSample(
+        static_cast<int>(time_foreground.InMicroseconds()));
   }
 }
 
@@ -686,7 +725,7 @@ bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate) {
   }
 
   // Success!
-  job->RecordCompilationStats();
+  job->RecordCompilationStats(OptimizedCompilationJob::kSynchronous, isolate);
   DCHECK(!isolate->has_pending_exception());
   InsertCodeIntoOptimizedCodeCache(compilation_info);
   job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, isolate);
@@ -2132,7 +2171,8 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
     if (shared->optimization_disabled()) {
       job->RetryOptimization(BailoutReason::kOptimizationDisabled);
     } else if (job->FinalizeJob(isolate) == CompilationJob::SUCCEEDED) {
-      job->RecordCompilationStats();
+      job->RecordCompilationStats(OptimizedCompilationJob::kConcurrent,
+                                  isolate);
       job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
                                      isolate);
       InsertCodeIntoOptimizedCodeCache(compilation_info);

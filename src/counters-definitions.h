@@ -133,6 +133,27 @@ namespace internal {
   HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
   HT(gc_scavenger_background, V8.GCScavengerBackground, 10000, MILLISECOND)    \
   HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
+  /* TurboFan timers. */                                                       \
+  HT(turbofan_optimize_prepare, V8.TurboFanOptimizePrepare, 1000000,           \
+     MICROSECOND)                                                              \
+  HT(turbofan_optimize_execute, V8.TurboFanOptimizeExecute, 1000000,           \
+     MICROSECOND)                                                              \
+  HT(turbofan_optimize_finalize, V8.TurboFanOptimizeFinalize, 1000000,         \
+     MICROSECOND)                                                              \
+  HT(turbofan_optimize_total_foreground, V8.TurboFanOptimizeTotalForeground,   \
+     10000000, MICROSECOND)                                                    \
+  HT(turbofan_optimize_total_background, V8.TurboFanOptimizeTotalBackground,   \
+     10000000, MICROSECOND)                                                    \
+  HT(turbofan_optimize_total_time, V8.TurboFanOptimizeTotalTime, 10000000,     \
+     MICROSECOND)                                                              \
+  HT(turbofan_osr_prepare, V8.TurboFanOptimizeForOnStackReplacementPrepare,    \
+     1000000, MICROSECOND)                                                     \
+  HT(turbofan_osr_execute, V8.TurboFanOptimizeForOnStackReplacementExecute,    \
+     1000000, MICROSECOND)                                                     \
+  HT(turbofan_osr_finalize, V8.TurboFanOptimizeForOnStackReplacementFinalize,  \
+     1000000, MICROSECOND)                                                     \
+  HT(turbofan_osr_total_time,                                                  \
+     V8.TurboFanOptimizeForOnStackReplacementTotalTime, 10000000, MICROSECOND) \
   /* Wasm timers. */                                                           \
   HT(wasm_decode_asm_module_time, V8.WasmDecodeModuleMicroSeconds.asm,         \
      1000000, MICROSECOND)                                                     \
