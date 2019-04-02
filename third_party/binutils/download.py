@@ -27,13 +27,13 @@ BINUTILS_OUT = 'Release'
 
 
 def ReadFile(filename):
-  with file(filename, 'r') as f:
+  with open(filename, 'r') as f:
     return f.read().strip()
 
 
 def WriteFile(filename, content):
   assert not os.path.exists(filename)
-  with file(filename, 'w') as f:
+  with open(filename, 'w') as f:
     f.write(content)
     f.write('\n')
 
