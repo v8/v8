@@ -69,7 +69,7 @@ class FunctionEntry {
   }
   int num_inner_functions() const { return backing_[kNumInnerFunctionsIndex]; }
 
-  bool is_valid() const { return !backing_.is_empty(); }
+  bool is_valid() const { return !backing_.empty(); }
 
  private:
   Vector<unsigned> backing_;

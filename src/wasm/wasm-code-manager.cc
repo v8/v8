@@ -126,7 +126,7 @@ void WasmCode::set_trap_handler_index(size_t value) {
 void WasmCode::RegisterTrapHandlerData() {
   DCHECK(!HasTrapHandlerIndex());
   if (kind() != WasmCode::kFunction) return;
-  if (protected_instructions_.is_empty()) return;
+  if (protected_instructions_.empty()) return;
 
   Address base = instruction_start();
 
@@ -159,7 +159,7 @@ void WasmCode::LogCode(Isolate* isolate) const {
   WireBytesRef name_ref =
       native_module()->module()->LookupFunctionName(wire_bytes, index());
   WasmName name_vec = wire_bytes.GetNameOrNull(name_ref);
-  if (!name_vec.is_empty()) {
+  if (!name_vec.empty()) {
     HandleScope scope(isolate);
     MaybeHandle<String> maybe_name = isolate->factory()->NewStringFromUtf8(
         Vector<const char>::cast(name_vec));
@@ -182,7 +182,7 @@ void WasmCode::LogCode(Isolate* isolate) const {
                                      generated_name));
   }
 
-  if (!source_positions().is_empty()) {
+  if (!source_positions().empty()) {
     LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(instruction_start(),
                                                        source_positions()));
   }
@@ -289,7 +289,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
     os << "\n";
   }
 
-  if (!protected_instructions_.is_empty()) {
+  if (!protected_instructions_.empty()) {
     os << "Protected instructions:\n pc offset  land pad\n";
     for (auto& data : protected_instructions()) {
       os << std::setw(10) << std::hex << data.instr_offset << std::setw(10)
@@ -298,7 +298,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
     os << "\n";
   }
 
-  if (!source_positions().is_empty()) {
+  if (!source_positions().empty()) {
     os << "Source positions:\n pc offset  position\n";
     for (SourcePositionTableIterator it(source_positions()); !it.done();
          it.Advance()) {
@@ -954,7 +954,7 @@ void NativeModule::SetWireBytes(OwnedVector<const uint8_t> wire_bytes) {
   auto shared_wire_bytes =
       std::make_shared<OwnedVector<const uint8_t>>(std::move(wire_bytes));
   wire_bytes_ = shared_wire_bytes;
-  if (!shared_wire_bytes->is_empty()) {
+  if (!shared_wire_bytes->empty()) {
     compilation_state_->SetWireBytesStorage(
         std::make_shared<NativeModuleWireBytesStorage>(
             std::move(shared_wire_bytes)));
@@ -1302,7 +1302,7 @@ WasmCodeUpdate NativeModule::AddCompiledCode(WasmCompilationResult result) {
 
 std::vector<WasmCodeUpdate> NativeModule::AddCompiledCode(
     Vector<WasmCompilationResult> results) {
-  DCHECK(!results.is_empty());
+  DCHECK(!results.empty());
   // First, allocate code space for all the results.
   size_t total_code_space = 0;
   for (auto& result : results) {

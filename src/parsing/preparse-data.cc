@@ -229,7 +229,7 @@ void PreparseDataBuilder::DataGatheringScope::SetSkippableFunction(
 }
 
 bool PreparseDataBuilder::HasInnerFunctions() const {
-  return !children_.is_empty();
+  return !children_.empty();
 }
 
 bool PreparseDataBuilder::HasData() const { return !bailed_out_ && has_data_; }

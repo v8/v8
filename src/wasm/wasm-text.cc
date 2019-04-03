@@ -20,7 +20,7 @@ namespace wasm {
 
 namespace {
 bool IsValidFunctionName(const Vector<const char> &name) {
-  if (name.is_empty()) return false;
+  if (name.empty()) return false;
   const char *special_chars = "_.+-*/\\^~=<>!?@#$%&|:'`";
   for (char c : name) {
     bool valid_char = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') ||
