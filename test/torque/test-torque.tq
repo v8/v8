@@ -820,4 +820,22 @@ namespace test {
     check(o.a == 6);
     check(o.b == 5);
   }
+
+  struct StructWithConst {
+    TestMethod1(): int32 {
+      return this.b;
+    }
+    TestMethod2(): Object {
+      return this.a;
+    }
+    a: Object;
+    const b: int32;
+  }
+
+  macro TestConstInStructs() {
+    const x = StructWithConst{Null, 1};
+    let y = StructWithConst{Null, 1};
+    y.a = Undefined;
+    const copy = x;
+  }
 }

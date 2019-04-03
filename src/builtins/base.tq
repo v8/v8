@@ -2019,11 +2019,11 @@ struct FastJSArrayWitness {
     }
   }
 
-  stable: JSArray;
+  const stable: JSArray;
   unstable: FastJSArray;
-  map: Map;
-  hasDoubles: bool;
-  hasSmis: bool;
+  const map: Map;
+  const hasDoubles: bool;
+  const hasSmis: bool;
   arrayIsPushable: bool;
 }
 

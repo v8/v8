@@ -176,6 +176,7 @@ struct Field {
   NameAndType name_and_type;
   size_t offset;
   bool is_weak;
+  bool const_qualified;
 };
 
 std::ostream& operator<<(std::ostream& os, const Field& name_and_type);

@@ -464,13 +464,16 @@ void DeclarationVisitor::FinalizeStructFieldsAndMethods(
     StructType* struct_type, StructDeclaration* struct_declaration) {
   size_t offset = 0;
   for (auto& field : struct_declaration->fields) {
+    CurrentSourcePosition::Scope position_activator(
+        field.name_and_type.type->pos);
     const Type* field_type = Declarations::GetType(field.name_and_type.type);
     struct_type->RegisterField({field.name_and_type.name->pos,
                                 struct_type,
                                 base::nullopt,
                                 {field.name_and_type.name->value, field_type},
                                 offset,
-                                false});
+                                false,
+                                field.const_qualified});
     offset += LoweredSlotCount(field_type);
   }
   CurrentSourcePosition::Scope position_activator(struct_declaration->pos);
@@ -510,7 +513,8 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
            index_field,
            {field_expression.name_and_type.name->value, field_type},
            class_offset,
-           field_expression.weak});
+           field_expression.weak,
+           field_expression.const_qualified});
     } else {
       if (seen_indexed_field) {
         ReportError("cannot declare non-indexable field \"",
@@ -524,7 +528,8 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
            base::nullopt,
            {field_expression.name_and_type.name->value, field_type},
            class_offset,
-           field_expression.weak});
+           field_expression.weak,
+           field_expression.const_qualified});
       size_t field_size;
       std::string size_string;
       std::string machine_type;
@@ -598,6 +603,7 @@ void DeclarationVisitor::FinalizeStructsAndClasses() {
     StructType* struct_type;
     std::tie(scope, struct_declaration, struct_type) = current_struct_info;
     CurrentScope::Scope scope_activator(scope);
+    CurrentSourcePosition::Scope position_activator(struct_declaration->pos);
     FinalizeStructFieldsAndMethods(struct_type, struct_declaration);
   }
 

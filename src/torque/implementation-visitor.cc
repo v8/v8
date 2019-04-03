@@ -568,7 +568,7 @@ const Type* ImplementationVisitor::Visit(
     TypeVector lowered_types = LowerType(*type);
     for (const Type* type : lowered_types) {
       assembler().Emit(PushUninitializedInstruction{TypeOracle::GetTopType(
-          "unitialized variable '" + stmt->name->value + "' of type " +
+          "uninitialized variable '" + stmt->name->value + "' of type " +
               type->ToString() + " originally defined at " +
               PositionAsString(stmt->pos),
           type)});
@@ -1149,7 +1149,7 @@ VisitResult ImplementationVisitor::TemporaryUninitializedStruct(
       range.Extend(
           TemporaryUninitializedStruct(struct_type, reason).stack_range());
     } else {
-      std::string descriptor = "unitialized field '" + f.name_and_type.name +
+      std::string descriptor = "uninitialized field '" + f.name_and_type.name +
                                "' declared at " + PositionAsString(f.pos) +
                                " (" + reason + ")";
       TypeVector lowered_types = LowerType(f.name_and_type.type);
@@ -1314,8 +1314,8 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
   InitializerResults initializer_results =
       VisitInitializerResults(expr->parameters);
 
-  // Output the code to generate an unitialized object of the class size in the
-  // GC heap.
+  // Output the code to generate an uninitialized object of the class size in
+  // the GC heap.
   VisitResult allocate_result;
   if (class_type->IsExtern()) {
     if (initializer_results.results.size() == 0) {
@@ -1698,7 +1698,7 @@ VisitResult ImplementationVisitor::Visit(StructExpression* decl) {
       ImplementationVisitor::VisitInitializerResults(decl->expressions);
 
   const StructType* struct_type = StructType::cast(raw_type);
-  // Push unitialized 'this'
+  // Push uninitialized 'this'
   VisitResult result = TemporaryUninitializedStruct(
       struct_type, "it's not initialized in the struct " + struct_type->name());
 
@@ -1728,13 +1728,20 @@ LocationReference ImplementationVisitor::GetLocationReference(
   LocationReference reference = GetLocationReference(expr->object);
   if (reference.IsVariableAccess() &&
       reference.variable().type()->IsStructType()) {
+    const StructType* type = StructType::cast(reference.variable().type());
+    const Field& field = type->LookupField(expr->field->value);
     if (GlobalContext::collect_language_server_data()) {
-      const StructType* type = StructType::cast(reference.variable().type());
-      const Field& field = type->LookupField(expr->field->value);
       LanguageServerData::AddDefinition(expr->field->pos, field.pos);
     }
-    return LocationReference::VariableAccess(
-        ProjectStructField(reference.variable(), expr->field->value));
+    if (field.const_qualified) {
+      VisitResult t_value =
+          ProjectStructField(reference.variable(), expr->field->value);
+      return LocationReference::Temporary(
+          t_value, "for constant field '" + field.name_and_type.name + "'");
+    } else {
+      return LocationReference::VariableAccess(
+          ProjectStructField(reference.variable(), expr->field->value));
+    }
   }
   if (reference.IsTemporary() && reference.temporary().type()->IsStructType()) {
     if (GlobalContext::collect_language_server_data()) {
