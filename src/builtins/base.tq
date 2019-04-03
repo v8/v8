@@ -17,7 +17,6 @@
 #include 'src/objects/module.h'
 #include 'src/objects/stack-frame-info.h'
 
-type Arguments constexpr 'CodeStubArguments*';
 type void;
 type never;
 
@@ -1152,10 +1151,6 @@ extern operator '.instanceType' macro LoadInstanceType(HeapObject):
 extern operator '.length_intptr' macro LoadStringLengthAsWord(String): intptr;
 extern operator '.length_uint32' macro LoadStringLengthAsWord32(String): uint32;
 extern operator '.length_smi' macro LoadStringLengthAsSmi(String): Smi;
-
-extern operator '.length' macro GetArgumentsLength(constexpr Arguments): intptr;
-extern operator '[]' macro GetArgumentValue(
-    constexpr Arguments, intptr): Object;
 
 extern builtin StringAdd_CheckNone(implicit context: Context)(
     String, String): String;

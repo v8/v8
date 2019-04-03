@@ -13225,26 +13225,26 @@ CodeStubArguments::CodeStubArguments(
       argc_mode_(param_mode),
       receiver_mode_(receiver_mode),
       argc_(argc),
-      arguments_(),
+      base_(),
       fp_(fp != nullptr ? fp : assembler_->LoadFramePointer()) {
   Node* offset = assembler_->ElementOffsetFromIndex(
       argc_, SYSTEM_POINTER_ELEMENTS, param_mode,
       (StandardFrameConstants::kFixedSlotCountAboveFp - 1) *
           kSystemPointerSize);
-  arguments_ =
-      assembler_->UncheckedCast<WordT>(assembler_->IntPtrAdd(fp_, offset));
+  base_ =
+      assembler_->UncheckedCast<RawPtrT>(assembler_->IntPtrAdd(fp_, offset));
 }
 
 TNode<Object> CodeStubArguments::GetReceiver() const {
   DCHECK_EQ(receiver_mode_, ReceiverMode::kHasReceiver);
   return assembler_->UncheckedCast<Object>(assembler_->LoadFullTagged(
-      arguments_, assembler_->IntPtrConstant(kSystemPointerSize)));
+      base_, assembler_->IntPtrConstant(kSystemPointerSize)));
 }
 
 void CodeStubArguments::SetReceiver(TNode<Object> object) const {
   DCHECK_EQ(receiver_mode_, ReceiverMode::kHasReceiver);
   assembler_->StoreFullTaggedNoWriteBarrier(
-      arguments_, assembler_->IntPtrConstant(kSystemPointerSize), object);
+      base_, assembler_->IntPtrConstant(kSystemPointerSize), object);
 }
 
 TNode<WordT> CodeStubArguments::AtIndexPtr(
@@ -13254,7 +13254,7 @@ TNode<WordT> CodeStubArguments::AtIndexPtr(
       assembler_->IntPtrOrSmiConstant(0, mode), index, mode);
   Node* offset = assembler_->ElementOffsetFromIndex(
       negated_index, SYSTEM_POINTER_ELEMENTS, mode, 0);
-  return assembler_->IntPtrAdd(assembler_->UncheckedCast<IntPtrT>(arguments_),
+  return assembler_->IntPtrAdd(assembler_->UncheckedCast<IntPtrT>(base_),
                                offset);
 }
 
@@ -13326,10 +13326,10 @@ void CodeStubArguments::ForEach(
     last = argc_;
   }
   Node* start = assembler_->IntPtrSub(
-      assembler_->UncheckedCast<IntPtrT>(arguments_),
+      assembler_->UncheckedCast<IntPtrT>(base_),
       assembler_->ElementOffsetFromIndex(first, SYSTEM_POINTER_ELEMENTS, mode));
   Node* end = assembler_->IntPtrSub(
-      assembler_->UncheckedCast<IntPtrT>(arguments_),
+      assembler_->UncheckedCast<IntPtrT>(base_),
       assembler_->ElementOffsetFromIndex(last, SYSTEM_POINTER_ELEMENTS, mode));
   assembler_->BuildFastLoop(
       vars, start, end,
@@ -13676,13 +13676,15 @@ Node* CodeStubAssembler::CheckEnumCache(Node* receiver, Label* if_empty,
   return receiver_map;
 }
 
-TNode<IntPtrT> CodeStubAssembler::GetArgumentsLength(CodeStubArguments* args) {
-  return args->GetLength();
+TNode<Object> CodeStubAssembler::GetArgumentValue(
+    BaseBuiltinsFromDSLAssembler::Arguments args, TNode<IntPtrT> index) {
+  return CodeStubArguments(this, args).GetOptionalArgumentValue(index);
 }
 
-TNode<Object> CodeStubAssembler::GetArgumentValue(CodeStubArguments* args,
-                                                  TNode<IntPtrT> index) {
-  return args->GetOptionalArgumentValue(index);
+BaseBuiltinsFromDSLAssembler::Arguments CodeStubAssembler::GetFrameArguments(
+    TNode<RawPtrT> frame, TNode<IntPtrT> argc) {
+  return CodeStubArguments(this, argc, frame, INTPTR_PARAMETERS)
+      .GetTorqueArguments();
 }
 
 void CodeStubAssembler::Print(const char* s) {

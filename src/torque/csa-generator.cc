@@ -650,7 +650,7 @@ void CSAGenerator::EmitInstruction(const GotoExternalInstruction& instruction,
 void CSAGenerator::EmitInstruction(const ReturnInstruction& instruction,
                                    Stack<std::string>* stack) {
   if (*linkage_ == Builtin::kVarArgsJavaScript) {
-    out_ << "    " << ARGUMENTS_VARIABLE_STRING << "->PopAndReturn(";
+    out_ << "    " << ARGUMENTS_VARIABLE_STRING << ".PopAndReturn(";
   } else {
     out_ << "    CodeStubAssembler(state_).Return(";
   }

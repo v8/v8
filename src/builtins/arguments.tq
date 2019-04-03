@@ -2,6 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+struct Arguments {
+  const frame: FrameWithArguments;
+  const base: RawPtr;
+  const length: intptr;
+}
+
+extern operator '[]' macro GetArgumentValue(Arguments, intptr): Object;
+
+extern macro GetFrameArguments(FrameWithArguments, intptr): Arguments;
+
 namespace arguments {
 
   struct ArgumentsInfo {

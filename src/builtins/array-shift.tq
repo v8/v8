@@ -6,7 +6,7 @@ namespace array_shift {
   extern builtin ArrayShift(Context, JSFunction, Object, int32);
 
   macro TryFastArrayShift(implicit context: Context)(
-      receiver: Object, arguments: constexpr Arguments): Object
+      receiver: Object, arguments: Arguments): Object
       labels Slow {
     const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
     let witness = NewFastJSArrayWitness(array);

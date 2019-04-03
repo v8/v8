@@ -489,21 +489,29 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
     DCHECK(signature.parameter_types.var_args);
     source_out()
         << "  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);\n";
-    source_out() << "  CodeStubArguments arguments_impl(this, "
-                    "ChangeInt32ToIntPtr(argc));\n";
     std::string parameter1 = AddParameter(
         1, builtin, &parameters, &parameter_types, &parameter_bindings);
+    source_out()
+        << "  TNode<IntPtrT> arguments_length(ChangeInt32ToIntPtr(argc));\n";
+    source_out() << "  TNode<RawPtrT> arguments_frame = "
+                    "UncheckedCast<RawPtrT>(LoadFramePointer());\n";
+    source_out() << "  BaseBuiltinsFromDSLAssembler::Arguments "
+                    "torque_arguments(GetFrameArguments(arguments_frame, "
+                    "arguments_length));\n";
+    source_out() << "  CodeStubArguments arguments(this, torque_arguments);\n";
 
     source_out() << "  TNode<Object> " << parameter1
-                 << " = arguments_impl.GetReceiver();\n";
-    source_out() << "auto " << CSAGenerator::ARGUMENTS_VARIABLE_STRING
-                 << " = &arguments_impl;\n";
-    source_out() << "USE(arguments);\n";
+                 << " = arguments.GetReceiver();\n";
     source_out() << "USE(" << parameter1 << ");\n";
+    parameters.Push("torque_arguments.frame");
+    parameters.Push("torque_arguments.base");
+    parameters.Push("torque_arguments.length");
+    const Type* arguments_type = TypeOracle::GetArgumentsType();
+    StackRange range = parameter_types.PushMany(LowerType(arguments_type));
     parameter_bindings.Add(
         *signature.arguments_variable,
-        LocalValue{true,
-                   VisitResult(TypeOracle::GetArgumentsType(), "arguments")});
+        LocalValue{true, VisitResult(arguments_type, range)});
+
     first = 2;
   }
 

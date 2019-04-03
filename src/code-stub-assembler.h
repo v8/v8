@@ -3206,8 +3206,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                Label* if_fast, Label* if_slow);
   Node* CheckEnumCache(Node* receiver, Label* if_empty, Label* if_runtime);
 
-  TNode<IntPtrT> GetArgumentsLength(CodeStubArguments* args);
-  TNode<Object> GetArgumentValue(CodeStubArguments* args, TNode<IntPtrT> index);
+  TNode<Object> GetArgumentValue(BaseBuiltinsFromDSLAssembler::Arguments args,
+                                 TNode<IntPtrT> index);
+
+  BaseBuiltinsFromDSLAssembler::Arguments GetFrameArguments(
+      TNode<RawPtrT> frame, TNode<IntPtrT> argc);
 
   // Support for printf-style debugging
   void Print(const char* s);
@@ -3499,6 +3502,17 @@ class CodeStubArguments {
                     CodeStubAssembler::ParameterMode param_mode,
                     ReceiverMode receiver_mode = ReceiverMode::kHasReceiver);
 
+  // Used by Torque to construct arguments based on a Torque-defined
+  // struct of values.
+  CodeStubArguments(CodeStubAssembler* assembler,
+                    BaseBuiltinsFromDSLAssembler::Arguments torque_arguments)
+      : assembler_(assembler),
+        argc_mode_(CodeStubAssembler::INTPTR_PARAMETERS),
+        receiver_mode_(ReceiverMode::kHasReceiver),
+        argc_(torque_arguments.length),
+        base_(torque_arguments.base),
+        fp_(torque_arguments.frame) {}
+
   TNode<Object> GetReceiver() const;
   // Replaces receiver argument on the expression stack. Should be used only
   // for manipulating arguments in trampoline builtins before tail calling
@@ -3526,6 +3540,13 @@ class CodeStubArguments {
   Node* GetLength(CodeStubAssembler::ParameterMode mode) const {
     DCHECK_EQ(mode, argc_mode_);
     return argc_;
+  }
+
+  BaseBuiltinsFromDSLAssembler::Arguments GetTorqueArguments() const {
+    DCHECK_EQ(argc_mode_, CodeStubAssembler::INTPTR_PARAMETERS);
+    return BaseBuiltinsFromDSLAssembler::Arguments{
+        assembler_->UncheckedCast<RawPtrT>(fp_), base_,
+        assembler_->UncheckedCast<IntPtrT>(argc_)};
   }
 
   TNode<Object> GetOptionalArgumentValue(TNode<IntPtrT> index) {
@@ -3565,7 +3586,7 @@ class CodeStubArguments {
   CodeStubAssembler::ParameterMode argc_mode_;
   ReceiverMode receiver_mode_;
   Node* argc_;
-  TNode<WordT> arguments_;
+  TNode<RawPtrT> base_;
   Node* fp_;
 };
 
