@@ -363,10 +363,10 @@ ExecutionTierPair GetRequestedExecutionTiers(
         const WasmCompilationHint* hint =
             GetCompilationHint(module, func_index);
         if (hint != nullptr) {
-          result.baseline_tier =
-              ApplyHintToExecutionTier(hint->first_tier, result.baseline_tier);
+          result.baseline_tier = ApplyHintToExecutionTier(hint->baseline_tier,
+                                                          result.baseline_tier);
           result.top_tier =
-              ApplyHintToExecutionTier(hint->second_tier, result.top_tier);
+              ApplyHintToExecutionTier(hint->top_tier, result.top_tier);
         }
       }
 

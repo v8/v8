@@ -95,7 +95,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let instance = builder.instantiate();
 })();
 
-(function testDecodeCompilationHintsSectionSecondTierDefault() {
+(function testDecodeCompilationHintsSectionTopTierDefault() {
   let builder = new WasmModuleBuilder();
   builder.addFunction('sq', kSig_i_i)
          .addBody([kExprGetLocal, 0,

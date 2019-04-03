@@ -640,8 +640,8 @@ class WasmFunctionBuilder {
     return this;
   }
 
-  giveCompilationHint(strategy, firstTier, secondTier) {
-    this.module.giveCompilationHint(strategy, firstTier, secondTier, this.index);
+  giveCompilationHint(strategy, baselineTier, topTier) {
+    this.module.giveCompilationHint(strategy, baselineTier, topTier, this.index);
     return this;
   }
 
@@ -871,9 +871,9 @@ class WasmModuleBuilder {
     return this;
   }
 
-  giveCompilationHint(strategy, firstTier, secondTier, index) {
-    this.compilation_hints[index] = {strategy: strategy, firstTier: firstTier,
-      secondTier: secondTier};
+  giveCompilationHint(strategy, baselineTier, topTier, index) {
+    this.compilation_hints[index] = {strategy: strategy, baselineTier:
+      baselineTier, topTier: topTier};
     return this;
   }
 
@@ -1206,8 +1206,8 @@ class WasmModuleBuilder {
         var hintByte;
         if(index in wasm.compilation_hints) {
           let hint = wasm.compilation_hints[index];
-          hintByte = hint.strategy | (hint.firstTier << 2) |
-              (hint.secondTier << 4);
+          hintByte = hint.strategy | (hint.baselineTier << 2) |
+              (hint.topTier << 4);
         } else{
           hintByte = defaultHintByte;
         }

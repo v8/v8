@@ -1318,9 +1318,9 @@ TEST_F(WasmModuleVerifyTest, TieringCompilationHints) {
       SIGNATURES_SECTION(1, SIG_ENTRY_v_v),
       FUNCTION_SIGNATURES_SECTION(3, 0, 0, 0),
       SECTION_COMPILATION_HINTS(
-          FIRST_TIER_INTERPRETER | SECOND_TIER_BASELINE,
-          FIRST_TIER_BASELINE | SECOND_TIER_OPTIMIZED,
-          FIRST_TIER_INTERPRETER | SECOND_TIER_INTERPRETER),
+          BASELINE_TIER_INTERPRETER | TOP_TIER_BASELINE,
+          BASELINE_TIER_BASELINE | TOP_TIER_OPTIMIZED,
+          BASELINE_TIER_INTERPRETER | TOP_TIER_INTERPRETER),
       SECTION(Code, ENTRY_COUNT(3), NOP_BODY, NOP_BODY, NOP_BODY),
   };
 
@@ -1331,21 +1331,21 @@ TEST_F(WasmModuleVerifyTest, TieringCompilationHints) {
   EXPECT_EQ(WasmCompilationHintStrategy::kDefault,
             result.value()->compilation_hints[0].strategy);
   EXPECT_EQ(WasmCompilationHintTier::kInterpreter,
-            result.value()->compilation_hints[0].first_tier);
+            result.value()->compilation_hints[0].baseline_tier);
   EXPECT_EQ(WasmCompilationHintTier::kBaseline,
-            result.value()->compilation_hints[0].second_tier);
+            result.value()->compilation_hints[0].top_tier);
   EXPECT_EQ(WasmCompilationHintStrategy::kDefault,
             result.value()->compilation_hints[1].strategy);
   EXPECT_EQ(WasmCompilationHintTier::kBaseline,
-            result.value()->compilation_hints[1].first_tier);
+            result.value()->compilation_hints[1].baseline_tier);
   EXPECT_EQ(WasmCompilationHintTier::kOptimized,
-            result.value()->compilation_hints[1].second_tier);
+            result.value()->compilation_hints[1].top_tier);
   EXPECT_EQ(WasmCompilationHintStrategy::kDefault,
             result.value()->compilation_hints[2].strategy);
   EXPECT_EQ(WasmCompilationHintTier::kInterpreter,
-            result.value()->compilation_hints[2].first_tier);
+            result.value()->compilation_hints[2].baseline_tier);
   EXPECT_EQ(WasmCompilationHintTier::kInterpreter,
-            result.value()->compilation_hints[2].second_tier);
+            result.value()->compilation_hints[2].top_tier);
 }
 
 class WasmSignatureDecodeTest : public TestWithZone {

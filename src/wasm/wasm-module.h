@@ -159,8 +159,8 @@ enum class WasmCompilationHintTier : uint8_t {
 // Static representation of a wasm compilation hint
 struct WasmCompilationHint {
   WasmCompilationHintStrategy strategy;
-  WasmCompilationHintTier first_tier;
-  WasmCompilationHintTier second_tier;
+  WasmCompilationHintTier baseline_tier;
+  WasmCompilationHintTier top_tier;
 };
 
 enum ModuleOrigin : uint8_t { kWasmOrigin, kAsmJsOrigin };

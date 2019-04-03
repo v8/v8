@@ -1017,10 +1017,10 @@ class ModuleDecoderImpl : public Decoder {
             static_cast<int>(pc_ - start_));
 
       // Compilation hints are encoded in one byte each.
-      // +-------+-------------+------------+------------------+
-      // | 2 bit | 2 bit       | 2 bit      | 2 bit            |
-      // | ...   | Second tier | First tier | Lazy compilation |
-      // +-------+-------------+------------+------------------+
+      // +-------+----------+---------------+------------------+
+      // | 2 bit | 2 bit    | 2 bit         | 2 bit            |
+      // | ...   | Top tier | Baseline tier | Lazy compilation |
+      // +-------+----------+---------------+------------------+
       uint8_t hint_byte = decoder.consume_u8("compilation hint");
       if (!decoder.ok()) break;
 
@@ -1028,9 +1028,9 @@ class ModuleDecoderImpl : public Decoder {
       WasmCompilationHint hint;
       hint.strategy =
           static_cast<WasmCompilationHintStrategy>(hint_byte & 0x03);
-      hint.first_tier =
+      hint.baseline_tier =
           static_cast<WasmCompilationHintTier>(hint_byte >> 2 & 0x3);
-      hint.second_tier =
+      hint.top_tier =
           static_cast<WasmCompilationHintTier>(hint_byte >> 4 & 0x3);
 
       // Check strategy.
@@ -1042,8 +1042,8 @@ class ModuleDecoderImpl : public Decoder {
 
       // Ensure that the second tier never downgrades the compilation result.
       // If first and secod tier are the same it will be invoked only once.
-      if (hint.second_tier < hint.first_tier &&
-          hint.second_tier != WasmCompilationHintTier::kDefault) {
+      if (hint.top_tier < hint.baseline_tier &&
+          hint.top_tier != WasmCompilationHintTier::kDefault) {
         decoder.errorf(decoder.pc(),
                        "Invalid compilation hint %#x (forbidden downgrade)",
                        hint_byte);
