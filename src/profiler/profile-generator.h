@@ -154,6 +154,7 @@ class CodeEntry {
   // Used to represent frames for which we have no reliable way to
   // detect function.
   V8_EXPORT_PRIVATE static const char* const kUnresolvedFunctionName;
+  V8_EXPORT_PRIVATE static const char* const kRootEntryName;
 
   V8_INLINE static CodeEntry* program_entry() {
     return kProgramEntry.Pointer();
@@ -163,6 +164,7 @@ class CodeEntry {
   V8_INLINE static CodeEntry* unresolved_entry() {
     return kUnresolvedEntry.Pointer();
   }
+  V8_INLINE static CodeEntry* root_entry() { return kRootEntry.Pointer(); }
 
   void print() const;
 
@@ -191,6 +193,9 @@ class CodeEntry {
   struct UnresolvedEntryCreateTrait {
     static CodeEntry* Create();
   };
+  struct RootEntryCreateTrait {
+    static CodeEntry* Create();
+  };
 
   static base::LazyDynamicInstance<CodeEntry, ProgramEntryCreateTrait>::type
       kProgramEntry;
@@ -200,6 +205,8 @@ class CodeEntry {
       kGCEntry;
   static base::LazyDynamicInstance<CodeEntry, UnresolvedEntryCreateTrait>::type
       kUnresolvedEntry;
+  static base::LazyDynamicInstance<CodeEntry, RootEntryCreateTrait>::type
+      kRootEntry;
 
   using TagField = BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
   using BuiltinIdField = BitField<Builtins::Name, 8, 22>;
@@ -253,6 +260,7 @@ class V8_EXPORT_PRIVATE ProfileNode {
   int line_number() const {
     return line_number_ != 0 ? line_number_ : entry_->line_number();
   }
+  CpuProfileNode::SourceType source_type() const;
 
   unsigned int GetHitLineCount() const {
     return static_cast<unsigned int>(line_ticks_.size());
@@ -336,7 +344,6 @@ class V8_EXPORT_PRIVATE ProfileTree {
 
   std::vector<const ProfileNode*> pending_nodes_;
 
-  CodeEntry root_entry_;
   unsigned next_node_id_;
   ProfileNode* root_;
   Isolate* isolate_;

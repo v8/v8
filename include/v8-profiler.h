@@ -129,6 +129,20 @@ class V8_EXPORT CpuProfileNode {
     unsigned int hit_count;
   };
 
+  // An annotation hinting at the source of a CpuProfileNode.
+  enum SourceType {
+    // User-supplied script with associated resource information.
+    kScript = 0,
+    // Native scripts and provided builtins.
+    kBuiltin = 1,
+    // Callbacks into native code.
+    kCallback = 2,
+    // VM-internal functions or state.
+    kInternal = 3,
+    // A node that failed to symbolize.
+    kUnresolved = 4,
+  };
+
   /** Returns function name (empty string for anonymous functions.) */
   Local<String> GetFunctionName() const;
 
@@ -199,6 +213,11 @@ class V8_EXPORT CpuProfileNode {
 
   /** Returns id of the node. The id is unique within the tree */
   unsigned GetNodeId() const;
+
+  /**
+   * Gets the type of the source which the node was captured from.
+   */
+  SourceType GetSourceType() const;
 
   /** Returns child nodes count of the node. */
   int GetChildrenCount() const;

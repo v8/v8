@@ -1898,6 +1898,7 @@ static void CheckFunctionDetails(v8::Isolate* isolate,
   CHECK_EQ(line, node->GetLineNumber());
   CHECK_EQ(column, node->GetColumnNumber());
   CHECK_EQ(parent, node->GetParent());
+  CHECK_EQ(v8::CpuProfileNode::kScript, node->GetSourceType());
 }
 
 TEST(FunctionDetails) {

@@ -10037,6 +10037,9 @@ unsigned CpuProfileNode::GetNodeId() const {
   return reinterpret_cast<const i::ProfileNode*>(this)->id();
 }
 
+CpuProfileNode::SourceType CpuProfileNode::GetSourceType() const {
+  return reinterpret_cast<const i::ProfileNode*>(this)->source_type();
+}
 
 int CpuProfileNode::GetChildrenCount() const {
   return static_cast<int>(
