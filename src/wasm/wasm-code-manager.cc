@@ -800,6 +800,7 @@ WasmCodeUpdate NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
           WasmCode::kFlushICache);
     }
   }
+  WasmCodeRefScope::AddRef(code.get());
   update.code = code.get();
   owned_code_.emplace_back(std::move(code));
   return update;
@@ -1003,7 +1004,10 @@ WasmCode* NativeModule::Lookup(Address pc) const {
       --iter;
       WasmCode* candidate = iter->get();
       DCHECK_NOT_NULL(candidate);
-      if (candidate->contains(pc)) return candidate;
+      if (candidate->contains(pc)) {
+        WasmCodeRefScope::AddRef(candidate);
+        return candidate;
+      }
     }
     if (owned_code_sorted_portion_ == owned_code_.size()) return nullptr;
     std::sort(owned_code_.begin(), owned_code_.end(),
@@ -1350,7 +1354,8 @@ std::vector<WasmCodeUpdate> NativeModule::AddCompiledCode(
   }
   DCHECK_EQ(0, code_space.size());
 
-  // Under the {allocation_mutex_}, publish the code.
+  // Under the {allocation_mutex_}, publish the code. The published code is put
+  // into the top-most surrounding {WasmCodeRefScope} by {PublishCodeLocked}.
   std::vector<WasmCodeUpdate> code_updates;
   code_updates.reserve(results.size());
   {
@@ -1460,9 +1465,7 @@ WasmCodeRefScope::~WasmCodeRefScope() {
 // static
 void WasmCodeRefScope::AddRef(WasmCode* code) {
   WasmCodeRefScope* current_scope = current_code_refs_scope;
-  // TODO(clemensh): Remove early return, activate DCHECK instead.
-  // DCHECK_NOT_NULL(current_scope);
-  if (!current_scope) return;
+  DCHECK_NOT_NULL(current_scope);
   auto entry = current_scope->code_ptrs_.insert(code);
   // If we added a new entry, increment the ref counter.
   if (entry.second) code->IncRef();
