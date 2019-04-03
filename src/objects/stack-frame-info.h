@@ -28,7 +28,6 @@ class StackFrameInfo : public Struct {
   DECL_BOOLEAN_ACCESSORS(is_constructor)
   DECL_BOOLEAN_ACCESSORS(is_wasm)
   DECL_INT_ACCESSORS(flag)
-  DECL_INT_ACCESSORS(id)
 
   DECL_CAST(StackFrameInfo)
 
