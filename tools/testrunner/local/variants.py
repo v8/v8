@@ -7,7 +7,7 @@ ALL_VARIANT_FLAGS = {
   "code_serializer": [["--cache=code"]],
   "default": [[]],
   "future": [["--future"]],
-  "gc_stats": [["--gc_stats=1"]],
+  "gc_stats": [["--gc-stats=1"]],
   # Alias of exhaustive variants, but triggering new test framework features.
   "infra_staging": [[]],
   "interpreted_regexp": [["--regexp-interpret-all"]],

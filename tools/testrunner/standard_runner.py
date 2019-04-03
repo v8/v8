@@ -202,7 +202,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if self.build_config.predictable:
         options.variants = "default"
         options.extra_flags.append("--predictable")
-        options.extra_flags.append("--verify_predictable")
+        options.extra_flags.append("--verify-predictable")
         options.extra_flags.append("--no-inline-new")
         # Add predictable wrapper to command prefix.
         options.command_prefix = (
