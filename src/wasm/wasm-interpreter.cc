@@ -893,6 +893,19 @@ class SideTable : public ZoneObject {
           stack_height = c->end_label->target_stack_height + kCatchInArity;
           break;
         }
+        case kExprBrOnExn: {
+          BranchOnExceptionImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+          uint32_t depth = imm.depth.depth;  // Extracted for convenience.
+          imm.index.exception = &module->exceptions[imm.index.index];
+          DCHECK_EQ(0, imm.index.exception->sig->return_count());
+          size_t params = imm.index.exception->sig->parameter_count();
+          // Taken branches pop the exception and push the encoded values.
+          uint32_t height = stack_height - 1 + static_cast<uint32_t>(params);
+          TRACE("control @%u: BrOnExn[depth=%u]\n", i.pc_offset(), depth);
+          Control* c = &control_stack[control_stack.size() - depth - 1];
+          if (!unreachable) c->end_label->Ref(i.pc(), height);
+          break;
+        }
         case kExprEnd: {
           Control* c = &control_stack.back();
           TRACE("control @%u: End\n", i.pc_offset());
@@ -1253,10 +1266,7 @@ class ThreadImpl {
       InterpreterCode* code = frame.code;
       if (code->side_table->HasEntryAt(frame.pc)) {
         TRACE("----- HANDLE -----\n");
-        // TODO(mstarzinger): Push a reference to the pending exception instead
-        // of a bogus {int32_t(0)} value here once the interpreter supports it.
-        USE(isolate->pending_exception());
-        Push(WasmValue(int32_t{0}));
+        Push(WasmValue(handle(isolate->pending_exception(), isolate)));
         isolate->clear_pending_exception();
         frame.pc += JumpToHandlerDelta(code, frame.pc);
         TRACE("  => handler #%zu (#%u @%zu)\n", frames_.size() - 1,
@@ -1291,6 +1301,8 @@ class ThreadImpl {
 
   CodeMap* codemap_;
   Handle<WasmInstanceObject> instance_object_;
+  // TODO(mstarzinger): The operand stack will need to be changed so that the
+  // value lifetime of {WasmValue} is not coupled to a {HandleScope}.
   std::unique_ptr<WasmValue[]> stack_;
   WasmValue* stack_limit_ = nullptr;  // End of allocated stack space.
   WasmValue* sp_ = nullptr;           // Current stack pointer.
@@ -1349,6 +1361,13 @@ class ThreadImpl {
     break;
         WASM_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
+        case kWasmAnyRef:
+        case kWasmAnyFunc:
+        case kWasmExceptRef: {
+          Isolate* isolate = instance_object_->GetIsolate();
+          val = WasmValue(isolate->factory()->null_value());
+          break;
+        }
         default:
           UNREACHABLE();
           break;
@@ -2410,12 +2429,88 @@ class ThreadImpl {
 
   // Throw a given existing exception. Returns true if the exception is being
   // handled locally by the interpreter, false otherwise (interpreter exits).
-  bool DoRethrowException(WasmValue* exception) {
+  bool DoRethrowException(WasmValue exception) {
     Isolate* isolate = instance_object_->GetIsolate();
-    // TODO(mstarzinger): Use the passed {exception} here once reference types
-    // as values on the operand stack are supported by the interpreter.
-    isolate->ReThrow(*isolate->factory()->undefined_value());
+    isolate->ReThrow(*exception.to_anyref());
     return HandleException(isolate) == WasmInterpreter::Thread::HANDLED;
+  }
+
+  // Determines whether the given exception has a tag matching the expected tag
+  // for the given index within the exception table of the current instance.
+  bool MatchingExceptionTag(Handle<Object> exception_object, uint32_t index) {
+    Isolate* isolate = instance_object_->GetIsolate();
+    Handle<Object> caught_tag =
+        WasmExceptionPackage::GetExceptionTag(isolate, exception_object);
+    Handle<Object> expected_tag =
+        handle(instance_object_->exceptions_table()->get(index), isolate);
+    DCHECK(expected_tag->IsWasmExceptionTag());
+    return expected_tag.is_identical_to(caught_tag);
+  }
+
+  void DecodeI32ExceptionValue(Handle<FixedArray> encoded_values,
+                               uint32_t* encoded_index, uint32_t* value) {
+    uint32_t msb = Smi::cast(encoded_values->get((*encoded_index)++)).value();
+    uint32_t lsb = Smi::cast(encoded_values->get((*encoded_index)++)).value();
+    *value = (msb << 16) | (lsb & 0xffff);
+  }
+
+  void DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
+                               uint32_t* encoded_index, uint64_t* value) {
+    uint32_t lsb = 0, msb = 0;
+    DecodeI32ExceptionValue(encoded_values, encoded_index, &msb);
+    DecodeI32ExceptionValue(encoded_values, encoded_index, &lsb);
+    *value = (static_cast<uint64_t>(msb) << 32) | static_cast<uint64_t>(lsb);
+  }
+
+  // Unpack the values encoded in the given exception. The exception values are
+  // pushed onto the operand stack. Callers must perform a tag check to ensure
+  // the encoded values match the expected signature of the exception.
+  void DoUnpackException(const WasmException* exception,
+                         Handle<Object> exception_object) {
+    Isolate* isolate = instance_object_->GetIsolate();
+    Handle<FixedArray> encoded_values = Handle<FixedArray>::cast(
+        WasmExceptionPackage::GetExceptionValues(isolate, exception_object));
+    // Decode the exception values from the given exception package and push
+    // them onto the operand stack. This encoding has to be in sync with other
+    // backends so that exceptions can be passed between them.
+    const WasmExceptionSig* sig = exception->sig;
+    uint32_t encoded_index = 0;
+    for (size_t i = 0; i < sig->parameter_count(); ++i) {
+      WasmValue value;
+      switch (sig->GetParam(i)) {
+        case kWasmI32: {
+          uint32_t u32 = 0;
+          DecodeI32ExceptionValue(encoded_values, &encoded_index, &u32);
+          value = WasmValue(u32);
+          break;
+        }
+        case kWasmF32: {
+          uint32_t f32_bits = 0;
+          DecodeI32ExceptionValue(encoded_values, &encoded_index, &f32_bits);
+          value = WasmValue(Float32::FromBits(f32_bits));
+          break;
+        }
+        case kWasmI64: {
+          uint64_t u64 = 0;
+          DecodeI64ExceptionValue(encoded_values, &encoded_index, &u64);
+          value = WasmValue(u64);
+          break;
+        }
+        case kWasmF64: {
+          uint64_t f64_bits = 0;
+          DecodeI64ExceptionValue(encoded_values, &encoded_index, &f64_bits);
+          value = WasmValue(Float64::FromBits(f64_bits));
+          break;
+        }
+        case kWasmAnyRef:
+          UNIMPLEMENTED();
+          break;
+        default:
+          UNREACHABLE();
+      }
+      Push(value);
+    }
+    DCHECK_EQ(WasmExceptionPackage::GetEncodedSize(exception), encoded_index);
   }
 
   void Execute(InterpreterCode* code, pc_t pc, int max) {
@@ -2531,9 +2626,26 @@ class ThreadImpl {
         case kExprRethrow: {
           WasmValue ex = Pop();
           CommitPc(pc);  // Needed for local unwinding.
-          if (!DoRethrowException(&ex)) return;
+          if (!DoRethrowException(ex)) return;
           ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
           continue;  // Do not bump pc.
+        }
+        case kExprBrOnExn: {
+          BranchOnExceptionImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                               code->at(pc));
+          WasmValue ex = Pop();
+          Handle<Object> exception = ex.to_anyref();
+          if (MatchingExceptionTag(exception, imm.index.index)) {
+            imm.index.exception = &module()->exceptions[imm.index.index];
+            DoUnpackException(imm.index.exception, exception);
+            len = DoBreak(code, pc, imm.depth.depth);
+            TRACE("  match => @%zu\n", pc + len);
+          } else {
+            Push(ex);  // Exception remains on stack.
+            TRACE("  false => fallthrough\n");
+            len = 1 + imm.length;
+          }
+          break;
         }
         case kExprSelect: {
           WasmValue cond = Pop();
@@ -2612,6 +2724,11 @@ class ThreadImpl {
           ImmF64Immediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
           Push(WasmValue(imm.value));
           len = 1 + imm.length;
+          break;
+        }
+        case kExprRefNull: {
+          Isolate* isolate = instance_object_->GetIsolate();
+          Push(WasmValue(isolate->factory()->null_value()));
           break;
         }
         case kExprGetLocal: {
@@ -2968,6 +3085,11 @@ class ThreadImpl {
           SIGN_EXTENSION_CASE(I64SExtendI16, int64_t, int16_t);
           SIGN_EXTENSION_CASE(I64SExtendI32, int64_t, int32_t);
 #undef SIGN_EXTENSION_CASE
+        case kExprRefIsNull: {
+          uint32_t result = Pop().to_anyref()->IsNull() ? 1 : 0;
+          Push(WasmValue(result));
+          break;
+        }
         case kNumericPrefix: {
           ++len;
           if (!ExecuteNumericOp(opcode, &decoder, code, pc, len)) return;
@@ -3147,6 +3269,15 @@ class ThreadImpl {
           // stack, the right format should be printed here.
           int4 s = val.to_s128().to_i32x4();
           PrintF("i32x4:%d %d %d %d", s.val[0], s.val[1], s.val[2], s.val[3]);
+          break;
+        }
+        case kWasmAnyRef: {
+          Handle<Object> ref = val.to_anyref();
+          if (ref->IsNull()) {
+            PrintF("ref:null");
+          } else {
+            PrintF("ref:0x%" V8PRIxPTR, ref->ptr());
+          }
           break;
         }
         case kWasmStmt:

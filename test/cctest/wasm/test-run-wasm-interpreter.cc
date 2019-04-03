@@ -430,6 +430,21 @@ TEST(MemoryGrowInvalidSize) {
   CHECK_EQ(-1, r.Call(1048575));
 }
 
+TEST(ReferenceTypeLocals) {
+  {
+    WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+    BUILD(r, WASM_REF_IS_NULL(WASM_REF_NULL));
+    CHECK_EQ(1, r.Call());
+  }
+  {
+    WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+    r.AllocateLocal(kWasmAnyRef);
+    BUILD(r, WASM_REF_IS_NULL(WASM_GET_LOCAL(0)));
+    CHECK_EQ(1, r.Call());
+  }
+  // TODO(mstarzinger): Test and support global anyref variables.
+}
+
 TEST(TestPossibleNondeterminism) {
   {
     WasmRunner<int32_t, float> r(ExecutionTier::kInterpreter);
