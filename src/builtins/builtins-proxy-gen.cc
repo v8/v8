@@ -204,48 +204,6 @@ TF_BUILTIN(ProxyConstructor, ProxiesCodeStubAssembler) {
   }
 }
 
-TF_BUILTIN(ProxyRevocable, ProxiesCodeStubAssembler) {
-  Node* const target = Parameter(Descriptor::kTarget);
-  Node* const handler = Parameter(Descriptor::kHandler);
-  Node* const context = Parameter(Descriptor::kContext);
-  Node* const native_context = LoadNativeContext(context);
-
-  Label throw_proxy_non_object(this, Label::kDeferred),
-      throw_proxy_handler_or_target_revoked(this, Label::kDeferred),
-      return_create_proxy(this);
-
-  GotoIf(TaggedIsSmi(target), &throw_proxy_non_object);
-  GotoIfNot(IsJSReceiver(target), &throw_proxy_non_object);
-  GotoIfRevokedProxy(target, &throw_proxy_handler_or_target_revoked);
-
-  GotoIf(TaggedIsSmi(handler), &throw_proxy_non_object);
-  GotoIfNot(IsJSReceiver(handler), &throw_proxy_non_object);
-  GotoIfRevokedProxy(handler, &throw_proxy_handler_or_target_revoked);
-
-  Node* const proxy = AllocateProxy(target, handler, context);
-  Node* const revoke = AllocateProxyRevokeFunction(proxy, context);
-
-  Node* const result = Allocate(JSProxyRevocableResult::kSize);
-  Node* const result_map = LoadContextElement(
-      native_context, Context::PROXY_REVOCABLE_RESULT_MAP_INDEX);
-  StoreMapNoWriteBarrier(result, result_map);
-  StoreObjectFieldRoot(result, JSProxyRevocableResult::kPropertiesOrHashOffset,
-                       RootIndex::kEmptyFixedArray);
-  StoreObjectFieldRoot(result, JSProxyRevocableResult::kElementsOffset,
-                       RootIndex::kEmptyFixedArray);
-  StoreObjectFieldNoWriteBarrier(result, JSProxyRevocableResult::kProxyOffset,
-                                 proxy);
-  StoreObjectFieldNoWriteBarrier(result, JSProxyRevocableResult::kRevokeOffset,
-                                 revoke);
-  Return(result);
-
-  BIND(&throw_proxy_non_object);
-  ThrowTypeError(context, MessageTemplate::kProxyNonObject);
-
-  BIND(&throw_proxy_handler_or_target_revoked);
-  ThrowTypeError(context, MessageTemplate::kProxyHandlerOrTargetRevoked);
-}
-
 TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   Node* argc = Parameter(Descriptor::kActualArgumentsCount);
   Node* argc_ptr = ChangeInt32ToIntPtr(argc);

@@ -27,6 +27,9 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
   Node* ProxySetProperty(Node* context, Node* proxy, Node* name, Node* value,
                          Node* receiver);
 
+  Node* AllocateProxy(Node* target, Node* handler, Node* context);
+  Node* AllocateProxyRevokeFunction(Node* proxy, Node* context);
+
  protected:
   enum ProxyRevokeFunctionContextSlot {
     kProxySlot = Context::MIN_CONTEXT_SLOTS,
@@ -34,11 +37,9 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
   };
 
   void GotoIfRevokedProxy(Node* object, Label* if_proxy_revoked);
-  Node* AllocateProxy(Node* target, Node* handler, Node* context);
   Node* AllocateJSArrayForCodeStubArguments(Node* context,
                                             CodeStubArguments& args, Node* argc,
                                             ParameterMode mode);
-  Node* AllocateProxyRevokeFunction(Node* proxy, Node* context);
   void CheckHasTrapResult(Node* context, Node* target, Node* proxy, Node* name,
                           Label* check_passed, Label* if_bailout);
 

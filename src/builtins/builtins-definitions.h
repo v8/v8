@@ -867,7 +867,6 @@ namespace internal {
                                                                                \
   /* Proxy */                                                                  \
   TFJ(ProxyConstructor, 2, kReceiver, kTarget, kHandler)                       \
-  TFJ(ProxyRevocable, 2, kReceiver, kTarget, kHandler)                         \
   TFS(ProxyGetProperty, kProxy, kName, kReceiverValue, kOnNonExistent)         \
   TFS(ProxyHasProperty, kProxy, kName)                                         \
   TFS(ProxySetProperty, kProxy, kName, kValue, kReceiverValue)                 \

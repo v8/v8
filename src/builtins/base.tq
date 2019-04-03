@@ -166,6 +166,14 @@ macro NewJSObject(implicit context: Context)(): JSObject {
   return new JSObject{map, kEmptyFixedArray, kEmptyFixedArray};
 }
 
+extern class JSFunction extends JSObject {
+  shared_function_info: SharedFunctionInfo;
+  context: Context;
+  feedback_cell: Smi;
+  weak code: Code;
+  weak prototype_or_initial_map: JSReceiver | Map;
+}
+
 extern class JSProxy extends JSReceiver {
   target: Object;
   handler: Object;
@@ -174,6 +182,17 @@ extern class JSProxy extends JSReceiver {
 extern class JSProxyRevocableResult extends JSObject {
   proxy: Object;
   revoke: Object;
+}
+
+macro NewJSProxyRevocableResult(implicit context: Context)(
+    proxy: JSProxy, revoke: JSFunction): JSProxyRevocableResult {
+  return new JSProxyRevocableResult{
+    GetProxyRevocableResultMap(),  // HeapObject.map
+    kEmptyFixedArray,              // JSReceiver.properties_or_hash
+    kEmptyFixedArray,              // JSObject.elements
+    proxy,                         // JSProxyRevocableResult.proxy
+    revoke                         // JSProxyRevocableResult.revoke
+  };
 }
 
 extern class JSGlobalProxy extends JSObject { native_context: Object; }
@@ -307,14 +326,6 @@ extern class SharedFunctionInfoWithID extends SharedFunctionInfo {
   unique_id: int32;
 }
 
-extern class JSFunction extends JSObject {
-  shared_function_info: SharedFunctionInfo;
-  context: Context;
-  feedback_cell: Smi;
-  weak code: Code;
-  weak prototype_or_initial_map: JSReceiver | Map;
-}
-
 extern class JSBoundFunction extends JSObject {
   bound_target_function: JSReceiver;
   bound_this: Object;
@@ -363,6 +374,8 @@ const ITERATOR_RESULT_MAP_INDEX: constexpr NativeContextSlot
     generates 'Context::ITERATOR_RESULT_MAP_INDEX';
 const JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX: constexpr NativeContextSlot
     generates 'Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX';
+const PROXY_REVOCABLE_RESULT_MAP_INDEX: constexpr NativeContextSlot
+    generates 'Context::PROXY_REVOCABLE_RESULT_MAP_INDEX';
 extern operator '[]' macro LoadContextElement(
     NativeContext, NativeContextSlot): Object;
 extern operator '[]=' macro StoreContextElement(
@@ -706,6 +719,10 @@ const kTypedArrayTooShort: constexpr MessageTemplate
     generates 'MessageTemplate::kTypedArrayTooShort';
 const kInvalidCountValue: constexpr MessageTemplate
     generates 'MessageTemplate::kInvalidCountValue';
+const kProxyNonObject: constexpr MessageTemplate
+    generates 'MessageTemplate::kProxyNonObject';
+const kProxyHandlerOrTargetRevoked: constexpr MessageTemplate
+    generates 'MessageTemplate::kProxyHandlerOrTargetRevoked';
 
 const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
@@ -1837,6 +1854,11 @@ macro GetArrayBufferNoInitFunction(implicit context: Context)(): JSFunction {
 macro GetFastPackedSmiElementsJSArrayMap(implicit context: Context)(): Map {
   return UnsafeCast<Map>(
       LoadNativeContext(context)[JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX]);
+}
+
+macro GetProxyRevocableResultMap(implicit context: Context)(): Map {
+  return UnsafeCast<Map>(
+      LoadNativeContext(context)[PROXY_REVOCABLE_RESULT_MAP_INDEX]);
 }
 
 extern transitioning macro Call(Context, Callable, Object): Object;

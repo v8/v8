@@ -939,6 +939,7 @@ torque_files = [
   "src/builtins/extras-utils.tq",
   "src/builtins/iterator.tq",
   "src/builtins/object-fromentries.tq",
+  "src/builtins/proxy-revocable.tq",
   "src/builtins/proxy-revoke.tq",
   "src/builtins/regexp.tq",
   "src/builtins/regexp-replace.tq",
