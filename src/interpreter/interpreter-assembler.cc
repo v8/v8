@@ -1268,9 +1268,9 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   // different places where we track interrupt budget.
   GotoIf(IsFeedbackVector(feedback_cell_value), &load_budget_from_bytecode);
   TNode<FixedArray> closure_feedback_cell_array = CAST(feedback_cell_value);
-  TNode<Smi> old_budget_smi = CAST(
-      LoadFixedArrayElement(closure_feedback_cell_array,
-                            ClosureFeedbackCellArray::kInterruptBudgetIndex));
+  TNode<Smi> old_budget_smi = CAST(UnsafeLoadFixedArrayElement(
+      closure_feedback_cell_array,
+      ClosureFeedbackCellArray::kInterruptBudgetIndex));
   old_budget = SmiToInt32(old_budget_smi);
   Goto(&load_budget_done);
 
@@ -1308,9 +1308,10 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   // Update budget.
   Label update_budget_in_bytecode(this), end(this);
   GotoIf(IsFeedbackVector(feedback_cell_value), &update_budget_in_bytecode);
-  StoreFixedArrayElement(closure_feedback_cell_array,
-                         ClosureFeedbackCellArray::kInterruptBudgetIndex,
-                         SmiFromInt32(new_budget.value()), SKIP_WRITE_BARRIER);
+  UnsafeStoreFixedArrayElement(closure_feedback_cell_array,
+                               ClosureFeedbackCellArray::kInterruptBudgetIndex,
+                               SmiFromInt32(new_budget.value()),
+                               SKIP_WRITE_BARRIER);
   Goto(&end);
 
   BIND(&update_budget_in_bytecode);
