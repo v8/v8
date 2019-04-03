@@ -218,7 +218,7 @@ Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
     Isolate* isolate, Handle<Object> receiver, uint32_t index) {
   // Strings are the only objects with properties (only elements) directly on
   // the wrapper. Hence we can skip generating the wrapper for all other cases.
-  if (index != kMaxUInt32 && receiver->IsString() &&
+  if (receiver->IsString() &&
       index < static_cast<uint32_t>(String::cast(*receiver)->length())) {
     // TODO(verwaest): Speed this up. Perhaps use a cached wrapper on the native
     // context, ensuring that we don't leak it into JS?
