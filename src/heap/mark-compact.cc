@@ -1702,7 +1702,21 @@ void MarkCompactCollector::ProcessMarkingWorklistInternal() {
   HeapObject object;
   MarkCompactMarkingVisitor visitor(this, marking_state());
   while (!(object = marking_worklist()->Pop()).is_null()) {
-    DCHECK(!object->IsFiller());
+    // Left trimming may result in grey or black filler objects on the marking
+    // worklist. Ignore these objects.
+    if (object->IsFiller()) {
+      // Due to copying mark bits and the fact that grey and black have their
+      // first bit set, one word fillers are always black.
+      DCHECK_IMPLIES(
+          object->map() == ReadOnlyRoots(heap()).one_pointer_filler_map(),
+          marking_state()->IsBlack(object));
+      // Other fillers may be black or grey depending on the color of the object
+      // that was trimmed.
+      DCHECK_IMPLIES(
+          object->map() != ReadOnlyRoots(heap()).one_pointer_filler_map(),
+          marking_state()->IsBlackOrGrey(object));
+      continue;
+    }
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
     DCHECK(!(marking_state()->IsWhite(object)));
