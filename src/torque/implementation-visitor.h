@@ -140,6 +140,7 @@ class LocationReference {
 };
 
 struct InitializerResults {
+  std::vector<Identifier*> names;
   std::vector<VisitResult> results;
 };
 
@@ -261,7 +262,7 @@ class ImplementationVisitor : public FileVisitor {
   const Type* Visit(Statement* stmt);
 
   InitializerResults VisitInitializerResults(
-      const std::vector<Expression*>& expressions);
+      const std::vector<NameAndExpression>& expressions);
 
   size_t InitializeAggregateHelper(
       const AggregateType* aggregate_type, VisitResult allocate_result,

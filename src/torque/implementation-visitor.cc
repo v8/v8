@@ -1250,10 +1250,11 @@ VisitResult ImplementationVisitor::Visit(StatementExpression* expr) {
 }
 
 InitializerResults ImplementationVisitor::VisitInitializerResults(
-    const std::vector<Expression*>& expressions) {
+    const std::vector<NameAndExpression>& initializers) {
   InitializerResults result;
-  for (auto e : expressions) {
-    result.results.push_back(Visit(e));
+  for (const NameAndExpression& initializer : initializers) {
+    result.names.push_back(initializer.name);
+    result.results.push_back(Visit(initializer.expression));
   }
   return result;
 }
@@ -1271,12 +1272,18 @@ size_t ImplementationVisitor::InitializeAggregateHelper(
     }
   }
 
-  for (auto f : aggregate_type->fields()) {
+  for (Field f : aggregate_type->fields()) {
     if (current == initializer_results.results.size()) {
       ReportError("insufficient number of initializers for ",
                   aggregate_type->name());
     }
     VisitResult current_value = initializer_results.results[current];
+    Identifier* fieldname = initializer_results.names[current];
+    if (fieldname->value != f.name_and_type.name) {
+      CurrentSourcePosition::Scope scope(fieldname->pos);
+      ReportError("Expected fieldname \"", f.name_and_type.name,
+                  "\" instead of \"", fieldname->value, "\"");
+    }
     if (aggregate_type->IsClassType()) {
       allocate_result.SetType(aggregate_type);
       GenerateCopy(allocate_result);
@@ -1320,7 +1327,7 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
   }
 
   InitializerResults initializer_results =
-      VisitInitializerResults(expr->parameters);
+      VisitInitializerResults(expr->initializers);
 
   // Output the code to generate an uninitialized object of the class size in
   // the GC heap.
@@ -1692,18 +1699,15 @@ VisitResult ImplementationVisitor::GenerateCopy(const VisitResult& to_copy) {
   return to_copy;
 }
 
-VisitResult ImplementationVisitor::Visit(StructExpression* decl) {
+VisitResult ImplementationVisitor::Visit(StructExpression* expr) {
   StackScope stack_scope(this);
-  const Type* raw_type = Declarations::LookupType(
-      QualifiedName(decl->namespace_qualification, decl->name));
+  const Type* raw_type = Declarations::GetType(expr->type);
   if (!raw_type->IsStructType()) {
-    std::stringstream s;
-    s << decl->name << " is not a struct but used like one ";
-    ReportError(s.str());
+    ReportError(*raw_type, " is not a struct but used like one");
   }
 
   InitializerResults initialization_results =
-      ImplementationVisitor::VisitInitializerResults(decl->expressions);
+      ImplementationVisitor::VisitInitializerResults(expr->initializers);
 
   const StructType* struct_type = StructType::cast(raw_type);
   // Push uninitialized 'this'

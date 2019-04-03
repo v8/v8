@@ -80,6 +80,10 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
         ParseResultTypeId::kNameAndTypeExpression;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<NameAndExpression>::id =
+        ParseResultTypeId::kNameAndExpression;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<ClassFieldExpression>::id =
         ParseResultTypeId::kClassFieldExpression;
 template <>
@@ -90,6 +94,10 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<NameAndTypeExpression>>::id =
         ParseResultTypeId::kStdVectorOfNameAndTypeExpression;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::vector<NameAndExpression>>::id =
+        ParseResultTypeId::kStdVectorOfNameAndExpression;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<ClassFieldExpression>>::id =
@@ -257,7 +265,7 @@ base::Optional<ParseResult> MakeCall(ParseResultIterator* child_results) {
   auto args = child_results->NextAs<std::vector<Expression*>>();
   auto otherwise = child_results->NextAs<std::vector<Statement*>>();
   IdentifierExpression* target = IdentifierExpression::cast(callee);
-    return ParseResult{MakeCall(target, base::nullopt, args, otherwise)};
+  return ParseResult{MakeCall(target, base::nullopt, args, otherwise)};
 }
 
 base::Optional<ParseResult> MakeMethodCall(ParseResultIterator* child_results) {
@@ -270,10 +278,11 @@ base::Optional<ParseResult> MakeMethodCall(ParseResultIterator* child_results) {
                this_arg, args, otherwise)};
 }
 
-base::Optional<ParseResult> MakeNew(ParseResultIterator* child_results) {
-  TypeExpression* type = child_results->NextAs<TypeExpression*>();
-  auto args = child_results->NextAs<std::vector<Expression*>>();
-  Expression* result = MakeNode<NewExpression>(type, args);
+base::Optional<ParseResult> MakeNewExpression(
+    ParseResultIterator* child_results) {
+  auto type = child_results->NextAs<TypeExpression*>();
+  auto initializers = child_results->NextAs<std::vector<NameAndExpression>>();
+  Expression* result = MakeNode<NewExpression>(type, std::move(initializers));
   return ParseResult{result};
 }
 
@@ -1007,13 +1016,10 @@ base::Optional<ParseResult> MakeElementAccessExpression(
 
 base::Optional<ParseResult> MakeStructExpression(
     ParseResultIterator* child_results) {
-  auto namespace_qualification =
-      child_results->NextAs<std::vector<std::string>>();
-  auto name = child_results->NextAs<std::string>();
-  auto expressions = child_results->NextAs<std::vector<Expression*>>();
+  auto type = child_results->NextAs<TypeExpression*>();
+  auto initializers = child_results->NextAs<std::vector<NameAndExpression>>();
   Expression* result =
-      MakeNode<StructExpression>(std::move(namespace_qualification),
-                                 std::move(name), std::move(expressions));
+      MakeNode<StructExpression>(type, std::move(initializers));
   return ParseResult{result};
 }
 
@@ -1100,6 +1106,26 @@ base::Optional<ParseResult> MakeNameAndType(
   auto name = child_results->NextAs<Identifier*>();
   auto type = child_results->NextAs<TypeExpression*>();
   return ParseResult{NameAndTypeExpression{name, type}};
+}
+
+base::Optional<ParseResult> MakeNameAndExpression(
+    ParseResultIterator* child_results) {
+  auto name = child_results->NextAs<Identifier*>();
+  auto expression = child_results->NextAs<Expression*>();
+  return ParseResult{NameAndExpression{name, expression}};
+}
+
+base::Optional<ParseResult> MakeNameAndExpressionFromExpression(
+    ParseResultIterator* child_results) {
+  auto expression = child_results->NextAs<Expression*>();
+  if (auto* id = IdentifierExpression::DynamicCast(expression)) {
+    if (!id->generic_arguments.empty() ||
+        !id->namespace_qualification.empty()) {
+      ReportError("expected a plain identifier without qualification");
+    }
+    return ParseResult{NameAndExpression{id->name, id}};
+  }
+  ReportError("Constructor parameters need to be named.");
 }
 
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
@@ -1308,8 +1334,8 @@ struct TorqueGrammar : Grammar {
   // Result: NameAndTypeExpression
   Symbol nameAndType = {Rule({&name, Token(":"), &type}, MakeNameAndType)};
 
-  Symbol* optionalArraySpecifier = {
-      Optional<std::string>(Sequence({Token("["), &identifier, Token("]")}))};
+  Symbol* optionalArraySpecifier =
+      Optional<std::string>(Sequence({Token("["), &identifier, Token("]")}));
 
   Symbol classField = {
       Rule({CheckIf(Token("weak")), CheckIf(Token("const")), &name,
@@ -1385,16 +1411,21 @@ struct TorqueGrammar : Grammar {
   Symbol callExpression = {Rule(
       {&identifierExpression, &argumentList, optionalOtherwise}, MakeCall)};
 
+  // Result: Expression*
   Symbol callMethodExpression = {
       Rule({&primaryExpression, Token("."), &identifier, &argumentList,
             optionalOtherwise},
            MakeMethodCall)};
 
-  Symbol initializerList = {Rule(
-      {Token("{"), List<Expression*>(expression, Token(",")), Token("}")})};
+  // Result: NameAndExpression
+  Symbol namedExpression = {
+      Rule({&name, Token(":"), expression}, MakeNameAndExpression),
+      Rule({expression}, MakeNameAndExpressionFromExpression)};
 
-  Symbol newExpression = {
-      Rule({Token("new"), &type, &initializerList}, MakeNew)};
+  // Result: std::vector<NameAndExpression>
+  Symbol initializerList = {
+      Rule({Token("{"), List<NameAndExpression>(&namedExpression, Token(",")),
+            Token("}")})};
 
   // Result: Expression*
   Symbol intrinsicCallExpression = {Rule(
@@ -1404,7 +1435,6 @@ struct TorqueGrammar : Grammar {
 
   // Result: Expression*
   Symbol primaryExpression = {
-      Rule({&newExpression}),
       Rule({&callExpression}),
       Rule({&callMethodExpression}),
       Rule({&intrinsicCallExpression}),
@@ -1412,10 +1442,8 @@ struct TorqueGrammar : Grammar {
            CastParseResult<LocationExpression*, Expression*>),
       Rule({&decimalLiteral}, MakeNumberLiteralExpression),
       Rule({&stringLiteral}, MakeStringLiteralExpression),
-      Rule(
-          {List<std::string>(Sequence({&identifier, Token("::")})), &identifier,
-           Token("{"), List<Expression*>(expression, Token(",")), Token("}")},
-          MakeStructExpression),
+      Rule({&simpleType, &initializerList}, MakeStructExpression),
+      Rule({Token("new"), &simpleType, &initializerList}, MakeNewExpression),
       Rule({Token("("), expression, Token(")")})};
 
   // Result: Expression*

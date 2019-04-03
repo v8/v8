@@ -291,18 +291,20 @@ struct CallExpression : Expression {
   std::vector<std::string> labels;
 };
 
+struct NameAndExpression {
+  Identifier* name;
+  Expression* expression;
+};
+
 struct StructExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(StructExpression)
-  StructExpression(SourcePosition pos,
-                   std::vector<std::string> namespace_qualification,
-                   std::string name, std::vector<Expression*> expressions)
+  StructExpression(SourcePosition pos, TypeExpression* type,
+                   std::vector<NameAndExpression> initializers)
       : Expression(kKind, pos),
-        namespace_qualification(std::move(namespace_qualification)),
-        name(std::move(name)),
-        expressions(std::move(expressions)) {}
-  std::vector<std::string> namespace_qualification;
-  std::string name;
-  std::vector<Expression*> expressions;
+        type(type),
+        initializers(std::move(initializers)) {}
+  TypeExpression* type;
+  std::vector<NameAndExpression> initializers;
 };
 
 struct LogicalOrExpression : Expression {
@@ -410,10 +412,12 @@ struct AssumeTypeImpossibleExpression : Expression {
 struct NewExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(NewExpression)
   NewExpression(SourcePosition pos, TypeExpression* type,
-                std::vector<Expression*> parameters)
-      : Expression(kKind, pos), type(type), parameters(parameters) {}
+                std::vector<NameAndExpression> initializers)
+      : Expression(kKind, pos),
+        type(type),
+        initializers(std::move(initializers)) {}
   TypeExpression* type;
-  std::vector<Expression*> parameters;
+  std::vector<NameAndExpression> initializers;
 };
 
 struct ParameterList {

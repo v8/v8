@@ -135,19 +135,19 @@ namespace array {
 
     return new SortState{
       receiver,
-      map,
+      initialReceiverMap: map,
       initialReceiverLength,
-      comparefn,
+      userCmpFn: comparefn,
       sortComparePtr,
       loadFn,
       storeFn,
       canUseSameAccessorFn,
-      kSuccess,
-      kMinGallopWins,
-      0,
-      AllocateZeroedFixedArray(Convert<intptr>(kMaxMergePending)),
-      AllocateZeroedFixedArray(Convert<intptr>(sortLength)),
-      kEmptyFixedArray
+      bailoutStatus: kSuccess,
+      minGallop: kMinGallopWins,
+      pendingRunsSize: 0,
+      pendingRuns: AllocateZeroedFixedArray(Convert<intptr>(kMaxMergePending)),
+      workArray: AllocateZeroedFixedArray(Convert<intptr>(sortLength)),
+      tempArray: kEmptyFixedArray
     };
   }
 

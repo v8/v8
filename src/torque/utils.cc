@@ -123,7 +123,7 @@ DEFINE_CONTEXTUAL_VARIABLE(LintErrorStatus)
 [[noreturn]] void ReportErrorString(const std::string& error,
                                     bool print_position) {
   if (print_position) std::cerr << CurrentPositionAsString() << ": ";
-  std::cerr << ": Torque error: " << error << "\n";
+  std::cerr << "Torque error: " << error << "\n";
   v8::base::OS::Abort();
 }
 

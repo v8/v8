@@ -219,10 +219,10 @@ namespace array_join {
         Signed(len);
     assert(cappedBufferSize > 0);
     return Buffer{
-      AllocateZeroedFixedArray(cappedBufferSize),
-      0,
-      0,
-      IsOneByteStringInstanceType(sep.instanceType)
+      fixedArray: AllocateZeroedFixedArray(cappedBufferSize),
+      index: 0,
+      totalStringLength: 0,
+      isOneByte: IsOneByteStringInstanceType(sep.instanceType)
     };
   }
 
