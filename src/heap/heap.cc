@@ -1535,6 +1535,8 @@ void Heap::CopyElements(FixedArray dst_array, FixedArray src_array,
   DCHECK_NE(dst_array->map(), ReadOnlyRoots(this).fixed_cow_array_map());
   ObjectSlot dst = dst_array->RawFieldOfElementAt(dst_index);
   ObjectSlot src = src_array->RawFieldOfElementAt(src_index);
+  // Ensure ranges do not overlap.
+  DCHECK(dst + len <= src || src + len <= dst);
   if (FLAG_concurrent_marking && incremental_marking()->IsMarking()) {
     if (dst < src) {
       for (int i = 0; i < len; i++) {
@@ -1553,8 +1555,7 @@ void Heap::CopyElements(FixedArray dst_array, FixedArray src_array,
       }
     }
   } else {
-    // TODO(sigurds): Figure out whether we can use MemCopy here.
-    MemMove(dst.ToVoidPtr(), src.ToVoidPtr(), len * kTaggedSize);
+    MemCopy(dst.ToVoidPtr(), src.ToVoidPtr(), len * kTaggedSize);
   }
   if (mode == SKIP_WRITE_BARRIER) return;
   FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(this, dst_array, dst_index, len);
