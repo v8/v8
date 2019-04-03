@@ -637,6 +637,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine()) {
     CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
+              map()->is_frozen_or_sealed_elements() ||
               (elements() == GetReadOnlyRoots().empty_fixed_array()) ||
               HasFastStringWrapperElements()),
              (elements()->map() == GetReadOnlyRoots().fixed_array_map() ||
@@ -1267,10 +1268,11 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
   }
   if (!length()->IsNumber()) return;
   // Verify that the length and the elements backing store are in sync.
-  if (length()->IsSmi() && HasFastElements()) {
+  if (length()->IsSmi() && (HasFastElements() || HasFrozenOrSealedElements())) {
     if (elements()->length() > 0) {
       CHECK_IMPLIES(HasDoubleElements(), elements()->IsFixedDoubleArray());
-      CHECK_IMPLIES(HasSmiOrObjectElements(), elements()->IsFixedArray());
+      CHECK_IMPLIES(HasSmiOrObjectElements() || HasFrozenOrSealedElements(),
+                    elements()->IsFixedArray());
     }
     int size = Smi::ToInt(length());
     // Holey / Packed backing stores might have slack or might have not been
@@ -2249,6 +2251,8 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     case PACKED_DOUBLE_ELEMENTS:
     case HOLEY_ELEMENTS:
     case PACKED_ELEMENTS:
+    case PACKED_FROZEN_ELEMENTS:
+    case PACKED_SEALED_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       int holes = 0;

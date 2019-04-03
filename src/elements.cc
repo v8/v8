@@ -33,6 +33,8 @@
 //       - FastPackedSmiElementsAccessor
 //       - FastHoleySmiElementsAccessor
 //       - FastPackedObjectElementsAccessor
+//       - FastPackedFrozenObjectElementsAccessor
+//       - FastPackedSealedObjectElementsAccessor
 //       - FastHoleyObjectElementsAccessor
 //     - FastDoubleElementsAccessor
 //       - FastPackedDoubleElementsAccessor
@@ -82,6 +84,10 @@ enum Where { AT_START, AT_END };
   V(FastPackedDoubleElementsAccessor, PACKED_DOUBLE_ELEMENTS,                 \
     FixedDoubleArray)                                                         \
   V(FastHoleyDoubleElementsAccessor, HOLEY_DOUBLE_ELEMENTS, FixedDoubleArray) \
+  V(FastPackedSealedObjectElementsAccessor, PACKED_SEALED_ELEMENTS,           \
+    FixedArray)                                                               \
+  V(FastPackedFrozenObjectElementsAccessor, PACKED_FROZEN_ELEMENTS,           \
+    FixedArray)                                                               \
   V(DictionaryElementsAccessor, DICTIONARY_ELEMENTS, NumberDictionary)        \
   V(FastSloppyArgumentsElementsAccessor, FAST_SLOPPY_ARGUMENTS_ELEMENTS,      \
     FixedArray)                                                               \
@@ -1347,7 +1353,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   static uint32_t GetEntryForIndexImpl(Isolate* isolate, JSObject holder,
                                        FixedArrayBase backing_store,
                                        uint32_t index, PropertyFilter filter) {
-    DCHECK(IsFastElementsKind(kind()));
+    DCHECK(IsFastElementsKind(kind()) || IsFrozenOrSealedElementsKind(kind()));
     uint32_t length = Subclass::GetMaxIndex(holder, backing_store);
     if (IsHoleyElementsKind(kind())) {
       return index < length &&
@@ -2325,7 +2331,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           }
           return Just(false);
         }
-      } else if (!IsObjectElementsKind(Subclass::kind())) {
+      } else if (!IsObjectElementsKind(Subclass::kind()) &&
+                 !IsFrozenOrSealedElementsKind(Subclass::kind())) {
         // Search for non-number, non-Undefined value, with either
         // PACKED_SMI_ELEMENTS, PACKED_DOUBLE_ELEMENTS, HOLEY_SMI_ELEMENTS or
         // HOLEY_DOUBLE_ELEMENTS. Guaranteed to return false, since these
@@ -2334,7 +2341,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       } else {
         // Search for non-number, non-Undefined value with either
         // PACKED_ELEMENTS or HOLEY_ELEMENTS.
-        DCHECK(IsObjectElementsKind(Subclass::kind()));
+        DCHECK(IsObjectElementsKind(Subclass::kind()) ||
+               IsFrozenOrSealedElementsKind(Subclass::kind()));
         auto elements = FixedArray::cast(receiver->elements());
 
         for (uint32_t k = start_from; k < length; ++k) {
@@ -2549,6 +2557,8 @@ class FastSmiOrObjectElementsAccessor
       case PACKED_SMI_ELEMENTS:
       case HOLEY_SMI_ELEMENTS:
       case PACKED_ELEMENTS:
+      case PACKED_FROZEN_ELEMENTS:
+      case PACKED_SEALED_ELEMENTS:
       case HOLEY_ELEMENTS:
         CopyObjectToObjectElements(isolate, from, from_kind, from_start, to,
                                    to_kind, to_start, copy_size);
@@ -2626,7 +2636,8 @@ class FastSmiOrObjectElementsAccessor
     length = std::min(static_cast<uint32_t>(elements_base->length()), length);
 
     // Only FAST_{,HOLEY_}ELEMENTS can store non-numbers.
-    if (!value->IsNumber() && !IsObjectElementsKind(Subclass::kind())) {
+    if (!value->IsNumber() && !IsObjectElementsKind(Subclass::kind()) &&
+        !IsFrozenOrSealedElementsKind(Subclass::kind())) {
       return Just<int64_t>(-1);
     }
     // NaN can never be found by strict equality.
@@ -2675,6 +2686,107 @@ class FastPackedObjectElementsAccessor
       : FastSmiOrObjectElementsAccessor<FastPackedObjectElementsAccessor,
                                         ElementsKindTraits<PACKED_ELEMENTS>>(
             name) {}
+};
+
+class FastPackedFrozenObjectElementsAccessor
+    : public FastSmiOrObjectElementsAccessor<
+          FastPackedFrozenObjectElementsAccessor,
+          ElementsKindTraits<PACKED_FROZEN_ELEMENTS>> {
+ public:
+  explicit FastPackedFrozenObjectElementsAccessor(const char* name)
+      : FastSmiOrObjectElementsAccessor<
+            FastPackedFrozenObjectElementsAccessor,
+            ElementsKindTraits<PACKED_FROZEN_ELEMENTS>>(name) {}
+
+  static inline void SetImpl(Handle<JSObject> holder, uint32_t entry,
+                             Object value) {
+    UNREACHABLE();
+  }
+
+  static inline void SetImpl(FixedArrayBase backing_store, uint32_t entry,
+                             Object value) {
+    UNREACHABLE();
+  }
+
+  static inline void SetImpl(FixedArrayBase backing_store, uint32_t entry,
+                             Object value, WriteBarrierMode mode) {
+    UNREACHABLE();
+  }
+
+  static Handle<Object> RemoveElement(Handle<JSArray> receiver,
+                                      Where remove_position) {
+    UNREACHABLE();
+  }
+
+  static void DeleteImpl(Handle<JSObject> obj, uint32_t entry) {
+    UNREACHABLE();
+  }
+
+  static void DeleteAtEnd(Handle<JSObject> obj,
+                          Handle<BackingStore> backing_store, uint32_t entry) {
+    UNREACHABLE();
+  }
+
+  static void DeleteCommon(Handle<JSObject> obj, uint32_t entry,
+                           Handle<FixedArrayBase> store) {
+    UNREACHABLE();
+  }
+
+  static Handle<Object> PopImpl(Handle<JSArray> receiver) { UNREACHABLE(); }
+
+  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+                           uint32_t push_size) {
+    UNREACHABLE();
+  }
+
+  static void AddImpl(Handle<JSObject> object, uint32_t index,
+                      Handle<Object> value, PropertyAttributes attributes,
+                      uint32_t new_capacity) {
+    UNREACHABLE();
+  }
+};
+
+class FastPackedSealedObjectElementsAccessor
+    : public FastSmiOrObjectElementsAccessor<
+          FastPackedSealedObjectElementsAccessor,
+          ElementsKindTraits<PACKED_SEALED_ELEMENTS>> {
+ public:
+  explicit FastPackedSealedObjectElementsAccessor(const char* name)
+      : FastSmiOrObjectElementsAccessor<
+            FastPackedSealedObjectElementsAccessor,
+            ElementsKindTraits<PACKED_SEALED_ELEMENTS>>(name) {}
+
+  static Handle<Object> RemoveElement(Handle<JSArray> receiver,
+                                      Where remove_position) {
+    UNREACHABLE();
+  }
+
+  static void DeleteImpl(Handle<JSObject> obj, uint32_t entry) {
+    UNREACHABLE();
+  }
+
+  static void DeleteAtEnd(Handle<JSObject> obj,
+                          Handle<BackingStore> backing_store, uint32_t entry) {
+    UNREACHABLE();
+  }
+
+  static void DeleteCommon(Handle<JSObject> obj, uint32_t entry,
+                           Handle<FixedArrayBase> store) {
+    UNREACHABLE();
+  }
+
+  static Handle<Object> PopImpl(Handle<JSArray> receiver) { UNREACHABLE(); }
+
+  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+                           uint32_t push_size) {
+    UNREACHABLE();
+  }
+
+  static void AddImpl(Handle<JSObject> object, uint32_t index,
+                      Handle<Object> value, PropertyAttributes attributes,
+                      uint32_t new_capacity) {
+    UNREACHABLE();
+  }
 };
 
 class FastHoleyObjectElementsAccessor
@@ -2733,6 +2845,8 @@ class FastDoubleElementsAccessor
         CopyDoubleToDoubleElements(from, from_start, to, to_start, copy_size);
         break;
       case PACKED_ELEMENTS:
+      case PACKED_FROZEN_ELEMENTS:
+      case PACKED_SEALED_ELEMENTS:
       case HOLEY_ELEMENTS:
         CopyObjectToDoubleElements(from, from_start, to, to_start, copy_size);
         break;

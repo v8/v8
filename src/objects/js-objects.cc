@@ -3671,6 +3671,8 @@ bool TestElementsIntegrityLevel(JSObject object, PropertyAttributes level) {
       return false;  // TypedArrays with elements can't be frozen.
     return TestPropertiesIntegrityLevel(object, level);
   }
+  if (kind == PACKED_FROZEN_ELEMENTS) return true;
+  if (kind == PACKED_SEALED_ELEMENTS && level != FROZEN) return true;
 
   ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
   // Only DICTIONARY_ELEMENTS and SLOW_SLOPPY_ARGUMENTS_ELEMENTS have
@@ -3812,6 +3814,10 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   if (attrs == NONE && !object->map()->is_extensible()) return Just(true);
+  ElementsKind old_elements_kind = object->map()->elements_kind();
+  if (attrs != FROZEN && old_elements_kind == PACKED_SEALED_ELEMENTS)
+    return Just(true);
+  if (old_elements_kind == PACKED_FROZEN_ELEMENTS) return Just(true);
 
   if (object->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, object);
@@ -3869,7 +3875,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     Handle<Map> transition_map(transition, isolate);
     DCHECK(transition_map->has_dictionary_elements() ||
            transition_map->has_fixed_typed_array_elements() ||
-           transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS);
+           transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS ||
+           transition_map->is_frozen_or_sealed_elements());
     DCHECK(!transition_map->is_extensible());
     JSObject::MigrateToMap(object, transition_map);
   } else if (transitions.CanHaveMoreTransitions()) {
@@ -3909,6 +3916,10 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
         ApplyAttributesToDictionary(isolate, roots, dictionary, attrs);
       }
     }
+  }
+
+  if (object->map()->is_frozen_or_sealed_elements()) {
+    return Just(true);
   }
 
   // Both seal and preventExtensions always go through without modifications to
@@ -3962,6 +3973,8 @@ bool JSObject::HasEnumerableElements() {
   switch (object->GetElementsKind()) {
     case PACKED_SMI_ELEMENTS:
     case PACKED_ELEMENTS:
+    case PACKED_FROZEN_ELEMENTS:
+    case PACKED_SEALED_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS: {
       int length = object->IsJSArray()
                        ? Smi::ToInt(JSArray::cast(object)->length())
@@ -4716,6 +4729,8 @@ int JSObject::GetFastElementsUsage() {
     case PACKED_SMI_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS:
     case PACKED_ELEMENTS:
+    case PACKED_FROZEN_ELEMENTS:
+    case PACKED_SEALED_ELEMENTS:
       return IsJSArray() ? Smi::ToInt(JSArray::cast(*this)->length())
                          : store->length();
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:

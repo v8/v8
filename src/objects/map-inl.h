@@ -500,6 +500,10 @@ bool Map::has_dictionary_elements() const {
   return IsDictionaryElementsKind(elements_kind());
 }
 
+bool Map::is_frozen_or_sealed_elements() const {
+  return IsFrozenOrSealedElementsKind(elements_kind());
+}
+
 void Map::set_is_dictionary_map(bool value) {
   uint32_t new_bit_field3 = IsDictionaryMapBit::update(bit_field3(), value);
   new_bit_field3 = IsUnstableBit::update(new_bit_field3, value);

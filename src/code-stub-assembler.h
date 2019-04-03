@@ -2093,6 +2093,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsNameDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsGlobalDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsExtensibleMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsFrozenOrSealedElementsKindMap(SloppyTNode<Map> map);
   TNode<BoolT> IsExtensibleNonPrototypeMap(TNode<Map> map);
   TNode<BoolT> IsExternalStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsFeedbackCell(SloppyTNode<HeapObject> object);
@@ -2266,6 +2267,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   ElementsKind reference_kind);
   TNode<BoolT> IsElementsKindLessThanOrEqual(TNode<Int32T> target_kind,
                                              ElementsKind reference_kind);
+  // Check if reference_kind_a <= target_kind <= reference_kind_b
+  TNode<BoolT> IsElementsKindInRange(TNode<Int32T> target_kind,
+                                     ElementsKind lower_reference_kind,
+                                     ElementsKind higher_reference_kind);
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).

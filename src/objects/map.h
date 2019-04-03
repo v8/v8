@@ -421,6 +421,7 @@ class Map : public HeapObject {
   inline bool has_fast_string_wrapper_elements() const;
   inline bool has_fixed_typed_array_elements() const;
   inline bool has_dictionary_elements() const;
+  inline bool is_frozen_or_sealed_elements() const;
 
   // Returns true if the current map doesn't have DICTIONARY_ELEMENTS but if a
   // map with DICTIONARY_ELEMENTS was found in the prototype chain.

@@ -1502,7 +1502,10 @@ TNode<Object> CodeStubAssembler::LoadJSArgumentsObjectWithLength(
 TNode<Smi> CodeStubAssembler::LoadFastJSArrayLength(
     SloppyTNode<JSArray> array) {
   TNode<Object> length = LoadJSArrayLength(array);
-  CSA_ASSERT(this, IsFastElementsKind(LoadElementsKind(array)));
+  CSA_ASSERT(this, Word32Or(IsFastElementsKind(LoadElementsKind(array)),
+                            IsElementsKindInRange(LoadElementsKind(array),
+                                                  PACKED_SEALED_ELEMENTS,
+                                                  PACKED_FROZEN_ELEMENTS)));
   // JSArray length is always a positive Smi for fast arrays.
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
   return UncheckedCast<Smi>(length);
@@ -2431,6 +2434,7 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
 
   int32_t kinds[] = {// Handled by if_packed.
                      PACKED_SMI_ELEMENTS, PACKED_ELEMENTS,
+                     PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
                      // Handled by if_holey.
                      HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
                      // Handled by if_packed_double.
@@ -2438,7 +2442,7 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
                      // Handled by if_holey_double.
                      HOLEY_DOUBLE_ELEMENTS};
   Label* labels[] = {// PACKED_{SMI,}_ELEMENTS
-                     &if_packed, &if_packed,
+                     &if_packed, &if_packed, &if_packed, &if_packed,
                      // HOLEY_{SMI,}_ELEMENTS
                      &if_holey, &if_holey,
                      // PACKED_DOUBLE_ELEMENTS
@@ -5891,6 +5895,13 @@ TNode<BoolT> CodeStubAssembler::IsDictionaryMap(SloppyTNode<Map> map) {
 TNode<BoolT> CodeStubAssembler::IsExtensibleMap(SloppyTNode<Map> map) {
   CSA_ASSERT(this, IsMap(map));
   return IsSetWord32<Map::IsExtensibleBit>(LoadMapBitField2(map));
+}
+
+TNode<BoolT> CodeStubAssembler::IsFrozenOrSealedElementsKindMap(
+    SloppyTNode<Map> map) {
+  CSA_ASSERT(this, IsMap(map));
+  return IsElementsKindInRange(LoadMapElementsKind(map), PACKED_SEALED_ELEMENTS,
+                               PACKED_FROZEN_ELEMENTS);
 }
 
 TNode<BoolT> CodeStubAssembler::IsExtensibleNonPrototypeMap(TNode<Map> map) {
@@ -10651,7 +10662,8 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     BIND(&done);
     return;
   }
-  DCHECK(IsFastElementsKind(elements_kind));
+  DCHECK(IsFastElementsKind(elements_kind) ||
+         elements_kind == PACKED_SEALED_ELEMENTS);
 
   Node* length =
       SelectImpl(IsJSArray(object), [=]() { return LoadJSArrayLength(object); },
@@ -10668,7 +10680,8 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     value = TryTaggedToFloat64(value, bailout);
   }
 
-  if (IsGrowStoreMode(store_mode)) {
+  if (IsGrowStoreMode(store_mode) &&
+      !(elements_kind == PACKED_SEALED_ELEMENTS)) {
     elements = CheckForCapacityGrow(object, elements, elements_kind, length,
                                     intptr_key, parameter_mode, bailout);
   } else {
@@ -13403,6 +13416,15 @@ Node* CodeStubAssembler::IsElementsKindGreaterThan(
 TNode<BoolT> CodeStubAssembler::IsElementsKindLessThanOrEqual(
     TNode<Int32T> target_kind, ElementsKind reference_kind) {
   return Int32LessThanOrEqual(target_kind, Int32Constant(reference_kind));
+}
+
+TNode<BoolT> CodeStubAssembler::IsElementsKindInRange(
+    TNode<Int32T> target_kind, ElementsKind lower_reference_kind,
+    ElementsKind higher_reference_kind) {
+  return Int32LessThanOrEqual(
+      Int32Sub(target_kind, Int32Constant(lower_reference_kind)),
+      Int32Sub(Int32Constant(higher_reference_kind),
+               Int32Constant(lower_reference_kind)));
 }
 
 Node* CodeStubAssembler::IsDebugActive() {

@@ -1163,6 +1163,11 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
       return holder->IsJSTypedArray() ? INTEGER_INDEXED_EXOTIC : NOT_FOUND;
     }
     property_details_ = accessor->GetDetails(js_object, number_);
+    if (map->is_frozen_or_sealed_elements()) {
+      PropertyAttributes attrs =
+          map->elements_kind() == PACKED_SEALED_ELEMENTS ? SEALED : FROZEN;
+      property_details_ = property_details_.CopyAddAttributes(attrs);
+    }
   } else if (!map->is_dictionary_map()) {
     DescriptorArray descriptors = map->instance_descriptors();
     int number = descriptors->SearchWithCache(isolate_, *name_, map);

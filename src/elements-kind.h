@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/checks.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -41,6 +42,10 @@ enum ElementsKind : uint8_t {
   PACKED_DOUBLE_ELEMENTS,
   HOLEY_DOUBLE_ELEMENTS,
 
+  // The sealed, frozen kind for packed elements.
+  PACKED_SEALED_ELEMENTS,
+  PACKED_FROZEN_ELEMENTS,
+
   // The "slow" kind.
   DICTIONARY_ELEMENTS,
 
@@ -69,6 +74,7 @@ enum ElementsKind : uint8_t {
   FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_ELEMENTS,
   LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = BIGINT64_ELEMENTS,
   TERMINAL_FAST_ELEMENTS_KIND = HOLEY_ELEMENTS,
+  LAST_FROZEN_ELEMENTS_KIND = PACKED_FROZEN_ELEMENTS,
 
 // Alias for kSystemPointerSize-sized elements
 #ifdef V8_COMPRESS_POINTERS
@@ -103,18 +109,18 @@ inline bool IsDictionaryElementsKind(ElementsKind kind) {
 }
 
 inline bool IsSloppyArgumentsElementsKind(ElementsKind kind) {
-  return kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS ||
-         kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
+  return IsInRange(kind, FAST_SLOPPY_ARGUMENTS_ELEMENTS,
+                   SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
 }
 
 inline bool IsStringWrapperElementsKind(ElementsKind kind) {
-  return kind == FAST_STRING_WRAPPER_ELEMENTS ||
-         kind == SLOW_STRING_WRAPPER_ELEMENTS;
+  return IsInRange(kind, FAST_STRING_WRAPPER_ELEMENTS,
+                   SLOW_STRING_WRAPPER_ELEMENTS);
 }
 
 inline bool IsFixedTypedArrayElementsKind(ElementsKind kind) {
-  return kind >= FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND &&
-         kind <= LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
+  return IsInRange(kind, FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
+                   LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
 }
 
 inline bool IsTerminalElementsKind(ElementsKind kind) {
@@ -124,7 +130,7 @@ inline bool IsTerminalElementsKind(ElementsKind kind) {
 
 inline bool IsFastElementsKind(ElementsKind kind) {
   STATIC_ASSERT(FIRST_FAST_ELEMENTS_KIND == 0);
-  return kind <= HOLEY_DOUBLE_ELEMENTS;
+  return kind <= LAST_FAST_ELEMENTS_KIND;
 }
 
 inline bool IsTransitionElementsKind(ElementsKind kind) {
@@ -134,7 +140,7 @@ inline bool IsTransitionElementsKind(ElementsKind kind) {
 }
 
 inline bool IsDoubleElementsKind(ElementsKind kind) {
-  return kind == PACKED_DOUBLE_ELEMENTS || kind == HOLEY_DOUBLE_ELEMENTS;
+  return IsInRange(kind, PACKED_DOUBLE_ELEMENTS, HOLEY_DOUBLE_ELEMENTS);
 }
 
 
@@ -147,13 +153,17 @@ inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
   return IsDoubleElementsKind(kind) || IsFixedFloatElementsKind(kind);
 }
 
+inline bool IsFrozenOrSealedElementsKind(ElementsKind kind) {
+  return IsInRange(kind, PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS);
+}
+
 inline bool IsSmiOrObjectElementsKind(ElementsKind kind) {
   return kind == PACKED_SMI_ELEMENTS || kind == HOLEY_SMI_ELEMENTS ||
          kind == PACKED_ELEMENTS || kind == HOLEY_ELEMENTS;
 }
 
 inline bool IsSmiElementsKind(ElementsKind kind) {
-  return kind == PACKED_SMI_ELEMENTS || kind == HOLEY_SMI_ELEMENTS;
+  return IsInRange(kind, PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS);
 }
 
 inline bool IsFastNumberElementsKind(ElementsKind kind) {
@@ -161,7 +171,7 @@ inline bool IsFastNumberElementsKind(ElementsKind kind) {
 }
 
 inline bool IsObjectElementsKind(ElementsKind kind) {
-  return kind == PACKED_ELEMENTS || kind == HOLEY_ELEMENTS;
+  return IsInRange(kind, PACKED_ELEMENTS, HOLEY_ELEMENTS);
 }
 
 inline bool IsHoleyElementsKind(ElementsKind kind) {
