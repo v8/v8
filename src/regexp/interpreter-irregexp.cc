@@ -21,8 +21,6 @@
 namespace v8 {
 namespace internal {
 
-using Canonicalize = unibrow::Mapping<unibrow::Ecma262Canonicalize>;
-
 static bool BackRefMatchesNoCase(Isolate* isolate, int from, int current,
                                  int len, Vector<const uc16> subject,
                                  bool unicode) {
