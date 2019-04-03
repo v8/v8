@@ -22,6 +22,7 @@
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-tier.h"
 
 namespace v8 {
 namespace internal {
@@ -100,11 +101,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
         kRuntimeStubCount
   };
 
-  // kOther is used if we have WasmCode that is neither
-  // liftoff- nor turbofan-compiled, i.e. if Kind is
-  // not a kFunction.
-  enum Tier : int8_t { kLiftoff, kTurbofan, kOther };
-
   Vector<byte> instructions() const { return instructions_; }
   Address instruction_start() const {
     return reinterpret_cast<Address>(instructions_.start());
@@ -122,7 +118,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   bool IsAnonymous() const { return index_ == kAnonymousFuncIndex; }
   Kind kind() const { return kind_; }
   NativeModule* native_module() const { return native_module_; }
-  Tier tier() const { return tier_; }
+  ExecutionTier tier() const { return tier_; }
   Address constant_pool() const;
   Address code_comments() const;
   size_t constant_pool_offset() const { return constant_pool_offset_; }
@@ -132,7 +128,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   size_t unpadded_binary_size() const { return unpadded_binary_size_; }
   uint32_t stack_slots() const { return stack_slots_; }
   uint32_t tagged_parameter_slots() const { return tagged_parameter_slots_; }
-  bool is_liftoff() const { return tier_ == kLiftoff; }
+  bool is_liftoff() const { return tier_ == ExecutionTier::kLiftoff; }
   bool contains(Address pc) const {
     return reinterpret_cast<Address>(instructions_.start()) <= pc &&
            pc < reinterpret_cast<Address>(instructions_.end());
@@ -187,7 +183,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
            OwnedVector<trap_handler::ProtectedInstructionData>
                protected_instructions,
            OwnedVector<const byte> reloc_info,
-           OwnedVector<const byte> source_position_table, Kind kind, Tier tier)
+           OwnedVector<const byte> source_position_table, Kind kind,
+           ExecutionTier tier)
       : instructions_(instructions),
         reloc_info_(std::move(reloc_info)),
         source_position_table_(std::move(source_position_table)),
@@ -239,7 +236,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   size_t unpadded_binary_size_ = 0;
   intptr_t trap_handler_index_ = -1;
   OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions_;
-  Tier tier_;
+  ExecutionTier tier_;
 
   // WasmCode is ref counted. Counters are held by:
   //   1) The jump table.
@@ -276,7 +273,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
       OwnedVector<trap_handler::ProtectedInstructionData>
           protected_instructions,
       OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
-      WasmCode::Tier tier);
+      ExecutionTier tier);
 
   // {PublishCode} makes the code available to the system by entering it into
   // the code table and patching the jump table. It returns a raw pointer to the
@@ -294,7 +291,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
           protected_instructions,
       OwnedVector<const byte> reloc_info,
       OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
-      WasmCode::Tier tier);
+      ExecutionTier tier);
 
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(Handle<Code> code);
@@ -435,7 +432,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
       OwnedVector<trap_handler::ProtectedInstructionData>
           protected_instructions,
       OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
-      WasmCode::Tier tier, Vector<uint8_t> code_space);
+      ExecutionTier tier, Vector<uint8_t> code_space);
 
   // Add and publish anonymous code.
   WasmCode* AddAndPublishAnonymousCode(Handle<Code>, WasmCode::Kind kind,

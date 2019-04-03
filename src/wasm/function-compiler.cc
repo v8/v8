@@ -109,10 +109,10 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier(
     if (FLAG_wasm_interpret_all) {
       return ExecutionTier::kInterpreter;
     } else if (FLAG_liftoff) {
-      return ExecutionTier::kBaseline;
+      return ExecutionTier::kLiftoff;
     }
   }
-  return ExecutionTier::kOptimized;
+  return ExecutionTier::kTurbofan;
 }
 
 WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine, int index,
@@ -120,7 +120,7 @@ WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine, int index,
     : wasm_engine_(wasm_engine), func_index_(index), tier_(tier) {
   if (V8_UNLIKELY(FLAG_wasm_tier_mask_for_testing) && index < 32 &&
       (FLAG_wasm_tier_mask_for_testing & (1 << index))) {
-    tier = ExecutionTier::kOptimized;
+    tier = ExecutionTier::kTurbofan;
   }
   SwitchTier(tier);
 }
@@ -162,7 +162,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       // If Liftoff failed, fall back to turbofan.
       // TODO(wasm): We could actually stop or remove the tiering unit for this
       // function to avoid compiling it twice with TurboFan.
-      SwitchTier(ExecutionTier::kOptimized);
+      SwitchTier(ExecutionTier::kTurbofan);
       DCHECK_NOT_NULL(turbofan_unit_);
     }
   }
@@ -192,13 +192,13 @@ void WasmCompilationUnit::SwitchTier(ExecutionTier new_tier) {
   // switch tier from kLiftoff to kTurbofan, in which case {liftoff_unit_} is
   // already set.
   switch (new_tier) {
-    case ExecutionTier::kBaseline:
+    case ExecutionTier::kLiftoff:
       DCHECK(!turbofan_unit_);
       DCHECK(!liftoff_unit_);
       DCHECK(!interpreter_unit_);
       liftoff_unit_.reset(new LiftoffCompilationUnit(this));
       return;
-    case ExecutionTier::kOptimized:
+    case ExecutionTier::kTurbofan:
       DCHECK(!turbofan_unit_);
       DCHECK(!interpreter_unit_);
       liftoff_unit_.reset();
@@ -210,6 +210,8 @@ void WasmCompilationUnit::SwitchTier(ExecutionTier new_tier) {
       DCHECK(!interpreter_unit_);
       interpreter_unit_.reset(new compiler::InterpreterCompilationUnit(this));
       return;
+    case ExecutionTier::kNone:
+      UNREACHABLE();
   }
   UNREACHABLE();
 }

@@ -201,7 +201,7 @@ constexpr size_t kCodeHeaderSize =
     sizeof(size_t) +          // source positions size
     sizeof(size_t) +          // protected instructions size
     sizeof(WasmCode::Kind) +  // code kind
-    sizeof(WasmCode::Tier);   // tier
+    sizeof(ExecutionTier);    // tier
 
 // A List of all isolate-independent external references. This is used to create
 // a tag from the Address of an external reference and vice versa.
@@ -521,7 +521,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   size_t source_position_size = reader->Read<size_t>();
   size_t protected_instructions_size = reader->Read<size_t>();
   WasmCode::Kind kind = reader->Read<WasmCode::Kind>();
-  WasmCode::Tier tier = reader->Read<WasmCode::Tier>();
+  ExecutionTier tier = reader->Read<ExecutionTier>();
 
   Vector<const byte> code_buffer = {reader->current_location(), code_size};
   reader->Skip(code_size);

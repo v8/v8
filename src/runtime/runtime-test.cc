@@ -1197,8 +1197,8 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   int func_start =
       frame->wasm_instance()->module()->functions[func_index].code.offset();
   wasm::ExecutionTier tier = frame->wasm_code()->is_liftoff()
-                                 ? wasm::ExecutionTier::kBaseline
-                                 : wasm::ExecutionTier::kOptimized;
+                                 ? wasm::ExecutionTier::kLiftoff
+                                 : wasm::ExecutionTier::kTurbofan;
   wasm::TraceMemoryOperation(tier, info, func_index, pos - func_start,
                              mem_start);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1211,7 +1211,7 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   CONVERT_SMI_ARG_CHECKED(function_index, 1);
   auto* native_module = instance->module_object()->native_module();
   isolate->wasm_engine()->CompileFunction(
-      isolate, native_module, function_index, wasm::ExecutionTier::kOptimized);
+      isolate, native_module, function_index, wasm::ExecutionTier::kTurbofan);
   CHECK(!native_module->compilation_state()->failed());
   return ReadOnlyRoots(isolate).undefined_value();
 }

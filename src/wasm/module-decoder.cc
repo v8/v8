@@ -1040,8 +1040,9 @@ class ModuleDecoderImpl : public Decoder {
                        hint_byte);
       }
 
-      // Ensure that the second tier never downgrades the compilation result.
-      // If first and secod tier are the same it will be invoked only once.
+      // Ensure that the top tier never downgrades a compilation result.
+      // If baseline and top tier are the same compilation will be invoked only
+      // once.
       if (hint.top_tier < hint.baseline_tier &&
           hint.top_tier != WasmCompilationHintTier::kDefault) {
         decoder.errorf(decoder.pc(),

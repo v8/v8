@@ -305,9 +305,9 @@ ExecutionTier ApplyHintToExecutionTier(WasmCompilationHintTier hint,
     case WasmCompilationHintTier::kInterpreter:
       return ExecutionTier::kInterpreter;
     case WasmCompilationHintTier::kBaseline:
-      return ExecutionTier::kBaseline;
+      return ExecutionTier::kLiftoff;
     case WasmCompilationHintTier::kOptimized:
-      return ExecutionTier::kOptimized;
+      return ExecutionTier::kTurbofan;
   }
   UNREACHABLE();
 }
@@ -355,8 +355,8 @@ ExecutionTierPair GetRequestedExecutionTiers(
     case CompileMode::kTiering:
 
       // Default tiering behaviour.
-      result.baseline_tier = ExecutionTier::kBaseline;
-      result.top_tier = ExecutionTier::kOptimized;
+      result.baseline_tier = ExecutionTier::kLiftoff;
+      result.top_tier = ExecutionTier::kTurbofan;
 
       // Check if compilation hints override default tiering behaviour.
       if (enabled_features.compilation_hints) {
@@ -371,8 +371,8 @@ ExecutionTierPair GetRequestedExecutionTiers(
       }
 
       // Correct top tier if necessary.
-      static_assert(ExecutionTier::kInterpreter < ExecutionTier::kBaseline &&
-                        ExecutionTier::kBaseline < ExecutionTier::kOptimized,
+      static_assert(ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
+                        ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                     "Assume an order on execution tiers");
       if (result.baseline_tier > result.top_tier) {
         result.top_tier = result.baseline_tier;
@@ -817,7 +817,7 @@ class BackgroundCompileTask : public CancelableTask {
           break;
         }
         // Publish TurboFan units immediately to reduce peak memory consumption.
-        if (result.requested_tier == ExecutionTier::kOptimized) {
+        if (result.requested_tier == ExecutionTier::kTurbofan) {
           publish_results(&compile_scope);
         }
 
@@ -1764,8 +1764,8 @@ void CompilationStateImpl::FinishUnits(
 
   // Assume an order of execution tiers that represents the quality of their
   // generated code.
-  static_assert(ExecutionTier::kInterpreter < ExecutionTier::kBaseline &&
-                    ExecutionTier::kBaseline < ExecutionTier::kOptimized,
+  static_assert(ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
+                    ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                 "Assume an order on execution tiers");
 
   auto module = native_module_->module();

@@ -40,7 +40,7 @@ using Int8ShiftOp = int8_t (*)(int8_t, int);
                              ExecutionTier execution_tier);           \
   TEST(RunWasm_##name##_turbofan) {                                   \
     EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
-    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kOptimized);   \
+    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kTurbofan);    \
   }                                                                   \
   TEST(RunWasm_##name##_interpreter) {                                \
     EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
@@ -48,7 +48,7 @@ using Int8ShiftOp = int8_t (*)(int8_t, int);
   }                                                                   \
   TEST(RunWasm_##name##_simd_lowered) {                               \
     EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
-    RunWasm_##name##_Impl(kLowerSimd, ExecutionTier::kOptimized);     \
+    RunWasm_##name##_Impl(kLowerSimd, ExecutionTier::kTurbofan);      \
   }                                                                   \
   void RunWasm_##name##_Impl(LowerSimd lower_simd, ExecutionTier execution_tier)
 
@@ -320,17 +320,17 @@ T Sqrt(T a) {
   index, val, WASM_SIMD_OP(kExprS128StoreMem), ZERO_ALIGNMENT, ZERO_OFFSET
 
 // Runs tests of compiled code, using the interpreter as a reference.
-#define WASM_SIMD_COMPILED_TEST(name)                               \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,                  \
-                             ExecutionTier execution_tier);         \
-  TEST(RunWasm_##name##_turbofan) {                                 \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                                  \
-    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kOptimized); \
-  }                                                                 \
-  TEST(RunWasm_##name##_simd_lowered) {                             \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                                  \
-    RunWasm_##name##_Impl(kLowerSimd, ExecutionTier::kOptimized);   \
-  }                                                                 \
+#define WASM_SIMD_COMPILED_TEST(name)                              \
+  void RunWasm_##name##_Impl(LowerSimd lower_simd,                 \
+                             ExecutionTier execution_tier);        \
+  TEST(RunWasm_##name##_turbofan) {                                \
+    EXPERIMENTAL_FLAG_SCOPE(simd);                                 \
+    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kTurbofan); \
+  }                                                                \
+  TEST(RunWasm_##name##_simd_lowered) {                            \
+    EXPERIMENTAL_FLAG_SCOPE(simd);                                 \
+    RunWasm_##name##_Impl(kLowerSimd, ExecutionTier::kTurbofan);   \
+  }                                                                \
   void RunWasm_##name##_Impl(LowerSimd lower_simd, ExecutionTier execution_tier)
 
 // The macro below disables tests lowering for certain nodes where the simd
@@ -342,7 +342,7 @@ T Sqrt(T a) {
   TEST(RunWasm_##name##_turbofan) {                                   \
     if (!CpuFeatures::SupportsWasmSimd128()) return;                  \
     EXPERIMENTAL_FLAG_SCOPE(simd);                                    \
-    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kOptimized);   \
+    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kTurbofan);    \
   }                                                                   \
   TEST(RunWasm_##name##_interpreter) {                                \
     EXPERIMENTAL_FLAG_SCOPE(simd);                                    \

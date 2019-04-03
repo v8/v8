@@ -603,6 +603,7 @@ WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
   // Flush the i-cache after relocation.
   FlushInstructionCache(dst_code_bytes.start(), dst_code_bytes.size());
 
+  DCHECK_NE(kind, WasmCode::Kind::kInterpreterEntry);
   std::unique_ptr<WasmCode> new_code{new WasmCode{
       this,                                     // native_module
       WasmCode::kAnonymousFuncIndex,            // index
@@ -618,7 +619,7 @@ WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
       std::move(reloc_info),                    // reloc_info
       std::move(source_pos),                    // source positions
       kind,                                     // kind
-      WasmCode::kOther}};                       // tier
+      ExecutionTier::kNone}};                   // tier
   new_code->MaybePrint(name);
   new_code->Validate();
 
@@ -630,7 +631,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     uint32_t tagged_parameter_slots,
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
-    WasmCode::Tier tier) {
+    ExecutionTier tier) {
   return AddCodeWithCodeSpace(index, desc, stack_slots, tagged_parameter_slots,
                               std::move(protected_instructions),
                               std::move(source_position_table), kind, tier,
@@ -642,7 +643,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     uint32_t tagged_parameter_slots,
     OwnedVector<ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
-    WasmCode::Tier tier, Vector<uint8_t> dst_code_bytes) {
+    ExecutionTier tier, Vector<uint8_t> dst_code_bytes) {
   OwnedVector<byte> reloc_info;
   if (desc.reloc_size > 0) {
     reloc_info = OwnedVector<byte>::New(desc.reloc_size);
@@ -714,43 +715,16 @@ WasmCodeUpdate NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
 }
 
 namespace {
-WasmCode::Tier GetCodeTierForExecutionTier(ExecutionTier tier) {
-  switch (tier) {
-    case ExecutionTier::kInterpreter:
-      return WasmCode::Tier::kOther;
-    case ExecutionTier::kBaseline:
-      return WasmCode::Tier::kLiftoff;
-    case ExecutionTier::kOptimized:
-      return WasmCode::Tier::kTurbofan;
-  }
-}
-
 WasmCode::Kind GetCodeKindForExecutionTier(ExecutionTier tier) {
   switch (tier) {
     case ExecutionTier::kInterpreter:
       return WasmCode::Kind::kInterpreterEntry;
-    case ExecutionTier::kBaseline:
-    case ExecutionTier::kOptimized:
+    case ExecutionTier::kLiftoff:
+    case ExecutionTier::kTurbofan:
       return WasmCode::Kind::kFunction;
+    case ExecutionTier::kNone:
+      UNREACHABLE();
   }
-}
-
-// TODO(frgossen): We should merge ExecutionTier with WasmCode::Tier.
-base::Optional<ExecutionTier> GetExecutionTier(WasmCode* code) {
-  if (code == nullptr) return {};
-  switch (code->tier()) {
-    case WasmCode::Tier::kLiftoff:
-      DCHECK_EQ(code->kind(), WasmCode::Kind::kFunction);
-      return ExecutionTier::kBaseline;
-    case WasmCode::Tier::kTurbofan:
-      DCHECK_EQ(code->kind(), WasmCode::Kind::kFunction);
-      return ExecutionTier::kOptimized;
-    case WasmCode::Tier::kOther:
-      if (code->kind() == WasmCode::Kind::kInterpreterEntry)
-        return ExecutionTier::kInterpreter;
-      return {};
-  }
-  UNREACHABLE();
 }
 }  // namespace
 
@@ -765,8 +739,8 @@ WasmCodeUpdate NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
 
     // Assume an order of execution tiers that represents the quality of their
     // generated code.
-    static_assert(ExecutionTier::kInterpreter < ExecutionTier::kBaseline &&
-                      ExecutionTier::kBaseline < ExecutionTier::kOptimized,
+    static_assert(ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
+                      ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                   "Assume an order on execution tiers");
 
     // Update code table but avoid to fall back to less optimized code. We use
@@ -774,8 +748,8 @@ WasmCodeUpdate NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     // determine the tier.
     uint32_t slot_idx = code->index() - module_->num_imported_functions;
     WasmCode* prior_code = code_table_[slot_idx];
-    update.prior_tier = GetExecutionTier(prior_code);
-    update.tier = GetExecutionTier(code.get());
+    if (prior_code) update.prior_tier = prior_code->tier();
+    update.tier = code->tier();
     bool update_code_table = !update.prior_tier.has_value() ||
                              !update.tier.has_value() ||
                              update.prior_tier.value() < update.tier.value();
@@ -814,7 +788,7 @@ WasmCode* NativeModule::AddDeserializedCode(
     OwnedVector<ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> reloc_info,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
-    WasmCode::Tier tier) {
+    ExecutionTier tier) {
   Vector<uint8_t> dst_code_bytes = AllocateForCode(instructions.size());
   memcpy(dst_code_bytes.begin(), instructions.start(), instructions.size());
 
@@ -861,7 +835,7 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {
       OwnedVector<const uint8_t>{},             // reloc_info
       OwnedVector<const uint8_t>{},             // source_pos
       WasmCode::kJumpTable,                     // kind
-      WasmCode::kOther}};                       // tier
+      ExecutionTier::kNone}};                   // tier
   return PublishCode(std::move(code)).code;
 }
 
@@ -1349,8 +1323,8 @@ std::vector<WasmCodeUpdate> NativeModule::AddCompiledCode(
         result.func_index, result.code_desc, result.frame_slot_count,
         result.tagged_parameter_slots, std::move(result.protected_instructions),
         std::move(result.source_positions),
-        GetCodeKindForExecutionTier(result.result_tier),
-        GetCodeTierForExecutionTier(result.result_tier), this_code_space));
+        GetCodeKindForExecutionTier(result.result_tier), result.result_tier,
+        this_code_space));
   }
   DCHECK_EQ(0, code_space.size());
 

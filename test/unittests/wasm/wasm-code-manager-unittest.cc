@@ -176,7 +176,7 @@ class WasmCodeManagerTest : public TestWithContext,
     desc.buffer = exec_buff.get();
     desc.instr_size = static_cast<int>(size);
     std::unique_ptr<WasmCode> code = native_module->AddCode(
-        index, desc, 0, 0, {}, {}, WasmCode::kFunction, WasmCode::kOther);
+        index, desc, 0, 0, {}, {}, WasmCode::kFunction, ExecutionTier::kNone);
     return native_module->PublishCode(std::move(code)).code;
   }
 

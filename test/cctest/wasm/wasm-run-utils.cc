@@ -130,7 +130,7 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
         index, result.code_desc, result.frame_slot_count,
         result.tagged_parameter_slots, std::move(result.protected_instructions),
         std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
-        wasm::WasmCode::kOther);
+        wasm::ExecutionTier::kInterpreter);
     native_module_->PublishCode(std::move(code));
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.

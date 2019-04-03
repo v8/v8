@@ -2082,7 +2082,7 @@ WasmCompilationResult LiftoffCompilationUnit::ExecuteCompilation(
   result.protected_instructions = compiler->GetProtectedInstructions();
   result.frame_slot_count = compiler->GetTotalFrameSlotCount();
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
-  result.result_tier = ExecutionTier::kBaseline;
+  result.result_tier = ExecutionTier::kLiftoff;
 
   DCHECK(result.succeeded());
   return result;

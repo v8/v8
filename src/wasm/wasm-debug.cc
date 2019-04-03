@@ -587,7 +587,7 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
         func_index, result.code_desc, result.frame_slot_count,
         result.tagged_parameter_slots, std::move(result.protected_instructions),
         std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
-        wasm::WasmCode::kOther);
+        wasm::ExecutionTier::kInterpreter);
     Address instruction_start = wasm_code->instruction_start();
     native_module->PublishCode(std::move(wasm_code));
 

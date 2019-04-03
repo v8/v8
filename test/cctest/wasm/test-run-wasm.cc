@@ -3691,7 +3691,7 @@ WASM_EXEC_TEST(I64RemUOnDifferentRegisters) {
 }
 
 TEST(Liftoff_tier_up) {
-  WasmRunner<int32_t, int32_t, int32_t> r(ExecutionTier::kBaseline);
+  WasmRunner<int32_t, int32_t, int32_t> r(ExecutionTier::kLiftoff);
 
   WasmFunctionCompiler& add = r.NewFunction<int32_t, int32_t, int32_t>("add");
   BUILD(add, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
@@ -3723,7 +3723,7 @@ TEST(Liftoff_tier_up) {
     desc.instr_size = static_cast<int>(sub_size);
     std::unique_ptr<WasmCode> new_code = native_module->AddCode(
         add.function_index(), desc, 0, 0, {}, OwnedVector<byte>(),
-        WasmCode::kFunction, WasmCode::kOther);
+        WasmCode::kFunction, ExecutionTier::kNone);
     native_module->PublishCode(std::move(new_code));
 
     // Second run should now execute {sub}.

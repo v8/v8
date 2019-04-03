@@ -5946,7 +5946,7 @@ wasm::WasmCode* CompileWasmMathIntrinsic(wasm::WasmEngine* wasm_engine,
       result.frame_slot_count, result.tagged_parameter_slots,
       std::move(result.protected_instructions),
       std::move(result.source_positions), wasm::WasmCode::kFunction,
-      wasm::WasmCode::kOther);
+      wasm::ExecutionTier::kNone);
   // TODO(titzer): add counters for math intrinsic code size / allocation
   return native_module->PublishCode(std::move(wasm_code)).code;
 }
@@ -6011,7 +6011,7 @@ wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine* wasm_engine,
       result.frame_slot_count, result.tagged_parameter_slots,
       std::move(result.protected_instructions),
       std::move(result.source_positions), wasm::WasmCode::kWasmToJsWrapper,
-      wasm::WasmCode::kOther);
+      wasm::ExecutionTier::kNone);
   return native_module->PublishCode(std::move(wasm_code)).code;
 }
 
@@ -6244,7 +6244,7 @@ wasm::WasmCompilationResult TurbofanWasmCompilationUnit::ExecuteCompilation(
   counters->wasm_compile_function_peak_memory_bytes()->AddSample(
       static_cast<int>(mcgraph->graph()->zone()->allocation_size()));
   auto result = info.ReleaseWasmCompilationResult();
-  DCHECK_EQ(wasm::ExecutionTier::kOptimized, result->result_tier);
+  DCHECK_EQ(wasm::ExecutionTier::kTurbofan, result->result_tier);
   return std::move(*result);
 }
 

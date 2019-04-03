@@ -561,19 +561,19 @@ class WasmRunner : public WasmRunnerBase {
 };
 
 // A macro to define tests that run in different engine configurations.
-#define WASM_EXEC_TEST(name)                                                  \
-  void RunWasm_##name(ExecutionTier execution_tier);                          \
-  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kOptimized); } \
-  TEST(RunWasmLiftoff_##name) { RunWasm_##name(ExecutionTier::kBaseline); }   \
-  TEST(RunWasmInterpreter_##name) {                                           \
-    RunWasm_##name(ExecutionTier::kInterpreter);                              \
-  }                                                                           \
+#define WASM_EXEC_TEST(name)                                                 \
+  void RunWasm_##name(ExecutionTier execution_tier);                         \
+  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kTurbofan); } \
+  TEST(RunWasmLiftoff_##name) { RunWasm_##name(ExecutionTier::kLiftoff); }   \
+  TEST(RunWasmInterpreter_##name) {                                          \
+    RunWasm_##name(ExecutionTier::kInterpreter);                             \
+  }                                                                          \
   void RunWasm_##name(ExecutionTier execution_tier)
 
-#define WASM_COMPILED_EXEC_TEST(name)                                         \
-  void RunWasm_##name(ExecutionTier execution_tier);                          \
-  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kOptimized); } \
-  TEST(RunWasmLiftoff_##name) { RunWasm_##name(ExecutionTier::kBaseline); }   \
+#define WASM_COMPILED_EXEC_TEST(name)                                        \
+  void RunWasm_##name(ExecutionTier execution_tier);                         \
+  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kTurbofan); } \
+  TEST(RunWasmLiftoff_##name) { RunWasm_##name(ExecutionTier::kLiftoff); }   \
   void RunWasm_##name(ExecutionTier execution_tier)
 
 }  // namespace wasm
