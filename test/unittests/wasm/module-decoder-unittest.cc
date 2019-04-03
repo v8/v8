@@ -186,7 +186,7 @@ class WasmModuleVerifyTest : public TestWithIsolateAndZone {
     }
     ModuleResult result = DecodeWasmModule(
         enabled_features_, temp, temp + total, false, kWasmOrigin,
-        isolate()->counters(), isolate()->allocator());
+        isolate()->counters(), isolate()->wasm_engine()->allocator());
     delete[] temp;
     return result;
   }
@@ -194,7 +194,7 @@ class WasmModuleVerifyTest : public TestWithIsolateAndZone {
                                     const byte* module_end) {
     return DecodeWasmModule(enabled_features_, module_start, module_end, false,
                             kWasmOrigin, isolate()->counters(),
-                            isolate()->allocator());
+                            isolate()->wasm_engine()->allocator());
   }
 };
 

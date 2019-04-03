@@ -46,7 +46,7 @@ std::shared_ptr<WasmModule> DecodeWasmModuleForTesting(
   auto enabled_features = WasmFeaturesFromIsolate(isolate);
   ModuleResult decoding_result = DecodeWasmModule(
       enabled_features, module_start, module_end, verify_functions, origin,
-      isolate->counters(), isolate->allocator());
+      isolate->counters(), isolate->wasm_engine()->allocator());
 
   if (decoding_result.failed()) {
     // Module verification failed. throw.

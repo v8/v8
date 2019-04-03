@@ -613,9 +613,10 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   ModuleWireBytes wire_bytes(wire_bytes_vec);
   // TODO(titzer): module features should be part of the serialization format.
   WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
-  ModuleResult decode_result = DecodeWasmModule(
-      enabled_features, wire_bytes.start(), wire_bytes.end(), false,
-      i::wasm::kWasmOrigin, isolate->counters(), isolate->allocator());
+  ModuleResult decode_result =
+      DecodeWasmModule(enabled_features, wire_bytes.start(), wire_bytes.end(),
+                       false, i::wasm::kWasmOrigin, isolate->counters(),
+                       isolate->wasm_engine()->allocator());
   if (decode_result.failed()) return {};
   CHECK_NOT_NULL(decode_result.value());
   WasmModule* module = decode_result.value().get();

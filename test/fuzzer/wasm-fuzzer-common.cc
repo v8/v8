@@ -116,7 +116,8 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   auto enabled_features = i::wasm::WasmFeaturesFromIsolate(isolate);
   ModuleResult module_res = DecodeWasmModule(
       enabled_features, wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
-      ModuleOrigin::kWasmOrigin, isolate->counters(), isolate->allocator());
+      ModuleOrigin::kWasmOrigin, isolate->counters(),
+      isolate->wasm_engine()->allocator());
   CHECK(module_res.ok());
   WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);
