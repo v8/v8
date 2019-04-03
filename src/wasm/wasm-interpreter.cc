@@ -1729,9 +1729,11 @@ class ThreadImpl {
         auto size = Pop().to<uint32_t>();
         auto src = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
+        Isolate* isolate = instance_object_->GetIsolate();
+        HandleScope handle_scope(isolate);  // Avoid leaking handles.
         bool ok = WasmInstanceObject::CopyTableEntries(
-            instance_object_->GetIsolate(), instance_object_,
-            imm.table_dst.index, imm.table_src.index, dst, src, size);
+            isolate, instance_object_, imm.table_dst.index, imm.table_src.index,
+            dst, src, size);
         if (!ok) DoTrap(kTrapTableOutOfBounds, pc);
         len += imm.length;
         return ok;
@@ -2351,7 +2353,6 @@ class ThreadImpl {
     // it to 0 here such that we report the same position as in compiled code.
     frames_.back().pc = 0;
     Isolate* isolate = instance_object_->GetIsolate();
-    HandleScope handle_scope(isolate);
     isolate->StackOverflow();
     return HandleException(isolate) == WasmInterpreter::Thread::HANDLED;
   }
@@ -2376,6 +2377,7 @@ class ThreadImpl {
   bool DoThrowException(const WasmException* exception,
                         uint32_t index) V8_WARN_UNUSED_RESULT {
     Isolate* isolate = instance_object_->GetIsolate();
+    HandleScope handle_scope(isolate);  // Avoid leaking handles.
     Handle<WasmExceptionTag> exception_tag(
         WasmExceptionTag::cast(
             instance_object_->exceptions_table()->get(index)),
@@ -2522,6 +2524,10 @@ class ThreadImpl {
                   code->locals.type_list.size() +
                   code->side_table->max_stack_height_,
               stack_limit_ - stack_.get() - frames_.back().sp);
+    // Seal the surrounding {HandleScope} to ensure that all cases within the
+    // interpreter switch below which deal with handles open their own scope.
+    // This avoids leaking / accumulating handles in the surrounding scope.
+    SealHandleScope shs(instance_object_->GetIsolate());
 
     Decoder decoder(code->start, code->end);
     pc_t limit = code->end - code->start;
@@ -3041,9 +3047,10 @@ class ThreadImpl {
           MemoryIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
           uint32_t delta_pages = Pop().to<uint32_t>();
+          Isolate* isolate = instance_object_->GetIsolate();
+          HandleScope handle_scope(isolate);  // Avoid leaking handles.
           Handle<WasmMemoryObject> memory(instance_object_->memory_object(),
-                                          instance_object_->GetIsolate());
-          Isolate* isolate = memory->GetIsolate();
+                                          isolate);
           int32_t result = WasmMemoryObject::Grow(isolate, memory, delta_pages);
           Push(WasmValue(result));
           len = 1 + imm.length;
@@ -3438,10 +3445,8 @@ class ThreadImpl {
 
   ExternalCallResult CallImportedFunction(uint32_t function_index) {
     DCHECK_GT(module()->num_imported_functions, function_index);
-    // Use a new HandleScope to avoid leaking / accumulating handles in the
-    // outer scope.
     Isolate* isolate = instance_object_->GetIsolate();
-    HandleScope handle_scope(isolate);
+    HandleScope handle_scope(isolate);  // Avoid leaking handles.
 
     ImportedFunctionEntry entry(instance_object_, function_index);
     Handle<Object> object_ref(entry.object_ref(), isolate);
@@ -3473,7 +3478,7 @@ class ThreadImpl {
       return {ExternalCallResult::SIGNATURE_MISMATCH};
     }
 
-    HandleScope scope(isolate);
+    HandleScope handle_scope(isolate);  // Avoid leaking handles.
     FunctionSig* signature = module()->signatures[sig_index];
     Handle<Object> object_ref = handle(entry.object_ref(), isolate);
     WasmCode* code =
