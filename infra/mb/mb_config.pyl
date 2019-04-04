@@ -524,7 +524,7 @@
     'release_x86_noembed_trybot': [
       'release_trybot', 'x86', 'v8_no_enable_embedded_builtins'],
     'release_x86_gcc': [
-      'release', 'static', 'x86', 'gcc'],
+      'release_bot', 'x86', 'gcc'],
     # TODO(machenbach): Enable back goma once supported.
     'release_x86_gcc_minimal_symbols': [
       'release', 'static', 'x86', 'gcc', 'minimal_symbols', 'no_goma'],
