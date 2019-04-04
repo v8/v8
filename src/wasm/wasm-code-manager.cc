@@ -520,6 +520,7 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
   runtime_stub_table_ = jump_table;
 #else  // V8_EMBEDDED_BUILTINS
   HandleScope scope(isolate);
+  WasmCodeRefScope code_ref_scope;
   USE(runtime_stub_table_);  // Actually unused, but avoids ifdef's in header.
 #define COPY_BUILTIN(Name)                                        \
   runtime_stub_entries_[WasmCode::k##Name] =                      \
