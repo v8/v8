@@ -1695,16 +1695,6 @@ class Heap {
   void ScheduleIdleScavengeIfNeeded(int bytes_allocated);
 
   // ===========================================================================
-  // HeapIterator helpers. =====================================================
-  // ===========================================================================
-
-  void heap_iterator_start() { heap_iterator_depth_++; }
-
-  void heap_iterator_end() { heap_iterator_depth_--; }
-
-  bool in_heap_iterator() { return heap_iterator_depth_ > 0; }
-
-  // ===========================================================================
   // Allocation methods. =======================================================
   // ===========================================================================
 
@@ -2010,9 +2000,6 @@ class Heap {
   int gc_callbacks_depth_ = 0;
 
   bool deserialization_complete_ = false;
-
-  // The depth of HeapIterator nestings.
-  int heap_iterator_depth_ = 0;
 
   bool fast_promotion_mode_ = false;
 

@@ -5352,7 +5352,6 @@ HeapIterator::HeapIterator(Heap* heap,
       space_iterator_(nullptr),
       object_iterator_(nullptr) {
   heap_->MakeHeapIterable();
-  heap_->heap_iterator_start();
   // Start the iteration.
   space_iterator_ = new SpaceIterator(heap_);
   switch (filtering_) {
@@ -5367,7 +5366,6 @@ HeapIterator::HeapIterator(Heap* heap,
 
 
 HeapIterator::~HeapIterator() {
-  heap_->heap_iterator_end();
 #ifdef DEBUG
   // Assert that in filtering mode we have iterated through all
   // objects. Otherwise, heap will be left in an inconsistent state.
