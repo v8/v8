@@ -1018,9 +1018,10 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
     // Bail out if there were some private symbol transitions mixed up
     // with the integrity level transitions.
     if (!info.has_integrity_level_transition) return Map();
-    // Make sure replay the original elements kind transitions, before
+    // Make sure to replay the original elements kind transitions, before
     // the integrity level transition sets the elements to dictionary mode.
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
+           to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
            IsFixedTypedArrayElementsKind(to_kind));
     to_kind = info.integrity_level_source_map->elements_kind();
   }
