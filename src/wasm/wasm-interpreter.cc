@@ -1123,6 +1123,7 @@ class ThreadImpl {
   ThreadImpl(Zone* zone, CodeMap* codemap,
              Handle<WasmInstanceObject> instance_object)
       : codemap_(codemap),
+        isolate_(instance_object->GetIsolate()),
         instance_object_(instance_object),
         frames_(zone),
         activations_(zone) {}
@@ -1300,6 +1301,7 @@ class ThreadImpl {
   friend class InterpretedFrameImpl;
 
   CodeMap* codemap_;
+  Isolate* isolate_;
   Handle<WasmInstanceObject> instance_object_;
   // TODO(mstarzinger): The operand stack will need to be changed so that the
   // value lifetime of {WasmValue} is not coupled to a {HandleScope}.
@@ -1364,8 +1366,7 @@ class ThreadImpl {
         case kWasmAnyRef:
         case kWasmAnyFunc:
         case kWasmExceptRef: {
-          Isolate* isolate = instance_object_->GetIsolate();
-          val = WasmValue(isolate->factory()->null_value());
+          val = WasmValue(isolate_->factory()->null_value());
           break;
         }
         default:
@@ -1729,11 +1730,10 @@ class ThreadImpl {
         auto size = Pop().to<uint32_t>();
         auto src = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
-        Isolate* isolate = instance_object_->GetIsolate();
-        HandleScope handle_scope(isolate);  // Avoid leaking handles.
+        HandleScope handle_scope(isolate_);  // Avoid leaking handles.
         bool ok = WasmInstanceObject::CopyTableEntries(
-            isolate, instance_object_, imm.table_dst.index, imm.table_src.index,
-            dst, src, size);
+            isolate_, instance_object_, imm.table_dst.index,
+            imm.table_src.index, dst, src, size);
         if (!ok) DoTrap(kTrapTableOutOfBounds, pc);
         len += imm.length;
         return ok;
@@ -2352,9 +2352,8 @@ class ThreadImpl {
     // The pc of the top frame is initialized to the first instruction. We reset
     // it to 0 here such that we report the same position as in compiled code.
     frames_.back().pc = 0;
-    Isolate* isolate = instance_object_->GetIsolate();
-    isolate->StackOverflow();
-    return HandleException(isolate) == WasmInterpreter::Thread::HANDLED;
+    isolate_->StackOverflow();
+    return HandleException(isolate_) == WasmInterpreter::Thread::HANDLED;
   }
 
   void EncodeI32ExceptionValue(Handle<FixedArray> encoded_values,
@@ -2376,17 +2375,16 @@ class ThreadImpl {
   // handled locally by the interpreter, false otherwise (interpreter exits).
   bool DoThrowException(const WasmException* exception,
                         uint32_t index) V8_WARN_UNUSED_RESULT {
-    Isolate* isolate = instance_object_->GetIsolate();
-    HandleScope handle_scope(isolate);  // Avoid leaking handles.
+    HandleScope handle_scope(isolate_);  // Avoid leaking handles.
     Handle<WasmExceptionTag> exception_tag(
         WasmExceptionTag::cast(
             instance_object_->exceptions_table()->get(index)),
-        isolate);
+        isolate_);
     uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(exception);
     Handle<Object> exception_object =
-        WasmExceptionPackage::New(isolate, exception_tag, encoded_size);
+        WasmExceptionPackage::New(isolate_, exception_tag, encoded_size);
     Handle<FixedArray> encoded_values = Handle<FixedArray>::cast(
-        WasmExceptionPackage::GetExceptionValues(isolate, exception_object));
+        WasmExceptionPackage::GetExceptionValues(isolate_, exception_object));
     // Encode the exception values on the operand stack into the exception
     // package allocated above. This encoding has to be in sync with other
     // backends so that exceptions can be passed between them.
@@ -2425,26 +2423,24 @@ class ThreadImpl {
     DCHECK_EQ(encoded_size, encoded_index);
     PopN(static_cast<int>(sig->parameter_count()));
     // Now that the exception is ready, set it as pending.
-    isolate->Throw(*exception_object);
-    return HandleException(isolate) == WasmInterpreter::Thread::HANDLED;
+    isolate_->Throw(*exception_object);
+    return HandleException(isolate_) == WasmInterpreter::Thread::HANDLED;
   }
 
   // Throw a given existing exception. Returns true if the exception is being
   // handled locally by the interpreter, false otherwise (interpreter exits).
   bool DoRethrowException(WasmValue exception) {
-    Isolate* isolate = instance_object_->GetIsolate();
-    isolate->ReThrow(*exception.to_anyref());
-    return HandleException(isolate) == WasmInterpreter::Thread::HANDLED;
+    isolate_->ReThrow(*exception.to_anyref());
+    return HandleException(isolate_) == WasmInterpreter::Thread::HANDLED;
   }
 
   // Determines whether the given exception has a tag matching the expected tag
   // for the given index within the exception table of the current instance.
   bool MatchingExceptionTag(Handle<Object> exception_object, uint32_t index) {
-    Isolate* isolate = instance_object_->GetIsolate();
     Handle<Object> caught_tag =
-        WasmExceptionPackage::GetExceptionTag(isolate, exception_object);
+        WasmExceptionPackage::GetExceptionTag(isolate_, exception_object);
     Handle<Object> expected_tag =
-        handle(instance_object_->exceptions_table()->get(index), isolate);
+        handle(instance_object_->exceptions_table()->get(index), isolate_);
     DCHECK(expected_tag->IsWasmExceptionTag());
     return expected_tag.is_identical_to(caught_tag);
   }
@@ -2469,9 +2465,8 @@ class ThreadImpl {
   // the encoded values match the expected signature of the exception.
   void DoUnpackException(const WasmException* exception,
                          Handle<Object> exception_object) {
-    Isolate* isolate = instance_object_->GetIsolate();
     Handle<FixedArray> encoded_values = Handle<FixedArray>::cast(
-        WasmExceptionPackage::GetExceptionValues(isolate, exception_object));
+        WasmExceptionPackage::GetExceptionValues(isolate_, exception_object));
     // Decode the exception values from the given exception package and push
     // them onto the operand stack. This encoding has to be in sync with other
     // backends so that exceptions can be passed between them.
@@ -2527,7 +2522,7 @@ class ThreadImpl {
     // Seal the surrounding {HandleScope} to ensure that all cases within the
     // interpreter switch below which deal with handles open their own scope.
     // This avoids leaking / accumulating handles in the surrounding scope.
-    SealHandleScope shs(instance_object_->GetIsolate());
+    SealHandleScope shs(isolate_);
 
     Decoder decoder(code->start, code->end);
     pc_t limit = code->end - code->start;
@@ -2733,8 +2728,7 @@ class ThreadImpl {
           break;
         }
         case kExprRefNull: {
-          Isolate* isolate = instance_object_->GetIsolate();
-          Push(WasmValue(isolate->factory()->null_value()));
+          Push(WasmValue(isolate_->factory()->null_value()));
           break;
         }
         case kExprGetLocal: {
@@ -3047,11 +3041,11 @@ class ThreadImpl {
           MemoryIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
           uint32_t delta_pages = Pop().to<uint32_t>();
-          Isolate* isolate = instance_object_->GetIsolate();
-          HandleScope handle_scope(isolate);  // Avoid leaking handles.
+          HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           Handle<WasmMemoryObject> memory(instance_object_->memory_object(),
-                                          isolate);
-          int32_t result = WasmMemoryObject::Grow(isolate, memory, delta_pages);
+                                          isolate_);
+          int32_t result =
+              WasmMemoryObject::Grow(isolate_, memory, delta_pages);
           Push(WasmValue(result));
           len = 1 + imm.length;
           // Treat one grow_memory instruction like 1000 other instructions,
@@ -3445,21 +3439,19 @@ class ThreadImpl {
 
   ExternalCallResult CallImportedFunction(uint32_t function_index) {
     DCHECK_GT(module()->num_imported_functions, function_index);
-    Isolate* isolate = instance_object_->GetIsolate();
-    HandleScope handle_scope(isolate);  // Avoid leaking handles.
+    HandleScope handle_scope(isolate_);  // Avoid leaking handles.
 
     ImportedFunctionEntry entry(instance_object_, function_index);
-    Handle<Object> object_ref(entry.object_ref(), isolate);
+    Handle<Object> object_ref(entry.object_ref(), isolate_);
     WasmCode* code =
-        GetTargetCode(isolate->wasm_engine()->code_manager(), entry.target());
+        GetTargetCode(isolate_->wasm_engine()->code_manager(), entry.target());
     FunctionSig* sig = module()->functions[function_index].sig;
-    return CallExternalWasmFunction(isolate, object_ref, code, sig);
+    return CallExternalWasmFunction(isolate_, object_ref, code, sig);
   }
 
   ExternalCallResult CallIndirectFunction(uint32_t table_index,
                                           uint32_t entry_index,
                                           uint32_t sig_index) {
-    Isolate* isolate = instance_object_->GetIsolate();
     uint32_t expected_sig_id = module()->signature_ids[sig_index];
     DCHECK_EQ(expected_sig_id,
               module()->signature_map.Find(*module()->signatures[sig_index]));
@@ -3478,15 +3470,15 @@ class ThreadImpl {
       return {ExternalCallResult::SIGNATURE_MISMATCH};
     }
 
-    HandleScope handle_scope(isolate);  // Avoid leaking handles.
+    HandleScope handle_scope(isolate_);  // Avoid leaking handles.
     FunctionSig* signature = module()->signatures[sig_index];
-    Handle<Object> object_ref = handle(entry.object_ref(), isolate);
+    Handle<Object> object_ref = handle(entry.object_ref(), isolate_);
     WasmCode* code =
-        GetTargetCode(isolate->wasm_engine()->code_manager(), entry.target());
+        GetTargetCode(isolate_->wasm_engine()->code_manager(), entry.target());
 
     if (!object_ref->IsWasmInstanceObject() || /* call to an import */
         !instance_object_.is_identical_to(object_ref) /* cross-instance */) {
-      return CallExternalWasmFunction(isolate, object_ref, code, signature);
+      return CallExternalWasmFunction(isolate_, object_ref, code, signature);
     }
 
     DCHECK(code->kind() == WasmCode::kInterpreterEntry ||
