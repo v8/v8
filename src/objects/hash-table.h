@@ -6,6 +6,8 @@
 #define V8_OBJECTS_HASH_TABLE_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/base/export-template.h"
+#include "src/base/macros.h"
 #include "src/globals.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/smi.h"
@@ -130,7 +132,8 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
 };
 
 template <typename Derived, typename Shape>
-class HashTable : public HashTableBase {
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
+    : public HashTableBase {
  public:
   using ShapeT = Shape;
   using Key = typename Shape::Key;
@@ -287,7 +290,8 @@ class ObjectHashTableShape : public BaseShape<Handle<Object>> {
 };
 
 template <typename Derived, typename Shape>
-class ObjectHashTableBase : public HashTable<Derived, Shape> {
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) ObjectHashTableBase
+    : public HashTable<Derived, Shape> {
  public:
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
@@ -328,9 +332,16 @@ class ObjectHashTableBase : public HashTable<Derived, Shape> {
   OBJECT_CONSTRUCTORS(ObjectHashTableBase, HashTable<Derived, Shape>);
 };
 
+class ObjectHashTable;
+
+extern template class EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) HashTable<ObjectHashTable, ObjectHashTableShape>;
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>;
+
 // ObjectHashTable maps keys that are arbitrary objects to object values by
 // using the identity hash of the key for hashing purposes.
-class ObjectHashTable
+class V8_EXPORT_PRIVATE ObjectHashTable
     : public ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape> {
  public:
   DECL_CAST(ObjectHashTable)
@@ -346,11 +357,18 @@ class EphemeronHashTableShape : public ObjectHashTableShape {
   static inline RootIndex GetMapRootIndex();
 };
 
+class EphemeronHashTable;
+
+extern template class EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) HashTable<EphemeronHashTable, EphemeronHashTableShape>;
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
+
 // EphemeronHashTable is similar to ObjectHashTable but gets special treatment
 // by the GC. The GC treats its entries as ephemerons: both key and value are
 // weak references, however if the key is strongly reachable its corresponding
 // value is also kept alive.
-class EphemeronHashTable
+class V8_EXPORT_PRIVATE EphemeronHashTable
     : public ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape> {
  public:
   DECL_CAST(EphemeronHashTable)
@@ -376,7 +394,12 @@ class ObjectHashSetShape : public ObjectHashTableShape {
   static const int kEntrySize = 1;
 };
 
-class ObjectHashSet : public HashTable<ObjectHashSet, ObjectHashSetShape> {
+class ObjectHashSet;
+extern template class EXPORT_TEMPLATE_DECLARE(
+    V8_EXPORT_PRIVATE) HashTable<ObjectHashSet, ObjectHashSetShape>;
+
+class V8_EXPORT_PRIVATE ObjectHashSet
+    : public HashTable<ObjectHashSet, ObjectHashSetShape> {
  public:
   static Handle<ObjectHashSet> Add(Isolate* isolate, Handle<ObjectHashSet> set,
                                    Handle<Object> key);

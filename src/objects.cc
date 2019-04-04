@@ -7605,14 +7605,6 @@ BaseNameDictionary<Derived, Shape>::AddNoUpdateNextEnumerationIndex(
                                          details, entry_out);
 }
 
-// GCC workaround: Explicitly instantiate template method for NameDictionary
-// to avoid "undefined reference" issues during linking.
-template Handle<NameDictionary>
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::
-    AddNoUpdateNextEnumerationIndex(Isolate* isolate, Handle<NameDictionary>,
-                                    Handle<Name>, Handle<Object>,
-                                    PropertyDetails, int*);
-
 template <typename Derived, typename Shape>
 Handle<Derived> BaseNameDictionary<Derived, Shape>::Add(
     Isolate* isolate, Handle<Derived> dictionary, Key key, Handle<Object> value,
@@ -8443,19 +8435,35 @@ Address Smi::LexicographicCompare(Isolate* isolate, Smi x, Smi y) {
 
 template class HashTable<StringTable, StringTableShape>;
 
-template class HashTable<CompilationCacheTable, CompilationCacheShape>;
+template class EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) HashTable<CompilationCacheTable, CompilationCacheShape>;
 
-template class HashTable<ObjectHashTable, ObjectHashTableShape>;
+template class EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) HashTable<ObjectHashTable, ObjectHashTableShape>;
 
-template class HashTable<EphemeronHashTable, EphemeronHashTableShape>;
+template class EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) HashTable<ObjectHashSet, ObjectHashSetShape>;
 
-template class ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>;
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>;
 
-template class ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
+template class EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) HashTable<EphemeronHashTable, EphemeronHashTableShape>;
 
-template class Dictionary<NameDictionary, NameDictionaryShape>;
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
 
-template class Dictionary<GlobalDictionary, GlobalDictionaryShape>;
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    BaseNameDictionary<NameDictionary, NameDictionaryShape>;
+
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>;
+
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Dictionary<NameDictionary, NameDictionaryShape>;
+
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Dictionary<GlobalDictionary, GlobalDictionaryShape>;
 
 template class EXPORT_TEMPLATE_DEFINE(
     V8_EXPORT_PRIVATE) HashTable<NumberDictionary, NumberDictionaryShape>;
@@ -8470,72 +8478,14 @@ template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
 
 template Handle<NameDictionary>
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::New(
-    Isolate*, int n, AllocationType allocation,
-    MinimumCapacity capacity_option);
-
-template Handle<GlobalDictionary>
-BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::New(
-    Isolate*, int n, AllocationType allocation,
-    MinimumCapacity capacity_option);
-
-template Handle<NameDictionary>
 HashTable<NameDictionary, NameDictionaryShape>::New(Isolate*, int,
                                                     AllocationType,
                                                     MinimumCapacity);
 
-template Handle<ObjectHashSet>
-HashTable<ObjectHashSet, ObjectHashSetShape>::New(Isolate*, int n,
-                                                  AllocationType,
-                                                  MinimumCapacity);
-
-template Handle<NameDictionary>
+template V8_EXPORT_PRIVATE Handle<NameDictionary>
 HashTable<NameDictionary, NameDictionaryShape>::Shrink(Isolate* isolate,
                                                        Handle<NameDictionary>,
                                                        int additionalCapacity);
-
-template Handle<NameDictionary>
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::Add(
-    Isolate* isolate, Handle<NameDictionary>, Handle<Name>, Handle<Object>,
-    PropertyDetails, int*);
-
-template Handle<GlobalDictionary>
-BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::Add(
-    Isolate* isolate, Handle<GlobalDictionary>, Handle<Name>, Handle<Object>,
-    PropertyDetails, int*);
-
-template void HashTable<GlobalDictionary, GlobalDictionaryShape>::Rehash(
-    ReadOnlyRoots roots);
-
-template Handle<NameDictionary>
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::EnsureCapacity(
-    Isolate* isolate, Handle<NameDictionary>, int);
-
-template void
-BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::CopyEnumKeysTo(
-    Isolate* isolate, Handle<GlobalDictionary> dictionary,
-    Handle<FixedArray> storage, KeyCollectionMode mode,
-    KeyAccumulator* accumulator);
-
-template void
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::CopyEnumKeysTo(
-    Isolate* isolate, Handle<NameDictionary> dictionary,
-    Handle<FixedArray> storage, KeyCollectionMode mode,
-    KeyAccumulator* accumulator);
-
-template Handle<FixedArray>
-BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::IterationIndices(
-    Isolate* isolate, Handle<GlobalDictionary> dictionary);
-template void
-BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::CollectKeysTo(
-    Handle<GlobalDictionary> dictionary, KeyAccumulator* keys);
-
-template Handle<FixedArray>
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::IterationIndices(
-    Isolate* isolate, Handle<NameDictionary> dictionary);
-template void
-BaseNameDictionary<NameDictionary, NameDictionaryShape>::CollectKeysTo(
-    Handle<NameDictionary> dictionary, KeyAccumulator* keys);
 
 void JSFinalizationGroup::Cleanup(
     Handle<JSFinalizationGroup> finalization_group, Isolate* isolate) {

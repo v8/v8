@@ -107,7 +107,7 @@ class JSReceiver : public HeapObject {
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasElement(
       Handle<JSReceiver> object, uint32_t index);
 
-  V8_WARN_UNUSED_RESULT static Maybe<bool> HasOwnProperty(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> HasOwnProperty(
       Handle<JSReceiver> object, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasOwnProperty(
       Handle<JSReceiver> object, uint32_t index);
@@ -120,10 +120,10 @@ class JSReceiver : public HeapObject {
       Isolate* isolate, Handle<JSReceiver> receiver, uint32_t index);
 
   // Implementation of ES6 [[Delete]]
-  V8_WARN_UNUSED_RESULT static Maybe<bool> DeletePropertyOrElement(
-      Handle<JSReceiver> object, Handle<Name> name,
-      LanguageMode language_mode = LanguageMode::kSloppy);
-  V8_WARN_UNUSED_RESULT static Maybe<bool> DeleteProperty(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool>
+  DeletePropertyOrElement(Handle<JSReceiver> object, Handle<Name> name,
+                          LanguageMode language_mode = LanguageMode::kSloppy);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> DeleteProperty(
       Handle<JSReceiver> object, Handle<Name> name,
       LanguageMode language_mode = LanguageMode::kSloppy);
   V8_WARN_UNUSED_RESULT static Maybe<bool> DeleteProperty(
@@ -208,7 +208,7 @@ class JSReceiver : public HeapObject {
   // function that was used to instantiate the object).
   static Handle<String> GetConstructorName(Handle<JSReceiver> receiver);
 
-  Handle<NativeContext> GetCreationContext();
+  V8_EXPORT_PRIVATE Handle<NativeContext> GetCreationContext();
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetPropertyAttributes(Handle<JSReceiver> object, Handle<Name> name);
@@ -232,20 +232,20 @@ class JSReceiver : public HeapObject {
 
   inline static Handle<Object> GetDataProperty(Handle<JSReceiver> object,
                                                Handle<Name> name);
-  static Handle<Object> GetDataProperty(LookupIterator* it);
+  V8_EXPORT_PRIVATE static Handle<Object> GetDataProperty(LookupIterator* it);
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
-  Object GetIdentityHash();
+  V8_EXPORT_PRIVATE Object GetIdentityHash();
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
   static Smi CreateIdentityHash(Isolate* isolate, JSReceiver key);
-  Smi GetOrCreateIdentityHash(Isolate* isolate);
+  V8_EXPORT_PRIVATE Smi GetOrCreateIdentityHash(Isolate* isolate);
 
   // Stores the hash code. The hash passed in must be masked with
   // JSReceiver::kHashMask.
-  void SetIdentityHash(int masked_hash);
+  V8_EXPORT_PRIVATE void SetIdentityHash(int masked_hash);
 
   // ES6 [[OwnPropertyKeys]] (modulo return type)
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<FixedArray> OwnPropertyKeys(
@@ -286,7 +286,7 @@ class JSObject : public JSReceiver {
  public:
   static bool IsUnmodifiedApiObject(FullObjectSlot o);
 
-  static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> New(
+  V8_EXPORT_PRIVATE static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> New(
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target,
       Handle<AllocationSite> site);
 
@@ -319,7 +319,7 @@ class JSObject : public JSReceiver {
   static inline void SetMapAndElements(Handle<JSObject> object, Handle<Map> map,
                                        Handle<FixedArrayBase> elements);
   inline ElementsKind GetElementsKind() const;
-  ElementsAccessor* GetElementsAccessor();
+  V8_EXPORT_PRIVATE ElementsAccessor* GetElementsAccessor();
   // Returns true if an object has elements of PACKED_SMI_ELEMENTS or
   // HOLEY_SMI_ELEMENTS ElementsKind.
   inline bool HasSmiElements();
@@ -390,7 +390,7 @@ class JSObject : public JSReceiver {
       Maybe<ShouldThrow> should_throw,
       AccessorInfoHandling handling = DONT_FORCE_FIELD);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> V8_EXPORT_PRIVATE
   SetOwnPropertyIgnoreAttributes(Handle<JSObject> object, Handle<Name> name,
                                  Handle<Object> value,
                                  PropertyAttributes attributes);
@@ -402,7 +402,7 @@ class JSObject : public JSReceiver {
 
   // Equivalent to one of the above depending on whether |name| can be converted
   // to an array index.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   DefinePropertyOrElementIgnoreAttributes(Handle<JSObject> object,
                                           Handle<Name> name,
                                           Handle<Object> value,
@@ -414,18 +414,21 @@ class JSObject : public JSReceiver {
       LookupIterator* it, Handle<Object> value,
       Maybe<ShouldThrow> should_throw = Just(kDontThrow));
 
-  static void AddProperty(Isolate* isolate, Handle<JSObject> object,
-                          Handle<Name> name, Handle<Object> value,
-                          PropertyAttributes attributes);
+  V8_EXPORT_PRIVATE static void AddProperty(Isolate* isolate,
+                                            Handle<JSObject> object,
+                                            Handle<Name> name,
+                                            Handle<Object> value,
+                                            PropertyAttributes attributes);
 
   // {name} must be a UTF-8 encoded, null-terminated string.
   static void AddProperty(Isolate* isolate, Handle<JSObject> object,
                           const char* name, Handle<Object> value,
                           PropertyAttributes attributes);
 
-  static void AddDataElement(Handle<JSObject> receiver, uint32_t index,
-                             Handle<Object> value,
-                             PropertyAttributes attributes);
+  V8_EXPORT_PRIVATE static void AddDataElement(Handle<JSObject> receiver,
+                                               uint32_t index,
+                                               Handle<Object> value,
+                                               PropertyAttributes attributes);
 
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
@@ -489,11 +492,9 @@ class JSObject : public JSReceiver {
 
   // Defines an AccessorPair property on the given object.
   // TODO(mstarzinger): Rename to SetAccessor().
-  static MaybeHandle<Object> DefineAccessor(Handle<JSObject> object,
-                                            Handle<Name> name,
-                                            Handle<Object> getter,
-                                            Handle<Object> setter,
-                                            PropertyAttributes attributes);
+  V8_EXPORT_PRIVATE static MaybeHandle<Object> DefineAccessor(
+      Handle<JSObject> object, Handle<Name> name, Handle<Object> getter,
+      Handle<Object> setter, PropertyAttributes attributes);
   static MaybeHandle<Object> DefineAccessor(LookupIterator* it,
                                             Handle<Object> getter,
                                             Handle<Object> setter,
@@ -593,14 +594,15 @@ class JSObject : public JSReceiver {
   // map and the ElementsKind set.
   static Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,
                                               ElementsKind to_kind);
-  static void TransitionElementsKind(Handle<JSObject> object,
-                                     ElementsKind to_kind);
+  V8_EXPORT_PRIVATE static void TransitionElementsKind(Handle<JSObject> object,
+                                                       ElementsKind to_kind);
 
   // Always use this to migrate an object to a new map.
   // |expected_additional_properties| is only used for fast-to-slow transitions
   // and ignored otherwise.
-  static void MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
-                           int expected_additional_properties = 0);
+  V8_EXPORT_PRIVATE static void MigrateToMap(
+      Handle<JSObject> object, Handle<Map> new_map,
+      int expected_additional_properties = 0);
 
   // Forces a prototype without any of the checks that the regular SetPrototype
   // would do.
@@ -611,20 +613,21 @@ class JSObject : public JSReceiver {
   // representation. If the object is expected to have additional properties
   // added this number can be indicated to have the backing store allocated to
   // an initial capacity for holding these properties.
-  static void NormalizeProperties(Handle<JSObject> object,
-                                  PropertyNormalizationMode mode,
-                                  int expected_additional_properties,
-                                  const char* reason);
+  V8_EXPORT_PRIVATE static void NormalizeProperties(
+      Handle<JSObject> object, PropertyNormalizationMode mode,
+      int expected_additional_properties, const char* reason);
 
   // Convert and update the elements backing store to be a
   // NumberDictionary dictionary.  Returns the backing after conversion.
-  static Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object);
+  V8_EXPORT_PRIVATE static Handle<NumberDictionary> NormalizeElements(
+      Handle<JSObject> object);
 
   void RequireSlowElements(NumberDictionary dictionary);
 
   // Transform slow named properties to fast variants.
-  static void MigrateSlowToFast(Handle<JSObject> object,
-                                int unused_property_fields, const char* reason);
+  V8_EXPORT_PRIVATE static void MigrateSlowToFast(Handle<JSObject> object,
+                                                  int unused_property_fields,
+                                                  const char* reason);
 
   inline bool IsUnboxedDoubleField(FieldIndex index);
 
@@ -724,7 +727,7 @@ class JSObject : public JSReceiver {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  bool ElementsAreSafeToExamine() const;
+  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine() const;
 #endif
 
   Object SlowReverseLookup(Object value);
@@ -1030,7 +1033,8 @@ class JSFunction : public JSObject {
   // available after compile when lazily allocating feedback vectors.
   inline FeedbackVector feedback_vector() const;
   inline bool has_feedback_vector() const;
-  static void EnsureFeedbackVector(Handle<JSFunction> function);
+  V8_EXPORT_PRIVATE static void EnsureFeedbackVector(
+      Handle<JSFunction> function);
 
   // Functions related to clousre feedback cell array that holds feedback cells
   // used to create closures from this function. We allocate closure feedback
@@ -1060,7 +1064,8 @@ class JSFunction : public JSObject {
   static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                             Handle<HeapObject> prototype);
   inline bool has_initial_map();
-  static void EnsureHasInitialMap(Handle<JSFunction> function);
+  V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
+      Handle<JSFunction> function);
 
   // Creates a map that matches the constructor's initial map, but with
   // [[prototype]] being new.target.prototype. Because new.target can be a
@@ -1355,10 +1360,10 @@ class JSMessageObject : public JSObject {
 
   // Returns the line number for the error message (1-based), or
   // Message::kNoLineNumberInfo if the line cannot be determined.
-  int GetLineNumber() const;
+  V8_EXPORT_PRIVATE int GetLineNumber() const;
 
   // Returns the offset of the given position within the containing line.
-  int GetColumnNumber() const;
+  V8_EXPORT_PRIVATE int GetColumnNumber() const;
 
   // Returns the source code line containing the given source
   // position, or the empty string if the position is invalid.

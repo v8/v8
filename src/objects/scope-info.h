@@ -70,12 +70,12 @@ class ScopeInfo : public FixedArray {
   bool HasNewTarget() const;
 
   // Is this scope the scope of a named function expression?
-  bool HasFunctionName() const;
+  V8_EXPORT_PRIVATE bool HasFunctionName() const;
 
   // See SharedFunctionInfo::HasSharedName.
-  bool HasSharedFunctionName() const;
+  V8_EXPORT_PRIVATE bool HasSharedFunctionName() const;
 
-  bool HasInferredFunctionName() const;
+  V8_EXPORT_PRIVATE bool HasInferredFunctionName() const;
 
   void SetFunctionName(Object name);
   void SetInferredFunctionName(String name);
@@ -92,7 +92,7 @@ class ScopeInfo : public FixedArray {
   inline bool HasSimpleParameters() const;
 
   // Return the function_name if present.
-  Object FunctionName() const;
+  V8_EXPORT_PRIVATE Object FunctionName() const;
 
   // The function's name if it is non-empty, otherwise the inferred name or an
   // empty string.
@@ -100,7 +100,7 @@ class ScopeInfo : public FixedArray {
 
   // Return the function's inferred name if present.
   // See SharedFunctionInfo::function_identifier.
-  Object InferredFunctionName() const;
+  V8_EXPORT_PRIVATE Object InferredFunctionName() const;
 
   // Position information accessors.
   int StartPosition() const;

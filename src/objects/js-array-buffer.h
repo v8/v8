@@ -95,8 +95,9 @@ class JSArrayBuffer : public JSObject {
     bool is_wasm_memory;
   };
 
-  void FreeBackingStoreFromMainThread();
-  static void FreeBackingStore(Isolate* isolate, Allocation allocation);
+  V8_EXPORT_PRIVATE void FreeBackingStoreFromMainThread();
+  V8_EXPORT_PRIVATE static void FreeBackingStore(Isolate* isolate,
+                                                 Allocation allocation);
 
   V8_EXPORT_PRIVATE static void Setup(
       Handle<JSArrayBuffer> array_buffer, Isolate* isolate, bool is_external,
@@ -111,7 +112,7 @@ class JSArrayBuffer : public JSObject {
 
   // Returns false if array buffer contents could not be allocated.
   // In this case, |array_buffer| will not be set up.
-  static bool SetupAllocatingData(
+  V8_EXPORT_PRIVATE static bool SetupAllocatingData(
       Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
       size_t allocated_length, bool initialize = true,
       SharedFlag shared_flag = SharedFlag::kNotShared) V8_WARN_UNUSED_RESULT;
@@ -196,7 +197,7 @@ class JSTypedArray : public JSArrayBufferView {
   ExternalArrayType type();
   V8_EXPORT_PRIVATE size_t element_size();
 
-  Handle<JSArrayBuffer> GetBuffer();
+  V8_EXPORT_PRIVATE Handle<JSArrayBuffer> GetBuffer();
 
   // Whether the buffer's backing store is on-heap or off-heap.
   inline bool is_on_heap() const;

@@ -24,7 +24,8 @@ class Handle;
 class Isolate;
 
 template <typename Derived, typename Shape>
-class Dictionary : public HashTable<Derived, Shape> {
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
+    : public HashTable<Derived, Shape> {
   using DerivedHashTable = HashTable<Derived, Shape>;
 
  public:
@@ -125,7 +126,8 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
 };
 
 template <typename Derived, typename Shape>
-class BaseNameDictionary : public Dictionary<Derived, Shape> {
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
+    : public Dictionary<Derived, Shape> {
   using Key = typename Shape::Key;
 
  public:
@@ -192,7 +194,12 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   OBJECT_CONSTRUCTORS(BaseNameDictionary, Dictionary<Derived, Shape>);
 };
 
-class NameDictionary
+class NameDictionary;
+
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    BaseNameDictionary<NameDictionary, NameDictionaryShape>;
+
+class V8_EXPORT_PRIVATE NameDictionary
     : public BaseNameDictionary<NameDictionary, NameDictionaryShape> {
  public:
   DECL_CAST(NameDictionary)
@@ -228,7 +235,12 @@ class GlobalDictionaryShape : public NameDictionaryShape {
   static inline RootIndex GetMapRootIndex();
 };
 
-class GlobalDictionary
+class GlobalDictionary;
+
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>;
+
+class V8_EXPORT_PRIVATE GlobalDictionary
     : public BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape> {
  public:
   DECL_CAST(GlobalDictionary)

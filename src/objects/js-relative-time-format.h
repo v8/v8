@@ -50,7 +50,7 @@ class JSRelativeTimeFormat : public JSObject {
       Handle<JSRelativeTimeFormat> format_holder, const char* func_name,
       bool to_parts);
 
-  static const std::set<std::string>& GetAvailableLocales();
+  V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
   DECL_CAST(JSRelativeTimeFormat)
 

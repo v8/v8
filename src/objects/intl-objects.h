@@ -79,7 +79,7 @@ class Intl {
   //
   // service is a string denoting the type of Intl object; used when
   // printing the error message.
-  V8_WARN_UNUSED_RESULT static Maybe<bool> GetStringOption(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> GetStringOption(
       Isolate* isolate, Handle<JSReceiver> options, const char* property,
       std::vector<const char*> values, const char* service,
       std::unique_ptr<char[]>* result);
@@ -122,7 +122,7 @@ class Intl {
   //
   // service is a string denoting the type of Intl object; used when
   // printing the error message.
-  V8_WARN_UNUSED_RESULT static Maybe<bool> GetBoolOption(
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> GetBoolOption(
       Isolate* isolate, Handle<JSReceiver> options, const char* property,
       const char* service, bool* result);
 

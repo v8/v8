@@ -234,7 +234,7 @@ class SharedFunctionInfo : public HeapObject {
   inline void SetName(String name);
 
   // Get the code object which represents the execution of this function.
-  Code GetCode() const;
+  V8_EXPORT_PRIVATE Code GetCode() const;
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
@@ -384,7 +384,7 @@ class SharedFunctionInfo : public HeapObject {
 
   // Break infos are contained in DebugInfo, this is a convenience method
   // to simplify access.
-  bool HasBreakInfo() const;
+  V8_EXPORT_PRIVATE bool HasBreakInfo() const;
   bool BreakAtEntry() const;
 
   // Coverage infos are contained in DebugInfo, this is a convenience method
@@ -540,8 +540,8 @@ class SharedFunctionInfo : public HeapObject {
 
   // Flush compiled data from this function, setting it back to CompileLazy and
   // clearing any compiled metadata.
-  static void DiscardCompiled(Isolate* isolate,
-                              Handle<SharedFunctionInfo> shared_info);
+  V8_EXPORT_PRIVATE static void DiscardCompiled(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
 
   // Discard the compiled metadata. If called during GC then
   // |gc_notify_updated_slot| should be used to record any slot updates.
@@ -583,7 +583,7 @@ class SharedFunctionInfo : public HeapObject {
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
 
   // Hash based on function literal id and script id.
-  uint32_t Hash();
+  V8_EXPORT_PRIVATE uint32_t Hash();
 
   inline bool construct_as_builtin() const;
 
@@ -619,10 +619,10 @@ class SharedFunctionInfo : public HeapObject {
   // Iterate over all shared function infos in a given script.
   class ScriptIterator {
    public:
-    ScriptIterator(Isolate* isolate, Script script);
+    V8_EXPORT_PRIVATE ScriptIterator(Isolate* isolate, Script script);
     ScriptIterator(Isolate* isolate,
                    Handle<WeakFixedArray> shared_function_infos);
-    SharedFunctionInfo Next();
+    V8_EXPORT_PRIVATE SharedFunctionInfo Next();
     int CurrentIndex() const { return index_ - 1; }
 
     // Reset the iterator to run on |script|.
@@ -638,8 +638,8 @@ class SharedFunctionInfo : public HeapObject {
   // Iterate over all shared function infos on the heap.
   class GlobalIterator {
    public:
-    explicit GlobalIterator(Isolate* isolate);
-    SharedFunctionInfo Next();
+    V8_EXPORT_PRIVATE explicit GlobalIterator(Isolate* isolate);
+    V8_EXPORT_PRIVATE SharedFunctionInfo Next();
 
    private:
     Script::Iterator script_iterator_;

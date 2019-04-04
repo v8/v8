@@ -36,7 +36,8 @@ struct ManagedPtrDestructor {
 
 // The GC finalizer of a managed object, which does not depend on
 // the template parameter.
-void ManagedObjectFinalizer(const v8::WeakCallbackInfo<void>& data);
+V8_EXPORT_PRIVATE void ManagedObjectFinalizer(
+    const v8::WeakCallbackInfo<void>& data);
 
 // {Managed<T>} is essentially a {std::shared_ptr<T>} allocated on the heap
 // that can be used to manage the lifetime of C++ objects that are shared

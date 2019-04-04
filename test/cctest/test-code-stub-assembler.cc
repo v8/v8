@@ -3359,7 +3359,7 @@ TEST(SmallOrderedHashMapAllocate) {
                        reinterpret_cast<void*>(actual->address()),
                        SmallOrderedHashMap::SizeFor(capacity)));
 #ifdef VERIFY_HEAP
-    actual->SmallOrderedHashTableVerify(isolate);
+    actual->SmallOrderedHashMapVerify(isolate);
 #endif
     capacity = capacity << 1;
   }
@@ -3398,7 +3398,7 @@ TEST(SmallOrderedHashSetAllocate) {
                        reinterpret_cast<void*>(actual->address()),
                        SmallOrderedHashSet::SizeFor(capacity)));
 #ifdef VERIFY_HEAP
-    actual->SmallOrderedHashTableVerify(isolate);
+    actual->SmallOrderedHashSetVerify(isolate);
 #endif
     capacity = capacity << 1;
   }

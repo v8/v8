@@ -83,7 +83,7 @@ class JSDateTimeFormat : public JSObject {
       Isolate* isolate, Handle<Object> date, Handle<Object> locales,
       Handle<Object> options, RequiredOption required, DefaultsOption defaults);
 
-  static const std::set<std::string>& GetAvailableLocales();
+  V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
   Handle<String> HourCycleAsString() const;
   DECL_CAST(JSDateTimeFormat)

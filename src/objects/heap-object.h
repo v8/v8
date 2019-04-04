@@ -116,7 +116,7 @@ class HeapObject : public Object {
   // Returns true if the object contains a tagged value at given offset.
   // It is used for invalid slots filtering. If the offset points outside
   // of the object or to the map word, the result is UNDEFINED (!!!).
-  bool IsValidSlot(Map map, int offset);
+  V8_EXPORT_PRIVATE bool IsValidSlot(Map map, int offset);
 
   // Returns the heap object's size in bytes
   inline int Size() const;
@@ -149,7 +149,7 @@ class HeapObject : public Object {
   void PrintHeader(std::ostream& os, const char* id);  // NOLINT
 #endif
   DECL_PRINTER(HeapObject)
-  DECL_VERIFIER(HeapObject)
+  EXPORT_DECL_VERIFIER(HeapObject)
 #ifdef VERIFY_HEAP
   inline void VerifyObjectField(Isolate* isolate, int offset);
   inline void VerifySmiField(int offset);

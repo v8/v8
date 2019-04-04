@@ -133,7 +133,7 @@ class FreshlyAllocatedBigInt : public BigIntBase {
 };
 
 // Arbitrary precision integers in JavaScript.
-class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
+class BigInt : public BigIntBase {
  public:
   // Implementation of the Spec methods, see:
   // https://tc39.github.io/proposal-bigint/#sec-numeric-types
@@ -189,7 +189,8 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
                                           Handle<String> y);
   static ComparisonResult CompareToNumber(Handle<BigInt> x, Handle<Object> y);
   // Exposed for tests, do not call directly. Use CompareToNumber() instead.
-  static ComparisonResult CompareToDouble(Handle<BigInt> x, double y);
+  V8_EXPORT_PRIVATE static ComparisonResult CompareToDouble(Handle<BigInt> x,
+                                                            double y);
 
   static Handle<BigInt> AsIntN(Isolate* isolate, uint64_t n, Handle<BigInt> x);
   static MaybeHandle<BigInt> AsUintN(Isolate* isolate, uint64_t n,
@@ -223,8 +224,8 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   static Handle<Object> ToNumber(Isolate* isolate, Handle<BigInt> x);
 
   // ECMAScript's NumberToBigInt
-  static MaybeHandle<BigInt> FromNumber(Isolate* isolate,
-                                        Handle<Object> number);
+  V8_EXPORT_PRIVATE static MaybeHandle<BigInt> FromNumber(
+      Isolate* isolate, Handle<Object> number);
 
   // ECMAScript's ToBigInt (throws for Number input)
   static MaybeHandle<BigInt> FromObject(Isolate* isolate, Handle<Object> obj);

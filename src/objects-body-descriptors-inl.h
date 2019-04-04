@@ -350,7 +350,7 @@ class JSArrayBufferView::BodyDescriptor final : public BodyDescriptorBase {
 };
 
 template <typename Derived>
-class SmallOrderedHashTable<Derived>::BodyDescriptor final
+class V8_EXPORT_PRIVATE SmallOrderedHashTable<Derived>::BodyDescriptor final
     : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {

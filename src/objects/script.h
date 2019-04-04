@@ -139,7 +139,7 @@ class Script : public Struct {
   bool ContainsAsmModule();
 
   // Init line_ends array with source code positions of line ends.
-  static void InitLineEnds(Handle<Script> script);
+  V8_EXPORT_PRIVATE static void InitLineEnds(Handle<Script> script);
 
   // Carries information about a source position.
   struct PositionInfo {
@@ -163,15 +163,16 @@ class Script : public Struct {
   // callsites.
   static bool GetPositionInfo(Handle<Script> script, int position,
                               PositionInfo* info, OffsetFlag offset_flag);
-  bool GetPositionInfo(int position, PositionInfo* info,
-                       OffsetFlag offset_flag) const;
+  V8_EXPORT_PRIVATE bool GetPositionInfo(int position, PositionInfo* info,
+                                         OffsetFlag offset_flag) const;
 
   bool IsUserJavaScript();
 
   // Wrappers for GetPositionInfo
   static int GetColumnNumber(Handle<Script> script, int code_offset);
   int GetColumnNumber(int code_pos) const;
-  static int GetLineNumber(Handle<Script> script, int code_offset);
+  V8_EXPORT_PRIVATE static int GetLineNumber(Handle<Script> script,
+                                             int code_offset);
   int GetLineNumber(int code_pos) const;
 
   // Look through the list of existing shared function infos to find one
@@ -192,7 +193,7 @@ class Script : public Struct {
   std::unique_ptr<v8::tracing::TracedValue> TraceIDRef() const;
 
   // Iterate over all script objects on the heap.
-  class Iterator {
+  class V8_EXPORT_PRIVATE Iterator {
    public:
     explicit Iterator(Isolate* isolate);
     Script Next();

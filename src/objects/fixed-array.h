@@ -85,7 +85,7 @@ class FixedArrayBase : public HeapObject {
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
 
-  bool IsCowArray() const;
+  V8_EXPORT_PRIVATE bool IsCowArray() const;
 
 // Maximal allowed size, in bytes, of a single FixedArrayBase.
 // Prevents overflowing size computations, as well as extreme memory
@@ -124,7 +124,7 @@ class FixedArray : public FixedArrayBase {
   Handle<T> GetValueChecked(Isolate* isolate, int index) const;
 
   // Return a grown copy if the index is bigger than the array's length.
-  static Handle<FixedArray> SetAndGrow(
+  V8_EXPORT_PRIVATE static Handle<FixedArray> SetAndGrow(
       Isolate* isolate, Handle<FixedArray> array, int index,
       Handle<Object> value, AllocationType allocation = AllocationType::kYoung);
 
@@ -162,7 +162,7 @@ class FixedArray : public FixedArrayBase {
   inline void FillWithHoles(int from, int to);
 
   // Shrink the array and insert filler objects. {new_length} must be > 0.
-  void Shrink(Isolate* isolate, int new_length);
+  V8_EXPORT_PRIVATE void Shrink(Isolate* isolate, int new_length);
   // If {new_length} is 0, return the canonical empty FixedArray. Otherwise
   // like above.
   static Handle<FixedArray> ShrinkOrEmpty(Isolate* isolate,
@@ -170,7 +170,8 @@ class FixedArray : public FixedArrayBase {
                                           int new_length);
 
   // Copy a sub array from the receiver to dest.
-  void CopyTo(int pos, FixedArray dest, int dest_pos, int len) const;
+  V8_EXPORT_PRIVATE void CopyTo(int pos, FixedArray dest, int dest_pos,
+                                int len) const;
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {
@@ -340,9 +341,9 @@ class WeakArrayList : public HeapObject {
   DECL_VERIFIER(WeakArrayList)
   DECL_PRINTER(WeakArrayList)
 
-  static Handle<WeakArrayList> AddToEnd(Isolate* isolate,
-                                        Handle<WeakArrayList> array,
-                                        const MaybeObjectHandle& value);
+  V8_EXPORT_PRIVATE static Handle<WeakArrayList> AddToEnd(
+      Isolate* isolate, Handle<WeakArrayList> array,
+      const MaybeObjectHandle& value);
 
   inline MaybeObject Get(int index) const;
 
@@ -359,7 +360,7 @@ class WeakArrayList : public HeapObject {
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot data_start();
 
-  bool IsFull();
+  V8_EXPORT_PRIVATE bool IsFull();
 
   DECL_INT_ACCESSORS(capacity)
   DECL_INT_ACCESSORS(length)
@@ -395,7 +396,7 @@ class WeakArrayList : public HeapObject {
   // around in the array - this method can only be used in cases where the user
   // doesn't care about the indices! Users should make sure there are no
   // duplicates.
-  bool RemoveOne(const MaybeObjectHandle& value);
+  V8_EXPORT_PRIVATE bool RemoveOne(const MaybeObjectHandle& value);
 
   class Iterator;
 
@@ -431,10 +432,13 @@ class WeakArrayList::Iterator {
 // underlying FixedArray starting at kFirstIndex.
 class ArrayList : public FixedArray {
  public:
-  static Handle<ArrayList> Add(Isolate* isolate, Handle<ArrayList> array,
-                               Handle<Object> obj);
-  static Handle<ArrayList> Add(Isolate* isolate, Handle<ArrayList> array,
-                               Handle<Object> obj1, Handle<Object> obj2);
+  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
+                                                 Handle<ArrayList> array,
+                                                 Handle<Object> obj);
+  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
+                                                 Handle<ArrayList> array,
+                                                 Handle<Object> obj1,
+                                                 Handle<Object> obj2);
   static Handle<ArrayList> New(Isolate* isolate, int size);
 
   // Returns the number of elements in the list, not the allocated size, which

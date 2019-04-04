@@ -198,7 +198,8 @@ class String : public Name {
   // If the string isn't flat, and therefore doesn't have flat content, the
   // returned structure will report so, and can't provide a vector of either
   // kind.
-  FlatContent GetFlatContent(const DisallowHeapAllocation& no_gc);
+  V8_EXPORT_PRIVATE FlatContent
+  GetFlatContent(const DisallowHeapAllocation& no_gc);
 
   // Returns the parent of a sliced string or first part of a flat cons string.
   // Requires: StringShape(this).IsIndirect() && this->IsFlat()
@@ -266,13 +267,14 @@ class String : public Name {
   inline bool Equals(String other);
   inline static bool Equals(Isolate* isolate, Handle<String> one,
                             Handle<String> two);
-  bool IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match = false);
+  V8_EXPORT_PRIVATE bool IsUtf8EqualTo(Vector<const char> str,
+                                       bool allow_prefix_match = false);
 
   // Dispatches to Is{One,Two}ByteEqualTo.
   template <typename Char>
   bool IsEqualTo(Vector<const Char> str);
 
-  bool IsOneByteEqualTo(Vector<const uint8_t> str);
+  V8_EXPORT_PRIVATE bool IsOneByteEqualTo(Vector<const uint8_t> str);
   bool IsTwoByteEqualTo(Vector<const uc16> str);
 
   // Return a UTF8 representation of the string.  The string is null
@@ -286,7 +288,7 @@ class String : public Name {
   std::unique_ptr<char[]> ToCString(AllowNullsFlag allow_nulls,
                                     RobustnessFlag robustness_flag, int offset,
                                     int length, int* length_output = nullptr);
-  std::unique_ptr<char[]> ToCString(
+  V8_EXPORT_PRIVATE std::unique_ptr<char[]> ToCString(
       AllowNullsFlag allow_nulls = DISALLOW_NULLS,
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL,
       int* length_output = nullptr);
@@ -294,8 +296,10 @@ class String : public Name {
   bool ComputeArrayIndex(uint32_t* index);
 
   // Externalization.
-  bool MakeExternal(v8::String::ExternalStringResource* resource);
-  bool MakeExternal(v8::String::ExternalOneByteStringResource* resource);
+  V8_EXPORT_PRIVATE bool MakeExternal(
+      v8::String::ExternalStringResource* resource);
+  V8_EXPORT_PRIVATE bool MakeExternal(
+      v8::String::ExternalOneByteStringResource* resource);
   bool SupportsExternalization();
 
   // Conversion.
@@ -309,7 +313,7 @@ class String : public Name {
 
   DECL_CAST(String)
 
-  void PrintOn(FILE* out);
+  V8_EXPORT_PRIVATE void PrintOn(FILE* out);
 
   // For use during stack traces.  Performs rudimentary sanity check.
   bool LooksValid();
@@ -358,7 +362,8 @@ class String : public Name {
 
   // Helper function for flattening strings.
   template <typename sinkchar>
-  static void WriteToFlat(String source, sinkchar* sink, int from, int to);
+  V8_EXPORT_PRIVATE static void WriteToFlat(String source, sinkchar* sink,
+                                            int from, int to);
 
   // The return value may point to the first aligned word containing the first
   // non-one-byte character, rather than directly to the non-one-byte character.
@@ -433,21 +438,21 @@ class String : public Name {
   friend class StringTableInsertionKey;
   friend class InternalizedStringKey;
 
-  static Handle<String> SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
-                                    AllocationType allocation);
+  V8_EXPORT_PRIVATE static Handle<String> SlowFlatten(
+      Isolate* isolate, Handle<ConsString> cons, AllocationType allocation);
 
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.
-  bool SlowEquals(String other);
+  V8_EXPORT_PRIVATE bool SlowEquals(String other);
 
-  static bool SlowEquals(Isolate* isolate, Handle<String> one,
-                         Handle<String> two);
+  V8_EXPORT_PRIVATE static bool SlowEquals(Isolate* isolate, Handle<String> one,
+                                           Handle<String> two);
 
   // Slow case of AsArrayIndex.
   V8_EXPORT_PRIVATE bool SlowAsArrayIndex(uint32_t* index);
 
   // Compute and set the hash code.
-  uint32_t ComputeAndSetHash();
+  V8_EXPORT_PRIVATE uint32_t ComputeAndSetHash();
 
   OBJECT_CONSTRUCTORS(String, Name);
 };
@@ -797,7 +802,7 @@ class ExternalTwoByteString : public ExternalString {
 // A flat string reader provides random access to the contents of a
 // string independent of the character width of the string.  The handle
 // must be valid as long as the reader is being used.
-class FlatStringReader : public Relocatable {
+class V8_EXPORT_PRIVATE FlatStringReader : public Relocatable {
  public:
   FlatStringReader(Isolate* isolate, Handle<String> str);
   FlatStringReader(Isolate* isolate, Vector<const char> input);
@@ -849,8 +854,8 @@ class ConsStringIterator {
   inline void AdjustMaximumDepth();
   inline void Pop();
   inline bool StackBlown() { return maximum_depth_ - depth_ == kStackSize; }
-  void Initialize(ConsString cons_string, int offset);
-  String Continue(int* offset_out);
+  V8_EXPORT_PRIVATE void Initialize(ConsString cons_string, int offset);
+  V8_EXPORT_PRIVATE String Continue(int* offset_out);
   String NextLeaf(bool* blew_stack);
   String Search(int* offset_out);
 

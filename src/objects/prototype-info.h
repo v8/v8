@@ -69,7 +69,7 @@ class PrototypeInfo : public Struct {
 
 // A growing array with an additional API for marking slots "empty". When adding
 // new elements, we reuse the empty slots instead of growing the array.
-class PrototypeUsers : public WeakArrayList {
+class V8_EXPORT_PRIVATE PrototypeUsers : public WeakArrayList {
  public:
   static Handle<WeakArrayList> Add(Isolate* isolate,
                                    Handle<WeakArrayList> array,

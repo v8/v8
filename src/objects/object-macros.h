@@ -495,8 +495,11 @@
 
 #ifdef VERIFY_HEAP
 #define DECL_VERIFIER(Name) void Name##Verify(Isolate* isolate);
+#define EXPORT_DECL_VERIFIER(Name) \
+  V8_EXPORT_PRIVATE void Name##Verify(Isolate* isolate);
 #else
 #define DECL_VERIFIER(Name)
+#define EXPORT_DECL_VERIFIER(Name)
 #endif
 
 #define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type) \

@@ -59,8 +59,8 @@ class Code : public HeapObject {
 
 #ifdef ENABLE_DISASSEMBLER
   const char* GetName(Isolate* isolate) const;
-  void Disassemble(const char* name, std::ostream& os,
-                   Address current_pc = kNullAddress);
+  V8_EXPORT_PRIVATE void Disassemble(const char* name, std::ostream& os,
+                                     Address current_pc = kNullAddress);
 #endif
 
   // [instruction_size]: Size of the native instructions, including embedded
@@ -74,7 +74,7 @@ class Code : public HeapObject {
   // the off-heap instruction stream rather than the on-heap trampoline located
   // at instruction_start.
   inline int InstructionSize() const;
-  int OffHeapInstructionSize() const;
+  V8_EXPORT_PRIVATE int OffHeapInstructionSize() const;
 
   // [relocation_info]: Code relocation information
   DECL_ACCESSORS(relocation_info, ByteArray)
@@ -168,7 +168,7 @@ class Code : public HeapObject {
   inline void set_code_comments_offset(int offset);
   inline Address code_comments() const;
   int code_comments_size() const;
-  bool has_code_comments() const;
+  V8_EXPORT_PRIVATE bool has_code_comments() const;
 
   // The size of the executable instruction area, without embedded metadata.
   int ExecutableInstructionSize() const;
@@ -242,7 +242,7 @@ class Code : public HeapObject {
   // this differs from instruction_start (which would point to the off-heap
   // trampoline instead).
   inline Address InstructionStart() const;
-  Address OffHeapInstructionStart() const;
+  V8_EXPORT_PRIVATE Address OffHeapInstructionStart() const;
 
   // Returns the address right after the last instruction.
   inline Address raw_instruction_end() const;
@@ -251,7 +251,7 @@ class Code : public HeapObject {
   // objects this differs from instruction_end (which would point to the
   // off-heap trampoline instead).
   inline Address InstructionEnd() const;
-  Address OffHeapInstructionEnd() const;
+  V8_EXPORT_PRIVATE Address OffHeapInstructionEnd() const;
 
   // Returns the size of the instructions, padding, relocation and unwinding
   // information.
@@ -816,13 +816,13 @@ class BytecodeArray : public FixedArrayBase {
   DECL_PRINTER(BytecodeArray)
   DECL_VERIFIER(BytecodeArray)
 
-  void Disassemble(std::ostream& os);
+  V8_EXPORT_PRIVATE void Disassemble(std::ostream& os);
 
   void CopyBytecodesTo(BytecodeArray to);
 
   // Bytecode aging
-  bool IsOld() const;
-  void MakeOlder();
+  V8_EXPORT_PRIVATE bool IsOld() const;
+  V8_EXPORT_PRIVATE void MakeOlder();
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -934,7 +934,7 @@ class DeoptimizationData : public FixedArray {
                                         AllocationType allocation);
 
   // Return an empty DeoptimizationData.
-  static Handle<DeoptimizationData> Empty(Isolate* isolate);
+  V8_EXPORT_PRIVATE static Handle<DeoptimizationData> Empty(Isolate* isolate);
 
   DECL_CAST(DeoptimizationData)
 
