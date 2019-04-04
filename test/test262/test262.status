@@ -742,11 +742,6 @@
 }],
 
 ['asan == True', {
-  # https://crbug.com/v8/9086
-  'intl402/Locale/constructor-getter-order': [SKIP],
-  'intl402/Locale/constructor-options-numeric-valid': [SKIP],
-  'intl402/Locale/getters': [SKIP],
-
   # BUG(v8:4653): Test262 tests which rely on quit() are not compatible with
   # asan's --omit-quit flag.
   'built-ins/Promise/prototype/then/deferred-is-resolved-value': [SKIP],
