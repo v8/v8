@@ -2520,9 +2520,9 @@ class V8_EXPORT Value : public Data {
 
   V8_WARN_UNUSED_RESULT MaybeLocal<BigInt> ToBigInt(
       Local<Context> context) const;
-  V8_DEPRECATE_SOON("ToBoolean can never throw. Use Local version.",
-                    V8_WARN_UNUSED_RESULT MaybeLocal<Boolean> ToBoolean(
-                        Local<Context> context) const);
+  V8_DEPRECATED("ToBoolean can never throw. Use Local version.",
+                V8_WARN_UNUSED_RESULT MaybeLocal<Boolean> ToBoolean(
+                    Local<Context> context) const);
   V8_WARN_UNUSED_RESULT MaybeLocal<Number> ToNumber(
       Local<Context> context) const;
   V8_WARN_UNUSED_RESULT MaybeLocal<String> ToString(
@@ -2538,16 +2538,16 @@ class V8_EXPORT Value : public Data {
   V8_WARN_UNUSED_RESULT MaybeLocal<Int32> ToInt32(Local<Context> context) const;
 
   Local<Boolean> ToBoolean(Isolate* isolate) const;
-  V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Number> ToNumber(Isolate* isolate) const);
-  V8_DEPRECATE_SOON("Use maybe version",
-                    Local<String> ToString(Isolate* isolate) const);
-  V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Object> ToObject(Isolate* isolate) const);
-  V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Integer> ToInteger(Isolate* isolate) const);
-  V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Int32> ToInt32(Isolate* isolate) const);
+  V8_DEPRECATED("Use maybe version",
+                Local<Number> ToNumber(Isolate* isolate) const);
+  V8_DEPRECATED("Use maybe version",
+                Local<String> ToString(Isolate* isolate) const);
+  V8_DEPRECATED("Use maybe version",
+                Local<Object> ToObject(Isolate* isolate) const);
+  V8_DEPRECATED("Use maybe version",
+                Local<Integer> ToInteger(Isolate* isolate) const);
+  V8_DEPRECATED("Use maybe version",
+                Local<Int32> ToInt32(Isolate* isolate) const);
 
   /**
    * Attempts to convert a string to an array index.
@@ -2906,7 +2906,7 @@ class V8_EXPORT String : public Name {
       int length = -1);
 
   /** Allocates a new string from UTF-16 data.*/
-  static V8_DEPRECATE_SOON(
+  static V8_DEPRECATED(
       "Use maybe version",
       Local<String> NewFromTwoByte(Isolate* isolate, const uint16_t* data,
                                    NewStringType type = kNormalString,
@@ -2955,7 +2955,7 @@ class V8_EXPORT String : public Name {
    * should the underlying buffer be deallocated or modified except through the
    * destructor of the external string resource.
    */
-  static V8_DEPRECATE_SOON(
+  static V8_DEPRECATED(
       "Use maybe version",
       Local<String> NewExternal(Isolate* isolate,
                                 ExternalOneByteStringResource* resource));
@@ -5314,11 +5314,10 @@ class V8_EXPORT Date : public Object {
    * This API should not be called more than needed as it will
    * negatively impact the performance of date operations.
    */
-  V8_DEPRECATE_SOON(
-      "Use Isolate::DateTimeConfigurationChangeNotification",
-      static void DateTimeConfigurationChangeNotification(
-          Isolate* isolate,
-          TimeZoneDetection time_zone_detection = TimeZoneDetection::kSkip));
+  V8_DEPRECATED("Use Isolate::DateTimeConfigurationChangeNotification",
+                static void DateTimeConfigurationChangeNotification(
+                    Isolate* isolate, TimeZoneDetection time_zone_detection =
+                                          TimeZoneDetection::kSkip));
 
  private:
   static void CheckCast(Value* obj);
