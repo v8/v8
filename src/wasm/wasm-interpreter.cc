@@ -2467,9 +2467,19 @@ class ThreadImpl {
           EncodeI64ExceptionValue(encoded_values, &encoded_index, f64);
           break;
         }
-        case kWasmAnyRef:
-          UNIMPLEMENTED();
+        case kWasmS128: {
+          int4 s128 = value.to_s128().to_i32x4();
+          EncodeI32ExceptionValue(encoded_values, &encoded_index, s128.val[0]);
+          EncodeI32ExceptionValue(encoded_values, &encoded_index, s128.val[1]);
+          EncodeI32ExceptionValue(encoded_values, &encoded_index, s128.val[2]);
+          EncodeI32ExceptionValue(encoded_values, &encoded_index, s128.val[3]);
           break;
+        }
+        case kWasmAnyRef: {
+          Handle<Object> anyref = value.to_anyref();
+          encoded_values->set(encoded_index++, *anyref);
+          break;
+        }
         default:
           UNREACHABLE();
       }
@@ -2553,9 +2563,21 @@ class ThreadImpl {
           value = WasmValue(Float64::FromBits(f64_bits));
           break;
         }
-        case kWasmAnyRef:
-          UNIMPLEMENTED();
+        case kWasmS128: {
+          int4 s128 = {0, 0, 0, 0};
+          uint32_t* vals = reinterpret_cast<uint32_t*>(s128.val);
+          DecodeI32ExceptionValue(encoded_values, &encoded_index, &vals[0]);
+          DecodeI32ExceptionValue(encoded_values, &encoded_index, &vals[1]);
+          DecodeI32ExceptionValue(encoded_values, &encoded_index, &vals[2]);
+          DecodeI32ExceptionValue(encoded_values, &encoded_index, &vals[3]);
+          value = WasmValue(Simd128(s128));
           break;
+        }
+        case kWasmAnyRef: {
+          Handle<Object> anyref(encoded_values->get(encoded_index++), isolate_);
+          value = WasmValue(anyref);
+          break;
+        }
         default:
           UNREACHABLE();
       }
@@ -3309,6 +3331,7 @@ class ThreadImpl {
   void TraceValueStack() {
 #ifdef DEBUG
     if (!FLAG_trace_wasm_interpreter) return;
+    HandleScope handle_scope(isolate_);  // Avoid leaking handles.
     Frame* top = frames_.size() > 0 ? &frames_.back() : nullptr;
     sp_t sp = top ? top->sp : 0;
     sp_t plimit = top ? top->plimit() : 0;
@@ -3339,7 +3362,7 @@ class ThreadImpl {
           // when there is more state to know what type of values are on the
           // stack, the right format should be printed here.
           int4 s = val.to_s128().to_i32x4();
-          PrintF("i32x4:%d %d %d %d", s.val[0], s.val[1], s.val[2], s.val[3]);
+          PrintF("i32x4:%d,%d,%d,%d", s.val[0], s.val[1], s.val[2], s.val[3]);
           break;
         }
         case kWasmAnyRef: {
