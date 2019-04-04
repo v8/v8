@@ -26,6 +26,7 @@ namespace torque {
   V(StructExpression)                    \
   V(LogicalOrExpression)                 \
   V(LogicalAndExpression)                \
+  V(SpreadExpression)                    \
   V(ConditionalExpression)               \
   V(IdentifierExpression)                \
   V(StringLiteralExpression)             \
@@ -321,6 +322,13 @@ struct LogicalAndExpression : Expression {
       : Expression(kKind, pos), left(left), right(right) {}
   Expression* left;
   Expression* right;
+};
+
+struct SpreadExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(SpreadExpression)
+  SpreadExpression(SourcePosition pos, Expression* spreadee)
+      : Expression(kKind, pos), spreadee(spreadee) {}
+  Expression* spreadee;
 };
 
 struct ConditionalExpression : Expression {
