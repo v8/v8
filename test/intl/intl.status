@@ -39,6 +39,13 @@
   '*': [SKIP],
 }],  # variant == no_wasm_traps
 
+['asan', {
+  # https://crbug.com/v8/9086
+  'locale/locale-canonicalization': [SKIP],
+  'locale/locale-constructor': [SKIP],
+  'locale/locale-properties': [SKIP],
+}],  # asan
+
 ['system == windows', {
   # noi18n cannot turn on ICU backend for Date
   'relative-time-format/default-locale-fr-CA': [SKIP],
