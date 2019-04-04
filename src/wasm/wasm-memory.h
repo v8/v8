@@ -56,6 +56,9 @@ class WasmMemoryTracker {
     void* buffer_start = nullptr;
     size_t buffer_length = 0;
     bool is_shared = false;
+    // Wasm memories are growable by default, this will be false only when
+    // shared with an asmjs module.
+    bool is_growable = true;
 
     // Track Wasm Memory instances across isolates, this is populated on
     // PostMessage using persistent handles for memory objects.
@@ -115,6 +118,10 @@ class WasmMemoryTracker {
   // work to reclaim the buffer. If this function returns false, the caller must
   // free the buffer manually.
   bool FreeMemoryIfIsWasmMemory(Isolate* isolate, const void* buffer_start);
+
+  void MarkWasmMemoryNotGrowable(Handle<JSArrayBuffer> buffer);
+
+  bool IsWasmMemoryGrowable(Handle<JSArrayBuffer> buffer);
 
   // When WebAssembly.Memory is transferred over PostMessage, register the
   // allocation as shared and track the memory objects that will need

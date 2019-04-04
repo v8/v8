@@ -7737,15 +7737,14 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
 v8::SharedArrayBuffer::Contents::Contents(
     void* data, size_t byte_length, void* allocation_base,
     size_t allocation_length, Allocator::AllocationMode allocation_mode,
-    DeleterCallback deleter, void* deleter_data, bool is_growable)
+    DeleterCallback deleter, void* deleter_data)
     : data_(data),
       byte_length_(byte_length),
       allocation_base_(allocation_base),
       allocation_length_(allocation_length),
       allocation_mode_(allocation_mode),
       deleter_(deleter),
-      deleter_data_(deleter_data),
-      is_growable_(is_growable) {
+      deleter_data_(deleter_data) {
   DCHECK_LE(allocation_base_, data_);
   DCHECK_LE(byte_length_, allocation_length_);
 }
@@ -7763,8 +7762,7 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
           : reinterpret_cast<Contents::DeleterCallback>(ArrayBufferDeleter),
       self->is_wasm_memory()
           ? static_cast<void*>(self->GetIsolate()->wasm_engine())
-          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()),
-      self->is_growable());
+          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()));
   return contents;
 }
 
@@ -7804,7 +7802,6 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
     ArrayBufferCreationMode mode) {
   i::Handle<i::JSArrayBuffer> buffer = SetupSharedArrayBuffer(
       isolate, contents.Data(), contents.ByteLength(), mode);
-  buffer->set_is_growable(contents.IsGrowable());
   return Utils::ToLocalShared(buffer);
 }
 

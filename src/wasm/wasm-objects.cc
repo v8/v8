@@ -1255,7 +1255,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                uint32_t pages) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "GrowMemory");
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
-  if (!old_buffer->is_growable()) return -1;
+  auto memory_tracker = isolate->wasm_engine()->memory_tracker();
+  if (!memory_tracker->IsWasmMemoryGrowable(old_buffer)) return -1;
 
   // Checks for maximum memory size, compute new size.
   uint32_t maximum_pages = wasm::max_mem_pages();
@@ -1284,16 +1285,13 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     if (!AdjustBufferPermissions(isolate, old_buffer, new_size)) {
       return -1;
     }
-    wasm::WasmMemoryTracker* const memory_tracker =
-        isolate->wasm_engine()->memory_tracker();
     void* backing_store = old_buffer->backing_store();
     if (memory_tracker->IsWasmSharedMemory(backing_store)) {
       // This memory is shared between different isolates.
       DCHECK(old_buffer->is_shared());
       // Update pending grow state, and trigger a grow interrupt on all the
       // isolates that share this buffer.
-      isolate->wasm_engine()->memory_tracker()->SetPendingUpdateOnGrow(
-          old_buffer, new_size);
+      memory_tracker->SetPendingUpdateOnGrow(old_buffer, new_size);
       // Handle interrupts for this isolate so that the instances with this
       // isolate are updated.
       isolate->stack_guard()->HandleInterrupts();

@@ -71,9 +71,6 @@ class JSArrayBuffer : public JSObject {
   // [is_shared]: tells whether this is an ArrayBuffer or a SharedArrayBuffer.
   DECL_BOOLEAN_ACCESSORS(is_shared)
 
-  // [is_growable]: indicates whether it's possible to grow this buffer.
-  DECL_BOOLEAN_ACCESSORS(is_growable)
-
   // [is_wasm_memory]: whether the buffer is tracked by the WasmMemoryTracker.
   DECL_BOOLEAN_ACCESSORS(is_wasm_memory)
 

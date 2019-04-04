@@ -3272,7 +3272,8 @@ class Deserializer : public ValueDeserializer::Delegate {
     if (clone_id < data_->shared_array_buffer_contents().size()) {
       const SharedArrayBuffer::Contents contents =
           data_->shared_array_buffer_contents().at(clone_id);
-      return SharedArrayBuffer::New(isolate_, contents);
+      return SharedArrayBuffer::New(isolate_, contents.Data(),
+                                    contents.ByteLength());
     }
     return MaybeLocal<SharedArrayBuffer>();
   }

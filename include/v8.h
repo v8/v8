@@ -5164,8 +5164,7 @@ class V8_EXPORT SharedArrayBuffer : public Object {
           allocation_length_(0),
           allocation_mode_(Allocator::AllocationMode::kNormal),
           deleter_(nullptr),
-          deleter_data_(nullptr),
-          is_growable_(false) {}
+          deleter_data_(nullptr) {}
 
     void* AllocationBase() const { return allocation_base_; }
     size_t AllocationLength() const { return allocation_length_; }
@@ -5177,13 +5176,12 @@ class V8_EXPORT SharedArrayBuffer : public Object {
     size_t ByteLength() const { return byte_length_; }
     DeleterCallback Deleter() const { return deleter_; }
     void* DeleterData() const { return deleter_data_; }
-    bool IsGrowable() const { return is_growable_; }
 
    private:
     Contents(void* data, size_t byte_length, void* allocation_base,
              size_t allocation_length,
              Allocator::AllocationMode allocation_mode, DeleterCallback deleter,
-             void* deleter_data, bool is_growable);
+             void* deleter_data);
 
     void* data_;
     size_t byte_length_;
@@ -5192,7 +5190,6 @@ class V8_EXPORT SharedArrayBuffer : public Object {
     Allocator::AllocationMode allocation_mode_;
     DeleterCallback deleter_;
     void* deleter_data_;
-    bool is_growable_;
 
     friend class SharedArrayBuffer;
   };
@@ -5224,9 +5221,11 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * Create a new SharedArrayBuffer over an existing memory block. Propagate
    * flags to indicate whether the underlying buffer can be grown.
    */
-  static Local<SharedArrayBuffer> New(
-      Isolate* isolate, const SharedArrayBuffer::Contents&,
-      ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
+  V8_DEPRECATED("Use New method with data, and byte_length instead.",
+                static Local<SharedArrayBuffer> New(
+                    Isolate* isolate, const SharedArrayBuffer::Contents&,
+                    ArrayBufferCreationMode mode =
+                        ArrayBufferCreationMode::kExternalized));
 
   /**
    * Returns true if SharedArrayBuffer is externalized, that is, does not

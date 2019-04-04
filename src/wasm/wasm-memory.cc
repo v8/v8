@@ -284,6 +284,22 @@ bool WasmMemoryTracker::HasFullGuardRegions(const void* buffer_start) {
   return start + kWasmMaxHeapOffset < limit;
 }
 
+void WasmMemoryTracker::MarkWasmMemoryNotGrowable(
+    Handle<JSArrayBuffer> buffer) {
+  base::MutexGuard scope_lock(&mutex_);
+  const auto& allocation = allocations_.find(buffer->backing_store());
+  if (allocation == allocations_.end()) return;
+  allocation->second.is_growable = false;
+}
+
+bool WasmMemoryTracker::IsWasmMemoryGrowable(Handle<JSArrayBuffer> buffer) {
+  base::MutexGuard scope_lock(&mutex_);
+  if (buffer->backing_store() == nullptr) return true;
+  const auto& allocation = allocations_.find(buffer->backing_store());
+  if (allocation == allocations_.end()) return false;
+  return allocation->second.is_growable;
+}
+
 bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(Isolate* isolate,
                                                  const void* buffer_start) {
   base::MutexGuard scope_lock(&mutex_);
@@ -580,7 +596,6 @@ Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
   JSArrayBuffer::Setup(buffer, isolate, is_external, backing_store, size,
                        shared, is_wasm_memory);
   buffer->set_is_detachable(false);
-  buffer->set_is_growable(true);
   return buffer;
 }
 
