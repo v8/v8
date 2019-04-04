@@ -64,9 +64,10 @@ class Disassembler {
 
   // Write disassembly into specified file 'f' using specified NameConverter
   // (see constructor).
-  static void Disassemble(FILE* f, byte* begin, byte* end,
-                          UnimplementedOpcodeAction unimplemented_action =
-                              kAbortOnUnimplementedOpcode);
+  V8_EXPORT_PRIVATE static void Disassemble(
+      FILE* f, byte* begin, byte* end,
+      UnimplementedOpcodeAction unimplemented_action =
+          kAbortOnUnimplementedOpcode);
 
  private:
   const NameConverter& converter_;

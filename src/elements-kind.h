@@ -86,8 +86,8 @@ constexpr int kFastElementsKindCount =
 constexpr int kFastElementsKindPackedToHoley =
     HOLEY_SMI_ELEMENTS - PACKED_SMI_ELEMENTS;
 
-int ElementsKindToShiftSize(ElementsKind elements_kind);
-int ElementsKindToByteSize(ElementsKind elements_kind);
+V8_EXPORT_PRIVATE int ElementsKindToShiftSize(ElementsKind elements_kind);
+V8_EXPORT_PRIVATE int ElementsKindToByteSize(ElementsKind elements_kind);
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind);
 const char* ElementsKindToString(ElementsKind kind);
 

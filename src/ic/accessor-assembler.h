@@ -16,7 +16,7 @@ class CodeAssemblerState;
 
 class ExitPoint;
 
-class AccessorAssembler : public CodeStubAssembler {
+class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
  public:
   using Node = compiler::Node;
   template <class T>

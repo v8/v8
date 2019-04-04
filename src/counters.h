@@ -204,7 +204,7 @@ class StatsCounter : public StatsCounterBase {
 };
 
 // Thread safe version of StatsCounter.
-class StatsCounterThreadSafe : public StatsCounterBase {
+class V8_EXPORT_PRIVATE StatsCounterThreadSafe : public StatsCounterBase {
  public:
   void Set(int Value);
   void Increment();
@@ -288,10 +288,10 @@ enum class HistogramTimerResolution { MILLISECOND, MICROSECOND };
 class TimedHistogram : public Histogram {
  public:
   // Start the timer. Log if isolate non-null.
-  void Start(base::ElapsedTimer* timer, Isolate* isolate);
+  V8_EXPORT_PRIVATE void Start(base::ElapsedTimer* timer, Isolate* isolate);
 
   // Stop the timer and record the results. Log if isolate non-null.
-  void Stop(base::ElapsedTimer* timer, Isolate* isolate);
+  V8_EXPORT_PRIVATE void Stop(base::ElapsedTimer* timer, Isolate* isolate);
 
   // Records a TimeDelta::Max() result. Useful to record percentage of tasks
   // that never got to run in a given scenario. Log if isolate non-null.

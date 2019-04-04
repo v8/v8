@@ -76,8 +76,8 @@ class PerThreadAssertScope {
 template <PerIsolateAssertType type, bool allow>
 class PerIsolateAssertScope {
  public:
-  explicit PerIsolateAssertScope(Isolate* isolate);
-  ~PerIsolateAssertScope();
+  V8_EXPORT_PRIVATE explicit PerIsolateAssertScope(Isolate* isolate);
+  V8_EXPORT_PRIVATE ~PerIsolateAssertScope();
 
   static bool IsAllowed(Isolate* isolate);
 

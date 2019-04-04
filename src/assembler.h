@@ -376,7 +376,7 @@ class PredictableCodeSizeScope {
 
 
 // Enable a specified feature within a scope.
-class CpuFeatureScope {
+class V8_EXPORT_PRIVATE CpuFeatureScope {
  public:
   enum CheckPolicy {
     kCheckSupported,

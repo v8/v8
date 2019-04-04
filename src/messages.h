@@ -31,7 +31,7 @@ class SharedFunctionInfo;
 class SourceInfo;
 class WasmInstanceObject;
 
-class MessageLocation {
+class V8_EXPORT_PRIVATE MessageLocation {
  public:
   MessageLocation(Handle<Script> script, int start_pos, int end_pos);
   MessageLocation(Handle<Script> script, int start_pos, int end_pos,
@@ -279,9 +279,11 @@ class MessageFormatter {
  public:
   static const char* TemplateString(MessageTemplate index);
 
-  static MaybeHandle<String> Format(Isolate* isolate, MessageTemplate index,
-                                    Handle<String> arg0, Handle<String> arg1,
-                                    Handle<String> arg2);
+  V8_EXPORT_PRIVATE static MaybeHandle<String> Format(Isolate* isolate,
+                                                      MessageTemplate index,
+                                                      Handle<String> arg0,
+                                                      Handle<String> arg1,
+                                                      Handle<String> arg2);
 
   static Handle<String> Format(Isolate* isolate, MessageTemplate index,
                                Handle<Object> arg);
@@ -293,13 +295,14 @@ class MessageFormatter {
 class MessageHandler {
  public:
   // Returns a message object for the API to use.
-  static Handle<JSMessageObject> MakeMessageObject(
+  V8_EXPORT_PRIVATE static Handle<JSMessageObject> MakeMessageObject(
       Isolate* isolate, MessageTemplate type, const MessageLocation* location,
       Handle<Object> argument, Handle<FixedArray> stack_frames);
 
   // Report a formatted message (needs JS allocation).
-  static void ReportMessage(Isolate* isolate, const MessageLocation* loc,
-                            Handle<JSMessageObject> message);
+  V8_EXPORT_PRIVATE static void ReportMessage(Isolate* isolate,
+                                              const MessageLocation* loc,
+                                              Handle<JSMessageObject> message);
 
   static void DefaultMessageReport(Isolate* isolate, const MessageLocation* loc,
                                    Handle<Object> message_obj);

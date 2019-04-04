@@ -228,21 +228,21 @@ struct ToUppercase {
                      uchar* result,
                      bool* allow_caching_ptr);
 };
-struct Ecma262Canonicalize {
+struct V8_EXPORT_PRIVATE Ecma262Canonicalize {
   static const int kMaxWidth = 1;
   static int Convert(uchar c,
                      uchar n,
                      uchar* result,
                      bool* allow_caching_ptr);
 };
-struct Ecma262UnCanonicalize {
+struct V8_EXPORT_PRIVATE Ecma262UnCanonicalize {
   static const int kMaxWidth = 4;
   static int Convert(uchar c,
                      uchar n,
                      uchar* result,
                      bool* allow_caching_ptr);
 };
-struct CanonicalizationRange {
+struct V8_EXPORT_PRIVATE CanonicalizationRange {
   static const int kMaxWidth = 1;
   static int Convert(uchar c,
                      uchar n,

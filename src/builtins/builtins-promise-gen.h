@@ -15,7 +15,7 @@ namespace internal {
 
 typedef compiler::CodeAssemblerState CodeAssemblerState;
 
-class PromiseBuiltinsAssembler : public CodeStubAssembler {
+class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit PromiseBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}

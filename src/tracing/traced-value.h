@@ -16,7 +16,7 @@
 namespace v8 {
 namespace tracing {
 
-class TracedValue : public ConvertableToTraceFormat {
+class V8_EXPORT_PRIVATE TracedValue : public ConvertableToTraceFormat {
  public:
   ~TracedValue() override;
 

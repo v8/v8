@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "include/v8-internal.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
@@ -44,7 +45,7 @@ class CodeCommentsWriter {
   std::vector<CodeCommentEntry> comments_;
 };
 
-class CodeCommentsIterator {
+class V8_EXPORT_PRIVATE CodeCommentsIterator {
  public:
   // Address can be kNullAddress. In this case HasCurrent() will return false.
   explicit CodeCommentsIterator(Address code_comments_start);

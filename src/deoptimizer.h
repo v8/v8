@@ -458,7 +458,7 @@ class Deoptimizer : public Malloced {
   static void DeoptimizeFunction(JSFunction function, Code code = Code());
 
   // Deoptimize all code in the given isolate.
-  static void DeoptimizeAll(Isolate* isolate);
+  V8_EXPORT_PRIVATE static void DeoptimizeAll(Isolate* isolate);
 
   // Deoptimizes all optimized code that has been previously marked
   // (via code->set_marked_for_deoptimization) and unlinks all functions that
@@ -489,7 +489,7 @@ class Deoptimizer : public Malloced {
     return OFFSET_OF(Deoptimizer, caller_frame_top_);
   }
 
-  static int GetDeoptimizedCodeCount(Isolate* isolate);
+  V8_EXPORT_PRIVATE static int GetDeoptimizedCodeCount(Isolate* isolate);
 
   static const int kNotDeoptimizationEntry = -1;
 

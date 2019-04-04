@@ -3571,10 +3571,10 @@ TNode<CollectionType> CodeStubAssembler::AllocateSmallOrderedHashTable(
   return table;
 }
 
-template TNode<SmallOrderedHashMap>
+template V8_EXPORT_PRIVATE TNode<SmallOrderedHashMap>
 CodeStubAssembler::AllocateSmallOrderedHashTable<SmallOrderedHashMap>(
     TNode<IntPtrT> capacity);
-template TNode<SmallOrderedHashSet>
+template V8_EXPORT_PRIVATE TNode<SmallOrderedHashSet>
 CodeStubAssembler::AllocateSmallOrderedHashTable<SmallOrderedHashSet>(
     TNode<IntPtrT> capacity);
 
@@ -8489,12 +8489,15 @@ void CodeStubAssembler::NameDictionaryLookup(
 }
 
 // Instantiate template methods to workaround GCC compilation issue.
-template void CodeStubAssembler::NameDictionaryLookup<NameDictionary>(
-    TNode<NameDictionary>, TNode<Name>, Label*, TVariable<IntPtrT>*, Label*,
-    int, LookupMode);
-template void CodeStubAssembler::NameDictionaryLookup<GlobalDictionary>(
-    TNode<GlobalDictionary>, TNode<Name>, Label*, TVariable<IntPtrT>*, Label*,
-    int, LookupMode);
+template V8_EXPORT_PRIVATE void
+CodeStubAssembler::NameDictionaryLookup<NameDictionary>(TNode<NameDictionary>,
+                                                        TNode<Name>, Label*,
+                                                        TVariable<IntPtrT>*,
+                                                        Label*, int,
+                                                        LookupMode);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::NameDictionaryLookup<
+    GlobalDictionary>(TNode<GlobalDictionary>, TNode<Name>, Label*,
+                      TVariable<IntPtrT>*, Label*, int, LookupMode);
 
 Node* CodeStubAssembler::ComputeUnseededHash(Node* key) {
   // See v8::internal::ComputeUnseededHash()

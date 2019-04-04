@@ -288,9 +288,10 @@ class ExternalReference {
   template <typename SubjectChar, typename PatternChar>
   static ExternalReference search_string_raw();
 
-  static ExternalReference FromRawAddress(Address address);
+  V8_EXPORT_PRIVATE static ExternalReference FromRawAddress(Address address);
 
-#define DECL_EXTERNAL_REFERENCE(name, desc) static ExternalReference name();
+#define DECL_EXTERNAL_REFERENCE(name, desc) \
+  V8_EXPORT_PRIVATE static ExternalReference name();
   EXTERNAL_REFERENCE_LIST(DECL_EXTERNAL_REFERENCE)
 #undef DECL_EXTERNAL_REFERENCE
 

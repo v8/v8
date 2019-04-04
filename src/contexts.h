@@ -375,8 +375,9 @@ class ScriptContextTable : public FixedArray {
   // valid information about its location.
   // If it returns false, `result` is untouched.
   V8_WARN_UNUSED_RESULT
-  static bool Lookup(Isolate* isolate, ScriptContextTable table, String name,
-                     LookupResult* result);
+  V8_EXPORT_PRIVATE static bool Lookup(Isolate* isolate,
+                                       ScriptContextTable table, String name,
+                                       LookupResult* result);
 
   V8_WARN_UNUSED_RESULT
   static Handle<ScriptContextTable> Extend(Handle<ScriptContextTable> table,
@@ -551,7 +552,7 @@ class Context : public HeapObject {
   inline void set_extension(HeapObject object);
   JSObject extension_object();
   JSReceiver extension_receiver();
-  ScopeInfo scope_info();
+  V8_EXPORT_PRIVATE ScopeInfo scope_info();
 
   // Find the module context (assuming there is one) and return the associated
   // module object.
@@ -566,7 +567,7 @@ class Context : public HeapObject {
   Context closure_context();
 
   // Returns a JSGlobalProxy object or null.
-  JSGlobalProxy global_proxy();
+  V8_EXPORT_PRIVATE JSGlobalProxy global_proxy();
   void set_global_proxy(JSGlobalProxy global);
 
   // Get the JSGlobalObject object.
@@ -595,7 +596,7 @@ class Context : public HeapObject {
 
   // The native context also stores a list of all optimized code and a
   // list of all deoptimized code, which are needed by the deoptimizer.
-  void AddOptimizedCode(Code code);
+  V8_EXPORT_PRIVATE void AddOptimizedCode(Code code);
   void SetOptimizedCodeListHead(Object head);
   Object OptimizedCodeListHead();
   void SetDeoptimizedCodeListHead(Object head);

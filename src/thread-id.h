@@ -5,6 +5,8 @@
 #ifndef V8_THREAD_ID_H_
 #define V8_THREAD_ID_H_
 
+#include "src/base/macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -41,7 +43,7 @@ class ThreadId {
 
   explicit constexpr ThreadId(int id) noexcept : id_(id) {}
 
-  static int GetCurrentThreadId();
+  V8_EXPORT_PRIVATE static int GetCurrentThreadId();
 
   int id_;
 };

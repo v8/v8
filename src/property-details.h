@@ -402,8 +402,8 @@ inline PropertyConstness GeneralizeConstness(PropertyConstness a,
   return a == PropertyConstness::kMutable ? PropertyConstness::kMutable : b;
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         const PropertyAttributes& attributes);
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os, const PropertyAttributes& attributes);
 }  // namespace internal
 }  // namespace v8
 

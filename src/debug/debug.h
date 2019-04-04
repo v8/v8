@@ -121,7 +121,7 @@ class BreakLocation {
   friend class BreakIterator;
 };
 
-class BreakIterator {
+class V8_EXPORT_PRIVATE BreakIterator {
  public:
   explicit BreakIterator(Handle<DebugInfo> debug_info);
 
@@ -207,7 +207,7 @@ class DebugFeatureTracker {
 // active breakpoints in them. This debug info is held in the heap root object
 // debug_info which is a FixedArray. Each entry in this list is of class
 // DebugInfo.
-class Debug {
+class V8_EXPORT_PRIVATE Debug {
  public:
   // Debug event triggers.
   void OnDebugBreak(Handle<FixedArray> break_points_hit);

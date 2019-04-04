@@ -138,7 +138,8 @@ inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
                                                      : LanguageMode::kStrict;
 }
 
-std::ostream& operator<<(std::ostream& os, FeedbackSlotKind kind);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           FeedbackSlotKind kind);
 
 typedef std::vector<MaybeObjectHandle> MaybeObjectHandles;
 
@@ -255,7 +256,7 @@ class FeedbackVector : public HeapObject {
   inline MaybeObjectSlot slots_start();
 
   // Returns slot kind for given slot.
-  FeedbackSlotKind GetKind(FeedbackSlot slot) const;
+  V8_EXPORT_PRIVATE FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
   FeedbackSlot GetTypeProfileSlot() const;
 
@@ -288,7 +289,7 @@ class FeedbackVector : public HeapObject {
     return GetLanguageModeFromSlotKind(GetKind(slot));
   }
 
-  static void AssertNoLegacyTypes(MaybeObject object);
+  V8_EXPORT_PRIVATE static void AssertNoLegacyTypes(MaybeObject object);
 
   DECL_PRINTER(FeedbackVector)
   DECL_VERIFIER(FeedbackVector)
@@ -520,7 +521,7 @@ class FeedbackMetadata : public HeapObject {
   inline bool is_empty() const;
 
   // Returns slot kind for given slot.
-  FeedbackSlotKind GetKind(FeedbackSlot slot) const;
+  V8_EXPORT_PRIVATE FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
   // If {spec} is null, then it is considered empty.
   V8_EXPORT_PRIVATE static Handle<FeedbackMetadata> New(
@@ -621,7 +622,7 @@ class FeedbackMetadataIterator {
 };
 
 // A FeedbackNexus is the combination of a FeedbackVector and a slot.
-class FeedbackNexus final {
+class V8_EXPORT_PRIVATE FeedbackNexus final {
  public:
   FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : vector_handle_(vector), slot_(slot) {
