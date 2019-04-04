@@ -89,7 +89,7 @@
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
       'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
       # Misc.
-      'V8 Linux gcc': 'release_x86_gcc_no_goma',
+      'V8 Linux gcc': 'release_x86_gcc',
       'V8 Linux64 gcc - debug': 'debug_x64_gcc_no_goma',
       # FYI.
       'V8 Linux64 - pointer compression': 'release_x64_pointer_compression',
@@ -523,11 +523,11 @@
       'release_bot', 'x86', 'v8_no_enable_embedded_builtins'],
     'release_x86_noembed_trybot': [
       'release_trybot', 'x86', 'v8_no_enable_embedded_builtins'],
+    'release_x86_gcc': [
+      'release', 'static', 'x86', 'gcc'],
     # TODO(machenbach): Enable back goma once supported.
     'release_x86_gcc_minimal_symbols': [
       'release', 'static', 'x86', 'gcc', 'minimal_symbols', 'no_goma'],
-    'release_x86_gcc_no_goma': [
-      'release', 'static', 'x86', 'gcc', 'no_goma'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [
