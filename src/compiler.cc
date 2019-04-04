@@ -274,42 +274,47 @@ void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
     PrintF("Compiled: %d functions with %d byte source size in %fms.\n",
            compiled_functions, code_size, compilation_time);
   }
-  Counters* const counters = isolate->counters();
-  if (compilation_info()->is_osr()) {
-    counters->turbofan_osr_prepare()->AddSample(
-        static_cast<int>(time_taken_to_prepare_.InMicroseconds()));
-    counters->turbofan_osr_execute()->AddSample(
-        static_cast<int>(time_taken_to_execute_.InMicroseconds()));
-    counters->turbofan_osr_finalize()->AddSample(
-        static_cast<int>(time_taken_to_finalize_.InMicroseconds()));
-    counters->turbofan_osr_total_time()->AddSample(
-        static_cast<int>(ElapsedTime().InMicroseconds()));
-  } else {
-    counters->turbofan_optimize_prepare()->AddSample(
-        static_cast<int>(time_taken_to_prepare_.InMicroseconds()));
-    counters->turbofan_optimize_execute()->AddSample(
-        static_cast<int>(time_taken_to_execute_.InMicroseconds()));
-    counters->turbofan_optimize_finalize()->AddSample(
-        static_cast<int>(time_taken_to_finalize_.InMicroseconds()));
-    counters->turbofan_optimize_total_time()->AddSample(
-        static_cast<int>(ElapsedTime().InMicroseconds()));
+  // Don't record samples from machines without high-resolution timers,
+  // as that can cause serious reporting issues. See the thread at
+  // http://g/chrome-metrics-team/NwwJEyL8odU/discussion for more details.
+  if (base::TimeTicks::IsHighResolution()) {
+    Counters* const counters = isolate->counters();
+    if (compilation_info()->is_osr()) {
+      counters->turbofan_osr_prepare()->AddSample(
+          static_cast<int>(time_taken_to_prepare_.InMicroseconds()));
+      counters->turbofan_osr_execute()->AddSample(
+          static_cast<int>(time_taken_to_execute_.InMicroseconds()));
+      counters->turbofan_osr_finalize()->AddSample(
+          static_cast<int>(time_taken_to_finalize_.InMicroseconds()));
+      counters->turbofan_osr_total_time()->AddSample(
+          static_cast<int>(ElapsedTime().InMicroseconds()));
+    } else {
+      counters->turbofan_optimize_prepare()->AddSample(
+          static_cast<int>(time_taken_to_prepare_.InMicroseconds()));
+      counters->turbofan_optimize_execute()->AddSample(
+          static_cast<int>(time_taken_to_execute_.InMicroseconds()));
+      counters->turbofan_optimize_finalize()->AddSample(
+          static_cast<int>(time_taken_to_finalize_.InMicroseconds()));
+      counters->turbofan_optimize_total_time()->AddSample(
+          static_cast<int>(ElapsedTime().InMicroseconds()));
 
-    // Compute foreground / background time.
-    base::TimeDelta time_background;
-    base::TimeDelta time_foreground =
-        time_taken_to_prepare_ + time_taken_to_execute_;
-    switch (mode) {
-      case OptimizedCompilationJob::kConcurrent:
-        time_background += time_taken_to_execute_;
-        break;
-      case OptimizedCompilationJob::kSynchronous:
-        time_foreground += time_taken_to_execute_;
-        break;
+      // Compute foreground / background time.
+      base::TimeDelta time_background;
+      base::TimeDelta time_foreground =
+          time_taken_to_prepare_ + time_taken_to_execute_;
+      switch (mode) {
+        case OptimizedCompilationJob::kConcurrent:
+          time_background += time_taken_to_execute_;
+          break;
+        case OptimizedCompilationJob::kSynchronous:
+          time_foreground += time_taken_to_execute_;
+          break;
+      }
+      counters->turbofan_optimize_total_background()->AddSample(
+          static_cast<int>(time_background.InMicroseconds()));
+      counters->turbofan_optimize_total_foreground()->AddSample(
+          static_cast<int>(time_foreground.InMicroseconds()));
     }
-    counters->turbofan_optimize_total_background()->AddSample(
-        static_cast<int>(time_background.InMicroseconds()));
-    counters->turbofan_optimize_total_foreground()->AddSample(
-        static_cast<int>(time_foreground.InMicroseconds()));
   }
 }
 
