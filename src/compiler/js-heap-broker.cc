@@ -182,22 +182,26 @@ class JSObjectData : public HeapObjectData {
   JSObjectData(JSHeapBroker* broker, ObjectData** storage,
                Handle<JSObject> object);
 
-  // Recursively serializes all reachable JSObjects.
+  // Recursive serialization of all reachable JSObjects.
   void SerializeAsBoilerplate(JSHeapBroker* broker);
+  const JSObjectField& GetInobjectField(int property_index) const;
+
   // Shallow serialization of {elements}.
   void SerializeElements(JSHeapBroker* broker);
-
-  const JSObjectField& GetInobjectField(int property_index) const;
+  bool serialized_elements() const { return serialized_elements_; }
   FixedArrayBaseData* elements() const;
-
-  // This method is only used to assert our invariants.
-  bool cow_or_empty_elements_tenured() const;
 
   void SerializeObjectCreateMap(JSHeapBroker* broker);
   MapData* object_create_map() const {  // Can be nullptr.
     CHECK(serialized_object_create_map_);
     return object_create_map_;
   }
+
+  ObjectData* GetOwnConstantElement(JSHeapBroker* broker, uint32_t index,
+                                    bool serialize);
+
+  // This method is only used to assert our invariants.
+  bool cow_or_empty_elements_tenured() const;
 
  private:
   void SerializeRecursive(JSHeapBroker* broker, int max_depths);
@@ -213,6 +217,12 @@ class JSObjectData : public HeapObjectData {
 
   bool serialized_object_create_map_ = false;
   MapData* object_create_map_ = nullptr;
+
+  // Elements (indexed properties) that either
+  // (1) are known to exist directly on the object as non-writable and
+  // non-configurable, or (2) are known not to (possibly they don't exist at
+  // all). In case (2), the second pair component is nullptr.
+  ZoneVector<std::pair<uint32_t, ObjectData*>> own_constant_elements_;
 };
 
 void JSObjectData::SerializeObjectCreateMap(JSHeapBroker* broker) {
@@ -234,6 +244,40 @@ void JSObjectData::SerializeObjectCreateMap(JSHeapBroker* broker) {
       }
     }
   }
+}
+
+namespace {
+base::Optional<ObjectRef> GetOwnElementFromHeap(JSHeapBroker* broker,
+                                                Handle<Object> receiver,
+                                                uint32_t index,
+                                                bool constant_only) {
+  LookupIterator it(broker->isolate(), receiver, index, LookupIterator::OWN);
+  if (it.state() == LookupIterator::DATA &&
+      (!constant_only || (it.IsReadOnly() && !it.IsConfigurable()))) {
+    return ObjectRef(broker, it.GetDataValue());
+  }
+  return base::nullopt;
+}
+}  // namespace
+
+ObjectData* JSObjectData::GetOwnConstantElement(JSHeapBroker* broker,
+                                                uint32_t index,
+                                                bool serialize) {
+  for (auto const& p : own_constant_elements_) {
+    if (p.first == index) return p.second;
+  }
+
+  if (!serialize) {
+    TRACE(broker, "GetOwnConstantElement: missing index "
+                      << index << " on data " << this << "\n");
+    return nullptr;
+  }
+
+  base::Optional<ObjectRef> element =
+      GetOwnElementFromHeap(broker, object(), index, true);
+  ObjectData* result = element.has_value() ? element->data() : nullptr;
+  own_constant_elements_.push_back({index, result});
+  return result;
 }
 
 class JSTypedArrayData : public JSObjectData {
@@ -496,12 +540,20 @@ class StringData : public NameData {
   bool is_external_string() const { return is_external_string_; }
   bool is_seq_string() const { return is_seq_string_; }
 
+  StringData* GetCharAsString(JSHeapBroker* broker, uint32_t index,
+                              bool serialize);
+
  private:
   int const length_;
   uint16_t const first_char_;
   base::Optional<double> to_number_;
   bool const is_external_string_;
   bool const is_seq_string_;
+
+  // Known individual characters as strings, corresponding to the semantics of
+  // element access (s[i]). The first pair component is always less than
+  // {length_}. The second component is never nullptr.
+  ZoneVector<std::pair<uint32_t, StringData*>> chars_as_strings_;
 
   static constexpr int kMaxLengthForDoubleConversion = 23;
 };
@@ -518,7 +570,8 @@ StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
       length_(object->length()),
       first_char_(length_ > 0 ? object->Get(0) : 0),
       is_external_string_(object->IsExternalString()),
-      is_seq_string_(object->IsSeqString()) {
+      is_seq_string_(object->IsSeqString()),
+      chars_as_strings_(broker->zone()) {
   int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
   if (length_ <= kMaxLengthForDoubleConversion) {
     to_number_ = StringToDouble(broker->isolate(), object, flags);
@@ -535,6 +588,28 @@ class InternalizedStringData : public StringData {
  private:
   uint32_t array_index_;
 };
+
+StringData* StringData::GetCharAsString(JSHeapBroker* broker, uint32_t index,
+                                        bool serialize) {
+  if (index >= static_cast<uint32_t>(length())) return nullptr;
+
+  for (auto const& p : chars_as_strings_) {
+    if (p.first == index) return p.second;
+  }
+
+  if (!serialize) {
+    TRACE(broker, "GetCharAsString: missing index " << index << " on data "
+                                                    << this << "\n");
+    return nullptr;
+  }
+
+  base::Optional<ObjectRef> element =
+      GetOwnElementFromHeap(broker, object(), index, true);
+  StringData* result =
+      element.has_value() ? element->data()->AsString() : nullptr;
+  chars_as_strings_.push_back({index, result});
+  return result;
+}
 
 InternalizedStringData::InternalizedStringData(
     JSHeapBroker* broker, ObjectData** storage,
@@ -1067,7 +1142,8 @@ void JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
 JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
                            Handle<JSObject> object)
     : HeapObjectData(broker, storage, object),
-      inobject_fields_(broker->zone()) {}
+      inobject_fields_(broker->zone()),
+      own_constant_elements_(broker->zone()) {}
 
 FixedArrayData::FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<FixedArray> object)
@@ -1143,18 +1219,27 @@ class JSArrayData : public JSObjectData {
  public:
   JSArrayData(JSHeapBroker* broker, ObjectData** storage,
               Handle<JSArray> object);
-  void Serialize(JSHeapBroker* broker);
 
+  void Serialize(JSHeapBroker* broker);
   ObjectData* length() const { return length_; }
+
+  ObjectData* GetOwnElement(JSHeapBroker* broker, uint32_t index,
+                            bool serialize);
 
  private:
   bool serialized_ = false;
   ObjectData* length_ = nullptr;
+
+  // Elements (indexed properties) that either
+  // (1) are known to exist directly on the object, or
+  // (2) are known not to (possibly they don't exist at all).
+  // In case (2), the second pair component is nullptr.
+  ZoneVector<std::pair<uint32_t, ObjectData*>> own_elements_;
 };
 
 JSArrayData::JSArrayData(JSHeapBroker* broker, ObjectData** storage,
                          Handle<JSArray> object)
-    : JSObjectData(broker, storage, object) {}
+    : JSObjectData(broker, storage, object), own_elements_(broker->zone()) {}
 
 void JSArrayData::Serialize(JSHeapBroker* broker) {
   if (serialized_) return;
@@ -1162,8 +1247,28 @@ void JSArrayData::Serialize(JSHeapBroker* broker) {
 
   TraceScope tracer(broker, this, "JSArrayData::Serialize");
   Handle<JSArray> jsarray = Handle<JSArray>::cast(object());
+
   DCHECK_NULL(length_);
   length_ = broker->GetOrCreateData(jsarray->length());
+}
+
+ObjectData* JSArrayData::GetOwnElement(JSHeapBroker* broker, uint32_t index,
+                                       bool serialize) {
+  for (auto const& p : own_elements_) {
+    if (p.first == index) return p.second;
+  }
+
+  if (!serialize) {
+    TRACE(broker, "GetOwnElement: missing index " << index << " on data "
+                                                  << this << "\n");
+    return nullptr;
+  }
+
+  base::Optional<ObjectRef> element =
+      GetOwnElementFromHeap(broker, object(), index, false);
+  ObjectData* result = element.has_value() ? element->data() : nullptr;
+  own_elements_.push_back({index, result});
+  return result;
 }
 
 class ScopeInfoData : public HeapObjectData {
@@ -1353,6 +1458,7 @@ JSGlobalProxyData::JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
                                      Handle<JSGlobalProxy> object)
     : JSObjectData(broker, storage, object), properties_(broker->zone()) {}
 
+namespace {
 base::Optional<PropertyCellRef> GetPropertyCellFromHeap(JSHeapBroker* broker,
                                                         Handle<Name> name) {
   LookupIterator it(broker->isolate(),
@@ -1366,6 +1472,7 @@ base::Optional<PropertyCellRef> GetPropertyCellFromHeap(JSHeapBroker* broker,
   }
   return base::nullopt;
 }
+}  // namespace
 
 PropertyCellData* JSGlobalProxyData::GetPropertyCell(JSHeapBroker* broker,
                                                      NameData* name,
@@ -2623,6 +2730,46 @@ Maybe<double> ObjectRef::OddballToNumber() const {
       break;
     }
   }
+}
+
+base::Optional<ObjectRef> ObjectRef::GetOwnConstantElement(
+    uint32_t index, bool serialize) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    return (IsJSObject() || IsString())
+               ? GetOwnElementFromHeap(broker(), object(), index, true)
+               : base::nullopt;
+  }
+  ObjectData* element = nullptr;
+  if (IsJSObject()) {
+    element =
+        data()->AsJSObject()->GetOwnConstantElement(broker(), index, serialize);
+  } else if (IsString()) {
+    element = data()->AsString()->GetCharAsString(broker(), index, serialize);
+  }
+  if (element == nullptr) return base::nullopt;
+  return ObjectRef(broker(), element);
+}
+
+base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(uint32_t index,
+                                                       bool serialize) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    if (!object()->elements()->IsCowArray()) return base::nullopt;
+    return GetOwnElementFromHeap(broker(), object(), index, false);
+  }
+
+  if (serialize) {
+    data()->AsJSObject()->SerializeElements(broker());
+  } else if (!data()->AsJSObject()->serialized_elements()) {
+    TRACE(broker(),
+          "GetOwnCowElement: missing 'elements' on data " << this << ".\n");
+    return base::nullopt;
+  }
+  if (!elements().map().IsFixedCowArrayMap()) return base::nullopt;
+
+  ObjectData* element =
+      data()->AsJSArray()->GetOwnElement(broker(), index, serialize);
+  if (element == nullptr) return base::nullopt;
+  return ObjectRef(broker(), element);
 }
 
 double HeapNumberRef::value() const {

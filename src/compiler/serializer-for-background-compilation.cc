@@ -717,13 +717,15 @@ SerializerForBackgroundCompilation::ProcessFeedbackForGlobalAccess(
   if (slot.IsInvalid()) return nullptr;
   if (environment()->function().feedback_vector.is_null()) return nullptr;
   FeedbackSource source(environment()->function().feedback_vector, slot);
-  if (!broker()->HasFeedback(source)) {
-    const GlobalAccessFeedback* feedback =
-        broker()->ProcessFeedbackForGlobalAccess(source);
-    broker()->SetFeedback(source, feedback);
-    return feedback;
+
+  if (broker()->HasFeedback(source)) {
+    return broker()->GetGlobalAccessFeedback(source);
   }
-  return nullptr;
+
+  const GlobalAccessFeedback* feedback =
+      broker()->ProcessFeedbackForGlobalAccess(source);
+  broker()->SetFeedback(source, feedback);
+  return feedback;
 }
 
 void SerializerForBackgroundCompilation::VisitLdaGlobal(
@@ -818,6 +820,43 @@ void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
   }
 }
 
+void SerializerForBackgroundCompilation::ProcessKeyedPropertyAccess(
+    Hints const& receiver, Hints const& key, FeedbackSlot slot,
+    AccessMode mode) {
+  ProcessFeedbackForKeyedPropertyAccess(slot, mode);
+
+  for (Handle<Object> hint : receiver.constants()) {
+    ObjectRef receiver_ref(broker(), hint);
+
+    // For JSNativeContextSpecialization::ReduceElementAccess.
+    if (mode == AccessMode::kStore) {
+      if (receiver_ref.IsJSTypedArray()) {
+        receiver_ref.AsJSTypedArray().Serialize();
+      }
+    }
+
+    // For JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant.
+    if (mode == AccessMode::kLoad || mode == AccessMode::kHas) {
+      for (Handle<Object> hint : key.constants()) {
+        ObjectRef key_ref(broker(), hint);
+        // TODO(neis): Do this for integer-HeapNumbers too?
+        if (key_ref.IsSmi() && key_ref.AsSmi() >= 0) {
+          base::Optional<ObjectRef> element =
+              receiver_ref.GetOwnConstantElement(key_ref.AsSmi(), true);
+          if (!element.has_value() && receiver_ref.IsJSArray()) {
+            // We didn't find a constant element, but if the receiver is a
+            // cow-array we can exploit the fact that any future write to the
+            // element will replace the whole elements storage.
+            receiver_ref.AsJSArray().GetOwnCowElement(key_ref.AsSmi(), true);
+          }
+        }
+      }
+    }
+  }
+
+  environment()->accumulator_hints().Clear();
+}
+
 void SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
     MapRef const& map, NameRef const& name) {
   // For JSNativeContextSpecialization::ReduceNamedAccess.
@@ -850,9 +889,11 @@ void SerializerForBackgroundCompilation::ProcessFeedbackForNamedPropertyAccess(
 
 void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(
     BytecodeArrayIterator* iterator) {
+  Hints const& key = environment()->accumulator_hints();
+  Hints const& receiver =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
   FeedbackSlot slot = iterator->GetSlotOperand(1);
-  ProcessFeedbackForKeyedPropertyAccess(slot, AccessMode::kLoad);
-  environment()->accumulator_hints().Clear();
+  ProcessKeyedPropertyAccess(receiver, key, slot, AccessMode::kLoad);
 }
 
 void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
@@ -907,32 +948,31 @@ void SerializerForBackgroundCompilation::VisitStaNamedProperty(
 
 void SerializerForBackgroundCompilation::VisitTestIn(
     BytecodeArrayIterator* iterator) {
+  Hints const& receiver = environment()->accumulator_hints();
+  Hints const& key =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
   FeedbackSlot slot = iterator->GetSlotOperand(1);
-  ProcessFeedbackForKeyedPropertyAccess(slot, AccessMode::kHas);
-  environment()->accumulator_hints().Clear();
+  ProcessKeyedPropertyAccess(receiver, key, slot, AccessMode::kHas);
 }
 
 void SerializerForBackgroundCompilation::VisitStaKeyedProperty(
     BytecodeArrayIterator* iterator) {
-  const Hints& receiver =
+  Hints const& receiver =
       environment()->register_hints(iterator->GetRegisterOperand(0));
+  Hints const& key =
+      environment()->register_hints(iterator->GetRegisterOperand(1));
   FeedbackSlot slot = iterator->GetSlotOperand(2);
-
-  ProcessFeedbackForKeyedPropertyAccess(slot, AccessMode::kStore);
-
-  for (Handle<Object> object : receiver.constants()) {
-    // For JSNativeContextSpecialization::ReduceElementAccess.
-    if (object->IsJSTypedArray()) JSTypedArrayRef(broker(), object).Serialize();
-  }
-
-  environment()->accumulator_hints().Clear();
+  ProcessKeyedPropertyAccess(receiver, key, slot, AccessMode::kStore);
 }
 
 void SerializerForBackgroundCompilation::VisitStaInArrayLiteral(
     BytecodeArrayIterator* iterator) {
+  Hints const& receiver =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+  Hints const& key =
+      environment()->register_hints(iterator->GetRegisterOperand(1));
   FeedbackSlot slot = iterator->GetSlotOperand(2);
-  ProcessFeedbackForKeyedPropertyAccess(slot, AccessMode::kStoreInLiteral);
-  environment()->accumulator_hints().Clear();
+  ProcessKeyedPropertyAccess(receiver, key, slot, AccessMode::kStoreInLiteral);
 }
 
 #define DEFINE_CLEAR_ENVIRONMENT(name, ...)             \

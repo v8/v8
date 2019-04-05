@@ -124,6 +124,11 @@ class V8_EXPORT_PRIVATE ObjectRef {
   bool BooleanValue() const;
   Maybe<double> OddballToNumber() const;
 
+  // Return the element at key {index} if {index} is known to be an own data
+  // property of the object that is non-writable and non-configurable.
+  base::Optional<ObjectRef> GetOwnConstantElement(uint32_t index,
+                                                  bool serialize = false) const;
+
   Isolate* isolate() const;
 
  protected:
@@ -132,8 +137,12 @@ class V8_EXPORT_PRIVATE ObjectRef {
   ObjectData* data_;  // Should be used only by object() getters.
 
  private:
+  friend class JSArrayData;
   friend class JSGlobalProxyRef;
   friend class JSGlobalProxyData;
+  friend class JSObjectData;
+  friend class StringData;
+
   JSHeapBroker* broker_;
 };
 
@@ -521,6 +530,11 @@ class JSArrayRef : public JSObjectRef {
   Handle<JSArray> object() const;
 
   ObjectRef length() const;
+
+  // Return the element at key {index} if the array has a copy-on-write elements
+  // storage and {index} is known to be an own data property.
+  base::Optional<ObjectRef> GetOwnCowElement(uint32_t index,
+                                             bool serialize = false) const;
 };
 
 class ScopeInfoRef : public HeapObjectRef {

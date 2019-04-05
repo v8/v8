@@ -1742,57 +1742,37 @@ Reduction JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant(
     return NoChange();
   }
 
-  // Check whether we're accessing a known element on the {receiver}
-  // that is non-configurable, non-writable (e.g. the {receiver} was
-  // frozen using Object.freeze).
+  // Check whether we're accessing a known element on the {receiver} and can
+  // constant-fold the load.
   NumberMatcher mindex(index);
   if (mindex.IsInteger() && mindex.IsInRange(0.0, kMaxUInt32 - 1.0)) {
-    LookupIterator it(isolate(), receiver_ref.object(),
-                      static_cast<uint32_t>(mindex.Value()),
-                      LookupIterator::OWN);
-    if (it.state() == LookupIterator::DATA) {
-      if (it.IsReadOnly() && !it.IsConfigurable()) {
-        // We can safely constant-fold the {index} access to {receiver},
-        // since the element is non-configurable, non-writable and thus
-        // cannot change anymore.
-        Node* value = access_mode == AccessMode::kHas
-                          ? jsgraph()->TrueConstant()
-                          : jsgraph()->Constant(it.GetDataValue());
-        ReplaceWithValue(node, value, effect, control);
-        return Replace(value);
+    uint32_t index_value = static_cast<uint32_t>(mindex.Value());
+    base::Optional<ObjectRef> element =
+        receiver_ref.GetOwnConstantElement(index_value);
+    if (!element.has_value() && receiver_ref.IsJSArray()) {
+      // We didn't find a constant element, but if the receiver is a cow-array
+      // we can exploit the fact that any future write to the element will
+      // replace the whole elements storage.
+      element = receiver_ref.AsJSArray().GetOwnCowElement(index_value);
+      if (element.has_value()) {
+        Node* elements = effect = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+            receiver, effect, control);
+        FixedArrayRef array_elements =
+            receiver_ref.AsJSArray().elements().AsFixedArray();
+        Node* check = graph()->NewNode(simplified()->ReferenceEqual(), elements,
+                                       jsgraph()->Constant(array_elements));
+        effect = graph()->NewNode(
+            simplified()->CheckIf(DeoptimizeReason::kCowArrayElementsChanged),
+            check, effect, control);
       }
-
-      // Check if the {receiver} is a known constant with a copy-on-write
-      // backing store, and whether {index} is within the appropriate
-      // bounds. In that case we can constant-fold the access and only
-      // check that the {elements} didn't change. This is sufficient as
-      // the backing store of a copy-on-write JSArray is defensively
-      // copied whenever the length or the elements (might) change.
-      //
-      // What's interesting here is that we don't need to map check the
-      // {receiver}, since JSArray's will always have their elements in
-      // the backing store.
-      if (receiver_ref.IsJSArray()) {
-        Handle<JSArray> array = receiver_ref.AsJSArray().object();
-        if (array->elements()->IsCowArray()) {
-          Node* elements = effect = graph()->NewNode(
-              simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
-              receiver, effect, control);
-          Handle<FixedArray> array_elements(FixedArray::cast(array->elements()),
-                                            isolate());
-          Node* check =
-              graph()->NewNode(simplified()->ReferenceEqual(), elements,
-                               jsgraph()->HeapConstant(array_elements));
-          effect = graph()->NewNode(
-              simplified()->CheckIf(DeoptimizeReason::kCowArrayElementsChanged),
-              check, effect, control);
-          Node* value = access_mode == AccessMode::kHas
-                            ? jsgraph()->TrueConstant()
-                            : jsgraph()->Constant(it.GetDataValue());
-          ReplaceWithValue(node, value, effect, control);
-          return Replace(value);
-        }
-      }
+    }
+    if (element.has_value()) {
+      Node* value = access_mode == AccessMode::kHas
+                        ? jsgraph()->TrueConstant()
+                        : jsgraph()->Constant(*element);
+      ReplaceWithValue(node, value, effect, control);
+      return Replace(value);
     }
   }
 
@@ -2272,7 +2252,6 @@ JSNativeContextSpecialization::BuildPropertyAccess(
       return BuildPropertyTest(effect, control, access_info);
   }
   UNREACHABLE();
-  return ValueEffectControl();
 }
 
 JSNativeContextSpecialization::ValueEffectControl

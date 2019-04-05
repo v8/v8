@@ -251,6 +251,8 @@ class SerializerForBackgroundCompilation {
   void ProcessJump(interpreter::BytecodeArrayIterator* iterator);
   void MergeAfterJump(interpreter::BytecodeArrayIterator* iterator);
 
+  void ProcessKeyedPropertyAccess(Hints const& receiver, Hints const& key,
+                                  FeedbackSlot slot, AccessMode mode);
   void ProcessNamedPropertyAccess(interpreter::BytecodeArrayIterator* iterator,
                                   AccessMode mode);
   void ProcessNamedPropertyAccess(Hints const& receiver, NameRef const& name,

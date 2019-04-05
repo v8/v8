@@ -1035,4 +1035,10 @@
   '*': [SKIP],
 }], # variant == jitless and not embedded_builtins
 
+##############################################################################
+['variant == future', {
+  # crbug.com/v8/9094
+  'compiler/constant-fold-cow-array': [SKIP],
+}], # variant == future
+
 ]
