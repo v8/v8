@@ -803,6 +803,9 @@ class SideTable : public ZoneObject {
         DCHECK_GE(control_stack.size() - 1, exception_stack.back());
         const Control* c = &control_stack[exception_stack.back()];
         if (!unreachable) c->else_label->Ref(i.pc(), exceptional_stack_height);
+        if (exceptional_stack_height + kCatchInArity > max_stack_height_) {
+          max_stack_height_ = exceptional_stack_height + kCatchInArity;
+        }
         TRACE("handler @%u: %s -> try @%u\n", i.pc_offset(), OpcodeName(opcode),
               static_cast<uint32_t>(c->pc - code->start));
       }
