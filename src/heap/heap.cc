@@ -1026,7 +1026,8 @@ void Heap::GarbageCollectionEpilogue() {
       Handle<FinalizationGroupCleanupJobTask> task =
           isolate()->factory()->NewFinalizationGroupCleanupJobTask(
               finalization_group);
-      context->microtask_queue()->EnqueueMicrotask(*task);
+      MicrotaskQueue* microtask_queue = context->microtask_queue();
+      if (microtask_queue) microtask_queue->EnqueueMicrotask(*task);
     }
   }
 }
