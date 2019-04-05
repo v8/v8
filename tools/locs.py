@@ -21,6 +21,12 @@ import tempfile
 import time
 from pathlib import Path
 
+# for py2/py3 compatibility
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
+
 ARGPARSE = argparse.ArgumentParser(
     description=("A script that computes LoC for a build dir or from a"
                  "compile_commands.json file"),
