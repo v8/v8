@@ -392,6 +392,133 @@ void CheckTableCall(Isolate* isolate, Handle<WasmTableObject> table,
 }
 }  // namespace
 
+WASM_EXEC_TEST(TableInitElems) {
+  EXPERIMENTAL_FLAG_SCOPE(bulk_memory);
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  TestSignatures sigs;
+  WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
+  const uint32_t kTableSize = 5;
+  std::vector<uint32_t> function_indexes;
+  const uint32_t sig_index = r.builder().AddSignature(sigs.i_v());
+
+  for (uint32_t i = 0; i < kTableSize; ++i) {
+    WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
+    BUILD(fn, WASM_I32V_1(i));
+    fn.SetSigIndex(sig_index);
+    function_indexes.push_back(fn.function_index());
+  }
+
+  // Passive element segment has [f0, f1, f2, f3, f4, null].
+  function_indexes.push_back(WasmElemSegment::kNullIndex);
+
+  r.builder().AddIndirectFunctionTable(nullptr, kTableSize);
+  r.builder().AddPassiveElementSegment(function_indexes);
+
+  WasmFunctionCompiler& call = r.NewFunction(sigs.i_i(), "call");
+  BUILD(call, WASM_CALL_INDIRECT0(sig_index, WASM_GET_LOCAL(0)));
+  const uint32_t call_index = call.function_index();
+
+  BUILD(r,
+        WASM_TABLE_INIT(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                        WASM_GET_LOCAL(2)),
+        kExprI32Const, 0);
+
+  auto table = handle(
+      WasmTableObject::cast(r.builder().instance_object()->tables().get(0)),
+      isolate);
+  const double null = 0xDEADBEEF;
+
+  CheckTableCall(isolate, table, r, call_index, null, null, null, null, null);
+
+  // 0 count is ok in bounds, and at end of regions.
+  r.CheckCallViaJS(0, 0, 0, 0);
+  r.CheckCallViaJS(0, kTableSize, 0, 0);
+  r.CheckCallViaJS(0, 0, kTableSize, 0);
+
+  // Test actual writes.
+  r.CheckCallViaJS(0, 0, 0, 1);
+  CheckTableCall(isolate, table, r, call_index, 0, null, null, null, null);
+  r.CheckCallViaJS(0, 0, 0, 2);
+  CheckTableCall(isolate, table, r, call_index, 0, 1, null, null, null);
+  r.CheckCallViaJS(0, 0, 0, 3);
+  CheckTableCall(isolate, table, r, call_index, 0, 1, 2, null, null);
+  r.CheckCallViaJS(0, 3, 0, 2);
+  CheckTableCall(isolate, table, r, call_index, 0, 1, 2, 0, 1);
+  r.CheckCallViaJS(0, 3, 1, 2);
+  CheckTableCall(isolate, table, r, call_index, 0, 1, 2, 1, 2);
+  r.CheckCallViaJS(0, 3, 2, 2);
+  CheckTableCall(isolate, table, r, call_index, 0, 1, 2, 2, 3);
+  r.CheckCallViaJS(0, 3, 3, 2);
+  CheckTableCall(isolate, table, r, call_index, 0, 1, 2, 3, 4);
+}
+
+WASM_EXEC_TEST(TableInitOob) {
+  EXPERIMENTAL_FLAG_SCOPE(bulk_memory);
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  TestSignatures sigs;
+  WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
+  const uint32_t kTableSize = 5;
+  std::vector<uint32_t> function_indexes;
+  const uint32_t sig_index = r.builder().AddSignature(sigs.i_v());
+
+  for (uint32_t i = 0; i < kTableSize; ++i) {
+    WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
+    BUILD(fn, WASM_I32V_1(i));
+    fn.SetSigIndex(sig_index);
+    function_indexes.push_back(fn.function_index());
+  }
+
+  r.builder().AddIndirectFunctionTable(nullptr, kTableSize);
+  r.builder().AddPassiveElementSegment(function_indexes);
+
+  WasmFunctionCompiler& call = r.NewFunction(sigs.i_i(), "call");
+  BUILD(call, WASM_CALL_INDIRECT0(sig_index, WASM_GET_LOCAL(0)));
+  const uint32_t call_index = call.function_index();
+
+  BUILD(r,
+        WASM_TABLE_INIT(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                        WASM_GET_LOCAL(2)),
+        kExprI32Const, 0);
+
+  auto table = handle(
+      WasmTableObject::cast(r.builder().instance_object()->tables().get(0)),
+      isolate);
+  const double null = 0xDEADBEEF;
+
+  CheckTableCall(isolate, table, r, call_index, null, null, null, null, null);
+
+  // Write all values up to the out-of-bounds write.
+  r.CheckCallViaJS(0xDEADBEEF, 3, 0, 3);
+  CheckTableCall(isolate, table, r, call_index, null, null, null, 0, 1);
+
+  // Write all values up to the out-of-bounds read.
+  r.CheckCallViaJS(0xDEADBEEF, 0, 3, 3);
+  CheckTableCall(isolate, table, r, call_index, 3, 4, null, 0, 1);
+
+  // 0-count is oob.
+  r.CheckCallViaJS(0xDEADBEEF, kTableSize + 1, 0, 0);
+  r.CheckCallViaJS(0xDEADBEEF, 0, kTableSize + 1, 0);
+
+  r.CheckCallViaJS(0xDEADBEEF, 0, 0, 6);
+  r.CheckCallViaJS(0xDEADBEEF, 0, 1, 5);
+  r.CheckCallViaJS(0xDEADBEEF, 0, 2, 4);
+  r.CheckCallViaJS(0xDEADBEEF, 0, 3, 3);
+  r.CheckCallViaJS(0xDEADBEEF, 0, 4, 2);
+  r.CheckCallViaJS(0xDEADBEEF, 0, 5, 1);
+
+  r.CheckCallViaJS(0xDEADBEEF, 0, 0, 6);
+  r.CheckCallViaJS(0xDEADBEEF, 1, 0, 5);
+  r.CheckCallViaJS(0xDEADBEEF, 2, 0, 4);
+  r.CheckCallViaJS(0xDEADBEEF, 3, 0, 3);
+  r.CheckCallViaJS(0xDEADBEEF, 4, 0, 2);
+  r.CheckCallViaJS(0xDEADBEEF, 5, 0, 1);
+
+  r.CheckCallViaJS(0xDEADBEEF, 10, 0, 1);
+  r.CheckCallViaJS(0xDEADBEEF, 0, 10, 1);
+}
+
 WASM_EXEC_TEST(TableCopyElems) {
   EXPERIMENTAL_FLAG_SCOPE(bulk_memory);
   Isolate* isolate = CcTest::InitIsolateOnce();
@@ -565,6 +692,29 @@ WASM_EXEC_TEST(TableCopyOob1) {
     r.CheckCallViaJS(0xDEADBEEF, 0, big, 1);
     r.CheckCallViaJS(0xDEADBEEF, 0, 0, big);
   }
+}
+
+WASM_EXEC_TEST(ElemDropTwice) {
+  EXPERIMENTAL_FLAG_SCOPE(bulk_memory);
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().AddIndirectFunctionTable(nullptr, 1);
+  r.builder().AddPassiveElementSegment({});
+  BUILD(r, WASM_ELEM_DROP(0), kExprI32Const, 0);
+
+  r.CheckCallViaJS(0);
+  r.CheckCallViaJS(0xDEADBEEF);
+}
+
+WASM_EXEC_TEST(ElemDropThenTableInit) {
+  EXPERIMENTAL_FLAG_SCOPE(bulk_memory);
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().AddIndirectFunctionTable(nullptr, 1);
+  r.builder().AddPassiveElementSegment({});
+  BUILD(r, WASM_ELEM_DROP(0),
+        WASM_TABLE_INIT(0, WASM_I32V_1(0), WASM_I32V_1(0), WASM_I32V_1(0)),
+        kExprI32Const, 0);
+
+  r.CheckCallViaJS(0xDEADBEEF);
 }
 
 }  // namespace test_run_wasm_bulk_memory

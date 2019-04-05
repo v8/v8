@@ -266,6 +266,21 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(Vector<const byte> bytes) {
   return index;
 }
 
+uint32_t TestingModuleBuilder::AddPassiveElementSegment(
+    const std::vector<uint32_t>& entries) {
+  uint32_t index = static_cast<uint32_t>(test_module_->elem_segments.size());
+  DCHECK_EQ(index, dropped_elem_segments_.size());
+
+  test_module_->elem_segments.emplace_back();
+  auto& elem_segment = test_module_->elem_segments.back();
+  elem_segment.entries = entries;
+
+  // The vector pointers may have moved, so update the instance object.
+  dropped_elem_segments_.push_back(0);
+  instance_object_->set_dropped_elem_segments(dropped_elem_segments_.data());
+  return index;
+}
+
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   // This is a hack so we don't need to call
   // trap_handler::IsTrapHandlerEnabled().

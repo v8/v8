@@ -165,19 +165,3 @@ function getMemoryFill(mem) {
   const instance = builder.instantiate();
   assertTraps(kTrapElemSegmentDropped, () => instance.exports.drop());
 })();
-
-(function TestElemDropTwice() {
-  const builder = new WasmModuleBuilder();
-  builder.setTableBounds(5, 5);
-  builder.addPassiveElementSegment([0, 0, 0]);
-  builder.addFunction('drop', kSig_v_v)
-      .addBody([
-        kNumericPrefix, kExprElemDrop,
-        0,  // Element segment index.
-      ])
-      .exportAs('drop');
-
-  const instance = builder.instantiate();
-  instance.exports.drop();
-  assertTraps(kTrapElemSegmentDropped, () => instance.exports.drop());
-})();

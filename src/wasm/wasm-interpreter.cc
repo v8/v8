@@ -1668,6 +1668,15 @@ class ThreadImpl {
     return true;
   }
 
+  bool CheckElemSegmentIsPassiveAndNotDropped(uint32_t index, pc_t pc) {
+    DCHECK_LT(index, module()->elem_segments.size());
+    if (instance_object_->dropped_elem_segments()[index]) {
+      DoTrap(kTrapElemSegmentDropped, pc);
+      return false;
+    }
+    return true;
+  }
+
   template <typename type, typename op_type>
   bool ExtractAtomicOpParams(Decoder* decoder, InterpreterCode* code,
                              Address& address, pc_t pc, int& len,
@@ -1780,6 +1789,32 @@ class ThreadImpl {
         if (!ok) DoTrap(kTrapMemOutOfBounds, pc);
         len += imm.length;
         return ok;
+      }
+      case kExprTableInit: {
+        TableInitImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
+        len += imm.length;
+        if (!CheckElemSegmentIsPassiveAndNotDropped(imm.elem_segment_index,
+                                                    pc)) {
+          return false;
+        }
+        auto size = Pop().to<uint32_t>();
+        auto src = Pop().to<uint32_t>();
+        auto dst = Pop().to<uint32_t>();
+        HandleScope scope(isolate_);  // Avoid leaking handles.
+        bool ok = WasmInstanceObject::InitTableEntries(
+            instance_object_->GetIsolate(), instance_object_, imm.table.index,
+            imm.elem_segment_index, dst, src, size);
+        if (!ok) DoTrap(kTrapTableOutOfBounds, pc);
+        return ok;
+      }
+      case kExprElemDrop: {
+        ElemDropImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
+        len += imm.length;
+        if (!CheckElemSegmentIsPassiveAndNotDropped(imm.index, pc)) {
+          return false;
+        }
+        instance_object_->dropped_elem_segments()[imm.index] = 1;
+        return true;
       }
       case kExprTableCopy: {
         TableCopyImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
