@@ -428,7 +428,7 @@ void Heap::PrintShortHeapStatistics() {
                ", available: %6" PRIuS
                " KB"
                ", committed: %6" PRIuS " KB\n",
-               lo_space_->SizeOfObjects() / KB,
+               code_lo_space_->SizeOfObjects() / KB,
                code_lo_space_->Available() / KB,
                code_lo_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
