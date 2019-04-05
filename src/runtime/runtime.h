@@ -525,7 +525,6 @@ namespace internal {
   I(IsTypedArray, 1, 1)                     \
   F(TypedArrayCopyElements, 3, 1)           \
   F(TypedArrayGetBuffer, 1, 1)              \
-  F(TypedArrayGetLength, 1, 1)              \
   F(TypedArraySet, 2, 1)                    \
   F(TypedArraySortFast, 1, 1)
 

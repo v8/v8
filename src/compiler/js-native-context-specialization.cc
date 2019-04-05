@@ -2648,8 +2648,7 @@ JSNativeContextSpecialization::BuildElementAccess(
         GetTypedArrayConstant(broker(), receiver);
     if (typed_array.has_value()) {
       buffer = jsgraph()->Constant(typed_array->buffer());
-      length =
-          jsgraph()->Constant(static_cast<double>(typed_array->length_value()));
+      length = jsgraph()->Constant(static_cast<double>(typed_array->length()));
 
       // Load the (known) base and external pointer for the {receiver}. The
       // {external_pointer} might be invalid if the {buffer} was detached, so

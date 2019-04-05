@@ -181,8 +181,7 @@ class JSArrayBufferView : public JSObject {
 class JSTypedArray : public JSArrayBufferView {
  public:
   // [length]: length of typed array in elements.
-  DECL_ACCESSORS(length, Object)
-  inline size_t length_value() const;
+  DECL_PRIMITIVE_ACCESSORS(length, size_t)
 
   // ES6 9.4.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
@@ -225,9 +224,8 @@ class JSTypedArray : public JSArrayBufferView {
  private:
   static Handle<JSArrayBuffer> MaterializeArrayBuffer(
       Handle<JSTypedArray> typed_array);
-#ifdef VERIFY_HEAP
+
   DECL_ACCESSORS(raw_length, Object)
-#endif
 
   OBJECT_CONSTRUCTORS(JSTypedArray, JSArrayBufferView);
 };
