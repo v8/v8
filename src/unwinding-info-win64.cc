@@ -17,12 +17,12 @@ namespace win64_unwindinfo {
 bool CanEmitUnwindInfoForBuiltins() { return FLAG_win64_unwinding_info; }
 
 bool CanRegisterUnwindInfoForNonABICompliantCodeRange() {
-  return !FLAG_jitless && FLAG_win64_unwinding_info;
+  return !FLAG_jitless;
 }
 
 bool RegisterUnwindInfoForExceptionHandlingOnly() {
   DCHECK(CanRegisterUnwindInfoForNonABICompliantCodeRange());
-  return !IsWindows8OrGreater();
+  return !IsWindows8OrGreater() || !FLAG_win64_unwinding_info;
 }
 
 #pragma pack(push, 1)
@@ -236,6 +236,11 @@ void RegisterNonABICompliantCodeRange(void* start, size_t size_in_bytes) {
 
       CHECK(::RtlAddFunctionTable(&record->runtime_function, 1,
                                   reinterpret_cast<DWORD64>(start)));
+
+      // Protect reserved page against modifications.
+      DWORD old_protect;
+      CHECK(VirtualProtect(start, sizeof(CodeRangeUnwindingRecord),
+                           PAGE_EXECUTE_READ, &old_protect));
     }
   } else {
     CodeRangeUnwindingRecord* record = new (start) CodeRangeUnwindingRecord();
@@ -246,12 +251,12 @@ void RegisterNonABICompliantCodeRange(void* start, size_t size_in_bytes) {
         reinterpret_cast<DWORD64>(start),
         reinterpret_cast<DWORD64>(reinterpret_cast<uint8_t*>(start) +
                                   size_in_bytes)));
-  }
 
-  // Protect reserved page against modifications.
-  DWORD old_protect;
-  CHECK(VirtualProtect(start, sizeof(CodeRangeUnwindingRecord),
-                       PAGE_EXECUTE_READ, &old_protect));
+    // Protect reserved page against modifications.
+    DWORD old_protect;
+    CHECK(VirtualProtect(start, sizeof(CodeRangeUnwindingRecord),
+                         PAGE_EXECUTE_READ, &old_protect));
+  }
 }
 
 void UnregisterNonABICompliantCodeRange(void* start) {

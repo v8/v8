@@ -438,7 +438,8 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   // See src/heap/spaces.cc, MemoryAllocator::InitializeCodePageAllocator() and
   // https://cs.chromium.org/chromium/src/components/crash/content/app/crashpad_win.cc?rcl=fd680447881449fba2edcf0589320e7253719212&l=204
   // for details.
-  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
+      FLAG_win64_unwinding_info) {
     AllocateForCode(Heap::GetCodeRangeReservedAreaSize());
   }
 #endif
@@ -1237,7 +1238,8 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
              size);
 
 #if defined(V8_OS_WIN_X64)
-  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
+      FLAG_win64_unwinding_info) {
     win64_unwindinfo::RegisterNonABICompliantCodeRange(
         reinterpret_cast<void*>(start), size);
   }
@@ -1377,7 +1379,8 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
                code_space.address(), code_space.end(), code_space.size());
 
 #if defined(V8_OS_WIN_X64)
-    if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+    if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
+        FLAG_win64_unwinding_info) {
       win64_unwindinfo::UnregisterNonABICompliantCodeRange(
           reinterpret_cast<void*>(code_space.address()));
     }
