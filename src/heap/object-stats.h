@@ -45,6 +45,12 @@
   V(JS_ARRAY_BOILERPLATE_TYPE)                   \
   V(JS_COLLECTION_TABLE_TYPE)                    \
   V(JS_OBJECT_BOILERPLATE_TYPE)                  \
+  V(MAP_ABANDONED_PROTOTYPE_TYPE)                \
+  V(MAP_DEPRECATED_TYPE)                         \
+  V(MAP_DICTIONARY_TYPE)                         \
+  V(MAP_PROTOTYPE_DICTIONARY_TYPE)               \
+  V(MAP_PROTOTYPE_TYPE)                          \
+  V(MAP_STABLE_TYPE)                             \
   V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE)         \
   V(NUMBER_STRING_CACHE_TYPE)                    \
   V(OBJECT_PROPERTY_DICTIONARY_TYPE)             \

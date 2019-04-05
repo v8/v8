@@ -776,6 +776,34 @@ bool ObjectStatsCollectorImpl::SameLiveness(HeapObject obj1, HeapObject obj2) {
 void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
   // TODO(mlippautz): map->dependent_code(): DEPENDENT_CODE_TYPE.
 
+  // For Map we want to distinguish between various different states
+  // to get a better picture of what's going on in MapSpace. This
+  // method computes the virtual instance type to use for a given map,
+  // using MAP_TYPE for regular maps that aren't special in any way.
+  if (map->is_prototype_map()) {
+    if (map->is_dictionary_map()) {
+      RecordSimpleVirtualObjectStats(
+          HeapObject(), map, ObjectStats::MAP_PROTOTYPE_DICTIONARY_TYPE);
+    } else if (map->is_abandoned_prototype_map()) {
+      RecordSimpleVirtualObjectStats(HeapObject(), map,
+                                     ObjectStats::MAP_ABANDONED_PROTOTYPE_TYPE);
+    } else {
+      RecordSimpleVirtualObjectStats(HeapObject(), map,
+                                     ObjectStats::MAP_PROTOTYPE_TYPE);
+    }
+  } else if (map->is_deprecated()) {
+    RecordSimpleVirtualObjectStats(HeapObject(), map,
+                                   ObjectStats::MAP_DEPRECATED_TYPE);
+  } else if (map->is_dictionary_map()) {
+    RecordSimpleVirtualObjectStats(HeapObject(), map,
+                                   ObjectStats::MAP_DICTIONARY_TYPE);
+  } else if (map->is_stable()) {
+    RecordSimpleVirtualObjectStats(HeapObject(), map,
+                                   ObjectStats::MAP_STABLE_TYPE);
+  } else {
+    // This will be logged as MAP_TYPE in Phase2.
+  }
+
   DescriptorArray array = map->instance_descriptors();
   if (map->owns_descriptors() &&
       array != ReadOnlyRoots(heap_).empty_descriptor_array()) {
