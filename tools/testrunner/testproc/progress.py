@@ -307,6 +307,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
         "random_seed": test.random_seed,
         "target_name": test.get_shell(),
         "variant": test.variant,
+        "variant_flags": test.variant_flags,
       })
 
   def finished(self):

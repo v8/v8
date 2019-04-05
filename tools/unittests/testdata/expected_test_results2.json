@@ -22,7 +22,8 @@
       "stderr": "",
       "stdout": "bananaflakes --random-seed=123 --nohard-abort\n",
       "target_name": "d8_mocked.py",
-      "variant": "default"
+      "variant": "default",
+      "variant_flags": []
     },
     {
       "command": "/usr/bin/python out/Release/d8_mocked.py bananaflakes --random-seed=123 --nohard-abort",
@@ -43,7 +44,8 @@
       "stderr": "",
       "stdout": "bananaflakes --random-seed=123 --nohard-abort\n",
       "target_name": "d8_mocked.py",
-      "variant": "default"
+      "variant": "default",
+      "variant_flags": []
     }
   ],
   "slowest_tests": [
