@@ -584,6 +584,14 @@ void FlagList::PrintHelp() {
         "  --shell   run an interactive JavaScript shell\n"
         "  --module  execute a file as a JavaScript module\n\n"
         "Note: the --module option is implicitly enabled for *.mjs files.\n\n"
+        "The following syntax for options is accepted (both '-' and '--' are "
+        "ok):\n"
+        "  --flag        (bool flags only)\n"
+        "  --noflag      (bool flags only)\n"
+        "  --flag=value  (non-bool flags only, no spaces around '=')\n"
+        "  --flag value  (non-bool flags only)\n"
+        "  --            (equivalent to --js_arguments, captures all remaining "
+        "args)\n\n"
         "Options:\n";
 
   for (const Flag& f : flags) {
