@@ -52,7 +52,6 @@ class JSArrayBuffer : public JSObject {
   V(IsDetachableBit, bool, 1, _)               \
   V(WasDetachedBit, bool, 1, _)                \
   V(IsSharedBit, bool, 1, _)                   \
-  V(IsGrowableBit, bool, 1, _)                 \
   V(IsWasmMemoryBit, bool, 1, _)
   DEFINE_BIT_FIELDS(JS_ARRAY_BUFFER_BIT_FIELD_FIELDS)
 #undef JS_ARRAY_BUFFER_BIT_FIELD_FIELDS
