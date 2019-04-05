@@ -461,9 +461,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9040
-  'intl402/ListFormat/constructor/constructor/options-style-valid': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],

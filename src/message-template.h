@@ -324,9 +324,6 @@ namespace internal {
   T(InvalidTypedArrayAlignment, "% of % should be a multiple of %")            \
   T(InvalidTypedArrayIndex, "Invalid typed array index")                       \
   T(InvalidTypedArrayLength, "Invalid typed array length: %")                  \
-  T(IllegalTypeWhileStyleNarrow,                                               \
-    "When style is 'narrow', 'unit' is the only allowed value for the type "   \
-    "option.")                                                                 \
   T(LetInLexicalBinding, "let is disallowed as a lexically bound name")        \
   T(LocaleMatcher, "Illegal value for localeMatcher:%")                        \
   T(NormalizationForm, "The normalization form should be one of %.")           \

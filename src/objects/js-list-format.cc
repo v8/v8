@@ -33,7 +33,10 @@ const char* kStandard = "standard";
 const char* kOr = "or";
 const char* kUnit = "unit";
 const char* kStandardShort = "standard-short";
+const char* kOrShort = "or-short";
 const char* kUnitShort = "unit-short";
+const char* kStandardNarrow = "standard-narrow";
+const char* kOrNarrow = "or-narrow";
 const char* kUnitNarrow = "unit-narrow";
 
 const char* GetIcuStyleString(JSListFormat::Style style,
@@ -45,29 +48,19 @@ const char* GetIcuStyleString(JSListFormat::Style style,
           return kStandard;
         case JSListFormat::Style::SHORT:
           return kStandardShort;
-        // NARROW is now not allowed if type is not unit
-        // It is impossible to reach because we've already thrown a RangeError
-        // when style is "narrow" and type is not "unit".
         case JSListFormat::Style::NARROW:
+          return kStandardNarrow;
         case JSListFormat::Style::COUNT:
           UNREACHABLE();
       }
     case JSListFormat::Type::DISJUNCTION:
       switch (style) {
-        // Currently, ListFormat::createInstance on "or-short"
-        // will fail so we use "or" here.
-        // See https://unicode.org/cldr/trac/ticket/11254
-        // TODO(ftang): change to return kOr or kOrShort depend on
-        // style after the above issue fixed in CLDR/ICU.
-        // CLDR bug: https://unicode.org/cldr/trac/ticket/11254
-        // ICU bug: https://unicode-org.atlassian.net/browse/ICU-20014
         case JSListFormat::Style::LONG:
-        case JSListFormat::Style::SHORT:
           return kOr;
-        // NARROW is now not allowed if type is not unit
-        // It is impossible to reach because we've already thrown a RangeError
-        // when style is "narrow" and type is not "unit".
+        case JSListFormat::Style::SHORT:
+          return kOrShort;
         case JSListFormat::Style::NARROW:
+          return kOrNarrow;
         case JSListFormat::Style::COUNT:
           UNREACHABLE();
       }
@@ -181,11 +174,7 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   // 13. Set listFormat.[[Type]] to t.
   list_format->set_type(type_enum);
 
-  // NOTE: Keep the old way of GetOptions on style for now. I discover a
-  // disadvantage of following the lastest spec and propose to rollback that
-  // part in https://github.com/tc39/proposal-intl-list-format/pull/40
-
-  // Let s be ? GetOption(options, "style", "string",
+  // 14. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
       isolate, options, "style", "Intl.ListFormat", {"long", "short", "narrow"},
@@ -193,15 +182,7 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   MAYBE_RETURN(maybe_style, MaybeHandle<JSListFormat>());
   Style style_enum = maybe_style.FromJust();
 
-  // If _style_ is `"narrow"` and _type_ is not `"unit"`, throw a *RangeError*
-  // exception.
-  if (style_enum == Style::NARROW && type_enum != Type::UNIT) {
-    THROW_NEW_ERROR(
-        isolate, NewRangeError(MessageTemplate::kIllegalTypeWhileStyleNarrow),
-        JSListFormat);
-  }
-
-  // 17. Set listFormat.[[Style]] to s.
+  // 15. Set listFormat.[[Style]] to s.
   list_format->set_style(style_enum);
 
   icu::Locale icu_locale = r.icu_locale;
