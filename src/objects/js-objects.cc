@@ -3666,6 +3666,8 @@ bool TestElementsIntegrityLevel(JSObject object, PropertyAttributes level) {
         level);
   }
   if (IsFixedTypedArrayElementsKind(kind)) {
+    if (level == FROZEN && JSArrayBufferView::cast(object)->byte_length() > 0)
+      return false;  // TypedArrays with elements can't be frozen.
     return TestPropertiesIntegrityLevel(object, level);
   }
 

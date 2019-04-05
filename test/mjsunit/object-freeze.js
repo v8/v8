@@ -505,3 +505,15 @@ assertTrue(%HasPackedElements(arr2));
 Object.preventExtensions(arr2);
 Object.freeze(arr2);
 testPackedFrozenArray2(arr2);
+
+// Verify that repeatedly attemping to freeze a typed array fails
+var typedArray = new Uint8Array(10);
+assertThrows(() => { Object.freeze(typedArray); }, TypeError);
+assertFalse(Object.isFrozen(typedArray));
+assertThrows(() => { Object.freeze(typedArray); }, TypeError);
+assertFalse(Object.isFrozen(typedArray));
+
+// Verify that freezing an empty typed array works
+var typedArray = new Uint8Array(0);
+Object.freeze(typedArray);
+assertTrue(Object.isFrozen(typedArray));
