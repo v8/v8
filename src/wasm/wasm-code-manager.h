@@ -74,12 +74,6 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
   DISALLOW_COPY_AND_ASSIGN(DisjointAllocationPool);
 };
 
-struct WasmCodeUpdate {
-  WasmCode* code = nullptr;
-  base::Optional<ExecutionTier> tier;
-  base::Optional<ExecutionTier> prior_tier;
-};
-
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
   enum Kind {
@@ -278,9 +272,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // {PublishCode} makes the code available to the system by entering it into
   // the code table and patching the jump table. It returns a raw pointer to the
   // given {WasmCode} object.
-  WasmCodeUpdate PublishCode(std::unique_ptr<WasmCode>);
+  WasmCode* PublishCode(std::unique_ptr<WasmCode>);
   // Hold the {allocation_mutex_} when calling {PublishCodeLocked}.
-  WasmCodeUpdate PublishCodeLocked(std::unique_ptr<WasmCode>);
+  WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>);
 
   WasmCode* AddDeserializedCode(
       uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
@@ -406,8 +400,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   enum CodeSamplingTime : int8_t { kAfterBaseline, kAfterTopTier, kSampling };
   void SampleCodeSize(Counters*, CodeSamplingTime) const;
 
-  WasmCodeUpdate AddCompiledCode(WasmCompilationResult);
-  std::vector<WasmCodeUpdate> AddCompiledCode(Vector<WasmCompilationResult>);
+  WasmCode* AddCompiledCode(WasmCompilationResult);
+  std::vector<WasmCode*> AddCompiledCode(Vector<WasmCompilationResult>);
 
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all

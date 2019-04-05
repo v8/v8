@@ -624,7 +624,7 @@ WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
   new_code->MaybePrint(name);
   new_code->Validate();
 
-  return PublishCode(std::move(new_code)).code;
+  return PublishCode(std::move(new_code));
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCode(
@@ -710,7 +710,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   return code;
 }
 
-WasmCodeUpdate NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
+WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
   base::MutexGuard lock(&allocation_mutex_);
   return PublishCodeLocked(std::move(code));
 }
@@ -729,10 +729,9 @@ WasmCode::Kind GetCodeKindForExecutionTier(ExecutionTier tier) {
 }
 }  // namespace
 
-WasmCodeUpdate NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
+WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
   // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
   DCHECK(!allocation_mutex_.TryLock());
-  WasmCodeUpdate update;
 
   if (!code->IsAnonymous()) {
     DCHECK_LT(code->index(), num_functions());
@@ -740,20 +739,18 @@ WasmCodeUpdate NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
 
     // Assume an order of execution tiers that represents the quality of their
     // generated code.
-    static_assert(ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
+    static_assert(ExecutionTier::kNone < ExecutionTier::kInterpreter &&
+                      ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
                       ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                   "Assume an order on execution tiers");
 
     // Update code table but avoid to fall back to less optimized code. We use
-    // the new code if it was compiled with a higher tier and also if we cannot
-    // determine the tier.
+    // the new code if it was compiled with a higher tier.
     uint32_t slot_idx = code->index() - module_->num_imported_functions;
     WasmCode* prior_code = code_table_[slot_idx];
-    if (prior_code) update.prior_tier = prior_code->tier();
-    update.tier = code->tier();
-    bool update_code_table = !update.prior_tier.has_value() ||
-                             !update.tier.has_value() ||
-                             update.prior_tier.value() < update.tier.value();
+    ExecutionTier prior_tier =
+        prior_code == nullptr ? ExecutionTier::kNone : prior_code->tier();
+    bool update_code_table = prior_tier < code->tier();
     if (update_code_table) {
       code_table_[slot_idx] = code.get();
     }
@@ -776,9 +773,9 @@ WasmCodeUpdate NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     }
   }
   WasmCodeRefScope::AddRef(code.get());
-  update.code = code.get();
+  WasmCode* result = code.get();
   owned_code_.emplace_back(std::move(code));
-  return update;
+  return result;
 }
 
 WasmCode* NativeModule::AddDeserializedCode(
@@ -805,7 +802,7 @@ WasmCode* NativeModule::AddDeserializedCode(
   // Note: we do not flush the i-cache here, since the code needs to be
   // relocated anyway. The caller is responsible for flushing the i-cache later.
 
-  return PublishCode(std::move(code)).code;
+  return PublishCode(std::move(code));
 }
 
 std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
@@ -837,7 +834,7 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {
       OwnedVector<const uint8_t>{},             // source_pos
       WasmCode::kJumpTable,                     // kind
       ExecutionTier::kNone}};                   // tier
-  return PublishCode(std::move(code)).code;
+  return PublishCode(std::move(code));
 }
 
 Vector<byte> NativeModule::AllocateForCode(size_t size) {
@@ -1296,11 +1293,11 @@ void NativeModule::SampleCodeSize(
   histogram->AddSample(code_size_mb);
 }
 
-WasmCodeUpdate NativeModule::AddCompiledCode(WasmCompilationResult result) {
+WasmCode* NativeModule::AddCompiledCode(WasmCompilationResult result) {
   return AddCompiledCode({&result, 1})[0];
 }
 
-std::vector<WasmCodeUpdate> NativeModule::AddCompiledCode(
+std::vector<WasmCode*> NativeModule::AddCompiledCode(
     Vector<WasmCompilationResult> results) {
   DCHECK(!results.empty());
   // First, allocate code space for all the results.
@@ -1331,15 +1328,15 @@ std::vector<WasmCodeUpdate> NativeModule::AddCompiledCode(
 
   // Under the {allocation_mutex_}, publish the code. The published code is put
   // into the top-most surrounding {WasmCodeRefScope} by {PublishCodeLocked}.
-  std::vector<WasmCodeUpdate> code_updates;
-  code_updates.reserve(results.size());
+  std::vector<WasmCode*> code_vector;
+  code_vector.reserve(results.size());
   {
     base::MutexGuard lock(&allocation_mutex_);
     for (auto& result : generated_code)
-      code_updates.push_back(PublishCodeLocked(std::move(result)));
+      code_vector.push_back(PublishCodeLocked(std::move(result)));
   }
 
-  return code_updates;
+  return code_vector;
 }
 
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {

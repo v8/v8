@@ -501,9 +501,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage(),
       isolate()->counters(), &unused_detected_features);
-  WasmCodeUpdate code_update =
-      native_module->AddCompiledCode(std::move(result));
-  WasmCode* code = code_update.code;
+  WasmCode* code = native_module->AddCompiledCode(std::move(result));
   DCHECK_NOT_NULL(code);
   if (WasmCode::ShouldBeLogged(isolate())) code->LogCode(isolate());
 }

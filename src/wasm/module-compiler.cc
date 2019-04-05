@@ -142,8 +142,8 @@ class CompilationStateImpl {
   void AddTopTierCompilationUnit(std::unique_ptr<WasmCompilationUnit>);
   std::unique_ptr<WasmCompilationUnit> GetNextCompilationUnit();
 
-  void FinishUnit(WasmCompilationResult);
-  void FinishUnits(Vector<WasmCompilationResult>);
+  void OnFinishedUnit(WasmCode*);
+  void OnFinishedUnits(Vector<WasmCode*>);
 
   void ReportDetectedFeatures(const WasmFeatures& detected);
   void OnBackgroundTaskStopped(const WasmFeatures& detected);
@@ -225,6 +225,7 @@ class CompilationStateImpl {
 
   int outstanding_baseline_functions_ = 0;
   int outstanding_top_tier_functions_ = 0;
+  std::vector<ExecutionTier> highest_execution_tier_;
 
   // End of fields protected by {callbacks_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
@@ -276,12 +277,12 @@ void CompilationState::AddCallback(CompilationState::callback_t callback) {
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
 
-void CompilationState::FinishUnit(WasmCompilationResult result) {
-  Impl(this)->FinishUnit(std::move(result));
+void CompilationState::OnFinishedUnit(WasmCode* code) {
+  Impl(this)->OnFinishedUnit(code);
 }
 
-void CompilationState::FinishUnits(Vector<WasmCompilationResult> results) {
-  Impl(this)->FinishUnits(results);
+void CompilationState::OnFinishedUnits(Vector<WasmCode*> code_vector) {
+  Impl(this)->OnFinishedUnits(code_vector);
 }
 
 // static
@@ -473,8 +474,7 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
       &env, compilation_state->GetWireBytesStorage(), isolate->counters(),
       compilation_state->detected_features());
   WasmCodeRefScope code_ref_scope;
-  WasmCodeUpdate update = native_module->AddCompiledCode(std::move(result));
-  WasmCode* code = update.code;
+  WasmCode* code = native_module->AddCompiledCode(std::move(result));
 
   if (tiers.baseline_tier < tiers.top_tier) {
     auto tiering_unit = base::make_unique<WasmCompilationUnit>(
@@ -533,7 +533,9 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
       env, compilation_state->GetWireBytesStorage(), counters, detected);
 
   if (result.succeeded()) {
-    compilation_state->FinishUnit(std::move(result));
+    WasmCodeRefScope code_ref_scope;
+    WasmCode* code = native_module->AddCompiledCode(std::move(result));
+    compilation_state->OnFinishedUnit(code);
   } else {
     compilation_state->SetError();
   }
@@ -791,8 +793,12 @@ class BackgroundCompileTask : public CancelableTask {
     auto publish_results =
         [&results_to_publish](BackgroundCompileScope* compile_scope) {
           if (results_to_publish.empty()) return;
-          compile_scope->compilation_state()->FinishUnits(
-              VectorOf(results_to_publish));
+          WasmCodeRefScope code_ref_scope;
+          std::vector<WasmCode*> code_vector =
+              compile_scope->native_module()->AddCompiledCode(
+                  VectorOf(results_to_publish));
+          compile_scope->compilation_state()->OnFinishedUnits(
+              VectorOf(code_vector));
           results_to_publish.clear();
         };
 
@@ -1687,6 +1693,7 @@ void CompilationStateImpl::SetNumberOfFunctionsToCompile(
   int num_functions_to_compile = num_functions - num_lazy_functions;
   outstanding_baseline_functions_ = num_functions_to_compile;
   outstanding_top_tier_functions_ = num_functions_to_compile;
+  highest_execution_tier_.assign(num_functions, ExecutionTier::kNone);
 }
 
 void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
@@ -1754,65 +1761,64 @@ CompilationStateImpl::GetNextCompilationUnit() {
   return unit;
 }
 
-void CompilationStateImpl::FinishUnit(WasmCompilationResult result) {
-  FinishUnits({&result, 1});
+void CompilationStateImpl::OnFinishedUnit(WasmCode* code) {
+  OnFinishedUnits({&code, 1});
 }
 
-void CompilationStateImpl::FinishUnits(
-    Vector<WasmCompilationResult> compilation_results) {
+void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
   base::MutexGuard guard(&callbacks_mutex_);
 
   // Assume an order of execution tiers that represents the quality of their
   // generated code.
-  static_assert(ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
+  static_assert(ExecutionTier::kNone < ExecutionTier::kInterpreter &&
+                    ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
                     ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                 "Assume an order on execution tiers");
 
   auto module = native_module_->module();
   auto enabled_features = native_module_->enabled_features();
-  WasmCodeRefScope code_ref_scope;
-  std::vector<WasmCodeUpdate> code_update_vector =
-      native_module_->AddCompiledCode(compilation_results);
+  for (WasmCode* code : code_vector) {
+    DCHECK_NOT_NULL(code);
+    DCHECK_NE(code->tier(), ExecutionTier::kNone);
+    native_module_->engine()->LogCode(code);
 
-  for (WasmCodeUpdate& code_update : code_update_vector) {
-    DCHECK_NOT_NULL(code_update.code);
-    DCHECK(code_update.tier.has_value());
-    native_module_->engine()->LogCode(code_update.code);
+    // Skip lazily compiled code as we do not consider this for the completion
+    // of baseline respectively top tier compilation.
+    int func_index = code->index();
+    if (IsLazyCompilation(module, native_module_, enabled_features,
+                          func_index)) {
+      continue;
+    }
 
-    uint32_t func_index = code_update.code->index();
+    // Determine whether we are reaching baseline or top tier with the given
+    // code.
+    uint32_t slot_index = code->index() - module->num_imported_functions;
     ExecutionTierPair requested_tiers = GetRequestedExecutionTiers(
         module, compile_mode(), enabled_features, func_index);
-
-    // Reconstruct state before code update.
-    bool had_reached_baseline = code_update.prior_tier.has_value();
-    bool had_reached_top_tier =
-        code_update.prior_tier.has_value() &&
-        code_update.prior_tier.value() >= requested_tiers.top_tier;
-    DCHECK_IMPLIES(had_reached_baseline, code_update.prior_tier.has_value() &&
-                                             code_update.prior_tier.value() >=
-                                                 requested_tiers.baseline_tier);
-
-    // Conclude whether we are reaching baseline or top tier.
+    DCHECK_EQ(highest_execution_tier_.size(), module->num_declared_functions);
+    ExecutionTier prior_tier = highest_execution_tier_[slot_index];
+    bool had_reached_baseline = prior_tier >= requested_tiers.baseline_tier;
+    bool had_reached_top_tier = prior_tier >= requested_tiers.top_tier;
+    DCHECK_IMPLIES(had_reached_baseline, prior_tier > ExecutionTier::kNone);
     bool reaches_baseline = !had_reached_baseline;
     bool reaches_top_tier =
-        !had_reached_top_tier &&
-        code_update.tier.value() >= requested_tiers.top_tier;
+        !had_reached_top_tier && code->tier() >= requested_tiers.top_tier;
     DCHECK_IMPLIES(reaches_baseline,
-                   code_update.tier.value() >= requested_tiers.baseline_tier);
+                   code->tier() >= requested_tiers.baseline_tier);
     DCHECK_IMPLIES(reaches_top_tier, had_reached_baseline || reaches_baseline);
 
-    // Remember state before update.
+    // Remember compilation state before update.
     bool had_completed_baseline_compilation =
         outstanding_baseline_functions_ == 0;
     bool had_completed_top_tier_compilation =
         outstanding_top_tier_functions_ == 0;
 
-    // Update state.
-    if (!IsLazyCompilation(module, native_module_, enabled_features,
-                           func_index)) {
-      if (reaches_baseline) outstanding_baseline_functions_--;
-      if (reaches_top_tier) outstanding_top_tier_functions_--;
+    // Update compilation state.
+    if (code->tier() > prior_tier) {
+      highest_execution_tier_[slot_index] = code->tier();
     }
+    if (reaches_baseline) outstanding_baseline_functions_--;
+    if (reaches_top_tier) outstanding_top_tier_functions_--;
     DCHECK_LE(0, outstanding_baseline_functions_);
     DCHECK_LE(outstanding_baseline_functions_, outstanding_top_tier_functions_);
 
@@ -1827,12 +1833,14 @@ void CompilationStateImpl::FinishUnits(
 
     // Trigger callbacks.
     if (completes_baseline_compilation) {
-      for (auto& callback : callbacks_)
+      for (auto& callback : callbacks_) {
         callback(CompilationEvent::kFinishedBaselineCompilation);
+      }
     }
     if (completes_top_tier_compilation) {
-      for (auto& callback : callbacks_)
+      for (auto& callback : callbacks_) {
         callback(CompilationEvent::kFinishedTopTierCompilation);
+      }
       // Clear the callbacks because no more events will be delivered.
       callbacks_.clear();
     }

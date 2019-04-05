@@ -3723,7 +3723,7 @@ TEST(Liftoff_tier_up) {
     desc.instr_size = static_cast<int>(sub_size);
     std::unique_ptr<WasmCode> new_code = native_module->AddCode(
         add.function_index(), desc, 0, 0, {}, OwnedVector<byte>(),
-        WasmCode::kFunction, ExecutionTier::kNone);
+        WasmCode::kFunction, ExecutionTier::kTurbofan);
     native_module->PublishCode(std::move(new_code));
 
     // Second run should now execute {sub}.

@@ -5948,7 +5948,7 @@ wasm::WasmCode* CompileWasmMathIntrinsic(wasm::WasmEngine* wasm_engine,
       std::move(result.source_positions), wasm::WasmCode::kFunction,
       wasm::ExecutionTier::kNone);
   // TODO(titzer): add counters for math intrinsic code size / allocation
-  return native_module->PublishCode(std::move(wasm_code)).code;
+  return native_module->PublishCode(std::move(wasm_code));
 }
 
 wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine* wasm_engine,
@@ -6012,7 +6012,7 @@ wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine* wasm_engine,
       std::move(result.protected_instructions),
       std::move(result.source_positions), wasm::WasmCode::kWasmToJsWrapper,
       wasm::ExecutionTier::kNone);
-  return native_module->PublishCode(std::move(wasm_code)).code;
+  return native_module->PublishCode(std::move(wasm_code));
 }
 
 wasm::WasmCompilationResult CompileWasmInterpreterEntry(
