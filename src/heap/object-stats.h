@@ -57,6 +57,7 @@
   V(OBJECT_TO_CODE_TYPE)                         \
   V(OPTIMIZED_CODE_LITERALS_TYPE)                \
   V(OTHER_CONTEXT_TYPE)                          \
+  V(PROTOTYPE_DESCRIPTOR_ARRAY_TYPE)             \
   V(PROTOTYPE_USERS_TYPE)                        \
   V(REGEXP_MULTIPLE_CACHE_TYPE)                  \
   V(RELOC_INFO_TYPE)                             \

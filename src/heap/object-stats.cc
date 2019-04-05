@@ -807,7 +807,14 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
   DescriptorArray array = map->instance_descriptors();
   if (map->owns_descriptors() &&
       array != ReadOnlyRoots(heap_).empty_descriptor_array()) {
-    // DescriptorArray has its own instance type.
+    // Generally DescriptorArrays have their own instance type already
+    // (DESCRIPTOR_ARRAY_TYPE), but we'd like to be able to tell which
+    // of those are for (abandoned) prototypes.
+    if (map->is_prototype_map()) {
+      RecordSimpleVirtualObjectStats(
+          map, array, ObjectStats::PROTOTYPE_DESCRIPTOR_ARRAY_TYPE);
+    }
+
     EnumCache enum_cache = array->enum_cache();
     RecordSimpleVirtualObjectStats(array, enum_cache->keys(),
                                    ObjectStats::ENUM_CACHE_TYPE);
