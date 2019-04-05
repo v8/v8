@@ -442,6 +442,12 @@ TEST(ReferenceTypeLocals) {
     BUILD(r, WASM_REF_IS_NULL(WASM_GET_LOCAL(0)));
     CHECK_EQ(1, r.Call());
   }
+  {
+    WasmRunner<int32_t> r(ExecutionTier::kInterpreter);
+    r.AllocateLocal(kWasmAnyRef);
+    BUILD(r, WASM_REF_IS_NULL(WASM_TEE_LOCAL(0, WASM_REF_NULL)));
+    CHECK_EQ(1, r.Call());
+  }
   // TODO(mstarzinger): Test and support global anyref variables.
 }
 

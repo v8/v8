@@ -1121,10 +1121,12 @@ class ThreadImpl {
 
  public:
   ThreadImpl(Zone* zone, CodeMap* codemap,
-             Handle<WasmInstanceObject> instance_object)
+             Handle<WasmInstanceObject> instance_object,
+             Handle<Cell> reference_stack_cell)
       : codemap_(codemap),
         isolate_(instance_object->GetIsolate()),
         instance_object_(instance_object),
+        reference_stack_cell_(reference_stack_cell),
         frames_(zone),
         activations_(zone) {}
 
@@ -1189,12 +1191,12 @@ class ThreadImpl {
 
   WasmValue GetStackValue(sp_t index) {
     DCHECK_GT(StackHeight(), index);
-    return stack_[index];
+    return stack_[index].ExtractValue(this, index);
   }
 
   void SetStackValue(sp_t index, WasmValue value) {
     DCHECK_GT(StackHeight(), index);
-    stack_[index] = value;
+    stack_[index] = StackValue(value, this, index);
   }
 
   TrapReason GetTrapReason() { return trap_reason_; }
@@ -1208,6 +1210,8 @@ class ThreadImpl {
   void AddBreakFlags(uint8_t flags) { break_flags_ |= flags; }
 
   void ClearBreakFlags() { break_flags_ = WasmInterpreter::BreakFlag::None; }
+
+  Handle<Cell> reference_stack_cell() const { return reference_stack_cell_; }
 
   uint32_t NumActivations() {
     return static_cast<uint32_t>(activations_.size());
@@ -1298,16 +1302,53 @@ class ThreadImpl {
     sp_t llimit() { return plimit() + code->locals.type_list.size(); }
   };
 
+  // Safety wrapper for values on the operand stack represented as {WasmValue}.
+  // Most values are stored directly on the stack, only reference values are
+  // kept in a separate on-heap reference stack to make the GC trace them.
+  // TODO(mstarzinger): Optimize simple stack operations (like "get_local",
+  // "set_local", and "tee_local") so that they don't require a handle scope.
+  // TODO(mstarzinger): Ensure unused slots on the reference stack are cleared
+  // so that they don't keep alive old/stale references unnecessarily long.
+  // TODO(mstarzinger): Consider optimizing activations that use no reference
+  // values to avoid allocating the reference stack entirely.
+  class StackValue {
+   public:
+    StackValue() = default;  // Only needed for resizing the stack.
+    StackValue(WasmValue v, ThreadImpl* thread, sp_t index) : value_(v) {
+      if (IsReferenceValue()) {
+        value_ = WasmValue(Handle<Object>::null());
+        int ref_index = static_cast<int>(index);
+        thread->reference_stack()->set(ref_index, *v.to_anyref());
+      }
+    }
+
+    WasmValue ExtractValue(ThreadImpl* thread, sp_t index) {
+      if (!IsReferenceValue()) return value_;
+      DCHECK(value_.to_anyref().is_null());
+      int ref_index = static_cast<int>(index);
+      Isolate* isolate = thread->isolate_;
+      Handle<Object> ref(thread->reference_stack()->get(ref_index), isolate);
+      return WasmValue(ref);
+    }
+
+    bool IsReferenceValue() const { return value_.type() == kWasmAnyRef; }
+
+   private:
+    WasmValue value_;
+  };
+
   friend class InterpretedFrameImpl;
 
   CodeMap* codemap_;
   Isolate* isolate_;
   Handle<WasmInstanceObject> instance_object_;
-  // TODO(mstarzinger): The operand stack will need to be changed so that the
-  // value lifetime of {WasmValue} is not coupled to a {HandleScope}.
-  std::unique_ptr<WasmValue[]> stack_;
-  WasmValue* stack_limit_ = nullptr;  // End of allocated stack space.
-  WasmValue* sp_ = nullptr;           // Current stack pointer.
+  std::unique_ptr<StackValue[]> stack_;
+  StackValue* stack_limit_ = nullptr;  // End of allocated stack space.
+  StackValue* sp_ = nullptr;           // Current stack pointer.
+  // The reference stack is pointed to by a {Cell} to be able to replace the
+  // underlying {FixedArray} when growing the stack. This avoids having to
+  // recreate or update the global handle keeping this object alive.
+  Handle<Cell> reference_stack_cell_;  // References are on an on-heap stack.
   ZoneVector<Frame> frames_;
   WasmInterpreter::State state_ = WasmInterpreter::STOPPED;
   pc_t break_pc_ = kInvalidPc;
@@ -1321,6 +1362,9 @@ class ThreadImpl {
 
   CodeMap* codemap() const { return codemap_; }
   const WasmModule* module() const { return codemap_->module(); }
+  FixedArray reference_stack() const {
+    return FixedArray::cast(reference_stack_cell_->value());
+  }
 
   void DoTrap(TrapReason trap, pc_t pc) {
     TRACE("TRAP: %s\n", WasmOpcodes::TrapReasonMessage(trap));
@@ -1438,7 +1482,7 @@ class ThreadImpl {
   bool DoReturn(Decoder* decoder, InterpreterCode** code, pc_t* pc, pc_t* limit,
                 size_t arity) {
     DCHECK_GT(frames_.size(), 0);
-    WasmValue* sp_dest = stack_.get() + frames_.back().sp;
+    StackValue* sp_dest = stack_.get() + frames_.back().sp;
     frames_.pop_back();
     if (frames_.size() == current_activation().fp) {
       // A return from the last frame terminates the execution.
@@ -1486,7 +1530,7 @@ class ThreadImpl {
     Frame* top = &frames_.back();
 
     // Drop everything except current parameters.
-    WasmValue* sp_dest = stack_.get() + top->sp;
+    StackValue* sp_dest = stack_.get() + top->sp;
     size_t arity = target->function->sig->parameter_count();
 
     DoStackTransfer(sp_dest, arity);
@@ -1510,7 +1554,7 @@ class ThreadImpl {
 
   // Copies {arity} values on the top of the stack down the stack to {dest},
   // dropping the values in-between.
-  void DoStackTransfer(WasmValue* dest, size_t arity) {
+  void DoStackTransfer(StackValue* dest, size_t arity) {
     // before: |---------------| pop_count | arity |
     //         ^ 0             ^ dest              ^ sp_
     //
@@ -1518,7 +1562,16 @@ class ThreadImpl {
     //         ^ 0                     ^ sp_
     DCHECK_LE(dest, sp_);
     DCHECK_LE(dest + arity, sp_);
-    if (arity) memmove(dest, sp_ - arity, arity * sizeof(*sp_));
+    if (arity && (dest != sp_ - arity)) {
+      memmove(dest, sp_ - arity, arity * sizeof(*sp_));
+      // Also move elements on the reference stack accordingly.
+      // TODO(mstarzinger): Refactor the interface so that we don't have to
+      // recompute values here which are already known at the call-site.
+      int dst = static_cast<int>(StackHeight() - (sp_ - dest));
+      int src = static_cast<int>(StackHeight() - arity);
+      int len = static_cast<int>(arity);
+      isolate_->heap()->MoveElements(reference_stack(), dst, src, len);
+    }
     sp_ = dest + arity;
   }
 
@@ -2390,8 +2443,9 @@ class ThreadImpl {
     // backends so that exceptions can be passed between them.
     const WasmExceptionSig* sig = exception->sig;
     uint32_t encoded_index = 0;
+    sp_t base_index = StackHeight() - sig->parameter_count();
     for (size_t i = 0; i < sig->parameter_count(); ++i) {
-      WasmValue value = sp_[i - sig->parameter_count()];
+      WasmValue value = GetStackValue(base_index + i);
       switch (sig->GetParam(i)) {
         case kWasmI32: {
           uint32_t u32 = value.to_u32();
@@ -2421,7 +2475,7 @@ class ThreadImpl {
       }
     }
     DCHECK_EQ(encoded_size, encoded_index);
-    PopN(static_cast<int>(sig->parameter_count()));
+    Drop(static_cast<int>(sig->parameter_count()));
     // Now that the exception is ready, set it as pending.
     isolate_->Throw(*exception_object);
     return HandleException(isolate_) == WasmInterpreter::Thread::HANDLED;
@@ -2625,6 +2679,7 @@ class ThreadImpl {
           continue;  // Do not bump pc.
         }
         case kExprRethrow: {
+          HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           WasmValue ex = Pop();
           CommitPc(pc);  // Needed for local unwinding.
           if (!DoRethrowException(ex)) return;
@@ -2634,6 +2689,7 @@ class ThreadImpl {
         case kExprBrOnExn: {
           BranchOnExceptionImmediate<Decoder::kNoValidate> imm(&decoder,
                                                                code->at(pc));
+          HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           WasmValue ex = Pop();
           Handle<Object> exception = ex.to_anyref();
           if (MatchingExceptionTag(exception, imm.index.index)) {
@@ -2733,12 +2789,14 @@ class ThreadImpl {
         }
         case kExprGetLocal: {
           LocalIndexImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           Push(GetStackValue(frames_.back().sp + imm.index));
           len = 1 + imm.length;
           break;
         }
         case kExprSetLocal: {
           LocalIndexImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           WasmValue val = Pop();
           SetStackValue(frames_.back().sp + imm.index, val);
           len = 1 + imm.length;
@@ -2746,6 +2804,7 @@ class ThreadImpl {
         }
         case kExprTeeLocal: {
           LocalIndexImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           WasmValue val = Pop();
           SetStackValue(frames_.back().sp + imm.index, val);
           Push(val);
@@ -2753,7 +2812,7 @@ class ThreadImpl {
           break;
         }
         case kExprDrop: {
-          Pop();
+          Drop();
           break;
         }
         case kExprCallFunction: {
@@ -3087,6 +3146,7 @@ class ThreadImpl {
           SIGN_EXTENSION_CASE(I64SExtendI32, int64_t, int32_t);
 #undef SIGN_EXTENSION_CASE
         case kExprRefIsNull: {
+          HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           uint32_t result = Pop().to_anyref()->IsNull() ? 1 : 0;
           Push(WasmValue(result));
           break;
@@ -3185,10 +3245,13 @@ class ThreadImpl {
   WasmValue Pop() {
     DCHECK_GT(frames_.size(), 0);
     DCHECK_GT(StackHeight(), frames_.back().llimit());  // can't pop into locals
-    return *--sp_;
+    StackValue stack_value = *--sp_;
+    // Note that {StackHeight} depends on the current {sp} value, hence this
+    // operation is split into two statements to ensure proper evaluation order.
+    return stack_value.ExtractValue(this, StackHeight());
   }
 
-  void PopN(int n) {
+  void Drop(int n = 1) {
     DCHECK_GE(StackHeight(), n);
     DCHECK_GT(frames_.size(), 0);
     // Check that we don't pop into locals.
@@ -3205,18 +3268,18 @@ class ThreadImpl {
   void Push(WasmValue val) {
     DCHECK_NE(kWasmStmt, val.type());
     DCHECK_LE(1, stack_limit_ - sp_);
-    *sp_++ = val;
+    StackValue stack_value(val, this, StackHeight());
+    // Note that {StackHeight} depends on the current {sp} value, hence this
+    // operation is split into two statements to ensure proper evaluation order.
+    *sp_++ = stack_value;
   }
 
   void Push(WasmValue* vals, size_t arity) {
     DCHECK_LE(arity, stack_limit_ - sp_);
     for (WasmValue *val = vals, *end = vals + arity; val != end; ++val) {
       DCHECK_NE(kWasmStmt, val->type());
+      Push(*val);
     }
-    if (arity > 0) {
-      memcpy(sp_, vals, arity * sizeof(*sp_));
-    }
-    sp_ += arity;
   }
 
   void EnsureStackSpace(size_t size) {
@@ -3225,13 +3288,20 @@ class ThreadImpl {
     size_t requested_size =
         base::bits::RoundUpToPowerOfTwo64((sp_ - stack_.get()) + size);
     size_t new_size = Max(size_t{8}, Max(2 * old_size, requested_size));
-    std::unique_ptr<WasmValue[]> new_stack(new WasmValue[new_size]);
+    std::unique_ptr<StackValue[]> new_stack(new StackValue[new_size]);
     if (old_size > 0) {
       memcpy(new_stack.get(), stack_.get(), old_size * sizeof(*sp_));
     }
     sp_ = new_stack.get() + (sp_ - stack_.get());
     stack_ = std::move(new_stack);
     stack_limit_ = stack_.get() + new_size;
+    // Also resize the reference stack to the same size.
+    int grow_by = static_cast<int>(new_size - old_size);
+    HandleScope handle_scope(isolate_);  // Avoid leaking handles.
+    Handle<FixedArray> old_ref_stack(reference_stack(), isolate_);
+    Handle<FixedArray> new_ref_stack =
+        isolate_->factory()->CopyFixedArrayAndGrow(old_ref_stack, grow_by);
+    reference_stack_cell_->set_value(*new_ref_stack);
   }
 
   sp_t StackHeight() { return sp_ - stack_.get(); }
@@ -3326,25 +3396,26 @@ class ThreadImpl {
     // con-/destruction.
     std::vector<uint8_t> arg_buffer(num_args * 8);
     size_t offset = 0;
-    WasmValue* wasm_args = sp_ - num_args;
+    sp_t base_index = StackHeight() - num_args;
     for (int i = 0; i < num_args; ++i) {
       int param_size = ValueTypes::ElementSizeInBytes(sig->GetParam(i));
       if (arg_buffer.size() < offset + param_size) {
         arg_buffer.resize(std::max(2 * arg_buffer.size(), offset + param_size));
       }
       Address address = reinterpret_cast<Address>(arg_buffer.data()) + offset;
+      WasmValue arg = GetStackValue(base_index + i);
       switch (sig->GetParam(i)) {
         case kWasmI32:
-          WriteUnalignedValue(address, wasm_args[i].to<uint32_t>());
+          WriteUnalignedValue(address, arg.to<uint32_t>());
           break;
         case kWasmI64:
-          WriteUnalignedValue(address, wasm_args[i].to<uint64_t>());
+          WriteUnalignedValue(address, arg.to<uint64_t>());
           break;
         case kWasmF32:
-          WriteUnalignedValue(address, wasm_args[i].to<float>());
+          WriteUnalignedValue(address, arg.to<float>());
           break;
         case kWasmF64:
-          WriteUnalignedValue(address, wasm_args[i].to<double>());
+          WriteUnalignedValue(address, arg.to<double>());
           break;
         default:
           UNIMPLEMENTED();
@@ -3658,7 +3729,15 @@ class WasmInterpreterInternals : public ZoneObject {
       : module_bytes_(wire_bytes.start(), wire_bytes.end(), zone),
         codemap_(module, module_bytes_.data(), zone),
         threads_(zone) {
-    threads_.emplace_back(zone, &codemap_, instance_object);
+    Isolate* isolate = instance_object->GetIsolate();
+    Handle<Cell> reference_stack = isolate->global_handles()->Create(
+        *isolate->factory()->NewCell(isolate->factory()->empty_fixed_array()));
+    threads_.emplace_back(zone, &codemap_, instance_object, reference_stack);
+  }
+
+  ~WasmInterpreterInternals() {
+    DCHECK_EQ(1, threads_.size());
+    GlobalHandles::Destroy(threads_[0].reference_stack_cell().location());
   }
 };
 
