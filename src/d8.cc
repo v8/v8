@@ -1121,6 +1121,23 @@ void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CreateRealm(args, index, global_object);
 }
 
+// Realm.detachGlobal(i) detaches the global objects of realm i from realm i.
+void Shell::RealmDetachGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  int index = data->RealmIndexOrThrow(args, 0);
+  if (index == -1) return;
+  if (index == 0 || index == data->realm_current_ ||
+      index == data->realm_switch_) {
+    Throw(args.GetIsolate(), "Invalid realm index");
+    return;
+  }
+
+  HandleScope scope(isolate);
+  Local<Context> realm = Local<Context>::New(isolate, data->realms_[index]);
+  realm->DetachGlobal();
+}
+
 // Realm.dispose(i) disposes the reference to the realm i.
 void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -1807,6 +1824,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "navigate", NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, RealmNavigate));
+  realm_template->Set(
+      String::NewFromUtf8(isolate, "detachGlobal", NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, RealmDetachGlobal));
   realm_template->Set(
       String::NewFromUtf8(isolate, "dispose", NewStringType::kNormal)
           .ToLocalChecked(),

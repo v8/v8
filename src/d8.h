@@ -428,6 +428,8 @@ class Shell : public i::AllStatic {
   static void RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmCreateAllowCrossRealmAccess(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmDetachGlobal(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args);
