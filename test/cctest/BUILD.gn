@@ -241,7 +241,6 @@ v8_source_set("cctest_sources") {
     "test-transitions.h",
     "test-typedarrays.cc",
     "test-types.cc",
-    "test-unbound-queue.cc",
     "test-unboxed-doubles.cc",
     "test-unscopables-hidden-prototype.cc",
     "test-unwinder.cc",

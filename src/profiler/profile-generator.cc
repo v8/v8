@@ -4,16 +4,11 @@
 
 #include "src/profiler/profile-generator.h"
 
-#include "src/base/adapters.h"
-#include "src/debug/debug.h"
-#include "src/deoptimizer.h"
-#include "src/global-handles.h"
-#include "src/objects-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
-#include "src/unicode.h"
 
 namespace v8 {
 namespace internal {

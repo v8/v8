@@ -5,11 +5,15 @@
 #include "src/profiler/profiler-listener.h"
 
 #include "src/deoptimizer.h"
+#include "src/handles-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/code-inl.h"
+#include "src/objects/script-inl.h"
+#include "src/objects/shared-function-info-inl.h"
+#include "src/objects/string-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/reloc-info.h"
-#include "src/snapshot/embedded-data.h"
 #include "src/source-position-table.h"
 #include "src/wasm/wasm-code-manager.h"
 

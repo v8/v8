@@ -10,7 +10,6 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/template-utils.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/locked-queue-inl.h"
 #include "src/log.h"
