@@ -1296,7 +1296,6 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjFieldToHeapObj) {
         {PropertyConstness::kConst, Representation::HeapObject(),
          expected_type});
 
-    if (FLAG_modify_map_inplace) {
       // PropertyConstness::kConst to PropertyConstness::kMutable migration does
       // not create a new map, therefore trivial generalization.
       TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
@@ -1305,16 +1304,6 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjFieldToHeapObj) {
           {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
           {PropertyConstness::kMutable, Representation::HeapObject(),
            expected_type});
-    } else {
-      // PropertyConstness::kConst to PropertyConstness::kMutable migration
-      // causes map change, therefore non-trivial generalization.
-      TestReconfigureDataFieldAttribute_GeneralizeField(
-          {PropertyConstness::kConst, Representation::HeapObject(),
-           current_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(),
-           expected_type});
-    }
     TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
         {PropertyConstness::kMutable, Representation::HeapObject(),
          current_type},
@@ -1339,7 +1328,6 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjFieldToHeapObj) {
         {PropertyConstness::kConst, Representation::HeapObject(), any_type},
         false);
 
-    if (FLAG_modify_map_inplace) {
       // PropertyConstness::kConst to PropertyConstness::kMutable migration does
       // not create a new map, therefore trivial generalization.
       TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
@@ -1347,15 +1335,7 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjFieldToHeapObj) {
           {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
           {PropertyConstness::kMutable, Representation::HeapObject(),
            any_type});
-    } else {
-      // PropertyConstness::kConst to PropertyConstness::kMutable migration
-      // causes map change, therefore non-trivial generalization.
-      TestReconfigureDataFieldAttribute_GeneralizeField(
-          {PropertyConstness::kConst, Representation::HeapObject(), any_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(),
-           any_type});
-    }
+
     TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
         {PropertyConstness::kMutable, Representation::HeapObject(), any_type},
         {PropertyConstness::kConst, Representation::HeapObject(), new_type},
@@ -2089,7 +2069,6 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
         {PropertyConstness::kConst, Representation::HeapObject(), new_type},
         {PropertyConstness::kConst, Representation::HeapObject(),
          expected_type});
-    if (FLAG_modify_map_inplace) {
       // PropertyConstness::kConst to PropertyConstness::kMutable migration does
       // not create a new map, therefore trivial generalization.
       TestReconfigureElementsKind_GeneralizeFieldTrivial(
@@ -2098,16 +2077,7 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
           {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
           {PropertyConstness::kMutable, Representation::HeapObject(),
            expected_type});
-    } else {
-      // PropertyConstness::kConst to PropertyConstness::kMutable migration
-      // causes map change, therefore non-trivial generalization.
-      TestReconfigureElementsKind_GeneralizeField(
-          {PropertyConstness::kConst, Representation::HeapObject(),
-           current_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(),
-           expected_type});
-    }
+
     TestReconfigureElementsKind_GeneralizeFieldTrivial(
         {PropertyConstness::kMutable, Representation::HeapObject(),
          current_type},
@@ -2131,7 +2101,6 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
         {PropertyConstness::kConst, Representation::HeapObject(), new_type},
         {PropertyConstness::kConst, Representation::HeapObject(), any_type});
 
-    if (FLAG_modify_map_inplace) {
       // PropertyConstness::kConst to PropertyConstness::kMutable migration does
       // not create a new map, therefore trivial generalization.
       TestReconfigureElementsKind_GeneralizeFieldTrivial(
@@ -2139,15 +2108,6 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
           {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
           {PropertyConstness::kMutable, Representation::HeapObject(),
            any_type});
-    } else {
-      // PropertyConstness::kConst to PropertyConstness::kMutable migration
-      // causes map change, therefore non-trivial generalization.
-      TestReconfigureElementsKind_GeneralizeField(
-          {PropertyConstness::kConst, Representation::HeapObject(), any_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(),
-           any_type});
-    }
 
     TestReconfigureElementsKind_GeneralizeFieldTrivial(
         {PropertyConstness::kMutable, Representation::HeapObject(), any_type},

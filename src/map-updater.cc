@@ -352,9 +352,6 @@ MapUpdater::State MapUpdater::FindRootMap() {
     if (old_details.location() != kField) {
       return CopyGeneralizeAllFields("GenAll_RootModification2");
     }
-    if (new_constness_ != old_details.constness() && !FLAG_modify_map_inplace) {
-      return CopyGeneralizeAllFields("GenAll_RootModification3");
-    }
     if (!new_representation_.fits_into(old_details.representation())) {
       return CopyGeneralizeAllFields("GenAll_RootModification4");
     }
@@ -369,7 +366,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
     }
 
     // Modify root map in-place.
-    if (FLAG_modify_map_inplace && new_constness_ != old_details.constness()) {
+    if (new_constness_ != old_details.constness()) {
       DCHECK(IsGeneralizableTo(old_details.constness(), new_constness_));
       GeneralizeField(old_map_, modified_descriptor_, new_constness_,
                       old_details.representation(),
@@ -409,11 +406,6 @@ MapUpdater::State MapUpdater::FindTargetMap() {
       // TODO(ishell): mutable accessors are not implemented yet.
       return CopyGeneralizeAllFields("GenAll_Incompatible");
     }
-    PropertyConstness tmp_constness = tmp_details.constness();
-    if (!FLAG_modify_map_inplace &&
-        !IsGeneralizableTo(old_details.constness(), tmp_constness)) {
-      break;
-    }
     if (!IsGeneralizableTo(old_details.location(), tmp_details.location())) {
       break;
     }
@@ -425,9 +417,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     if (tmp_details.location() == kField) {
       Handle<FieldType> old_field_type =
           GetOrComputeFieldType(i, old_details.location(), tmp_representation);
-      PropertyConstness constness =
-          FLAG_modify_map_inplace ? old_details.constness() : tmp_constness;
-      GeneralizeField(tmp_map, i, constness, tmp_representation,
+      GeneralizeField(tmp_map, i, old_details.constness(), tmp_representation,
                       old_field_type);
     } else {
       // kDescriptor: Check that the value matches.

@@ -1043,7 +1043,6 @@ DEFINE_GENERIC_IMPLICATION(
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 DEFINE_BOOL_READONLY(track_constant_fields, true,
                      "enable constant field tracking")
-DEFINE_BOOL_READONLY(modify_map_inplace, true, "enable in-place map updates")
 DEFINE_BOOL_READONLY(fast_map_update, false,
                      "enable fast map update by caching the migration target")
 DEFINE_INT(max_polymorphic_map_count, 4,
