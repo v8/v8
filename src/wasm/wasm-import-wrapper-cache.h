@@ -25,8 +25,10 @@ class WasmImportWrapperCache {
  public:
   ~WasmImportWrapperCache();
 
-  WasmCode* GetOrCompile(WasmEngine* wasm_engine, Counters* counters,
-                         compiler::WasmImportCallKind kind, FunctionSig* sig);
+  V8_EXPORT_PRIVATE WasmCode* GetOrCompile(WasmEngine* wasm_engine,
+                                           Counters* counters,
+                                           compiler::WasmImportCallKind kind,
+                                           FunctionSig* sig);
 
  private:
   friend class NativeModule;

@@ -181,32 +181,32 @@ class CodeEntry {
 
   RareData* EnsureRareData();
 
-  struct ProgramEntryCreateTrait {
+  struct V8_EXPORT_PRIVATE ProgramEntryCreateTrait {
     static CodeEntry* Create();
   };
-  struct IdleEntryCreateTrait {
+  struct V8_EXPORT_PRIVATE IdleEntryCreateTrait {
     static CodeEntry* Create();
   };
-  struct GCEntryCreateTrait {
+  struct V8_EXPORT_PRIVATE GCEntryCreateTrait {
     static CodeEntry* Create();
   };
-  struct UnresolvedEntryCreateTrait {
+  struct V8_EXPORT_PRIVATE UnresolvedEntryCreateTrait {
     static CodeEntry* Create();
   };
-  struct RootEntryCreateTrait {
+  struct V8_EXPORT_PRIVATE RootEntryCreateTrait {
     static CodeEntry* Create();
   };
 
-  static base::LazyDynamicInstance<CodeEntry, ProgramEntryCreateTrait>::type
-      kProgramEntry;
-  static base::LazyDynamicInstance<CodeEntry, IdleEntryCreateTrait>::type
-      kIdleEntry;
-  static base::LazyDynamicInstance<CodeEntry, GCEntryCreateTrait>::type
-      kGCEntry;
-  static base::LazyDynamicInstance<CodeEntry, UnresolvedEntryCreateTrait>::type
-      kUnresolvedEntry;
-  static base::LazyDynamicInstance<CodeEntry, RootEntryCreateTrait>::type
-      kRootEntry;
+  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
+      CodeEntry, ProgramEntryCreateTrait>::type kProgramEntry;
+  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
+      CodeEntry, IdleEntryCreateTrait>::type kIdleEntry;
+  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
+      CodeEntry, GCEntryCreateTrait>::type kGCEntry;
+  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
+      CodeEntry, UnresolvedEntryCreateTrait>::type kUnresolvedEntry;
+  V8_EXPORT_PRIVATE static base::LazyDynamicInstance<
+      CodeEntry, RootEntryCreateTrait>::type kRootEntry;
 
   using TagField = BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
   using BuiltinIdField = BitField<Builtins::Name, 8, 22>;
