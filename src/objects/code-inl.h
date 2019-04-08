@@ -29,7 +29,7 @@ OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakFixedArray)
 OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(SourcePositionTableWithFrameCache, Tuple2)
+OBJECT_CONSTRUCTORS_IMPL(SourcePositionTableWithFrameCache, Struct)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
 
@@ -42,9 +42,9 @@ CAST_ACCESSOR(DeoptimizationData)
 CAST_ACCESSOR(SourcePositionTableWithFrameCache)
 
 ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
-          kSourcePositionTableIndex)
+          kSourcePositionTableOffset)
 ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
-          SimpleNumberDictionary, kStackFrameCacheIndex)
+          SimpleNumberDictionary, kStackFrameCacheOffset)
 
 int AbstractCode::raw_instruction_size() {
   if (IsCode()) {
@@ -624,32 +624,32 @@ void BytecodeArray::set(int index, byte value) {
   WRITE_BYTE_FIELD(*this, kHeaderSize + index * kCharSize, value);
 }
 
-void BytecodeArray::set_frame_size(int frame_size) {
+void BytecodeArray::set_frame_size(int32_t frame_size) {
   DCHECK_GE(frame_size, 0);
   DCHECK(IsAligned(frame_size, kSystemPointerSize));
-  WRITE_INT_FIELD(*this, kFrameSizeOffset, frame_size);
+  WRITE_INT32_FIELD(*this, kFrameSizeOffset, frame_size);
 }
 
-int BytecodeArray::frame_size() const {
-  return READ_INT_FIELD(*this, kFrameSizeOffset);
+int32_t BytecodeArray::frame_size() const {
+  return READ_INT32_FIELD(*this, kFrameSizeOffset);
 }
 
 int BytecodeArray::register_count() const {
   return frame_size() / kSystemPointerSize;
 }
 
-void BytecodeArray::set_parameter_count(int number_of_parameters) {
+void BytecodeArray::set_parameter_count(int32_t number_of_parameters) {
   DCHECK_GE(number_of_parameters, 0);
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
-  WRITE_INT_FIELD(*this, kParameterSizeOffset,
+  WRITE_INT32_FIELD(*this, kParameterSizeOffset,
                   (number_of_parameters << kSystemPointerSizeLog2));
 }
 
 interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
     const {
   int register_operand =
-      READ_INT_FIELD(*this, kIncomingNewTargetOrGeneratorRegisterOffset);
+      READ_INT32_FIELD(*this, kIncomingNewTargetOrGeneratorRegisterOffset);
   if (register_operand == 0) {
     return interpreter::Register::invalid_value();
   } else {
@@ -660,33 +660,33 @@ interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
 void BytecodeArray::set_incoming_new_target_or_generator_register(
     interpreter::Register incoming_new_target_or_generator_register) {
   if (!incoming_new_target_or_generator_register.is_valid()) {
-    WRITE_INT_FIELD(*this, kIncomingNewTargetOrGeneratorRegisterOffset, 0);
+    WRITE_INT32_FIELD(*this, kIncomingNewTargetOrGeneratorRegisterOffset, 0);
   } else {
     DCHECK(incoming_new_target_or_generator_register.index() <
            register_count());
     DCHECK_NE(0, incoming_new_target_or_generator_register.ToOperand());
-    WRITE_INT_FIELD(*this, kIncomingNewTargetOrGeneratorRegisterOffset,
+    WRITE_INT32_FIELD(*this, kIncomingNewTargetOrGeneratorRegisterOffset,
                     incoming_new_target_or_generator_register.ToOperand());
   }
 }
 
-int BytecodeArray::interrupt_budget() const {
-  return READ_INT_FIELD(*this, kInterruptBudgetOffset);
+int32_t BytecodeArray::interrupt_budget() const {
+  return READ_INT32_FIELD(*this, kInterruptBudgetOffset);
 }
 
-void BytecodeArray::set_interrupt_budget(int interrupt_budget) {
+void BytecodeArray::set_interrupt_budget(int32_t interrupt_budget) {
   DCHECK_GE(interrupt_budget, 0);
-  WRITE_INT_FIELD(*this, kInterruptBudgetOffset, interrupt_budget);
+  WRITE_INT32_FIELD(*this, kInterruptBudgetOffset, interrupt_budget);
 }
 
 int BytecodeArray::osr_loop_nesting_level() const {
-  return READ_INT8_FIELD(*this, kOSRNestingLevelOffset);
+  return READ_INT8_FIELD(*this, kOsrNestingLevelOffset);
 }
 
 void BytecodeArray::set_osr_loop_nesting_level(int depth) {
   DCHECK(0 <= depth && depth <= AbstractCode::kMaxLoopNestingMarker);
   STATIC_ASSERT(AbstractCode::kMaxLoopNestingMarker < kMaxInt8);
-  WRITE_INT8_FIELD(*this, kOSRNestingLevelOffset, depth);
+  WRITE_INT8_FIELD(*this, kOsrNestingLevelOffset, depth);
 }
 
 BytecodeArray::Age BytecodeArray::bytecode_age() const {
@@ -705,7 +705,8 @@ void BytecodeArray::set_bytecode_age(BytecodeArray::Age age) {
 int BytecodeArray::parameter_count() const {
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
-  return READ_INT_FIELD(*this, kParameterSizeOffset) >> kSystemPointerSizeLog2;
+  return READ_INT32_FIELD(*this, kParameterSizeOffset)
+          >> kSystemPointerSizeLog2;
 }
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)

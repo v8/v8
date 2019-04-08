@@ -1781,6 +1781,14 @@ void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void SourcePositionTableWithFrameCache::SourcePositionTableWithFrameCachePrint(
+  std::ostream& os) {
+  PrintHeader(os, "SourcePositionTableWithFrameCache");
+  os << "\n - source position table: " << Brief(source_position_table());
+  os << "\n - stack frame cache: " << Brief(stack_frame_cache());
+  os << "\n";
+}
+
 void ClassPositions::ClassPositionsPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "ClassPositions");
   os << "\n - start position: " << start();

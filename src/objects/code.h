@@ -741,14 +741,14 @@ class BytecodeArray : public FixedArrayBase {
 
   // Accessors for frame size.
   inline int frame_size() const;
-  inline void set_frame_size(int frame_size);
+  inline void set_frame_size(int32_t frame_size);
 
   // Accessor for register count (derived from frame_size).
   inline int register_count() const;
 
   // Accessors for parameter count (including implicit 'this' receiver).
-  inline int parameter_count() const;
-  inline void set_parameter_count(int number_of_parameters);
+  inline int32_t parameter_count() const;
+  inline void set_parameter_count(int32_t number_of_parameters);
 
   // Register used to pass the incoming new.target or generator object from the
   // fucntion call.
@@ -758,8 +758,8 @@ class BytecodeArray : public FixedArrayBase {
       interpreter::Register incoming_new_target_or_generator_register);
 
   // Accessors for profiling count.
-  inline int interrupt_budget() const;
-  inline void set_interrupt_budget(int interrupt_budget);
+  inline int32_t interrupt_budget() const;
+  inline void set_interrupt_budget(int32_t interrupt_budget);
 
   // Accessors for OSR loop nesting level.
   inline int osr_loop_nesting_level() const;
@@ -831,29 +831,15 @@ class BytecodeArray : public FixedArrayBase {
   // Compares only the bytecode array but not any of the header fields.
   bool IsBytecodeEqual(const BytecodeArray other) const;
 
-// Layout description.
-#define BYTECODE_ARRAY_FIELDS(V)                           \
-  /* Pointer fields. */                                    \
-  V(kConstantPoolOffset, kTaggedSize)                      \
-  V(kHandlerTableOffset, kTaggedSize)                      \
-  V(kSourcePositionTableOffset, kTaggedSize)               \
-  V(kFrameSizeOffset, kIntSize)                            \
-  V(kParameterSizeOffset, kIntSize)                        \
-  V(kIncomingNewTargetOrGeneratorRegisterOffset, kIntSize) \
-  V(kInterruptBudgetOffset, kIntSize)                      \
-  V(kOSRNestingLevelOffset, kCharSize)                     \
-  V(kBytecodeAgeOffset, kCharSize)                         \
-  /* Total size. */                                        \
-  V(kHeaderSize, 0)
-
+  // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
-                                BYTECODE_ARRAY_FIELDS)
-#undef BYTECODE_ARRAY_FIELDS
+                                TORQUE_GENERATED_BYTECODE_ARRAY_FIELDS)
+  static constexpr int kHeaderSize = kSize;
 
   // InterpreterEntryTrampoline expects these fields to be next to each other
   // and writes a 16-bit value to reset them.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                kOSRNestingLevelOffset + kCharSize);
+                kOsrNestingLevelOffset + kCharSize);
 
   // Maximal memory consumption for a single BytecodeArray.
   static const int kMaxSize = 512 * MB;
@@ -952,25 +938,22 @@ class DeoptimizationData : public FixedArray {
   OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArray);
 };
 
-class SourcePositionTableWithFrameCache : public Tuple2 {
+class SourcePositionTableWithFrameCache : public Struct {
  public:
   DECL_ACCESSORS(source_position_table, ByteArray)
   DECL_ACCESSORS(stack_frame_cache, SimpleNumberDictionary)
 
   DECL_CAST(SourcePositionTableWithFrameCache)
 
-// Layout description.
-#define SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS(V) \
-  V(kSourcePositionTableIndex, kTaggedSize)        \
-  V(kStackFrameCacheIndex, kTaggedSize)            \
-  /* Total size. */                                \
-  V(kSize, 0)
+  DECL_PRINTER(SourcePositionTableWithFrameCache)
+  DECL_VERIFIER(SourcePositionTableWithFrameCache)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
-                                SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS)
-#undef SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+    Struct::kHeaderSize,
+    TORQUE_GENERATED_SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_FIELDS)
 
-  OBJECT_CONSTRUCTORS(SourcePositionTableWithFrameCache, Tuple2);
+  OBJECT_CONSTRUCTORS(SourcePositionTableWithFrameCache, Struct);
 };
 
 }  // namespace internal
