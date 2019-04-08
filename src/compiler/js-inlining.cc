@@ -379,6 +379,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   Handle<SharedFunctionInfo> shared_info;
   JSCallAccessor call(node);
 
+  // TODO(mslekova): Remove those when inlining is brokerized.
+  AllowHandleDereference allow_handle_deref;
+  AllowHandleAllocation allow_handle_alloc;
+
   // Determine the call target.
   if (!DetermineCallTarget(node, shared_info)) return NoChange();
 

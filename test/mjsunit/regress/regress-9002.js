@@ -24,6 +24,7 @@ function foo(cond) {
   func();
 }
 
+%PrepareFunctionForOptimization(foo);
 foo(true);
 foo(false);
 %OptimizeFunctionOnNextCall(foo);

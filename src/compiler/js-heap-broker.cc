@@ -2871,7 +2871,15 @@ bool JSFunctionRef::serialized() const {
 }
 
 bool JSFunctionRef::IsSerializedForCompilation() const {
-  return shared().IsSerializedForCompilation(feedback_vector());
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    return handle(object()->shared(), broker()->isolate())->HasBytecodeArray();
+  }
+
+  // We get a crash if we try to access the shared() getter without
+  // checking for `serialized` first. Also it's possible to have a
+  // JSFunctionRef without a feedback vector.
+  return serialized() && has_feedback_vector() &&
+         shared().IsSerializedForCompilation(feedback_vector());
 }
 
 void SharedFunctionInfoRef::SetSerializedForCompilation(
