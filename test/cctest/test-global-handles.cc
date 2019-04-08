@@ -310,6 +310,20 @@ TEST(WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
       []() { InvokeScavenge(); }, SurvivalMode::kDies);
 }
 
+TEST(WeakHandleToJSApiObjectWithIdentityHashSurvivesScavenge) {
+  CcTest::InitializeVM();
+  WeakHandleTest(
+      CcTest::isolate(), &ConstructJSApiObject,
+      [](FlagAndPersistent* fp) {
+        v8::HandleScope scope(CcTest::isolate());
+        v8::Local<v8::Object> handle =
+            v8::Local<v8::Object>::New(CcTest::isolate(), fp->handle);
+        handle->GetIdentityHash();
+        handle.Clear();
+      },
+      []() { InvokeScavenge(); }, SurvivalMode::kSurvives);
+}
+
 TEST(WeakHandleToUnmodifiedJSApiObjectSurvivesScavengeWhenInHandle) {
   CcTest::InitializeVM();
   WeakHandleTest(
