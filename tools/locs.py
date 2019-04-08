@@ -13,14 +13,16 @@ from __future__ import print_function
 
 import argparse
 import json
+import multiprocessing
 import os
 import re
 import subprocess
 import sys
 import tempfile
 import time
-from pathlib import Path
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 # for py2/py3 compatibility
 try:
@@ -114,6 +116,11 @@ ARGPARSE.add_argument(
     default=0,
     const=3,
     help="Output results for each file separately")
+ARGPARSE.add_argument(
+    '--jobs',
+    type=int,
+    default=multiprocessing.cpu_count(),
+    help="Process specified number of files concurrently")
 
 ARGS = vars(ARGPARSE.parse_args())
 
@@ -373,7 +380,7 @@ def Main():
 
   try:
     with open(compile_commands_file) as file:
-      data = json.load(file)
+      compile_commands = json.load(file)
     with open(ninja_deps_file) as file:
       source_dependencies, header_dependents = parse_ninja_deps(file)
       result.addHeaderDeps(source_dependencies, header_dependents)
@@ -382,44 +389,46 @@ def Main():
         ninja_deps_file))
     exit(1)
 
+  cmd_splitter = CommandSplitter()
+
+  def count_lines_of_unit(ikey):
+    i, key = ikey
+    if not result.track(key['file']):
+      return
+    message = "[{}/{}] Counting LoCs of {}".format(
+        i, len(compile_commands), key['file'])
+    status.print(message, file=out)
+    clangcmd, infilename, infile, outfilename = cmd_splitter.process(key)
+    if not infile.is_file():
+      return
+
+    clangcmd = clangcmd + " -E -P " + \
+        str(infile) + " -o /dev/stdout | sed '/^\\s*$/d' | wc -lc"
+    loccmd = ("cat {}  | sed '\\;^\\s*//;d' | sed '\\;^/\\*;d'"
+              " | sed '/^\\*/d' | sed '/^\\s*$/d' | wc -lc")
+    loccmd = loccmd.format(infile)
+    runcmd = " {} ; {}".format(clangcmd, loccmd)
+    if ARGS['echocmd']:
+      print(runcmd)
+    process = subprocess.Popen(
+        runcmd, shell=True, cwd=key['directory'], stdout=subprocess.PIPE)
+    p = {'process': process, 'infile': infilename, 'outfile': outfilename}
+    output, _ = p['process'].communicate()
+    expanded, expanded_bytes, loc, in_bytes = list(map(int, output.split()))
+    result.recordFile(p['infile'], p['outfile'], loc,
+                      in_bytes, expanded, expanded_bytes)
+
   with tempfile.TemporaryDirectory(dir='/tmp/', prefix="locs.") as temp:
-    processes = []
     start = time.time()
-    cmd_splitter = CommandSplitter()
 
-    for i, key in enumerate(data):
-      if not result.track(key['file']):
-        continue
-      message = "[{}/{}] Counting LoCs of {}".format(i, len(data), key['file'])
-      status.print(message, file=out)
-      clangcmd, infilename, infile, outfilename = cmd_splitter.process(key)
-      if infile.is_file():
-        clangcmd = clangcmd + " -E -P " + \
-            str(infile) + " -o /dev/stdout | sed '/^\\s*$/d' | wc -lc"
-        loccmd = ("cat {}  | sed '\\;^\\s*//;d' | sed '\\;^/\\*;d'"
-                  " | sed '/^\\*/d' | sed '/^\\s*$/d' | wc -lc")
-        loccmd = loccmd.format(infile)
-        runcmd = " {} ; {}".format(clangcmd, loccmd)
-        if ARGS['echocmd']:
-          print(runcmd)
-        process = subprocess.Popen(
-            runcmd, shell=True, cwd=key['directory'], stdout=subprocess.PIPE)
-        processes.append({'process': process, 'infile': infilename,
-                          'outfile': outfilename})
-
-    for i, p in enumerate(processes):
-      status.print("[{}/{}] Summing up {}".format(
-          i, len(processes), p['infile']), file=out)
-      output, _ = p['process'].communicate()
-      expanded, expanded_bytes, loc, in_bytes = list(map(int, output.split()))
-      result.recordFile(p['infile'], p['outfile'], loc,
-                        in_bytes, expanded, expanded_bytes)
+    with ThreadPoolExecutor(max_workers=ARGS['jobs']) as executor:
+      list(executor.map(count_lines_of_unit, enumerate(compile_commands)))
 
     end = time.time()
     if ARGS['json']:
       print(json.dumps(result, ensure_ascii=False, cls=LocsEncoder))
     status.print("Processed {:,} files in {:,.2f} sec.".format(
-        len(processes), end-start), end="\n", file=out)
+        len(compile_commands), end-start), end="\n", file=out)
     result.printGroupResults(file=out)
 
     if ARGS['largest']:
