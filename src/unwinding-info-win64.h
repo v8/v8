@@ -5,12 +5,12 @@
 #ifndef V8_UNWINDING_INFO_WIN64_H_
 #define V8_UNWINDING_INFO_WIN64_H_
 
+#include "include/v8.h"
 #include "include/v8config.h"
+#include "src/globals.h"
 
 #if defined(V8_OS_WIN_X64)
-#include "include/v8.h"
 #include "src/base/win32-headers.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

@@ -5791,11 +5791,15 @@ bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
   return v8::internal::trap_handler::EnableTrapHandler(use_v8_signal_handler);
 }
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN)
 void V8::SetUnhandledExceptionCallback(
     UnhandledExceptionCallback unhandled_exception_callback) {
+#if defined(V8_TARGET_ARCH_X64)
   v8::internal::win64_unwindinfo::SetUnhandledExceptionCallback(
       unhandled_exception_callback);
+#else
+  // Not implemented on ARM64.
+#endif
 }
 #endif
 

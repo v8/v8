@@ -364,10 +364,6 @@
 # define V8_EXPORT
 #endif  // BUILDING_V8_SHARED
 
-#if defined(_M_X64) || defined(__x86_64__)
-#  define V8_OS_WIN_X64 true
-#endif
-
 #else  // V8_OS_WIN
 
 // Setup for Linux shared library export.
