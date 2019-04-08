@@ -1737,6 +1737,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant(
   if (receiver_ref.map().oddball_type() == OddballType::kHole ||
       receiver_ref.map().oddball_type() == OddballType::kNull ||
       receiver_ref.map().oddball_type() == OddballType::kUndefined ||
+      // The 'in' operator throws a TypeError on primitive values.
       (receiver_ref.IsString() && access_mode == AccessMode::kHas)) {
     return NoChange();
   }
@@ -1797,7 +1798,8 @@ Reduction JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant(
 
   // For constant Strings we can eagerly strength-reduce the keyed
   // accesses using the known length, which doesn't change.
-  if (receiver_ref.IsString() && access_mode != AccessMode::kHas) {
+  if (receiver_ref.IsString()) {
+    DCHECK_NE(access_mode, AccessMode::kHas);
     // We can only assume that the {index} is a valid array index if the
     // IC is in element access mode and not MEGAMORPHIC, otherwise there's
     // no guard for the bounds check below.
