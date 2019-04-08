@@ -47,6 +47,9 @@ class ScopeInfo : public FixedArray {
   // True if this scope is a (var) declaration scope.
   bool is_declaration_scope() const;
 
+  // True if this scope is a class scope.
+  bool is_class_scope() const;
+
   // Does this scope make a sloppy eval call?
   bool CallsSloppyEval() const;
 

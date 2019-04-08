@@ -547,6 +547,7 @@ constexpr uint32_t kQuietNaNHighBitsMask = 0xfff << (51 - 32);
 class AccessorInfo;
 class Arguments;
 class Assembler;
+class ClassScope;
 class Code;
 class CodeSpace;
 class Context;
@@ -989,6 +990,7 @@ inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
 }
 
 enum ScopeType : uint8_t {
+  CLASS_SCOPE,     // The scope introduced by a class.
   EVAL_SCOPE,      // The top-level scope for an eval source.
   FUNCTION_SCOPE,  // The top-level scope for a function.
   MODULE_SCOPE,    // The scope introduced by a module literal
@@ -1012,6 +1014,8 @@ inline std::ostream& operator<<(std::ostream& os, ScopeType type) {
       return os << "CATCH_SCOPE";
     case ScopeType::BLOCK_SCOPE:
       return os << "BLOCK_SCOPE";
+    case ScopeType::CLASS_SCOPE:
+      return os << "CLASS_SCOPE";
     case ScopeType::WITH_SCOPE:
       return os << "WITH_SCOPE";
   }

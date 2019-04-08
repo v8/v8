@@ -1103,6 +1103,11 @@ class PreParser : public ParserBase<PreParser> {
     // Don't bother actually binding the proxy.
   }
 
+  Variable* DeclarePrivateVariableName(const AstRawString* name,
+                                       ClassScope* scope, bool* was_added) {
+    return scope->DeclarePrivateName(name, was_added);
+  }
+
   Variable* DeclareVariableName(const AstRawString* name, VariableMode mode,
                                 Scope* scope, bool* was_added,
                                 int position = kNoSourcePosition,
@@ -1225,12 +1230,14 @@ class PreParser : public ParserBase<PreParser> {
                           &was_added);
     }
   }
-  V8_INLINE void DeclareClassProperty(const PreParserIdentifier& class_name,
+  V8_INLINE void DeclareClassProperty(ClassScope* scope,
+                                      const PreParserIdentifier& class_name,
                                       const PreParserExpression& property,
                                       bool is_constructor,
                                       ClassInfo* class_info) {}
 
-  V8_INLINE void DeclareClassField(const PreParserExpression& property,
+  V8_INLINE void DeclareClassField(ClassScope* scope,
+                                   const PreParserExpression& property,
                                    const PreParserIdentifier& property_name,
                                    bool is_static, bool is_computed_name,
                                    bool is_private, ClassInfo* class_info) {
@@ -1240,16 +1247,20 @@ class PreParser : public ParserBase<PreParser> {
       DeclareVariableName(
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
-          VariableMode::kConst, scope(), &was_added);
+          VariableMode::kConst, scope, &was_added);
     } else if (is_private) {
       bool was_added;
-      DeclareVariableName(property_name.string_, VariableMode::kConst, scope(),
-                          &was_added);
+      DeclarePrivateVariableName(property_name.string_, scope, &was_added);
+      if (!was_added) {
+        Scanner::Location loc(property.position(), property.position() + 1);
+        ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
+                        property_name.string_);
+      }
     }
   }
 
   V8_INLINE PreParserExpression
-  RewriteClassLiteral(Scope* scope, const PreParserIdentifier& name,
+  RewriteClassLiteral(ClassScope* scope, const PreParserIdentifier& name,
                       ClassInfo* class_info, int pos, int end_pos) {
     bool has_default_constructor = !class_info->has_seen_constructor;
     // Account for the default constructor.
@@ -1575,6 +1586,15 @@ class PreParser : public ParserBase<PreParser> {
                                                       int pos) {
     if (token != Token::STRING) return PreParserExpression::Default();
     return PreParserExpression::StringLiteral();
+  }
+
+  PreParserExpression ExpressionFromPrivateName(ClassScope* class_scope,
+                                                const PreParserIdentifier& name,
+                                                int start_position) {
+    VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
+        name.string_, NORMAL_VARIABLE, start_position);
+    class_scope->AddUnresolvedPrivateName(proxy);
+    return PreParserExpression::FromIdentifier(name);
   }
 
   PreParserExpression ExpressionFromIdentifier(

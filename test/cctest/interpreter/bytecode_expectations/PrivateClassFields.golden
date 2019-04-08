@@ -25,13 +25,11 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 143
+bytecode array length: 137
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(4),
-                B(LdaTheHole),
-                B(StaCurrentContextSlot), U8(4),
                 B(LdaTheHole),
                 B(Star), R(8),
                 B(CreateClosure), U8(2), U8(0), U8(2),
@@ -55,8 +53,6 @@ bytecodes: [
                 B(Mov), R(3), R(0),
   /*   38 E> */ B(CreateBlockContext), U8(6),
                 B(PushContext), R(4),
-                B(LdaTheHole),
-                B(StaCurrentContextSlot), U8(4),
                 B(LdaTheHole),
                 B(Star), R(8),
                 B(CreateClosure), U8(8), U8(2), U8(2),
@@ -137,13 +133,11 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 289
+bytecode array length: 277
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(6),
-                B(LdaTheHole),
-                B(StaCurrentContextSlot), U8(4),
                 B(LdaTheHole),
                 B(Star), R(14),
                 B(CreateClosure), U8(3), U8(0), U8(2),
@@ -175,10 +169,6 @@ bytecodes: [
                 B(Mov), R(5), R(0),
   /*   38 E> */ B(CreateBlockContext), U8(8),
                 B(PushContext), R(6),
-                B(LdaTheHole),
-                B(StaCurrentContextSlot), U8(4),
-                B(LdaTheHole),
-                B(StaCurrentContextSlot), U8(5),
                 B(LdaTheHole),
                 B(Star), R(14),
                 B(CreateClosure), U8(11), U8(3), U8(2),
@@ -220,8 +210,6 @@ bytecodes: [
                 B(Mov), R(4), R(1),
   /*  140 E> */ B(CreateBlockContext), U8(17),
                 B(PushContext), R(6),
-                B(LdaTheHole),
-                B(StaCurrentContextSlot), U8(4),
   /*  356 E> */ B(CreateClosure), U8(19), U8(8), U8(2),
                 B(Star), R(7),
                 B(LdaConstant), U8(18),

@@ -1604,7 +1604,8 @@ Handle<Context> Factory::NewWithContext(Handle<Context> previous,
 
 Handle<Context> Factory::NewBlockContext(Handle<Context> previous,
                                          Handle<ScopeInfo> scope_info) {
-  DCHECK_EQ(scope_info->scope_type(), BLOCK_SCOPE);
+  DCHECK_IMPLIES(scope_info->scope_type() != BLOCK_SCOPE,
+                 scope_info->scope_type() == CLASS_SCOPE);
   int variadic_part_length = scope_info->ContextLength();
   Handle<Context> context = NewContext(
       RootIndex::kBlockContextMap, Context::SizeFor(variadic_part_length),

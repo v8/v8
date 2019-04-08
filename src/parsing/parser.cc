@@ -2506,6 +2506,13 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
   Scanner::BookmarkScope bookmark(scanner());
   bookmark.Set(function_scope->start_position());
 
+  UnresolvedList::Iterator unresolved_private_tail;
+  ClassScope* closest_class_scope = function_scope->GetClassScope();
+  if (closest_class_scope != nullptr) {
+    unresolved_private_tail =
+        closest_class_scope->GetUnresolvedPrivateNameTail();
+  }
+
   // With no cached data, we partially parse the function, without building an
   // AST. This gathers the data needed to build a lazy function.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
@@ -2527,7 +2534,11 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     // the state before preparsing. The caller may then fully parse the function
     // to identify the actual error.
     bookmark.Apply();
-    function_scope->ResetAfterPreparsing(ast_value_factory(), true);
+    if (closest_class_scope != nullptr) {
+      closest_class_scope->ResetUnresolvedPrivateNameTail(
+          unresolved_private_tail);
+    }
+    function_scope->ResetAfterPreparsing(ast_value_factory_, true);
     pending_error_handler()->clear_unidentifiable_error();
     return false;
   } else if (pending_error_handler()->has_pending_error()) {
@@ -2544,6 +2555,10 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
         function_scope->end_position() - function_scope->start_position();
     *num_parameters = logger->num_parameters();
     SkipFunctionLiterals(logger->num_inner_functions());
+    if (closest_class_scope != nullptr) {
+      closest_class_scope->MigrateUnresolvedPrivateNameTail(
+          factory(), unresolved_private_tail);
+    }
     function_scope->AnalyzePartially(this, factory());
   }
 
@@ -2770,7 +2785,23 @@ Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name) {
   return proxy->var();
 }
 
-void Parser::DeclareClassField(ClassLiteralProperty* property,
+Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
+                                            const AstRawString* name) {
+  DCHECK_NOT_NULL(name);
+  int begin = position();
+  int end = end_position();
+  bool was_added = false;
+  Variable* var = scope->DeclarePrivateName(name, &was_added);
+  if (!was_added) {
+    Scanner::Location loc(begin, end);
+    ReportMessageAt(loc, MessageTemplate::kVarRedeclaration, var->raw_name());
+  }
+  VariableProxy* proxy = factory()->NewVariableProxy(var, begin);
+  return proxy->var();
+}
+
+void Parser::DeclareClassField(ClassScope* scope,
+                               ClassLiteralProperty* property,
                                const AstRawString* property_name,
                                bool is_static, bool is_computed_name,
                                bool is_private, ClassInfo* class_info) {
@@ -2792,8 +2823,13 @@ void Parser::DeclareClassField(ClassLiteralProperty* property,
     property->set_computed_name_var(computed_name_var);
     class_info->properties->Add(property, zone());
   } else if (is_private) {
-    Variable* private_name_var = CreateSyntheticContextVariable(property_name);
-    private_name_var->set_initializer_position(property->value()->position());
+    Variable* private_name_var =
+        CreatePrivateNameVariable(scope, property_name);
+    int pos = property->value()->position();
+    if (pos == kNoSourcePosition) {
+      pos = property->key()->position();
+    }
+    private_name_var->set_initializer_position(pos);
     property->set_private_name_var(private_name_var);
     class_info->properties->Add(property, zone());
   }
@@ -2803,7 +2839,8 @@ void Parser::DeclareClassField(ClassLiteralProperty* property,
 // following fields of class_info, as appropriate:
 //   - constructor
 //   - properties
-void Parser::DeclareClassProperty(const AstRawString* class_name,
+void Parser::DeclareClassProperty(ClassScope* scope,
+                                  const AstRawString* class_name,
                                   ClassLiteralProperty* property,
                                   bool is_constructor, ClassInfo* class_info) {
   if (is_constructor) {
@@ -2845,12 +2882,12 @@ FunctionLiteral* Parser::CreateInitializerFunction(
 //   - properties
 //   - has_name_static_property
 //   - has_static_computed_names
-Expression* Parser::RewriteClassLiteral(Scope* block_scope,
+Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
                                         const AstRawString* name,
                                         ClassInfo* class_info, int pos,
                                         int end_pos) {
   DCHECK_NOT_NULL(block_scope);
-  DCHECK_EQ(block_scope->scope_type(), BLOCK_SCOPE);
+  DCHECK_EQ(block_scope->scope_type(), CLASS_SCOPE);
   DCHECK_EQ(block_scope->language_mode(), LanguageMode::kStrict);
 
   bool has_extends = class_info->extends != nullptr;

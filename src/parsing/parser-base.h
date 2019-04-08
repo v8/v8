@@ -656,6 +656,10 @@ class ParserBase {
     return new (zone()) DeclarationScope(zone(), parent, EVAL_SCOPE);
   }
 
+  ClassScope* NewClassScope(Scope* parent) const {
+    return new (zone()) ClassScope(zone(), parent);
+  }
+
   Scope* NewScope(ScopeType scope_type) const {
     return NewScopeWithParent(scope(), scope_type);
   }
@@ -1573,14 +1577,14 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     //
     // Bug(v8:7468): This hack will go away once we refactor private
     // name resolution to happen independently from scope resolution.
-    if (scope()->scope_type() == FUNCTION_SCOPE &&
-        scope()->outer_scope() != nullptr &&
-        scope()->outer_scope()->scope_type() == SCRIPT_SCOPE) {
+    ClassScope* class_scope = scope()->GetClassScope();
+    if (class_scope == nullptr) {
       ReportMessage(MessageTemplate::kInvalidPrivateFieldResolution);
+      return impl()->FailureExpression();
     }
 
     name = impl()->GetIdentifier();
-    key = impl()->ExpressionFromIdentifier(name, pos, InferName::kNo);
+    key = impl()->ExpressionFromPrivateName(class_scope, name, pos);
   } else {
     ReportUnexpectedToken(next);
     return impl()->FailureExpression();
@@ -4232,8 +4236,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     }
   }
 
-  Scope* block_scope = NewScope(BLOCK_SCOPE);
-  BlockState block_state(&scope_, block_scope);
+  ClassScope* class_scope = NewClassScope(scope());
+  BlockState block_state(&scope_, class_scope);
   RaiseLanguageMode(LanguageMode::kStrict);
 
   ClassInfo class_info(this);
@@ -4278,19 +4282,30 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
         class_info.computed_field_count++;
       }
 
-      impl()->DeclareClassField(property, prop_info.name, prop_info.is_static,
-                                prop_info.is_computed_name,
+      impl()->DeclareClassField(class_scope, property, prop_info.name,
+                                prop_info.is_static, prop_info.is_computed_name,
                                 prop_info.is_private, &class_info);
     } else {
-      impl()->DeclareClassProperty(name, property, is_constructor, &class_info);
+      impl()->DeclareClassProperty(class_scope, name, property, is_constructor,
+                                   &class_info);
     }
     impl()->InferFunctionName();
   }
 
   Expect(Token::RBRACE);
   int end_pos = end_position();
-  block_scope->set_end_position(end_pos);
-  return impl()->RewriteClassLiteral(block_scope, name, &class_info,
+  class_scope->set_end_position(end_pos);
+
+  VariableProxy* unresolvable = class_scope->ResolvePrivateNamesPartially();
+  if (unresolvable != nullptr) {
+    impl()->ReportMessageAt(Scanner::Location(unresolvable->position(),
+                                              unresolvable->position() + 1),
+                            MessageTemplate::kInvalidPrivateFieldResolution,
+                            unresolvable->raw_name(), kSyntaxError);
+    return impl()->FailureExpression();
+  }
+
+  return impl()->RewriteClassLiteral(class_scope, name, &class_info,
                                      class_token_pos, end_pos);
 }
 

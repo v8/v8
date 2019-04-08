@@ -508,14 +508,14 @@ int ScopeInfo::ContextLength() const {
     bool function_name_context_slot =
         FunctionVariableField::decode(Flags()) == CONTEXT;
     bool force_context = ForceContextAllocationField::decode(Flags());
-    bool has_context = context_locals > 0 || force_context ||
-                       function_name_context_slot ||
-                       scope_type() == WITH_SCOPE ||
-                       (scope_type() == BLOCK_SCOPE && CallsSloppyEval() &&
-                        is_declaration_scope()) ||
-                       (scope_type() == FUNCTION_SCOPE && CallsSloppyEval()) ||
-                       (scope_type() == FUNCTION_SCOPE && IsAsmModule()) ||
-                       scope_type() == MODULE_SCOPE;
+    bool has_context =
+        context_locals > 0 || force_context || function_name_context_slot ||
+        scope_type() == WITH_SCOPE || scope_type() == CLASS_SCOPE ||
+        (scope_type() == BLOCK_SCOPE && CallsSloppyEval() &&
+         is_declaration_scope()) ||
+        (scope_type() == FUNCTION_SCOPE && CallsSloppyEval()) ||
+        (scope_type() == FUNCTION_SCOPE && IsAsmModule()) ||
+        scope_type() == MODULE_SCOPE;
 
     if (has_context) {
       return Context::MIN_CONTEXT_SLOTS + context_locals +
