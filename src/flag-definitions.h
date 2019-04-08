@@ -1169,6 +1169,7 @@ DEFINE_STRING(startup_src, nullptr,
               "Write V8 startup as C++ src. (mksnapshot only)")
 DEFINE_STRING(startup_blob, nullptr,
               "Write V8 startup blob file. (mksnapshot only)")
+DEFINE_STRING(ebt_os, nullptr, "EBT target OS. (mksnapshot only)")
 
 //
 // Minor mark compact collector flags.

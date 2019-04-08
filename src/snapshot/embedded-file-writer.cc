@@ -692,11 +692,10 @@ void PlatformDependentEmbeddedFileWriter::SectionData() {
 }
 
 void PlatformDependentEmbeddedFileWriter::SectionRoData() {
-#if defined(V8_TARGET_OS_WIN)
-  fprintf(fp_, ".section .rdata\n");
-#else
-  fprintf(fp_, ".section .rodata\n");
-#endif
+  if (i::FLAG_ebt_os == std::string("win"))
+    fprintf(fp_, ".section .rdata\n");
+  else
+    fprintf(fp_, ".section .rodata\n");
 }
 
 void PlatformDependentEmbeddedFileWriter::DeclareUint32(const char* name,
@@ -779,29 +778,31 @@ void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
     const char* name) {
   DeclareLabel(name);
 
-#if defined(V8_TARGET_OS_WIN)
+  if (i::FLAG_ebt_os == std::string("win")) {
 #if defined(V8_TARGET_ARCH_ARM64)
-  // Windows ARM64 assembly is in GAS syntax, but ".type" is invalid directive
-  // in PE/COFF for Windows.
+    // Windows ARM64 assembly is in GAS syntax, but ".type" is invalid directive
+    // in PE/COFF for Windows.
 #else
-  // The directives for inserting debugging information on Windows come
-  // from the PE (Portable Executable) and COFF (Common Object File Format)
-  // standards. Documented here:
-  // https://docs.microsoft.com/en-us/windows/desktop/debug/pe-format
-  //
-  // .scl 2 means StorageClass external.
-  // .type 32 means Type Representation Function.
-  fprintf(fp_, ".def %s%s; .scl 2; .type 32; .endef;\n", SYMBOL_PREFIX, name);
+    // The directives for inserting debugging information on Windows come
+    // from the PE (Portable Executable) and COFF (Common Object File Format)
+    // standards. Documented here:
+    // https://docs.microsoft.com/en-us/windows/desktop/debug/pe-format
+    //
+    // .scl 2 means StorageClass external.
+    // .type 32 means Type Representation Function.
+    fprintf(fp_, ".def %s%s; .scl 2; .type 32; .endef;\n", SYMBOL_PREFIX, name);
 #endif
-#elif defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64)
-  // ELF format binaries on ARM use ".type <function name>, %function"
-  // to create a DWARF subprogram entry.
-  fprintf(fp_, ".type %s, %%function\n", name);
+  } else {
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64)
+    // ELF format binaries on ARM use ".type <function name>, %function"
+    // to create a DWARF subprogram entry.
+    fprintf(fp_, ".type %s, %%function\n", name);
 #else
-  // Other ELF Format binaries use ".type <function name>, @function"
-  // to create a DWARF subprogram entry.
-  fprintf(fp_, ".type %s, @function\n", name);
+    // Other ELF Format binaries use ".type <function name>, @function"
+    // to create a DWARF subprogram entry.
+    fprintf(fp_, ".type %s, @function\n", name);
 #endif
+  }
 }
 
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionEnd(const char* name) {
