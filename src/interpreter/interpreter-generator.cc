@@ -2338,7 +2338,7 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   Node* relative_jump = BytecodeOperandUImmWord(0);
   Node* loop_depth = BytecodeOperandImm(1);
-  Node* osr_level = LoadOsrNestingLevel();
+  Node* osr_level = LoadOSRNestingLevel();
 
   // Check if OSR points at the given {loop_depth} are armed by comparing it to
   // the current {osr_level} loaded from the header of the BytecodeArray.

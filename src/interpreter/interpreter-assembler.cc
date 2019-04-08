@@ -1528,9 +1528,9 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   UpdateInterruptBudget(profiling_weight, true);
 }
 
-Node* InterpreterAssembler::LoadOsrNestingLevel() {
+Node* InterpreterAssembler::LoadOSRNestingLevel() {
   return LoadObjectField(BytecodeArrayTaggedPointer(),
-                         BytecodeArray::kOsrNestingLevelOffset,
+                         BytecodeArray::kOSRNestingLevelOffset,
                          MachineType::Int8());
 }
 

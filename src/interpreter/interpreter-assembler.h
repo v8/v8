@@ -237,7 +237,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void UpdateInterruptBudgetOnReturn();
 
   // Returns the OSR nesting level from the bytecode header.
-  compiler::Node* LoadOsrNestingLevel();
+  compiler::Node* LoadOSRNestingLevel();
 
   // Dispatch to the bytecode.
   compiler::Node* Dispatch();

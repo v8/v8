@@ -302,9 +302,14 @@ class WeakFixedArray : public HeapObject {
   using BodyDescriptor = WeakArrayBodyDescriptor;
 
   // Layout description.
+#define WEAK_FIXED_ARRAY_FIELDS(V) \
+  V(kLengthOffset, kTaggedSize)    \
+  /* Header size. */               \
+  V(kHeaderSize, 0)
+
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_WEAK_FIXED_ARRAY_FIELDS)
-  static constexpr int kHeaderSize = kSize;
+                                WEAK_FIXED_ARRAY_FIELDS)
+#undef WEAK_FIXED_ARRAY_FIELDS
 
   static const int kMaxLength =
       (FixedArray::kMaxSize - kHeaderSize) / kTaggedSize;
@@ -366,9 +371,14 @@ class WeakArrayList : public HeapObject {
 
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_WEAK_ARRAY_LIST_FIELDS)
-  static constexpr int kHeaderSize = kSize;
+#define WEAK_ARRAY_LIST_FIELDS(V) \
+  V(kCapacityOffset, kTaggedSize) \
+  V(kLengthOffset, kTaggedSize)   \
+  /* Header size. */              \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, WEAK_ARRAY_LIST_FIELDS)
+#undef WEAK_ARRAY_LIST_FIELDS
 
   using BodyDescriptor = WeakArrayBodyDescriptor;
 

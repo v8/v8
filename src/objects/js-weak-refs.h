@@ -60,9 +60,21 @@ class JSFinalizationGroup : public JSObject {
   static void Cleanup(Handle<JSFinalizationGroup> finalization_group,
                       Isolate* isolate);
 
-  // Layout description.
+// Layout description.
+#define JS_FINALIZATION_GROUP_FIELDS(V) \
+  V(kNativeContextOffset, kTaggedSize)  \
+  V(kCleanupOffset, kTaggedSize)        \
+  V(kActiveCellsOffset, kTaggedSize)    \
+  V(kClearedCellsOffset, kTaggedSize)   \
+  V(kKeyMapOffset, kTaggedSize)         \
+  V(kNextOffset, kTaggedSize)           \
+  V(kFlagsOffset, kTaggedSize)          \
+  /* Header size. */                    \
+  V(kSize, 0)
+
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSFINALIZATION_GROUP_FIELDS)
+                                JS_FINALIZATION_GROUP_FIELDS)
+#undef JS_FINALIZATION_GROUP_FIELDS
 
   // Bitfields in flags.
   class ScheduledForCleanupField : public BitField<bool, 0, 1> {};
@@ -94,9 +106,21 @@ class WeakCell : public HeapObject {
   DECL_ACCESSORS(key_list_prev, Object)
   DECL_ACCESSORS(key_list_next, Object)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_WEAK_CELL_FIELDS)
+// Layout description.
+#define WEAK_CELL_FIELDS(V)                \
+  V(kFinalizationGroupOffset, kTaggedSize) \
+  V(kTargetOffset, kTaggedSize)            \
+  V(kHoldingsOffset, kTaggedSize)          \
+  V(kPrevOffset, kTaggedSize)              \
+  V(kNextOffset, kTaggedSize)              \
+  V(kKeyOffset, kTaggedSize)               \
+  V(kKeyListPrevOffset, kTaggedSize)       \
+  V(kKeyListNextOffset, kTaggedSize)       \
+  /* Header size. */                       \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, WEAK_CELL_FIELDS)
+#undef WEAK_CELL_FIELDS
 
   class BodyDescriptor;
 
@@ -122,9 +146,14 @@ class JSWeakRef : public JSObject {
 
   DECL_ACCESSORS(target, HeapObject)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSWEAK_REF_FIELDS)
+// Layout description.
+#define JS_WEAK_REF_FIELDS(V)   \
+  V(kTargetOffset, kTaggedSize) \
+  /* Header size. */            \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_WEAK_REF_FIELDS)
+#undef JS_WEAK_REF_FIELDS
 
   class BodyDescriptor;
 
@@ -160,10 +189,15 @@ class JSFinalizationGroupCleanupIterator : public JSObject {
 
   DECL_ACCESSORS(finalization_group, JSFinalizationGroup)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-    JSObject::kHeaderSize,
-    TORQUE_GENERATED_JSFINALIZATION_GROUP_CLEANUP_ITERATOR_FIELDS)
+// Layout description.
+#define JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_FIELDS(V) \
+  V(kFinalizationGroupOffset, kTaggedSize)               \
+  /* Header size. */                                     \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_FIELDS)
+#undef JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_FIELDS
 
   OBJECT_CONSTRUCTORS(JSFinalizationGroupCleanupIterator, JSObject);
 };
