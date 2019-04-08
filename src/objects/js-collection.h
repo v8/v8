@@ -19,6 +19,8 @@ class OrderedHashMap;
 
 class JSCollection : public JSObject {
  public:
+  DECL_CAST(JSCollection)
+
   // [table]: the backing hash table
   DECL_ACCESSORS(table, Object)
 

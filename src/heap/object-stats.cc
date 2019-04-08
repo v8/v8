@@ -18,6 +18,7 @@
 #include "src/memcopy.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/slots.h"
@@ -310,11 +311,14 @@ int ObjectStats::HistogramIndexFromSize(size_t size) {
              kLastValueBucketIndex);
 }
 
-void ObjectStats::RecordObjectStats(InstanceType type, size_t size) {
+void ObjectStats::RecordObjectStats(InstanceType type, size_t size,
+                                    size_t over_allocated) {
   DCHECK_LE(type, LAST_TYPE);
   object_counts_[type]++;
   object_sizes_[type] += size;
   size_histogram_[type][HistogramIndexFromSize(size)]++;
+  over_allocated_[type] += over_allocated;
+  over_allocated_histogram_[type][HistogramIndexFromSize(size)]++;
 }
 
 void ObjectStats::RecordVirtualObjectStats(VirtualInstanceType type,
@@ -366,7 +370,7 @@ class ObjectStatsCollectorImpl {
                                       ObjectStats::VirtualInstanceType type);
   // For HashTable it is possible to compute over allocated memory.
   void RecordHashTableVirtualObjectStats(HeapObject parent,
-                                         FixedArray hash_table,
+                                         HashTableBase hash_table,
                                          ObjectStats::VirtualInstanceType type);
 
   bool SameLiveness(HeapObject obj1, HeapObject obj2);
@@ -378,7 +382,9 @@ class ObjectStatsCollectorImpl {
   // objects dispatch to the low level ObjectStats::RecordObjectStats manually.
   bool ShouldRecordObject(HeapObject object, CowMode check_cow_array);
 
-  void RecordObjectStats(HeapObject obj, InstanceType type, size_t size);
+  void RecordObjectStats(
+      HeapObject obj, InstanceType type, size_t size,
+      size_t over_allocated = ObjectStats::kNoOverAllocation);
 
   // Specific recursion into constant pool or embedded code objects. Records
   // FixedArrays and Tuple2.
@@ -395,13 +401,11 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualFixedArrayDetails(FixedArray array);
   void RecordVirtualFunctionTemplateInfoDetails(FunctionTemplateInfo fti);
   void RecordVirtualJSGlobalObjectDetails(JSGlobalObject object);
-  void RecordVirtualJSCollectionDetails(JSObject object);
   void RecordVirtualJSObjectDetails(JSObject object);
   void RecordVirtualMapDetails(Map map);
   void RecordVirtualScriptDetails(Script script);
   void RecordVirtualExternalStringDetails(ExternalString script);
   void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo info);
-  void RecordVirtualJSFunctionDetails(JSFunction function);
 
   void RecordVirtualArrayBoilerplateDescription(
       ArrayBoilerplateDescription description);
@@ -435,12 +439,19 @@ bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject obj,
 }
 
 void ObjectStatsCollectorImpl::RecordHashTableVirtualObjectStats(
-    HeapObject parent, FixedArray hash_table,
+    HeapObject parent, HashTableBase hash_table,
     ObjectStats::VirtualInstanceType type) {
-  CHECK(hash_table->IsHashTable());
-  // TODO(mlippautz): Implement over allocation for hash tables.
+  size_t entry_size =
+      ((hash_table->length() - HashTableBase::kPrefixStartIndex) /
+       hash_table->Capacity()) *
+      kTaggedSize;
+  size_t over_allocated =
+      (hash_table->length() -
+       (HashTableBase::kPrefixStartIndex + hash_table->NumberOfElements() +
+        hash_table->NumberOfDeletedElements())) *
+      entry_size;
   RecordVirtualObjectStats(parent, hash_table, type, hash_table->Size(),
-                           ObjectStats::kNoOverAllocation);
+                           over_allocated);
 }
 
 bool ObjectStatsCollectorImpl::RecordSimpleVirtualObjectStats(
@@ -529,36 +540,58 @@ void ObjectStatsCollectorImpl::RecordVirtualJSGlobalObjectDetails(
                                  ObjectStats::GLOBAL_ELEMENTS_TYPE);
 }
 
-void ObjectStatsCollectorImpl::RecordVirtualJSCollectionDetails(
-    JSObject object) {
-  if (object->IsJSMap()) {
-    RecordSimpleVirtualObjectStats(
-        object, FixedArray::cast(JSMap::cast(object)->table()),
-        ObjectStats::JS_COLLECTION_TABLE_TYPE);
-  }
-  if (object->IsJSSet()) {
-    RecordSimpleVirtualObjectStats(
-        object, FixedArray::cast(JSSet::cast(object)->table()),
-        ObjectStats::JS_COLLECTION_TABLE_TYPE);
-  }
-}
-
 void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject object) {
   // JSGlobalObject is recorded separately.
   if (object->IsJSGlobalObject()) return;
 
+  // Uncompiled JSFunction has a separate type.
+  if (object->IsJSFunction() && !JSFunction::cast(object)->is_compiled()) {
+    RecordSimpleVirtualObjectStats(HeapObject(), object,
+                                   ObjectStats::JS_UNCOMPILED_FUNCTION_TYPE);
+  }
+
   // Properties.
   if (object->HasFastProperties()) {
     PropertyArray properties = object->property_array();
-    CHECK_EQ(PROPERTY_ARRAY_TYPE, properties->map()->instance_type());
+    size_t over_allocated = ObjectStats::kNoOverAllocation;
+    if (properties != ReadOnlyRoots(heap_).empty_property_array()) {
+      over_allocated += object->map()->UnusedPropertyFields() * kTaggedSize;
+    }
+    RecordVirtualObjectStats(object, properties,
+                             ObjectStats::OBJECT_PROPERTY_ARRAY_TYPE,
+                             properties->Size(), over_allocated);
   } else {
     NameDictionary properties = object->property_dictionary();
     RecordHashTableVirtualObjectStats(
         object, properties, ObjectStats::OBJECT_PROPERTY_DICTIONARY_TYPE);
   }
+
   // Elements.
   FixedArrayBase elements = object->elements();
-  RecordSimpleVirtualObjectStats(object, elements, ObjectStats::ELEMENTS_TYPE);
+  if (object->HasDictionaryElements()) {
+    RecordHashTableVirtualObjectStats(
+        object, NumberDictionary::cast(elements),
+        object->IsJSArray() ? ObjectStats::ARRAY_DICTIONARY_ELEMENTS_TYPE
+                            : ObjectStats::OBJECT_DICTIONARY_ELEMENTS_TYPE);
+  } else if (object->IsJSArray()) {
+    size_t element_size =
+        (elements->Size() - FixedArrayBase::kHeaderSize) / elements->length();
+    uint32_t length = JSArray::cast(object)->length()->Number();
+    size_t over_allocated = (elements->length() - length) * element_size;
+    RecordVirtualObjectStats(object, elements, ObjectStats::ARRAY_ELEMENTS_TYPE,
+                             elements->Size(), over_allocated);
+  } else {
+    RecordSimpleVirtualObjectStats(object, elements,
+                                   ObjectStats::OBJECT_ELEMENTS_TYPE);
+  }
+
+  // JSCollections.
+  if (object->IsJSCollection()) {
+    // TODO(bmeurer): Properly compute over-allocation here.
+    RecordSimpleVirtualObjectStats(
+        object, FixedArray::cast(JSCollection::cast(object)->table()),
+        ObjectStats::JS_COLLECTION_TABLE_TYPE);
+  }
 }
 
 static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
@@ -676,16 +709,12 @@ void ObjectStatsCollectorImpl::CollectStatistics(
       } else if (obj->IsFunctionTemplateInfo()) {
         RecordVirtualFunctionTemplateInfoDetails(
             FunctionTemplateInfo::cast(obj));
-      } else if (obj->IsJSFunction()) {
-        RecordVirtualJSFunctionDetails(JSFunction::cast(obj));
       } else if (obj->IsJSGlobalObject()) {
         RecordVirtualJSGlobalObjectDetails(JSGlobalObject::cast(obj));
       } else if (obj->IsJSObject()) {
         // This phase needs to come after RecordVirtualAllocationSiteDetails
         // to properly split among boilerplates.
         RecordVirtualJSObjectDetails(JSObject::cast(obj));
-      } else if (obj->IsJSCollection()) {
-        RecordVirtualJSCollectionDetails(JSObject::cast(obj));
       } else if (obj->IsSharedFunctionInfo()) {
         RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo::cast(obj));
       } else if (obj->IsContext()) {
@@ -706,7 +735,11 @@ void ObjectStatsCollectorImpl::CollectStatistics(
         // sources. We still want to run RecordObjectStats after though.
         RecordVirtualExternalStringDetails(ExternalString::cast(obj));
       }
-      RecordObjectStats(obj, map->instance_type(), obj->Size());
+      size_t over_allocated = ObjectStats::kNoOverAllocation;
+      if (obj->IsJSObject()) {
+        over_allocated = map->instance_size() - map->UsedInstanceSize();
+      }
+      RecordObjectStats(obj, map->instance_type(), obj->Size(), over_allocated);
       if (collect_field_stats == CollectFieldStats::kYes) {
         field_stats_collector_.RecordStats(obj);
       }
@@ -749,10 +782,10 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
 }
 
 void ObjectStatsCollectorImpl::RecordObjectStats(HeapObject obj,
-                                                 InstanceType type,
-                                                 size_t size) {
+                                                 InstanceType type, size_t size,
+                                                 size_t over_allocated) {
   if (virtual_objects_.find(obj) == virtual_objects_.end()) {
-    stats_->RecordObjectStats(type, size);
+    stats_->RecordObjectStats(type, size, over_allocated);
   }
 }
 
@@ -809,10 +842,14 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
       array != ReadOnlyRoots(heap_).empty_descriptor_array()) {
     // Generally DescriptorArrays have their own instance type already
     // (DESCRIPTOR_ARRAY_TYPE), but we'd like to be able to tell which
-    // of those are for (abandoned) prototypes.
+    // of those are for (abandoned) prototypes, and which of those are
+    // owned by deprecated maps.
     if (map->is_prototype_map()) {
       RecordSimpleVirtualObjectStats(
           map, array, ObjectStats::PROTOTYPE_DESCRIPTOR_ARRAY_TYPE);
+    } else if (map->is_deprecated()) {
+      RecordSimpleVirtualObjectStats(
+          map, array, ObjectStats::DEPRECATED_DESCRIPTOR_ARRAY_TYPE);
     }
 
     EnumCache enum_cache = array->enum_cache();
@@ -887,14 +924,6 @@ void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
   }
 }
 
-void ObjectStatsCollectorImpl::RecordVirtualJSFunctionDetails(
-    JSFunction function) {
-  // Uncompiled JSFunctions get their own category.
-  if (!function->is_compiled()) {
-    RecordSimpleVirtualObjectStats(HeapObject(), function,
-                                   ObjectStats::UNCOMPILED_JS_FUNCTION_TYPE);
-  }
-}
 void ObjectStatsCollectorImpl::RecordVirtualArrayBoilerplateDescription(
     ArrayBoilerplateDescription description) {
   RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(

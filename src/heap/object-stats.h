@@ -17,6 +17,8 @@
 #define VIRTUAL_INSTANCE_TYPE_LIST(V)            \
   CODE_KIND_LIST(V)                              \
   V(ARRAY_BOILERPLATE_DESCRIPTION_ELEMENTS_TYPE) \
+  V(ARRAY_DICTIONARY_ELEMENTS_TYPE)              \
+  V(ARRAY_ELEMENTS_TYPE)                         \
   V(BOILERPLATE_ELEMENTS_TYPE)                   \
   V(BOILERPLATE_PROPERTY_ARRAY_TYPE)             \
   V(BOILERPLATE_PROPERTY_DICTIONARY_TYPE)        \
@@ -25,7 +27,7 @@
   V(COW_ARRAY_TYPE)                              \
   V(DEOPTIMIZATION_DATA_TYPE)                    \
   V(DEPENDENT_CODE_TYPE)                         \
-  V(ELEMENTS_TYPE)                               \
+  V(DEPRECATED_DESCRIPTOR_ARRAY_TYPE)            \
   V(EMBEDDED_OBJECT_TYPE)                        \
   V(ENUM_CACHE_TYPE)                             \
   V(ENUM_INDICES_CACHE_TYPE)                     \
@@ -45,6 +47,7 @@
   V(JS_ARRAY_BOILERPLATE_TYPE)                   \
   V(JS_COLLECTION_TABLE_TYPE)                    \
   V(JS_OBJECT_BOILERPLATE_TYPE)                  \
+  V(JS_UNCOMPILED_FUNCTION_TYPE)                 \
   V(MAP_ABANDONED_PROTOTYPE_TYPE)                \
   V(MAP_DEPRECATED_TYPE)                         \
   V(MAP_DICTIONARY_TYPE)                         \
@@ -53,6 +56,9 @@
   V(MAP_STABLE_TYPE)                             \
   V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE)         \
   V(NUMBER_STRING_CACHE_TYPE)                    \
+  V(OBJECT_DICTIONARY_ELEMENTS_TYPE)             \
+  V(OBJECT_ELEMENTS_TYPE)                        \
+  V(OBJECT_PROPERTY_ARRAY_TYPE)                  \
   V(OBJECT_PROPERTY_DICTIONARY_TYPE)             \
   V(OBJECT_TO_CODE_TYPE)                         \
   V(OPTIMIZED_CODE_LITERALS_TYPE)                \
@@ -74,7 +80,6 @@
   V(STRING_EXTERNAL_RESOURCE_ONE_BYTE_TYPE)      \
   V(STRING_EXTERNAL_RESOURCE_TWO_BYTE_TYPE)      \
   V(SOURCE_POSITION_TABLE_TYPE)                  \
-  V(UNCOMPILED_JS_FUNCTION_TYPE)                 \
   V(UNCOMPILED_SHARED_FUNCTION_INFO_TYPE)        \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE)
 
@@ -112,7 +117,8 @@ class ObjectStats {
   void Dump(std::stringstream& stream);
 
   void CheckpointObjectStats();
-  void RecordObjectStats(InstanceType type, size_t size);
+  void RecordObjectStats(InstanceType type, size_t size,
+                         size_t over_allocated = kNoOverAllocation);
   void RecordVirtualObjectStats(VirtualInstanceType type, size_t size,
                                 size_t over_allocated);
 
