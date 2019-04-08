@@ -804,6 +804,9 @@
   'es6/classes': [PASS, ['tsan', SKIP]],
   'regress/regress-779407': [PASS, ['tsan', SKIP]],
 
+  # Too slow tests.
+  'regress/regress-740784': [SKIP],
+
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC.
   'array-literal-feedback': [SKIP],
