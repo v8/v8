@@ -1842,10 +1842,16 @@ Node* EffectControlLinearizer::LowerCheckNonEmptyString(Node* node,
                                                         Node* frame_state) {
   Node* value = node->InputAt(0);
 
-  // The empty string "" is canonicalized.
-  Node* check = __ WordEqual(value, __ EmptyStringConstant());
-  __ DeoptimizeIf(DeoptimizeReason::kWrongInstanceType, VectorSlotPair(), check,
-                  frame_state);
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* value_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+
+  Node* check = __ Word32Equal(
+      __ Word32And(value_instance_type,
+                   __ Int32Constant(kIsNotStringMask | kIsEmptyStringMask)),
+      __ Int32Constant(kStringTag | kIsNotEmptyStringTag));
+  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, VectorSlotPair(),
+                     check, frame_state);
 
   return value;
 }
