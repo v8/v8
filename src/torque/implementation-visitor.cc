@@ -84,7 +84,11 @@ void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
          << "namespace internal {\n"
          << "\n";
 
-  header << "class " << nspace->ExternalName() << " {\n";
+  header << "class ";
+  if (nspace->IsTestNamespace()) {
+    header << "V8_EXPORT_PRIVATE ";
+  }
+  header << nspace->ExternalName() << " {\n";
   header << " public:\n";
   header << "  explicit " << nspace->ExternalName()
          << "(compiler::CodeAssemblerState* state) : state_(state), ca_(state) "
