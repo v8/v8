@@ -167,38 +167,20 @@ class InterpreterHandle {
   // was not handled inside this activation. In the latter case, a pending
   // exception will have been set on the isolate.
   bool Execute(Handle<WasmInstanceObject> instance_object,
-               Address frame_pointer, uint32_t func_index, Address arg_buffer) {
+               Address frame_pointer, uint32_t func_index,
+               Vector<WasmValue> argument_values,
+               Vector<WasmValue> return_values) {
     DCHECK_GE(module()->functions.size(), func_index);
     FunctionSig* sig = module()->functions[func_index].sig;
-    DCHECK_GE(kMaxInt, sig->parameter_count());
-    int num_params = static_cast<int>(sig->parameter_count());
-    ScopedVector<WasmValue> wasm_args(num_params);
-    Address arg_buf_ptr = arg_buffer;
-    for (int i = 0; i < num_params; ++i) {
-      uint32_t param_size = static_cast<uint32_t>(
-          ValueTypes::ElementSizeInBytes(sig->GetParam(i)));
-#define CASE_ARG_TYPE(type, ctype)                                    \
-  case type:                                                          \
-    DCHECK_EQ(param_size, sizeof(ctype));                             \
-    wasm_args[i] = WasmValue(ReadUnalignedValue<ctype>(arg_buf_ptr)); \
-    break;
-      switch (sig->GetParam(i)) {
-        CASE_ARG_TYPE(kWasmI32, uint32_t)
-        CASE_ARG_TYPE(kWasmI64, uint64_t)
-        CASE_ARG_TYPE(kWasmF32, float)
-        CASE_ARG_TYPE(kWasmF64, double)
-#undef CASE_ARG_TYPE
-        default:
-          UNREACHABLE();
-      }
-      arg_buf_ptr += param_size;
-    }
+    DCHECK_EQ(sig->parameter_count(), argument_values.size());
+    DCHECK_EQ(sig->return_count(), return_values.size());
 
     uint32_t activation_id = StartActivation(frame_pointer);
 
     WasmCodeRefScope code_ref_scope;
     WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
-    thread->InitFrame(&module()->functions[func_index], wasm_args.start());
+    thread->InitFrame(&module()->functions[func_index],
+                      argument_values.start());
     bool finished = false;
     while (!finished) {
       // TODO(clemensh): Add occasional StackChecks.
@@ -238,27 +220,12 @@ class InterpreterHandle {
       }
     }
 
-    // Copy back the return value
+    // Copy back the return value.
     DCHECK_GE(kV8MaxWasmFunctionReturns, sig->return_count());
     // TODO(wasm): Handle multi-value returns.
     DCHECK_EQ(1, kV8MaxWasmFunctionReturns);
     if (sig->return_count()) {
-      WasmValue ret_val = thread->GetReturnValue(0);
-#define CASE_RET_TYPE(type, ctype)                               \
-  case type:                                                     \
-    DCHECK_EQ(ValueTypes::ElementSizeInBytes(sig->GetReturn(0)), \
-              sizeof(ctype));                                    \
-    WriteUnalignedValue<ctype>(arg_buffer, ret_val.to<ctype>()); \
-    break;
-      switch (sig->GetReturn(0)) {
-        CASE_RET_TYPE(kWasmI32, uint32_t)
-        CASE_RET_TYPE(kWasmI64, uint64_t)
-        CASE_RET_TYPE(kWasmF32, float)
-        CASE_RET_TYPE(kWasmF64, double)
-#undef CASE_RET_TYPE
-        default:
-          UNREACHABLE();
-      }
+      return_values[0] = thread->GetReturnValue(0);
     }
 
     FinishActivation(frame_pointer, activation_id);
@@ -605,12 +572,14 @@ void WasmDebugInfo::PrepareStep(StepAction step_action) {
 bool WasmDebugInfo::RunInterpreter(Isolate* isolate,
                                    Handle<WasmDebugInfo> debug_info,
                                    Address frame_pointer, int func_index,
-                                   Address arg_buffer) {
+                                   Vector<wasm::WasmValue> argument_values,
+                                   Vector<wasm::WasmValue> return_values) {
   DCHECK_LE(0, func_index);
   auto* handle = GetOrCreateInterpreterHandle(isolate, debug_info);
   Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
   return handle->Execute(instance, frame_pointer,
-                         static_cast<uint32_t>(func_index), arg_buffer);
+                         static_cast<uint32_t>(func_index), argument_values,
+                         return_values);
 }
 
 std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(

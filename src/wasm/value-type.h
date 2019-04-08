@@ -213,6 +213,8 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return 8;
       case kWasmS128:
         return 16;
+      case kWasmAnyRef:
+        return kSystemPointerSize;
       default:
         UNREACHABLE();
     }

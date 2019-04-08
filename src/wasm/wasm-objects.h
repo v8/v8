@@ -30,6 +30,7 @@ struct WasmException;
 struct WasmFeatures;
 class WasmInterpreter;
 struct WasmModule;
+class WasmValue;
 class WireBytesRef;
 }  // namespace wasm
 
@@ -763,15 +764,16 @@ class WasmDebugInfo : public Struct {
 
   void PrepareStep(StepAction);
 
-  // Execute the specified function in the interpreter. Read arguments from
-  // arg_buffer.
+  // Execute the specified function in the interpreter. Read arguments from the
+  // {argument_values} vector and write to {return_values} on regular exit.
   // The frame_pointer will be used to identify the new activation of the
   // interpreter for unwinding and frame inspection.
   // Returns true if exited regularly, false if a trap occurred. In the latter
   // case, a pending exception will have been set on the isolate.
   static bool RunInterpreter(Isolate* isolate, Handle<WasmDebugInfo>,
                              Address frame_pointer, int func_index,
-                             Address arg_buffer);
+                             Vector<wasm::WasmValue> argument_values,
+                             Vector<wasm::WasmValue> return_values);
 
   // Get the stack of the wasm interpreter as pairs of <function index, byte
   // offset>. The list is ordered bottom-to-top, i.e. caller before callee.

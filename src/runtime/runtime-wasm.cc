@@ -20,6 +20,7 @@
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-value.h"
 
 namespace v8 {
 namespace internal {
@@ -193,6 +194,47 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
     frame_pointer = it.frame()->fp();
   }
 
+  // Reserve buffers for argument and return values.
+  DCHECK_GE(instance->module()->functions.size(), func_index);
+  wasm::FunctionSig* sig = instance->module()->functions[func_index].sig;
+  DCHECK_GE(kMaxInt, sig->parameter_count());
+  int num_params = static_cast<int>(sig->parameter_count());
+  ScopedVector<wasm::WasmValue> wasm_args(num_params);
+  DCHECK_GE(kMaxInt, sig->return_count());
+  int num_returns = static_cast<int>(sig->return_count());
+  ScopedVector<wasm::WasmValue> wasm_rets(num_returns);
+
+  // Copy the arguments for the {arg_buffer} into a vector of {WasmValue}. This
+  // also boxes reference types into handles, which needs to happen before any
+  // methods that could trigger a GC are being called.
+  Address arg_buf_ptr = arg_buffer;
+  for (int i = 0; i < num_params; ++i) {
+#define CASE_ARG_TYPE(type, ctype)                                          \
+  case wasm::type:                                                          \
+    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),       \
+              sizeof(ctype));                                               \
+    wasm_args[i] = wasm::WasmValue(ReadUnalignedValue<ctype>(arg_buf_ptr)); \
+    arg_buf_ptr += sizeof(ctype);                                           \
+    break;
+    switch (sig->GetParam(i)) {
+      CASE_ARG_TYPE(kWasmI32, uint32_t)
+      CASE_ARG_TYPE(kWasmI64, uint64_t)
+      CASE_ARG_TYPE(kWasmF32, float)
+      CASE_ARG_TYPE(kWasmF64, double)
+#undef CASE_ARG_TYPE
+      case wasm::kWasmAnyRef: {
+        DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),
+                  kSystemPointerSize);
+        Handle<Object> ref(ReadUnalignedValue<Object>(arg_buf_ptr), isolate);
+        wasm_args[i] = wasm::WasmValue(ref);
+        arg_buf_ptr += kSystemPointerSize;
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+  }
+
   // Set the current isolate's context.
   DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
@@ -203,12 +245,43 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   Handle<WasmDebugInfo> debug_info =
       WasmInstanceObject::GetOrCreateDebugInfo(instance);
   bool success = WasmDebugInfo::RunInterpreter(
-      isolate, debug_info, frame_pointer, func_index, arg_buffer);
+      isolate, debug_info, frame_pointer, func_index, wasm_args, wasm_rets);
 
+  // Early return on failure.
   if (!success) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
+
+  // Copy return values from the vector of {WasmValue} into {arg_buffer}. This
+  // also un-boxes reference types from handles into raw pointers.
+  arg_buf_ptr = arg_buffer;
+  for (int i = 0; i < num_returns; ++i) {
+#define CASE_RET_TYPE(type, ctype)                                     \
+  case wasm::type:                                                     \
+    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)), \
+              sizeof(ctype));                                          \
+    WriteUnalignedValue<ctype>(arg_buf_ptr, wasm_rets[i].to<ctype>()); \
+    arg_buf_ptr += sizeof(ctype);                                      \
+    break;
+    switch (sig->GetReturn(i)) {
+      CASE_RET_TYPE(kWasmI32, uint32_t)
+      CASE_RET_TYPE(kWasmI64, uint64_t)
+      CASE_RET_TYPE(kWasmF32, float)
+      CASE_RET_TYPE(kWasmF64, double)
+#undef CASE_RET_TYPE
+      case wasm::kWasmAnyRef: {
+        DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),
+                  kSystemPointerSize);
+        WriteUnalignedValue<Object>(arg_buf_ptr, *wasm_rets[i].to_anyref());
+        arg_buf_ptr += kSystemPointerSize;
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+  }
+
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
