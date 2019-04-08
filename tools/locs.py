@@ -20,21 +20,19 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from collections import defaultdict
 
 # for py2/py3 compatibility
 try:
-    FileNotFoundError
+  FileNotFoundError
 except NameError:
-    FileNotFoundError = IOError
+  FileNotFoundError = IOError
 
 ARGPARSE = argparse.ArgumentParser(
-    description=("A script that computes LoC for a build dir or from a"
-                 "compile_commands.json file"),
+    description=("A script that computes LoC for a build dir"),
     epilog="""Examples:
  Count with default settings for build in out/Default:
    locs.py --build-dir out/Default
- Count with default settings according to given compile_commands file:
-   locs.py --compile-commands compile_commands.json
  Count only a custom group of files settings for build in out/Default:
    tools/locs.py --build-dir out/Default
                  --group src-compiler '\.\./\.\./src/compiler'
@@ -60,18 +58,13 @@ ARGPARSE.add_argument(
 ARGPARSE.add_argument(
     '--build-dir',
     type=str,
-    default="",
-    help="Use specified build dir and generate necessary files")
+    help="Use specified build dir and generate necessary files",
+    required=True)
 ARGPARSE.add_argument(
     '--echocmd',
     action='store_true',
     default=False,
     help="output command used to compute LoC")
-ARGPARSE.add_argument(
-    '--compile-commands',
-    type=str,
-    default='compile_commands.json',
-    help="Use specified compile_commands.json file")
 ARGPARSE.add_argument(
     '--only',
     action='append',
@@ -132,7 +125,7 @@ def MaxWidth(strings):
   return max_width
 
 
-def GenerateCompileCommandsAndBuild(build_dir, compile_commands_file, out):
+def GenerateCompileCommandsAndBuild(build_dir, out):
   if not os.path.isdir(build_dir):
     print("Error: Specified build dir {} is not a directory.".format(
         build_dir), file=sys.stderr)
@@ -144,10 +137,8 @@ def GenerateCompileCommandsAndBuild(build_dir, compile_commands_file, out):
     exit(1)
 
   compile_commands_file = "{}/compile_commands.json".format(build_dir)
-
   print("Generating compile commands in {}.".format(
       compile_commands_file), file=out)
-
   ninja = "ninja -C {} -t compdb cxx cc > {}".format(
       build_dir, compile_commands_file)
   if subprocess.call(ninja, shell=True, stdout=out) != 0:
@@ -155,7 +146,17 @@ def GenerateCompileCommandsAndBuild(build_dir, compile_commands_file, out):
         compile_commands_file, build_dir), file=sys.stderr)
     exit(1)
 
-  return compile_commands_file
+  ninja_deps_file = "{}/ninja-deps.txt".format(build_dir)
+  print("Generating ninja dependencies in {}.".format(
+      ninja_deps_file), file=out)
+  ninja = "ninja -C {} -t deps > {}".format(
+      build_dir, ninja_deps_file)
+  if subprocess.call(ninja, shell=True, stdout=out) != 0:
+    print("Error: Cound not generate {} for {}.".format(
+        ninja_deps_file, build_dir), file=sys.stderr)
+    exit(1)
+
+  return compile_commands_file, ninja_deps_file
 
 
 def fmt_bytes(num_bytes):
@@ -254,6 +255,8 @@ class Results:
   def __init__(self):
     self.groups = SetupReportGroups()
     self.units = {}
+    self.source_dependencies = {}
+    self.header_dependents = {}
 
   def track(self, filename):
     is_tracked = False
@@ -279,6 +282,10 @@ class Results:
     for unit in sorted(list(self.units.values()), key=key, reverse=reverse)[:count]:
       print(unit.to_string(), file=out)
 
+  def addHeaderDeps(self, source_dependencies, header_dependents):
+    self.source_dependencies = source_dependencies
+    self.header_dependents = header_dependents
+
 
 class LocsEncoder(json.JSONEncoder):
   def default(self, o):
@@ -289,7 +296,9 @@ class LocsEncoder(json.JSONEncoder):
       return {"name": o.name, "loc": o.loc, "in_bytes": o.in_bytes,
               "expanded": o.expanded, "expanded_bytes": o.expanded_bytes}
     if isinstance(o, Results):
-      return {"groups": o.groups, "units": o.units}
+      return {"groups": o.groups, "units": o.units,
+              "source_dependencies": o.source_dependencies,
+              "header_dependents": o.header_dependents}
     return json.JSONEncoder.default(self, o)
 
 
@@ -317,25 +326,61 @@ class CommandSplitter:
     return (cmd.group('clangcmd'), infilename, infile, outfilename)
 
 
+def parse_ninja_deps(ninja_deps):
+  source_dependencies = {}
+  header_dependents = defaultdict(int)
+  current_target = None
+  for line in ninja_deps:
+    line = line.rstrip()
+    # Ignore empty lines
+    if not line:
+      current_target = None
+      continue
+    if line[0] == ' ':
+      # New dependency
+      if len(line) < 5 or line[0:4] != '    ' or line[5] == ' ':
+        sys.exit('Lines must have no indentation or exactly four ' +
+                 'spaces.')
+      dep = line[4:]
+      if not re.search(r"\.(h|hpp)$", dep):
+        continue
+      header_dependents[dep] += 1
+      continue
+    # New target
+    colon_pos = line.find(':')
+    if colon_pos < 0:
+      sys.exit('Unindented line must have a colon')
+    if current_target is not None:
+      sys.exit('Missing empty line before new target')
+    current_target = line[0:colon_pos]
+    match = re.search(r"#deps (\d+)", line)
+    deps_number = match.group(1)
+    source_dependencies[current_target] = int(deps_number)
+
+  return (source_dependencies, header_dependents)
+
+
 def Main():
-  compile_commands_file = ARGS['compile_commands']
   out = sys.stdout
   if ARGS['json']:
     out = sys.stderr
 
-  if ARGS['build_dir']:
-    compile_commands_file = GenerateCompileCommandsAndBuild(
-        ARGS['build_dir'], compile_commands_file, out)
+  compile_commands_file, ninja_deps_file = GenerateCompileCommandsAndBuild(
+      ARGS['build_dir'], out)
+
+  result = Results()
+  status = StatusLine()
 
   try:
     with open(compile_commands_file) as file:
       data = json.load(file)
+    with open(ninja_deps_file) as file:
+      source_dependencies, header_dependents = parse_ninja_deps(file)
+      result.addHeaderDeps(source_dependencies, header_dependents)
   except FileNotFoundError:
-    print("Error: Cannot read '{}'. Consult --help to get started.")
+    print("Error: Cannot read '{}'. Consult --help to get started.".format(
+        ninja_deps_file))
     exit(1)
-
-  result = Results()
-  status = StatusLine()
 
   with tempfile.TemporaryDirectory(dir='/tmp/', prefix="locs.") as temp:
     processes = []
