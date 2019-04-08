@@ -9,19 +9,14 @@
 
 #include "src/v8.h"
 
-#include "src/compilation-cache.h"
-#include "src/compiler/compilation-dependencies.h"
-#include "src/compiler/js-heap-broker.h"
 #include "src/execution.h"
 #include "src/field-type.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/ic/stub-cache.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/struct-inl.h"
-#include "src/optimized-compilation-info.h"
 #include "src/ostreams.h"
 #include "src/property.h"
 #include "src/transitions.h"
@@ -592,12 +587,26 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
 // A set of tests for field generalization case.
 //
 
+namespace {
+
 // <Constness, Representation, FieldType> data.
 struct CRFTData {
   PropertyConstness constness;
   Representation representation;
   Handle<FieldType> type;
 };
+
+Handle<Code> CreateDummyOptimizedCode(Isolate* isolate) {
+  byte buffer[1];
+  CodeDesc desc;
+  desc.buffer = buffer;
+  desc.buffer_size = arraysize(buffer);
+  desc.instr_size = arraysize(buffer);
+  return isolate->factory()->NewCode(
+      desc, Code::OPTIMIZED_FUNCTION, Handle<Object>(), Builtins::kNoBuiltinId,
+      MaybeHandle<ByteArray>(), MaybeHandle<DeoptimizationData>(), kMovable,
+      true);
+}
 
 // This test ensures that field generalization at |property_index| is done
 // correctly independently of the fact that the |map| is detached from
@@ -611,11 +620,10 @@ struct CRFTData {
 //
 // Detaching does not happen if |detach_property_at_index| is -1.
 //
-static void TestGeneralizeField(int detach_property_at_index,
-                                int property_index, const CRFTData& from,
-                                const CRFTData& to, const CRFTData& expected,
-                                bool expected_deprecation,
-                                bool expected_field_type_dependency) {
+void TestGeneralizeField(int detach_property_at_index, int property_index,
+                         const CRFTData& from, const CRFTData& to,
+                         const CRFTData& expected, bool expected_deprecation,
+                         bool expected_field_owner_dependency) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -648,8 +656,6 @@ static void TestGeneralizeField(int detach_property_at_index,
   CHECK(map->is_stable());
   CHECK(expectations.Check(*map));
 
-  Zone zone(isolate->allocator(), ZONE_NAME);
-
   if (is_detached_map) {
     detach_point_map = Map::ReconfigureProperty(
         isolate, detach_point_map, detach_property_at_index, kData, NONE,
@@ -661,16 +667,17 @@ static void TestGeneralizeField(int detach_property_at_index,
                              detach_point_map->NumberOfOwnDescriptors()));
   }
 
-  // Create new maps by generalizing representation of propX field.
-  CanonicalHandleScope canonical(isolate);
-  JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(&broker, &zone);
-  MapRef map_ref(&broker, map);
-  map_ref.SerializeOwnDescriptors();
-  dependencies.DependOnFieldType(map_ref, property_index);
-
+  // Create dummy optimized code object to test correct dependencies
+  // on the field owner.
+  Handle<Code> code = CreateDummyOptimizedCode(isolate);
   Handle<Map> field_owner(map->FindFieldOwner(isolate, property_index),
                           isolate);
+  DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
+                                   field_owner,
+                                   DependentCode::kFieldOwnerGroup);
+  CHECK(!code->marked_for_deoptimization());
+
+  // Create new maps by generalizing representation of propX field.
   Handle<Map> new_map = Map::ReconfigureProperty(
       isolate, map, property_index, kData, NONE, to.representation, to.type);
 
@@ -684,22 +691,23 @@ static void TestGeneralizeField(int detach_property_at_index,
     CHECK(!map->is_stable());
     CHECK(map->is_deprecated());
     CHECK_NE(*map, *new_map);
-    CHECK_EQ(expected_field_type_dependency && !field_owner->is_deprecated(),
-             !dependencies.AreValid());
+    CHECK_EQ(expected_field_owner_dependency && !field_owner->is_deprecated(),
+             code->marked_for_deoptimization());
 
   } else if (expected_deprecation) {
     CHECK(!map->is_stable());
     CHECK(map->is_deprecated());
     CHECK(field_owner->is_deprecated());
     CHECK_NE(*map, *new_map);
-    CHECK(dependencies.AreValid());
+    CHECK(!code->marked_for_deoptimization());
 
   } else {
     CHECK(!field_owner->is_deprecated());
     CHECK(map->is_stable());  // Map did not change, must be left stable.
     CHECK_EQ(*map, *new_map);
 
-    CHECK_EQ(expected_field_type_dependency, !dependencies.AreValid());
+    CHECK_EQ(expected_field_owner_dependency,
+             code->marked_for_deoptimization());
   }
 
   {
@@ -719,17 +727,16 @@ static void TestGeneralizeField(int detach_property_at_index,
   CheckMigrationTarget(isolate, *map, *updated_map);
 }
 
-static void TestGeneralizeField(const CRFTData& from, const CRFTData& to,
-                                const CRFTData& expected,
-                                bool expected_deprecation,
-                                bool expected_field_type_dependency) {
+void TestGeneralizeField(const CRFTData& from, const CRFTData& to,
+                         const CRFTData& expected, bool expected_deprecation,
+                         bool expected_field_owner_dependency) {
   // Check the cases when the map being reconfigured is a part of the
   // transition tree.
   STATIC_ASSERT(kPropCount > 4);
   int indices[] = {0, 2, kPropCount - 1};
   for (int i = 0; i < static_cast<int>(arraysize(indices)); i++) {
     TestGeneralizeField(-1, indices[i], from, to, expected,
-                        expected_deprecation, expected_field_type_dependency);
+                        expected_deprecation, expected_field_owner_dependency);
   }
 
   if (!from.representation.IsNone()) {
@@ -739,7 +746,8 @@ static void TestGeneralizeField(const CRFTData& from, const CRFTData& to,
     int indices[] = {0, kPropCount - 1};
     for (int i = 0; i < static_cast<int>(arraysize(indices)); i++) {
       TestGeneralizeField(indices[i], 2, from, to, expected,
-                          expected_deprecation, expected_field_type_dependency);
+                          expected_deprecation,
+                          expected_field_owner_dependency);
     }
 
     // Check that reconfiguration to the very same field works correctly.
@@ -748,23 +756,25 @@ static void TestGeneralizeField(const CRFTData& from, const CRFTData& to,
   }
 }
 
-static void TestGeneralizeField(const CRFTData& from, const CRFTData& to,
-                                const CRFTData& expected) {
+void TestGeneralizeField(const CRFTData& from, const CRFTData& to,
+                         const CRFTData& expected) {
   const bool expected_deprecation = true;
-  const bool expected_field_type_dependency = false;
+  const bool expected_field_owner_dependency = false;
 
   TestGeneralizeField(from, to, expected, expected_deprecation,
-                      expected_field_type_dependency);
+                      expected_field_owner_dependency);
 }
 
-static void TestGeneralizeFieldTrivial(
-    const CRFTData& from, const CRFTData& to, const CRFTData& expected,
-    bool expected_field_type_dependency = true) {
+void TestGeneralizeFieldTrivial(const CRFTData& from, const CRFTData& to,
+                                const CRFTData& expected,
+                                bool expected_field_owner_dependency = true) {
   const bool expected_deprecation = false;
 
   TestGeneralizeField(from, to, expected, expected_deprecation,
-                      expected_field_type_dependency);
+                      expected_field_owner_dependency);
 }
+
+}  // namespace
 
 TEST(GeneralizeSmiFieldToDouble) {
   CcTest::InitializeVM();
@@ -990,6 +1000,8 @@ TEST(GeneralizeFieldWithAccessorProperties) {
 // A set of tests for attribute reconfiguration case.
 //
 
+namespace {
+
 // This test ensures that field generalization is correctly propagated from one
 // branch of transition tree (|map2|) to another (|map|).
 //
@@ -999,7 +1011,7 @@ TEST(GeneralizeFieldWithAccessorProperties) {
 //
 // where "p2A" and "p2B" differ only in the attributes.
 //
-static void TestReconfigureDataFieldAttribute_GeneralizeField(
+void TestReconfigureDataFieldAttribute_GeneralizeField(
     const CRFTData& from, const CRFTData& to, const CRFTData& expected) {
   Isolate* isolate = CcTest::i_isolate();
 
@@ -1038,13 +1050,14 @@ static void TestReconfigureDataFieldAttribute_GeneralizeField(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  CanonicalHandleScope canonical(isolate);
-  JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(&broker, &zone);
-  MapRef map_ref(&broker, map);
-  map_ref.SerializeOwnDescriptors();
-  dependencies.DependOnFieldType(map_ref, kSplitProp);
+  // Create dummy optimized code object to test correct dependencies
+  // on the field owner.
+  Handle<Code> code = CreateDummyOptimizedCode(isolate);
+  Handle<Map> field_owner(map->FindFieldOwner(isolate, kSplitProp), isolate);
+  DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
+                                   field_owner,
+                                   DependentCode::kFieldOwnerGroup);
+  CHECK(!code->marked_for_deoptimization());
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1063,7 +1076,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeField(
                               expected.type);
   }
   CHECK(map->is_deprecated());
-  CHECK(dependencies.AreValid());
+  CHECK(!code->marked_for_deoptimization());
   CHECK_NE(*map, *new_map);
 
   CHECK(!new_map->is_deprecated());
@@ -1085,9 +1098,9 @@ static void TestReconfigureDataFieldAttribute_GeneralizeField(
 //
 // where "p2A" and "p2B" differ only in the attributes.
 //
-static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
+void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
     const CRFTData& from, const CRFTData& to, const CRFTData& expected,
-    bool expected_field_type_dependency = true) {
+    bool expected_field_owner_dependency = true) {
   Isolate* isolate = CcTest::i_isolate();
 
   Expectations expectations(isolate);
@@ -1125,14 +1138,14 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  CanonicalHandleScope canonical(isolate);
-  JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(&broker, &zone);
-  MapRef map_ref(&broker, map);
-  map_ref.SerializeOwnDescriptors();
-  dependencies.DependOnFieldType(map_ref, kSplitProp);
-  dependencies.DependOnFieldConstness(map_ref, kSplitProp);
+  // Create dummy optimized code object to test correct dependencies
+  // on the field owner.
+  Handle<Code> code = CreateDummyOptimizedCode(isolate);
+  Handle<Map> field_owner(map->FindFieldOwner(isolate, kSplitProp), isolate);
+  DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
+                                   field_owner,
+                                   DependentCode::kFieldOwnerGroup);
+  CHECK(!code->marked_for_deoptimization());
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1155,7 +1168,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   }
   CHECK(!map->is_deprecated());
   CHECK_EQ(*map, *new_map);
-  CHECK_EQ(expected_field_type_dependency, !dependencies.AreValid());
+  CHECK_EQ(expected_field_owner_dependency, code->marked_for_deoptimization());
 
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));
@@ -1163,6 +1176,8 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   Handle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*new_map, *updated_map);
 }
+
+}  // namespace
 
 TEST(ReconfigureDataFieldAttribute_GeneralizeSmiFieldToDouble) {
   CcTest::InitializeVM();
@@ -1759,6 +1774,8 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToDataFieldAfterTargetMap) {
 // A set of tests for elements kind reconfiguration case.
 //
 
+namespace {
+
 // This test ensures that field generalization is correctly propagated from one
 // branch of transition tree (|map2) to another (|map|).
 //
@@ -1810,13 +1827,14 @@ static void TestReconfigureElementsKind_GeneralizeField(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  CanonicalHandleScope canonical(isolate);
-  JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(&broker, &zone);
-  MapRef map_ref(&broker, map);
-  map_ref.SerializeOwnDescriptors();
-  dependencies.DependOnFieldType(map_ref, kDiffProp);
+  // Create dummy optimized code object to test correct dependencies
+  // on the field owner.
+  Handle<Code> code = CreateDummyOptimizedCode(isolate);
+  Handle<Map> field_owner(map->FindFieldOwner(isolate, kDiffProp), isolate);
+  DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
+                                   field_owner,
+                                   DependentCode::kFieldOwnerGroup);
+  CHECK(!code->marked_for_deoptimization());
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
@@ -1834,7 +1852,7 @@ static void TestReconfigureElementsKind_GeneralizeField(
                             expected.representation, expected.type);
 
   CHECK(map->is_deprecated());
-  CHECK(dependencies.AreValid());
+  CHECK(!code->marked_for_deoptimization());
   CHECK_NE(*map, *new_map);
 
   CHECK(!new_map->is_deprecated());
@@ -1908,15 +1926,14 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  CanonicalHandleScope canonical(isolate);
-  JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(&broker, &zone);
-  MapRef map_ref(&broker, map);
-  map_ref.SerializeOwnDescriptors();
-
-  dependencies.DependOnFieldType(map_ref, kDiffProp);
-  dependencies.DependOnFieldConstness(map_ref, kDiffProp);
+  // Create dummy optimized code object to test correct dependencies
+  // on the field owner.
+  Handle<Code> code = CreateDummyOptimizedCode(isolate);
+  Handle<Map> field_owner(map->FindFieldOwner(isolate, kDiffProp), isolate);
+  DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
+                                   field_owner,
+                                   DependentCode::kFieldOwnerGroup);
+  CHECK(!code->marked_for_deoptimization());
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
@@ -1938,7 +1955,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   CHECK(!map->is_deprecated());
   CHECK_EQ(*map, *new_map);
   CHECK_EQ(IsGeneralizableTo(to.constness, from.constness),
-           dependencies.AreValid());
+           !code->marked_for_deoptimization());
 
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));
@@ -1956,6 +1973,8 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
     CHECK_EQ(*updated_map, transitioned_map);
   }
 }
+
+}  // namespace
 
 TEST(ReconfigureElementsKind_GeneralizeSmiFieldToDouble) {
   CcTest::InitializeVM();
