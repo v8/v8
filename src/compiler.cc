@@ -301,7 +301,7 @@ void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
       // Compute foreground / background time.
       base::TimeDelta time_background;
       base::TimeDelta time_foreground =
-          time_taken_to_prepare_ + time_taken_to_execute_;
+          time_taken_to_prepare_ + time_taken_to_finalize_;
       switch (mode) {
         case OptimizedCompilationJob::kConcurrent:
           time_background += time_taken_to_execute_;
