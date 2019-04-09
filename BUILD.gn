@@ -707,6 +707,20 @@ config("toolchain") {
   }
 }
 
+# For code that is hot during mksnapshot. In fast-mksnapshot builds, we
+# optimize some files even in debug builds to speed up mksnapshot times.
+config("always_optimize") {
+  configs = [ ":internal_config" ]
+
+  # TODO(crbug.com/621335) Rework this so that we don't have the confusion
+  # between "optimize_speed" and "optimize_max".
+  if (((is_posix && !is_android) || is_fuchsia) && !using_sanitizer) {
+    configs += [ "//build/config/compiler:optimize_speed" ]
+  } else {
+    configs += [ "//build/config/compiler:optimize_max" ]
+  }
+}
+
 # Configs for code coverage with gcov. Separate configs for cflags and ldflags
 # to selectively influde cflags in non-test targets only.
 config("v8_gcov_coverage_cflags") {
@@ -1327,8 +1341,14 @@ v8_source_set("v8_nosnapshot") {
 
   deps = [
     ":js2c_extras",
-    ":v8_base",
+    ":torque_generated_initializers",
   ]
+
+  if (v8_enable_i18n_support) {
+    public_deps = [
+      "//third_party/icu",
+    ]
+  }
 
   sources = [
     "$target_gen_dir/extras-libraries.cc",
@@ -1350,13 +1370,17 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
 
     deps = [
       ":js2c_extras",
-      ":v8_base",
     ]
+
     public_deps = [
       # This should be public so downstream targets can declare the snapshot
       # output file as their inputs.
       ":run_mksnapshot_default",
     ]
+
+    if (v8_enable_i18n_support) {
+      public_deps += [ "//third_party/icu" ]
+    }
 
     # Do not publicize any header to remove build dependency.
     public = []
@@ -1441,10 +1465,6 @@ v8_source_set("v8_initializers") {
 
   deps = [
     ":torque_generated_initializers",
-  ]
-
-  public_deps = [
-    ":v8_base",
   ]
 
   sources = [
@@ -1654,7 +1674,283 @@ v8_header_set("v8_shared_internal_headers") {
   ]
 }
 
-v8_source_set("v8_base") {
+v8_compiler_sources = [
+  "src/compiler/access-builder.cc",
+  "src/compiler/access-builder.h",
+  "src/compiler/access-info.cc",
+  "src/compiler/access-info.h",
+  "src/compiler/all-nodes.cc",
+  "src/compiler/all-nodes.h",
+  "src/compiler/allocation-builder-inl.h",
+  "src/compiler/allocation-builder.h",
+  "src/compiler/backend/code-generator-impl.h",
+  "src/compiler/backend/code-generator.cc",
+  "src/compiler/backend/code-generator.h",
+  "src/compiler/backend/frame-elider.cc",
+  "src/compiler/backend/frame-elider.h",
+  "src/compiler/backend/gap-resolver.cc",
+  "src/compiler/backend/gap-resolver.h",
+  "src/compiler/backend/instruction-codes.h",
+  "src/compiler/backend/instruction-scheduler.cc",
+  "src/compiler/backend/instruction-scheduler.h",
+  "src/compiler/backend/instruction-selector-impl.h",
+  "src/compiler/backend/instruction-selector.cc",
+  "src/compiler/backend/instruction-selector.h",
+  "src/compiler/backend/instruction.cc",
+  "src/compiler/backend/instruction.h",
+  "src/compiler/backend/jump-threading.cc",
+  "src/compiler/backend/jump-threading.h",
+  "src/compiler/backend/live-range-separator.cc",
+  "src/compiler/backend/live-range-separator.h",
+  "src/compiler/backend/move-optimizer.cc",
+  "src/compiler/backend/move-optimizer.h",
+  "src/compiler/backend/register-allocator-verifier.cc",
+  "src/compiler/backend/register-allocator-verifier.h",
+  "src/compiler/backend/register-allocator.cc",
+  "src/compiler/backend/register-allocator.h",
+  "src/compiler/backend/unwinding-info-writer.h",
+  "src/compiler/basic-block-instrumentor.cc",
+  "src/compiler/basic-block-instrumentor.h",
+  "src/compiler/branch-elimination.cc",
+  "src/compiler/branch-elimination.h",
+  "src/compiler/bytecode-analysis.cc",
+  "src/compiler/bytecode-analysis.h",
+  "src/compiler/bytecode-graph-builder.cc",
+  "src/compiler/bytecode-graph-builder.h",
+  "src/compiler/bytecode-liveness-map.cc",
+  "src/compiler/bytecode-liveness-map.h",
+  "src/compiler/c-linkage.cc",
+  "src/compiler/checkpoint-elimination.cc",
+  "src/compiler/checkpoint-elimination.h",
+  "src/compiler/code-assembler.cc",
+  "src/compiler/code-assembler.h",
+  "src/compiler/common-node-cache.cc",
+  "src/compiler/common-node-cache.h",
+  "src/compiler/common-operator-reducer.cc",
+  "src/compiler/common-operator-reducer.h",
+  "src/compiler/common-operator.cc",
+  "src/compiler/common-operator.h",
+  "src/compiler/compilation-dependencies.cc",
+  "src/compiler/compilation-dependencies.h",
+  "src/compiler/compiler-source-position-table.cc",
+  "src/compiler/compiler-source-position-table.h",
+  "src/compiler/constant-folding-reducer.cc",
+  "src/compiler/constant-folding-reducer.h",
+  "src/compiler/control-equivalence.cc",
+  "src/compiler/control-equivalence.h",
+  "src/compiler/control-flow-optimizer.cc",
+  "src/compiler/control-flow-optimizer.h",
+  "src/compiler/dead-code-elimination.cc",
+  "src/compiler/dead-code-elimination.h",
+  "src/compiler/diamond.h",
+  "src/compiler/effect-control-linearizer.cc",
+  "src/compiler/effect-control-linearizer.h",
+  "src/compiler/escape-analysis-reducer.cc",
+  "src/compiler/escape-analysis-reducer.h",
+  "src/compiler/escape-analysis.cc",
+  "src/compiler/escape-analysis.h",
+  "src/compiler/frame-states.cc",
+  "src/compiler/frame-states.h",
+  "src/compiler/frame.cc",
+  "src/compiler/frame.h",
+  "src/compiler/functional-list.h",
+  "src/compiler/graph-assembler.cc",
+  "src/compiler/graph-assembler.h",
+  "src/compiler/graph-reducer.cc",
+  "src/compiler/graph-reducer.h",
+  "src/compiler/graph-trimmer.cc",
+  "src/compiler/graph-trimmer.h",
+  "src/compiler/graph-visualizer.cc",
+  "src/compiler/graph-visualizer.h",
+  "src/compiler/graph.cc",
+  "src/compiler/graph.h",
+  "src/compiler/int64-lowering.cc",
+  "src/compiler/int64-lowering.h",
+  "src/compiler/js-call-reducer.cc",
+  "src/compiler/js-call-reducer.h",
+  "src/compiler/js-context-specialization.cc",
+  "src/compiler/js-context-specialization.h",
+  "src/compiler/js-create-lowering.cc",
+  "src/compiler/js-create-lowering.h",
+  "src/compiler/js-generic-lowering.cc",
+  "src/compiler/js-generic-lowering.h",
+  "src/compiler/js-graph.cc",
+  "src/compiler/js-graph.h",
+  "src/compiler/js-heap-broker.cc",
+  "src/compiler/js-heap-broker.h",
+  "src/compiler/js-heap-copy-reducer.cc",
+  "src/compiler/js-heap-copy-reducer.h",
+  "src/compiler/js-inlining-heuristic.cc",
+  "src/compiler/js-inlining-heuristic.h",
+  "src/compiler/js-inlining.cc",
+  "src/compiler/js-inlining.h",
+  "src/compiler/js-intrinsic-lowering.cc",
+  "src/compiler/js-intrinsic-lowering.h",
+  "src/compiler/js-native-context-specialization.cc",
+  "src/compiler/js-native-context-specialization.h",
+  "src/compiler/js-operator.cc",
+  "src/compiler/js-operator.h",
+  "src/compiler/js-type-hint-lowering.cc",
+  "src/compiler/js-type-hint-lowering.h",
+  "src/compiler/js-typed-lowering.cc",
+  "src/compiler/js-typed-lowering.h",
+  "src/compiler/linkage.cc",
+  "src/compiler/linkage.h",
+  "src/compiler/load-elimination.cc",
+  "src/compiler/load-elimination.h",
+  "src/compiler/loop-analysis.cc",
+  "src/compiler/loop-analysis.h",
+  "src/compiler/loop-peeling.cc",
+  "src/compiler/loop-peeling.h",
+  "src/compiler/loop-variable-optimizer.cc",
+  "src/compiler/loop-variable-optimizer.h",
+  "src/compiler/machine-graph-verifier.cc",
+  "src/compiler/machine-graph-verifier.h",
+  "src/compiler/machine-graph.cc",
+  "src/compiler/machine-graph.h",
+  "src/compiler/machine-operator-reducer.cc",
+  "src/compiler/machine-operator-reducer.h",
+  "src/compiler/machine-operator.cc",
+  "src/compiler/machine-operator.h",
+  "src/compiler/memory-optimizer.cc",
+  "src/compiler/memory-optimizer.h",
+  "src/compiler/node-aux-data.h",
+  "src/compiler/node-cache.cc",
+  "src/compiler/node-cache.h",
+  "src/compiler/node-marker.cc",
+  "src/compiler/node-marker.h",
+  "src/compiler/node-matchers.cc",
+  "src/compiler/node-matchers.h",
+  "src/compiler/node-origin-table.cc",
+  "src/compiler/node-origin-table.h",
+  "src/compiler/node-properties.cc",
+  "src/compiler/node-properties.h",
+  "src/compiler/node.cc",
+  "src/compiler/node.h",
+  "src/compiler/opcodes.cc",
+  "src/compiler/opcodes.h",
+  "src/compiler/operation-typer.cc",
+  "src/compiler/operation-typer.h",
+  "src/compiler/operator-properties.cc",
+  "src/compiler/operator-properties.h",
+  "src/compiler/operator.cc",
+  "src/compiler/operator.h",
+  "src/compiler/osr.cc",
+  "src/compiler/osr.h",
+  "src/compiler/per-isolate-compiler-cache.h",
+  "src/compiler/persistent-map.h",
+  "src/compiler/pipeline-statistics.cc",
+  "src/compiler/pipeline-statistics.h",
+  "src/compiler/pipeline.cc",
+  "src/compiler/pipeline.h",
+  "src/compiler/property-access-builder.cc",
+  "src/compiler/property-access-builder.h",
+  "src/compiler/raw-machine-assembler.cc",
+  "src/compiler/raw-machine-assembler.h",
+  "src/compiler/redundancy-elimination.cc",
+  "src/compiler/redundancy-elimination.h",
+  "src/compiler/refs-map.cc",
+  "src/compiler/refs-map.h",
+  "src/compiler/representation-change.cc",
+  "src/compiler/representation-change.h",
+  "src/compiler/schedule.cc",
+  "src/compiler/schedule.h",
+  "src/compiler/scheduler.cc",
+  "src/compiler/scheduler.h",
+  "src/compiler/select-lowering.cc",
+  "src/compiler/select-lowering.h",
+  "src/compiler/serializer-for-background-compilation.cc",
+  "src/compiler/serializer-for-background-compilation.h",
+  "src/compiler/simd-scalar-lowering.cc",
+  "src/compiler/simd-scalar-lowering.h",
+  "src/compiler/simplified-lowering.cc",
+  "src/compiler/simplified-lowering.h",
+  "src/compiler/simplified-operator-reducer.cc",
+  "src/compiler/simplified-operator-reducer.h",
+  "src/compiler/simplified-operator.cc",
+  "src/compiler/simplified-operator.h",
+  "src/compiler/state-values-utils.cc",
+  "src/compiler/state-values-utils.h",
+  "src/compiler/store-store-elimination.cc",
+  "src/compiler/store-store-elimination.h",
+  "src/compiler/type-cache.cc",
+  "src/compiler/type-cache.h",
+  "src/compiler/type-narrowing-reducer.cc",
+  "src/compiler/type-narrowing-reducer.h",
+  "src/compiler/typed-optimization.cc",
+  "src/compiler/typed-optimization.h",
+  "src/compiler/typer.cc",
+  "src/compiler/typer.h",
+  "src/compiler/types.cc",
+  "src/compiler/types.h",
+  "src/compiler/value-numbering-reducer.cc",
+  "src/compiler/value-numbering-reducer.h",
+  "src/compiler/verifier.cc",
+  "src/compiler/verifier.h",
+  "src/compiler/wasm-compiler.cc",
+  "src/compiler/wasm-compiler.h",
+  "src/compiler/zone-stats.cc",
+  "src/compiler/zone-stats.h",
+]
+
+# The src/compiler files with optimizations.
+v8_source_set("v8_compiler_opt") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  sources = v8_compiler_sources
+
+  public_deps = [
+    ":generate_bytecode_builtins_list",
+    ":run_torque",
+  ]
+
+  if (v8_enable_i18n_support) {
+    public_deps += [ "//third_party/icu" ]
+  }
+
+  if (is_debug && !v8_optimized_debug && v8_enable_fast_mksnapshot) {
+    # The :no_optimize config is added to v8_add_configs in v8.gni.
+    remove_configs = [ "//build/config/compiler:no_optimize" ]
+    configs = [ ":always_optimize" ]
+  } else {
+    # Without this else branch, gn fails to generate build files for non-debug
+    # builds (because we try to remove a config that is not present).
+    # So we include it, even if this config is not used outside of debug builds.
+    configs = [ ":internal_config" ]
+  }
+}
+
+# The src/compiler files with default optimization behavior.
+v8_source_set("v8_compiler") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  sources = v8_compiler_sources
+
+  public_deps = [
+    ":generate_bytecode_builtins_list",
+    ":run_torque",
+  ]
+
+  if (v8_enable_i18n_support) {
+    public_deps += [ "//third_party/icu" ]
+  }
+
+  configs = [ ":internal_config" ]
+}
+
+group("v8_compiler_for_mksnapshot") {
+  if (is_debug && !v8_optimized_debug && v8_enable_fast_mksnapshot) {
+    deps = [
+      ":v8_compiler_opt",
+    ]
+  } else {
+    deps = [
+      ":v8_compiler",
+    ]
+  }
+}
+
+v8_source_set("v8_base_without_compiler") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   # Split static libraries on windows into two.
@@ -1810,222 +2106,6 @@ v8_source_set("v8_base") {
     "src/compiler-dispatcher/optimizing-compile-dispatcher.h",
     "src/compiler.cc",
     "src/compiler.h",
-    "src/compiler/access-builder.cc",
-    "src/compiler/access-builder.h",
-    "src/compiler/access-info.cc",
-    "src/compiler/access-info.h",
-    "src/compiler/all-nodes.cc",
-    "src/compiler/all-nodes.h",
-    "src/compiler/allocation-builder-inl.h",
-    "src/compiler/allocation-builder.h",
-    "src/compiler/backend/code-generator-impl.h",
-    "src/compiler/backend/code-generator.cc",
-    "src/compiler/backend/code-generator.h",
-    "src/compiler/backend/frame-elider.cc",
-    "src/compiler/backend/frame-elider.h",
-    "src/compiler/backend/gap-resolver.cc",
-    "src/compiler/backend/gap-resolver.h",
-    "src/compiler/backend/instruction-codes.h",
-    "src/compiler/backend/instruction-scheduler.cc",
-    "src/compiler/backend/instruction-scheduler.h",
-    "src/compiler/backend/instruction-selector-impl.h",
-    "src/compiler/backend/instruction-selector.cc",
-    "src/compiler/backend/instruction-selector.h",
-    "src/compiler/backend/instruction.cc",
-    "src/compiler/backend/instruction.h",
-    "src/compiler/backend/jump-threading.cc",
-    "src/compiler/backend/jump-threading.h",
-    "src/compiler/backend/live-range-separator.cc",
-    "src/compiler/backend/live-range-separator.h",
-    "src/compiler/backend/move-optimizer.cc",
-    "src/compiler/backend/move-optimizer.h",
-    "src/compiler/backend/register-allocator-verifier.cc",
-    "src/compiler/backend/register-allocator-verifier.h",
-    "src/compiler/backend/register-allocator.cc",
-    "src/compiler/backend/register-allocator.h",
-    "src/compiler/backend/unwinding-info-writer.h",
-    "src/compiler/basic-block-instrumentor.cc",
-    "src/compiler/basic-block-instrumentor.h",
-    "src/compiler/branch-elimination.cc",
-    "src/compiler/branch-elimination.h",
-    "src/compiler/bytecode-analysis.cc",
-    "src/compiler/bytecode-analysis.h",
-    "src/compiler/bytecode-graph-builder.cc",
-    "src/compiler/bytecode-graph-builder.h",
-    "src/compiler/bytecode-liveness-map.cc",
-    "src/compiler/bytecode-liveness-map.h",
-    "src/compiler/c-linkage.cc",
-    "src/compiler/checkpoint-elimination.cc",
-    "src/compiler/checkpoint-elimination.h",
-    "src/compiler/code-assembler.cc",
-    "src/compiler/code-assembler.h",
-    "src/compiler/common-node-cache.cc",
-    "src/compiler/common-node-cache.h",
-    "src/compiler/common-operator-reducer.cc",
-    "src/compiler/common-operator-reducer.h",
-    "src/compiler/common-operator.cc",
-    "src/compiler/common-operator.h",
-    "src/compiler/compilation-dependencies.cc",
-    "src/compiler/compilation-dependencies.h",
-    "src/compiler/compiler-source-position-table.cc",
-    "src/compiler/compiler-source-position-table.h",
-    "src/compiler/constant-folding-reducer.cc",
-    "src/compiler/constant-folding-reducer.h",
-    "src/compiler/control-equivalence.cc",
-    "src/compiler/control-equivalence.h",
-    "src/compiler/control-flow-optimizer.cc",
-    "src/compiler/control-flow-optimizer.h",
-    "src/compiler/dead-code-elimination.cc",
-    "src/compiler/dead-code-elimination.h",
-    "src/compiler/diamond.h",
-    "src/compiler/effect-control-linearizer.cc",
-    "src/compiler/effect-control-linearizer.h",
-    "src/compiler/escape-analysis-reducer.cc",
-    "src/compiler/escape-analysis-reducer.h",
-    "src/compiler/escape-analysis.cc",
-    "src/compiler/escape-analysis.h",
-    "src/compiler/frame-states.cc",
-    "src/compiler/frame-states.h",
-    "src/compiler/frame.cc",
-    "src/compiler/frame.h",
-    "src/compiler/functional-list.h",
-    "src/compiler/graph-assembler.cc",
-    "src/compiler/graph-assembler.h",
-    "src/compiler/graph-reducer.cc",
-    "src/compiler/graph-reducer.h",
-    "src/compiler/graph-trimmer.cc",
-    "src/compiler/graph-trimmer.h",
-    "src/compiler/graph-visualizer.cc",
-    "src/compiler/graph-visualizer.h",
-    "src/compiler/graph.cc",
-    "src/compiler/graph.h",
-    "src/compiler/int64-lowering.cc",
-    "src/compiler/int64-lowering.h",
-    "src/compiler/js-call-reducer.cc",
-    "src/compiler/js-call-reducer.h",
-    "src/compiler/js-context-specialization.cc",
-    "src/compiler/js-context-specialization.h",
-    "src/compiler/js-create-lowering.cc",
-    "src/compiler/js-create-lowering.h",
-    "src/compiler/js-generic-lowering.cc",
-    "src/compiler/js-generic-lowering.h",
-    "src/compiler/js-graph.cc",
-    "src/compiler/js-graph.h",
-    "src/compiler/js-heap-broker.cc",
-    "src/compiler/js-heap-broker.h",
-    "src/compiler/js-heap-copy-reducer.cc",
-    "src/compiler/js-heap-copy-reducer.h",
-    "src/compiler/js-inlining-heuristic.cc",
-    "src/compiler/js-inlining-heuristic.h",
-    "src/compiler/js-inlining.cc",
-    "src/compiler/js-inlining.h",
-    "src/compiler/js-intrinsic-lowering.cc",
-    "src/compiler/js-intrinsic-lowering.h",
-    "src/compiler/js-native-context-specialization.cc",
-    "src/compiler/js-native-context-specialization.h",
-    "src/compiler/js-operator.cc",
-    "src/compiler/js-operator.h",
-    "src/compiler/js-type-hint-lowering.cc",
-    "src/compiler/js-type-hint-lowering.h",
-    "src/compiler/js-typed-lowering.cc",
-    "src/compiler/js-typed-lowering.h",
-    "src/compiler/linkage.cc",
-    "src/compiler/linkage.h",
-    "src/compiler/load-elimination.cc",
-    "src/compiler/load-elimination.h",
-    "src/compiler/loop-analysis.cc",
-    "src/compiler/loop-analysis.h",
-    "src/compiler/loop-peeling.cc",
-    "src/compiler/loop-peeling.h",
-    "src/compiler/loop-variable-optimizer.cc",
-    "src/compiler/loop-variable-optimizer.h",
-    "src/compiler/machine-graph-verifier.cc",
-    "src/compiler/machine-graph-verifier.h",
-    "src/compiler/machine-graph.cc",
-    "src/compiler/machine-graph.h",
-    "src/compiler/machine-operator-reducer.cc",
-    "src/compiler/machine-operator-reducer.h",
-    "src/compiler/machine-operator.cc",
-    "src/compiler/machine-operator.h",
-    "src/compiler/memory-optimizer.cc",
-    "src/compiler/memory-optimizer.h",
-    "src/compiler/node-aux-data.h",
-    "src/compiler/node-cache.cc",
-    "src/compiler/node-cache.h",
-    "src/compiler/node-marker.cc",
-    "src/compiler/node-marker.h",
-    "src/compiler/node-matchers.cc",
-    "src/compiler/node-matchers.h",
-    "src/compiler/node-origin-table.cc",
-    "src/compiler/node-origin-table.h",
-    "src/compiler/node-properties.cc",
-    "src/compiler/node-properties.h",
-    "src/compiler/node.cc",
-    "src/compiler/node.h",
-    "src/compiler/opcodes.cc",
-    "src/compiler/opcodes.h",
-    "src/compiler/operation-typer.cc",
-    "src/compiler/operation-typer.h",
-    "src/compiler/operator-properties.cc",
-    "src/compiler/operator-properties.h",
-    "src/compiler/operator.cc",
-    "src/compiler/operator.h",
-    "src/compiler/osr.cc",
-    "src/compiler/osr.h",
-    "src/compiler/per-isolate-compiler-cache.h",
-    "src/compiler/persistent-map.h",
-    "src/compiler/pipeline-statistics.cc",
-    "src/compiler/pipeline-statistics.h",
-    "src/compiler/pipeline.cc",
-    "src/compiler/pipeline.h",
-    "src/compiler/property-access-builder.cc",
-    "src/compiler/property-access-builder.h",
-    "src/compiler/raw-machine-assembler.cc",
-    "src/compiler/raw-machine-assembler.h",
-    "src/compiler/redundancy-elimination.cc",
-    "src/compiler/redundancy-elimination.h",
-    "src/compiler/refs-map.cc",
-    "src/compiler/refs-map.h",
-    "src/compiler/representation-change.cc",
-    "src/compiler/representation-change.h",
-    "src/compiler/schedule.cc",
-    "src/compiler/schedule.h",
-    "src/compiler/scheduler.cc",
-    "src/compiler/scheduler.h",
-    "src/compiler/select-lowering.cc",
-    "src/compiler/select-lowering.h",
-    "src/compiler/serializer-for-background-compilation.cc",
-    "src/compiler/serializer-for-background-compilation.h",
-    "src/compiler/simd-scalar-lowering.cc",
-    "src/compiler/simd-scalar-lowering.h",
-    "src/compiler/simplified-lowering.cc",
-    "src/compiler/simplified-lowering.h",
-    "src/compiler/simplified-operator-reducer.cc",
-    "src/compiler/simplified-operator-reducer.h",
-    "src/compiler/simplified-operator.cc",
-    "src/compiler/simplified-operator.h",
-    "src/compiler/state-values-utils.cc",
-    "src/compiler/state-values-utils.h",
-    "src/compiler/store-store-elimination.cc",
-    "src/compiler/store-store-elimination.h",
-    "src/compiler/type-cache.cc",
-    "src/compiler/type-cache.h",
-    "src/compiler/type-narrowing-reducer.cc",
-    "src/compiler/type-narrowing-reducer.h",
-    "src/compiler/typed-optimization.cc",
-    "src/compiler/typed-optimization.h",
-    "src/compiler/typer.cc",
-    "src/compiler/typer.h",
-    "src/compiler/types.cc",
-    "src/compiler/types.h",
-    "src/compiler/value-numbering-reducer.cc",
-    "src/compiler/value-numbering-reducer.h",
-    "src/compiler/verifier.cc",
-    "src/compiler/verifier.h",
-    "src/compiler/wasm-compiler.cc",
-    "src/compiler/wasm-compiler.h",
-    "src/compiler/zone-stats.cc",
-    "src/compiler/zone-stats.h",
     "src/constant-pool.cc",
     "src/constant-pool.h",
     "src/constants-arch.h",
@@ -3192,6 +3272,13 @@ v8_source_set("v8_base") {
   }
 }
 
+group("v8_base") {
+  public_deps = [
+    ":v8_base_without_compiler",
+    ":v8_compiler",
+  ]
+}
+
 v8_source_set("torque_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -3608,7 +3695,8 @@ if (v8_use_snapshot && current_toolchain == v8_snapshot_toolchain) {
     configs = [ ":internal_config" ]
 
     deps = [
-      ":v8_base",
+      ":v8_base_without_compiler",
+      ":v8_compiler_for_mksnapshot",
       ":v8_init",
       ":v8_libbase",
       ":v8_libplatform",
