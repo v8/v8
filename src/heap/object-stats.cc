@@ -966,8 +966,10 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
   RecordSimpleVirtualObjectStats(
       bytecode, bytecode->handler_table(),
       ObjectStats::BYTECODE_ARRAY_HANDLER_TABLE_TYPE);
-  RecordSimpleVirtualObjectStats(bytecode, bytecode->SourcePositionTable(),
-                                 ObjectStats::SOURCE_POSITION_TABLE_TYPE);
+  if (bytecode->HasSourcePositionTable()) {
+    RecordSimpleVirtualObjectStats(bytecode, bytecode->SourcePositionTable(),
+                                   ObjectStats::SOURCE_POSITION_TABLE_TYPE);
+  }
 }
 
 namespace {
