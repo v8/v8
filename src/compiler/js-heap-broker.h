@@ -652,9 +652,6 @@ class InternalizedStringRef : public StringRef {
  public:
   using StringRef::StringRef;
   Handle<InternalizedString> object() const;
-
-  uint32_t array_index() const;
-  static const uint32_t kNotAnArrayIndex = -1;  // 2^32-1 is not a valid index.
 };
 
 class ProcessedFeedback : public ZoneObject {

@@ -614,11 +614,7 @@ StringData* StringData::GetCharAsString(JSHeapBroker* broker, uint32_t index,
 InternalizedStringData::InternalizedStringData(
     JSHeapBroker* broker, ObjectData** storage,
     Handle<InternalizedString> object)
-    : StringData(broker, storage, object) {
-  if (!object->AsArrayIndex(&array_index_)) {
-    array_index_ = InternalizedStringRef::kNotAnArrayIndex;
-  }
-}
+    : StringData(broker, storage, object) {}
 
 namespace {
 
@@ -2426,19 +2422,6 @@ base::Optional<double> StringRef::ToNumber() {
     return StringToDouble(broker()->isolate(), object(), flags);
   }
   return data()->AsString()->to_number();
-}
-
-uint32_t InternalizedStringRef::array_index() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleDereference allow_handle_dereference;
-    AllowHandleAllocation allow_handle_allocation;
-    uint32_t result;
-    if (!object()->AsArrayIndex(&result)) {
-      result = kNotAnArrayIndex;
-    }
-    return result;
-  }
-  return data()->AsInternalizedString()->array_index();
 }
 
 ObjectRef FixedArrayRef::get(int i) const {

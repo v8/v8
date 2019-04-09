@@ -98,7 +98,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                 AccessMode access_mode,
                                 KeyedAccessLoadMode load_mode,
                                 KeyedAccessStoreMode store_mode);
-  Reduction ReduceKeyedAccess(Node* node, Node* index, Node* value,
+  Reduction ReduceKeyedAccess(Node* node, Node* key, Node* value,
                               FeedbackNexus const& nexus,
                               AccessMode access_mode,
                               KeyedAccessLoadMode load_mode,
@@ -110,15 +110,14 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               MapHandles const& receiver_maps,
                               Handle<Name> name, AccessMode access_mode,
-                              Node* index = nullptr);
+                              Node* key = nullptr);
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
                                Handle<Name> name, AccessMode access_mode,
-                               Node* index = nullptr);
+                               Node* key = nullptr);
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
                                Handle<Name> name, AccessMode access_mode,
-                               Node* index,
-                               PropertyCellRef const& property_cell);
-  Reduction ReduceKeyedLoadFromHeapConstant(Node* node, Node* index,
+                               Node* key, PropertyCellRef const& property_cell);
+  Reduction ReduceKeyedLoadFromHeapConstant(Node* node, Node* key,
                                             FeedbackNexus const& nexus,
                                             AccessMode access_mode,
                                             KeyedAccessLoadMode load_mode);

@@ -792,18 +792,18 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
 
 Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* receiver, Node* value, Handle<Name> name,
-    AccessMode access_mode, Node* index) {
+    AccessMode access_mode, Node* key) {
   NameRef name_ref(broker(), name);
   base::Optional<PropertyCellRef> cell =
       native_context().global_proxy_object().GetPropertyCell(name_ref);
   return cell.has_value() ? ReduceGlobalAccess(node, receiver, value, name,
-                                               access_mode, index, *cell)
+                                               access_mode, key, *cell)
                           : NoChange();
 }
 
 Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* receiver, Node* value, Handle<Name> name,
-    AccessMode access_mode, Node* index, PropertyCellRef const& property_cell) {
+    AccessMode access_mode, Node* key, PropertyCellRef const& property_cell) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -844,9 +844,9 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       return NoChange();
   }
 
-  // Ensure that {index} matches the specified {name} (if {index} is given).
-  if (index != nullptr) {
-    effect = BuildCheckEqualsName(name, index, effect, control);
+  // Ensure that {key} matches the specified {name} (if {key} is given).
+  if (key != nullptr) {
+    effect = BuildCheckEqualsName(name, key, effect, control);
   }
 
   // Check if we have a {receiver} to validate. If so, we need to check that
@@ -1082,7 +1082,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, MapHandles const& receiver_maps, Handle<Name> name,
-    AccessMode access_mode, Node* index) {
+    AccessMode access_mode, Node* key) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -1101,8 +1101,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   if (receiver_maps.size() == 1) {
     MapRef receiver_map(broker(), receiver_maps.front());
     if (receiver_map.IsMapOfCurrentGlobalProxy()) {
-      return ReduceGlobalAccess(node, receiver, value, name, access_mode,
-                                index);
+      return ReduceGlobalAccess(node, receiver, value, name, access_mode, key);
     }
   }
 
@@ -1121,9 +1120,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         node, DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
   }
 
-  // Ensure that {index} matches the specified {name} (if {index} is given).
-  if (index != nullptr) {
-    effect = BuildCheckEqualsName(name, index, effect, control);
+  // Ensure that {key} matches the specified {name} (if {key} is given).
+  if (key != nullptr) {
+    effect = BuildCheckEqualsName(name, key, effect, control);
   }
 
   // Collect call nodes to rewire exception edges.
@@ -1724,7 +1723,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 }
 
 Reduction JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant(
-    Node* node, Node* index, FeedbackNexus const& nexus, AccessMode access_mode,
+    Node* node, Node* key, FeedbackNexus const& nexus, AccessMode access_mode,
     KeyedAccessLoadMode load_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSHasProperty);
@@ -1744,16 +1743,16 @@ Reduction JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant(
 
   // Check whether we're accessing a known element on the {receiver} and can
   // constant-fold the load.
-  NumberMatcher mindex(index);
-  if (mindex.IsInteger() && mindex.IsInRange(0.0, kMaxUInt32 - 1.0)) {
-    uint32_t index_value = static_cast<uint32_t>(mindex.Value());
+  NumberMatcher mkey(key);
+  if (mkey.IsInteger() && mkey.IsInRange(0.0, kMaxUInt32 - 1.0)) {
+    uint32_t index = static_cast<uint32_t>(mkey.Value());
     base::Optional<ObjectRef> element =
-        receiver_ref.GetOwnConstantElement(index_value);
+        receiver_ref.GetOwnConstantElement(index);
     if (!element.has_value() && receiver_ref.IsJSArray()) {
       // We didn't find a constant element, but if the receiver is a cow-array
       // we can exploit the fact that any future write to the element will
       // replace the whole elements storage.
-      element = receiver_ref.AsJSArray().GetOwnCowElement(index_value);
+      element = receiver_ref.AsJSArray().GetOwnCowElement(index);
       if (element.has_value()) {
         Node* elements = effect = graph()->NewNode(
             simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
@@ -1784,13 +1783,13 @@ Reduction JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant(
     // IC is in element access mode and not MEGAMORPHIC, otherwise there's
     // no guard for the bounds check below.
     if (nexus.ic_state() != MEGAMORPHIC && nexus.GetKeyType() == ELEMENT) {
-      // Ensure that {index} is less than {receiver} length.
+      // Ensure that {key} is less than {receiver} length.
       Node* length = jsgraph()->Constant(receiver_ref.AsString().length());
 
       // Load the single character string from {receiver} or yield
-      // undefined if the {index} is out of bounds (depending on the
+      // undefined if the {key} is out of bounds (depending on the
       // {load_mode}).
-      Node* value = BuildIndexedStringLoad(receiver, index, length, &effect,
+      Node* value = BuildIndexedStringLoad(receiver, key, length, &effect,
                                            &control, load_mode);
       ReplaceWithValue(node, value, effect, control);
       return Replace(value);
@@ -1800,8 +1799,17 @@ Reduction JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant(
   return NoChange();
 }
 
+namespace {
+base::Optional<NameRef> GetNameFeedback(JSHeapBroker* broker,
+                                        FeedbackNexus const& nexus) {
+  Name raw_name = nexus.GetName();
+  if (raw_name.is_null()) return base::nullopt;
+  return NameRef(broker, handle(raw_name, broker->isolate()));
+}
+}  // namespace
+
 Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
-    Node* node, Node* index, Node* value, FeedbackNexus const& nexus,
+    Node* node, Node* key, Node* value, FeedbackNexus const& nexus,
     AccessMode access_mode, KeyedAccessLoadMode load_mode,
     KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -1814,7 +1822,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   if ((access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) &&
       receiver->opcode() == IrOpcode::kHeapConstant) {
     Reduction reduction = ReduceKeyedLoadFromHeapConstant(
-        node, index, nexus, access_mode, load_mode);
+        node, key, nexus, access_mode, load_mode);
     if (reduction.Changed()) return reduction;
   }
 
@@ -1828,46 +1836,20 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   }
   DCHECK(!nexus.IsUninitialized());
 
-  // Optimize access for constant {index}.
-  HeapObjectMatcher mindex(index);
-  if (mindex.HasValue()) {
-    ObjectRef name = mindex.Ref(broker());
-    if (name.IsSymbol()) {
-      return ReduceNamedAccess(node, value, receiver_maps,
-                               name.AsName().object(), access_mode);
-    }
-    if (name.IsInternalizedString()) {
-      uint32_t array_index = name.AsInternalizedString().array_index();
-      if (array_index != InternalizedStringRef::kNotAnArrayIndex) {
-        index = jsgraph()->Constant(static_cast<double>(array_index));
-      } else {
-        return ReduceNamedAccess(node, value, receiver_maps,
-                                 name.AsName().object(), access_mode);
-      }
-    }
-  }
-
   // Check if we have feedback for a named access.
-  Name name = nexus.GetName();
-  if (!name.is_null()) {
-    return ReduceNamedAccess(node, value, receiver_maps,
-                             handle(name, isolate()), access_mode, index);
-  } else if (nexus.GetKeyType() != ELEMENT) {
-    // The KeyedLoad/StoreIC has seen non-element accesses, so we cannot assume
-    // that the {index} is a valid array index, thus we just let the IC continue
-    // to deal with this load/store.
-    return NoChange();
-  } else if (nexus.ic_state() == MEGAMORPHIC) {
-    // The KeyedLoad/StoreIC uses the MEGAMORPHIC state to guard the assumption
-    // that a numeric {index} is within the valid bounds for {receiver}, i.e.
-    // it transitions to MEGAMORPHIC once it sees an out-of-bounds access. Thus
-    // we cannot continue here if the IC state is MEGAMORPHIC.
-    return NoChange();
+  base::Optional<NameRef> name = GetNameFeedback(broker(), nexus);
+  if (name.has_value()) {
+    return ReduceNamedAccess(node, value, receiver_maps, name->object(),
+                             access_mode, key);
   }
 
-  // Try to lower the element access based on the {receiver_maps}.
-  return ReduceElementAccess(node, index, value, nexus, receiver_maps,
-                             access_mode, load_mode, store_mode);
+  // Try to lower element access based on the {receiver_maps}.
+  if (nexus.GetKeyType() == ELEMENT && nexus.ic_state() != MEGAMORPHIC) {
+    return ReduceElementAccess(node, key, value, nexus, receiver_maps,
+                               access_mode, load_mode, store_mode);
+  }
+
+  return NoChange();
 }
 
 Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
@@ -1892,7 +1874,7 @@ Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
 Reduction JSNativeContextSpecialization::ReduceJSHasProperty(Node* node) {
   DCHECK_EQ(IrOpcode::kJSHasProperty, node->opcode());
   PropertyAccess const& p = PropertyAccessOf(node->op());
-  Node* index = NodeProperties::GetValueInput(node, 1);
+  Node* key = NodeProperties::GetValueInput(node, 1);
   Node* value = jsgraph()->Dead();
 
   // Extract receiver maps from the has property IC using the FeedbackNexus.
@@ -1903,8 +1885,8 @@ Reduction JSNativeContextSpecialization::ReduceJSHasProperty(Node* node) {
   KeyedAccessLoadMode load_mode = nexus.GetKeyedAccessLoadMode();
 
   // Try to lower the keyed access based on the {nexus}.
-  return ReduceKeyedAccess(node, index, value, nexus, AccessMode::kHas,
-                           load_mode, STANDARD_STORE);
+  return ReduceKeyedAccess(node, key, value, nexus, AccessMode::kHas, load_mode,
+                           STANDARD_STORE);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
@@ -1960,7 +1942,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
 
   Node* object = NodeProperties::GetValueInput(name, 0);
   Node* enumerator = NodeProperties::GetValueInput(name, 2);
-  Node* index = NodeProperties::GetValueInput(name, 3);
+  Node* key = NodeProperties::GetValueInput(name, 3);
   if (object->opcode() == IrOpcode::kJSToObject) {
     object = NodeProperties::GetValueInput(object, 0);
   }
@@ -2000,15 +1982,15 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
       simplified()->CheckIf(DeoptimizeReason::kWrongEnumIndices), check, effect,
       control);
 
-  // Determine the index from the {enum_indices}.
-  index = effect = graph()->NewNode(
+  // Determine the key from the {enum_indices}.
+  key = effect = graph()->NewNode(
       simplified()->LoadElement(
           AccessBuilder::ForFixedArrayElement(PACKED_SMI_ELEMENTS)),
-      enum_indices, index, effect, control);
+      enum_indices, key, effect, control);
 
   // Load the actual field value.
   Node* value = effect = graph()->NewNode(simplified()->LoadFieldByIndex(),
-                                          receiver, index, effect, control);
+                                          receiver, key, effect, control);
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
@@ -2039,7 +2021,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
 Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreProperty, node->opcode());
   PropertyAccess const& p = PropertyAccessOf(node->op());
-  Node* const index = NodeProperties::GetValueInput(node, 1);
+  Node* const key = NodeProperties::GetValueInput(node, 1);
   Node* const value = NodeProperties::GetValueInput(node, 2);
 
   // Extract receiver maps from the keyed store IC using the FeedbackNexus.
@@ -2050,7 +2032,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
   KeyedAccessStoreMode store_mode = nexus.GetKeyedAccessStoreMode();
 
   // Try to lower the keyed access based on the {nexus}.
-  return ReduceKeyedAccess(node, index, value, nexus, AccessMode::kStore,
+  return ReduceKeyedAccess(node, key, value, nexus, AccessMode::kStore,
                            STANDARD_LOAD, store_mode);
 }
 
