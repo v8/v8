@@ -670,15 +670,6 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
   }
 }
 
-int BytecodeArray::interrupt_budget() const {
-  return READ_INT_FIELD(*this, kInterruptBudgetOffset);
-}
-
-void BytecodeArray::set_interrupt_budget(int interrupt_budget) {
-  DCHECK_GE(interrupt_budget, 0);
-  WRITE_INT_FIELD(*this, kInterruptBudgetOffset, interrupt_budget);
-}
-
 int BytecodeArray::osr_loop_nesting_level() const {
   return READ_INT8_FIELD(*this, kOSRNestingLevelOffset);
 }
