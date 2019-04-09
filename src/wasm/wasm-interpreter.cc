@@ -3032,20 +3032,30 @@ class ThreadImpl {
           GlobalIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
           const WasmGlobal* global = &module()->globals[imm.index];
-          byte* ptr = GetGlobalPtr(global);
-          WasmValue val;
           switch (global->type) {
-#define CASE_TYPE(wasm, ctype)                                         \
-  case kWasm##wasm:                                                    \
-    val = WasmValue(                                                   \
-        ReadLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr))); \
-    break;
+#define CASE_TYPE(wasm, ctype)                                          \
+  case kWasm##wasm: {                                                   \
+    byte* ptr = GetGlobalPtr(global);                                   \
+    Push(WasmValue(                                                     \
+        ReadLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr)))); \
+    break;                                                              \
+  }
             WASM_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
+            case kWasmAnyRef:
+            case kWasmAnyFunc:
+            case kWasmExceptRef: {
+              HandleScope handle_scope(isolate_);  // Avoid leaking handles.
+              DCHECK(!global->mutability || !global->imported);
+              Push(WasmValue(
+                  handle(instance_object_->tagged_globals_buffer()->get(
+                             global->offset),
+                         isolate_)));
+              break;
+            }
             default:
               UNREACHABLE();
           }
-          Push(val);
           len = 1 + imm.length;
           break;
         }
@@ -3053,16 +3063,25 @@ class ThreadImpl {
           GlobalIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
           const WasmGlobal* global = &module()->globals[imm.index];
-          byte* ptr = GetGlobalPtr(global);
-          WasmValue val = Pop();
           switch (global->type) {
 #define CASE_TYPE(wasm, ctype)                                    \
-  case kWasm##wasm:                                               \
+  case kWasm##wasm: {                                             \
+    byte* ptr = GetGlobalPtr(global);                             \
     WriteLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr), \
-                                  val.to<ctype>());               \
-    break;
+                                  Pop().to<ctype>());             \
+    break;                                                        \
+  }
             WASM_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
+            case kWasmAnyRef:
+            case kWasmAnyFunc:
+            case kWasmExceptRef: {
+              HandleScope handle_scope(isolate_);  // Avoid leaking handles.
+              DCHECK(!global->mutability || !global->imported);
+              instance_object_->tagged_globals_buffer()->set(
+                  global->offset, *Pop().to_anyref());
+              break;
+            }
             default:
               UNREACHABLE();
           }
