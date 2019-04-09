@@ -151,14 +151,22 @@ class V8_EXPORT_PRIVATE WasmCode final {
     USE(old_val);
   }
 
+  // Decrement the ref count. Returns whether this code becomes dead and needs
+  // to be freed.
   V8_WARN_UNUSED_RESULT bool DecRef() {
-    int old_count = ref_count_.fetch_sub(1, std::memory_order_relaxed);
-    DCHECK_LE(1, old_count);
-    return old_count == 1;
+    int old_count = ref_count_.load(std::memory_order_relaxed);
+    while (true) {
+      DCHECK_LE(1, old_count);
+      if (V8_UNLIKELY(old_count == 1)) return DecRefOnPotentiallyDeadCode();
+      if (ref_count_.compare_exchange_weak(old_count, old_count - 1,
+                                           std::memory_order_relaxed)) {
+        return false;
+      }
+    }
   }
 
-  // Decrement the ref count on set of {WasmCode} objects, potentially belonging
-  // to different {NativeModule}s.
+  // Decrement the ref count on a set of {WasmCode} objects, potentially
+  // belonging to different {NativeModule}s. Dead code will be deleted.
   static void DecrementRefCount(Vector<WasmCode*>);
 
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
@@ -210,6 +218,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // trap_handler_index.
   void RegisterTrapHandlerData();
 
+  // Slow path for {DecRef}: The code becomes potentially dead.
+  // Returns whether this code becomes dead and needs to be freed.
+  bool DecRefOnPotentiallyDeadCode();
+
   Vector<byte> instructions_;
   OwnedVector<const byte> reloc_info_;
   OwnedVector<const byte> source_position_table_;
@@ -236,7 +248,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   //   1) The jump table.
   //   2) Function tables.
   //   3) {WasmCodeRefScope}s.
-  //   4) Threads currently executing this code.
+  //   4) The set of potentially dead code in the {WasmEngine}.
   // If a decrement of (1) or (2) would drop the ref count to 0, that code
   // becomes a candidate for garbage collection. At that point, we add
   // ref counts for (4) *before* decrementing the counter to ensure the code

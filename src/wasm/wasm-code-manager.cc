@@ -371,6 +371,26 @@ WasmCode::~WasmCode() {
   }
 }
 
+V8_WARN_UNUSED_RESULT bool WasmCode::DecRefOnPotentiallyDeadCode() {
+  if (native_module_->engine()->AddPotentiallyDeadCode(this)) {
+    // The code just became potentially dead. The ref count we wanted to
+    // decrement is now transferred to the set of potentially dead code, and
+    // will be decremented when the next GC is run.
+    return false;
+  }
+  // If we reach here, the code was already potentially dead. Decrement the ref
+  // count, and return true if it drops to zero.
+  int old_count = ref_count_.load(std::memory_order_relaxed);
+  while (true) {
+    DCHECK_LE(1, old_count);
+    if (ref_count_.compare_exchange_weak(old_count, old_count - 1,
+                                         std::memory_order_relaxed)) {
+      return old_count == 1;
+    }
+  }
+}
+
+// static
 void WasmCode::DecrementRefCount(Vector<WasmCode*> code_vec) {
   // Decrement the ref counter of all given code objects. Keep the ones whose
   // ref count drops to zero.
