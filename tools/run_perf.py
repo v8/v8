@@ -104,6 +104,7 @@ from __future__ import print_function
 from functools import reduce
 
 from collections import OrderedDict
+import datetime
 import json
 import logging
 import math
@@ -157,9 +158,16 @@ class Results(object):
   def __init__(self, traces=None, errors=None):
     self.traces = traces or []
     self.errors = errors or []
+    self.timeouts = []
+    self.near_timeouts = []  # > 90% of the max runtime
 
   def ToDict(self):
-    return {"traces": self.traces, "errors": self.errors}
+    return {
+        "traces": self.traces,
+        "errors": self.errors,
+        "timeouts": self.timeouts,
+        "near_timeouts": self.near_timeouts,
+    }
 
   def WriteToFile(self, file_name):
     with open(file_name, "w") as f:
@@ -168,6 +176,8 @@ class Results(object):
   def __add__(self, other):
     self.traces += other.traces
     self.errors += other.errors
+    self.timeouts += other.timeouts
+    self.near_timeouts += other.near_timeouts
     return self
 
   def __str__(self):  # pragma: no cover
@@ -471,6 +481,11 @@ class TraceConfig(GraphConfig):
 class RunnableConfig(GraphConfig):
   """Represents a runnable suite definition (i.e. has a main file).
   """
+  def __init__(self, suite, parent, arch):
+    super(RunnableConfig, self).__init__(suite, parent, arch)
+    self.has_timeouts = False
+    self.has_near_timeouts = False
+
   @property
   def main(self):
     return self._suite.get("main", "")
@@ -647,6 +662,14 @@ class Platform(object):
   def _Run(self, runnable, count, secondary=False):
     raise NotImplementedError()  # pragma: no cover
 
+  def _TimedRun(self, runnable, count, secondary=False):
+    runnable_start_time = datetime.datetime.utcnow()
+    stdout = self._Run(runnable, count, secondary)
+    runnable_duration = datetime.datetime.utcnow() - runnable_start_time
+    if runnable_duration.total_seconds() > 0.9 * runnable.timeout:
+      runnable.has_near_timeouts = True
+    return stdout
+
   def Run(self, runnable, count):
     """Execute the benchmark's main file.
 
@@ -658,9 +681,9 @@ class Platform(object):
     Returns: A tuple with the two benchmark outputs. The latter will be None if
              options.shell_dir_secondary was not specified.
     """
-    stdout = self._Run(runnable, count, secondary=False)
+    stdout = self._TimedRun(runnable, count, secondary=False)
     if self.shell_dir_secondary:
-      return stdout, self._Run(runnable, count, secondary=True)
+      return stdout, self._TimedRun(runnable, count, secondary=True)
     else:
       return stdout, None
 
@@ -714,6 +737,7 @@ class DesktopPlatform(Platform):
       logging.info(title % "Stderr" + "\n%s", output.stderr)
     if output.timed_out:
       logging.warning(">>> Test timed out after %ss.", runnable.timeout)
+      runnable.has_timeouts = True
       raise TestFailedError()
     if output.exit_code != 0:
       logging.warning(">>> Test crashed.")
@@ -805,6 +829,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
       if e.output is not None:
         logging.info(title % "Stdout" + "\n%s", e.output)
       logging.warning(">>> Test timed out after %ss.", runnable.timeout)
+      runnable.has_timeouts = True
       raise TestFailedError()
     if runnable.process_size:
       return stdout + "MaxMemory: Unsupported"
@@ -1096,6 +1121,10 @@ def Main(args):
           Runner, trybot=options.shell_dir_secondary)
         results += result
         results_secondary += result_secondary
+        if runnable.has_timeouts:
+          results.timeouts.append(runnable_name)
+        if runnable.has_near_timeouts:
+          results.near_timeouts.append(runnable_name)
       platform.PostExecution()
 
     if options.json_test_results:
