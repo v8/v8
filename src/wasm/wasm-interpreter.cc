@@ -3517,6 +3517,12 @@ class ThreadImpl {
         case kWasmF64:
           WriteUnalignedValue(address, arg.to<double>());
           break;
+        case kWasmAnyRef:
+        case kWasmAnyFunc:
+        case kWasmExceptRef:
+          DCHECK_EQ(kSystemPointerSize, param_size);
+          WriteUnalignedValue<Object>(address, *arg.to_anyref());
+          break;
         default:
           UNIMPLEMENTED();
       }
@@ -3588,6 +3594,13 @@ class ThreadImpl {
         case kWasmF64:
           Push(WasmValue(ReadUnalignedValue<double>(address)));
           break;
+        case kWasmAnyRef:
+        case kWasmAnyFunc:
+        case kWasmExceptRef: {
+          Handle<Object> ref(ReadUnalignedValue<Object>(address), isolate);
+          Push(WasmValue(ref));
+          break;
+        }
         default:
           UNIMPLEMENTED();
       }
