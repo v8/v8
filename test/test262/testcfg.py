@@ -51,6 +51,7 @@ FEATURE_FLAGS = {
   'String.prototype.matchAll': '--harmony-string-matchall',
   'Symbol.matchAll': '--harmony-string-matchall',
   'numeric-separator-literal': '--harmony-numeric-separator',
+  'Intl.DateTimeFormat-datetimestyle': '--harmony-intl-datetime-style',
   'Intl.Locale': '--harmony-locale',
   'Intl.Segmenter': '--harmony-intl-segmenter',
   'Symbol.prototype.description': '--harmony-symbol-description',

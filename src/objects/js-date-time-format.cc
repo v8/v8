@@ -495,16 +495,22 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
     }
   }
 
-  for (const auto& item : GetPatternItems()) {
-    for (const auto& pair : item.pairs) {
-      if (pattern.find(pair.pattern) != std::string::npos) {
-        CHECK(JSReceiver::CreateDataProperty(
-                  isolate, options,
-                  factory->NewStringFromAsciiChecked(item.property.c_str()),
-                  factory->NewStringFromAsciiChecked(pair.value.c_str()),
-                  Just(kDontThrow))
-                  .FromJust());
-        break;
+  // If dateStyle and timeStyle are undefined, then internal slots
+  // listed in "Table 1: Components of date and time formats" will be set
+  // in Step 33.f.iii.1 of InitializeDateTimeFormat
+  if (date_time_format->date_style() == DateTimeStyle::kUndefined &&
+      date_time_format->time_style() == DateTimeStyle::kUndefined) {
+    for (const auto& item : GetPatternItems()) {
+      for (const auto& pair : item.pairs) {
+        if (pattern.find(pair.pattern) != std::string::npos) {
+          CHECK(JSReceiver::CreateDataProperty(
+                    isolate, options,
+                    factory->NewStringFromAsciiChecked(item.property.c_str()),
+                    factory->NewStringFromAsciiChecked(pair.value.c_str()),
+                    Just(kDontThrow))
+                    .FromJust());
+          break;
+        }
       }
     }
   }
