@@ -552,11 +552,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   size_t committed_code_space() const {
     return total_committed_code_space_.load();
   }
-  size_t remaining_uncommitted_code_space() const {
-    size_t committed = committed_code_space();
-    DCHECK_GE(max_committed_code_space_, committed);
-    return max_committed_code_space_ - committed;
-  }
 
   void SetMaxCommittedMemoryForTesting(size_t limit);
 
