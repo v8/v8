@@ -60,6 +60,7 @@ FEATURE_FLAGS = {
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
   'Object.fromEntries': '--harmony-object-from-entries',
   'hashbang': '--harmony-hashbang',
+  'BigInt': '--harmony-intl-bigint',
 }
 
 SKIPPED_FEATURES = set(['class-methods-private',
