@@ -2980,8 +2980,7 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
 
   CSA_ASSERT(this, IsFastRegExp(context, regexp));
 
-  Label checkreplacestring(this), if_iscallable(this),
-      runtime(this, Label::kDeferred);
+  Label checkreplacestring(this), if_iscallable(this);
 
   // 2. Is {replace_value} callable?
   GotoIf(TaggedIsSmi(replace_value), &checkreplacestring);
@@ -2991,8 +2990,9 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
   // 3. Does ToString({replace_value}) contain '$'?
   BIND(&checkreplacestring);
   {
-    TNode<String> const replace_string =
-        ToString_Inline(context, replace_value);
+    Label runtime(this, Label::kDeferred);
+
+    TNode<String> replace_string = ToString_Inline(context, replace_value);
 
     // ToString(replaceValue) could potentially change the shape of the RegExp
     // object. Recheck that we are still on the fast path and bail to runtime
@@ -3003,15 +3003,23 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
       BIND(&next);
     }
 
-    TNode<String> const dollar_string = HeapConstant(
+    TNode<String> dollar_string = HeapConstant(
         isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
-    TNode<Smi> const dollar_ix =
+    TNode<Smi> dollar_ix =
         CAST(CallBuiltin(Builtins::kStringIndexOf, context, replace_string,
                          dollar_string, SmiZero()));
     GotoIfNot(SmiEqual(dollar_ix, SmiConstant(-1)), &runtime);
 
     Return(
         ReplaceSimpleStringFastPath(context, regexp, string, replace_string));
+
+    BIND(&runtime);
+    {
+      // Pass in replace_string (instead of replace_value) to avoid calling
+      // ToString(replace_value) twice.
+      Return(CallRuntime(Runtime::kRegExpReplaceRT, context, regexp, string,
+                         replace_string));
+    }
   }
 
   // {regexp} is unmodified and {replace_value} is callable.
@@ -3032,10 +3040,6 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
     Return(CallRuntime(Runtime::kStringReplaceNonGlobalRegExpWithFunction,
                        context, string, regexp, replace_fn));
   }
-
-  BIND(&runtime);
-  Return(CallRuntime(Runtime::kRegExpReplaceRT, context, regexp, string,
-                     replace_value));
 }
 
 class RegExpStringIteratorAssembler : public RegExpBuiltinsAssembler {
