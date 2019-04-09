@@ -1149,7 +1149,7 @@ template("run_mksnapshot") {
       # target toolchains.  The same host binary is used to generate both, so
       # mksnapshot needs to know which target OS to use at runtime.  It's weird,
       # but the target OS is really |current_os|.
-      "--ebt_os=$current_os",
+      "--target_os=$current_os",
     ]
 
     args += invoker.args

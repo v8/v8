@@ -692,7 +692,7 @@ void PlatformDependentEmbeddedFileWriter::SectionData() {
 }
 
 void PlatformDependentEmbeddedFileWriter::SectionRoData() {
-  if (i::FLAG_ebt_os == std::string("win"))
+  if (i::FLAG_target_os == std::string("win"))
     fprintf(fp_, ".section .rdata\n");
   else
     fprintf(fp_, ".section .rodata\n");
@@ -778,7 +778,7 @@ void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
     const char* name) {
   DeclareLabel(name);
 
-  if (i::FLAG_ebt_os == std::string("win")) {
+  if (i::FLAG_target_os == std::string("win")) {
 #if defined(V8_TARGET_ARCH_ARM64)
     // Windows ARM64 assembly is in GAS syntax, but ".type" is invalid directive
     // in PE/COFF for Windows.
