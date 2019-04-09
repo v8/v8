@@ -1021,6 +1021,7 @@ action("run_torque") {
   outputs = [
     "$target_gen_dir/torque-generated/builtin-definitions-from-dsl.h",
     "$target_gen_dir/torque-generated/class-definitions-from-dsl.h",
+    "$target_gen_dir/torque-generated/objects-printer-from-dsl.cc",
   ]
   foreach(namespace, torque_namespaces) {
     outputs += [
@@ -1063,6 +1064,26 @@ v8_source_set("torque_generated_initializers") {
       "$target_gen_dir/torque-generated/builtins-$namespace-from-dsl-gen.h",
     ]
   }
+
+  configs = [ ":internal_config" ]
+}
+
+v8_source_set("torque_generated_definitions") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  deps = [
+    ":run_torque",
+  ]
+
+  if (v8_enable_i18n_support) {
+    public_deps = [
+      "//third_party/icu",
+    ]
+  }
+
+  sources = [
+    "$target_gen_dir/torque-generated/objects-printer-from-dsl.cc",
+  ]
 
   configs = [ ":internal_config" ]
 }
@@ -3096,6 +3117,7 @@ v8_source_set("v8_base") {
 
   defines = []
   deps = [
+    ":torque_generated_definitions",
     ":v8_headers",
     ":v8_libbase",
     ":v8_libsampler",

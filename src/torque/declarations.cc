@@ -195,10 +195,10 @@ StructType* Declarations::DeclareStruct(const Identifier* name) {
 
 ClassType* Declarations::DeclareClass(const Type* super_type,
                                       const Identifier* name, bool is_extern,
-                                      bool transient,
+                                      bool generate_print, bool transient,
                                       const std::string& generates) {
   ClassType* new_type = TypeOracle::GetClassType(
-      super_type, name->value, is_extern, transient, generates);
+      super_type, name->value, is_extern, generate_print, transient, generates);
   DeclareType(name, new_type, false);
   return new_type;
 }

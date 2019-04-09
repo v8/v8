@@ -257,6 +257,7 @@ class ImplementationVisitor : public FileVisitor {
  public:
   void GenerateBuiltinDefinitions(std::string& file_name);
   void GenerateClassDefinitions(std::string& file_name);
+  void GeneratePrintDefinitions(std::string& file_name);
 
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);

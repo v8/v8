@@ -85,8 +85,8 @@ class Declarations {
   static StructType* DeclareStruct(const Identifier* name);
 
   static ClassType* DeclareClass(const Type* super, const Identifier* name,
-                                 bool is_extern, bool transient,
-                                 const std::string& generates);
+                                 bool is_extern, bool generate_print,
+                                 bool transient, const std::string& generates);
 
   static Macro* CreateMacro(std::string external_name,
                             std::string readable_name,

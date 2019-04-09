@@ -1766,21 +1766,6 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void Tuple2::Tuple2Print(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "Tuple2");
-  os << "\n - value1: " << Brief(value1());
-  os << "\n - value2: " << Brief(value2());
-  os << "\n";
-}
-
-void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "Tuple3");
-  os << "\n - value1: " << Brief(value1());
-  os << "\n - value2: " << Brief(value2());
-  os << "\n - value3: " << Brief(value3());
-  os << "\n";
-}
-
 void ClassPositions::ClassPositionsPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "ClassPositions");
   os << "\n - start position: " << start();

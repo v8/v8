@@ -471,6 +471,7 @@ class ClassType final : public AggregateType {
   std::string GetGeneratedTypeNameImpl() const override;
   std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsExtern() const { return is_extern_; }
+  bool ShouldGeneratePrint() const { return generate_print_; }
   bool IsTransient() const override { return transient_; }
   bool HasIndexedField() const override;
   size_t size() const { return size_; }
@@ -490,9 +491,11 @@ class ClassType final : public AggregateType {
  private:
   friend class TypeOracle;
   ClassType(const Type* parent, Namespace* nspace, const std::string& name,
-            bool is_extern, bool transient, const std::string& generates);
+            bool is_extern, bool generate_print, bool transient,
+            const std::string& generates);
 
   bool is_extern_;
+  bool generate_print_;
   bool transient_;
   size_t size_;
   bool has_indexed_field_;

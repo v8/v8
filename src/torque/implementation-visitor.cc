@@ -2871,6 +2871,48 @@ void ImplementationVisitor::GenerateClassDefinitions(std::string& file_name) {
   ReplaceFileContentsIfDifferent(file_name, new_contents);
 }
 
+void ImplementationVisitor::GeneratePrintDefinitions(std::string& file_name) {
+  std::stringstream new_contents_stream;
+
+  new_contents_stream << "#ifdef OBJECT_PRINT\n\n";
+
+  new_contents_stream << "#include \"src/objects.h\"\n\n";
+  new_contents_stream << "#include <iosfwd>\n\n";
+  new_contents_stream << "#include \"src/objects/struct-inl.h\"\n\n";
+
+  new_contents_stream << "namespace v8 {\n";
+  new_contents_stream << "namespace internal {\n\n";
+
+  for (auto i : GlobalContext::GetClasses()) {
+    ClassType* type = i.second;
+    if (!type->ShouldGeneratePrint()) continue;
+
+    new_contents_stream << "void " << type->name() << "::" << type->name()
+                        << "Print(std::ostream& os) {\n";
+    new_contents_stream << "  PrintHeader(os, \"" << type->name() << "\");\n";
+    auto hierarchy = type->GetHierarchy();
+    std::map<std::string, const AggregateType*> field_names;
+    for (const AggregateType* aggregate_type : hierarchy) {
+      for (const Field& f : aggregate_type->fields()) {
+        if (f.name_and_type.name == "map") continue;
+        new_contents_stream << "  os << \"\\n - " << f.name_and_type.name
+                            << ": \" << "
+                            << "Brief(" << f.name_and_type.name << "());\n";
+      }
+    }
+    new_contents_stream << "  os << \"\\n\";\n";
+    new_contents_stream << "}\n\n";
+  }
+
+  new_contents_stream << "}  // namespace internal\"\n";
+  new_contents_stream << "}  // namespace v8\"\n";
+
+  new_contents_stream << "\n#endif  // OBJECT_PRINT\n\n";
+
+  std::string new_contents(new_contents_stream.str());
+  ReplaceFileContentsIfDifferent(file_name, new_contents);
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

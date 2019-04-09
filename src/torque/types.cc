@@ -288,10 +288,12 @@ std::string StructType::ToExplicitString() const {
 }
 
 ClassType::ClassType(const Type* parent, Namespace* nspace,
-                     const std::string& name, bool is_extern, bool transient,
+                     const std::string& name, bool is_extern,
+                     bool generate_print, bool transient,
                      const std::string& generates)
     : AggregateType(Kind::kClassType, parent, nspace, name),
       is_extern_(is_extern),
+      generate_print_(generate_print),
       transient_(transient),
       size_(0),
       has_indexed_field_(false),

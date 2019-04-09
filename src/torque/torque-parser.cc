@@ -572,6 +572,7 @@ base::Optional<ParseResult> MakeMethodDeclaration(
 
 base::Optional<ParseResult> MakeClassDeclaration(
     ParseResultIterator* child_results) {
+  auto generate_print = child_results->NextAs<bool>();
   auto is_extern = child_results->NextAs<bool>();
   auto transient = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
@@ -583,8 +584,8 @@ base::Optional<ParseResult> MakeClassDeclaration(
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<ClassFieldExpression>>();
   Declaration* result = MakeNode<ClassDeclaration>(
-      name, is_extern, transient, std::move(extends), std::move(generates),
-      std::move(methods), fields);
+      name, is_extern, generate_print, transient, std::move(extends),
+      std::move(generates), std::move(methods), fields);
   return ParseResult{result};
 }
 
@@ -1636,8 +1637,8 @@ struct TorqueGrammar : Grammar {
       Rule({Token("const"), &name, Token(":"), &type, Token("generates"),
             &externalString, Token(";")},
            MakeExternConstDeclaration),
-      Rule({CheckIf(Token("extern")), CheckIf(Token("transient")),
-            Token("class"), &name,
+      Rule({CheckIf(Token("@generatePrint")), CheckIf(Token("extern")),
+            CheckIf(Token("transient")), Token("class"), &name,
             Optional<std::string>(Sequence({Token("extends"), &identifier})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),

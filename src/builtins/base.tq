@@ -114,12 +114,16 @@ type NaN extends HeapNumber;
 
 extern class Struct extends HeapObject {}
 
+@generatePrint
 extern class Tuple2 extends Struct {
-  value_1: Object;
-  value_2: Object;
+  value1: Object;
+  value2: Object;
 }
 
-extern class Tuple3 extends Tuple2 { value_3: Object; }
+@generatePrint
+extern class Tuple3 extends Tuple2 {
+  value3: Object;
+}
 
 // A direct string can be accessed directly through CSA without going into the
 // C++ runtime. See also: ToDirectStringAssembler.

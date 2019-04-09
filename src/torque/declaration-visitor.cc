@@ -303,7 +303,8 @@ void DeclarationVisitor::Visit(ClassDeclaration* decl) {
     }
 
     new_class = Declarations::DeclareClass(
-        super_type, decl->name, decl->is_extern, decl->transient, generates);
+        super_type, decl->name, decl->is_extern, decl->generate_print,
+        decl->transient, generates);
   } else {
     if (decl->super) {
       ReportError("Only extern classes can inherit.");
@@ -311,9 +312,9 @@ void DeclarationVisitor::Visit(ClassDeclaration* decl) {
     if (decl->generates) {
       ReportError("Only extern classes can specify a generated type.");
     }
-    new_class = Declarations::DeclareClass(TypeOracle::GetTaggedType(),
-                                           decl->name, decl->is_extern,
-                                           decl->transient, "FixedArray");
+    new_class = Declarations::DeclareClass(
+        TypeOracle::GetTaggedType(), decl->name, decl->is_extern,
+        decl->generate_print, decl->transient, "FixedArray");
   }
   GlobalContext::RegisterClass(decl->name->value, new_class);
   class_declarations_.push_back(

@@ -74,6 +74,10 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
     output_header_path = output_directory + "/class-definitions-from-dsl.h";
     implementation_visitor.GenerateClassDefinitions(output_header_path);
 
+    std::string output_source_path =
+        output_directory + "/objects-printer-from-dsl.cc";
+    implementation_visitor.GeneratePrintDefinitions(output_source_path);
+
     for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
       implementation_visitor.EndNamespaceFile(n);
       implementation_visitor.GenerateImplementation(output_directory, n);
