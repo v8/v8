@@ -1144,10 +1144,12 @@ class WasmModuleBuilder {
         for (let init of inits) {
           if (init.is_active) {
             // Active segment.
-            // TODO(ahaas): Adjust the encoding of != 0 table indices once
-            // the anyref proposal and the bulk-memory-operations proposal
-            // agree on it.
-            section.emit_u32v(init.table);  // table index / flags
+            if (init.table == 0) {
+              section.emit_u32v(kActiveNoIndex);
+            } else {
+              section.emit_u32v(kActiveWithIndex);
+              section.emit_u32v(init.table);
+            }
             if (init.is_global) {
               section.emit_u8(kExprGetGlobal);
             } else {

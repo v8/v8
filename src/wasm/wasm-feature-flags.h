@@ -23,7 +23,7 @@
   SEPARATOR                                                           \
   V(bigint, "JS BigInt support", false)                               \
   SEPARATOR                                                           \
-  V(bulk_memory, "bulk memory opcodes", false)                        \
+  V(bulk_memory, "bulk memory opcodes", true)                         \
   SEPARATOR                                                           \
   V(return_call, "return call opcodes", false)                        \
   SEPARATOR                                                           \
