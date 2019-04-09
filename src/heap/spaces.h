@@ -1577,10 +1577,6 @@ extern template EXPORT_TEMPLATE_DECLARE(
 // -----------------------------------------------------------------------------
 // Interface for heap object iterator to be implemented by all object space
 // object iterators.
-//
-// NOTE: The space specific object iterators also implements the own next()
-//       method which is used to avoid using virtual functions
-//       iterating a specific space.
 
 class V8_EXPORT_PRIVATE ObjectIterator : public Malloced {
  public:
