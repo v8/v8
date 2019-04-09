@@ -2553,6 +2553,7 @@ bool JSObject::IsUnmodifiedApiObject(FullObjectSlot o) {
   if (!maybe_constructor->IsJSFunction()) return false;
   JSFunction constructor = JSFunction::cast(maybe_constructor);
   if (js_object->elements()->length() != 0) return false;
+  // Check that the object is not a key in a WeakMap (over-approximation).
   if (!js_object->GetIdentityHash()->IsUndefined()) return false;
 
   return constructor->initial_map() == heap_object->map();
