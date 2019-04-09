@@ -143,8 +143,12 @@ class V8_EXPORT_PRIVATE ObjectRef {
   friend class JSObjectData;
   friend class StringData;
 
+  friend std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
+
   JSHeapBroker* broker_;
 };
+
+std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
 
 // Temporary class that carries information from a Map. We'd like to remove
 // this class and use MapRef instead, but we can't as long as we support the
@@ -836,9 +840,15 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
 // compilation is finished.
 bool CanInlineElementAccess(MapRef const& map);
 
-#define TRACE_BROKER(broker, x)                               \
-  do {                                                        \
-    if (FLAG_trace_heap_broker) broker->Trace() << x << '\n'; \
+#define TRACE_BROKER(broker, x)                                       \
+  do {                                                                \
+    if (FLAG_trace_heap_broker_verbose) broker->Trace() << x << '\n'; \
+  } while (false)
+
+#define TRACE_BROKER_MISSING(broker, x)                             \
+  do {                                                              \
+    if (FLAG_trace_heap_broker)                                     \
+      broker->Trace() << __FUNCTION__ << ": missing " << x << '\n'; \
   } while (false)
 
 }  // namespace compiler

@@ -260,18 +260,10 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
 bool AccessInfoFactory::ComputeElementAccessInfos(
     FeedbackNexus nexus, MapHandles const& maps, AccessMode access_mode,
     ZoneVector<ElementAccessInfo>* access_infos) const {
-  ElementAccessFeedback const* processed;
-  if (FLAG_concurrent_inlining) {
-    TRACE_BROKER(broker(),
-                 "ComputeElementAccessInfos: using preprocessed feedback "
-                     << "(slot " << nexus.slot() << " of "
-                     << "feedback vector handle "
-                     << nexus.vector_handle().address() << ").\n");
-    processed = broker()->GetElementAccessFeedback(FeedbackSource(nexus));
-  } else {
-    processed = broker()->ProcessFeedbackMapsForElementAccess(maps);
-  }
-
+  ElementAccessFeedback const* processed =
+      FLAG_concurrent_inlining
+          ? broker()->GetElementAccessFeedback(FeedbackSource(nexus))
+          : broker()->ProcessFeedbackMapsForElementAccess(maps);
   if (processed == nullptr) return false;
 
   if (access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) {

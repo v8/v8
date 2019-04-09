@@ -429,7 +429,11 @@ DEFINE_BOOL(block_concurrent_recompilation, false,
 DEFINE_BOOL(concurrent_inlining, false,
             "run optimizing compiler's inlining phase on a separate thread")
 DEFINE_IMPLICATION(future, concurrent_inlining)
-DEFINE_BOOL(trace_heap_broker, false, "trace the heap broker")
+DEFINE_BOOL(trace_heap_broker_verbose, false,
+            "trace the heap broker verbosely (all reports)")
+DEFINE_BOOL(trace_heap_broker, false,
+            "trace the heap broker (reports on missing data only)")
+DEFINE_IMPLICATION(trace_heap_broker_verbose, trace_heap_broker)
 
 // Flags for stress-testing the compiler.
 DEFINE_INT(stress_runs, 0, "number of stress runs")

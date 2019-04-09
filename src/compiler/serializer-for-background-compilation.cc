@@ -561,12 +561,8 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
     return RunChildSerializer(function, new_target, padded, false);
   }
 
-  if (FLAG_trace_heap_broker) {
-    std::ostream& out = broker()->Trace();
-    out << "\nWill run child serializer with environment:\n"
-        << "===========================================\n"
-        << *environment();
-  }
+  TRACE_BROKER(broker(), "Will run child serializer with environment:\n"
+                             << *environment());
 
   SerializerForBackgroundCompilation child_serializer(
       broker(), zone(), function, new_target, arguments);

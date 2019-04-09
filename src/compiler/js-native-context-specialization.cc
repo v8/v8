@@ -356,8 +356,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   if (!FLAG_concurrent_inlining) {
     function_map.SerializePrototype();
   } else if (!function_map.serialized_prototype()) {
-    TRACE_BROKER(broker(), "ReduceJSGetSuperConstructor: missing data for map "
-                               << function_map.object().address() << "\n");
+    TRACE_BROKER_MISSING(broker(), "data for map " << function_map);
     return NoChange();
   }
   ObjectRef function_prototype = function_map.prototype();
@@ -1007,17 +1006,10 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   if (!p.feedback().IsValid()) return NoChange();
   FeedbackSource source(p.feedback());
 
-  GlobalAccessFeedback const* processed;
-  if (FLAG_concurrent_inlining) {
-    processed = broker()->GetGlobalAccessFeedback(source);
-    TRACE_BROKER(broker(), "ReduceJSLoadGlobal: using preprocessed feedback "
-                               << "(slot " << p.feedback().slot()
-                               << " of feedback vector handle "
-                               << p.feedback().vector().address() << ").\n");
-  } else {
-    processed = broker()->ProcessFeedbackForGlobalAccess(source);
-  }
-
+  GlobalAccessFeedback const* processed =
+      FLAG_concurrent_inlining
+          ? broker()->GetGlobalAccessFeedback(source)
+          : broker()->ProcessFeedbackForGlobalAccess(source);
   if (processed == nullptr) return NoChange();
 
   if (processed->IsScriptContextSlot()) {
@@ -1046,17 +1038,10 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   if (!p.feedback().IsValid()) return NoChange();
   FeedbackSource source(p.feedback());
 
-  GlobalAccessFeedback const* processed;
-  if (FLAG_concurrent_inlining) {
-    processed = broker()->GetGlobalAccessFeedback(source);
-    TRACE_BROKER(broker(), "ReduceJSStoreGlobal: using preprocessed feedback "
-                               << "(slot " << p.feedback().slot()
-                               << " of feedback vector handle "
-                               << p.feedback().vector().address() << ").\n");
-  } else {
-    processed = broker()->ProcessFeedbackForGlobalAccess(source);
-  }
-
+  GlobalAccessFeedback const* processed =
+      FLAG_concurrent_inlining
+          ? broker()->GetGlobalAccessFeedback(source)
+          : broker()->ProcessFeedbackForGlobalAccess(source);
   if (processed == nullptr) return NoChange();
 
   if (processed->IsScriptContextSlot()) {
@@ -1392,8 +1377,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
       if (!FLAG_concurrent_inlining) {
         function.Serialize();
       } else if (!function.serialized()) {
-        TRACE_BROKER(broker(), "ReduceJSLoadNamed: missing data for function "
-                                   << function.object().address() << "\n");
+        TRACE_BROKER_MISSING(broker(), "data for function " << function);
         return NoChange();
       }
       // TODO(neis): Remove the has_prototype_slot condition once the broker is
@@ -1581,9 +1565,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       if (!FLAG_concurrent_inlining) {
         typed_array->Serialize();
       } else if (!typed_array->serialized()) {
-        TRACE_BROKER(broker(),
-                     "ReduceElementAccess: missing data for typed array "
-                         << typed_array->object().address() << "\n");
+        TRACE_BROKER_MISSING(broker(), "data for typed array " << *typed_array);
         return NoChange();
       }
     }
