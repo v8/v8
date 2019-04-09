@@ -553,13 +553,13 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject object) {
   // Properties.
   if (object->HasFastProperties()) {
     PropertyArray properties = object->property_array();
-    size_t over_allocated = ObjectStats::kNoOverAllocation;
     if (properties != ReadOnlyRoots(heap_).empty_property_array()) {
-      over_allocated += object->map()->UnusedPropertyFields() * kTaggedSize;
+      size_t over_allocated =
+          object->map()->UnusedPropertyFields() * kTaggedSize;
+      RecordVirtualObjectStats(object, properties,
+                               ObjectStats::OBJECT_PROPERTY_ARRAY_TYPE,
+                               properties->Size(), over_allocated);
     }
-    RecordVirtualObjectStats(object, properties,
-                             ObjectStats::OBJECT_PROPERTY_ARRAY_TYPE,
-                             properties->Size(), over_allocated);
   } else {
     NameDictionary properties = object->property_dictionary();
     RecordHashTableVirtualObjectStats(
@@ -574,12 +574,15 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject object) {
         object->IsJSArray() ? ObjectStats::ARRAY_DICTIONARY_ELEMENTS_TYPE
                             : ObjectStats::OBJECT_DICTIONARY_ELEMENTS_TYPE);
   } else if (object->IsJSArray()) {
-    size_t element_size =
-        (elements->Size() - FixedArrayBase::kHeaderSize) / elements->length();
-    uint32_t length = JSArray::cast(object)->length()->Number();
-    size_t over_allocated = (elements->length() - length) * element_size;
-    RecordVirtualObjectStats(object, elements, ObjectStats::ARRAY_ELEMENTS_TYPE,
-                             elements->Size(), over_allocated);
+    if (elements != ReadOnlyRoots(heap_).empty_fixed_array()) {
+      size_t element_size =
+          (elements->Size() - FixedArrayBase::kHeaderSize) / elements->length();
+      uint32_t length = JSArray::cast(object)->length()->Number();
+      size_t over_allocated = (elements->length() - length) * element_size;
+      RecordVirtualObjectStats(object, elements,
+                               ObjectStats::ARRAY_ELEMENTS_TYPE,
+                               elements->Size(), over_allocated);
+    }
   } else {
     RecordSimpleVirtualObjectStats(object, elements,
                                    ObjectStats::OBJECT_ELEMENTS_TYPE);
