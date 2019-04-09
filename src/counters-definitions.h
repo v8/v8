@@ -253,8 +253,6 @@ namespace internal {
   SC(total_preparse_skipped, V8.TotalPreparseSkipped)               \
   /* Amount of compiled source code. */                             \
   SC(total_compile_size, V8.TotalCompileSize)                       \
-  /* Amount of source code compiled with the full codegen. */       \
-  SC(total_full_codegen_source_size, V8.TotalFullCodegenSourceSize) \
   /* Number of contexts created from scratch. */                    \
   SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)  \
   /* Number of contexts created by partial snapshot. */             \
@@ -274,15 +272,6 @@ namespace internal {
      V8.GCCompactorCausedByOldspaceExhaustion)                                 \
   SC(gc_last_resort_from_js, V8.GCLastResortFromJS)                            \
   SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)                  \
-  SC(ic_named_load_global_stub, V8.ICNamedLoadGlobalStub)                      \
-  SC(ic_store_normal_miss, V8.ICStoreNormalMiss)                               \
-  SC(ic_store_normal_hit, V8.ICStoreNormalHit)                                 \
-  SC(ic_binary_op_miss, V8.ICBinaryOpMiss)                                     \
-  SC(ic_compare_miss, V8.ICCompareMiss)                                        \
-  SC(ic_call_miss, V8.ICCallMiss)                                              \
-  SC(ic_keyed_call_miss, V8.ICKeyedCallMiss)                                   \
-  SC(ic_store_miss, V8.ICStoreMiss)                                            \
-  SC(ic_keyed_store_miss, V8.ICKeyedStoreMiss)                                 \
   SC(cow_arrays_converted, V8.COWArraysConverted)                              \
   SC(constructed_objects_runtime, V8.ConstructedObjectsRuntime)                \
   SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)           \
@@ -291,16 +280,8 @@ namespace internal {
   SC(string_add_runtime, V8.StringAddRuntime)                                  \
   SC(sub_string_runtime, V8.SubStringRuntime)                                  \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                              \
-  SC(math_exp_runtime, V8.MathExpRuntime)                                      \
-  SC(math_log_runtime, V8.MathLogRuntime)                                      \
-  SC(math_pow_runtime, V8.MathPowRuntime)                                      \
   SC(stack_interrupts, V8.StackInterrupts)                                     \
   SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                          \
-  SC(runtime_calls, V8.RuntimeCalls)                                           \
-  SC(bounds_checks_eliminated, V8.BoundsChecksEliminated)                      \
-  SC(bounds_checks_hoisted, V8.BoundsChecksHoisted)                            \
-  SC(soft_deopts_requested, V8.SoftDeoptsRequested)                            \
-  SC(soft_deopts_inserted, V8.SoftDeoptsInserted)                              \
   SC(soft_deopts_executed, V8.SoftDeoptsExecuted)                              \
   SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)               \
   SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)               \
