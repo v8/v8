@@ -1055,8 +1055,9 @@ NativeModule::~NativeModule() {
 WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
                                  size_t max_committed)
     : memory_tracker_(memory_tracker),
-      remaining_uncommitted_code_space_(max_committed),
-      critical_uncommitted_code_space_(max_committed / 2) {
+      max_committed_code_space_(max_committed),
+      total_committed_code_space_(0),
+      critical_committed_code_space_(max_committed / 2) {
   DCHECK_LE(max_committed, kMaxWasmCodeMemory);
 }
 
@@ -1065,14 +1066,14 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
   if (FLAG_perf_prof) return true;
   DCHECK(IsAligned(start, AllocatePageSize()));
   DCHECK(IsAligned(size, AllocatePageSize()));
-  // Reserve the size. Use CAS loop to avoid underflow on
-  // {remaining_uncommitted_}. Temporary underflow would allow concurrent
-  // threads to over-commit.
-  size_t old_value = remaining_uncommitted_code_space_.load();
+  // Reserve the size. Use CAS loop to avoid overflow on
+  // {total_committed_code_space_}.
+  size_t old_value = total_committed_code_space_.load();
   while (true) {
-    if (old_value < size) return false;
-    if (remaining_uncommitted_code_space_.compare_exchange_weak(
-            old_value, old_value - size)) {
+    DCHECK_GE(max_committed_code_space_, old_value);
+    if (size > max_committed_code_space_ - old_value) return false;
+    if (total_committed_code_space_.compare_exchange_weak(old_value,
+                                                          old_value + size)) {
       break;
     }
   }
@@ -1088,10 +1089,10 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
 
   if (!ret) {
     // Highly unlikely.
-    remaining_uncommitted_code_space_.fetch_add(size);
+    total_committed_code_space_.fetch_sub(size);
     return false;
   }
-  return ret;
+  return true;
 }
 
 void WasmCodeManager::AssignRanges(Address start, Address end,
@@ -1129,8 +1130,10 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
 }
 
 void WasmCodeManager::SetMaxCommittedMemoryForTesting(size_t limit) {
-  remaining_uncommitted_code_space_.store(limit);
-  critical_uncommitted_code_space_.store(limit / 2);
+  // This has to be set before committing any memory.
+  DCHECK_EQ(0, total_committed_code_space_.load());
+  max_committed_code_space_ = limit;
+  critical_committed_code_space_.store(limit / 2);
 }
 
 // static
@@ -1172,12 +1175,14 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     size_t code_size_estimate, bool can_request_more,
     std::shared_ptr<const WasmModule> module) {
   DCHECK_EQ(this, isolate->wasm_engine()->code_manager());
-  if (remaining_uncommitted_code_space_.load() <
-      critical_uncommitted_code_space_.load()) {
+  if (total_committed_code_space_.load() >
+      critical_committed_code_space_.load()) {
     (reinterpret_cast<v8::Isolate*>(isolate))
         ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
-    critical_uncommitted_code_space_.store(
-        remaining_uncommitted_code_space_.load() / 2);
+    size_t committed = total_committed_code_space_.load();
+    DCHECK_GE(max_committed_code_space_, committed);
+    critical_committed_code_space_.store(
+        committed + (max_committed_code_space_ - committed) / 2);
   }
 
   // If the code must be contiguous, reserve enough address space up front.
@@ -1367,9 +1372,9 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
 
   size_t code_size = native_module->committed_code_space_.load();
   DCHECK(IsAligned(code_size, AllocatePageSize()));
-  remaining_uncommitted_code_space_.fetch_add(code_size);
-  // Remaining code space cannot grow bigger than maximum code space size.
-  DCHECK_LE(remaining_uncommitted_code_space_.load(), kMaxWasmCodeMemory);
+  size_t old_committed = total_committed_code_space_.fetch_sub(code_size);
+  DCHECK_LE(code_size, old_committed);
+  USE(old_committed);
 }
 
 NativeModule* WasmCodeManager::LookupNativeModule(Address pc) const {
@@ -1390,10 +1395,6 @@ NativeModule* WasmCodeManager::LookupNativeModule(Address pc) const {
 WasmCode* WasmCodeManager::LookupCode(Address pc) const {
   NativeModule* candidate = LookupNativeModule(pc);
   return candidate ? candidate->Lookup(pc) : nullptr;
-}
-
-size_t WasmCodeManager::remaining_uncommitted_code_space() const {
-  return remaining_uncommitted_code_space_.load();
 }
 
 // TODO(v8:7424): Code protection scopes are not yet supported with shared code

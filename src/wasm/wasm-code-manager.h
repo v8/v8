@@ -540,9 +540,23 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   explicit WasmCodeManager(WasmMemoryTracker* memory_tracker,
                            size_t max_committed);
 
+#ifdef DEBUG
+  ~WasmCodeManager() {
+    // No more committed code space.
+    DCHECK_EQ(0, total_committed_code_space_.load());
+  }
+#endif
+
   NativeModule* LookupNativeModule(Address pc) const;
   WasmCode* LookupCode(Address pc) const;
-  size_t remaining_uncommitted_code_space() const;
+  size_t committed_code_space() const {
+    return total_committed_code_space_.load();
+  }
+  size_t remaining_uncommitted_code_space() const {
+    size_t committed = committed_code_space();
+    DCHECK_GE(max_committed_code_space_, committed);
+    return max_committed_code_space_ - committed;
+  }
 
   void SetMaxCommittedMemoryForTesting(size_t limit);
 
@@ -570,12 +584,16 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   void AssignRanges(Address start, Address end, NativeModule*);
 
   WasmMemoryTracker* const memory_tracker_;
-  std::atomic<size_t> remaining_uncommitted_code_space_;
-  // If the remaining uncommitted code space falls below
-  // {critical_uncommitted_code_space_}, then we trigger a GC before creating
-  // the next module. This value is initialized to 50% of the available code
-  // space on creation and after each GC.
-  std::atomic<size_t> critical_uncommitted_code_space_;
+
+  size_t max_committed_code_space_;
+
+  std::atomic<size_t> total_committed_code_space_;
+  // If the committed code space exceeds {critical_committed_code_space_}, then
+  // we trigger a GC before creating the next module. This value is set to the
+  // currently committed space plus 50% of the available code space on creation
+  // and updated after each GC.
+  std::atomic<size_t> critical_committed_code_space_;
+
   mutable base::Mutex native_modules_mutex_;
 
   //////////////////////////////////////////////////////////////////////////////
