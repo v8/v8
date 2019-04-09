@@ -246,7 +246,7 @@ void WriteEmbeddedFile(i::EmbeddedFileWriter* writer) {
   writer->WriteEmbedded(&embedded_blob);
 }
 
-typedef std::map<std::string, int> CounterMap;
+using CounterMap = std::map<std::string, int>;
 CounterMap* counter_map_ = nullptr;
 
 void MaybeSetCounterFunction(v8::Isolate* isolate) {
