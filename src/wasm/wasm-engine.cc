@@ -80,7 +80,38 @@ class LogCodesTask : public Task {
   Isolate* isolate_;
   std::vector<WasmCode*> code_to_log_;
 };
+
+class WasmGCForegroundTask : public Task {
+ public:
+  explicit WasmGCForegroundTask(Isolate* isolate) : isolate_(isolate) {
+    DCHECK_NOT_NULL(isolate);
+  }
+
+  void Run() final {
+    if (isolate_ == nullptr) return;  // cancelled.
+    WasmEngine* engine = isolate_->wasm_engine();
+    // If the foreground task is executing, there is no wasm code active. Just
+    // report an empty set of live wasm code.
+    engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
+  }
+
+  void Cancel() { isolate_ = nullptr; }
+
+ private:
+  Isolate* isolate_;
+};
+
 }  // namespace
+
+struct WasmEngine::CurrentGCInfo {
+  // Set of isolates that did not scan their stack yet for used WasmCode, and
+  // their scheduled foreground task.
+  std::unordered_map<Isolate*, WasmGCForegroundTask*> outstanding_isolates;
+
+  // Set of dead code. Filled with all potentially dead code on initialization.
+  // Code that is still in-use is removed by the individual isolates.
+  std::unordered_set<WasmCode*> dead_code;
+};
 
 struct WasmEngine::IsolateInfo {
   explicit IsolateInfo(Isolate* isolate)
@@ -473,6 +504,16 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
     DCHECK_EQ(1, native_modules_[native_module]->isolates.count(isolate));
     auto* info = native_modules_[native_module].get();
     info->isolates.erase(isolate);
+    if (current_gc_info_) {
+      auto it = current_gc_info_->outstanding_isolates.find(isolate);
+      if (it != current_gc_info_->outstanding_isolates.end()) {
+        if (it->second) it->second->Cancel();
+        current_gc_info_->outstanding_isolates.erase(it);
+      }
+      for (WasmCode* code : info->potentially_dead_code) {
+        current_gc_info_->dead_code.erase(code);
+      }
+    }
   }
   if (auto* task = it->second->log_codes_task) task->Cancel();
   isolates_.erase(it);
@@ -567,6 +608,32 @@ void WasmEngine::SampleTopTierCodeSizeInAllIsolates(
   }
 }
 
+void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
+                                     Vector<WasmCode*> live_code) {
+  base::MutexGuard guard(&mutex_);
+  DCHECK_NOT_NULL(current_gc_info_);
+  auto outstanding_isolate_it =
+      current_gc_info_->outstanding_isolates.find(isolate);
+  DCHECK_NE(current_gc_info_->outstanding_isolates.end(),
+            outstanding_isolate_it);
+  auto* fg_task = outstanding_isolate_it->second;
+  if (fg_task) fg_task->Cancel();
+  current_gc_info_->outstanding_isolates.erase(outstanding_isolate_it);
+  for (WasmCode* code : live_code) current_gc_info_->dead_code.erase(code);
+
+  if (current_gc_info_->outstanding_isolates.empty()) {
+    std::unordered_map<NativeModule*, std::vector<WasmCode*>>
+        dead_code_per_native_module;
+    for (WasmCode* code : current_gc_info_->dead_code) {
+      dead_code_per_native_module[code->native_module()].push_back(code);
+    }
+    for (auto& entry : dead_code_per_native_module) {
+      entry.first->FreeCode(VectorOf(entry.second));
+    }
+    current_gc_info_.reset();
+  }
+}
+
 bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
   base::MutexGuard guard(&mutex_);
   auto it = native_modules_.find(code->native_module());
@@ -574,8 +641,39 @@ bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
   auto added = it->second->potentially_dead_code.insert(code);
   if (!added.second) return false;  // An entry already existed.
   new_potentially_dead_code_size_ += code->instructions().size();
-  // TODO(clemensh): Trigger GC if the size exceeds a certain threshold.
+  // Trigger a GC if 1MiB plus 10% of committed code are potentially dead.
+  size_t dead_code_limit = 1 * MB + code_manager_.committed_code_space() / 10;
+  if (FLAG_wasm_code_gc && new_potentially_dead_code_size_ > dead_code_limit &&
+      !current_gc_info_) {
+    TriggerGC();
+  }
   return true;
+}
+
+void WasmEngine::TriggerGC() {
+  DCHECK_NULL(current_gc_info_);
+  DCHECK(FLAG_wasm_code_gc);
+  current_gc_info_.reset(new CurrentGCInfo());
+  // Add all potentially dead code to this GC, and trigger a GC task in each
+  // isolate.
+  // TODO(clemensh): Also trigger a stack check interrupt.
+  for (auto& entry : native_modules_) {
+    NativeModuleInfo* info = entry.second.get();
+    if (info->potentially_dead_code.empty()) continue;
+    for (auto* isolate : native_modules_[entry.first]->isolates) {
+      auto& gc_task = current_gc_info_->outstanding_isolates[isolate];
+      if (!gc_task) {
+        auto new_task = base::make_unique<WasmGCForegroundTask>(isolate);
+        gc_task = new_task.get();
+        DCHECK_EQ(1, isolates_.count(isolate));
+        isolates_[isolate]->foreground_task_runner->PostTask(
+            std::move(new_task));
+      }
+    }
+    for (WasmCode* code : info->potentially_dead_code) {
+      current_gc_info_->dead_code.insert(code);
+    }
+  }
 }
 
 namespace {

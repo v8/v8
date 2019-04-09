@@ -181,6 +181,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // This will spawn foreground tasks that do *not* keep the NativeModule alive.
   void SampleTopTierCodeSizeInAllIsolates(const std::shared_ptr<NativeModule>&);
 
+  // Called by each Isolate to report its live code for a GC cycle.
+  void ReportLiveCodeForGC(Isolate*, Vector<WasmCode*> live_code);
+
   // Add potentially dead code. The occurrence in the set of potentially dead
   // code counts as a reference, and is decremented on the next GC.
   // Returns {true} if the code was added to the set of potentially dead code,
@@ -197,6 +200,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   static std::shared_ptr<WasmEngine> GetWasmEngine();
 
  private:
+  struct CurrentGCInfo;
   struct IsolateInfo;
   struct NativeModuleInfo;
 
@@ -205,6 +209,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
       std::unique_ptr<byte[]> bytes_copy, size_t length,
       Handle<Context> context,
       std::shared_ptr<CompilationResultResolver> resolver);
+
+  void TriggerGC();
 
   WasmMemoryTracker memory_tracker_;
   WasmCodeManager code_manager_;
@@ -239,6 +245,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Size of code that became dead since the last GC. If this exceeds a certain
   // threshold, a new GC is triggered.
   size_t new_potentially_dead_code_size_ = 0;
+
+  // If an engine-wide GC is currently running, this pointer stores information
+  // about that.
+  std::unique_ptr<CurrentGCInfo> current_gc_info_;
 
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
