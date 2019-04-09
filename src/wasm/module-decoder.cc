@@ -458,6 +458,7 @@ class ModuleDecoderImpl : public Decoder {
         } else {
           // Ignore this section when feature was disabled. It is an optional
           // custom section anyways.
+          consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
         }
         break;
       case kDataCountSectionCode:
