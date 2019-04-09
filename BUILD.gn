@@ -1086,6 +1086,7 @@ v8_source_set("torque_generated_definitions") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
+    ":generate_bytecode_builtins_list",
     ":run_torque",
   ]
 
