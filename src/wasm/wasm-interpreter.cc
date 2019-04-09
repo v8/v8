@@ -2039,11 +2039,30 @@ class ThreadImpl {
   }
 
   byte* GetGlobalPtr(const WasmGlobal* global) {
+    DCHECK(!ValueTypes::IsReferenceType(global->type));
     if (global->mutability && global->imported) {
       return reinterpret_cast<byte*>(
           instance_object_->imported_mutable_globals()[global->index]);
     } else {
       return instance_object_->globals_start() + global->offset;
+    }
+  }
+
+  void GetGlobalBufferAndIndex(const WasmGlobal* global,
+                               Handle<FixedArray>* buffer, uint32_t* index) {
+    DCHECK(ValueTypes::IsReferenceType(global->type));
+    if (global->mutability && global->imported) {
+      *buffer =
+          handle(FixedArray::cast(
+                     instance_object_->imported_mutable_globals_buffers()->get(
+                         global->index)),
+                 isolate_);
+      Address idx = instance_object_->imported_mutable_globals()[global->index];
+      DCHECK_LE(idx, std::numeric_limits<uint32_t>::max());
+      *index = static_cast<uint32_t>(idx);
+    } else {
+      *buffer = handle(instance_object_->tagged_globals_buffer(), isolate_);
+      *index = global->offset;
     }
   }
 
@@ -3046,11 +3065,11 @@ class ThreadImpl {
             case kWasmAnyFunc:
             case kWasmExceptRef: {
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-              DCHECK(!global->mutability || !global->imported);
-              Push(WasmValue(
-                  handle(instance_object_->tagged_globals_buffer()->get(
-                             global->offset),
-                         isolate_)));
+              Handle<FixedArray> global_buffer;    // The buffer of the global.
+              uint32_t global_index = 0;           // The index into the buffer.
+              GetGlobalBufferAndIndex(global, &global_buffer, &global_index);
+              Handle<Object> value(global_buffer->get(global_index), isolate_);
+              Push(WasmValue(value));
               break;
             }
             default:
@@ -3077,9 +3096,10 @@ class ThreadImpl {
             case kWasmAnyFunc:
             case kWasmExceptRef: {
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-              DCHECK(!global->mutability || !global->imported);
-              instance_object_->tagged_globals_buffer()->set(
-                  global->offset, *Pop().to_anyref());
+              Handle<FixedArray> global_buffer;    // The buffer of the global.
+              uint32_t global_index = 0;           // The index into the buffer.
+              GetGlobalBufferAndIndex(global, &global_buffer, &global_index);
+              global_buffer->set(global_index, *Pop().to_anyref());
               break;
             }
             default:
