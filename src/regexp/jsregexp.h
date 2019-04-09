@@ -1513,7 +1513,8 @@ class RegExpEngine: public AllStatic {
 
   static bool TooMuchRegExpCode(Isolate* isolate, Handle<String> pattern);
 
-  static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
+  V8_EXPORT_PRIVATE static void DotPrint(const char* label, RegExpNode* node,
+                                         bool ignore_case);
 };
 
 

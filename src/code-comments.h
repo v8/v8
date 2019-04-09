@@ -35,7 +35,7 @@ struct CodeCommentEntry {
 
 class CodeCommentsWriter {
  public:
-  void Add(uint32_t pc_offset, std::string comment);
+  V8_EXPORT_PRIVATE void Add(uint32_t pc_offset, std::string comment);
   void Emit(Assembler* assm);
   size_t entry_count() const;
   uint32_t section_size() const;

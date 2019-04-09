@@ -120,7 +120,7 @@ struct WasmElemSegment {
 
   // Used in the {entries} vector to represent a `ref.null` entry in a passive
   // segment.
-  static const uint32_t kNullIndex = ~0u;
+  V8_EXPORT_PRIVATE static const uint32_t kNullIndex = ~0u;
 
   uint32_t table_index;
   WasmInitExpr offset;

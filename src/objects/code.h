@@ -650,9 +650,10 @@ class DependentCode : public WeakFixedArray {
   };
 
   // Register a code dependency of {cell} on {object}.
-  static void InstallDependency(Isolate* isolate, const MaybeObjectHandle& code,
-                                Handle<HeapObject> object,
-                                DependencyGroup group);
+  V8_EXPORT_PRIVATE static void InstallDependency(Isolate* isolate,
+                                                  const MaybeObjectHandle& code,
+                                                  Handle<HeapObject> object,
+                                                  DependencyGroup group);
 
   void DeoptimizeDependentCodeGroup(Isolate* isolate, DependencyGroup group);
 

@@ -2081,7 +2081,7 @@ class InstructionAccurateScope {
 // original state, even if the lists were modified by some other means. Note
 // that this scope can be nested but the destructors need to run in the opposite
 // order as the constructors. We do not have assertions for this.
-class UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(TurboAssembler* tasm)
       : available_(tasm->TmpList()),
@@ -2092,7 +2092,7 @@ class UseScratchRegisterScope {
     DCHECK_EQ(availablefp_->type(), CPURegister::kVRegister);
   }
 
-  ~UseScratchRegisterScope();
+  V8_EXPORT_PRIVATE ~UseScratchRegisterScope();
 
   // Take a register from the appropriate temps list. It will be returned
   // automatically when the scope ends.
@@ -2109,7 +2109,8 @@ class UseScratchRegisterScope {
   VRegister AcquireSameSizeAs(const VRegister& reg);
 
  private:
-  static CPURegister AcquireNextAvailable(CPURegList* available);
+  V8_EXPORT_PRIVATE static CPURegister AcquireNextAvailable(
+      CPURegList* available);
 
   // Available scratch registers.
   CPURegList* available_;     // kRegister

@@ -1232,7 +1232,7 @@ bool Object::ToInt32(int32_t* value) {
 // static constexpr object declarations need a definition to make the
 // compiler happy.
 constexpr Object Smi::kZero;
-constexpr Object SharedFunctionInfo::kNoSharedNameSentinel;
+V8_EXPORT_PRIVATE constexpr Object SharedFunctionInfo::kNoSharedNameSentinel;
 
 Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
     Isolate* isolate, Handle<FunctionTemplateInfo> info,

@@ -1514,5 +1514,8 @@ String ConsStringIterator::NextLeaf(bool* blew_stack) {
   UNREACHABLE();
 }
 
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::WriteToFlat(
+    String source, uint16_t* sink, int from, int to);
+
 }  // namespace internal
 }  // namespace v8

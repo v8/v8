@@ -6,6 +6,7 @@
 #define V8_OBJECTS_STRING_H_
 
 #include "src/base/bits.h"
+#include "src/base/export-template.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/name.h"
 #include "src/objects/smi.h"
@@ -362,8 +363,8 @@ class String : public Name {
 
   // Helper function for flattening strings.
   template <typename sinkchar>
-  V8_EXPORT_PRIVATE static void WriteToFlat(String source, sinkchar* sink,
-                                            int from, int to);
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  static void WriteToFlat(String source, sinkchar* sink, int from, int to);
 
   // The return value may point to the first aligned word containing the first
   // non-one-byte character, rather than directly to the non-one-byte character.
@@ -456,6 +457,11 @@ class String : public Name {
 
   OBJECT_CONSTRUCTORS(String, Name);
 };
+
+// clang-format off
+extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+void String::WriteToFlat(String source, uint16_t* sink, int from, int to);
+// clang-format on
 
 class SubStringRange {
  public:
