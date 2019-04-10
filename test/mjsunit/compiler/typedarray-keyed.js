@@ -25,8 +25,7 @@ assertEquals(0, get(0));
 assertEquals(0, get(1));
 
 function set(i) {
-  const x = 42 + i;
-  return a[i] = x;
+  return a[i] = 42 + i;
 }
 assertEquals(42, set(0)); assertEquals(42, a[0]);
 assertEquals(42, set(0)); assertEquals(42, a[0]);
