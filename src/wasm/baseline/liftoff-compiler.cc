@@ -2033,8 +2033,8 @@ class LiftoffCompiler {
 }  // namespace
 
 WasmCompilationResult LiftoffCompilationUnit::ExecuteCompilation(
-    CompilationEnv* env, const FunctionBody& func_body, Counters* counters,
-    WasmFeatures* detected) {
+    AccountingAllocator* allocator, CompilationEnv* env,
+    const FunctionBody& func_body, Counters* counters, WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteLiftoffCompilation");
   base::ElapsedTimer compile_timer;
@@ -2042,7 +2042,7 @@ WasmCompilationResult LiftoffCompilationUnit::ExecuteCompilation(
     compile_timer.Start();
   }
 
-  Zone zone(wasm_unit_->wasm_engine_->allocator(), "LiftoffCompilationZone");
+  Zone zone(allocator, "LiftoffCompilationZone");
   const WasmModule* module = env ? env->module : nullptr;
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(

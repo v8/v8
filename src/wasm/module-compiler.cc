@@ -553,10 +553,8 @@ ExecutionTierPair GetRequestedExecutionTiers(
 // {CompilationStateImpl} when {Commit} is called.
 class CompilationUnitBuilder {
  public:
-  explicit CompilationUnitBuilder(NativeModule* native_module,
-                                  WasmEngine* wasm_engine)
+  explicit CompilationUnitBuilder(NativeModule* native_module)
       : native_module_(native_module),
-        wasm_engine_(wasm_engine),
         default_tier_(WasmCompilationUnit::GetDefaultExecutionTier(
             native_module->module())) {}
 
@@ -586,8 +584,7 @@ class CompilationUnitBuilder {
  private:
   std::unique_ptr<WasmCompilationUnit> CreateUnit(uint32_t func_index,
                                                   ExecutionTier tier) {
-    return base::make_unique<WasmCompilationUnit>(wasm_engine_, func_index,
-                                                  tier);
+    return base::make_unique<WasmCompilationUnit>(func_index, tier);
   }
 
   CompilationStateImpl* compilation_state() const {
@@ -595,7 +592,6 @@ class CompilationUnitBuilder {
   }
 
   NativeModule* const native_module_;
-  WasmEngine* const wasm_engine_;
   const ExecutionTier default_tier_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_units_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_units_;
@@ -633,18 +629,17 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
       native_module->module(), compilation_state->compile_mode(),
       native_module->enabled_features(), func_index);
 
-  WasmCompilationUnit baseline_unit(isolate->wasm_engine(), func_index,
-                                    tiers.baseline_tier);
+  WasmCompilationUnit baseline_unit(func_index, tiers.baseline_tier);
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
-      &env, compilation_state->GetWireBytesStorage(), isolate->counters(),
-      compilation_state->detected_features());
+      isolate->wasm_engine(), &env, compilation_state->GetWireBytesStorage(),
+      isolate->counters(), compilation_state->detected_features());
   WasmCodeRefScope code_ref_scope;
   WasmCode* code = native_module->AddCompiledCode(std::move(result));
 
   if (tiers.baseline_tier < tiers.top_tier) {
-    auto tiering_unit = base::make_unique<WasmCompilationUnit>(
-        isolate->wasm_engine(), func_index, tiers.top_tier);
+    auto tiering_unit =
+        base::make_unique<WasmCompilationUnit>(func_index, tiers.top_tier);
     compilation_state->AddTopTierCompilationUnit(std::move(tiering_unit));
   }
 
@@ -678,7 +673,8 @@ void RecordStats(const Code code, Counters* counters) {
 
 // Run by the main thread to take part in compilation. Only used for synchronous
 // compilation.
-bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
+bool FetchAndExecuteCompilationUnit(WasmEngine* wasm_engine,
+                                    CompilationEnv* env,
                                     NativeModule* native_module,
                                     CompilationStateImpl* compilation_state,
                                     WasmFeatures* detected,
@@ -694,7 +690,8 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   if (unit == nullptr) return false;
 
   WasmCompilationResult result = unit->ExecuteCompilation(
-      env, compilation_state->GetWireBytesStorage(), counters, detected);
+      wasm_engine, env, compilation_state->GetWireBytesStorage(), counters,
+      detected);
 
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
@@ -758,8 +755,7 @@ void ValidateSequentially(Counters* counters, AccountingAllocator* allocator,
 
 // TODO(wasm): This function should not depend on an isolate. Internally, it is
 // used for the ErrorThrower only.
-bool InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module,
-                                WasmEngine* wasm_engine) {
+bool InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
   // Set number of functions that must be compiled to consider the module fully
   // compiled.
   auto wasm_module = native_module->module();
@@ -775,7 +771,7 @@ bool InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module,
   ErrorThrower thrower(isolate, "WebAssembly.compile()");
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const WasmModule* module = native_module->module();
-  CompilationUnitBuilder builder(native_module, wasm_engine);
+  CompilationUnitBuilder builder(native_module);
   uint32_t start = module->num_imported_functions;
   uint32_t end = start + module->num_declared_functions;
   for (uint32_t func_index = start; func_index < end; func_index++) {
@@ -834,8 +830,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
   DCHECK_GE(kMaxInt, native_module->module()->num_declared_functions);
 
   // Initialize the compilation units and kick off background compile tasks.
-  if (!InitializeCompilationUnits(isolate, native_module,
-                                  isolate->wasm_engine())) {
+  if (!InitializeCompilationUnits(isolate, native_module)) {
     // TODO(frgossen): Add test coverage for this path.
     DCHECK(native_module->enabled_features().compilation_hints);
     compilation_state->SetError();
@@ -854,8 +849,9 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     // deterministic compilation; in that case, the single background task will
     // execute all compilation.
     if (NeedsDeterministicCompile()) continue;
-    FetchAndExecuteCompilationUnit(&env, native_module, compilation_state,
-                                   &detected_features, isolate->counters());
+    FetchAndExecuteCompilationUnit(isolate->wasm_engine(), &env, native_module,
+                                   compilation_state, &detected_features,
+                                   isolate->counters());
   }
 
   // Publish features from the foreground and background tasks.
@@ -897,6 +893,7 @@ class BackgroundCompileTask : public CancelableTask {
     base::Optional<CompilationEnv> env;
     std::shared_ptr<WireBytesStorage> wire_bytes;
     std::shared_ptr<const WasmModule> module;
+    WasmEngine* wasm_engine = nullptr;
     std::unique_ptr<WasmCompilationUnit> unit;
     WasmFeatures detected_features = kNoWasmFeatures;
 
@@ -908,6 +905,7 @@ class BackgroundCompileTask : public CancelableTask {
       env.emplace(compile_scope.native_module()->CreateCompilationEnv());
       wire_bytes = compile_scope.compilation_state()->GetWireBytesStorage();
       module = compile_scope.native_module()->shared_module();
+      wasm_engine = compile_scope.native_module()->engine();
       unit =
           compile_scope.compilation_state()->GetNextCompilationUnit(task_id_);
       if (unit == nullptr) {
@@ -934,8 +932,9 @@ class BackgroundCompileTask : public CancelableTask {
     bool compilation_failed = false;
     while (true) {
       // (asynchronous): Execute the compilation.
-      WasmCompilationResult result = unit->ExecuteCompilation(
-          &env.value(), wire_bytes, async_counters_.get(), &detected_features);
+      WasmCompilationResult result =
+          unit->ExecuteCompilation(wasm_engine, &env.value(), wire_bytes,
+                                   async_counters_.get(), &detected_features);
       results_to_publish.emplace_back(std::move(result));
 
       // (synchronized): Publish the compilation result and get the next unit.
@@ -978,8 +977,8 @@ class BackgroundCompileTask : public CancelableTask {
   }
 
  private:
-  std::shared_ptr<BackgroundCompileToken> token_;
-  std::shared_ptr<Counters> async_counters_;
+  const std::shared_ptr<BackgroundCompileToken> token_;
+  const std::shared_ptr<Counters> async_counters_;
   const int task_id_;
 };
 
@@ -1488,8 +1487,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
       // Add compilation units and kick off compilation.
       auto isolate = job->isolate();
-      bool success = InitializeCompilationUnits(
-          isolate, job->native_module_.get(), isolate->wasm_engine());
+      bool success =
+          InitializeCompilationUnits(isolate, job->native_module_.get());
       if (!success) {
         // TODO(frgossen): Add test coverage for this path.
         DCHECK(job->native_module_->enabled_features().compilation_hints);
@@ -1676,8 +1675,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
   // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
   // AsyncStreamingProcessor have to finish.
   job_->outstanding_finishers_.store(2);
-  compilation_unit_builder_.reset(new CompilationUnitBuilder(
-      job_->native_module_.get(), job_->isolate()->wasm_engine()));
+  compilation_unit_builder_.reset(
+      new CompilationUnitBuilder(job_->native_module_.get()));
   return true;
 }
 

@@ -50,14 +50,16 @@ class TurbofanWasmCompilationUnit {
   explicit TurbofanWasmCompilationUnit(wasm::WasmCompilationUnit* wasm_unit);
   ~TurbofanWasmCompilationUnit();
 
-  bool BuildGraphForWasmFunction(wasm::CompilationEnv* env,
+  bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
+                                 wasm::CompilationEnv* env,
                                  const wasm::FunctionBody& func_body,
                                  wasm::WasmFeatures* detected,
                                  double* decode_ms, MachineGraph* mcgraph,
                                  NodeOriginTable* node_origins,
                                  SourcePositionTable* source_positions);
 
-  wasm::WasmCompilationResult ExecuteCompilation(wasm::CompilationEnv*,
+  wasm::WasmCompilationResult ExecuteCompilation(wasm::WasmEngine*,
+                                                 wasm::CompilationEnv*,
                                                  const wasm::FunctionBody&,
                                                  Counters*,
                                                  wasm::WasmFeatures* detected);
@@ -73,7 +75,8 @@ class InterpreterCompilationUnit final {
   explicit InterpreterCompilationUnit(wasm::WasmCompilationUnit* wasm_unit)
       : wasm_unit_(wasm_unit) {}
 
-  wasm::WasmCompilationResult ExecuteCompilation(wasm::CompilationEnv*,
+  wasm::WasmCompilationResult ExecuteCompilation(wasm::WasmEngine*,
+                                                 wasm::CompilationEnv*,
                                                  const wasm::FunctionBody&,
                                                  Counters*,
                                                  wasm::WasmFeatures* detected);

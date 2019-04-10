@@ -510,11 +510,11 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                          func_wire_bytes.start(), func_wire_bytes.end()};
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
-  WasmCompilationUnit unit(isolate()->wasm_engine(), function_->func_index,
-                           builder_->execution_tier());
+  WasmCompilationUnit unit(function_->func_index, builder_->execution_tier());
   WasmFeatures unused_detected_features;
   WasmCompilationResult result = unit.ExecuteCompilation(
-      &env, native_module->compilation_state()->GetWireBytesStorage(),
+      isolate()->wasm_engine(), &env,
+      native_module->compilation_state()->GetWireBytesStorage(),
       isolate()->counters(), &unused_detected_features);
   WasmCode* code = native_module->AddCompiledCode(std::move(result));
   DCHECK_NOT_NULL(code);
