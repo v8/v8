@@ -296,10 +296,6 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                              Representation representation, Node* value,
                              Label* bailout);
 
-  void BranchIfPrototypeShouldbeFast(Node* receiver_map,
-                                     Label* prototype_not_fast,
-                                     Label* prototype_fast);
-
   // Extends properties backing store by JSObject::kFieldsAdded elements,
   // returns updated properties backing store.
   Node* ExtendPropertiesBackingStore(Node* object, Node* index);

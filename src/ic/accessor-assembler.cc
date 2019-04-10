@@ -2616,46 +2616,15 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
   }
 }
 
-// TODO(8860): This check is only required so we can make prototypes fast on
-// the first load. This is not really useful when there is no feedback vector
-// and may not be important when lazily allocating feedback vectors. Once lazy
-// allocation of feedback vectors has landed try to eliminate this check.
-void AccessorAssembler::BranchIfPrototypeShouldbeFast(Node* receiver_map,
-                                                      Label* prototype_not_fast,
-                                                      Label* prototype_fast) {
-  VARIABLE(var_map, MachineRepresentation::kTagged);
-  var_map.Bind(receiver_map);
-  Label loop_body(this, &var_map);
-  Goto(&loop_body);
-
-  BIND(&loop_body);
-  {
-    Node* map = var_map.value();
-    Node* prototype = LoadMapPrototype(map);
-    GotoIf(IsNull(prototype), prototype_fast);
-    TNode<PrototypeInfo> proto_info =
-        LoadMapPrototypeInfo(receiver_map, prototype_not_fast);
-    GotoIf(IsNull(prototype), prototype_not_fast);
-    TNode<Uint32T> flags =
-        LoadObjectField<Uint32T>(proto_info, PrototypeInfo::kBitFieldOffset);
-    GotoIf(Word32Equal(flags, Uint32Constant(0)), prototype_not_fast);
-
-    Node* prototype_map = LoadMap(prototype);
-    var_map.Bind(prototype_map);
-    Goto(&loop_body);
-  }
-}
-
 void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
   Label miss(this, Label::kDeferred),
-      check_if_fast_prototype(this, Label::kDeferred),
       check_function_prototype(this);
   Node* receiver = p->receiver;
   GotoIf(TaggedIsSmi(receiver), &miss);
   Node* receiver_map = LoadMap(receiver);
   Node* instance_type = LoadMapInstanceType(receiver_map);
 
-  GotoIf(IsUndefined(p->vector), &check_if_fast_prototype);
+  GotoIf(IsUndefined(p->vector), &check_function_prototype);
   // Optimistically write the state transition to the vector.
   StoreFeedbackVectorSlot(p->vector, p->slot,
                           LoadRoot(RootIndex::kpremonomorphic_symbol),
@@ -2663,12 +2632,6 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
   StoreWeakReferenceInFeedbackVector(p->vector, p->slot, receiver_map,
                                      kTaggedSize, SMI_PARAMETERS);
   Goto(&check_function_prototype);
-
-  BIND(&check_if_fast_prototype);
-  {
-    BranchIfPrototypeShouldbeFast(receiver_map, &miss,
-                                  &check_function_prototype);
-  }
 
   BIND(&check_function_prototype);
   {
