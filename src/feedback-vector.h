@@ -161,8 +161,12 @@ class ClosureFeedbackCellArray : public FixedArray {
       Isolate* isolate, Handle<SharedFunctionInfo> shared);
   inline Handle<FeedbackCell> GetFeedbackCell(int index);
 
+  DECL_INT_ACCESSORS(interrupt_budget)
+
   DECL_VERIFIER(ClosureFeedbackCellArray)
   DECL_PRINTER(ClosureFeedbackCellArray)
+
+  enum { kInterruptBudgetIndex, kFeedbackCellStartIndex };
 
  private:
   OBJECT_CONSTRUCTORS(ClosureFeedbackCellArray, FixedArray);

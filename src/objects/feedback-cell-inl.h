@@ -22,7 +22,6 @@ OBJECT_CONSTRUCTORS_IMPL(FeedbackCell, Struct)
 CAST_ACCESSOR(FeedbackCell)
 
 ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
-INT32_ACCESSORS(FeedbackCell, interrupt_budget, kInterruptBudgetOffset)
 
 }  // namespace internal
 }  // namespace v8

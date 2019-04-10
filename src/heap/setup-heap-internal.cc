@@ -602,17 +602,6 @@ bool Heap::CreateInitialMaps() {
     set_empty_property_array(PropertyArray::cast(obj));
   }
 
-  {
-    if (!AllocateRaw(FixedArray::SizeFor(0), AllocationType::kReadOnly)
-             .To(&obj)) {
-      return false;
-    }
-    obj->set_map_after_allocation(roots.closure_feedback_cell_array_map(),
-                                  SKIP_WRITE_BARRIER);
-    FixedArray::cast(obj)->set_length(0);
-    set_empty_closure_feedback_cell_array(ClosureFeedbackCellArray::cast(obj));
-  }
-
 #define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype)         \
   {                                                                       \
     FixedTypedArrayBase obj;                                              \

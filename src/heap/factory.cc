@@ -419,12 +419,16 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(
 }
 
 Handle<ClosureFeedbackCellArray> Factory::NewClosureFeedbackCellArray(
-    int length, AllocationType allocation) {
-  if (length == 0) return empty_closure_feedback_cell_array();
-
+    int num_slots, AllocationType allocation) {
+  int length = ClosureFeedbackCellArray::kFeedbackCellStartIndex + num_slots;
   Handle<ClosureFeedbackCellArray> feedback_cell_array =
       NewFixedArrayWithMap<ClosureFeedbackCellArray>(
           RootIndex::kClosureFeedbackCellArrayMap, length, allocation);
+
+  // Initialize header fields
+  feedback_cell_array->set_interrupt_budget(
+      FLAG_budget_for_feedback_vector_allocation);
+  DCHECK_EQ(ClosureFeedbackCellArray::kFeedbackCellStartIndex, 1);
 
   return feedback_cell_array;
 }
@@ -1819,6 +1823,7 @@ Handle<BytecodeArray> Factory::NewBytecodeArray(
   instance->set_parameter_count(parameter_count);
   instance->set_incoming_new_target_or_generator_register(
       interpreter::Register::invalid_value());
+  instance->set_interrupt_budget(interpreter::Interpreter::InterruptBudget());
   instance->set_osr_loop_nesting_level(0);
   instance->set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
   instance->set_constant_pool(*constant_pool);
@@ -1886,7 +1891,6 @@ Handle<FeedbackCell> Factory::NewNoClosuresCell(Handle<HeapObject> value) {
       FeedbackCell::kSize, AllocationType::kOld, *no_closures_cell_map());
   Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());
   cell->set_value(*value);
-  cell->set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
   return cell;
 }
 
@@ -1896,7 +1900,6 @@ Handle<FeedbackCell> Factory::NewOneClosureCell(Handle<HeapObject> value) {
       FeedbackCell::kSize, AllocationType::kOld, *one_closure_cell_map());
   Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());
   cell->set_value(*value);
-  cell->set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
   return cell;
 }
 
@@ -1906,7 +1909,6 @@ Handle<FeedbackCell> Factory::NewManyClosuresCell(Handle<HeapObject> value) {
       FeedbackCell::kSize, AllocationType::kOld, *many_closures_cell_map());
   Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());
   cell->set_value(*value);
-  cell->set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
   return cell;
 }
 
@@ -2947,6 +2949,7 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(
   copy->set_constant_pool(bytecode_array->constant_pool());
   copy->set_handler_table(bytecode_array->handler_table());
   copy->set_source_position_table(bytecode_array->source_position_table());
+  copy->set_interrupt_budget(bytecode_array->interrupt_budget());
   copy->set_osr_loop_nesting_level(bytecode_array->osr_loop_nesting_level());
   copy->set_bytecode_age(bytecode_array->bytecode_age());
   bytecode_array->CopyBytecodesTo(*copy);

@@ -220,7 +220,7 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
   for (int i = 0; i < num_feedback_cells; i++) {
     Handle<FeedbackCell> cell =
         factory->NewNoClosuresCell(factory->undefined_value());
-    feedback_cell_array->set(i, *cell);
+    feedback_cell_array->set(i + kFeedbackCellStartIndex, *cell);
   }
   return feedback_cell_array;
 }

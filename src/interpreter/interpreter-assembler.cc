@@ -1259,14 +1259,30 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
 
   Label load_budget_from_bytecode(this), load_budget_done(this);
   TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
-  TNode<FeedbackCell> feedback_cell =
-      CAST(LoadObjectField(function, JSFunction::kFeedbackCellOffset));
-  TNode<Int32T> old_budget = LoadObjectField<Int32T>(
-      feedback_cell, FeedbackCell::kInterruptBudgetOffset);
+  TNode<HeapObject> feedback_cell_value = LoadFeedbackCellValue(function);
+  Node* budget_offset =
+      IntPtrConstant(BytecodeArray::kInterruptBudgetOffset - kHeapObjectTag);
+  TVARIABLE(Int32T, old_budget);
+  // TODO(mythria): We should use the interrupt budget on the feedback vector
+  // for updating runtime profiler ticks as well. That would avoid having two
+  // different places where we track interrupt budget.
+  GotoIf(IsFeedbackVector(feedback_cell_value), &load_budget_from_bytecode);
+  TNode<FixedArray> closure_feedback_cell_array = CAST(feedback_cell_value);
+  TNode<Smi> old_budget_smi = CAST(UnsafeLoadFixedArrayElement(
+      closure_feedback_cell_array,
+      ClosureFeedbackCellArray::kInterruptBudgetIndex));
+  old_budget = SmiToInt32(old_budget_smi);
+  Goto(&load_budget_done);
 
+  BIND(&load_budget_from_bytecode);
+  old_budget = UncheckedCast<Int32T>(
+      Load(MachineType::Int32(), BytecodeArrayTaggedPointer(), budget_offset));
+  Goto(&load_budget_done);
+
+  BIND(&load_budget_done);
   // Make sure we include the current bytecode in the budget calculation.
-  TNode<Int32T> budget_after_bytecode =
-      Signed(Int32Sub(old_budget, Int32Constant(CurrentBytecodeSize())));
+  TNode<Int32T> budget_after_bytecode = Signed(
+      Int32Sub(old_budget.value(), Int32Constant(CurrentBytecodeSize())));
 
   TVARIABLE(Int32T, new_budget);
   if (backward) {
@@ -1274,7 +1290,7 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
     new_budget = Signed(Int32Sub(budget_after_bytecode, weight));
     Node* condition =
         Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
-    Label ok(this), interrupt_check(this, Label::kDeferred);
+    Label ok(this), interrupt_check(this);
     Branch(condition, &ok, &interrupt_check);
 
     BIND(&interrupt_check);
@@ -1290,9 +1306,21 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   }
 
   // Update budget.
-  StoreObjectFieldNoWriteBarrier(
-      feedback_cell, FeedbackCell::kInterruptBudgetOffset, new_budget.value(),
-      MachineRepresentation::kWord32);
+  Label update_budget_in_bytecode(this), end(this);
+  GotoIf(IsFeedbackVector(feedback_cell_value), &update_budget_in_bytecode);
+  UnsafeStoreFixedArrayElement(closure_feedback_cell_array,
+                               ClosureFeedbackCellArray::kInterruptBudgetIndex,
+                               SmiFromInt32(new_budget.value()),
+                               SKIP_WRITE_BARRIER);
+  Goto(&end);
+
+  BIND(&update_budget_in_bytecode);
+  StoreNoWriteBarrier(MachineRepresentation::kWord32,
+                      BytecodeArrayTaggedPointer(), budget_offset,
+                      new_budget.value());
+  Goto(&end);
+
+  BIND(&end);
   Comment("] UpdateInterruptBudget");
 }
 
