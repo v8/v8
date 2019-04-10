@@ -595,7 +595,7 @@ namespace {
 
 // TODO(bmeurer): Maybe we should introduce a marker interface Number,
 // where we put all these methods at some point?
-ComparisonResult NumberCompare(double x, double y) {
+ComparisonResult StrictNumberCompare(double x, double y) {
   if (std::isnan(x) || std::isnan(y)) {
     return ComparisonResult::kUndefined;
   } else if (x < y) {
@@ -607,19 +607,20 @@ ComparisonResult NumberCompare(double x, double y) {
   }
 }
 
-bool NumberEquals(double x, double y) {
+// See Number case of ES6#sec-strict-equality-comparison
+// Returns false if x or y is NaN, treats -0.0 as equal to 0.0.
+bool StrictNumberEquals(double x, double y) {
   // Must check explicitly for NaN's on Windows, but -0 works fine.
-  if (std::isnan(x)) return false;
-  if (std::isnan(y)) return false;
+  if (std::isnan(x) || std::isnan(y)) return false;
   return x == y;
 }
 
-bool NumberEquals(const Object x, const Object y) {
-  return NumberEquals(x->Number(), y->Number());
+bool StrictNumberEquals(const Object x, const Object y) {
+  return StrictNumberEquals(x->Number(), y->Number());
 }
 
-bool NumberEquals(Handle<Object> x, Handle<Object> y) {
-  return NumberEquals(*x, *y);
+bool StrictNumberEquals(Handle<Object> x, Handle<Object> y) {
+  return StrictNumberEquals(*x, *y);
 }
 
 ComparisonResult Reverse(ComparisonResult result) {
@@ -664,7 +665,7 @@ Maybe<ComparisonResult> Object::Compare(Isolate* isolate, Handle<Object> x,
   bool x_is_number = x->IsNumber();
   bool y_is_number = y->IsNumber();
   if (x_is_number && y_is_number) {
-    return Just(NumberCompare(x->Number(), y->Number()));
+    return Just(StrictNumberCompare(x->Number(), y->Number()));
   } else if (!x_is_number && !y_is_number) {
     return Just(BigInt::CompareToBigInt(Handle<BigInt>::cast(x),
                                         Handle<BigInt>::cast(y)));
@@ -684,11 +685,12 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
   while (true) {
     if (x->IsNumber()) {
       if (y->IsNumber()) {
-        return Just(NumberEquals(x, y));
+        return Just(StrictNumberEquals(x, y));
       } else if (y->IsBoolean()) {
-        return Just(NumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
+        return Just(
+            StrictNumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
       } else if (y->IsString()) {
-        return Just(NumberEquals(
+        return Just(StrictNumberEquals(
             x, String::ToNumber(isolate, Handle<String>::cast(y))));
       } else if (y->IsBigInt()) {
         return Just(BigInt::EqualToNumber(Handle<BigInt>::cast(y), x));
@@ -706,10 +708,11 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
                                    Handle<String>::cast(y)));
       } else if (y->IsNumber()) {
         x = String::ToNumber(isolate, Handle<String>::cast(x));
-        return Just(NumberEquals(x, y));
+        return Just(StrictNumberEquals(x, y));
       } else if (y->IsBoolean()) {
         x = String::ToNumber(isolate, Handle<String>::cast(x));
-        return Just(NumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
+        return Just(
+            StrictNumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
       } else if (y->IsBigInt()) {
         return Just(BigInt::EqualToString(isolate, Handle<BigInt>::cast(y),
                                           Handle<String>::cast(x)));
@@ -725,10 +728,12 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
       if (y->IsOddball()) {
         return Just(x.is_identical_to(y));
       } else if (y->IsNumber()) {
-        return Just(NumberEquals(Handle<Oddball>::cast(x)->to_number(), *y));
+        return Just(
+            StrictNumberEquals(Handle<Oddball>::cast(x)->to_number(), *y));
       } else if (y->IsString()) {
         y = String::ToNumber(isolate, Handle<String>::cast(y));
-        return Just(NumberEquals(Handle<Oddball>::cast(x)->to_number(), *y));
+        return Just(
+            StrictNumberEquals(Handle<Oddball>::cast(x)->to_number(), *y));
       } else if (y->IsBigInt()) {
         x = Oddball::ToNumber(isolate, Handle<Oddball>::cast(x));
         return Just(BigInt::EqualToNumber(Handle<BigInt>::cast(y), x));
@@ -777,7 +782,7 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
 bool Object::StrictEquals(Object that) {
   if (this->IsNumber()) {
     if (!that->IsNumber()) return false;
-    return NumberEquals(*this, that);
+    return StrictNumberEquals(*this, that);
   } else if (this->IsString()) {
     if (!that->IsString()) return false;
     return String::cast(*this)->Equals(String::cast(that));
@@ -1627,14 +1632,7 @@ bool Object::SameValue(Object other) {
   if (other == *this) return true;
 
   if (IsNumber() && other->IsNumber()) {
-    double this_value = Number();
-    double other_value = other->Number();
-    // SameValue(NaN, NaN) is true.
-    if (this_value != other_value) {
-      return std::isnan(this_value) && std::isnan(other_value);
-    }
-    // SameValue(0.0, -0.0) is false.
-    return (std::signbit(this_value) == std::signbit(other_value));
+    return SameNumberValue(Number(), other->Number());
   }
   if (IsString() && other->IsString()) {
     return String::cast(*this)->Equals(String::cast(other));
