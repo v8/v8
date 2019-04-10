@@ -101,6 +101,12 @@ void PartialSerializer::SerializeObject(HeapObject obj) {
   // Clear literal boilerplates and feedback.
   if (obj->IsFeedbackVector()) FeedbackVector::cast(obj)->ClearSlots(isolate());
 
+  // Clear InterruptBudget when serializing FeedbackCell.
+  if (obj->IsFeedbackCell()) {
+    FeedbackCell::cast(obj)->set_interrupt_budget(
+        FeedbackCell::GetInitialInterruptBudget());
+  }
+
   if (SerializeJSObjectWithEmbedderFields(obj)) {
     return;
   }

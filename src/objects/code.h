@@ -758,10 +758,6 @@ class BytecodeArray : public FixedArrayBase {
   inline void set_incoming_new_target_or_generator_register(
       interpreter::Register incoming_new_target_or_generator_register);
 
-  // Accessors for profiling count.
-  inline int interrupt_budget() const;
-  inline void set_interrupt_budget(int interrupt_budget);
-
   // Accessors for OSR loop nesting level.
   inline int osr_loop_nesting_level() const;
   inline void set_osr_loop_nesting_level(int depth);
@@ -841,7 +837,6 @@ class BytecodeArray : public FixedArrayBase {
   V(kFrameSizeOffset, kIntSize)                            \
   V(kParameterSizeOffset, kIntSize)                        \
   V(kIncomingNewTargetOrGeneratorRegisterOffset, kIntSize) \
-  V(kInterruptBudgetOffset, kIntSize)                      \
   V(kOSRNestingLevelOffset, kCharSize)                     \
   V(kBytecodeAgeOffset, kCharSize)                         \
   /* Total size. */                                        \
