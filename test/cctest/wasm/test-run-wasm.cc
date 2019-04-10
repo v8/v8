@@ -3707,7 +3707,7 @@ TEST(Liftoff_tier_up) {
       r.builder().instance_object()->module_object()->native_module();
 
   // This test only works if we managed to compile with Liftoff.
-  if (native_module->code(add.function_index())->is_liftoff()) {
+  if (native_module->GetCode(add.function_index())->is_liftoff()) {
     // First run should execute {add}.
     CHECK_EQ(18, r.Call(11, 7));
 
@@ -3715,7 +3715,7 @@ TEST(Liftoff_tier_up) {
     // the index of {add}.
     CodeDesc desc;
     memset(&desc, 0, sizeof(CodeDesc));
-    WasmCode* sub_code = native_module->code(sub.function_index());
+    WasmCode* sub_code = native_module->GetCode(sub.function_index());
     size_t sub_size = sub_code->instructions().size();
     std::unique_ptr<byte[]> buffer(new byte[sub_code->instructions().size()]);
     memcpy(buffer.get(), sub_code->instructions().start(), sub_size);

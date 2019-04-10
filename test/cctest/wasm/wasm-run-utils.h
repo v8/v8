@@ -205,7 +205,7 @@ class TestingModuleBuilder {
     return instance_object_;
   }
   WasmCode* GetFunctionCode(uint32_t index) const {
-    return native_module_->code(index);
+    return native_module_->GetCode(index);
   }
   Address globals_start() const {
     return reinterpret_cast<Address>(globals_data_);

@@ -3614,7 +3614,7 @@ class ThreadImpl {
     if (native_module->is_jump_table_slot(target)) {
       uint32_t func_index =
           native_module->GetFunctionIndexFromJumpTableSlot(target);
-      return native_module->code(func_index);
+      return native_module->GetCode(func_index);
     }
     WasmCode* code = native_module->Lookup(target);
     DCHECK_EQ(code->instruction_start(), target);

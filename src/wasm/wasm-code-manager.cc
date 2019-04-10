@@ -474,8 +474,10 @@ void NativeModule::LogWasmCodes(Isolate* isolate) {
 
   // TODO(titzer): we skip the logging of the import wrappers
   // here, but they should be included somehow.
-  for (WasmCode* code : code_table()) {
-    if (code != nullptr) code->LogCode(isolate);
+  int start = module()->num_imported_functions;
+  int end = start + module()->num_declared_functions;
+  for (int func_index = start; func_index < end; ++func_index) {
+    if (WasmCode* code = GetCode(func_index)) code->LogCode(isolate);
   }
 }
 
@@ -828,10 +830,9 @@ WasmCode* NativeModule::AddDeserializedCode(
 
 std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
   base::MutexGuard lock(&allocation_mutex_);
-  std::vector<WasmCode*> result;
-  result.reserve(code_table().size());
-  for (WasmCode* code : code_table()) result.push_back(code);
-  return result;
+  WasmCode** start = code_table_.get();
+  WasmCode** end = start + module_->num_declared_functions;
+  return std::vector<WasmCode*>{start, end};
 }
 
 WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {

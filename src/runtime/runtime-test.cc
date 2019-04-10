@@ -1226,9 +1226,8 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   wasm::NativeModule* native_module =
       exp_fun->instance()->module_object()->native_module();
   uint32_t func_index = exp_fun->function_index();
-  return isolate->heap()->ToBoolean(
-      native_module->has_code(func_index) &&
-      native_module->code(func_index)->is_liftoff());
+  wasm::WasmCode* code = native_module->GetCode(func_index);
+  return isolate->heap()->ToBoolean(code && code->is_liftoff());
 }
 
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
