@@ -2175,6 +2175,18 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
           set_slow_stub_reason("receiver with prototype map");
         } else if (!old_receiver_map->DictionaryElementsInPrototypeChainOnly(
                        isolate())) {
+          // If the SetObjectProperty call did not transition, avoid adding
+          // a transition just for the ICs. We want to avoid making
+          // the receiver map unnecessarily non-stable (crbug.com/950328).
+          //
+          // TODO(jarin) We should make this more robust so that the IC system
+          // does not duplicate the logic implemented in runtime
+          // (Runtime::SetObjectProperty).
+          if (old_receiver_map->elements_kind() ==
+              Handle<HeapObject>::cast(object)->map()->elements_kind()) {
+            store_mode =
+                GetNonTransitioningStoreMode(store_mode, receiver_was_cow);
+          }
           // We should go generic if receiver isn't a dictionary, but our
           // prototype chain does have dictionary elements. This ensures that
           // other non-dictionary receivers in the polymorphic case benefit
