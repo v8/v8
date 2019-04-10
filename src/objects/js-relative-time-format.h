@@ -106,17 +106,8 @@ class JSRelativeTimeFormat : public JSObject {
   DECL_VERIFIER(JSRelativeTimeFormat)
 
   // Layout description.
-#define JS_RELATIVE_TIME_FORMAT_FIELDS(V)     \
-  V(kJSRelativeTimeFormatOffset, kTaggedSize) \
-  V(kLocaleOffset, kTaggedSize)               \
-  V(kICUFormatterOffset, kTaggedSize)         \
-  V(kFlagsOffset, kTaggedSize)                \
-  /* Header size. */                          \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_RELATIVE_TIME_FORMAT_FIELDS)
-#undef JS_RELATIVE_TIME_FORMAT_FIELDS
+                                TORQUE_GENERATED_JSRELATIVE_TIME_FORMAT_FIELDS)
 
  private:
   static Style getStyle(const char* str);

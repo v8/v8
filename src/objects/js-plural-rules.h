@@ -69,16 +69,8 @@ class JSPluralRules : public JSObject {
   STATIC_ASSERT(Type::ORDINAL <= TypeBits::kMax);
 
 // Layout description.
-#define JS_PLURAL_RULES_FIELDS(V)         \
-  V(kLocaleOffset, kTaggedSize)           \
-  V(kFlagsOffset, kTaggedSize)            \
-  V(kICUPluralRulesOffset, kTaggedSize)   \
-  V(kICUDecimalFormatOffset, kTaggedSize) \
-  /* Total size. */                       \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_PLURAL_RULES_FIELDS)
-#undef JS_PLURAL_RULES_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSPLURAL_RULES_FIELDS)
 
   DECL_ACCESSORS(locale, String)
   DECL_INT_ACCESSORS(flags)
