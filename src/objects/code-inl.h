@@ -557,7 +557,6 @@ Address Code::constant_pool() const {
 }
 
 Address Code::code_comments() const {
-  if (!has_code_comments()) return kNullAddress;
   return InstructionStart() + code_comments_offset();
 }
 

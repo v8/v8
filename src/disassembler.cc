@@ -276,7 +276,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
   disasm::Disassembler d(converter,
                          disasm::Disassembler::kContinueOnUnimplementedOpcode);
   RelocIterator* it = nullptr;
-  CodeCommentsIterator cit(code.code_comments());
+  CodeCommentsIterator cit(code.code_comments(), code.code_comments_size());
   // Relocation exists if we either have no isolate (wasm code),
   // or we have an isolate and it is not an off-heap instruction stream.
   if (!isolate ||

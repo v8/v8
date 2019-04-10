@@ -115,6 +115,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   ExecutionTier tier() const { return tier_; }
   Address constant_pool() const;
   Address code_comments() const;
+  uint32_t code_comments_size() const;
   size_t constant_pool_offset() const { return constant_pool_offset_; }
   size_t safepoint_table_offset() const { return safepoint_table_offset_; }
   size_t handler_table_offset() const { return handler_table_offset_; }

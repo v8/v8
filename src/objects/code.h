@@ -167,7 +167,7 @@ class Code : public HeapObject {
   inline int code_comments_offset() const;
   inline void set_code_comments_offset(int offset);
   inline Address code_comments() const;
-  int code_comments_size() const;
+  V8_EXPORT_PRIVATE int code_comments_size() const;
   V8_EXPORT_PRIVATE bool has_code_comments() const;
 
   // The size of the executable instruction area, without embedded metadata.

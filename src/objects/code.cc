@@ -798,7 +798,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   }
 
   if (has_code_comments()) {
-    PrintCodeCommentsSection(os, code_comments());
+    PrintCodeCommentsSection(os, code_comments(), code_comments_size());
   }
 }
 #endif  // ENABLE_DISASSEMBLER

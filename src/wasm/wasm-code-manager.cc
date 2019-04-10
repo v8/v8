@@ -109,10 +109,12 @@ Address WasmCode::constant_pool() const {
 }
 
 Address WasmCode::code_comments() const {
-  if (code_comments_offset_ < unpadded_binary_size_) {
-    return instruction_start() + code_comments_offset_;
-  }
-  return kNullAddress;
+  return instruction_start() + code_comments_offset_;
+}
+
+uint32_t WasmCode::code_comments_size() const {
+  DCHECK_GE(unpadded_binary_size_, code_comments_offset_);
+  return static_cast<uint32_t>(unpadded_binary_size_ - code_comments_offset_);
 }
 
 size_t WasmCode::trap_handler_index() const {
@@ -339,10 +341,8 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   }
   os << "\n";
 
-  if (code_comments_offset() < unpadded_binary_size_) {
-    Address code_comments = reinterpret_cast<Address>(instructions().start() +
-                                                      code_comments_offset());
-    PrintCodeCommentsSection(os, code_comments);
+  if (code_comments_size() > 0) {
+    PrintCodeCommentsSection(os, code_comments(), code_comments_size());
   }
 #endif  // ENABLE_DISASSEMBLER
 }
