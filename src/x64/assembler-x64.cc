@@ -1123,22 +1123,20 @@ void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
   emitl(code_target_index);
 }
 
-void Assembler::near_call(Address addr, RelocInfo::Mode rmode) {
+void Assembler::near_call(intptr_t disp, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   emit(0xE8);
-  intptr_t value = static_cast<intptr_t>(addr);
-  DCHECK(is_int32(value));
+  DCHECK(is_int32(disp));
   RecordRelocInfo(rmode);
-  emitl(static_cast<int32_t>(value));
+  emitl(static_cast<int32_t>(disp));
 }
 
-void Assembler::near_jmp(Address addr, RelocInfo::Mode rmode) {
+void Assembler::near_jmp(intptr_t disp, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   emit(0xE9);
-  intptr_t value = static_cast<intptr_t>(addr);
-  DCHECK(is_int32(value));
-  RecordRelocInfo(rmode);
-  emitl(static_cast<int32_t>(value));
+  DCHECK(is_int32(disp));
+  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode);
+  emitl(static_cast<int32_t>(disp));
 }
 
 void Assembler::call(Register adr) {

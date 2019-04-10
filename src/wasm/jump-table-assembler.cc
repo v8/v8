@@ -45,8 +45,12 @@ void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
 }
 
 void JumpTableAssembler::EmitJumpSlot(Address target) {
-  movq(kScratchRegister, static_cast<uint64_t>(target));
-  jmp(kScratchRegister);
+  // On x64, all code is allocated within a single code section, so we can use
+  // relative jumps.
+  static_assert(kMaxWasmCodeMemory <= size_t{2} * GB, "can use relative jump");
+  intptr_t displacement = static_cast<intptr_t>(
+      reinterpret_cast<byte*>(target) - pc_ - kNearJmpInstrSize);
+  near_jmp(displacement, RelocInfo::NONE);
 }
 
 void JumpTableAssembler::NopBytes(int bytes) {
@@ -125,6 +129,9 @@ void JumpTableAssembler::EmitJumpSlot(Address target) {
   // TODO(wasm): Currently this is guaranteed to be a {near_call} and hence is
   // patchable concurrently. Once {kMaxWasmCodeMemory} is raised on ARM64, make
   // sure concurrent patching is still supported.
+  DCHECK(TurboAssembler::IsNearCallOffset(
+      (reinterpret_cast<byte*>(target) - pc_) / kInstrSize));
+
   Jump(target, RelocInfo::NONE);
 }
 
