@@ -1430,11 +1430,10 @@ IGNITION_HANDLER(Inc, IncDecAssembler) { IncWithFeedback(); }
 // Decrements value in the accumulator by one.
 IGNITION_HANDLER(Dec, IncDecAssembler) { DecWithFeedback(); }
 
-// LogicalNot
+// ToBooleanLogicalNot
 //
 // Perform logical-not on the accumulator, first casting the
 // accumulator to a boolean value if required.
-// ToBooleanLogicalNot
 IGNITION_HANDLER(ToBooleanLogicalNot, InterpreterAssembler) {
   Node* value = GetAccumulator();
   Variable result(this, MachineRepresentation::kTagged);
@@ -2487,6 +2486,7 @@ IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
 // CreateArrayFromIterable
 //
 // Spread the given iterable from the accumulator into a new JSArray.
+// TODO(neis): Turn this into an intrinsic when we're running out of bytecodes.
 IGNITION_HANDLER(CreateArrayFromIterable, InterpreterAssembler) {
   Node* iterable = GetAccumulator();
   Node* context = GetContext();
