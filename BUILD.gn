@@ -1057,6 +1057,14 @@ action("run_torque") {
   }
 }
 
+group("v8_maybe_icu") {
+  if (v8_enable_i18n_support) {
+    public_deps = [
+      "//third_party/icu",
+    ]
+  }
+}
+
 v8_source_set("torque_generated_initializers") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -1065,11 +1073,9 @@ v8_source_set("torque_generated_initializers") {
     ":run_torque",
   ]
 
-  if (v8_enable_i18n_support) {
-    public_deps = [
-      "//third_party/icu",
-    ]
-  }
+  public_deps = [
+    ":v8_maybe_icu",
+  ]
 
   sources = []
   foreach(namespace, torque_namespaces) {
@@ -1090,11 +1096,9 @@ v8_source_set("torque_generated_definitions") {
     ":run_torque",
   ]
 
-  if (v8_enable_i18n_support) {
-    public_deps = [
-      "//third_party/icu",
-    ]
-  }
+  public_deps = [
+    ":v8_maybe_icu",
+  ]
 
   sources = [
     "$target_gen_dir/torque-generated/objects-printer-from-dsl.cc",
@@ -1345,11 +1349,9 @@ v8_source_set("v8_nosnapshot") {
     ":torque_generated_initializers",
   ]
 
-  if (v8_enable_i18n_support) {
-    public_deps = [
-      "//third_party/icu",
-    ]
-  }
+  public_deps = [
+    ":v8_maybe_icu",
+  ]
 
   sources = [
     "$target_gen_dir/extras-libraries.cc",
@@ -1377,11 +1379,8 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
       # This should be public so downstream targets can declare the snapshot
       # output file as their inputs.
       ":run_mksnapshot_default",
+      ":v8_maybe_icu",
     ]
-
-    if (v8_enable_i18n_support) {
-      public_deps += [ "//third_party/icu" ]
-    }
 
     # Do not publicize any header to remove build dependency.
     public = []
@@ -1615,11 +1614,10 @@ v8_source_set("v8_init") {
     ### gcmole(all) ###
     "src/setup-isolate-full.cc",
   ]
-  if (v8_enable_i18n_support) {
-    public_deps = [
-      "//third_party/icu",
-    ]
-  }
+
+  public_deps = [
+    ":v8_maybe_icu",
+  ]
 
   configs = [ ":internal_config" ]
 }
@@ -1903,11 +1901,8 @@ v8_source_set("v8_compiler_opt") {
   public_deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_maybe_icu",
   ]
-
-  if (v8_enable_i18n_support) {
-    public_deps += [ "//third_party/icu" ]
-  }
 
   if (is_debug && !v8_optimized_debug && v8_enable_fast_mksnapshot) {
     # The :no_optimize config is added to v8_add_configs in v8.gni.
@@ -1930,11 +1925,8 @@ v8_source_set("v8_compiler") {
   public_deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_maybe_icu",
   ]
-
-  if (v8_enable_i18n_support) {
-    public_deps += [ "//third_party/icu" ]
-  }
 
   configs = [ ":internal_config" ]
 }
@@ -3211,10 +3203,10 @@ v8_source_set("v8_base_without_compiler") {
   public_deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_maybe_icu",
   ]
 
   if (v8_enable_i18n_support) {
-    public_deps += [ "//third_party/icu" ]
     if (is_win) {
       deps += [ "//third_party/icu:icudata" ]
     }
@@ -3634,11 +3626,8 @@ v8_source_set("fuzzer_support") {
   public_deps = [
     ":v8_libbase",
     ":v8_libplatform",
+    ":v8_maybe_icu",
   ]
-
-  if (v8_enable_i18n_support) {
-    public_deps += [ "//third_party/icu" ]
-  }
 }
 
 ###############################################################################
@@ -4151,11 +4140,9 @@ v8_source_set("wasm_module_runner") {
     ":run_torque",
   ]
 
-  if (v8_enable_i18n_support) {
-    public_deps = [
-      "//third_party/icu",
-    ]
-  }
+  public_deps = [
+    ":v8_maybe_icu",
+  ]
 
   configs = [
     ":external_config",
@@ -4235,11 +4222,9 @@ v8_source_set("lib_wasm_fuzzer_common") {
     ":run_torque",
   ]
 
-  if (v8_enable_i18n_support) {
-    public_deps = [
-      "//third_party/icu",
-    ]
-  }
+  public_deps = [
+    ":v8_maybe_icu",
+  ]
 
   configs = [
     ":external_config",
