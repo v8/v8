@@ -1435,7 +1435,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
           Intl::ToHourCycle(hc_extension_it->second.c_str())) {
         // Remove -hc- if it does not agree with what we used.
         UErrorCode status = U_ZERO_ERROR;
-        icu_locale.setKeywordValue(uloc_toLegacyKey("hc"), nullptr, status);
+        icu_locale.setUnicodeKeywordValue("hc", nullptr, status);
         CHECK(U_SUCCESS(status));
       }
     }
