@@ -235,6 +235,9 @@
 
   # BUG(v8:8169)
   'external-backing-store-gc': [SKIP],
+
+  # BUG(v8:8746)
+  'wasm/trap-handler-fallback': [PASS, FAIL],
 }],  # ALWAYS
 
 ['novfp3 == True', {
