@@ -357,6 +357,7 @@
   'regress/regress-crbug-816961': [SKIP],
   'regress/wasm/*': [SKIP],
   'regress/regress-8947': [SKIP],
+  'regress/regress-v8-9106': [SKIP],
   'wasm/*': [SKIP],
 
   # Other tests that use asm / wasm / optimized code.

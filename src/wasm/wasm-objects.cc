@@ -1606,9 +1606,11 @@ void WasmInstanceObject::InitDataSegmentArrays(
     instance->dropped_data_segments()[i] = segment.active ? 1 : 0;
 
     // Initialize the pointer and size of passive segments.
+    auto source_bytes = wire_bytes.SubVector(segment.source.offset(),
+                                             segment.source.end_offset());
     instance->data_segment_starts()[i] =
-        reinterpret_cast<Address>(&wire_bytes[segment.source.offset()]);
-    instance->data_segment_sizes()[i] = segment.source.length();
+        reinterpret_cast<Address>(source_bytes.start());
+    instance->data_segment_sizes()[i] = source_bytes.length();
   }
 }
 
