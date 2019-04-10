@@ -1135,31 +1135,6 @@ void Debug::ClearOneShot() {
   }
 }
 
-class RedirectActiveFunctions : public ThreadVisitor {
- public:
-  explicit RedirectActiveFunctions(SharedFunctionInfo shared)
-      : shared_(shared) {
-    DCHECK(shared->HasBytecodeArray());
-  }
-
-  void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
-    for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
-      JavaScriptFrame* frame = it.frame();
-      JSFunction function = frame->function();
-      if (!frame->is_interpreted()) continue;
-      if (function->shared() != shared_) continue;
-      InterpretedFrame* interpreted_frame =
-          reinterpret_cast<InterpretedFrame*>(frame);
-      BytecodeArray debug_copy = shared_->GetDebugInfo()->DebugBytecodeArray();
-      interpreted_frame->PatchBytecodeArray(debug_copy);
-    }
-  }
-
- private:
-  SharedFunctionInfo shared_;
-  DisallowHeapAllocation no_gc_;
-};
-
 void Debug::DeoptimizeFunction(Handle<SharedFunctionInfo> shared) {
   // Deoptimize all code compiled from this shared function info including
   // inlining.
@@ -1217,7 +1192,8 @@ void Debug::PrepareFunctionForDebugExecution(
   } else {
     DeoptimizeFunction(shared);
     // Update PCs on the stack to point to recompiled code.
-    RedirectActiveFunctions redirect_visitor(*shared);
+    RedirectActiveFunctions redirect_visitor(
+        *shared, RedirectActiveFunctions::Mode::kUseDebugBytecode);
     redirect_visitor.VisitThread(isolate_, isolate_->thread_local_top());
     isolate_->thread_manager()->IterateArchivedThreads(&redirect_visitor);
   }

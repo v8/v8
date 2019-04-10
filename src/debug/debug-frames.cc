@@ -93,5 +93,31 @@ bool FrameInspector::ParameterIsShadowedByContextLocal(
   return ScopeInfo::ContextSlotIndex(*info, *parameter_name, &mode, &init_flag,
                                      &maybe_assigned_flag) != -1;
 }
+
+RedirectActiveFunctions::RedirectActiveFunctions(SharedFunctionInfo shared,
+                                                 Mode mode)
+    : shared_(shared), mode_(mode) {
+  DCHECK(shared->HasBytecodeArray());
+  if (mode == Mode::kUseDebugBytecode) {
+    DCHECK(shared->HasDebugInfo());
+  }
+}
+
+void RedirectActiveFunctions::VisitThread(Isolate* isolate,
+                                          ThreadLocalTop* top) {
+  for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+    JavaScriptFrame* frame = it.frame();
+    JSFunction function = frame->function();
+    if (!frame->is_interpreted()) continue;
+    if (function->shared() != shared_) continue;
+    InterpretedFrame* interpreted_frame =
+        reinterpret_cast<InterpretedFrame*>(frame);
+    BytecodeArray bytecode = mode_ == Mode::kUseDebugBytecode
+                                 ? shared_->GetDebugInfo()->DebugBytecodeArray()
+                                 : shared_->GetBytecodeArray();
+    interpreted_frame->PatchBytecodeArray(bytecode);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
