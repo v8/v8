@@ -1844,6 +1844,8 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   }
 
   // Try to lower element access based on the {receiver_maps}.
+  // Only do so if the feedback is not megamorphic so that we can learn
+  // something when the ReduceElementAccess code deopts.
   if (nexus.GetKeyType() == ELEMENT && nexus.ic_state() != MEGAMORPHIC) {
     return ReduceElementAccess(node, key, value, nexus, receiver_maps,
                                access_mode, load_mode, store_mode);
