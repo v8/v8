@@ -87,19 +87,11 @@
         ],
         "builders": {
           "V8 Linux64 - node.js integration ng": {
+            "categories": [
+              "v8_all"
+            ],
             "tree_notify": [
               "node-build-notifications@google.com"
-            ],
-            "subject_template": "closed (%(build_url)s from %(revision)s)",
-            "closing_optional": [
-              "*"
-            ],
-            "excluded_steps": [
-              "bot_update",
-              "gsutil upload",
-              "Failure reason",
-              "update_scripts",
-              "steps"
             ]
           },
           "*": {
