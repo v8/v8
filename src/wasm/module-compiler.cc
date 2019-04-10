@@ -676,11 +676,6 @@ void RecordStats(const Code code, Counters* counters) {
   counters->wasm_reloc_size()->Increment(code->relocation_info()->length());
 }
 
-double MonotonicallyIncreasingTimeInMs() {
-  return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
-         base::Time::kMillisecondsPerSecond;
-}
-
 // Run by the main thread to take part in compilation. Only used for synchronous
 // compilation.
 bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
@@ -890,7 +885,12 @@ class BackgroundCompileTask : public CancelableTask {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                  "BackgroundCompileTask::RunInternal");
 
-    double deadline = MonotonicallyIncreasingTimeInMs() + 50.0;
+    Platform* platform = V8::GetCurrentPlatform();
+    // Deadline is in 50ms from now.
+    static constexpr double kBackgroundCompileTimeLimit =
+        50.0 / base::Time::kMillisecondsPerSecond;
+    const double deadline =
+        platform->MonotonicallyIncreasingTime() + kBackgroundCompileTimeLimit;
 
     // These fields are initialized in a {BackgroundCompileScope} before
     // starting compilation.
@@ -934,7 +934,6 @@ class BackgroundCompileTask : public CancelableTask {
     bool compilation_failed = false;
     while (true) {
       // (asynchronous): Execute the compilation.
-
       WasmCompilationResult result = unit->ExecuteCompilation(
           &env.value(), wire_bytes, async_counters_.get(), &detected_features);
       results_to_publish.emplace_back(std::move(result));
@@ -957,7 +956,7 @@ class BackgroundCompileTask : public CancelableTask {
         }
 
         // Get next unit.
-        if (deadline < MonotonicallyIncreasingTimeInMs()) {
+        if (deadline < platform->MonotonicallyIncreasingTime()) {
           unit = nullptr;
         } else {
           unit = compile_scope.compilation_state()->GetNextCompilationUnit(
