@@ -825,10 +825,8 @@ void SerializerForBackgroundCompilation::ProcessKeyedPropertyAccess(
     ObjectRef receiver_ref(broker(), hint);
 
     // For JSNativeContextSpecialization::ReduceElementAccess.
-    if (mode == AccessMode::kStore) {
-      if (receiver_ref.IsJSTypedArray()) {
-        receiver_ref.AsJSTypedArray().Serialize();
-      }
+    if (receiver_ref.IsJSTypedArray()) {
+      receiver_ref.AsJSTypedArray().Serialize();
     }
 
     // For JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant.
