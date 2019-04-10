@@ -2320,8 +2320,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
           Node* current_value = effect = graph()->NewNode(
               simplified()->LoadField(field_access), storage, effect, control);
 
-          Node* check = graph()->NewNode(simplified()->NumberEqual(),
-                                         current_value, value);
+          Node* check =
+              graph()->NewNode(simplified()->SameValue(), current_value, value);
           effect = graph()->NewNode(
               simplified()->CheckIf(DeoptimizeReason::kWrongValue), check,
               effect, control);
