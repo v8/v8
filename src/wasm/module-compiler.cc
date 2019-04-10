@@ -803,75 +803,8 @@ bool InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module,
   return true;
 }
 
-void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
-  // Data structures for the parallel compilation.
-
-  //-----------------------------------------------------------------------
-  // For parallel compilation:
-  // 1) The main thread allocates a compilation unit for each wasm function
-  //    and stores them in the vector {compilation_units} within the
-  //    {compilation_state}. By adding units to the {compilation_state}, new
-  //    {BackgroundCompileTask} instances are spawned which run on
-  //    the background threads.
-  // 2) The background threads and the main thread pick one compilation unit at
-  //    a time and execute the parallel phase of the compilation unit.
-
-  // Turn on the {CanonicalHandleScope} so that the background threads can
-  // use the node cache.
-  CanonicalHandleScope canonical(isolate);
-
-  CompilationStateImpl* compilation_state =
-      Impl(native_module->compilation_state());
-  DCHECK_GE(kMaxInt, native_module->module()->num_declared_functions);
-
-  // 1) The main thread allocates a compilation unit for each wasm function
-  //    and stores them in the vector {compilation_units} within the
-  //    {compilation_state}. By adding units to the {compilation_state}, new
-  //    {BackgroundCompileTask} instances are spawned which run on
-  //    background threads.
-  bool success = InitializeCompilationUnits(isolate, native_module,
-                                            isolate->wasm_engine());
-  if (!success) {
-    // TODO(frgossen): Add test coverage for this path.
-    DCHECK(native_module->enabled_features().compilation_hints);
-    compilation_state->SetError();
-  }
-
-  // 2) The background threads and the main thread pick one compilation unit at
-  //    a time and execute the parallel phase of the compilation unit.
-  WasmFeatures detected_features;
-  CompilationEnv env = native_module->CreateCompilationEnv();
-  // TODO(wasm): This might already execute TurboFan units on the main thread,
-  // while waiting for baseline compilation to finish. This can introduce
-  // additional delay.
-  // TODO(wasm): This is a busy-wait loop once all units have started executing
-  // in background threads. Replace by a semaphore / barrier.
-  while (!compilation_state->failed() &&
-         !compilation_state->baseline_compilation_finished()) {
-    FetchAndExecuteCompilationUnit(&env, native_module, compilation_state,
-                                   &detected_features, isolate->counters());
-  }
-
-  // Publish features from the foreground and background tasks.
-  compilation_state->PublishDetectedFeatures(isolate, detected_features);
-}
-
-void CompileSequentially(Isolate* isolate, NativeModule* native_module) {
-  ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  const WasmModule* module = native_module->module();
-  WasmFeatures detected = kNoWasmFeatures;
-  auto* comp_state = Impl(native_module->compilation_state());
-  ExecutionTier tier =
-      WasmCompilationUnit::GetDefaultExecutionTier(native_module->module());
-  for (const WasmFunction& func : module->functions) {
-    if (func.imported) continue;  // Imports are compiled at instantiation time.
-
-    // Compile the function.
-    WasmCompilationUnit::CompileWasmFunction(isolate, native_module, &detected,
-                                             &func, tier);
-    if (comp_state->failed()) break;
-  }
-  UpdateFeatureUseCounts(isolate, detected);
+bool NeedsDeterministicCompile() {
+  return FLAG_trace_wasm_decoder || FLAG_wasm_num_compilation_tasks <= 1;
 }
 
 void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
@@ -890,29 +823,53 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
       // (lazy) compilation time.
       ValidateSequentially(isolate->counters(), isolate->allocator(),
                            native_module, thrower);
+      // On error: Return and leave the module in an unexecutable state.
       if (thrower->error()) return;
     }
     native_module->set_lazy_compilation(true);
     native_module->UseLazyStubs();
-  } else {
-    size_t funcs_to_compile =
-        wasm_module->functions.size() - wasm_module->num_imported_functions;
-    bool compile_parallel =
-        !FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks > 0 &&
-        funcs_to_compile > 1 &&
-        V8::GetCurrentPlatform()->NumberOfWorkerThreads() > 0;
+    return;
+  }
 
-    if (compile_parallel) {
-      CompileInParallel(isolate, native_module);
-    } else {
-      CompileSequentially(isolate, native_module);
-    }
-    auto* compilation_state = Impl(native_module->compilation_state());
-    if (compilation_state->failed()) {
-      ValidateSequentially(isolate->counters(), isolate->allocator(),
-                           native_module, thrower);
-      CHECK(thrower->error());
-    }
+  // Turn on the {CanonicalHandleScope} so that the background threads can
+  // use the node cache.
+  CanonicalHandleScope canonical(isolate);
+
+  auto* compilation_state = Impl(native_module->compilation_state());
+  DCHECK_GE(kMaxInt, native_module->module()->num_declared_functions);
+
+  // Initialize the compilation units and kick off background compile tasks.
+  if (!InitializeCompilationUnits(isolate, native_module,
+                                  isolate->wasm_engine())) {
+    // TODO(frgossen): Add test coverage for this path.
+    DCHECK(native_module->enabled_features().compilation_hints);
+    compilation_state->SetError();
+  }
+
+  WasmFeatures detected_features;
+  CompilationEnv env = native_module->CreateCompilationEnv();
+  // TODO(wasm): This might already execute TurboFan units on the main thread,
+  // while waiting for baseline compilation to finish. This can introduce
+  // additional delay.
+  // TODO(wasm): This is a busy-wait loop once all units have started executing
+  // in background threads. Replace by a semaphore / barrier.
+  while (!compilation_state->failed() &&
+         !compilation_state->baseline_compilation_finished()) {
+    // The main threads contributes to the compilation, except if we need
+    // deterministic compilation; in that case, the single background task will
+    // execute all compilation.
+    if (NeedsDeterministicCompile()) continue;
+    FetchAndExecuteCompilationUnit(&env, native_module, compilation_state,
+                                   &detected_features, isolate->counters());
+  }
+
+  // Publish features from the foreground and background tasks.
+  compilation_state->PublishDetectedFeatures(isolate, detected_features);
+
+  if (compilation_state->failed()) {
+    ValidateSequentially(isolate->counters(), isolate->allocator(),
+                         native_module, thrower);
+    CHECK(thrower->error());
   }
 }
 
@@ -1834,6 +1791,16 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
   return true;
 }
 
+namespace {
+int GetMaxBackgroundTasks() {
+  if (NeedsDeterministicCompile()) return 1;
+  int num_worker_threads = V8::GetCurrentPlatform()->NumberOfWorkerThreads();
+  int num_compile_tasks =
+      std::min(FLAG_wasm_num_compilation_tasks, num_worker_threads);
+  return std::max(1, num_compile_tasks);
+}
+}  // namespace
+
 CompilationStateImpl::CompilationStateImpl(
     const std::shared_ptr<NativeModule>& native_module,
     std::shared_ptr<Counters> async_counters)
@@ -1845,9 +1812,7 @@ CompilationStateImpl::CompilationStateImpl(
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
       async_counters_(std::move(async_counters)),
-      max_background_tasks_(std::max(
-          1, std::min(FLAG_wasm_num_compilation_tasks,
-                      V8::GetCurrentPlatform()->NumberOfWorkerThreads()))),
+      max_background_tasks_(GetMaxBackgroundTasks()),
       compilation_unit_queues_(max_background_tasks_),
       available_task_ids_(max_background_tasks_) {
   for (int i = 0; i < max_background_tasks_; ++i) {
