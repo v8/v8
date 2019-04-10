@@ -8944,16 +8944,15 @@ std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* isolate,
 }
 
 MicrotasksScope::MicrotasksScope(Isolate* isolate, MicrotasksScope::Type type)
-    : MicrotasksScope(
-          isolate,
-          reinterpret_cast<i::Isolate*>(isolate)->default_microtask_queue(),
-          type) {}
+    : MicrotasksScope(isolate, nullptr, type) {}
 
 MicrotasksScope::MicrotasksScope(Isolate* isolate,
                                  MicrotaskQueue* microtask_queue,
                                  MicrotasksScope::Type type)
     : isolate_(reinterpret_cast<i::Isolate*>(isolate)),
-      microtask_queue_(static_cast<i::MicrotaskQueue*>(microtask_queue)),
+      microtask_queue_(microtask_queue
+                           ? static_cast<i::MicrotaskQueue*>(microtask_queue)
+                           : isolate_->default_microtask_queue()),
       run_(type == MicrotasksScope::kRunMicrotasks) {
   if (run_) microtask_queue_->IncrementMicrotasksScopeDepth();
 #ifdef DEBUG
