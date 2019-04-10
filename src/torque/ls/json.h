@@ -26,31 +26,6 @@ struct JsonValue {
  public:
   enum { OBJECT, ARRAY, STRING, NUMBER, BOOL, IS_NULL } tag;
 
-  // JsonValues can only be moved, not copied.
-  JsonValue() V8_NOEXCEPT = default;
-  constexpr JsonValue(const JsonValue& other) = delete;
-  JsonValue& operator=(const JsonValue& other) = delete;
-
-  JsonValue(JsonValue&& other) V8_NOEXCEPT {
-    tag = other.tag;
-    flag_ = other.flag_;
-    number_ = other.number_;
-    string_ = std::move(other.string_);
-    object_ = std::move(other.object_);
-    array_ = std::move(other.array_);
-  }
-
-  JsonValue& operator=(JsonValue&& other) V8_NOEXCEPT {
-    if (this == &other) return *this;
-    tag = other.tag;
-    flag_ = other.flag_;
-    number_ = other.number_;
-    string_ = std::move(other.string_);
-    object_ = std::move(other.object_);
-    array_ = std::move(other.array_);
-    return *this;
-  }
-
   static JsonValue From(double number) {
     JsonValue result;
     result.tag = JsonValue::NUMBER;

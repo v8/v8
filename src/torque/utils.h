@@ -14,7 +14,6 @@
 #include "src/base/functional.h"
 #include "src/base/optional.h"
 #include "src/torque/contextual.h"
-#include "src/torque/source-positions.h"
 
 namespace v8 {
 namespace internal {
@@ -52,26 +51,19 @@ bool IsSnakeCase(const std::string& s);
 bool IsValidNamespaceConstName(const std::string& s);
 bool IsValidTypeName(const std::string& s);
 
-struct TorqueError : public std::exception {
-  explicit TorqueError(const std::string& message) : message(message) {}
-
-  std::string message;
-  base::Optional<SourcePosition> position;
-};
-
-[[noreturn]] void ThrowTorqueError(const std::string& error,
-                                   bool include_position);
+[[noreturn]] void ReportErrorString(const std::string& error,
+                                    bool print_position);
 template <class... Args>
 [[noreturn]] void ReportError(Args&&... args) {
   std::stringstream s;
   USE((s << std::forward<Args>(args))...);
-  ThrowTorqueError(s.str(), true);
+  ReportErrorString(s.str(), true);
 }
 template <class... Args>
 [[noreturn]] void ReportErrorWithoutPosition(Args&&... args) {
   std::stringstream s;
   USE((s << std::forward<Args>(args))...);
-  ThrowTorqueError(s.str(), false);
+  ReportErrorString(s.str(), false);
 }
 
 std::string CapifyStringWithUnderscores(const std::string& camellified_string);
