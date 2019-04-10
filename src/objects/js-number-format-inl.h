@@ -22,7 +22,7 @@ OBJECT_CONSTRUCTORS_IMPL(JSNumberFormat, JSObject)
 
 ACCESSORS(JSNumberFormat, locale, String, kLocaleOffset)
 ACCESSORS(JSNumberFormat, icu_number_format, Managed<icu::NumberFormat>,
-          kIcuNumberFormatOffset)
+          kICUNumberFormatOffset)
 ACCESSORS(JSNumberFormat, bound_format, Object, kBoundFormatOffset)
 SMI_ACCESSORS(JSNumberFormat, flags, kFlagsOffset)
 

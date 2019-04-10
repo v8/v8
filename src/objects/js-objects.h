@@ -874,8 +874,15 @@ class JSIteratorResult : public JSObject {
   DECL_ACCESSORS(done, Object)
 
   // Layout description.
+#define JS_ITERATOR_RESULT_FIELDS(V) \
+  V(kValueOffset, kTaggedSize)       \
+  V(kDoneOffset, kTaggedSize)        \
+  /* Total size. */                  \
+  V(kSize, 0)
+
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSITERATOR_RESULT_FIELDS)
+                                JS_ITERATOR_RESULT_FIELDS)
+#undef JS_ITERATOR_RESULT_FIELDS
 
   // Indices of in-object properties.
   static const int kValueIndex = 0;
@@ -1197,8 +1204,15 @@ class JSGlobalObject : public JSObject {
   DECL_VERIFIER(JSGlobalObject)
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSGLOBAL_OBJECT_FIELDS)
+#define JS_GLOBAL_OBJECT_FIELDS(V)     \
+  V(kNativeContextOffset, kTaggedSize) \
+  V(kGlobalProxyOffset, kTaggedSize)   \
+  /* Header size. */                   \
+  V(kHeaderSize, 0)                    \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GLOBAL_OBJECT_FIELDS)
+#undef JS_GLOBAL_OBJECT_FIELDS
 
   OBJECT_CONSTRUCTORS(JSGlobalObject, JSObject);
 };

@@ -78,8 +78,16 @@ class JSSegmenter : public JSObject {
   DECL_VERIFIER(JSSegmenter)
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSSEGMENTER_FIELDS)
+#define JS_SEGMENTER_FIELDS(V)            \
+  V(kJSSegmenterOffset, kTaggedSize)      \
+  V(kLocaleOffset, kTaggedSize)           \
+  V(kICUBreakIteratorOffset, kTaggedSize) \
+  V(kFlagsOffset, kTaggedSize)            \
+  /* Header size. */                      \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_SEGMENTER_FIELDS)
+#undef JS_SEGMENTER_FIELDS
 
  private:
   static Granularity GetGranularity(const char* str);

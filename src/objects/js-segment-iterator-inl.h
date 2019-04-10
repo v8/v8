@@ -22,7 +22,7 @@ OBJECT_CONSTRUCTORS_IMPL(JSSegmentIterator, JSObject)
 
 // Base segment iterator accessors.
 ACCESSORS(JSSegmentIterator, icu_break_iterator, Managed<icu::BreakIterator>,
-          kIcuBreakIteratorOffset)
+          kICUBreakIteratorOffset)
 ACCESSORS(JSSegmentIterator, unicode_string, Managed<icu::UnicodeString>,
           kUnicodeStringOffset)
 

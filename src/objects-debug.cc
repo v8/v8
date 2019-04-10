@@ -2161,64 +2161,62 @@ void JSCollator::JSCollatorVerify(Isolate* isolate) {
 
 void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  VerifyObjectField(isolate, kIcuLocaleOffset);
-  VerifyObjectField(isolate, kIcuSimpleDateFormatOffset);
-  VerifyObjectField(isolate, kIcuDateIntervalFormatOffset);
-  VerifySmiField(kFlagsOffset);
+  VerifyObjectField(isolate, kICULocaleOffset);
+  VerifyObjectField(isolate, kICUSimpleDateFormatOffset);
+  VerifyObjectField(isolate, kICUDateIntervalFormatOffset);
   VerifyObjectField(isolate, kBoundFormatOffset);
-  CHECK(bound_format()->IsUndefined(isolate) || bound_format()->IsJSFunction());
+  VerifyObjectField(isolate, kFlagsOffset);
 }
 
 void JSListFormat::JSListFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
-  VerifyObjectField(isolate, kIcuFormatterOffset);
-  VerifySmiField(kFlagsOffset);
+  VerifyObjectField(isolate, kICUFormatterOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
 }
 
 void JSLocale::JSLocaleVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  VerifyObjectField(isolate, kIcuLocaleOffset);
+  VerifyObjectField(isolate, kICULocaleOffset);
 }
 
 void JSNumberFormat::JSNumberFormatVerify(Isolate* isolate) {
   CHECK(IsJSNumberFormat());
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
-  VerifyObjectField(isolate, kIcuNumberFormatOffset);
+  VerifyObjectField(isolate, kICUNumberFormatOffset);
   VerifyObjectField(isolate, kBoundFormatOffset);
-  CHECK(bound_format()->IsUndefined(isolate) || bound_format()->IsJSFunction());
-  VerifySmiField(kFlagsOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
 }
 
 void JSPluralRules::JSPluralRulesVerify(Isolate* isolate) {
   CHECK(IsJSPluralRules());
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
-  VerifySmiField(kFlagsOffset);
-  VerifyObjectField(isolate, kIcuPluralRulesOffset);
-  VerifyObjectField(isolate, kIcuDecimalFormatOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
+  VerifyObjectField(isolate, kICUPluralRulesOffset);
+  VerifyObjectField(isolate, kICUDecimalFormatOffset);
 }
 
 void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
-  VerifyObjectField(isolate, kIcuFormatterOffset);
-  VerifySmiField(kFlagsOffset);
+  VerifyObjectField(isolate, kICUFormatterOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
 }
 
 void JSSegmentIterator::JSSegmentIteratorVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
-  VerifyObjectField(isolate, kIcuBreakIteratorOffset);
+  VerifyObjectField(isolate, kICUBreakIteratorOffset);
   VerifyObjectField(isolate, kUnicodeStringOffset);
-  VerifySmiField(kFlagsOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
 }
 
 void JSSegmenter::JSSegmenterVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
-  VerifyObjectField(isolate, kIcuBreakIteratorOffset);
-  VerifySmiField(kFlagsOffset);
+  VerifyObjectField(isolate, kICUBreakIteratorOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
 }
 #endif  // V8_INTL_SUPPORT
 
