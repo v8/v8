@@ -428,7 +428,6 @@ bool Assembler::UseConstPoolFor(RelocInfo::Mode rmode) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)), constpool_(this) {
-  ReserveCodeTargetSpace(100);
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   if (CpuFeatures::IsSupported(SSE4_1)) {
     EnableCpuFeature(SSSE3);

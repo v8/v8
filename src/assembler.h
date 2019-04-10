@@ -279,8 +279,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   Handle<Code> GetCodeTarget(intptr_t code_target_index) const;
   // Update to the code target at {code_target_index} to {target}.
   void UpdateCodeTarget(intptr_t code_target_index, Handle<Code> target);
-  // Reserves space in the code target vector.
-  void ReserveCodeTargetSpace(size_t num_of_code_targets);
 
   // The buffer into which code and relocation info are generated.
   std::unique_ptr<AssemblerBuffer> buffer_;

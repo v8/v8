@@ -344,7 +344,6 @@ Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
-  ReserveCodeTargetSpace(100);
   last_bound_pos_ = 0;
   relocations_.reserve(128);
 }

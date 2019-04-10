@@ -560,7 +560,6 @@ void Assembler::Reset() {
   memset(buffer_start_, 0, pc_ - buffer_start_);
 #endif
   pc_ = buffer_start_;
-  ReserveCodeTargetSpace(64);
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   constpool_.Clear();
   next_constant_pool_check_ = 0;
