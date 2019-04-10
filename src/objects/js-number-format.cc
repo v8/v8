@@ -559,64 +559,6 @@ bool cmp_NumberFormatSpan(const NumberFormatSpan& a,
   return a.field_id < b.field_id;
 }
 
-// The list comes from third_party/icu/source/i18n/unicode/unum.h.
-// They're mapped to NumberFormat part types mentioned throughout
-// https://tc39.github.io/ecma402/#sec-partitionnumberpattern .
-Handle<String> IcuNumberFieldIdToNumberType(int32_t field_id,
-                                            Handle<Object> numeric_obj,
-                                            Isolate* isolate) {
-  DCHECK(numeric_obj->IsNumeric());
-  switch (static_cast<UNumberFormatFields>(field_id)) {
-    case UNUM_INTEGER_FIELD:
-      if (numeric_obj->IsBigInt()) {
-        // Neither NaN nor Infinite could be stored into BigInt
-        // so just return integer.
-        return isolate->factory()->integer_string();
-      } else {
-        double number = numeric_obj->Number();
-        if (std::isfinite(number)) return isolate->factory()->integer_string();
-        if (std::isnan(number)) return isolate->factory()->nan_string();
-        return isolate->factory()->infinity_string();
-      }
-    case UNUM_FRACTION_FIELD:
-      return isolate->factory()->fraction_string();
-    case UNUM_DECIMAL_SEPARATOR_FIELD:
-      return isolate->factory()->decimal_string();
-    case UNUM_GROUPING_SEPARATOR_FIELD:
-      return isolate->factory()->group_string();
-    case UNUM_CURRENCY_FIELD:
-      return isolate->factory()->currency_string();
-    case UNUM_PERCENT_FIELD:
-      return isolate->factory()->percentSign_string();
-    case UNUM_SIGN_FIELD:
-      if (numeric_obj->IsBigInt()) {
-        Handle<BigInt> big_int = Handle<BigInt>::cast(numeric_obj);
-        return big_int->IsNegative() ? isolate->factory()->minusSign_string()
-                                     : isolate->factory()->plusSign_string();
-      } else {
-        double number = numeric_obj->Number();
-        return number < 0 ? isolate->factory()->minusSign_string()
-                          : isolate->factory()->plusSign_string();
-      }
-    case UNUM_EXPONENT_SYMBOL_FIELD:
-    case UNUM_EXPONENT_SIGN_FIELD:
-    case UNUM_EXPONENT_FIELD:
-      // We should never get these because we're not using any scientific
-      // formatter.
-      UNREACHABLE();
-      return Handle<String>();
-
-    case UNUM_PERMILL_FIELD:
-      // We're not creating any permill formatter, and it's not even clear how
-      // that would be possible with the ICU API.
-      UNREACHABLE();
-      return Handle<String>();
-
-    default:
-      UNREACHABLE();
-      return Handle<String>();
-  }
-}
 }  // namespace
 
 // Flattens a list of possibly-overlapping "regions" to a list of
@@ -748,7 +690,7 @@ Maybe<int> JSNumberFormat::FormatToParts(Isolate* isolate,
     Handle<String> field_type_string =
         part.field_id == -1
             ? isolate->factory()->literal_string()
-            : IcuNumberFieldIdToNumberType(part.field_id, numeric_obj, isolate);
+            : Intl::NumberFieldToType(isolate, numeric_obj, part.field_id);
     Handle<String> substring;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, substring,

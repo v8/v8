@@ -20,7 +20,7 @@
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 
-#define V8_MINIMUM_ICU_VERSION 63
+#define V8_MINIMUM_ICU_VERSION 64
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
@@ -185,6 +185,11 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToString(
       Isolate* isolate, const icu::UnicodeString& string, int32_t begin,
       int32_t end);
+
+  // Helper function to convert number field id to type string.
+  static Handle<String> NumberFieldToType(Isolate* isolate,
+                                          Handle<Object> numeric_obj,
+                                          int32_t field_id);
 
   // A helper function to implement formatToParts which add element to array as
   // $array[$index] = { type: $field_type_string, value: $value }

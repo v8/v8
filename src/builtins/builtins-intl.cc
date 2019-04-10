@@ -705,7 +705,7 @@ BUILTIN(RelativeTimeFormatPrototypeFormat) {
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSRelativeTimeFormat::Format(isolate, value_obj, unit_obj,
-                                            format_holder, "format", false));
+                                            format_holder));
 }
 
 BUILTIN(RelativeTimeFormatPrototypeFormatToParts) {
@@ -718,9 +718,9 @@ BUILTIN(RelativeTimeFormatPrototypeFormatToParts) {
                  "Intl.RelativeTimeFormat.prototype.formatToParts");
   Handle<Object> value_obj = args.atOrUndefined(isolate, 1);
   Handle<Object> unit_obj = args.atOrUndefined(isolate, 2);
-  RETURN_RESULT_OR_FAILURE(isolate, JSRelativeTimeFormat::Format(
-                                        isolate, value_obj, unit_obj,
-                                        format_holder, "formatToParts", true));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSRelativeTimeFormat::FormatToParts(isolate, value_obj, unit_obj,
+                                                   format_holder));
 }
 
 // Locale getters.

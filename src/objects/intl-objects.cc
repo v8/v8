@@ -1878,5 +1878,61 @@ const std::set<std::string>& Intl::GetAvailableLocalesForDateFormat() {
   return available_locales.Pointer()->Get();
 }
 
+Handle<String> Intl::NumberFieldToType(Isolate* isolate,
+                                       Handle<Object> numeric_obj,
+                                       int32_t field_id) {
+  DCHECK(numeric_obj->IsNumeric());
+  switch (static_cast<UNumberFormatFields>(field_id)) {
+    case UNUM_INTEGER_FIELD:
+      if (numeric_obj->IsBigInt()) {
+        // Neither NaN nor Infinite could be stored into BigInt
+        // so just return integer.
+        return isolate->factory()->integer_string();
+      } else {
+        double number = numeric_obj->Number();
+        if (std::isfinite(number)) return isolate->factory()->integer_string();
+        if (std::isnan(number)) return isolate->factory()->nan_string();
+        return isolate->factory()->infinity_string();
+      }
+    case UNUM_FRACTION_FIELD:
+      return isolate->factory()->fraction_string();
+    case UNUM_DECIMAL_SEPARATOR_FIELD:
+      return isolate->factory()->decimal_string();
+    case UNUM_GROUPING_SEPARATOR_FIELD:
+      return isolate->factory()->group_string();
+    case UNUM_CURRENCY_FIELD:
+      return isolate->factory()->currency_string();
+    case UNUM_PERCENT_FIELD:
+      return isolate->factory()->percentSign_string();
+    case UNUM_SIGN_FIELD:
+      if (numeric_obj->IsBigInt()) {
+        Handle<BigInt> big_int = Handle<BigInt>::cast(numeric_obj);
+        return big_int->IsNegative() ? isolate->factory()->minusSign_string()
+                                     : isolate->factory()->plusSign_string();
+      } else {
+        double number = numeric_obj->Number();
+        return number < 0 ? isolate->factory()->minusSign_string()
+                          : isolate->factory()->plusSign_string();
+      }
+    case UNUM_EXPONENT_SYMBOL_FIELD:
+    case UNUM_EXPONENT_SIGN_FIELD:
+    case UNUM_EXPONENT_FIELD:
+      // We should never get these because we're not using any scientific
+      // formatter.
+      UNREACHABLE();
+      return Handle<String>();
+
+    case UNUM_PERMILL_FIELD:
+      // We're not creating any permill formatter, and it's not even clear how
+      // that would be possible with the ICU API.
+      UNREACHABLE();
+      return Handle<String>();
+
+    default:
+      UNREACHABLE();
+      return Handle<String>();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
