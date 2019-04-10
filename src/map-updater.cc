@@ -362,19 +362,12 @@ MapUpdater::State MapUpdater::FindRootMap() {
     DCHECK_EQ(kData, old_details.kind());
     DCHECK_EQ(kData, new_kind_);
     DCHECK_EQ(kField, new_location_);
-    FieldType old_field_type =
-        old_descriptors_->GetFieldType(modified_descriptor_);
-    if (!new_field_type_->NowIs(old_field_type)) {
-      return CopyGeneralizeAllFields("GenAll_RootModification5");
-    }
 
-    // Modify root map in-place.
-    if (new_constness_ != old_details.constness()) {
-      DCHECK(IsGeneralizableTo(old_details.constness(), new_constness_));
-      GeneralizeField(old_map_, modified_descriptor_, new_constness_,
-                      old_details.representation(),
-                      handle(old_field_type, isolate_));
-    }
+    // Modify root map in-place. The GeneralizeField method is a no-op
+    // if the {old_map_} is already general enough to hold the requested
+    // {new_constness_} and {new_field_type_}.
+    GeneralizeField(old_map_, modified_descriptor_, new_constness_,
+                    old_details.representation(), new_field_type_);
   }
 
   // From here on, use the map with correct elements kind as root map.
