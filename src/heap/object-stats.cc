@@ -369,8 +369,9 @@ class ObjectStatsCollectorImpl {
   bool RecordSimpleVirtualObjectStats(HeapObject parent, HeapObject obj,
                                       ObjectStats::VirtualInstanceType type);
   // For HashTable it is possible to compute over allocated memory.
+  template <typename Derived, typename Shape>
   void RecordHashTableVirtualObjectStats(HeapObject parent,
-                                         HashTableBase hash_table,
+                                         HashTable<Derived, Shape> hash_table,
                                          ObjectStats::VirtualInstanceType type);
 
   bool SameLiveness(HeapObject obj1, HeapObject obj2);
@@ -438,18 +439,14 @@ bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject obj,
   return true;
 }
 
+template <typename Derived, typename Shape>
 void ObjectStatsCollectorImpl::RecordHashTableVirtualObjectStats(
-    HeapObject parent, HashTableBase hash_table,
+    HeapObject parent, HashTable<Derived, Shape> hash_table,
     ObjectStats::VirtualInstanceType type) {
-  size_t entry_size =
-      ((hash_table->length() - HashTableBase::kPrefixStartIndex) /
-       hash_table->Capacity()) *
-      kTaggedSize;
   size_t over_allocated =
-      (hash_table->length() -
-       (HashTableBase::kPrefixStartIndex + hash_table->NumberOfElements() +
-        hash_table->NumberOfDeletedElements())) *
-      entry_size;
+      (hash_table->Capacity() - (hash_table->NumberOfElements() +
+                                 hash_table->NumberOfDeletedElements())) *
+      HashTable<Derived, Shape>::kEntrySize * kTaggedSize;
   RecordVirtualObjectStats(parent, hash_table, type, hash_table->Size(),
                            over_allocated);
 }
@@ -463,6 +460,7 @@ bool ObjectStatsCollectorImpl::RecordSimpleVirtualObjectStats(
 bool ObjectStatsCollectorImpl::RecordVirtualObjectStats(
     HeapObject parent, HeapObject obj, ObjectStats::VirtualInstanceType type,
     size_t size, size_t over_allocated, CowMode check_cow_array) {
+  CHECK_LT(over_allocated, size);
   if (!SameLiveness(parent, obj) || !ShouldRecordObject(obj, check_cow_array)) {
     return false;
   }
@@ -557,13 +555,18 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject object) {
       size_t over_allocated =
           object->map()->UnusedPropertyFields() * kTaggedSize;
       RecordVirtualObjectStats(object, properties,
-                               ObjectStats::OBJECT_PROPERTY_ARRAY_TYPE,
+                               object->map()->is_prototype_map()
+                                   ? ObjectStats::PROTOTYPE_PROPERTY_ARRAY_TYPE
+                                   : ObjectStats::OBJECT_PROPERTY_ARRAY_TYPE,
                                properties->Size(), over_allocated);
     }
   } else {
     NameDictionary properties = object->property_dictionary();
     RecordHashTableVirtualObjectStats(
-        object, properties, ObjectStats::OBJECT_PROPERTY_DICTIONARY_TYPE);
+        object, properties,
+        object->map()->is_prototype_map()
+            ? ObjectStats::PROTOTYPE_PROPERTY_DICTIONARY_TYPE
+            : ObjectStats::OBJECT_PROPERTY_DICTIONARY_TYPE);
   }
 
   // Elements.
