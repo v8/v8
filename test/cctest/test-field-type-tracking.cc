@@ -646,7 +646,7 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
                                       from.representation, from.type);
     } else {
       map = expectations.AddDataField(map, NONE, kDefaultFieldConstness,
-                                      Representation::Smi(), any_type);
+                                      Representation::Double(), any_type);
       if (i == detach_property_at_index) {
         detach_point_map = map;
       }
@@ -801,7 +801,9 @@ TEST(GeneralizeSmiFieldToTagged) {
   TestGeneralizeField(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+      !FLAG_modify_field_representation_inplace,
+      FLAG_modify_field_representation_inplace);
 }
 
 TEST(GeneralizeDoubleFieldToTagged) {
@@ -831,7 +833,9 @@ TEST(GeneralizeHeapObjectFieldToTagged) {
   TestGeneralizeField(
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+      !FLAG_modify_field_representation_inplace,
+      FLAG_modify_field_representation_inplace);
 }
 
 TEST(GeneralizeHeapObjectFieldToHeapObject) {
@@ -2252,10 +2256,9 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
 // IS_PROTO_TRANS_ISSUE_FIXED and IS_NON_EQUIVALENT_TRANSITION_SUPPORTED are
 // fixed.
 template <typename TestConfig>
-static void TestGeneralizeFieldWithSpecialTransition(TestConfig& config,
-                                                     const CRFTData& from,
-                                                     const CRFTData& to,
-                                                     const CRFTData& expected) {
+static void TestGeneralizeFieldWithSpecialTransition(
+    TestConfig& config, const CRFTData& from, const CRFTData& to,
+    const CRFTData& expected, bool expected_deprecation) {
   Isolate* isolate = CcTest::i_isolate();
 
   Expectations expectations(isolate);
@@ -2301,39 +2304,46 @@ static void TestGeneralizeFieldWithSpecialTransition(TestConfig& config,
     expectations.SetDataField(i, expected.constness, expected.representation,
                               expected.type);
 
-    CHECK(map->is_deprecated());
-    CHECK_NE(*map, *new_map);
-    CHECK(i == 0 || maps[i - 1]->is_deprecated());
-    CHECK(expectations.Check(*new_map));
+    if (expected_deprecation) {
+      CHECK(map->is_deprecated());
+      CHECK_NE(*map, *new_map);
+      CHECK(i == 0 || maps[i - 1]->is_deprecated());
+      CHECK(expectations.Check(*new_map));
 
-    Handle<Map> new_map2 = Map::Update(isolate, map2);
-    CHECK(!new_map2->is_deprecated());
-    CHECK(!new_map2->is_dictionary_map());
+      Handle<Map> new_map2 = Map::Update(isolate, map2);
+      CHECK(!new_map2->is_deprecated());
+      CHECK(!new_map2->is_dictionary_map());
 
-    Handle<Map> tmp_map;
-    if (Map::TryUpdate(isolate, map2).ToHandle(&tmp_map)) {
-      // If Map::TryUpdate() manages to succeed the result must match the result
-      // of Map::Update().
-      CHECK_EQ(*new_map2, *tmp_map);
-    } else {
-      // Equivalent transitions should always find the updated map.
-      CHECK(config.is_non_equivalent_transition());
-    }
-
-    if (config.is_non_equivalent_transition()) {
-      // In case of non-equivalent transition currently we generalize all
-      // representations.
-      for (int i = 0; i < kPropCount; i++) {
-        expectations2.GeneralizeField(i);
+      Handle<Map> tmp_map;
+      if (Map::TryUpdate(isolate, map2).ToHandle(&tmp_map)) {
+        // If Map::TryUpdate() manages to succeed the result must match the
+        // result of Map::Update().
+        CHECK_EQ(*new_map2, *tmp_map);
+      } else {
+        // Equivalent transitions should always find the updated map.
+        CHECK(config.is_non_equivalent_transition());
       }
-      CHECK(new_map2->GetBackPointer()->IsUndefined(isolate));
-      CHECK(expectations2.Check(*new_map2));
-    } else {
-      expectations2.SetDataField(i, expected.constness, expected.representation,
-                                 expected.type);
 
-      CHECK(!new_map2->GetBackPointer()->IsUndefined(isolate));
-      CHECK(expectations2.Check(*new_map2));
+      if (config.is_non_equivalent_transition()) {
+        // In case of non-equivalent transition currently we generalize all
+        // representations.
+        for (int i = 0; i < kPropCount; i++) {
+          expectations2.GeneralizeField(i);
+        }
+        CHECK(new_map2->GetBackPointer()->IsUndefined(isolate));
+        CHECK(expectations2.Check(*new_map2));
+      } else {
+        expectations2.SetDataField(i, expected.constness,
+                                   expected.representation, expected.type);
+
+        CHECK(!new_map2->GetBackPointer()->IsUndefined(isolate));
+        CHECK(expectations2.Check(*new_map2));
+      }
+    } else {
+      CHECK(!map->is_deprecated());
+      // TODO(ishell): Update test expectations properly.
+      // CHECK_EQ(*map2, *new_map);
+      // CHECK(expectations2.Check(*new_map));
     }
   }
 
@@ -2350,7 +2360,6 @@ static void TestGeneralizeFieldWithSpecialTransition(TestConfig& config,
     CheckMigrationTarget(isolate, *maps[i], *updated_map);
   }
 }
-
 
 TEST(ElementsKindTransitionFromMapOwningDescriptor) {
   CcTest::InitializeVM();
@@ -2387,7 +2396,14 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
         configs[i],
         {PropertyConstness::kMutable, Representation::Smi(), any_type},
         {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+        {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+        !FLAG_modify_field_representation_inplace);
+    TestGeneralizeFieldWithSpecialTransition(
+        configs[i],
+        {PropertyConstness::kMutable, Representation::Double(), any_type},
+        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+        {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+        true);
   }
 }
 
@@ -2439,7 +2455,14 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
         configs[i],
         {PropertyConstness::kMutable, Representation::Smi(), any_type},
         {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+        {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+        !FLAG_modify_field_representation_inplace);
+    TestGeneralizeFieldWithSpecialTransition(
+        configs[i],
+        {PropertyConstness::kMutable, Representation::Double(), any_type},
+        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+        {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+        true);
   }
 }
 
@@ -2475,7 +2498,12 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
   TestGeneralizeFieldWithSpecialTransition(
       config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+      !FLAG_modify_field_representation_inplace);
+  TestGeneralizeFieldWithSpecialTransition(
+      config, {PropertyConstness::kMutable, Representation::Double(), any_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type}, true);
 }
 
 
@@ -2522,7 +2550,12 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
   TestGeneralizeFieldWithSpecialTransition(
       config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
+      !FLAG_modify_field_representation_inplace);
+  TestGeneralizeFieldWithSpecialTransition(
+      config, {PropertyConstness::kMutable, Representation::Double(), any_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type}, true);
 }
 
 
@@ -2811,12 +2844,17 @@ TEST(TransitionDataConstantToDataField) {
 
   Handle<Object> value2 = isolate->factory()->NewHeapNumber(0);
   TransitionToDataFieldOperator transition_op2(
-      PropertyConstness::kMutable, Representation::Double(), any_type, value2);
+      PropertyConstness::kMutable, Representation::Tagged(), any_type, value2);
 
-  FieldGeneralizationChecker checker(kPropCount - 1,
-                                     PropertyConstness::kMutable,
-                                     Representation::Tagged(), any_type);
-  TestTransitionTo(transition_op1, transition_op2, checker);
+  if (FLAG_track_constant_fields && FLAG_modify_field_representation_inplace) {
+    SameMapChecker checker;
+    TestTransitionTo(transition_op1, transition_op2, checker);
+  } else {
+    FieldGeneralizationChecker checker(kPropCount - 1,
+                                       PropertyConstness::kMutable,
+                                       Representation::Tagged(), any_type);
+    TestTransitionTo(transition_op1, transition_op2, checker);
+  }
 }
 
 

@@ -1049,6 +1049,8 @@ DEFINE_BOOL_READONLY(track_constant_fields, true,
                      "enable constant field tracking")
 DEFINE_BOOL_READONLY(fast_map_update, false,
                      "enable fast map update by caching the migration target")
+DEFINE_BOOL(modify_field_representation_inplace, true,
+            "enable in-place field representation updates")
 DEFINE_INT(max_polymorphic_map_count, 4,
            "maximum number of maps to track in POLYMORPHIC state")
 

@@ -51,6 +51,10 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // not change.
   AllocationType DependOnPretenureMode(const AllocationSiteRef& site);
 
+  // Record the assumption that the field representation of a field does not
+  // change. The field is identified by the arguments.
+  void DependOnFieldRepresentation(const MapRef& map, int descriptor);
+
   // Record the assumption that the field type of a field does not change. The
   // field is identified by the arguments.
   void DependOnFieldType(const MapRef& map, int descriptor);
