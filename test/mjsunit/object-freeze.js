@@ -517,3 +517,28 @@ assertFalse(Object.isFrozen(typedArray));
 var typedArray = new Uint8Array(0);
 Object.freeze(typedArray);
 assertTrue(Object.isFrozen(typedArray));
+
+// Test regression with Object.defineProperty
+var obj = [];
+obj.propertyA = 42;
+obj[0] = true;
+Object.freeze(obj);
+assertThrows(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+  });
+}, TypeError);
+assertEquals(42, obj.propertyA);
+assertThrows(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+    writable: false,
+  });
+}, TypeError);
+assertDoesNotThrow(function() {obj.propertyA = 2;});
+assertEquals(obj.propertyA, 42);
+assertThrows(function() {
+  Object.defineProperty(obj, 'abc', {
+    value: obj,
+  });
+}, TypeError);

@@ -493,3 +493,28 @@ assertTrue(%HasPackedElements(arr2));
 Object.preventExtensions(arr2);
 Object.seal(arr2);
 testPackedSealedArray2(arr2);
+
+// Test regression with Object.defineProperty
+var obj = [];
+obj.propertyA = 42;
+obj[0] = true;
+Object.seal(obj);
+assertDoesNotThrow(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+  });
+});
+assertEquals(obj, obj.propertyA);
+assertDoesNotThrow(function() {
+  Object.defineProperty(obj, 'propertyA', {
+    value: obj,
+    writable: false,
+  });
+});
+obj.propertyA = 42;
+assertEquals(obj.propertyA, 42);
+assertThrows(function() {
+  Object.defineProperty(obj, 'abc', {
+    value: obj,
+  });
+}, TypeError);
