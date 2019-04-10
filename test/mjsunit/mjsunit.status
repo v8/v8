@@ -911,7 +911,8 @@
   'regress/regress-336820': [PASS, ['arch == arm and not simulator_run', SKIP]],
 
   # Too slow for TSAN in stress mode.
-  'es6/classes': [PASS, ['tsan', SKIP]],
+  # Goes OOM on ODROID devices: https://crbug.com/v8/9026
+  'es6/classes': [PASS, ['tsan or (arch == arm and not simulator_run)', SKIP]],
   'regress/regress-1122': [PASS, ['tsan', SKIP]],
 
   # Too slow with gc_stress on arm64.
