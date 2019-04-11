@@ -313,7 +313,8 @@ class CompilationStateImpl {
   void OnFinishedUnits(Vector<WasmCode*>);
 
   void OnBackgroundTaskStopped(int task_id, const WasmFeatures& detected);
-  void PublishDetectedFeatures(Isolate* isolate, const WasmFeatures& detected);
+  void UpdateDetectedFeatures(const WasmFeatures& detected);
+  void PublishDetectedFeatures(Isolate*);
   void RestartBackgroundTasks();
 
   void SetError();
@@ -341,6 +342,11 @@ class CompilationStateImpl {
     base::MutexGuard guard(&mutex_);
     DCHECK_NOT_NULL(wire_bytes_storage_);
     return wire_bytes_storage_;
+  }
+
+  const std::shared_ptr<BackgroundCompileToken>& background_compile_token()
+      const {
+    return background_compile_token_;
   }
 
  private:
@@ -671,36 +677,115 @@ void RecordStats(const Code code, Counters* counters) {
   counters->wasm_reloc_size()->Increment(code->relocation_info()->length());
 }
 
-// Run by the main thread to take part in compilation. Only used for synchronous
-// compilation.
-bool FetchAndExecuteCompilationUnit(WasmEngine* wasm_engine,
-                                    CompilationEnv* env,
-                                    NativeModule* native_module,
-                                    CompilationStateImpl* compilation_state,
-                                    WasmFeatures* detected,
-                                    Counters* counters) {
-  DisallowHeapAccess no_heap_access;
+constexpr int kMainThreadTaskId = -1;
 
+// Run by the main thread and background tasks to take part in compilation.
+void ExecuteCompilationUnits(
+    const std::shared_ptr<BackgroundCompileToken>& token, Counters* counters,
+    int task_id) {
+  TRACE_COMPILE("Compiling (task %d)...\n", task_id);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "ExecuteCompilationUnits");
+
+  const bool is_foreground = task_id == kMainThreadTaskId;
   // The main thread uses task id 0, which might collide with one of the
   // background tasks. This is fine, as it will only cause some contention on
   // the one queue, but work otherwise.
-  constexpr int kMainThreadTaskId = 0;
-  std::unique_ptr<WasmCompilationUnit> unit =
-      compilation_state->GetNextCompilationUnit(kMainThreadTaskId);
-  if (unit == nullptr) return false;
+  if (is_foreground) task_id = 0;
 
-  WasmCompilationResult result = unit->ExecuteCompilation(
-      wasm_engine, env, compilation_state->GetWireBytesStorage(), counters,
-      detected);
+  Platform* platform = V8::GetCurrentPlatform();
+  // Deadline is in 50ms from now.
+  static constexpr double kBackgroundCompileTimeLimit =
+      50.0 / base::Time::kMillisecondsPerSecond;
+  const double deadline =
+      platform->MonotonicallyIncreasingTime() + kBackgroundCompileTimeLimit;
 
-  if (result.succeeded()) {
-    WasmCodeRefScope code_ref_scope;
-    WasmCode* code = native_module->AddCompiledCode(std::move(result));
-    compilation_state->OnFinishedUnit(code);
-  } else {
-    compilation_state->SetError();
+  // These fields are initialized in a {BackgroundCompileScope} before
+  // starting compilation.
+  base::Optional<CompilationEnv> env;
+  std::shared_ptr<WireBytesStorage> wire_bytes;
+  std::shared_ptr<const WasmModule> module;
+  WasmEngine* wasm_engine = nullptr;
+  std::unique_ptr<WasmCompilationUnit> unit;
+  WasmFeatures detected_features = kNoWasmFeatures;
+
+  auto stop = [is_foreground, task_id,
+               &detected_features](BackgroundCompileScope& compile_scope) {
+    if (is_foreground) {
+      compile_scope.compilation_state()->UpdateDetectedFeatures(
+          detected_features);
+    } else {
+      compile_scope.compilation_state()->OnBackgroundTaskStopped(
+          task_id, detected_features);
+    }
+  };
+
+  // Preparation (synchronized): Initialize the fields above and get the first
+  // compilation unit.
+  {
+    BackgroundCompileScope compile_scope(token);
+    if (compile_scope.cancelled()) return;
+    env.emplace(compile_scope.native_module()->CreateCompilationEnv());
+    wire_bytes = compile_scope.compilation_state()->GetWireBytesStorage();
+    module = compile_scope.native_module()->shared_module();
+    wasm_engine = compile_scope.native_module()->engine();
+    unit = compile_scope.compilation_state()->GetNextCompilationUnit(task_id);
+    if (unit == nullptr) return stop(compile_scope);
   }
-  return true;
+
+  std::vector<WasmCompilationResult> results_to_publish;
+
+  auto publish_results = [&results_to_publish](
+                             BackgroundCompileScope* compile_scope) {
+    if (results_to_publish.empty()) return;
+    WasmCodeRefScope code_ref_scope;
+    std::vector<WasmCode*> code_vector =
+        compile_scope->native_module()->AddCompiledCode(
+            VectorOf(results_to_publish));
+    compile_scope->compilation_state()->OnFinishedUnits(VectorOf(code_vector));
+    results_to_publish.clear();
+  };
+
+  bool compilation_failed = false;
+  while (true) {
+    // (asynchronous): Execute the compilation.
+    WasmCompilationResult result = unit->ExecuteCompilation(
+        wasm_engine, &env.value(), wire_bytes, counters, &detected_features);
+    results_to_publish.emplace_back(std::move(result));
+
+    // (synchronized): Publish the compilation result and get the next unit.
+    {
+      BackgroundCompileScope compile_scope(token);
+      if (compile_scope.cancelled()) return;
+      if (!results_to_publish.back().succeeded()) {
+        // Compile error.
+        compile_scope.compilation_state()->SetError();
+        stop(compile_scope);
+        compilation_failed = true;
+        break;
+      }
+      // Publish TurboFan units immediately to reduce peak memory consumption.
+      if (result.requested_tier == ExecutionTier::kTurbofan) {
+        publish_results(&compile_scope);
+      }
+
+      // Get next unit.
+      if (deadline < platform->MonotonicallyIncreasingTime()) {
+        unit = nullptr;
+      } else {
+        unit =
+            compile_scope.compilation_state()->GetNextCompilationUnit(task_id);
+      }
+
+      if (unit == nullptr) {
+        publish_results(&compile_scope);
+        return stop(compile_scope);
+      }
+    }
+  }
+  // We only get here if compilation failed. Other exits return directly.
+  DCHECK(compilation_failed);
+  USE(compilation_failed);
+  token->Cancel();
 }
 
 void ValidateSequentially(Counters* counters, AccountingAllocator* allocator,
@@ -836,8 +921,6 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     compilation_state->SetError();
   }
 
-  WasmFeatures detected_features;
-  CompilationEnv env = native_module->CreateCompilationEnv();
   // TODO(wasm): This might already execute TurboFan units on the main thread,
   // while waiting for baseline compilation to finish. This can introduce
   // additional delay.
@@ -849,13 +932,11 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     // deterministic compilation; in that case, the single background task will
     // execute all compilation.
     if (NeedsDeterministicCompile()) continue;
-    FetchAndExecuteCompilationUnit(isolate->wasm_engine(), &env, native_module,
-                                   compilation_state, &detected_features,
-                                   isolate->counters());
+    ExecuteCompilationUnits(compilation_state->background_compile_token(),
+                            isolate->counters(), kMainThreadTaskId);
   }
 
-  // Publish features from the foreground and background tasks.
-  compilation_state->PublishDetectedFeatures(isolate, detected_features);
+  compilation_state->PublishDetectedFeatures(isolate);
 
   if (compilation_state->failed()) {
     ValidateSequentially(isolate->counters(), isolate->allocator(),
@@ -877,103 +958,7 @@ class BackgroundCompileTask : public CancelableTask {
         task_id_(task_id) {}
 
   void RunInternal() override {
-    TRACE_COMPILE("(3b) Compiling...\n");
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-                 "BackgroundCompileTask::RunInternal");
-
-    Platform* platform = V8::GetCurrentPlatform();
-    // Deadline is in 50ms from now.
-    static constexpr double kBackgroundCompileTimeLimit =
-        50.0 / base::Time::kMillisecondsPerSecond;
-    const double deadline =
-        platform->MonotonicallyIncreasingTime() + kBackgroundCompileTimeLimit;
-
-    // These fields are initialized in a {BackgroundCompileScope} before
-    // starting compilation.
-    base::Optional<CompilationEnv> env;
-    std::shared_ptr<WireBytesStorage> wire_bytes;
-    std::shared_ptr<const WasmModule> module;
-    WasmEngine* wasm_engine = nullptr;
-    std::unique_ptr<WasmCompilationUnit> unit;
-    WasmFeatures detected_features = kNoWasmFeatures;
-
-    // Preparation (synchronized): Initialize the fields above and get the first
-    // compilation unit.
-    {
-      BackgroundCompileScope compile_scope(token_);
-      if (compile_scope.cancelled()) return;
-      env.emplace(compile_scope.native_module()->CreateCompilationEnv());
-      wire_bytes = compile_scope.compilation_state()->GetWireBytesStorage();
-      module = compile_scope.native_module()->shared_module();
-      wasm_engine = compile_scope.native_module()->engine();
-      unit =
-          compile_scope.compilation_state()->GetNextCompilationUnit(task_id_);
-      if (unit == nullptr) {
-        compile_scope.compilation_state()->OnBackgroundTaskStopped(
-            task_id_, detected_features);
-        return;
-      }
-    }
-
-    std::vector<WasmCompilationResult> results_to_publish;
-
-    auto publish_results =
-        [&results_to_publish](BackgroundCompileScope* compile_scope) {
-          if (results_to_publish.empty()) return;
-          WasmCodeRefScope code_ref_scope;
-          std::vector<WasmCode*> code_vector =
-              compile_scope->native_module()->AddCompiledCode(
-                  VectorOf(results_to_publish));
-          compile_scope->compilation_state()->OnFinishedUnits(
-              VectorOf(code_vector));
-          results_to_publish.clear();
-        };
-
-    bool compilation_failed = false;
-    while (true) {
-      // (asynchronous): Execute the compilation.
-      WasmCompilationResult result =
-          unit->ExecuteCompilation(wasm_engine, &env.value(), wire_bytes,
-                                   async_counters_.get(), &detected_features);
-      results_to_publish.emplace_back(std::move(result));
-
-      // (synchronized): Publish the compilation result and get the next unit.
-      {
-        BackgroundCompileScope compile_scope(token_);
-        if (compile_scope.cancelled()) return;
-        if (!results_to_publish.back().succeeded()) {
-          // Compile error.
-          compile_scope.compilation_state()->SetError();
-          compile_scope.compilation_state()->OnBackgroundTaskStopped(
-              task_id_, detected_features);
-          compilation_failed = true;
-          break;
-        }
-        // Publish TurboFan units immediately to reduce peak memory consumption.
-        if (result.requested_tier == ExecutionTier::kTurbofan) {
-          publish_results(&compile_scope);
-        }
-
-        // Get next unit.
-        if (deadline < platform->MonotonicallyIncreasingTime()) {
-          unit = nullptr;
-        } else {
-          unit = compile_scope.compilation_state()->GetNextCompilationUnit(
-              task_id_);
-        }
-
-        if (unit == nullptr) {
-          publish_results(&compile_scope);
-          compile_scope.compilation_state()->OnBackgroundTaskStopped(
-              task_id_, detected_features);
-          return;
-        }
-      }
-    }
-    // We only get here if compilation failed. Other exits return directly.
-    DCHECK(compilation_failed);
-    USE(compilation_failed);
-    token_->Cancel();
+    ExecuteCompilationUnits(token_, async_counters_.get(), task_id_);
   }
 
  private:
@@ -1195,8 +1180,7 @@ void AsyncCompileJob::FinishCompile() {
   // We can only update the feature counts once the entire compile is done.
   auto compilation_state =
       Impl(module_object_->native_module()->compilation_state());
-  compilation_state->PublishDetectedFeatures(
-      isolate_, *compilation_state->detected_features());
+  compilation_state->PublishDetectedFeatures(isolate_);
 
   // TODO(bbudge) Allow deserialization without wrapper compilation, so we can
   // just compile wrappers here.
@@ -1967,13 +1951,17 @@ void CompilationStateImpl::OnBackgroundTaskStopped(
   RestartBackgroundTasks();
 }
 
-void CompilationStateImpl::PublishDetectedFeatures(
-    Isolate* isolate, const WasmFeatures& detected) {
+void CompilationStateImpl::UpdateDetectedFeatures(
+    const WasmFeatures& detected) {
+  base::MutexGuard guard(&mutex_);
+  UnionFeaturesInto(&detected_features_, detected);
+}
+
+void CompilationStateImpl::PublishDetectedFeatures(Isolate* isolate) {
   // Notifying the isolate of the feature counts must take place under
   // the mutex, because even if we have finished baseline compilation,
   // tiering compilations may still occur in the background.
   base::MutexGuard guard(&mutex_);
-  UnionFeaturesInto(&detected_features_, detected);
   UpdateFeatureUseCounts(isolate, detected_features_);
 }
 
