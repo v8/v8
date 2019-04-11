@@ -8960,7 +8960,7 @@ MicrotasksScope::~MicrotasksScope() {
   if (run_) {
     microtask_queue_->DecrementMicrotasksScopeDepth();
     if (MicrotasksPolicy::kScoped == microtask_queue_->microtasks_policy()) {
-      PerformCheckpoint(reinterpret_cast<Isolate*>(isolate_));
+      microtask_queue_->PerformCheckpoint(reinterpret_cast<Isolate*>(isolate_));
     }
   }
 #ifdef DEBUG

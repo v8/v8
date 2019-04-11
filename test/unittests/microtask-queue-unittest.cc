@@ -584,5 +584,21 @@ TEST_F(MicrotaskQueueTest, DetachGlobal_InactiveHandler) {
       Object::GetElement(isolate(), result, 1).ToHandleChecked()->IsFalse());
 }
 
+TEST_F(MicrotaskQueueTest, MicrotasksScope) {
+  ASSERT_NE(isolate()->default_microtask_queue(), microtask_queue());
+  microtask_queue()->set_microtasks_policy(MicrotasksPolicy::kScoped);
+
+  bool ran = false;
+  {
+    MicrotasksScope scope(v8_isolate(), microtask_queue(),
+                          MicrotasksScope::kRunMicrotasks);
+    microtask_queue()->EnqueueMicrotask(*NewMicrotask([&ran]() {
+      EXPECT_FALSE(ran);
+      ran = true;
+    }));
+  }
+  EXPECT_TRUE(ran);
+}
+
 }  // namespace internal
 }  // namespace v8
