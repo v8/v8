@@ -1312,9 +1312,15 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
                          Handle<String> name, int context_index) {
   Factory* factory = isolate->factory();
 
-  Handle<JSFunction> error_fun = InstallFunction(
-      isolate, global, name, JS_ERROR_TYPE, JSObject::kHeaderSize, 0,
-      factory->the_hole_value(), Builtins::kErrorConstructor);
+  // Most Error objects consist of a message and a stack trace.
+  // Reserve two in-object properties for these.
+  const int kInObjectPropertiesCount = 2;
+  const int kErrorObjectSize =
+      JSObject::kHeaderSize + kInObjectPropertiesCount * kTaggedSize;
+  Handle<JSFunction> error_fun =
+      InstallFunction(isolate, global, name, JS_ERROR_TYPE, kErrorObjectSize,
+                      kInObjectPropertiesCount, factory->the_hole_value(),
+                      Builtins::kErrorConstructor);
   error_fun->shared()->DontAdaptArguments();
   error_fun->shared()->set_length(1);
 
