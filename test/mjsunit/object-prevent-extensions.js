@@ -174,6 +174,7 @@ assertTrue(Array.isArray(obj));
 assertThrows(function() { obj.push(1); }, TypeError);
 assertThrows(function() { obj.unshift(1); }, TypeError);
 assertThrows(function() { obj.splice(0, 0, 1); }, TypeError);
+assertDoesNotThrow(function() {obj.splice(0, 0)});
 
 // Verify search, filter, iterator
 obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));

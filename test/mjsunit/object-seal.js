@@ -389,7 +389,7 @@ assertDoesNotThrow(function() { return new Sealed(); });
 Sealed.prototype.prototypeExists = true;
 assertTrue((new Sealed()).prototypeExists);
 
-obj = new Int32Array(10)
+obj = new Int32Array(10);
 Object.seal(obj);
 assertTrue(Object.isSealed(obj));
 
@@ -404,6 +404,7 @@ function testPackedSealedArray1(obj) {
   assertThrows(function() { obj.push(1); }, TypeError);
   assertThrows(function() { obj.unshift(1); }, TypeError);
   assertThrows(function() { obj.splice(0); }, TypeError);
+  assertDoesNotThrow(function() { obj.splice(0, 0); });
 
   // Verify search, filter, iterator
   obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));

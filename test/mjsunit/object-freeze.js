@@ -420,6 +420,7 @@ function testPackedFrozenArray1(obj) {
   assertThrows(function() { obj.reverse(); }, TypeError);
   assertThrows(function() { obj.sort(); }, TypeError);
   assertThrows(function() { obj.splice(0); }, TypeError);
+  assertThrows(function() { obj.splice(0, 0); }, TypeError);
   assertTrue(Object.isFrozen(obj));
 
   // Verify search, filter, iterator
