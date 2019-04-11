@@ -1211,6 +1211,9 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
       if (length_estimate != 0) {
         ElementsKind array_kind =
             GetPackedElementsKind(array->GetElementsKind());
+        if (IsPackedFrozenOrSealedElementsKind(array_kind)) {
+          array_kind = PACKED_ELEMENTS;
+        }
         kind = GetMoreGeneralElementsKind(kind, array_kind);
       }
       element_estimate = EstimateElementCount(isolate, array);

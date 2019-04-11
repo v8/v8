@@ -250,3 +250,12 @@ arr.fill('d');
 assertEquals(arr.join(''), "ddd");
 arr.pop();
 assertEquals(arr.join(''), "dd");
+
+// Test regression Array.concat with double
+var arr = ['a'];
+Object.preventExtensions(arr);
+arr = arr.concat(0.5);
+assertEquals(arr, ['a', 0.5]);
+Object.preventExtensions(arr);
+arr = arr.concat([1.5, 'b']);
+assertEquals(arr, ['a', 0.5, 1.5, 'b']);

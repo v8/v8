@@ -501,7 +501,7 @@ bool Map::has_dictionary_elements() const {
 }
 
 bool Map::is_frozen_or_sealed_elements() const {
-  return IsFrozenOrSealedElementsKind(elements_kind());
+  return IsPackedFrozenOrSealedElementsKind(elements_kind());
 }
 
 void Map::set_is_dictionary_map(bool value) {

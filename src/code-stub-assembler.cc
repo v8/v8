@@ -5897,7 +5897,7 @@ TNode<BoolT> CodeStubAssembler::IsExtensibleMap(SloppyTNode<Map> map) {
   return IsSetWord32<Map::IsExtensibleBit>(LoadMapBitField2(map));
 }
 
-TNode<BoolT> CodeStubAssembler::IsFrozenOrSealedElementsKindMap(
+TNode<BoolT> CodeStubAssembler::IsPackedFrozenOrSealedElementsKindMap(
     SloppyTNode<Map> map) {
   CSA_ASSERT(this, IsMap(map));
   return IsElementsKindInRange(LoadMapElementsKind(map), PACKED_SEALED_ELEMENTS,

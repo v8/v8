@@ -1191,7 +1191,7 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
                                     is_js_array, load_mode);
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
-         IsFrozenOrSealedElementsKind(elements_kind) ||
+         IsPackedFrozenOrSealedElementsKind(elements_kind) ||
          IsFixedTypedArrayElementsKind(elements_kind));
   bool convert_hole_to_undefined =
       (elements_kind == HOLEY_SMI_ELEMENTS ||
