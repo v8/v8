@@ -2307,7 +2307,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
         // PACKED_DOUBLE_ELEMENTS or PACKED_SMI_ELEMENTS, we might encounter The
         // Hole here, since the {length} used here can be larger than
         // JSArray::length.
-        if (IsSmiOrObjectElementsKind(Subclass::kind())) {
+        if (IsSmiOrObjectElementsKind(Subclass::kind()) ||
+            IsFrozenOrSealedElementsKind(Subclass::kind())) {
           auto elements = FixedArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
