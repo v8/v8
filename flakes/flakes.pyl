@@ -202,28 +202,6 @@
     "variant": "stress",
   },
   {
-    "bisect_buildername": "V8 Linux64 TSAN - builder",
-    "bisect_mastername": "client.v8",
-    "bug_url": "https://crbug.com/v8/8957",
-    "build_config": "Release",
-    "extra_args": [
-      "--extra-flags=--stress-incremental-marking",
-    ],
-    "isolated_name": "bot_default",
-    "num_shards": 2,
-    "repetitions": 5000,
-    "swarming_dimensions": [
-      "cpu:x86-64",
-      "gpu:none",
-      "os:Ubuntu-14.04",
-      "pool:Chrome",
-    ],
-    "test_name": "unittests/MicrotaskQueueTest.PromiseHandlerContext",
-    "timeout_sec": 60,
-    "total_timeout_sec": 120,
-    "variant": "default",
-  },
-  {
     "bisect_buildername": "V8 Linux - debug builder",
     "bisect_mastername": "client.v8",
     "bug_url": "https://crbug.com/v8/8932",
