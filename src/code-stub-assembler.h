@@ -2658,7 +2658,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // control goes to {if_found} and {var_name_index} contains an index of the
   // key field of the entry found. If the key is not found control goes to
   // {if_not_found}.
-  static const int kInlinedDictionaryProbes = 4;
   enum LookupMode { kFindExisting, kFindInsertionIndex };
 
   template <typename Dictionary>
@@ -2669,7 +2668,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                             TNode<Name> unique_name, Label* if_found,
                             TVariable<IntPtrT>* var_name_index,
                             Label* if_not_found,
-                            int inlined_probes = kInlinedDictionaryProbes,
                             LookupMode mode = kFindExisting);
 
   Node* ComputeUnseededHash(Node* key);

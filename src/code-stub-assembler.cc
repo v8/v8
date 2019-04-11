@@ -8436,14 +8436,12 @@ TNode<HeapObject> CodeStubAssembler::LoadName<GlobalDictionary>(
 template <typename Dictionary>
 void CodeStubAssembler::NameDictionaryLookup(
     TNode<Dictionary> dictionary, TNode<Name> unique_name, Label* if_found,
-    TVariable<IntPtrT>* var_name_index, Label* if_not_found, int inlined_probes,
-    LookupMode mode) {
+    TVariable<IntPtrT>* var_name_index, Label* if_not_found, LookupMode mode) {
   static_assert(std::is_same<Dictionary, NameDictionary>::value ||
                     std::is_same<Dictionary, GlobalDictionary>::value,
                 "Unexpected NameDictionary");
   DCHECK_EQ(MachineType::PointerRepresentation(), var_name_index->rep());
-  DCHECK_IMPLIES(mode == kFindInsertionIndex,
-                 inlined_probes == 0 && if_found == nullptr);
+  DCHECK_IMPLIES(mode == kFindInsertionIndex, if_found == nullptr);
   Comment("NameDictionaryLookup");
   CSA_ASSERT(this, IsUniqueName(unique_name));
 
@@ -8456,29 +8454,13 @@ void CodeStubAssembler::NameDictionaryLookup(
   TNode<IntPtrT> entry = Signed(WordAnd(hash, mask));
   Node* undefined = UndefinedConstant();
 
-  for (int i = 0; i < inlined_probes; i++) {
-    TNode<IntPtrT> index = EntryToIndex<Dictionary>(entry);
-    *var_name_index = index;
-
-    TNode<HeapObject> current =
-        CAST(UnsafeLoadFixedArrayElement(dictionary, index));
-    GotoIf(WordEqual(current, undefined), if_not_found);
-    current = LoadName<Dictionary>(current);
-    GotoIf(WordEqual(current, unique_name), if_found);
-
-    // See Dictionary::NextProbe().
-    count = IntPtrConstant(i + 1);
-    entry = Signed(WordAnd(IntPtrAdd(entry, count), mask));
-  }
-  if (mode == kFindInsertionIndex) {
-    // Appease the variable merging algorithm for "Goto(&loop)" below.
-    *var_name_index = IntPtrConstant(0);
-  }
+  // Appease the variable merging algorithm for "Goto(&loop)" below.
+  *var_name_index = IntPtrConstant(0);
 
   TVARIABLE(IntPtrT, var_count, count);
   TVARIABLE(IntPtrT, var_entry, entry);
   Variable* loop_vars[] = {&var_count, &var_entry, var_name_index};
-  Label loop(this, 3, loop_vars);
+  Label loop(this, arraysize(loop_vars), loop_vars);
   Goto(&loop);
   BIND(&loop);
   {
@@ -8487,7 +8469,8 @@ void CodeStubAssembler::NameDictionaryLookup(
     TNode<IntPtrT> index = EntryToIndex<Dictionary>(entry);
     *var_name_index = index;
 
-    TNode<HeapObject> current = CAST(LoadFixedArrayElement(dictionary, index));
+    TNode<HeapObject> current =
+        CAST(UnsafeLoadFixedArrayElement(dictionary, index));
     GotoIf(WordEqual(current, undefined), if_not_found);
     if (mode == kFindExisting) {
       current = LoadName<Dictionary>(current);
@@ -8511,11 +8494,10 @@ template V8_EXPORT_PRIVATE void
 CodeStubAssembler::NameDictionaryLookup<NameDictionary>(TNode<NameDictionary>,
                                                         TNode<Name>, Label*,
                                                         TVariable<IntPtrT>*,
-                                                        Label*, int,
-                                                        LookupMode);
+                                                        Label*, LookupMode);
 template V8_EXPORT_PRIVATE void CodeStubAssembler::NameDictionaryLookup<
     GlobalDictionary>(TNode<GlobalDictionary>, TNode<Name>, Label*,
-                      TVariable<IntPtrT>*, Label*, int, LookupMode);
+                      TVariable<IntPtrT>*, Label*, LookupMode);
 
 Node* CodeStubAssembler::ComputeUnseededHash(Node* key) {
   // See v8::internal::ComputeUnseededHash()
@@ -8664,7 +8646,7 @@ void CodeStubAssembler::FindInsertionEntry<NameDictionary>(
     TVariable<IntPtrT>* var_key_index) {
   Label done(this);
   NameDictionaryLookup<NameDictionary>(dictionary, key, nullptr, var_key_index,
-                                       &done, 0, kFindInsertionIndex);
+                                       &done, kFindInsertionIndex);
   BIND(&done);
 }
 
