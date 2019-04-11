@@ -765,7 +765,7 @@
 }],  # 'isolates'
 
 ##############################################################################
-['deopt_fuzzer == True', {
+['deopt_fuzzer', {
 
   # Skip tests that are not suitable for deoptimization fuzzing.
   'never-optimize': [SKIP],
@@ -786,8 +786,11 @@
   'shared-function-tier-up-turbo': [SKIP],
 
   # Fails deopt_fuzzer due to --deopt_every_n_times
-  'es6/array-iterator-turbo': [SKIP]
-}],  # 'deopt_fuzzer == True'
+  'es6/array-iterator-turbo': [SKIP],
+
+  # Too slow tests.
+  'regress/regress-740784': [SKIP],
+}],  # 'deopt_fuzzer'
 
 ##############################################################################
 ['gc_fuzzer', {
@@ -807,9 +810,6 @@
   # Fails allocation on tsan.
   'es6/classes': [PASS, ['tsan', SKIP]],
   'regress/regress-779407': [PASS, ['tsan', SKIP]],
-
-  # Too slow tests.
-  'regress/regress-740784': [SKIP],
 
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC.
