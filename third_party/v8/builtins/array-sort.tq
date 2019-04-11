@@ -92,7 +92,7 @@ namespace array {
     tempArray: FixedArray;
   }
 
-  macro NewSortState(implicit context: Context)(
+  transitioning macro NewSortState(implicit context: Context)(
       receiver: JSReceiver, comparefn: Undefined | Callable,
       initialReceiverLength: Number, sortLength: Smi,
       forceGeneric: constexpr bool): SortState {
@@ -291,7 +291,7 @@ namespace array {
     }
   }
 
-  builtin SortCompareDefault(
+  transitioning builtin SortCompareDefault(
       context: Context, comparefn: Object, x: Object, y: Object): Number {
     assert(comparefn == Undefined);
 

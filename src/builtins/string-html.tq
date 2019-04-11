@@ -6,7 +6,7 @@ namespace string_html {
   extern runtime StringEscapeQuotes(Context, String): String;
 
   // https://tc39.github.io/ecma262/#sec-createhtml
-  builtin CreateHTML(implicit context: Context)(
+  transitioning builtin CreateHTML(implicit context: Context)(
       receiver: Object, methodName: String, tagName: String, attr: String,
       attrValue: Object): String {
     const tagContents: String = ToThisString(receiver, methodName);
@@ -21,21 +21,21 @@ namespace string_html {
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.anchor
-  javascript builtin StringPrototypeAnchor(
+  transitioning javascript builtin StringPrototypeAnchor(
       context: Context, receiver: Object, ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.anchor', 'a', 'name', arguments[0]);
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.big
-  javascript builtin
+  transitioning javascript builtin
   StringPrototypeBig(context: Context, receiver: Object, ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.big', 'big', kEmptyString, kEmptyString);
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.blink
-  javascript builtin
+  transitioning javascript builtin
   StringPrototypeBlink(context: Context, receiver: Object, ...arguments):
       String {
     return CreateHTML(
@@ -44,7 +44,7 @@ namespace string_html {
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.bold
-  javascript builtin
+  transitioning javascript builtin
   StringPrototypeBold(context: Context, receiver: Object, ...arguments):
       String {
     return CreateHTML(
@@ -52,7 +52,7 @@ namespace string_html {
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.fontcolor
-  javascript builtin
+  transitioning javascript builtin
   StringPrototypeFontcolor(context: Context, receiver: Object, ...arguments):
       String {
     return CreateHTML(
@@ -60,7 +60,7 @@ namespace string_html {
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.fontsize
-  javascript builtin
+  transitioning javascript builtin
   StringPrototypeFontsize(context: Context, receiver: Object, ...arguments):
       String {
     return CreateHTML(
@@ -68,7 +68,7 @@ namespace string_html {
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.fixed
-  javascript builtin
+  transitioning javascript builtin
   StringPrototypeFixed(context: Context, receiver: Object, ...arguments):
       String {
     return CreateHTML(
@@ -76,7 +76,7 @@ namespace string_html {
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.italics
-  javascript builtin
+  transitioning javascript builtin
   StringPrototypeItalics(context: Context, receiver: Object, ...arguments):
       String {
     return CreateHTML(
@@ -84,7 +84,7 @@ namespace string_html {
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.link
-  javascript builtin
+  transitioning javascript builtin
   StringPrototypeLink(context: Context, receiver: Object, ...arguments):
       String {
     return CreateHTML(
@@ -92,7 +92,7 @@ namespace string_html {
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.small
-  javascript builtin
+  transitioning javascript builtin
   StringPrototypeSmall(context: Context, receiver: Object, ...arguments):
       String {
     return CreateHTML(
@@ -101,7 +101,7 @@ namespace string_html {
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.strike
-  javascript builtin
+  transitioning javascript builtin
   StringPrototypeStrike(context: Context, receiver: Object, ...arguments):
       String {
     return CreateHTML(
@@ -110,14 +110,14 @@ namespace string_html {
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.sub
-  javascript builtin
+  transitioning javascript builtin
   StringPrototypeSub(context: Context, receiver: Object, ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.sub', 'sub', kEmptyString, kEmptyString);
   }
 
   // https://tc39.github.io/ecma262/#sec-string.prototype.sup
-  javascript builtin
+  transitioning javascript builtin
   StringPrototypeSup(context: Context, receiver: Object, ...arguments): String {
     return CreateHTML(
         receiver, 'String.prototype.sup', 'sup', kEmptyString, kEmptyString);

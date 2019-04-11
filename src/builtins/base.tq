@@ -925,17 +925,18 @@ extern macro Print(constexpr string, Object);
 extern macro Comment(constexpr string);
 extern macro Print(Object);
 extern macro DebugBreak();
-extern macro ToInteger_Inline(Context, Object): Number;
-extern macro ToInteger_Inline(
+extern transitioning macro ToInteger_Inline(Context, Object): Number;
+extern transitioning macro ToInteger_Inline(
     Context, Object, constexpr ToIntegerTruncationMode): Number;
-extern macro ToLength_Inline(Context, Object): Number;
-extern macro ToNumber_Inline(Context, Object): Number;
-extern macro ToSmiIndex(implicit context: Context)(Object): PositiveSmi
-    labels IfRangeError;
-extern macro ToSmiLength(implicit context: Context)(Object): PositiveSmi
-    labels IfRangeError;
-extern macro ToString_Inline(Context, Object): String;
-extern macro ToThisString(implicit context: Context)(Object, String): String;
+extern transitioning macro ToLength_Inline(Context, Object): Number;
+extern transitioning macro ToNumber_Inline(Context, Object): Number;
+extern transitioning macro ToSmiIndex(implicit context: Context)(Object):
+    PositiveSmi labels IfRangeError;
+extern transitioning macro ToSmiLength(implicit context: Context)(Object):
+    PositiveSmi labels IfRangeError;
+extern transitioning macro ToString_Inline(Context, Object): String;
+extern transitioning macro ToThisString(implicit context: Context)(
+    Object, String): String;
 extern transitioning macro GetProperty(implicit context: Context)(
     Object, Object): Object;
 extern transitioning builtin SetProperty(implicit context: Context)(
@@ -2149,7 +2150,7 @@ macro ToBoolean(obj: Object): bool {
   }
 }
 
-macro ToIndex(input: Object, context: Context): Number
+transitioning macro ToIndex(input: Object, context: Context): Number
     labels RangeError {
   if (input == Undefined) {
     return 0;
