@@ -276,6 +276,7 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  function->raw_feedback_cell()->set_interrupt_budget(FLAG_interrupt_budget);
   if (!function->has_feedback_vector()) {
     JSFunction::EnsureFeedbackVector(function);
     // Also initialize the invocation count here. This is only really needed for

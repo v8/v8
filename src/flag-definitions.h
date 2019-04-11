@@ -358,17 +358,8 @@ DEFINE_BOOL(enable_one_shot_optimization, true,
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
 
-// Flags for Ignition for no-snapshot builds.
-#undef FLAG
-#ifndef V8_USE_SNAPSHOT
-#define FLAG FLAG_FULL
-#else
-#define FLAG FLAG_READONLY
-#endif
 DEFINE_INT(interrupt_budget, 144 * KB,
            "interrupt budget which should be used for the profiler counter")
-#undef FLAG
-#define FLAG FLAG_FULL
 
 DEFINE_INT(budget_for_feedback_vector_allocation, 1 * KB,
            "The budget in amount of bytecode executed by a function before we "

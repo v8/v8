@@ -1268,6 +1268,7 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   TNode<Int32T> budget_after_bytecode =
       Signed(Int32Sub(old_budget, Int32Constant(CurrentBytecodeSize())));
 
+  Label done(this);
   TVARIABLE(Int32T, new_budget);
   if (backward) {
     // Update budget by |weight| and check if it reaches zero.
@@ -1279,8 +1280,7 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
 
     BIND(&interrupt_check);
     CallRuntime(Runtime::kBytecodeBudgetInterrupt, GetContext(), function);
-    new_budget = Int32Constant(Interpreter::InterruptBudget());
-    Goto(&ok);
+    Goto(&done);
 
     BIND(&ok);
   } else {
@@ -1293,6 +1293,8 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   StoreObjectFieldNoWriteBarrier(
       feedback_cell, FeedbackCell::kInterruptBudgetOffset, new_budget.value(),
       MachineRepresentation::kWord32);
+  Goto(&done);
+  BIND(&done);
   Comment("] UpdateInterruptBudget");
 }
 
