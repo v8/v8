@@ -1543,6 +1543,12 @@ void PagedSpace::RefillFreeList() {
   {
     Page* p = nullptr;
     while ((p = collector->sweeper()->GetSweptPageSafe(this)) != nullptr) {
+      // We regularly sweep NEVER_ALLOCATE_ON_PAGE pages. We drop the freelist
+      // entries here to make them unavailable for allocations.
+      if (p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
+        p->ForAllFreeListCategories(
+            [](FreeListCategory* category) { category->Reset(); });
+      }
       // Only during compaction pages can actually change ownership. This is
       // safe because there exists no other competing action on the page links
       // during compaction.
@@ -1583,8 +1589,9 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
     // Relinking requires the category to be unlinked.
     other->RemovePage(p);
     AddPage(p);
-    DCHECK_EQ(p->AvailableInFreeList(),
-              p->AvailableInFreeListFromAllocatedBytes());
+    DCHECK_IMPLIES(
+        !p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE),
+        p->AvailableInFreeList() == p->AvailableInFreeListFromAllocatedBytes());
   }
   DCHECK_EQ(0u, other->Size());
   DCHECK_EQ(0u, other->Capacity());
@@ -2896,7 +2903,6 @@ FreeSpace FreeListCategory::SearchForNodeInList(size_t minimum_size,
 
 void FreeListCategory::Free(Address start, size_t size_in_bytes,
                             FreeMode mode) {
-  DCHECK(page()->CanAllocate());
   FreeSpace free_space = FreeSpace::cast(HeapObject::FromAddress(start));
   free_space->set_next(top());
   set_top(free_space);
