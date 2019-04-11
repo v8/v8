@@ -2,12 +2,61 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-regexp-gen.h'
+
 namespace regexp_replace {
 
-  extern transitioning builtin
-  RegExpReplace(implicit context: Context)(JSRegExp, String, Object): Object;
+  extern builtin
+  StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
+
+  extern transitioning macro
+  RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
+      implicit context: Context)(JSRegExp, String, String): String;
+  extern transitioning macro
+  RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
+      implicit context: Context)(JSRegExp, String, Callable): String;
+
   extern transitioning runtime
   RegExpReplaceRT(Context, JSReceiver, String, Object): String;
+  extern transitioning runtime
+  StringReplaceNonGlobalRegExpWithFunction(implicit context: Context)(
+      String, JSRegExp, Callable): String;
+
+  transitioning builtin RegExpReplace(implicit context: Context)(
+      regexp: FastJSRegExp, string: String, replaceValue: Object): String {
+    // TODO(pwong): Remove assert when all callers (StringPrototypeReplace) are
+    // from Torque.
+    assert(Is<FastJSRegExp>(regexp));
+
+    // 2. Is {replace_value} callable?
+    typeswitch (replaceValue) {
+      case (replaceFn: Callable): {
+        return regexp.global ?
+            ReplaceGlobalCallableFastPath(regexp, string, replaceFn) :
+            StringReplaceNonGlobalRegExpWithFunction(string, regexp, replaceFn);
+      }
+      case (Object): {
+        const stableRegexp: JSRegExp = regexp;
+        const replaceString: String = ToString_Inline(context, replaceValue);
+
+        try {
+          // ToString(replaceValue) could potentially change the shape of the
+          // RegExp object. Recheck that we are still on the fast path and bail
+          // to runtime otherwise.
+          const fastRegexp = Cast<FastJSRegExp>(stableRegexp) otherwise Runtime;
+          if (StringIndexOf(
+                  replaceString, SingleCharacterStringConstant('$'), 0) != -1) {
+            goto Runtime;
+          }
+
+          return ReplaceSimpleStringFastPath(fastRegexp, string, replaceString);
+        }
+        label Runtime deferred {
+          return RegExpReplaceRT(context, stableRegexp, string, replaceString);
+        }
+      }
+    }
+  }
 
   transitioning javascript builtin RegExpPrototypeReplace(
       context: Context, receiver: Object, ...arguments): Object {
@@ -43,9 +92,11 @@ namespace regexp_replace {
     const s = ToString_Inline(context, string);
 
     // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
-    if (regexp::BranchIfFastRegExp(context, rx)) {
-      return RegExpReplace(UnsafeCast<JSRegExp>(rx), s, replaceValue);
-    } else {
+    try {
+      const fastRx: FastJSRegExp = Cast<FastJSRegExp>(rx) otherwise Runtime;
+      return RegExpReplace(fastRx, s, replaceValue);
+    }
+    label Runtime deferred {
       return RegExpReplaceRT(context, rx, s, replaceValue);
     }
   }

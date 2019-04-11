@@ -731,6 +731,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                              Smi::FromInt(false_value));
   }
 
+  TNode<String> SingleCharacterStringConstant(char const* single_char) {
+    DCHECK_EQ(strlen(single_char), 1);
+    return HeapConstant(
+        isolate()->factory()->LookupSingleCharacterStringFromCode(
+            single_char[0]));
+  }
+
   TNode<Int32T> TruncateIntPtrToInt32(SloppyTNode<IntPtrT> value);
 
   // Check a value for smi-ness
