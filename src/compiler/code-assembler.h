@@ -1184,6 +1184,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Projections
   Node* Projection(int index, Node* value);
 
+  // Pointer compression and decompression.
+  Node* ChangeTaggedToCompressed(Node* tagged);
+  Node* ChangeCompressedToTagged(Node* compressed);
+
   template <int index, class T1, class T2>
   TNode<typename std::tuple_element<index, std::tuple<T1, T2>>::type>
   Projection(TNode<PairT<T1, T2>> value) {

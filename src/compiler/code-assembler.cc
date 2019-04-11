@@ -1078,6 +1078,14 @@ Node* CodeAssembler::Retain(Node* value) {
   return raw_assembler()->Retain(value);
 }
 
+Node* CodeAssembler::ChangeTaggedToCompressed(Node* tagged) {
+  return raw_assembler()->ChangeTaggedToCompressed(tagged);
+}
+
+Node* CodeAssembler::ChangeCompressedToTagged(Node* compressed) {
+  return raw_assembler()->ChangeCompressedToTagged(compressed);
+}
+
 Node* CodeAssembler::Projection(int index, Node* value) {
   DCHECK_LT(index, value->op()->ValueOutputCount());
   return raw_assembler()->Projection(index, value);

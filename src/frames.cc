@@ -961,12 +961,32 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
                          parameters_limit);
   }
 
+#ifdef V8_COMPRESS_POINTERS
+  Address isolate_root = isolate()->isolate_root();
+#endif
   // Visit pointer spill slots and locals.
   for (unsigned index = 0; index < stack_slots; index++) {
     int byte_index = index >> kBitsPerByteLog2;
     int bit_index = index & (kBitsPerByte - 1);
     if ((safepoint_bits[byte_index] & (1U << bit_index)) != 0) {
-      v->VisitRootPointer(Root::kTop, nullptr, parameters_limit + index);
+      FullObjectSlot spill_slot = parameters_limit + index;
+#ifdef V8_COMPRESS_POINTERS
+      // Spill slots may contain compressed values in which case the upper
+      // 32-bits will contain zeros. In order to simplify handling of such
+      // slots in GC we ensure that the slot always contains full value.
+
+      // The spill slot may actually contain weak references so we load/store
+      // values using spill_slot.location() in order to avoid dealing with
+      // FullMaybeObjectSlots here.
+      Tagged_t compressed_value = static_cast<Tagged_t>(*spill_slot.location());
+      if (!HAS_SMI_TAG(compressed_value)) {
+        // We don't need to update smi values.
+        *spill_slot.location() =
+            DecompressTaggedPointer<OnHeapAddressKind::kIsolateRoot>(
+                isolate_root, compressed_value);
+      }
+#endif
+      v->VisitRootPointer(Root::kTop, nullptr, spill_slot);
     }
   }
 
