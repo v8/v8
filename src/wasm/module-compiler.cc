@@ -114,6 +114,11 @@ class BackgroundCompileScope {
   std::shared_ptr<NativeModule> const native_module_;
 };
 
+enum CompileBaselineOnly : bool {
+  kBaselineOnly = true,
+  kBaselineOrTopTier = false
+};
+
 // A set of work-stealing queues (vectors of units). Each background compile
 // task owns one of the queues and steals from all others once its own queue
 // runs empty.
@@ -129,13 +134,15 @@ class CompilationUnitQueues {
     }
   }
 
-  std::unique_ptr<WasmCompilationUnit> GetNextUnit(int task_id) {
+  std::unique_ptr<WasmCompilationUnit> GetNextUnit(
+      int task_id, CompileBaselineOnly baseline_only) {
     DCHECK_LE(0, task_id);
     DCHECK_GT(queues_.size(), task_id);
 
     // As long as any lower-tier units are outstanding we need to steal them
     // before executing own higher-tier units.
-    for (int tier = GetLowestTierWithUnits(); tier < kNumTiers; ++tier) {
+    int max_tier = baseline_only ? kBaseline : kTopTier;
+    for (int tier = GetLowestTierWithUnits(); tier <= max_tier; ++tier) {
       Queue* queue = &queues_[task_id];
       // First, check whether our own queue has a unit of the wanted tier. If
       // so, return it, otherwise get the task id to steal from.
@@ -307,7 +314,8 @@ class CompilationStateImpl {
       Vector<std::unique_ptr<WasmCompilationUnit>> baseline_units,
       Vector<std::unique_ptr<WasmCompilationUnit>> top_tier_units);
   void AddTopTierCompilationUnit(std::unique_ptr<WasmCompilationUnit>);
-  std::unique_ptr<WasmCompilationUnit> GetNextCompilationUnit(int task_id);
+  std::unique_ptr<WasmCompilationUnit> GetNextCompilationUnit(
+      int task_id, CompileBaselineOnly baseline_only);
 
   void OnFinishedUnit(WasmCode*);
   void OnFinishedUnits(Vector<WasmCode*>);
@@ -682,7 +690,7 @@ constexpr int kMainThreadTaskId = -1;
 // Run by the main thread and background tasks to take part in compilation.
 void ExecuteCompilationUnits(
     const std::shared_ptr<BackgroundCompileToken>& token, Counters* counters,
-    int task_id) {
+    int task_id, CompileBaselineOnly baseline_only) {
   TRACE_COMPILE("Compiling (task %d)...\n", task_id);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "ExecuteCompilationUnits");
 
@@ -728,7 +736,8 @@ void ExecuteCompilationUnits(
     wire_bytes = compile_scope.compilation_state()->GetWireBytesStorage();
     module = compile_scope.native_module()->shared_module();
     wasm_engine = compile_scope.native_module()->engine();
-    unit = compile_scope.compilation_state()->GetNextCompilationUnit(task_id);
+    unit = compile_scope.compilation_state()->GetNextCompilationUnit(
+        task_id, baseline_only);
     if (unit == nullptr) return stop(compile_scope);
   }
 
@@ -772,8 +781,8 @@ void ExecuteCompilationUnits(
       if (deadline < platform->MonotonicallyIncreasingTime()) {
         unit = nullptr;
       } else {
-        unit =
-            compile_scope.compilation_state()->GetNextCompilationUnit(task_id);
+        unit = compile_scope.compilation_state()->GetNextCompilationUnit(
+            task_id, baseline_only);
       }
 
       if (unit == nullptr) {
@@ -921,9 +930,10 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     compilation_state->SetError();
   }
 
-  // TODO(wasm): This might already execute TurboFan units on the main thread,
-  // while waiting for baseline compilation to finish. This can introduce
-  // additional delay.
+  // If tiering is disabled, the main thread can execute any unit (all of them
+  // are part of initial compilation). Otherwise, just execute baseline units.
+  bool is_tiering = compilation_state->compile_mode() == CompileMode::kTiering;
+  auto baseline_only = is_tiering ? kBaselineOnly : kBaselineOrTopTier;
   // TODO(wasm): This is a busy-wait loop once all units have started executing
   // in background threads. Replace by a semaphore / barrier.
   while (!compilation_state->failed() &&
@@ -933,7 +943,8 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     // execute all compilation.
     if (NeedsDeterministicCompile()) continue;
     ExecuteCompilationUnits(compilation_state->background_compile_token(),
-                            isolate->counters(), kMainThreadTaskId);
+                            isolate->counters(), kMainThreadTaskId,
+                            baseline_only);
   }
 
   compilation_state->PublishDetectedFeatures(isolate);
@@ -958,7 +969,8 @@ class BackgroundCompileTask : public CancelableTask {
         task_id_(task_id) {}
 
   void RunInternal() override {
-    ExecuteCompilationUnits(token_, async_counters_.get(), task_id_);
+    ExecuteCompilationUnits(token_, async_counters_.get(), task_id_,
+                            kBaselineOrTopTier);
   }
 
  private:
@@ -1844,8 +1856,9 @@ void CompilationStateImpl::AddTopTierCompilationUnit(
 }
 
 std::unique_ptr<WasmCompilationUnit>
-CompilationStateImpl::GetNextCompilationUnit(int task_id) {
-  return compilation_unit_queues_.GetNextUnit(task_id);
+CompilationStateImpl::GetNextCompilationUnit(
+    int task_id, CompileBaselineOnly baseline_only) {
+  return compilation_unit_queues_.GetNextUnit(task_id, baseline_only);
 }
 
 void CompilationStateImpl::OnFinishedUnit(WasmCode* code) {

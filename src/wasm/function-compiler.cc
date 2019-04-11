@@ -105,14 +105,11 @@ std::unique_ptr<WasmInstructionBuffer> WasmInstructionBuffer::New() {
 // static
 ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier(
     const WasmModule* module) {
-  if (module->origin == kWasmOrigin) {
-    if (FLAG_wasm_interpret_all) {
-      return ExecutionTier::kInterpreter;
-    } else if (FLAG_liftoff) {
-      return ExecutionTier::kLiftoff;
-    }
-  }
-  return ExecutionTier::kTurbofan;
+  // Liftoff does not support the special asm.js opcodes, thus always compile
+  // asm.js modules with TurboFan.
+  if (module->origin == kAsmJsOrigin) return ExecutionTier::kTurbofan;
+  if (FLAG_wasm_interpret_all) return ExecutionTier::kInterpreter;
+  return FLAG_liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
 }
 
 WasmCompilationUnit::WasmCompilationUnit(int index, ExecutionTier tier)
