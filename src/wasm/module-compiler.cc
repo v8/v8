@@ -1467,15 +1467,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     job->CreateNativeModule(module_);
 
-    size_t num_functions =
-        module_->functions.size() - module_->num_imported_functions;
-
-    if (num_functions == 0) {
-      // Degenerate case of an empty module.
-      job->FinishCompile();
-      return;
-    }
-
     CompilationStateImpl* compilation_state =
         Impl(job->native_module_->compilation_state());
     compilation_state->AddCallback(CompilationStateCallback{job});
@@ -1836,6 +1827,18 @@ void CompilationStateImpl::SetNumberOfFunctionsToCompile(
   outstanding_baseline_functions_ = num_functions_to_compile;
   outstanding_top_tier_functions_ = num_functions_to_compile;
   highest_execution_tier_.assign(num_functions, ExecutionTier::kNone);
+
+  // Degenerate case of an empty module. Trigger callbacks immediately.
+  if (num_functions_to_compile == 0) {
+    for (auto& callback : callbacks_) {
+      callback(CompilationEvent::kFinishedBaselineCompilation);
+    }
+    for (auto& callback : callbacks_) {
+      callback(CompilationEvent::kFinishedTopTierCompilation);
+    }
+    // Clear the callbacks because no more events will be delivered.
+    callbacks_.clear();
+  }
 }
 
 void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
