@@ -520,10 +520,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9051
   'language/statements/async-generator/yield-star-return-then-getter-ticks': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9081
-  'built-ins/Date/prototype/toUTCString/negative-year': [FAIL],
-  'built-ins/Date/prototype/toString/negative-year': [FAIL],
-  'built-ins/Date/prototype/toDateString/negative-year': [FAIL],
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
