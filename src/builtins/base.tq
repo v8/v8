@@ -149,6 +149,8 @@ extern class FixedDoubleArray extends FixedArrayBase {
 
 extern class ByteArray extends FixedArrayBase {}
 
+type BytecodeArray extends FixedArrayBase;
+
 // These intrinsics should never be called from Torque code. They're used
 // internally by the 'new' operator and only declared here because it's simpler
 // than building the definition from C++.
@@ -340,6 +342,11 @@ extern class PreparseData extends HeapObject {
   // TODO(v8:8983): Add declaration for variable-sized region.
   data_length: int32;
   inner_length: int32;
+}
+
+extern class InterpreterData extends Struct {
+  bytecode_array: BytecodeArray;
+  interpreter_trampoline: Code;
 }
 
 extern class SharedFunctionInfo extends HeapObject {
@@ -544,7 +551,7 @@ extern class ObjectTemplateInfo extends TemplateInfo {
 
 extern class PropertyArray extends HeapObject { length_and_hash: Smi; }
 
-type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
+extern class JSDataView extends JSArrayBufferView {}
 
 type InstanceType generates 'TNode<Int32T>' constexpr 'InstanceType';
 type ElementsKind generates 'TNode<Int32T>' constexpr 'ElementsKind';
@@ -646,9 +653,34 @@ extern class StackFrameInfo extends Struct {
   flag: Smi;
 }
 
+extern class StackTraceFrame extends Struct {
+  frame_array: Object;
+  frame_index: Smi;
+  frame_info: Object;
+  id: Smi;
+}
+
 extern class ClassPositions extends Struct {
   start: Smi;
   end: Smi;
+}
+
+type WasmInstanceObject extends JSObject;
+
+extern class WasmExportedFunctionData extends Struct {
+  wrapper_code: Code;
+  instance: WasmInstanceObject;
+  jump_table_offset: Smi;
+  function_index: Smi;
+}
+
+extern class WasmDebugInfo extends Struct {
+  instance: WasmInstanceObject;
+  interpreter_handle: Foreign | Undefined;
+  interpreted_functions: FixedArray;
+  locals_names: FixedArray;
+  c_wasm_entries: FixedArray;
+  c_wasm_entry_map: Foreign;  // Managed<wasm::SignatureMap>
 }
 
 extern class WasmExceptionTag extends Struct { index: Smi; }

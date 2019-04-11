@@ -205,15 +205,8 @@ class InterpreterData : public Struct {
   DECL_ACCESSORS(bytecode_array, BytecodeArray)
   DECL_ACCESSORS(interpreter_trampoline, Code)
 
-// Layout description.
-#define INTERPRETER_DATA_FIELDS(V)             \
-  V(kBytecodeArrayOffset, kTaggedSize)         \
-  V(kInterpreterTrampolineOffset, kTaggedSize) \
-  /* Total size. */                            \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, INTERPRETER_DATA_FIELDS)
-#undef INTERPRETER_DATA_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_INTERPRETER_DATA_FIELDS)
 
   DECL_CAST(InterpreterData)
   DECL_PRINTER(InterpreterData)

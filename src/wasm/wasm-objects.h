@@ -699,16 +699,9 @@ class WasmExportedFunctionData : public Struct {
   DECL_VERIFIER(WasmExportedFunctionData)
 
 // Layout description.
-#define WASM_EXPORTED_FUNCTION_DATA_FIELDS(V)      \
-  V(kWrapperCodeOffset, kTaggedSize)               \
-  V(kInstanceOffset, kTaggedSize)                  \
-  V(kJumpTableOffsetOffset, kTaggedSize) /* Smi */ \
-  V(kFunctionIndexOffset, kTaggedSize)   /* Smi */ \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                WASM_EXPORTED_FUNCTION_DATA_FIELDS)
-#undef WASM_EXPORTED_FUNCTION_DATA_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      HeapObject::kHeaderSize,
+      TORQUE_GENERATED_WASM_EXPORTED_FUNCTION_DATA_FIELDS)
 
   OBJECT_CONSTRUCTORS(WasmExportedFunctionData, Struct);
 };
@@ -730,17 +723,8 @@ class WasmDebugInfo : public Struct {
   DECL_VERIFIER(WasmDebugInfo)
 
 // Layout description.
-#define WASM_DEBUG_INFO_FIELDS(V)             \
-  V(kInstanceOffset, kTaggedSize)             \
-  V(kInterpreterHandleOffset, kTaggedSize)    \
-  V(kInterpretedFunctionsOffset, kTaggedSize) \
-  V(kLocalsNamesOffset, kTaggedSize)          \
-  V(kCWasmEntriesOffset, kTaggedSize)         \
-  V(kCWasmEntryMapOffset, kTaggedSize)        \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, WASM_DEBUG_INFO_FIELDS)
-#undef WASM_DEBUG_INFO_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_WASM_DEBUG_INFO_FIELDS)
 
   static Handle<WasmDebugInfo> New(Handle<WasmInstanceObject>);
 

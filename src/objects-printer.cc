@@ -1859,6 +1859,7 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(
   PrintHeader(os, "WasmExportedFunctionData");
   os << "\n - wrapper_code: " << Brief(wrapper_code());
   os << "\n - instance: " << Brief(instance());
+  os << "\n - jump_table_offset: " << jump_table_offset();
   os << "\n - function_index: " << function_index();
   os << "\n";
 }
