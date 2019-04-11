@@ -246,17 +246,13 @@ TEST(SharedEngineRunImported) {
     Handle<WasmInstanceObject> instance = isolate.CompileAndInstantiate(buffer);
     module = isolate.ExportInstance(instance);
     CHECK_EQ(23, isolate.Run(instance));
-    CHECK_EQ(2, module.use_count());
   }
-  CHECK_EQ(1, module.use_count());
   {
     SharedEngineIsolate isolate(&engine);
     HandleScope scope(isolate.isolate());
     Handle<WasmInstanceObject> instance = isolate.ImportInstance(module);
     CHECK_EQ(23, isolate.Run(instance));
-    CHECK_EQ(2, module.use_count());
   }
-  CHECK_EQ(1, module.use_count());
 }
 
 TEST(SharedEngineRunThreadedBuildingSync) {
