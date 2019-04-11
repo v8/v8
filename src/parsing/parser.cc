@@ -2393,8 +2393,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // which case the parser is expected to have backtracked), or if we didn't
   // try to lazy parse in the first place, we'll have to parse eagerly.
   bool did_preparse_successfully =
-      should_preparse && SkipFunction(function_name, kind, function_type, scope,
-                                      &num_parameters, &produced_preparse_data);
+      should_preparse &&
+      SkipFunction(function_name, kind, function_type, scope, &num_parameters,
+                   &function_length, &produced_preparse_data);
 
   if (!did_preparse_successfully) {
     // If skipping aborted, it rewound the scanner until before the LPAREN.
@@ -2466,6 +2467,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
                           FunctionLiteral::FunctionType function_type,
                           DeclarationScope* function_scope, int* num_parameters,
+                          int* function_length,
                           ProducedPreparseData** produced_preparse_data) {
   FunctionState function_state(&function_state_, &scope_, function_scope);
   function_scope->set_zone(&preparser_zone_);
@@ -2486,8 +2488,8 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     *produced_preparse_data =
         consumed_preparse_data_->GetDataForSkippableFunction(
             main_zone(), function_scope->start_position(), &end_position,
-            num_parameters, &num_inner_functions, &uses_super_property,
-            &language_mode);
+            num_parameters, function_length, &num_inner_functions,
+            &uses_super_property, &language_mode);
 
     function_scope->outer_scope()->SetMustUsePreparseData();
     function_scope->set_is_skipped_function(true);
@@ -2554,6 +2556,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     total_preparse_skipped_ +=
         function_scope->end_position() - function_scope->start_position();
     *num_parameters = logger->num_parameters();
+    *function_length = logger->function_length();
     SkipFunctionLiterals(logger->num_inner_functions());
     if (closest_class_scope != nullptr) {
       closest_class_scope->MigrateUnresolvedPrivateNameTail(

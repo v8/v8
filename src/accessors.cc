@@ -370,10 +370,7 @@ void Accessors::FunctionLengthGetter(
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-  int length = 0;
-  if (!JSFunction::GetLength(isolate, function).To(&length)) {
-    isolate->OptionalRescheduleException(false);
-  }
+  int length = function->length();
   Handle<Object> result(Smi::FromInt(length), isolate);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }

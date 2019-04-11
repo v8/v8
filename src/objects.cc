@@ -5487,12 +5487,13 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     }
   }
 
+  shared_info->set_length(lit->function_length());
+
   // For lazy parsed functions, the following flags will be inaccurate since we
   // don't have the information yet. They're set later in
   // SetSharedFunctionFlagsFromLiteral (compiler.cc), when the function is
   // really parsed and compiled.
   if (lit->ShouldEagerCompile()) {
-    shared_info->set_length(lit->function_length());
     shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
     shared_info->SetExpectedNofPropertiesFromEstimate(lit);
     shared_info->set_is_safe_to_skip_arguments_adaptor(
@@ -5504,10 +5505,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     // than relying on a property of the literal.
     needs_position_info = false;
   } else {
-    // Set an invalid length for lazy functions. This way we can set the correct
-    // value after compiling, but avoid overwriting values set manually by the
-    // bootstrapper.
-    shared_info->set_length(SharedFunctionInfo::kInvalidLength);
     shared_info->set_is_safe_to_skip_arguments_adaptor(false);
     ProducedPreparseData* scope_data = lit->produced_preparse_data();
     if (scope_data != nullptr) {

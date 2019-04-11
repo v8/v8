@@ -1012,7 +1012,7 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE bool SkipFunction(const AstRawString* name, FunctionKind kind,
                               FunctionLiteral::FunctionType function_type,
                               DeclarationScope* function_scope,
-                              int* num_parameters,
+                              int* num_parameters, int* function_length,
                               ProducedPreparseData** produced_preparse_data) {
     UNREACHABLE();
   }

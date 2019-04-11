@@ -4860,10 +4860,9 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
   // accessor.
   Handle<JSFunction> target(JSFunction::cast(function->bound_target_function()),
                             isolate);
-  Maybe<int> target_length = JSFunction::GetLength(isolate, target);
-  if (target_length.IsNothing()) return target_length;
+  int target_length = target->length();
 
-  int length = Max(0, target_length.FromJust() - nof_bound_arguments);
+  int length = Max(0, target_length - nof_bound_arguments);
   return Just(length);
 }
 
@@ -4880,26 +4879,6 @@ Handle<Object> JSFunction::GetName(Isolate* isolate,
     return isolate->factory()->anonymous_string();
   }
   return handle(function->shared()->Name(), isolate);
-}
-
-// static
-Maybe<int> JSFunction::GetLength(Isolate* isolate,
-                                 Handle<JSFunction> function) {
-  int length = 0;
-  IsCompiledScope is_compiled_scope(function->shared()->is_compiled_scope());
-  if (is_compiled_scope.is_compiled()) {
-    length = function->shared()->GetLength();
-  } else {
-    // If the function isn't compiled yet, the length is not computed
-    // correctly yet. Compile it now and return the right length.
-    if (Compiler::Compile(function, Compiler::KEEP_EXCEPTION,
-                          &is_compiled_scope)) {
-      length = function->shared()->GetLength();
-    }
-    if (isolate->has_pending_exception()) return Nothing<int>();
-  }
-  DCHECK_GE(length, 0);
-  return Just(length);
 }
 
 // static

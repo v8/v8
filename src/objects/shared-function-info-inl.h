@@ -427,16 +427,6 @@ IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
   DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
 }
 
-uint16_t SharedFunctionInfo::GetLength() const {
-  DCHECK(is_compiled());
-  DCHECK(HasLength());
-  return length();
-}
-
-bool SharedFunctionInfo::HasLength() const {
-  return length() != kInvalidLength;
-}
-
 bool SharedFunctionInfo::has_simple_parameters() {
   return scope_info()->HasSimpleParameters();
 }

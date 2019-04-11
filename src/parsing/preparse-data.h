@@ -110,7 +110,7 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
 
     void Start(DeclarationScope* function_scope);
     void SetSkippableFunction(DeclarationScope* function_scope,
-                              int num_inner_functions);
+                              int function_length, int num_inner_functions);
     inline ~DataGatheringScope() {
       if (builder_ == nullptr) return;
       Close();
@@ -200,10 +200,6 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
   bool HasDataForParent() const;
 
   static bool ScopeNeedsData(Scope* scope);
-  void AddSkippableFunction(int start_position, int end_position,
-                            int num_parameters, int num_inner_functions,
-                            LanguageMode language_mode, bool has_data,
-                            bool uses_super_property);
 
  private:
   friend class BuilderProducedPreparseData;
@@ -229,6 +225,7 @@ class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
   };
 
   DeclarationScope* function_scope_;
+  int function_length_;
   int num_inner_functions_;
   int num_inner_with_data_;
 
@@ -284,7 +281,7 @@ class ConsumedPreparseData {
 
   virtual ProducedPreparseData* GetDataForSkippableFunction(
       Zone* zone, int start_position, int* end_position, int* num_parameters,
-      int* num_inner_functions, bool* uses_super_property,
+      int* function_length, int* num_inner_functions, bool* uses_super_property,
       LanguageMode* language_mode) = 0;
 
   // Restores the information needed for allocating the Scope's (and its

@@ -953,9 +953,9 @@ class JSFunction : public JSObject {
   inline void set_context(Object context);
   inline JSGlobalProxy global_proxy();
   inline NativeContext native_context();
+  inline int length();
 
   static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
-  static Maybe<int> GetLength(Isolate* isolate, Handle<JSFunction> function);
   static Handle<NativeContext> GetFunctionRealm(Handle<JSFunction> function);
 
   // [code]: The generated code object for this function.  Executed

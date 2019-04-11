@@ -152,7 +152,7 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
 
   ProducedPreparseData* GetDataForSkippableFunction(
       Zone* zone, int start_position, int* end_position, int* num_parameters,
-      int* num_inner_functions, bool* uses_super_property,
+      int* function_length, int* num_inner_functions, bool* uses_super_property,
       LanguageMode* language_mode) final;
 
   void RestoreScopeAllocationData(DeclarationScope* scope) final;

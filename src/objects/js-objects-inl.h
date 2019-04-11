@@ -541,6 +541,8 @@ AbstractCode JSFunction::abstract_code() {
   }
 }
 
+int JSFunction::length() { return shared()->length(); }
+
 Code JSFunction::code() const {
   return Code::cast(RELAXED_READ_FIELD(*this, kCodeOffset));
 }

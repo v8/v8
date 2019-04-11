@@ -441,10 +441,6 @@ void EnsureSharedFunctionInfosArrayOnScript(ParseInfo* parse_info,
 
 void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
                                        Handle<SharedFunctionInfo> shared_info) {
-  // Don't overwrite values set by the bootstrapper.
-  if (!shared_info->HasLength()) {
-    shared_info->set_length(literal->function_length());
-  }
   shared_info->set_has_duplicate_parameters(
       literal->has_duplicate_parameters());
   shared_info->set_is_oneshot_iife(literal->is_oneshot_iife());

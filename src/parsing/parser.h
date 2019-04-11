@@ -32,50 +32,6 @@ class ParserTargetScope;
 class PendingCompilationErrorHandler;
 class PreparseData;
 
-class FunctionEntry {
- public:
-  enum {
-    kStartPositionIndex,
-    kEndPositionIndex,
-    kNumParametersIndex,
-    kFlagsIndex,
-    kNumInnerFunctionsIndex,
-    kSize
-  };
-
-  explicit FunctionEntry(Vector<unsigned> backing)
-    : backing_(backing) { }
-
-  FunctionEntry() : backing_() { }
-
-  class LanguageModeField : public BitField<LanguageMode, 0, 1> {};
-  class UsesSuperPropertyField
-      : public BitField<bool, LanguageModeField::kNext, 1> {};
-
-  static uint32_t EncodeFlags(LanguageMode language_mode,
-                              bool uses_super_property) {
-    return LanguageModeField::encode(language_mode) |
-           UsesSuperPropertyField::encode(uses_super_property);
-  }
-
-  int start_pos() const { return backing_[kStartPositionIndex]; }
-  int end_pos() const { return backing_[kEndPositionIndex]; }
-  int num_parameters() const { return backing_[kNumParametersIndex]; }
-  LanguageMode language_mode() const {
-    return LanguageModeField::decode(backing_[kFlagsIndex]);
-  }
-  bool uses_super_property() const {
-    return UsesSuperPropertyField::decode(backing_[kFlagsIndex]);
-  }
-  int num_inner_functions() const { return backing_[kNumInnerFunctionsIndex]; }
-
-  bool is_valid() const { return !backing_.empty(); }
-
- private:
-  Vector<unsigned> backing_;
-};
-
-
 // ----------------------------------------------------------------------------
 // JAVASCRIPT PARSING
 
@@ -455,6 +411,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool SkipFunction(const AstRawString* function_name, FunctionKind kind,
                     FunctionLiteral::FunctionType function_type,
                     DeclarationScope* function_scope, int* num_parameters,
+                    int* function_length,
                     ProducedPreparseData** produced_preparsed_scope_data);
 
   Block* BuildParameterInitializationBlock(

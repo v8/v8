@@ -263,7 +263,6 @@ class SharedFunctionInfo : public HeapObject {
   static const int kInitialLength = kEntriesStart + kEntryLength;
 
   static const int kNotFound = -1;
-  static const uint16_t kInvalidLength = static_cast<uint16_t>(-1);
 
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
@@ -306,8 +305,7 @@ class SharedFunctionInfo : public HeapObject {
   // Use up to 2^16-2 parameters (16 bits of values, where one is reserved for
   // kDontAdaptArgumentsSentinel). The value is only reliable when the function
   // has been compiled.
-  inline uint16_t GetLength() const;
-  inline bool HasLength() const;
+  inline uint16_t length() const;
   inline void set_length(int value);
 
   // [internal formal parameter count]: The declared number of parameters.
@@ -729,8 +727,6 @@ class SharedFunctionInfo : public HeapObject {
   friend class Factory;
   friend class V8HeapExplorer;
   FRIEND_TEST(PreParserTest, LazyFunctionLength);
-
-  inline uint16_t length() const;
 
   // Find the index of this function in the parent script. Slow path of
   // FunctionLiteralId.
