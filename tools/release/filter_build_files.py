@@ -23,8 +23,6 @@ import sys
 
 EXECUTABLE_FILES = [
   'd8',
-  # TODO(sergiyb): Remove cctest from there after infra-side CL lands.
-  'cctest',
 ]
 
 # Additional executable files added only to ref archive type.
