@@ -70,6 +70,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       self.sancov_dir = None
       self._variants = None
 
+  @property
+  def framework_name(self):
+    return 'standard_runner'
+
   def _get_default_suite_names(self):
     return ['default']
 

@@ -16,6 +16,7 @@
         "--random-seed=123",
         "--nohard-abort"
       ],
+      "framework_name": "standard_runner",
       "name": "sweet/strawberries",
       "random_seed": 123,
       "result": "FAIL",
@@ -39,6 +40,7 @@
         "--random-seed=123",
         "--nohard-abort"
       ],
+      "framework_name": "standard_runner",
       "name": "sweet/strawberries",
       "random_seed": 123,
       "result": "FAIL",
@@ -62,6 +64,7 @@
         "--random-seed=123",
         "--nohard-abort"
       ],
+      "framework_name": "standard_runner",
       "name": "sweet/strawberries",
       "random_seed": 123,
       "result": "FAIL",
