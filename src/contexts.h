@@ -7,6 +7,7 @@
 
 #include "src/function-kind.h"
 #include "src/objects/fixed-array.h"
+#include "torque-generated/class-definitions-from-dsl.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -451,25 +452,16 @@ class Context : public HeapObject {
   // Setter with explicit barrier mode.
   V8_INLINE void set(int index, Object value, WriteBarrierMode mode);
 
-  // Layout description.
-#define CONTEXT_FIELDS(V)                                             \
-  V(kLengthOffset, kTaggedSize)                                       \
-  /* TODO(ishell): remove this fixedArray-like header size. */        \
-  V(kHeaderSize, 0)                                                   \
-  V(kStartOfTaggedFieldsOffset, 0)                                    \
-  V(kStartOfStrongFieldsOffset, 0)                                    \
-  /* Tagged fields. */                                                \
-  V(kScopeInfoOffset, kTaggedSize)                                    \
-  V(kPreviousOffset, kTaggedSize)                                     \
-  V(kExtensionOffset, kTaggedSize)                                    \
-  V(kNativeContextOffset, kTaggedSize)                                \
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_CONTEXT_FIELDS)
+  // TODO(v8:8989): [torque] Support marker constants.
+  /* TODO(ishell): remove this fixedArray-like header size. */
+  static const int kHeaderSize = kScopeInfoOffset;
+  static const int kStartOfTaggedFieldsOffset = kScopeInfoOffset;
   /* Header size. */                                                  \
   /* TODO(ishell): use this as header size once MIN_CONTEXT_SLOTS */  \
   /* is removed in favour of offset-based access to common fields. */ \
-  V(kTodoHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CONTEXT_FIELDS)
-#undef CONTEXT_FIELDS
+  static const int kTodoHeaderSize = kSize;
 
   // Garbage collection support.
   V8_INLINE static constexpr int SizeFor(int length) {

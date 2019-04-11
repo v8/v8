@@ -55,10 +55,15 @@ type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
 
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
-type AbstractCode extends HeapObject generates 'TNode<AbstractCode>';
-type Code extends AbstractCode generates 'TNode<Code>';
+type Code extends HeapObject generates 'TNode<Code>';
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
-type Context extends HeapObject generates 'TNode<Context>';
+extern class Context extends HeapObject {
+  length: Smi;
+  scope_info: ScopeInfo;
+  previous: Object;
+  extension: Object;
+  native_context: Object;
+}
 type NativeContext extends Context;
 extern class Oddball extends HeapObject {
   to_number_raw: float64;
