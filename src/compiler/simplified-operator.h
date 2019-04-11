@@ -541,6 +541,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* BooleanNot();
 
   const Operator* NumberEqual();
+  const Operator* NumberSameValue();
   const Operator* NumberLessThan();
   const Operator* NumberLessThanOrEqual();
   const Operator* NumberAdd();

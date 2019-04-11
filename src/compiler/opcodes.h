@@ -293,6 +293,7 @@
   V(SpeculativeNumberLessThanOrEqual)    \
   V(ReferenceEqual)                      \
   V(SameValue)                           \
+  V(NumberSameValue)                     \
   V(StringEqual)                         \
   V(StringLessThan)                      \
   V(StringLessThanOrEqual)

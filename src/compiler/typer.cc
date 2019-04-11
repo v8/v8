@@ -1996,6 +1996,8 @@ Type Typer::Visitor::TypeSameValue(Node* node) {
   return TypeBinaryOp(node, SameValueTyper);
 }
 
+Type Typer::Visitor::TypeNumberSameValue(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeStringEqual(Node* node) { return Type::Boolean(); }
 
 Type Typer::Visitor::TypeStringLessThan(Node* node) { return Type::Boolean(); }

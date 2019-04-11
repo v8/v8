@@ -2582,8 +2582,17 @@ class RepresentationSelector {
       }
       case IrOpcode::kSameValue: {
         if (truncation.IsUnused()) return VisitUnused(node);
-        VisitBinop(node, UseInfo::AnyTagged(),
-                   MachineRepresentation::kTaggedPointer);
+        if (BothInputsAre(node, Type::Number())) {
+          VisitBinop(node, UseInfo::TruncatingFloat64(),
+                     MachineRepresentation::kBit);
+          if (lower()) {
+            NodeProperties::ChangeOp(node,
+                                     lowering->simplified()->NumberSameValue());
+          }
+        } else {
+          VisitBinop(node, UseInfo::AnyTagged(),
+                     MachineRepresentation::kTaggedPointer);
+        }
         return;
       }
       case IrOpcode::kTypeOf: {

@@ -15,6 +15,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
 #include "src/heap/factory-inl.h"
+#include "src/machine-type.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"
@@ -903,6 +904,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kSameValue:
       result = LowerSameValue(node);
+      break;
+    case IrOpcode::kNumberSameValue:
+      result = LowerNumberSameValue(node);
       break;
     case IrOpcode::kDeadValue:
       result = LowerDeadValue(node);
@@ -3437,6 +3441,31 @@ Node* EffectControlLinearizer::LowerSameValue(Node* node) {
       callable.descriptor().GetStackParameterCount(), flags, properties);
   return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs,
                  __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerNumberSameValue(Node* node) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  auto is_float64_equal = __ MakeLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kBit);
+
+  __ GotoIf(__ Float64Equal(lhs, rhs), &is_float64_equal);
+
+  // Return true iff both {lhs} and {rhs} are NaN.
+  __ GotoIf(__ Float64Equal(lhs, lhs), &done, __ Int32Constant(0));
+  __ GotoIf(__ Float64Equal(rhs, rhs), &done, __ Int32Constant(0));
+  __ Goto(&done, __ Int32Constant(1));
+
+  __ Bind(&is_float64_equal);
+  // Even if the values are float64-equal, we still need to distinguish
+  // zero and minus zero.
+  Node* lhs_hi = __ Float64ExtractHighWord32(lhs);
+  Node* rhs_hi = __ Float64ExtractHighWord32(rhs);
+  __ Goto(&done, __ Word32Equal(lhs_hi, rhs_hi));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerDeadValue(Node* node) {

@@ -736,6 +736,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(ObjectIsInteger, Operator::kNoProperties, 1, 0)                \
   V(ConvertTaggedHoleToUndefined, Operator::kNoProperties, 1, 0)   \
   V(SameValue, Operator::kCommutative, 2, 0)                       \
+  V(NumberSameValue, Operator::kCommutative, 2, 0)                 \
   V(ReferenceEqual, Operator::kCommutative, 2, 0)                  \
   V(StringEqual, Operator::kCommutative, 2, 0)                     \
   V(StringLessThan, Operator::kNoProperties, 2, 0)                 \
