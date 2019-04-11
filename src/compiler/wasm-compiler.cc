@@ -3615,6 +3615,11 @@ const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
                                                       wasm::ValueType type) {
   int alignment = offset % (wasm::ValueTypes::ElementSizeInBytes(type));
   MachineType mach_type = wasm::ValueTypes::MachineTypeFor(type);
+  if (COMPRESS_POINTERS_BOOL && mach_type.IsTagged()) {
+    // We are loading tagged value from off-heap location, so we need to load
+    // it as a full word otherwise we will not be able to decompress it.
+    mach_type = MachineType::Pointer();
+  }
   if (alignment == 0 || mcgraph()->machine()->UnalignedLoadSupported(
                             wasm::ValueTypes::MachineRepresentationFor(type))) {
     return mcgraph()->machine()->Load(mach_type);
@@ -3626,6 +3631,11 @@ const Operator* WasmGraphBuilder::GetSafeStoreOperator(int offset,
                                                        wasm::ValueType type) {
   int alignment = offset % (wasm::ValueTypes::ElementSizeInBytes(type));
   MachineRepresentation rep = wasm::ValueTypes::MachineRepresentationFor(type);
+  if (COMPRESS_POINTERS_BOOL && IsAnyTagged(rep)) {
+    // We are storing tagged value to off-heap location, so we need to store
+    // it as a full word otherwise we will not be able to decompress it.
+    rep = MachineType::PointerRepresentation();
+  }
   if (alignment == 0 || mcgraph()->machine()->UnalignedStoreSupported(rep)) {
     StoreRepresentation store_rep(rep, WriteBarrierKind::kNoWriteBarrier);
     return mcgraph()->machine()->Store(store_rep);
@@ -5578,9 +5588,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       offset = 0;
       for (size_t i = 0; i < return_count; ++i) {
         wasm::ValueType type = sig_->GetReturn(i);
-        Node* val = SetEffect(graph()->NewNode(
-            mcgraph()->machine()->Load(wasm::ValueTypes::MachineTypeFor(type)),
-            arg_buffer, Int32Constant(offset), Effect(), Control()));
+        Node* val = SetEffect(
+            graph()->NewNode(GetSafeLoadOperator(offset, type), arg_buffer,
+                             Int32Constant(offset), Effect(), Control()));
         returns[i] = val;
         offset += wasm::ValueTypes::ElementSizeInBytes(type);
       }
