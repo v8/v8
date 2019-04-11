@@ -7444,7 +7444,8 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
       // and entry remains correct.
       AddToFeedbackCellsMap(cache, EntryToIndex(entry) + 2, native_context,
                             feedback_cell);
-      return cache;
+      // Add hash again even on cache hit to avoid unnecessary cache delay in
+      // case of hash collisions.
     }
   }
 
