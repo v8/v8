@@ -58,6 +58,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return result;
   }
 
+  static const ReferenceType* GetReferenceType(const Type* referenced_type) {
+    return Get().reference_types_.Add(ReferenceType(referenced_type));
+  }
+
   static const std::vector<const BuiltinPointerType*>&
   AllBuiltinPointerTypes() {
     return Get().all_builtin_pointer_types_;
@@ -115,6 +119,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static const Type* GetObjectType() {
     return Get().GetBuiltinType(OBJECT_TYPE_STRING);
+  }
+
+  static const Type* GetHeapObjectType() {
+    return Get().GetBuiltinType(HEAP_OBJECT_TYPE_STRING);
   }
 
   static const Type* GetJSObjectType() {
@@ -207,6 +215,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   Deduplicator<BuiltinPointerType> function_pointer_types_;
   std::vector<const BuiltinPointerType*> all_builtin_pointer_types_;
   Deduplicator<UnionType> union_types_;
+  Deduplicator<ReferenceType> reference_types_;
   std::vector<std::unique_ptr<Type>> nominal_types_;
   std::vector<std::unique_ptr<Type>> struct_types_;
   std::vector<std::unique_ptr<Type>> top_types_;

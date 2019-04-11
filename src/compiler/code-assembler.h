@@ -107,6 +107,18 @@ struct Int32T : Word32T {
 struct Uint32T : Word32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
+struct Int16T : Int32T {
+  static constexpr MachineType kMachineType = MachineType::Int16();
+};
+struct Uint16T : Uint32T {
+  static constexpr MachineType kMachineType = MachineType::Uint16();
+};
+struct Int8T : Int16T {
+  static constexpr MachineType kMachineType = MachineType::Int8();
+};
+struct Uint8T : Uint16T {
+  static constexpr MachineType kMachineType = MachineType::Uint8();
+};
 
 struct Word64T : IntegralT {
   static const MachineRepresentation kMachineRepresentation =

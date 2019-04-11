@@ -561,24 +561,22 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
     std::string camel_field_name = CamelifyString(field.name_and_type.name);
     std::string load_macro_name =
         "Load" + class_type->name() + camel_field_name;
-    std::string load_operator_name = "." + field.name_and_type.name;
     Signature load_signature;
     load_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
     load_signature.parameter_types.types.push_back(class_type);
     load_signature.parameter_types.var_args = false;
     load_signature.return_type = field.name_and_type.type;
     Statement* load_body =
-        MakeNode<ReturnStatement>(MakeNode<LoadObjectFieldExpression>(
-            parameter, field.name_and_type.name));
+        MakeNode<ReturnStatement>(MakeNode<FieldAccessExpression>(
+            parameter, MakeNode<Identifier>(field.name_and_type.name)));
     Declarations::DeclareMacro(load_macro_name, base::nullopt, load_signature,
-                               false, load_body, load_operator_name);
+                               false, load_body);
 
     // Store accessor
     IdentifierExpression* value = MakeNode<IdentifierExpression>(
         std::vector<std::string>{}, MakeNode<Identifier>(std::string{"v"}));
     std::string store_macro_name =
         "Store" + class_type->name() + camel_field_name;
-    std::string store_operator_name = "." + field.name_and_type.name + "=";
     Signature store_signature;
     store_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
     store_signature.parameter_names.push_back(MakeNode<Identifier>("v"));
@@ -588,10 +586,12 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
     // TODO(danno): Store macros probably should return their value argument
     store_signature.return_type = TypeOracle::GetVoidType();
     Statement* store_body =
-        MakeNode<ExpressionStatement>(MakeNode<StoreObjectFieldExpression>(
-            parameter, field.name_and_type.name, value));
+        MakeNode<ExpressionStatement>(MakeNode<AssignmentExpression>(
+            MakeNode<FieldAccessExpression>(
+                parameter, MakeNode<Identifier>(field.name_and_type.name)),
+            value));
     Declarations::DeclareMacro(store_macro_name, base::nullopt, store_signature,
-                               false, store_body, store_operator_name);
+                               false, store_body);
   }
 
   DeclareMethods(class_type, class_declaration->methods);

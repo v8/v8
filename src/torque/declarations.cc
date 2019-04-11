@@ -91,9 +91,14 @@ const Type* Declarations::GetType(TypeExpression* type_expression) {
                                         alias->GetDeclarationPosition());
     }
     return alias->type();
-  } else if (auto* union_type = UnionTypeExpression::cast(type_expression)) {
+  } else if (auto* union_type =
+                 UnionTypeExpression::DynamicCast(type_expression)) {
     return TypeOracle::GetUnionType(GetType(union_type->a),
                                     GetType(union_type->b));
+  } else if (auto* reference_type =
+                 ReferenceTypeExpression::DynamicCast(type_expression)) {
+    return TypeOracle::GetReferenceType(
+        GetType(reference_type->referenced_type));
   } else {
     auto* function_type_exp = FunctionTypeExpression::cast(type_expression);
     TypeVector argument_types;

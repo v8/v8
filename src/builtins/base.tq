@@ -39,12 +39,12 @@ type int31 extends int32
 type uint31 extends uint32
     generates 'TNode<Uint32T>' constexpr 'uint31_t';
 type int16 extends int31
-    generates 'TNode<Int32T>' constexpr 'int16_t';
+    generates 'TNode<Int16T>' constexpr 'int16_t';
 type uint16 extends uint31
-    generates 'TNode<Uint32T>' constexpr 'uint16_t';
-type int8 extends int16 generates 'TNode<Int32T>' constexpr 'int8_t';
+    generates 'TNode<Uint16T>' constexpr 'uint16_t';
+type int8 extends int16 generates 'TNode<Int8T>' constexpr 'int8_t';
 type uint8 extends uint16
-    generates 'TNode<Uint32T>' constexpr 'uint8_t';
+    generates 'TNode<Uint8T>' constexpr 'uint8_t';
 type int64 generates 'TNode<Int64T>' constexpr 'int64_t';
 type intptr generates 'TNode<IntPtrT>' constexpr 'intptr_t';
 type uintptr generates 'TNode<UintPtrT>' constexpr 'uintptr_t';
@@ -1760,6 +1760,11 @@ extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
     ElementsKind;
 
 extern operator '.length' macro LoadFastJSArrayLength(FastJSArray): Smi;
+operator '.length=' macro StoreFastJSArrayLength(
+    array: FastJSArray, length: Smi) {
+  const array: JSArray = array;
+  array.length = length;
+}
 
 extern operator '.objects[]' macro LoadFixedArrayElement(
     FixedArray, intptr): Object;

@@ -851,6 +851,54 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         LoadObjectField(object, offset, MachineType::AnyTagged()));
   }
 
+  // Reference is the CSA-equivalent of a Torque reference value,
+  // representing an inner pointer into a HeapObject.
+  struct Reference {
+    TNode<HeapObject> object;
+    TNode<IntPtrT> offset;
+
+    std::tuple<TNode<HeapObject>, TNode<IntPtrT>> Flatten() const {
+      return std::make_tuple(object, offset);
+    }
+  };
+
+  template <class T, typename std::enable_if<
+                         std::is_convertible<TNode<T>, TNode<Object>>::value,
+                         int>::type = 0>
+  TNode<T> LoadReference(Reference reference) {
+    return CAST(LoadObjectField(reference.object, reference.offset,
+                                MachineTypeOf<T>::value));
+  }
+  template <class T, typename std::enable_if<
+                         std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
+                         int>::type = 0>
+  TNode<T> LoadReference(Reference reference) {
+    return UncheckedCast<T>(LoadObjectField(reference.object, reference.offset,
+                                            MachineTypeOf<T>::value));
+  }
+  template <class T, typename std::enable_if<
+                         std::is_convertible<TNode<T>, TNode<Object>>::value,
+                         int>::type = 0>
+  void StoreReference(Reference reference, TNode<T> value) {
+    int const_offset;
+    if (std::is_same<T, Smi>::value) {
+      StoreObjectFieldNoWriteBarrier(reference.object, reference.offset, value);
+    } else if (std::is_same<T, Map>::value &&
+               ToInt32Constant(reference.offset, const_offset) &&
+               const_offset == HeapObject::kMapOffset) {
+      StoreMap(reference.object, value);
+    } else {
+      StoreObjectField(reference.object, reference.offset, value);
+    }
+  }
+  template <class T, typename std::enable_if<
+                         std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
+                         int>::type = 0>
+  void StoreReference(Reference reference, TNode<T> value) {
+    StoreObjectFieldNoWriteBarrier<T>(reference.object, reference.offset,
+                                      value);
+  }
+
   // Tag a smi and store it.
   void StoreAndTagSmi(Node* base, int offset, Node* value);
 
@@ -2881,7 +2929,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
-
 
   // Report that there was a feedback update, performing any tasks that should
   // be done after a feedback update.

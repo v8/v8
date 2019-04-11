@@ -806,7 +806,7 @@ VisitResult ImplementationVisitor::GetBuiltinCode(Builtin* builtin) {
   return VisitResult(type, assembler().TopRange(1));
 }
 
-VisitResult ImplementationVisitor::Visit(IdentifierExpression* expr) {
+VisitResult ImplementationVisitor::Visit(LocationExpression* expr) {
   StackScope scope(this);
   return scope.Yield(GenerateFetchFromLocation(GetLocationReference(expr)));
 }
@@ -1312,9 +1312,13 @@ size_t ImplementationVisitor::InitializeAggregateHelper(
       } else {
         allocate_result.SetType(aggregate_type);
         GenerateCopy(allocate_result);
-        GenerateImplicitConvert(f.name_and_type.type, current_value);
-        assembler().Emit(StoreObjectFieldInstruction(
-            ClassType::cast(aggregate_type), f.name_and_type.name));
+        assembler().Emit(CreateFieldReferenceInstruction{
+            ClassType::cast(aggregate_type), f.name_and_type.name});
+        VisitResult heap_reference(
+            TypeOracle::GetReferenceType(f.name_and_type.type),
+            assembler().TopRange(2));
+        GenerateAssignToLocation(
+            LocationReference::HeapReference(heap_reference), current_value);
       }
     } else {
       LocationReference struct_field_ref = LocationReference::VariableAccess(
@@ -1698,12 +1702,21 @@ Block* ImplementationVisitor::LookupSimpleLabel(const std::string& name) {
   return label->block;
 }
 
+// Try to lookup a callable with the provided argument types. Do not report
+// an error if no matching callable was found, but return false instead.
+// This is used to test the presence of overloaded field accessors.
+bool ImplementationVisitor::TestLookupCallable(
+    const QualifiedName& name, const TypeVector& parameter_types) {
+  return LookupCallable(name, Declarations::TryLookup(name), parameter_types,
+                        {}, {}, true) != nullptr;
+}
+
 template <class Container>
 Callable* ImplementationVisitor::LookupCallable(
     const QualifiedName& name, const Container& declaration_container,
     const TypeVector& parameter_types,
     const std::vector<Binding<LocalLabel>*>& labels,
-    const TypeVector& specialization_types) {
+    const TypeVector& specialization_types, bool silence_errors) {
   Callable* result = nullptr;
 
   std::vector<Declarable*> overloads;
@@ -1737,10 +1750,12 @@ Callable* ImplementationVisitor::LookupCallable(
   }
 
   if (overloads.empty()) {
+    if (silence_errors) return nullptr;
     std::stringstream stream;
     stream << "no matching declaration found for " << name;
     ReportError(stream.str());
   } else if (candidates.empty()) {
+    if (silence_errors) return nullptr;
     FailCallableLookup("cannot find suitable callable with name", name,
                        parameter_types, labels, overload_signatures);
   }
@@ -1803,12 +1818,11 @@ Method* ImplementationVisitor::LookupMethod(
     const std::string& name, LocationReference this_reference,
     const Arguments& arguments, const TypeVector& specialization_types) {
   TypeVector types(arguments.parameters.GetTypeVector());
-  types.insert(types.begin(), this_reference.GetVisitResult().type());
-  return Method::cast(
-      LookupCallable({{}, name},
-                     AggregateType::cast(this_reference.GetVisitResult().type())
-                         ->Methods(name),
-                     types, arguments.labels, specialization_types));
+  types.insert(types.begin(), this_reference.ReferencedType());
+  return Method::cast(LookupCallable(
+      {{}, name},
+      AggregateType::cast(this_reference.ReferencedType())->Methods(name),
+      types, arguments.labels, specialization_types));
 }
 
 const Type* ImplementationVisitor::GetCommonType(const Type* left,
@@ -1866,6 +1880,9 @@ LocationReference ImplementationVisitor::GetLocationReference(
     case AstNode::Kind::kElementAccessExpression:
       return GetLocationReference(
           static_cast<ElementAccessExpression*>(location));
+    case AstNode::Kind::kDereferenceExpression:
+      return GetLocationReference(
+          static_cast<DereferenceExpression*>(location));
     default:
       return LocationReference::Temporary(Visit(location), "expression");
   }
@@ -1873,49 +1890,59 @@ LocationReference ImplementationVisitor::GetLocationReference(
 
 LocationReference ImplementationVisitor::GetLocationReference(
     FieldAccessExpression* expr) {
+  const std::string& fieldname = expr->field->value;
   LocationReference reference = GetLocationReference(expr->object);
   if (reference.IsVariableAccess() &&
       reference.variable().type()->IsStructType()) {
     const StructType* type = StructType::cast(reference.variable().type());
-    const Field& field = type->LookupField(expr->field->value);
+    const Field& field = type->LookupField(fieldname);
     if (GlobalContext::collect_language_server_data()) {
       LanguageServerData::AddDefinition(expr->field->pos, field.pos);
     }
     if (field.const_qualified) {
-      VisitResult t_value =
-          ProjectStructField(reference.variable(), expr->field->value);
+      VisitResult t_value = ProjectStructField(reference.variable(), fieldname);
       return LocationReference::Temporary(
           t_value, "for constant field '" + field.name_and_type.name + "'");
     } else {
       return LocationReference::VariableAccess(
-          ProjectStructField(reference.variable(), expr->field->value));
+          ProjectStructField(reference.variable(), fieldname));
     }
   }
   if (reference.IsTemporary() && reference.temporary().type()->IsStructType()) {
     if (GlobalContext::collect_language_server_data()) {
       const StructType* type = StructType::cast(reference.temporary().type());
-      const Field& field = type->LookupField(expr->field->value);
+      const Field& field = type->LookupField(fieldname);
       LanguageServerData::AddDefinition(expr->field->pos, field.pos);
     }
     return LocationReference::Temporary(
-        ProjectStructField(reference.temporary(), expr->field->value),
+        ProjectStructField(reference.temporary(), fieldname),
         reference.temporary_description());
   }
   VisitResult object_result = GenerateFetchFromLocation(reference);
-  if (const ClassType* class_type =
-          ClassType::DynamicCast(object_result.type())) {
-    if (class_type->HasField(expr->field->value)) {
-      const Field& field = (class_type->LookupField(expr->field->value));
+  if (base::Optional<const ClassType*> class_type =
+          object_result.type()->ClassSupertype()) {
+    // This is a hack to distinguish the situation where we want to use
+    // overloaded field accessors from when we want to create a reference.
+    bool has_explicit_overloads = TestLookupCallable(
+        QualifiedName{"." + fieldname}, {object_result.type()});
+    if ((*class_type)->HasField(fieldname) && !has_explicit_overloads) {
+      const Field& field = (*class_type)->LookupField(fieldname);
       if (GlobalContext::collect_language_server_data()) {
         LanguageServerData::AddDefinition(expr->field->pos, field.pos);
       }
       if (field.index) {
-        return LocationReference::IndexedFieldAccess(object_result,
-                                                     expr->field->value);
+        return LocationReference::IndexedFieldAccess(object_result, fieldname);
+      } else {
+        assembler().Emit(
+            CreateFieldReferenceInstruction{*class_type, fieldname});
+        const Type* reference_type =
+            TypeOracle::GetReferenceType(field.name_and_type.type);
+        return LocationReference::HeapReference(
+            VisitResult(reference_type, assembler().TopRange(2)));
       }
     }
   }
-  return LocationReference::FieldAccess(object_result, expr->field->value);
+  return LocationReference::FieldAccess(object_result, fieldname);
 }
 
 LocationReference ImplementationVisitor::GetLocationReference(
@@ -2000,12 +2027,28 @@ LocationReference ImplementationVisitor::GetLocationReference(
                                       "extern value " + expr->name->value);
 }
 
+LocationReference ImplementationVisitor::GetLocationReference(
+    DereferenceExpression* expr) {
+  VisitResult ref = Visit(expr->reference);
+  const ReferenceType* type = ReferenceType::DynamicCast(ref.type());
+  if (!type) {
+    ReportError("Operator * expects a reference but found a value of type ",
+                *ref.type());
+  }
+  return LocationReference::HeapReference(ref);
+}
+
 VisitResult ImplementationVisitor::GenerateFetchFromLocation(
     const LocationReference& reference) {
   if (reference.IsTemporary()) {
     return GenerateCopy(reference.temporary());
   } else if (reference.IsVariableAccess()) {
     return GenerateCopy(reference.variable());
+  } else if (reference.IsHeapReference()) {
+    GenerateCopy(reference.heap_reference());
+    assembler().Emit(LoadReferenceInstruction{reference.ReferencedType()});
+    DCHECK_EQ(1, LoweredSlotCount(reference.ReferencedType()));
+    return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
   } else {
     if (reference.IsIndexedFieldAccess()) {
       ReportError(
@@ -2031,6 +2074,11 @@ void ImplementationVisitor::GenerateAssignToLocation(
                      variable.type());
   } else if (reference.IsIndexedFieldAccess()) {
     ReportError("assigning a value directly to an indexed field isn't allowed");
+  } else if (reference.IsHeapReference()) {
+    const Type* referenced_type = reference.ReferencedType();
+    GenerateCopy(reference.heap_reference());
+    GenerateImplicitConvert(referenced_type, assignment_value);
+    assembler().Emit(StoreReferenceInstruction{referenced_type});
   } else {
     DCHECK(reference.IsTemporary());
     ReportError("cannot assign to temporary ",
@@ -2366,6 +2414,15 @@ VisitResult ImplementationVisitor::GenerateCall(
 VisitResult ImplementationVisitor::Visit(CallExpression* expr,
                                          bool is_tailcall) {
   StackScope scope(this);
+
+  if (expr->callee->name->value == "&" && expr->arguments.size() == 1) {
+    if (auto* loc_expr = LocationExpression::DynamicCast(expr->arguments[0])) {
+      LocationReference ref = GetLocationReference(loc_expr);
+      if (ref.IsHeapReference()) return scope.Yield(ref.heap_reference());
+    }
+    ReportError("Unable to create a heap reference.");
+  }
+
   Arguments arguments;
   QualifiedName name = QualifiedName(expr->callee->namespace_qualification,
                                      expr->callee->name->value);
@@ -2403,7 +2460,7 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
     target = LocationReference::Temporary(result, "method target result");
   }
   const AggregateType* target_type =
-      AggregateType::DynamicCast(target.GetVisitResult().type());
+      AggregateType::DynamicCast(target.ReferencedType());
   if (!target_type) {
     ReportError("target of method call not a struct or class type");
   }
@@ -2417,36 +2474,6 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   Callable* callable = nullptr;
   callable = LookupMethod(method_name, target, arguments, {});
   return scope.Yield(GenerateCall(callable, target, arguments, {}, false));
-}
-
-VisitResult ImplementationVisitor::Visit(LoadObjectFieldExpression* expr) {
-  VisitResult base_result = Visit(expr->base);
-  auto class_type = ClassType::DynamicCast(base_result.type());
-  if (!class_type) {
-    ReportError(
-        "base expression for a LoadObjectFieldExpression is not a class type "
-        "but instead ",
-        *base_result.type());
-  }
-  VisitResult result = base_result;
-  assembler().Emit(LoadObjectFieldInstruction{class_type, expr->field_name});
-  const Field& field = class_type->LookupField(expr->field_name);
-  result.SetType(field.name_and_type.type);
-  return result;
-}
-
-VisitResult ImplementationVisitor::Visit(StoreObjectFieldExpression* expr) {
-  VisitResult base_result = Visit(expr->base);
-  auto class_type = ClassType::DynamicCast(base_result.type());
-  if (!class_type) {
-    ReportError(
-        "base expression for a StoreObjectFieldExpression is not a class type "
-        "but instead ",
-        *base_result.type());
-  }
-  VisitResult value = Visit(expr->value);
-  assembler().Emit(StoreObjectFieldInstruction{class_type, expr->field_name});
-  return VisitResult(value.type(), assembler().TopRange(0));
 }
 
 VisitResult ImplementationVisitor::Visit(IntrinsicCallExpression* expr) {
@@ -2548,6 +2575,10 @@ StackRange ImplementationVisitor::LowerParameter(
       range.Extend(parameter_range);
     }
     return range;
+  } else if (type->IsReferenceType()) {
+    lowered_parameters->Push(parameter_name + ".object");
+    lowered_parameters->Push(parameter_name + ".offset");
+    return lowered_parameters->TopRange(2);
   } else {
     lowered_parameters->Push(parameter_name);
     return lowered_parameters->TopRange(1);

@@ -20,8 +20,6 @@ namespace torque {
 #define AST_EXPRESSION_NODE_KIND_LIST(V) \
   V(CallExpression)                      \
   V(CallMethodExpression)                \
-  V(LoadObjectFieldExpression)           \
-  V(StoreObjectFieldExpression)          \
   V(IntrinsicCallExpression)             \
   V(StructExpression)                    \
   V(LogicalOrExpression)                 \
@@ -33,6 +31,7 @@ namespace torque {
   V(NumberLiteralExpression)             \
   V(FieldAccessExpression)               \
   V(ElementAccessExpression)             \
+  V(DereferenceExpression)               \
   V(AssignmentExpression)                \
   V(IncrementDecrementExpression)        \
   V(NewExpression)                       \
@@ -43,7 +42,8 @@ namespace torque {
 #define AST_TYPE_EXPRESSION_NODE_KIND_LIST(V) \
   V(BasicTypeExpression)                      \
   V(FunctionTypeExpression)                   \
-  V(UnionTypeExpression)
+  V(UnionTypeExpression)                      \
+  V(ReferenceTypeExpression)
 
 #define AST_STATEMENT_NODE_KIND_LIST(V) \
   V(BlockStatement)                     \
@@ -222,31 +222,6 @@ struct IdentifierExpression : LocationExpression {
   std::vector<TypeExpression*> generic_arguments;
 };
 
-struct LoadObjectFieldExpression : Expression {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(LoadObjectFieldExpression)
-  LoadObjectFieldExpression(SourcePosition pos, Expression* base,
-                            std::string field_name)
-      : Expression(kKind, pos),
-        base(std::move(base)),
-        field_name(std::move(field_name)) {}
-  Expression* base;
-  std::string field_name;
-};
-
-struct StoreObjectFieldExpression : Expression {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(StoreObjectFieldExpression)
-  StoreObjectFieldExpression(SourcePosition pos, Expression* base,
-                             std::string field_name, Expression* value)
-      : Expression(kKind, pos),
-        base(std::move(base)),
-        field_name(std::move(field_name)),
-        value(std::move(value)) {}
-  Expression* base;
-  std::string field_name;
-  Expression* value;
-  size_t offset;
-};
-
 struct IntrinsicCallExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(IntrinsicCallExpression)
   IntrinsicCallExpression(SourcePosition pos, std::string name,
@@ -376,15 +351,25 @@ struct FieldAccessExpression : LocationExpression {
   Identifier* field;
 };
 
+struct DereferenceExpression : LocationExpression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(DereferenceExpression)
+  DereferenceExpression(SourcePosition pos, Expression* reference)
+      : LocationExpression(kKind, pos), reference(reference) {}
+  Expression* reference;
+};
+
 struct AssignmentExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(AssignmentExpression)
-  AssignmentExpression(SourcePosition pos, LocationExpression* location,
+  AssignmentExpression(SourcePosition pos, Expression* location,
+                       Expression* value)
+      : AssignmentExpression(pos, location, base::nullopt, value) {}
+  AssignmentExpression(SourcePosition pos, Expression* location,
                        base::Optional<std::string> op, Expression* value)
       : Expression(kKind, pos),
         location(location),
         op(std::move(op)),
         value(value) {}
-  LocationExpression* location;
+  Expression* location;
   base::Optional<std::string> op;
   Expression* value;
 };
@@ -393,10 +378,10 @@ enum class IncrementDecrementOperator { kIncrement, kDecrement };
 
 struct IncrementDecrementExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(IncrementDecrementExpression)
-  IncrementDecrementExpression(SourcePosition pos, LocationExpression* location,
+  IncrementDecrementExpression(SourcePosition pos, Expression* location,
                                IncrementDecrementOperator op, bool postfix)
       : Expression(kKind, pos), location(location), op(op), postfix(postfix) {}
-  LocationExpression* location;
+  Expression* location;
   IncrementDecrementOperator op;
   bool postfix;
 };
@@ -478,6 +463,13 @@ struct UnionTypeExpression : TypeExpression {
       : TypeExpression(kKind, pos), a(a), b(b) {}
   TypeExpression* a;
   TypeExpression* b;
+};
+
+struct ReferenceTypeExpression : TypeExpression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(ReferenceTypeExpression)
+  ReferenceTypeExpression(SourcePosition pos, TypeExpression* referenced_type)
+      : TypeExpression(kKind, pos), referenced_type(referenced_type) {}
+  TypeExpression* referenced_type;
 };
 
 struct ExpressionStatement : Statement {

@@ -68,10 +68,6 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<base::Optional<Identifier*>>::id =
         ParseResultTypeId::kOptionalIdentifierPtr;
 template <>
-V8_EXPORT_PRIVATE const ParseResultTypeId
-    ParseResultHolder<LocationExpression*>::id =
-        ParseResultTypeId::kLocationExpressionPtr;
-template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Statement*>::id =
     ParseResultTypeId::kStatementPtr;
 template <>
@@ -261,7 +257,7 @@ Expression* MakeCall(const std::string& callee,
 }
 
 base::Optional<ParseResult> MakeCall(ParseResultIterator* child_results) {
-  auto callee = child_results->NextAs<LocationExpression*>();
+  auto callee = child_results->NextAs<Expression*>();
   auto args = child_results->NextAs<std::vector<Expression*>>();
   auto otherwise = child_results->NextAs<std::vector<Statement*>>();
   IdentifierExpression* target = IdentifierExpression::cast(callee);
@@ -694,6 +690,13 @@ base::Optional<ParseResult> MakeFunctionTypeExpression(
   return ParseResult{result};
 }
 
+base::Optional<ParseResult> MakeReferenceTypeExpression(
+    ParseResultIterator* child_results) {
+  auto referenced_type = child_results->NextAs<TypeExpression*>();
+  TypeExpression* result = MakeNode<ReferenceTypeExpression>(referenced_type);
+  return ParseResult{result};
+}
+
 base::Optional<ParseResult> MakeUnionTypeExpression(
     ParseResultIterator* child_results) {
   auto a = child_results->NextAs<TypeExpression*>();
@@ -1001,7 +1004,7 @@ base::Optional<ParseResult> MakeIdentifierExpression(
   auto name = child_results->NextAs<Identifier*>();
   auto generic_arguments =
       child_results->NextAs<std::vector<TypeExpression*>>();
-  LocationExpression* result = MakeNode<IdentifierExpression>(
+  Expression* result = MakeNode<IdentifierExpression>(
       std::move(namespace_qualification), name, std::move(generic_arguments));
   return ParseResult{result};
 }
@@ -1010,7 +1013,7 @@ base::Optional<ParseResult> MakeFieldAccessExpression(
     ParseResultIterator* child_results) {
   auto object = child_results->NextAs<Expression*>();
   auto field = child_results->NextAs<Identifier*>();
-  LocationExpression* result = MakeNode<FieldAccessExpression>(object, field);
+  Expression* result = MakeNode<FieldAccessExpression>(object, field);
   return ParseResult{result};
 }
 
@@ -1018,7 +1021,14 @@ base::Optional<ParseResult> MakeElementAccessExpression(
     ParseResultIterator* child_results) {
   auto object = child_results->NextAs<Expression*>();
   auto field = child_results->NextAs<Expression*>();
-  LocationExpression* result = MakeNode<ElementAccessExpression>(object, field);
+  Expression* result = MakeNode<ElementAccessExpression>(object, field);
+  return ParseResult{result};
+}
+
+base::Optional<ParseResult> MakeDereferenceExpression(
+    ParseResultIterator* child_results) {
+  auto reference = child_results->NextAs<Expression*>();
+  Expression* result = MakeNode<DereferenceExpression>(reference);
   return ParseResult{result};
 }
 
@@ -1033,7 +1043,7 @@ base::Optional<ParseResult> MakeStructExpression(
 
 base::Optional<ParseResult> MakeAssignmentExpression(
     ParseResultIterator* child_results) {
-  auto location = child_results->NextAs<LocationExpression*>();
+  auto location = child_results->NextAs<Expression*>();
   auto op = child_results->NextAs<base::Optional<std::string>>();
   auto value = child_results->NextAs<Expression*>();
   Expression* result =
@@ -1057,7 +1067,7 @@ base::Optional<ParseResult> MakeStringLiteralExpression(
 
 base::Optional<ParseResult> MakeIncrementDecrementExpressionPostfix(
     ParseResultIterator* child_results) {
-  auto location = child_results->NextAs<LocationExpression*>();
+  auto location = child_results->NextAs<Expression*>();
   auto op = child_results->NextAs<IncrementDecrementOperator>();
   Expression* result =
       MakeNode<IncrementDecrementExpression>(location, op, true);
@@ -1067,7 +1077,7 @@ base::Optional<ParseResult> MakeIncrementDecrementExpressionPostfix(
 base::Optional<ParseResult> MakeIncrementDecrementExpressionPrefix(
     ParseResultIterator* child_results) {
   auto op = child_results->NextAs<IncrementDecrementOperator>();
-  auto location = child_results->NextAs<LocationExpression*>();
+  auto location = child_results->NextAs<Expression*>();
   Expression* result =
       MakeNode<IncrementDecrementExpression>(location, op, false);
   return ParseResult{result};
@@ -1284,7 +1294,8 @@ struct TorqueGrammar : Grammar {
            MakeBasicTypeExpression),
       Rule({Token("builtin"), Token("("), typeList, Token(")"), Token("=>"),
             &simpleType},
-           MakeFunctionTypeExpression)};
+           MakeFunctionTypeExpression),
+      Rule({Token("&"), &simpleType}, MakeReferenceTypeExpression)};
 
   // Result: TypeExpression*
   Symbol type = {Rule({&simpleType}), Rule({&type, Token("|"), &simpleType},
@@ -1397,19 +1408,12 @@ struct TorqueGrammar : Grammar {
            YieldIntegralConstant<IncrementDecrementOperator,
                                  IncrementDecrementOperator::kDecrement>)};
 
-  // Result: LocationExpression*
+  // Result: Expression*
   Symbol identifierExpression = {
       Rule({List<std::string>(Sequence({&identifier, Token("::")})), &name,
             TryOrDefault<TypeList>(&genericSpecializationTypeList)},
            MakeIdentifierExpression),
   };
-
-  // Result: LocationExpression*
-  Symbol locationExpression = {
-      Rule({&identifierExpression}),
-      Rule({&primaryExpression, Token("."), &name}, MakeFieldAccessExpression),
-      Rule({&primaryExpression, Token("["), expression, Token("]")},
-           MakeElementAccessExpression)};
 
   // Result: std::vector<Expression*>
   Symbol argumentList = {Rule(
@@ -1446,8 +1450,10 @@ struct TorqueGrammar : Grammar {
       Rule({&callExpression}),
       Rule({&callMethodExpression}),
       Rule({&intrinsicCallExpression}),
-      Rule({&locationExpression},
-           CastParseResult<LocationExpression*, Expression*>),
+      Rule({&identifierExpression}),
+      Rule({&primaryExpression, Token("."), &name}, MakeFieldAccessExpression),
+      Rule({&primaryExpression, Token("["), expression, Token("]")},
+           MakeElementAccessExpression),
       Rule({&decimalLiteral}, MakeNumberLiteralExpression),
       Rule({&stringLiteral}, MakeStringLiteralExpression),
       Rule({&simpleType, &initializerList}, MakeStructExpression),
@@ -1457,11 +1463,13 @@ struct TorqueGrammar : Grammar {
   // Result: Expression*
   Symbol unaryExpression = {
       Rule({&primaryExpression}),
-      Rule({OneOf({"+", "-", "!", "~"}), &unaryExpression}, MakeUnaryOperator),
+      Rule({OneOf({"+", "-", "!", "~", "&"}), &unaryExpression},
+           MakeUnaryOperator),
+      Rule({Token("*"), &unaryExpression}, MakeDereferenceExpression),
       Rule({Token("..."), &unaryExpression}, MakeSpreadExpression),
-      Rule({&incrementDecrementOperator, &locationExpression},
+      Rule({&incrementDecrementOperator, &unaryExpression},
            MakeIncrementDecrementExpressionPrefix),
-      Rule({&locationExpression, &incrementDecrementOperator},
+      Rule({&unaryExpression, &incrementDecrementOperator},
            MakeIncrementDecrementExpressionPostfix)};
 
   // Result: Expression*
@@ -1521,7 +1529,7 @@ struct TorqueGrammar : Grammar {
   // Result: Expression*
   Symbol assignmentExpression = {
       Rule({&conditionalExpression}),
-      Rule({&locationExpression, &assignmentOperator, &assignmentExpression},
+      Rule({&conditionalExpression, &assignmentOperator, &assignmentExpression},
            MakeAssignmentExpression)};
 
   // Result: Statement*

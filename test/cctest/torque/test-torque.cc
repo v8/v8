@@ -472,6 +472,20 @@ TEST(TestNewFixedArrayFromSpread) {
   ft.Call();
 }
 
+TEST(TestReferences) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestReferences();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

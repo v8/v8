@@ -858,4 +858,28 @@ namespace test {
     const i = TestIterator{count: 5};
     return new FixedArray{map: kFixedArrayMap, length: 5, objects: ...i};
   }
+
+  class SmiPair {
+    GetA():&Smi {
+      return & this.a;
+    }
+    a: Smi;
+    b: Smi;
+  }
+
+  macro Swap<T: type>(a:&T, b:&T) {
+    const tmp = * a;
+    * a = * b;
+    * b = tmp;
+  }
+
+  macro TestReferences() {
+    const array = new SmiPair{a: 7, b: 2};
+    const ref:&Smi = & array.a;
+    * ref = 3 + * ref;
+    -- * ref;
+    Swap(& array.b, array.GetA());
+    check(array.a == 2);
+    check(array.b == 9);
+  }
 }
