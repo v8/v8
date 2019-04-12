@@ -25,13 +25,6 @@ namespace ls {
 static const char kContentLength[] = "Content-Length: ";
 static const size_t kContentLengthSize = sizeof(kContentLength) - 1;
 
-#ifdef V8_OS_WIN
-// On Windows, in text mode, \n is translated to \r\n.
-constexpr const char* kProtocolLineEnding = "\n\n";
-#else
-constexpr const char* kProtocolLineEnding = "\r\n\r\n";
-#endif
-
 JsonValue ReadMessage() {
   std::string line;
   std::getline(std::cin, line);
@@ -49,7 +42,7 @@ JsonValue ReadMessage() {
 
   Logger::Log("[incoming] ", content, "\n\n");
 
-  return ParseJson(content).value;
+  return ParseJson(content);
 }
 
 void WriteMessage(JsonValue& message) {
@@ -57,7 +50,7 @@ void WriteMessage(JsonValue& message) {
 
   Logger::Log("[outgoing] ", content, "\n\n");
 
-  std::cout << kContentLength << content.size() << kProtocolLineEnding;
+  std::cout << kContentLength << content.size() << "\r\n\r\n";
   std::cout << content << std::flush;
 }
 
