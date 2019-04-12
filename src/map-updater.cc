@@ -332,7 +332,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
            to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
            IsFixedTypedArrayElementsKind(to_kind) ||
-           IsPackedFrozenOrSealedElementsKind(to_kind));
+           IsFrozenOrSealedElementsKind(to_kind));
     to_kind = integrity_source_map_->elements_kind();
   }
 

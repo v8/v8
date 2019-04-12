@@ -545,12 +545,3 @@ assertThrows(function() {
     value: obj,
   });
 }, TypeError);
-
-// Test regression Array.concat with double
-var arr = ['a'];
-Object.freeze(arr);
-arr = arr.concat(0.5);
-assertEquals(arr, ['a', 0.5]);
-Object.freeze(arr);
-arr = arr.concat([1.5, 'b']);
-assertEquals(arr, ['a', 0.5, 1.5, 'b']);

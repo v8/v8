@@ -153,7 +153,7 @@ inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
   return IsDoubleElementsKind(kind) || IsFixedFloatElementsKind(kind);
 }
 
-inline bool IsPackedFrozenOrSealedElementsKind(ElementsKind kind) {
+inline bool IsFrozenOrSealedElementsKind(ElementsKind kind) {
   return IsInRange(kind, PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS);
 }
 
