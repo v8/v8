@@ -163,41 +163,6 @@ class PretenureModeDependency final
   AllocationType allocation_;
 };
 
-class FieldRepresentationDependency final
-    : public CompilationDependencies::Dependency {
- public:
-  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
-  // longer need to explicitly store the representation.
-  FieldRepresentationDependency(const MapRef& owner, int descriptor,
-                                Representation representation)
-      : owner_(owner),
-        descriptor_(descriptor),
-        representation_(representation) {
-    DCHECK(owner_.equals(owner_.FindFieldOwner(descriptor_)));
-    DCHECK(representation_.Equals(
-        owner_.GetPropertyDetails(descriptor_).representation()));
-  }
-
-  bool IsValid() const override {
-    DisallowHeapAllocation no_heap_allocation;
-    Handle<Map> owner = owner_.object();
-    return representation_.Equals(owner->instance_descriptors()
-                                      ->GetDetails(descriptor_)
-                                      .representation());
-  }
-
-  void Install(const MaybeObjectHandle& code) override {
-    SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(owner_.isolate(), code, owner_.object(),
-                                     DependentCode::kFieldOwnerGroup);
-  }
-
- private:
-  MapRef owner_;
-  int descriptor_;
-  Representation representation_;
-};
-
 class FieldTypeDependency final : public CompilationDependencies::Dependency {
  public:
   // TODO(neis): Once the concurrent compiler frontend is always-on, we no
@@ -443,16 +408,6 @@ PropertyConstness CompilationDependencies::DependOnFieldConstness(
   dependencies_.push_front(new (zone_)
                                FieldConstnessDependency(owner, descriptor));
   return PropertyConstness::kConst;
-}
-
-void CompilationDependencies::DependOnFieldRepresentation(const MapRef& map,
-                                                          int descriptor) {
-  MapRef owner = map.FindFieldOwner(descriptor);
-  PropertyDetails details = owner.GetPropertyDetails(descriptor);
-  DCHECK(details.representation().Equals(
-      map.GetPropertyDetails(descriptor).representation()));
-  dependencies_.push_front(new (zone_) FieldRepresentationDependency(
-      owner, descriptor, details.representation()));
 }
 
 void CompilationDependencies::DependOnFieldType(const MapRef& map,

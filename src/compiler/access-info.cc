@@ -319,12 +319,9 @@ bool AccessInfoFactory::ComputeDataFieldAccessInfo(
   Type field_type = Type::NonInternal();
   MachineRepresentation field_representation = MachineRepresentation::kTagged;
   MaybeHandle<Map> field_map;
-  MapRef map_ref(broker(), map);
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
     field_representation = MachineRepresentation::kTaggedSigned;
-    map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
-    dependencies()->DependOnFieldRepresentation(map_ref, number);
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
     field_representation = MachineRepresentation::kFloat64;
@@ -340,10 +337,9 @@ bool AccessInfoFactory::ComputeDataFieldAccessInfo(
 
       // The field type was cleared by the GC, so we don't know anything
       // about the contents now.
-    }
-    map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
-    dependencies()->DependOnFieldRepresentation(map_ref, number);
-    if (descriptors_field_type->IsClass()) {
+    } else if (descriptors_field_type->IsClass()) {
+      MapRef map_ref(broker(), map);
+      map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
       dependencies()->DependOnFieldType(map_ref, number);
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map(descriptors_field_type->AsClass(), isolate());
@@ -703,12 +699,9 @@ bool AccessInfoFactory::LookupTransition(
   Type field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
   MachineRepresentation field_representation = MachineRepresentation::kTagged;
-  MapRef transition_map_ref(broker(), transition_map);
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
     field_representation = MachineRepresentation::kTaggedSigned;
-    transition_map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
-    dependencies()->DependOnFieldRepresentation(transition_map_ref, number);
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
     field_representation = MachineRepresentation::kFloat64;
@@ -722,10 +715,10 @@ bool AccessInfoFactory::LookupTransition(
     if (descriptors_field_type->IsNone()) {
       // Store is not safe if the field type was cleared.
       return false;
-    }
-    transition_map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
-    dependencies()->DependOnFieldRepresentation(transition_map_ref, number);
-    if (descriptors_field_type->IsClass()) {
+    } else if (descriptors_field_type->IsClass()) {
+      MapRef transition_map_ref(broker(), transition_map);
+      transition_map_ref
+          .SerializeOwnDescriptors();  // TODO(neis): Remove later.
       dependencies()->DependOnFieldType(transition_map_ref, number);
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map(descriptors_field_type->AsClass(), isolate());

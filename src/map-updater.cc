@@ -211,9 +211,6 @@ MapUpdater::State MapUpdater::CopyGeneralizeAllFields(const char* reason) {
 }
 
 MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
-  // Updating deprecated maps in-place doesn't make sense.
-  if (old_map_->is_deprecated()) return state_;
-
   // If it's just a representation generalization case (i.e. property kind and
   // attributes stays unchanged) it's fine to transition from None to anything
   // but double without any modification to the object, because the default
@@ -226,7 +223,7 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
   PropertyDetails old_details =
       old_descriptors_->GetDetails(modified_descriptor_);
   Representation old_representation = old_details.representation();
-  if (!old_representation.CanBeInPlaceChangedTo(new_representation_)) {
+  if (!old_representation.IsNone()) {
     return state_;  // Not done yet.
   }
 
