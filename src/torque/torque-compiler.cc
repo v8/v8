@@ -89,24 +89,36 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
 
 }  // namespace
 
-void CompileTorque(const std::string& source, TorqueCompilerOptions options) {
+TorqueCompilerResult CompileTorque(const std::string& source,
+                                   TorqueCompilerOptions options) {
   CurrentSourceFile::Scope no_file_scope(SourceFileMap::AddSource("<torque>"));
   CurrentAst::Scope ast_scope_;
   LintErrorStatus::Scope lint_error_status_scope_;
 
-  ParseTorque(source);
-  CompileCurrentAst(options);
+  TorqueCompilerResult result;
+  try {
+    ParseTorque(source);
+    CompileCurrentAst(options);
+  } catch (TorqueError& error) {
+    result.error = error;
+  }
+  return result;
 }
 
-void CompileTorque(std::vector<std::string> files,
-                   TorqueCompilerOptions options) {
+TorqueCompilerResult CompileTorque(std::vector<std::string> files,
+                                   TorqueCompilerOptions options) {
   CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
   CurrentAst::Scope ast_scope_;
   LintErrorStatus::Scope lint_error_status_scope_;
 
-  for (const auto& path : files) ReadAndParseTorqueFile(path);
-
-  CompileCurrentAst(options);
+  TorqueCompilerResult result;
+  try {
+    for (const auto& path : files) ReadAndParseTorqueFile(path);
+    CompileCurrentAst(options);
+  } catch (TorqueError& error) {
+    result.error = error;
+  }
+  return result;
 }
 
 }  // namespace torque
