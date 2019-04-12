@@ -658,6 +658,7 @@ def PyTests(workspace):
       join(workspace, 'tools', 'clusterfuzz', 'v8_foozzie_test.py'),
       join(workspace, 'tools', 'release', 'test_scripts.py'),
       join(workspace, 'tools', 'unittests', 'run_tests_test.py'),
+      join(workspace, 'tools', 'unittests', 'run_perf_test.py'),
       join(workspace, 'tools', 'testrunner', 'testproc', 'variant_unittest.py'),
     ]:
     print('Running ' + script)
