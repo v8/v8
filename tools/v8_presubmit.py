@@ -522,7 +522,8 @@ class SourceProcessor(SourceFileProcessor):
       if match:
         print("%s Flags should use '-' (not '_')" % name)
         result = False
-      if not "mjsunit/mjsunit.js" in name:
+      if (not "mjsunit/mjsunit.js" in name and
+          not "mjsunit/mjsunit_numfuzz.js" in name):
         if ASSERT_OPTIMIZED_PATTERN.search(contents) and \
             not FLAGS_ENABLE_OPT.search(contents):
           print("%s Flag --opt should be set if " \

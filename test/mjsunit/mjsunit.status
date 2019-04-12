@@ -810,31 +810,6 @@
   # Fails allocation on tsan.
   'es6/classes': [PASS, ['tsan', SKIP]],
   'regress/regress-779407': [PASS, ['tsan', SKIP]],
-
-  # Tests that fail some assertions due to checking internal state sensitive
-  # to GC.
-  'array-literal-feedback': [SKIP],
-  'compiler/array-slice-clone': [SKIP],
-  'compiler/dataview-neutered': [SKIP],
-  'compiler/native-context-specialization-hole-check': [SKIP],
-  'compiler/regress-5320': [SKIP],
-  'elements-transition-hoisting': [SKIP],
-  'es6/collections-constructor-custom-iterator': [SKIP],
-  'field-type-tracking': [SKIP],
-  'ignition/throw-if-not-hole': [SKIP],
-  'keyed-load-with-symbol-key': [SKIP],
-  'object-seal': [SKIP],
-  'regress/regress-3709': [SKIP],
-  'regress/regress-385565': [SKIP],
-  'regress/regress-6948': [SKIP],
-  'regress/regress-6991': [SKIP],
-  'regress/regress-7014-1': [SKIP],
-  'regress/regress-7014-2': [SKIP],
-  'regress/regress-7510': [SKIP],
-  'regress/regress-crbug-882233-2': [SKIP],
-  'regress/regress-trap-allocation-memento': [SKIP],
-  'regress/regress-unlink-closures-on-deopt': [SKIP],
-  'shared-function-tier-up-turbo': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################

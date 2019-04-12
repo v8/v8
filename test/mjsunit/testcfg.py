@@ -67,7 +67,7 @@ class TestLoader(testsuite.JSTestLoader):
   def excluded_files(self):
     return {
       "mjsunit.js",
-      "mjsunit_suppressions.js",
+      "mjsunit_numfuzz.js",
     }
 
 
@@ -110,6 +110,9 @@ class TestCase(testcase.D8TestCase):
       mjsunit_files = []
     else:
       mjsunit_files = [os.path.join(self.suite.root, "mjsunit.js")]
+
+    if self.suite.framework_name == 'num_fuzzer':
+      mjsunit_files.append(os.path.join(self.suite.root, "mjsunit_numfuzz.js"))
 
     files_suffix = []
     if MODULE_PATTERN.search(source):

@@ -632,7 +632,8 @@ class BaseTestRunner(object):
       if options.verbose:
         print('>>> Loading test suite: %s' % name)
       suite = testsuite.TestSuite.Load(
-          os.path.join(options.test_root, name), test_config)
+          os.path.join(options.test_root, name), test_config,
+          self.framework_name)
 
       if self._is_testsuite_supported(suite, options):
         tests = suite.load_tests_from_disk(variables)
