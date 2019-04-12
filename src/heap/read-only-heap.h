@@ -13,8 +13,9 @@
 namespace v8 {
 namespace internal {
 
-class ReadOnlySpace;
+class Page;
 class ReadOnlyDeserializer;
+class ReadOnlySpace;
 
 // This class transparently manages read-only space, roots and cache creation
 // and destruction.
@@ -56,6 +57,20 @@ class ReadOnlyHeap final {
 
   explicit ReadOnlyHeap(ReadOnlySpace* ro_space) : read_only_space_(ro_space) {}
   DISALLOW_COPY_AND_ASSIGN(ReadOnlyHeap);
+};
+
+// This class enables iterating over all read-only heap objects.
+class V8_EXPORT_PRIVATE ReadOnlyHeapIterator {
+ public:
+  explicit ReadOnlyHeapIterator(ReadOnlyHeap* ro_heap);
+  explicit ReadOnlyHeapIterator(ReadOnlySpace* ro_space);
+
+  HeapObject next();
+
+ private:
+  ReadOnlySpace* const ro_space_;
+  Page* current_page_;
+  Address current_addr_;
 };
 
 }  // namespace internal

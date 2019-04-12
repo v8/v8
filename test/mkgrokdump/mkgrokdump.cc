@@ -9,6 +9,7 @@
 
 #include "src/frames.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/read-only-heap.h"
 #include "src/heap/spaces.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
@@ -65,6 +66,37 @@ static void DumpMaps(i::PagedSpace* space) {
 #undef MUTABLE_ROOT_LIST_CASE
 #undef RO_ROOT_LIST_CASE
 
+static void DumpKnownObject(i::Heap* heap, const char* space_name,
+                            i::HeapObject object) {
+#define RO_ROOT_LIST_CASE(type, name, CamelName)     \
+  if (root_name == NULL && object == roots.name()) { \
+    root_name = #CamelName;                          \
+    root_index = i::RootIndex::k##CamelName;         \
+  }
+#define ROOT_LIST_CASE(type, name, CamelName)        \
+  if (root_name == NULL && object == heap->name()) { \
+    root_name = #CamelName;                          \
+    root_index = i::RootIndex::k##CamelName;         \
+  }
+
+  i::ReadOnlyRoots roots(heap);
+  const char* root_name = nullptr;
+  i::RootIndex root_index = i::RootIndex::kFirstSmiRoot;
+  intptr_t root_ptr = object.ptr() & (i::Page::kPageSize - 1);
+
+  STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
+  MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
+
+  if (root_name == nullptr) return;
+  if (!i::RootsTable::IsImmortalImmovable(root_index)) return;
+
+  i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", space_name, root_ptr,
+            root_name);
+
+#undef ROOT_LIST_CASE
+#undef RO_ROOT_LIST_CASE
+}
+
 static int DumpHeapConstants(const char* argv0) {
   // Start up V8.
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
@@ -78,7 +110,6 @@ static int DumpHeapConstants(const char* argv0) {
   {
     Isolate::Scope scope(isolate);
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-    i::ReadOnlyRoots roots(heap);
     i::PrintF("%s", kHeader);
 #define DUMP_TYPE(T) i::PrintF("  %d: \"%s\",\n", i::T, #T);
     i::PrintF("INSTANCE_TYPES = {\n");
@@ -95,18 +126,16 @@ static int DumpHeapConstants(const char* argv0) {
 
     // Dump the KNOWN_OBJECTS table to the console.
     i::PrintF("\n# List of known V8 objects.\n");
-#define RO_ROOT_LIST_CASE(type, name, CamelName) \
-  if (n == NULL && o == roots.name()) {          \
-    n = #CamelName;                              \
-    i = i::RootIndex::k##CamelName;              \
-  }
-#define ROOT_LIST_CASE(type, name, CamelName) \
-  if (n == NULL && o == heap->name()) {       \
-    n = #CamelName;                           \
-    i = i::RootIndex::k##CamelName;           \
-  }
-    i::PagedSpaces spit(heap, i::PagedSpaces::SpacesSpecifier::kAllPagedSpaces);
     i::PrintF("KNOWN_OBJECTS = {\n");
+    i::ReadOnlyHeapIterator ro_iterator(heap->read_only_heap());
+    for (i::HeapObject object = ro_iterator.next(); !object.is_null();
+         object = ro_iterator.next()) {
+      // Skip read-only heap maps, they will be reported elsewhere.
+      if (object->IsMap()) continue;
+      DumpKnownObject(heap, "RO_SPACE", object);
+    }
+
+    i::PagedSpaces spit(heap);
     for (i::PagedSpace* s = spit.next(); s != nullptr; s = spit.next()) {
       i::HeapObjectIterator it(s);
       // Code objects are generally platform-dependent.
@@ -114,21 +143,10 @@ static int DumpHeapConstants(const char* argv0) {
         continue;
       const char* sname = s->name();
       for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
-        // Skip maps in RO_SPACE since they will be reported elsewhere.
-        if (o->IsMap()) continue;
-        const char* n = nullptr;
-        i::RootIndex i = i::RootIndex::kFirstSmiRoot;
-        intptr_t p = o.ptr() & (i::Page::kPageSize - 1);
-        STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
-        MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
-        if (n == nullptr) continue;
-        if (!i::RootsTable::IsImmortalImmovable(i)) continue;
-        i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", sname, p, n);
+        DumpKnownObject(heap, sname, o);
       }
     }
     i::PrintF("}\n");
-#undef ROOT_LIST_CASE
-#undef RO_ROOT_LIST_CASE
 
     // Dump frame markers
     i::PrintF("\n# List of known V8 Frame Markers.\n");

@@ -17,6 +17,7 @@
 #include "src/heap/heap-controller.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/sweeper.h"
@@ -3366,14 +3367,12 @@ void ReadOnlySpace::ClearStringPaddingIfNeeded() {
   if (is_string_padding_cleared_) return;
 
   WritableScope writable_scope(this);
-  for (Page* page : *this) {
-    HeapObjectIterator iterator(page);
-    for (HeapObject o = iterator.Next(); !o.is_null(); o = iterator.Next()) {
-      if (o->IsSeqOneByteString()) {
-        SeqOneByteString::cast(o)->clear_padding();
-      } else if (o->IsSeqTwoByteString()) {
-        SeqTwoByteString::cast(o)->clear_padding();
-      }
+  ReadOnlyHeapIterator iterator(this);
+  for (HeapObject o = iterator.next(); !o.is_null(); o = iterator.next()) {
+    if (o->IsSeqOneByteString()) {
+      SeqOneByteString::cast(o)->clear_padding();
+    } else if (o->IsSeqTwoByteString()) {
+      SeqTwoByteString::cast(o)->clear_padding();
     }
   }
   is_string_padding_cleared_ = true;

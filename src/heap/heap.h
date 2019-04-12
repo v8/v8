@@ -2205,13 +2205,7 @@ class VerifySmisVisitor : public RootVisitor {
 // space in turn, and null when it is done.
 class V8_EXPORT_PRIVATE PagedSpaces {
  public:
-  enum class SpacesSpecifier { kSweepablePagedSpaces, kAllPagedSpaces };
-
-  explicit PagedSpaces(Heap* heap, SpacesSpecifier specifier =
-                                       SpacesSpecifier::kSweepablePagedSpaces)
-      : heap_(heap),
-        counter_(specifier == SpacesSpecifier::kAllPagedSpaces ? RO_SPACE
-                                                               : OLD_SPACE) {}
+  explicit PagedSpaces(Heap* heap) : heap_(heap), counter_(OLD_SPACE) {}
   PagedSpace* next();
 
  private:
@@ -2233,19 +2227,21 @@ class SpaceIterator : public Malloced {
   int current_space_;         // from enum AllocationSpace.
 };
 
-
-// A HeapIterator provides iteration over the whole heap. It
-// aggregates the specific iterators for the different spaces as
-// these can only iterate over one space only.
+// A HeapIterator provides iteration over the entire non-read-only heap. It
+// aggregates the specific iterators for the different spaces as these can only
+// iterate over one space only.
 //
-// HeapIterator ensures there is no allocation during its lifetime
-// (using an embedded DisallowHeapAllocation instance).
+// HeapIterator ensures there is no allocation during its lifetime (using an
+// embedded DisallowHeapAllocation instance).
 //
-// HeapIterator can skip free list nodes (that is, de-allocated heap
-// objects that still remain in the heap). As implementation of free
-// nodes filtering uses GC marks, it can't be used during MS/MC GC
-// phases. Also, it is forbidden to interrupt iteration in this mode,
-// as this will leave heap objects marked (and thus, unusable).
+// HeapIterator can skip free list nodes (that is, de-allocated heap objects
+// that still remain in the heap). As implementation of free nodes filtering
+// uses GC marks, it can't be used during MS/MC GC phases. Also, it is forbidden
+// to interrupt iteration in this mode, as this will leave heap objects marked
+// (and thus, unusable).
+//
+// See ReadOnlyHeapIterator if you need to iterate over read-only space objects,
+// or CombinedHeapIterator if you need to iterate over both heaps.
 class V8_EXPORT_PRIVATE HeapIterator {
  public:
   enum HeapObjectsFiltering { kNoFiltering, kFilterUnreachable };
