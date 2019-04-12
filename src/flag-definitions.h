@@ -685,6 +685,8 @@ DEFINE_BOOL(wasm_lazy_compilation, false,
             "enable lazy compilation for all wasm modules")
 DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
                   "trace lazy compilation of wasm functions")
+DEFINE_BOOL(wasm_grow_shared_memory, false,
+            "Allow growing shared WebAssembly memory objects")
 // wasm-interpret-all resets {asm-,}wasm-lazy-compilation.
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, asm_wasm_lazy_compilation)
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_lazy_compilation)
