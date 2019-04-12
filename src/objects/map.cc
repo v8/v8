@@ -748,12 +748,14 @@ void Map::UpdateFieldType(Isolate* isolate, int descriptor, Handle<Name> name,
     DescriptorArray descriptors = current->instance_descriptors();
     PropertyDetails details = descriptors->GetDetails(descriptor);
 
-    // It is allowed to change representation here only from None to something.
+    // It is allowed to change representation here only from None
+    // to something or from Smi or HeapObject to Tagged.
     DCHECK(details.representation().Equals(new_representation) ||
-           details.representation().IsNone());
+           details.representation().CanBeInPlaceChangedTo(new_representation));
 
     // Skip if already updated the shared descriptor.
     if (new_constness != details.constness() ||
+        !new_representation.Equals(details.representation()) ||
         descriptors->GetFieldType(descriptor) != *new_wrapped_type.object()) {
       DCHECK_IMPLIES(!FLAG_track_constant_fields,
                      new_constness == PropertyConstness::kMutable);

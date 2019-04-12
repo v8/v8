@@ -3791,6 +3791,17 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
     MaybeObject type = src->GetValue(i);
     if (details.location() == PropertyLocation::kField) {
       type = MaybeObject::FromObject(FieldType::Any());
+      // TODO(bmeurer,ishell): Igor suggested to use some kind of dynamic
+      // checks in the fast-path for CloneObjectIC instead to avoid the
+      // need to generalize the descriptors here. That will also enable
+      // us to skip the defensive copying of the target map whenever a
+      // CloneObjectIC misses.
+      if (FLAG_modify_field_representation_inplace &&
+          (new_details.representation().IsSmi() ||
+           new_details.representation().IsHeapObject())) {
+        new_details =
+            new_details.CopyWithRepresentation(Representation::Tagged());
+      }
     }
     descriptors->Set(i, key, type, new_details);
   }
