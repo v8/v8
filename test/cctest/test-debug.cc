@@ -1167,11 +1167,27 @@ TEST(BreakPointApiAccessor) {
   CompileRun("set_loop();");
   CHECK_EQ(42, break_point_hit_count);
 
+  // Test that the break point also works when we install the function
+  // template on a new property (with a fresh AccessorPair instance).
+  v8::Local<v8::ObjectTemplate> baz_template =
+      v8::ObjectTemplate::New(env->GetIsolate());
+  baz_template->SetAccessorProperty(v8_str("g"), accessor_template,
+                                    accessor_template);
+  v8::Local<v8::Object> baz =
+      baz_template->NewInstance(env.local()).ToLocalChecked();
+  env->Global()->Set(env.local(), v8_str("b"), baz).ToChecked();
+
+  CompileRun("b.g = 4");
+  CHECK_EQ(43, break_point_hit_count);
+
+  CompileRun("b.g");
+  CHECK_EQ(44, break_point_hit_count);
+
   // Run without breakpoints.
   ClearBreakPoint(bp);
   CompileRun("o.f = 3");
   CompileRun("o.f");
-  CHECK_EQ(42, break_point_hit_count);
+  CHECK_EQ(44, break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();

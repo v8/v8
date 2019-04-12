@@ -8,6 +8,7 @@
 #include <unordered_set>
 
 #include "src/api-inl.h"
+#include "src/api-natives.h"
 #include "src/arguments.h"
 #include "src/assembler-inl.h"
 #include "src/base/platform/mutex.h"
@@ -1225,6 +1226,7 @@ void Debug::InstallDebugBreakTrampoline() {
 
   Handle<Code> trampoline = BUILTIN_CODE(isolate_, DebugBreakTrampoline);
   std::vector<Handle<JSFunction>> needs_compile;
+  std::vector<Handle<AccessorPair>> needs_instantiate;
   {
     HeapIterator iterator(isolate_->heap());
     for (HeapObject obj = iterator.next(); !obj.is_null();
@@ -1242,9 +1244,37 @@ void Debug::InstallDebugBreakTrampoline() {
         } else {
           fun->set_code(*trampoline);
         }
+      } else if (obj->IsAccessorPair()) {
+        AccessorPair accessor_pair = AccessorPair::cast(obj);
+        if (accessor_pair->getter()->IsFunctionTemplateInfo() ||
+            accessor_pair->setter()->IsFunctionTemplateInfo()) {
+          needs_instantiate.push_back(handle(accessor_pair, isolate_));
+        }
       }
     }
   }
+
+  // Forcibly instantiate all lazy accessor pairs to make sure that they
+  // properly hit the debug break trampoline.
+  for (Handle<AccessorPair> accessor_pair : needs_instantiate) {
+    if (accessor_pair->getter()->IsFunctionTemplateInfo()) {
+      Handle<JSFunction> fun =
+          ApiNatives::InstantiateFunction(
+              handle(FunctionTemplateInfo::cast(accessor_pair->getter()),
+                     isolate_))
+              .ToHandleChecked();
+      accessor_pair->set_getter(*fun);
+    }
+    if (accessor_pair->setter()->IsFunctionTemplateInfo()) {
+      Handle<JSFunction> fun =
+          ApiNatives::InstantiateFunction(
+              handle(FunctionTemplateInfo::cast(accessor_pair->setter()),
+                     isolate_))
+              .ToHandleChecked();
+      accessor_pair->set_setter(*fun);
+    }
+  }
+
   // By overwriting the function code with DebugBreakTrampoline, which tailcalls
   // to shared code, we bypass CompileLazy. Perform CompileLazy here instead.
   for (Handle<JSFunction> fun : needs_compile) {
