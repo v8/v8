@@ -94,11 +94,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// TurboFan can only handle 2^16 control inputs. Since each control flow split
-// requires at least two bytes (jump and offset), we limit the bytecode size
-// to 60KiB bytes.
-const int kMaxBytecodeSizeForTurbofan = 60 * KB;
-
 class PipelineData {
  public:
   // For main entry point.
@@ -924,7 +919,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
       this, TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "function",
       compilation_info()->shared_info()->TraceIDRef());
   if (compilation_info()->bytecode_array()->length() >
-      kMaxBytecodeSizeForTurbofan) {
+      FLAG_max_optimized_bytecode_size) {
     return AbortOptimization(BailoutReason::kFunctionTooBig);
   }
 

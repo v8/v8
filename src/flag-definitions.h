@@ -500,6 +500,10 @@ DEFINE_FLOAT(reserve_inline_budget_scale_factor, 1.2,
              "maximum cumulative size of bytecode considered for inlining")
 DEFINE_INT(max_inlined_bytecode_size_small, 30,
            "maximum size of bytecode considered for small function inlining")
+DEFINE_INT(max_optimized_bytecode_size, 60 * KB,
+           "maximum bytecode size to "
+           "be considered for optimization; too high values may cause "
+           "the compiler to hit (release) assertions")
 DEFINE_FLOAT(min_inlining_frequency, 0.15, "minimum frequency for inlining")
 DEFINE_BOOL(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_BOOL(stress_inline, false,
