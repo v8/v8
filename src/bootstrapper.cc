@@ -4359,6 +4359,26 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
   }
 }
 
+void Genesis::InitializeGlobal_harmony_promise_all_settled() {
+  if (!FLAG_harmony_promise_all_settled) return;
+  SimpleInstallFunction(isolate(), isolate()->promise_function(), "allSettled",
+                        Builtins::kPromiseAllSettled, 1, false);
+  Factory* factory = isolate()->factory();
+  {
+    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+        isolate_, Builtins::kPromiseAllSettledResolveElementClosure,
+        factory->empty_string(), 1);
+    native_context()->set_promise_all_settled_resolve_element_shared_fun(*info);
+  }
+
+  {
+    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+        isolate_, Builtins::kPromiseAllSettledRejectElementClosure,
+        factory->empty_string(), 1);
+    native_context()->set_promise_all_settled_reject_element_shared_fun(*info);
+  }
+}
+
 #ifdef V8_INTL_SUPPORT
 
 void Genesis::InitializeGlobal_harmony_intl_date_format_range() {

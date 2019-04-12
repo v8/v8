@@ -171,6 +171,7 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       const PromiseAllResolvingElementFunction& create_reject_element_function);
 
   typedef std::function<TNode<Object>(TNode<Context> context,
+                                      TNode<NativeContext> native_context,
                                       TNode<Object> value)>
       CreatePromiseAllResolveElementFunctionValue;
 

@@ -858,6 +858,10 @@ namespace internal {
   TFJ(PromiseAllResolveElementClosure, 1, kReceiver, kValue)                   \
   /* ES #sec-promise.race */                                                   \
   TFJ(PromiseRace, 1, kReceiver, kIterable)                                    \
+  /* ES #sec-promise.allsettled */                                             \
+  TFJ(PromiseAllSettled, 1, kReceiver, kIterable)                              \
+  TFJ(PromiseAllSettledResolveElementClosure, 1, kReceiver, kValue)            \
+  TFJ(PromiseAllSettledRejectElementClosure, 1, kReceiver, kValue)             \
   /* V8 Extras: v8.createPromise(parent) */                                    \
   TFJ(PromiseInternalConstructor, 1, kReceiver, kParent)                       \
   /* V8 Extras: v8.rejectPromise(promise, reason) */                           \
