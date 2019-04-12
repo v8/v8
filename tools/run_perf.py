@@ -19,6 +19,10 @@ The suite json format is expected to be:
   "test_flags": [<flag to the test file>, ...],
   "run_count": <how often will this suite run (optional)>,
   "run_count_XXX": <how often will this suite run for arch XXX (optional)>,
+  "timeout": <how long test is allowed to run>,
+  "timeout_XXX": <how long test is allowed run run for arch XXX>,
+  "retry_count": <how many times to retry failures (in addition to first try)",
+  "retry_count_XXX": <how many times to retry failures for arch XXX>
   "resources": [<js file to be moved to android device>, ...]
   "main": <main js perf runner file>,
   "results_regexp": <optional regexp>,
@@ -388,6 +392,7 @@ class DefaultSentinel(Node):
     self.binary = binary
     self.run_count = 10
     self.timeout = 60
+    self.retry_count = 0
     self.path = []
     self.graphs = []
     self.flags = []
@@ -432,6 +437,8 @@ class GraphConfig(Node):
     self.binary = suite.get('binary', parent.binary)
     self.run_count = suite.get('run_count', parent.run_count)
     self.run_count = suite.get('run_count_%s' % arch, self.run_count)
+    self.retry_count = suite.get('retry_count', parent.retry_count)
+    self.retry_count = suite.get('retry_count_%s' % arch, self.retry_count)
     self.timeout = suite.get('timeout', parent.timeout)
     self.timeout = suite.get('timeout_%s' % arch, self.timeout)
     self.units = suite.get('units', parent.units)
@@ -1109,12 +1116,16 @@ def Main(args):
           """Output generator that reruns several times."""
           total_runs = runnable.run_count * options.run_count_multiplier
           for i in range(0, max(1, total_runs)):
-            # TODO(machenbach): Allow timeout per arch like with run_count per
-            # arch.
-            try:
-              yield platform.Run(runnable, i)
-            except TestFailedError:
-              have_failed_tests[0] = True
+            attempts_left = runnable.retry_count + 1
+            while attempts_left:
+              try:
+                yield platform.Run(runnable, i)
+              except TestFailedError:
+                attempts_left -= 1
+                if not attempts_left:  # ignore failures until last attempt
+                  have_failed_tests[0] = True
+              else:
+                break
 
         # Let runnable iterate over all runs and handle output.
         result, result_secondary = runnable.Run(

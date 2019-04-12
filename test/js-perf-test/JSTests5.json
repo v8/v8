@@ -40,6 +40,7 @@
       "main": "run.js",
       "resources": [],
       "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargePacked\\(Score\\): (.+)$",
+      "retry_count_arm64": 1,
       "tests": [
         {"name": "Spread"},
         {"name": "ForLength"},
@@ -56,6 +57,7 @@
       "main": "run.js",
       "resources": [],
       "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargeHoley\\(Score\\): (.+)$",
+      "retry_count_arm64": 1,
       "tests": [
         {"name": "Spread"},
         {"name": "ForLength"},
@@ -72,6 +74,7 @@
       "main": "run.js",
       "resources": [],
       "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargeDoublePacked\\(Score\\): (.+)$",
+      "retry_count_arm64": 1,
       "tests": [
         {"name": "Spread"},
         {"name": "ForLength"},
@@ -88,6 +91,7 @@
       "main": "run.js",
       "resources": [],
       "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargeDoubleHoley\\(Score\\): (.+)$",
+      "retry_count_arm64": 1,
       "tests": [
         {"name": "Spread"},
         {"name": "ForLength"},
