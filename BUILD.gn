@@ -645,15 +645,7 @@ config("toolchain") {
   }
 
   if (is_clang) {
-    cflags += [
-      "-Wmissing-field-initializers",
-
-      # TODO(thakis): Remove once enabled globally, https://crbug.com/926235
-      "-Wextra-semi",
-
-      # TODO(hans): Remove once http://crbug.com/428099 is resolved.
-      "-Winconsistent-missing-override",
-    ]
+    cflags += [ "-Wmissing-field-initializers" ]
 
     if (v8_current_cpu != "mips" && v8_current_cpu != "mipsel") {
       # We exclude MIPS because the IsMipsArchVariant macro causes trouble.
