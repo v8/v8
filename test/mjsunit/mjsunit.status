@@ -962,9 +962,6 @@
     # skip assertion tests since the stack trace is broken if mjsunit is
     # included in the snapshot
     'mjsunit-assertion-error' : [SKIP],
-
-    # https://crbug.com/v8/8964
-    'compiler/math-floor-global': [PASS, ['gc_stress', SKIP]]
 }], # no_harness
 
 ##############################################################################
