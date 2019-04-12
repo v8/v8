@@ -132,6 +132,11 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       return UseInfo::AnyTagged();
+    case MachineRepresentation::kCompressedSigned:
+      return UseInfo::CompressedSigned();
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
+      return UseInfo::AnyCompressed();
     case MachineRepresentation::kFloat64:
       return UseInfo::TruncatingFloat64();
     case MachineRepresentation::kFloat32:
@@ -144,10 +149,6 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
       return UseInfo::Word64();
     case MachineRepresentation::kBit:
       return UseInfo::Bool();
-      // TODO(solanes): Create the code for the compressed values
-    case MachineRepresentation::kCompressedSigned:
-    case MachineRepresentation::kCompressedPointer:
-    case MachineRepresentation::kCompressed:
     case MachineRepresentation::kSimd128:
     case MachineRepresentation::kNone:
       break;

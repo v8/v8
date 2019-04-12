@@ -2332,6 +2332,9 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
+      case MachineRepresentation::kCompressedSigned:
+      case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kCompressed:
         if (store_to_constant_field) {
           DCHECK(!access_info.HasTransitionMap());
           // If the field is constant check that the value we are going
@@ -2347,13 +2350,16 @@ JSNativeContextSpecialization::BuildPropertyStore(
           return ValueEffectControl(value, effect, control);
         }
 
-        if (field_representation == MachineRepresentation::kTaggedSigned) {
+        if (field_representation == MachineRepresentation::kTaggedSigned ||
+            field_representation == MachineRepresentation::kCompressedSigned) {
           value = effect = graph()->NewNode(
               simplified()->CheckSmi(VectorSlotPair()), value, effect, control);
           field_access.write_barrier_kind = kNoWriteBarrier;
 
         } else if (field_representation ==
-                   MachineRepresentation::kTaggedPointer) {
+                       MachineRepresentation::kTaggedPointer ||
+                   field_representation ==
+                       MachineRepresentation::kCompressedPointer) {
           // Ensure that {value} is a HeapObject.
           value = access_builder.BuildCheckHeapObject(value, &effect, control);
           Handle<Map> field_map;
@@ -2367,7 +2373,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
           field_access.write_barrier_kind = kPointerWriteBarrier;
 
         } else {
-          DCHECK_EQ(MachineRepresentation::kTagged, field_representation);
+          DCHECK(field_representation == MachineRepresentation::kTagged ||
+                 field_representation == MachineRepresentation::kCompressed);
         }
         break;
       case MachineRepresentation::kNone:
@@ -2378,10 +2385,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kSimd128:
-      // TODO(solanes): Create the code for the compressed values
-      case MachineRepresentation::kCompressedSigned:
-      case MachineRepresentation::kCompressedPointer:
-      case MachineRepresentation::kCompressed:
         UNREACHABLE();
         break;
     }

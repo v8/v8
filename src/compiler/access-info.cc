@@ -317,7 +317,12 @@ bool AccessInfoFactory::ComputeDataFieldAccessInfo(
   FieldIndex field_index =
       FieldIndex::ForPropertyIndex(*map, index, details_representation);
   Type field_type = Type::NonInternal();
+#ifdef V8_COMPRESS_POINTERS
+  MachineRepresentation field_representation =
+      MachineRepresentation::kCompressed;
+#else
   MachineRepresentation field_representation = MachineRepresentation::kTagged;
+#endif
   MaybeHandle<Map> field_map;
   MapRef map_ref(broker(), map);
   if (details_representation.IsSmi()) {

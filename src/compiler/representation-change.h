@@ -186,6 +186,16 @@ class UseInfo {
   static UseInfo TaggedPointer() {
     return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any());
   }
+  static UseInfo AnyCompressed() {
+    return UseInfo(MachineRepresentation::kCompressed, Truncation::Any());
+  }
+  static UseInfo CompressedSigned() {
+    return UseInfo(MachineRepresentation::kCompressedSigned, Truncation::Any());
+  }
+  static UseInfo CompressedPointer() {
+    return UseInfo(MachineRepresentation::kCompressedPointer,
+                   Truncation::Any());
+  }
 
   // Possibly deoptimizing conversions.
   static UseInfo CheckedHeapObjectAsTaggedPointer(
