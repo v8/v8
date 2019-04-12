@@ -2948,8 +2948,7 @@ TEST(WeakContainers) {
   CHECK_NE(0, count);
   for (int i = 0; i < count; ++i) {
     const v8::HeapGraphEdge* prop = dependent_code->GetChild(i);
-    CHECK(prop->GetType() == v8::HeapGraphEdge::kInternal ||
-          prop->GetType() == v8::HeapGraphEdge::kWeak);
+    CHECK_EQ(v8::HeapGraphEdge::kInternal, prop->GetType());
   }
 }
 
