@@ -1124,6 +1124,8 @@ def Main(args):
                 attempts_left -= 1
                 if not attempts_left:  # ignore failures until last attempt
                   have_failed_tests[0] = True
+                else:
+                  logging.info('>>> Retrying suite: %s', runnable_name)
               else:
                 break
 
