@@ -11,6 +11,7 @@
 #include "src/base/enum-set.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/semaphore.h"
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/wasm-compiler.h"
@@ -688,7 +689,8 @@ void RecordStats(const Code code, Counters* counters) {
 constexpr int kMainThreadTaskId = -1;
 
 // Run by the main thread and background tasks to take part in compilation.
-void ExecuteCompilationUnits(
+// Returns whether any units were executed.
+bool ExecuteCompilationUnits(
     const std::shared_ptr<BackgroundCompileToken>& token, Counters* counters,
     int task_id, CompileBaselineOnly baseline_only) {
   TRACE_COMPILE("Compiling (task %d)...\n", task_id);
@@ -731,14 +733,17 @@ void ExecuteCompilationUnits(
   // compilation unit.
   {
     BackgroundCompileScope compile_scope(token);
-    if (compile_scope.cancelled()) return;
+    if (compile_scope.cancelled()) return false;
     env.emplace(compile_scope.native_module()->CreateCompilationEnv());
     wire_bytes = compile_scope.compilation_state()->GetWireBytesStorage();
     module = compile_scope.native_module()->shared_module();
     wasm_engine = compile_scope.native_module()->engine();
     unit = compile_scope.compilation_state()->GetNextCompilationUnit(
         task_id, baseline_only);
-    if (unit == nullptr) return stop(compile_scope);
+    if (unit == nullptr) {
+      stop(compile_scope);
+      return false;
+    }
   }
 
   std::vector<WasmCompilationResult> results_to_publish;
@@ -764,7 +769,7 @@ void ExecuteCompilationUnits(
     // (synchronized): Publish the compilation result and get the next unit.
     {
       BackgroundCompileScope compile_scope(token);
-      if (compile_scope.cancelled()) return;
+      if (compile_scope.cancelled()) return true;
       if (!results_to_publish.back().succeeded()) {
         // Compile error.
         compile_scope.compilation_state()->SetError();
@@ -787,7 +792,8 @@ void ExecuteCompilationUnits(
 
       if (unit == nullptr) {
         publish_results(&compile_scope);
-        return stop(compile_scope);
+        stop(compile_scope);
+        return true;
       }
     }
   }
@@ -795,6 +801,7 @@ void ExecuteCompilationUnits(
   DCHECK(compilation_failed);
   USE(compilation_failed);
   token->Cancel();
+  return true;
 }
 
 void ValidateSequentially(Counters* counters, AccountingAllocator* allocator,
@@ -923,6 +930,18 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
   auto* compilation_state = Impl(native_module->compilation_state());
   DCHECK_GE(kMaxInt, native_module->module()->num_declared_functions);
 
+  // Install a callback to notify us once background compilation finished, or
+  // compilation failed.
+  auto baseline_finished_semaphore = std::make_shared<base::Semaphore>(0);
+  // The callback captures a shared ptr to the semaphore.
+  compilation_state->AddCallback(
+      [baseline_finished_semaphore](CompilationEvent event) {
+        if (event == CompilationEvent::kFinishedBaselineCompilation ||
+            event == CompilationEvent::kFailedCompilation) {
+          baseline_finished_semaphore->Signal();
+        }
+      });
+
   // Initialize the compilation units and kick off background compile tasks.
   if (!InitializeCompilationUnits(isolate, native_module)) {
     // TODO(frgossen): Add test coverage for this path.
@@ -934,18 +953,19 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
   // are part of initial compilation). Otherwise, just execute baseline units.
   bool is_tiering = compilation_state->compile_mode() == CompileMode::kTiering;
   auto baseline_only = is_tiering ? kBaselineOnly : kBaselineOrTopTier;
-  // TODO(wasm): This is a busy-wait loop once all units have started executing
-  // in background threads. Replace by a semaphore / barrier.
-  while (!compilation_state->failed() &&
-         !compilation_state->baseline_compilation_finished()) {
-    // The main threads contributes to the compilation, except if we need
-    // deterministic compilation; in that case, the single background task will
-    // execute all compilation.
-    if (NeedsDeterministicCompile()) continue;
-    ExecuteCompilationUnits(compilation_state->background_compile_token(),
-                            isolate->counters(), kMainThreadTaskId,
-                            baseline_only);
+  // The main threads contributes to the compilation, except if we need
+  // deterministic compilation; in that case, the single background task will
+  // execute all compilation.
+  if (!NeedsDeterministicCompile()) {
+    while (ExecuteCompilationUnits(
+        compilation_state->background_compile_token(), isolate->counters(),
+        kMainThreadTaskId, baseline_only)) {
+      // Continue executing compilation units.
+    }
   }
+
+  // Now wait until baseline compilation finished.
+  baseline_finished_semaphore->Wait();
 
   compilation_state->PublishDetectedFeatures(isolate);
 
