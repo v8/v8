@@ -125,7 +125,6 @@ v8_source_set("cctest_sources") {
     "heap/test-heap.cc",
     "heap/test-incremental-marking.cc",
     "heap/test-invalidated-slots.cc",
-    "heap/test-iterators.cc",
     "heap/test-lab.cc",
     "heap/test-mark-compact.cc",
     "heap/test-page-promotion.cc",

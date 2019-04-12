@@ -9,8 +9,6 @@
 #include "src/base/once.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
-#include "src/objects-inl.h"
-#include "src/objects/heap-object-inl.h"
 #include "src/snapshot/read-only-deserializer.h"
 
 namespace v8 {
@@ -77,48 +75,6 @@ void ReadOnlyHeap::OnHeapTearDown() {
 // static
 bool ReadOnlyHeap::Contains(HeapObject object) {
   return Page::FromAddress(object.ptr())->owner()->identity() == RO_SPACE;
-}
-
-ReadOnlyHeapIterator::ReadOnlyHeapIterator(ReadOnlyHeap* ro_heap)
-    : ReadOnlyHeapIterator(ro_heap->read_only_space()) {}
-
-ReadOnlyHeapIterator::ReadOnlyHeapIterator(ReadOnlySpace* ro_space)
-    : ro_space_(ro_space),
-      current_page_(ro_space->first_page()),
-      current_addr_(current_page_->area_start()) {}
-
-HeapObject ReadOnlyHeapIterator::next() {
-  if (current_page_ == nullptr) {
-    return HeapObject();
-  }
-
-  for (;;) {
-    DCHECK_LE(current_addr_, current_page_->area_end());
-    if (current_addr_ == current_page_->area_end()) {
-      // Progress to the next page.
-      current_page_ = current_page_->next_page();
-      if (current_page_ == nullptr) {
-        return HeapObject();
-      }
-      current_addr_ = current_page_->area_start();
-    }
-
-    if (current_addr_ == ro_space_->top() &&
-        current_addr_ != ro_space_->limit()) {
-      current_addr_ = ro_space_->limit();
-      continue;
-    }
-    HeapObject object = HeapObject::FromAddress(current_addr_);
-    const int object_size = object->Size();
-    current_addr_ += object_size;
-
-    if (object->IsFiller()) {
-      continue;
-    }
-
-    DCHECK_OBJECT_SIZE(object_size);
-    return object;
-  }
 }
 
 }  // namespace internal

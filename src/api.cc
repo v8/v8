@@ -8374,18 +8374,12 @@ i::Address* Isolate::GetDataFromSnapshotOnce(size_t index) {
 void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = isolate->heap();
-  i::ReadOnlySpace* ro_space = heap->read_only_space();
-
-  heap_statistics->total_heap_size_ =
-      heap->CommittedMemory() + ro_space->CommittedMemory();
+  heap_statistics->total_heap_size_ = heap->CommittedMemory();
   heap_statistics->total_heap_size_executable_ =
       heap->CommittedMemoryExecutable();
-  heap_statistics->total_physical_size_ =
-      heap->CommittedPhysicalMemory() + ro_space->CommittedPhysicalMemory();
-  heap_statistics->total_available_size_ =
-      heap->Available() + ro_space->Available();
-  heap_statistics->used_heap_size_ =
-      heap->SizeOfObjects() + ro_space->SizeOfObjects();
+  heap_statistics->total_physical_size_ = heap->CommittedPhysicalMemory();
+  heap_statistics->total_available_size_ = heap->Available();
+  heap_statistics->used_heap_size_ = heap->SizeOfObjects();
   heap_statistics->heap_size_limit_ = heap->MaxReserved();
   // TODO(7424): There is no public API for the {WasmEngine} yet. Once such an
   // API becomes available we should report the malloced memory separately. For

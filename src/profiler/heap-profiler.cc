@@ -6,7 +6,6 @@
 
 #include "src/api-inl.h"
 #include "src/debug/debug.h"
-#include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
@@ -173,7 +172,7 @@ void HeapProfiler::UpdateObjectSizeEvent(Address addr, int size) {
 
 Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
   HeapObject object;
-  CombinedHeapIterator iterator(heap(), HeapIterator::kFilterUnreachable);
+  HeapIterator iterator(heap(), HeapIterator::kFilterUnreachable);
   // Make sure that object with the given id is still reachable.
   for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
@@ -183,7 +182,6 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
       // Can't break -- kFilterUnreachable requires full heap traversal.
     }
   }
-
   return !object.is_null() ? Handle<HeapObject>(object, isolate())
                            : Handle<HeapObject>();
 }
@@ -205,7 +203,7 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
   // We should return accurate information about live objects, so we need to
   // collect all garbage first.
   heap()->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
-  CombinedHeapIterator heap_iterator(heap());
+  HeapIterator heap_iterator(heap());
   for (HeapObject heap_obj = heap_iterator.next(); !heap_obj.is_null();
        heap_obj = heap_iterator.next()) {
     if (!heap_obj->IsJSObject() || heap_obj->IsExternal(isolate())) continue;

@@ -227,7 +227,7 @@ size_t Heap::Capacity() {
 
 size_t Heap::OldGenerationCapacity() {
   if (!HasBeenSetUp()) return 0;
-  PagedSpaces spaces(this);
+  PagedSpaces spaces(this, PagedSpaces::SpacesSpecifier::kAllPagedSpaces);
   size_t total = 0;
   for (PagedSpace* space = spaces.next(); space != nullptr;
        space = spaces.next()) {
@@ -239,7 +239,7 @@ size_t Heap::OldGenerationCapacity() {
 size_t Heap::CommittedOldGenerationMemory() {
   if (!HasBeenSetUp()) return 0;
 
-  PagedSpaces spaces(this);
+  PagedSpaces spaces(this, PagedSpaces::SpacesSpecifier::kAllPagedSpaces);
   size_t total = 0;
   for (PagedSpace* space = spaces.next(); space != nullptr;
        space = spaces.next()) {
@@ -431,16 +431,14 @@ void Heap::PrintShortHeapStatistics() {
                code_lo_space_->SizeOfObjects() / KB,
                code_lo_space_->Available() / KB,
                code_lo_space_->CommittedMemory() / KB);
-  ReadOnlySpace* const ro_space = read_only_space_;
   PrintIsolate(isolate_,
                "All spaces,             used: %6" PRIuS
                " KB"
                ", available: %6" PRIuS
                " KB"
                ", committed: %6" PRIuS "KB\n",
-               (this->SizeOfObjects() + ro_space->SizeOfObjects()) / KB,
-               (this->Available() + ro_space->Available()) / KB,
-               (this->CommittedMemory() + ro_space->CommittedMemory()) / KB);
+               this->SizeOfObjects() / KB, this->Available() / KB,
+               this->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "Unmapper buffering %zu chunks of committed: %6" PRIuS " KB\n",
                memory_allocator()->unmapper()->NumberOfCommittedChunks(),
@@ -4310,7 +4308,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
 }
 
 size_t Heap::OldGenerationSizeOfObjects() {
-  PagedSpaces spaces(this);
+  PagedSpaces spaces(this, PagedSpaces::SpacesSpecifier::kAllPagedSpaces);
   size_t total = 0;
   for (PagedSpace* space = spaces.next(); space != nullptr;
        space = spaces.next()) {
@@ -5215,7 +5213,7 @@ PagedSpace* PagedSpaces::next() {
 }
 
 SpaceIterator::SpaceIterator(Heap* heap)
-    : heap_(heap), current_space_(FIRST_MUTABLE_SPACE - 1) {}
+    : heap_(heap), current_space_(FIRST_SPACE - 1) {}
 
 SpaceIterator::~SpaceIterator() = default;
 
