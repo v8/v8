@@ -2059,7 +2059,8 @@ MaybeHandle<JSObject> JSObject::ObjectCreate(Isolate* isolate,
 
 void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
   DCHECK(object->HasSmiOrObjectElements() ||
-         object->HasFastStringWrapperElements());
+         object->HasFastStringWrapperElements() ||
+         object->HasFrozenOrSealedElements());
   FixedArray raw_elems = FixedArray::cast(object->elements());
   Isolate* isolate = object->GetIsolate();
   if (raw_elems->map() != ReadOnlyRoots(isolate).fixed_cow_array_map()) return;

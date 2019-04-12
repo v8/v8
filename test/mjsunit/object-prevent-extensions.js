@@ -172,6 +172,7 @@ assertTrue(Array.isArray(obj));
 
 // Verify that the length can't be written by builtins.
 assertThrows(function() { obj.push(1); }, TypeError);
+assertDoesNotThrow(function() { obj.shift(); });
 assertThrows(function() { obj.unshift(1); }, TypeError);
 assertThrows(function() { obj.splice(0, 0, 1); }, TypeError);
 assertDoesNotThrow(function() {obj.splice(0, 0)});
@@ -250,3 +251,9 @@ arr.fill('d');
 assertEquals(arr.join(''), "ddd");
 arr.pop();
 assertEquals(arr.join(''), "dd");
+
+// Regression test with simple array
+var arr = ['a'];
+Object.preventExtensions(arr);
+arr[0] = 'b';
+assertEquals(arr[0], 'b');

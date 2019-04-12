@@ -414,6 +414,7 @@ function testPackedFrozenArray1(obj) {
   assertTrue(Array.isArray(obj));
   assertThrows(function() { obj.pop(); }, TypeError);
   assertThrows(function() { obj.push(); }, TypeError);
+  assertThrows(function() { obj.shift(); }, TypeError);
   assertThrows(function() { obj.unshift(); }, TypeError);
   assertThrows(function() { obj.copyWithin(0,0); }, TypeError);
   assertThrows(function() { obj.fill(0); }, TypeError);
@@ -545,3 +546,9 @@ assertThrows(function() {
     value: obj,
   });
 }, TypeError);
+
+// Regression test with simple array
+var arr = ['a'];
+Object.freeze(arr);
+arr[0] = 'b';
+assertEquals(arr[0], 'a');

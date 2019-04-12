@@ -157,6 +157,10 @@ inline bool IsFrozenOrSealedElementsKind(ElementsKind kind) {
   return IsInRange(kind, PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS);
 }
 
+inline bool IsSealedElementsKind(ElementsKind kind) {
+  return kind == PACKED_SEALED_ELEMENTS;
+}
+
 inline bool IsSmiOrObjectElementsKind(ElementsKind kind) {
   return kind == PACKED_SMI_ELEMENTS || kind == HOLEY_SMI_ELEMENTS ||
          kind == PACKED_ELEMENTS || kind == HOLEY_ELEMENTS;

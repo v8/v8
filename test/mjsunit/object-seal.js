@@ -402,6 +402,7 @@ function testPackedSealedArray1(obj) {
   // Verify that the length can't be written by builtins.
   assertThrows(function() { obj.pop(); }, TypeError);
   assertThrows(function() { obj.push(1); }, TypeError);
+  assertThrows(function() { obj.shift(); }, TypeError);
   assertThrows(function() { obj.unshift(1); }, TypeError);
   assertThrows(function() { obj.splice(0); }, TypeError);
   assertDoesNotThrow(function() { obj.splice(0, 0); });
@@ -521,3 +522,9 @@ assertThrows(function() {
     value: obj,
   });
 }, TypeError);
+
+// Regression test with simple array
+var arr = ['a'];
+Object.seal(arr);
+arr[0] = 'b';
+assertEquals(arr[0], 'b');
