@@ -684,10 +684,10 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 #endif
 }
 
-Object Map::GetBackPointer() const {
+HeapObject Map::GetBackPointer() const {
   Object object = constructor_or_backpointer();
   if (object->IsMap()) {
-    return object;
+    return Map::cast(object);
   }
   return GetReadOnlyRoots().undefined_value();
 }

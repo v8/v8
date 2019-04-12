@@ -8,6 +8,7 @@
 #include <algorithm>
 #endif
 
+#include "src/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/bootstrapper.h"
 #include "src/boxed-float.h"
@@ -16,6 +17,7 @@
 #include "src/compiler/per-isolate-compiler-cache.h"
 #include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/api-callbacks.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/instance-type-inl.h"
@@ -23,6 +25,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/templates.h"
 #include "src/utils.h"
 #include "src/vector-slot-pair.h"
 
@@ -108,7 +111,7 @@ class PropertyCellData : public HeapObjectData {
   PropertyDetails property_details() const { return property_details_; }
 
   void Serialize(JSHeapBroker* broker);
-  ObjectData* value() { return value_; }
+  ObjectData* value() const { return value_; }
 
  private:
   PropertyDetails const property_details_;
@@ -116,6 +119,47 @@ class PropertyCellData : public HeapObjectData {
   bool serialized_ = false;
   ObjectData* value_ = nullptr;
 };
+
+class FunctionTemplateInfoData : public HeapObjectData {
+ public:
+  FunctionTemplateInfoData(JSHeapBroker* broker, ObjectData** storage,
+                           Handle<FunctionTemplateInfo> object);
+
+  void Serialize(JSHeapBroker* broker);
+  ObjectData* call_code() const { return call_code_; }
+
+ private:
+  bool serialized_ = false;
+  ObjectData* call_code_ = nullptr;
+};
+
+class CallHandlerInfoData : public HeapObjectData {
+ public:
+  CallHandlerInfoData(JSHeapBroker* broker, ObjectData** storage,
+                      Handle<CallHandlerInfo> object);
+
+  Address callback() const { return callback_; }
+
+  void Serialize(JSHeapBroker* broker);
+  ObjectData* data() const { return data_; }
+
+ private:
+  Address const callback_;
+
+  bool serialized_ = false;
+  ObjectData* data_ = nullptr;
+};
+
+FunctionTemplateInfoData::FunctionTemplateInfoData(
+    JSHeapBroker* broker, ObjectData** storage,
+    Handle<FunctionTemplateInfo> object)
+    : HeapObjectData(broker, storage, object) {}
+
+CallHandlerInfoData::CallHandlerInfoData(JSHeapBroker* broker,
+                                         ObjectData** storage,
+                                         Handle<CallHandlerInfo> object)
+    : HeapObjectData(broker, storage, object),
+      callback_(v8::ToCData<Address>(object->callback())) {}
 
 void JSHeapBroker::IncrementTracingIndentation() { ++trace_indentation_; }
 
@@ -154,6 +198,30 @@ void PropertyCellData::Serialize(JSHeapBroker* broker) {
   auto cell = Handle<PropertyCell>::cast(object());
   DCHECK_NULL(value_);
   value_ = broker->GetOrCreateData(cell->value());
+}
+
+void FunctionTemplateInfoData::Serialize(JSHeapBroker* broker) {
+  if (serialized_) return;
+  serialized_ = true;
+
+  TraceScope tracer(broker, this, "FunctionTemplateInfoData::Serialize");
+  auto function_template_info = Handle<FunctionTemplateInfo>::cast(object());
+  DCHECK_NULL(call_code_);
+  call_code_ = broker->GetOrCreateData(function_template_info->call_code());
+
+  if (call_code_->IsCallHandlerInfo()) {
+    call_code_->AsCallHandlerInfo()->Serialize(broker);
+  }
+}
+
+void CallHandlerInfoData::Serialize(JSHeapBroker* broker) {
+  if (serialized_) return;
+  serialized_ = true;
+
+  TraceScope tracer(broker, this, "CallHandlerInfoData::Serialize");
+  auto call_handler_info = Handle<CallHandlerInfo>::cast(object());
+  DCHECK_NULL(data_);
+  data_ = broker->GetOrCreateData(call_handler_info->data());
 }
 
 class JSObjectField {
@@ -799,6 +867,12 @@ class MapData : public HeapObjectData {
     return constructor_;
   }
 
+  void SerializeBackPointer(JSHeapBroker* broker);
+  HeapObjectData* GetBackPointer() const {
+    CHECK(serialized_backpointer_);
+    return backpointer_;
+  }
+
   void SerializePrototype(JSHeapBroker* broker);
   bool serialized_prototype() const { return serialized_prototype_; }
   ObjectData* prototype() const {
@@ -835,6 +909,9 @@ class MapData : public HeapObjectData {
 
   bool serialized_constructor_ = false;
   ObjectData* constructor_ = nullptr;
+
+  bool serialized_backpointer_ = false;
+  HeapObjectData* backpointer_ = nullptr;
 
   bool serialized_prototype_ = false;
   ObjectData* prototype_ = nullptr;
@@ -1552,6 +1629,16 @@ void MapData::SerializeConstructor(JSHeapBroker* broker) {
   Handle<Map> map = Handle<Map>::cast(object());
   DCHECK_NULL(constructor_);
   constructor_ = broker->GetOrCreateData(map->GetConstructor());
+}
+
+void MapData::SerializeBackPointer(JSHeapBroker* broker) {
+  if (serialized_backpointer_) return;
+  serialized_backpointer_ = true;
+
+  TraceScope tracer(broker, this, "MapData::SerializeBackPointer");
+  Handle<Map> map = Handle<Map>::cast(object());
+  DCHECK_NULL(backpointer_);
+  backpointer_ = broker->GetOrCreateData(map->GetBackPointer())->AsHeapObject();
 }
 
 void MapData::SerializePrototype(JSHeapBroker* broker) {
@@ -2541,6 +2628,7 @@ BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
 BIMODAL_ACCESSOR(Map, HeapObject, prototype)
 BIMODAL_ACCESSOR_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR(Map, Object, GetConstructor)
+BIMODAL_ACCESSOR(Map, HeapObject, GetBackPointer)
 
 #define DEF_NATIVE_CONTEXT_ACCESSOR(type, name) \
   BIMODAL_ACCESSOR(NativeContext, type, name)
@@ -2549,6 +2637,10 @@ BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
 
 BIMODAL_ACCESSOR(PropertyCell, Object, value)
 BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
+
+BIMODAL_ACCESSOR(FunctionTemplateInfo, Object, call_code)
+
+BIMODAL_ACCESSOR(CallHandlerInfo, Object, data)
 
 BIMODAL_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
 BIMODAL_ACCESSOR(SharedFunctionInfo, BytecodeArray, GetBytecodeArray)
@@ -2613,6 +2705,13 @@ int ScopeInfoRef::ContextLength() const {
 bool StringRef::IsExternalString() const {
   IF_BROKER_DISABLED_ACCESS_HANDLE_C(String, IsExternalString);
   return data()->AsString()->is_external_string();
+}
+
+Address CallHandlerInfoRef::callback() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    return v8::ToCData<Address>(object()->callback());
+  }
+  return HeapObjectRef::data()->AsCallHandlerInfo()->callback();
 }
 
 bool StringRef::IsSeqString() const {
@@ -2888,6 +2987,11 @@ void FeedbackVectorRef::SerializeSlots() {
   data()->AsFeedbackVector()->SerializeSlots(broker());
 }
 
+bool NameRef::IsUniqueName() const {
+  // Must match Name::IsUniqueName.
+  return IsInternalizedString() || IsSymbol();
+}
+
 ObjectRef JSRegExpRef::data() const {
   IF_BROKER_DISABLED_ACCESS_HANDLE(JSRegExp, Object, data);
   return ObjectRef(broker(), ObjectRef::data()->AsJSRegExp()->data());
@@ -3027,6 +3131,12 @@ void MapRef::SerializeOwnDescriptors() {
   data()->AsMap()->SerializeOwnDescriptors(broker());
 }
 
+void MapRef::SerializeBackPointer() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsMap()->SerializeBackPointer(broker());
+}
+
 void MapRef::SerializePrototype() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
@@ -3083,6 +3193,12 @@ void PropertyCellRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsPropertyCell()->Serialize(broker());
+}
+
+void FunctionTemplateInfoRef::Serialize() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsFunctionTemplateInfo()->Serialize(broker());
 }
 
 base::Optional<PropertyCellRef> JSGlobalProxyRef::GetPropertyCell(

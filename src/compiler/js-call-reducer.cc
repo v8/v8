@@ -3787,7 +3787,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   // Try to specialize JSConstruct {node}s with constant {target}s.
   HeapObjectMatcher m(target);
   if (m.HasValue()) {
-    HeapObjectRef target_ref = m.Ref(broker()).AsHeapObject();
+    HeapObjectRef target_ref = m.Ref(broker());
 
     // Raise a TypeError if the {target} is not a constructor.
     if (!target_ref.map().is_constructor()) {

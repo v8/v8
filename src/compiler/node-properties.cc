@@ -391,7 +391,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
     ZoneHandleSet<Map>* maps_return) {
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
-    HeapObjectRef receiver = m.Ref(broker).AsHeapObject();
+    HeapObjectRef receiver = m.Ref(broker);
     // We don't use ICs for the Array.prototype and the Object.prototype
     // because the runtime has to be able to intercept them properly, so
     // we better make sure that TurboFan doesn't outsmart the system here
@@ -575,8 +575,7 @@ bool NodeProperties::CanBePrimitive(JSHeapBroker* broker, Node* receiver,
     case IrOpcode::kJSToObject:
       return false;
     case IrOpcode::kHeapConstant: {
-      HeapObjectRef value =
-          HeapObjectMatcher(receiver).Ref(broker).AsHeapObject();
+      HeapObjectRef value = HeapObjectMatcher(receiver).Ref(broker);
       return value.map().IsPrimitiveMap();
     }
     default: {
@@ -617,8 +616,7 @@ bool NodeProperties::CanBeNullOrUndefined(JSHeapBroker* broker, Node* receiver,
       case IrOpcode::kToBoolean:
         return false;
       case IrOpcode::kHeapConstant: {
-        HeapObjectRef value =
-            HeapObjectMatcher(receiver).Ref(broker).AsHeapObject();
+        HeapObjectRef value = HeapObjectMatcher(receiver).Ref(broker);
         OddballType type = value.map().oddball_type();
         return type == OddballType::kNull || type == OddballType::kUndefined;
       }

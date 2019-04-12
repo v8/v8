@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/compiler/js-heap-broker.h"
 #include "src/handles.h"
 #include "src/objects/map.h"
 #include "src/zone/zone-containers.h"
@@ -46,7 +47,7 @@ class PropertyAccessBuilder {
 
   // Builds the actual load for data-field and data-constant-field
   // properties (without heap-object or map checks).
-  Node* BuildLoadDataField(Handle<Name> name,
+  Node* BuildLoadDataField(NameRef const& name,
                            PropertyAccessInfo const& access_info,
                            Node* receiver, Node** effect, Node** control);
 
@@ -59,7 +60,7 @@ class PropertyAccessBuilder {
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
 
-  Node* TryBuildLoadConstantDataField(Handle<Name> name,
+  Node* TryBuildLoadConstantDataField(NameRef const& name,
                                       PropertyAccessInfo const& access_info,
                                       Node* receiver);
   // Returns a node with the holder for the property access described by

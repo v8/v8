@@ -21,8 +21,9 @@ namespace v8 {
 namespace internal {
 
 class BytecodeArray;
-class VectorSlotPair;
+class CallHandlerInfo;
 class FixedDoubleArray;
+class FunctionTemplateInfo;
 class HeapNumber;
 class InternalizedString;
 class JSBoundFunction;
@@ -32,6 +33,7 @@ class JSRegExp;
 class JSTypedArray;
 class NativeContext;
 class ScriptContextTable;
+class VectorSlotPair;
 
 namespace compiler {
 
@@ -72,11 +74,13 @@ enum class OddballType : uint8_t {
   V(Symbol)                        \
   /* Subtypes of HeapObject */     \
   V(AllocationSite)                \
+  V(CallHandlerInfo)               \
   V(Cell)                          \
   V(Code)                          \
   V(DescriptorArray)               \
   V(FeedbackVector)                \
   V(FixedArrayBase)                \
+  V(FunctionTemplateInfo)          \
   V(HeapNumber)                    \
   V(JSObject)                      \
   V(Map)                           \
@@ -377,6 +381,8 @@ class NameRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
   Handle<Name> object() const;
+
+  bool IsUniqueName() const;
 };
 
 class ScriptContextTableRef : public HeapObjectRef {
@@ -407,6 +413,26 @@ class FeedbackVectorRef : public HeapObjectRef {
   ObjectRef get(FeedbackSlot slot) const;
 
   void SerializeSlots();
+};
+
+class FunctionTemplateInfoRef : public HeapObjectRef {
+ public:
+  using HeapObjectRef::HeapObjectRef;
+  Handle<FunctionTemplateInfo> object() const;
+
+  void Serialize();
+  ObjectRef call_code() const;
+};
+
+class CallHandlerInfoRef : public HeapObjectRef {
+ public:
+  using HeapObjectRef::HeapObjectRef;
+  Handle<CallHandlerInfo> object() const;
+
+  Address callback() const;
+
+  void Serialize();
+  ObjectRef data() const;
 };
 
 class AllocationSiteRef : public HeapObjectRef {
@@ -467,13 +493,14 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool supports_fast_array_resize() const;
   bool IsMapOfCurrentGlobalProxy() const;
 
+  OddballType oddball_type() const;
+
 #define DEF_TESTER(Type, ...) bool Is##Type##Map() const;
   INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
 
-  ObjectRef GetConstructor() const;
-  OddballType oddball_type() const;
-  base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
+  void SerializeBackPointer();
+  HeapObjectRef GetBackPointer() const;
 
   void SerializePrototype();
   bool serialized_prototype() const;
@@ -493,6 +520,11 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   FieldIndex GetFieldIndexFor(int descriptor_index) const;
   ObjectRef GetFieldType(int descriptor_index) const;
   bool IsUnboxedDoubleField(int descriptor_index) const;
+
+  // Available after calling JSFunctionRef::Serialize on a function that has
+  // this map as initial map.
+  ObjectRef GetConstructor() const;
+  base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {

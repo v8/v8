@@ -576,7 +576,7 @@ class Map : public HeapObject {
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with the constructor (see above).
-  inline Object GetBackPointer() const;
+  inline HeapObject GetBackPointer() const;
   inline void SetBackPointer(Object value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
