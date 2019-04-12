@@ -1255,6 +1255,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                uint32_t pages) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "GrowMemory");
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
+  if (old_buffer->is_shared() && !FLAG_wasm_grow_shared_memory) return -1;
   auto* memory_tracker = isolate->wasm_engine()->memory_tracker();
   if (!memory_tracker->IsWasmMemoryGrowable(old_buffer)) return -1;
 
