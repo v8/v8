@@ -21,10 +21,14 @@ struct TorqueCompilerOptions {
   bool abort_on_lint_errors;
 };
 
-V8_EXPORT_PRIVATE void CompileTorque(const std::string& source,
-                                     TorqueCompilerOptions options);
-void CompileTorque(std::vector<std::string> files,
-                   TorqueCompilerOptions options);
+struct TorqueCompilerResult {
+  base::Optional<TorqueError> error;
+};
+
+V8_EXPORT_PRIVATE TorqueCompilerResult
+CompileTorque(const std::string& source, TorqueCompilerOptions options);
+TorqueCompilerResult CompileTorque(std::vector<std::string> files,
+                                   TorqueCompilerOptions options);
 
 }  // namespace torque
 }  // namespace internal

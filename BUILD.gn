@@ -3306,13 +3306,26 @@ v8_source_set("torque_base") {
   ]
 
   deps = [
-    ":v8_libbase",
     ":v8_shared_internal_headers",
   ]
 
-  configs = [ ":internal_config" ]
+  public_deps = [
+    ":v8_libbase",
+  ]
+
+  configs = [
+    ":internal_config",
+    "//build/config/compiler:exceptions",
+    "//build/config/compiler:rtti",
+  ]
+
+  remove_configs = [
+    "//build/config/compiler:no_exceptions",
+    "//build/config/compiler:no_rtti",
+  ]
+
   if (is_win && is_asan) {
-    remove_configs = [ "//build/config/sanitizers:default_sanitizer_flags" ]
+    remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
   }
 }
 
@@ -3330,13 +3343,23 @@ v8_source_set("torque_ls_base") {
     "src/torque/ls/message.h",
   ]
 
-  deps = [
+  public_deps = [
     ":torque_base",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":internal_config",
+    "//build/config/compiler:exceptions",
+    "//build/config/compiler:rtti",
+  ]
+
+  remove_configs = [
+    "//build/config/compiler:no_exceptions",
+    "//build/config/compiler:no_rtti",
+  ]
+
   if (is_win && is_asan) {
-    remove_configs = [ "//build/config/sanitizers:default_sanitizer_flags" ]
+    remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
   }
 }
 
@@ -3707,9 +3730,19 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "//build/win:default_exe_manifest",
     ]
 
-    configs = [ ":internal_config" ]
+    configs = [
+      ":internal_config",
+      "//build/config/compiler:exceptions",
+      "//build/config/compiler:rtti",
+    ]
+
+    remove_configs = [
+      "//build/config/compiler:no_exceptions",
+      "//build/config/compiler:no_rtti",
+    ]
+
     if (is_win && is_asan) {
-      remove_configs = [ "//build/config/sanitizers:default_sanitizer_flags" ]
+      remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
     }
   }
 }
@@ -3727,9 +3760,19 @@ v8_executable("torque-language-server") {
     "//build/win:default_exe_manifest",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":internal_config",
+    "//build/config/compiler:exceptions",
+    "//build/config/compiler:rtti",
+  ]
+
+  remove_configs = [
+    "//build/config/compiler:no_exceptions",
+    "//build/config/compiler:no_rtti",
+  ]
+
   if (is_win && is_asan) {
-    remove_configs = [ "//build/config/sanitizers:default_sanitizer_flags" ]
+    remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
   }
 }
 
