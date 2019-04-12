@@ -1111,7 +1111,7 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
 
   // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
   if (options.capture_result == CaptureStackTraceOptions::RAW_FRAME_ARRAY) {
-    return isolate->factory()->NewJSArrayWithElements(builder.GetElements());
+    return builder.GetElements();
   }
   return builder.GetElementsAsStackTraceFrameArray();
 }
@@ -2110,11 +2110,9 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   Handle<Name> key = factory()->stack_trace_symbol();
   Handle<Object> property =
       JSReceiver::GetDataProperty(Handle<JSObject>::cast(exception), key);
-  if (!property->IsJSArray()) return false;
-  Handle<JSArray> simple_stack_trace = Handle<JSArray>::cast(property);
+  if (!property->IsFixedArray()) return false;
 
-  Handle<FrameArray> elements(FrameArray::cast(simple_stack_trace->elements()),
-                              this);
+  Handle<FrameArray> elements = Handle<FrameArray>::cast(property);
 
   const int frame_count = elements->FrameCount();
   for (int i = 0; i < frame_count; i++) {

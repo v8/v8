@@ -3553,12 +3553,8 @@ void DetailedErrorStackTraceTest(const char* src,
   Isolate* isolate = CcTest::i_isolate();
   Handle<Name> key = isolate->factory()->stack_trace_symbol();
 
-  Handle<FrameArray> stack_trace(
-      FrameArray::cast(
-          Handle<JSArray>::cast(
-              Object::GetProperty(isolate, exception, key).ToHandleChecked())
-              ->elements()),
-      isolate);
+  Handle<FrameArray> stack_trace(Handle<FrameArray>::cast(
+      Object::GetProperty(isolate, exception, key).ToHandleChecked()));
 
   test(stack_trace);
 }
@@ -5150,8 +5146,8 @@ TEST(PreprocessStackTrace) {
       Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
   CHECK(pos->IsSmi());
 
-  Handle<JSArray> stack_trace_array = Handle<JSArray>::cast(stack_trace);
-  int array_length = Smi::ToInt(stack_trace_array->length());
+  Handle<FrameArray> frame_array = Handle<FrameArray>::cast(stack_trace);
+  int array_length = frame_array->FrameCount();
   for (int i = 0; i < array_length; i++) {
     Handle<Object> element =
         Object::GetElement(isolate, stack_trace, i).ToHandleChecked();

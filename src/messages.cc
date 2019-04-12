@@ -974,12 +974,8 @@ class PrepareStackTraceScope {
 MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
                                                  Handle<JSObject> error,
                                                  Handle<Object> raw_stack) {
-  DCHECK(raw_stack->IsJSArray());
-  Handle<JSArray> raw_stack_array = Handle<JSArray>::cast(raw_stack);
-
-  DCHECK(raw_stack_array->elements()->IsFixedArray());
-  Handle<FrameArray> elems(FrameArray::cast(raw_stack_array->elements()),
-                           isolate);
+  DCHECK(raw_stack->IsFixedArray());
+  Handle<FrameArray> elems = Handle<FrameArray>::cast(raw_stack);
 
   const bool in_recursion = isolate->formatting_stack_trace();
   if (!in_recursion) {
