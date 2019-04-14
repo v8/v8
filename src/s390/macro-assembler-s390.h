@@ -413,6 +413,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadDouble(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32ConvertToDouble(DoubleRegister dst, const MemOperand& mem);
+  void LoadSimd128(Simd128Register dst, const MemOperand& mem);
 
   void AddFloat32(DoubleRegister dst, const MemOperand& opnd,
                   DoubleRegister scratch);
@@ -444,6 +445,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreFloat32(DoubleRegister dst, const MemOperand& opnd);
   void StoreDoubleAsFloat32(DoubleRegister src, const MemOperand& mem,
                             DoubleRegister scratch);
+  void StoreSimd128(Simd128Register src, const MemOperand& mem);
 
   void Branch(Condition c, const Operand& opnd);
   void BranchOnCount(Register r1, Label* l);
@@ -508,10 +510,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #endif
   }
 
+  void push(DoubleRegister src) {
+    lay(sp, MemOperand(sp, -kPointerSize));
+    StoreDouble(src, MemOperand(sp));
+  }
 
   void push(Register src) {
     lay(sp, MemOperand(sp, -kPointerSize));
     StoreP(src, MemOperand(sp));
+  }
+
+  void pop(DoubleRegister dst) {
+    LoadDouble(dst, MemOperand(sp));
+    la(sp, MemOperand(sp, kPointerSize));
   }
 
   void pop(Register dst) {
@@ -774,6 +785,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SwapDouble(DoubleRegister src, MemOperand dst, DoubleRegister scratch);
   void SwapDouble(MemOperand src, MemOperand dst, DoubleRegister scratch_0,
                   DoubleRegister scratch_1);
+  void SwapSimd128(Simd128Register src, Simd128Register dst,
+                   Simd128Register scratch);
+  void SwapSimd128(Simd128Register src, MemOperand dst,
+                   Simd128Register scratch);
+  void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch_0,
+                   Simd128Register scratch_1);
 
   // Cleanse pointer address on 31bit by zero out top  bit.
   // This is a NOP on 64-bit.

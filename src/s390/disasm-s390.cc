@@ -210,6 +210,11 @@ int Decoder::FormatFloatingRegister(Instruction* instr, const char* format) {
     int reg = rreinstr->R2Value();
     PrintDRegister(reg);
     return 2;
+  } else if (format[1] == '4') {
+    VRR_E_Instruction* vrreinstr = reinterpret_cast<VRR_E_Instruction*>(instr);
+    int reg = vrreinstr->R4Value();
+    PrintDRegister(reg);
+    return 2;
   }
   UNREACHABLE();
 }
@@ -311,8 +316,19 @@ int Decoder::FormatMask(Instruction* instr, const char* format) {
     value = reinterpret_cast<RRFInstruction*>(instr)->M4Value();
     out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
     return 2;
+  } else if (format[1] == '4') {  // mask format in bits 32-35
+    value = reinterpret_cast<VRR_C_Instruction*>(instr)->M4Value();
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
+    return 2;
+  } else if (format[1] == '5') {  // mask format in bits 28-31
+    value = reinterpret_cast<VRR_C_Instruction*>(instr)->M5Value();
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
+    return 2;
+  } else if (format[1] == '6') {  // mask format in bits 24-27
+    value = reinterpret_cast<VRR_C_Instruction*>(instr)->M6Value();
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", value);
+    return 2;
   }
-
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
   return 2;
 }
@@ -784,12 +800,75 @@ bool Decoder::DecodeGeneric(Instruction* instr) {
 #undef DECODE_SI_INSTRUCTIONS
 
   /* 6 bytes */
+#define DECODE_VRR_A_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name:                                                \
+    Format(instr, #name "\t'f1,'f2,'m4,'m5,'m6");                  \
+    break;
+    S390_VRR_A_OPCODE_LIST(DECODE_VRR_A_INSTRUCTIONS)
+#undef DECODE_VRR_A_INSTRUCTIONS
+
+#define DECODE_VRR_B_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name:                                                \
+    Format(instr, #name "\t'f1,'f2,'f3,'m4,'m6");                  \
+    break;
+    S390_VRR_B_OPCODE_LIST(DECODE_VRR_B_INSTRUCTIONS)
+#undef DECODE_VRR_B_INSTRUCTIONS
+
 #define DECODE_VRR_C_INSTRUCTIONS(name, opcode_name, opcode_value) \
   case opcode_name:                                                \
-    Format(instr, #name "\t'f1,'f2,'f3");                          \
+    Format(instr, #name "\t'f1,'f2,'f3,'m4");                      \
     break;
   S390_VRR_C_OPCODE_LIST(DECODE_VRR_C_INSTRUCTIONS)
 #undef DECODE_VRR_C_INSTRUCTIONS
+
+#define DECODE_VRR_E_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name:                                                \
+    Format(instr, #name "\t'f1,'f2,'f3,'f4,'m5,'m3");              \
+    break;
+  S390_VRR_E_OPCODE_LIST(DECODE_VRR_E_INSTRUCTIONS)
+#undef DECODE_VRR_E_INSTRUCTIONS
+
+#define DECODE_VRX_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name:                                              \
+    Format(instr, #name "\t'f1,'d1('r2d,'r3),'m4");              \
+    break;
+  S390_VRX_OPCODE_LIST(DECODE_VRX_INSTRUCTIONS)
+#undef DECODE_VRX_INSTRUCTIONS
+
+#define DECODE_VRS_A_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name:                                                \
+    Format(instr, #name "\t'f1,'f2,'d1('r3),'m4");                 \
+    break;
+  S390_VRS_A_OPCODE_LIST(DECODE_VRS_A_INSTRUCTIONS)
+#undef DECODE_VRS_A_INSTRUCTIONS
+
+#define DECODE_VRS_B_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name:                                                \
+    Format(instr, #name "\t'f1,'r2,'d1('r3),'m4");                 \
+    break;
+  S390_VRS_B_OPCODE_LIST(DECODE_VRS_B_INSTRUCTIONS)
+#undef DECODE_VRS_B_INSTRUCTIONS
+
+#define DECODE_VRS_C_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name:                                                \
+    Format(instr, #name "\t'r1,'f2,'d1('r3),'m4");                 \
+    break;
+  S390_VRS_C_OPCODE_LIST(DECODE_VRS_C_INSTRUCTIONS)
+#undef DECODE_VRS_C_INSTRUCTIONS
+
+#define DECODE_VRI_A_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name:                                                \
+    Format(instr, #name "\t'f1,'i1,'m4");                          \
+    break;
+  S390_VRI_A_OPCODE_LIST(DECODE_VRI_A_INSTRUCTIONS)
+#undef DECODE_VRI_A_INSTRUCTIONS
+
+#define DECODE_VRI_C_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name:                                                \
+    Format(instr, #name "\t'f1,'f2,'i1,'m4");                      \
+    break;
+  S390_VRI_C_OPCODE_LIST(DECODE_VRI_C_INSTRUCTIONS)
+#undef DECODE_VRI_C_INSTRUCTIONS
 
 #define DECODE_RIL_A_INSTRUCTIONS(name, opcode_name, opcode_value) \
   case opcode_name:                                                \

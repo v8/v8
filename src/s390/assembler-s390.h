@@ -1151,6 +1151,7 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
                     (static_cast<uint64_t>(m5 & 0xF)) * B20 |                 \
                     (static_cast<uint64_t>(m4 & 0xF)) * B16 |                 \
                     (static_cast<uint64_t>(m3 & 0xF)) * B12 |                 \
+                    (static_cast<uint64_t>(0)) * B8 |                         \
                     (static_cast<uint64_t>(opcode_value & 0x00FF));           \
     emit6bytes(code);                                                         \
   }
@@ -1167,11 +1168,140 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
                     (static_cast<uint64_t>(m6 & 0xF)) * B20 |              \
                     (static_cast<uint64_t>(m5 & 0xF)) * B16 |              \
                     (static_cast<uint64_t>(m4 & 0xF)) * B12 |              \
+                    (static_cast<uint64_t>(0)) * B8 |                      \
                     (static_cast<uint64_t>(opcode_value & 0x00FF));        \
     emit6bytes(code);                                                      \
   }
   S390_VRR_C_OPCODE_LIST(DECLARE_VRR_C_INSTRUCTIONS)
 #undef DECLARE_VRR_C_INSTRUCTIONS
+
+#define DECLARE_VRR_B_INSTRUCTIONS(name, opcode_name, opcode_value)        \
+  void name(DoubleRegister v1, DoubleRegister v2, DoubleRegister v3,       \
+            Condition m5, Condition m4) {                                  \
+    uint64_t code = (static_cast<uint64_t>(opcode_value & 0xFF00)) * B32 | \
+                    (static_cast<uint64_t>(v1.code())) * B36 |             \
+                    (static_cast<uint64_t>(v2.code())) * B32 |             \
+                    (static_cast<uint64_t>(v3.code())) * B28 |             \
+                    (static_cast<uint64_t>(m5 & 0xF)) * B20 |              \
+                    (static_cast<uint64_t>(m4 & 0xF)) * B12 |              \
+                    (static_cast<uint64_t>(0)) * B8 |                      \
+                    (static_cast<uint64_t>(opcode_value & 0x00FF));        \
+    emit6bytes(code);                                                      \
+  }
+  S390_VRR_B_OPCODE_LIST(DECLARE_VRR_B_INSTRUCTIONS)
+#undef DECLARE_VRR_B_INSTRUCTIONS
+
+#define DECLARE_VRR_E_INSTRUCTIONS(name, opcode_name, opcode_value)        \
+  void name(DoubleRegister v1, DoubleRegister v2, DoubleRegister v3,       \
+            DoubleRegister v4, Condition m6, Condition m5) {               \
+    uint64_t code = (static_cast<uint64_t>(opcode_value & 0xFF00)) * B32 | \
+                    (static_cast<uint64_t>(v1.code())) * B36 |             \
+                    (static_cast<uint64_t>(v2.code())) * B32 |             \
+                    (static_cast<uint64_t>(v3.code())) * B28 |             \
+                    (static_cast<uint64_t>(m6 & 0xF)) * B24 |              \
+                    (static_cast<uint64_t>(m5 & 0xF)) * B16 |              \
+                    (static_cast<uint64_t>(v4.code())) * B12 |             \
+                    (static_cast<uint64_t>(0)) * B8 |                      \
+                    (static_cast<uint64_t>(opcode_value & 0x00FF));        \
+    emit6bytes(code);                                                      \
+  }
+  S390_VRR_E_OPCODE_LIST(DECLARE_VRR_E_INSTRUCTIONS)
+#undef DECLARE_VRR_E_INSTRUCTIONS
+
+#define DECLARE_VRX_INSTRUCTIONS(name, opcode_name, opcode_value)       \
+  void name(DoubleRegister v1, const MemOperand& opnd, Condition m3) {  \
+    uint64_t code =                                                     \
+        (static_cast<uint64_t>(opcode_value & 0xFF00)) * B32 |          \
+        (static_cast<uint64_t>(v1.code())) * B36 |                      \
+        (static_cast<uint64_t>(opnd.getIndexRegister().code())) * B32 | \
+        (static_cast<uint64_t>(opnd.getBaseRegister().code())) * B28 |  \
+        (static_cast<uint64_t>(opnd.getDisplacement())) * B16 |         \
+        (static_cast<uint64_t>(m3 & 0xF)) * B12 |                       \
+        (static_cast<uint64_t>(0)) * B8 |                               \
+        (static_cast<uint64_t>(opcode_value & 0x00FF));                 \
+    emit6bytes(code);                                                   \
+  }
+  S390_VRX_OPCODE_LIST(DECLARE_VRX_INSTRUCTIONS)
+#undef DECLARE_VRX_INSTRUCTIONS
+
+#define DECLARE_VRS_A_INSTRUCTIONS(name, opcode_name, opcode_value)       \
+  void name(DoubleRegister v1, DoubleRegister v2, const MemOperand& opnd, \
+            Condition m4 = Condition(0)) {                                \
+    uint64_t code =                                                       \
+        (static_cast<uint64_t>(opcode_value & 0xFF00)) * B32 |            \
+        (static_cast<uint64_t>(v1.code())) * B36 |                        \
+        (static_cast<uint64_t>(v2.code())) * B32 |                        \
+        (static_cast<uint64_t>(opnd.getBaseRegister().code())) * B28 |    \
+        (static_cast<uint64_t>(opnd.getDisplacement())) * B16 |           \
+        (static_cast<uint64_t>(m4 & 0xF)) * B12 |                         \
+        (static_cast<uint64_t>(0)) * B8 |                                 \
+        (static_cast<uint64_t>(opcode_value & 0x00FF));                   \
+    emit6bytes(code);                                                     \
+  }
+  S390_VRS_A_OPCODE_LIST(DECLARE_VRS_A_INSTRUCTIONS)
+#undef DECLARE_VRS_A_INSTRUCTIONS
+
+#define DECLARE_VRS_B_INSTRUCTIONS(name, opcode_name, opcode_value)    \
+  void name(DoubleRegister v1, Register r1, const MemOperand& opnd,    \
+            Condition m4 = Condition(0)) {                             \
+    uint64_t code =                                                    \
+        (static_cast<uint64_t>(opcode_value & 0xFF00)) * B32 |         \
+        (static_cast<uint64_t>(v1.code())) * B36 |                     \
+        (static_cast<uint64_t>(r1.code())) * B32 |                     \
+        (static_cast<uint64_t>(opnd.getBaseRegister().code())) * B28 | \
+        (static_cast<uint64_t>(opnd.getDisplacement())) * B16 |        \
+        (static_cast<uint64_t>(m4 & 0xF)) * B12 |                      \
+        (static_cast<uint64_t>(0)) * B8 |                              \
+        (static_cast<uint64_t>(opcode_value & 0x00FF));                \
+    emit6bytes(code);                                                  \
+  }
+  S390_VRS_B_OPCODE_LIST(DECLARE_VRS_B_INSTRUCTIONS)
+#undef DECLARE_VRS_B_INSTRUCTIONS
+
+#define DECLARE_VRS_C_INSTRUCTIONS(name, opcode_name, opcode_value)    \
+  void name(Register r1, DoubleRegister v1, const MemOperand& opnd,    \
+            Condition m4 = Condition(0)) {                             \
+    uint64_t code =                                                    \
+        (static_cast<uint64_t>(opcode_value & 0xFF00)) * B32 |         \
+        (static_cast<uint64_t>(r1.code())) * B36 |                     \
+        (static_cast<uint64_t>(v1.code())) * B32 |                     \
+        (static_cast<uint64_t>(opnd.getBaseRegister().code())) * B28 | \
+        (static_cast<uint64_t>(opnd.getDisplacement())) * B16 |        \
+        (static_cast<uint64_t>(m4 & 0xF)) * B12 |                      \
+        (static_cast<uint64_t>(0)) * B8 |                              \
+        (static_cast<uint64_t>(opcode_value & 0x00FF));                \
+    emit6bytes(code);                                                  \
+  }
+  S390_VRS_C_OPCODE_LIST(DECLARE_VRS_C_INSTRUCTIONS)
+#undef DECLARE_VRS_C_INSTRUCTIONS
+
+#define DECLARE_VRI_A_INSTRUCTIONS(name, opcode_name, opcode_value)        \
+  void name(DoubleRegister v1, const Operand& i2, Condition m3) {          \
+    uint64_t code = (static_cast<uint64_t>(opcode_value & 0xFF00)) * B32 | \
+                    (static_cast<uint64_t>(v1.code())) * B36 |             \
+                    (static_cast<uint32_t>(i2.immediate())) * B16 |        \
+                    (static_cast<uint64_t>(m3 & 0xF)) * B12 |              \
+                    (static_cast<uint64_t>(0)) * B8 |                      \
+                    (static_cast<uint64_t>(opcode_value & 0x00FF));        \
+    emit6bytes(code);                                                      \
+  }
+  S390_VRI_A_OPCODE_LIST(DECLARE_VRI_A_INSTRUCTIONS)
+#undef DECLARE_VRI_A_INSTRUCTIONS
+
+#define DECLARE_VRI_C_INSTRUCTIONS(name, opcode_name, opcode_value)        \
+  void name(DoubleRegister v1, DoubleRegister v2, const Operand& i2,       \
+            Condition m4) {                                                \
+    uint64_t code = (static_cast<uint64_t>(opcode_value & 0xFF00)) * B32 | \
+                    (static_cast<uint64_t>(v1.code())) * B36 |             \
+                    (static_cast<uint64_t>(v2.code())) * B32 |             \
+                    (static_cast<uint16_t>(i2.immediate())) * B16 |        \
+                    (static_cast<uint64_t>(m4 & 0xF)) * B12 |              \
+                    (static_cast<uint64_t>(0)) * B8 |                      \
+                    (static_cast<uint64_t>(opcode_value & 0x00FF));        \
+    emit6bytes(code);                                                      \
+  }
+  S390_VRI_C_OPCODE_LIST(DECLARE_VRI_C_INSTRUCTIONS)
+#undef DECLARE_VRI_C_INSTRUCTIONS
 
   // Single Element format
   void vfa(DoubleRegister v1, DoubleRegister v2, DoubleRegister v3) {
