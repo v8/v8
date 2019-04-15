@@ -1117,6 +1117,17 @@ void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   Local<Context> context = Local<Context>::New(isolate, data->realms_[index]);
   v8::MaybeLocal<Value> global_object = context->Global();
+
+  // Context::Global doesn't return JSGlobalProxy if DetachGlobal is called in
+  // advance.
+  if (!global_object.IsEmpty()) {
+    HandleScope scope(isolate);
+    if (!Utils::OpenHandle(*global_object.ToLocalChecked())
+             ->IsJSGlobalProxy()) {
+      global_object = v8::MaybeLocal<Value>();
+    }
+  }
+
   DisposeRealm(args, index);
   CreateRealm(args, index, global_object);
 }
