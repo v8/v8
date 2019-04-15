@@ -2492,29 +2492,19 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
     }
 
     // If the current scope does not have declared private names,
-    // start looking from the outer class scope.
-    if (var == nullptr && outer_class_scope != nullptr) {
-      var = outer_class_scope->LookupPrivateName(proxy);
+    // try looking from the outer class scope later.
+    if (var == nullptr) {
+      // There's no outer class scope so we are certain that the variable
+      // cannot be resolved later.
+      if (outer_class_scope == nullptr) {
+        return proxy;
+      }
+
+      // The private name may be found later in the outer class scope,
+      // so push it to the outer sopce.
+      outer_class_scope->AddUnresolvedPrivateName(proxy);
     }
 
-    // The outer class scopes are incomplete at this point, so even if
-    // we have found it in any of the outer class scopes, we still delay
-    // the resolution until this method is called for outer scopes
-    // when they are complete.
-    if (var != nullptr) {
-      proxy = next;
-      continue;
-    }
-
-    // There's no outer class scope so we are certain that the variable
-    // cannot be resolved later.
-    if (outer_class_scope == nullptr) {
-      return proxy;
-    }
-
-    // The private name may still be found later in the outer class scope,
-    // so push it to the outer sopce.
-    outer_class_scope->AddUnresolvedPrivateName(proxy);
     proxy = next;
   }
 
