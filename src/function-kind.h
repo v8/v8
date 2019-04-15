@@ -11,6 +11,8 @@
 namespace v8 {
 namespace internal {
 
+enum class NormalFunctionType { kDeclaration, kExpression };
+
 enum FunctionKind : uint8_t {
   // BEGIN constructable functions
   kNormalFunction,

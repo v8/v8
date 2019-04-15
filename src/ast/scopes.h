@@ -724,7 +724,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
  public:
   DeclarationScope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
-                   FunctionKind function_kind = kNormalFunction);
+                   FunctionKind function_kind = kNormalFunction,
+                   NormalFunctionType type = NormalFunctionType::kExpression);
   DeclarationScope(Zone* zone, ScopeType scope_type,
                    Handle<ScopeInfo> scope_info);
   // Creates a script scope.
@@ -734,6 +735,10 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   bool is_arrow_scope() const {
     return is_function_scope() && IsArrowFunction(function_kind_);
+  }
+
+  bool is_hoisted_declaration_scope() const {
+    return !is_function_expression_ && !is_arrow_scope() && !is_eval_scope();
   }
 
   // Inform the scope that the corresponding code uses "super".
@@ -1075,6 +1080,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool has_checked_syntax_ : 1;
   bool has_this_reference_ : 1;
   bool has_this_declaration_ : 1;
+  bool is_function_expression_ : 1;
 
   // If the scope is a function scope, this is the function kind.
   const FunctionKind function_kind_;
