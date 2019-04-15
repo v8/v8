@@ -759,13 +759,13 @@
       # TODO(krasin): Remove is_ubsan_no_recover=true when
       # https://llvm.org/bugs/show_bug.cgi?id=25569 is fixed and just use
       # ubsan instead.
-      'gn_args': 'is_ubsan=true is_ubsan_no_recover=true',
+      'gn_args': 'is_ubsan=true is_ubsan_no_recover=true is_ubsan_vptr=true',
     },
 
     'ubsan_recover': {
       'mixins': ['v8_enable_test_features'],
       # Ubsan with recovery.
-      'gn_args': 'is_ubsan=true is_ubsan_no_recover=false',
+      'gn_args': 'is_ubsan=true is_ubsan_no_recover=false is_ubsan_vptr=true',
     },
 
     'v8_check_header_includes': {
