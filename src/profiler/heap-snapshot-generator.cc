@@ -1932,7 +1932,8 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
       if (edge.name == nullptr) {
         from->SetIndexedAutoIndexReference(HeapGraphEdge::kElement, to);
       } else {
-        from->SetNamedReference(HeapGraphEdge::kInternal, edge.name, to);
+        from->SetNamedReference(HeapGraphEdge::kInternal,
+                                names_->GetCopy(edge.name), to);
       }
     }
   }
