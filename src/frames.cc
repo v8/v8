@@ -620,7 +620,7 @@ Code ConstructEntryFrame::unchecked_code() const {
   return isolate()->heap()->builtin(Builtins::kJSConstructEntry);
 }
 
-Code ExitFrame::unchecked_code() const { UNREACHABLE(); }
+Code ExitFrame::unchecked_code() const { return Code(); }
 
 void ExitFrame::ComputeCallerState(State* state) const {
   // Set up the caller state.
@@ -1793,7 +1793,7 @@ Address InternalFrame::GetCallerStackPointer() const {
   return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
-Code InternalFrame::unchecked_code() const { UNREACHABLE(); }
+Code InternalFrame::unchecked_code() const { return Code(); }
 
 void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
                               int index) const {
@@ -1928,7 +1928,7 @@ void WasmInterpreterEntryFrame::Summarize(
   }
 }
 
-Code WasmInterpreterEntryFrame::unchecked_code() const { UNREACHABLE(); }
+Code WasmInterpreterEntryFrame::unchecked_code() const { return Code(); }
 
 WasmInstanceObject WasmInterpreterEntryFrame::wasm_instance() const {
   const int offset = WasmCompiledFrameConstants::kWasmInstanceOffset;

@@ -530,7 +530,6 @@ StackTraceFailureMessage::StackTraceFailureMessage(Isolate* isolate, void* ptr1,
   size_t i = 0;
   StackFrameIterator it(isolate);
   for (; !it.done() && i < code_objects_length; it.Advance()) {
-    if (it.frame()->type() == StackFrame::INTERNAL) continue;
     code_objects_[i++] =
         reinterpret_cast<void*>(it.frame()->unchecked_code().ptr());
   }
