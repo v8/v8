@@ -2375,12 +2375,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   // This Scope lives in the main zone. We'll migrate data into that zone later.
   Zone* parse_zone = should_preparse ? &preparser_zone_ : zone();
-  NormalFunctionType type =
-      (function_type != FunctionLiteral::kDeclaration &&
-       function_type != FunctionLiteral::kAccessorOrMethod)
-          ? NormalFunctionType::kExpression
-          : NormalFunctionType::kDeclaration;
-  DeclarationScope* scope = NewFunctionScope(kind, parse_zone, type);
+  DeclarationScope* scope = NewFunctionScope(kind, parse_zone);
   SetLanguageMode(scope, language_mode);
 #ifdef DEBUG
   scope->SetScopeName(function_name);
