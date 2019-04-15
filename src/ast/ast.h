@@ -2237,11 +2237,10 @@ class FunctionLiteral final : public Expression {
 
   static bool NeedsHomeObject(Expression* expr);
 
-  int expected_property_count() {
-    // Not valid for lazy functions.
-    DCHECK(ShouldEagerCompile());
-    return expected_property_count_;
+  void add_expected_properties(int number_properties) {
+    expected_property_count_ += number_properties;
   }
+  int expected_property_count() { return expected_property_count_; }
   int parameter_count() { return parameter_count_; }
   int function_length() { return function_length_; }
 
@@ -2394,6 +2393,8 @@ class FunctionLiteral final : public Expression {
       : public BitField<bool, RequiresInstanceMembersInitializer::kNext, 1> {};
   class OneshotIIFEBit : public BitField<bool, HasBracesField::kNext, 1> {};
 
+  // expected_property_count_ is the sum of instance fields and properties.
+  // It can vary depending on whether a function is lazily or eagerly parsed.
   int expected_property_count_;
   int parameter_count_;
   int function_length_;

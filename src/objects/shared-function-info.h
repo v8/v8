@@ -330,6 +330,7 @@ class SharedFunctionInfo : public HeapObject {
   DECL_ACCESSORS(function_data, Object)
 
   inline bool IsApiFunction() const;
+  inline bool is_class_constructor() const;
   inline FunctionTemplateInfo get_api_func_data();
   inline void set_api_func_data(FunctionTemplateInfo data);
   inline bool HasBytecodeArray() const;
@@ -467,6 +468,9 @@ class SharedFunctionInfo : public HeapObject {
   // is only executed once.
   DECL_BOOLEAN_ACCESSORS(is_oneshot_iife)
 
+  // Whether or not the number of expected properties may change.
+  DECL_BOOLEAN_ACCESSORS(are_properties_final)
+
   // Indicates that the function represented by the shared function info
   // cannot observe the actual parameters passed at a call site, which
   // means the function doesn't use the arguments object, doesn't use
@@ -564,8 +568,10 @@ class SharedFunctionInfo : public HeapObject {
   static void InitFromFunctionLiteral(Handle<SharedFunctionInfo> shared_info,
                                       FunctionLiteral* lit, bool is_toplevel);
 
-  // Sets the expected number of properties based on estimate from parser.
-  void SetExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);
+  // Updates the expected number of properties based on estimate from parser.
+  void UpdateExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);
+  void UpdateAndFinalizeExpectedNofPropertiesFromEstimate(
+      FunctionLiteral* literal);
 
   // Sets the FunctionTokenOffset field based on the given token position and
   // start position.
@@ -680,7 +686,7 @@ class SharedFunctionInfo : public HeapObject {
   V(HasReportedBinaryCoverageBit, bool, 1, _)                \
   V(IsNamedExpressionBit, bool, 1, _)                        \
   V(IsTopLevelBit, bool, 1, _)                               \
-  V(IsOneshotIIFEBit, bool, 1, _)                            \
+  V(IsOneshotIIFEOrPropertiesAreFinalBit, bool, 1, _)        \
   V(IsSafeToSkipArgumentsAdaptorBit, bool, 1, _)
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
@@ -713,9 +719,19 @@ class SharedFunctionInfo : public HeapObject {
   // function.
   DECL_ACCESSORS(outer_scope_info, HeapObject)
 
+  // [is_oneshot_iife_or_properties_are_final]: This bit is used to track
+  // two mutually exclusive cases. Either this SharedFunctionInfo is
+  // a oneshot_iife or we have finished parsing its properties. These cases
+  // are mutually exclusive because the properties final bit is only used by
+  // class constructors to handle lazily parsed properties and class
+  // constructors can never be oneshot iifes.
+  DECL_BOOLEAN_ACCESSORS(is_oneshot_iife_or_properties_are_final)
+
   inline void set_kind(FunctionKind kind);
 
   inline void set_needs_home_object(bool value);
+
+  inline uint16_t get_property_estimate_from_literal(FunctionLiteral* literal);
 
   friend class Factory;
   friend class V8HeapExplorer;

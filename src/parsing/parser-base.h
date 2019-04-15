@@ -4075,7 +4075,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     return impl()->FailureExpression();
   }
 
-  int expected_property_count = -1;
+  int expected_property_count = 0;
   int suspend_count = 0;
   int function_literal_id = GetNextFunctionLiteralId();
 

@@ -223,8 +223,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_named_expression,
                     SharedFunctionInfo::IsNamedExpressionBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_toplevel,
                     SharedFunctionInfo::IsTopLevelBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_oneshot_iife,
-                    SharedFunctionInfo::IsOneshotIIFEBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
+                    is_oneshot_iife_or_properties_are_final,
+                    SharedFunctionInfo::IsOneshotIIFEOrPropertiesAreFinalBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
                     is_safe_to_skip_arguments_adaptor,
                     SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit)
@@ -733,6 +734,33 @@ bool SharedFunctionInfo::CanDiscardCompiled() const {
   bool can_decompile = (HasBytecodeArray() || HasAsmWasmData() ||
                         HasUncompiledDataWithPreparseData());
   return can_decompile;
+}
+
+bool SharedFunctionInfo::is_class_constructor() const {
+  return IsClassConstructorBit::decode(flags());
+}
+
+bool SharedFunctionInfo::is_oneshot_iife() const {
+  bool bit = is_oneshot_iife_or_properties_are_final();
+  return bit && !is_class_constructor();
+}
+
+void SharedFunctionInfo::set_is_oneshot_iife(bool value) {
+  DCHECK(!value || !is_class_constructor());
+  if (!is_class_constructor()) {
+    set_is_oneshot_iife_or_properties_are_final(value);
+  }
+}
+
+void SharedFunctionInfo::set_are_properties_final(bool value) {
+  if (is_class_constructor()) {
+    set_is_oneshot_iife_or_properties_are_final(value);
+  }
+}
+
+bool SharedFunctionInfo::are_properties_final() const {
+  bool bit = is_oneshot_iife_or_properties_are_final();
+  return bit && is_class_constructor();
 }
 
 }  // namespace internal

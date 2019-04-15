@@ -35,7 +35,7 @@ namespace internal {
 FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
                                             bool call_super, int pos,
                                             int end_pos) {
-  int expected_property_count = -1;
+  int expected_property_count = 0;
   const int parameter_count = 0;
 
   FunctionKind kind = call_super ? FunctionKind::kDefaultDerivedConstructor
@@ -2365,7 +2365,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                          should_preparse_inner || should_post_parallel_task;
 
   ScopedPtrList<Statement> body(pointer_buffer());
-  int expected_property_count = -1;
+  int expected_property_count = 0;
   int suspend_count = -1;
   int num_parameters = -1;
   int function_length = -1;
@@ -2918,6 +2918,8 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
         "<instance_members_initializer>", class_info->instance_members_scope,
         class_info->instance_fields);
     class_info->constructor->set_requires_instance_members_initializer(true);
+    class_info->constructor->add_expected_properties(
+        class_info->instance_fields->length());
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
