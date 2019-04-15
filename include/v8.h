@@ -6817,6 +6817,12 @@ class V8_EXPORT MicrotaskQueue {
    */
   virtual bool IsRunningMicrotasks() const = 0;
 
+  /**
+   * Returns the current depth of nested MicrotasksScope that has
+   * kRunMicrotasks.
+   */
+  virtual int GetMicrotasksScopeDepth() const = 0;
+
  private:
   friend class internal::MicrotaskQueue;
   MicrotaskQueue() = default;
