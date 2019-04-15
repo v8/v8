@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // TODO(v8:8832): Enable --stress-opt on these tests
-// Flags: --wasm-grow-shared-memory
 // Flags: --experimental-wasm-threads --no-stress-opt
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
