@@ -147,6 +147,17 @@
   'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
 
+  # https://crbug.com/v8/9131
+  'built-ins/RegExp/property-escapes/generated/Assigned': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_NFKC_Casefolded': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Symbol': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Symbol': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Unassigned': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Grapheme_Base': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Common': [SKIP],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Han': [SKIP],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
   'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [FAIL],
