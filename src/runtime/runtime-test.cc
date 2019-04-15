@@ -1226,6 +1226,7 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   wasm::NativeModule* native_module =
       exp_fun->instance()->module_object()->native_module();
   uint32_t func_index = exp_fun->function_index();
+  wasm::WasmCodeRefScope code_ref_scope;
   wasm::WasmCode* code = native_module->GetCode(func_index);
   return isolate->heap()->ToBoolean(code && code->is_liftoff());
 }

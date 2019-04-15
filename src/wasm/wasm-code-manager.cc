@@ -835,6 +835,22 @@ std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
   return std::vector<WasmCode*>{start, end};
 }
 
+WasmCode* NativeModule::GetCode(uint32_t index) const {
+  base::MutexGuard guard(&allocation_mutex_);
+  DCHECK_LT(index, num_functions());
+  DCHECK_LE(module_->num_imported_functions, index);
+  WasmCode* code = code_table_[index - module_->num_imported_functions];
+  WasmCodeRefScope::AddRef(code);
+  return code;
+}
+
+bool NativeModule::HasCode(uint32_t index) const {
+  base::MutexGuard guard(&allocation_mutex_);
+  DCHECK_LT(index, num_functions());
+  DCHECK_LE(module_->num_imported_functions, index);
+  return code_table_[index - module_->num_imported_functions] != nullptr;
+}
+
 WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {
   // Only call this if we really need a jump table.
   DCHECK_LT(0, jump_table_size);

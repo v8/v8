@@ -319,14 +319,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // to get a consistent view of the table (e.g. used by the serializer).
   std::vector<WasmCode*> SnapshotCodeTable() const;
 
-  WasmCode* GetCode(uint32_t index) const {
-    base::MutexGuard guard(&allocation_mutex_);
-    DCHECK_LT(index, num_functions());
-    DCHECK_LE(module_->num_imported_functions, index);
-    return code_table_[index - module_->num_imported_functions];
-  }
-
-  bool has_code(uint32_t index) const { return GetCode(index) != nullptr; }
+  WasmCode* GetCode(uint32_t index) const;
+  bool HasCode(uint32_t index) const;
 
   Address runtime_stub_entry(WasmCode::RuntimeStubId index) const {
     DCHECK_LT(index, WasmCode::kRuntimeStubCount);

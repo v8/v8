@@ -626,7 +626,7 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
 
   NativeModuleModificationScope native_module_modification_scope(native_module);
 
-  DCHECK(!native_module->has_code(static_cast<uint32_t>(func_index)));
+  DCHECK(!native_module->HasCode(static_cast<uint32_t>(func_index)));
 
   compilation_timer.Start();
 
