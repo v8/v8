@@ -23,6 +23,8 @@ namespace internal {
 namespace wasm {
 
 namespace {
+// A task to log a set of {WasmCode} objects in an isolate. Explicitly manages
+// ref counts of the contained code objects.
 class LogCodesTask : public Task {
  public:
   LogCodesTask(base::Mutex* mutex, LogCodesTask** task_slot, Isolate* isolate)
@@ -35,10 +37,16 @@ class LogCodesTask : public Task {
     // If the platform deletes this task before executing it, we also deregister
     // it to avoid use-after-free from still-running background threads.
     if (!cancelled()) DeregisterTask();
+    // TODO(clemensh): Move ref-count management to WasmEngine, i.e. store
+    // std::vector<WasmCode> there instead of in this task.
+    clear();
   }
 
   // Hold the {mutex_} when calling this method.
-  void AddCode(WasmCode* code) { code_to_log_.push_back(code); }
+  void AddCode(WasmCode* code) {
+    code_to_log_.push_back(code);
+    code->IncRef();
+  }
 
   void Run() override {
     if (cancelled()) return;
@@ -48,12 +56,14 @@ class LogCodesTask : public Task {
     for (WasmCode* code : code_to_log_) {
       code->LogCode(isolate_);
     }
+    clear();
   }
 
   void Cancel() {
     // Cancel will only be called on Isolate shutdown, which happens on the
     // Isolate's foreground thread. Thus no synchronization needed.
     isolate_ = nullptr;
+    clear();
   }
 
   bool cancelled() const { return isolate_ == nullptr; }
@@ -72,6 +82,11 @@ class LogCodesTask : public Task {
   }
 
  private:
+  void clear() {
+    WasmCode::DecrementRefCount(VectorOf(code_to_log_));
+    code_to_log_.clear();
+  }
+
   // The mutex of the WasmEngine.
   base::Mutex* const mutex_;
   // The slot in the WasmEngine where this LogCodesTask is stored. This is
