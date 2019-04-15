@@ -652,9 +652,9 @@ size_t Heap::SizeOfObjects() {
   return total;
 }
 
-
-const char* Heap::GetSpaceName(int idx) {
-  switch (idx) {
+// static
+const char* Heap::GetSpaceName(AllocationSpace space) {
+  switch (space) {
     case NEW_SPACE:
       return "new_space";
     case OLD_SPACE:
@@ -671,10 +671,8 @@ const char* Heap::GetSpaceName(int idx) {
       return "code_large_object_space";
     case RO_SPACE:
       return "read_only_space";
-    default:
-      UNREACHABLE();
   }
-  return nullptr;
+  UNREACHABLE();
 }
 
 void Heap::MergeAllocationSitePretenuringFeedback(
@@ -5620,28 +5618,6 @@ size_t Heap::NumberOfNativeContexts() {
 size_t Heap::NumberOfDetachedContexts() {
   // The detached_contexts() array has two entries per detached context.
   return detached_contexts()->length() / 2;
-}
-
-const char* AllocationSpaceName(AllocationSpace space) {
-  switch (space) {
-    case NEW_SPACE:
-      return "NEW_SPACE";
-    case OLD_SPACE:
-      return "OLD_SPACE";
-    case CODE_SPACE:
-      return "CODE_SPACE";
-    case MAP_SPACE:
-      return "MAP_SPACE";
-    case LO_SPACE:
-      return "LO_SPACE";
-    case NEW_LO_SPACE:
-      return "NEW_LO_SPACE";
-    case RO_SPACE:
-      return "RO_SPACE";
-    default:
-      UNREACHABLE();
-  }
-  return nullptr;
 }
 
 void VerifyPointersVisitor::VisitPointers(HeapObject host, ObjectSlot start,

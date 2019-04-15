@@ -1005,7 +1005,7 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
   // Identity used in error reporting.
   AllocationSpace identity() { return id_; }
 
-  const char* name() { return AllocationSpaceName(id_); }
+  const char* name() { return Heap::GetSpaceName(id_); }
 
   virtual void AddAllocationObserver(AllocationObserver* observer);
 

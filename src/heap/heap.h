@@ -664,7 +664,7 @@ class Heap {
   inline Space* space(int idx);
 
   // Returns name of the space.
-  const char* GetSpaceName(int idx);
+  V8_EXPORT_PRIVATE static const char* GetSpaceName(AllocationSpace space);
 
   // ===========================================================================
   // Getters to other components. ==============================================
@@ -2324,8 +2324,6 @@ class AllocationObserver {
   friend class Space;
   DISALLOW_COPY_AND_ASSIGN(AllocationObserver);
 };
-
-V8_EXPORT_PRIVATE const char* AllocationSpaceName(AllocationSpace space);
 
 // -----------------------------------------------------------------------------
 // Allows observation of heap object allocations.
