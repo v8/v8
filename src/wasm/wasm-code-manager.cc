@@ -771,11 +771,15 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     // the new code if it was compiled with a higher tier.
     uint32_t slot_idx = code->index() - module_->num_imported_functions;
     WasmCode* prior_code = code_table_[slot_idx];
-    ExecutionTier prior_tier =
-        prior_code == nullptr ? ExecutionTier::kNone : prior_code->tier();
-    bool update_code_table = prior_tier < code->tier();
+    bool update_code_table = !prior_code || prior_code->tier() < code->tier();
     if (update_code_table) {
       code_table_[slot_idx] = code.get();
+      if (prior_code) {
+        WasmCodeRefScope::AddRef(prior_code);
+        // The code is added to the current {WasmCodeRefScope}, hence the ref
+        // count cannot drop to zero here.
+        CHECK(!prior_code->DecRef());
+      }
     }
 
     // Populate optimized code to the jump table unless there is an active
