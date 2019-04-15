@@ -5131,6 +5131,80 @@ TEST(InterpreterCollectSourcePositions_StackOverflow) {
   CHECK_GT(source_position_table->length(), 0);
 }
 
+// TODO(v8:8510): When an exception is thrown, the top frame still has its
+// source positions collected. Re-enable this test when that is fixed.
+DISABLED_TEST(InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
+  FLAG_enable_lazy_source_positions = true;
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  const char* source =
+      R"javascript(
+      (function () {
+        throw new Error();
+      });
+      )javascript";
+
+  Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Local<v8::Function>::Cast(CompileRun(source))));
+
+  Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
+  // This is the bytecode for the top-level iife.
+  Handle<BytecodeArray> bytecode_array =
+      handle(sfi->GetBytecodeArray(), isolate);
+  CHECK(!bytecode_array->HasSourcePositionTable());
+
+  {
+    v8::TryCatch try_catch(CcTest::isolate());
+    MaybeHandle<Object> result = Execution::Call(
+        isolate, function, ReadOnlyRoots(isolate).undefined_value_handle(), 0,
+        nullptr);
+    CHECK(result.is_null());
+    CHECK(try_catch.HasCaught());
+  }
+
+  // The exception was caught but source positions were not retrieved from it so
+  // there should be no source position table.
+  CHECK(!bytecode_array->HasSourcePositionTable());
+}
+
+TEST(InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
+  FLAG_enable_lazy_source_positions = true;
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  const char* source =
+      R"javascript(
+      (function () {
+        (function () {
+          throw new Error();
+        })();
+      });
+      )javascript";
+
+  Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Local<v8::Function>::Cast(CompileRun(source))));
+
+  Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
+  // This is the bytecode for the top-level iife.
+  Handle<BytecodeArray> bytecode_array =
+      handle(sfi->GetBytecodeArray(), isolate);
+  CHECK(!bytecode_array->HasSourcePositionTable());
+
+  {
+    v8::TryCatch try_catch(CcTest::isolate());
+    MaybeHandle<Object> result = Execution::Call(
+        isolate, function, ReadOnlyRoots(isolate).undefined_value_handle(), 0,
+        nullptr);
+    CHECK(result.is_null());
+    CHECK(try_catch.HasCaught());
+  }
+
+  // The exception was caught but source positions were not retrieved from it so
+  // there should be no source position table.
+  CHECK(!bytecode_array->HasSourcePositionTable());
+}
+
 namespace {
 
 void CheckStringEqual(const char* expected_ptr, Handle<Object> actual_handle) {

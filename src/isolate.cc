@@ -1013,7 +1013,6 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
               !summary.is_subject_to_debugging()) {
             continue;
           }
-          summary.EnsureSourcePositionsAvailable();
 
           if (summary.IsJavaScript()) {
             //=========================================================

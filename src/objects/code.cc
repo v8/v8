@@ -162,13 +162,12 @@ template <typename Code>
 void SetStackFrameCacheCommon(Isolate* isolate, Handle<Code> code,
                               Handle<SimpleNumberDictionary> cache) {
   Handle<Object> maybe_table(code->source_position_table(), isolate);
-  if (maybe_table->IsException(isolate)) return;
+  if (maybe_table->IsException(isolate) || maybe_table->IsUndefined()) return;
   if (maybe_table->IsSourcePositionTableWithFrameCache()) {
     Handle<SourcePositionTableWithFrameCache>::cast(maybe_table)
         ->set_stack_frame_cache(*cache);
     return;
   }
-  DCHECK(!maybe_table->IsUndefined(isolate));
   DCHECK(maybe_table->IsByteArray());
   Handle<ByteArray> table(Handle<ByteArray>::cast(maybe_table));
   Handle<SourcePositionTableWithFrameCache> table_with_cache =
