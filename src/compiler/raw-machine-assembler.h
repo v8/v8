@@ -132,13 +132,39 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* Load(MachineType rep, Node* base, Node* index,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    // change_op is used below to change to the correct Tagged representation
+    const Operator* change_op = nullptr;
+#ifdef V8_COMPRESS_POINTERS
+    switch (rep.representation()) {
+      case MachineRepresentation::kTaggedPointer:
+        rep = MachineType::CompressedPointer();
+        change_op = machine()->ChangeCompressedPointerToTaggedPointer();
+        break;
+      case MachineRepresentation::kTaggedSigned:
+        rep = MachineType::CompressedSigned();
+        change_op = machine()->ChangeCompressedSignedToTaggedSigned();
+        break;
+      case MachineRepresentation::kTagged:
+        rep = MachineType::AnyCompressed();
+        change_op = machine()->ChangeCompressedToTagged();
+        break;
+      default:
+        break;
+    }
+#endif
+
     const Operator* op = machine()->Load(rep);
     CHECK_NE(PoisoningMitigationLevel::kPoisonAll, poisoning_level_);
     if (needs_poisoning == LoadSensitivity::kCritical &&
         poisoning_level_ == PoisoningMitigationLevel::kPoisonCriticalOnly) {
       op = machine()->PoisonedLoad(rep);
     }
-    return AddNode(op, base, index);
+
+    Node* load = AddNode(op, base, index);
+    if (change_op != nullptr) {
+      load = AddNode(change_op, load);
+    }
+    return load;
   }
   Node* Store(MachineRepresentation rep, Node* base, Node* value,
               WriteBarrierKind write_barrier) {
