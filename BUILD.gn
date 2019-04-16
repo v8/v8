@@ -4323,6 +4323,9 @@ if (!build_with_chromium && v8_use_perfetto) {
     defines = [ "HAVE_PTHREAD=1" ]
     if (is_clang) {
       cflags = [
+        "-Wno-unused-private-field",
+        "-Wno-unused-function",
+        "-Wno-inconsistent-missing-override",
         "-Wno-unknown-warning-option",
         "-Wno-enum-compare-switch",
         "-Wno-user-defined-warnings",
@@ -4359,7 +4362,10 @@ if (!build_with_chromium && v8_use_perfetto) {
       "third_party/protobuf/src/google/protobuf/wire_format_lite.cc",
     ]
     configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ ":protobuf_config" ]
+    configs += [
+      "//build/config/compiler:no_chromium_code",
+      ":protobuf_config",
+    ]
     public_configs = [ ":protobuf_gen_config" ]
   }
 
@@ -4425,7 +4431,10 @@ if (!build_with_chromium && v8_use_perfetto) {
       "third_party/protobuf/src/google/protobuf/wrappers.pb.cc",
     ]
     configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ ":protobuf_config" ]
+    configs += [
+      "//build/config/compiler:no_chromium_code",
+      ":protobuf_config",
+    ]
     public_configs = [ ":protobuf_gen_config" ]
   }
 
@@ -4518,7 +4527,10 @@ if (!build_with_chromium && v8_use_perfetto) {
         "third_party/protobuf/src/google/protobuf/compiler/zip_writer.cc",
       ]
       configs -= [ "//build/config/compiler:chromium_code" ]
-      configs += [ ":protobuf_config" ]
+      configs += [
+        "//build/config/compiler:no_chromium_code",
+        ":protobuf_config",
+      ]
       public_configs = [ ":protobuf_gen_config" ]
     }
 
@@ -4531,6 +4543,7 @@ if (!build_with_chromium && v8_use_perfetto) {
         "third_party/protobuf/src/google/protobuf/compiler/main.cc",
       ]
       configs -= [ "//build/config/compiler:chromium_code" ]
+      configs += [ "//build/config/compiler:no_chromium_code" ]
     }
   }  # host_toolchain
 }  # if (!build_with_chromium && v8_use_perfetto)
