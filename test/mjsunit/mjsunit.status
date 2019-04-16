@@ -810,6 +810,11 @@
   # Fails allocation on tsan.
   'es6/classes': [PASS, ['tsan', SKIP]],
   'regress/regress-779407': [PASS, ['tsan', SKIP]],
+
+  # Tests that fail some assertions due to checking internal state sensitive
+  # to GC.
+  'compiler/native-context-specialization-hole-check': [SKIP],
+  'shared-function-tier-up-turbo': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
