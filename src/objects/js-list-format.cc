@@ -254,78 +254,6 @@ Handle<String> JSListFormat::TypeAsString() const {
 
 namespace {
 
-MaybeHandle<JSArray> GenerateListFormatParts(
-    Isolate* isolate, const icu::UnicodeString& formatted,
-    const std::vector<icu::FieldPosition>& positions) {
-  Factory* factory = isolate->factory();
-  Handle<JSArray> array =
-      factory->NewJSArray(static_cast<int>(positions.size()));
-  int index = 0;
-  int prev_item_end_index = 0;
-  Handle<String> substring;
-  for (const icu::FieldPosition pos : positions) {
-    CHECK(pos.getBeginIndex() >= prev_item_end_index);
-    CHECK(pos.getField() == ULISTFMT_ELEMENT_FIELD);
-    if (pos.getBeginIndex() != prev_item_end_index) {
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, substring,
-          Intl::ToString(isolate, formatted, prev_item_end_index,
-                         pos.getBeginIndex()),
-          JSArray);
-      Intl::AddElement(isolate, array, index++, factory->literal_string(),
-                       substring);
-    }
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, substring,
-        Intl::ToString(isolate, formatted, pos.getBeginIndex(),
-                       pos.getEndIndex()),
-        JSArray);
-    Intl::AddElement(isolate, array, index++, factory->element_string(),
-                     substring);
-    prev_item_end_index = pos.getEndIndex();
-  }
-  if (prev_item_end_index != formatted.length()) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, substring,
-        Intl::ToString(isolate, formatted, prev_item_end_index,
-                       formatted.length()),
-        JSArray);
-    Intl::AddElement(isolate, array, index++, factory->literal_string(),
-                     substring);
-  }
-  return array;
-}
-
-// Get all the FieldPosition into a vector from FieldPositionIterator and return
-// them in output order.
-std::vector<icu::FieldPosition> GenerateFieldPosition(
-    icu::FieldPositionIterator iter) {
-  std::vector<icu::FieldPosition> positions;
-  icu::FieldPosition pos;
-  while (iter.next(pos)) {
-    // Only take the information of the ULISTFMT_ELEMENT_FIELD field.
-    if (pos.getField() == ULISTFMT_ELEMENT_FIELD) {
-      positions.push_back(pos);
-    }
-  }
-  // Because the format may reoder the items, ICU FieldPositionIterator
-  // keep the order for FieldPosition based on the order of the input items.
-  // But the formatToParts API in ECMA402 expects in formatted output order.
-  // Therefore we have to sort based on beginIndex of the FieldPosition.
-  // Example of such is in the "ur" (Urdu) locale with type: "unit", where the
-  // main text flows from right to left, the formatted list of unit should flow
-  // from left to right and therefore in the memory the formatted result will
-  // put the first item on the last in the result string according the current
-  // CLDR patterns.
-  // See 'listPattern' pattern in
-  // third_party/icu/source/data/locales/ur_IN.txt
-  std::sort(positions.begin(), positions.end(),
-            [](icu::FieldPosition a, icu::FieldPosition b) {
-              return a.getBeginIndex() < b.getBeginIndex();
-            });
-  return positions;
-}
-
 // Extract String from JSArray into array of UnicodeString
 Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
     Isolate* isolate, Handle<JSArray> array) {
@@ -365,31 +293,95 @@ Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
   return Just(result);
 }
 
-}  // namespace
-
-// ecma402 #sec-formatlist
-MaybeHandle<String> JSListFormat::FormatList(Isolate* isolate,
-                                             Handle<JSListFormat> format,
-                                             Handle<JSArray> list) {
+template <typename T>
+MaybeHandle<T> FormatListCommon(
+    Isolate* isolate, Handle<JSListFormat> format, Handle<JSArray> list,
+    MaybeHandle<T> (*formatToResult)(Isolate*, const icu::FormattedList&)) {
   DCHECK(!list->IsUndefined());
   // ecma402 #sec-createpartsfromlist
   // 2. If list contains any element value such that Type(value) is not String,
   // throw a TypeError exception.
   Maybe<std::vector<icu::UnicodeString>> maybe_array =
       ToUnicodeStringArray(isolate, list);
-  MAYBE_RETURN(maybe_array, Handle<String>());
+  MAYBE_RETURN(maybe_array, Handle<T>());
   std::vector<icu::UnicodeString> array = maybe_array.FromJust();
 
   icu::ListFormatter* formatter = format->icu_formatter()->raw();
   CHECK_NOT_NULL(formatter);
 
   UErrorCode status = U_ZERO_ERROR;
-  icu::UnicodeString formatted;
-  formatter->format(array.data(), static_cast<int32_t>(array.size()), formatted,
-                    status);
-  DCHECK(U_SUCCESS(status));
+  icu::FormattedList formatted = formatter->formatStringsToValue(
+      array.data(), static_cast<int32_t>(array.size()), status);
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
+  }
+  return formatToResult(isolate, formatted);
+}
 
-  return Intl::ToString(isolate, formatted);
+// A helper function to convert the FormattedList to a
+// MaybeHandle<String> for the implementation of format.
+MaybeHandle<String> FormattedToString(Isolate* isolate,
+                                      const icu::FormattedList& formatted) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString result = formatted.toString(status);
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
+  }
+  return Intl::ToString(isolate, result);
+}
+
+Handle<String> IcuFieldIdToType(Isolate* isolate, int32_t field_id) {
+  switch (field_id) {
+    case ULISTFMT_LITERAL_FIELD:
+      return isolate->factory()->literal_string();
+    case ULISTFMT_ELEMENT_FIELD:
+      return isolate->factory()->element_string();
+    default:
+      UNREACHABLE();
+      // To prevent MSVC from issuing C4715 warning.
+      return Handle<String>();
+  }
+}
+
+// A helper function to convert the FormattedList to a
+// MaybeHandle<JSArray> for the implementation of formatToParts.
+MaybeHandle<JSArray> FormattedToJSArray(Isolate* isolate,
+                                        const icu::FormattedList& formatted) {
+  Handle<JSArray> array = isolate->factory()->NewJSArray(0);
+  icu::ConstrainedFieldPosition cfpos;
+  cfpos.constrainCategory(UFIELD_CATEGORY_LIST);
+  int index = 0;
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString string = formatted.toString(status);
+  Handle<String> substring;
+  while (formatted.nextPosition(cfpos, status) && U_SUCCESS(status)) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, substring,
+        Intl::ToString(isolate, string, cfpos.getStart(), cfpos.getLimit()),
+        JSArray);
+    Intl::AddElement(isolate, array, index++,
+                     IcuFieldIdToType(isolate, cfpos.getField()), substring);
+  }
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), JSArray);
+  }
+  JSObject::ValidateElements(*array);
+  return array;
+}
+
+}  // namespace
+
+// ecma402 #sec-formatlist
+MaybeHandle<String> JSListFormat::FormatList(Isolate* isolate,
+                                             Handle<JSListFormat> format,
+                                             Handle<JSArray> list) {
+  return FormatListCommon<String>(isolate, format, list, FormattedToString);
+}
+
+// ecma42 #sec-formatlisttoparts
+MaybeHandle<JSArray> JSListFormat::FormatListToParts(
+    Isolate* isolate, Handle<JSListFormat> format, Handle<JSArray> list) {
+  return FormatListCommon<JSArray>(isolate, format, list, FormattedToJSArray);
 }
 
 const std::set<std::string>& JSListFormat::GetAvailableLocales() {
@@ -399,30 +391,5 @@ const std::set<std::string>& JSListFormat::GetAvailableLocales() {
   return Intl::GetAvailableLocalesForLocale();
 }
 
-// ecma42 #sec-formatlisttoparts
-MaybeHandle<JSArray> JSListFormat::FormatListToParts(
-    Isolate* isolate, Handle<JSListFormat> format, Handle<JSArray> list) {
-  DCHECK(!list->IsUndefined());
-  // ecma402 #sec-createpartsfromlist
-  // 2. If list contains any element value such that Type(value) is not String,
-  // throw a TypeError exception.
-  Maybe<std::vector<icu::UnicodeString>> maybe_array =
-      ToUnicodeStringArray(isolate, list);
-  MAYBE_RETURN(maybe_array, Handle<JSArray>());
-  std::vector<icu::UnicodeString> array = maybe_array.FromJust();
-
-  icu::ListFormatter* formatter = format->icu_formatter()->raw();
-  CHECK_NOT_NULL(formatter);
-
-  UErrorCode status = U_ZERO_ERROR;
-  icu::UnicodeString formatted;
-  icu::FieldPositionIterator iter;
-  formatter->format(array.data(), static_cast<int32_t>(array.size()), formatted,
-                    &iter, status);
-  DCHECK(U_SUCCESS(status));
-
-  std::vector<icu::FieldPosition> field_positions = GenerateFieldPosition(iter);
-  return GenerateListFormatParts(isolate, formatted, field_positions);
-}
 }  // namespace internal
 }  // namespace v8

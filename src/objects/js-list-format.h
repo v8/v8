@@ -106,7 +106,6 @@ class JSListFormat : public JSObject {
 
   // Layout description.
 #define JS_LIST_FORMAT_FIELDS(V)      \
-  V(kJSListFormatOffset, kTaggedSize) \
   V(kLocaleOffset, kTaggedSize)       \
   V(kICUFormatterOffset, kTaggedSize) \
   V(kFlagsOffset, kTaggedSize)        \
