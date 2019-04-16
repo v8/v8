@@ -92,7 +92,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
          .giveCompilationHint(kCompilationHintStrategyEager,
                               kCompilationHintTierDefault,
                               kCompilationHintTierOptimized)
-  let instance = builder.instantiate();
+  builder.instantiate();
 })();
 
 (function testDecodeCompilationHintsSectionTopTierDefault() {

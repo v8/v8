@@ -23,11 +23,12 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
                               kCompilationHintTierDefault)
          .exportFunc();
   let bytes = builder.toBuffer();
-  assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes), {mod: {pow: Math.pow}}).then(
-    ({module, instance}) => assertEquals(27, instance.exports.upow2(3))));
+  assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes),
+                                                       {mod: {pow: Math.pow}})
+    .then(({module, instance}) => assertEquals(27, instance.exports.upow2(3))));
 })();
 
-(function testInstantiateStreamingWithBadHint() {
+(function testInstantiateStreamingWithBadLazyHint() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
@@ -44,14 +45,16 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
                               kCompilationHintTierBaseline)
          .exportFunc();
   let bytes = builder.toBuffer();
-  assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes), {mod: {pow: Math.pow}}).then(
-    assertUnreachable,
-    error => assertEquals("WebAssembly.compile(): Invalid compilation hint 0x2d (forbidden downgrade) @+78", error.message)));
+  assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes),
+                                                       {mod: {pow: Math.pow}})
+    .then(assertUnreachable,
+          error => assertEquals("WebAssembly.compile(): Invalid compilation " +
+                                "hint 0x2d (forbidden downgrade) @+78",
+                                error.message)));
 })();
 
-(function testInstantiateStreamingWithBadFunctionBody() {
+(function testInstantiateStreamingWithBadLazyFunctionBody() {
   print(arguments.callee.name);
-  let invalidFunctionCode = 0x65;
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_f_ff);
   builder.addFunction('upow', kSig_i_i)
@@ -67,9 +70,11 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
                               kCompilationHintTierDefault)
          .exportFunc();
   let bytes = builder.toBuffer();
-  assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes), {mod: {pow: Math.pow}}).then(
-    assertUnreachable,
-    error => assertEquals("WebAssembly.compile(): call[1] expected type f32, found get_local of type i32 @+94", error.message)));
+  assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes),
+                                                       {mod: {pow: Math.pow}})
+    .then(assertUnreachable,
+          error => assertEquals("WebAssembly.compile(): call[1] expected " +
+          "type f32, found get_local of type i32 @+94", error.message)));
 })();
 
 (function testInstantiateStreamingEmptyModule() {
@@ -77,10 +82,11 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
   let bytes = builder.toBuffer();
-  assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes), {mod: {pow: Math.pow}}));
+  assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes),
+                                                       {mod: {pow: Math.pow}}));
 })();
 
-(function testInstantiateStreamingAllHintsLazy() {
+(function testInstantiateStreamingLazyModule() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
@@ -93,6 +99,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
                               kCompilationHintTierDefault)
          .exportFunc();
   let bytes = builder.toBuffer();
-  assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes), {mod: {pow: Math.pow}}).then(
-    ({module, instance}) => assertEquals(27, instance.exports.upow(3))));
+  assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes),
+                                                       {mod: {pow: Math.pow}})
+    .then(({module, instance}) => assertEquals(27, instance.exports.upow(3))));
 })();

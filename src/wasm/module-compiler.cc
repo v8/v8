@@ -507,16 +507,22 @@ const WasmCompilationHint* GetCompilationHint(const WasmModule* module,
 }
 
 bool IsLazyCompilation(const WasmModule* module,
-                       const NativeModule* native_module,
                        const WasmFeatures& enabled_features,
                        uint32_t func_index) {
-  if (native_module->lazy_compilation()) return true;
   if (enabled_features.compilation_hints) {
     const WasmCompilationHint* hint = GetCompilationHint(module, func_index);
     return hint != nullptr &&
            hint->strategy == WasmCompilationHintStrategy::kLazy;
   }
   return false;
+}
+
+bool IsLazyCompilation(const WasmModule* module,
+                       const NativeModule* native_module,
+                       const WasmFeatures& enabled_features,
+                       uint32_t func_index) {
+  if (native_module->lazy_compilation()) return true;
+  return IsLazyCompilation(module, enabled_features, func_index);
 }
 
 struct ExecutionTierPair {
@@ -805,59 +811,66 @@ bool ExecuteCompilationUnits(
   return true;
 }
 
-void ValidateSequentially(Counters* counters, AccountingAllocator* allocator,
-                          NativeModule* native_module, uint32_t func_index,
-                          ErrorThrower* thrower) {
-  DCHECK(!thrower->error());
-
-  const WasmModule* module = native_module->module();
-  ModuleWireBytes wire_bytes{native_module->wire_bytes()};
+DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
+                                    Vector<const uint8_t> code,
+                                    Counters* counters,
+                                    AccountingAllocator* allocator,
+                                    WasmFeatures enabled_features) {
   const WasmFunction* func = &module->functions[func_index];
-
-  Vector<const uint8_t> code = wire_bytes.GetFunctionBytes(func);
   FunctionBody body{func->sig, func->code.offset(), code.start(), code.end()};
   DecodeResult result;
   {
     auto time_counter = SELECT_WASM_COUNTER(counters, module->origin,
                                             wasm_decode, function_time);
-
     TimedHistogramScope wasm_decode_function_time_scope(time_counter);
     WasmFeatures detected;
-    result = VerifyWasmCode(allocator, native_module->enabled_features(),
-                            module, &detected, body);
+    result =
+        VerifyWasmCode(allocator, enabled_features, module, &detected, body);
   }
-  if (result.failed()) {
-    WasmName name = wire_bytes.GetNameOrNull(func, module);
-    if (name.start() == nullptr) {
-      thrower->CompileError("Compiling function #%d failed: %s @+%u",
-                            func_index, result.error().message().c_str(),
-                            result.error().offset());
-    } else {
-      TruncatedUserString<> name(wire_bytes.GetNameOrNull(func, module));
-      thrower->CompileError("Compiling function #%d:\"%.*s\" failed: %s @+%u",
-                            func_index, name.length(), name.start(),
-                            result.error().message().c_str(),
-                            result.error().offset());
+  return result;
+}
+
+enum class OnlyLazyFunctions : bool { kNo = false, kYes = true };
+
+void ValidateSequentially(
+    const WasmModule* module, NativeModule* native_module, Counters* counters,
+    AccountingAllocator* allocator, ErrorThrower* thrower,
+    OnlyLazyFunctions only_lazy_functions = OnlyLazyFunctions ::kNo) {
+  DCHECK(!thrower->error());
+  uint32_t start = module->num_imported_functions;
+  uint32_t end = start + module->num_declared_functions;
+  auto enabled_features = native_module->enabled_features();
+  for (uint32_t func_index = start; func_index < end; func_index++) {
+    // Skip non-lazy functions if requested.
+    if (only_lazy_functions == OnlyLazyFunctions::kYes &&
+        !IsLazyCompilation(module, native_module, enabled_features,
+                           func_index)) {
+      continue;
+    }
+    ModuleWireBytes wire_bytes{native_module->wire_bytes()};
+    const WasmFunction* func = &module->functions[func_index];
+    Vector<const uint8_t> code = wire_bytes.GetFunctionBytes(func);
+    DecodeResult result = ValidateSingleFunction(
+        module, func_index, code, counters, allocator, enabled_features);
+
+    if (result.failed()) {
+      WasmName name = wire_bytes.GetNameOrNull(func, module);
+      if (name.start() == nullptr) {
+        thrower->CompileError(
+            "Compiling function #%d failed: %s @+%u", func->func_index,
+            result.error().message().c_str(), result.error().offset());
+      } else {
+        TruncatedUserString<> name(wire_bytes.GetNameOrNull(func, module));
+        thrower->CompileError("Compiling function #%d:\"%.*s\" failed: %s @+%u",
+                              func->func_index, name.length(), name.start(),
+                              result.error().message().c_str(),
+                              result.error().offset());
+      }
     }
   }
 }
 
-void ValidateSequentially(Counters* counters, AccountingAllocator* allocator,
-                          NativeModule* native_module, ErrorThrower* thrower) {
-  DCHECK(!thrower->error());
-
-  uint32_t start = native_module->module()->num_imported_functions;
-  uint32_t end = start + native_module->module()->num_declared_functions;
-  for (uint32_t func_index = start; func_index < end; func_index++) {
-    ValidateSequentially(counters, allocator, native_module, func_index,
-                         thrower);
-    if (thrower->error()) break;
-  }
-}
-
-// TODO(wasm): This function should not depend on an isolate. Internally, it is
-// used for the ErrorThrower only.
-bool InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
+void InitializeCompilationUnits(NativeModule* native_module) {
   // Set number of functions that must be compiled to consider the module fully
   // compiled.
   auto wasm_module = native_module->module();
@@ -870,7 +883,6 @@ bool InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
   compilation_state->SetNumberOfFunctionsToCompile(num_functions,
                                                    num_lazy_functions);
 
-  ErrorThrower thrower(isolate, "WebAssembly.compile()");
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const WasmModule* module = native_module->module();
   CompilationUnitBuilder builder(native_module);
@@ -879,21 +891,12 @@ bool InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
   for (uint32_t func_index = start; func_index < end; func_index++) {
     if (IsLazyCompilation(module, native_module,
                           native_module->enabled_features(), func_index)) {
-      ValidateSequentially(isolate->counters(), isolate->allocator(),
-                           native_module, func_index, &thrower);
       native_module->UseLazyStub(func_index);
     } else {
       builder.AddUnits(func_index);
     }
   }
   builder.Commit();
-
-  // Handle potential errors internally.
-  if (thrower.error()) {
-    thrower.Reset();
-    return false;
-  }
-  return true;
 }
 
 bool NeedsDeterministicCompile() {
@@ -914,14 +917,22 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
       // TODO(clemensh): According to the spec, we can actually skip validation
       // at module creation time, and return a function that always traps at
       // (lazy) compilation time.
-      ValidateSequentially(isolate->counters(), isolate->allocator(),
-                           native_module, thrower);
+      ValidateSequentially(wasm_module, native_module, isolate->counters(),
+                           isolate->allocator(), thrower);
       // On error: Return and leave the module in an unexecutable state.
       if (thrower->error()) return;
     }
     native_module->set_lazy_compilation(true);
     native_module->UseLazyStubs();
     return;
+  }
+
+  if (native_module->enabled_features().compilation_hints) {
+    ValidateSequentially(wasm_module, native_module, isolate->counters(),
+                         isolate->allocator(), thrower,
+                         OnlyLazyFunctions::kYes);
+    // On error: Return and leave the module in an unexecutable state.
+    if (thrower->error()) return;
   }
 
   // Turn on the {CanonicalHandleScope} so that the background threads can
@@ -944,11 +955,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
       });
 
   // Initialize the compilation units and kick off background compile tasks.
-  if (!InitializeCompilationUnits(isolate, native_module)) {
-    // TODO(frgossen): Add test coverage for this path.
-    DCHECK(native_module->enabled_features().compilation_hints);
-    compilation_state->SetError();
-  }
+  InitializeCompilationUnits(native_module);
 
   // If tiering is disabled, the main thread can execute any unit (all of them
   // are part of initial compilation). Otherwise, just execute baseline units.
@@ -971,8 +978,8 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
   compilation_state->PublishDetectedFeatures(isolate);
 
   if (compilation_state->failed()) {
-    ValidateSequentially(isolate->counters(), isolate->allocator(),
-                         native_module, thrower);
+    ValidateSequentially(wasm_module, native_module, isolate->counters(),
+                         isolate->allocator(), thrower);
     CHECK(thrower->error());
   }
 }
@@ -1235,8 +1242,8 @@ void AsyncCompileJob::DecodeFailed(const WasmError& error) {
 
 void AsyncCompileJob::AsyncCompileFailed() {
   ErrorThrower thrower(isolate_, "WebAssembly.compile()");
-  ValidateSequentially(isolate_->counters(), isolate_->allocator(),
-                       native_module_.get(), &thrower);
+  ValidateSequentially(native_module_->module(), native_module_.get(),
+                       isolate_->counters(), isolate_->allocator(), &thrower);
   DCHECK(thrower.error());
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
@@ -1431,6 +1438,30 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
           job->enabled_features_, job->wire_bytes_.start(),
           job->wire_bytes_.end(), false, kWasmOrigin, counters_,
           job->isolate()->wasm_engine()->allocator());
+
+      // Validate lazy functions here.
+      auto enabled_features = job->enabled_features_;
+      if (enabled_features.compilation_hints && result.ok()) {
+        const WasmModule* module = result.value().get();
+        auto allocator = job->isolate()->wasm_engine()->allocator();
+        int start = module->num_imported_functions;
+        int end = start + module->num_declared_functions;
+
+        for (int func_index = start; func_index < end; func_index++) {
+          const WasmFunction* func = &module->functions[func_index];
+          Vector<const uint8_t> code = job->wire_bytes_.GetFunctionBytes(func);
+
+          if (IsLazyCompilation(module, enabled_features, func_index)) {
+            DecodeResult function_result =
+                ValidateSingleFunction(module, func_index, code, counters_,
+                                       allocator, enabled_features);
+            if (function_result.failed()) {
+              result = ModuleResult(function_result.error());
+              break;
+            }
+          }
+        }
+      }
     }
     if (result.failed()) {
       // Decoding failure; reject the promise and clean up.
@@ -1494,14 +1525,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // then DoAsync would do the same as NextStep already.
 
       // Add compilation units and kick off compilation.
-      auto isolate = job->isolate();
-      bool success =
-          InitializeCompilationUnits(isolate, job->native_module_.get());
-      if (!success) {
-        // TODO(frgossen): Add test coverage for this path.
-        DCHECK(job->native_module_->enabled_features().compilation_hints);
-        job->DoSync<CompileFailed>();
-      }
+      InitializeCompilationUnits(job->native_module_.get());
     }
   }
 };
@@ -1698,34 +1722,24 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
 
   NativeModule* native_module = job_->native_module_.get();
   const WasmModule* module = native_module->module();
+  auto enabled_features = native_module->enabled_features();
   uint32_t func_index =
       num_functions_ + decoder_.module()->num_imported_functions;
 
-  if (IsLazyCompilation(module, native_module,
-                        native_module->enabled_features(), func_index)) {
-    // TODO(frgossen): Unify this code with {ValidateSequentially}. Note, that
-    // the native moudle does not own the wire bytes until {SetWireBytes} is
-    // called in {OnFinishedStream}. Validation must threfore use the {bytes}
-    // parameter.
-    const WasmFunction* func = &module->functions[func_index];
-    FunctionBody body{func->sig, func->code.offset(), bytes.start(),
-                      bytes.end()};
-    DecodeResult result;
-    {
-      Counters* counters = Impl(native_module->compilation_state())->counters();
-      auto time_counter = SELECT_WASM_COUNTER(counters, module->origin,
-                                              wasm_decode, function_time);
+  if (IsLazyCompilation(module, native_module, enabled_features, func_index)) {
+    Counters* counters = Impl(native_module->compilation_state())->counters();
+    AccountingAllocator* allocator = native_module->engine()->allocator();
 
-      TimedHistogramScope wasm_decode_function_time_scope(time_counter);
-      WasmFeatures detected;
-      result = VerifyWasmCode(native_module->engine()->allocator(),
-                              native_module->enabled_features(), module,
-                              &detected, body);
-    }
+    // The native module does not own the wire bytes until {SetWireBytes} is
+    // called in {OnFinishedStream}. Validation must use {bytes} parameter.
+    DecodeResult result = ValidateSingleFunction(
+        module, func_index, bytes, counters, allocator, enabled_features);
+
     if (result.failed()) {
       FinishAsyncCompileJobWithError(result.error());
       return false;
     }
+
     native_module->UseLazyStub(func_index);
   } else {
     compilation_unit_builder_->AddUnits(func_index);
