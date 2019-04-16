@@ -603,8 +603,24 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
     DCHECK_NE(native_modules_.end(), it);
     for (Isolate* isolate : it->second->isolates) {
       DCHECK_EQ(1, isolates_.count(isolate));
-      DCHECK_EQ(1, isolates_[isolate]->native_modules.count(native_module));
-      isolates_[isolate]->native_modules.erase(native_module);
+      IsolateInfo* info = isolates_[isolate].get();
+      DCHECK_EQ(1, info->native_modules.count(native_module));
+      info->native_modules.erase(native_module);
+      // If there are {WasmCode} objects of the deleted {NativeModule}
+      // outstanding to be logged in this isolate, remove them. Decrementing the
+      // ref count is not needed, since the {NativeModule} dies anyway.
+      size_t remaining = info->code_to_log.size();
+      if (remaining > 0) {
+        for (size_t i = 0; i < remaining; ++i) {
+          while (i < remaining &&
+                 info->code_to_log[i]->native_module() == native_module) {
+            // Move the last remaining item to this slot (this can be the same
+            // as {i}, which is OK).
+            info->code_to_log[i] = info->code_to_log[--remaining];
+          }
+        }
+        info->code_to_log.resize(remaining);
+      }
     }
     native_modules_.erase(it);
   }
