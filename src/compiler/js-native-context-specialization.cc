@@ -400,16 +400,12 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   Handle<Map> receiver_map(receiver->map(), isolate());
 
   // Compute property access info for @@hasInstance on the constructor.
-  PropertyAccessInfo access_info;
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  if (!access_info_factory.ComputePropertyAccessInfo(
-          receiver_map, factory()->has_instance_symbol(), AccessMode::kLoad,
-          &access_info)) {
-    return NoChange();
-  }
-  DCHECK_EQ(access_info.receiver_maps().size(), 1);
-  DCHECK_EQ(access_info.receiver_maps()[0].address(), receiver_map.address());
+  PropertyAccessInfo access_info =
+      access_info_factory.ComputePropertyAccessInfo(
+          receiver_map, factory()->has_instance_symbol(), AccessMode::kLoad);
+  if (access_info.IsInvalid()) return NoChange();
 
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
 
@@ -729,19 +725,17 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   }
 
   // Compute property access info for "then" on {resolution}.
-  PropertyAccessInfo access_info;
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  if (!access_info_factory.ComputePropertyAccessInfo(
+  PropertyAccessInfo access_info =
+      access_info_factory.ComputePropertyAccessInfo(
           MapHandles(resolution_maps.begin(), resolution_maps.end()),
-          factory()->then_string(), AccessMode::kLoad, &access_info)) {
-    return NoChange();
-  }
+          factory()->then_string(), AccessMode::kLoad);
+  if (access_info.IsInvalid()) return NoChange();
 
   // We can further optimize the case where {resolution}
   // definitely doesn't have a "then" property.
   if (!access_info.IsNotFound()) return NoChange();
-  PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
 
   dependencies()->DependOnStablePrototypeChains(
       access_info.receiver_maps(),
@@ -1094,16 +1088,13 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // Compute property access infos for the receiver maps.
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
+  ZoneVector<PropertyAccessInfo> raw_access_infos(zone());
+  access_info_factory.ComputePropertyAccessInfos(
+      receiver_maps, name.object(), access_mode, &raw_access_infos);
   ZoneVector<PropertyAccessInfo> access_infos(zone());
-  if (!access_info_factory.ComputePropertyAccessInfos(
-          receiver_maps, name.object(), access_mode, &access_infos)) {
+  if (!access_info_factory.FinalizePropertyAccessInfos(
+          raw_access_infos, access_mode, &access_infos)) {
     return NoChange();
-  }
-
-  // Nothing to do if we have no non-deprecated maps.
-  if (access_infos.empty()) {
-    return ReduceSoftDeoptimize(
-        node, DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
   }
 
   // Ensure that {key} matches the specified {name} (if {key} is given).
@@ -2462,14 +2453,12 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
       handle(Name::cast(nexus.GetFeedbackExtra()->GetHeapObjectAssumeStrong()),
              isolate()));
 
-  PropertyAccessInfo access_info;
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  if (!access_info_factory.ComputePropertyAccessInfo(
-          receiver_map, cached_name.object(), AccessMode::kStoreInLiteral,
-          &access_info)) {
-    return NoChange();
-  }
+  PropertyAccessInfo access_info =
+      access_info_factory.ComputePropertyAccessInfo(
+          receiver_map, cached_name.object(), AccessMode::kStoreInLiteral);
+  if (access_info.IsInvalid()) return NoChange();
 
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
