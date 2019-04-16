@@ -108,6 +108,7 @@ from __future__ import print_function
 from functools import reduce
 
 from collections import OrderedDict
+import copy
 import datetime
 import json
 import logging
@@ -122,6 +123,7 @@ import traceback
 from testrunner.local import android
 from testrunner.local import command
 from testrunner.local import utils
+from testrunner.objects.output import Output
 
 try:
   basestring       # Python 2
@@ -205,9 +207,9 @@ class Measurement(object):
     self.stddev = ''
     self.process_size = False
 
-  def ConsumeOutput(self, stdout):
+  def ConsumeOutput(self, output):
     try:
-      result = re.search(self.results_regexp, stdout, re.M).group(1)
+      result = re.search(self.results_regexp, output.stdout, re.M).group(1)
       self.results.append(str(float(result)))
     except ValueError:
       self.errors.append('Regexp "%s" returned a non-numeric for test %s.'
@@ -221,7 +223,8 @@ class Measurement(object):
         self.errors.append('Test %s should only run once since a stddev '
                            'is provided by the test.' % self.name)
       if self.stddev_regexp:
-        self.stddev = re.search(self.stddev_regexp, stdout, re.M).group(1)
+        self.stddev = re.search(
+            self.stddev_regexp, output.stdout, re.M).group(1)
     except:
       self.errors.append('Regexp "%s" did not match for test %s.'
                          % (self.stddev_regexp, self.name))
@@ -239,7 +242,7 @@ class NullMeasurement(object):
   """Null object to avoid having extra logic for configurations that don't
   require secondary run, e.g. CI bots.
   """
-  def ConsumeOutput(self, stdout):
+  def ConsumeOutput(self, output):
     pass
 
   def GetResults(self):
@@ -255,10 +258,10 @@ def Unzip(iterable):
   return lambda: iter(left), lambda: iter(right)
 
 
-def RunResultsProcessor(results_processor, stdout, count):
+def RunResultsProcessor(results_processor, output, count):
   # Dummy pass through for null-runs.
-  if stdout is None:
-    return None
+  if output is None or output.stdout is None:
+    return output
 
   # We assume the results processor is relative to the suite.
   assert os.path.exists(results_processor)
@@ -268,13 +271,14 @@ def RunResultsProcessor(results_processor, stdout, count):
       stdout=subprocess.PIPE,
       stderr=subprocess.PIPE,
   )
-  result, _ = p.communicate(input=stdout)
-  logging.info('>>> Processed stdout (#%d):\n%s', count, result)
-  return result
+  new_output = copy.copy(output)
+  new_output.stdout, _ = p.communicate(input=output.stdout)
+  logging.info('>>> Processed stdout (#%d):\n%s', count, output.stdout)
+  return new_output
 
 
 def AccumulateResults(
-    graph_names, trace_configs, iter_output, perform_measurement, calc_total):
+    graph_names, trace_configs, output_iter, perform_measurement, calc_total):
   """Iterates over the output of multiple benchmark reruns and accumulates
   results for a configured list of traces.
 
@@ -283,7 +287,7 @@ def AccumulateResults(
                  ['v8', 'Octane'].
     trace_configs: List of 'TraceConfig' instances. Each trace config defines
                    how to perform a measurement.
-    iter_output: Iterator over the standard output of each test run.
+    output_iter: Iterator over the output of each test run.
     perform_measurement: Whether to actually run tests and perform measurements.
                          This is needed so that we reuse this script for both CI
                          and trybot, but want to ignore second run on CI without
@@ -293,9 +297,9 @@ def AccumulateResults(
   """
   measurements = [
     trace.CreateMeasurement(perform_measurement) for trace in trace_configs]
-  for stdout in iter_output():
+  for output in output_iter():
     for measurement in measurements:
-      measurement.ConsumeOutput(stdout)
+      measurement.ConsumeOutput(output)
 
   res = reduce(lambda r, m: r + m.GetResults(), measurements, Results())
 
@@ -322,7 +326,7 @@ def AccumulateResults(
   return res
 
 
-def AccumulateGenericResults(graph_names, suite_units, iter_output):
+def AccumulateGenericResults(graph_names, suite_units, output_iter):
   """Iterates over the output of multiple benchmark reruns and accumulates
   generic results.
 
@@ -330,15 +334,15 @@ def AccumulateGenericResults(graph_names, suite_units, iter_output):
     graph_names: List of names that configure the base path of the traces. E.g.
                  ['v8', 'Octane'].
     suite_units: Measurement default units as defined by the benchmark suite.
-    iter_output: Iterator over the standard output of each test run.
+    output_iter: Iterator over the output of each test run.
   Returns: A 'Results' object.
   """
   traces = OrderedDict()
-  for stdout in iter_output():
-    if stdout is None:
+  for output in output_iter():
+    if output is None:
       # The None value is used as a null object to simplify logic.
       continue
-    for line in stdout.strip().splitlines():
+    for line in output.stdout.strip().splitlines():
       match = GENERIC_RESULTS_RE.match(line)
       if match:
         stddev = ''
@@ -497,14 +501,14 @@ class RunnableConfig(GraphConfig):
   def main(self):
     return self._suite.get('main', '')
 
-  def PostProcess(self, stdouts_iter):
+  def PostProcess(self, outputs_iter):
     if self.results_processor:
       def it():
-        for i, stdout in enumerate(stdouts_iter()):
-          yield RunResultsProcessor(self.results_processor, stdout, i + 1)
+        for i, output in enumerate(outputs_iter()):
+          yield RunResultsProcessor(self.results_processor, output, i + 1)
       return it
     else:
-      return stdouts_iter
+      return outputs_iter
 
   def ChangeCWD(self, suite_path):
     """Changes the cwd to to path defined in the current graph.
@@ -539,19 +543,19 @@ class RunnableConfig(GraphConfig):
 
   def Run(self, runner, trybot):
     """Iterates over several runs and handles the output for all traces."""
-    stdout, stdout_secondary = Unzip(runner())
+    output, output_secondary = Unzip(runner())
     return (
         AccumulateResults(
             self.graphs,
             self._children,
-            iter_output=self.PostProcess(stdout),
+            output_iter=self.PostProcess(output),
             perform_measurement=True,
             calc_total=self.total,
         ),
         AccumulateResults(
             self.graphs,
             self._children,
-            iter_output=self.PostProcess(stdout_secondary),
+            output_iter=self.PostProcess(output_secondary),
             perform_measurement=trybot,  # only run second time on trybots
             calc_total=self.total,
         ),
@@ -567,9 +571,9 @@ class RunnableTraceConfig(TraceConfig, RunnableConfig):
     """Iterates over several runs and handles the output."""
     measurement = self.CreateMeasurement(perform_measurement=True)
     measurement_secondary = self.CreateMeasurement(perform_measurement=trybot)
-    for stdout, stdout_secondary in runner():
-      measurement.ConsumeOutput(stdout)
-      measurement_secondary.ConsumeOutput(stdout_secondary)
+    for output, output_secondary in runner():
+      measurement.ConsumeOutput(output)
+      measurement_secondary.ConsumeOutput(output_secondary)
     return (
         measurement.GetResults(),
         measurement_secondary.GetResults(),
@@ -582,10 +586,10 @@ class RunnableGenericConfig(RunnableConfig):
     super(RunnableGenericConfig, self).__init__(suite, parent, arch)
 
   def Run(self, runner, trybot):
-    stdout, stdout_secondary = Unzip(runner())
+    output, output_secondary = Unzip(runner())
     return (
-        AccumulateGenericResults(self.graphs, self.units, stdout),
-        AccumulateGenericResults(self.graphs, self.units, stdout_secondary),
+        AccumulateGenericResults(self.graphs, self.units, output),
+        AccumulateGenericResults(self.graphs, self.units, output_secondary),
     )
 
 
@@ -675,7 +679,11 @@ class Platform(object):
     runnable_duration = datetime.datetime.utcnow() - runnable_start_time
     if runnable_duration.total_seconds() > 0.9 * runnable.timeout:
       runnable.has_near_timeouts = True
-    return stdout
+    # TODO(sergiyb): Move creating this object closer to the actual command
+    # execution and popupate more fields with actual data.
+    return Output(
+        exit_code=0, timed_out=False, stdout=stdout, stderr=None, pid=None,
+        duration=runnable_duration)
 
   def Run(self, runnable, count):
     """Execute the benchmark's main file.
@@ -688,11 +696,11 @@ class Platform(object):
     Returns: A tuple with the two benchmark outputs. The latter will be None if
              options.shell_dir_secondary was not specified.
     """
-    stdout = self._TimedRun(runnable, count, secondary=False)
+    output = self._TimedRun(runnable, count, secondary=False)
     if self.shell_dir_secondary:
-      return stdout, self._TimedRun(runnable, count, secondary=True)
+      return output, self._TimedRun(runnable, count, secondary=True)
     else:
-      return stdout, None
+      return output, None
 
 
 class DesktopPlatform(Platform):

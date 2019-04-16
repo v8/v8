@@ -456,10 +456,12 @@ class PerfTest(unittest.TestCase):
     mock.patch('run_perf.AndroidPlatform.PreExecution').start()
     mock.patch('run_perf.AndroidPlatform.PostExecution').start()
     mock.patch('run_perf.AndroidPlatform.PreTests').start()
+    mock_output = Output(
+        stdout='Richards: 1.234\nDeltaBlue: 10657567\n', stderr=None,
+        timed_out=False, exit_code=0)
     mock.patch(
         'run_perf.AndroidPlatform.Run',
-        return_value=(
-            'Richards: 1.234\nDeltaBlue: 10657567\n', None)).start()
+        return_value=(mock_output, None)).start()
     mock.patch('testrunner.local.android._Driver', autospec=True).start()
     mock.patch(
         'run_perf.Platform.ReadBuildConfig',
