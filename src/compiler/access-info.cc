@@ -324,7 +324,11 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   MapRef map_ref(broker(), map);
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
+#ifdef V8_COMPRESS_POINTERS
+    field_representation = MachineRepresentation::kCompressedSigned;
+#else
     field_representation = MachineRepresentation::kTaggedSigned;
+#endif
     map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
     dependencies()->DependOnFieldRepresentation(map_ref, number);
   } else if (details_representation.IsDouble()) {

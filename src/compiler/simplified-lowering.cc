@@ -1108,6 +1108,10 @@ class RepresentationSelector {
     if (IsAnyTagged(rep)) {
       return MachineType::AnyTagged();
     }
+    // Do not distinguish between various Compressed variations.
+    if (IsAnyCompressed(rep)) {
+      return MachineType::AnyCompressed();
+    }
     // Word64 representation is only valid for safe integer values.
     if (rep == MachineRepresentation::kWord64) {
       DCHECK(type.Is(TypeCache::Get()->kSafeInteger));

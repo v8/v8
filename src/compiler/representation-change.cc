@@ -601,6 +601,27 @@ Node* RepresentationChanger::GetCompressedSignedRepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedSigned);
     }
+  } else if (output_rep == MachineRepresentation::kBit) {
+    // TODO(v8:8977): specialize here and below
+    node = GetTaggedSignedRepresentationFor(node, output_rep, output_type,
+                                            use_node, use_info);
+    op = machine()->ChangeTaggedSignedToCompressedSigned();
+  } else if (IsWord(output_rep)) {
+    node = GetTaggedSignedRepresentationFor(node, output_rep, output_type,
+                                            use_node, use_info);
+    op = machine()->ChangeTaggedSignedToCompressedSigned();
+  } else if (output_rep == MachineRepresentation::kWord64) {
+    node = GetTaggedSignedRepresentationFor(node, output_rep, output_type,
+                                            use_node, use_info);
+    op = machine()->ChangeTaggedSignedToCompressedSigned();
+  } else if (output_rep == MachineRepresentation::kFloat32) {
+    node = GetTaggedSignedRepresentationFor(node, output_rep, output_type,
+                                            use_node, use_info);
+    op = machine()->ChangeTaggedSignedToCompressedSigned();
+  } else if (output_rep == MachineRepresentation::kFloat64) {
+    node = GetTaggedSignedRepresentationFor(node, output_rep, output_type,
+                                            use_node, use_info);
+    op = machine()->ChangeTaggedSignedToCompressedSigned();
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kCompressedSigned);
@@ -735,6 +756,12 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
     node = jsgraph()->graph()->NewNode(op, node);
     return GetFloat32RepresentationFor(node, MachineRepresentation::kTagged,
                                        output_type, truncation);
+  } else if (output_rep == MachineRepresentation::kCompressedSigned) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedSignedToTaggedSigned();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetFloat32RepresentationFor(
+        node, MachineRepresentation::kTaggedSigned, output_type, truncation);
   } else if (output_rep == MachineRepresentation::kFloat64) {
     op = machine()->TruncateFloat64ToFloat32();
   } else if (output_rep == MachineRepresentation::kWord64) {
@@ -827,6 +854,13 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     op = machine()->ChangeCompressedToTagged();
     node = jsgraph()->graph()->NewNode(op, node);
     return GetFloat64RepresentationFor(node, MachineRepresentation::kTagged,
+                                       output_type, use_node, use_info);
+  } else if (output_rep == MachineRepresentation::kCompressedSigned) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedSignedToTaggedSigned();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetFloat64RepresentationFor(node,
+                                       MachineRepresentation::kTaggedSigned,
                                        output_type, use_node, use_info);
   } else if (output_rep == MachineRepresentation::kFloat32) {
     op = machine()->ChangeFloat32ToFloat64();
@@ -982,6 +1016,13 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     node = jsgraph()->graph()->NewNode(op, node);
     return GetWord32RepresentationFor(node, MachineRepresentation::kTagged,
                                       output_type, use_node, use_info);
+  } else if (output_rep == MachineRepresentation::kCompressedSigned) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedSignedToTaggedSigned();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetWord32RepresentationFor(node,
+                                      MachineRepresentation::kTaggedSigned,
+                                      output_type, use_node, use_info);
   } else if (output_rep == MachineRepresentation::kWord32) {
     // Only the checked case should get here, the non-checked case is
     // handled in GetRepresentationFor.
@@ -1100,6 +1141,12 @@ Node* RepresentationChanger::GetBitRepresentationFor(
     op = machine()->ChangeCompressedToTagged();
     node = jsgraph()->graph()->NewNode(op, node);
     return GetBitRepresentationFor(node, MachineRepresentation::kTagged,
+                                   output_type);
+  } else if (output_rep == MachineRepresentation::kCompressedSigned) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedSignedToTaggedSigned();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetBitRepresentationFor(node, MachineRepresentation::kTaggedSigned,
                                    output_type);
   } else if (IsWord(output_rep)) {
     node = jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
@@ -1236,6 +1283,13 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     op = machine()->ChangeCompressedToTagged();
     node = jsgraph()->graph()->NewNode(op, node);
     return GetWord64RepresentationFor(node, MachineRepresentation::kTagged,
+                                      output_type, use_node, use_info);
+  } else if (output_rep == MachineRepresentation::kCompressedSigned) {
+    // TODO(v8:8977): Specialise here
+    op = machine()->ChangeCompressedSignedToTaggedSigned();
+    node = jsgraph()->graph()->NewNode(op, node);
+    return GetWord64RepresentationFor(node,
+                                      MachineRepresentation::kTaggedSigned,
                                       output_type, use_node, use_info);
   } else {
     return TypeError(node, output_rep, output_type,
