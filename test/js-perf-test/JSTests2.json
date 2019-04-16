@@ -1,5 +1,5 @@
 {
-  "owners": ["jarin@chromium.org", "mvstanston@chromium.org"],
+  "owners": ["jarin@chromium.org", "mvstanton@chromium.org"],
   "name": "JSTests",
   "run_count": 3,
   "run_count_arm": 1,
@@ -54,6 +54,8 @@
     {
       "name": "Array",
       "path": ["Array"],
+      "timeout": 180,
+      "timeout_arm64": 360,
       "main": "run.js",
       "resources": [
         "filter.js", "map.js", "every.js", "join.js", "some.js", "reduce.js",
