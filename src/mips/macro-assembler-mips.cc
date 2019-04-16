@@ -1458,6 +1458,21 @@ void TurboAssembler::AddPair(Register dst_low, Register dst_high,
   Move(dst_low, scratch1);
 }
 
+void TurboAssembler::AddPair(Register dst_low, Register dst_high,
+                             Register left_low, Register left_high,
+                             int32_t imm,
+                             Register scratch1, Register scratch2) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Register scratch3 = t8;
+  li(dst_low, Operand(imm));
+  sra(dst_high, dst_low, 31);
+  Addu(scratch1, left_low, dst_low);
+  Sltu(scratch3, scratch1, left_low);
+  Addu(scratch2, left_high, dst_high);
+  Addu(dst_high, scratch2, scratch3);
+  Move(dst_low, scratch1);
+}
+
 void TurboAssembler::SubPair(Register dst_low, Register dst_high,
                              Register left_low, Register left_high,
                              Register right_low, Register right_high,

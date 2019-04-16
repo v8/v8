@@ -549,6 +549,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                Register left_high, Register right_low, Register right_high,
                Register scratch1, Register scratch2);
 
+  void AddPair(Register dst_low, Register dst_high, Register left_low,
+               Register left_high, int32_t imm,
+               Register scratch1, Register scratch2);
+
   void SubPair(Register dst_low, Register dst_high, Register left_low,
                Register left_high, Register right_low, Register right_high,
                Register scratch1, Register scratch2);
