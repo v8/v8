@@ -257,3 +257,12 @@ var arr = ['a'];
 Object.preventExtensions(arr);
 arr[0] = 'b';
 assertEquals(arr[0], 'b');
+
+// Test regression Array.concat with double
+var arr = ['a'];
+Object.preventExtensions(arr);
+arr = arr.concat(0.5);
+assertEquals(arr, ['a', 0.5]);
+Object.preventExtensions(arr);
+arr = arr.concat([1.5, 'b']);
+assertEquals(arr, ['a', 0.5, 1.5, 'b']);

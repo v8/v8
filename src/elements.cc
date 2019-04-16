@@ -1353,7 +1353,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   static uint32_t GetEntryForIndexImpl(Isolate* isolate, JSObject holder,
                                        FixedArrayBase backing_store,
                                        uint32_t index, PropertyFilter filter) {
-    DCHECK(IsFastElementsKind(kind()) || IsFrozenOrSealedElementsKind(kind()));
+    DCHECK(IsFastElementsKind(kind()) ||
+           IsPackedFrozenOrSealedElementsKind(kind()));
     uint32_t length = Subclass::GetMaxIndex(holder, backing_store);
     if (IsHoleyElementsKind(kind())) {
       return index < length &&
@@ -2308,7 +2309,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
         // Hole here, since the {length} used here can be larger than
         // JSArray::length.
         if (IsSmiOrObjectElementsKind(Subclass::kind()) ||
-            IsFrozenOrSealedElementsKind(Subclass::kind())) {
+            IsPackedFrozenOrSealedElementsKind(Subclass::kind())) {
           auto elements = FixedArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
@@ -2333,7 +2334,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           return Just(false);
         }
       } else if (!IsObjectElementsKind(Subclass::kind()) &&
-                 !IsFrozenOrSealedElementsKind(Subclass::kind())) {
+                 !IsPackedFrozenOrSealedElementsKind(Subclass::kind())) {
         // Search for non-number, non-Undefined value, with either
         // PACKED_SMI_ELEMENTS, PACKED_DOUBLE_ELEMENTS, HOLEY_SMI_ELEMENTS or
         // HOLEY_DOUBLE_ELEMENTS. Guaranteed to return false, since these
@@ -2343,7 +2344,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
         // Search for non-number, non-Undefined value with either
         // PACKED_ELEMENTS or HOLEY_ELEMENTS.
         DCHECK(IsObjectElementsKind(Subclass::kind()) ||
-               IsFrozenOrSealedElementsKind(Subclass::kind()));
+               IsPackedFrozenOrSealedElementsKind(Subclass::kind()));
         auto elements = FixedArray::cast(receiver->elements());
 
         for (uint32_t k = start_from; k < length; ++k) {
@@ -2638,7 +2639,7 @@ class FastSmiOrObjectElementsAccessor
 
     // Only FAST_{,HOLEY_}ELEMENTS can store non-numbers.
     if (!value->IsNumber() && !IsObjectElementsKind(Subclass::kind()) &&
-        !IsFrozenOrSealedElementsKind(Subclass::kind())) {
+        !IsPackedFrozenOrSealedElementsKind(Subclass::kind())) {
       return Just<int64_t>(-1);
     }
     // NaN can never be found by strict equality.

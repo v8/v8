@@ -752,7 +752,8 @@ ElementsKind JSObject::GetElementsKind() const {
       DCHECK(fixed_array->IsFixedArray());
       DCHECK(fixed_array->IsDictionary());
     } else {
-      DCHECK(kind > DICTIONARY_ELEMENTS || IsFrozenOrSealedElementsKind(kind));
+      DCHECK(kind > DICTIONARY_ELEMENTS ||
+             IsPackedFrozenOrSealedElementsKind(kind));
     }
     DCHECK(!IsSloppyArgumentsElementsKind(kind) ||
            (elements()->IsFixedArray() && elements()->length() >= 2));
@@ -796,7 +797,7 @@ bool JSObject::HasPackedElements() {
 }
 
 bool JSObject::HasFrozenOrSealedElements() {
-  return IsFrozenOrSealedElementsKind(GetElementsKind());
+  return IsPackedFrozenOrSealedElementsKind(GetElementsKind());
 }
 
 bool JSObject::HasFastArgumentsElements() {
