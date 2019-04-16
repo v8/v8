@@ -1015,7 +1015,8 @@ def Main(args):
 
   (options, args) = parser.parse_args(args)
 
-  logging.basicConfig(level=logging.INFO, format='%(levelname)-8s  %(message)s')
+  logging.basicConfig(
+      level=logging.INFO, format='%(asctime)s %(levelname)-8s  %(message)s')
 
   if len(args) == 0:  # pragma: no cover
     parser.print_help()
