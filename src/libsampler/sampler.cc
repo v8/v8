@@ -434,6 +434,22 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->sp = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[15]);
   state->fp = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[11]);
 #endif  // V8_HOST_ARCH_*
+#elif V8_OS_IOS
+
+#if V8_TARGET_ARCH_ARM64
+  // Building for the iOS device.
+  state->pc = reinterpret_cast<void*>(mcontext->__ss.__pc);
+  state->sp = reinterpret_cast<void*>(mcontext->__ss.__sp);
+  state->fp = reinterpret_cast<void*>(mcontext->__ss.__fp);
+#elif V8_TARGET_ARCH_X64
+  // Building for the iOS simulator.
+  state->pc = reinterpret_cast<void*>(mcontext->__ss.__rip);
+  state->sp = reinterpret_cast<void*>(mcontext->__ss.__rsp);
+  state->fp = reinterpret_cast<void*>(mcontext->__ss.__rbp);
+#else
+#error Unexpected iOS target architecture.
+#endif  // V8_TARGET_ARCH_ARM64
+
 #elif V8_OS_MACOSX
 #if V8_HOST_ARCH_X64
   state->pc = reinterpret_cast<void*>(mcontext->__ss.__rip);
