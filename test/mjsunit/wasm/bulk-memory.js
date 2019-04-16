@@ -165,3 +165,74 @@ function getMemoryFill(mem) {
   const instance = builder.instantiate();
   assertTraps(kTrapElemSegmentDropped, () => instance.exports.drop());
 })();
+
+(function TestLazyDataSegmentBoundsCheck() {
+  const memory = new WebAssembly.Memory({initial: 1});
+  const view = new Uint8Array(memory.buffer);
+  const builder = new WasmModuleBuilder();
+  builder.addImportedMemory('m', 'memory', 1);
+  builder.addDataSegment(kPageSize - 1, [42, 42]);
+  builder.addDataSegment(0, [111, 111]);
+
+  assertEquals(0, view[kPageSize - 1]);
+
+  // Instantiation fails, but still modifies memory.
+  assertThrows(() => builder.instantiate({m: {memory}}), WebAssembly.LinkError);
+
+  assertEquals(42, view[kPageSize - 1]);
+  // The second segment is not initialized.
+  assertEquals(0, view[0]);
+})();
+
+(function TestLazyElementSegmentBoundsCheck() {
+  const table = new WebAssembly.Table({initial: 3, element: 'anyfunc'});
+  const builder = new WasmModuleBuilder();
+  builder.addImportedTable('m', 'table', 1);
+  const f = builder.addFunction('f', kSig_i_v).addBody([kExprI32Const, 42]);
+
+  const tableIndex = 0;
+  const isGlobal = false;
+  const isImport = true;
+  builder.addElementSegment(
+      tableIndex, 2, isGlobal, [f.index, f.index], isImport);
+  builder.addElementSegment(
+      tableIndex, 0, isGlobal, [f.index, f.index], isImport);
+
+  assertEquals(null, table.get(0));
+  assertEquals(null, table.get(1));
+  assertEquals(null, table.get(2));
+
+  // Instantiation fails, but still modifies the table.
+  assertThrows(() => builder.instantiate({m: {table}}), WebAssembly.LinkError);
+
+  // The second segment is not initialized.
+  assertEquals(null, table.get(0));
+  assertEquals(null, table.get(1));
+  assertEquals(42, table.get(2)());
+})();
+
+(function TestLazyDataAndElementSegments() {
+  const table = new WebAssembly.Table({initial: 1, element: 'anyfunc'});
+  const memory = new WebAssembly.Memory({initial: 1});
+  const view = new Uint8Array(memory.buffer);
+  const builder = new WasmModuleBuilder();
+
+  builder.addImportedMemory('m', 'memory', 1);
+  builder.addImportedTable('m', 'table', 1);
+  const f = builder.addFunction('f', kSig_i_v).addBody([kExprI32Const, 42]);
+
+  const tableIndex = 0;
+  const isGlobal = false;
+  const isImport = true;
+  builder.addElementSegment(
+      tableIndex, 0, isGlobal, [f.index, f.index], isImport);
+  builder.addDataSegment(0, [42]);
+
+  // Instantiation fails, but still modifies the table. The memory is not
+  // modified, since data segments are initialized after element segments.
+  assertThrows(
+      () => builder.instantiate({m: {memory, table}}), WebAssembly.LinkError);
+
+  assertEquals(42, table.get(0)());
+  assertEquals(0, view[0]);
+})();

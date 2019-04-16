@@ -898,12 +898,18 @@ class WasmModuleBuilder {
     }
     this.element_segments.push({table: table, base: base, is_global: is_global,
                                     array: array, is_active: true});
-    if (!is_global) {
+
+    // As a testing convenience, update the table length when adding an element
+    // segment. If the table is imported, we can't do this because we don't
+    // know how long the table actually is. If |is_global| is true, then the
+    // base is a global index, instead of an integer offset, so we can't update
+    // the table then either.
+    if (!(is_import || is_global)) {
       var length = base + array.length;
-      if (!is_import && length > this.tables[0].initial_size) {
+      if (length > this.tables[0].initial_size) {
         this.tables[0].initial_size = length;
       }
-      if (!is_import && this.tables[0].has_max &&
+      if (this.tables[0].has_max &&
           length > this.tables[0].max_size) {
         this.tables[0].max_size = length;
       }
