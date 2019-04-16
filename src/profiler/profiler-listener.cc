@@ -124,6 +124,10 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
       int position = it.source_position().ScriptOffset();
       int line_number = script->GetLineNumber(position) + 1;
       int inlining_id = it.source_position().InliningId();
+
+      // TODO(953309): Fix this.
+      if (line_number == 0) continue;
+
       line_table->SetPosition(it.code_offset(), line_number, inlining_id);
 
       if (inlining_id != SourcePosition::kNotInlined) {
