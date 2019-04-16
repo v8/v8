@@ -29,8 +29,6 @@ int WrappedMain(int argc, const char** argv) {
     files.emplace_back(argv[i]);
   }
 
-  SourceFileMap::Scope source_file_map_scope;
-
   TorqueCompilerOptions options;
   options.output_directory = output_directory;
   options.verbose = verbose;
@@ -39,6 +37,10 @@ int WrappedMain(int argc, const char** argv) {
 
   TorqueCompilerResult result = CompileTorque(files, options);
   if (result.error) {
+    // PositionAsString requires the SourceFileMap to be set to
+    // resolve the file name.
+    SourceFileMap::Scope source_file_map_scope(result.source_file_map);
+
     TorqueError& error = *result.error;
     if (error.position) std::cerr << PositionAsString(*error.position) << ": ";
     std::cerr << "Torque error: " << error.message << "\n";

@@ -66,15 +66,16 @@ namespace {
 void RecompileTorque() {
   Logger::Log("[info] Start compilation run ...\n");
 
-  LanguageServerData::Get() = LanguageServerData();
-  SourceFileMap::Get() = SourceFileMap();
-
   TorqueCompilerOptions options;
   options.output_directory = "";
   options.verbose = false;
   options.collect_language_server_data = true;
   options.abort_on_lint_errors = false;
-  CompileTorque(TorqueFileList::Get(), options);
+
+  TorqueCompilerResult result = CompileTorque(TorqueFileList::Get(), options);
+
+  LanguageServerData::Get() = result.language_server_data;
+  SourceFileMap::Get() = result.source_file_map;
 
   Logger::Log("[info] Finished compilation run ...\n");
 }

@@ -87,38 +87,55 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   if (LintErrorStatus::HasLintErrors()) std::abort();
 }
 
+TorqueCompilerResult CollectResultFromContextuals() {
+  TorqueCompilerResult result;
+  result.source_file_map = SourceFileMap::Get();
+  result.language_server_data = LanguageServerData::Get();
+  return result;
+}
+
+TorqueCompilerResult ResultFromError(TorqueError& error) {
+  TorqueCompilerResult result;
+  result.source_file_map = SourceFileMap::Get();
+  result.error = error;
+  return result;
+}
+
 }  // namespace
 
 TorqueCompilerResult CompileTorque(const std::string& source,
                                    TorqueCompilerOptions options) {
+  SourceFileMap::Scope source_map_scope;
   CurrentSourceFile::Scope no_file_scope(SourceFileMap::AddSource("<torque>"));
-  CurrentAst::Scope ast_scope_;
-  LintErrorStatus::Scope lint_error_status_scope_;
+  CurrentAst::Scope ast_scope;
+  LintErrorStatus::Scope lint_error_status_scope;
+  LanguageServerData::Scope server_data_scope;
 
-  TorqueCompilerResult result;
   try {
     ParseTorque(source);
     CompileCurrentAst(options);
   } catch (TorqueError& error) {
-    result.error = error;
+    return ResultFromError(error);
   }
-  return result;
+
+  return CollectResultFromContextuals();
 }
 
 TorqueCompilerResult CompileTorque(std::vector<std::string> files,
                                    TorqueCompilerOptions options) {
+  SourceFileMap::Scope source_map_scope;
   CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
-  CurrentAst::Scope ast_scope_;
-  LintErrorStatus::Scope lint_error_status_scope_;
+  CurrentAst::Scope ast_scope;
+  LintErrorStatus::Scope lint_error_status_scope;
+  LanguageServerData::Scope server_data_scope;
 
-  TorqueCompilerResult result;
   try {
     for (const auto& path : files) ReadAndParseTorqueFile(path);
     CompileCurrentAst(options);
   } catch (TorqueError& error) {
-    result.error = error;
+    return ResultFromError(error);
   }
-  return result;
+  return CollectResultFromContextuals();
 }
 
 }  // namespace torque

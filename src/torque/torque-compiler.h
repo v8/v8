@@ -7,6 +7,7 @@
 
 #include "src/torque/ast.h"
 #include "src/torque/contextual.h"
+#include "src/torque/server-data.h"
 #include "src/torque/source-positions.h"
 #include "src/torque/utils.h"
 
@@ -22,6 +23,17 @@ struct TorqueCompilerOptions {
 };
 
 struct TorqueCompilerResult {
+  // Map translating SourceIds to filenames. This field is
+  // set on errors, so the SourcePosition of the error can be
+  // resolved.
+  SourceFileMap source_file_map;
+
+  // Eagerly collected data needed for the LanguageServer.
+  // Set the corresponding options flag to enable.
+  LanguageServerData language_server_data;
+
+  // If any error occurred during either parsing or compilation,
+  // this field will be set.
   base::Optional<TorqueError> error;
 };
 

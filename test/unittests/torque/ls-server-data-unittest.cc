@@ -23,7 +23,9 @@ struct TestCompiler {
     options.verbose = false;
     options.collect_language_server_data = true;
 
-    CompileTorque(source, options);
+    const TorqueCompilerResult result = CompileTorque(source, options);
+    SourceFileMap::Get() = result.source_file_map;
+    LanguageServerData::Get() = result.language_server_data;
   }
 };
 
