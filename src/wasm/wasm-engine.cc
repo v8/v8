@@ -23,12 +23,17 @@ namespace internal {
 namespace wasm {
 
 namespace {
-// A task to log a set of {WasmCode} objects in an isolate. Explicitly manages
-// ref counts of the contained code objects.
+// A task to log a set of {WasmCode} objects in an isolate. It does not own any
+// data itself, since it is owned by the platform, so lifetime is not really
+// bound to the wasm engine.
 class LogCodesTask : public Task {
  public:
-  LogCodesTask(base::Mutex* mutex, LogCodesTask** task_slot, Isolate* isolate)
-      : mutex_(mutex), task_slot_(task_slot), isolate_(isolate) {
+  LogCodesTask(base::Mutex* mutex, LogCodesTask** task_slot, Isolate* isolate,
+               WasmEngine* engine)
+      : mutex_(mutex),
+        task_slot_(task_slot),
+        isolate_(isolate),
+        engine_(engine) {
     DCHECK_NOT_NULL(task_slot);
     DCHECK_NOT_NULL(isolate);
   }
@@ -37,33 +42,18 @@ class LogCodesTask : public Task {
     // If the platform deletes this task before executing it, we also deregister
     // it to avoid use-after-free from still-running background threads.
     if (!cancelled()) DeregisterTask();
-    // TODO(clemensh): Move ref-count management to WasmEngine, i.e. store
-    // std::vector<WasmCode> there instead of in this task.
-    clear();
-  }
-
-  // Hold the {mutex_} when calling this method.
-  void AddCode(WasmCode* code) {
-    code_to_log_.push_back(code);
-    code->IncRef();
   }
 
   void Run() override {
     if (cancelled()) return;
     DeregisterTask();
-    // If by now we should not log code any more, do not log it.
-    if (!WasmCode::ShouldBeLogged(isolate_)) return;
-    for (WasmCode* code : code_to_log_) {
-      code->LogCode(isolate_);
-    }
-    clear();
+    engine_->LogOutstandingCodesForIsolate(isolate_);
   }
 
   void Cancel() {
     // Cancel will only be called on Isolate shutdown, which happens on the
     // Isolate's foreground thread. Thus no synchronization needed.
     isolate_ = nullptr;
-    clear();
   }
 
   bool cancelled() const { return isolate_ == nullptr; }
@@ -82,18 +72,13 @@ class LogCodesTask : public Task {
   }
 
  private:
-  void clear() {
-    WasmCode::DecrementRefCount(VectorOf(code_to_log_));
-    code_to_log_.clear();
-  }
-
   // The mutex of the WasmEngine.
   base::Mutex* const mutex_;
   // The slot in the WasmEngine where this LogCodesTask is stored. This is
   // cleared by this task before execution or on task destruction.
   LogCodesTask** task_slot_;
   Isolate* isolate_;
-  std::vector<WasmCode*> code_to_log_;
+  WasmEngine* const engine_;
 };
 
 class WasmGCForegroundTask : public Task {
@@ -136,6 +121,14 @@ struct WasmEngine::IsolateInfo {
     foreground_task_runner = platform->GetForegroundTaskRunner(v8_isolate);
   }
 
+#ifdef DEBUG
+  ~IsolateInfo() {
+    // Before destructing, the {WasmEngine} must have cleared outstanding code
+    // to log.
+    DCHECK_EQ(0, code_to_log.size());
+  }
+#endif
+
   // All native modules that are being used by this Isolate (currently only
   // grows, never shrinks).
   std::set<NativeModule*> native_modules;
@@ -145,6 +138,9 @@ struct WasmEngine::IsolateInfo {
 
   // The currently scheduled LogCodesTask.
   LogCodesTask* log_codes_task = nullptr;
+
+  // The vector of code objects that still need to be logged in this isolate.
+  std::vector<WasmCode*> code_to_log;
 
   // The foreground task runner of the isolate (can be called from background).
   std::shared_ptr<v8::TaskRunner> foreground_task_runner;
@@ -514,7 +510,9 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
   auto it = isolates_.find(isolate);
   DCHECK_NE(isolates_.end(), it);
-  for (NativeModule* native_module : it->second->native_modules) {
+  std::unique_ptr<IsolateInfo> info = std::move(it->second);
+  isolates_.erase(it);
+  for (NativeModule* native_module : info->native_modules) {
     DCHECK_EQ(1, native_modules_.count(native_module));
     DCHECK_EQ(1, native_modules_[native_module]->isolates.count(isolate));
     auto* info = native_modules_[native_module].get();
@@ -522,7 +520,7 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
     if (current_gc_info_) {
       auto it = current_gc_info_->outstanding_isolates.find(isolate);
       if (it != current_gc_info_->outstanding_isolates.end()) {
-        if (it->second) it->second->Cancel();
+        if (auto* gc_task = it->second) gc_task->Cancel();
         current_gc_info_->outstanding_isolates.erase(it);
       }
       for (WasmCode* code : info->potentially_dead_code) {
@@ -530,8 +528,11 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
       }
     }
   }
-  if (auto* task = it->second->log_codes_task) task->Cancel();
-  isolates_.erase(it);
+  if (auto* task = info->log_codes_task) task->Cancel();
+  if (!info->code_to_log.empty()) {
+    WasmCode::DecrementRefCount(VectorOf(info->code_to_log));
+    info->code_to_log.clear();
+  }
 }
 
 void WasmEngine::LogCode(WasmCode* code) {
@@ -544,11 +545,12 @@ void WasmEngine::LogCode(WasmCode* code) {
     if (info->log_codes == false) continue;
     if (info->log_codes_task == nullptr) {
       auto new_task = base::make_unique<LogCodesTask>(
-          &mutex_, &info->log_codes_task, isolate);
+          &mutex_, &info->log_codes_task, isolate, this);
       info->log_codes_task = new_task.get();
       info->foreground_task_runner->PostTask(std::move(new_task));
     }
-    info->log_codes_task->AddCode(code);
+    info->code_to_log.push_back(code);
+    code->IncRef();
   }
 }
 
@@ -557,6 +559,21 @@ void WasmEngine::EnableCodeLogging(Isolate* isolate) {
   auto it = isolates_.find(isolate);
   DCHECK_NE(isolates_.end(), it);
   it->second->log_codes = true;
+}
+
+void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
+  // If by now we should not log code any more, do not log it.
+  if (!WasmCode::ShouldBeLogged(isolate)) return;
+
+  base::MutexGuard guard(&mutex_);
+  DCHECK_EQ(1, isolates_.count(isolate));
+  IsolateInfo* info = isolates_[isolate].get();
+  if (info->code_to_log.empty()) return;
+  for (WasmCode* code : info->code_to_log) {
+    code->LogCode(isolate);
+  }
+  WasmCode::DecrementRefCount(VectorOf(info->code_to_log));
+  info->code_to_log.clear();
 }
 
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(

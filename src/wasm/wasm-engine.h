@@ -163,6 +163,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // {AddIsolate}.
   void EnableCodeLogging(Isolate*);
 
+  // This is called from the foreground thread of the Isolate to log all
+  // outstanding code objects (added via {LogCode}).
+  void LogOutstandingCodesForIsolate(Isolate*);
+
   // Create a new NativeModule. The caller is responsible for its
   // lifetime. The native module will be given some memory for code,
   // which will be page size aligned. The size of the initial memory
