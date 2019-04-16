@@ -436,25 +436,13 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 #endif  // V8_HOST_ARCH_*
 #elif V8_OS_MACOSX
 #if V8_HOST_ARCH_X64
-#if __DARWIN_UNIX03
   state->pc = reinterpret_cast<void*>(mcontext->__ss.__rip);
   state->sp = reinterpret_cast<void*>(mcontext->__ss.__rsp);
   state->fp = reinterpret_cast<void*>(mcontext->__ss.__rbp);
-#else  // !__DARWIN_UNIX03
-  state->pc = reinterpret_cast<void*>(mcontext->ss.rip);
-  state->sp = reinterpret_cast<void*>(mcontext->ss.rsp);
-  state->fp = reinterpret_cast<void*>(mcontext->ss.rbp);
-#endif  // __DARWIN_UNIX03
 #elif V8_HOST_ARCH_IA32
-#if __DARWIN_UNIX03
   state->pc = reinterpret_cast<void*>(mcontext->__ss.__eip);
   state->sp = reinterpret_cast<void*>(mcontext->__ss.__esp);
   state->fp = reinterpret_cast<void*>(mcontext->__ss.__ebp);
-#else  // !__DARWIN_UNIX03
-  state->pc = reinterpret_cast<void*>(mcontext->ss.eip);
-  state->sp = reinterpret_cast<void*>(mcontext->ss.esp);
-  state->fp = reinterpret_cast<void*>(mcontext->ss.ebp);
-#endif  // __DARWIN_UNIX03
 #endif  // V8_HOST_ARCH_IA32
 #elif V8_OS_FREEBSD
 #if V8_HOST_ARCH_IA32
