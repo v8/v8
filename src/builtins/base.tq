@@ -803,6 +803,8 @@ const kProxyNonObject: constexpr MessageTemplate
     generates 'MessageTemplate::kProxyNonObject';
 const kProxyHandlerOrTargetRevoked: constexpr MessageTemplate
     generates 'MessageTemplate::kProxyHandlerOrTargetRevoked';
+const kConstructorNotFunction: constexpr MessageTemplate
+    generates 'MessageTemplate::kConstructorNotFunction';
 
 const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';

@@ -6,15 +6,6 @@
 
 namespace proxy {
 
-  macro ValidateProxy(context: Context, o: Object, method: String): JSProxy {
-    try {
-      return Cast<JSProxy>(o) otherwise CastError;
-    }
-    label CastError {
-      ThrowTypeError(kIncompatibleMethodReceiver, method);
-    }
-  }
-
   // Proxy Revocation Functions
   // https://tc39.github.io/ecma262/#sec-proxy-revocation-functions
   // TODO(v8:9007) remove receiver in argument since we don't use it

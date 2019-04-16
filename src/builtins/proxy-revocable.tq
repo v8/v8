@@ -6,30 +6,11 @@
 
 namespace proxy {
 
-  extern macro ProxiesCodeStubAssembler::AllocateProxy(
-      JSReceiver, JSReceiver, Context): JSProxy;
-  macro AllocateProxy(implicit context: Context)(
-      target: JSReceiver, handler: JSReceiver): JSProxy {
-    return AllocateProxy(target, handler, context);
-  }
-
   extern macro ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(
       Object, Object): JSFunction;
   macro AllocateProxyRevokeFunction(implicit context: Context)(proxy: JSProxy):
       JSFunction {
     return AllocateProxyRevokeFunction(proxy, context);
-  }
-
-  macro IsRevokedProxy(implicit context: Context)(o: JSReceiver): bool {
-    try {
-      const proxy: JSProxy = Cast<JSProxy>(o) otherwise ReturnFalse;
-      const handler: JSReceiver =
-          Cast<JSReceiver>(proxy.handler) otherwise ReturnFalse;
-      return true;
-    }
-    label ReturnFalse {
-      return false;
-    }
   }
 
   // Proxy.revocable(target, handler)
