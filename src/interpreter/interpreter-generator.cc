@@ -1187,9 +1187,6 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
 
   void UnaryOpWithFeedback() {
     VARIABLE(var_value, MachineRepresentation::kTagged, GetAccumulator());
-    Node* slot_index = BytecodeOperandIdx(0);
-    Node* maybe_feedback_vector = LoadFeedbackVector();
-
     VARIABLE(var_result, MachineRepresentation::kTagged);
     VARIABLE(var_float_value, MachineRepresentation::kFloat64);
     TVARIABLE(Smi, var_feedback, SmiConstant(BinaryOperationFeedback::kNone));
@@ -1200,8 +1197,9 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
     // We might have to try again after ToNumeric conversion.
     BIND(&start);
     {
-      Label if_smi(this), if_heapnumber(this), if_bigint(this);
-      Label if_oddball(this), if_other(this);
+      Label if_smi(this), if_heapnumber(this), if_oddball(this);
+      Label if_bigint(this, Label::kDeferred);
+      Label if_other(this, Label::kDeferred);
       Node* value = var_value.value();
       GotoIf(TaggedIsSmi(value), &if_smi);
       Node* map = LoadMap(value);
@@ -1267,6 +1265,8 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
     }
 
     BIND(&end);
+    Node* slot_index = BytecodeOperandIdx(0);
+    Node* maybe_feedback_vector = LoadFeedbackVector();
     UpdateFeedback(var_feedback.value(), maybe_feedback_vector, slot_index);
     SetAccumulator(var_result.value());
     Dispatch();
