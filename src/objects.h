@@ -354,7 +354,6 @@ class ZoneForwardList;
   V(DescriptorArray)                           \
   V(EmbedderDataArray)                         \
   V(EphemeronHashTable)                        \
-  V(EnumCache)                                 \
   V(ExternalOneByteString)                     \
   V(ExternalString)                            \
   V(ExternalTwoByteString)                     \

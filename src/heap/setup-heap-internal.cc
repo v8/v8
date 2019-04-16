@@ -314,7 +314,7 @@ bool Heap::CreateInitialMaps() {
   // Allocate the empty enum cache.
   {
     AllocationResult allocation =
-        Allocate(roots.tuple2_map(), AllocationType::kReadOnly);
+        Allocate(roots.enum_cache_map(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
   set_empty_enum_cache(EnumCache::cast(obj));

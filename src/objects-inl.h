@@ -222,8 +222,6 @@ bool HeapObject::IsPromiseReactionJobTask() const {
   return IsPromiseFulfillReactionJobTask() || IsPromiseRejectReactionJobTask();
 }
 
-bool HeapObject::IsEnumCache() const { return IsTuple2(); }
-
 bool HeapObject::IsFrameArray() const { return IsFixedArrayExact(); }
 
 bool HeapObject::IsArrayList() const {

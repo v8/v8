@@ -29,7 +29,7 @@
   V(DEPENDENT_CODE_TYPE)                         \
   V(DEPRECATED_DESCRIPTOR_ARRAY_TYPE)            \
   V(EMBEDDED_OBJECT_TYPE)                        \
-  V(ENUM_CACHE_TYPE)                             \
+  V(ENUM_KEYS_CACHE_TYPE)                        \
   V(ENUM_INDICES_CACHE_TYPE)                     \
   V(FEEDBACK_VECTOR_ENTRY_TYPE)                  \
   V(FEEDBACK_VECTOR_HEADER_TYPE)                 \

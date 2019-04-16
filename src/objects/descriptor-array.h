@@ -22,18 +22,21 @@ class Handle;
 class Isolate;
 
 // An EnumCache is a pair used to hold keys and indices caches.
-class EnumCache : public Tuple2 {
+class EnumCache : public Struct {
  public:
   DECL_ACCESSORS(keys, FixedArray)
   DECL_ACCESSORS(indices, FixedArray)
 
   DECL_CAST(EnumCache)
 
-  // Layout description.
-  static const int kKeysOffset = kValue1Offset;
-  static const int kIndicesOffset = kValue2Offset;
+  DECL_PRINTER(EnumCache)
+  DECL_VERIFIER(EnumCache)
 
-  OBJECT_CONSTRUCTORS(EnumCache, Tuple2);
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_ENUM_CACHE_FIELDS)
+
+  OBJECT_CONSTRUCTORS(EnumCache, Struct);
 };
 
 // A DescriptorArray is a custom array that holds instance descriptors.

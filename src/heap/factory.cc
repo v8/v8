@@ -231,8 +231,11 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
 
 Handle<EnumCache> Factory::NewEnumCache(Handle<FixedArray> keys,
                                         Handle<FixedArray> indices) {
-  return Handle<EnumCache>::cast(
-      NewTuple2(keys, indices, AllocationType::kOld));
+  Handle<EnumCache> result = Handle<EnumCache>::cast(
+      NewStruct(ENUM_CACHE_TYPE, AllocationType::kOld));
+  result->set_keys(*keys);
+  result->set_indices(*indices);
+  return result;
 }
 
 Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,

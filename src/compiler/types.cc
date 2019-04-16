@@ -354,6 +354,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case INTERPRETER_DATA_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
+    case ENUM_CACHE_TYPE:
     case WASM_DEBUG_INFO_TYPE:
     case WASM_EXCEPTION_TAG_TYPE:
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:

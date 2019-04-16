@@ -97,6 +97,7 @@ namespace internal {
   V(ASYNC_GENERATOR_REQUEST_TYPE)                        \
   V(CLASS_POSITIONS_TYPE)                                \
   V(DEBUG_INFO_TYPE)                                     \
+  V(ENUM_CACHE_TYPE)                                     \
   V(FUNCTION_TEMPLATE_INFO_TYPE)                         \
   V(FUNCTION_TEMPLATE_RARE_DATA_TYPE)                    \
   V(INTERCEPTOR_INFO_TYPE)                               \
@@ -310,6 +311,7 @@ namespace internal {
     async_generator_request)                                                  \
   V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                 \
   V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                \
+  V(_, ENUM_CACHE_TYPE, EnumCache, enum_cache)                                \
   V(_, FUNCTION_TEMPLATE_INFO_TYPE, FunctionTemplateInfo,                     \
     function_template_info)                                                   \
   V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,            \

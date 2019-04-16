@@ -860,7 +860,7 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
 
     EnumCache enum_cache = array->enum_cache();
     RecordSimpleVirtualObjectStats(array, enum_cache->keys(),
-                                   ObjectStats::ENUM_CACHE_TYPE);
+                                   ObjectStats::ENUM_KEYS_CACHE_TYPE);
     RecordSimpleVirtualObjectStats(array, enum_cache->indices(),
                                    ObjectStats::ENUM_INDICES_CACHE_TYPE);
   }
