@@ -11,6 +11,7 @@
 #include "src/isolate-inl.h"
 #include "src/runtime-profiler.h"
 #include "src/vm-state-inl.h"
+#include "src/wasm/wasm-engine.h"
 
 namespace v8 {
 namespace internal {
@@ -655,8 +656,13 @@ Object StackGuard::HandleInterrupts() {
 
   if (CheckAndClearInterrupt(API_INTERRUPT)) {
     TRACE_EVENT0("v8.execute", "V8.InvokeApiInterruptCallbacks");
-    // Callbacks must be invoked outside of ExecusionAccess lock.
+    // Callbacks must be invoked outside of ExecutionAccess lock.
     isolate_->InvokeApiInterruptCallbacks();
+  }
+
+  if (CheckAndClearInterrupt(LOG_WASM_CODE)) {
+    TRACE_EVENT0("v8.wasm", "LogCode");
+    isolate_->wasm_engine()->LogOutstandingCodesForIsolate(isolate_);
   }
 
   isolate_->counters()->stack_interrupts()->Increment();
