@@ -781,6 +781,14 @@ RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
   return CAST(var_result.value());
 }
 
+TNode<RegExpMatchInfo>
+RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResultFast(
+    TNode<Context> context, TNode<JSReceiver> maybe_regexp,
+    TNode<String> string, Label* if_didnotmatch) {
+  return RegExpPrototypeExecBodyWithoutResult(context, maybe_regexp, string,
+                                              if_didnotmatch, true);
+}
+
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
 TNode<HeapObject> RegExpBuiltinsAssembler::RegExpPrototypeExecBody(
@@ -1823,6 +1831,8 @@ Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
   if (is_fastpath) CSA_ASSERT(this, TaggedIsPositiveSmi(index));
 
   // Default to last_index + 1.
+  // TODO(pwong): Consider using TrySmiAdd for the fast path to reduce generated
+  // code.
   Node* const index_plus_one = NumberInc(index);
   VARIABLE(var_result, MachineRepresentation::kTagged, index_plus_one);
 
@@ -2875,95 +2885,6 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
     Node* const result = CallRuntime(Runtime::kStringBuilderConcat, context,
                                      res, res_length, string);
     var_result.Bind(result);
-    Goto(&out);
-  }
-
-  BIND(&out);
-  return var_result.value();
-}
-
-Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
-    Node* context, Node* regexp, TNode<String> string,
-    TNode<String> replace_string) {
-  // The fast path is reached only if {receiver} is an unmodified
-  // JSRegExp instance, {replace_value} is non-callable, and
-  // ToString({replace_value}) does not contain '$', i.e. we're doing a simple
-  // string replacement.
-
-  CSA_ASSERT(this, IsFastRegExp(context, regexp));
-
-  const bool kIsFastPath = true;
-
-  TVARIABLE(String, var_result, EmptyStringConstant());
-  VARIABLE(var_last_match_end, MachineRepresentation::kTagged, SmiZero());
-  VARIABLE(var_is_unicode, MachineRepresentation::kWord32, Int32Constant(0));
-  Variable* vars[] = {&var_result, &var_last_match_end};
-  Label out(this), loop(this, 2, vars), loop_end(this),
-      if_nofurthermatches(this);
-
-  // Is {regexp} global?
-  Node* const is_global = FastFlagGetter(CAST(regexp), JSRegExp::kGlobal);
-  GotoIfNot(is_global, &loop);
-
-  var_is_unicode.Bind(FastFlagGetter(CAST(regexp), JSRegExp::kUnicode));
-  FastStoreLastIndex(regexp, SmiZero());
-  Goto(&loop);
-
-  BIND(&loop);
-  {
-    TNode<RegExpMatchInfo> var_match_indices =
-        RegExpPrototypeExecBodyWithoutResult(CAST(context), CAST(regexp),
-                                             string, &if_nofurthermatches,
-                                             kIsFastPath);
-
-    // Successful match.
-    {
-      TNode<Smi> const match_start = CAST(UnsafeLoadFixedArrayElement(
-          var_match_indices, RegExpMatchInfo::kFirstCaptureIndex));
-      TNode<Smi> const match_end = CAST(UnsafeLoadFixedArrayElement(
-          var_match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1));
-
-      TNode<Smi> const replace_length = LoadStringLengthAsSmi(replace_string);
-
-      // TODO(jgruber): We could skip many of the checks that using SubString
-      // here entails.
-      TNode<String> first_part =
-          CAST(CallBuiltin(Builtins::kSubString, context, string,
-                           var_last_match_end.value(), match_start));
-      var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
-                                    var_result.value(), first_part));
-
-      GotoIf(SmiEqual(replace_length, SmiZero()), &loop_end);
-
-      var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
-                                    var_result.value(), replace_string));
-      Goto(&loop_end);
-
-      BIND(&loop_end);
-      {
-        var_last_match_end.Bind(match_end);
-        // Non-global case ends here after the first replacement.
-        GotoIfNot(is_global, &if_nofurthermatches);
-
-        GotoIf(SmiNotEqual(match_end, match_start), &loop);
-        // If match is the empty string, we have to increment lastIndex.
-        Node* const this_index = FastLoadLastIndex(CAST(regexp));
-        Node* const next_index = AdvanceStringIndex(
-            string, this_index, var_is_unicode.value(), kIsFastPath);
-        FastStoreLastIndex(regexp, next_index);
-        Goto(&loop);
-      }
-    }
-  }
-
-  BIND(&if_nofurthermatches);
-  {
-    TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
-    TNode<String> last_part =
-        CAST(CallBuiltin(Builtins::kSubString, context, string,
-                         var_last_match_end.value(), string_length));
-    var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
-                                  var_result.value(), last_part));
     Goto(&out);
   }
 
