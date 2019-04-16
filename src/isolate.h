@@ -776,9 +776,6 @@ class Isolate final : private HiddenFactory {
   // Implements code shared between the two above methods
   void ReportPendingMessagesImpl(bool report_externally);
 
-  // Return pending location if any or unfilled structure.
-  MessageLocation GetMessageLocation();
-
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
   Object PromoteScheduledException();
 

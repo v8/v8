@@ -2354,23 +2354,6 @@ void Isolate::ReportPendingMessagesFromJavaScript() {
   ReportPendingMessagesImpl(true);
 }
 
-MessageLocation Isolate::GetMessageLocation() {
-  DCHECK(has_pending_exception());
-
-  if (thread_local_top()->pending_exception_ !=
-          ReadOnlyRoots(heap()).termination_exception() &&
-      !thread_local_top()->pending_message_obj_->IsTheHole(this)) {
-    Handle<JSMessageObject> message_obj(
-        JSMessageObject::cast(thread_local_top()->pending_message_obj_), this);
-    Handle<Script> script(message_obj->script(), this);
-    int start_pos = message_obj->start_position();
-    int end_pos = message_obj->end_position();
-    return MessageLocation(script, start_pos, end_pos);
-  }
-
-  return MessageLocation();
-}
-
 bool Isolate::OptionalRescheduleException(bool clear_exception) {
   DCHECK(has_pending_exception());
   PropagatePendingExceptionToExternalTryCatch();
