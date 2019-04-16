@@ -329,6 +329,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
                            SaveFPRegsMode fp_mode, Address wasm_target);
+  void CallEphemeronKeyBarrier(Register object, Register address,
+                               SaveFPRegsMode fp_mode);
 
   // Push multiple registers on the stack.
   // Registers are saved in numerical order, with higher numbered registers
