@@ -2799,13 +2799,43 @@ class FastPackedSealedObjectElementsAccessor
   static void SetLengthImpl(Isolate* isolate, Handle<JSArray> array,
                             uint32_t length,
                             Handle<FixedArrayBase> backing_store) {
-#ifdef DEBUG
-    // Can only go here if length equals old_length.
     uint32_t old_length = 0;
     CHECK(array->length()->ToArrayIndex(&old_length));
-    DCHECK_EQ(length, old_length);
-#endif
-    return;
+    if (length <= old_length) {
+      // Cannot delete entries so do nothing.
+      return;
+    }
+
+    // Transition to DICTIONARY_ELEMENTS.
+    // Convert to dictionary mode
+    Handle<NumberDictionary> new_element_dictionary =
+        old_length == 0 ? isolate->factory()->empty_slow_element_dictionary()
+                        : array->GetElementsAccessor()->Normalize(array);
+
+    // Migrate map.
+    Handle<Map> new_map = Map::Copy(isolate, handle(array->map(), isolate),
+                                    "SlowCopyForSetLengthImpl");
+    new_map->set_is_extensible(false);
+    new_map->set_elements_kind(DICTIONARY_ELEMENTS);
+    JSObject::MigrateToMap(array, new_map);
+
+    if (!new_element_dictionary.is_null()) {
+      array->set_elements(*new_element_dictionary);
+    }
+
+    if (array->elements() !=
+        ReadOnlyRoots(isolate).empty_slow_element_dictionary()) {
+      Handle<NumberDictionary> dictionary(array->element_dictionary(), isolate);
+      // Make sure we never go back to the fast case
+      array->RequireSlowElements(*dictionary);
+      JSObject::ApplyAttributesToDictionary(isolate, ReadOnlyRoots(isolate),
+                                            dictionary,
+                                            PropertyAttributes::SEALED);
+    }
+
+    // Set length
+    Handle<Object> length_obj = isolate->factory()->NewNumberFromUint(length);
+    array->set_length(*length_obj);
   }
 };
 

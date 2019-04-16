@@ -537,3 +537,14 @@ assertEquals(arr, ['a', 0.5]);
 Object.seal(arr);
 arr = arr.concat([1.5, 'b']);
 assertEquals(arr, ['a', 0.5, 1.5, 'b']);
+
+// Regression test with change length
+var arr = ['a', 'b'];
+Object.seal(arr);
+assertEquals(arr.length, 2);
+arr.length = 3;
+assertEquals(arr.length, 3);
+arr[2] = 'c';
+assertEquals(arr[2], undefined);
+arr.length = 1;
+assertEquals(arr.length, 2);

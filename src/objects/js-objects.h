@@ -797,6 +797,11 @@ class JSObject : public JSReceiver {
   static bool AllCanRead(LookupIterator* it);
   static bool AllCanWrite(LookupIterator* it);
 
+  template <typename Dictionary>
+  static void ApplyAttributesToDictionary(Isolate* isolate, ReadOnlyRoots roots,
+                                          Handle<Dictionary> dictionary,
+                                          const PropertyAttributes attributes);
+
  private:
   friend class JSReceiver;
   friend class Object;

@@ -3771,12 +3771,10 @@ bool JSObject::IsExtensible(Handle<JSObject> object) {
   return object->map()->is_extensible();
 }
 
-namespace {
-
 template <typename Dictionary>
-void ApplyAttributesToDictionary(Isolate* isolate, ReadOnlyRoots roots,
-                                 Handle<Dictionary> dictionary,
-                                 const PropertyAttributes attributes) {
+void JSObject::ApplyAttributesToDictionary(
+    Isolate* isolate, ReadOnlyRoots roots, Handle<Dictionary> dictionary,
+    const PropertyAttributes attributes) {
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object k;
@@ -3793,8 +3791,6 @@ void ApplyAttributesToDictionary(Isolate* isolate, ReadOnlyRoots roots,
     dictionary->DetailsAtPut(isolate, i, details);
   }
 }
-
-}  // namespace
 
 template <PropertyAttributes attrs>
 Maybe<bool> JSObject::PreventExtensionsWithTransition(
@@ -3911,11 +3907,13 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
       if (object->IsJSGlobalObject()) {
         Handle<GlobalDictionary> dictionary(
             JSGlobalObject::cast(*object)->global_dictionary(), isolate);
-        ApplyAttributesToDictionary(isolate, roots, dictionary, attrs);
+        JSObject::ApplyAttributesToDictionary(isolate, roots, dictionary,
+                                              attrs);
       } else {
         Handle<NameDictionary> dictionary(object->property_dictionary(),
                                           isolate);
-        ApplyAttributesToDictionary(isolate, roots, dictionary, attrs);
+        JSObject::ApplyAttributesToDictionary(isolate, roots, dictionary,
+                                              attrs);
       }
     }
   }
@@ -3948,8 +3946,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     // Make sure we never go back to the fast case
     object->RequireSlowElements(*dictionary);
     if (attrs != NONE) {
-      ApplyAttributesToDictionary(isolate, ReadOnlyRoots(isolate), dictionary,
-                                  attrs);
+      JSObject::ApplyAttributesToDictionary(isolate, ReadOnlyRoots(isolate),
+                                            dictionary, attrs);
     }
   }
 
