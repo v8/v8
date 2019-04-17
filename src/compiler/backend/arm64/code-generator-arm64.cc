@@ -280,9 +280,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
     }
-    __ CheckPageFlagClear(value_, scratch0_,
-                          MemoryChunk::kPointersToHereAreInterestingMask,
-                          exit());
+    if (COMPRESS_POINTERS_BOOL) {
+      __ DecompressTaggedPointer(value_, value_);
+    }
+    __ CheckPageFlag(value_, scratch0_,
+                     MemoryChunk::kPointersToHereAreInterestingMask, ne,
+                     exit());
     __ Add(scratch1_, object_, index_);
     RememberedSetAction const remembered_set_action =
         mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
@@ -862,9 +865,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           this, object, index, value, scratch0, scratch1, mode,
           DetermineStubCallMode(), &unwinding_info_writer_);
       __ StoreTaggedField(value, MemOperand(object, index));
-      __ CheckPageFlagSet(object, scratch0,
-                          MemoryChunk::kPointersFromHereAreInterestingMask,
-                          ool->entry());
+      if (COMPRESS_POINTERS_BOOL) {
+        __ DecompressTaggedPointer(object, object);
+      }
+      __ CheckPageFlag(object, scratch0,
+                       MemoryChunk::kPointersFromHereAreInterestingMask, eq,
+                       ool->entry());
       __ Bind(ool->exit());
       break;
     }

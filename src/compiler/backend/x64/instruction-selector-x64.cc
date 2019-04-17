@@ -380,7 +380,7 @@ void InstructionSelector::VisitStore(Node* node) {
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
 
   if (write_barrier_kind != kNoWriteBarrier) {
-    DCHECK(CanBeTaggedPointer(store_rep.representation()));
+    DCHECK(CanBeTaggedOrCompressedPointer(store_rep.representation()));
     AddressingMode addressing_mode;
     InstructionOperand inputs[] = {
         g.UseUniqueRegister(base),

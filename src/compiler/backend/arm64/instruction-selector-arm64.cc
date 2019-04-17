@@ -688,7 +688,7 @@ void InstructionSelector::VisitStore(Node* node) {
 
   // TODO(arm64): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier) {
-    DCHECK(CanBeTaggedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
     size_t input_count = 0;

@@ -134,25 +134,24 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     // change_op is used below to change to the correct Tagged representation
     const Operator* change_op = nullptr;
-#ifdef V8_COMPRESS_POINTERS
-    switch (rep.representation()) {
-      case MachineRepresentation::kTaggedPointer:
-        rep = MachineType::CompressedPointer();
-        change_op = machine()->ChangeCompressedPointerToTaggedPointer();
-        break;
-      case MachineRepresentation::kTaggedSigned:
-        rep = MachineType::CompressedSigned();
-        change_op = machine()->ChangeCompressedSignedToTaggedSigned();
-        break;
-      case MachineRepresentation::kTagged:
-        rep = MachineType::AnyCompressed();
-        change_op = machine()->ChangeCompressedToTagged();
-        break;
-      default:
-        break;
+    if (COMPRESS_POINTERS_BOOL) {
+      switch (rep.representation()) {
+        case MachineRepresentation::kTaggedPointer:
+          rep = MachineType::CompressedPointer();
+          change_op = machine()->ChangeCompressedPointerToTaggedPointer();
+          break;
+        case MachineRepresentation::kTaggedSigned:
+          rep = MachineType::CompressedSigned();
+          change_op = machine()->ChangeCompressedSignedToTaggedSigned();
+          break;
+        case MachineRepresentation::kTagged:
+          rep = MachineType::AnyCompressed();
+          change_op = machine()->ChangeCompressedToTagged();
+          break;
+        default:
+          break;
+      }
     }
-#endif
-
     const Operator* op = machine()->Load(rep);
     CHECK_NE(PoisoningMitigationLevel::kPoisonAll, poisoning_level_);
     if (needs_poisoning == LoadSensitivity::kCritical &&
@@ -172,11 +171,51 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* Store(MachineRepresentation rep, Node* base, Node* index, Node* value,
               WriteBarrierKind write_barrier) {
+    if (COMPRESS_POINTERS_BOOL) {
+      switch (rep) {
+        case MachineRepresentation::kTaggedPointer:
+          rep = MachineRepresentation::kCompressedPointer;
+          value = AddNode(machine()->ChangeTaggedPointerToCompressedPointer(),
+                          value);
+          break;
+        case MachineRepresentation::kTaggedSigned:
+          rep = MachineRepresentation::kCompressedSigned;
+          value =
+              AddNode(machine()->ChangeTaggedSignedToCompressedSigned(), value);
+          break;
+        case MachineRepresentation::kTagged:
+          rep = MachineRepresentation::kCompressed;
+          value = AddNode(machine()->ChangeTaggedToCompressed(), value);
+          break;
+        default:
+          break;
+      }
+    }
     return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
                    base, index, value);
   }
   void OptimizedStoreField(MachineRepresentation rep, Node* object, int offset,
                            Node* value, WriteBarrierKind write_barrier) {
+    if (COMPRESS_POINTERS_BOOL) {
+      switch (rep) {
+        case MachineRepresentation::kTaggedPointer:
+          rep = MachineRepresentation::kCompressedPointer;
+          value = AddNode(machine()->ChangeTaggedPointerToCompressedPointer(),
+                          value);
+          break;
+        case MachineRepresentation::kTaggedSigned:
+          rep = MachineRepresentation::kCompressedSigned;
+          value =
+              AddNode(machine()->ChangeTaggedSignedToCompressedSigned(), value);
+          break;
+        case MachineRepresentation::kTagged:
+          rep = MachineRepresentation::kCompressed;
+          value = AddNode(machine()->ChangeTaggedToCompressed(), value);
+          break;
+        default:
+          break;
+      }
+    }
     AddNode(simplified()->StoreField(FieldAccess(
                 BaseTaggedness::kTaggedBase, offset, MaybeHandle<Name>(),
                 MaybeHandle<Map>(), Type::Any(),

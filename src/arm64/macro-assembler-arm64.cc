@@ -2802,6 +2802,13 @@ void TurboAssembler::DecompressTaggedSigned(const Register& destination,
 }
 
 void TurboAssembler::DecompressTaggedPointer(const Register& destination,
+                                             const Register& source) {
+  RecordComment("[ DecompressTaggedPointer");
+  Add(destination, kRootRegister, Operand(source, SXTW));
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressTaggedPointer(const Register& destination,
                                              const MemOperand& field_operand) {
   RecordComment("[ DecompressTaggedPointer");
   Ldrsw(destination, field_operand);
@@ -2919,7 +2926,7 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   }
 }
 
-void MacroAssembler::CheckPageFlag(const Register& object,
+void TurboAssembler::CheckPageFlag(const Register& object,
                                    const Register& scratch, int mask,
                                    Condition cc, Label* condition_met) {
   And(scratch, object, ~kPageAlignmentMask);
@@ -2927,24 +2934,9 @@ void MacroAssembler::CheckPageFlag(const Register& object,
   if (cc == eq) {
     TestAndBranchIfAnySet(scratch, mask, condition_met);
   } else {
+    DCHECK_EQ(cc, ne);
     TestAndBranchIfAllClear(scratch, mask, condition_met);
   }
-}
-
-void TurboAssembler::CheckPageFlagSet(const Register& object,
-                                      const Register& scratch, int mask,
-                                      Label* if_any_set) {
-  And(scratch, object, ~kPageAlignmentMask);
-  Ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
-  TestAndBranchIfAnySet(scratch, mask, if_any_set);
-}
-
-void TurboAssembler::CheckPageFlagClear(const Register& object,
-                                        const Register& scratch, int mask,
-                                        Label* if_all_clear) {
-  And(scratch, object, ~kPageAlignmentMask);
-  Ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
-  TestAndBranchIfAllClear(scratch, mask, if_all_clear);
 }
 
 void MacroAssembler::RecordWriteField(Register object, int offset,
@@ -3118,14 +3110,13 @@ void MacroAssembler::RecordWrite(Register object, Register address,
     DCHECK_EQ(0, kSmiTag);
     JumpIfSmi(value, &done);
   }
+  CheckPageFlag(value,
+                value,  // Used as scratch.
+                MemoryChunk::kPointersToHereAreInterestingMask, ne, &done);
 
-  CheckPageFlagClear(value,
-                     value,  // Used as scratch.
-                     MemoryChunk::kPointersToHereAreInterestingMask, &done);
-  CheckPageFlagClear(object,
-                     value,  // Used as scratch.
-                     MemoryChunk::kPointersFromHereAreInterestingMask,
-                     &done);
+  CheckPageFlag(object,
+                value,  // Used as scratch.
+                MemoryChunk::kPointersFromHereAreInterestingMask, ne, &done);
 
   // Record the actual write.
   if (lr_status == kLRHasNotBeenSaved) {

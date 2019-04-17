@@ -294,6 +294,14 @@ void TurboAssembler::DecompressTaggedSigned(Register destination,
 }
 
 void TurboAssembler::DecompressTaggedPointer(Register destination,
+                                             Register source) {
+  RecordComment("[ DecompressTaggedPointer");
+  movsxlq(destination, source);
+  addq(destination, kRootRegister);
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressTaggedPointer(Register destination,
                                              Operand field_operand) {
   RecordComment("[ DecompressTaggedPointer");
   movsxlq(destination, field_operand);

@@ -783,11 +783,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   Operand MoveImmediateForShiftedOp(const Register& dst, int64_t imm,
                                     PreShiftImmMode mode);
 
-  void CheckPageFlagSet(const Register& object, const Register& scratch,
-                        int mask, Label* if_any_set);
-
-  void CheckPageFlagClear(const Register& object, const Register& scratch,
-                          int mask, Label* if_all_clear);
+  void CheckPageFlag(const Register& object, const Register& scratch, int mask,
+                     Condition cc, Label* condition_met);
 
   // Test the bits of register defined by bit_pattern, and branch if ANY of
   // those bits are set. May corrupt the status flags.
@@ -1199,6 +1196,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void DecompressTaggedSigned(const Register& destination,
                               const MemOperand& field_operand);
+  void DecompressTaggedPointer(const Register& destination,
+                               const Register& source);
   void DecompressTaggedPointer(const Register& destination,
                                const MemOperand& field_operand);
   void DecompressAnyTagged(const Register& destination,
@@ -1924,9 +1923,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
   void PopSafepointRegisters();
-
-  void CheckPageFlag(const Register& object, const Register& scratch, int mask,
-                     Condition cc, Label* condition_met);
 
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
