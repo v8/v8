@@ -13,5 +13,5 @@ Provides a "black box" API for embedding a Wasm engine in C/C++ applications.
 
 Local modifications:
 None.
-This is only the contents of the "include/" directory of the upstream
-repository.
+The contents of the upstream "include/" directory are directly in here.
+The upstream "example/" directory is copied as-is.
