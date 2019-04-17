@@ -11373,8 +11373,7 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* left,
         Node* right_map = LoadMap(right);
 
         Label if_left_heapnumber(this), if_left_bigint(this, Label::kDeferred),
-            if_left_string(this, Label::kDeferred),
-            if_left_other(this, Label::kDeferred);
+            if_left_string(this), if_left_other(this, Label::kDeferred);
         GotoIf(IsHeapNumberMap(left_map), &if_left_heapnumber);
         Node* left_instance_type = LoadMapInstanceType(left_map);
         GotoIf(IsBigIntInstanceType(left_instance_type), &if_left_bigint);
@@ -11862,8 +11861,7 @@ Node* CodeStubAssembler::Equal(Node* left, Node* right, Node* context,
     {
       GotoIf(TaggedIsSmi(right), &use_symmetry);
 
-      Label if_left_symbol(this), if_left_number(this),
-          if_left_string(this, Label::kDeferred),
+      Label if_left_symbol(this), if_left_number(this), if_left_string(this),
           if_left_bigint(this, Label::kDeferred), if_left_oddball(this),
           if_left_receiver(this);
 
@@ -12199,11 +12197,8 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
   //   }
   // }
 
-  Label if_equal(this), if_notequal(this), if_not_equivalent_types(this),
-      end(this);
+  Label if_equal(this), if_notequal(this), end(this);
   VARIABLE(result, MachineRepresentation::kTagged);
-
-  OverwriteFeedback(var_type_feedback, CompareOperationFeedback::kNone);
 
   // Check if {lhs} and {rhs} refer to the same object.
   Label if_same(this), if_notsame(this);
@@ -12213,6 +12208,9 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
   {
     // The {lhs} and {rhs} reference the exact same value, yet we need special
     // treatment for HeapNumber, as NaN is not equal to NaN.
+    if (var_type_feedback != nullptr) {
+      var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kNone));
+    }
     GenerateEqual_Same(lhs, &if_equal, &if_notequal, var_type_feedback);
   }
 
@@ -12220,6 +12218,10 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
   {
     // The {lhs} and {rhs} reference different objects, yet for Smi, HeapNumber,
     // BigInt and String they can still be considered equal.
+
+    if (var_type_feedback != nullptr) {
+      var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kAny));
+    }
 
     // Check if {lhs} is a Smi or a HeapObject.
     Label if_lhsissmi(this), if_lhsisnotsmi(this);
@@ -12246,7 +12248,10 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
           Node* lhs_value = LoadHeapNumberValue(lhs);
           Node* rhs_value = SmiToFloat64(rhs);
 
-          CombineFeedback(var_type_feedback, CompareOperationFeedback::kNumber);
+          if (var_type_feedback != nullptr) {
+            var_type_feedback->Bind(
+                SmiConstant(CompareOperationFeedback::kNumber));
+          }
 
           // Perform a floating point comparison of {lhs} and {rhs}.
           Branch(Float64Equal(lhs_value, rhs_value), &if_equal, &if_notequal);
@@ -12267,15 +12272,17 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
             Node* lhs_value = LoadHeapNumberValue(lhs);
             Node* rhs_value = LoadHeapNumberValue(rhs);
 
-            CombineFeedback(var_type_feedback,
-                            CompareOperationFeedback::kNumber);
+            if (var_type_feedback != nullptr) {
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kNumber));
+            }
 
             // Perform a floating point comparison of {lhs} and {rhs}.
             Branch(Float64Equal(lhs_value, rhs_value), &if_equal, &if_notequal);
           }
 
           BIND(&if_rhsisnotnumber);
-          Goto(&if_not_equivalent_types);
+          Goto(&if_notequal);
         }
       }
 
@@ -12286,7 +12293,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
         Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
         BIND(&if_rhsissmi);
-        Goto(&if_not_equivalent_types);
+        Goto(&if_notequal);
 
         BIND(&if_rhsisnotsmi);
         {
@@ -12294,7 +12301,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
           Node* lhs_instance_type = LoadMapInstanceType(lhs_map);
 
           // Check if {lhs} is a String.
-          Label if_lhsisstring(this, Label::kDeferred), if_lhsisnotstring(this);
+          Label if_lhsisstring(this), if_lhsisnotstring(this);
           Branch(IsStringInstanceType(lhs_instance_type), &if_lhsisstring,
                  &if_lhsisnotstring);
 
@@ -12324,94 +12331,92 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
             }
 
             BIND(&if_rhsisnotstring);
-            Goto(&if_not_equivalent_types);
+            Goto(&if_notequal);
           }
 
           BIND(&if_lhsisnotstring);
+
+          // Check if {lhs} is a BigInt.
+          Label if_lhsisbigint(this), if_lhsisnotbigint(this);
+          Branch(IsBigIntInstanceType(lhs_instance_type), &if_lhsisbigint,
+                 &if_lhsisnotbigint);
+
+          BIND(&if_lhsisbigint);
           {
-            // Check if {lhs} is a BigInt.
-            Label if_lhsisbigint(this), if_lhsisnotbigint(this);
-            Branch(IsBigIntInstanceType(lhs_instance_type), &if_lhsisbigint,
-                   &if_lhsisnotbigint);
+            // Load the instance type of {rhs}.
+            Node* rhs_instance_type = LoadInstanceType(rhs);
 
-            BIND(&if_lhsisbigint);
+            // Check if {rhs} is also a BigInt.
+            Label if_rhsisbigint(this, Label::kDeferred),
+                if_rhsisnotbigint(this);
+            Branch(IsBigIntInstanceType(rhs_instance_type), &if_rhsisbigint,
+                   &if_rhsisnotbigint);
+
+            BIND(&if_rhsisbigint);
             {
-              // Load the instance type of {rhs}.
-              Node* rhs_instance_type = LoadInstanceType(rhs);
-
-              // Check if {rhs} is also a BigInt.
-              Label if_rhsisbigint(this, Label::kDeferred),
-                  if_rhsisnotbigint(this);
-              Branch(IsBigIntInstanceType(rhs_instance_type), &if_rhsisbigint,
-                     &if_rhsisnotbigint);
-
-              BIND(&if_rhsisbigint);
-              {
-                CombineFeedback(var_type_feedback,
-                                CompareOperationFeedback::kBigInt);
-                result.Bind(CallRuntime(Runtime::kBigIntEqualToBigInt,
-                                        NoContextConstant(), lhs, rhs));
-                Goto(&end);
+              if (var_type_feedback != nullptr) {
+                var_type_feedback->Bind(
+                    SmiConstant(CompareOperationFeedback::kBigInt));
               }
-
-              BIND(&if_rhsisnotbigint);
-              Goto(&if_not_equivalent_types);
+              result.Bind(CallRuntime(Runtime::kBigIntEqualToBigInt,
+                                      NoContextConstant(), lhs, rhs));
+              Goto(&end);
             }
 
-            BIND(&if_lhsisnotbigint);
-            if (var_type_feedback != nullptr) {
-              // Load the instance type of {rhs}.
-              Node* rhs_map = LoadMap(rhs);
-              Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
+            BIND(&if_rhsisnotbigint);
+            Goto(&if_notequal);
+          }
 
-              Label if_lhsissymbol(this), if_lhsisreceiver(this),
-                  if_lhsisoddball(this);
-              GotoIf(IsJSReceiverInstanceType(lhs_instance_type),
-                     &if_lhsisreceiver);
-              GotoIf(IsBooleanMap(lhs_map), &if_not_equivalent_types);
-              GotoIf(IsOddballInstanceType(lhs_instance_type),
-                     &if_lhsisoddball);
-              Branch(IsSymbolInstanceType(lhs_instance_type), &if_lhsissymbol,
-                     &if_not_equivalent_types);
+          BIND(&if_lhsisnotbigint);
+          if (var_type_feedback != nullptr) {
+            // Load the instance type of {rhs}.
+            Node* rhs_map = LoadMap(rhs);
+            Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
 
-              BIND(&if_lhsisreceiver);
-              {
-                GotoIf(IsBooleanMap(rhs_map), &if_not_equivalent_types);
-                OverwriteFeedback(var_type_feedback,
-                                  CompareOperationFeedback::kReceiver);
-                GotoIf(IsJSReceiverInstanceType(rhs_instance_type),
-                       &if_notequal);
-                OverwriteFeedback(
-                    var_type_feedback,
-                    CompareOperationFeedback::kReceiverOrNullOrUndefined);
-                GotoIf(IsOddballInstanceType(rhs_instance_type), &if_notequal);
-                Goto(&if_not_equivalent_types);
-              }
+            Label if_lhsissymbol(this), if_lhsisreceiver(this),
+                if_lhsisoddball(this);
+            GotoIf(IsJSReceiverInstanceType(lhs_instance_type),
+                   &if_lhsisreceiver);
+            GotoIf(IsBooleanMap(lhs_map), &if_notequal);
+            GotoIf(IsOddballInstanceType(lhs_instance_type), &if_lhsisoddball);
+            Branch(IsSymbolInstanceType(lhs_instance_type), &if_lhsissymbol,
+                   &if_notequal);
 
-              BIND(&if_lhsisoddball);
-              {
-                STATIC_ASSERT(LAST_PRIMITIVE_TYPE == ODDBALL_TYPE);
-                GotoIf(IsBooleanMap(rhs_map), &if_not_equivalent_types);
-                GotoIf(Int32LessThan(rhs_instance_type,
-                                     Int32Constant(ODDBALL_TYPE)),
-                       &if_not_equivalent_types);
-                OverwriteFeedback(
-                    var_type_feedback,
-                    CompareOperationFeedback::kReceiverOrNullOrUndefined);
-                Goto(&if_notequal);
-              }
-
-              BIND(&if_lhsissymbol);
-              {
-                GotoIfNot(IsSymbolInstanceType(rhs_instance_type),
-                          &if_not_equivalent_types);
-                OverwriteFeedback(var_type_feedback,
-                                  CompareOperationFeedback::kSymbol);
-                Goto(&if_notequal);
-              }
-            } else {
+            BIND(&if_lhsisreceiver);
+            {
+              GotoIf(IsBooleanMap(rhs_map), &if_notequal);
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kReceiver));
+              GotoIf(IsJSReceiverInstanceType(rhs_instance_type), &if_notequal);
+              var_type_feedback->Bind(SmiConstant(
+                  CompareOperationFeedback::kReceiverOrNullOrUndefined));
+              GotoIf(IsOddballInstanceType(rhs_instance_type), &if_notequal);
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
               Goto(&if_notequal);
             }
+
+            BIND(&if_lhsisoddball);
+            {
+              STATIC_ASSERT(LAST_PRIMITIVE_TYPE == ODDBALL_TYPE);
+              GotoIf(IsBooleanMap(rhs_map), &if_notequal);
+              GotoIf(
+                  Int32LessThan(rhs_instance_type, Int32Constant(ODDBALL_TYPE)),
+                  &if_notequal);
+              var_type_feedback->Bind(SmiConstant(
+                  CompareOperationFeedback::kReceiverOrNullOrUndefined));
+              Goto(&if_notequal);
+            }
+
+            BIND(&if_lhsissymbol);
+            {
+              GotoIfNot(IsSymbolInstanceType(rhs_instance_type), &if_notequal);
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kSymbol));
+              Goto(&if_notequal);
+            }
+          } else {
+            Goto(&if_notequal);
           }
         }
       }
@@ -12428,8 +12433,10 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
       Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
 
       BIND(&if_rhsissmi);
-      CombineFeedback(var_type_feedback,
-                      CompareOperationFeedback::kSignedSmall);
+      if (var_type_feedback != nullptr) {
+        var_type_feedback->Bind(
+            SmiConstant(CompareOperationFeedback::kSignedSmall));
+      }
       Goto(&if_notequal);
 
       BIND(&if_rhsisnotsmi);
@@ -12447,14 +12454,17 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
           Node* lhs_value = SmiToFloat64(lhs);
           Node* rhs_value = LoadHeapNumberValue(rhs);
 
-          CombineFeedback(var_type_feedback, CompareOperationFeedback::kNumber);
+          if (var_type_feedback != nullptr) {
+            var_type_feedback->Bind(
+                SmiConstant(CompareOperationFeedback::kNumber));
+          }
 
           // Perform a floating point comparison of {lhs} and {rhs}.
           Branch(Float64Equal(lhs_value, rhs_value), &if_equal, &if_notequal);
         }
 
         BIND(&if_rhsisnotnumber);
-        Goto(&if_not_equivalent_types);
+        Goto(&if_notequal);
       }
     }
   }
@@ -12463,12 +12473,6 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
   {
     result.Bind(TrueConstant());
     Goto(&end);
-  }
-
-  BIND(&if_not_equivalent_types);
-  {
-    OverwriteFeedback(var_type_feedback, CompareOperationFeedback::kAny);
-    Goto(&if_notequal);
   }
 
   BIND(&if_notequal);
