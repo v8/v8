@@ -710,7 +710,7 @@ String SharedFunctionInfo::inferred_name() {
   if (maybe_scope_info->IsScopeInfo()) {
     ScopeInfo scope_info = ScopeInfo::cast(maybe_scope_info);
     if (scope_info->HasInferredFunctionName()) {
-      Object name = ScopeInfo::cast(maybe_scope_info)->InferredFunctionName();
+      Object name = scope_info->InferredFunctionName();
       if (name->IsString()) return String::cast(name);
     }
   } else if (HasUncompiledData()) {
