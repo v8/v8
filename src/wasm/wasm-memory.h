@@ -31,10 +31,7 @@ class WasmMemoryTracker {
   // ReserveAddressSpace attempts to increase the reserved address space counter
   // by {num_bytes}. Returns true if successful (meaning it is okay to go ahead
   // and reserve {num_bytes} bytes), false otherwise.
-  // Use {kSoftLimit} if you can implement a fallback which needs less reserved
-  // memory.
-  enum ReservationLimit { kSoftLimit, kHardLimit };
-  bool ReserveAddressSpace(size_t num_bytes, ReservationLimit limit);
+  bool ReserveAddressSpace(size_t num_bytes);
 
   void RegisterAllocation(Isolate* isolate, void* allocation_base,
                           size_t allocation_length, void* buffer_start,
@@ -104,10 +101,6 @@ class WasmMemoryTracker {
   V8_EXPORT_PRIVATE bool IsWasmMemory(const void* buffer_start);
 
   bool IsWasmSharedMemory(const void* buffer_start);
-
-  // Returns whether the given buffer is a Wasm memory with guard regions large
-  // enough to safely use trap handlers.
-  bool HasFullGuardRegions(const void* buffer_start);
 
   // Returns a pointer to a Wasm buffer's allocation data, or nullptr if the
   // buffer is not tracked.

@@ -1057,20 +1057,6 @@ uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
   return module_->num_imported_functions + slot_idx;
 }
 
-void NativeModule::DisableTrapHandler() {
-  // Switch {use_trap_handler_} from true to false.
-  DCHECK(use_trap_handler_);
-  use_trap_handler_ = kNoTrapHandler;
-
-  // Clear the code table (just to increase the chances to hit an error if we
-  // forget to re-add all code).
-  uint32_t num_wasm_functions = module_->num_declared_functions;
-  memset(code_table_.get(), 0, num_wasm_functions * sizeof(WasmCode*));
-
-  // TODO(clemensh): Actually free the owned code, such that the memory can be
-  // recycled.
-}
-
 const char* NativeModule::GetRuntimeStubName(Address runtime_stub_entry) const {
 #define RETURN_NAME(Name)                                               \
   if (runtime_stub_entries_[WasmCode::k##Name] == runtime_stub_entry) { \
@@ -1148,10 +1134,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   DCHECK_GT(size, 0);
   size = RoundUp(size, page_allocator->AllocatePageSize());
-  if (!memory_tracker_->ReserveAddressSpace(size,
-                                            WasmMemoryTracker::kHardLimit)) {
-    return {};
-  }
+  if (!memory_tracker_->ReserveAddressSpace(size)) return {};
   if (hint == nullptr) hint = page_allocator->GetRandomMmapAddr();
 
   VirtualMemory mem(page_allocator, size, hint,

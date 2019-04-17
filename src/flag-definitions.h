@@ -669,8 +669,6 @@ DEFINE_IMPLICATION(future, wasm_shared_code)
 DEFINE_BOOL(wasm_trap_handler, true,
             "use signal handlers to catch out of bounds memory access in wasm"
             " (currently Linux x86_64 only)")
-DEFINE_BOOL(wasm_trap_handler_fallback, false,
-            "Use bounds checks if guarded memory is not available")
 DEFINE_BOOL(wasm_fuzzer_gen_test, false,
             "Generate a test case when running a wasm fuzzer")
 DEFINE_IMPLICATION(wasm_fuzzer_gen_test, single_threaded)

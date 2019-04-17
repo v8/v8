@@ -1054,14 +1054,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   return native_module;
 }
 
-void CompileNativeModuleWithExplicitBoundsChecks(Isolate* isolate,
-                                                 ErrorThrower* thrower,
-                                                 const WasmModule* wasm_module,
-                                                 NativeModule* native_module) {
-  native_module->DisableTrapHandler();
-  CompileNativeModule(isolate, thrower, wasm_module, native_module);
-}
-
 AsyncCompileJob::AsyncCompileJob(
     Isolate* isolate, const WasmFeatures& enabled,
     std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,

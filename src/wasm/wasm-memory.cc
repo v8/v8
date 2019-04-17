@@ -27,16 +27,6 @@ void AddAllocationStatusSample(Isolate* isolate,
       static_cast<int>(status));
 }
 
-size_t GetAllocationLength(uint32_t size, bool require_full_guard_regions) {
-  if (require_full_guard_regions) {
-    return RoundUp(kWasmMaxHeapOffset + kNegativeGuardSize, CommitPageSize());
-  } else {
-    return RoundUp(
-        base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(size)),
-        kWasmPageSize);
-  }
-}
-
 bool RunWithGCAndRetry(const std::function<bool()>& fn, Heap* heap,
                        bool* did_retry) {
   // Try up to three times; getting rid of dead JSArrayBuffer allocations might
@@ -60,15 +50,13 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
                               size_t* allocation_length) {
   using AllocationStatus = WasmMemoryTracker::AllocationStatus;
 #if V8_TARGET_ARCH_64_BIT
-  bool require_full_guard_regions = true;
+  constexpr bool kRequireFullGuardRegions = true;
 #else
-  bool require_full_guard_regions = false;
+  constexpr bool kRequireFullGuardRegions = false;
 #endif
   // Let the WasmMemoryTracker know we are going to reserve a bunch of
   // address space.
-  // TODO(7881): do not use static_cast<uint32_t>() here
-  uint32_t reservation_size =
-      static_cast<uint32_t>((max_size > size) ? max_size : size);
+  size_t reservation_size = std::max(max_size, size);
   bool did_retry = false;
 
   auto reserve_memory_space = [&] {
@@ -79,40 +67,32 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
     // To protect against 32-bit integer overflow issues, we also
     // protect the 2GiB before the valid part of the memory buffer.
     *allocation_length =
-        GetAllocationLength(reservation_size, require_full_guard_regions);
+        kRequireFullGuardRegions
+            ? RoundUp(kWasmMaxHeapOffset + kNegativeGuardSize, CommitPageSize())
+            : RoundUp(base::bits::RoundUpToPowerOfTwo(reservation_size),
+                      kWasmPageSize);
     DCHECK_GE(*allocation_length, size);
     DCHECK_GE(*allocation_length, kWasmPageSize);
 
-    auto limit = require_full_guard_regions ? WasmMemoryTracker::kSoftLimit
-                                            : WasmMemoryTracker::kHardLimit;
-    return memory_tracker->ReserveAddressSpace(*allocation_length, limit);
+    return memory_tracker->ReserveAddressSpace(*allocation_length);
   };
   if (!RunWithGCAndRetry(reserve_memory_space, heap, &did_retry)) {
     // Reset reservation_size to initial size so that at least the initial size
     // can be allocated if maximum size reservation is not possible.
-    reservation_size = static_cast<uint32_t>(size);
+    reservation_size = size;
 
-    // If we fail to allocate guard regions and the fallback is enabled, then
-    // retry without full guard regions.
-    bool fail = true;
-    if (require_full_guard_regions && FLAG_wasm_trap_handler_fallback) {
-      require_full_guard_regions = false;
-      fail = !RunWithGCAndRetry(reserve_memory_space, heap, &did_retry);
+    // We are over the address space limit. Fail.
+    //
+    // When running under the correctness fuzzer (i.e.
+    // --abort-on-stack-or-string-length-overflow is preset), we crash
+    // instead so it is not incorrectly reported as a correctness
+    // violation. See https://crbug.com/828293#c4
+    if (FLAG_abort_on_stack_or_string_length_overflow) {
+      FATAL("could not allocate wasm memory");
     }
-    if (fail) {
-      // We are over the address space limit. Fail.
-      //
-      // When running under the correctness fuzzer (i.e.
-      // --abort-on-stack-or-string-length-overflow is preset), we crash
-      // instead so it is not incorrectly reported as a correctness
-      // violation. See https://crbug.com/828293#c4
-      if (FLAG_abort_on_stack_or_string_length_overflow) {
-        FATAL("could not allocate wasm memory");
-      }
-      AddAllocationStatusSample(
-          heap->isolate(), AllocationStatus::kAddressSpaceLimitReachedFailure);
-      return nullptr;
-    }
+    AddAllocationStatusSample(
+        heap->isolate(), AllocationStatus::kAddressSpaceLimitReachedFailure);
+    return nullptr;
   }
 
   // The Reserve makes the whole region inaccessible by default.
@@ -130,7 +110,7 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
   }
 
   byte* memory = reinterpret_cast<byte*>(*allocation_base);
-  if (require_full_guard_regions) {
+  if (kRequireFullGuardRegions) {
     memory += kNegativeGuardSize;
   }
 
@@ -157,14 +137,11 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
 #if V8_TARGET_ARCH_MIPS64
 // MIPS64 has a user space of 2^40 bytes on most processors,
 // address space limits needs to be smaller.
-constexpr size_t kAddressSpaceSoftLimit = 0x2100000000L;  // 132 GiB
-constexpr size_t kAddressSpaceHardLimit = 0x4000000000L;  // 256 GiB
+constexpr size_t kAddressSpaceLimit = 0x4000000000L;  // 256 GiB
 #elif V8_TARGET_ARCH_64_BIT
-constexpr size_t kAddressSpaceSoftLimit = 0x6000000000L;   // 384 GiB
-constexpr size_t kAddressSpaceHardLimit = 0x10100000000L;  // 1 TiB + 4 GiB
+constexpr size_t kAddressSpaceLimit = 0x10100000000L;  // 1 TiB + 4 GiB
 #else
-constexpr size_t kAddressSpaceSoftLimit = 0x90000000;  // 2 GiB + 256 MiB
-constexpr size_t kAddressSpaceHardLimit = 0xC0000000;  // 3 GiB
+constexpr size_t kAddressSpaceLimit = 0xC0000000;  // 3 GiB
 #endif
 
 }  // namespace
@@ -192,10 +169,8 @@ void WasmMemoryTracker::FreeBackingStoreForTesting(base::AddressRegion memory,
                   reinterpret_cast<void*>(memory.begin()), memory.size()));
 }
 
-bool WasmMemoryTracker::ReserveAddressSpace(size_t num_bytes,
-                                            ReservationLimit limit) {
-  size_t reservation_limit =
-      limit == kSoftLimit ? kAddressSpaceSoftLimit : kAddressSpaceHardLimit;
+bool WasmMemoryTracker::ReserveAddressSpace(size_t num_bytes) {
+  size_t reservation_limit = kAddressSpaceLimit;
   while (true) {
     size_t old_count = reserved_address_space_.load();
     if (old_count > reservation_limit) return false;
@@ -267,21 +242,6 @@ bool WasmMemoryTracker::IsWasmSharedMemory(const void* buffer_start) {
   const auto& result = allocations_.find(buffer_start);
   // Should be a wasm allocation, and registered as a shared allocation.
   return (result != allocations_.end() && result->second.is_shared);
-}
-
-bool WasmMemoryTracker::HasFullGuardRegions(const void* buffer_start) {
-  base::MutexGuard scope_lock(&mutex_);
-  const auto allocation = allocations_.find(buffer_start);
-
-  if (allocation == allocations_.end()) {
-    return false;
-  }
-
-  Address start = reinterpret_cast<Address>(buffer_start);
-  Address limit =
-      reinterpret_cast<Address>(allocation->second.allocation_base) +
-      allocation->second.allocation_length;
-  return start + kWasmMaxHeapOffset < limit;
 }
 
 void WasmMemoryTracker::MarkWasmMemoryNotGrowable(

@@ -1092,16 +1092,7 @@ MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
     if (!wasm::NewArrayBuffer(isolate, new_size).ToHandle(&new_buffer)) {
       return {};
     }
-    wasm::WasmMemoryTracker* const memory_tracker =
-        isolate->wasm_engine()->memory_tracker();
-    // If the old buffer had full guard regions, we can only safely use the new
-    // buffer if it also has full guard regions. Otherwise, we'd have to
-    // recompile all the instances using this memory to insert bounds checks.
     void* old_mem_start = old_buffer->backing_store();
-    if (memory_tracker->HasFullGuardRegions(old_mem_start) &&
-        !memory_tracker->HasFullGuardRegions(new_buffer->backing_store())) {
-      return {};
-    }
     size_t old_size = old_buffer->byte_length();
     if (old_size == 0) return new_buffer;
     memcpy(new_buffer->backing_store(), old_mem_start, old_size);
@@ -1190,30 +1181,6 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
     }
   }
   return New(isolate, buffer, maximum);
-}
-
-bool WasmMemoryObject::has_full_guard_region(Isolate* isolate) {
-  const wasm::WasmMemoryTracker::AllocationData* allocation =
-      isolate->wasm_engine()->memory_tracker()->FindAllocationData(
-          array_buffer()->backing_store());
-  CHECK_NOT_NULL(allocation);
-
-  Address allocation_base =
-      reinterpret_cast<Address>(allocation->allocation_base);
-  Address buffer_start = reinterpret_cast<Address>(allocation->buffer_start);
-
-  // Return whether the allocation covers every possible Wasm heap index.
-  //
-  // We always have the following relationship:
-  // allocation_base <= buffer_start <= buffer_start + memory_size <=
-  // allocation_base + allocation_length
-  // (in other words, the buffer fits within the allocation)
-  //
-  // The space between buffer_start + memory_size and allocation_base +
-  // allocation_length is the guard region. Here we make sure the guard region
-  // is large enough for any Wasm heap offset.
-  return buffer_start + wasm::kWasmMaxHeapOffset <=
-         allocation_base + allocation->allocation_length;
 }
 
 void WasmMemoryObject::AddInstance(Isolate* isolate,

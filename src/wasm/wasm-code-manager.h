@@ -342,14 +342,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return jump_table_->contains(address);
   }
 
-  // Transition this module from code relying on trap handlers (i.e. without
-  // explicit memory bounds checks) to code that does not require trap handlers
-  // (i.e. code with explicit bounds checks).
-  // This method must only be called if {use_trap_handler()} is true (it will be
-  // false afterwards). All code in this {NativeModule} needs to be re-added
-  // after calling this method.
-  void DisableTrapHandler();
-
   // Returns the target to call for the given function (returns a jump table
   // slot within {jump_table_}).
   Address GetCallTargetForFunction(uint32_t func_index) const;

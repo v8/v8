@@ -335,10 +335,6 @@ class WasmMemoryObject : public JSObject {
                                             Handle<WasmInstanceObject> object);
   inline bool has_maximum_pages();
 
-  // Return whether the underlying backing store has guard regions large enough
-  // to be used with trap handlers.
-  bool has_full_guard_region(Isolate* isolate);
-
   V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
       Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, uint32_t maximum);
 

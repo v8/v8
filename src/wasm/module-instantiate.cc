@@ -85,11 +85,6 @@ class InstanceBuilder {
   Handle<WasmExportedFunction> start_function_;
   std::vector<SanitizedImport> sanitized_imports_;
 
-  UseTrapHandler use_trap_handler() const {
-    return module_object_->native_module()->use_trap_handler() ? kUseTrapHandler
-                                                               : kNoTrapHandler;
-  }
-
 // Helper routines to print out errors with imports.
 #define ERROR_THROWER_WITH_MESSAGE(TYPE)                                      \
   void Report##TYPE(const char* error, uint32_t index,                        \
@@ -246,12 +241,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Record build time into correct bucket, then build instance.
   TimedHistogramScope wasm_instantiate_module_time_scope(SELECT_WASM_COUNTER(
       isolate_->counters(), module_->origin, wasm_instantiate, module_time));
+  NativeModule* native_module = module_object_->native_module();
 
   //--------------------------------------------------------------------------
   // Allocate the memory array buffer.
   //--------------------------------------------------------------------------
-  // We allocate the memory buffer before cloning or reusing the compiled module
-  // so we will know whether we need to recompile with bounds checks.
   uint32_t initial_pages = module_->initial_pages;
   auto initial_pages_counter = SELECT_WASM_COUNTER(
       isolate_->counters(), module_->origin, wasm, min_mem_pages_count);
@@ -272,10 +266,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
     memory->set_is_detachable(false);
 
-    DCHECK_IMPLIES(use_trap_handler(), module_->origin == kAsmJsOrigin ||
-                                           memory->is_wasm_memory() ||
-                                           memory->backing_store() == nullptr);
-  } else if (initial_pages > 0 || use_trap_handler()) {
+    DCHECK_IMPLIES(native_module->use_trap_handler(),
+                   module_->origin == kAsmJsOrigin ||
+                       memory->is_wasm_memory() ||
+                       memory->backing_store() == nullptr);
+  } else if (initial_pages > 0 || native_module->use_trap_handler()) {
     // We need to unconditionally create a guard region if using trap handlers,
     // even when the size is zero to prevent null-dereference issues
     // (e.g. https://crbug.com/769637).
@@ -289,38 +284,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
-  // Recompile module if using trap handlers but could not get guarded memory
-  //--------------------------------------------------------------------------
-  if (module_->origin == kWasmOrigin && use_trap_handler()) {
-    // Make sure the memory has suitable guard regions.
-    WasmMemoryTracker* const memory_tracker =
-        isolate_->wasm_engine()->memory_tracker();
-
-    if (!memory_tracker->HasFullGuardRegions(
-            memory_.ToHandleChecked()->backing_store())) {
-      if (!FLAG_wasm_trap_handler_fallback) {
-        thrower_->LinkError(
-            "Provided memory is lacking guard regions but fallback was "
-            "disabled.");
-        return {};
-      }
-
-      TRACE("Recompiling module without bounds checks\n");
-      ErrorThrower thrower(isolate_, "recompile");
-      auto native_module = module_object_->native_module();
-      CompileNativeModuleWithExplicitBoundsChecks(isolate_, &thrower, module_,
-                                                  native_module);
-      if (thrower.error()) {
-        return {};
-      }
-      DCHECK(!native_module->use_trap_handler());
-    }
-  }
-
-  //--------------------------------------------------------------------------
   // Create the WebAssembly.Instance object.
   //--------------------------------------------------------------------------
-  NativeModule* native_module = module_object_->native_module();
   TRACE("New module instantiation for %p\n", native_module);
   Handle<WasmInstanceObject> instance =
       WasmInstanceObject::New(isolate_, module_object_);

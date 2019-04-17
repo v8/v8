@@ -42,11 +42,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
     Handle<FixedArray>* export_wrappers_out);
 
-void CompileNativeModuleWithExplicitBoundsChecks(Isolate* isolate,
-                                                 ErrorThrower* thrower,
-                                                 const WasmModule* wasm_module,
-                                                 NativeModule* native_module);
-
 V8_EXPORT_PRIVATE
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
                              Handle<FixedArray> export_wrappers);
