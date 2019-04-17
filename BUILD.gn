@@ -3664,6 +3664,27 @@ if (v8_monolithic) {
   }
 }
 
+v8_static_library("wee8") {
+  deps = [
+    ":v8_base",
+    ":v8_libbase",
+    ":v8_libplatform",
+    ":v8_libsampler",
+    ":v8_maybe_snapshot",
+    "//build/win:default_exe_manifest",
+  ]
+
+  # TODO: v8dll-main.cc equivalent for shared library builds
+
+  configs = [ ":internal_config" ]
+
+  sources = [
+    "src/wasm/c-api.cc",
+    "third_party/wasm-c-api/wasm.h",
+    "third_party/wasm-c-api/wasm.hh",
+  ]
+}
+
 ###############################################################################
 # Executables
 #
