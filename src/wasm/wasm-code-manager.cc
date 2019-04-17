@@ -108,6 +108,15 @@ Address WasmCode::constant_pool() const {
   return kNullAddress;
 }
 
+Address WasmCode::handler_table() const {
+  return instruction_start() + handler_table_offset_;
+}
+
+uint32_t WasmCode::handler_table_size() const {
+  DCHECK_GE(constant_pool_offset_, handler_table_offset_);
+  return static_cast<uint32_t>(constant_pool_offset_ - handler_table_offset_);
+}
+
 Address WasmCode::code_comments() const {
   return instruction_start() + code_comments_offset_;
 }
@@ -274,7 +283,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   if (safepoint_table_offset_ && safepoint_table_offset_ < instruction_size) {
     instruction_size = safepoint_table_offset_;
   }
-  if (handler_table_offset_ && handler_table_offset_ < instruction_size) {
+  if (handler_table_offset_ < instruction_size) {
     instruction_size = handler_table_offset_;
   }
   DCHECK_LT(0, instruction_size);
@@ -284,8 +293,8 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
                        CodeReference(this), current_pc);
   os << "\n";
 
-  if (handler_table_offset_ > 0) {
-    HandlerTable table(instruction_start(), handler_table_offset_);
+  if (handler_table_size() > 0) {
+    HandlerTable table(handler_table(), handler_table_size());
     os << "Exception Handler Table (size = " << table.NumberOfReturnEntries()
        << "):\n";
     table.HandlerTableReturnPrint(os);
@@ -592,8 +601,8 @@ WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
   // mean 'empty'.
   const size_t safepoint_table_offset = static_cast<size_t>(
       code->has_safepoint_table() ? code->safepoint_table_offset() : 0);
-  const size_t handler_table_offset = static_cast<size_t>(
-      code->has_handler_table() ? code->handler_table_offset() : 0);
+  const size_t handler_table_offset =
+      static_cast<size_t>(code->handler_table_offset());
   const size_t constant_pool_offset =
       static_cast<size_t>(code->constant_pool_offset());
   const size_t code_comments_offset =
@@ -681,8 +690,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   // 'empty'.
   const size_t safepoint_table_offset = static_cast<size_t>(
       desc.safepoint_table_size == 0 ? 0 : desc.safepoint_table_offset);
-  const size_t handler_table_offset = static_cast<size_t>(
-      desc.handler_table_size == 0 ? 0 : desc.handler_table_offset);
+  const size_t handler_table_offset =
+      static_cast<size_t>(desc.handler_table_offset);
   const size_t constant_pool_offset =
       static_cast<size_t>(desc.constant_pool_offset);
   const size_t code_comments_offset =
@@ -868,7 +877,7 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {
       0,                                        // stack_slots
       0,                                        // tagged_parameter_slots
       0,                                        // safepoint_table_offset
-      0,                                        // handler_table_offset
+      jump_table_size,                          // handler_table_offset
       jump_table_size,                          // constant_pool_offset
       jump_table_size,                          // code_comments_offset
       jump_table_size,                          // unpadded_binary_size

@@ -14,9 +14,8 @@ namespace v8 {
 namespace internal {
 
 HandlerTable::HandlerTable(Code code)
-    : HandlerTable(code->InstructionStart(), code->has_handler_table()
-                                                 ? code->handler_table_offset()
-                                                 : 0) {}
+    : HandlerTable(code->InstructionStart() + code->handler_table_offset(),
+                   code->handler_table_size()) {}
 
 HandlerTable::HandlerTable(BytecodeArray bytecode_array)
     : HandlerTable(bytecode_array->handler_table()) {}
@@ -29,24 +28,17 @@ HandlerTable::HandlerTable(ByteArray byte_array)
 #endif
       raw_encoded_data_(
           reinterpret_cast<Address>(byte_array->GetDataStartAddress())) {
+  DCHECK_EQ(0, byte_array->length() % (kRangeEntrySize * sizeof(int32_t)));
 }
 
-// TODO(jgruber,v8:8758): This constructor should eventually take the handler
-// table size in addition to the offset. That way the {HandlerTable} class
-// remains independent of how the offset/size is encoded in the various code
-// objects. This could even allow us to change the encoding to no longer expect
-// the "number of entries" in the beginning.
-HandlerTable::HandlerTable(Address instruction_start,
-                           size_t handler_table_offset)
-    : number_of_entries_(0),
+HandlerTable::HandlerTable(Address handler_table, int handler_table_size)
+    : number_of_entries_(handler_table_size / kReturnEntrySize /
+                         sizeof(int32_t)),
 #ifdef DEBUG
       mode_(kReturnAddressBasedEncoding),
 #endif
-      raw_encoded_data_(instruction_start + handler_table_offset) {
-  if (handler_table_offset > 0) {
-    number_of_entries_ = Memory<int32_t>(raw_encoded_data_);
-    raw_encoded_data_ += sizeof(int32_t);
-  }
+      raw_encoded_data_(handler_table) {
+  DCHECK_EQ(0, handler_table_size % (kReturnEntrySize * sizeof(int32_t)));
 }
 
 int HandlerTable::GetRangeStart(int index) const {
@@ -131,11 +123,10 @@ int HandlerTable::LengthForRange(int entries) {
 }
 
 // static
-int HandlerTable::EmitReturnTableStart(Assembler* masm, int entries) {
+int HandlerTable::EmitReturnTableStart(Assembler* masm) {
   masm->DataAlign(sizeof(int32_t));  // Make sure entries are aligned.
   masm->RecordComment(";;; Exception handler table.");
   int table_start = masm->pc_offset();
-  masm->dd(entries);
   return table_start;
 }
 

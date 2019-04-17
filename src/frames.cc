@@ -1892,8 +1892,8 @@ int WasmCompiledFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   DCHECK_NOT_NULL(stack_slots);
   wasm::WasmCode* code =
       isolate()->wasm_engine()->code_manager()->LookupCode(pc());
-  if (!code->IsAnonymous() && code->handler_table_offset() > 0) {
-    HandlerTable table(code->instruction_start(), code->handler_table_offset());
+  if (!code->IsAnonymous() && code->handler_table_size() > 0) {
+    HandlerTable table(code->handler_table(), code->handler_table_size());
     int pc_offset = static_cast<int>(pc() - code->instruction_start());
     *stack_slots = static_cast<int>(code->stack_slots());
     return table.LookupReturn(pc_offset);

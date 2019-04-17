@@ -114,6 +114,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
   NativeModule* native_module() const { return native_module_; }
   ExecutionTier tier() const { return tier_; }
   Address constant_pool() const;
+  Address handler_table() const;
+  uint32_t handler_table_size() const;
   Address code_comments() const;
   uint32_t code_comments_size() const;
   size_t constant_pool_offset() const { return constant_pool_offset_; }

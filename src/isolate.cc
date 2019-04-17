@@ -1741,7 +1741,7 @@ Object Isolate::UnwindAndFindHandler() {
           // It is safe to skip Wasm runtime stubs as none of them contain local
           // exception handlers.
           CHECK_EQ(wasm::WasmCode::kRuntimeStub, wasm_code->kind());
-          CHECK_EQ(0, wasm_code->handler_table_offset());
+          CHECK_EQ(0, wasm_code->handler_table_size());
           break;
         }
         Code code = stub_frame->LookupCode();

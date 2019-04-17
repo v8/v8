@@ -49,7 +49,7 @@ class V8_EXPORT_PRIVATE HandlerTable {
   explicit HandlerTable(Code code);
   explicit HandlerTable(ByteArray byte_array);
   explicit HandlerTable(BytecodeArray bytecode_array);
-  explicit HandlerTable(Address instruction_start, size_t handler_table_offset);
+  explicit HandlerTable(Address handler_table, int handler_table_size);
 
   // Getters for handler table based on ranges.
   int GetRangeStart(int index) const;
@@ -67,7 +67,7 @@ class V8_EXPORT_PRIVATE HandlerTable {
   static int LengthForRange(int entries);
 
   // Emitters for handler table based on return addresses.
-  static int EmitReturnTableStart(Assembler* masm, int entries);
+  static int EmitReturnTableStart(Assembler* masm);
   static void EmitReturnEntry(Assembler* masm, int offset, int handler);
 
   // Lookup handler in a table based on ranges. The {pc_offset} is an offset to
@@ -106,7 +106,7 @@ class V8_EXPORT_PRIVATE HandlerTable {
   EncodingMode mode_;
 #endif
 
-  // Direct pointer into the encoded data. This pointer points into object on
+  // Direct pointer into the encoded data. This pointer points into objects on
   // the GC heap (either {ByteArray} or {Code}) and hence would become stale
   // during a collection. Hence we disallow any allocation.
   Address raw_encoded_data_;

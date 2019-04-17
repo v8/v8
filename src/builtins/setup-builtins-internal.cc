@@ -110,9 +110,7 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
   DCHECK_EQ(Builtins::KindOf(Builtins::kJSConstructEntry), Builtins::ASM);
   DCHECK_EQ(Builtins::KindOf(Builtins::kJSRunMicrotasksEntry), Builtins::ASM);
   if (Builtins::IsJSEntryVariant(builtin_index)) {
-    static constexpr int kJSEntryHandlerCount = 1;
-    handler_table_offset =
-        HandlerTable::EmitReturnTableStart(&masm, kJSEntryHandlerCount);
+    handler_table_offset = HandlerTable::EmitReturnTableStart(&masm);
     HandlerTable::EmitReturnEntry(
         &masm, 0, isolate->builtins()->js_entry_handler_offset());
   }

@@ -305,8 +305,7 @@ void CodeGenerator::AssembleCode() {
 
   // Emit the exception handler table.
   if (!handlers_.empty()) {
-    handler_table_offset_ = HandlerTable::EmitReturnTableStart(
-        tasm(), static_cast<int>(handlers_.size()));
+    handler_table_offset_ = HandlerTable::EmitReturnTableStart(tasm());
     for (size_t i = 0; i < handlers_.size(); ++i) {
       HandlerTable::EmitReturnEntry(tasm(), handlers_[i].pc_offset,
                                     handlers_[i].handler->pos());
