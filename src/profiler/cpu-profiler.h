@@ -216,10 +216,10 @@ class V8_EXPORT_PRIVATE SamplingEventsProcessor
 
 class V8_EXPORT_PRIVATE CpuProfiler {
  public:
-  explicit CpuProfiler(Isolate* isolate);
+  explicit CpuProfiler(Isolate* isolate, CpuProfilingNamingMode = kDebugNaming);
 
-  CpuProfiler(Isolate* isolate, CpuProfilesCollection* profiles,
-              ProfileGenerator* test_generator,
+  CpuProfiler(Isolate* isolate, CpuProfilingNamingMode naming_mode,
+              CpuProfilesCollection* profiles, ProfileGenerator* test_generator,
               ProfilerEventsProcessor* test_processor);
 
   ~CpuProfiler();
@@ -227,6 +227,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   static void CollectSample(Isolate* isolate);
 
   typedef v8::CpuProfilingMode ProfilingMode;
+  typedef v8::CpuProfilingNamingMode NamingMode;
 
   void set_sampling_interval(base::TimeDelta value);
   void set_use_precise_sampling(bool);
@@ -260,6 +261,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   void CreateEntriesForRuntimeCallStats();
 
   Isolate* const isolate_;
+  const NamingMode naming_mode_;
   base::TimeDelta sampling_interval_;
   bool use_precise_sampling_ = true;
   std::unique_ptr<CpuProfilesCollection> profiles_;
