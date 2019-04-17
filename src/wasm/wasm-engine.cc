@@ -548,7 +548,6 @@ void WasmEngine::LogCode(WasmCode* code) {
           &mutex_, &info->log_codes_task, isolate, this);
       info->log_codes_task = new_task.get();
       info->foreground_task_runner->PostTask(std::move(new_task));
-      isolate->stack_guard()->RequestLogWasmCode();
     }
     info->code_to_log.push_back(code);
     code->IncRef();
@@ -566,19 +565,15 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
   // If by now we should not log code any more, do not log it.
   if (!WasmCode::ShouldBeLogged(isolate)) return;
 
-  // Under the mutex, get the vector of wasm code to log. Then log and decrement
-  // the ref count without holding the mutex.
-  std::vector<WasmCode*> code_to_log;
-  {
-    base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(1, isolates_.count(isolate));
-    code_to_log.swap(isolates_[isolate]->code_to_log);
-  }
-  if (code_to_log.empty()) return;
-  for (WasmCode* code : code_to_log) {
+  base::MutexGuard guard(&mutex_);
+  DCHECK_EQ(1, isolates_.count(isolate));
+  IsolateInfo* info = isolates_[isolate].get();
+  if (info->code_to_log.empty()) return;
+  for (WasmCode* code : info->code_to_log) {
     code->LogCode(isolate);
   }
-  WasmCode::DecrementRefCount(VectorOf(code_to_log));
+  WasmCode::DecrementRefCount(VectorOf(info->code_to_log));
+  info->code_to_log.clear();
 }
 
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
