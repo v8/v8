@@ -2977,6 +2977,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/x64/register-x64.h",
       "src/x64/sse-instr.h",
     ]
+
     # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
     # based on Darwin and thus POSIX-compliant to a similar degree.
     if (is_linux || is_mac || is_ios) {
@@ -3738,6 +3739,8 @@ if (v8_use_snapshot && current_toolchain == v8_snapshot_toolchain) {
       defines = [ "V8_TARGET_OS_FUCHSIA" ]
     } else if (target_os == "win") {
       defines = [ "V8_TARGET_OS_WIN" ]
+    } else if (target_os == "chromeos") {
+      defines = [ "V8_TARGET_OS_CHROMEOS" ]
     }
   }
 }

@@ -680,7 +680,7 @@ int PlatformDependentEmbeddedFileWriter::IndentedDataDirective(
 #else
 
 void PlatformDependentEmbeddedFileWriter::SectionText() {
-#ifdef OS_CHROMEOS
+#if defined(V8_TARGET_OS_CHROMEOS)
   fprintf(fp_, ".section .text.hot.embedded\n");
 #else
   fprintf(fp_, ".section .text\n");
