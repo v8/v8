@@ -2977,7 +2977,9 @@ v8_source_set("v8_base_without_compiler") {
       "src/x64/register-x64.h",
       "src/x64/sse-instr.h",
     ]
-    if (is_linux || is_mac) {
+    # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
+    # based on Darwin and thus POSIX-compliant to a similar degree.
+    if (is_linux || is_mac || is_ios) {
       sources += [
         "src/trap-handler/handler-inside-posix.cc",
         "src/trap-handler/handler-inside-posix.h",
