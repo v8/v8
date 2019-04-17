@@ -16,28 +16,9 @@ namespace wasm {
 #if V8_TARGET_ARCH_X64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
-  // TODO(clemensh): Try more efficient sequences.
-  // Alternative 1:
-  // [header]:  mov r10, [lazy_compile_target]
-  //            jmp r10
-  // [slot 0]:  push [0]
-  //            jmp [header]  // pc-relative --> slot size: 10 bytes
-  //
-  // Alternative 2:
-  // [header]:  lea r10, [rip - [header]]
-  //            shr r10, 3  // compute index from offset
-  //            push r10
-  //            mov r10, [lazy_compile_target]
-  //            jmp r10
-  // [slot 0]:  call [header]
-  //            ret   // -> slot size: 5 bytes
-
   // Use a push, because mov to an extended register takes 6 bytes.
-  pushq(Immediate(func_index));                           // max 5 bytes
-  movq(kScratchRegister, uint64_t{lazy_compile_target});  // max 10 bytes
-  jmp(kScratchRegister);                                  // 3 bytes
-
-  PatchConstPool();  // force patching entries for partial const pool
+  pushq(Immediate(func_index));       // max 5 bytes
+  EmitJumpSlot(lazy_compile_target);  // always 5 bytes
 }
 
 void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {

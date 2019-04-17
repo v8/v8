@@ -115,7 +115,7 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
 // boundaries. The jump table line size has been chosen to satisfy this.
 #if V8_TARGET_ARCH_X64
   static constexpr int kJumpTableLineSize = 64;
-  static constexpr int kJumpTableSlotSize = 18;
+  static constexpr int kJumpTableSlotSize = 10;
   static constexpr int kJumpTableStubSlotSize = 18;
 #elif V8_TARGET_ARCH_IA32
   static constexpr int kJumpTableLineSize = 64;
