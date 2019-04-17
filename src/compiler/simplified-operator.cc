@@ -547,19 +547,23 @@ bool operator==(AllocateParameters const& lhs, AllocateParameters const& rhs) {
          lhs.type() == rhs.type();
 }
 
+const AllocateParameters& AllocateParametersOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kAllocate ||
+         op->opcode() == IrOpcode::kAllocateRaw);
+  return OpParameter<AllocateParameters>(op);
+}
+
 AllocationType AllocationTypeOf(const Operator* op) {
   if (op->opcode() == IrOpcode::kNewDoubleElements ||
       op->opcode() == IrOpcode::kNewSmiOrObjectElements) {
     return OpParameter<AllocationType>(op);
   }
-  DCHECK(op->opcode() == IrOpcode::kAllocate ||
-         op->opcode() == IrOpcode::kAllocateRaw);
-  return OpParameter<AllocateParameters>(op).allocation_type();
+  return AllocateParametersOf(op).allocation_type();
 }
 
 Type AllocateTypeOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kAllocate, op->opcode());
-  return OpParameter<AllocateParameters>(op).type();
+  return AllocateParametersOf(op).type();
 }
 
 UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
@@ -1651,11 +1655,18 @@ const Operator* SimplifiedOperatorBuilder::Allocate(Type type,
 }
 
 const Operator* SimplifiedOperatorBuilder::AllocateRaw(
-    Type type, AllocationType allocation) {
+    Type type, AllocationType allocation,
+    AllowLargeObjects allow_large_objects) {
+  // We forbid optimized allocations to allocate in a different generation than
+  // requested.
+  DCHECK(!(allow_large_objects == AllowLargeObjects::kTrue &&
+           allocation == AllocationType::kYoung &&
+           !FLAG_young_generation_large_objects));
   return new (zone()) Operator1<AllocateParameters>(
       IrOpcode::kAllocateRaw,
       Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
-      "AllocateRaw", 1, 1, 1, 1, 1, 1, AllocateParameters(type, allocation));
+      "AllocateRaw", 1, 1, 1, 1, 1, 1,
+      AllocateParameters(type, allocation, allow_large_objects));
 }
 
 const Operator* SimplifiedOperatorBuilder::StringCodePointAt(

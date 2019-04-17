@@ -223,13 +223,14 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
   gasm()->Reset(effect, control);
 
-  AllocationType allocation = AllocationTypeOf(node->op());
+  const AllocateParameters& allocation = AllocateParametersOf(node->op());
+  AllocationType allocation_type = allocation.allocation_type();
 
   // Propagate tenuring from outer allocations to inner allocations, i.e.
   // when we allocate an object in old space and store a newly allocated
   // child object into the pretenured object, then the newly allocated
   // child object also should get pretenured to old space.
-  if (allocation == AllocationType::kOld) {
+  if (allocation_type == AllocationType::kOld) {
     for (Edge const edge : node->use_edges()) {
       Node* const user = edge.from();
       if (user->opcode() == IrOpcode::kStoreField && edge.index() == 0) {
@@ -242,14 +243,14 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
       }
     }
   } else {
-    DCHECK_EQ(AllocationType::kYoung, allocation);
+    DCHECK_EQ(AllocationType::kYoung, allocation_type);
     for (Edge const edge : node->use_edges()) {
       Node* const user = edge.from();
       if (user->opcode() == IrOpcode::kStoreField && edge.index() == 1) {
         Node* const parent = user->InputAt(0);
         if (parent->opcode() == IrOpcode::kAllocateRaw &&
             AllocationTypeOf(parent->op()) == AllocationType::kOld) {
-          allocation = AllocationType::kOld;
+          allocation_type = AllocationType::kOld;
           break;
         }
       }
@@ -258,11 +259,11 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
   // Determine the top/limit addresses.
   Node* top_address = __ ExternalConstant(
-      allocation == AllocationType::kYoung
+      allocation_type == AllocationType::kYoung
           ? ExternalReference::new_space_allocation_top_address(isolate())
           : ExternalReference::old_space_allocation_top_address(isolate()));
   Node* limit_address = __ ExternalConstant(
-      allocation == AllocationType::kYoung
+      allocation_type == AllocationType::kYoung
           ? ExternalReference::new_space_allocation_limit_address(isolate())
           : ExternalReference::old_space_allocation_limit_address(isolate()));
 
@@ -273,7 +274,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
     intptr_t const object_size = m.Value();
     if (allocation_folding_ == AllocationFolding::kDoAllocationFolding &&
         state->size() <= kMaxRegularHeapObjectSize - object_size &&
-        state->group()->allocation() == allocation) {
+        state->group()->allocation() == allocation_type) {
       // We can fold this Allocate {node} into the allocation {group}
       // represented by the given {state}. Compute the upper bound for
       // the new {state}.
@@ -331,7 +332,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
       __ Bind(&call_runtime);
       {
-        Node* target = allocation == AllocationType::kYoung
+        Node* target = allocation_type == AllocationType::kYoung
                            ? __
                              AllocateInYoungGenerationStubConstant()
                            : __
@@ -363,7 +364,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
       // Start a new allocation group.
       AllocationGroup* group =
-          new (zone()) AllocationGroup(value, allocation, size, zone());
+          new (zone()) AllocationGroup(value, allocation_type, size, zone());
       state = AllocationState::Open(group, object_size, top, zone());
     }
   } else {
@@ -382,6 +383,11 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
     // Check if we can do bump pointer allocation here.
     Node* check = __ UintLessThan(new_top, limit);
     __ GotoIfNot(check, &call_runtime);
+    if (allocation.allow_large_objects() == AllowLargeObjects::kTrue) {
+      __ GotoIfNot(
+          __ UintLessThan(size, __ IntPtrConstant(kMaxRegularHeapObjectSize)),
+          &call_runtime);
+    }
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
              top_address, __ IntPtrConstant(0), new_top);
@@ -389,7 +395,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
                        __ IntAdd(top, __ IntPtrConstant(kHeapObjectTag))));
 
     __ Bind(&call_runtime);
-    Node* target = allocation == AllocationType::kYoung
+    Node* target = allocation_type == AllocationType::kYoung
                        ? __
                          AllocateInYoungGenerationStubConstant()
                        : __
@@ -408,7 +414,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
     // Create an unfoldable allocation group.
     AllocationGroup* group =
-        new (zone()) AllocationGroup(value, allocation, zone());
+        new (zone()) AllocationGroup(value, allocation_type, zone());
     state = AllocationState::Closed(group, zone());
   }
 

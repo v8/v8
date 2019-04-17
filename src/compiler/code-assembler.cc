@@ -1120,10 +1120,11 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
   raw_assembler()->AddNode(raw_assembler()->common()->IfSuccess(), node);
 }
 
-TNode<HeapObject> CodeAssembler::OptimizedAllocate(TNode<IntPtrT> size,
-                                                   AllocationType allocation) {
-  return UncheckedCast<HeapObject>(
-      raw_assembler()->OptimizedAllocate(size, allocation));
+TNode<HeapObject> CodeAssembler::OptimizedAllocate(
+    TNode<IntPtrT> size, AllocationType allocation,
+    AllowLargeObjects allow_large_objects) {
+  return UncheckedCast<HeapObject>(raw_assembler()->OptimizedAllocate(
+      size, allocation, allow_large_objects));
 }
 
 void CodeAssembler::HandleException(Node* node) {

@@ -69,9 +69,12 @@ Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,
              : RelocatableInt32Constant(static_cast<int>(value), rmode);
 }
 
-Node* RawMachineAssembler::OptimizedAllocate(Node* size,
-                                             AllocationType allocation) {
-  return AddNode(simplified()->AllocateRaw(Type::Any(), allocation), size);
+Node* RawMachineAssembler::OptimizedAllocate(
+    Node* size, AllocationType allocation,
+    AllowLargeObjects allow_large_objects) {
+  return AddNode(
+      simplified()->AllocateRaw(Type::Any(), allocation, allow_large_objects),
+      size);
 }
 
 Schedule* RawMachineAssembler::Export() {

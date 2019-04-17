@@ -1232,15 +1232,23 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
                                               AllocationFlags flags) {
   Comment("Allocate");
   bool const new_space = !(flags & kPretenured);
-  if (!(flags & kAllowLargeObjectAllocation)) {
+  bool const allow_large_objects = flags & kAllowLargeObjectAllocation;
+  // For optimized allocations, we don't allow the allocation to happen in a
+  // different generation than requested.
+  bool const always_allocated_in_requested_space =
+      !new_space || !allow_large_objects || FLAG_young_generation_large_objects;
+  if (!allow_large_objects) {
     intptr_t size_constant;
     if (ToIntPtrConstant(size_in_bytes, size_constant)) {
       CHECK_LE(size_constant, kMaxRegularHeapObjectSize);
     }
   }
-  if (!(flags & kDoubleAlignment) && !(flags & kAllowLargeObjectAllocation)) {
-    return OptimizedAllocate(size_in_bytes, new_space ? AllocationType::kYoung
-                                                      : AllocationType::kOld);
+  if (!(flags & kDoubleAlignment) && always_allocated_in_requested_space) {
+    return OptimizedAllocate(
+        size_in_bytes,
+        new_space ? AllocationType::kYoung : AllocationType::kOld,
+        allow_large_objects ? AllowLargeObjects::kTrue
+                            : AllowLargeObjects::kFalse);
   }
   TNode<ExternalReference> top_address = ExternalConstant(
       new_space
@@ -3889,8 +3897,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
           AllocateFixedArray(kind, capacity, capacity_mode, allocation_flags);
 
       if (IsDoubleElementsKind(kind)) {
-        FillFixedDoubleArrayWithZero(CAST(elements.value()),
-                                    ParameterToIntPtr(capacity, capacity_mode));
+        FillFixedDoubleArrayWithZero(
+            CAST(elements.value()), ParameterToIntPtr(capacity, capacity_mode));
       } else {
         FillFixedArrayWithSmiZero(CAST(elements.value()),
                                   ParameterToIntPtr(capacity, capacity_mode));
@@ -3914,20 +3922,20 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
         InnerAllocate(array.value(), elements_offset));
 
     StoreObjectFieldNoWriteBarrier(array.value(), JSObject::kElementsOffset,
-                                  elements.value());
+                                   elements.value());
 
     // Setup elements object.
     STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kTaggedSize);
     RootIndex elements_map_index = IsDoubleElementsKind(kind)
-                                      ? RootIndex::kFixedDoubleArrayMap
-                                      : RootIndex::kFixedArrayMap;
+                                       ? RootIndex::kFixedDoubleArrayMap
+                                       : RootIndex::kFixedArrayMap;
     DCHECK(RootsTable::IsImmortalImmovable(elements_map_index));
     StoreMapNoWriteBarrier(elements.value(), elements_map_index);
 
     TNode<Smi> capacity_smi = ParameterToTagged(capacity, capacity_mode);
     CSA_ASSERT(this, SmiGreaterThan(capacity_smi, SmiConstant(0)));
     StoreObjectFieldNoWriteBarrier(elements.value(), FixedArray::kLengthOffset,
-                                  capacity_smi);
+                                   capacity_smi);
     Goto(&out);
   }
 
@@ -3972,8 +3980,8 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
 
   Label out(this), nonempty(this);
 
-    Branch(SmiEqual(ParameterToTagged(capacity, capacity_mode), SmiConstant(0)),
-          &out, &nonempty);
+  Branch(SmiEqual(ParameterToTagged(capacity, capacity_mode), SmiConstant(0)),
+         &out, &nonempty);
 
   BIND(&nonempty);
   {

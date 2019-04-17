@@ -761,6 +761,8 @@ inline std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
   UNREACHABLE();
 }
 
+enum class AllowLargeObjects { kFalse, kTrue };
+
 enum MinimumCapacity {
   USE_DEFAULT_MINIMUM_CAPACITY,
   USE_CUSTOM_MINIMUM_CAPACITY

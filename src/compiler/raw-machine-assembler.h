@@ -227,7 +227,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* Retain(Node* value) { return AddNode(common()->Retain(), value); }
 
-  Node* OptimizedAllocate(Node* size, AllocationType allocation);
+  Node* OptimizedAllocate(Node* size, AllocationType allocation,
+                          AllowLargeObjects allow_large_objects);
 
   // Unaligned memory operations
   Node* UnalignedLoad(MachineType type, Node* base) {
