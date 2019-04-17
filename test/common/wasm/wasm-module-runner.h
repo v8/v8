@@ -57,6 +57,11 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
 int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                 const byte* module_end);
 
+// Decode and compile the given module with no imports.
+MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
+                                                ErrorThrower* thrower,
+                                                const ModuleWireBytes& bytes);
+
 // Decode, compile, and instantiate the given module with no imports.
 MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes);

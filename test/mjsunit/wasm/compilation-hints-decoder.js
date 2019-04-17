@@ -13,9 +13,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
          .addBody([kExprGetLocal, 0,
                    kExprGetLocal, 0,
                    kExprCallFunction, 0])
-         .giveCompilationHint(kCompilationHintStrategyLazy,
-                              kCompilationHintTierOptimized,
-                              kCompilationHintTierBaseline)
+         .setCompilationHint(kCompilationHintStrategyLazy,
+                             kCompilationHintTierOptimized,
+                             kCompilationHintTierBaseline)
          .exportFunc();
   assertThrows(() => builder.instantiate({mod: {pow: Math.pow}}),
                WebAssembly.CompileError,
@@ -30,9 +30,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
          .addBody([kExprGetLocal, 0,
                    kExprGetLocal, 0,
                    kExprCallFunction, 0])
-         .giveCompilationHint(kCompilationHintStrategyDefault,
-                              kCompilationHintTierInterpreter,
-                              kCompilationHintTierInterpreter)
+         .setCompilationHint(kCompilationHintStrategyDefault,
+                             kCompilationHintTierInterpreter,
+                             kCompilationHintTierInterpreter)
          .exportFunc();
   builder.addFunction('upow2', kSig_i_i)
          .addBody([kExprGetLocal, 0,
@@ -61,9 +61,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
          .addBody([kExprGetLocal, 0,
                    kExprGetLocal, 0,
                    kExprCallFunction, 0])
-         .giveCompilationHint(kCompilationHintStrategyEager,
-                              kCompilationHintTierBaseline,
-                              kCompilationHintTierOptimized)
+         .setCompilationHint(kCompilationHintStrategyEager,
+                             kCompilationHintTierBaseline,
+                             kCompilationHintTierOptimized)
          .exportFunc();
   let instance = builder.instantiate({mod: {pow: Math.pow}});
   assertEquals(27, instance.exports.upow(3))
@@ -75,9 +75,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
          .addBody([kExprGetLocal, 0,
                    kExprGetLocal, 0,
                    kExprI32Mul])
-         .giveCompilationHint(kCompilationHintStrategyEager,
-                              kCompilationHintTierDefault,
-                              kCompilationHintTierOptimized)
+         .setCompilationHint(kCompilationHintStrategyEager,
+                             kCompilationHintTierDefault,
+                             kCompilationHintTierOptimized)
          .exportFunc();
   let instance = builder.instantiate();
   assertEquals(9, instance.exports.sq(3))
@@ -89,9 +89,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
          .addBody([kExprGetLocal, 0,
                    kExprGetLocal, 0,
                    kExprI32Mul])
-         .giveCompilationHint(kCompilationHintStrategyEager,
-                              kCompilationHintTierDefault,
-                              kCompilationHintTierOptimized)
+         .setCompilationHint(kCompilationHintStrategyEager,
+                             kCompilationHintTierDefault,
+                             kCompilationHintTierOptimized)
   builder.instantiate();
 })();
 
@@ -101,9 +101,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
          .addBody([kExprGetLocal, 0,
                    kExprGetLocal, 0,
                    kExprI32Mul])
-         .giveCompilationHint(kCompilationHintStrategyEager,
-                              kCompilationHintTierOptimized,
-                              kCompilationHintTierDefault)
+         .setCompilationHint(kCompilationHintStrategyEager,
+                             kCompilationHintTierOptimized,
+                             kCompilationHintTierDefault)
          .exportFunc();
   let instance = builder.instantiate();
   assertEquals(9, instance.exports.sq(3))
@@ -115,9 +115,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
          .addBody([kExprGetLocal, 0,
                    kExprGetLocal, 0,
                    kExprI32Mul])
-         .giveCompilationHint(0x3,
-                              kCompilationHintTierOptimized,
-                              kCompilationHintTierDefault)
+         .setCompilationHint(0x3,
+                             kCompilationHintTierOptimized,
+                             kCompilationHintTierDefault)
          .exportFunc();
   assertThrows(() => builder.instantiate(),
                WebAssembly.CompileError,

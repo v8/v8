@@ -640,8 +640,8 @@ class WasmFunctionBuilder {
     return this;
   }
 
-  giveCompilationHint(strategy, baselineTier, topTier) {
-    this.module.giveCompilationHint(strategy, baselineTier, topTier, this.index);
+  setCompilationHint(strategy, baselineTier, topTier) {
+    this.module.setCompilationHint(strategy, baselineTier, topTier, this.index);
     return this;
   }
 
@@ -871,7 +871,7 @@ class WasmModuleBuilder {
     return this;
   }
 
-  giveCompilationHint(strategy, baselineTier, topTier, index) {
+  setCompilationHint(strategy, baselineTier, topTier, index) {
     this.compilation_hints[index] = {strategy: strategy, baselineTier:
       baselineTier, topTier: topTier};
     return this;

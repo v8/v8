@@ -12,6 +12,7 @@
 #include "src/vector.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
+#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 
@@ -176,6 +177,9 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void SetName(Vector<const char> name);
   void AddAsmWasmOffset(size_t call_position, size_t to_number_position);
   void SetAsmFunctionStartPosition(size_t function_position);
+  void SetCompilationHint(WasmCompilationHintStrategy strategy,
+                          WasmCompilationHintTier baseline,
+                          WasmCompilationHintTier top_tier);
 
   size_t GetPosition() const { return body_.size(); }
   void FixupByte(size_t position, byte value) {
@@ -217,6 +221,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   uint32_t last_asm_byte_offset_ = 0;
   uint32_t last_asm_source_position_ = 0;
   uint32_t asm_func_start_source_position_ = 0;
+  uint8_t hint_ = kNoCompilationHint;
 };
 
 class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {

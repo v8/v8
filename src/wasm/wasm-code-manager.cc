@@ -1465,6 +1465,7 @@ WasmCodeRefScope::~WasmCodeRefScope() {
 
 // static
 void WasmCodeRefScope::AddRef(WasmCode* code) {
+  DCHECK_NOT_NULL(code);
   WasmCodeRefScope* current_scope = current_code_refs_scope;
   DCHECK_NOT_NULL(current_scope);
   auto entry = current_scope->code_ptrs_.insert(code);

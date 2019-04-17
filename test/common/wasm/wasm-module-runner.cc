@@ -26,14 +26,21 @@ uint32_t GetInitialMemSize(const WasmModule* module) {
   return kWasmPageSize * module->initial_pages;
 }
 
-MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes) {
+MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
+                                                ErrorThrower* thrower,
+                                                const ModuleWireBytes& bytes) {
   auto enabled_features = WasmFeaturesFromIsolate(isolate);
   MaybeHandle<WasmModuleObject> module = isolate->wasm_engine()->SyncCompile(
       isolate, enabled_features, thrower, bytes);
   DCHECK_EQ(thrower->error(), module.is_null());
-  if (module.is_null()) return {};
+  return module;
+}
 
+MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
+    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes) {
+  MaybeHandle<WasmModuleObject> module =
+      CompileForTesting(isolate, thrower, bytes);
+  if (module.is_null()) return {};
   return isolate->wasm_engine()->SyncInstantiate(
       isolate, thrower, module.ToHandleChecked(), {}, {});
 }
