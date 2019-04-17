@@ -57,6 +57,9 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
   static const int kFirstCaptureIndex = 3;
   static const int kLastMatchOverhead = kFirstCaptureIndex;
 
+  DEFINE_FIELD_OFFSET_CONSTANTS(FixedArray::kHeaderSize,
+                                TORQUE_GENERATED_REG_EXP_MATCH_INFO_FIELDS)
+
   // Every match info is guaranteed to have enough space to store two captures.
   static const int kInitialCaptureIndices = 2;
 

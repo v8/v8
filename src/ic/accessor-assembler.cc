@@ -581,8 +581,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     CSA_ASSERT(this, IsPropertyCell(holder));
     // Ensure the property cell doesn't contain the hole.
     Node* value = LoadObjectField(holder, PropertyCell::kValueOffset);
-    Node* details =
-        LoadAndUntagToWord32ObjectField(holder, PropertyCell::kDetailsOffset);
+    Node* details = LoadAndUntagToWord32ObjectField(
+        holder, PropertyCell::kPropertyDetailsRawOffset);
     GotoIf(IsTheHole(value), miss);
 
     exit_point->Return(
@@ -3178,8 +3178,8 @@ void AccessorAssembler::StoreGlobalIC_PropertyCellCase(Node* property_cell,
   // runtime.
   Node* cell_contents =
       LoadObjectField(property_cell, PropertyCell::kValueOffset);
-  Node* details = LoadAndUntagToWord32ObjectField(property_cell,
-                                                  PropertyCell::kDetailsOffset);
+  Node* details = LoadAndUntagToWord32ObjectField(
+      property_cell, PropertyCell::kPropertyDetailsRawOffset);
   GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask), miss);
   CSA_ASSERT(this,
              Word32Equal(DecodeWord32<PropertyDetails::KindField>(details),

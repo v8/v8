@@ -301,15 +301,9 @@ class WeakFixedArray : public HeapObject {
 
   using BodyDescriptor = WeakArrayBodyDescriptor;
 
-  // Layout description.
-#define WEAK_FIXED_ARRAY_FIELDS(V) \
-  V(kLengthOffset, kTaggedSize)    \
-  /* Header size. */               \
-  V(kHeaderSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                WEAK_FIXED_ARRAY_FIELDS)
-#undef WEAK_FIXED_ARRAY_FIELDS
+                                TORQUE_GENERATED_WEAK_FIXED_ARRAY_FIELDS)
+  static constexpr int kHeaderSize = kSize;
 
   static const int kMaxLength =
       (FixedArray::kMaxSize - kHeaderSize) / kTaggedSize;

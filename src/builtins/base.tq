@@ -147,6 +147,8 @@ extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64;
 }
 
+extern class WeakFixedArray extends HeapObject { length: Smi; }
+
 extern class ByteArray extends FixedArrayBase {}
 
 type BytecodeArray extends FixedArrayBase;
@@ -551,6 +553,15 @@ extern class ObjectTemplateInfo extends TemplateInfo {
 
 extern class PropertyArray extends HeapObject { length_and_hash: Smi; }
 
+extern class DependentCode extends WeakFixedArray {}
+
+extern class PropertyCell extends HeapObject {
+  name: Name;
+  property_details_raw: Smi;
+  value: Object;
+  dependent_code: DependentCode;
+}
+
 extern class JSDataView extends JSArrayBufferView {}
 
 type InstanceType generates 'TNode<Int32T>' constexpr 'InstanceType';
@@ -913,6 +924,24 @@ extern class PromiseReaction extends Struct {
   promise_or_capability: JSPromise | PromiseCapability | Undefined;
 }
 
+extern class PromiseReactionJobTask extends Microtask {
+  argument: Object;
+  context: Context;
+  handler: Callable | Undefined;
+  promise_or_capability: JSPromise | PromiseCapability | Undefined;
+}
+
+extern class PromiseFulfillReactionJobTask extends PromiseReactionJobTask {}
+
+extern class PromiseRejectReactionJobTask extends PromiseReactionJobTask {}
+
+extern class PromiseResolveThenableJobTask extends Microtask {
+  context: Context;
+  promise_to_resolve: JSPromise;
+  then: JSReceiver;
+  thenable: JSReceiver;
+}
+
 extern class JSRegExp extends JSObject {
   data: FixedArray | Undefined;
   source: String | Undefined;
@@ -982,6 +1011,51 @@ extern class AccessorPair extends Struct {
 
 extern class BreakPoint extends Tuple2 {}
 extern class BreakPointInfo extends Tuple2 {}
+
+extern class WasmModuleObject extends JSObject {
+  native_module: Foreign;
+  export_wrappers: FixedArray;
+  script: Script;
+  weak_instance_list: WeakArrayList;
+  asm_js_offset_table: ByteArray;
+  break_point_infos: FixedArray;
+}
+
+extern class WasmTableObject extends JSObject {
+  elements: FixedArray;
+  maximum_length: Smi | HeapNumber | Undefined;
+  dispatch_tables: FixedArray;
+  raw_type: Smi;
+}
+
+extern class WasmMemoryObject extends JSObject {
+  array_buffer: JSArrayBuffer;
+  maximum_pages: Smi;
+  instances: WeakArrayList;
+}
+
+extern class WasmGlobalObject extends JSObject {
+  untagged_buffer: JSArrayBuffer;
+  tagged_buffer: FixedArray;
+  offset: Smi;
+  flags: Smi;
+}
+
+extern class WasmExceptionObject extends JSObject {
+  serialized_signature: ByteArray;  // PodArray<wasm::ValueType>
+  exception_tag: HeapObject;
+}
+
+extern class WasmExceptionPackage extends JSReceiver {}
+
+extern class WasmExportedFunction extends JSFunction {}
+
+extern class AsmWasmData extends Struct {
+  managed_native_module: Foreign;  // Managed<wasm::NativeModule>
+  export_wrappers: FixedArray;
+  asm_js_offset_table: ByteArray;
+  uses_bitset: HeapNumber;
+}
 
 extern macro Is64(): constexpr bool;
 

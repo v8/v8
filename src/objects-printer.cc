@@ -228,13 +228,19 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_ERROR_TYPE:
     // TODO(titzer): debug printing for more wasm objects
     case WASM_EXCEPTION_TYPE:
-    case WASM_GLOBAL_TYPE:
-    case WASM_MEMORY_TYPE:
-    case WASM_TABLE_TYPE:
       JSObject::cast(*this)->JSObjectPrint(os);
       break;
     case WASM_MODULE_TYPE:
       WasmModuleObject::cast(*this)->WasmModuleObjectPrint(os);
+      break;
+    case WASM_MEMORY_TYPE:
+      WasmMemoryObject::cast(*this)->WasmMemoryObjectPrint(os);
+      break;
+    case WASM_TABLE_TYPE:
+      WasmTableObject::cast(*this)->WasmTableObjectPrint(os);
+      break;
+    case WASM_GLOBAL_TYPE:
+      WasmGlobalObject::cast(*this)->WasmGlobalObjectPrint(os);
       break;
     case WASM_INSTANCE_TYPE:
       WasmInstanceObject::cast(*this)->WasmInstanceObjectPrint(os);
@@ -1876,6 +1882,42 @@ void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {  // NOLINT
   if (has_breakpoint_infos()) {
     os << "\n - breakpoint_infos: " << Brief(breakpoint_infos());
   }
+  os << "\n";
+}
+
+void WasmTableObject::WasmTableObjectPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmTableObject");
+  os << "\n - elements: " << Brief(elements());
+  os << "\n - maximum_length: " << Brief(maximum_length());
+  os << "\n - dispatch_tables: " << Brief(dispatch_tables());
+  os << "\n - raw_type: " << raw_type();
+  os << "\n";
+}
+
+void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmGlobalObject");
+  os << "\n - untagged_buffer: " << Brief(untagged_buffer());
+  os << "\n - tagged_buffer: " << Brief(tagged_buffer());
+  os << "\n - offset: " << offset();
+  os << "\n - flags: " << flags();
+  os << "\n - type: " << type();
+  os << "\n - is_mutable: " << is_mutable();
+  os << "\n";
+}
+
+void WasmMemoryObject::WasmMemoryObjectPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmMemoryObject");
+  os << "\n - array_buffer: " << Brief(array_buffer());
+  os << "\n - maximum_pages: " << maximum_pages();
+  os << "\n - instances: " << Brief(instances());
+  os << "\n";
+}
+
+void WasmExceptionObject::WasmExceptionObjectPrint(
+    std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmExceptionObject");
+  os << "\n - serialized_signature: " << Brief(serialized_signature());
+  os << "\n - exception_tag: " << Brief(exception_tag());
   os << "\n";
 }
 

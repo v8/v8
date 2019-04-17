@@ -129,19 +129,8 @@ class WasmModuleObject : public JSObject {
   DECL_PRINTER(WasmModuleObject)
   DECL_VERIFIER(WasmModuleObject)
 
-// Layout description.
-#define WASM_MODULE_OBJECT_FIELDS(V)      \
-  V(kNativeModuleOffset, kTaggedSize)     \
-  V(kExportWrappersOffset, kTaggedSize)   \
-  V(kScriptOffset, kTaggedSize)           \
-  V(kWeakInstanceListOffset, kTaggedSize) \
-  V(kAsmJsOffsetTableOffset, kTaggedSize) \
-  V(kBreakPointInfosOffset, kTaggedSize)  \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                WASM_MODULE_OBJECT_FIELDS)
-#undef WASM_MODULE_OBJECT_FIELDS
+                                TORQUE_GENERATED_WASM_MODULE_OBJECT_FIELDS)
 
   // Creates a new {WasmModuleObject} with a new {NativeModule} underneath.
   V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
@@ -264,16 +253,12 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
   DECL_ACCESSORS(dispatch_tables, FixedArray)
   DECL_INT_ACCESSORS(raw_type)
 
-// Layout description.
-#define WASM_TABLE_OBJECT_FIELDS(V)     \
-  V(kElementsOffset, kTaggedSize)       \
-  V(kMaximumLengthOffset, kTaggedSize)  \
-  V(kDispatchTablesOffset, kTaggedSize) \
-  V(kRawTypeOffset, kTaggedSize)        \
-  V(kSize, 0)
+  // Dispatched behavior.
+  DECL_PRINTER(WasmTableObject)
+  DECL_VERIFIER(WasmTableObject)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, WASM_TABLE_OBJECT_FIELDS)
-#undef WASM_TABLE_OBJECT_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_WASM_TABLE_OBJECT_FIELDS)
 
   inline uint32_t current_length();
   inline wasm::ValueType type();
@@ -337,16 +322,12 @@ class WasmMemoryObject : public JSObject {
   DECL_INT_ACCESSORS(maximum_pages)
   DECL_OPTIONAL_ACCESSORS(instances, WeakArrayList)
 
-// Layout description.
-#define WASM_MEMORY_OBJECT_FIELDS(V)  \
-  V(kArrayBufferOffset, kTaggedSize)  \
-  V(kMaximumPagesOffset, kTaggedSize) \
-  V(kInstancesOffset, kTaggedSize)    \
-  V(kSize, 0)
+  // Dispatched behavior.
+  DECL_PRINTER(WasmMemoryObject)
+  DECL_VERIFIER(WasmMemoryObject)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                WASM_MEMORY_OBJECT_FIELDS)
-#undef WASM_MEMORY_OBJECT_FIELDS
+                                TORQUE_GENERATED_WASM_MEMORY_OBJECT_FIELDS)
 
   // Add an instance to the internal (weak) list.
   V8_EXPORT_PRIVATE static void AddInstance(Isolate* isolate,
@@ -385,6 +366,10 @@ class WasmGlobalObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(type, wasm::ValueType)
   DECL_BOOLEAN_ACCESSORS(is_mutable)
 
+  // Dispatched behavior.
+  DECL_PRINTER(WasmGlobalObject)
+  DECL_VERIFIER(WasmGlobalObject)
+
 #define WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS(V, _) \
   V(TypeBits, wasm::ValueType, 8, _)              \
   V(IsMutableBit, bool, 1, _)
@@ -393,17 +378,8 @@ class WasmGlobalObject : public JSObject {
 
 #undef WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS
 
-// Layout description.
-#define WASM_GLOBAL_OBJECT_FIELDS(V)    \
-  V(kUntaggedBufferOffset, kTaggedSize) \
-  V(kTaggedBufferOffset, kTaggedSize)   \
-  V(kOffsetOffset, kTaggedSize)         \
-  V(kFlagsOffset, kTaggedSize)          \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                WASM_GLOBAL_OBJECT_FIELDS)
-#undef WASM_GLOBAL_OBJECT_FIELDS
+                                TORQUE_GENERATED_WASM_GLOBAL_OBJECT_FIELDS)
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmGlobalObject> New(
       Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
@@ -621,15 +597,12 @@ class WasmExceptionObject : public JSObject {
   DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
   DECL_ACCESSORS(exception_tag, HeapObject)
 
-// Layout description.
-#define WASM_EXCEPTION_OBJECT_FIELDS(V)      \
-  V(kSerializedSignatureOffset, kTaggedSize) \
-  V(kExceptionTagOffset, kTaggedSize)        \
-  V(kSize, 0)
+  // Dispatched behavior.
+  DECL_PRINTER(WasmExceptionObject)
+  DECL_VERIFIER(WasmExceptionObject)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                WASM_EXCEPTION_OBJECT_FIELDS)
-#undef WASM_EXCEPTION_OBJECT_FIELDS
+                                TORQUE_GENERATED_WASM_EXCEPTION_OBJECT_FIELDS)
 
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this exception object.
@@ -831,17 +804,8 @@ class AsmWasmData : public Struct {
   DECL_PRINTER(AsmWasmData)
   DECL_VERIFIER(AsmWasmData)
 
-// Layout description.
-#define ASM_WASM_DATA_FIELDS(V)              \
-  V(kManagedNativeModuleOffset, kTaggedSize) \
-  V(kExportWrappersOffset, kTaggedSize)      \
-  V(kAsmJsOffsetTableOffset, kTaggedSize)    \
-  V(kUsesBitsetOffset, kTaggedSize)          \
-  /* Total size. */                          \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, ASM_WASM_DATA_FIELDS)
-#undef ASM_WASM_DATA_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_ASM_WASM_DATA_FIELDS)
 
   OBJECT_CONSTRUCTORS(AsmWasmData, Struct);
 };

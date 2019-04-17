@@ -9412,8 +9412,8 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
 
   var_value->Bind(value);
 
-  Node* details = LoadAndUntagToWord32ObjectField(property_cell,
-                                                  PropertyCell::kDetailsOffset);
+  Node* details = LoadAndUntagToWord32ObjectField(
+      property_cell, PropertyCell::kPropertyDetailsRawOffset);
   var_details->Bind(details);
 
   Comment("] LoadPropertyFromGlobalDictionary");

@@ -254,14 +254,22 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case WASM_EXCEPTION_TYPE:
-    case WASM_GLOBAL_TYPE:
-    case WASM_MEMORY_TYPE:
-    case WASM_TABLE_TYPE:
       JSObject::cast(*this)->JSObjectVerify(isolate);
       break;
     case WASM_MODULE_TYPE:
       WasmModuleObject::cast(*this)->WasmModuleObjectVerify(isolate);
+      break;
+    case WASM_TABLE_TYPE:
+      WasmTableObject::cast(*this)->WasmTableObjectVerify(isolate);
+      break;
+    case WASM_MEMORY_TYPE:
+      WasmMemoryObject::cast(*this)->WasmMemoryObjectVerify(isolate);
+      break;
+    case WASM_GLOBAL_TYPE:
+      WasmGlobalObject::cast(*this)->WasmGlobalObjectVerify(isolate);
+      break;
+    case WASM_EXCEPTION_TYPE:
+      WasmExceptionObject::cast(*this)->WasmExceptionObjectVerify(isolate);
       break;
     case WASM_INSTANCE_TYPE:
       WasmInstanceObject::cast(*this)->WasmInstanceObjectVerify(isolate);
@@ -722,6 +730,7 @@ void FixedArray::FixedArrayVerify(Isolate* isolate) {
 }
 
 void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
+  VerifySmiField(kLengthOffset);
   for (int i = 0; i < length(); i++) {
     MaybeObject::VerifyMaybeObjectPointer(isolate, Get(i));
   }
@@ -1222,7 +1231,12 @@ void Cell::CellVerify(Isolate* isolate) {
 
 void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   CHECK(IsPropertyCell());
+  VerifyObjectField(isolate, kNameOffset);
+  CHECK(name()->IsName());
+  VerifySmiField(kPropertyDetailsRawOffset);
   VerifyObjectField(isolate, kValueOffset);
+  VerifyObjectField(isolate, kDependentCodeOffset);
+  CHECK(dependent_code()->IsDependentCode());
 }
 
 void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
@@ -1870,8 +1884,11 @@ void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionVerify(
 
 void AsmWasmData::AsmWasmDataVerify(Isolate* isolate) {
   CHECK(IsAsmWasmData());
+  CHECK(managed_native_module()->IsForeign());
   VerifyObjectField(isolate, kManagedNativeModuleOffset);
+  CHECK(export_wrappers()->IsFixedArray());
   VerifyObjectField(isolate, kExportWrappersOffset);
+  CHECK(asm_js_offset_table()->IsByteArray());
   VerifyObjectField(isolate, kAsmJsOffsetTableOffset);
   CHECK(uses_bitset()->IsHeapNumber());
   VerifyObjectField(isolate, kUsesBitsetOffset);
@@ -1928,8 +1945,45 @@ void WasmModuleObject::WasmModuleObjectVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kExportWrappersOffset);
   CHECK(export_wrappers()->IsFixedArray());
   VerifyObjectField(isolate, kScriptOffset);
+  CHECK(script()->IsScript());
+  VerifyObjectField(isolate, kWeakInstanceListOffset);
   VerifyObjectField(isolate, kAsmJsOffsetTableOffset);
   VerifyObjectField(isolate, kBreakPointInfosOffset);
+}
+
+void WasmTableObject::WasmTableObjectVerify(Isolate* isolate) {
+  CHECK(IsWasmTableObject());
+  VerifyObjectField(isolate, kElementsOffset);
+  CHECK(elements()->IsFixedArray());
+  VerifyObjectField(isolate, kMaximumLengthOffset);
+  CHECK(maximum_length()->IsSmi() || maximum_length()->IsHeapNumber() ||
+        maximum_length()->IsUndefined(isolate));
+  VerifyObjectField(isolate, kDispatchTablesOffset);
+  VerifySmiField(kRawTypeOffset);
+}
+
+void WasmMemoryObject::WasmMemoryObjectVerify(Isolate* isolate) {
+  CHECK(IsWasmMemoryObject());
+  VerifyObjectField(isolate, kArrayBufferOffset);
+  CHECK(array_buffer()->IsJSArrayBuffer());
+  VerifySmiField(kMaximumPagesOffset);
+  VerifyObjectField(isolate, kInstancesOffset);
+}
+
+void WasmGlobalObject::WasmGlobalObjectVerify(Isolate* isolate) {
+  CHECK(IsWasmGlobalObject());
+  VerifyObjectField(isolate, kUntaggedBufferOffset);
+  VerifyObjectField(isolate, kTaggedBufferOffset);
+  VerifyObjectField(isolate, kOffsetOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
+}
+
+void WasmExceptionObject::WasmExceptionObjectVerify(Isolate* isolate) {
+  CHECK(IsWasmExceptionObject());
+  VerifyObjectField(isolate, kSerializedSignatureOffset);
+  CHECK(serialized_signature()->IsByteArray());
+  VerifyObjectField(isolate, kExceptionTagOffset);
+  CHECK(exception_tag()->IsHeapObject());
 }
 
 void DataHandler::DataHandlerVerify(Isolate* isolate) {

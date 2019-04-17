@@ -783,16 +783,16 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
                                              uint32_t initial, bool has_maximum,
                                              uint32_t maximum,
                                              Handle<FixedArray>* elements) {
-  Handle<JSFunction> table_ctor(
-      isolate->native_context()->wasm_table_constructor(), isolate);
-  auto table_obj = Handle<WasmTableObject>::cast(
-      isolate->factory()->NewJSObject(table_ctor));
-
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArray(initial);
   Object null = ReadOnlyRoots(isolate).null_value();
   for (int i = 0; i < static_cast<int>(initial); ++i) {
     backing_store->set(i, null);
   }
+
+  Handle<JSFunction> table_ctor(
+      isolate->native_context()->wasm_table_constructor(), isolate);
+  auto table_obj = Handle<WasmTableObject>::cast(
+      isolate->factory()->NewJSObject(table_ctor));
 
   table_obj->set_raw_type(static_cast<int>(type));
   table_obj->set_elements(*backing_store);
@@ -1149,20 +1149,21 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
 Handle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_buffer,
     uint32_t maximum) {
+  Handle<JSArrayBuffer> buffer;
+  if (!maybe_buffer.ToHandle(&buffer)) {
+    // If no buffer was provided, create a 0-length one.
+    buffer = wasm::SetupArrayBuffer(isolate, nullptr, 0, false);
+  }
+
   // TODO(kschimpf): Do we need to add an argument that defines the
   // style of memory the user prefers (with/without trap handling), so
   // that the memory will match the style of the compiled wasm module.
   // See issue v8:7143
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor(), isolate);
+
   auto memory_obj = Handle<WasmMemoryObject>::cast(
       isolate->factory()->NewJSObject(memory_ctor, AllocationType::kOld));
-
-  Handle<JSArrayBuffer> buffer;
-  if (!maybe_buffer.ToHandle(&buffer)) {
-    // If no buffer was provided, create a 0-length one.
-    buffer = wasm::SetupArrayBuffer(isolate, nullptr, 0, false);
-  }
   memory_obj->set_array_buffer(*buffer);
   memory_obj->set_maximum_pages(maximum);
 
@@ -1766,10 +1767,6 @@ Handle<WasmExceptionObject> WasmExceptionObject::New(
     Handle<HeapObject> exception_tag) {
   Handle<JSFunction> exception_cons(
       isolate->native_context()->wasm_exception_constructor(), isolate);
-  Handle<JSObject> exception_object =
-      isolate->factory()->NewJSObject(exception_cons, AllocationType::kOld);
-  Handle<WasmExceptionObject> exception =
-      Handle<WasmExceptionObject>::cast(exception_object);
 
   // Serialize the signature.
   DCHECK_EQ(0, sig->return_count());
@@ -1781,6 +1778,11 @@ Handle<WasmExceptionObject> WasmExceptionObject::New(
   for (wasm::ValueType param : sig->parameters()) {
     serialized_sig->set(index++, param);
   }
+
+  Handle<JSObject> exception_object =
+      isolate->factory()->NewJSObject(exception_cons, AllocationType::kOld);
+  Handle<WasmExceptionObject> exception =
+      Handle<WasmExceptionObject>::cast(exception_object);
   exception->set_serialized_signature(*serialized_sig);
   exception->set_exception_tag(*exception_tag);
 
