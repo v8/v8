@@ -1185,6 +1185,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Boolean());
       break;
     case IrOpcode::kSameValue:
+    case IrOpcode::kSameValueNumbersOnly:
       // (Any, Any) -> Boolean
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Any());

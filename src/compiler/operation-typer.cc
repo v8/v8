@@ -1187,6 +1187,13 @@ Type OperationTyper::SameValue(Type lhs, Type rhs) {
   return Type::Boolean();
 }
 
+Type OperationTyper::SameValueNumbersOnly(Type lhs, Type rhs) {
+  // SameValue and SamevalueNumbersOnly only differ in treatment of
+  // strings and biginits. Since the SameValue typer does not do anything
+  // special about strings or bigints, we can just use it here.
+  return SameValue(lhs, rhs);
+}
+
 Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
   if (!JSType(lhs).Maybe(JSType(rhs))) return singleton_false();
   if (lhs.Is(Type::NaN()) || rhs.Is(Type::NaN())) return singleton_false();

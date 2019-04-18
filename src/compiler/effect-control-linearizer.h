@@ -146,6 +146,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerNewConsTwoByteString(Node* node);
   Node* LowerNewConsString(Node* node);
   Node* LowerSameValue(Node* node);
+  Node* LowerSameValueNumbersOnly(Node* node);
   Node* LowerNumberSameValue(Node* node);
   Node* LowerDeadValue(Node* node);
   Node* LowerStringConcat(Node* node);

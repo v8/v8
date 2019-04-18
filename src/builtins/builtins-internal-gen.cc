@@ -646,6 +646,20 @@ TF_BUILTIN(SameValue, CodeStubAssembler) {
   Return(FalseConstant());
 }
 
+TF_BUILTIN(SameValueNumbersOnly, CodeStubAssembler) {
+  Node* lhs = Parameter(Descriptor::kLeft);
+  Node* rhs = Parameter(Descriptor::kRight);
+
+  Label if_true(this), if_false(this);
+  BranchIfSameValue(lhs, rhs, &if_true, &if_false, SameValueMode::kNumbersOnly);
+
+  BIND(&if_true);
+  Return(TrueConstant());
+
+  BIND(&if_false);
+  Return(FalseConstant());
+}
+
 class InternalBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit InternalBuiltinsAssembler(compiler::CodeAssemblerState* state)

@@ -317,6 +317,7 @@ class Typer::Visitor : public Reducer {
   static Type NumberLessThanOrEqualTyper(Type, Type, Typer*);
   static Type ReferenceEqualTyper(Type, Type, Typer*);
   static Type SameValueTyper(Type, Type, Typer*);
+  static Type SameValueNumbersOnlyTyper(Type, Type, Typer*);
   static Type StringFromSingleCharCodeTyper(Type, Typer*);
   static Type StringFromSingleCodePointTyper(Type, Typer*);
 
@@ -1992,8 +1993,17 @@ Type Typer::Visitor::SameValueTyper(Type lhs, Type rhs, Typer* t) {
   return t->operation_typer()->SameValue(lhs, rhs);
 }
 
+// static
+Type Typer::Visitor::SameValueNumbersOnlyTyper(Type lhs, Type rhs, Typer* t) {
+  return t->operation_typer()->SameValueNumbersOnly(lhs, rhs);
+}
+
 Type Typer::Visitor::TypeSameValue(Node* node) {
   return TypeBinaryOp(node, SameValueTyper);
+}
+
+Type Typer::Visitor::TypeSameValueNumbersOnly(Node* node) {
+  return TypeBinaryOp(node, SameValueNumbersOnlyTyper);
 }
 
 Type Typer::Visitor::TypeNumberSameValue(Node* node) { UNREACHABLE(); }

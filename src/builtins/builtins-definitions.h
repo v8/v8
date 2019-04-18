@@ -752,6 +752,7 @@ namespace internal {
   TFC(GreaterThanOrEqual, Compare)                                             \
   TFC(Equal, Compare)                                                          \
   TFC(SameValue, Compare)                                                      \
+  TFC(SameValueNumbersOnly, Compare)                                           \
   TFC(StrictEqual, Compare)                                                    \
   TFS(BitwiseNot, kValue)                                                      \
   TFS(Decrement, kValue)                                                       \

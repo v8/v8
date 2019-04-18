@@ -55,6 +55,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
 
   // Comparison operators.
   Type SameValue(Type lhs, Type rhs);
+  Type SameValueNumbersOnly(Type lhs, Type rhs);
   Type StrictEqual(Type lhs, Type rhs);
 
   // String operators.

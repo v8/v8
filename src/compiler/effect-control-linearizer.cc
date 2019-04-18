@@ -905,6 +905,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kSameValue:
       result = LowerSameValue(node);
       break;
+    case IrOpcode::kSameValueNumbersOnly:
+      result = LowerSameValueNumbersOnly(node);
+      break;
     case IrOpcode::kNumberSameValue:
       result = LowerNumberSameValue(node);
       break;
@@ -3434,6 +3437,21 @@ Node* EffectControlLinearizer::LowerSameValue(Node* node) {
 
   Callable const callable =
       Builtins::CallableFor(isolate(), Builtins::kSameValue);
+  Operator::Properties properties = Operator::kEliminatable;
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), flags, properties);
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs,
+                 __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerSameValueNumbersOnly(Node* node) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtins::kSameValueNumbersOnly);
   Operator::Properties properties = Operator::kEliminatable;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   auto call_descriptor = Linkage::GetStubCallDescriptor(

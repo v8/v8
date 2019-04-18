@@ -617,6 +617,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* ReferenceEqual();
   const Operator* SameValue();
+  const Operator* SameValueNumbersOnly();
 
   const Operator* TypeOf();
 

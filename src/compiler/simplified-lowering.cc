@@ -2585,6 +2585,11 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kSameValueNumbersOnly: {
+        VisitBinop(node, UseInfo::AnyTagged(),
+                   MachineRepresentation::kTaggedPointer);
+        return;
+      }
       case IrOpcode::kSameValue: {
         if (truncation.IsUnused()) return VisitUnused(node);
         if (BothInputsAre(node, Type::Number())) {
