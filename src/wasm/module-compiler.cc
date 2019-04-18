@@ -619,60 +619,120 @@ class CompilationUnitBuilder {
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_units_;
 };
 
+void SetCompileError(ErrorThrower* thrower, ModuleWireBytes wire_bytes,
+                     const WasmFunction* func, const WasmModule* module,
+                     WasmError error) {
+  WasmName name = wire_bytes.GetNameOrNull(func, module);
+  if (name.start() == nullptr) {
+    thrower->CompileError("Compiling function #%d failed: %s @+%u",
+                          func->func_index, error.message().c_str(),
+                          error.offset());
+  } else {
+    TruncatedUserString<> truncated_name(name);
+    thrower->CompileError("Compiling function #%d:\"%.*s\" failed: %s @+%u",
+                          func->func_index, truncated_name.length(),
+                          truncated_name.start(), error.message().c_str(),
+                          error.offset());
+  }
+}
+
+DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
+                                    Vector<const uint8_t> code,
+                                    Counters* counters,
+                                    AccountingAllocator* allocator,
+                                    WasmFeatures enabled_features) {
+  const WasmFunction* func = &module->functions[func_index];
+  FunctionBody body{func->sig, func->code.offset(), code.start(), code.end()};
+  DecodeResult result;
+
+  auto time_counter =
+      SELECT_WASM_COUNTER(counters, module->origin, wasm_decode, function_time);
+  TimedHistogramScope wasm_decode_function_time_scope(time_counter);
+  WasmFeatures detected;
+  result = VerifyWasmCode(allocator, enabled_features, module, &detected, body);
+
+  return result;
+}
+
+enum class OnlyLazyFunctions : bool { kNo = false, kYes = true };
+
+void ValidateSequentially(
+    const WasmModule* module, NativeModule* native_module, Counters* counters,
+    AccountingAllocator* allocator, ErrorThrower* thrower,
+    OnlyLazyFunctions only_lazy_functions = OnlyLazyFunctions::kNo) {
+  DCHECK(!thrower->error());
+  uint32_t start = module->num_imported_functions;
+  uint32_t end = start + module->num_declared_functions;
+  auto enabled_features = native_module->enabled_features();
+  for (uint32_t func_index = start; func_index < end; func_index++) {
+    // Skip non-lazy functions if requested.
+    if (only_lazy_functions == OnlyLazyFunctions::kYes &&
+        !IsLazyCompilation(module, native_module, enabled_features,
+                           func_index)) {
+      continue;
+    }
+
+    ModuleWireBytes wire_bytes{native_module->wire_bytes()};
+    const WasmFunction* func = &module->functions[func_index];
+    Vector<const uint8_t> code = wire_bytes.GetFunctionBytes(func);
+    DecodeResult result = ValidateSingleFunction(
+        module, func_index, code, counters, allocator, enabled_features);
+    if (result.failed()) {
+      SetCompileError(thrower, wire_bytes, func, module, result.error());
+    }
+  }
+}
+
 }  // namespace
 
-void CompileLazy(Isolate* isolate, NativeModule* native_module,
+bool CompileLazy(Isolate* isolate, NativeModule* native_module,
                  uint32_t func_index) {
+  const WasmModule* module = native_module->module();
+  auto enabled_features = native_module->enabled_features();
   Counters* counters = isolate->counters();
-  HistogramTimerScope lazy_time_scope(counters->wasm_lazy_compilation_time());
 
   DCHECK(!native_module->lazy_compile_frozen());
+  HistogramTimerScope lazy_time_scope(counters->wasm_lazy_compilation_time());
+  NativeModuleModificationScope native_module_modification_scope(native_module);
 
   base::ElapsedTimer compilation_timer;
-
-  NativeModuleModificationScope native_module_modification_scope(native_module);
+  compilation_timer.Start();
 
   DCHECK(!native_module->HasCode(static_cast<uint32_t>(func_index)));
 
-  compilation_timer.Start();
-
   TRACE_LAZY("Compiling wasm-function#%d.\n", func_index);
-
-  const uint8_t* module_start = native_module->wire_bytes().start();
-
-  const WasmFunction* func = &native_module->module()->functions[func_index];
-  FunctionBody func_body{func->sig, func->code.offset(),
-                         module_start + func->code.offset(),
-                         module_start + func->code.end_offset()};
 
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   ExecutionTierPair tiers = GetRequestedExecutionTiers(
-      native_module->module(), compilation_state->compile_mode(),
-      native_module->enabled_features(), func_index);
+      module, compilation_state->compile_mode(), enabled_features, func_index);
 
   WasmCompilationUnit baseline_unit(func_index, tiers.baseline_tier);
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
       isolate->wasm_engine(), &env, compilation_state->GetWireBytesStorage(),
-      isolate->counters(), compilation_state->detected_features());
-  WasmCodeRefScope code_ref_scope;
-  WasmCode* code = native_module->AddCompiledCode(std::move(result));
+      counters, compilation_state->detected_features());
 
-  if (tiers.baseline_tier < tiers.top_tier) {
-    auto tiering_unit =
-        base::make_unique<WasmCompilationUnit>(func_index, tiers.top_tier);
-    compilation_state->AddTopTierCompilationUnit(std::move(tiering_unit));
+  // During lazy compilation, we can only get compilation errors when
+  // {--wasm-lazy-validation} is enabled. Otherwise, the module was fully
+  // verified before starting its execution.
+  DCHECK_IMPLIES(result.failed(), FLAG_wasm_lazy_validation);
+  const WasmFunction* func = &module->functions[func_index];
+  if (result.failed()) {
+    ErrorThrower thrower(isolate, nullptr);
+    Vector<const uint8_t> code =
+        compilation_state->GetWireBytesStorage()->GetCode(func->code);
+    DecodeResult decode_result = ValidateSingleFunction(
+        module, func_index, code, counters, isolate->wasm_engine()->allocator(),
+        enabled_features);
+    CHECK(decode_result.failed());
+    SetCompileError(&thrower, ModuleWireBytes(native_module->wire_bytes()),
+                    func, module, decode_result.error());
+    return false;
   }
 
-  // During lazy compilation, we should never get compilation errors. The module
-  // was verified before starting execution with lazy compilation.
-  // This might be OOM, but then we cannot continue execution anyway.
-  // TODO(clemensh): According to the spec, we can actually skip validation at
-  // module creation time, and return a function that always traps here.
-  CHECK(!compilation_state->failed());
-
-  // The code we just produced should be the one that was requested.
+  WasmCodeRefScope code_ref_scope;
+  WasmCode* code = native_module->AddCompiledCode(std::move(result));
   DCHECK_EQ(func_index, code->index());
 
   if (WasmCode::ShouldBeLogged(isolate)) code->LogCode(isolate);
@@ -684,6 +744,14 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
 
   int throughput_sample = static_cast<int>(func_kb / compilation_seconds);
   counters->wasm_lazy_compilation_throughput()->AddSample(throughput_sample);
+
+  if (tiers.baseline_tier < tiers.top_tier) {
+    auto tiering_unit =
+        base::make_unique<WasmCompilationUnit>(func_index, tiers.top_tier);
+    compilation_state->AddTopTierCompilationUnit(std::move(tiering_unit));
+  }
+
+  return true;
 }
 
 namespace {
@@ -811,65 +879,6 @@ bool ExecuteCompilationUnits(
   return true;
 }
 
-DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
-                                    Vector<const uint8_t> code,
-                                    Counters* counters,
-                                    AccountingAllocator* allocator,
-                                    WasmFeatures enabled_features) {
-  const WasmFunction* func = &module->functions[func_index];
-  FunctionBody body{func->sig, func->code.offset(), code.start(), code.end()};
-  DecodeResult result;
-  {
-    auto time_counter = SELECT_WASM_COUNTER(counters, module->origin,
-                                            wasm_decode, function_time);
-    TimedHistogramScope wasm_decode_function_time_scope(time_counter);
-    WasmFeatures detected;
-    result =
-        VerifyWasmCode(allocator, enabled_features, module, &detected, body);
-  }
-  return result;
-}
-
-enum class OnlyLazyFunctions : bool { kNo = false, kYes = true };
-
-void ValidateSequentially(
-    const WasmModule* module, NativeModule* native_module, Counters* counters,
-    AccountingAllocator* allocator, ErrorThrower* thrower,
-    OnlyLazyFunctions only_lazy_functions = OnlyLazyFunctions ::kNo) {
-  DCHECK(!thrower->error());
-  uint32_t start = module->num_imported_functions;
-  uint32_t end = start + module->num_declared_functions;
-  auto enabled_features = native_module->enabled_features();
-  for (uint32_t func_index = start; func_index < end; func_index++) {
-    // Skip non-lazy functions if requested.
-    if (only_lazy_functions == OnlyLazyFunctions::kYes &&
-        !IsLazyCompilation(module, native_module, enabled_features,
-                           func_index)) {
-      continue;
-    }
-    ModuleWireBytes wire_bytes{native_module->wire_bytes()};
-    const WasmFunction* func = &module->functions[func_index];
-    Vector<const uint8_t> code = wire_bytes.GetFunctionBytes(func);
-    DecodeResult result = ValidateSingleFunction(
-        module, func_index, code, counters, allocator, enabled_features);
-
-    if (result.failed()) {
-      WasmName name = wire_bytes.GetNameOrNull(func, module);
-      if (name.start() == nullptr) {
-        thrower->CompileError(
-            "Compiling function #%d failed: %s @+%u", func->func_index,
-            result.error().message().c_str(), result.error().offset());
-      } else {
-        TruncatedUserString<> name(wire_bytes.GetNameOrNull(func, module));
-        thrower->CompileError("Compiling function #%d:\"%.*s\" failed: %s @+%u",
-                              func->func_index, name.length(), name.start(),
-                              result.error().message().c_str(),
-                              result.error().offset());
-      }
-    }
-  }
-}
-
 void InitializeCompilationUnits(NativeModule* native_module) {
   // Set number of functions that must be compiled to consider the module fully
   // compiled.
@@ -910,13 +919,10 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
 
   if (FLAG_wasm_lazy_compilation ||
       (FLAG_asm_wasm_lazy_compilation && wasm_module->origin == kAsmJsOrigin)) {
-    if (wasm_module->origin == kWasmOrigin) {
-      // Validate wasm modules for lazy compilation. Don't validate asm.js
-      // modules, they are valid by construction (otherwise a CHECK will fail
-      // during lazy compilation).
-      // TODO(clemensh): According to the spec, we can actually skip validation
-      // at module creation time, and return a function that always traps at
-      // (lazy) compilation time.
+    if (wasm_module->origin == kWasmOrigin && !FLAG_wasm_lazy_validation) {
+      // Validate wasm modules for lazy compilation if requested. Never validate
+      // asm.js modules as these are valid by construction (otherwise a CHECK
+      // will fail during lazy compilation).
       ValidateSequentially(wasm_module, native_module, isolate->counters(),
                            isolate->allocator(), thrower);
       // On error: Return and leave the module in an unexecutable state.
@@ -927,7 +933,8 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     return;
   }
 
-  if (native_module->enabled_features().compilation_hints) {
+  if (native_module->enabled_features().compilation_hints &&
+      !FLAG_wasm_lazy_validation) {
     ValidateSequentially(wasm_module, native_module, isolate->counters(),
                          isolate->allocator(), thrower,
                          OnlyLazyFunctions::kYes);
@@ -1431,9 +1438,10 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
           job->wire_bytes_.end(), false, kWasmOrigin, counters_,
           job->isolate()->wasm_engine()->allocator());
 
-      // Validate lazy functions here.
+      // Validate lazy functions here if requested.
       auto enabled_features = job->enabled_features_;
-      if (enabled_features.compilation_hints && result.ok()) {
+      if (enabled_features.compilation_hints && !FLAG_wasm_lazy_validation &&
+          result.ok()) {
         const WasmModule* module = result.value().get();
         auto allocator = job->isolate()->wasm_engine()->allocator();
         int start = module->num_imported_functions;
@@ -1719,17 +1727,19 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
       num_functions_ + decoder_.module()->num_imported_functions;
 
   if (IsLazyCompilation(module, native_module, enabled_features, func_index)) {
-    Counters* counters = Impl(native_module->compilation_state())->counters();
-    AccountingAllocator* allocator = native_module->engine()->allocator();
+    if (!FLAG_wasm_lazy_validation) {
+      Counters* counters = Impl(native_module->compilation_state())->counters();
+      AccountingAllocator* allocator = native_module->engine()->allocator();
 
-    // The native module does not own the wire bytes until {SetWireBytes} is
-    // called in {OnFinishedStream}. Validation must use {bytes} parameter.
-    DecodeResult result = ValidateSingleFunction(
-        module, func_index, bytes, counters, allocator, enabled_features);
+      // The native module does not own the wire bytes until {SetWireBytes} is
+      // called in {OnFinishedStream}. Validation must use {bytes} parameter.
+      DecodeResult result = ValidateSingleFunction(
+          module, func_index, bytes, counters, allocator, enabled_features);
 
-    if (result.failed()) {
-      FinishAsyncCompileJobWithError(result.error());
-      return false;
+      if (result.failed()) {
+        FinishAsyncCompileJobWithError(result.error());
+        return false;
+      }
     }
 
     native_module->UseLazyStub(func_index);

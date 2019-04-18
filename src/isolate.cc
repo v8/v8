@@ -1698,6 +1698,16 @@ Object Isolate::UnwindAndFindHandler() {
                             wasm_code->constant_pool(), return_sp, frame->fp());
       }
 
+      case StackFrame::WASM_COMPILE_LAZY: {
+        // Can only fail directly on invocation. This happens if an invalid
+        // function was validated lazily.
+        DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
+                       trap_handler::IsThreadInWasm());
+        DCHECK(FLAG_wasm_lazy_validation);
+        trap_handler::ClearThreadInWasm();
+        break;
+      }
+
       case StackFrame::OPTIMIZED: {
         // For optimized frames we perform a lookup in the handler table.
         if (!catchable_by_js) break;

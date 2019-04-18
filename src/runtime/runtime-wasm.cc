@@ -310,7 +310,8 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_SMI_ARG_CHECKED(func_index, 1);
 
-  ClearThreadInWasmScope wasm_flag;
+  // This runtime function is always called from wasm code.
+  ClearThreadInWasmScope flag_scope;
 
 #ifdef DEBUG
   StackFrameIterator it(isolate, isolate->thread_local_top());
@@ -322,10 +323,17 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   DCHECK_EQ(*instance, WasmCompileLazyFrame::cast(it.frame())->wasm_instance());
 #endif
 
+  DCHECK(isolate->context().is_null());
+  isolate->set_context(instance->native_context());
   auto* native_module = instance->module_object()->native_module();
-  wasm::CompileLazy(isolate, native_module, func_index);
+  bool success = wasm::CompileLazy(isolate, native_module, func_index);
+  if (!success) {
+    DCHECK(isolate->has_pending_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
 
   Address entrypoint = native_module->GetCallTargetForFunction(func_index);
+
   return Object(entrypoint);
 }
 

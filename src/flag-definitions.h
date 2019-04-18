@@ -670,12 +670,12 @@ DEFINE_BOOL(wasm_trap_handler, true,
             "use signal handlers to catch out of bounds memory access in wasm"
             " (currently Linux x86_64 only)")
 DEFINE_BOOL(wasm_fuzzer_gen_test, false,
-            "Generate a test case when running a wasm fuzzer")
+            "generate a test case when running a wasm fuzzer")
 DEFINE_IMPLICATION(wasm_fuzzer_gen_test, single_threaded)
 DEFINE_BOOL(print_wasm_code, false, "Print WebAssembly code")
 DEFINE_BOOL(print_wasm_stub_code, false, "Print WebAssembly stub code")
 DEFINE_BOOL(wasm_interpret_all, false,
-            "Execute all wasm code in the wasm interpreter")
+            "execute all wasm code in the wasm interpreter")
 DEFINE_BOOL(asm_wasm_lazy_compilation, false,
             "enable lazy compilation for asm-wasm modules")
 DEFINE_IMPLICATION(validate_asm, asm_wasm_lazy_compilation)
@@ -684,7 +684,9 @@ DEFINE_BOOL(wasm_lazy_compilation, false,
 DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
                   "trace lazy compilation of wasm functions")
 DEFINE_BOOL(wasm_grow_shared_memory, false,
-            "Allow growing shared WebAssembly memory objects")
+            "allow growing shared WebAssembly memory objects")
+DEFINE_BOOL(wasm_lazy_validation, false,
+            "enable lazy validation for lazily compiled wasm functions")
 // wasm-interpret-all resets {asm-,}wasm-lazy-compilation.
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, asm_wasm_lazy_compilation)
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_lazy_compilation)
