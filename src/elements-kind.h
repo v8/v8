@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/checks.h"
+#include "src/flags.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -154,11 +155,22 @@ inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
 }
 
 inline bool IsPackedFrozenOrSealedElementsKind(ElementsKind kind) {
+  DCHECK_IMPLIES(
+      IsInRange(kind, PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS),
+      FLAG_enable_sealed_frozen_elements_kind);
   return IsInRange(kind, PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS);
 }
 
 inline bool IsSealedElementsKind(ElementsKind kind) {
+  DCHECK_IMPLIES(kind == PACKED_SEALED_ELEMENTS,
+                 FLAG_enable_sealed_frozen_elements_kind);
   return kind == PACKED_SEALED_ELEMENTS;
+}
+
+inline bool IsFrozenElementsKind(ElementsKind kind) {
+  DCHECK_IMPLIES(kind == PACKED_FROZEN_ELEMENTS,
+                 FLAG_enable_sealed_frozen_elements_kind);
+  return kind == PACKED_FROZEN_ELEMENTS;
 }
 
 inline bool IsSmiOrObjectElementsKind(ElementsKind kind) {

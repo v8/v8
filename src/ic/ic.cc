@@ -1948,7 +1948,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     code =
         CodeFactory::KeyedStoreIC_SloppyArguments(isolate(), store_mode).code();
   } else if (receiver_map->has_fast_elements() ||
-             PACKED_SEALED_ELEMENTS == receiver_map->elements_kind() ||
+             receiver_map->has_sealed_elements() ||
              receiver_map->has_fixed_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
     code = CodeFactory::StoreFastElementIC(isolate(), store_mode).code();
@@ -1962,7 +1962,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
     DCHECK(DICTIONARY_ELEMENTS == receiver_map->elements_kind() ||
-           PACKED_FROZEN_ELEMENTS == receiver_map->elements_kind());
+           receiver_map->has_frozen_elements());
     code = CodeFactory::KeyedStoreIC_Slow(isolate(), store_mode).code();
   }
 

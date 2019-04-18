@@ -500,8 +500,16 @@ bool Map::has_dictionary_elements() const {
   return IsDictionaryElementsKind(elements_kind());
 }
 
-bool Map::is_frozen_or_sealed_elements() const {
+bool Map::has_frozen_or_sealed_elements() const {
   return IsPackedFrozenOrSealedElementsKind(elements_kind());
+}
+
+bool Map::has_sealed_elements() const {
+  return IsSealedElementsKind(elements_kind());
+}
+
+bool Map::has_frozen_elements() const {
+  return IsFrozenElementsKind(elements_kind());
 }
 
 void Map::set_is_dictionary_map(bool value) {

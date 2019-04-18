@@ -1167,9 +1167,8 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
       return holder->IsJSTypedArray() ? INTEGER_INDEXED_EXOTIC : NOT_FOUND;
     }
     property_details_ = accessor->GetDetails(js_object, number_);
-    if (map->is_frozen_or_sealed_elements()) {
-      PropertyAttributes attrs =
-          map->elements_kind() == PACKED_SEALED_ELEMENTS ? SEALED : FROZEN;
+    if (map->has_frozen_or_sealed_elements()) {
+      PropertyAttributes attrs = map->has_sealed_elements() ? SEALED : FROZEN;
       property_details_ = property_details_.CopyAddAttributes(attrs);
     }
   } else if (!map->is_dictionary_map()) {

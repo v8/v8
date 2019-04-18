@@ -3673,8 +3673,8 @@ bool TestElementsIntegrityLevel(JSObject object, PropertyAttributes level) {
       return false;  // TypedArrays with elements can't be frozen.
     return TestPropertiesIntegrityLevel(object, level);
   }
-  if (kind == PACKED_FROZEN_ELEMENTS) return true;
-  if (kind == PACKED_SEALED_ELEMENTS && level != FROZEN) return true;
+  if (IsFrozenElementsKind(kind)) return true;
+  if (IsSealedElementsKind(kind) && level != FROZEN) return true;
 
   ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
   // Only DICTIONARY_ELEMENTS and SLOW_SLOPPY_ARGUMENTS_ELEMENTS have
@@ -3813,7 +3813,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
   if (attrs == NONE && !object->map()->is_extensible()) return Just(true);
   ElementsKind old_elements_kind = object->map()->elements_kind();
-  if (attrs != FROZEN && old_elements_kind == PACKED_SEALED_ELEMENTS)
+  if (attrs != FROZEN && IsSealedElementsKind(old_elements_kind))
     return Just(true);
   if (old_elements_kind == PACKED_FROZEN_ELEMENTS) return Just(true);
 
@@ -3874,7 +3874,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     DCHECK(transition_map->has_dictionary_elements() ||
            transition_map->has_fixed_typed_array_elements() ||
            transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS ||
-           transition_map->is_frozen_or_sealed_elements());
+           transition_map->has_frozen_or_sealed_elements());
     DCHECK(!transition_map->is_extensible());
     JSObject::MigrateToMap(object, transition_map);
   } else if (transitions.CanHaveMoreTransitions()) {
@@ -3918,7 +3918,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     }
   }
 
-  if (object->map()->is_frozen_or_sealed_elements()) {
+  if (object->map()->has_frozen_or_sealed_elements()) {
     return Just(true);
   }
 
