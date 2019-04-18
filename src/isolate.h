@@ -1071,6 +1071,14 @@ class Isolate final : private HiddenFactory {
     return is_block_count_code_coverage() || is_block_binary_code_coverage();
   }
 
+  bool is_binary_code_coverage() const {
+    return is_precise_binary_code_coverage() || is_block_binary_code_coverage();
+  }
+
+  bool is_count_code_coverage() const {
+    return is_precise_count_code_coverage() || is_block_count_code_coverage();
+  }
+
   bool is_collecting_type_profile() const {
     return type_profile_mode() == debug::TypeProfileMode::kCollect;
   }

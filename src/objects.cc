@@ -5335,10 +5335,10 @@ bool SharedFunctionInfo::IsInlineable() {
     return false;
   }
 
-  if (GetIsolate()->is_precise_binary_code_coverage() &&
+  if (GetIsolate()->is_binary_code_coverage() &&
       !has_reported_binary_coverage()) {
     // We may miss invocations if this function is inlined.
-    TraceInlining(*this, "false (requires precise binary coverage)");
+    TraceInlining(*this, "false (requires reported binary coverage)");
     return false;
   }
 
