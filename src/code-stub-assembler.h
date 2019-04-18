@@ -2146,6 +2146,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsConsStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsConstructorMap(SloppyTNode<Map> map);
   TNode<BoolT> IsConstructor(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsDebugInfo(TNode<HeapObject> object);
   TNode<BoolT> IsDeprecatedMap(SloppyTNode<Map> map);
   TNode<BoolT> IsNameDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsGlobalDictionary(SloppyTNode<HeapObject> object);

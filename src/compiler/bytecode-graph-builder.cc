@@ -2817,7 +2817,9 @@ void BytecodeGraphBuilder::VisitIncBlockCounter() {
   Node* coverage_array_slot =
       jsgraph()->Constant(bytecode_iterator().GetIndexOperand(0));
 
-  const Operator* op = javascript()->CallRuntime(Runtime::kIncBlockCounter);
+  // Lowered by js-intrinsic-lowering to call Builtins::kIncBlockCounter.
+  const Operator* op =
+      javascript()->CallRuntime(Runtime::kInlineIncBlockCounter);
 
   NewNode(op, closure, coverage_array_slot);
 }

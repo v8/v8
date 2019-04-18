@@ -5917,6 +5917,10 @@ TNode<BoolT> CodeStubAssembler::IsCallableMap(SloppyTNode<Map> map) {
   return IsSetWord32<Map::IsCallableBit>(LoadMapBitField(map));
 }
 
+TNode<BoolT> CodeStubAssembler::IsDebugInfo(TNode<HeapObject> object) {
+  return HasInstanceType(object, DEBUG_INFO_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsDeprecatedMap(SloppyTNode<Map> map) {
   CSA_ASSERT(this, IsMap(map));
   return IsSetWord32<Map::IsDeprecatedBit>(LoadMapBitField3(map));

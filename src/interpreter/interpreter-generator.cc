@@ -2961,7 +2961,8 @@ IGNITION_HANDLER(IncBlockCounter, InterpreterAssembler) {
   Node* coverage_array_slot = BytecodeOperandIdxSmi(0);
   Node* context = GetContext();
 
-  CallRuntime(Runtime::kIncBlockCounter, context, closure, coverage_array_slot);
+  CallBuiltin(Builtins::kIncBlockCounter, context, closure,
+              coverage_array_slot);
 
   Dispatch();
 }

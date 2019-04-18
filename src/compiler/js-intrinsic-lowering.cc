@@ -76,6 +76,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceToString(node);
     case Runtime::kInlineCall:
       return ReduceCall(node);
+    case Runtime::kInlineIncBlockCounter:
+      return ReduceIncBlockCounter(node);
     default:
       break;
   }
@@ -301,6 +303,14 @@ Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
   return Changed(node);
 }
 
+Reduction JSIntrinsicLowering::ReduceIncBlockCounter(Node* node) {
+  DCHECK(!Linkage::NeedsFrameStateInput(Runtime::kIncBlockCounter));
+  DCHECK(!Linkage::NeedsFrameStateInput(Runtime::kInlineIncBlockCounter));
+  return Change(node,
+                Builtins::CallableFor(isolate(), Builtins::kIncBlockCounter), 0,
+                kDoesNotNeedFrameState);
+}
+
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b) {
   RelaxControls(node);
@@ -336,18 +346,20 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
   return Changed(node);
 }
 
-
 Reduction JSIntrinsicLowering::Change(Node* node, Callable const& callable,
-                                      int stack_parameter_count) {
+                                      int stack_parameter_count,
+                                      enum FrameStateFlag frame_state_flag) {
+  CallDescriptor::Flags flags = frame_state_flag == kNeedsFrameState
+                                    ? CallDescriptor::kNeedsFrameState
+                                    : CallDescriptor::kNoFlags;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(), stack_parameter_count,
-      CallDescriptor::kNeedsFrameState, node->op()->properties());
+      graph()->zone(), callable.descriptor(), stack_parameter_count, flags,
+      node->op()->properties());
   node->InsertInput(graph()->zone(), 0,
                     jsgraph()->HeapConstant(callable.code()));
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);
 }
-
 
 Graph* JSIntrinsicLowering::graph() const { return jsgraph()->graph(); }
 

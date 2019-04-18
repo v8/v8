@@ -340,7 +340,6 @@ extern class Script extends Struct {
   source_mapping_url: Object;
   host_defined_options: Object;
 }
-type DebugInfo extends HeapObject;
 
 extern class EmbedderDataArray extends HeapObject { length: Smi; }
 
@@ -1033,6 +1032,18 @@ extern class AccessorPair extends Struct {
 
 extern class BreakPoint extends Tuple2 {}
 extern class BreakPointInfo extends Tuple2 {}
+extern class CoverageInfo extends FixedArray {}
+
+extern class DebugInfo extends Struct {
+  shared_function_info: HeapObject;
+  debugger_hints: Smi;
+  script: Undefined | Script;
+  original_bytecode_array: Undefined | BytecodeArray;
+  debug_bytecode_array: Undefined | BytecodeArray;
+  break_points: FixedArray;
+  flags: Smi;
+  coverage_info: CoverageInfo | Undefined;
+}
 
 extern class WasmModuleObject extends JSObject {
   native_module: Foreign;
@@ -1651,6 +1662,21 @@ Cast<JSReceiver>(implicit context: Context)(o: HeapObject): JSReceiver
 Cast<JSFunction>(implicit context: Context)(o: HeapObject): JSFunction
     labels CastError {
   if (IsJSFunction(o)) return %RawDownCast<JSFunction>(o);
+  goto CastError;
+}
+
+extern macro IsDebugInfo(HeapObject): bool;
+Cast<DebugInfo>(implicit context: Context)(o: HeapObject): DebugInfo
+    labels CastError {
+  if (IsDebugInfo(o)) return %RawDownCast<DebugInfo>(o);
+  goto CastError;
+}
+
+extern macro IsCoverageInfo(HeapObject): bool;
+Cast<CoverageInfo>(implicit context: Context)(o: HeapObject): CoverageInfo
+    labels CastError {
+  // TODO(jgruber): Assign an instance type.
+  if (IsFixedArray(o)) return %RawDownCast<CoverageInfo>(o);
   goto CastError;
 }
 

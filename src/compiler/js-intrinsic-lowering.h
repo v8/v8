@@ -61,14 +61,21 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceToObject(Node* node);
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
+  Reduction ReduceIncBlockCounter(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c,
                    Node* d);
+
+  enum FrameStateFlag {
+    kNeedsFrameState,
+    kDoesNotNeedFrameState,
+  };
   Reduction Change(Node* node, Callable const& callable,
-                   int stack_parameter_count);
+                   int stack_parameter_count,
+                   enum FrameStateFlag frame_state_flag = kNeedsFrameState);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

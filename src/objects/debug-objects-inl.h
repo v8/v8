@@ -37,7 +37,7 @@ ACCESSORS(DebugInfo, script, Object, kScriptOffset)
 ACCESSORS(DebugInfo, original_bytecode_array, Object,
           kOriginalBytecodeArrayOffset)
 ACCESSORS(DebugInfo, debug_bytecode_array, Object, kDebugBytecodeArrayOffset)
-ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateOffset)
+ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsOffset)
 ACCESSORS(DebugInfo, coverage_info, Object, kCoverageInfoOffset)
 
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, side_effect_state,
