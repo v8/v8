@@ -57,7 +57,6 @@ namespace internal {
   V(THIN_ONE_BYTE_STRING_TYPE)                           \
   V(UNCACHED_EXTERNAL_STRING_TYPE)                       \
   V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)              \
-  V(EMPTY_STRING_TYPE)                                   \
                                                          \
   V(SYMBOL_TYPE)                                         \
   V(HEAP_NUMBER_TYPE)                                    \
@@ -287,8 +286,7 @@ namespace internal {
     UncachedExternalOneByteInternalizedString)                                 \
   V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)              \
   V(THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize, thin_one_byte_string,        \
-    ThinOneByteString)                                                         \
-  V(EMPTY_STRING_TYPE, kVariableSizeSentinel, empty_string, EmptyString)
+    ThinOneByteString)
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate

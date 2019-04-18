@@ -682,6 +682,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckHeapObject();
   const Operator* CheckIf(DeoptimizeReason deoptimize_reason,
                           const VectorSlotPair& feedback = VectorSlotPair());
+  const Operator* CheckInternalizedString();
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>,
                             const VectorSlotPair& = VectorSlotPair());
   const Operator* CheckNotTaggedHole();
@@ -689,10 +690,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckReceiver();
   const Operator* CheckReceiverOrNullOrUndefined();
   const Operator* CheckSmi(const VectorSlotPair& feedback);
-  const Operator* CheckInternalizedString();
-  const Operator* CheckNonEmptyString();
-  const Operator* CheckNonEmptyOneByteString();
-  const Operator* CheckNonEmptyTwoByteString();
   const Operator* CheckString(const VectorSlotPair& feedback);
   const Operator* CheckSymbol();
 
@@ -777,8 +774,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* NewArgumentsElements(int mapped_count);
 
   // new-cons-string length, first, second
-  const Operator* NewConsOneByteString();
-  const Operator* NewConsTwoByteString();
   const Operator* NewConsString();
 
   // ensure-writable-fast-elements object, elements

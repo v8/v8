@@ -121,11 +121,6 @@ class V8_EXPORT_PRIVATE TypeCache final {
   // [0, String::kMaxLength].
   Type const kStringLengthType = CreateRange(0.0, String::kMaxLength);
 
-  // The ConsString::length property always contains a smi in the range
-  // [ConsString::kMinLength, ConsString::kMaxLength].
-  Type const kConsStringLengthType =
-      CreateRange(ConsString::kMinLength, ConsString::kMaxLength);
-
   // A time value always contains a tagged number in the range
   // [-kMaxTimeInMs, kMaxTimeInMs].
   Type const kTimeValueType =

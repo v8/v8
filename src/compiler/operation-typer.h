@@ -58,19 +58,10 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Type SameValueNumbersOnly(Type lhs, Type rhs);
   Type StrictEqual(Type lhs, Type rhs);
 
-  // String operators.
-  Type StringConcat(Type length, Type first, Type second);
-
   // Check operators.
   Type CheckBounds(Type index, Type length);
   Type CheckFloat64Hole(Type type);
   Type CheckNumber(Type type);
-  Type CheckInternalizedString(Type type);
-  Type CheckNonEmptyString(Type type);
-  Type CheckNonEmptyOneByteString(Type type);
-  Type CheckNonEmptyTwoByteString(Type type);
-  Type CheckString(Type type);
-
   Type ConvertTaggedHoleToUndefined(Type type);
 
   Type TypeTypeGuard(const Operator* sigma_op, Type input);

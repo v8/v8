@@ -428,7 +428,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case WEAK_ARRAY_LIST_TYPE:
       WeakArrayList::cast(*this)->WeakArrayListPrint(os);
       break;
-    case EMPTY_STRING_TYPE:
     case INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:

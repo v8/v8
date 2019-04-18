@@ -715,15 +715,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckInternalizedString:
       result = LowerCheckInternalizedString(node, frame_state);
       break;
-    case IrOpcode::kCheckNonEmptyOneByteString:
-      result = LowerCheckNonEmptyOneByteString(node, frame_state);
-      break;
-    case IrOpcode::kCheckNonEmptyTwoByteString:
-      result = LowerCheckNonEmptyTwoByteString(node, frame_state);
-      break;
-    case IrOpcode::kCheckNonEmptyString:
-      result = LowerCheckNonEmptyString(node, frame_state);
-      break;
     case IrOpcode::kCheckIf:
       LowerCheckIf(node, frame_state);
       break;
@@ -892,12 +883,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kNewArgumentsElements:
       result = LowerNewArgumentsElements(node);
-      break;
-    case IrOpcode::kNewConsOneByteString:
-      result = LowerNewConsOneByteString(node);
-      break;
-    case IrOpcode::kNewConsTwoByteString:
-      result = LowerNewConsTwoByteString(node);
       break;
     case IrOpcode::kNewConsString:
       result = LowerNewConsString(node);
@@ -1801,62 +1786,6 @@ Node* EffectControlLinearizer::LowerCheckInternalizedString(Node* node,
       __ Word32And(value_instance_type,
                    __ Int32Constant(kIsNotStringMask | kIsNotInternalizedMask)),
       __ Int32Constant(kInternalizedTag));
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, VectorSlotPair(),
-                     check, frame_state);
-
-  return value;
-}
-
-Node* EffectControlLinearizer::LowerCheckNonEmptyOneByteString(
-    Node* node, Node* frame_state) {
-  Node* value = node->InputAt(0);
-
-  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-  Node* value_instance_type =
-      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
-
-  Node* check = __ Word32Equal(
-      __ Word32And(value_instance_type,
-                   __ Int32Constant(kIsNotStringMask | kStringEncodingMask |
-                                    kIsEmptyStringMask)),
-      __ Int32Constant(kStringTag | kOneByteStringTag | kIsNotEmptyStringTag));
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, VectorSlotPair(),
-                     check, frame_state);
-
-  return value;
-}
-
-Node* EffectControlLinearizer::LowerCheckNonEmptyTwoByteString(
-    Node* node, Node* frame_state) {
-  Node* value = node->InputAt(0);
-
-  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-  Node* value_instance_type =
-      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
-
-  Node* check = __ Word32Equal(
-      __ Word32And(value_instance_type,
-                   __ Int32Constant(kIsNotStringMask | kStringEncodingMask |
-                                    kIsEmptyStringMask)),
-      __ Int32Constant(kStringTag | kTwoByteStringTag | kIsNotEmptyStringTag));
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, VectorSlotPair(),
-                     check, frame_state);
-
-  return value;
-}
-
-Node* EffectControlLinearizer::LowerCheckNonEmptyString(Node* node,
-                                                        Node* frame_state) {
-  Node* value = node->InputAt(0);
-
-  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-  Node* value_instance_type =
-      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
-
-  Node* check = __ Word32Equal(
-      __ Word32And(value_instance_type,
-                   __ Int32Constant(kIsNotStringMask | kIsEmptyStringMask)),
-      __ Int32Constant(kStringTag | kIsNotEmptyStringTag));
   __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, VectorSlotPair(),
                      check, frame_state);
 
@@ -3361,24 +3290,6 @@ Node* EffectControlLinearizer::LowerNewArgumentsElements(Node* node) {
                  length, __ SmiConstant(mapped_count), __ NoContextConstant());
 }
 
-Node* EffectControlLinearizer::LowerNewConsOneByteString(Node* node) {
-  Node* map = jsgraph()->HeapConstant(factory()->cons_one_byte_string_map());
-  Node* length = node->InputAt(0);
-  Node* first = node->InputAt(1);
-  Node* second = node->InputAt(2);
-
-  return AllocateConsString(map, length, first, second);
-}
-
-Node* EffectControlLinearizer::LowerNewConsTwoByteString(Node* node) {
-  Node* map = jsgraph()->HeapConstant(factory()->cons_string_map());
-  Node* length = node->InputAt(0);
-  Node* first = node->InputAt(1);
-  Node* second = node->InputAt(2);
-
-  return AllocateConsString(map, length, first, second);
-}
-
 Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
   Node* length = node->InputAt(0);
   Node* first = node->InputAt(1);
@@ -3415,14 +3326,9 @@ Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
   Node* result_map = done.PhiAt(0);
 
   // Allocate the resulting ConsString.
-  return AllocateConsString(result_map, length, first, second);
-}
-
-Node* EffectControlLinearizer::AllocateConsString(Node* map, Node* length,
-                                                  Node* first, Node* second) {
   Node* result =
       __ Allocate(AllocationType::kYoung, __ IntPtrConstant(ConsString::kSize));
-  __ StoreField(AccessBuilder::ForMap(), result, map);
+  __ StoreField(AccessBuilder::ForMap(), result, result_map);
   __ StoreField(AccessBuilder::ForNameHashField(), result,
                 __ Int32Constant(Name::kEmptyHashField));
   __ StoreField(AccessBuilder::ForStringLength(), result, length);

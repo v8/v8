@@ -1212,29 +1212,6 @@ Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
   return Type::Boolean();
 }
 
-Type OperationTyper::StringConcat(Type length, Type first, Type second) {
-  if (length.IsNone() || first.IsNone() || second.IsNone()) return Type::None();
-  if (first.Is(Type::EmptyString())) return second;
-  if (second.Is(Type::EmptyString())) return first;
-
-  first = Type::Intersect(first, Type::NonEmptyString(), zone());
-  second = Type::Intersect(second, Type::NonEmptyString(), zone());
-
-  Type type = Type::NonEmptyString();
-  if (first.Is(Type::NonEmptyOneByteString()) &&
-      second.Is(Type::NonEmptyOneByteString())) {
-    type = Type::NonEmptyOneByteString();
-  } else if (first.Is(Type::NonEmptyTwoByteString()) ||
-             second.Is(Type::NonEmptyTwoByteString())) {
-    type = Type::NonEmptyTwoByteString();
-  }
-
-  if (length.Min() == 0) {
-    type = Type::Union(type, Type::EmptyString(), zone());
-  }
-  return type;
-}
-
 Type OperationTyper::CheckBounds(Type index, Type length) {
   DCHECK(length.Is(cache_->kPositiveSafeInteger));
   if (length.Is(cache_->kSingletonZero)) return Type::None();
@@ -1256,26 +1233,6 @@ Type OperationTyper::CheckFloat64Hole(Type type) {
 
 Type OperationTyper::CheckNumber(Type type) {
   return Type::Intersect(type, Type::Number(), zone());
-}
-
-Type OperationTyper::CheckInternalizedString(Type type) {
-  return Type::Intersect(type, Type::InternalizedString(), zone());
-}
-
-Type OperationTyper::CheckNonEmptyString(Type type) {
-  return Type::Intersect(type, Type::NonEmptyString(), zone());
-}
-
-Type OperationTyper::CheckNonEmptyOneByteString(Type type) {
-  return Type::Intersect(type, Type::NonEmptyOneByteString(), zone());
-}
-
-Type OperationTyper::CheckNonEmptyTwoByteString(Type type) {
-  return Type::Intersect(type, Type::NonEmptyTwoByteString(), zone());
-}
-
-Type OperationTyper::CheckString(Type type) {
-  return Type::Intersect(type, Type::String(), zone());
 }
 
 Type OperationTyper::TypeTypeGuard(const Operator* sigma_op, Type input) {

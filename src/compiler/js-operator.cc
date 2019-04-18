@@ -688,12 +688,6 @@ struct JSOperatorGlobalCache final {
   Name##Operator<BinaryOperationHint::kNumber> k##Name##NumberOperator;       \
   Name##Operator<BinaryOperationHint::kNumberOrOddball>                       \
       k##Name##NumberOrOddballOperator;                                       \
-  Name##Operator<BinaryOperationHint::kConsOneByteString>                     \
-      k##Name##ConsOneByteStringOperator;                                     \
-  Name##Operator<BinaryOperationHint::kConsTwoByteString>                     \
-      k##Name##ConsTwoByteStringOperator;                                     \
-  Name##Operator<BinaryOperationHint::kConsString>                            \
-      k##Name##ConsStringOperator;                                            \
   Name##Operator<BinaryOperationHint::kString> k##Name##StringOperator;       \
   Name##Operator<BinaryOperationHint::kBigInt> k##Name##BigIntOperator;       \
   Name##Operator<BinaryOperationHint::kAny> k##Name##AnyOperator;
@@ -756,12 +750,6 @@ CACHED_OP_LIST(CACHED_OP)
         return &cache_.k##Name##NumberOperator;                       \
       case BinaryOperationHint::kNumberOrOddball:                     \
         return &cache_.k##Name##NumberOrOddballOperator;              \
-      case BinaryOperationHint::kConsOneByteString:                   \
-        return &cache_.k##Name##ConsOneByteStringOperator;            \
-      case BinaryOperationHint::kConsTwoByteString:                   \
-        return &cache_.k##Name##ConsTwoByteStringOperator;            \
-      case BinaryOperationHint::kConsString:                          \
-        return &cache_.k##Name##ConsStringOperator;                   \
       case BinaryOperationHint::kString:                              \
         return &cache_.k##Name##StringOperator;                       \
       case BinaryOperationHint::kBigInt:                              \

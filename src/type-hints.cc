@@ -21,12 +21,6 @@ std::ostream& operator<<(std::ostream& os, BinaryOperationHint hint) {
       return os << "Number";
     case BinaryOperationHint::kNumberOrOddball:
       return os << "NumberOrOddball";
-    case BinaryOperationHint::kConsOneByteString:
-      return os << "ConsOneByteString";
-    case BinaryOperationHint::kConsTwoByteString:
-      return os << "ConsTwoByteString";
-    case BinaryOperationHint::kConsString:
-      return os << "ConsString";
     case BinaryOperationHint::kString:
       return os << "String";
     case BinaryOperationHint::kBigInt:

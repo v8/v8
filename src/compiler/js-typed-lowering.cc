@@ -93,6 +93,35 @@ class JSBinopReduction final {
            BothInputsMaybe(Type::Symbol());
   }
 
+  // Check if a string addition will definitely result in creating a ConsString,
+  // i.e. if the combined length of the resulting string exceeds the ConsString
+  // minimum length.
+  bool ShouldCreateConsString() {
+    DCHECK_EQ(IrOpcode::kJSAdd, node_->opcode());
+    DCHECK(OneInputIs(Type::String()));
+    if (BothInputsAre(Type::String()) ||
+        BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString) {
+      HeapObjectBinopMatcher m(node_);
+      JSHeapBroker* broker = lowering_->broker();
+      if (m.right().HasValue() && m.right().Ref(broker).IsString()) {
+        StringRef right_string = m.right().Ref(broker).AsString();
+        if (right_string.length() >= ConsString::kMinLength) return true;
+      }
+      if (m.left().HasValue() && m.left().Ref(broker).IsString()) {
+        StringRef left_string = m.left().Ref(broker).AsString();
+        if (left_string.length() >= ConsString::kMinLength) {
+          // The invariant for ConsString requires the left hand side to be
+          // a sequential or external string if the right hand side is the
+          // empty string. Since we don't know anything about the right hand
+          // side here, we must ensure that the left hand side satisfy the
+          // constraints independent of the right hand side.
+          return left_string.IsSeqString() || left_string.IsExternalString();
+        }
+      }
+    }
+    return false;
+  }
+
   // Inserts a CheckReceiver for the left input.
   void CheckLeftInputToReceiver() {
     Node* left_input = graph()->NewNode(simplified()->CheckReceiver(), left(),
@@ -159,64 +188,6 @@ class JSBinopReduction final {
     if (!right_type().Is(Type::Symbol())) {
       Node* right_input = graph()->NewNode(simplified()->CheckSymbol(), right(),
                                            effect(), control());
-      node_->ReplaceInput(1, right_input);
-      update_effect(right_input);
-    }
-  }
-
-  // Checks that both inputs are NonEmptyOneByteString, and if we don't know
-  // statically that one side is already a NonEmptyOneByteString, insert a
-  // CheckNonEmptyOneByteString node.
-  void CheckInputsToNonEmptyOneByteString() {
-    if (!left_type().Is(Type::NonEmptyOneByteString())) {
-      Node* left_input =
-          graph()->NewNode(simplified()->CheckNonEmptyOneByteString(), left(),
-                           effect(), control());
-      node_->ReplaceInput(0, left_input);
-      update_effect(left_input);
-    }
-    if (!right_type().Is(Type::NonEmptyOneByteString())) {
-      Node* right_input =
-          graph()->NewNode(simplified()->CheckNonEmptyOneByteString(), right(),
-                           effect(), control());
-      node_->ReplaceInput(1, right_input);
-      update_effect(right_input);
-    }
-  }
-
-  // Checks that both inputs are NonEmptyTwoByteString, and if we don't know
-  // statically that one side is already a NonEmptyTwoByteString, insert a
-  // CheckNonEmptyTwoByteString node.
-  void CheckInputsToNonEmptyTwoByteString() {
-    if (!left_type().Is(Type::NonEmptyTwoByteString())) {
-      Node* left_input =
-          graph()->NewNode(simplified()->CheckNonEmptyTwoByteString(), left(),
-                           effect(), control());
-      node_->ReplaceInput(0, left_input);
-      update_effect(left_input);
-    }
-    if (!right_type().Is(Type::NonEmptyTwoByteString())) {
-      Node* right_input =
-          graph()->NewNode(simplified()->CheckNonEmptyTwoByteString(), right(),
-                           effect(), control());
-      node_->ReplaceInput(1, right_input);
-      update_effect(right_input);
-    }
-  }
-
-  // Checks that both inputs are NonEmptyString, and if we don't know
-  // statically that one side is already a NonEmptyString, insert a
-  // CheckNonEmptyString node.
-  void CheckInputsToNonEmptyString() {
-    if (!left_type().Is(Type::NonEmptyString())) {
-      Node* left_input = graph()->NewNode(simplified()->CheckNonEmptyString(),
-                                          left(), effect(), control());
-      node_->ReplaceInput(0, left_input);
-      update_effect(left_input);
-    }
-    if (!right_type().Is(Type::NonEmptyString())) {
-      Node* right_input = graph()->NewNode(simplified()->CheckNonEmptyString(),
-                                           right(), effect(), control());
       node_->ReplaceInput(1, right_input);
       update_effect(right_input);
     }
@@ -455,9 +426,11 @@ JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph,
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
       broker_(broker),
+      empty_string_type_(Type::HeapConstant(broker, factory()->empty_string(),
+                                            graph()->zone())),
       pointer_comparable_type_(
           Type::Union(Type::Oddball(),
-                      Type::Union(Type::SymbolOrReceiver(), Type::EmptyString(),
+                      Type::Union(Type::SymbolOrReceiver(), empty_string_type_,
                                   graph()->zone()),
                       graph()->zone())),
       type_cache_(TypeCache::Get()) {}
@@ -551,25 +524,15 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   }
 
   // Always bake in String feedback into the graph.
-  BinaryOperationHint const hint = BinaryOperationHintOf(node->op());
-  if (hint == BinaryOperationHint::kConsOneByteString) {
-    r.CheckInputsToNonEmptyOneByteString();
-  } else if (hint == BinaryOperationHint::kConsTwoByteString) {
-    r.CheckInputsToNonEmptyTwoByteString();
-  } else if (hint == BinaryOperationHint::kConsString) {
-    r.CheckInputsToNonEmptyString();
-  } else if (hint == BinaryOperationHint::kString) {
+  if (BinaryOperationHintOf(node->op()) == BinaryOperationHint::kString) {
     r.CheckInputsToString();
   }
 
   // Strength-reduce concatenation of empty strings if both sides are
   // primitives, as in that case the ToPrimitive on the other side is
   // definitely going to be a no-op.
-  // TODO(bmeurer): Put this empty string magic into the StringConcat
-  // optimization, and instead go with just doing the input ToString()
-  // magic here.
   if (r.BothInputsAre(Type::Primitive())) {
-    if (r.LeftInputIs(Type::EmptyString())) {
+    if (r.LeftInputIs(empty_string_type_)) {
       // JSAdd("", x:primitive) => JSToString(x)
       NodeProperties::ReplaceValueInputs(node, r.right());
       NodeProperties::ChangeOp(node, javascript()->ToString());
@@ -577,7 +540,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
           node, Type::Intersect(r.type(), Type::String(), graph()->zone()));
       Reduction const reduction = ReduceJSToString(node);
       return reduction.Changed() ? reduction : Changed(node);
-    } else if (r.RightInputIs(Type::EmptyString())) {
+    } else if (r.RightInputIs(empty_string_type_)) {
       // JSAdd(x:primitive, "") => JSToString(x)
       NodeProperties::ReplaceValueInputs(node, r.left());
       NodeProperties::ChangeOp(node, javascript()->ToString());
@@ -653,31 +616,19 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
                            length, effect, control);
     }
 
-    if (hint == BinaryOperationHint::kConsString ||
-        hint == BinaryOperationHint::kConsOneByteString ||
-        hint == BinaryOperationHint::kConsTwoByteString) {
-      Node* check = graph()->NewNode(
-          simplified()->NumberLessThan(),
-          jsgraph()->Constant(ConsString::kMinLength - 1), length);
-      effect = graph()->NewNode(
-          simplified()->CheckIf(DeoptimizeReason::kWrongLength), check, effect,
-          control);
-      length = effect = graph()->NewNode(
-          common()->TypeGuard(type_cache_->kConsStringLengthType), length,
-          effect, control);
-    }
-
-    Operator const* const op = simplified()->StringConcat();
+    // TODO(bmeurer): Ideally this should always use StringConcat and decide to
+    // optimize to NewConsString later during SimplifiedLowering, but for that
+    // to work we need to know that it's safe to create a ConsString.
+    Operator const* const op = r.ShouldCreateConsString()
+                                   ? simplified()->NewConsString()
+                                   : simplified()->StringConcat();
     Node* value = graph()->NewNode(op, length, r.left(), r.right());
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
 
   // We never get here when we had String feedback.
-  DCHECK_NE(BinaryOperationHint::kConsString, hint);
-  DCHECK_NE(BinaryOperationHint::kConsOneByteString, hint);
-  DCHECK_NE(BinaryOperationHint::kConsTwoByteString, hint);
-  DCHECK_NE(BinaryOperationHint::kString, hint);
+  DCHECK_NE(BinaryOperationHint::kString, BinaryOperationHintOf(node->op()));
   if (r.OneInputIs(Type::String())) {
     StringAddFlags flags = STRING_ADD_CHECK_NONE;
     if (!r.LeftInputIs(Type::String())) {

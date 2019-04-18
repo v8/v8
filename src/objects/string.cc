@@ -24,8 +24,19 @@ namespace internal {
 
 Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
                                    AllocationType allocation) {
-  DCHECK_GT(cons->first()->length(), 0);
-  DCHECK_GT(cons->second()->length(), 0);
+  DCHECK_NE(cons->second()->length(), 0);
+
+  // TurboFan can create cons strings with empty first parts.
+  while (cons->first()->length() == 0) {
+    // We do not want to call this function recursively. Therefore we call
+    // String::Flatten only in those cases where String::SlowFlatten is not
+    // called again.
+    if (cons->second()->IsConsString() && !cons->second()->IsFlat()) {
+      cons = handle(ConsString::cast(cons->second()), isolate);
+    } else {
+      return String::Flatten(isolate, handle(cons->second(), isolate));
+    }
+  }
 
   DCHECK(AllowHeapAllocation::IsAllowed());
   int length = cons->length();

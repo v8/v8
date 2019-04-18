@@ -2224,8 +2224,7 @@ int HeapObject::SizeFromMap(Map map) const {
     DCHECK_NE(instance_type, NATIVE_CONTEXT_TYPE);
     return Context::SizeFor(Context::unchecked_cast(*this)->length());
   }
-  if (instance_type == EMPTY_STRING_TYPE ||
-      instance_type == ONE_BYTE_STRING_TYPE ||
+  if (instance_type == ONE_BYTE_STRING_TYPE ||
       instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {
     // Strings may get concurrently truncated, hence we have to access its
     // length synchronized.
@@ -2402,9 +2401,8 @@ void HeapObject::RehashBasedOnMap(ReadOnlyRoots roots) {
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
       DCHECK_EQ(0, SmallOrderedNameDictionary::cast(*this)->NumberOfElements());
       break;
-    case EMPTY_STRING_TYPE:
-    case INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case INTERNALIZED_STRING_TYPE:
       // Rare case, rehash read-only space strings before they are sealed.
       DCHECK(ReadOnlyHeap::Contains(*this));
       String::cast(*this)->Hash();

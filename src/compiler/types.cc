@@ -137,30 +137,26 @@ Type::bitset Type::BitsetLub() const {
 template <typename MapRefLike>
 Type::bitset BitsetType::Lub(const MapRefLike& map) {
   switch (map.instance_type()) {
-    case EMPTY_STRING_TYPE:
-      return kEmptyString;
     case CONS_STRING_TYPE:
-    case SLICED_STRING_TYPE:
-    case EXTERNAL_STRING_TYPE:
-    case UNCACHED_EXTERNAL_STRING_TYPE:
-    case STRING_TYPE:
-    case THIN_STRING_TYPE:
-      return kNonEmptyTwoByteString;
     case CONS_ONE_BYTE_STRING_TYPE:
-    case SLICED_ONE_BYTE_STRING_TYPE:
-    case EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case ONE_BYTE_STRING_TYPE:
+    case THIN_STRING_TYPE:
     case THIN_ONE_BYTE_STRING_TYPE:
-      return kNonEmptyOneByteString;
+    case SLICED_STRING_TYPE:
+    case SLICED_ONE_BYTE_STRING_TYPE:
+    case EXTERNAL_STRING_TYPE:
+    case EXTERNAL_ONE_BYTE_STRING_TYPE:
+    case UNCACHED_EXTERNAL_STRING_TYPE:
+    case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
+    case STRING_TYPE:
+    case ONE_BYTE_STRING_TYPE:
+      return kString;
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
-    case UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE:
-    case INTERNALIZED_STRING_TYPE:
-      return kNonEmptyInternalizedTwoByteString;
     case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE:
     case UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
-      return kNonEmptyInternalizedOneByteString;
+      return kInternalizedString;
     case SYMBOL_TYPE:
       return kSymbol;
     case BIGINT_TYPE:
@@ -403,10 +399,7 @@ size_t BitsetType::BoundariesSize() {
 }
 
 Type::bitset BitsetType::ExpandInternals(Type::bitset bits) {
-  DCHECK_IMPLIES(bits & kOtherOneByteString,
-                 bits & kNonEmptyInternalizedOneByteString);
-  DCHECK_IMPLIES(bits & kOtherTwoByteString,
-                 bits & kNonEmptyInternalizedTwoByteString);
+  DCHECK_IMPLIES(bits & kOtherString, (bits & kString) == kString);
   DisallowHeapAllocation no_allocation;
   if (!(bits & kPlainNumber)) return bits;  // Shortcut.
   const Boundary* boundaries = Boundaries();
@@ -864,7 +857,7 @@ Type Type::NewConstant(JSHeapBroker* broker, Handle<i::Object> value,
     return NewConstant(ref.AsHeapNumber().value(), zone);
   }
   if (ref.IsString() && !ref.IsInternalizedString()) {
-    return For(ref.AsString().map());
+    return Type::String();
   }
   return HeapConstant(ref.AsHeapObject(), zone);
 }

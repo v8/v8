@@ -462,13 +462,6 @@ class RepresentationSelector {
     break;                                                              \
   }
       SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
-      DECLARE_CASE(CheckFloat64Hole)
-      DECLARE_CASE(CheckNumber)
-      DECLARE_CASE(CheckInternalizedString)
-      DECLARE_CASE(CheckNonEmptyString)
-      DECLARE_CASE(CheckNonEmptyOneByteString)
-      DECLARE_CASE(CheckNonEmptyTwoByteString)
-      DECLARE_CASE(CheckString)
 #undef DECLARE_CASE
 
       case IrOpcode::kConvertReceiver:
@@ -485,9 +478,14 @@ class RepresentationSelector {
                             info->restriction_type(), graph_zone());
         break;
 
-      case IrOpcode::kStringConcat:
-        new_type = op_typer_.StringConcat(input0_type, input1_type,
-                                          FeedbackTypeOf(node->InputAt(2)));
+      case IrOpcode::kCheckFloat64Hole:
+        new_type = Type::Intersect(op_typer_.CheckFloat64Hole(input0_type),
+                                   info->restriction_type(), graph_zone());
+        break;
+
+      case IrOpcode::kCheckNumber:
+        new_type = Type::Intersect(op_typer_.CheckNumber(input0_type),
+                                   info->restriction_type(), graph_zone());
         break;
 
       case IrOpcode::kPhi: {
@@ -2609,39 +2607,23 @@ class RepresentationSelector {
         return VisitUnop(node, UseInfo::AnyTagged(),
                          MachineRepresentation::kTaggedPointer);
       }
+      case IrOpcode::kNewConsString: {
+        ProcessInput(node, 0, UseInfo::TruncatingWord32());  // length
+        ProcessInput(node, 1, UseInfo::AnyTagged());         // first
+        ProcessInput(node, 2, UseInfo::AnyTagged());         // second
+        SetOutput(node, MachineRepresentation::kTaggedPointer);
+        return;
+      }
       case IrOpcode::kStringConcat: {
-        Type const length_type = TypeOf(node->InputAt(0));
-        Type const first_type = TypeOf(node->InputAt(1));
-        Type const second_type = TypeOf(node->InputAt(2));
-        if (length_type.Is(type_cache_->kConsStringLengthType) &&
-            first_type.Is(Type::NonEmptyString()) &&
-            second_type.Is(Type::NonEmptyString())) {
-          // We know that we'll construct a ConsString here, so we
-          // can inline a fast-path into TurboFan optimized code.
-          ProcessInput(node, 0, UseInfo::TruncatingWord32());  // length
-          ProcessInput(node, 1, UseInfo::AnyTagged());         // first
-          ProcessInput(node, 2, UseInfo::AnyTagged());         // second
-          SetOutput(node, MachineRepresentation::kTaggedPointer);
-          if (lower()) {
-            if (first_type.Is(Type::NonEmptyOneByteString()) &&
-                second_type.Is(Type::NonEmptyOneByteString())) {
-              NodeProperties::ChangeOp(
-                  node, lowering->simplified()->NewConsOneByteString());
-            } else if (first_type.Is(Type::NonEmptyTwoByteString()) ||
-                       second_type.Is(Type::NonEmptyTwoByteString())) {
-              NodeProperties::ChangeOp(
-                  node, lowering->simplified()->NewConsTwoByteString());
-            } else {
-              NodeProperties::ChangeOp(node,
-                                       lowering->simplified()->NewConsString());
-            }
-          }
-        } else {
-          ProcessInput(node, 0, UseInfo::TaggedSigned());  // length
-          ProcessInput(node, 1, UseInfo::AnyTagged());     // first
-          ProcessInput(node, 2, UseInfo::AnyTagged());     // second
-          SetOutput(node, MachineRepresentation::kTaggedPointer);
-        }
+        // TODO(turbofan): We currently depend on having this first length input
+        // to make sure that the overflow check is properly scheduled before the
+        // actual string concatenation. We should also use the length to pass it
+        // to the builtin or decide in optimized code how to construct the
+        // resulting string (i.e. cons string or sequential string).
+        ProcessInput(node, 0, UseInfo::TaggedSigned());  // length
+        ProcessInput(node, 1, UseInfo::AnyTagged());     // first
+        ProcessInput(node, 2, UseInfo::AnyTagged());     // second
+        SetOutput(node, MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kStringEqual:
@@ -2723,18 +2705,6 @@ class RepresentationSelector {
       }
       case IrOpcode::kCheckInternalizedString: {
         VisitCheck(node, Type::InternalizedString(), lowering);
-        return;
-      }
-      case IrOpcode::kCheckNonEmptyString: {
-        VisitCheck(node, Type::NonEmptyString(), lowering);
-        return;
-      }
-      case IrOpcode::kCheckNonEmptyOneByteString: {
-        VisitCheck(node, Type::NonEmptyOneByteString(), lowering);
-        return;
-      }
-      case IrOpcode::kCheckNonEmptyTwoByteString: {
-        VisitCheck(node, Type::NonEmptyTwoByteString(), lowering);
         return;
       }
       case IrOpcode::kCheckNumber: {

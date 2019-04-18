@@ -196,47 +196,6 @@ TEST_F(RedundancyEliminationTest,
 }
 
 // -----------------------------------------------------------------------------
-// CheckNonEmptyString
-
-TEST_F(RedundancyEliminationTest,
-       CheckNonEmptyStringSubsumedByCheckNonEmptyOneByteString) {
-  Node* value = Parameter(0);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-
-  Node* check1 = effect = graph()->NewNode(
-      simplified()->CheckNonEmptyOneByteString(), value, effect, control);
-  Reduction r1 = Reduce(check1);
-  ASSERT_TRUE(r1.Changed());
-  EXPECT_EQ(r1.replacement(), check1);
-
-  Node* check2 = effect = graph()->NewNode(simplified()->CheckNonEmptyString(),
-                                           value, effect, control);
-  Reduction r2 = Reduce(check2);
-  ASSERT_TRUE(r2.Changed());
-  EXPECT_EQ(r2.replacement(), check1);
-}
-
-TEST_F(RedundancyEliminationTest,
-       CheckNonEmptyStringSubsumedByCheckNonEmptyTwoByteString) {
-  Node* value = Parameter(0);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-
-  Node* check1 = effect = graph()->NewNode(
-      simplified()->CheckNonEmptyTwoByteString(), value, effect, control);
-  Reduction r1 = Reduce(check1);
-  ASSERT_TRUE(r1.Changed());
-  EXPECT_EQ(r1.replacement(), check1);
-
-  Node* check2 = effect = graph()->NewNode(simplified()->CheckNonEmptyString(),
-                                           value, effect, control);
-  Reduction r2 = Reduce(check2);
-  ASSERT_TRUE(r2.Changed());
-  EXPECT_EQ(r2.replacement(), check1);
-}
-
-// -----------------------------------------------------------------------------
 // CheckString
 
 TEST_F(RedundancyEliminationTest,
@@ -248,68 +207,6 @@ TEST_F(RedundancyEliminationTest,
 
     Node* check1 = effect = graph()->NewNode(
         simplified()->CheckInternalizedString(), value, effect, control);
-    Reduction r1 = Reduce(check1);
-    ASSERT_TRUE(r1.Changed());
-    EXPECT_EQ(r1.replacement(), check1);
-
-    Node* check2 = effect = graph()->NewNode(
-        simplified()->CheckString(feedback), value, effect, control);
-    Reduction r2 = Reduce(check2);
-    ASSERT_TRUE(r2.Changed());
-    EXPECT_EQ(r2.replacement(), check1);
-  }
-}
-
-TEST_F(RedundancyEliminationTest, CheckStringSubsumedByCheckNonEmptyString) {
-  TRACED_FOREACH(VectorSlotPair, feedback, vector_slot_pairs()) {
-    Node* value = Parameter(0);
-    Node* effect = graph()->start();
-    Node* control = graph()->start();
-
-    Node* check1 = effect = graph()->NewNode(
-        simplified()->CheckNonEmptyString(), value, effect, control);
-    Reduction r1 = Reduce(check1);
-    ASSERT_TRUE(r1.Changed());
-    EXPECT_EQ(r1.replacement(), check1);
-
-    Node* check2 = effect = graph()->NewNode(
-        simplified()->CheckString(feedback), value, effect, control);
-    Reduction r2 = Reduce(check2);
-    ASSERT_TRUE(r2.Changed());
-    EXPECT_EQ(r2.replacement(), check1);
-  }
-}
-
-TEST_F(RedundancyEliminationTest,
-       CheckStringSubsumedByCheckNonEmptyOneByteString) {
-  TRACED_FOREACH(VectorSlotPair, feedback, vector_slot_pairs()) {
-    Node* value = Parameter(0);
-    Node* effect = graph()->start();
-    Node* control = graph()->start();
-
-    Node* check1 = effect = graph()->NewNode(
-        simplified()->CheckNonEmptyOneByteString(), value, effect, control);
-    Reduction r1 = Reduce(check1);
-    ASSERT_TRUE(r1.Changed());
-    EXPECT_EQ(r1.replacement(), check1);
-
-    Node* check2 = effect = graph()->NewNode(
-        simplified()->CheckString(feedback), value, effect, control);
-    Reduction r2 = Reduce(check2);
-    ASSERT_TRUE(r2.Changed());
-    EXPECT_EQ(r2.replacement(), check1);
-  }
-}
-
-TEST_F(RedundancyEliminationTest,
-       CheckStringSubsumedByCheckNonEmptyTwoByteString) {
-  TRACED_FOREACH(VectorSlotPair, feedback, vector_slot_pairs()) {
-    Node* value = Parameter(0);
-    Node* effect = graph()->start();
-    Node* control = graph()->start();
-
-    Node* check1 = effect = graph()->NewNode(
-        simplified()->CheckNonEmptyTwoByteString(), value, effect, control);
     Reduction r1 = Reduce(check1);
     ASSERT_TRUE(r1.Changed());
     EXPECT_EQ(r1.replacement(), check1);

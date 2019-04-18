@@ -3331,8 +3331,7 @@ TNode<String> CodeStubAssembler::AllocateSlicedTwoByteString(
 
 TNode<String> CodeStubAssembler::AllocateConsString(TNode<Uint32T> length,
                                                     TNode<String> left,
-                                                    TNode<String> right,
-                                                    Variable* var_feedback) {
+                                                    TNode<String> right) {
   // Added string can be a cons string.
   Comment("Allocating ConsString");
   Node* left_instance_type = LoadInstanceType(left);
@@ -3346,20 +3345,8 @@ TNode<String> CodeStubAssembler::AllocateConsString(TNode<Uint32T> length,
       Word32And(left_instance_type, right_instance_type);
   TNode<Map> result_map = CAST(Select<Object>(
       IsSetWord32(combined_instance_type, kStringEncodingMask),
-      [=] {
-        if (var_feedback != nullptr) {
-          var_feedback->Bind(
-              SmiConstant(BinaryOperationFeedback::kConsOneByteString));
-        }
-        return LoadRoot(RootIndex::kConsOneByteStringMap);
-      },
-      [=] {
-        if (var_feedback != nullptr) {
-          var_feedback->Bind(
-              SmiConstant(BinaryOperationFeedback::kConsTwoByteString));
-        }
-        return LoadRoot(RootIndex::kConsStringMap);
-      }));
+      [=] { return LoadRoot(RootIndex::kConsOneByteStringMap); },
+      [=] { return LoadRoot(RootIndex::kConsStringMap); }));
   Node* result = AllocateInNewSpace(ConsString::kSize);
   StoreMapNoWriteBarrier(result, result_map);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
@@ -7200,17 +7187,11 @@ void CodeStubAssembler::MaybeDerefIndirectStrings(Variable* var_left,
 }
 
 TNode<String> CodeStubAssembler::StringAdd(Node* context, TNode<String> left,
-                                           TNode<String> right,
-                                           Variable* var_feedback) {
+                                           TNode<String> right) {
   TVARIABLE(String, result);
   Label check_right(this), runtime(this, Label::kDeferred), cons(this),
       done(this, &result), done_native(this, &result);
   Counters* counters = isolate()->counters();
-
-  // Default to "String" feedback if we don't learn anything else below.
-  if (var_feedback != nullptr) {
-    var_feedback->Bind(SmiConstant(BinaryOperationFeedback::kString));
-  }
 
   TNode<Uint32T> left_length = LoadStringLengthAsWord32(left);
   GotoIfNot(Word32Equal(left_length, Uint32Constant(0)), &check_right);
@@ -7241,8 +7222,8 @@ TNode<String> CodeStubAssembler::StringAdd(Node* context, TNode<String> left,
     GotoIf(Uint32LessThan(new_length, Uint32Constant(ConsString::kMinLength)),
            &non_cons);
 
-    result = AllocateConsString(new_length, var_left.value(), var_right.value(),
-                                var_feedback);
+    result =
+        AllocateConsString(new_length, var_left.value(), var_right.value());
     Goto(&done_native);
 
     BIND(&non_cons);

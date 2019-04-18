@@ -743,8 +743,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(StringLessThan, Operator::kNoProperties, 2, 0)                 \
   V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)          \
   V(ToBoolean, Operator::kNoProperties, 1, 0)                      \
-  V(NewConsOneByteString, Operator::kNoProperties, 3, 0)           \
-  V(NewConsTwoByteString, Operator::kNoProperties, 3, 0)           \
   V(NewConsString, Operator::kNoProperties, 3, 0)                  \
   V(PoisonIndex, Operator::kNoProperties, 1, 0)
 
@@ -763,9 +761,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckEqualsInternalizedString, 2, 0)  \
   V(CheckEqualsSymbol, 2, 0)              \
   V(CheckHeapObject, 1, 1)                \
-  V(CheckNonEmptyString, 1, 1)            \
-  V(CheckNonEmptyOneByteString, 1, 1)     \
-  V(CheckNonEmptyTwoByteString, 1, 1)     \
   V(CheckInternalizedString, 1, 1)        \
   V(CheckNotTaggedHole, 1, 1)             \
   V(CheckReceiver, 1, 1)                  \

@@ -1276,8 +1276,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::OtherInternal());
       break;
     case IrOpcode::kNewConsString:
-    case IrOpcode::kNewConsOneByteString:
-    case IrOpcode::kNewConsTwoByteString:
+      CheckValueInputIs(node, 0, TypeCache::Get()->kStringLengthType);
+      CheckValueInputIs(node, 1, Type::String());
+      CheckValueInputIs(node, 2, Type::String());
+      CheckTypeIs(node, Type::String());
       break;
     case IrOpcode::kDelayedStringConstant:
       CheckTypeIs(node, Type::String());
@@ -1451,18 +1453,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckInternalizedString:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::InternalizedString());
-      break;
-    case IrOpcode::kCheckNonEmptyString:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, Type::NonEmptyString());
-      break;
-    case IrOpcode::kCheckNonEmptyOneByteString:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, Type::NonEmptyOneByteString());
-      break;
-    case IrOpcode::kCheckNonEmptyTwoByteString:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, Type::NonEmptyTwoByteString());
       break;
     case IrOpcode::kCheckMaps:
       CheckValueInputIs(node, 0, Type::Any());

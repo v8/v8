@@ -37,9 +37,6 @@ bool BinaryOperationHintToNumberOperationHint(
       return true;
     case BinaryOperationHint::kAny:
     case BinaryOperationHint::kNone:
-    case BinaryOperationHint::kConsOneByteString:
-    case BinaryOperationHint::kConsTwoByteString:
-    case BinaryOperationHint::kConsString:
     case BinaryOperationHint::kString:
     case BinaryOperationHint::kBigInt:
       break;
