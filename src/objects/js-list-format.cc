@@ -296,7 +296,7 @@ Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
 template <typename T>
 MaybeHandle<T> FormatListCommon(
     Isolate* isolate, Handle<JSListFormat> format, Handle<JSArray> list,
-    MaybeHandle<T> (*formatToResult)(Isolate*, const icu::FormattedList&)) {
+    MaybeHandle<T> (*formatToResult)(Isolate*, const icu::FormattedValue&)) {
   DCHECK(!list->IsUndefined());
   // ecma402 #sec-createpartsfromlist
   // 2. If list contains any element value such that Type(value) is not String,
@@ -318,18 +318,6 @@ MaybeHandle<T> FormatListCommon(
   return formatToResult(isolate, formatted);
 }
 
-// A helper function to convert the FormattedList to a
-// MaybeHandle<String> for the implementation of format.
-MaybeHandle<String> FormattedToString(Isolate* isolate,
-                                      const icu::FormattedList& formatted) {
-  UErrorCode status = U_ZERO_ERROR;
-  icu::UnicodeString result = formatted.toString(status);
-  if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
-  }
-  return Intl::ToString(isolate, result);
-}
-
 Handle<String> IcuFieldIdToType(Isolate* isolate, int32_t field_id) {
   switch (field_id) {
     case ULISTFMT_LITERAL_FIELD:
@@ -345,8 +333,8 @@ Handle<String> IcuFieldIdToType(Isolate* isolate, int32_t field_id) {
 
 // A helper function to convert the FormattedList to a
 // MaybeHandle<JSArray> for the implementation of formatToParts.
-MaybeHandle<JSArray> FormattedToJSArray(Isolate* isolate,
-                                        const icu::FormattedList& formatted) {
+MaybeHandle<JSArray> FormattedListToJSArray(
+    Isolate* isolate, const icu::FormattedValue& formatted) {
   Handle<JSArray> array = isolate->factory()->NewJSArray(0);
   icu::ConstrainedFieldPosition cfpos;
   cfpos.constrainCategory(UFIELD_CATEGORY_LIST);
@@ -375,13 +363,15 @@ MaybeHandle<JSArray> FormattedToJSArray(Isolate* isolate,
 MaybeHandle<String> JSListFormat::FormatList(Isolate* isolate,
                                              Handle<JSListFormat> format,
                                              Handle<JSArray> list) {
-  return FormatListCommon<String>(isolate, format, list, FormattedToString);
+  return FormatListCommon<String>(isolate, format, list,
+                                  Intl::FormattedToString);
 }
 
 // ecma42 #sec-formatlisttoparts
 MaybeHandle<JSArray> JSListFormat::FormatListToParts(
     Isolate* isolate, Handle<JSListFormat> format, Handle<JSArray> list) {
-  return FormatListCommon<JSArray>(isolate, format, list, FormattedToJSArray);
+  return FormatListCommon<JSArray>(isolate, format, list,
+                                   FormattedListToJSArray);
 }
 
 const std::set<std::string>& JSListFormat::GetAvailableLocales() {

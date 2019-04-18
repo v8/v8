@@ -26,6 +26,7 @@ namespace U_ICU_NAMESPACE {
 class BreakIterator;
 class Collator;
 class DecimalFormat;
+class FormattedValue;
 class SimpleDateFormat;
 class UnicodeString;
 }
@@ -185,6 +186,10 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToString(
       Isolate* isolate, const icu::UnicodeString& string, int32_t begin,
       int32_t end);
+
+  // Helper function to convert a FormattedValue to String
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormattedToString(
+      Isolate* isolate, const icu::FormattedValue& formatted);
 
   // Helper function to convert number field id to type string.
   static Handle<String> NumberFieldToType(Isolate* isolate,

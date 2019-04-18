@@ -959,14 +959,41 @@ std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormatFromCache(
       cache.Pointer()->Create(icu_locale, skeleton, generator));
 }
 
-std::unique_ptr<icu::DateIntervalFormat> CreateICUDateIntervalFormat(
-    const icu::Locale& icu_locale, const icu::UnicodeString& skeleton) {
+icu::UnicodeString SkeletonFromDateFormat(
+    const icu::SimpleDateFormat& icu_date_format) {
+  icu::UnicodeString pattern;
+  pattern = icu_date_format.toPattern(pattern);
+
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString skeleton =
+      icu::DateTimePatternGenerator::staticGetSkeleton(pattern, status);
+  CHECK(U_SUCCESS(status));
+  return skeleton;
+}
+
+icu::DateIntervalFormat* LazyCreateDateIntervalFormat(
+    Isolate* isolate, Handle<JSDateTimeFormat> date_time_format) {
+  Managed<icu::DateIntervalFormat> managed_format =
+      date_time_format->icu_date_interval_format();
+  if (managed_format->get()) {
+    return managed_format->raw();
+  }
+  icu::SimpleDateFormat* icu_simple_date_format =
+      date_time_format->icu_simple_date_format()->raw();
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::DateIntervalFormat> date_interval_format(
-      icu::DateIntervalFormat::createInstance(skeleton, icu_locale, status));
-  if (U_FAILURE(status)) return std::unique_ptr<icu::DateIntervalFormat>();
-  CHECK_NOT_NULL(date_interval_format.get());
-  return date_interval_format;
+      icu::DateIntervalFormat::createInstance(
+          SkeletonFromDateFormat(*icu_simple_date_format),
+          *(date_time_format->icu_locale()->raw()), status));
+  if (U_FAILURE(status)) {
+    return nullptr;
+  }
+  date_interval_format->setTimeZone(icu_simple_date_format->getTimeZone());
+  Handle<Managed<icu::DateIntervalFormat>> managed_interval_format =
+      Managed<icu::DateIntervalFormat>::FromUniquePtr(
+          isolate, 0, std::move(date_interval_format));
+  date_time_format->set_icu_date_interval_format(*managed_interval_format);
+  return (*managed_interval_format)->raw();
 }
 
 Intl::HourCycle HourCycleFromPattern(const icu::UnicodeString pattern) {
@@ -1101,18 +1128,6 @@ std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
 
   return CreateICUDateFormatFromCache(icu_locale, ReplaceSkeleton(skeleton, hc),
                                       generator);
-}
-
-icu::UnicodeString SkeletonFromDateFormat(
-    const icu::SimpleDateFormat& icu_date_format) {
-  icu::UnicodeString pattern;
-  pattern = icu_date_format.toPattern(pattern);
-
-  UErrorCode status = U_ZERO_ERROR;
-  icu::UnicodeString skeleton =
-      icu::DateTimePatternGenerator::staticGetSkeleton(pattern, status);
-  CHECK(U_SUCCESS(status));
-  return skeleton;
 }
 
 class DateTimePatternGeneratorCache {
@@ -1297,7 +1312,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   DateTimeStyle date_style = DateTimeStyle::kUndefined;
   DateTimeStyle time_style = DateTimeStyle::kUndefined;
   std::unique_ptr<icu::SimpleDateFormat> icu_date_format;
-  std::unique_ptr<icu::DateIntervalFormat> icu_date_interval_format;
 
   if (FLAG_harmony_intl_datetime_style) {
     // 28. Let dateStyle be ? GetOption(options, "dateStyle", "string", «
@@ -1340,10 +1354,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
         time_style != DateTimeStyle::kUndefined) {
       icu_date_format = DateTimeStylePattern(date_style, time_style, icu_locale,
                                              hc, *generator);
-      if (FLAG_harmony_intl_date_format_range) {
-        icu_date_interval_format = CreateICUDateIntervalFormat(
-            icu_locale, SkeletonFromDateFormat(*icu_date_format));
-      }
     }
   }
   // 33. Else,
@@ -1397,10 +1407,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
         FATAL("Failed to create ICU date format, are ICU data files missing?");
       }
     }
-    if (FLAG_harmony_intl_date_format_range) {
-      icu_date_interval_format =
-          CreateICUDateIntervalFormat(icu_locale, skeleton_ustr);
-    }
 
     // g. If dateTimeFormat.[[Hour]] is not undefined, then
     if (!has_hour_option) {
@@ -1449,12 +1455,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
       Managed<icu::SimpleDateFormat>::FromUniquePtr(isolate, 0,
                                                     std::move(icu_date_format));
   date_time_format->set_icu_simple_date_format(*managed_format);
-  if (FLAG_harmony_intl_date_format_range) {
-    Handle<Managed<icu::DateIntervalFormat>> managed_interval_format =
-        Managed<icu::DateIntervalFormat>::FromUniquePtr(
-            isolate, 0, std::move(icu_date_interval_format));
-    date_time_format->set_icu_date_interval_format(*managed_interval_format);
-  }
+
+  Handle<Managed<icu::DateIntervalFormat>> managed_interval_format =
+      Managed<icu::DateIntervalFormat>::FromRawPtr(isolate, 0, nullptr);
+  date_time_format->set_icu_date_interval_format(*managed_interval_format);
 
   return date_time_format;
 }
@@ -1591,75 +1595,176 @@ Handle<String> JSDateTimeFormat::HourCycleAsString() const {
   }
 }
 
-MaybeHandle<String> JSDateTimeFormat::FormatRange(
-    Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
-    double y) {
-  // TODO(ftang): Merge the following with FormatRangeToParts after
-  // the landing of ICU64 to make it cleaner.
+enum Source { kShared, kStartRange, kEndRange };
 
+namespace {
+
+class SourceTracker {
+ public:
+  SourceTracker() { start_[0] = start_[1] = limit_[0] = limit_[1] = 0; }
+  void Add(int32_t field, int32_t start, int32_t limit) {
+    CHECK_LT(field, 2);
+    start_[field] = start;
+    limit_[field] = limit;
+  }
+
+  Source GetSource(int32_t start, int32_t limit) const {
+    Source source = Source::kShared;
+    if (FieldContains(0, start, limit)) {
+      source = Source::kStartRange;
+    } else if (FieldContains(1, start, limit)) {
+      source = Source::kEndRange;
+    }
+    return source;
+  }
+
+ private:
+  int32_t start_[2];
+  int32_t limit_[2];
+
+  bool FieldContains(int32_t field, int32_t start, int32_t limit) const {
+    CHECK_LT(field, 2);
+    return (start_[field] <= start) && (start <= limit_[field]) &&
+           (start_[field] <= limit) && (limit <= limit_[field]);
+  }
+};
+
+Handle<String> SourceString(Isolate* isolate, Source source) {
+  switch (source) {
+    case Source::kShared:
+      return ReadOnlyRoots(isolate).shared_string_handle();
+    case Source::kStartRange:
+      return ReadOnlyRoots(isolate).startRange_string_handle();
+    case Source::kEndRange:
+      return ReadOnlyRoots(isolate).endRange_string_handle();
+      UNREACHABLE();
+  }
+}
+
+Maybe<bool> AddPartForFormatRange(Isolate* isolate, Handle<JSArray> array,
+                                  const icu::UnicodeString& string,
+                                  int32_t index, int32_t field, int32_t start,
+                                  int32_t end, const SourceTracker& tracker) {
+  Handle<String> substring;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, substring,
+                                   Intl::ToString(isolate, string, start, end),
+                                   Nothing<bool>());
+  Intl::AddElement(isolate, array, index,
+                   IcuDateFieldIdToDateType(field, isolate), substring,
+                   isolate->factory()->source_string(),
+                   SourceString(isolate, tracker.GetSource(start, end)));
+  return Just(true);
+}
+
+// A helper function to convert the FormattedDateInterval to a
+// MaybeHandle<JSArray> for the implementation of formatRangeToParts.
+MaybeHandle<JSArray> FormattedDateIntervalToJSArray(
+    Isolate* isolate, const icu::FormattedValue& formatted) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString result = formatted.toString(status);
+
+  Factory* factory = isolate->factory();
+  Handle<JSArray> array = factory->NewJSArray(0);
+  icu::ConstrainedFieldPosition cfpos;
+  int index = 0;
+  int32_t previous_end_pos = 0;
+  SourceTracker tracker;
+  while (formatted.nextPosition(cfpos, status)) {
+    int32_t category = cfpos.getCategory();
+    int32_t field = cfpos.getField();
+    int32_t start = cfpos.getStart();
+    int32_t limit = cfpos.getLimit();
+
+    if (category == UFIELD_CATEGORY_DATE_INTERVAL_SPAN) {
+      CHECK_LE(field, 2);
+      tracker.Add(field, start, limit);
+    } else {
+      CHECK(category == UFIELD_CATEGORY_DATE);
+      if (start > previous_end_pos) {
+        // Add "literal" from the previous end position to the start if
+        // necessary.
+        Maybe<bool> maybe_added =
+            AddPartForFormatRange(isolate, array, result, index, -1,
+                                  previous_end_pos, start, tracker);
+        MAYBE_RETURN(maybe_added, Handle<JSArray>());
+        previous_end_pos = start;
+        index++;
+      }
+      Maybe<bool> maybe_added = AddPartForFormatRange(
+          isolate, array, result, index, field, start, limit, tracker);
+      MAYBE_RETURN(maybe_added, Handle<JSArray>());
+      previous_end_pos = limit;
+      ++index;
+    }
+  }
+  int32_t end = result.length();
+  // Add "literal" in the end if necessary.
+  if (end > previous_end_pos) {
+    Maybe<bool> maybe_added = AddPartForFormatRange(
+        isolate, array, result, index, -1, previous_end_pos, end, tracker);
+    MAYBE_RETURN(maybe_added, Handle<JSArray>());
+  }
+
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), JSArray);
+  }
+
+  JSObject::ValidateElements(*array);
+  return array;
+}
+
+// The shared code between formatRange and formatRangeToParts
+template <typename T>
+MaybeHandle<T> FormatRangeCommon(
+    Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
+    double y,
+    MaybeHandle<T> (*formatToResult)(Isolate*, const icu::FormattedValue&)) {
   // #sec-partitiondatetimerangepattern
   // 1. Let x be TimeClip(x).
   x = DateCache::TimeClip(x);
   // 2. If x is NaN, throw a RangeError exception.
   if (std::isnan(x)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
-                    String);
+                    T);
   }
   // 3. Let y be TimeClip(y).
   y = DateCache::TimeClip(y);
   // 4. If y is NaN, throw a RangeError exception.
   if (std::isnan(y)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
-                    String);
+                    T);
   }
-
-  icu::DateIntervalFormat* date_interval_format =
-      date_time_format->icu_date_interval_format()->raw();
-  CHECK_NOT_NULL(date_interval_format);
   icu::DateInterval interval(x, y);
 
-  icu::UnicodeString result;
-  icu::FieldPosition fpos;
-  UErrorCode status = U_ZERO_ERROR;
-  date_interval_format->format(&interval, result, fpos, status);
-  CHECK(U_SUCCESS(status));
+  icu::DateIntervalFormat* format =
+      LazyCreateDateIntervalFormat(isolate, date_time_format);
+  if (format == nullptr) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
+  }
 
-  return Intl::ToString(isolate, result);
+  UErrorCode status = U_ZERO_ERROR;
+  icu::FormattedDateInterval formatted =
+      format->formatToValue(interval, status);
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
+  }
+  return formatToResult(isolate, formatted);
+}
+
+}  // namespace
+
+MaybeHandle<String> JSDateTimeFormat::FormatRange(
+    Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
+    double y) {
+  return FormatRangeCommon<String>(isolate, date_time_format, x, y,
+                                   Intl::FormattedToString);
 }
 
 MaybeHandle<JSArray> JSDateTimeFormat::FormatRangeToParts(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
     double y) {
-  // TODO(ftang): Merge the following with FormatRangeToParts after
-  // the landing of ICU64 to make it cleaner.
-
-  // #sec-partitiondatetimerangepattern
-  // 1. Let x be TimeClip(x).
-  x = DateCache::TimeClip(x);
-  // 2. If x is NaN, throw a RangeError exception.
-  if (std::isnan(x)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
-                    JSArray);
-  }
-  // 3. Let y be TimeClip(y).
-  y = DateCache::TimeClip(y);
-  // 4. If y is NaN, throw a RangeError exception.
-  if (std::isnan(y)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
-                    JSArray);
-  }
-
-  icu::DateIntervalFormat* date_interval_format =
-      date_time_format->icu_date_interval_format()->raw();
-  CHECK_NOT_NULL(date_interval_format);
-  Factory* factory = isolate->factory();
-  Handle<JSArray> result = factory->NewJSArray(0);
-
-  // TODO(ftang) To be implemented after ICU64 landed that support
-  // DateIntervalFormat::formatToValue() and FormattedDateInterval.
-
-  JSObject::ValidateElements(*result);
-  return result;
+  return FormatRangeCommon<JSArray>(isolate, date_time_format, x, y,
+                                    FormattedDateIntervalToJSArray);
 }
 
 }  // namespace internal

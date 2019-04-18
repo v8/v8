@@ -31,6 +31,7 @@
 #include "unicode/coll.h"
 #include "unicode/datefmt.h"
 #include "unicode/decimfmt.h"
+#include "unicode/formattedvalue.h"
 #include "unicode/locid.h"
 #include "unicode/normalizer2.h"
 #include "unicode/numfmt.h"
@@ -1932,6 +1933,17 @@ Handle<String> Intl::NumberFieldToType(Isolate* isolate,
       UNREACHABLE();
       return Handle<String>();
   }
+}
+
+// A helper function to convert the FormattedValue for several Intl objects.
+MaybeHandle<String> Intl::FormattedToString(
+    Isolate* isolate, const icu::FormattedValue& formatted) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString result = formatted.toString(status);
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
+  }
+  return Intl::ToString(isolate, result);
 }
 
 }  // namespace internal

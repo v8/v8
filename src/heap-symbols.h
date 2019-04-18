@@ -19,6 +19,7 @@
   V(_, day_string, "day")                                           \
   V(_, dayPeriod_string, "dayPeriod")                               \
   V(_, decimal_string, "decimal")                                   \
+  V(_, endRange_string, "endRange")                                 \
   V(_, era_string, "era")                                           \
   V(_, first_string, "first")                                       \
   V(_, format_string, "format")                                     \
@@ -72,6 +73,8 @@
   V(_, SegmentIterator_string, "Segment Iterator")                  \
   V(_, sensitivity_string, "sensitivity")                           \
   V(_, sep_string, "sep")                                           \
+  V(_, shared_string, "shared")                                     \
+  V(_, startRange_string, "startRange")                             \
   V(_, strict_string, "strict")                                     \
   V(_, style_string, "style")                                       \
   V(_, term_string, "term")                                         \
