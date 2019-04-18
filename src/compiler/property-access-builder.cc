@@ -298,7 +298,9 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       field_access.offset = HeapNumber::kValueOffset;
       field_access.name = MaybeHandle<Name>();
     }
-  } else if (field_representation == MachineRepresentation::kTaggedPointer) {
+  } else if (field_representation == MachineRepresentation::kTaggedPointer ||
+             field_representation ==
+                 MachineRepresentation::kCompressedPointer) {
     // Remember the map of the field value, if its map is stable. This is
     // used by the LoadElimination to eliminate map checks on the result.
     Handle<Map> field_map;

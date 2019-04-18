@@ -337,7 +337,11 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
+#ifdef V8_COMPRESS_POINTERS
+    field_representation = MachineRepresentation::kCompressedPointer;
+#else
     field_representation = MachineRepresentation::kTaggedPointer;
+#endif
     Handle<FieldType> descriptors_field_type(descriptors->GetFieldType(number),
                                              isolate());
     if (descriptors_field_type->IsNone()) {
