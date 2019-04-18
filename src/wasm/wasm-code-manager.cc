@@ -1329,9 +1329,17 @@ void NativeModule::SampleCodeSize(
     case kAfterTopTier:
       histogram = counters->wasm_module_code_size_mb_after_top_tier();
       break;
-    case kSampling:
+    case kSampling: {
       histogram = counters->wasm_module_code_size_mb();
+      // Also, add a sample of freed code size, absolute and relative.
+      size_t freed_size = freed_code_size_.load(std::memory_order_relaxed);
+      int total_freed_mb = static_cast<int>(freed_size / MB);
+      counters->wasm_module_freed_code_size_mb()->AddSample(total_freed_mb);
+      int freed_percent =
+          static_cast<int>(100 * freed_code_size_ / generated_code_size_);
+      counters->wasm_module_freed_code_size_percent()->AddSample(freed_percent);
       break;
+    }
   }
   histogram->AddSample(code_size_mb);
 }
@@ -1386,11 +1394,14 @@ void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
   // For now, we neither free the {WasmCode} objects, nor do we free any code.
   // We just zap the code to ensure it's not executed any more.
   // TODO(clemensh): Actually free the {WasmCode} objects and the code pages.
+  size_t code_size = 0;
   for (WasmCode* code : codes) {
     ZapCode(code->instruction_start(), code->instructions().size());
     FlushInstructionCache(code->instruction_start(),
                           code->instructions().size());
+    code_size += code->instructions().size();
   }
+  freed_code_size_.fetch_add(code_size);
 }
 
 void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {

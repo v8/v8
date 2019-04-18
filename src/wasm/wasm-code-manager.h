@@ -523,6 +523,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmEngine* const engine_;
   std::atomic<size_t> committed_code_space_{0};
   std::atomic<size_t> generated_code_size_{0};
+  std::atomic<size_t> freed_code_size_{0};
   int modification_scope_depth_ = 0;
   bool can_request_more_memory_;
   UseTrapHandler use_trap_handler_ = kNoTrapHandler;

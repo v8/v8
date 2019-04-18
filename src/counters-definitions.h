@@ -74,14 +74,19 @@ namespace internal {
   HR(wasm_memory_allocation_result, V8.WasmMemoryAllocationResult, 0, 3, 4)    \
   HR(wasm_address_space_usage_mb, V8.WasmAddressSpaceUsageMiB, 0, 1 << 20,     \
      128)                                                                      \
-  /* code size of live modules, collected on GC */                             \
+  /* committed code size per module, collected on GC */                        \
   HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 1024, 64)          \
-  /* code size of modules after baseline compilation */                        \
+  /* code size per module after baseline compilation */                        \
   HR(wasm_module_code_size_mb_after_baseline,                                  \
      V8.WasmModuleCodeSizeBaselineMiB, 0, 1024, 64)                            \
-  /* code size of modules after top-tier compilation */                        \
+  /* code size per module after top-tier compilation */                        \
   HR(wasm_module_code_size_mb_after_top_tier, V8.WasmModuleCodeSizeTopTierMiB, \
-     0, 1024, 64)
+     0, 1024, 64)                                                              \
+  /* freed code size per module, collected on GC */                            \
+  HR(wasm_module_freed_code_size_mb, V8.WasmModuleCodeSizeFreed, 0, 1024, 64)  \
+  /* percent of freed code size per module, collected on GC */                 \
+  HR(wasm_module_freed_code_size_percent, V8.WasmModuleCodeSizePercentFreed,   \
+     0, 100, 32)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Timer histograms, not thread safe: HT(name, caption, max, unit) */        \
