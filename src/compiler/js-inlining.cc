@@ -382,6 +382,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // TODO(mslekova): Remove those when inlining is brokerized.
   AllowHandleDereference allow_handle_deref;
   AllowHandleAllocation allow_handle_alloc;
+  AllowHeapAllocation allow_heap_alloc;
+  AllowCodeDependencyChange allow_code_dep_change;
 
   // Determine the call target.
   if (!DetermineCallTarget(node, shared_info)) return NoChange();
