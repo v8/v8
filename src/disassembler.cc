@@ -179,7 +179,7 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
       SNPrintF(v8_buffer_, "external value (%s)", iter->second);
       return v8_buffer_.start();
     }
-    return "WAAT??? What are we accessing here???";
+    return nullptr;
   }
 }
 
