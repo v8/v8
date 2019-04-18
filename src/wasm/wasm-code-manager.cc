@@ -727,9 +727,6 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     }
   }
 
-  // Flush the i-cache after relocation.
-  FlushInstructionCache(dst_code_bytes.start(), dst_code_bytes.size());
-
   std::unique_ptr<WasmCode> code{new WasmCode{
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
@@ -739,6 +736,11 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   code->Validate();
 
   code->RegisterTrapHandlerData();
+
+  // Flush the i-cache for the region holding the relocated code.
+  // Do this last, as this seems to trigger an LTO bug that clobbers a register
+  // on arm, see https://crbug.com/952759#c6.
+  FlushInstructionCache(dst_code_bytes.start(), dst_code_bytes.size());
 
   return code;
 }
