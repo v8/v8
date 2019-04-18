@@ -57,9 +57,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a0b2e3b2708bcf81ec00ac1738b586bcc5e04eea',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cc63a886b8fa206cd7a4912bd0776b35593e921a',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7e7523be4e21b0841ae815ef37521a5476f68549',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1e2cb1573bd2a2c847dee2844a5b6750e9270c73',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '35f7e139f33f1ddbfdb68b65dda29aff430c3f6f',
   'v8/third_party/instrumented_libraries':
@@ -158,7 +158,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'acbf095c15e9524a0a1116792c3b6698f8e9b85b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '4e967e7e447debe18c75d71d94028fd1fc541d73',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -166,11 +166,11 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/fuchsia-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + 'a42c2f604f3ae23099e73605df7864988d289d98',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + 'ae68779f84fc36bd88ba4fe0ff78ed9ea3c91d73',
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'b617b277186e03b1065ac6d43912b1c4147c2982',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '9f893b99598b1f0725dc8b92037f0d9f53095b90',
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'b41863e42637544c2941b574c7877d3e1f663e25',
   'v8/third_party/markupsafe':
@@ -206,7 +206,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'edee5c0b3641ab345cbe3cf29f1b1cdbd6819549',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '396602c7268bb9eafeb8b37c374dcd43bbf72ff1',
   'v8/tools/luci-go': {
       'packages': [
         {
