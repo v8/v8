@@ -1383,7 +1383,14 @@ std::vector<WasmCode*> NativeModule::AddCompiledCode(
 }
 
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
-  // TODO(clemensh): Implement.
+  // For now, we neither free the {WasmCode} objects, nor do we free any code.
+  // We just zap the code to ensure it's not executed any more.
+  // TODO(clemensh): Actually free the {WasmCode} objects and the code pages.
+  for (WasmCode* code : codes) {
+    ZapCode(code->instruction_start(), code->instructions().size());
+    FlushInstructionCache(code->instruction_start(),
+                          code->instructions().size());
+  }
 }
 
 void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
