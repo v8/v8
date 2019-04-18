@@ -1333,6 +1333,7 @@ void NativeModule::SampleCodeSize(
       histogram = counters->wasm_module_code_size_mb();
       // Also, add a sample of freed code size, absolute and relative.
       size_t freed_size = freed_code_size_.load(std::memory_order_relaxed);
+      DCHECK_LE(freed_size, generated_code_size_);
       int total_freed_mb = static_cast<int>(freed_size / MB);
       counters->wasm_module_freed_code_size_mb()->AddSample(total_freed_mb);
       int freed_percent =

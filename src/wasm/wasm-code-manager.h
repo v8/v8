@@ -248,15 +248,15 @@ class V8_EXPORT_PRIVATE WasmCode final {
   ExecutionTier tier_;
 
   // WasmCode is ref counted. Counters are held by:
-  //   1) The jump table.
-  //   2) Function tables.
-  //   3) {WasmCodeRefScope}s.
-  //   4) The set of potentially dead code in the {WasmEngine}.
-  // If a decrement of (1) or (2) would drop the ref count to 0, that code
-  // becomes a candidate for garbage collection. At that point, we add
-  // ref counts for (4) *before* decrementing the counter to ensure the code
-  // stays alive as long as it's being used. Once the ref count drops to zero,
-  // the code object is deleted and the memory for the machine code is freed.
+  //   1) The jump table / code table.
+  //   2) {WasmCodeRefScope}s.
+  //   3) The set of potentially dead code in the {WasmEngine}.
+  // If a decrement of (1) would drop the ref count to 0, that code becomes a
+  // candidate for garbage collection. At that point, we add a ref count for (3)
+  // *before* decrementing the counter to ensure the code stays alive as long as
+  // it's being used. Once the ref count drops to zero (i.e. after being removed
+  // from (3) and all (2)), the code object is deleted and the memory for the
+  // machine code is freed.
   std::atomic<int> ref_count_{1};
 
   DISALLOW_COPY_AND_ASSIGN(WasmCode);

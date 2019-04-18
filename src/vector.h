@@ -219,6 +219,9 @@ class OwnedVector {
     return data_.get();
   }
 
+  constexpr T* begin() const { return start(); }
+  constexpr T* end() const { return start() + size(); }
+
   // Returns a {Vector<T>} view of the data in this vector.
   Vector<T> as_vector() const { return Vector<T>(start(), size()); }
 
