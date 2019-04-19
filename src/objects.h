@@ -467,7 +467,6 @@ class ZoneForwardList;
   V(SmallOrderedHashMap)                       \
   V(SmallOrderedHashSet)                       \
   V(SmallOrderedNameDictionary)                \
-  V(SourcePositionTableWithFrameCache)         \
   V(StoreHandler)                              \
   V(String)                                    \
   V(StringSet)                                 \

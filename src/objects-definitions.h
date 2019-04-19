@@ -108,6 +108,7 @@ namespace internal {
   V(PROMISE_REACTION_TYPE)                               \
   V(PROTOTYPE_INFO_TYPE)                                 \
   V(SCRIPT_TYPE)                                         \
+  V(SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE)         \
   V(STACK_FRAME_INFO_TYPE)                               \
   V(STACK_TRACE_FRAME_TYPE)                              \
   V(TUPLE2_TYPE)                                         \
@@ -323,6 +324,8 @@ namespace internal {
   V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)              \
   V(_, PROTOTYPE_INFO_TYPE, PrototypeInfo, prototype_info)                    \
   V(_, SCRIPT_TYPE, Script, script)                                           \
+  V(_, SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE,                           \
+    SourcePositionTableWithFrameCache, source_position_table_with_frame_cache)\
   V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)               \
   V(_, STACK_TRACE_FRAME_TYPE, StackTraceFrame, stack_trace_frame)            \
   V(_, TUPLE2_TYPE, Tuple2, tuple2)                                           \

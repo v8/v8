@@ -1858,6 +1858,13 @@ void EnumCache::EnumCacheVerify(Isolate* isolate) {
   }
 }
 
+void SourcePositionTableWithFrameCache::SourcePositionTableWithFrameCacheVerify(
+  Isolate* isolate) {
+  VerifyObjectField(isolate, kSourcePositionTableOffset);
+  VerifyObjectField(isolate, kStackFrameCacheOffset);
+  CHECK(source_position_table()->IsByteArray());
+}
+
 void Tuple3::Tuple3Verify(Isolate* isolate) {
   CHECK(IsTuple3());
   VerifyObjectField(isolate, kValue1Offset);

@@ -3962,7 +3962,8 @@ Factory::NewSourcePositionTableWithFrameCache(
   Handle<SourcePositionTableWithFrameCache>
       source_position_table_with_frame_cache =
           Handle<SourcePositionTableWithFrameCache>::cast(
-              NewStruct(TUPLE2_TYPE, AllocationType::kOld));
+              NewStruct(SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE,
+                        AllocationType::kOld));
   source_position_table_with_frame_cache->set_source_position_table(
       *source_position_table);
   source_position_table_with_frame_cache->set_stack_frame_cache(

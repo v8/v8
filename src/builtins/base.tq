@@ -159,6 +159,12 @@ extern class EnumCache extends Struct {
   indices: FixedArray;
 }
 
+@generatePrint
+extern class SourcePositionTableWithFrameCache extends Struct {
+  source_position_table: ByteArray;
+  stack_frame_cache: Object;
+}
+
 // These intrinsics should never be called from Torque code. They're used
 // internally by the 'new' operator and only declared here because it's simpler
 // than building the definition from C++.

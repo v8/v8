@@ -29,7 +29,7 @@ OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakFixedArray)
 OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(SourcePositionTableWithFrameCache, Tuple2)
+OBJECT_CONSTRUCTORS_IMPL(SourcePositionTableWithFrameCache, Struct)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
 
@@ -42,9 +42,9 @@ CAST_ACCESSOR(DeoptimizationData)
 CAST_ACCESSOR(SourcePositionTableWithFrameCache)
 
 ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
-          kSourcePositionTableIndex)
+          kSourcePositionTableOffset)
 ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
-          SimpleNumberDictionary, kStackFrameCacheIndex)
+          SimpleNumberDictionary, kStackFrameCacheOffset)
 
 int AbstractCode::raw_instruction_size() {
   if (IsCode()) {
