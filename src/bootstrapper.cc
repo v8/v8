@@ -4198,6 +4198,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_await_optimization)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_hashbang)
 
 #ifdef V8_INTL_SUPPORT
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_add_calendar_numbering_system)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_bigint)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_datetime_style)
 #endif  // V8_INTL_SUPPORT

@@ -249,6 +249,13 @@ class Intl {
   V8_WARN_UNUSED_RESULT static Maybe<MatcherOption> GetLocaleMatcher(
       Isolate* isolate, Handle<JSReceiver> options, const char* method);
 
+  // Check the calendar is valid or not for that locale.
+  static bool IsValidCalendar(const icu::Locale& locale,
+                              const std::string& value);
+
+  // Check the numberingSystem is valid or not.
+  static bool IsValidNumberingSystem(const std::string& value);
+
   struct ResolvedLocale {
     std::string locale;
     icu::Locale icu_locale;

@@ -304,11 +304,11 @@ namespace internal {
     "a location, got %")                                                       \
   T(InvalidArrayBufferLength, "Invalid array buffer length")                   \
   T(ArrayBufferAllocationFailed, "Array buffer allocation failed")             \
+  T(Invalid, "Invalid %s : %")                                                 \
   T(InvalidArrayLength, "Invalid array length")                                \
   T(InvalidAtomicAccessIndex, "Invalid atomic access index")                   \
   T(InvalidCodePoint, "Invalid code point %")                                  \
   T(InvalidCountValue, "Invalid count value")                                  \
-  T(InvalidCurrencyCode, "Invalid currency code: %")                           \
   T(InvalidDataViewAccessorOffset,                                             \
     "Offset is outside the bounds of the DataView")                            \
   T(InvalidDataViewLength, "Invalid DataView length %")                        \

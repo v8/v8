@@ -252,6 +252,28 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSNumberFormat>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
+  std::unique_ptr<char[]> numbering_system_str = nullptr;
+  if (FLAG_harmony_intl_add_calendar_numbering_system) {
+    // 7. Let numberingSystem be ? GetOption(options, "numberingSystem",
+    //    "string", undefined, undefined).
+    const std::vector<const char*> empty_values = {};
+    Maybe<bool> maybe_numberingSystem =
+        Intl::GetStringOption(isolate, options, "numberingSystem", empty_values,
+                              "Intl.NumberFormat", &numbering_system_str);
+    MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSNumberFormat>());
+    if (maybe_numberingSystem.FromJust() && numbering_system_str != nullptr) {
+      if (!Intl::IsValidNumberingSystem(numbering_system_str.get())) {
+        THROW_NEW_ERROR(
+            isolate,
+            NewRangeError(
+                MessageTemplate::kInvalid,
+                factory->NewStringFromStaticChars("numberingSystem"),
+                factory->NewStringFromAsciiChecked(numbering_system_str.get())),
+            JSNumberFormat);
+      }
+    }
+  }
+
   // 7. Let localeData be %NumberFormat%.[[LocaleData]].
   // 8. Let r be ResolveLocale(%NumberFormat%.[[AvailableLocales]],
   // requestedLocales, opt,  %NumberFormat%.[[RelevantExtensionKeys]],
@@ -260,6 +282,14 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   Intl::ResolvedLocale r =
       Intl::ResolveLocale(isolate, JSNumberFormat::GetAvailableLocales(),
                           requested_locales, matcher, relevant_extension_keys);
+
+  UErrorCode status = U_ZERO_ERROR;
+  if (numbering_system_str != nullptr) {
+    r.icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(),
+                                        status);
+    CHECK(U_SUCCESS(status));
+    r.locale = Intl::ToLanguageTag(r.icu_locale).FromJust();
+  }
 
   // 9. Set numberFormat.[[Locale]] to r.[[locale]].
   Handle<String> locale_str =
@@ -298,7 +328,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
     if (!IsWellFormedCurrencyCode(currency)) {
       THROW_NEW_ERROR(
           isolate,
-          NewRangeError(MessageTemplate::kInvalidCurrencyCode,
+          NewRangeError(MessageTemplate::kInvalid,
+                        factory->NewStringFromStaticChars("currency code"),
                         factory->NewStringFromAsciiChecked(currency.c_str())),
           JSNumberFormat);
     }
@@ -335,7 +366,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   CurrencyDisplay currency_display = maybe_currencyDisplay.FromJust();
   UNumberFormatStyle format_style = ToNumberFormatStyle(currency_display);
 
-  UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberFormat> icu_number_format;
   icu::Locale no_extension_locale(r.icu_locale.getBaseName());
   if (style == Style::DECIMAL) {

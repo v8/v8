@@ -1448,6 +1448,7 @@ MaybeHandle<JSObject> Intl::SupportedLocalesOf(
 }
 
 namespace {
+
 template <typename T>
 bool IsValidExtension(const icu::Locale& locale, const char* key,
                       const std::string& value) {
@@ -1468,17 +1469,20 @@ bool IsValidExtension(const icu::Locale& locale, const char* key,
   return false;
 }
 
-bool IsValidCalendar(const icu::Locale& locale, const std::string& value) {
-  return IsValidExtension<icu::Calendar>(locale, "calendar", value);
-}
-
 bool IsValidCollation(const icu::Locale& locale, const std::string& value) {
   std::set<std::string> invalid_values = {"standard", "search"};
   if (invalid_values.find(value) != invalid_values.end()) return false;
   return IsValidExtension<icu::Collator>(locale, "collation", value);
 }
 
-bool IsValidNumberingSystem(const std::string& value) {
+}  // namespace
+
+bool Intl::IsValidCalendar(const icu::Locale& locale,
+                           const std::string& value) {
+  return IsValidExtension<icu::Calendar>(locale, "calendar", value);
+}
+
+bool Intl::IsValidNumberingSystem(const std::string& value) {
   std::set<std::string> invalid_values = {"native", "traditio", "finance"};
   if (invalid_values.find(value) != invalid_values.end()) return false;
   UErrorCode status = U_ZERO_ERROR;
@@ -1486,6 +1490,8 @@ bool IsValidNumberingSystem(const std::string& value) {
       icu::NumberingSystem::createInstanceByName(value.c_str(), status));
   return U_SUCCESS(status) && numbering_system.get() != nullptr;
 }
+
+namespace {
 
 std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
     icu::Locale* icu_locale, const std::set<std::string>& relevant_keys) {
@@ -1528,7 +1534,7 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
       bool is_valid_value = false;
       // 8.h.ii.1.a If keyLocaleData contains requestedValue, then
       if (strcmp("ca", bcp47_key) == 0) {
-        is_valid_value = IsValidCalendar(*icu_locale, bcp47_value);
+        is_valid_value = Intl::IsValidCalendar(*icu_locale, bcp47_value);
       } else if (strcmp("co", bcp47_key) == 0) {
         is_valid_value = IsValidCollation(*icu_locale, bcp47_value);
       } else if (strcmp("hc", bcp47_key) == 0) {
@@ -1548,7 +1554,7 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
         std::set<std::string> valid_values = {"upper", "lower", "false"};
         is_valid_value = valid_values.find(bcp47_value) != valid_values.end();
       } else if (strcmp("nu", bcp47_key) == 0) {
-        is_valid_value = IsValidNumberingSystem(bcp47_value);
+        is_valid_value = Intl::IsValidNumberingSystem(bcp47_value);
       }
       if (is_valid_value) {
         extensions.insert(

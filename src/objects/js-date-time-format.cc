@@ -1161,6 +1161,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
     Handle<Object> locales, Handle<Object> input_options) {
   date_time_format->set_flags(0);
+  Factory* factory = isolate->factory();
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -1178,6 +1179,49 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   // 4. Let matcher be ? GetOption(options, "localeMatcher", "string",
   // « "lookup", "best fit" », "best fit").
   // 5. Set opt.[[localeMatcher]] to matcher.
+
+  std::unique_ptr<char[]> calendar_str = nullptr;
+  std::unique_ptr<char[]> numbering_system_str = nullptr;
+  if (FLAG_harmony_intl_add_calendar_numbering_system) {
+    const std::vector<const char*> empty_values = {};
+    // 6. Let numberingSystem be ? GetOption(options, "calendar",
+    //    "string", undefined, undefined).
+    Maybe<bool> maybe_calendar =
+        Intl::GetStringOption(isolate, options, "calendar", empty_values,
+                              "Intl.NumberFormat", &calendar_str);
+    MAYBE_RETURN(maybe_calendar, MaybeHandle<JSDateTimeFormat>());
+    if (maybe_calendar.FromJust() && calendar_str != nullptr) {
+      icu::Locale default_locale;
+      if (!Intl::IsValidCalendar(default_locale, calendar_str.get())) {
+        THROW_NEW_ERROR(
+            isolate,
+            NewRangeError(
+                MessageTemplate::kInvalid,
+                factory->NewStringFromStaticChars("calendar"),
+                factory->NewStringFromAsciiChecked(calendar_str.get())),
+            JSDateTimeFormat);
+      }
+    }
+
+    // 8. Let numberingSystem be ? GetOption(options, "numberingSystem",
+    //    "string", undefined, undefined).
+    Maybe<bool> maybe_numberingSystem =
+        Intl::GetStringOption(isolate, options, "numberingSystem", empty_values,
+                              "Intl.NumberFormat", &numbering_system_str);
+    MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSDateTimeFormat>());
+    if (maybe_numberingSystem.FromJust() && numbering_system_str != nullptr) {
+      if (!Intl::IsValidNumberingSystem(numbering_system_str.get())) {
+        THROW_NEW_ERROR(
+            isolate,
+            NewRangeError(
+                MessageTemplate::kInvalid,
+                factory->NewStringFromStaticChars("numberingSystem"),
+                factory->NewStringFromAsciiChecked(numbering_system_str.get())),
+            JSDateTimeFormat);
+      }
+    }
+  }
+
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
       Intl::GetLocaleMatcher(isolate, options, "Intl.DateTimeFormat");
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSDateTimeFormat>());
@@ -1221,6 +1265,17 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
 
+  UErrorCode status = U_ZERO_ERROR;
+  if (calendar_str != nullptr) {
+    icu_locale.setUnicodeKeywordValue("ca", calendar_str.get(), status);
+    CHECK(U_SUCCESS(status));
+  }
+
+  if (numbering_system_str != nullptr) {
+    icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(), status);
+    CHECK(U_SUCCESS(status));
+  }
+
   // 17. Let timeZone be ? Get(options, "timeZone").
   const std::vector<const char*> empty_values;
   std::unique_ptr<char[]> timezone = nullptr;
@@ -1231,11 +1286,11 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
 
   std::unique_ptr<icu::TimeZone> tz = CreateTimeZone(isolate, timezone.get());
   if (tz.get() == nullptr) {
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kInvalidTimeZone,
-                                  isolate->factory()->NewStringFromAsciiChecked(
-                                      timezone.get())),
-                    JSDateTimeFormat);
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidTimeZone,
+                      factory->NewStringFromAsciiChecked(timezone.get())),
+        JSDateTimeFormat);
   }
 
   std::unique_ptr<icu::Calendar> calendar(
@@ -1244,11 +1299,11 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   // 18.b If the result of IsValidTimeZoneName(timeZone) is false, then
   // i. Throw a RangeError exception.
   if (calendar.get() == nullptr) {
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kInvalidTimeZone,
-                                  isolate->factory()->NewStringFromAsciiChecked(
-                                      timezone.get())),
-                    JSDateTimeFormat);
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidTimeZone,
+                      factory->NewStringFromAsciiChecked(timezone.get())),
+        JSDateTimeFormat);
   }
 
   static base::LazyInstance<DateTimePatternGeneratorCache>::type
@@ -1258,7 +1313,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
       generator_cache.Pointer()->CreateGenerator(icu_locale));
 
   // 15.Let hcDefault be dataLocaleData.[[hourCycle]].
-  UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString hour_pattern = generator->getBestPattern("jjmm", status);
   CHECK(U_SUCCESS(status));
   Intl::HourCycle hc_default = HourCycleFromPattern(hour_pattern);
