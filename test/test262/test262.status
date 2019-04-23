@@ -531,6 +531,16 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9051
   'language/statements/async-generator/yield-star-return-then-getter-ticks': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9152
+  'built-ins/Promise/all/capability-executor-called-twice': [FAIL],
+  'built-ins/Promise/all/capability-resolve-throws-no-close': [FAIL],
+  'built-ins/Promise/all/capability-resolve-throws-reject': [FAIL],
+  'built-ins/Promise/all/invoke-resolve-get-error-close': [FAIL],
+  'built-ins/Promise/all/species-get-error': [FAIL],
+  'built-ins/Promise/race/capability-executor-called-twice': [FAIL],
+  'built-ins/Promise/race/invoke-resolve-get-error-close': [FAIL],
+  'built-ins/Promise/race/species-get-error': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833

@@ -5827,6 +5827,21 @@ Node* CodeStubAssembler::ThrowIfNotJSReceiver(Node* context, Node* value,
   return var_value_map.value();
 }
 
+void CodeStubAssembler::ThrowIfNotCallable(TNode<Context> context,
+                                           TNode<Object> value,
+                                           const char* method_name) {
+  Label out(this), throw_exception(this, Label::kDeferred);
+
+  GotoIf(TaggedIsSmi(value), &throw_exception);
+  Branch(IsCallable(CAST(value)), &out, &throw_exception);
+
+  // The {value} is not a compatible receiver for this method.
+  BIND(&throw_exception);
+  ThrowTypeError(context, MessageTemplate::kCalledNonCallable, method_name);
+
+  BIND(&out);
+}
+
 void CodeStubAssembler::ThrowRangeError(Node* context, MessageTemplate message,
                                         Node* arg0, Node* arg1, Node* arg2) {
   Node* template_index = SmiConstant(static_cast<int>(message));

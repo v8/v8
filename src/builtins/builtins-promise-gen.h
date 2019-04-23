@@ -115,8 +115,10 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
                                             Node* receiver_map, Label* if_fast,
                                             Label* if_slow);
 
-  Node* InvokeResolve(Node* native_context, Node* constructor, Node* value,
-                      Label* if_exception, Variable* var_exception);
+  // If resolve is Undefined, we use the builtin %PromiseResolve%
+  // intrinsic, otherwise we use the given resolve function.
+  Node* CallResolve(Node* native_context, Node* constructor, Node* resolve,
+                    Node* value, Label* if_exception, Variable* var_exception);
   template <typename... TArgs>
   Node* InvokeThen(Node* native_context, Node* receiver, TArgs... args);
 

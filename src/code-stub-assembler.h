@@ -2114,6 +2114,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   Node* ThrowIfNotJSReceiver(Node* context, Node* value,
                              MessageTemplate msg_template,
                              const char* method_name = nullptr);
+  void ThrowIfNotCallable(TNode<Context> context, TNode<Object> value,
+                          const char* method_name);
 
   void ThrowRangeError(Node* context, MessageTemplate message,
                        Node* arg0 = nullptr, Node* arg1 = nullptr,
