@@ -73,7 +73,11 @@ std::string StringLiteralQuote(const std::string& s) {
   return result.str();
 }
 
+#ifdef V8_OS_WIN
+static const char kFileUriPrefix[] = "file:///";
+#else
 static const char kFileUriPrefix[] = "file://";
+#endif
 static const int kFileUriPrefixLength = sizeof(kFileUriPrefix) - 1;
 
 static int HexCharToInt(unsigned char c) {
