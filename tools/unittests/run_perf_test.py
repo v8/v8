@@ -31,6 +31,7 @@ V8_JSON = {
   'path': ['.'],
   'owners': ['username@chromium.org'],
   'binary': 'd7',
+  'timeout': 60,
   'flags': ['--flag'],
   'main': 'run.js',
   'run_count': 1,
@@ -126,7 +127,8 @@ class PerfTest(unittest.TestCase):
     # Fake output for each test run.
     test_outputs = [Output(stdout=arg,
                            timed_out=kwargs.get('timed_out', False),
-                           exit_code=kwargs.get('exit_code', 0))
+                           exit_code=kwargs.get('exit_code', 0),
+                           duration=42)
                     for arg in args[1]]
     def create_cmd(*args, **kwargs):
       cmd = mock.MagicMock()
@@ -170,6 +172,13 @@ class PerfTest(unittest.TestCase):
        'stddev': trace['stddev']} for trace in traces],
       self._LoadResults(file_name)['traces'])
 
+  def _VerifyRunnableDurations(self, runs, timeout, file_name=None):
+    self.assertEquals([{
+      'graphs': ['test'],
+      'durations': [42] * runs,
+      'timeout': timeout,
+    }], self._LoadResults(file_name)['runnable_durations'])
+
   def _VerifyErrors(self, errors):
     self.assertEquals(errors, self._LoadResults()['errors'])
 
@@ -200,6 +209,7 @@ class PerfTest(unittest.TestCase):
       {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
     ])
+    self._VerifyRunnableDurations(1, 60)
     self._VerifyErrors([])
     self._VerifyMock(
         os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
@@ -460,6 +470,7 @@ class PerfTest(unittest.TestCase):
       {'name': 'Richards', 'results': ['50.0', '100.0'], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['200.0', '200.0'], 'stddev': ''},
     ], test_output_secondary)
+    self._VerifyRunnableDurations(2, 60, test_output_secondary)
     self._VerifyErrors([])
     self._VerifyMockMultiple(
         (os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js'),

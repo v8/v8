@@ -159,8 +159,12 @@ class Results(object):
   def __init__(self, traces=None, errors=None):
     self.traces = traces or []
     self.errors = errors or []
+    # TODO(sergiyb): Deprecate self.timeouts/near_timeouts and compute them in
+    # the recipe based on self.runnable_durations. Also cleanup RunnableConfig
+    # by removing has_timeouts/has_near_timeouts there.
     self.timeouts = []
     self.near_timeouts = []  # > 90% of the max runtime
+    self.runnable_durations = []
 
   def ToDict(self):
     return {
@@ -168,6 +172,7 @@ class Results(object):
         'errors': self.errors,
         'timeouts': self.timeouts,
         'near_timeouts': self.near_timeouts,
+        'runnable_durations': self.runnable_durations,
     }
 
   def WriteToFile(self, file_name):
@@ -179,6 +184,7 @@ class Results(object):
     self.errors += other.errors
     self.timeouts += other.timeouts
     self.near_timeouts += other.near_timeouts
+    self.runnable_durations += other.runnable_durations
     return self
 
   def __str__(self):  # pragma: no cover
@@ -596,7 +602,7 @@ class Platform(object):
   def _Run(self, runnable, count, secondary=False):
     raise NotImplementedError()  # pragma: no cover
 
-  def _TimedRun(self, runnable, count, secondary=False):
+  def _LoggedRun(self, runnable, count, secondary=False):
     suffix = ' - secondary' if secondary else ''
     title = '>>> %%s (#%d)%s:' % ((count + 1), suffix)
     try:
@@ -629,9 +635,9 @@ class Platform(object):
     Returns: A tuple with the two benchmark outputs. The latter will be None if
              options.shell_dir_secondary was not specified.
     """
-    output = self._TimedRun(runnable, count, secondary=False)
+    output = self._LoggedRun(runnable, count, secondary=False)
     if self.shell_dir_secondary:
-      return output, self._TimedRun(runnable, count, secondary=True)
+      return output, self._LoggedRun(runnable, count, secondary=True)
     else:
       return output, NULL_OUTPUT
 
@@ -669,9 +675,7 @@ class DesktopPlatform(Platform):
       node.ChangeCWD(path)
 
   def _Run(self, runnable, count, secondary=False):
-    suffix = ' - secondary' if secondary else ''
     shell_dir = self.shell_dir_secondary if secondary else self.shell_dir
-    title = '>>> %%s (#%d)%s:' % ((count + 1), suffix)
     cmd = runnable.GetCommand(self.command_prefix, shell_dir, self.extra_flags)
     output = cmd.execute()
 
@@ -1034,6 +1038,8 @@ def Main(args):
             runnable_name + '/' != options.filter):
           continue
         logging.info('>>> Running suite: %s', runnable_name)
+        durations = []
+        durations_secondary = []
 
         def Runner():
           """Output generator that reruns several times."""
@@ -1043,6 +1049,9 @@ def Main(args):
             while attempts_left:
               output, output_secondary = platform.Run(runnable, i)
               if output.IsSuccess() and output_secondary.IsSuccess():
+                durations.append(output.duration)
+                if output_secondary is not NULL_OUTPUT:
+                  durations_secondary.append(output_secondary.duration)
                 yield output, output_secondary
                 break
               attempts_left -= 1
@@ -1060,6 +1069,18 @@ def Main(args):
           results.timeouts.append(runnable_name)
         if runnable.has_near_timeouts:
           results.near_timeouts.append(runnable_name)
+        results.runnable_durations.append({
+          'graphs': runnable.graphs,
+          'durations': durations,
+          'timeout': runnable.timeout,
+        })
+        if durations_secondary:
+          results_secondary.runnable_durations.append({
+            'graphs': runnable.graphs,
+            'durations': durations_secondary,
+            'timeout': runnable.timeout,
+          })
+
       platform.PostExecution()
 
     if options.json_test_results:
