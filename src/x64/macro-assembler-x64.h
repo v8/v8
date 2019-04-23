@@ -517,8 +517,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
-  int smi_count = 0;
-  int heap_object_count = 0;
 
   // Returns a register holding the smi value. The register MUST NOT be
   // modified. It may be the "smi 1 constant" register.
