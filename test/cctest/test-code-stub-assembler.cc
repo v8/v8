@@ -589,9 +589,9 @@ TEST(TryToName) {
   if (FLAG_thin_strings) {
     // TryToName(<thin two-byte string>) => internalized version.
     uc16 array1[] = {2001, 2002, 2003};
-    Vector<const uc16> str1(array1);
-    Handle<String> s =
-        isolate->factory()->NewStringFromTwoByte(str1).ToHandleChecked();
+    Handle<String> s = isolate->factory()
+                           ->NewStringFromTwoByte(ArrayVector(array1))
+                           .ToHandleChecked();
     Handle<String> internalized = isolate->factory()->InternalizeString(s);
     ft.CheckTrue(s, expect_unique, internalized);
   }
@@ -1794,9 +1794,9 @@ TEST(OneToTwoByteStringCopy) {
 
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
   uc16 array[] = {1000, 1001, 1002, 1003, 1004};
-  Vector<const uc16> str(array);
-  Handle<String> string2 =
-      isolate->factory()->NewStringFromTwoByte(str).ToHandleChecked();
+  Handle<String> string2 = isolate->factory()
+                               ->NewStringFromTwoByte(ArrayVector(array))
+                               .ToHandleChecked();
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowHeapAllocation no_gc;
@@ -1826,9 +1826,9 @@ TEST(OneToOneByteStringCopy) {
 
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
   uint8_t array[] = {100, 101, 102, 103, 104};
-  Vector<const uint8_t> str(array);
-  Handle<String> string2 =
-      isolate->factory()->NewStringFromOneByte(str).ToHandleChecked();
+  Handle<String> string2 = isolate->factory()
+                               ->NewStringFromOneByte(ArrayVector(array))
+                               .ToHandleChecked();
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowHeapAllocation no_gc;
@@ -1858,9 +1858,9 @@ TEST(OneToOneByteStringCopyNonZeroStart) {
 
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
   uint8_t array[] = {100, 101, 102, 103, 104};
-  Vector<const uint8_t> str(array);
-  Handle<String> string2 =
-      isolate->factory()->NewStringFromOneByte(str).ToHandleChecked();
+  Handle<String> string2 = isolate->factory()
+                               ->NewStringFromOneByte(ArrayVector(array))
+                               .ToHandleChecked();
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowHeapAllocation no_gc;
@@ -1886,13 +1886,13 @@ TEST(TwoToTwoByteStringCopy) {
   m.Return(m.SmiConstant(Smi::FromInt(0)));
 
   uc16 array1[] = {2000, 2001, 2002, 2003, 2004};
-  Vector<const uc16> str1(array1);
-  Handle<String> string1 =
-      isolate->factory()->NewStringFromTwoByte(str1).ToHandleChecked();
+  Handle<String> string1 = isolate->factory()
+                               ->NewStringFromTwoByte(ArrayVector(array1))
+                               .ToHandleChecked();
   uc16 array2[] = {1000, 1001, 1002, 1003, 1004};
-  Vector<const uc16> str2(array2);
-  Handle<String> string2 =
-      isolate->factory()->NewStringFromTwoByte(str2).ToHandleChecked();
+  Handle<String> string2 = isolate->factory()
+                               ->NewStringFromTwoByte(ArrayVector(array2))
+                               .ToHandleChecked();
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
   DisallowHeapAllocation no_gc;

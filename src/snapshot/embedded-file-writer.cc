@@ -129,10 +129,10 @@ void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
 
 #if defined(V8_OS_WIN_X64)
 std::string EmbeddedFileWriter::BuiltinsUnwindInfoLabel() const {
-  char embedded_blob_data_symbol[kTemporaryStringLength];
-  i::SNPrintF(i::Vector<char>(embedded_blob_data_symbol),
-              "%s_Builtins_UnwindInfo", embedded_variant_);
-  return embedded_blob_data_symbol;
+  i::EmbeddedVector<char, kTemporaryStringLength> embedded_blob_data_symbol;
+  i::SNPrintF(embedded_blob_data_symbol, "%s_Builtins_UnwindInfo",
+              embedded_variant_);
+  return std::string{embedded_blob_data_symbol.begin()};
 }
 
 void EmbeddedFileWriter::SetBuiltinUnwindData(

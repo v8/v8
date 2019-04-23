@@ -28,9 +28,6 @@ class Vector {
 #endif
   }
 
-  template <size_t N>
-  explicit constexpr Vector(T (&arr)[N]) : start_(arr), length_(N) {}
-
   static Vector<T> New(size_t length) {
     return Vector<T>(NewArray<T>(length), length);
   }
