@@ -362,6 +362,7 @@ namespace internal {
     "Duplicate __proto__ fields are not allowed in object literals")           \
   T(ForInOfLoopInitializer,                                                    \
     "% loop variable declaration may not have an initializer.")                \
+  T(ForOfLet, "The left-hand side of a for-of loop may not start with 'let'.") \
   T(ForInOfLoopMultiBindings,                                                  \
     "Invalid left-hand side in % loop: Must have a single binding.")           \
   T(GeneratorInSingleStatementContext,                                         \

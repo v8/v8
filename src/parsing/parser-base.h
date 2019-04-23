@@ -5443,7 +5443,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   Consume(Token::FOR);
   Expect(Token::LPAREN);
 
-  if (peek() == Token::CONST || (peek() == Token::LET && IsNextLetKeyword())) {
+  bool starts_with_let = peek() == Token::LET;
+  if (peek() == Token::CONST || (starts_with_let && IsNextLetKeyword())) {
     // The initializer contains lexical declarations,
     // so create an in-between scope.
     BlockState for_state(zone(), &scope_);
@@ -5508,10 +5509,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     init = impl()->BuildInitializationBlock(&for_info.parsing_result);
   } else if (peek() != Token::SEMICOLON) {
     // The initializer does not contain declarations.
-    int lhs_beg_pos = peek_position();
+    Scanner::Location next_loc = scanner()->peek_location();
+    int lhs_beg_pos = next_loc.beg_pos;
     int lhs_end_pos;
     bool is_for_each;
     ExpressionT expression;
+
     {
       ExpressionParsingScope parsing_scope(impl());
       AcceptINScope scope(this, false);
@@ -5520,6 +5523,10 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
       lhs_end_pos = end_position();
       is_for_each = CheckInOrOf(&for_info.mode);
       if (is_for_each) {
+        if (starts_with_let && for_info.mode == ForEachStatement::ITERATE) {
+          impl()->ReportMessageAt(next_loc, MessageTemplate::kForOfLet);
+          return impl()->NullStatement();
+        }
         if (expression->IsPattern()) {
           parsing_scope.ValidatePattern(expression, lhs_beg_pos, lhs_end_pos);
         } else {
@@ -5791,8 +5798,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   bool has_declarations = false;
   Scope* inner_block_scope = NewScope(BLOCK_SCOPE);
 
+  bool starts_with_let = peek() == Token::LET;
   if (peek() == Token::VAR || peek() == Token::CONST ||
-      (peek() == Token::LET && IsNextLetKeyword())) {
+      (starts_with_let && IsNextLetKeyword())) {
     // The initializer contains declarations
     // 'for' 'await' '(' ForDeclaration 'of' AssignmentExpression ')'
     //     Statement
@@ -5826,6 +5834,11 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     // The initializer does not contain declarations.
     // 'for' 'await' '(' LeftHandSideExpression 'of' AssignmentExpression ')'
     //     Statement
+    if (starts_with_let) {
+      impl()->ReportMessageAt(scanner()->peek_location(),
+                              MessageTemplate::kForOfLet);
+      return impl()->NullStatement();
+    }
     int lhs_beg_pos = peek_position();
     BlockState inner_state(&scope_, inner_block_scope);
     ExpressionParsingScope parsing_scope(impl());
