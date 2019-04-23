@@ -112,7 +112,7 @@ import copy
 import json
 import logging
 import math
-import optparse
+import argparse
 import os
 import re
 import subprocess
@@ -130,7 +130,6 @@ try:
 except NameError:  # Python 3
   basestring = str
 
-ARCH_GUESS = utils.DefaultArch()
 SUPPORTED_ARCHS = ['arm',
                    'ia32',
                    'mips',
@@ -578,26 +577,26 @@ def FlattenRunnables(node, node_cb):
 
 
 class Platform(object):
-  def __init__(self, options):
-    self.shell_dir = options.shell_dir
-    self.shell_dir_secondary = options.shell_dir_secondary
-    self.extra_flags = options.extra_flags.split()
-    self.options = options
+  def __init__(self, args):
+    self.shell_dir = args.shell_dir
+    self.shell_dir_secondary = args.shell_dir_secondary
+    self.extra_flags = args.extra_flags.split()
+    self.args = args
 
   @staticmethod
-  def ReadBuildConfig(options):
-    config_path = os.path.join(options.shell_dir, 'v8_build_config.json')
+  def ReadBuildConfig(args):
+    config_path = os.path.join(args.shell_dir, 'v8_build_config.json')
     if not os.path.isfile(config_path):
       return {}
     with open(config_path) as f:
       return json.load(f)
 
   @staticmethod
-  def GetPlatform(options):
-    if Platform.ReadBuildConfig(options).get('is_android', False):
-      return AndroidPlatform(options)
+  def GetPlatform(args):
+    if Platform.ReadBuildConfig(args).get('is_android', False):
+      return AndroidPlatform(args)
     else:
-      return DesktopPlatform(options)
+      return DesktopPlatform(args)
 
   def _Run(self, runnable, count, secondary=False):
     raise NotImplementedError()  # pragma: no cover
@@ -627,13 +626,13 @@ class Platform(object):
   def Run(self, runnable, count):
     """Execute the benchmark's main file.
 
-    If options.shell_dir_secondary is specified, the benchmark is run twice,
-    e.g. with and without patch.
+    If args.shell_dir_secondary is specified, the benchmark is run twice, e.g.
+    with and without patch.
     Args:
       runnable: A Runnable benchmark instance.
       count: The number of this (repeated) run.
     Returns: A tuple with the two benchmark outputs. The latter will be None if
-             options.shell_dir_secondary was not specified.
+             args.shell_dir_secondary was not specified.
     """
     output = self._LoggedRun(runnable, count, secondary=False)
     if self.shell_dir_secondary:
@@ -643,23 +642,23 @@ class Platform(object):
 
 
 class DesktopPlatform(Platform):
-  def __init__(self, options):
-    super(DesktopPlatform, self).__init__(options)
+  def __init__(self, args):
+    super(DesktopPlatform, self).__init__(args)
     self.command_prefix = []
 
     # Setup command class to OS specific version.
-    command.setup(utils.GuessOS(), options.device)
+    command.setup(utils.GuessOS(), args.device)
 
-    if options.prioritize or options.affinitize != None:
+    if args.prioritize or args.affinitize != None:
       self.command_prefix = ['schedtool']
-      if options.prioritize:
+      if args.prioritize:
         self.command_prefix += ['-n', '-20']
-      if options.affinitize != None:
+      if args.affinitize != None:
       # schedtool expects a bit pattern when setting affinity, where each
       # bit set to '1' corresponds to a core where the process may run on.
       # First bit corresponds to CPU 0. Since the 'affinitize' parameter is
       # a core number, we need to map to said bit pattern.
-        cpu = int(options.affinitize)
+        cpu = int(args.affinitize)
         core = 1 << cpu
         self.command_prefix += ['-a', ('0x%x' % core)]
       self.command_prefix += ['-e']
@@ -696,9 +695,9 @@ class DesktopPlatform(Platform):
 
 class AndroidPlatform(Platform):  # pragma: no cover
 
-  def __init__(self, options):
-    super(AndroidPlatform, self).__init__(options)
-    self.driver = android.android_driver(options.device)
+  def __init__(self, args):
+    super(AndroidPlatform, self).__init__(args)
+    self.driver = android.android_driver(args.device)
 
   def PreExecution(self):
     self.driver.set_high_perf_mode()
@@ -739,10 +738,10 @@ class AndroidPlatform(Platform):  # pragma: no cover
       bench_rel = '.'
 
     logcat_file = None
-    if self.options.dump_logcats_to:
+    if self.args.dump_logcats_to:
       runnable_name = '-'.join(runnable.graphs)
       logcat_file = os.path.join(
-          self.options.dump_logcats_to, 'logcat-%s-#%d%s.log' % (
+          self.args.dump_logcats_to, 'logcat-%s-#%d%s.log' % (
             runnable_name, count + 1, '-secondary' if secondary else ''))
       logging.debug('Dumping logcat into %s', logcat_file)
 
@@ -872,144 +871,137 @@ class CustomMachineConfiguration:
       raise Exception('Could not set CPU governor. Present value is %s'
                       % cur_value )
 
-def Main(args):
-  parser = optparse.OptionParser()
-  parser.add_option('--android-build-tools', help='Deprecated.')
-  parser.add_option('--arch',
-                    help=('The architecture to run tests for, '
-                          '"auto" or "native" for auto-detect'),
-                    default='x64')
-  parser.add_option('--buildbot',
-                    help='Adapt to path structure used on buildbots and adds '
-                         'timestamps/level to all logged status messages',
-                    default=False, action='store_true')
-  parser.add_option('-d', '--device',
-                    help='The device ID to run Android tests on. If not given '
-                         'it will be autodetected.')
-  parser.add_option('--extra-flags',
-                    help='Additional flags to pass to the test executable',
-                    default='')
-  parser.add_option('--json-test-results',
-                    help='Path to a file for storing json results.')
-  parser.add_option('--json-test-results-secondary',
-                    '--json-test-results-no-patch',  # TODO(sergiyb): Deprecate.
-                    help='Path to a file for storing json results from run '
-                         'without patch or for reference build run.')
-  parser.add_option('--outdir', help='Base directory with compile output',
-                    default='out')
-  parser.add_option('--outdir-secondary',
-                    '--outdir-no-patch',  # TODO(sergiyb): Deprecate.
-                    help='Base directory with compile output without patch or '
-                         'for reference build')
-  parser.add_option('--binary-override-path',
-                    help='JavaScript engine binary. By default, d8 under '
-                    'architecture-specific build dir. '
-                    'Not supported in conjunction with outdir-secondary.')
-  parser.add_option('--prioritize',
-                    help='Raise the priority to nice -20 for the benchmarking '
-                    'process.Requires Linux, schedtool, and sudo privileges.',
-                    default=False, action='store_true')
-  parser.add_option('--affinitize',
-                    help='Run benchmarking process on the specified core. '
-                    'For example: '
-                    '--affinitize=0 will run the benchmark process on core 0. '
-                    '--affinitize=3 will run the benchmark process on core 3. '
-                    'Requires Linux, schedtool, and sudo privileges.',
-                    default=None)
-  parser.add_option('--noaslr',
-                    help='Disable ASLR for the duration of the benchmarked '
-                    'process. Requires Linux and sudo privileges.',
-                    default=False, action='store_true')
-  parser.add_option('--cpu-governor',
-                    help='Set cpu governor to specified policy for the '
-                    'duration of the benchmarked process. Typical options: '
-                    '"powersave" for more stable results, or "performance" '
-                    'for shorter completion time of suite, with potentially '
-                    'more noise in results.')
-  parser.add_option('--filter',
-                    help='Only run the benchmarks beginning with this string. '
-                    'For example: '
-                    '--filter=JSTests/TypedArrays/ will run only TypedArray '
-                    'benchmarks from the JSTests suite.',
-                    default='')
-  parser.add_option('--run-count-multiplier', default=1, type='int',
-                    help='Multipled used to increase number of times each test '
-                    'is retried.')
-  parser.add_option('--dump-logcats-to',
-                    help='Writes logcat output from each test into specified '
-                    'directory. Only supported for android targets.')
+def Main(argv):
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--arch',
+                      help='The architecture to run tests for. Pass "auto" '
+                      'to auto-detect.', default='x64',
+                      choices=SUPPORTED_ARCHS + ['auto'])
+  parser.add_argument('--buildbot',
+                      help='Adapt to path structure used on buildbots and adds '
+                      'timestamps/level to all logged status messages',
+                      default=False, action='store_true')
+  parser.add_argument('-d', '--device',
+                      help='The device ID to run Android tests on. If not '
+                      'given it will be autodetected.')
+  parser.add_argument('--extra-flags',
+                      help='Additional flags to pass to the test executable',
+                      default='')
+  parser.add_argument('--json-test-results',
+                      help='Path to a file for storing json results.')
+  parser.add_argument('--json-test-results-secondary',
+                      help='Path to a file for storing json results from run '
+                      'without patch or for reference build run.')
+  parser.add_argument('--outdir', help='Base directory with compile output',
+                      default='out')
+  parser.add_argument('--outdir-secondary',
+                      help='Base directory with compile output without patch '
+                      'or for reference build')
+  parser.add_argument('--binary-override-path',
+                      help='JavaScript engine binary. By default, d8 under '
+                      'architecture-specific build dir. '
+                      'Not supported in conjunction with outdir-secondary.')
+  parser.add_argument('--prioritize',
+                      help='Raise the priority to nice -20 for the '
+                      'benchmarking process.Requires Linux, schedtool, and '
+                      'sudo privileges.', default=False, action='store_true')
+  parser.add_argument('--affinitize',
+                      help='Run benchmarking process on the specified core. '
+                      'For example: --affinitize=0 will run the benchmark '
+                      'process on core 0. --affinitize=3 will run the '
+                      'benchmark process on core 3. Requires Linux, schedtool, '
+                      'and sudo privileges.', default=None)
+  parser.add_argument('--noaslr',
+                      help='Disable ASLR for the duration of the benchmarked '
+                      'process. Requires Linux and sudo privileges.',
+                      default=False, action='store_true')
+  parser.add_argument('--cpu-governor',
+                      help='Set cpu governor to specified policy for the '
+                      'duration of the benchmarked process. Typical options: '
+                      '"powersave" for more stable results, or "performance" '
+                      'for shorter completion time of suite, with potentially '
+                      'more noise in results.')
+  parser.add_argument('--filter',
+                      help='Only run the benchmarks beginning with this '
+                      'string. For example: '
+                      '--filter=JSTests/TypedArrays/ will run only TypedArray '
+                      'benchmarks from the JSTests suite.',
+                      default='')
+  parser.add_argument('--dump-logcats-to',
+                      help='Writes logcat output from each test into specified '
+                      'directory. Only supported for android targets.')
+  parser.add_argument('suite', nargs='+', help='Path to the suite config file.')
 
-  (options, args) = parser.parse_args(args)
+  try:
+    args = parser.parse_args(argv)
+  except SystemExit:
+    return INFRA_FAILURE_RETCODE
 
   logging.basicConfig(
       level=logging.INFO, format='%(asctime)s %(levelname)-8s  %(message)s')
 
-  if len(args) == 0:  # pragma: no cover
-    parser.print_help()
-    return INFRA_FAILURE_RETCODE
+  if args.arch == 'auto':  # pragma: no cover
+    args.arch = utils.DefaultArch()
+    if args.arch not in SUPPORTED_ARCHS:
+      logging.error(
+          'Auto-detected architecture "%s" is not supported.', args.arch)
+      return INFRA_FAILURE_RETCODE
 
-  if options.arch in ['auto', 'native']:  # pragma: no cover
-    options.arch = ARCH_GUESS
-
-  if not options.arch in SUPPORTED_ARCHS:  # pragma: no cover
-    logging.error('Unknown architecture %s', options.arch)
-    return INFRA_FAILURE_RETCODE
-
-  if (options.json_test_results_secondary and
-      not options.outdir_secondary):  # pragma: no cover
+  if (args.json_test_results_secondary and
+      not args.outdir_secondary):  # pragma: no cover
     logging.error('For writing secondary json test results, a secondary outdir '
                   'patch must be specified.')
     return INFRA_FAILURE_RETCODE
 
   workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
-  if options.buildbot:
+  if args.buildbot:
     build_config = 'Release'
   else:
-    build_config = '%s.release' % options.arch
+    build_config = '%s.release' % args.arch
 
-  if options.binary_override_path == None:
-    options.shell_dir = os.path.join(workspace, options.outdir, build_config)
+  if args.binary_override_path == None:
+    args.shell_dir = os.path.join(workspace, args.outdir, build_config)
     default_binary_name = 'd8'
   else:
-    if not os.path.isfile(options.binary_override_path):
+    if not os.path.isfile(args.binary_override_path):
       logging.error('binary-override-path must be a file name')
       return INFRA_FAILURE_RETCODE
-    if options.outdir_secondary:
+    if args.outdir_secondary:
       logging.error('specify either binary-override-path or outdir-secondary')
       return INFRA_FAILURE_RETCODE
-    options.shell_dir = os.path.abspath(
-        os.path.dirname(options.binary_override_path))
-    default_binary_name = os.path.basename(options.binary_override_path)
+    args.shell_dir = os.path.abspath(
+        os.path.dirname(args.binary_override_path))
+    default_binary_name = os.path.basename(args.binary_override_path)
 
-  if options.outdir_secondary:
-    options.shell_dir_secondary = os.path.join(
-        workspace, options.outdir_secondary, build_config)
+  if args.outdir_secondary:
+    args.shell_dir_secondary = os.path.join(
+        workspace, args.outdir_secondary, build_config)
   else:
-    options.shell_dir_secondary = None
+    args.shell_dir_secondary = None
 
-  if options.json_test_results:
-    options.json_test_results = os.path.abspath(options.json_test_results)
+  if args.json_test_results:
+    args.json_test_results = os.path.abspath(args.json_test_results)
 
-  if options.json_test_results_secondary:
-    options.json_test_results_secondary = os.path.abspath(
-        options.json_test_results_secondary)
+  if args.json_test_results_secondary:
+    args.json_test_results_secondary = os.path.abspath(
+        args.json_test_results_secondary)
 
   # Ensure all arguments have absolute path before we start changing current
   # directory.
-  args = map(os.path.abspath, args)
+  args.suite = map(os.path.abspath, args.suite)
 
   prev_aslr = None
   prev_cpu_gov = None
-  platform = Platform.GetPlatform(options)
+  platform = Platform.GetPlatform(args)
 
   results = Results()
   results_secondary = Results()
   # We use list here to allow modification in nested function below.
   have_failed_tests = [False]
-  with CustomMachineConfiguration(governor = options.cpu_governor,
-                                  disable_aslr = options.noaslr) as conf:
-    for path in args:
+  with CustomMachineConfiguration(governor = args.cpu_governor,
+                                  disable_aslr = args.noaslr) as conf:
+    for path in args.suite:
       if not os.path.exists(path):  # pragma: no cover
         results.errors.append('Configuration file %s does not exist.' % path)
         continue
@@ -1025,7 +1017,7 @@ def Main(args):
 
       # Build the graph/trace tree structure.
       default_parent = DefaultSentinel(default_binary_name)
-      root = BuildGraphConfigs(suite, options.arch, default_parent)
+      root = BuildGraphConfigs(suite, args.arch, default_parent)
 
       # Callback to be called on each node on traversal.
       def NodeCB(node):
@@ -1034,8 +1026,8 @@ def Main(args):
       # Traverse graph/trace tree and iterate over all runnables.
       for runnable in FlattenRunnables(root, NodeCB):
         runnable_name = '/'.join(runnable.graphs)
-        if (not runnable_name.startswith(options.filter) and
-            runnable_name + '/' != options.filter):
+        if (not runnable_name.startswith(args.filter) and
+            runnable_name + '/' != args.filter):
           continue
         logging.info('>>> Running suite: %s', runnable_name)
         durations = []
@@ -1043,8 +1035,7 @@ def Main(args):
 
         def Runner():
           """Output generator that reruns several times."""
-          total_runs = runnable.run_count * options.run_count_multiplier
-          for i in range(0, max(1, total_runs)):
+          for i in range(0, max(1, runnable.run_count)):
             attempts_left = runnable.retry_count + 1
             while attempts_left:
               output, output_secondary = platform.Run(runnable, i)
@@ -1062,7 +1053,7 @@ def Main(args):
 
         # Let runnable iterate over all runs and handle output.
         result, result_secondary = runnable.Run(
-          Runner, trybot=options.shell_dir_secondary)
+          Runner, trybot=args.shell_dir_secondary)
         results += result
         results_secondary += result_secondary
         if runnable.has_timeouts:
@@ -1083,13 +1074,13 @@ def Main(args):
 
       platform.PostExecution()
 
-    if options.json_test_results:
-      results.WriteToFile(options.json_test_results)
+    if args.json_test_results:
+      results.WriteToFile(args.json_test_results)
     else:  # pragma: no cover
       print(results)
 
-  if options.json_test_results_secondary:
-    results_secondary.WriteToFile(options.json_test_results_secondary)
+  if args.json_test_results_secondary:
+    results_secondary.WriteToFile(args.json_test_results_secondary)
   else:  # pragma: no cover
     print(results_secondary)
 
