@@ -891,11 +891,19 @@ void V8::SetDcheckErrorHandler(DcheckErrorCallback that) {
   v8::base::SetDcheckFunction(that);
 }
 
-void V8::SetFlagsFromString(const char* str, int length) {
+void V8::SetFlagsFromString(const char* str) {
+  SetFlagsFromString(str, strlen(str));
+}
+
+void V8::SetFlagsFromString(const char* str, size_t length) {
   i::FlagList::SetFlagsFromString(str, length);
   i::FlagList::EnforceFlagImplications();
 }
 
+void V8::SetFlagsFromString(const char* str, int length) {
+  CHECK_LE(0, length);
+  SetFlagsFromString(str, static_cast<size_t>(length));
+}
 
 void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
   i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
@@ -10494,12 +10502,6 @@ int Testing::GetStressRuns() {
 #endif
 }
 
-
-static void SetFlagsFromString(const char* flags) {
-  V8::SetFlagsFromString(flags, i::StrLength(flags));
-}
-
-
 void Testing::PrepareStressRun(int run) {
   static const char* kLazyOptimizations =
       "--prepare-always-opt "
@@ -10513,22 +10515,22 @@ void Testing::PrepareStressRun(int run) {
   static const char* kDeoptEvery13Times = "--deopt-every-n-times=13";
   if (internal::Testing::stress_type() == Testing::kStressTypeDeopt &&
       internal::FLAG_deopt_every_n_times == 0) {
-    SetFlagsFromString(kDeoptEvery13Times);
+    V8::SetFlagsFromString(kDeoptEvery13Times);
   }
 
 #ifdef DEBUG
   // As stressing in debug mode only make two runs skip the deopt stressing
   // here.
   if (run == GetStressRuns() - 1) {
-    SetFlagsFromString(kForcedOptimizations);
+    V8::SetFlagsFromString(kForcedOptimizations);
   } else {
-    SetFlagsFromString(kLazyOptimizations);
+    V8::SetFlagsFromString(kLazyOptimizations);
   }
 #else
   if (run == GetStressRuns() - 1) {
-    SetFlagsFromString(kForcedOptimizations);
+    V8::SetFlagsFromString(kForcedOptimizations);
   } else if (run != GetStressRuns() - 2) {
-    SetFlagsFromString(kLazyOptimizations);
+    V8::SetFlagsFromString(kLazyOptimizations);
   }
 #endif
 }

@@ -1843,7 +1843,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   ManualGCScope manual_gc_scope;
   FLAG_always_opt = false;
   const char* filter_flag = "--turbo-filter=NOTHING";
-  FlagList::SetFlagsFromString(filter_flag, StrLength(filter_flag));
+  FlagList::SetFlagsFromString(filter_flag, strlen(filter_flag));
   FLAG_manual_evacuation_candidates_selection = true;
 
   LocalContext context;

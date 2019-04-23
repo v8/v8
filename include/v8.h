@@ -8636,7 +8636,11 @@ class V8_EXPORT V8 {
   /**
    * Sets V8 flags from a string.
    */
-  static void SetFlagsFromString(const char* str, int length);
+  static void SetFlagsFromString(const char* str);
+  static void SetFlagsFromString(const char* str, size_t length);
+  V8_DEPRECATE_SOON("use size_t version",
+                    static void SetFlagsFromString(const char* str,
+                                                   int length));
 
   /**
    * Sets V8 flags from the command line.

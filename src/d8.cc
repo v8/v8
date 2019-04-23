@@ -2794,12 +2794,6 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
-
-void SetFlagsFromString(const char* flags) {
-  v8::V8::SetFlagsFromString(flags, static_cast<int>(strlen(flags)));
-}
-
-
 bool Shell::SetOptions(int argc, char* argv[]) {
   bool logfile_per_isolate = false;
   for (int i = 0; i < argc; i++) {
@@ -2976,7 +2970,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   current->End(argc);
 
   if (!logfile_per_isolate && options.num_isolates) {
-    SetFlagsFromString("--nologfile_per_isolate");
+    V8::SetFlagsFromString("--no-logfile-per-isolate");
   }
 
   return true;
@@ -3414,10 +3408,10 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   if (i::FLAG_trace_turbo_cfg_file == nullptr) {
-    SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
+    V8::SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
   }
   if (i::FLAG_redirect_code_traces_to == nullptr) {
-    SetFlagsFromString("--redirect-code-traces-to=code.asm");
+    V8::SetFlagsFromString("--redirect-code-traces-to=code.asm");
   }
   v8::V8::InitializePlatform(g_platform.get());
   v8::V8::Initialize();

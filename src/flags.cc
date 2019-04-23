@@ -526,14 +526,14 @@ static char* SkipBlackSpace(char* p) {
 
 
 // static
-int FlagList::SetFlagsFromString(const char* str, int len) {
+int FlagList::SetFlagsFromString(const char* str, size_t len) {
   // make a 0-terminated copy of str
-  ScopedVector<char> copy0(len + 1);
-  MemCopy(copy0.start(), str, len);
+  std::unique_ptr<char[]> copy0{NewArray<char>(len + 1)};
+  MemCopy(copy0.get(), str, len);
   copy0[len] = '\0';
 
   // strip leading white space
-  char* copy = SkipWhiteSpace(copy0.start());
+  char* copy = SkipWhiteSpace(copy0.get());
 
   // count the number of 'arguments'
   int argc = 1;  // be compatible with SetFlagsFromCommandLine()
@@ -556,7 +556,6 @@ int FlagList::SetFlagsFromString(const char* str, int len) {
 
   return SetFlagsFromCommandLine(&argc, argv.start(), false);
 }
-
 
 // static
 void FlagList::ResetAllFlags() {

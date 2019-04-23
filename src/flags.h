@@ -51,7 +51,7 @@ class V8_EXPORT_PRIVATE FlagList {
   // Set the flag values by parsing the string str. Splits string into argc
   // substrings argv[], each of which consisting of non-white-space chars,
   // and then calls SetFlagsFromCommandLine() and returns its result.
-  static int SetFlagsFromString(const char* str, int len);
+  static int SetFlagsFromString(const char* str, size_t len);
 
   // Reset all flags to their default value.
   static void ResetAllFlags();
