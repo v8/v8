@@ -136,8 +136,9 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
         output = subprocess.check_output(cmd, shell=True)
         self._print('List of processes:')
         for line in (output or '').splitlines():
-          # Show only command with process info cut off.
-          self._print(line[line.index(OUT_DIR):])
+          # Show command with pid, but other process info cut off.
+          self._print('pid: %s cmd: %s' %
+                      (line.split()[1], line[line.index(OUT_DIR):]))
       except:
         pass
 
