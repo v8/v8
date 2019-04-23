@@ -190,6 +190,8 @@ assertEquals(obj.indexOf('a'), 4);
 assertEquals(obj.indexOf(undefined), 0);
 assertFalse(obj.includes(Symbol("test")));
 assertTrue(obj.includes(undefined));
+assertFalse(obj.includes(NaN));
+assertTrue(obj.includes());
 assertEquals(obj.find(x => x==0), undefined);
 assertEquals(obj.findIndex(x => x=='a'), 4);
 assertTrue(obj.some(x => typeof x == 'symbol'));

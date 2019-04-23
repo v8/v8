@@ -2409,7 +2409,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           // Search for NaN in PACKED_ELEMENTS, HOLEY_ELEMENTS,
           // PACKED_SMI_ELEMENTS or HOLEY_SMI_ELEMENTS. Return true if
           // elementK->IsHeapNumber() && std::isnan(elementK->Number())
-          DCHECK(IsSmiOrObjectElementsKind(Subclass::kind()));
+          DCHECK(IsSmiOrObjectElementsKind(Subclass::kind()) ||
+                 IsPackedFrozenOrSealedElementsKind(Subclass::kind()));
           auto elements = FixedArray::cast(receiver->elements());
 
           for (uint32_t k = start_from; k < length; ++k) {
