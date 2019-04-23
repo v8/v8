@@ -1915,12 +1915,16 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
                    Vector<uint8_t>::cast(buffer.SubVector(0, length)))
                .ToHandleChecked();
   }
-  NewFunctionArgs args = NewFunctionArgs::ForWasm(
-      name, function_data, isolate->sloppy_function_without_prototype_map());
+  bool is_asm_js_module = instance->module_object()->is_asm_js();
+  Handle<Map> function_map =
+      is_asm_js_module ? isolate->sloppy_function_map()
+                       : isolate->sloppy_function_without_prototype_map();
+  NewFunctionArgs args =
+      NewFunctionArgs::ForWasm(name, function_data, function_map);
   Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);
   // According to the spec, exported functions should not have a [[Construct]]
-  // method.
-  DCHECK(!js_function->IsConstructor());
+  // method. This does not apply to functions exported from asm.js however.
+  DCHECK_EQ(is_asm_js_module, js_function->IsConstructor());
   js_function->shared()->set_length(arity);
   js_function->shared()->set_internal_formal_parameter_count(arity);
   return Handle<WasmExportedFunction>::cast(js_function);
