@@ -111,6 +111,28 @@ TEST(LanguageServerMessage, GotoDefinition) {
   });
 }
 
+TEST(LanguageServerMessage, CompilationErrorSendsDiagnostics) {
+  LanguageServerData::Scope server_data_scope;
+  SourceFileMap::Scope source_file_map_scope;
+
+  TorqueCompilerResult result;
+  result.error = TorqueError("compilation failed somehow");
+  result.source_file_map = SourceFileMap::Get();
+
+  CompilationFinished(result, [](JsonValue& raw_response) {
+    PublishDiagnosticsNotification notification(raw_response);
+
+    EXPECT_EQ(notification.method(), "textDocument/publishDiagnostics");
+    ASSERT_FALSE(notification.IsNull("params"));
+    EXPECT_EQ(notification.params().uri(), "<unknown>");
+
+    ASSERT_GT(notification.params().diagnostics_size(), static_cast<size_t>(0));
+    Diagnostic diagnostic = notification.params().diagnostics(0);
+    EXPECT_EQ(diagnostic.severity(), Diagnostic::kError);
+    EXPECT_EQ(diagnostic.message(), "compilation failed somehow");
+  });
+}
+
 }  // namespace ls
 }  // namespace torque
 }  // namespace internal

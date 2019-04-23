@@ -52,7 +52,7 @@ bool IsSnakeCase(const std::string& s);
 bool IsValidNamespaceConstName(const std::string& s);
 bool IsValidTypeName(const std::string& s);
 
-struct TorqueError : public std::exception {
+struct TorqueError {
   explicit TorqueError(const std::string& message) : message(message) {}
 
   std::string message;

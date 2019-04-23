@@ -254,6 +254,31 @@ class TextDocumentPositionParams : public NestedJsonAccessor {
   JSON_OBJECT_ACCESSORS(JsonPosition, position)
 };
 
+class Diagnostic : public NestedJsonAccessor {
+ public:
+  using NestedJsonAccessor::NestedJsonAccessor;
+
+  enum DiagnosticSeverity {
+    kError = 1,
+    kWarning = 2,
+    kInformation = 3,
+    kHint = 4
+  };
+
+  JSON_OBJECT_ACCESSORS(Range, range)
+  JSON_INT_ACCESSORS(severity)
+  JSON_STRING_ACCESSORS(source)
+  JSON_STRING_ACCESSORS(message)
+};
+
+class PublishDiagnosticsParams : public NestedJsonAccessor {
+ public:
+  using NestedJsonAccessor::NestedJsonAccessor;
+
+  JSON_STRING_ACCESSORS(uri)
+  JSON_ARRAY_OBJECT_ACCESSORS(Diagnostic, diagnostics)
+};
+
 template <class T>
 class Request : public Message {
  public:
@@ -269,6 +294,7 @@ using RegistrationRequest = Request<RegistrationParams>;
 using TorqueFileListNotification = Request<FileListParams>;
 using GotoDefinitionRequest = Request<TextDocumentPositionParams>;
 using DidChangeWatchedFilesNotification = Request<DidChangeWatchedFilesParams>;
+using PublishDiagnosticsNotification = Request<PublishDiagnosticsParams>;
 
 template <class T>
 class Response : public Message {
