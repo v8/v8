@@ -545,6 +545,38 @@ template <class T> class PersistentBase {
    */
   V8_INLINE void AnnotateStrongRetainer(const char* label);
 
+  /**
+   * Allows the embedder to tell the v8 garbage collector that a certain object
+   * is alive. Only allowed when the embedder is asked to trace its heap by
+   * EmbedderHeapTracer.
+   */
+  V8_DEPRECATED(
+      "Used TracedGlobal and EmbedderHeapTracer::RegisterEmbedderReference",
+      V8_INLINE void RegisterExternalReference(Isolate* isolate) const);
+
+  /**
+   * Marks the reference to this object independent. Garbage collector is free
+   * to ignore any object groups containing this object. Weak callback for an
+   * independent handle should not assume that it will be preceded by a global
+   * GC prologue callback or followed by a global GC epilogue callback.
+   */
+  V8_DEPRECATED(
+      "Weak objects are always considered independent. "
+      "Use TracedGlobal when trying to use EmbedderHeapTracer. "
+      "Use a strong handle when trying to keep an object alive.",
+      V8_INLINE void MarkIndependent());
+
+  /**
+   * Marks the reference to this object as active. The scavenge garbage
+   * collection should not reclaim the objects marked as active, even if the
+   * object held by the handle is otherwise unreachable.
+   *
+   * This bit is cleared after the each garbage collection pass.
+   */
+  V8_DEPRECATED("Use TracedGlobal.", V8_INLINE void MarkActive());
+
+  V8_DEPRECATED("See MarkIndependent.", V8_INLINE bool IsIndependent() const);
+
   /** Returns true if the handle's reference is weak.  */
   V8_INLINE bool IsWeak() const;
 
@@ -8807,6 +8839,9 @@ class V8_EXPORT V8 {
                                      const char* label);
   static Value* Eternalize(Isolate* isolate, Value* handle);
 
+  static void RegisterExternallyReferencedObject(internal::Address* location,
+                                                 internal::Isolate* isolate);
+
   template <class K, class V, class T>
   friend class PersistentValueMapBase;
 
@@ -9754,6 +9789,14 @@ void Persistent<T, M>::Copy(const Persistent<S, M2>& that) {
 }
 
 template <class T>
+bool PersistentBase<T>::IsIndependent() const {
+  typedef internal::Internals I;
+  if (this->IsEmpty()) return false;
+  return I::GetNodeFlag(reinterpret_cast<internal::Address*>(this->val_),
+                        I::kNodeIsIndependentShift);
+}
+
+template <class T>
 bool PersistentBase<T>::IsWeak() const {
   typedef internal::Internals I;
   if (this->IsEmpty()) return false;
@@ -9818,6 +9861,31 @@ void PersistentBase<T>::AnnotateStrongRetainer(const char* label) {
   V8::AnnotateStrongRetainer(reinterpret_cast<internal::Address*>(this->val_),
                              label);
 }
+
+template <class T>
+void PersistentBase<T>::RegisterExternalReference(Isolate* isolate) const {
+  if (IsEmpty()) return;
+  V8::RegisterExternallyReferencedObject(
+      reinterpret_cast<internal::Address*>(this->val_),
+      reinterpret_cast<internal::Isolate*>(isolate));
+}
+
+template <class T>
+void PersistentBase<T>::MarkIndependent() {
+  typedef internal::Internals I;
+  if (this->IsEmpty()) return;
+  I::UpdateNodeFlag(reinterpret_cast<internal::Address*>(this->val_), true,
+                    I::kNodeIsIndependentShift);
+}
+
+template <class T>
+void PersistentBase<T>::MarkActive() {
+  typedef internal::Internals I;
+  if (this->IsEmpty()) return;
+  I::UpdateNodeFlag(reinterpret_cast<internal::Address*>(this->val_), true,
+                    I::kNodeIsActiveShift);
+}
+
 
 template <class T>
 void PersistentBase<T>::SetWrapperClassId(uint16_t class_id) {

@@ -1037,6 +1037,11 @@ void V8::MoveTracedGlobalReference(internal::Address** from,
   i::GlobalHandles::MoveTracedGlobal(from, to);
 }
 
+void V8::RegisterExternallyReferencedObject(i::Address* location,
+                                            i::Isolate* isolate) {
+  isolate->heap()->RegisterExternallyReferencedObject(location);
+}
+
 void V8::MakeWeak(i::Address* location, void* parameter,
                   WeakCallbackInfo<void>::Callback weak_callback,
                   WeakCallbackType type) {
