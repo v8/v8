@@ -41,6 +41,9 @@
   # Too slow for stress mode.
   'octane/mandreel': [SKIP],
   'octane/typescript': [SKIP],
+
+  # Too memory hungry on Odroid devices: https://crbug.com/v8/8963
+  'kraken/stanford-crypto-ccm': [PASS, ['arch == arm and not simulator_run', SKIP]],
 }],
 
 ['variant == jitless', {
