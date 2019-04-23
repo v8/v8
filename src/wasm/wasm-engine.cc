@@ -548,6 +548,8 @@ void WasmEngine::LogCode(WasmCode* code) {
           &mutex_, &info->log_codes_task, isolate, this);
       info->log_codes_task = new_task.get();
       info->foreground_task_runner->PostTask(std::move(new_task));
+    }
+    if (info->code_to_log.empty()) {
       isolate->stack_guard()->RequestLogWasmCode();
     }
     info->code_to_log.push_back(code);

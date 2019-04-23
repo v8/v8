@@ -264,8 +264,8 @@ class CompilationUnitQueues {
     {
       Queue* steal_queue = &queues_[steal_from_task_id];
       base::MutexGuard guard(&steal_queue->mutex_);
-      if (steal_queue->units_[wanted_tier].empty()) return {};
       auto* steal_from_vector = &steal_queue->units_[wanted_tier];
+      if (steal_from_vector->empty()) return {};
       size_t remaining = steal_from_vector->size() / 2;
       stolen.assign(
           std::make_move_iterator(steal_from_vector->begin()) + remaining,
