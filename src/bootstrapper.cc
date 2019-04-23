@@ -2799,49 +2799,49 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     DCHECK(console->IsJSObject());
     JSObject::AddProperty(isolate_, global, name, console, DONT_ENUM);
     SimpleInstallFunction(isolate_, console, "debug", Builtins::kConsoleDebug,
-                          1, false, NONE);
+                          0, false, NONE);
     SimpleInstallFunction(isolate_, console, "error", Builtins::kConsoleError,
-                          1, false, NONE);
-    SimpleInstallFunction(isolate_, console, "info", Builtins::kConsoleInfo, 1,
+                          0, false, NONE);
+    SimpleInstallFunction(isolate_, console, "info", Builtins::kConsoleInfo, 0,
                           false, NONE);
-    SimpleInstallFunction(isolate_, console, "log", Builtins::kConsoleLog, 1,
+    SimpleInstallFunction(isolate_, console, "log", Builtins::kConsoleLog, 0,
                           false, NONE);
-    SimpleInstallFunction(isolate_, console, "warn", Builtins::kConsoleWarn, 1,
+    SimpleInstallFunction(isolate_, console, "warn", Builtins::kConsoleWarn, 0,
                           false, NONE);
     SimpleInstallFunction(isolate_, console, "dir", Builtins::kConsoleDir, 1,
                           false, NONE);
     SimpleInstallFunction(isolate_, console, "dirxml", Builtins::kConsoleDirXml,
-                          1, false, NONE);
+                          0, false, NONE);
     SimpleInstallFunction(isolate_, console, "table", Builtins::kConsoleTable,
                           1, false, NONE);
     SimpleInstallFunction(isolate_, console, "trace", Builtins::kConsoleTrace,
-                          1, false, NONE);
+                          0, false, NONE);
     SimpleInstallFunction(isolate_, console, "group", Builtins::kConsoleGroup,
-                          1, false, NONE);
+                          0, false, NONE);
     SimpleInstallFunction(isolate_, console, "groupCollapsed",
-                          Builtins::kConsoleGroupCollapsed, 1, false, NONE);
+                          Builtins::kConsoleGroupCollapsed, 0, false, NONE);
     SimpleInstallFunction(isolate_, console, "groupEnd",
-                          Builtins::kConsoleGroupEnd, 1, false, NONE);
+                          Builtins::kConsoleGroupEnd, 0, false, NONE);
     SimpleInstallFunction(isolate_, console, "clear", Builtins::kConsoleClear,
-                          1, false, NONE);
+                          0, false, NONE);
     SimpleInstallFunction(isolate_, console, "count", Builtins::kConsoleCount,
-                          1, false, NONE);
+                          0, false, NONE);
     SimpleInstallFunction(isolate_, console, "countReset",
-                          Builtins::kConsoleCountReset, 1, false, NONE);
+                          Builtins::kConsoleCountReset, 0, false, NONE);
     SimpleInstallFunction(isolate_, console, "assert",
-                          Builtins::kFastConsoleAssert, 1, false, NONE);
+                          Builtins::kFastConsoleAssert, 0, false, NONE);
     SimpleInstallFunction(isolate_, console, "profile",
-                          Builtins::kConsoleProfile, 1, false, NONE);
+                          Builtins::kConsoleProfile, 0, false, NONE);
     SimpleInstallFunction(isolate_, console, "profileEnd",
-                          Builtins::kConsoleProfileEnd, 1, false, NONE);
-    SimpleInstallFunction(isolate_, console, "time", Builtins::kConsoleTime, 1,
+                          Builtins::kConsoleProfileEnd, 0, false, NONE);
+    SimpleInstallFunction(isolate_, console, "time", Builtins::kConsoleTime, 0,
                           false, NONE);
     SimpleInstallFunction(isolate_, console, "timeLog",
-                          Builtins::kConsoleTimeLog, 1, false, NONE);
+                          Builtins::kConsoleTimeLog, 0, false, NONE);
     SimpleInstallFunction(isolate_, console, "timeEnd",
-                          Builtins::kConsoleTimeEnd, 1, false, NONE);
+                          Builtins::kConsoleTimeEnd, 0, false, NONE);
     SimpleInstallFunction(isolate_, console, "timeStamp",
-                          Builtins::kConsoleTimeStamp, 1, false, NONE);
+                          Builtins::kConsoleTimeStamp, 0, false, NONE);
     SimpleInstallFunction(isolate_, console, "context",
                           Builtins::kConsoleContext, 1, true, NONE);
     InstallToStringTag(isolate_, console, "Object");
