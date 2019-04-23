@@ -88,8 +88,6 @@ V8_GENERIC_JSON = {
   'units': 'ms',
 }
 
-Output = namedtuple('Output', 'stdout, stderr, timed_out, exit_code')
-
 class PerfTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
@@ -99,8 +97,8 @@ class PerfTest(unittest.TestCase):
     cls._cov.start()
     import run_perf
     from testrunner.local import command
-    global command
-    global run_perf
+    from testrunner.objects.output import Output, NULL_OUTPUT
+    global command, run_perf, Output, NULL_OUTPUT
 
   @classmethod
   def tearDownClass(cls):
@@ -127,7 +125,6 @@ class PerfTest(unittest.TestCase):
   def _MockCommand(self, *args, **kwargs):
     # Fake output for each test run.
     test_outputs = [Output(stdout=arg,
-                           stderr=None,
                            timed_out=kwargs.get('timed_out', False),
                            exit_code=kwargs.get('exit_code', 0))
                     for arg in args[1]]
@@ -427,7 +424,7 @@ class PerfTest(unittest.TestCase):
   def testOneRunCrashed(self):
     self._WriteTestInput(V8_JSON)
     self._MockCommand(
-        ['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'], exit_code=1)
+        ['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'], exit_code=-1)
     self.assertEquals(1, self._CallMain())
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': [], 'stddev': ''},
@@ -456,12 +453,10 @@ class PerfTest(unittest.TestCase):
     mock.patch('run_perf.AndroidPlatform.PreExecution').start()
     mock.patch('run_perf.AndroidPlatform.PostExecution').start()
     mock.patch('run_perf.AndroidPlatform.PreTests').start()
-    mock_output = Output(
-        stdout='Richards: 1.234\nDeltaBlue: 10657567\n', stderr=None,
-        timed_out=False, exit_code=0)
     mock.patch(
         'run_perf.AndroidPlatform.Run',
-        return_value=(mock_output, None)).start()
+        return_value=(Output(stdout='Richards: 1.234\nDeltaBlue: 10657567\n'),
+                      NULL_OUTPUT)).start()
     mock.patch('testrunner.local.android._Driver', autospec=True).start()
     mock.patch(
         'run_perf.Platform.ReadBuildConfig',
