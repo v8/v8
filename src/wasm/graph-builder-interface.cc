@@ -692,7 +692,9 @@ class WasmGraphBuildingInterface {
       Value& val = stack_values[i];
       Value& old = (*merge)[i];
       DCHECK_NOT_NULL(val.node);
-      DCHECK(val.type == old.type || val.type == kWasmVar);
+      DCHECK(val.type == kWasmVar ||
+             ValueTypes::MachineRepresentationFor(val.type) ==
+                 ValueTypes::MachineRepresentationFor(old.type));
       old.node = first ? val.node
                        : builder_->CreateOrMergeIntoPhi(
                              ValueTypes::MachineRepresentationFor(old.type),

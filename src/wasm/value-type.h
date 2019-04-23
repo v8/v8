@@ -299,6 +299,7 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return MachineRepresentation::kFloat64;
       case kWasmAnyRef:
       case kWasmAnyFunc:
+      case kWasmNullRef:
       case kWasmExceptRef:
         return MachineRepresentation::kTaggedPointer;
       case kWasmS128:
