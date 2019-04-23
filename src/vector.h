@@ -22,14 +22,16 @@ class Vector {
  public:
   constexpr Vector() : start_(nullptr), length_(0) {}
 
-  Vector(T* data, size_t length) : start_(data), length_(length) {
+  constexpr Vector(T* data, size_t length) : start_(data), length_(length) {
+#ifdef V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
     DCHECK(length == 0 || data != nullptr);
+#endif
   }
 
-  template <int N>
+  template <size_t N>
   explicit constexpr Vector(T (&arr)[N]) : start_(arr), length_(N) {}
 
-  static Vector<T> New(int length) {
+  static Vector<T> New(size_t length) {
     return Vector<T>(NewArray<T>(length), length);
   }
 
@@ -41,9 +43,10 @@ class Vector {
     return Vector<T>(start() + from, to - from);
   }
 
-  // Returns the length of the vector.
+  // Returns the length of the vector. Only use this if you really need an
+  // integer return value. Use {size()} otherwise.
   int length() const {
-    DCHECK(length_ <= static_cast<size_t>(std::numeric_limits<int>::max()));
+    DCHECK_GE(std::numeric_limits<int>::max(), length_);
     return static_cast<int>(length_);
   }
 
@@ -178,7 +181,8 @@ class Vector {
 template <typename T>
 class ScopedVector : public Vector<T> {
  public:
-  explicit ScopedVector(int length) : Vector<T>(NewArray<T>(length), length) { }
+  explicit ScopedVector(size_t length)
+      : Vector<T>(NewArray<T>(length), length) {}
   ~ScopedVector() {
     DeleteArray(this->start());
   }
@@ -263,6 +267,7 @@ class OwnedVector {
   size_t length_ = 0;
 };
 
+// TODO(clemensh): Remove this; replace all uses by {strlen}.
 inline int StrLength(const char* string) {
   size_t length = strlen(string);
   DCHECK(length == static_cast<size_t>(static_cast<int>(length)));
@@ -275,29 +280,28 @@ constexpr Vector<const uint8_t> StaticCharVector(const char (&array)[N]) {
 }
 
 inline Vector<const char> CStrVector(const char* data) {
-  return Vector<const char>(data, StrLength(data));
+  return Vector<const char>(data, strlen(data));
 }
 
-inline Vector<const uint8_t> OneByteVector(const char* data, int length) {
+inline Vector<const uint8_t> OneByteVector(const char* data, size_t length) {
   return Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(data), length);
 }
 
 inline Vector<const uint8_t> OneByteVector(const char* data) {
-  return OneByteVector(data, StrLength(data));
+  return OneByteVector(data, strlen(data));
 }
 
 inline Vector<char> MutableCStrVector(char* data) {
-  return Vector<char>(data, StrLength(data));
+  return Vector<char>(data, strlen(data));
 }
 
-inline Vector<char> MutableCStrVector(char* data, int max) {
-  int length = StrLength(data);
-  return Vector<char>(data, (length < max) ? length : max);
+inline Vector<char> MutableCStrVector(char* data, size_t max) {
+  return Vector<char>(data, strnlen(data, max));
 }
 
-template <typename T, int N>
+template <typename T, size_t N>
 inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
-  return Vector<T>(arr);
+  return Vector<T>{arr, N};
 }
 
 // Construct a Vector from a start pointer and a size.
@@ -313,7 +317,7 @@ inline constexpr auto VectorOf(Container&& c)
   return VectorOf(c.data(), c.size());
 }
 
-template <typename T, int kSize>
+template <typename T, size_t kSize>
 class EmbeddedVector : public Vector<T> {
  public:
   EmbeddedVector() : Vector<T>(buffer_, kSize) {}
