@@ -206,7 +206,28 @@ class MachineRepresentationInferrer {
           case IrOpcode::kChangeUint32ToTagged:
           case IrOpcode::kBitcastWordToTagged:
           case IrOpcode::kTaggedPoisonOnSpeculation:
+          case IrOpcode::kChangeCompressedToTagged:
             representation_vector_[node->id()] = MachineRepresentation::kTagged;
+            break;
+          case IrOpcode::kChangeCompressedPointerToTaggedPointer:
+            representation_vector_[node->id()] =
+                MachineRepresentation::kTaggedPointer;
+            break;
+          case IrOpcode::kChangeCompressedSignedToTaggedSigned:
+            representation_vector_[node->id()] =
+                MachineRepresentation::kTaggedSigned;
+            break;
+          case IrOpcode::kChangeTaggedToCompressed:
+            representation_vector_[node->id()] =
+                MachineRepresentation::kCompressed;
+            break;
+          case IrOpcode::kChangeTaggedPointerToCompressedPointer:
+            representation_vector_[node->id()] =
+                MachineRepresentation::kCompressedPointer;
+            break;
+          case IrOpcode::kChangeTaggedSignedToCompressedSigned:
+            representation_vector_[node->id()] =
+                MachineRepresentation::kCompressedSigned;
             break;
           case IrOpcode::kWord32PoisonOnSpeculation:
             representation_vector_[node->id()] = MachineRepresentation::kWord32;
@@ -362,6 +383,29 @@ class MachineRepresentationChecker {
           case IrOpcode::kChangeTaggedToBit:
             CHECK_EQ(MachineRepresentation::kTagged,
                      inferrer_->GetRepresentation(node->InputAt(0)));
+            break;
+          case IrOpcode::kChangeCompressedToTagged:
+            CHECK(IsAnyCompressed(
+                inferrer_->GetRepresentation(node->InputAt(0))));
+            break;
+          case IrOpcode::kChangeCompressedPointerToTaggedPointer:
+            CHECK(CanBeCompressedPointer(
+                inferrer_->GetRepresentation(node->InputAt(0))));
+            break;
+          case IrOpcode::kChangeCompressedSignedToTaggedSigned:
+            CHECK(CanBeCompressedSigned(
+                inferrer_->GetRepresentation(node->InputAt(0))));
+            break;
+          case IrOpcode::kChangeTaggedToCompressed:
+            CHECK(IsAnyTagged(inferrer_->GetRepresentation(node->InputAt(0))));
+            break;
+          case IrOpcode::kChangeTaggedPointerToCompressedPointer:
+            CHECK(CanBeTaggedPointer(
+                inferrer_->GetRepresentation(node->InputAt(0))));
+            break;
+          case IrOpcode::kChangeTaggedSignedToCompressedSigned:
+            CHECK(CanBeTaggedSigned(
+                inferrer_->GetRepresentation(node->InputAt(0))));
             break;
           case IrOpcode::kRoundInt64ToFloat64:
           case IrOpcode::kRoundUint64ToFloat64:
