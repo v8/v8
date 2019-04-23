@@ -391,36 +391,6 @@ class PerfTest(unittest.TestCase):
     self._VerifyMock(
         os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
 
-  def testOneRunGeneric(self):
-    test_input = dict(V8_GENERIC_JSON)
-    self._WriteTestInput(test_input)
-    self._MockCommand(['.'], [
-      'RESULT Infra: Constant1= 11 count\n'
-      'RESULT Infra: Constant2= [10,5,10,15] count\n'
-      'RESULT Infra: Constant3= {12,1.2} count\n'
-      'RESULT Infra: Constant4= [10,5,error,15] count\n'])
-    self.assertEquals(1, self._CallMain())
-    self.assertEquals([
-      {'units': 'count',
-       'graphs': ['test', 'Infra', 'Constant1'],
-       'results': ['11.0'],
-       'stddev': ''},
-      {'units': 'count',
-       'graphs': ['test', 'Infra', 'Constant2'],
-       'results': ['10.0', '5.0', '10.0', '15.0'],
-       'stddev': ''},
-      {'units': 'count',
-       'graphs': ['test', 'Infra', 'Constant3'],
-       'results': ['12.0'],
-       'stddev': '1.2'},
-      {'units': 'count',
-       'graphs': ['test', 'Infra', 'Constant4'],
-       'results': [],
-       'stddev': ''},
-      ], self._LoadResults()['traces'])
-    self._VerifyErrors(['Found non-numeric in test/Infra/Constant4'])
-    self._VerifyMock(os.path.join('out', 'x64.release', 'cc'), '--flag', '')
-
   def testOneRunCrashed(self):
     self._WriteTestInput(V8_JSON)
     self._MockCommand(

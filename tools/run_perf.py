@@ -320,59 +320,6 @@ def AccumulateResults(
   return res
 
 
-def AccumulateGenericResults(graph_names, suite_units, output_iter):
-  """Iterates over the output of multiple benchmark reruns and accumulates
-  generic results.
-
-  Args:
-    graph_names: List of names that configure the base path of the traces. E.g.
-                 ['v8', 'Octane'].
-    suite_units: Measurement default units as defined by the benchmark suite.
-    output_iter: Iterator over the output of each test run.
-  Returns: A 'Results' object.
-  """
-  traces = OrderedDict()
-  for output in output_iter():
-    if output.stdout is None:
-      continue
-    for line in output.stdout.strip().splitlines():
-      match = GENERIC_RESULTS_RE.match(line)
-      if match:
-        stddev = ''
-        graph = match.group(1)
-        trace = match.group(2)
-        body = match.group(3)
-        units = match.group(4)
-        match_stddev = RESULT_STDDEV_RE.match(body)
-        match_list = RESULT_LIST_RE.match(body)
-        errors = []
-        if match_stddev:
-          result, stddev = map(str.strip, match_stddev.group(1).split(','))
-          results = [result]
-        elif match_list:
-          results = map(str.strip, match_list.group(1).split(','))
-        else:
-          results = [body.strip()]
-
-        try:
-          results = map(lambda r: str(float(r)), results)
-        except ValueError:
-          results = []
-          errors = ['Found non-numeric in %s' %
-                    '/'.join(graph_names + [graph, trace])]
-
-        trace_result = traces.setdefault(trace, Results([{
-          'graphs': graph_names + [graph, trace],
-          'units': (units or suite_units).strip(),
-          'results': [],
-          'stddev': '',
-        }], errors))
-        trace_result.traces[0]['results'].extend(results)
-        trace_result.traces[0]['stddev'] = stddev
-
-  return reduce(lambda r, t: r + t, traces.itervalues(), Results())
-
-
 class Node(object):
   """Represents a node in the suite tree structure."""
   def __init__(self, *args):
@@ -573,20 +520,6 @@ class RunnableTraceConfig(TraceConfig, RunnableConfig):
     )
 
 
-# TODO(sergiyb): Deprecate and remove. No benchmarks are using this code.
-class RunnableGenericConfig(RunnableConfig):
-  """Represents a runnable suite definition with generic traces."""
-  def __init__(self, suite, parent, arch):
-    super(RunnableGenericConfig, self).__init__(suite, parent, arch)
-
-  def Run(self, runner, trybot):
-    output, output_secondary = Unzip(runner())
-    return (
-        AccumulateGenericResults(self.graphs, self.units, output),
-        AccumulateGenericResults(self.graphs, self.units, output_secondary),
-    )
-
-
 def MakeGraphConfig(suite, arch, parent):
   """Factory method for making graph configuration objects."""
   if isinstance(parent, RunnableConfig):
@@ -600,10 +533,6 @@ def MakeGraphConfig(suite, arch, parent):
     else:
       # This graph has no subgraphs, it's a leaf.
       return RunnableTraceConfig(suite, parent, arch)
-  elif suite.get('generic'):
-    # This is a generic suite definition. It is either a runnable executable
-    # or has a main js file.
-    return RunnableGenericConfig(suite, parent, arch)
   elif suite.get('tests'):
     # This is neither a leaf nor a runnable.
     return GraphConfig(suite, parent, arch)
