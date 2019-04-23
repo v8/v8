@@ -7,10 +7,17 @@ from __future__ import print_function
 
 import json
 import os
+import platform
+import subprocess
 import sys
 import time
 
 from . import base
+
+
+# Base dir of the build products for Release and Debug.
+OUT_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..', '..', 'out'))
 
 
 def print_failure_header(test):
@@ -120,11 +127,26 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
     self._print('Done running %s %s: %s' % (
       test, test.variant or 'default', outcome))
 
+  # TODO(machenbach): Remove this platform specific hack and implement a proper
+  # feedback channel from the workers, providing which tests are currently run.
+  def _print_processes_linux(self):
+    if platform.system() == 'Linux':
+      try:
+        cmd = 'ps -aux | grep "%s"' % OUT_DIR
+        output = subprocess.check_output(cmd, shell=True)
+        self._print('List of processes:')
+        for line in (output or '').splitlines():
+          # Show only command with process info cut off.
+          self._print(line[line.index(OUT_DIR):])
+      except:
+        pass
+
   def _on_heartbeat(self):
     if time.time() - self._last_printed_time > 30:
       # Print something every 30 seconds to not get killed by an output
       # timeout.
       self._print('Still working...')
+      self._print_processes_linux()
 
 
 class DotsProgressIndicator(SimpleProgressIndicator):
