@@ -155,12 +155,11 @@ void Sweeper::StartSweeping() {
       heap_->mark_compact_collector()->non_atomic_marking_state();
   ForAllSweepingSpaces([this, marking_state](AllocationSpace space) {
     int space_index = GetSweepSpaceIndex(space);
-    std::sort(sweeping_list_[space_index].begin(),
-              sweeping_list_[space_index].end(),
-              [marking_state](Page* a, Page* b) {
-                return marking_state->live_bytes(a) <
-                       marking_state->live_bytes(b);
-              });
+    std::sort(
+        sweeping_list_[space_index].begin(), sweeping_list_[space_index].end(),
+        [marking_state](Page* a, Page* b) {
+          return marking_state->live_bytes(a) > marking_state->live_bytes(b);
+        });
   });
 }
 
@@ -503,8 +502,8 @@ Page* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
   int space_index = GetSweepSpaceIndex(space);
   Page* page = nullptr;
   if (!sweeping_list_[space_index].empty()) {
-    page = sweeping_list_[space_index].front();
-    sweeping_list_[space_index].pop_front();
+    page = sweeping_list_[space_index].back();
+    sweeping_list_[space_index].pop_back();
   }
   return page;
 }
