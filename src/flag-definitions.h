@@ -250,7 +250,6 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_public_fields, "harmony public instance fields in class literals") \
   V(harmony_static_fields, "harmony static fields in class literals")          \
   V(harmony_string_matchall, "harmony String.prototype.matchAll")              \
-  V(harmony_object_from_entries, "harmony Object.fromEntries()")               \
   V(harmony_await_optimization, "harmony await taking 1 tick")                 \
   V(harmony_private_fields, "harmony private fields in class literals")        \
   V(harmony_hashbang, "harmony hashbang syntax")                               \
