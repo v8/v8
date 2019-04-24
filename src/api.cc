@@ -10117,9 +10117,9 @@ int CpuProfile::GetSamplesCount() const {
   return reinterpret_cast<const i::CpuProfile*>(this)->samples_count();
 }
 
-CpuProfiler* CpuProfiler::New(Isolate* isolate, CpuProfilingNamingMode mode) {
+CpuProfiler* CpuProfiler::New(Isolate* isolate) {
   return reinterpret_cast<CpuProfiler*>(
-      new i::CpuProfiler(reinterpret_cast<i::Isolate*>(isolate), mode));
+      new i::CpuProfiler(reinterpret_cast<i::Isolate*>(isolate)));
 }
 
 void CpuProfiler::Dispose() { delete reinterpret_cast<i::CpuProfiler*>(this); }

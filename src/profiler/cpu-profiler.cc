@@ -310,16 +310,14 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(CpuProfilersManager, GetProfilersManager)
 
 }  // namespace
 
-CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilingNamingMode naming_mode)
-    : CpuProfiler(isolate, naming_mode, new CpuProfilesCollection(isolate),
-                  nullptr, nullptr) {}
+CpuProfiler::CpuProfiler(Isolate* isolate)
+    : CpuProfiler(isolate, new CpuProfilesCollection(isolate), nullptr,
+                  nullptr) {}
 
-CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilingNamingMode naming_mode,
-                         CpuProfilesCollection* test_profiles,
+CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilesCollection* test_profiles,
                          ProfileGenerator* test_generator,
                          ProfilerEventsProcessor* test_processor)
     : isolate_(isolate),
-      naming_mode_(naming_mode),
       sampling_interval_(base::TimeDelta::FromMicroseconds(
           FLAG_cpu_profiler_sampling_interval)),
       profiles_(test_profiles),
@@ -411,8 +409,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   if (profiler_listener_) {
     profiler_listener_->set_observer(processor_.get());
   } else {
-    profiler_listener_.reset(
-        new ProfilerListener(isolate_, processor_.get(), naming_mode_));
+    profiler_listener_.reset(new ProfilerListener(isolate_, processor_.get()));
   }
   logger->AddCodeEventListener(profiler_listener_.get());
   is_profiling_ = true;

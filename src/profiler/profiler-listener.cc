@@ -21,9 +21,8 @@ namespace v8 {
 namespace internal {
 
 ProfilerListener::ProfilerListener(Isolate* isolate,
-                                   CodeEventObserver* observer,
-                                   CpuProfilingNamingMode naming_mode)
-    : isolate_(isolate), observer_(observer), naming_mode_(naming_mode) {}
+                                   CodeEventObserver* observer)
+    : isolate_(isolate), observer_(observer) {}
 
 ProfilerListener::~ProfilerListener() = default;
 
@@ -164,7 +163,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 
           std::unique_ptr<CodeEntry> inline_entry =
               base::make_unique<CodeEntry>(
-                  tag, GetFunctionName(*pos_info.shared), resource_name,
+                  tag, GetName(pos_info.shared->DebugName()), resource_name,
                   start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
                   code->InstructionStart(), inline_is_shared_cross_origin);
           inline_entry->FillFunctionInfo(*pos_info.shared);
@@ -183,7 +182,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
     }
   }
   rec->entry =
-      new CodeEntry(tag, GetFunctionName(shared),
+      new CodeEntry(tag, GetName(shared->DebugName()),
                     GetName(InferScriptName(script_name, shared)), line, column,
                     std::move(line_table), abstract_code->InstructionStart(),
                     is_shared_cross_origin);
@@ -282,18 +281,6 @@ Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
   if (!info->script()->IsScript()) return name;
   Object source_url = Script::cast(info->script())->source_url();
   return source_url->IsName() ? Name::cast(source_url) : name;
-}
-
-const char* ProfilerListener::GetFunctionName(SharedFunctionInfo shared) {
-  DisallowHeapAllocation no_gc;
-  switch (naming_mode_) {
-    case kDebugNaming:
-      return GetName(shared.DebugName());
-    case kStandardNaming:
-      return GetName(shared.Name());
-    default:
-      UNREACHABLE();
-  }
 }
 
 void ProfilerListener::AttachDeoptInlinedFrames(Code code,

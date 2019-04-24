@@ -297,15 +297,6 @@ enum CpuProfilingMode {
   kCallerLineNumbers,
 };
 
-// Determines how names are derived for functions sampled.
-enum CpuProfilingNamingMode {
-  // Use the immediate name of functions at compilation time.
-  kStandardNaming,
-  // Use more verbose naming for functions without names, inferred from scope
-  // where possible.
-  kDebugNaming,
-};
-
 /**
  * Interface for controlling CPU profiling. Instance of the
  * profiler can be created using v8::CpuProfiler::New method.
@@ -317,8 +308,7 @@ class V8_EXPORT CpuProfiler {
    * initialized. The profiler object must be disposed after use by calling
    * |Dispose| method.
    */
-  static CpuProfiler* New(Isolate* isolate,
-                          CpuProfilingNamingMode = kDebugNaming);
+  static CpuProfiler* New(Isolate* isolate);
 
   /**
    * Synchronously collect current stack sample in all profilers attached to
