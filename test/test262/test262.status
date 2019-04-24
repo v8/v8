@@ -60,10 +60,12 @@
   'language/expressions/assignment/S11.13.1_A6*': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4709
+  'built-ins/Promise/all/resolve-element-function-name': [FAIL],
+  'built-ins/Promise/allSettled/reject-element-function-name': [FAIL],
+  'built-ins/Promise/allSettled/resolve-element-function-name': [FAIL],
+  'built-ins/Promise/executor-function-name': [FAIL],
   'built-ins/Promise/reject-function-name': [FAIL],
   'built-ins/Promise/resolve-function-name': [FAIL],
-  'built-ins/Promise/all/resolve-element-function-name': [FAIL],
-  'built-ins/Promise/executor-function-name': [FAIL],
   'built-ins/Proxy/revocable/revocation-function-name': [FAIL],
   'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
   'language/expressions/assignment/fn-name-lhs-member': [FAIL],
@@ -537,6 +539,11 @@
   'built-ins/Promise/all/capability-resolve-throws-reject': [FAIL],
   'built-ins/Promise/all/invoke-resolve-get-error-close': [FAIL],
   'built-ins/Promise/all/species-get-error': [FAIL],
+  'built-ins/Promise/allSettled/capability-executor-called-twice': [FAIL],
+  'built-ins/Promise/allSettled/capability-resolve-throws-no-close': [FAIL],
+  'built-ins/Promise/allSettled/capability-resolve-throws-reject': [FAIL],
+  'built-ins/Promise/allSettled/invoke-resolve-get-error-close': [FAIL],
+  'built-ins/Promise/allSettled/species-get-error': [FAIL],
   'built-ins/Promise/race/capability-executor-called-twice': [FAIL],
   'built-ins/Promise/race/invoke-resolve-get-error-close': [FAIL],
   'built-ins/Promise/race/species-get-error': [FAIL],
@@ -664,6 +671,10 @@
 ['asan == True', {
   # BUG(v8:4653): Test262 tests which rely on quit() are not compatible with
   # asan's --omit-quit flag.
+  'built-ins/Promise/allSettled/reject-deferred': [FAIL],
+  'built-ins/Promise/allSettled/reject-ignored-deferred': [FAIL],
+  'built-ins/Promise/allSettled/reject-ignored-immed': [FAIL],
+  'built-ins/Promise/allSettled/reject-immed': [FAIL],
   'built-ins/Promise/prototype/then/deferred-is-resolved-value': [SKIP],
   'language/expressions/dynamic-import/always-create-new-promise': [SKIP],
   'language/expressions/dynamic-import/assign-expr-get-value-abrupt-throws': [SKIP],

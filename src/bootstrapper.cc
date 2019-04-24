@@ -4361,7 +4361,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
 void Genesis::InitializeGlobal_harmony_promise_all_settled() {
   if (!FLAG_harmony_promise_all_settled) return;
   SimpleInstallFunction(isolate(), isolate()->promise_function(), "allSettled",
-                        Builtins::kPromiseAllSettled, 1, false);
+                        Builtins::kPromiseAllSettled, 1, true);
   Factory* factory = isolate()->factory();
   {
     Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(

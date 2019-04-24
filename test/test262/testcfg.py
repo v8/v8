@@ -60,6 +60,7 @@ FEATURE_FLAGS = {
   'Object.fromEntries': '--harmony-object-from-entries',
   'hashbang': '--harmony-hashbang',
   'BigInt': '--harmony-intl-bigint',
+  'Promise.allSettled': '--harmony-promise-all-settled',
 }
 
 SKIPPED_FEATURES = set(['class-methods-private',
