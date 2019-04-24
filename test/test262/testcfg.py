@@ -57,6 +57,7 @@ FEATURE_FLAGS = {
   'Symbol.prototype.description': '--harmony-symbol-description',
   'globalThis': '--harmony-global',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
+  'Object.fromEntries': '--harmony-object-from-entries',
   'hashbang': '--harmony-hashbang',
   'BigInt': '--harmony-intl-bigint',
 }

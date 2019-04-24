@@ -1474,8 +1474,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_object_keys(*object_keys);
     SimpleInstallFunction(isolate_, object_function, "entries",
                           Builtins::kObjectEntries, 1, true);
-    SimpleInstallFunction(isolate_, object_function, "fromEntries",
-                          Builtins::kObjectFromEntries, 1, false);
     SimpleInstallFunction(isolate_, object_function, "values",
                           Builtins::kObjectValues, 1, true);
 
@@ -4545,6 +4543,12 @@ void Genesis::InitializeGlobal_harmony_intl_segmenter() {
 }
 
 #endif  // V8_INTL_SUPPORT
+
+void Genesis::InitializeGlobal_harmony_object_from_entries() {
+  if (!FLAG_harmony_object_from_entries) return;
+  SimpleInstallFunction(isolate(), isolate()->object_function(), "fromEntries",
+                        Builtins::kObjectFromEntries, 1, false);
+}
 
 Handle<JSFunction> Genesis::CreateArrayBuffer(
     Handle<String> name, ArrayBufferKind array_buffer_kind) {
