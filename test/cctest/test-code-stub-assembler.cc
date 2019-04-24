@@ -367,7 +367,8 @@ TEST(ToString) {
   const int kNumParams = 1;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
-  m.Return(m.ToString(m.Parameter(kNumParams + 2), m.Parameter(0)));
+  m.Return(m.ToStringImpl(m.CAST(m.Parameter(kNumParams + 2)),
+                          m.CAST(m.Parameter(0))));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 

@@ -302,7 +302,8 @@ TF_BUILTIN(StringAdd_ConvertLeft, StringBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   // TODO(danno): The ToString and JSReceiverToPrimitive below could be
   // combined to avoid duplicate smi and instance type checks.
-  left = ToString(context, JSReceiverToPrimitive(context, left));
+  left =
+      ToStringImpl(CAST(context), CAST(JSReceiverToPrimitive(context, left)));
   TailCallBuiltin(Builtins::kStringAdd_CheckNone, context, left, right);
 }
 
@@ -312,7 +313,8 @@ TF_BUILTIN(StringAdd_ConvertRight, StringBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   // TODO(danno): The ToString and JSReceiverToPrimitive below could be
   // combined to avoid duplicate smi and instance type checks.
-  right = ToString(context, JSReceiverToPrimitive(context, right));
+  right =
+      ToStringImpl(CAST(context), CAST(JSReceiverToPrimitive(context, right)));
   TailCallBuiltin(Builtins::kStringAdd_CheckNone, context, left, right);
 }
 

@@ -202,7 +202,6 @@ namespace internal {
   TFC(ToNumberConvertBigInt, TypeConversion)                                   \
   TFC(ToNumeric, TypeConversion)                                               \
   TFC(NumberToString, TypeConversion)                                          \
-  TFC(ToString, TypeConversion)                                                \
   TFC(ToInteger, TypeConversion)                                               \
   TFC(ToInteger_TruncateMinusZero, TypeConversion)                             \
   TFC(ToLength, TypeConversion)                                                \

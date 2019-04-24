@@ -85,9 +85,8 @@ void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
          << "\n";
 
   header << "class ";
-  if (nspace->IsTestNamespace()) {
-    header << "V8_EXPORT_PRIVATE ";
-  }
+  // TODO(sigurds): Decide which assemblers we should export for testing.
+  header << "V8_EXPORT_PRIVATE ";
   header << nspace->ExternalName() << " {\n";
   header << " public:\n";
   header << "  explicit " << nspace->ExternalName()
