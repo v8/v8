@@ -125,7 +125,6 @@ void RecompileTorque(MessageWriter writer) {
   options.output_directory = "";
   options.verbose = false;
   options.collect_language_server_data = true;
-  options.abort_on_lint_errors = false;
 
   TorqueCompilerResult result = CompileTorque(TorqueFileList::Get(), options);
 

@@ -197,7 +197,7 @@ void CheckNotDeferredStatement(Statement* statement) {
   CurrentSourcePosition::Scope source_position(statement->pos);
   if (BlockStatement* block = BlockStatement::DynamicCast(statement)) {
     if (block->deferred) {
-      LintError(
+      ReportLintError(
           "cannot use deferred with a statement block here, it will have no "
           "effect");
     }

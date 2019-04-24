@@ -19,7 +19,6 @@ struct TorqueCompilerOptions {
   std::string output_directory;
   bool verbose;
   bool collect_language_server_data;
-  bool abort_on_lint_errors;
 };
 
 struct TorqueCompilerResult {
@@ -31,6 +30,10 @@ struct TorqueCompilerResult {
   // Eagerly collected data needed for the LanguageServer.
   // Set the corresponding options flag to enable.
   LanguageServerData language_server_data;
+
+  // Lint errors collected during compilation. These are
+  // mainly naming convention violations.
+  std::vector<LintError> lint_errors;
 
   // If any error occurred during either parsing or compilation,
   // this field will be set.

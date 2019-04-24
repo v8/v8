@@ -15,6 +15,8 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+DEFINE_CONTEXTUAL_VARIABLE(LintErrors)
+
 std::string StringLiteralUnquote(const std::string& s) {
   DCHECK(('"' == s.front() && '"' == s.back()) ||
          ('\'' == s.front() && '\'' == s.back()));
@@ -122,8 +124,6 @@ std::string CurrentPositionAsString() {
   return PositionAsString(CurrentSourcePosition::Get());
 }
 
-DEFINE_CONTEXTUAL_VARIABLE(LintErrorStatus)
-
 [[noreturn]] void ThrowTorqueError(const std::string& message,
                                    bool include_position) {
   TorqueError error(message);
@@ -131,9 +131,8 @@ DEFINE_CONTEXTUAL_VARIABLE(LintErrorStatus)
   throw error;
 }
 
-void LintError(const std::string& error) {
-  LintErrorStatus::SetLintError();
-  std::cerr << CurrentPositionAsString() << ": Lint error: " << error << "\n";
+void ReportLintError(const std::string& error) {
+  LintErrors::Get().push_back({error, CurrentSourcePosition::Get()});
 }
 
 void NamingConventionError(const std::string& type, const std::string& name,
@@ -141,7 +140,7 @@ void NamingConventionError(const std::string& type, const std::string& name,
   std::stringstream sstream;
   sstream << type << " \"" << name << "\" doesn't follow \"" << convention
           << "\" naming convention.";
-  LintError(sstream.str());
+  ReportLintError(sstream.str());
 }
 
 namespace {

@@ -28,18 +28,13 @@ std::string StringLiteralQuote(const std::string& s);
 V8_EXPORT_PRIVATE base::Optional<std::string> FileUriDecode(
     const std::string& s);
 
-class LintErrorStatus : public ContextualClass<LintErrorStatus> {
- public:
-  LintErrorStatus() : has_lint_errors_(false) {}
-
-  static bool HasLintErrors() { return Get().has_lint_errors_; }
-  static void SetLintError() { Get().has_lint_errors_ = true; }
-
- private:
-  bool has_lint_errors_;
+struct LintError {
+  std::string message;
+  SourcePosition position;
 };
+DECLARE_CONTEXTUAL_VARIABLE(LintErrors, std::vector<LintError>);
 
-void LintError(const std::string& error);
+void ReportLintError(const std::string& error);
 
 // Prints a LintError with the format "{type} '{name}' doesn't follow
 // '{convention}' naming convention".

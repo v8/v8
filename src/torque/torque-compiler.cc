@@ -83,14 +83,13 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
       implementation_visitor.GenerateImplementation(output_directory, n);
     }
   }
-
-  if (LintErrorStatus::HasLintErrors()) std::abort();
 }
 
 TorqueCompilerResult CollectResultFromContextuals() {
   TorqueCompilerResult result;
   result.source_file_map = SourceFileMap::Get();
   result.language_server_data = LanguageServerData::Get();
+  result.lint_errors = LintErrors::Get();
   return result;
 }
 
@@ -108,7 +107,7 @@ TorqueCompilerResult CompileTorque(const std::string& source,
   SourceFileMap::Scope source_map_scope;
   CurrentSourceFile::Scope no_file_scope(SourceFileMap::AddSource("<torque>"));
   CurrentAst::Scope ast_scope;
-  LintErrorStatus::Scope lint_error_status_scope;
+  LintErrors::Scope lint_errors_scope;
   LanguageServerData::Scope server_data_scope;
 
   try {
@@ -126,7 +125,7 @@ TorqueCompilerResult CompileTorque(std::vector<std::string> files,
   SourceFileMap::Scope source_map_scope;
   CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
   CurrentAst::Scope ast_scope;
-  LintErrorStatus::Scope lint_error_status_scope;
+  LintErrors::Scope lint_errors_scope;
   LanguageServerData::Scope server_data_scope;
 
   try {

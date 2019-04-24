@@ -18,7 +18,6 @@ struct TestCompiler {
 
   void Compile(const std::string& source) {
     TorqueCompilerOptions options;
-    options.abort_on_lint_errors = false;
     options.output_directory = "";
     options.verbose = false;
     options.collect_language_server_data = true;

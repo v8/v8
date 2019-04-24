@@ -33,19 +33,26 @@ int WrappedMain(int argc, const char** argv) {
   options.output_directory = output_directory;
   options.verbose = verbose;
   options.collect_language_server_data = false;
-  options.abort_on_lint_errors = true;
 
   TorqueCompilerResult result = CompileTorque(files, options);
-  if (result.error) {
-    // PositionAsString requires the SourceFileMap to be set to
-    // resolve the file name.
-    SourceFileMap::Scope source_file_map_scope(result.source_file_map);
 
+  // PositionAsString requires the SourceFileMap to be set to
+  // resolve the file name. Needed to report errors and lint warnings.
+  SourceFileMap::Scope source_file_map_scope(result.source_file_map);
+
+  if (result.error) {
     TorqueError& error = *result.error;
     if (error.position) std::cerr << PositionAsString(*error.position) << ": ";
     std::cerr << "Torque error: " << error.message << "\n";
     v8::base::OS::Abort();
   }
+
+  for (const LintError& error : result.lint_errors) {
+    std::cerr << PositionAsString(error.position)
+              << ": Lint error: " << error.message << "\n";
+  }
+
+  if (!result.lint_errors.empty()) v8::base::OS::Abort();
 
   return 0;
 }
