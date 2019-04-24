@@ -226,7 +226,7 @@ TEST(TickEvents) {
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
       CcTest::i_isolate(), generator,
       v8::base::TimeDelta::FromMicroseconds(100), true);
-  CpuProfiler profiler(isolate, profiles, generator, processor);
+  CpuProfiler profiler(isolate, kDebugNaming, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
   ProfilerListener profiler_listener(isolate, processor);
@@ -295,7 +295,7 @@ TEST(Issue1398) {
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
       CcTest::i_isolate(), generator,
       v8::base::TimeDelta::FromMicroseconds(100), true);
-  CpuProfiler profiler(isolate, profiles, generator, processor);
+  CpuProfiler profiler(isolate, kDebugNaming, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
   ProfilerListener profiler_listener(isolate, processor);
@@ -1153,7 +1153,7 @@ static void TickLines(bool optimize) {
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
       CcTest::i_isolate(), generator,
       v8::base::TimeDelta::FromMicroseconds(100), true);
-  CpuProfiler profiler(isolate, profiles, generator, processor);
+  CpuProfiler profiler(isolate, kDebugNaming, profiles, generator, processor);
   profiles->StartProfiling("", false);
   // TODO(delphick): Stop using the CpuProfiler internals here: This forces
   // LogCompiledFunctions so that source positions are collected everywhere.
@@ -2855,6 +2855,78 @@ TEST(LowPrecisionSamplingStartStopPublic) {
   cpu_profiler->StartProfiling(profile_name, true);
   cpu_profiler->StopProfiling(profile_name);
   cpu_profiler->Dispose();
+}
+
+const char* naming_test_source = R"(
+  (function testAssignmentPropertyNamedFunction() {
+    let object = {};
+    object.propNamed = function () {
+      CallCollectSample();
+    };
+    object.propNamed();
+  })();
+  )";
+
+TEST(StandardNaming) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(env.local()).ToLocalChecked();
+  func->SetName(v8_str("CallCollectSample"));
+  env->Global()->Set(env.local(), v8_str("CallCollectSample"), func).FromJust();
+
+  v8::CpuProfiler* profiler =
+      v8::CpuProfiler::New(env->GetIsolate(), kStandardNaming);
+
+  const auto profile_name = v8_str("");
+  profiler->StartProfiling(profile_name);
+  CompileRun(naming_test_source);
+  auto* profile = profiler->StopProfiling(profile_name);
+
+  auto* root = profile->GetTopDownRoot();
+  auto* toplevel = FindChild(root, "");
+  DCHECK(toplevel);
+
+  auto* prop_assignment_named_test =
+      GetChild(env.local(), toplevel, "testAssignmentPropertyNamedFunction");
+  CHECK(FindChild(prop_assignment_named_test, ""));
+
+  profiler->Dispose();
+}
+
+TEST(DebugNaming) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(env.local()).ToLocalChecked();
+  func->SetName(v8_str("CallCollectSample"));
+  env->Global()->Set(env.local(), v8_str("CallCollectSample"), func).FromJust();
+
+  v8::CpuProfiler* profiler =
+      v8::CpuProfiler::New(env->GetIsolate(), kDebugNaming);
+
+  const auto profile_name = v8_str("");
+  profiler->StartProfiling(profile_name);
+  CompileRun(naming_test_source);
+  auto* profile = profiler->StopProfiling(profile_name);
+
+  auto* root = profile->GetTopDownRoot();
+  auto* toplevel = FindChild(root, "");
+  DCHECK(toplevel);
+
+  auto* prop_assignment_named_test =
+      GetChild(env.local(), toplevel, "testAssignmentPropertyNamedFunction");
+  CHECK(FindChild(prop_assignment_named_test, "object.propNamed"));
+
+  profiler->Dispose();
 }
 
 enum class EntryCountMode { kAll, kOnlyInlined };
