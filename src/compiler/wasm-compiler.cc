@@ -2123,6 +2123,8 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
             graph()->NewNode(m->I32x4ExtractLane(3), value));
         break;
       case wasm::kWasmAnyRef:
+      case wasm::kWasmAnyFunc:
+      case wasm::kWasmExceptRef:
         STORE_FIXED_ARRAY_SLOT_ANY(values_array, index, value);
         ++index;
         break;
@@ -2255,6 +2257,8 @@ Node** WasmGraphBuilder::GetExceptionValues(
             BuildDecodeException32BitValue(values_array, &index));
         break;
       case wasm::kWasmAnyRef:
+      case wasm::kWasmAnyFunc:
+      case wasm::kWasmExceptRef:
         value = LOAD_FIXED_ARRAY_SLOT_ANY(values_array, index);
         ++index;
         break;

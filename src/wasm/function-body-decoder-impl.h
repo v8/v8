@@ -260,6 +260,9 @@ struct BlockTypeImmediate {
       case kLocalAnyRef:
         *result = kWasmAnyRef;
         return true;
+      case kLocalExceptRef:
+        *result = kWasmExceptRef;
+        return true;
       default:
         *result = kWasmVar;
         return false;

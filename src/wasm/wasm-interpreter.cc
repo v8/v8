@@ -2532,7 +2532,9 @@ class ThreadImpl {
           EncodeI32ExceptionValue(encoded_values, &encoded_index, s128.val[3]);
           break;
         }
-        case kWasmAnyRef: {
+        case kWasmAnyRef:
+        case kWasmAnyFunc:
+        case kWasmExceptRef: {
           Handle<Object> anyref = value.to_anyref();
           encoded_values->set(encoded_index++, *anyref);
           break;
@@ -2630,7 +2632,9 @@ class ThreadImpl {
           value = WasmValue(Simd128(s128));
           break;
         }
-        case kWasmAnyRef: {
+        case kWasmAnyRef:
+        case kWasmAnyFunc:
+        case kWasmExceptRef: {
           Handle<Object> anyref(encoded_values->get(encoded_index++), isolate_);
           value = WasmValue(anyref);
           break;

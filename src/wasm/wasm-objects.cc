@@ -1860,6 +1860,8 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
         encoded_size += 8;
         break;
       case wasm::kWasmAnyRef:
+      case wasm::kWasmAnyFunc:
+      case wasm::kWasmExceptRef:
         encoded_size += 1;
         break;
       default:
