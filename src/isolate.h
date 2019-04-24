@@ -393,6 +393,8 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(int, external_script_source_size, 0)                                       \
   /* true if being profiled. Causes collection of extra compile info. */       \
   V(bool, is_profiling, false)                                                 \
+  /* Number of CPU profilers running on the isolate. */                        \
+  V(size_t, num_cpu_profilers, 0)                                              \
   /* true if a trace is being formatted through Error.prepareStackTrace. */    \
   V(bool, formatting_stack_trace, false)                                       \
   /* Perform side effect checks on function call and API callbacks. */         \

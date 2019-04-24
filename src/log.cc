@@ -1079,6 +1079,12 @@ void Logger::LeaveExternal(Isolate* isolate) {
   isolate->set_current_vm_state(JS);
 }
 
+bool Logger::is_logging() {
+  // Disable logging while the CPU profiler is running.
+  if (isolate_->is_profiling()) return false;
+  return is_logging_;
+}
+
 // Instantiate template methods.
 #define V(TimerName, expose)                                           \
   template void TimerEventScope<TimerEvent##TimerName>::LogTimerEvent( \

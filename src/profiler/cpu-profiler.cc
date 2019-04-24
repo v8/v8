@@ -51,7 +51,8 @@ ProfilerEventsProcessor::ProfilerEventsProcessor(Isolate* isolate,
       running_(1),
       last_code_event_id_(0),
       last_processed_code_event_id_(0),
-      isolate_(isolate) {}
+      isolate_(isolate),
+      profiling_scope_(isolate) {}
 
 SamplingEventsProcessor::SamplingEventsProcessor(Isolate* isolate,
                                                  ProfileGenerator* generator,
@@ -396,9 +397,6 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   }
   isolate_->wasm_engine()->EnableCodeLogging(isolate_);
   Logger* logger = isolate_->logger();
-  // Disable logging when using the new implementation.
-  saved_is_logging_ = logger->is_logging();
-  logger->set_is_logging(false);
 
   bool codemap_needs_initialization = false;
   if (!generator_) {
@@ -416,7 +414,6 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   }
   logger->AddCodeEventListener(profiler_listener_.get());
   is_profiling_ = true;
-  isolate_->set_is_profiling(true);
   // Enumerate stuff we already have in the heap.
   DCHECK(isolate_->heap()->HasBeenSetUp());
   if (codemap_needs_initialization) {
@@ -450,11 +447,9 @@ void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
 void CpuProfiler::StopProcessor() {
   Logger* logger = isolate_->logger();
   is_profiling_ = false;
-  isolate_->set_is_profiling(false);
   logger->RemoveCodeEventListener(profiler_listener_.get());
   processor_->StopSynchronously();
   processor_.reset();
-  logger->set_is_logging(saved_is_logging_);
 }
 
 

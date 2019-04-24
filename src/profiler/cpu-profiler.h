@@ -129,6 +129,27 @@ class CodeEventsContainer {
   };
 };
 
+// Maintains the number of active CPU profilers in an isolate.
+class ProfilingScope {
+ public:
+  explicit ProfilingScope(Isolate* isolate) : isolate_(isolate) {
+    size_t profiler_count = isolate_->num_cpu_profilers();
+    profiler_count++;
+    isolate_->set_num_cpu_profilers(profiler_count);
+    isolate_->set_is_profiling(true);
+  }
+
+  ~ProfilingScope() {
+    size_t profiler_count = isolate_->num_cpu_profilers();
+    DCHECK_GT(profiler_count, 0);
+    profiler_count--;
+    isolate_->set_num_cpu_profilers(profiler_count);
+    if (profiler_count == 0) isolate_->set_is_profiling(false);
+  }
+
+ private:
+  Isolate* const isolate_;
+};
 
 // This class implements both the profile events processor thread and
 // methods called by event producers: VM and stack sampler threads.
@@ -173,6 +194,7 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
   std::atomic<unsigned> last_code_event_id_;
   unsigned last_processed_code_event_id_;
   Isolate* isolate_;
+  ProfilingScope profiling_scope_;
 };
 
 class V8_EXPORT_PRIVATE SamplingEventsProcessor
@@ -268,7 +290,6 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   std::unique_ptr<ProfileGenerator> generator_;
   std::unique_ptr<ProfilerEventsProcessor> processor_;
   std::unique_ptr<ProfilerListener> profiler_listener_;
-  bool saved_is_logging_;
   bool is_profiling_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfiler);

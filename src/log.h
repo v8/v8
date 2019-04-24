@@ -247,12 +247,7 @@ class Logger : public CodeEventListener {
   V8_INLINE static void CallEventLogger(Isolate* isolate, const char* name,
                                         StartEnd se, bool expose_to_api);
 
-  bool is_logging() {
-    return is_logging_;
-  }
-
-  // Used by CpuProfiler. TODO(petermarshall): Untangle
-  void set_is_logging(bool new_value) { is_logging_ = new_value; }
+  V8_EXPORT_PRIVATE bool is_logging();
 
   bool is_listening_to_code_events() override {
     return is_logging() || jit_logger_ != nullptr;
