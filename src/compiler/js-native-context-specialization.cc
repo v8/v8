@@ -2661,7 +2661,7 @@ JSNativeContextSpecialization::BuildElementAccess(
       // below are performed on unsigned values, which means that all the
       // Negative32 values are treated as out-of-bounds.
       index = graph()->NewNode(simplified()->NumberToUint32(), index);
-    } else if (access_mode != AccessMode::kHas) {
+    } else {
       // Check that the {index} is in the valid range for the {receiver}.
       index = effect =
           graph()->NewNode(simplified()->CheckBounds(VectorSlotPair()), index,
