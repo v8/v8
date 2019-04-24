@@ -19,4 +19,16 @@ namespace proxy {
         Cast<JSReceiver>(proxy.handler) otherwise return true;
     return false;
   }
+
+  const kProxyNonObject: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyNonObject';
+  const kProxyHandlerOrTargetRevoked: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyHandlerOrTargetRevoked';
+  const kProxyRevoked: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyRevoked';
+
+  const kProxyGet: constexpr int31
+  generates 'JSProxy::AccessKind::kGet';
+  const kProxySet: constexpr int31
+  generates 'JSProxy::AccessKind::kSet';
 }

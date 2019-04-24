@@ -870,7 +870,6 @@ namespace internal {
   TFJ(PromiseInternalResolve, 2, kReceiver, kPromise, kResolution)             \
                                                                                \
   /* Proxy */                                                                  \
-  TFS(ProxyGetProperty, kProxy, kName, kReceiverValue, kOnNonExistent)         \
   TFS(ProxyHasProperty, kProxy, kName)                                         \
   TFS(ProxySetProperty, kProxy, kName, kValue, kReceiverValue)                 \
                                                                                \

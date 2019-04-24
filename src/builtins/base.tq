@@ -810,14 +810,12 @@ const kTypedArrayTooShort: constexpr MessageTemplate
     generates 'MessageTemplate::kTypedArrayTooShort';
 const kInvalidCountValue: constexpr MessageTemplate
     generates 'MessageTemplate::kInvalidCountValue';
-const kProxyNonObject: constexpr MessageTemplate
-    generates 'MessageTemplate::kProxyNonObject';
-const kProxyHandlerOrTargetRevoked: constexpr MessageTemplate
-    generates 'MessageTemplate::kProxyHandlerOrTargetRevoked';
 const kConstructorNotFunction: constexpr MessageTemplate
     generates 'MessageTemplate::kConstructorNotFunction';
 const kSymbolToString: constexpr MessageTemplate
     generates 'MessageTemplate::kSymbolToString';
+const kPropertyNotFunction: constexpr MessageTemplate
+    generates 'MessageTemplate::kPropertyNotFunction';
 
 const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
@@ -2355,6 +2353,8 @@ extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;
 extern macro IsHeapNumber(HeapObject): bool;
 extern macro IsFixedArray(HeapObject): bool;
+extern macro IsName(HeapObject): bool;
+extern macro IsPrivateSymbol(HeapObject): bool;
 extern macro IsNumber(Object): bool;
 extern macro IsNumberNormalized(Number): bool;
 extern macro IsOddball(HeapObject): bool;
@@ -2423,6 +2423,14 @@ transitioning macro GetLengthProperty(implicit context: Context)(o: Object):
   label ToLength(length: Object) deferred {
     return ToLength_Inline(context, length);
   }
+}
+
+transitioning macro GetMethod(implicit context: Context)(
+    o: Object, name: constexpr string): Callable labels IfNullOrUndefined {
+  const value = GetProperty(o, name);
+  if (value == Undefined || value == Null) goto IfNullOrUndefined;
+  return Cast<Callable>(value)
+      otherwise ThrowTypeError(kPropertyNotFunction, value, name, o);
 }
 
 extern macro NumberToString(Number): String;

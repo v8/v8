@@ -338,68 +338,6 @@ TF_BUILTIN(ProxyHasProperty, ProxiesCodeStubAssembler) {
                  StringConstant("has"), proxy);
 }
 
-TF_BUILTIN(ProxyGetProperty, ProxiesCodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* proxy = Parameter(Descriptor::kProxy);
-  Node* name = Parameter(Descriptor::kName);
-  Node* receiver = Parameter(Descriptor::kReceiverValue);
-  Node* on_non_existent = Parameter(Descriptor::kOnNonExistent);
-
-  CSA_ASSERT(this, IsJSProxy(proxy));
-
-  // 1. Assert: IsPropertyKey(P) is true.
-  CSA_ASSERT(this, TaggedIsNotSmi(name));
-  CSA_ASSERT(this, IsName(name));
-  CSA_ASSERT(this, Word32Equal(IsPrivateSymbol(name), Int32Constant(0)));
-
-  Label throw_proxy_handler_revoked(this, Label::kDeferred),
-      trap_undefined(this);
-
-  // 2. Let handler be O.[[ProxyHandler]].
-  Node* handler = LoadObjectField(proxy, JSProxy::kHandlerOffset);
-
-  // 3. If handler is null, throw a TypeError exception.
-  GotoIf(IsNull(handler), &throw_proxy_handler_revoked);
-
-  // 4. Assert: Type(handler) is Object.
-  CSA_ASSERT(this, IsJSReceiver(handler));
-
-  // 5. Let target be O.[[ProxyTarget]].
-  Node* target = LoadObjectField(proxy, JSProxy::kTargetOffset);
-
-  // 6. Let trap be ? GetMethod(handler, "get").
-  // 7. If trap is undefined, then (see 7.a below).
-  Handle<Name> trap_name = factory()->get_string();
-  Node* trap = GetMethod(context, handler, trap_name, &trap_undefined);
-
-  // 8. Let trapResult be ? Call(trap, handler, « target, P, Receiver »).
-  Node* trap_result = CallJS(
-      CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-      context, trap, handler, target, name, receiver);
-
-  // 9. Let targetDesc be ? target.[[GetOwnProperty]](P).
-  Label return_result(this);
-  CheckGetSetTrapResult(context, target, proxy, name, trap_result,
-                        &return_result, JSProxy::kGet);
-
-  BIND(&return_result);
-  {
-    // 11. Return trapResult.
-    Return(trap_result);
-  }
-
-  BIND(&trap_undefined);
-  {
-    // 7.a. Return ? target.[[Get]](P, Receiver).
-    // TODO(mslekova): Introduce GetPropertyWithReceiver stub
-    Return(CallRuntime(Runtime::kGetPropertyWithReceiver, context, target, name,
-                       receiver, on_non_existent));
-  }
-
-  BIND(&throw_proxy_handler_revoked);
-  ThrowTypeError(context, MessageTemplate::kProxyRevoked, "get");
-}
-
 TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* proxy = Parameter(Descriptor::kProxy);
@@ -450,8 +388,8 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   {
     // 9. Let targetDesc be ? target.[[GetOwnProperty]](P).
     Label return_result(this);
-    CheckGetSetTrapResult(context, target, proxy, name, value, &success,
-                          JSProxy::kSet);
+    Return(CheckGetSetTrapResult(context, target, proxy, name, value,
+                                 JSProxy::kSet));
   }
 
   BIND(&failure);
@@ -487,21 +425,22 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   ThrowTypeError(context, MessageTemplate::kProxyRevoked, "set");
 }
 
-void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
+Node* ProxiesCodeStubAssembler::CheckGetSetTrapResult(
     Node* context, Node* target, Node* proxy, Node* name, Node* trap_result,
-    Label* check_passed, JSProxy::AccessKind access_kind) {
+    JSProxy::AccessKind access_kind) {
   Node* map = LoadMap(target);
   VARIABLE(var_value, MachineRepresentation::kTagged);
   VARIABLE(var_details, MachineRepresentation::kWord32);
   VARIABLE(var_raw_value, MachineRepresentation::kTagged);
 
-  Label if_found_value(this), check_in_runtime(this, Label::kDeferred);
+  Label if_found_value(this), check_in_runtime(this, Label::kDeferred),
+      check_passed(this);
 
   GotoIfNot(IsUniqueNameNoIndex(CAST(name)), &check_in_runtime);
   Node* instance_type = LoadInstanceType(target);
   TryGetOwnProperty(context, target, target, map, instance_type, name,
                     &if_found_value, &var_value, &var_details, &var_raw_value,
-                    check_passed, &check_in_runtime, kReturnAccessorPair);
+                    &check_passed, &check_in_runtime, kReturnAccessorPair);
 
   BIND(&if_found_value);
   {
@@ -513,7 +452,7 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
     // false, then:
     GotoIfNot(IsSetWord32(var_details.value(),
                           PropertyDetails::kAttributesDontDeleteMask),
-              check_passed);
+              &check_passed);
 
     // If IsDataDescriptor(targetDesc) is true and
     // targetDesc.[[Writable]] is false, then:
@@ -523,11 +462,11 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
     {
       Node* read_only = IsSetWord32(var_details.value(),
                                     PropertyDetails::kAttributesReadOnlyMask);
-      GotoIfNot(read_only, check_passed);
+      GotoIfNot(read_only, &check_passed);
 
       // If SameValue(trapResult, targetDesc.[[Value]]) is false,
       // throw a TypeError exception.
-      BranchIfSameValue(trap_result, var_value.value(), check_passed,
+      BranchIfSameValue(trap_result, var_value.value(), &check_passed,
                         &throw_non_configurable_data);
     }
 
@@ -545,7 +484,7 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
         // defined it's set as null.
         GotoIf(IsUndefined(getter), &continue_check);
         GotoIf(IsNull(getter), &continue_check);
-        Goto(check_passed);
+        Goto(&check_passed);
 
         // 10.b.i. If trapResult is not undefined, throw a TypeError exception.
         BIND(&continue_check);
@@ -558,14 +497,7 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
         GotoIf(IsUndefined(setter), &throw_non_configurable_accessor);
         GotoIf(IsNull(setter), &throw_non_configurable_accessor);
       }
-      Goto(check_passed);
-    }
-
-    BIND(&check_in_runtime);
-    {
-      CallRuntime(Runtime::kCheckProxyGetSetTrapResult, context, name, target,
-                  trap_result, SmiConstant(access_kind));
-      Return(trap_result);
+      Goto(&check_passed);
     }
 
     BIND(&throw_non_configurable_data);
@@ -588,6 +520,16 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
         ThrowTypeError(context, MessageTemplate::kProxySetFrozenAccessor, name);
       }
     }
+
+    BIND(&check_in_runtime);
+    {
+      CallRuntime(Runtime::kCheckProxyGetSetTrapResult, context, name, target,
+                  trap_result, SmiConstant(access_kind));
+      Goto(&check_passed);
+    }
+
+    BIND(&check_passed);
+    return trap_result;
   }
 }
 

@@ -580,12 +580,16 @@ void CSAGenerator::EmitInstruction(const CallRuntimeInstruction& instruction,
         PreCallableExceptionPreparation(instruction.catch_block);
     Stack<std::string> pre_call_stack = *stack;
     if (result_types.size() == 1) {
+      std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
       stack->Push(result_name);
-      out_ << "    " << result_name
-           << " = TORQUE_CAST(CodeStubAssembler(state_).CallRuntime(Runtime::k"
+      out_ << "    " << result_name << " = ";
+      if (generated_type != "Object") out_ << "TORQUE_CAST(";
+      out_ << "CodeStubAssembler(state_).CallRuntime(Runtime::k"
            << instruction.runtime_function->ExternalName() << ", ";
       PrintCommaSeparatedList(out_, arguments);
-      out_ << "));\n";
+      out_ << ")";
+      if (generated_type != "Object") out_ << ")";
+      out_ << "; \n";
       out_ << "    USE(" << result_name << ");\n";
     } else {
       DCHECK_EQ(0, result_types.size());

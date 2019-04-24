@@ -35,6 +35,10 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
   // TODO(v8:9120): Remove this once torque support exists
   Node* GetProxyConstructorJSNewTarget();
 
+  Node* CheckGetSetTrapResult(Node* context, Node* target, Node* proxy,
+                              Node* name, Node* trap_result,
+                              JSProxy::AccessKind access_kind);
+
  protected:
   enum ProxyRevokeFunctionContextSlot {
     kProxySlot = Context::MIN_CONTEXT_SLOTS,
@@ -46,10 +50,6 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
                                             ParameterMode mode);
   void CheckHasTrapResult(Node* context, Node* target, Node* proxy, Node* name,
                           Label* check_passed, Label* if_bailout);
-
-  void CheckGetSetTrapResult(Node* context, Node* target, Node* proxy,
-                             Node* name, Node* trap_result, Label* if_not_found,
-                             JSProxy::AccessKind access_kind);
 
  private:
   Node* CreateProxyRevokeFunctionContext(Node* proxy, Node* native_context);
