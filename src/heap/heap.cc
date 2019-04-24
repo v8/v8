@@ -5918,20 +5918,35 @@ void Heap::MarkingBarrierForDescriptorArraySlow(Heap* heap, HeapObject host,
 }
 
 bool Heap::PageFlagsAreConsistent(HeapObject object) {
-  Heap* heap = Heap::FromWritableHeapObject(object);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   heap_internals::MemoryChunk* slim_chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
 
-  const bool generation_consistency =
-      chunk->owner()->identity() != NEW_SPACE ||
-      (chunk->InYoungGeneration() && slim_chunk->InYoungGeneration());
-  const bool marking_consistency =
-      !heap->incremental_marking()->IsMarking() ||
-      (chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING) &&
-       slim_chunk->IsMarking());
+  // Slim chunk flags consistency.
+  CHECK_EQ(chunk->InYoungGeneration(), slim_chunk->InYoungGeneration());
+  CHECK_EQ(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING),
+           slim_chunk->IsMarking());
 
-  return generation_consistency && marking_consistency;
+  Space* chunk_owner = chunk->owner();
+  AllocationSpace identity = chunk_owner->identity();
+
+  // Generation consistency.
+  CHECK_EQ(identity == NEW_SPACE || identity == NEW_LO_SPACE,
+           slim_chunk->InYoungGeneration());
+
+  // Marking consistency.
+  if (identity != RO_SPACE ||
+      static_cast<ReadOnlySpace*>(chunk->owner())->writable()) {
+    // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
+    // find a heap. The exception is when the ReadOnlySpace is writeable, during
+    // bootstrapping, so explicitly allow this case.
+    Heap* heap = Heap::FromWritableHeapObject(object);
+    CHECK_EQ(slim_chunk->IsMarking(), heap->incremental_marking()->IsMarking());
+  } else {
+    // Non-writable RO_SPACE must never have marking flag set.
+    CHECK(!slim_chunk->IsMarking());
+  }
+  return true;
 }
 
 static_assert(MemoryChunk::Flag::INCREMENTAL_MARKING ==
