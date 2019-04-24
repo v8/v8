@@ -693,6 +693,10 @@ class BaseTestRunner(object):
     }
 
   def _create_test_config(self, options):
+    # TODO(machenbach): Remove temporary hard-coded timeout when infra side is
+    # removed.
+    if options.buildbot:
+      options.timeout = 200
     timeout = options.timeout * self._timeout_scalefactor(options)
     return TestConfig(
         command_prefix=options.command_prefix,
