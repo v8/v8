@@ -193,6 +193,12 @@ class WasmCodeManagerTest : public TestWithContext,
   void SetMaxCommittedMemory(size_t limit) {
     manager()->SetMaxCommittedMemoryForTesting(limit);
   }
+
+  void DisableWin64UnwindInfoForTesting() {
+#if defined(V8_OS_WIN_X64)
+    manager()->DisableWin64UnwindInfoForTesting();
+#endif
+  }
 };
 
 // static
@@ -212,6 +218,8 @@ TEST_P(WasmCodeManagerTest, EmptyCase) {
 
 TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
   SetMaxCommittedMemory(page_size);
+  DisableWin64UnwindInfoForTesting();
+
   CHECK_EQ(0, manager()->committed_code_space());
   NativeModulePtr native_module = AllocModule(page_size, GetParam());
   CHECK(native_module);
@@ -241,6 +249,8 @@ TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
 
 TEST_P(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
   SetMaxCommittedMemory(3 * page_size);
+  DisableWin64UnwindInfoForTesting();
+
   NativeModulePtr nm1 = AllocModule(2 * page_size, GetParam());
   NativeModulePtr nm2 = AllocModule(2 * page_size, GetParam());
   CHECK(nm1);
@@ -255,6 +265,8 @@ TEST_P(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
 
 TEST_P(WasmCodeManagerTest, GrowingVsFixedModule) {
   SetMaxCommittedMemory(3 * page_size);
+  DisableWin64UnwindInfoForTesting();
+
   NativeModulePtr nm = AllocModule(page_size, GetParam());
   size_t module_size = GetParam() == Fixed ? kMaxWasmCodeMemory : page_size;
   size_t remaining_space_in_module = module_size - kJumpTableSize;
@@ -275,6 +287,8 @@ TEST_P(WasmCodeManagerTest, GrowingVsFixedModule) {
 
 TEST_P(WasmCodeManagerTest, CommitIncrements) {
   SetMaxCommittedMemory(10 * page_size);
+  DisableWin64UnwindInfoForTesting();
+
   NativeModulePtr nm = AllocModule(3 * page_size, GetParam());
   WasmCodeRefScope code_ref_scope;
   WasmCode* code = AddCode(nm.get(), 0, kCodeAlignment);
@@ -290,6 +304,7 @@ TEST_P(WasmCodeManagerTest, CommitIncrements) {
 
 TEST_P(WasmCodeManagerTest, Lookup) {
   SetMaxCommittedMemory(2 * page_size);
+  DisableWin64UnwindInfoForTesting();
 
   NativeModulePtr nm1 = AllocModule(page_size, GetParam());
   NativeModulePtr nm2 = AllocModule(page_size, GetParam());
@@ -335,6 +350,7 @@ TEST_P(WasmCodeManagerTest, Lookup) {
 
 TEST_P(WasmCodeManagerTest, LookupWorksAfterRewrite) {
   SetMaxCommittedMemory(2 * page_size);
+  DisableWin64UnwindInfoForTesting();
 
   NativeModulePtr nm1 = AllocModule(page_size, GetParam());
 
