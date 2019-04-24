@@ -2536,26 +2536,26 @@ transitioning macro ToStringImpl(context: Context, o: Object): String {
   let result: Object = o;
   while (true) {
     typeswitch (result) {
-      case (str: String): {
-        return str;
-      }
       case (num: Number): {
         return NumberToString(num);
+      }
+      case (str: String): {
+        return str;
       }
       case (oddball: Oddball): {
         return oddball.to_string;
       }
-      case (Symbol): {
-        ThrowTypeError(kSymbolToString);
-      }
       case (JSReceiver): {
         result = NonPrimitiveToPrimitive_String(context, result);
         continue;
+      }
+      case (Symbol): {
+        ThrowTypeError(kSymbolToString);
       }
       case (Object): {
         return ToStringRT(context, o);
       }
     }
   }
-  return ToStringRT(context, o);
+  unreachable;
 }
