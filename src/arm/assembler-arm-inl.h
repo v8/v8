@@ -63,7 +63,7 @@ void RelocInfo::apply(intptr_t delta) {
     *p += delta;  // relocate entry
   } else if (RelocInfo::IsRelativeCodeTarget(rmode_)) {
     Instruction* branch = Instruction::At(pc_);
-    int32_t branch_offset = branch->GetBranchOffset() + delta;
+    int32_t branch_offset = branch->GetBranchOffset() - delta;
     branch->SetBranchOffset(branch_offset);
   }
 }
