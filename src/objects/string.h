@@ -507,7 +507,7 @@ class SeqOneByteString : public SeqString {
   static const bool kHasOneByteEncoding = true;
 
   // Dispatched behavior.
-  inline uint16_t SeqOneByteStringGet(int index);
+  inline uint8_t Get(int index);
   inline void SeqOneByteStringSet(int index, uint16_t value);
 
   // Get the address of the characters in this string.
@@ -548,7 +548,7 @@ class SeqTwoByteString : public SeqString {
   static const bool kHasOneByteEncoding = false;
 
   // Dispatched behavior.
-  inline uint16_t SeqTwoByteStringGet(int index);
+  inline uint16_t Get(int index);
   inline void SeqTwoByteStringSet(int index, uint16_t value);
 
   // Get the address of the characters in this string.
@@ -610,7 +610,7 @@ class ConsString : public String {
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
-  V8_EXPORT_PRIVATE uint16_t ConsStringGet(int index);
+  V8_EXPORT_PRIVATE uint16_t Get(int index);
 
   DECL_CAST(ConsString)
 
@@ -642,7 +642,7 @@ class ThinString : public String {
   inline void set_actual(String s,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  V8_EXPORT_PRIVATE uint16_t ThinStringGet(int index);
+  V8_EXPORT_PRIVATE uint16_t Get(int index);
 
   DECL_CAST(ThinString)
   DECL_VERIFIER(ThinString)
@@ -676,7 +676,7 @@ class SlicedString : public String {
   inline void set_offset(int offset);
 
   // Dispatched behavior.
-  V8_EXPORT_PRIVATE uint16_t SlicedStringGet(int index);
+  V8_EXPORT_PRIVATE uint16_t Get(int index);
 
   DECL_CAST(SlicedString)
 
@@ -758,7 +758,7 @@ class ExternalOneByteString : public ExternalString {
   inline const uint8_t* GetChars();
 
   // Dispatched behavior.
-  inline uint16_t ExternalOneByteStringGet(int index);
+  inline uint8_t Get(int index);
 
   DECL_CAST(ExternalOneByteString)
 
@@ -793,7 +793,7 @@ class ExternalTwoByteString : public ExternalString {
   inline const uint16_t* GetChars();
 
   // Dispatched behavior.
-  inline uint16_t ExternalTwoByteStringGet(int index);
+  inline uint16_t Get(int index);
 
   // For regexp code.
   inline const uint16_t* ExternalTwoByteStringGetData(unsigned start);
@@ -893,6 +893,21 @@ class StringCharacterStream {
   };
   const uint8_t* end_;
   DISALLOW_COPY_AND_ASSIGN(StringCharacterStream);
+};
+
+template <typename Char>
+struct CharTraits;
+
+template <>
+struct CharTraits<uint8_t> {
+  using String = SeqOneByteString;
+  using ExternalString = ExternalOneByteString;
+};
+
+template <>
+struct CharTraits<uint16_t> {
+  using String = SeqTwoByteString;
+  using ExternalString = ExternalTwoByteString;
 };
 
 }  // namespace internal

@@ -134,28 +134,57 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
   return true;
 }
 
-template <bool seq_one_byte>
-JsonParser<seq_one_byte>::JsonParser(Isolate* isolate, Handle<String> source)
-    : source_(source),
-      source_length_(source->length()),
-      isolate_(isolate),
+template <typename Char>
+JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
+    : isolate_(isolate),
       zone_(isolate_->allocator(), ZONE_NAME),
-      object_constructor_(isolate_->native_context()->object_function(),
-                          isolate_),
+      object_constructor_(isolate_->object_function()),
+      offset_(0),
+      length_(source->length()),
       position_(-1),
       properties_(&zone_) {
-  source_ = String::Flatten(isolate, source_);
-  allocation_ = (source_length_ >= kPretenureTreshold) ? AllocationType::kOld
-                                                       : AllocationType::kYoung;
+  if (source->IsSlicedString()) {
+    SlicedString string = SlicedString::cast(*source);
+    offset_ = string.offset();
+    length_ += offset_;
+    position_ += offset_;
+    String parent = string.parent();
+    if (parent.IsThinString()) parent = ThinString::cast(parent).actual();
+    source_ = handle(parent, isolate);
+  } else {
+    source_ = String::Flatten(isolate, source);
+  }
 
-  // Optimized fast case where we only have Latin1 characters.
-  if (seq_one_byte) {
-    seq_source_ = Handle<SeqOneByteString>::cast(source_);
+  if (StringShape(*source_).IsExternal()) {
+    chars_ =
+        static_cast<const Char*>(SeqExternalString::cast(*source_)->GetChars());
+  } else {
+    DisallowHeapAllocation no_gc;
+    isolate->heap()->AddGCEpilogueCallback(UpdatePointersCallback,
+                                           v8::kGCTypeAll, this);
+    chars_ = SeqString::cast(*source_)->GetChars(no_gc);
+  }
+  allocation_ = (source->length() >= kPretenureTreshold)
+                    ? AllocationType::kOld
+                    : AllocationType::kYoung;
+}
+
+template <typename Char>
+JsonParser<Char>::~JsonParser() {
+  if (StringShape(*source_).IsExternal()) {
+    // Check that the string shape hasn't changed. Otherwise our GC hooks are
+    // broken.
+    SeqExternalString::cast(*source_);
+  } else {
+    // Check that the string shape hasn't changed. Otherwise our GC hooks are
+    // broken.
+    SeqString::cast(*source_);
+    isolate()->heap()->RemoveGCEpilogueCallback(UpdatePointersCallback, this);
   }
 }
 
-template <bool seq_one_byte>
-MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
+template <typename Char>
+MaybeHandle<Object> JsonParser<Char>::ParseJson() {
   // Advance to the first character (possibly EOS)
   AdvanceSkipWhitespace();
   Handle<Object> result = ParseJsonValue();
@@ -213,40 +242,38 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
 MaybeHandle<Object> InternalizeJsonProperty(Handle<JSObject> holder,
                                             Handle<String> key);
 
-template <bool seq_one_byte>
-void JsonParser<seq_one_byte>::Advance() {
+template <typename Char>
+void JsonParser<Char>::Advance() {
   position_++;
-  if (position_ >= source_length_) {
+  if (position_ >= length_) {
     c0_ = kEndOfString;
-  } else if (seq_one_byte) {
-    c0_ = seq_source_->SeqOneByteStringGet(position_);
   } else {
-    c0_ = source_->Get(position_);
+    c0_ = chars_[position_];
   }
 }
 
-template <bool seq_one_byte>
-void JsonParser<seq_one_byte>::AdvanceSkipWhitespace() {
+template <typename Char>
+void JsonParser<Char>::AdvanceSkipWhitespace() {
   do {
     Advance();
   } while (c0_ == ' ' || c0_ == '\t' || c0_ == '\n' || c0_ == '\r');
 }
 
-template <bool seq_one_byte>
-void JsonParser<seq_one_byte>::SkipWhitespace() {
+template <typename Char>
+void JsonParser<Char>::SkipWhitespace() {
   while (c0_ == ' ' || c0_ == '\t' || c0_ == '\n' || c0_ == '\r') {
     Advance();
   }
 }
 
-template <bool seq_one_byte>
-uc32 JsonParser<seq_one_byte>::AdvanceGetChar() {
+template <typename Char>
+uc32 JsonParser<Char>::AdvanceGetChar() {
   Advance();
   return c0_;
 }
 
-template <bool seq_one_byte>
-bool JsonParser<seq_one_byte>::MatchSkipWhiteSpace(uc32 c) {
+template <typename Char>
+bool JsonParser<Char>::MatchSkipWhiteSpace(uc32 c) {
   if (c0_ == c) {
     AdvanceSkipWhitespace();
     return true;
@@ -254,18 +281,32 @@ bool JsonParser<seq_one_byte>::MatchSkipWhiteSpace(uc32 c) {
   return false;
 }
 
-template <bool seq_one_byte>
-bool JsonParser<seq_one_byte>::ParseJsonString(Handle<String> expected) {
+template <typename Char>
+bool JsonParser<Char>::ParseJsonString(Handle<String> expected) {
   int length = expected->length();
   if (source_->length() - position_ - 1 > length) {
     DisallowHeapAllocation no_gc;
     String::FlatContent content = expected->GetFlatContent(no_gc);
+    DCHECK_EQ('"', c0_);
     if (content.IsOneByte()) {
-      DCHECK_EQ('"', c0_);
-      const uint8_t* input_chars = seq_source_->GetChars(no_gc) + position_ + 1;
+      const Char* input_chars = chars_ + position_ + 1;
       const uint8_t* expected_chars = content.ToOneByteVector().start();
       for (int i = 0; i < length; i++) {
-        uint8_t c0 = input_chars[i];
+        Char c0 = input_chars[i];
+        if (c0 != expected_chars[i] || c0 == '"' || c0 < 0x20 || c0 == '\\') {
+          return false;
+        }
+      }
+      if (input_chars[length] == '"') {
+        position_ = position_ + length + 1;
+        AdvanceSkipWhitespace();
+        return true;
+      }
+    } else {
+      const Char* input_chars = chars_ + position_ + 1;
+      const uint16_t* expected_chars = content.ToUC16Vector().start();
+      for (int i = 0; i < length; i++) {
+        Char c0 = input_chars[i];
         if (c0 != expected_chars[i] || c0 == '"' || c0 < 0x20 || c0 == '\\') {
           return false;
         }
@@ -281,8 +322,8 @@ bool JsonParser<seq_one_byte>::ParseJsonString(Handle<String> expected) {
 }
 
 // Parse any JSON value.
-template <bool seq_one_byte>
-Handle<Object> JsonParser<seq_one_byte>::ParseJsonValue() {
+template <typename Char>
+Handle<Object> JsonParser<Char>::ParseJsonValue() {
   StackLimitCheck stack_check(isolate_);
   if (stack_check.HasOverflowed()) {
     isolate_->StackOverflow();
@@ -325,8 +366,8 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonValue() {
   return ReportUnexpectedCharacter();
 }
 
-template <bool seq_one_byte>
-ParseElementResult JsonParser<seq_one_byte>::ParseElement(
+template <typename Char>
+ParseElementResult JsonParser<Char>::ParseElement(
     Handle<JSObject> json_object) {
   uint32_t index = 0;
   // Maybe an array index, try to parse it.
@@ -362,8 +403,8 @@ ParseElementResult JsonParser<seq_one_byte>::ParseElement(
 }
 
 // Parse a JSON object. Position must be right at '{'.
-template <bool seq_one_byte>
-Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
+template <typename Char>
+Handle<Object> JsonParser<Char>::ParseJsonObject() {
   HandleScope scope(isolate());
   Handle<JSObject> json_object =
       factory()->NewJSObject(object_constructor(), allocation_);
@@ -404,7 +445,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
       // to parse it first.
       bool follow_expected = false;
       Handle<Map> target;
-      if (seq_one_byte) {
+      if (kIsOneByte) {
         DisallowHeapAllocation no_gc;
         TransitionsAccessor transitions(isolate(), *map, &no_gc);
         key = transitions.ExpectedTransitionKey();
@@ -515,8 +556,8 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
   return scope.CloseAndEscape(json_object);
 }
 
-template <bool seq_one_byte>
-void JsonParser<seq_one_byte>::CommitStateToJsonObject(
+template <typename Char>
+void JsonParser<Char>::CommitStateToJsonObject(
     Handle<JSObject> json_object, Handle<Map> map,
     Vector<const Handle<Object>> properties) {
   JSObject::AllocateStorageForMap(json_object, map);
@@ -572,8 +613,8 @@ class ElementKindLattice {
 };
 
 // Parse a JSON array. Position must be right at '['.
-template <bool seq_one_byte>
-Handle<Object> JsonParser<seq_one_byte>::ParseJsonArray() {
+template <typename Char>
+Handle<Object> JsonParser<Char>::ParseJsonArray() {
   HandleScope scope(isolate());
   ZoneVector<Handle<Object>> elements(zone());
   DCHECK_EQ(c0_, '[');
@@ -625,8 +666,8 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonArray() {
   return scope.CloseAndEscape(json_array);
 }
 
-template <bool seq_one_byte>
-Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
+template <typename Char>
+Handle<Object> JsonParser<Char>::ParseJsonNumber() {
   bool negative = false;
   int beg_pos = position_;
   if (c0_ == '-') {
@@ -672,10 +713,10 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonNumber() {
   }
   int length = position_ - beg_pos;
   double number;
-  if (seq_one_byte) {
+  if (kIsOneByte) {
     DisallowHeapAllocation no_gc;
-    Vector<const uint8_t> chars(seq_source_->GetChars(no_gc) + beg_pos, length);
-    number = StringToDouble(chars,
+    Vector<const Char> chars(chars_ + beg_pos, length);
+    number = StringToDouble(Vector<const uint8_t>::cast(chars),
                             NO_FLAGS,  // Hex, octal or trailing junk.
                             std::numeric_limits<double>::quiet_NaN());
   } else {
@@ -724,12 +765,12 @@ inline Handle<SeqOneByteString> NewRawString(Factory* factory, int length,
 // Scans the rest of a JSON string starting from position_ and writes
 // prefix[start..end] along with the scanned characters into a
 // sequential string of type StringType.
-template <bool seq_one_byte>
+template <typename Char>
 template <typename StringType, typename SinkChar>
-Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
-    Handle<String> prefix, int start, int end) {
+Handle<String> JsonParser<Char>::SlowScanJsonString(Handle<String> prefix,
+                                                    int start, int end) {
   int count = end - start;
-  int max_length = count + source_length_ - position_;
+  int max_length = count + length_ - position_;
   int length = Min(max_length, Max(kInitialSpecialStringLength, 2 * count));
   Handle<StringType> seq_string =
       NewRawString<StringType>(factory(), length, allocation_);
@@ -753,7 +794,7 @@ Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
       // Latin1 characters, there's no need to test whether we can store the
       // character. Otherwise check whether the UC16 source character can fit
       // in the Latin1 sink.
-      if (sizeof(SinkChar) == kUC16Size || seq_one_byte ||
+      if (sizeof(SinkChar) == kUC16Size || kIsOneByte ||
           c0_ <= String::kMaxOneByteCharCode) {
         SeqStringSet(seq_string, count++, c0_);
         Advance();
@@ -822,8 +863,8 @@ Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
   return SeqString::Truncate(seq_string, count);
 }
 
-template <bool seq_one_byte>
-Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
+template <typename Char>
+Handle<String> JsonParser<Char>::ScanJsonString() {
   DCHECK_EQ('"', c0_);
   Advance();
   if (c0_ == '"') {
@@ -831,7 +872,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
     return factory()->empty_string();
   }
 
-  if (seq_one_byte) {
+  if (kIsOneByte) {
     // Fast path for existing internalized strings.  If the the string being
     // parsed is not a known internalized string, contains backslashes or
     // unexpectedly reaches the end of string, return with an empty handle.
@@ -872,12 +913,12 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
       running_hash = StringHasher::AddCharacterCore(running_hash,
                                                     static_cast<uint16_t>(c0));
       position++;
-      if (position >= source_length_) {
+      if (position >= length_) {
         c0_ = kEndOfString;
         position_ = position;
         return Handle<String>::null();
       }
-      c0 = seq_source_->SeqOneByteStringGet(position);
+      c0 = chars_[position];
     } while (c0 != '"');
     int length = position - position_;
     uint32_t hash;
@@ -898,15 +939,14 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
       Object element = string_table->KeyAt(entry);
       if (element->IsUndefined(isolate())) {
         // Lookup failure.
-        result =
-            factory()->InternalizeOneByteString(seq_source_, position_, length);
+        result = Internalize(position_, length);
         break;
       }
       if (!element->IsTheHole(isolate())) {
         DisallowHeapAllocation no_gc;
-        Vector<const uint8_t> string_vector(
-            seq_source_->GetChars(no_gc) + position_, length);
-        if (String::cast(element)->IsOneByteEqualTo(string_vector)) {
+        Vector<const Char> string_vector(chars_ + position_, length);
+        if (String::cast(element)->IsOneByteEqualTo(
+                Vector<const uint8_t>::cast(string_vector))) {
           result = Handle<String>(String::cast(element), isolate());
           DCHECK_EQ(result->Hash(),
                     (hash << String::kHashShift) >> String::kHashShift);
@@ -927,7 +967,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
     // Check for control character (0x00-0x1F) or unterminated string (<0).
     if (c0_ < 0x20) return Handle<String>::null();
     if (c0_ != '\\') {
-      if (seq_one_byte || c0_ <= String::kMaxOneByteCharCode) {
+      if (kIsOneByte || c0_ <= String::kMaxOneByteCharCode) {
         Advance();
       } else {
         return SlowScanJsonString<SeqTwoByteString, uc16>(source_, beg_pos,
@@ -951,9 +991,24 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
   return result;
 }
 
+template <>
+Handle<String> JsonParser<uint8_t>::Internalize(int start, int length) {
+  if (StringShape(*source_).IsExternal()) {
+    return factory()->InternalizeOneByteString(
+        Vector<const uint8_t>(chars_ + start, length));
+  }
+  Handle<SeqString> seq = Handle<SeqString>::cast(source_);
+  return factory()->InternalizeOneByteString(seq, start, length);
+}
+
+template <>
+Handle<String> JsonParser<uint16_t>::Internalize(int start, int length) {
+  UNREACHABLE();
+}
+
 // Explicit instantiation.
-template class JsonParser<true>;
-template class JsonParser<false>;
+template class JsonParser<uint8_t>;
+template class JsonParser<uint16_t>;
 
 }  // namespace internal
 }  // namespace v8

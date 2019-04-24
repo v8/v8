@@ -35,9 +35,12 @@ class JsonParseInternalizer {
 };
 
 // A simple json parser.
-template <bool seq_one_byte>
-class JsonParser {
+template <typename Char>
+class JsonParser final {
  public:
+  using SeqString = typename CharTraits<Char>::String;
+  using SeqExternalString = typename CharTraits<Char>::ExternalString;
+
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Parse(
       Isolate* isolate, Handle<String> source, Handle<Object> reviver) {
     Handle<Object> result;
@@ -52,7 +55,10 @@ class JsonParser {
   static const int kEndOfString = -1;
 
  private:
+  Handle<String> Internalize(int start, int length);
+
   JsonParser(Isolate* isolate, Handle<String> source);
+  ~JsonParser();
 
   // Parse a string containing a single JSON value.
   MaybeHandle<Object> ParseJson();
@@ -136,20 +142,44 @@ class JsonParser {
   static const int kInitialSpecialStringLength = 32;
   static const int kPretenureTreshold = 100 * 1024;
 
+  static void UpdatePointersCallback(v8::Isolate* v8_isolate, v8::GCType type,
+                                     v8::GCCallbackFlags flags, void* parser) {
+    reinterpret_cast<JsonParser<Char>*>(parser)->UpdatePointers();
+  }
+
+  void UpdatePointers() {
+    DisallowHeapAllocation no_gc;
+    const Char* chars = Handle<SeqString>::cast(source_)->GetChars(no_gc);
+    if (chars_ != chars) {
+      chars_ = chars;
+    }
+  }
+
  private:
+  static const bool kIsOneByte = sizeof(Char) == 1;
+
   Zone* zone() { return &zone_; }
 
   void CommitStateToJsonObject(Handle<JSObject> json_object, Handle<Map> map,
                                Vector<const Handle<Object>> properties);
 
-  Handle<String> source_;
-  int source_length_;
-  Handle<SeqOneByteString> seq_source_;
-
-  AllocationType allocation_;
   Isolate* isolate_;
   Zone zone_;
+  AllocationType allocation_;
   Handle<JSFunction> object_constructor_;
+  Handle<String> source_;
+  int offset_;
+  int length_;
+
+  // Cached pointer to the raw chars in source. In case source is on-heap, we
+  // register an UpdatePointers callback. For this reason, chars_ should never
+  // be locally cached across a possible allocation. The scope in which we
+  // cache chars has to be guarded by a DisallowHeapAllocation scope.
+  // TODO(verwaest): Move chars_ and functions that operate over chars to a
+  // separate helper class that makes it clear that all functions need to be
+  // guarded.
+  const Char* chars_;
+
   uc32 c0_;
   int position_;
 
@@ -157,9 +187,15 @@ class JsonParser {
   ZoneVector<Handle<Object>> properties_;
 };
 
+template <>
+Handle<String> JsonParser<uint8_t>::Internalize(int start, int length);
+
+template <>
+Handle<String> JsonParser<uint16_t>::Internalize(int start, int length);
+
 // Explicit instantiation declarations.
-extern template class JsonParser<true>;
-extern template class JsonParser<false>;
+extern template class JsonParser<uint8_t>;
+extern template class JsonParser<uint16_t>;
 
 }  // namespace internal
 }  // namespace v8

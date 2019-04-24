@@ -90,7 +90,7 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   static const int kMinShrinkCapacity = kMinCapacity;
 
  private:
-  template <bool seq_one_byte>
+  template <typename char_type>
   friend class JsonParser;
 
   OBJECT_CONSTRUCTORS(StringTable, HashTable<StringTable, StringTableShape>);

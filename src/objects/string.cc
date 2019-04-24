@@ -1325,7 +1325,7 @@ void SeqTwoByteString::clear_padding() {
          SizeFor(length()) - data_size);
 }
 
-uint16_t ConsString::ConsStringGet(int index) {
+uint16_t ConsString::Get(int index) {
   DCHECK(index >= 0 && index < this->length());
 
   // Check for a flattened cons string
@@ -1354,9 +1354,9 @@ uint16_t ConsString::ConsStringGet(int index) {
   UNREACHABLE();
 }
 
-uint16_t ThinString::ThinStringGet(int index) { return actual()->Get(index); }
+uint16_t ThinString::Get(int index) { return actual()->Get(index); }
 
-uint16_t SlicedString::SlicedStringGet(int index) {
+uint16_t SlicedString::Get(int index) {
   return parent()->Get(offset() + index);
 }
 

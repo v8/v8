@@ -323,24 +323,22 @@ uint16_t String::Get(int index) {
   DCHECK(index >= 0 && index < length());
   switch (StringShape(*this).full_representation_tag()) {
     case kSeqStringTag | kOneByteStringTag:
-      return SeqOneByteString::cast(*this)->SeqOneByteStringGet(index);
+      return SeqOneByteString::cast(*this)->Get(index);
     case kSeqStringTag | kTwoByteStringTag:
-      return SeqTwoByteString::cast(*this)->SeqTwoByteStringGet(index);
+      return SeqTwoByteString::cast(*this)->Get(index);
     case kConsStringTag | kOneByteStringTag:
     case kConsStringTag | kTwoByteStringTag:
-      return ConsString::cast(*this)->ConsStringGet(index);
+      return ConsString::cast(*this)->Get(index);
     case kExternalStringTag | kOneByteStringTag:
-      return ExternalOneByteString::cast(*this)->ExternalOneByteStringGet(
-          index);
+      return ExternalOneByteString::cast(*this)->Get(index);
     case kExternalStringTag | kTwoByteStringTag:
-      return ExternalTwoByteString::cast(*this)->ExternalTwoByteStringGet(
-          index);
+      return ExternalTwoByteString::cast(*this)->Get(index);
     case kSlicedStringTag | kOneByteStringTag:
     case kSlicedStringTag | kTwoByteStringTag:
-      return SlicedString::cast(*this)->SlicedStringGet(index);
+      return SlicedString::cast(*this)->Get(index);
     case kThinStringTag | kOneByteStringTag:
     case kThinStringTag | kTwoByteStringTag:
-      return ThinString::cast(*this)->ThinStringGet(index);
+      return ThinString::cast(*this)->Get(index);
     default:
       break;
   }
@@ -455,7 +453,7 @@ uint32_t String::ToValidIndex(Object number) {
   return index;
 }
 
-uint16_t SeqOneByteString::SeqOneByteStringGet(int index) {
+uint8_t SeqOneByteString::Get(int index) {
   DCHECK(index >= 0 && index < length());
   return READ_BYTE_FIELD(*this, kHeaderSize + index * kCharSize);
 }
@@ -484,7 +482,7 @@ uc16* SeqTwoByteString::GetChars(const DisallowHeapAllocation& no_gc) {
   return reinterpret_cast<uc16*>(FIELD_ADDR(*this, kHeaderSize));
 }
 
-uint16_t SeqTwoByteString::SeqTwoByteStringGet(int index) {
+uint16_t SeqTwoByteString::Get(int index) {
   DCHECK(index >= 0 && index < length());
   return READ_UINT16_FIELD(*this, kHeaderSize + index * kShortSize);
 }
@@ -618,7 +616,7 @@ const uint8_t* ExternalOneByteString::GetChars() {
   return reinterpret_cast<const uint8_t*>(resource()->data());
 }
 
-uint16_t ExternalOneByteString::ExternalOneByteStringGet(int index) {
+uint8_t ExternalOneByteString::Get(int index) {
   DCHECK(index >= 0 && index < length());
   return GetChars()[index];
 }
@@ -652,7 +650,7 @@ void ExternalTwoByteString::set_resource(
 
 const uint16_t* ExternalTwoByteString::GetChars() { return resource()->data(); }
 
-uint16_t ExternalTwoByteString::ExternalTwoByteStringGet(int index) {
+uint16_t ExternalTwoByteString::Get(int index) {
   DCHECK(index >= 0 && index < length());
   return GetChars()[index];
 }

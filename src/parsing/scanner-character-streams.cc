@@ -50,21 +50,6 @@ const unibrow::uchar kUtf8Bom = 0xFEFF;
 }  // namespace
 
 template <typename Char>
-struct CharTraits;
-
-template <>
-struct CharTraits<uint8_t> {
-  using String = SeqOneByteString;
-  using ExternalString = ExternalOneByteString;
-};
-
-template <>
-struct CharTraits<uint16_t> {
-  using String = SeqTwoByteString;
-  using ExternalString = ExternalTwoByteString;
-};
-
-template <typename Char>
 struct Range {
   const Char* start;
   const Char* end;

@@ -6292,7 +6292,7 @@ JSRegExp::Flags RegExpFlagsFromString(Isolate* isolate, Handle<String> flags,
     DisallowHeapAllocation no_gc;
     SeqOneByteString seq_flags = SeqOneByteString::cast(*flags);
     for (int i = 0; i < length; i++) {
-      JSRegExp::Flag flag = CharToFlag(seq_flags.SeqOneByteStringGet(i));
+      JSRegExp::Flag flag = CharToFlag(seq_flags.Get(i));
       // Duplicate or invalid flag.
       if (value & flag) return JSRegExp::Flags(0);
       value |= flag;

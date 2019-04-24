@@ -22,9 +22,9 @@ BUILTIN(JsonParse) {
                                      Object::ToString(isolate, source));
   string = String::Flatten(isolate, string);
   RETURN_RESULT_OR_FAILURE(
-      isolate, string->IsSeqOneByteString()
-                   ? JsonParser<true>::Parse(isolate, string, reviver)
-                   : JsonParser<false>::Parse(isolate, string, reviver));
+      isolate, string->IsOneByteRepresentation()
+                   ? JsonParser<uint8_t>::Parse(isolate, string, reviver)
+                   : JsonParser<uint16_t>::Parse(isolate, string, reviver));
 }
 
 // ES6 section 24.3.2 JSON.stringify.
