@@ -107,15 +107,13 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
   frame_ = SingletonFor(type, &state);
 }
 
-
 StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type,
-                                             StackFrame::State* state) {
+                                                 StackFrame::State* state) {
   StackFrame* result = SingletonFor(type);
   DCHECK((!result) == (type == StackFrame::NONE));
   if (result) result->state_ = *state;
   return result;
 }
-
 
 StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
 #define FRAME_TYPE_CASE(type, field) \
@@ -210,20 +208,48 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
   }
 }
 
-DISABLE_ASAN Address ReadMemoryAt(Address address) {
-  return Memory<Address>(address);
-}
-
 }  // namespace
 
-SafeStackFrameIterator::SafeStackFrameIterator(
-    Isolate* isolate,
-    Address fp, Address sp, Address js_entry_sp)
+bool SafeStackFrameIterator::IsNoFrameBytecodeHandlerPc(Isolate* isolate,
+                                                        Address pc,
+                                                        Address fp) const {
+  // Return false for builds with non-embedded bytecode handlers.
+  if (Isolate::CurrentEmbeddedBlob() == nullptr) return false;
+
+  EmbeddedData d = EmbeddedData::FromBlob();
+  if (pc < d.InstructionStartOfBytecodeHandlers() ||
+      pc >= d.InstructionEndOfBytecodeHandlers()) {
+    // Not a bytecode handler pc address.
+    return false;
+  }
+
+  if (!IsValidStackAddress(fp +
+                           CommonFrameConstants::kContextOrFrameTypeOffset)) {
+    return false;
+  }
+
+  // Check if top stack frame is a bytecode handler stub frame.
+  MSAN_MEMORY_IS_INITIALIZED(
+      fp + CommonFrameConstants::kContextOrFrameTypeOffset, kSystemPointerSize);
+  intptr_t marker =
+      Memory<intptr_t>(fp + CommonFrameConstants::kContextOrFrameTypeOffset);
+  if (StackFrame::IsTypeMarker(marker) &&
+      StackFrame::MarkerToType(marker) == StackFrame::STUB) {
+    // Bytecode handler built a frame.
+    return false;
+  }
+  return true;
+}
+
+SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
+                                               Address fp, Address sp,
+                                               Address lr, Address js_entry_sp)
     : StackFrameIteratorBase(isolate, false),
       low_bound_(sp),
       high_bound_(js_entry_sp),
       top_frame_type_(StackFrame::NONE),
-      external_callback_scope_(isolate->external_callback_scope()) {
+      external_callback_scope_(isolate->external_callback_scope()),
+      top_link_register_(lr) {
   StackFrame::State state;
   StackFrame::Type type;
   ThreadLocalTop* top = isolate->thread_local_top();
@@ -255,14 +281,22 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     state.pc_address = StackFrame::ResolveReturnAddressLocation(
         reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp)));
 
-    // If the top of stack is a return address to the interpreter trampoline,
-    // then we are likely in a bytecode handler with elided frame. In that
-    // case, set the PC properly and make sure we do not drop the frame.
-    if (IsValidStackAddress(sp)) {
-      MSAN_MEMORY_IS_INITIALIZED(sp, kSystemPointerSize);
-      Address tos = ReadMemoryAt(sp);
-      if (IsInterpreterFramePc(isolate, tos, &state)) {
-        state.pc_address = reinterpret_cast<Address*>(sp);
+    // If the current PC is in a bytecode handler, the top stack frame isn't
+    // the bytecode handler's frame and the top of stack or link register is a
+    // return address into the interpreter entry trampoline, then we are likely
+    // in a bytecode handler with elided frame. In that case, set the PC
+    // properly and make sure we do not drop the frame.
+    if (IsNoFrameBytecodeHandlerPc(isolate, pc, fp)) {
+      Address* tos_location = nullptr;
+      if (top_link_register_) {
+        tos_location = &top_link_register_;
+      } else if (IsValidStackAddress(sp)) {
+        MSAN_MEMORY_IS_INITIALIZED(sp, kSystemPointerSize);
+        tos_location = reinterpret_cast<Address*>(sp);
+      }
+
+      if (IsInterpreterFramePc(isolate, *tos_location, &state)) {
+        state.pc_address = tos_location;
         advance_frame = false;
       }
     }
@@ -299,7 +333,6 @@ SafeStackFrameIterator::SafeStackFrameIterator(
   frame_ = SingletonFor(type, &state);
   if (advance_frame && frame_) Advance();
 }
-
 
 bool SafeStackFrameIterator::IsValidTop(ThreadLocalTop* top) const {
   Address c_entry_fp = Isolate::c_entry_fp(top);

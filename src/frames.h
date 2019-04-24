@@ -1274,9 +1274,8 @@ class V8_EXPORT_PRIVATE StackTraceFrameIterator {
 
 class SafeStackFrameIterator: public StackFrameIteratorBase {
  public:
-  SafeStackFrameIterator(Isolate* isolate,
-                         Address fp, Address sp,
-                         Address js_entry_sp);
+  SafeStackFrameIterator(Isolate* isolate, Address pc, Address fp, Address sp,
+                         Address lr, Address js_entry_sp);
 
   inline StackFrame* frame() const;
   void Advance();
@@ -1294,10 +1293,19 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
   bool IsValidExitFrame(Address fp) const;
   bool IsValidTop(ThreadLocalTop* top) const;
 
+  // Returns true if the pc points to a bytecode handler and the frame pointer
+  // doesn't seem to be a bytecode handler's frame, which implies that the
+  // bytecode handler has an elided frame. This is not precise and might give
+  // false negatives since it relies on checks to the frame's type marker,
+  // which might be uninitialized.
+  bool IsNoFrameBytecodeHandlerPc(Isolate* isolate, Address pc,
+                                  Address fp) const;
+
   const Address low_bound_;
   const Address high_bound_;
   StackFrame::Type top_frame_type_;
   ExternalCallbackScope* external_callback_scope_;
+  Address top_link_register_;
 };
 }  // namespace internal
 }  // namespace v8

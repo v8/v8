@@ -57,6 +57,9 @@ class EmbeddedData final {
   Address InstructionStartOfBuiltin(int i) const;
   uint32_t InstructionSizeOfBuiltin(int i) const;
 
+  Address InstructionStartOfBytecodeHandlers() const;
+  Address InstructionEndOfBytecodeHandlers() const;
+
   bool ContainsBuiltin(int i) const { return InstructionSizeOfBuiltin(i) > 0; }
 
   uint32_t AddressForHashing(Address addr) {

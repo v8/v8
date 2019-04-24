@@ -49,6 +49,8 @@ class SimulatorHelper {
         simulator_->get_register(v8::internal::Simulator::sp));
     state->fp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::r11));
+    state->lr = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::lr));
 #elif V8_TARGET_ARCH_ARM64
     if (simulator_->sp() == 0 || simulator_->fp() == 0) {
       // It's possible that the simulator is interrupted while it is updating
@@ -60,6 +62,7 @@ class SimulatorHelper {
     state->pc = reinterpret_cast<void*>(simulator_->pc());
     state->sp = reinterpret_cast<void*>(simulator_->sp());
     state->fp = reinterpret_cast<void*>(simulator_->fp());
+    state->lr = reinterpret_cast<void*>(simulator_->lr());
 #elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
     state->pc = reinterpret_cast<void*>(simulator_->get_pc());
     state->sp = reinterpret_cast<void*>(

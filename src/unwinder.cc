@@ -88,6 +88,9 @@ bool Unwinder::TryUnwindV8Frames(const UnwindState& unwind_state,
     register_state->fp = final_fp;
 
     register_state->pc = next_pc;
+
+    // Link register no longer valid after unwinding.
+    register_state->lr = nullptr;
     return true;
   }
   return false;

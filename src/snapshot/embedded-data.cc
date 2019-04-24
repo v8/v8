@@ -290,6 +290,19 @@ uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
   return metadata[i].instructions_length;
 }
 
+Address EmbeddedData::InstructionStartOfBytecodeHandlers() const {
+  return InstructionStartOfBuiltin(Builtins::kFirstBytecodeHandler);
+}
+
+Address EmbeddedData::InstructionEndOfBytecodeHandlers() const {
+  STATIC_ASSERT(Builtins::kFirstBytecodeHandler + kNumberOfBytecodeHandlers +
+                    2 * kNumberOfWideBytecodeHandlers ==
+                Builtins::builtin_count);
+  int lastBytecodeHandler = Builtins::builtin_count - 1;
+  return InstructionStartOfBuiltin(lastBytecodeHandler) +
+         InstructionSizeOfBuiltin(lastBytecodeHandler);
+}
+
 size_t EmbeddedData::CreateEmbeddedBlobHash() const {
   STATIC_ASSERT(EmbeddedBlobHashOffset() == 0);
   STATIC_ASSERT(EmbeddedBlobHashSize() == kSizetSize);

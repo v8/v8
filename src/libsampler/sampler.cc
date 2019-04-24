@@ -391,16 +391,20 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->pc = reinterpret_cast<void*>(mcontext.gregs[R15]);
   state->sp = reinterpret_cast<void*>(mcontext.gregs[R13]);
   state->fp = reinterpret_cast<void*>(mcontext.gregs[R11]);
+  state->lr = reinterpret_cast<void*>(mcontext.gregs[R14]);
 #else
   state->pc = reinterpret_cast<void*>(mcontext.arm_pc);
   state->sp = reinterpret_cast<void*>(mcontext.arm_sp);
   state->fp = reinterpret_cast<void*>(mcontext.arm_fp);
+  state->lr = reinterpret_cast<void*>(mcontext.arm_lr);
 #endif  // V8_LIBC_GLIBC && !V8_GLIBC_PREREQ(2, 4)
 #elif V8_HOST_ARCH_ARM64
   state->pc = reinterpret_cast<void*>(mcontext.pc);
   state->sp = reinterpret_cast<void*>(mcontext.sp);
   // FP is an alias for x29.
   state->fp = reinterpret_cast<void*>(mcontext.regs[29]);
+  // LR is an alias for x30.
+  state->lr = reinterpret_cast<void*>(mcontext.regs[30]);
 #elif V8_HOST_ARCH_MIPS
   state->pc = reinterpret_cast<void*>(mcontext.pc);
   state->sp = reinterpret_cast<void*>(mcontext.gregs[29]);

@@ -100,10 +100,12 @@ bool SimulatorHelper::FillRegisters(Isolate* isolate,
   }
   state->sp = reinterpret_cast<void*>(simulator->get_register(Simulator::sp));
   state->fp = reinterpret_cast<void*>(simulator->get_register(Simulator::r11));
+  state->lr = reinterpret_cast<void*>(simulator->get_register(Simulator::lr));
 #elif V8_TARGET_ARCH_ARM64
   state->pc = reinterpret_cast<void*>(simulator->pc());
   state->sp = reinterpret_cast<void*>(simulator->sp());
   state->fp = reinterpret_cast<void*>(simulator->fp());
+  state->lr = reinterpret_cast<void*>(simulator->lr());
 #elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
   if (!simulator->has_bad_pc()) {
     state->pc = reinterpret_cast<void*>(simulator->get_pc());
@@ -234,8 +236,10 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
             : reinterpret_cast<void*>(*external_callback_entry_ptr);
   }
 
-  i::SafeStackFrameIterator it(isolate, reinterpret_cast<i::Address>(regs->fp),
+  i::SafeStackFrameIterator it(isolate, reinterpret_cast<i::Address>(regs->pc),
+                               reinterpret_cast<i::Address>(regs->fp),
                                reinterpret_cast<i::Address>(regs->sp),
+                               reinterpret_cast<i::Address>(regs->lr),
                                js_entry_sp);
   if (it.done()) return true;
 
