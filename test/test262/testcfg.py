@@ -56,7 +56,6 @@ FEATURE_FLAGS = {
   'Intl.Segmenter': '--harmony-intl-segmenter',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'globalThis': '--harmony-global',
-  'well-formed-json-stringify': '--harmony-json-stringify',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
   'Object.fromEntries': '--harmony-object-from-entries',
   'hashbang': '--harmony-hashbang',

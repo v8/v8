@@ -1228,7 +1228,6 @@ TEST(JSONStringifySliceMadeExternal) {
 }
 
 TEST(JSONStringifyWellFormed) {
-  FLAG_harmony_json_stringify = true;
   CcTest::InitializeVM();
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();

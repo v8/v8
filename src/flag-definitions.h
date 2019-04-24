@@ -247,7 +247,6 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_import_meta, "harmony import.meta property")                       \
   V(harmony_dynamic_import, "harmony dynamic import")                          \
   V(harmony_global, "harmony global")                                          \
-  V(harmony_json_stringify, "well-formed JSON.stringify")                      \
   V(harmony_public_fields, "harmony public instance fields in class literals") \
   V(harmony_static_fields, "harmony static fields in class literals")          \
   V(harmony_string_matchall, "harmony String.prototype.matchAll")              \
