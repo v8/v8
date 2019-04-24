@@ -36,10 +36,9 @@
   assertUnoptimized(foo);
 })();
 
-// Packed
 // Non-extensible
 (function() {
-  const a = Object.preventExtensions([1, 2, '3']);
+  const a = Object.preventExtensions([1, 2, 3]);
   const foo = () => a[0];
   %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
@@ -53,7 +52,7 @@
 
 // Sealed
 (function() {
-  const a = Object.seal([1, 2, '3']);
+  const a = Object.seal([1, 2, 3]);
   const foo = () => a[0];
   %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
@@ -67,50 +66,7 @@
 
 // Frozen
 (function() {
-  const a = Object.freeze([1, 2, '3']);
-  const foo = () => a[0];
-  %PrepareFunctionForOptimization(foo);
-  assertEquals(1, foo());
-  assertEquals(1, foo());
-  %OptimizeFunctionOnNextCall(foo);
-  assertEquals(1, foo());
-  assertOptimized(foo);
-  a[0] = 42;
-  assertEquals(1, foo());
-})();
-
-// Holey
-// Non-extensible
-(function() {
-  const a = Object.preventExtensions([1, 2, , '3']);
-  const foo = () => a[0];
-  %PrepareFunctionForOptimization(foo);
-  assertEquals(1, foo());
-  assertEquals(1, foo());
-  %OptimizeFunctionOnNextCall(foo);
-  assertEquals(1, foo());
-  assertOptimized(foo);
-  a[0] = 42;
-  assertEquals(42, foo());
-})();
-
-// Sealed
-(function() {
-  const a = Object.seal([1, 2, , '3']);
-  const foo = () => a[0];
-  %PrepareFunctionForOptimization(foo);
-  assertEquals(1, foo());
-  assertEquals(1, foo());
-  %OptimizeFunctionOnNextCall(foo);
-  assertEquals(1, foo());
-  assertOptimized(foo);
-  a[0] = 42;
-  assertEquals(42, foo());
-})();
-
-// Frozen
-(function() {
-  const a = Object.freeze([1, 2, , '3']);
+  const a = Object.freeze([1, 2, 3]);
   const foo = () => a[0];
   %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());

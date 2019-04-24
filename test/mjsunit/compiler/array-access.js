@@ -45,43 +45,23 @@ function GetAAN(a,n) {
   return a[a[a[n]]];
 }
 
-function RunGetTests(packed=true) {
-  if (packed) {
-    var a = [2,0,1];
-    assertEquals(2, Get0(a));
+function RunGetTests() {
+  var a = [2,0,1];
+  assertEquals(2, Get0(a));
 
-    assertEquals(2, GetN(a, 0));
-    assertEquals(0, GetN(a, 1));
-    assertEquals(1, GetN(a, 2));
+  assertEquals(2, GetN(a, 0));
+  assertEquals(0, GetN(a, 1));
+  assertEquals(1, GetN(a, 2));
 
-    assertEquals(1, GetA0(a));
+  assertEquals(1, GetA0(a));
 
-    assertEquals(1, GetAN(a,0));
-    assertEquals(2, GetAN(a,1));
-    assertEquals(0, GetAN(a,2));
+  assertEquals(1, GetAN(a,0));
+  assertEquals(2, GetAN(a,1));
+  assertEquals(0, GetAN(a,2));
 
-    assertEquals(0, GetAAN(a,0));
-    assertEquals(1, GetAAN(a,1));
-    assertEquals(2, GetAAN(a,2));
-  }
-  else {
-    var a = ['2','0','1'];
-    assertEquals('2', Get0(a));
-
-    assertEquals('2', GetN(a, 0));
-    assertEquals('0', GetN(a, 1));
-    assertEquals('1', GetN(a, 2));
-
-    assertEquals('1', GetA0(a));
-
-    assertEquals('1', GetAN(a,0));
-    assertEquals('2', GetAN(a,1));
-    assertEquals('0', GetAN(a,2));
-
-    assertEquals('0', GetAAN(a,0));
-    assertEquals('1', GetAAN(a,1));
-    assertEquals('2', GetAAN(a,2));
-  }
+  assertEquals(0, GetAAN(a,0));
+  assertEquals(1, GetAAN(a,1));
+  assertEquals(2, GetAAN(a,2));
 }
 
 
@@ -101,39 +81,29 @@ function SetNX(a, n, x) {
   a[n] = x;
 }
 
-function RunSetTests(a, packed=true) {
+function RunSetTests(a) {
   Set07(a);
-  if (packed) {
-    assertEquals(7, a[0]);
-  }
+  assertEquals(7, a[0]);
   assertEquals(0, a[1]);
   assertEquals(0, a[2]);
 
   Set0V(a, 1);
-  if (packed) {
-    assertEquals(1, a[0]);
-  }
+  assertEquals(1, a[0]);
   assertEquals(0, a[1]);
   assertEquals(0, a[2]);
 
   SetN7(a, 2);
-  if (packed) {
-    assertEquals(1, a[0]);
-  }
+  assertEquals(1, a[0]);
   assertEquals(0, a[1]);
   assertEquals(7, a[2]);
 
   SetNX(a, 1, 5);
-  if (packed) {
-    assertEquals(1, a[0]);
-  }
+  assertEquals(1, a[0]);
   assertEquals(5, a[1]);
   assertEquals(7, a[2]);
 
   for (var i = 0; i < 3; i++) SetNX(a, i, 0);
-  if (packed) {
-    assertEquals(0, a[0]);
-  }
+  assertEquals(0, a[0]);
   assertEquals(0, a[1]);
   assertEquals(0, a[2]);
 }
@@ -161,55 +131,31 @@ for (var i = 0; i < 1000; i++) {
 
 RunArrayBoundsCheckTest();
 
-// Packed
 // Non-extensible
-a = Object.preventExtensions([0,0,0,'a']);
-o = Object.preventExtensions({0: 0, 1: 0, 2: 0});
-for (var i = 0; i < 1000; i++) {
-  RunGetTests();
-  RunGetTests(false);
-  RunSetTests(a);
-  RunSetTests(o);
-}
-
-// Sealed
-a = Object.seal([0,0,0,'a']);
+a = Object.seal([0,0,0]);
 o = Object.seal({0: 0, 1: 0, 2: 0});
 for (var i = 0; i < 1000; i++) {
   RunGetTests();
-  RunGetTests(false);
   RunSetTests(a);
   RunSetTests(o);
 }
 
-// Frozen
-a = Object.freeze([0,0,0,'a']);
-o = Object.freeze({0: 0, 1: 0, 2: 0});
-for (var i = 0; i < 1000; i++) {
-  RunGetTests();
-  RunGetTests(false);
-}
-
-// Holey
-// Non-extensible
-a = Object.preventExtensions([,0,0,'a']);
-for (var i = 0; i < 1000; i++) {
-  RunGetTests();
-  RunGetTests(false);
-  RunSetTests(a, false);
-}
+RunArrayBoundsCheckTest();
 
 // Sealed
-a = Object.seal([,0,0,'a']);
+a = Object.seal([0,0,0]);
+o = Object.seal({0: 0, 1: 0, 2: 0});
 for (var i = 0; i < 1000; i++) {
   RunGetTests();
-  RunGetTests(false);
-  RunSetTests(a, false);
+  RunSetTests(a);
+  RunSetTests(o);
 }
 
+RunArrayBoundsCheckTest();
+
 // Frozen
-a = Object.freeze([,0,0,'a']);
+a = Object.seal([0,0,0]);
+o = Object.seal({0: 0, 1: 0, 2: 0});
 for (var i = 0; i < 1000; i++) {
   RunGetTests();
-  RunGetTests(false);
 }
