@@ -3858,7 +3858,7 @@ void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
     if (imm == kEndOfJumpChain) {
       return;
     }
-    imm += pc_delta;
+    imm -= pc_delta;
     DCHECK_EQ(imm & 3, 0);
     PatchLuiOriImmediate(pc, imm, instr1, 0 * kInstrSize, instr2, ori_offset);
     return;
