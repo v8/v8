@@ -420,10 +420,16 @@ const OBJECT_FUNCTION_INDEX: constexpr NativeContextSlot
     generates 'Context::OBJECT_FUNCTION_INDEX';
 const ITERATOR_RESULT_MAP_INDEX: constexpr NativeContextSlot
     generates 'Context::ITERATOR_RESULT_MAP_INDEX';
+const JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX: constexpr NativeContextSlot
+    generates 'Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX';
 const JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX: constexpr NativeContextSlot
     generates 'Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX';
 const PROXY_REVOCABLE_RESULT_MAP_INDEX: constexpr NativeContextSlot
     generates 'Context::PROXY_REVOCABLE_RESULT_MAP_INDEX';
+const REFLECT_APPLY_INDEX: constexpr NativeContextSlot
+    generates 'Context::REFLECT_APPLY_INDEX';
+const REGEXP_LAST_MATCH_INFO_INDEX: constexpr NativeContextSlot
+    generates 'Context::REGEXP_LAST_MATCH_INFO_INDEX';
 extern operator '[]' macro LoadContextElement(
     NativeContext, NativeContextSlot): Object;
 extern operator '[]=' macro StoreContextElement(
@@ -987,6 +993,9 @@ extern class JSRegExpStringIterator extends JSObject {
 
 const kRegExpMatchInfoFirstCaptureIndex:
     constexpr int31 generates 'RegExpMatchInfo::kFirstCaptureIndex';
+const kRegExpMatchInfoNumberOfCapturesIndex:
+    constexpr int31 generates 'RegExpMatchInfo::kNumberOfCapturesIndex';
+
 macro GetStartOfCaptureIndex(captureIndex: constexpr int31): constexpr int31 {
   return kRegExpMatchInfoFirstCaptureIndex + (captureIndex * 2);
 }
@@ -1001,6 +1010,9 @@ extern class RegExpMatchInfo extends FixedArray {
       Smi {
     const index: constexpr int31 = GetStartOfCaptureIndex(captureIndex) + 1;
     return UnsafeCast<Smi>(this.objects[index]);
+  }
+  NumberOfCaptures(implicit context: Context)(): Smi {
+    return UnsafeCast<Smi>(this.objects[kRegExpMatchInfoNumberOfCapturesIndex]);
   }
 }
 
@@ -1409,6 +1421,8 @@ extern macro HeapObjectToHeapNumber(HeapObject): HeapNumber
 extern macro HeapObjectToSloppyArgumentsElements(HeapObject):
     SloppyArgumentsElements
     labels CastError;
+extern macro HeapObjectToRegExpMatchInfo(HeapObject):
+    RegExpMatchInfo labels CastError;
 extern macro TaggedToNumber(Object): Number
     labels CastError;
 
@@ -1439,6 +1453,12 @@ macro Cast<A: type>(o: HeapObject): A
 Cast<HeapObject>(o: HeapObject): HeapObject
     labels CastError {
   return o;
+}
+
+Cast<Null>(o: HeapObject): Null
+    labels CastError {
+  if (o != Null) goto CastError;
+  return %RawDownCast<Null>(o);
 }
 
 Cast<FixedArray>(o: HeapObject): FixedArray
@@ -2073,15 +2093,24 @@ macro GetArrayBufferNoInitFunction(implicit context: Context)(): JSFunction {
   return UnsafeCast<JSFunction>(
       LoadNativeContext(context)[ARRAY_BUFFER_NOINIT_FUN_INDEX]);
 }
-
+macro GetFastPackedElementsJSArrayMap(implicit context: Context)(): Map {
+  return UnsafeCast<Map>(
+      LoadNativeContext(context)[JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX]);
+}
 macro GetFastPackedSmiElementsJSArrayMap(implicit context: Context)(): Map {
   return UnsafeCast<Map>(
       LoadNativeContext(context)[JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX]);
 }
-
 macro GetProxyRevocableResultMap(implicit context: Context)(): Map {
   return UnsafeCast<Map>(
       LoadNativeContext(context)[PROXY_REVOCABLE_RESULT_MAP_INDEX]);
+}
+macro GetReflectApply(implicit context: Context)(): Callable {
+  return UnsafeCast<Callable>(LoadNativeContext(context)[REFLECT_APPLY_INDEX]);
+}
+macro GetRegExpLastMatchInfo(implicit context: Context)(): RegExpMatchInfo {
+  return %RawDownCast<RegExpMatchInfo>(
+             LoadNativeContext(context)[REGEXP_LAST_MATCH_INFO_INDEX]);
 }
 
 extern transitioning macro Call(Context, Callable, Object): Object;

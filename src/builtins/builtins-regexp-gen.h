@@ -148,9 +148,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void RegExpPrototypeSplitBody(Node* const context, Node* const regexp,
                                 TNode<String> const string,
                                 TNode<Smi> const limit);
-
-  Node* ReplaceGlobalCallableFastPath(Node* context, Node* regexp, Node* string,
-                                      Node* replace_callable);
 };
 
 class RegExpMatchAllAssembler : public RegExpBuiltinsAssembler {
