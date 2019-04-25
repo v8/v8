@@ -249,7 +249,15 @@ void float64_pow_wrapper(Address data) {
   WriteUnalignedValue<double>(data, base::ieee754::pow(x, y));
 }
 
-void memory_copy_wrapper(Address dst, Address src, uint32_t size) {
+// Asan on Windows triggers exceptions in this function to allocate
+// shadow memory lazily. When this function is called from WebAssembly,
+// these exceptions would be handled by the trap handler before they get
+// handled by Asan, and thereby confuse the thread-in-wasm flag.
+// Therefore we disable ASAN for this function. Alternatively we could
+// reset the thread-in-wasm flag before calling this function. However,
+// as this is only a problem with Asan on Windows, we did not consider
+// it worth the overhead.
+DISABLE_ASAN void memory_copy_wrapper(Address dst, Address src, uint32_t size) {
   // Use explicit forward and backward copy to match the required semantics for
   // the memory.copy instruction. It is assumed that the caller of this
   // function has already performed bounds checks, so {src + size} and
