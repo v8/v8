@@ -235,6 +235,9 @@
 
   # BUG(v8:8169)
   'external-backing-store-gc': [SKIP],
+
+  # Test is only enabled on ASAN. Takes too long on many other bots.
+  'regress/regress-crbug-9161': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -515,6 +518,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7102
   # Flaky due to huge string allocation.
   'regress/regress-748069': [SKIP],
+
+  # Test is tailored for ASAN. Takes too long on many other bots.
+  'regress/regress-crbug-9161': [PASS, SLOW],
 }],  # 'asan == True'
 
 ##############################################################################

@@ -101,26 +101,43 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(Object, target_obj, 0);
-
-  Handle<JSTypedArray> array;
-  const char* method = "%TypedArray%.prototype.sort";
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, array, JSTypedArray::Validate(isolate, target_obj, method));
-
-  // This line can be removed when JSTypedArray::Validate throws
-  // if array.[[ViewedArrayBuffer]] is detached(v8:4648)
-  if (V8_UNLIKELY(array->WasDetached())) return *array;
+  // Validation is handled in the Torque builtin.
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, array, 0);
+  DCHECK(!array->WasDetached());
 
   size_t length = array->length();
   if (length <= 1) return *array;
 
   Handle<FixedTypedArrayBase> elements(
       FixedTypedArrayBase::cast(array->elements()), isolate);
+
+  // In case of a SAB, the data is copied into temporary memory, as
+  // std::sort might crash in case the underlying data is concurrently
+  // modified while sorting.
+  CHECK(array->buffer()->IsJSArrayBuffer());
+  Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(array->buffer()), isolate);
+  const bool copy_data = buffer->is_shared();
+
+  Handle<ByteArray> array_copy;
+  if (copy_data) {
+    const size_t bytes = array->byte_length();
+    // TODO(szuend): Re-check this approach once support for larger typed
+    //               arrays has landed.
+    CHECK_LE(bytes, INT_MAX);
+    array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
+    std::memcpy(static_cast<void*>(array_copy->GetDataStartAddress()),
+                static_cast<void*>(elements->DataPtr()), bytes);
+  }
+
+  DisallowHeapAllocation no_gc;
+
   switch (array->type()) {
 #define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)                          \
   case kExternal##Type##Array: {                                           \
-    ctype* data = static_cast<ctype*>(elements->DataPtr());                \
+    ctype* data =                                                          \
+        copy_data                                                          \
+            ? reinterpret_cast<ctype*>(array_copy->GetDataStartAddress())  \
+            : static_cast<ctype*>(elements->DataPtr());                    \
     if (kExternal##Type##Array == kExternalFloat64Array ||                 \
         kExternal##Type##Array == kExternalFloat32Array) {                 \
       if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {        \
@@ -144,6 +161,13 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
 
     TYPED_ARRAYS(TYPED_ARRAY_SORT)
 #undef TYPED_ARRAY_SORT
+  }
+
+  if (copy_data) {
+    DCHECK(!array_copy.is_null());
+    const size_t bytes = array->byte_length();
+    std::memcpy(static_cast<void*>(elements->DataPtr()),
+                static_cast<void*>(array_copy->GetDataStartAddress()), bytes);
   }
 
   return *array;
