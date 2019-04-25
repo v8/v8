@@ -301,23 +301,27 @@ T SaturateSub(T a, T b) {
 // BitField is a help template for encoding and decode bitfield with
 // unsigned content.
 
-template<class T, int shift, int size, class U>
-class BitFieldBase {
+template <class T, int shift, int size, class U = uint32_t>
+class BitField {
  public:
-  typedef T FieldType;
+  STATIC_ASSERT(std::is_unsigned<U>::value);
+  STATIC_ASSERT(shift < 8 * sizeof(U));  // Otherwise shifts by {shift} are UB.
+  STATIC_ASSERT(size < 8 * sizeof(U));   // Otherwise shifts by {size} are UB.
+  STATIC_ASSERT(shift + size <= 8 * sizeof(U));
+
+  using FieldType = T;
 
   // A type U mask of bit field.  To use all bits of a type U of x bits
   // in a bitfield without compiler warnings we have to compute 2^x
   // without using a shift count of x in the computation.
-  static const U kOne = static_cast<U>(1U);
-  static const U kMask = ((kOne << shift) << size) - (kOne << shift);
-  static const U kShift = shift;
-  static const U kSize = size;
-  static const U kNext = kShift + kSize;
-  static const U kNumValues = kOne << size;
+  static constexpr U kShift = shift;
+  static constexpr U kSize = size;
+  static constexpr U kMask = ((U{1} << kShift) << kSize) - (U{1} << kShift);
+  static constexpr U kNext = kShift + kSize;
+  static constexpr U kNumValues = U{1} << kSize;
 
   // Value for the field with all bits set.
-  static const T kMax = static_cast<T>(kNumValues - 1);
+  static constexpr T kMax = static_cast<T>(kNumValues - 1);
 
   // Tells whether the provided value fits into the bit field.
   static constexpr bool is_valid(T value) {
@@ -329,7 +333,7 @@ class BitFieldBase {
 #if V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
     DCHECK(is_valid(value));
 #endif
-    return static_cast<U>(value) << shift;
+    return static_cast<U>(value) << kShift;
   }
 
   // Returns a type U with the bit field value updated.
@@ -339,26 +343,18 @@ class BitFieldBase {
 
   // Extracts the bit field from the value.
   static constexpr T decode(U value) {
-    return static_cast<T>((value & kMask) >> shift);
+    return static_cast<T>((value & kMask) >> kShift);
   }
-
-  STATIC_ASSERT((kNext - 1) / 8 < sizeof(U));
 };
 
 template <class T, int shift, int size>
-class BitField8 : public BitFieldBase<T, shift, size, uint8_t> {};
-
+using BitField8 = BitField<T, shift, size, uint8_t>;
 
 template <class T, int shift, int size>
-class BitField16 : public BitFieldBase<T, shift, size, uint16_t> {};
+using BitField16 = BitField<T, shift, size, uint16_t>;
 
-
-template<class T, int shift, int size>
-class BitField : public BitFieldBase<T, shift, size, uint32_t> { };
-
-
-template<class T, int shift, int size>
-class BitField64 : public BitFieldBase<T, shift, size, uint64_t> { };
+template <class T, int shift, int size>
+using BitField64 = BitField<T, shift, size, uint64_t>;
 
 // Helper macros for defining a contiguous sequence of bit fields. Example:
 // (backslashes at the ends of respective lines of this multi-line macro
