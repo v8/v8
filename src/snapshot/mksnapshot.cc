@@ -87,7 +87,8 @@ class SnapshotFileWriter {
 
   static void WriteSnapshotFileData(FILE* fp,
                                     const i::Vector<const i::byte>& blob) {
-    fprintf(fp, "static const byte blob_data[] = {\n");
+    fprintf(fp,
+            "alignas(kPointerAlignment) static const byte blob_data[] = {\n");
     WriteBinaryContentsAsCArray(fp, blob);
     fprintf(fp, "};\n");
     fprintf(fp, "static const int blob_size = %d;\n", blob.length());
