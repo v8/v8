@@ -112,6 +112,7 @@ TEST(LanguageServerMessage, GotoDefinition) {
 }
 
 TEST(LanguageServerMessage, CompilationErrorSendsDiagnostics) {
+  DiagnosticsFiles::Scope diagnostic_files_scope;
   LanguageServerData::Scope server_data_scope;
   SourceFileMap::Scope source_file_map_scope;
 
@@ -130,6 +131,51 @@ TEST(LanguageServerMessage, CompilationErrorSendsDiagnostics) {
     Diagnostic diagnostic = notification.params().diagnostics(0);
     EXPECT_EQ(diagnostic.severity(), Diagnostic::kError);
     EXPECT_EQ(diagnostic.message(), "compilation failed somehow");
+  });
+}
+
+TEST(LanguageServerMessage, LintErrorSendsDiagnostics) {
+  DiagnosticsFiles::Scope diagnostic_files_scope;
+  LintErrors::Scope lint_errors_scope;
+  LanguageServerData::Scope server_data_scope;
+  SourceFileMap::Scope sourc_file_map_scope;
+  SourceId test_id = SourceFileMap::AddSource("test.tq");
+
+  // No compilation errors but two lint warnings.
+  TorqueCompilerResult result;
+  SourcePosition pos1{test_id, {0, 0}, {0, 1}};
+  SourcePosition pos2{test_id, {1, 0}, {1, 1}};
+  result.lint_errors.push_back({"lint error 1", pos1});
+  result.lint_errors.push_back({"lint error 2", pos2});
+  result.source_file_map = SourceFileMap::Get();
+
+  CompilationFinished(result, [](JsonValue& raw_response) {
+    PublishDiagnosticsNotification notification(raw_response);
+
+    EXPECT_EQ(notification.method(), "textDocument/publishDiagnostics");
+    ASSERT_FALSE(notification.IsNull("params"));
+    EXPECT_EQ(notification.params().uri(), "test.tq");
+
+    ASSERT_EQ(notification.params().diagnostics_size(), static_cast<size_t>(2));
+    Diagnostic diagnostic1 = notification.params().diagnostics(0);
+    EXPECT_EQ(diagnostic1.severity(), Diagnostic::kWarning);
+    EXPECT_EQ(diagnostic1.message(), "lint error 1");
+
+    Diagnostic diagnostic2 = notification.params().diagnostics(1);
+    EXPECT_EQ(diagnostic2.severity(), Diagnostic::kWarning);
+    EXPECT_EQ(diagnostic2.message(), "lint error 2");
+  });
+}
+
+TEST(LanguageServerMessage, CleanCompileSendsNoDiagnostics) {
+  LanguageServerData::Scope server_data_scope;
+  SourceFileMap::Scope sourc_file_map_scope;
+
+  TorqueCompilerResult result;
+  result.source_file_map = SourceFileMap::Get();
+
+  CompilationFinished(result, [](JsonValue& raw_response) {
+    FAIL() << "Sending unexpected response!";
   });
 }
 

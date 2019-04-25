@@ -76,33 +76,90 @@ void ResetCompilationErrorDiagnostics(MessageWriter writer) {
 
     writer(notification.GetJsonValue());
   }
+  DiagnosticsFiles::Get() = {};
 }
 
-void SendCompilationErrorDiagnostics(const TorqueError& error,
-                                     MessageWriter writer) {
-  PublishDiagnosticsNotification notification;
-  notification.set_method("textDocument/publishDiagnostics");
+// Each notification must contain all diagnostics for a specific file,
+// because sending multiple notifications per file resets previously sent
+// diagnostics. Thus, two steps are needed:
+//   1) collect all notifications in this class.
+//   2) send one notification per entry (per file).
+class DiagnosticCollector {
+ public:
+  void AddTorqueError(const TorqueError& error) {
+    SourceId id = error.position ? error.position->source : SourceId::Invalid();
+    auto& notification = GetOrCreateNotificationForSource(id);
 
-  std::string error_file =
-      error.position ? SourceFileMap::GetSource(error.position->source)
-                     : "<unknown>";
-  notification.params().set_uri(error_file);
+    Diagnostic diagnostic = notification.params().add_diagnostics();
+    diagnostic.set_severity(Diagnostic::kError);
+    diagnostic.set_message(error.message);
+    diagnostic.set_source("Torque Compiler");
 
-  Diagnostic diagnostic = notification.params().add_diagnostics();
-  diagnostic.set_severity(Diagnostic::kError);
-  diagnostic.set_message(error.message);
-  diagnostic.set_source("Torque Compiler");
-
-  if (error.position) {
-    Range range = diagnostic.range();
-    range.start().set_line(error.position->start.line);
-    range.start().set_character(error.position->start.column);
-    range.end().set_line(error.position->end.line);
-    range.end().set_character(error.position->end.column);
+    if (error.position) {
+      PopulateRangeFromSourcePosition(diagnostic.range(), *error.position);
+    }
   }
-  writer(notification.GetJsonValue());
 
-  if (error.position) DiagnosticsFiles::Get().push_back(error.position->source);
+  void AddLintError(const LintError& error) {
+    auto& notification =
+        GetOrCreateNotificationForSource(error.position.source);
+
+    Diagnostic diagnostic = notification.params().add_diagnostics();
+    diagnostic.set_severity(Diagnostic::kWarning);
+    diagnostic.set_message(error.message);
+    diagnostic.set_source("Torque Compiler");
+
+    PopulateRangeFromSourcePosition(diagnostic.range(), error.position);
+  }
+
+  std::map<SourceId, PublishDiagnosticsNotification>& notifications() {
+    return notifications_;
+  }
+
+ private:
+  PublishDiagnosticsNotification& GetOrCreateNotificationForSource(
+      SourceId id) {
+    auto iter = notifications_.find(id);
+    if (iter != notifications_.end()) return iter->second;
+
+    PublishDiagnosticsNotification& notification = notifications_[id];
+    notification.set_method("textDocument/publishDiagnostics");
+
+    std::string file =
+        id.IsValid() ? SourceFileMap::GetSource(id) : "<unknown>";
+    notification.params().set_uri(file);
+    return notification;
+  }
+
+  void PopulateRangeFromSourcePosition(Range range,
+                                       const SourcePosition& position) {
+    range.start().set_line(position.start.line);
+    range.start().set_character(position.start.column);
+    range.end().set_line(position.end.line);
+    range.end().set_character(position.end.column);
+  }
+
+  std::map<SourceId, PublishDiagnosticsNotification> notifications_;
+};
+
+void SendCompilationDiagnostics(const TorqueCompilerResult& result,
+                                MessageWriter writer) {
+  DiagnosticCollector collector;
+  if (result.error) collector.AddTorqueError(*result.error);
+
+  for (const LintError& error : result.lint_errors) {
+    collector.AddLintError(error);
+  }
+
+  for (auto& pair : collector.notifications()) {
+    PublishDiagnosticsNotification& notification = pair.second;
+    writer(notification.GetJsonValue());
+
+    // Record all source files for which notifications are sent, so they
+    // can be reset before the next compiler run.
+    const SourceId& source = pair.first;
+    if (source.IsValid()) DiagnosticsFiles::Get().push_back(source);
+  }
 }
 
 }  // namespace
@@ -111,9 +168,7 @@ void CompilationFinished(TorqueCompilerResult result, MessageWriter writer) {
   LanguageServerData::Get() = result.language_server_data;
   SourceFileMap::Get() = result.source_file_map;
 
-  if (result.error) {
-    SendCompilationErrorDiagnostics(*result.error, writer);
-  }
+  SendCompilationDiagnostics(result, writer);
 }
 
 namespace {
@@ -194,8 +249,8 @@ void HandleTorqueFileListNotification(TorqueFileListNotification notification,
   // we need to order them in the correct way.
   // TODO(szuend): Remove this, once the compiler doesn't require the input
   //               files to be in a specific order.
-  std::vector<std::string> sort_to_front = {"base.tq", "frames.tq",
-                                            "arguments.tq", "array.tq"};
+  std::vector<std::string> sort_to_front = {
+      "base.tq", "frames.tq", "arguments.tq", "array.tq", "typed_array.tq"};
   std::sort(files.begin(), files.end(), [&](std::string a, std::string b) {
     for (const std::string& fixed_file : sort_to_front) {
       if (a.find(fixed_file) != std::string::npos) return true;

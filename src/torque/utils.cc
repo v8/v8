@@ -138,7 +138,7 @@ void ReportLintError(const std::string& error) {
 void NamingConventionError(const std::string& type, const std::string& name,
                            const std::string& convention) {
   std::stringstream sstream;
-  sstream << type << " \"" << name << "\" doesn't follow \"" << convention
+  sstream << type << " \"" << name << "\" does not follow \"" << convention
           << "\" naming convention.";
   ReportLintError(sstream.str());
 }
