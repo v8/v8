@@ -330,6 +330,22 @@
       {'name': 'v8testing', 'shards': 5},
     ],
   },
+  'v8_linux64_nodcheck_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-14.04',
+    },
+    'tests': [
+      {'name': 'benchmarks'},
+      {'name': 'benchmarks', 'variant': 'extra'},
+      {'name': 'mozilla'},
+      {'name': 'mozilla', 'variant': 'extra'},
+      {'name': 'test262_variants', 'shards': 2},
+      {'name': 'test262_variants', 'variant': 'extra', 'shards': 2},
+      {'name': 'v8testing', 'shards': 2},
+      {'name': 'v8testing', 'variant': 'extra'},
+    ],
+  },
   'v8_linux64_perfetto_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-14.04',
