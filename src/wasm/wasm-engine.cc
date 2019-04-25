@@ -665,29 +665,35 @@ void WasmEngine::SampleTopTierCodeSizeInAllIsolates(
 
 void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
                                      Vector<WasmCode*> live_code) {
-  base::MutexGuard guard(&mutex_);
-  DCHECK_NOT_NULL(current_gc_info_);
-  auto outstanding_isolate_it =
-      current_gc_info_->outstanding_isolates.find(isolate);
-  DCHECK_NE(current_gc_info_->outstanding_isolates.end(),
-            outstanding_isolate_it);
-  auto* fg_task = outstanding_isolate_it->second;
-  if (fg_task) fg_task->Cancel();
-  current_gc_info_->outstanding_isolates.erase(outstanding_isolate_it);
-  for (WasmCode* code : live_code) current_gc_info_->dead_code.erase(code);
+  // Get the set of dead code under the mutex, but decrement the ref count after
+  // releasing the mutex to avoid deadlocks.
+  OwnedVector<WasmCode*> dead_code;
+  {
+    base::MutexGuard guard(&mutex_);
+    DCHECK_NOT_NULL(current_gc_info_);
+    auto outstanding_isolate_it =
+        current_gc_info_->outstanding_isolates.find(isolate);
+    DCHECK_NE(current_gc_info_->outstanding_isolates.end(),
+              outstanding_isolate_it);
+    auto* fg_task = outstanding_isolate_it->second;
+    if (fg_task) fg_task->Cancel();
+    current_gc_info_->outstanding_isolates.erase(outstanding_isolate_it);
+    for (WasmCode* code : live_code) current_gc_info_->dead_code.erase(code);
 
-  if (current_gc_info_->outstanding_isolates.empty()) {
-    // All remaining code in {current_gc_info->dead_code} is really dead. Remove
-    // it from the set of potentially dead code, and decrement its ref count.
-    auto dead_code = OwnedVector<WasmCode*>::Of(current_gc_info_->dead_code);
-    for (WasmCode* code : dead_code) {
-      auto* native_module_info = native_modules_[code->native_module()].get();
-      DCHECK_EQ(1, native_module_info->potentially_dead_code.count(code));
-      native_module_info->potentially_dead_code.erase(code);
+    if (current_gc_info_->outstanding_isolates.empty()) {
+      // All remaining code in {current_gc_info->dead_code} is really dead.
+      // Remove it from the set of potentially dead code, and decrement its ref
+      // count.
+      dead_code = OwnedVector<WasmCode*>::Of(current_gc_info_->dead_code);
+      for (WasmCode* code : dead_code) {
+        auto* native_module_info = native_modules_[code->native_module()].get();
+        DCHECK_EQ(1, native_module_info->potentially_dead_code.count(code));
+        native_module_info->potentially_dead_code.erase(code);
+      }
+      current_gc_info_.reset();
     }
-    WasmCode::DecrementRefCount(dead_code.as_vector());
-    current_gc_info_.reset();
   }
+  if (!dead_code.empty()) WasmCode::DecrementRefCount(dead_code.as_vector());
 }
 
 bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
