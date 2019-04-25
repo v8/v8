@@ -17,7 +17,12 @@ void LanguageServerData::AddDefinition(SourcePosition token,
 
 base::Optional<SourcePosition> LanguageServerData::FindDefinition(
     SourceId source, LineAndColumn pos) {
-  for (const DefinitionMapping& mapping : Get().definitions_map_.at(source)) {
+  if (!source.IsValid()) return base::nullopt;
+
+  auto iter = Get().definitions_map_.find(source);
+  if (iter == Get().definitions_map_.end()) return base::nullopt;
+
+  for (const DefinitionMapping& mapping : iter->second) {
     SourcePosition current = mapping.first;
     if (current.Contains(pos)) return mapping.second;
   }

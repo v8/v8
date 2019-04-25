@@ -94,8 +94,7 @@ TorqueCompilerResult CollectResultFromContextuals() {
 }
 
 TorqueCompilerResult ResultFromError(TorqueError& error) {
-  TorqueCompilerResult result;
-  result.source_file_map = SourceFileMap::Get();
+  TorqueCompilerResult result = CollectResultFromContextuals();
   result.error = error;
   return result;
 }

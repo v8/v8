@@ -70,6 +70,15 @@ TEST(LanguageServer, GotoTypeDefinitionExtends) {
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 5}, {2, 7}}));
 }
 
+TEST(LanguageServer, GotoTypeDefinitionNoDataForFile) {
+  LanguageServerData::Scope server_data_scope;
+  SourceFileMap::Scope file_scope;
+  SourceId test_id = SourceFileMap::AddSource("test.tq");
+
+  // Regression test, this step should not crash.
+  EXPECT_FALSE(LanguageServerData::FindDefinition(test_id, {0, 0}));
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8
