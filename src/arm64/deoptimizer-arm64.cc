@@ -55,6 +55,12 @@ void CopyRegListToFrame(MacroAssembler* masm, const Register& dst,
   masm->Sub(dst, dst, dst_offset);
 }
 
+// TODO(jgruber): There's a hack here to explicitly skip restoration of the
+// so-called 'arm64 platform register' x18. The register may be in use by the
+// OS, thus we should not clobber it. Instead of this hack, it would be nicer
+// not to add x18 to the list of saved registers in the first place. The
+// complication here is that we require `reg_list.Count() % 2 == 0` in multiple
+// spots.
 void RestoreRegList(MacroAssembler* masm, const CPURegList& reg_list,
                     const Register& src_base, int src_offset) {
   DCHECK_EQ(reg_list.Count() % 2, 0);
@@ -68,8 +74,8 @@ void RestoreRegList(MacroAssembler* masm, const CPURegList& reg_list,
   Register src = temps.AcquireX();
   masm->Add(src, src_base, src_offset);
 
-  // No need to restore padreg.
-  restore_list.Remove(padreg);
+  // x18 is the platform register and is reserved for the use of platform ABIs.
+  restore_list.Remove(x18);
 
   // Restore every register in restore_list from src.
   while (!restore_list.IsEmpty()) {

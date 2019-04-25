@@ -98,18 +98,6 @@ void CPURegList::RemoveCalleeSaved() {
   }
 }
 
-void CPURegList::Align() {
-  // Use padreg, if necessary, to maintain stack alignment.
-  if (Count() % 2 != 0) {
-    if (IncludesAliasOf(padreg)) {
-      Remove(padreg);
-    } else {
-      Combine(padreg);
-    }
-  }
-
-  DCHECK_EQ(Count() % 2, 0);
-}
 
 CPURegList CPURegList::GetCalleeSaved(int size) {
   return CPURegList(CPURegister::kRegister, size, 19, 29);

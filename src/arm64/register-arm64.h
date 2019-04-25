@@ -626,9 +626,6 @@ class V8_EXPORT_PRIVATE CPURegList {
   // preparing registers for an AAPCS64 function call, for example.
   void RemoveCalleeSaved();
 
-  // Align the list to 16 bytes.
-  void Align();
-
   CPURegister PopLowestIndex();
   CPURegister PopHighestIndex();
 
