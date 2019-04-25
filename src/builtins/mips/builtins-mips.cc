@@ -874,7 +874,8 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
   Register optimized_code_entry = scratch1;
 
   __ lw(optimized_code_entry,
-        FieldMemOperand(feedback_vector, FeedbackVector::kOptimizedCodeOffset));
+        FieldMemOperand(feedback_vector,
+                        FeedbackVector::kOptimizedCodeWeakOrSmiOffset));
 
   // Check if the code entry is a Smi. If yes, we interpret it as an
   // optimisation marker. Otherwise, interpret it as a weak cell to a code

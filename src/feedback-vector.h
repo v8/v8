@@ -311,21 +311,11 @@ class FeedbackVector : public HeapObject {
   // garbage collection (e.g., for patching the cache).
   static inline Symbol RawUninitializedSentinel(Isolate* isolate);
 
-// Layout description.
-#define FEEDBACK_VECTOR_FIELDS(V)                 \
-  /* Header fields. */                            \
-  V(kSharedFunctionInfoOffset, kTaggedSize)       \
-  V(kOptimizedCodeOffset, kTaggedSize)            \
-  V(kClosureFeedbackCellArrayOffset, kTaggedSize) \
-  V(kLengthOffset, kInt32Size)                    \
-  V(kInvocationCountOffset, kInt32Size)           \
-  V(kProfilerTicksOffset, kInt32Size)             \
-  V(kDeoptCountOffset, kInt32Size)                \
-  V(kUnalignedHeaderSize, 0)
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_FEEDBACK_VECTOR_FIELDS)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FEEDBACK_VECTOR_FIELDS)
-#undef FEEDBACK_VECTOR_FIELDS
-
+  static constexpr int kUnalignedHeaderSize = kSize;
   static const int kHeaderSize =
       RoundUp<kObjectAlignment>(int{kUnalignedHeaderSize});
   static const int kFeedbackSlotsOffset = kHeaderSize;

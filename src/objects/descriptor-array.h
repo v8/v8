@@ -139,20 +139,11 @@ class DescriptorArray : public HeapObject {
   static const int kNotFound = -1;
 
   // Layout description.
-#define DESCRIPTOR_ARRAY_FIELDS(V)                    \
-  V(kNumberOfAllDescriptorsOffset, kUInt16Size)       \
-  V(kNumberOfDescriptorsOffset, kUInt16Size)          \
-  V(kRawNumberOfMarkedDescriptorsOffset, kUInt16Size) \
-  V(kFiller16BitsOffset, kUInt16Size)                 \
-  V(kPointersStartOffset, 0)                          \
-  V(kEnumCacheOffset, kTaggedSize)                    \
-  V(kHeaderSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                DESCRIPTOR_ARRAY_FIELDS)
-#undef DESCRIPTOR_ARRAY_FIELDS
+                                TORQUE_GENERATED_DESCRIPTOR_ARRAY_FIELDS)
+  static constexpr int kHeaderSize = kSize;
 
-  STATIC_ASSERT(IsAligned(kPointersStartOffset, kTaggedSize));
+  STATIC_ASSERT(IsAligned(kStartOfPointerFieldsOffset, kTaggedSize));
   STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
 
   // Garbage collection support.
@@ -174,7 +165,8 @@ class DescriptorArray : public HeapObject {
   inline ObjectSlot GetKeySlot(int descriptor);
   inline MaybeObjectSlot GetValueSlot(int descriptor);
 
-  using BodyDescriptor = FlexibleWeakBodyDescriptor<kPointersStartOffset>;
+  using BodyDescriptor =
+    FlexibleWeakBodyDescriptor<kStartOfPointerFieldsOffset>;
 
   // Layout of descriptor.
   // Naming is consistent with Dictionary classes for easy templating.

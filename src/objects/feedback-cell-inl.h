@@ -25,10 +25,10 @@ ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
 INT32_ACCESSORS(FeedbackCell, interrupt_budget, kInterruptBudgetOffset)
 
 void FeedbackCell::clear_padding() {
-  if (FeedbackCell::kSize == FeedbackCell::kUnalignedSize) return;
-  DCHECK_GE(FeedbackCell::kSize, FeedbackCell::kUnalignedSize);
+  if (FeedbackCell::kAlignedSize == FeedbackCell::kUnalignedSize) return;
+  DCHECK_GE(FeedbackCell::kAlignedSize, FeedbackCell::kUnalignedSize);
   memset(reinterpret_cast<byte*>(address() + FeedbackCell::kUnalignedSize), 0,
-         FeedbackCell::kSize - FeedbackCell::kUnalignedSize);
+         FeedbackCell::kAlignedSize - FeedbackCell::kUnalignedSize);
 }
 
 }  // namespace internal

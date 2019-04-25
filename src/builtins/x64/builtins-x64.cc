@@ -899,7 +899,8 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   __ LoadAnyTaggedField(
       optimized_code_entry,
-      FieldOperand(feedback_vector, FeedbackVector::kOptimizedCodeOffset),
+      FieldOperand(feedback_vector,
+                   FeedbackVector::kOptimizedCodeWeakOrSmiOffset),
       decompr_scratch);
 
   // Check if the code entry is a Smi. If yes, we interpret it as an

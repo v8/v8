@@ -102,7 +102,8 @@ Handle<FeedbackCell> ClosureFeedbackCellArray::GetFeedbackCell(int index) {
 
 ACCESSORS(FeedbackVector, shared_function_info, SharedFunctionInfo,
           kSharedFunctionInfoOffset)
-WEAK_ACCESSORS(FeedbackVector, optimized_code_weak_or_smi, kOptimizedCodeOffset)
+WEAK_ACCESSORS(FeedbackVector, optimized_code_weak_or_smi,
+               kOptimizedCodeWeakOrSmiOffset)
 ACCESSORS(FeedbackVector, closure_feedback_cell_array, ClosureFeedbackCellArray,
           kClosureFeedbackCellArrayOffset)
 INT32_ACCESSORS(FeedbackVector, length, kLengthOffset)

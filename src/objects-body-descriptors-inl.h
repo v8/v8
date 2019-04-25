@@ -471,7 +471,7 @@ class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     return offset == kSharedFunctionInfoOffset ||
-           offset == kOptimizedCodeOffset ||
+           offset == kOptimizedCodeWeakOrSmiOffset ||
            offset == kClosureFeedbackCellArrayOffset ||
            offset >= kFeedbackSlotsOffset;
   }
@@ -480,7 +480,7 @@ class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
     IteratePointer(obj, kSharedFunctionInfoOffset, v);
-    IterateMaybeWeakPointer(obj, kOptimizedCodeOffset, v);
+    IterateMaybeWeakPointer(obj, kOptimizedCodeWeakOrSmiOffset, v);
     IteratePointer(obj, kClosureFeedbackCellArrayOffset, v);
     IterateMaybeWeakPointers(obj, kFeedbackSlotsOffset, object_size, v);
   }

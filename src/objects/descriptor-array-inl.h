@@ -92,7 +92,7 @@ int DescriptorArray::SearchWithCache(Isolate* isolate, Name name, Map map) {
 }
 
 ObjectSlot DescriptorArray::GetFirstPointerSlot() {
-  return RawField(DescriptorArray::kPointersStartOffset);
+  return RawField(DescriptorArray::kStartOfPointerFieldsOffset);
 }
 
 ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {

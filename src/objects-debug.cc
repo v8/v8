@@ -2107,6 +2107,10 @@ void ObjectTemplateInfo::ObjectTemplateInfoVerify(Isolate* isolate) {
 
 void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
   CHECK(IsAllocationSite());
+  CHECK(dependent_code()->IsDependentCode());
+  CHECK(transition_info_or_boilerplate()->IsSmi() ||
+        transition_info_or_boilerplate()->IsJSObject());
+  CHECK(nested_site()->IsAllocationSite() || nested_site() == Smi::kZero);
 }
 
 void AllocationMemento::AllocationMementoVerify(Isolate* isolate) {
@@ -2153,10 +2157,15 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
 
 void DebugInfo::DebugInfoVerify(Isolate* isolate) {
   CHECK(IsDebugInfo());
-  VerifyPointer(isolate, shared());
-  VerifyPointer(isolate, script());
-  VerifyPointer(isolate, original_bytecode_array());
-  VerifyPointer(isolate, break_points());
+  VerifySmiField(kFlagsOffset);
+  VerifySmiField(kDebuggerHintsOffset);
+  CHECK(shared()->IsSharedFunctionInfo());
+  CHECK(script()->IsUndefined(isolate) || script()->IsScript());
+  CHECK(original_bytecode_array()->IsUndefined(isolate) ||
+        original_bytecode_array()->IsBytecodeArray());
+  CHECK(debug_bytecode_array()->IsUndefined(isolate) ||
+        debug_bytecode_array()->IsBytecodeArray());
+  CHECK(break_points()->IsFixedArray());
 }
 
 void StackTraceFrame::StackTraceFrameVerify(Isolate* isolate) {

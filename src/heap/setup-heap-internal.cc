@@ -452,11 +452,14 @@ bool Heap::CreateInitialMaps() {
 
     // The "no closures" and "one closure" FeedbackCell maps need
     // to be marked unstable because their objects can change maps.
-    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kSize, no_closures_cell)
+    ALLOCATE_MAP(
+      FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize, no_closures_cell)
     roots.no_closures_cell_map()->mark_unstable();
-    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kSize, one_closure_cell)
+    ALLOCATE_MAP(
+      FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize, one_closure_cell)
     roots.one_closure_cell_map()->mark_unstable();
-    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kSize, many_closures_cell)
+    ALLOCATE_MAP(
+      FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize, many_closures_cell)
 
     ALLOCATE_VARSIZE_MAP(TRANSITION_ARRAY_TYPE, transition_array)
 

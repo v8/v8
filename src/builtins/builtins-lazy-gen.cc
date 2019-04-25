@@ -44,7 +44,7 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
   Label fallthrough(this);
 
   TNode<MaybeObject> maybe_optimized_code_entry = LoadMaybeWeakObjectField(
-      feedback_vector, FeedbackVector::kOptimizedCodeOffset);
+      feedback_vector, FeedbackVector::kOptimizedCodeWeakOrSmiOffset);
 
   // Check if the code entry is a Smi. If yes, we interpret it as an
   // optimisation marker. Otherwise, interpret it as a weak reference to a code

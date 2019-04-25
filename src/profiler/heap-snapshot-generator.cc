@@ -1232,7 +1232,7 @@ void V8HeapExplorer::ExtractFeedbackVectorReferences(
   HeapObject code_heap_object;
   if (code->GetHeapObjectIfWeak(&code_heap_object)) {
     SetWeakReference(entry, "optimized code", code_heap_object,
-                     FeedbackVector::kOptimizedCodeOffset);
+                     FeedbackVector::kOptimizedCodeWeakOrSmiOffset);
   }
 }
 
