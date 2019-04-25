@@ -375,9 +375,8 @@ class Checksum {
     // Fletcher's checksum. Modified to reduce 64-bit sums to 32-bit.
     uintptr_t a = 1;
     uintptr_t b = 0;
-    DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload.start()), kIntptrSize));
-    DCHECK(IsAligned(payload.length(), kIntptrSize));
     const uintptr_t* cur = reinterpret_cast<const uintptr_t*>(payload.start());
+    DCHECK(IsAligned(payload.length(), kIntptrSize));
     const uintptr_t* end = cur + payload.length() / kIntptrSize;
     while (cur < end) {
       // Unsigned overflow expected and intended.
