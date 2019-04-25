@@ -7,6 +7,7 @@
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function testDecodeCompilationHintsSectionNoDowngrade() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
   builder.addFunction('upow', kSig_i_i)
@@ -24,6 +25,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function testDecodeCompilationHintsSectionNoTiering() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
   builder.addFunction('upow', kSig_i_i)
@@ -47,6 +49,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function testDecodeCompilationHintsSectionUpgrade() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addImport('mod', 'pow', kSig_i_ii);
   builder.addFunction('upow2', kSig_i_i)
@@ -70,6 +73,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function testDecodeCompilationHintsSectionNoImport() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('sq', kSig_i_i)
          .addBody([kExprGetLocal, 0,
@@ -84,6 +88,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function testDecodeCompilationHintsSectionNoExport() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('sq', kSig_i_i)
          .addBody([kExprGetLocal, 0,
@@ -96,6 +101,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function testDecodeCompilationHintsSectionTopTierDefault() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('sq', kSig_i_i)
          .addBody([kExprGetLocal, 0,
@@ -110,6 +116,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function testDecodeCompilationHintsInvalidStrategy() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('sq', kSig_i_i)
          .addBody([kExprGetLocal, 0,
