@@ -82,6 +82,8 @@
     "https://build.chromium.org/p/client.v8.fyi": [
       {
         "excluded_builders" : [
+          "V8 Linux64 - debug - perfetto - builder",
+          "V8 Linux64 - debug - perfetto",
           "Linux Snapshot Builder",
           "Linux V8 FYI Release - pointer compression (NVIDIA)"
         ],
