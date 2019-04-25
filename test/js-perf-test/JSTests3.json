@@ -222,10 +222,7 @@
             {"name": "StringDropLastSubstring"},
             {"name": "StringTakeLastSlice"},
             {"name": "StringTakeLastSubstr"},
-            {"name": "StringTakeLastSubstring"},
-            {"name": "StringDropFirstSlice"},
-            {"name": "StringDropFirstSubstr"},
-            {"name": "StringDropFirstSubstring"}
+            {"name": "StringTakeLastSubstring"}
           ]
         }
       ]
