@@ -930,6 +930,9 @@ def Main(argv):
   parser.add_argument('--dump-logcats-to',
                       help='Writes logcat output from each test into specified '
                       'directory. Only supported for android targets.')
+  parser.add_argument("--run-count", type=int, default=0,
+                      help="Override the run count specified by the test "
+                           "suite. The default 0 uses the suite's config.")
   parser.add_argument('suite', nargs='+', help='Path to the suite config file.')
 
   try:
@@ -1035,7 +1038,7 @@ def Main(argv):
 
         def Runner():
           """Output generator that reruns several times."""
-          for i in range(0, max(1, runnable.run_count)):
+          for i in range(0, max(1, args.run_count or runnable.run_count)):
             attempts_left = runnable.retry_count + 1
             while attempts_left:
               output, output_secondary = platform.Run(runnable, i)
