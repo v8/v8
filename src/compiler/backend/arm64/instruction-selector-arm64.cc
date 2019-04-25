@@ -1238,8 +1238,6 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   V(Float64RoundTiesAway, kArm64Float64RoundTiesAway)         \
   V(Float32RoundTiesEven, kArm64Float32RoundTiesEven)         \
   V(Float64RoundTiesEven, kArm64Float64RoundTiesEven)         \
-  V(Float32Neg, kArm64Float32Neg)                             \
-  V(Float64Neg, kArm64Float64Neg)                             \
   V(Float64ExtractLowWord32, kArm64Float64ExtractLowWord32)   \
   V(Float64ExtractHighWord32, kArm64Float64ExtractHighWord32) \
   V(Float64SilenceNaN, kArm64Float64SilenceNaN)
@@ -1257,8 +1255,6 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   V(Float64Add, kArm64Float64Add) \
   V(Float32Sub, kArm64Float32Sub) \
   V(Float64Sub, kArm64Float64Sub) \
-  V(Float32Mul, kArm64Float32Mul) \
-  V(Float64Mul, kArm64Float64Mul) \
   V(Float32Div, kArm64Float32Div) \
   V(Float64Div, kArm64Float64Div) \
   V(Float32Max, kArm64Float32Max) \
@@ -2654,6 +2650,38 @@ void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
   VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
 }
 
+void InstructionSelector::VisitFloat32Neg(Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* in = node->InputAt(0);
+  if (in->opcode() == IrOpcode::kFloat32Mul && CanCover(node, in)) {
+    Float32BinopMatcher m(in);
+    Emit(kArm64Float32Fnmul, g.DefineAsRegister(node),
+         g.UseRegister(m.left().node()), g.UseRegister(m.right().node()));
+    return;
+  }
+  VisitRR(this, kArm64Float32Neg, node);
+}
+
+void InstructionSelector::VisitFloat32Mul(Node* node) {
+  Arm64OperandGenerator g(this);
+  Float32BinopMatcher m(node);
+
+  if (m.left().IsFloat32Neg() && CanCover(node, m.left().node())) {
+    Emit(kArm64Float32Fnmul, g.DefineAsRegister(node),
+         g.UseRegister(m.left().node()->InputAt(0)),
+         g.UseRegister(m.right().node()));
+    return;
+  }
+
+  if (m.right().IsFloat32Neg() && CanCover(node, m.right().node())) {
+    Emit(kArm64Float32Fnmul, g.DefineAsRegister(node),
+         g.UseRegister(m.right().node()->InputAt(0)),
+         g.UseRegister(m.left().node()));
+    return;
+  }
+  return VisitRRR(this, kArm64Float32Mul, node);
+}
+
 void InstructionSelector::VisitFloat32Equal(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat32Compare(this, node, &cont);
@@ -2717,6 +2745,38 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
   }
   Emit(kArm64Float64InsertHighWord32, g.DefineSameAsFirst(node),
        g.UseRegister(left), g.UseRegister(right));
+}
+
+void InstructionSelector::VisitFloat64Neg(Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* in = node->InputAt(0);
+  if (in->opcode() == IrOpcode::kFloat64Mul && CanCover(node, in)) {
+    Float64BinopMatcher m(in);
+    Emit(kArm64Float64Fnmul, g.DefineAsRegister(node),
+         g.UseRegister(m.left().node()), g.UseRegister(m.right().node()));
+    return;
+  }
+  VisitRR(this, kArm64Float64Neg, node);
+}
+
+void InstructionSelector::VisitFloat64Mul(Node* node) {
+  Arm64OperandGenerator g(this);
+  Float64BinopMatcher m(node);
+
+  if (m.left().IsFloat64Neg() && CanCover(node, m.left().node())) {
+    Emit(kArm64Float64Fnmul, g.DefineAsRegister(node),
+         g.UseRegister(m.left().node()->InputAt(0)),
+         g.UseRegister(m.right().node()));
+    return;
+  }
+
+  if (m.right().IsFloat64Neg() && CanCover(node, m.right().node())) {
+    Emit(kArm64Float64Fnmul, g.DefineAsRegister(node),
+         g.UseRegister(m.right().node()->InputAt(0)),
+         g.UseRegister(m.left().node()));
+    return;
+  }
+  return VisitRRR(this, kArm64Float64Mul, node);
 }
 
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {

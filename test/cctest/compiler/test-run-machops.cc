@@ -3998,6 +3998,87 @@ TEST(RunFloat64MulP) {
   }
 }
 
+TEST(RunFloat32MulAndFloat32Neg) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32(),
+                                             MachineType::Float32());
+  m.Return(m.Float32Neg(m.Float32Mul(m.Parameter(0), m.Parameter(1))));
+
+  FOR_FLOAT32_INPUTS(i) {
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(-(i * j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat64MulAndFloat64Neg) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  m.Return(m.Float64Neg(m.Float64Mul(m.Parameter(0), m.Parameter(1))));
+
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(-(i * j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat32NegAndFloat32Mul1) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32(),
+                                             MachineType::Float32());
+  m.Return(m.Float32Mul(m.Float32Neg(m.Parameter(0)), m.Parameter(1)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ((-i * j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat64NegAndFloat64Mul1) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  m.Return(m.Float64Mul(m.Float64Neg(m.Parameter(0)), m.Parameter(1)));
+
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ((-i * j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat32NegAndFloat32Mul2) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32(),
+                                             MachineType::Float32());
+  m.Return(m.Float32Mul(m.Parameter(0), m.Float32Neg(m.Parameter(1))));
+
+  FOR_FLOAT32_INPUTS(i) {
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ((i * -j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat64NegAndFloat64Mul2) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  m.Return(m.Float64Mul(m.Parameter(0), m.Float64Neg(m.Parameter(1))));
+
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ((i * -j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat32NegAndFloat32Mul3) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Float32(),
+                                             MachineType::Float32());
+  m.Return(
+      m.Float32Mul(m.Float32Neg(m.Parameter(0)), m.Float32Neg(m.Parameter(1))));
+
+  FOR_FLOAT32_INPUTS(i) {
+    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ((-i * -j), m.Call(i, j)); }
+  }
+}
+
+TEST(RunFloat64NegAndFloat64Mul3) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64(),
+                                              MachineType::Float64());
+  m.Return(
+      m.Float64Mul(m.Float64Neg(m.Parameter(0)), m.Float64Neg(m.Parameter(1))));
+
+  FOR_FLOAT64_INPUTS(i) {
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ((-i * -j), m.Call(i, j)); }
+  }
+}
 
 TEST(RunFloat64MulAndFloat64Add1) {
   BufferedRawMachineAssemblerTester<double> m(

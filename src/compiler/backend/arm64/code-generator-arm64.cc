@@ -1340,6 +1340,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Float32Sqrt:
       __ Fsqrt(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
+    case kArm64Float32Fnmul: {
+      __ Fnmul(i.OutputFloat32Register(), i.InputFloat32Register(0),
+               i.InputFloat32Register(1));
+      break;
+    }
     case kArm64Float64Cmp:
       if (instr->InputAt(1)->IsFPRegister()) {
         __ Fcmp(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
@@ -1404,6 +1409,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArm64Float64Sqrt:
       __ Fsqrt(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
+    case kArm64Float64Fnmul:
+      __ Fnmul(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputDoubleRegister(1));
       break;
     case kArm64Float32ToFloat64:
       __ Fcvt(i.OutputDoubleRegister(), i.InputDoubleRegister(0).S());

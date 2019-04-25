@@ -388,6 +388,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(fmla, Fmla)                  \
   V(fmls, Fmls)                  \
   V(fmulx, Fmulx)                \
+  V(fnmul, Fnmul)                \
   V(frecps, Frecps)              \
   V(frsqrts, Frsqrts)            \
   V(mla, Mla)                    \

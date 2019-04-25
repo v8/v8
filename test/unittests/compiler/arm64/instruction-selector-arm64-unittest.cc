@@ -4368,6 +4368,78 @@ TEST_F(InstructionSelectorTest, Float64Neg) {
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
 
+TEST_F(InstructionSelectorTest, Float32NegWithMul) {
+  StreamBuilder m(this, MachineType::Float32(), MachineType::Float32(),
+                  MachineType::Float32());
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const n1 = m.AddNode(m.machine()->Float32Mul(), p0, p1);
+  Node* const n2 = m.AddNode(m.machine()->Float32Neg(), n1);
+  m.Return(n2);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Float32Fnmul, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n2), s.ToVreg(s[0]->Output()));
+}
+
+TEST_F(InstructionSelectorTest, Float64NegWithMul) {
+  StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
+                  MachineType::Float64());
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const n1 = m.AddNode(m.machine()->Float64Mul(), p0, p1);
+  Node* const n2 = m.AddNode(m.machine()->Float64Neg(), n1);
+  m.Return(n2);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Float64Fnmul, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n2), s.ToVreg(s[0]->Output()));
+}
+
+TEST_F(InstructionSelectorTest, Float32MulWithNeg) {
+  StreamBuilder m(this, MachineType::Float32(), MachineType::Float32(),
+                  MachineType::Float32());
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const n1 = m.AddNode(m.machine()->Float32Neg(), p0);
+  Node* const n2 = m.AddNode(m.machine()->Float32Mul(), n1, p1);
+  m.Return(n2);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Float32Fnmul, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n2), s.ToVreg(s[0]->Output()));
+}
+
+TEST_F(InstructionSelectorTest, Float64MulWithNeg) {
+  StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
+                  MachineType::Float64());
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const n1 = m.AddNode(m.machine()->Float64Neg(), p0);
+  Node* const n2 = m.AddNode(m.machine()->Float64Mul(), n1, p1);
+  m.Return(n2);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Float64Fnmul, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n2), s.ToVreg(s[0]->Output()));
+}
+
 TEST_F(InstructionSelectorTest, LoadAndShiftRight) {
   {
     int32_t immediates[] = {-256, -255, -3,   -2,   -1,    0,    1,
