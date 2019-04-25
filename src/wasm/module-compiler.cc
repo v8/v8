@@ -58,6 +58,19 @@ namespace {
 
 enum class CompileMode : uint8_t { kRegular, kTiering };
 
+enum class CompileStrategy : uint8_t {
+  // Compiles functions on first use. In this case, execution will block until
+  // the function's baseline is reached and top tier compilation starts in
+  // background (if applicable).
+  // Lazy compilation can help to reduce startup time and code size at the risk
+  // of blocking execution.
+  kLazy,
+  // Compiles baseline ahead of execution and starts top tier compilation in
+  // background (if applicable).
+  kEager,
+  kDefault = kEager,
+};
+
 // Background compile jobs hold a shared pointer to this token. The token is
 // used to notify them that they should stop. As soon as they see this (after
 // finishing their current compilation unit), they will stop.
@@ -520,23 +533,28 @@ const WasmCompilationHint* GetCompilationHint(const WasmModule* module,
   return nullptr;
 }
 
-bool IsLazyCompilation(const WasmModule* module,
-                       const WasmFeatures& enabled_features,
-                       uint32_t func_index) {
-  if (enabled_features.compilation_hints) {
-    const WasmCompilationHint* hint = GetCompilationHint(module, func_index);
-    return hint != nullptr &&
-           hint->strategy == WasmCompilationHintStrategy::kLazy;
+CompileStrategy GetCompileStrategy(const WasmModule* module,
+                                   const WasmFeatures& enabled_features,
+                                   uint32_t func_index) {
+  if (!enabled_features.compilation_hints) return CompileStrategy::kDefault;
+  auto* hint = GetCompilationHint(module, func_index);
+  if (hint == nullptr) return CompileStrategy::kDefault;
+  switch (hint->strategy) {
+    case WasmCompilationHintStrategy::kLazy:
+      return CompileStrategy::kLazy;
+    case WasmCompilationHintStrategy::kEager:
+      return CompileStrategy::kEager;
+    case WasmCompilationHintStrategy::kDefault:
+      return CompileStrategy::kDefault;
   }
-  return false;
 }
 
-bool IsLazyCompilation(const WasmModule* module,
-                       const NativeModule* native_module,
-                       const WasmFeatures& enabled_features,
-                       uint32_t func_index) {
-  if (native_module->lazy_compilation()) return true;
-  return IsLazyCompilation(module, enabled_features, func_index);
+CompileStrategy GetCompileStrategy(const WasmModule* module,
+                                   const NativeModule* native_module,
+                                   const WasmFeatures& enabled_features,
+                                   uint32_t func_index) {
+  if (native_module->lazy_compilation()) return CompileStrategy::kLazy;
+  return GetCompileStrategy(module, enabled_features, func_index);
 }
 
 struct ExecutionTierPair {
@@ -668,22 +686,25 @@ DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
   return result;
 }
 
-enum class OnlyLazyFunctions : bool { kNo = false, kYes = true };
+enum OnlyLazyFunctions : bool {
+  kAllFunctions = false,
+  kOnlyLazyFunctions = true,
+};
 
 void ValidateSequentially(
     const WasmModule* module, NativeModule* native_module, Counters* counters,
     AccountingAllocator* allocator, ErrorThrower* thrower,
-    OnlyLazyFunctions only_lazy_functions = OnlyLazyFunctions::kNo) {
+    OnlyLazyFunctions only_lazy_functions = kAllFunctions) {
   DCHECK(!thrower->error());
   uint32_t start = module->num_imported_functions;
   uint32_t end = start + module->num_declared_functions;
   auto enabled_features = native_module->enabled_features();
   for (uint32_t func_index = start; func_index < end; func_index++) {
     // Skip non-lazy functions if requested.
-    if (only_lazy_functions == OnlyLazyFunctions::kYes &&
-        !IsLazyCompilation(module, native_module, enabled_features,
-                           func_index)) {
-      continue;
+    if (only_lazy_functions) {
+      CompileStrategy strategy = GetCompileStrategy(
+          module, native_module, enabled_features, func_index);
+      if (strategy != CompileStrategy::kLazy) continue;
     }
 
     ModuleWireBytes wire_bytes{native_module->wire_bytes()};
@@ -907,15 +928,17 @@ void InitializeCompilationUnits(NativeModule* native_module) {
                                                    num_lazy_functions);
 
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  const WasmModule* module = native_module->module();
   CompilationUnitBuilder builder(native_module);
+  const WasmModule* module = native_module->module();
   uint32_t start = module->num_imported_functions;
   uint32_t end = start + module->num_declared_functions;
   for (uint32_t func_index = start; func_index < end; func_index++) {
-    if (IsLazyCompilation(module, native_module,
-                          native_module->enabled_features(), func_index)) {
+    CompileStrategy strategy = GetCompileStrategy(
+        module, native_module, native_module->enabled_features(), func_index);
+    if (strategy == CompileStrategy::kLazy) {
       native_module->UseLazyStub(func_index);
     } else {
+      DCHECK_EQ(strategy, CompileStrategy::kEager);
       builder.AddUnits(func_index);
     }
   }
@@ -950,8 +973,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
   if (native_module->enabled_features().compilation_hints &&
       !FLAG_wasm_lazy_validation) {
     ValidateSequentially(wasm_module, native_module, isolate->counters(),
-                         isolate->allocator(), thrower,
-                         OnlyLazyFunctions::kYes);
+                         isolate->allocator(), thrower, kOnlyLazyFunctions);
     // On error: Return and leave the module in an unexecutable state.
     if (thrower->error()) return;
   }
@@ -1465,7 +1487,9 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
           const WasmFunction* func = &module->functions[func_index];
           Vector<const uint8_t> code = job->wire_bytes_.GetFunctionBytes(func);
 
-          if (IsLazyCompilation(module, enabled_features, func_index)) {
+          CompileStrategy strategy =
+              GetCompileStrategy(module, enabled_features, func_index);
+          if (strategy == CompileStrategy::kLazy) {
             DecodeResult function_result =
                 ValidateSingleFunction(module, func_index, code, counters_,
                                        allocator, enabled_features);
@@ -1740,24 +1764,29 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
   uint32_t func_index =
       num_functions_ + decoder_.module()->num_imported_functions;
 
-  if (IsLazyCompilation(module, native_module, enabled_features, func_index)) {
-    if (!FLAG_wasm_lazy_validation) {
-      Counters* counters = Impl(native_module->compilation_state())->counters();
-      AccountingAllocator* allocator = native_module->engine()->allocator();
+  CompileStrategy strategy =
+      GetCompileStrategy(module, enabled_features, func_index);
+  bool validate_lazily_compiled_function =
+      !FLAG_wasm_lazy_validation && strategy == CompileStrategy::kLazy;
+  if (validate_lazily_compiled_function) {
+    Counters* counters = Impl(native_module->compilation_state())->counters();
+    AccountingAllocator* allocator = native_module->engine()->allocator();
 
-      // The native module does not own the wire bytes until {SetWireBytes} is
-      // called in {OnFinishedStream}. Validation must use {bytes} parameter.
-      DecodeResult result = ValidateSingleFunction(
-          module, func_index, bytes, counters, allocator, enabled_features);
+    // The native module does not own the wire bytes until {SetWireBytes} is
+    // called in {OnFinishedStream}. Validation must use {bytes} parameter.
+    DecodeResult result = ValidateSingleFunction(
+        module, func_index, bytes, counters, allocator, enabled_features);
 
-      if (result.failed()) {
-        FinishAsyncCompileJobWithError(result.error());
-        return false;
-      }
+    if (result.failed()) {
+      FinishAsyncCompileJobWithError(result.error());
+      return false;
     }
+  }
 
+  if (strategy == CompileStrategy::kLazy) {
     native_module->UseLazyStub(func_index);
   } else {
+    DCHECK_EQ(strategy, CompileStrategy::kEager);
     compilation_unit_builder_->AddUnits(func_index);
   }
 
@@ -1949,8 +1978,8 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
     // Skip lazily compiled code as we do not consider this for the completion
     // of baseline respectively top tier compilation.
     int func_index = code->index();
-    if (IsLazyCompilation(module, native_module_, enabled_features,
-                          func_index)) {
+    if (GetCompileStrategy(module, native_module_, enabled_features,
+                           func_index) == CompileStrategy::kLazy) {
       continue;
     }
 
