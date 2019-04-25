@@ -329,6 +329,14 @@
       {'name': 'v8testing', 'shards': 5},
     ],
   },
+  'v8_linux64_perfetto_dbg_ng_triggered': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-14.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 3},
+    ],
+  },
   'v8_linux64_pointer_compression_rel_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-14.04',
@@ -956,6 +964,19 @@
       # Stress sampling.
       {'name': 'mjsunit', 'variant': 'stress_sampling', 'shards': 1},
       {'name': 'webkit', 'variant': 'stress_sampling', 'shards': 1},
+    ],
+  },
+  'V8 Linux64 - debug - perfetto': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-14.04',
+    },
+    'swarming_task_attrs': {
+      'expiration': 14400,
+      'hard_timeout': 3600,
+      'priority': 35,
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   'V8 Linux64 - fyi': {

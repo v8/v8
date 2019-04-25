@@ -92,6 +92,7 @@
       'V8 Linux gcc': 'release_x86_gcc',
       'V8 Linux64 gcc - debug': 'debug_x64_gcc',
       # FYI.
+      'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
       'V8 Linux64 - pointer compression': 'release_x64_pointer_compression',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
@@ -212,6 +213,7 @@
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_fyi_rel_ng': 'release_x64_test_features_trybot',
+      'v8_linux64_perfetto_dbg_ng': 'debug_x64_perfetto',
       'v8_linux64_pointer_compression_rel_ng': 'release_x64_pointer_compression',
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
@@ -490,6 +492,8 @@
       'debug_bot', 'x64', 'jumbo_limited'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
+    'debug_x64_perfetto': [
+      'debug_bot', 'x64', 'perfetto'],
     'debug_x64_trybot': [
       'debug_trybot', 'x64'],
     'debug_x64_trybot_custom': [
@@ -697,6 +701,10 @@
 
     'no_sysroot': {
       'gn_args': 'use_sysroot=false',
+    },
+
+    'perfetto': {
+      'gn_args': 'v8_use_perfetto=true',
     },
 
     'release': {
