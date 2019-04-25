@@ -247,7 +247,8 @@ namespace array {
       context: Context, sortState: SortState, index: Smi, value: Object): Smi {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
-    StoreFixedArrayElementSmi(elements, index, value, SKIP_WRITE_BARRIER);
+    const value = UnsafeCast<Smi>(value);
+    StoreFixedArrayElement(elements, index, value, SKIP_WRITE_BARRIER);
     return kSuccess;
   }
 

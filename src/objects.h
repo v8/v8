@@ -186,12 +186,15 @@ namespace internal {
 struct InliningPosition;
 class PropertyDescriptorObject;
 
-// SKIP_WRITE_BARRIER skips the write barrier.
+// UNSAFE_SKIP_WRITE_BARRIER skips the write barrier.
+// SKIP_WRITE_BARRIER skips the write barrier and asserts that this is safe in
+// the MemoryOptimizer
 // UPDATE_WEAK_WRITE_BARRIER skips the marking part of the write barrier and
 // only performs the generational part.
 // UPDATE_WRITE_BARRIER is doing the full barrier, marking and generational.
 enum WriteBarrierMode {
   SKIP_WRITE_BARRIER,
+  UNSAFE_SKIP_WRITE_BARRIER,
   UPDATE_WEAK_WRITE_BARRIER,
   UPDATE_EPHEMERON_KEY_WRITE_BARRIER,
   UPDATE_WRITE_BARRIER

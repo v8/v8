@@ -127,7 +127,7 @@ TNode<FixedTypedArrayBase> TypedArrayBuiltinsAssembler::AllocateOnHeapElements(
   // pointer.
   CSA_ASSERT(this, IsRegularHeapObjectSize(total_size));
 
-  TNode<Object> elements;
+  TNode<HeapObject> elements;
 
   if (UnalignedLoadSupported(MachineRepresentation::kFloat64) &&
       UnalignedStoreSupported(MachineRepresentation::kFloat64)) {
@@ -136,9 +136,13 @@ TNode<FixedTypedArrayBase> TypedArrayBuiltinsAssembler::AllocateOnHeapElements(
     elements = AllocateInNewSpace(total_size, kDoubleAlignment);
   }
 
-  StoreMapNoWriteBarrier(elements, map);
-  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
-  StoreObjectFieldNoWriteBarrier(
+  // These skipped write barriers are marked unsafe because the MemoryOptimizer
+  // currently doesn't handle double alignment, so it fails at verifying them.
+  UnsafeStoreObjectFieldNoWriteBarrier(elements,
+                                       FixedTypedArrayBase::kMapOffset, map);
+  UnsafeStoreObjectFieldNoWriteBarrier(
+      elements, FixedTypedArrayBase::kLengthOffset, length);
+  UnsafeStoreObjectFieldNoWriteBarrier(
       elements, FixedTypedArrayBase::kBasePointerOffset, elements);
   StoreObjectFieldNoWriteBarrier(
       elements, FixedTypedArrayBase::kExternalPointerOffset,

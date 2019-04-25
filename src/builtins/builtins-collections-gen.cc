@@ -1576,8 +1576,8 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashMapNewEntry(
     Node* const hash, Node* const number_of_buckets, Node* const occupancy) {
   Node* const bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
-  Node* const bucket_entry = UnsafeLoadFixedArrayElement(
-      table, bucket, OrderedHashMap::HashTableStartIndex() * kTaggedSize);
+  TNode<Smi> bucket_entry = CAST(UnsafeLoadFixedArrayElement(
+      table, bucket, OrderedHashMap::HashTableStartIndex() * kTaggedSize));
 
   // Store the entry elements.
   Node* const entry_start = IntPtrAdd(
@@ -1750,8 +1750,8 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashSetNewEntry(
     Node* const number_of_buckets, Node* const occupancy) {
   Node* const bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
-  Node* const bucket_entry = UnsafeLoadFixedArrayElement(
-      table, bucket, OrderedHashSet::HashTableStartIndex() * kTaggedSize);
+  TNode<Smi> bucket_entry = CAST(UnsafeLoadFixedArrayElement(
+      table, bucket, OrderedHashSet::HashTableStartIndex() * kTaggedSize));
 
   // Store the entry elements.
   Node* const entry_start = IntPtrAdd(

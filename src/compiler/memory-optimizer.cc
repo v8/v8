@@ -11,6 +11,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/interface-descriptors.h"
+#include "src/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -18,7 +19,8 @@ namespace compiler {
 
 MemoryOptimizer::MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
                                  PoisoningMitigationLevel poisoning_level,
-                                 AllocationFolding allocation_folding)
+                                 AllocationFolding allocation_folding,
+                                 const char* function_debug_name)
     : jsgraph_(jsgraph),
       empty_state_(AllocationState::Empty(zone)),
       pending_(zone),
@@ -26,7 +28,8 @@ MemoryOptimizer::MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
       zone_(zone),
       graph_assembler_(jsgraph, nullptr, nullptr, zone),
       poisoning_level_(poisoning_level),
-      allocation_folding_(allocation_folding) {}
+      allocation_folding_(allocation_folding),
+      function_debug_name_(function_debug_name) {}
 
 void MemoryOptimizer::Optimize() {
   EnqueueUses(graph()->start(), empty_state());
@@ -58,7 +61,21 @@ void MemoryOptimizer::AllocationGroup::Add(Node* node) {
 }
 
 bool MemoryOptimizer::AllocationGroup::Contains(Node* node) const {
-  return node_ids_.find(node->id()) != node_ids_.end();
+  // Additions should stay within the same allocated object, so it's safe to
+  // ignore them.
+  while (node_ids_.find(node->id()) == node_ids_.end()) {
+    switch (node->opcode()) {
+      case IrOpcode::kBitcastTaggedToWord:
+      case IrOpcode::kBitcastWordToTagged:
+      case IrOpcode::kInt32Add:
+      case IrOpcode::kInt64Add:
+        node = NodeProperties::GetValueInput(node, 0);
+        break;
+      default:
+        return false;
+    }
+  }
+  return true;
 }
 
 MemoryOptimizer::AllocationState::AllocationState()
@@ -86,6 +103,7 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kDebugBreak:
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
+    case IrOpcode::kEffectPhi:
     case IrOpcode::kIfException:
     case IrOpcode::kLoad:
     case IrOpcode::kLoadElement:
@@ -94,6 +112,10 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
     case IrOpcode::kRetain:
+    // TODO(tebbi): Store nodes might do a bump-pointer allocation.
+    //              We should introduce a special bump-pointer store node to
+    //              differentiate that.
+    case IrOpcode::kStore:
     case IrOpcode::kStoreElement:
     case IrOpcode::kStoreField:
     case IrOpcode::kTaggedPoisonOnSpeculation:
@@ -136,29 +158,17 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kCallWithCallerSavedRegisters:
       return !(CallDescriptorOf(node->op())->flags() &
                CallDescriptor::kNoAllocate);
-
-    case IrOpcode::kStore:
-      // Store is not safe because it could be part of CSA's bump pointer
-      // allocation(?).
-      return true;
-
     default:
       break;
   }
   return true;
 }
 
-bool CanLoopAllocate(Node* loop_effect_phi, Zone* temp_zone) {
-  Node* const control = NodeProperties::GetControlInput(loop_effect_phi);
-
+Node* SearchAllocatingNode(Node* start, Node* limit, Zone* temp_zone) {
   ZoneQueue<Node*> queue(temp_zone);
   ZoneSet<Node*> visited(temp_zone);
-  visited.insert(loop_effect_phi);
-
-  // Start the effect chain walk from the loop back edges.
-  for (int i = 1; i < control->InputCount(); ++i) {
-    queue.push(loop_effect_phi->InputAt(i));
-  }
+  visited.insert(limit);
+  queue.push(start);
 
   while (!queue.empty()) {
     Node* const current = queue.front();
@@ -166,14 +176,38 @@ bool CanLoopAllocate(Node* loop_effect_phi, Zone* temp_zone) {
     if (visited.find(current) == visited.end()) {
       visited.insert(current);
 
-      if (CanAllocate(current)) return true;
+      if (CanAllocate(current)) {
+        return current;
+      }
 
       for (int i = 0; i < current->op()->EffectInputCount(); ++i) {
         queue.push(NodeProperties::GetEffectInput(current, i));
       }
     }
   }
+  return nullptr;
+}
+
+bool CanLoopAllocate(Node* loop_effect_phi, Zone* temp_zone) {
+  Node* const control = NodeProperties::GetControlInput(loop_effect_phi);
+  // Start the effect chain walk from the loop back edges.
+  for (int i = 1; i < control->InputCount(); ++i) {
+    if (SearchAllocatingNode(loop_effect_phi->InputAt(i), loop_effect_phi,
+                             temp_zone) != nullptr) {
+      return true;
+    }
+  }
   return false;
+}
+
+Node* EffectPhiForPhi(Node* phi) {
+  Node* control = NodeProperties::GetControlInput(phi);
+  for (Node* use : control->uses()) {
+    if (use->opcode() == IrOpcode::kEffectPhi) {
+      return use;
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace
@@ -500,8 +534,9 @@ void MemoryOptimizer::VisitStoreElement(Node* node,
   ElementAccess const& access = ElementAccessOf(node->op());
   Node* object = node->InputAt(0);
   Node* index = node->InputAt(1);
-  WriteBarrierKind write_barrier_kind =
-      ComputeWriteBarrierKind(object, state, access.write_barrier_kind);
+  Node* value = node->InputAt(2);
+  WriteBarrierKind write_barrier_kind = ComputeWriteBarrierKind(
+      node, object, value, state, access.write_barrier_kind);
   node->ReplaceInput(1, ComputeIndex(access, index));
   NodeProperties::ChangeOp(
       node, machine()->Store(StoreRepresentation(
@@ -514,8 +549,9 @@ void MemoryOptimizer::VisitStoreField(Node* node,
   DCHECK_EQ(IrOpcode::kStoreField, node->opcode());
   FieldAccess const& access = FieldAccessOf(node->op());
   Node* object = node->InputAt(0);
-  WriteBarrierKind write_barrier_kind =
-      ComputeWriteBarrierKind(object, state, access.write_barrier_kind);
+  Node* value = node->InputAt(1);
+  WriteBarrierKind write_barrier_kind = ComputeWriteBarrierKind(
+      node, object, value, state, access.write_barrier_kind);
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
   NodeProperties::ChangeOp(
@@ -528,8 +564,9 @@ void MemoryOptimizer::VisitStore(Node* node, AllocationState const* state) {
   DCHECK_EQ(IrOpcode::kStore, node->opcode());
   StoreRepresentation representation = StoreRepresentationOf(node->op());
   Node* object = node->InputAt(0);
+  Node* value = node->InputAt(2);
   WriteBarrierKind write_barrier_kind = ComputeWriteBarrierKind(
-      object, state, representation.write_barrier_kind());
+      node, object, value, state, representation.write_barrier_kind());
   if (write_barrier_kind != representation.write_barrier_kind()) {
     NodeProperties::ChangeOp(
         node, machine()->Store(StoreRepresentation(
@@ -558,12 +595,76 @@ Node* MemoryOptimizer::ComputeIndex(ElementAccess const& access, Node* index) {
   return index;
 }
 
+namespace {
+
+bool ValueNeedsWriteBarrier(Node* value, Isolate* isolate) {
+  switch (value->opcode()) {
+    case IrOpcode::kBitcastWordToTaggedSigned:
+      return false;
+    case IrOpcode::kHeapConstant: {
+      RootIndex root_index;
+      if (isolate->roots_table().IsRootHandle(HeapConstantOf(value->op()),
+                                              &root_index) &&
+          RootsTable::IsImmortalImmovable(root_index)) {
+        return false;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return true;
+}
+
+void WriteBarrierAssertFailed(Node* node, Node* object, const char* name,
+                              Zone* temp_zone) {
+  std::stringstream str;
+  str << "MemoryOptimizer could not remove write barrier for node #"
+      << node->id() << "\n";
+  str << "  Run mksnapshot with --csa-trap-on-node=" << name << ","
+      << node->id() << " to break in CSA code.\n";
+  Node* object_position = object;
+  if (object_position->opcode() == IrOpcode::kPhi) {
+    object_position = EffectPhiForPhi(object_position);
+  }
+  Node* allocating_node = nullptr;
+  if (object_position && object_position->op()->EffectOutputCount() > 0) {
+    allocating_node = SearchAllocatingNode(node, object_position, temp_zone);
+  }
+  if (allocating_node) {
+    str << "\n  There is a potentially allocating node in between:\n";
+    str << "    " << *allocating_node << "\n";
+    str << "  Run mksnapshot with --csa-trap-on-node=" << name << ","
+        << allocating_node->id() << " to break there.\n";
+    if (allocating_node->opcode() == IrOpcode::kCall) {
+      str << "  If this is a never-allocating runtime call, you can add an "
+             "exception to Runtime::MayAllocate.\n";
+    }
+  } else {
+    str << "\n  It seems the store happened to something different than a "
+           "direct "
+           "allocation:\n";
+    str << "    " << *object << "\n";
+    str << "  Run mksnapshot with --csa-trap-on-node=" << name << ","
+        << object->id() << " to break there.\n";
+  }
+  FATAL("%s", str.str().c_str());
+}
+
+}  // namespace
+
 WriteBarrierKind MemoryOptimizer::ComputeWriteBarrierKind(
-    Node* object, AllocationState const* state,
+    Node* node, Node* object, Node* value, AllocationState const* state,
     WriteBarrierKind write_barrier_kind) {
   if (state->IsYoungGenerationAllocation() &&
       state->group()->Contains(object)) {
     write_barrier_kind = kNoWriteBarrier;
+  }
+  if (!ValueNeedsWriteBarrier(value, isolate())) {
+    write_barrier_kind = kNoWriteBarrier;
+  }
+  if (write_barrier_kind == WriteBarrierKind::kAssertNoWriteBarrier) {
+    WriteBarrierAssertFailed(node, object, function_debug_name_, zone());
   }
   return write_barrier_kind;
 }

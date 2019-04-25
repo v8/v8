@@ -177,6 +177,16 @@ bool Runtime::IsNonReturning(FunctionId id) {
   }
 }
 
+bool Runtime::MayAllocate(FunctionId id) {
+  switch (id) {
+    case Runtime::kCompleteInobjectSlackTracking:
+    case Runtime::kCompleteInobjectSlackTrackingForMap:
+      return false;
+    default:
+      return true;
+  }
+}
+
 const Runtime::Function* Runtime::FunctionForName(const unsigned char* name,
                                                   int length) {
   base::CallOnce(&initialize_function_name_map_once,
