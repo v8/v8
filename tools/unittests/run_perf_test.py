@@ -144,7 +144,7 @@ class PerfTest(unittest.TestCase):
     # Check that d8 is called from the correct cwd for each test run.
     dirs = [os.path.join(TEST_WORKSPACE, arg) for arg in args[0]]
     def chdir(*args, **kwargs):
-      self.assertEquals(dirs.pop(), args[0])
+      self.assertEqual(dirs.pop(), args[0])
     os.chdir = mock.MagicMock(side_effect=chdir)
 
     subprocess.check_call = mock.MagicMock()
@@ -165,22 +165,24 @@ class PerfTest(unittest.TestCase):
       return json.load(f)
 
   def _VerifyResults(self, suite, units, traces, file_name=None):
-    self.assertEquals([
+    self.assertListEqual(sorted([
       {'units': units,
        'graphs': [suite, trace['name']],
        'results': trace['results'],
-       'stddev': trace['stddev']} for trace in traces],
-      self._LoadResults(file_name)['traces'])
+       'stddev': trace['stddev']} for trace in traces]),
+      sorted(self._LoadResults(file_name)['traces']))
 
   def _VerifyRunnableDurations(self, runs, timeout, file_name=None):
-    self.assertEquals([{
-      'graphs': ['test'],
-      'durations': [42] * runs,
-      'timeout': timeout,
-    }], self._LoadResults(file_name)['runnable_durations'])
+    self.assertListEqual([
+      {
+        'graphs': ['test'],
+        'durations': [42] * runs,
+        'timeout': timeout,
+      },
+    ], self._LoadResults(file_name)['runnables'])
 
   def _VerifyErrors(self, errors):
-    self.assertEquals(errors, self._LoadResults()['errors'])
+    self.assertListEqual(errors, self._LoadResults()['errors'])
 
   def _VerifyMock(self, binary, *args, **kwargs):
     shell = os.path.join(os.path.dirname(BASE_DIR), binary)
@@ -191,7 +193,7 @@ class PerfTest(unittest.TestCase):
         timeout=kwargs.get('timeout', 60))
 
   def _VerifyMockMultiple(self, *args, **kwargs):
-    self.assertEquals(len(args), len(command.Command.call_args_list))
+    self.assertEqual(len(args), len(command.Command.call_args_list))
     for arg, actual in zip(args, command.Command.call_args_list):
       expected = {
         'cmd_prefix': [],
@@ -199,12 +201,12 @@ class PerfTest(unittest.TestCase):
         'args': list(arg[1:]),
         'timeout': kwargs.get('timeout', 60)
       }
-      self.assertEquals((expected, ), actual)
+      self.assertTupleEqual((expected, ), actual)
 
   def testOneRun(self):
     self._WriteTestInput(V8_JSON)
     self._MockCommand(['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'])
-    self.assertEquals(0, self._CallMain())
+    self.assertEqual(0, self._CallMain())
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
@@ -219,7 +221,7 @@ class PerfTest(unittest.TestCase):
     test_input['test_flags'] = ['2', 'test_name']
     self._WriteTestInput(test_input)
     self._MockCommand(['.'], ['Richards: 1.234\nDeltaBlue: 10657567'])
-    self.assertEquals(0, self._CallMain())
+    self.assertEqual(0, self._CallMain())
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
@@ -237,7 +239,7 @@ class PerfTest(unittest.TestCase):
     self._MockCommand(['.', '.'],
                       ['Richards: 100\nDeltaBlue: 200\n',
                        'Richards: 50\nDeltaBlue: 300\n'])
-    self.assertEquals(0, self._CallMain())
+    self.assertEqual(0, self._CallMain())
     self._VerifyResults('v8', 'ms', [
       {'name': 'Richards', 'results': ['50.0', '100.0'], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['300.0', '200.0'], 'stddev': ''},
@@ -256,7 +258,7 @@ class PerfTest(unittest.TestCase):
     self._MockCommand(['.', '.'],
                       ['Richards: 100\nDeltaBlue: 200\n',
                        'Richards: 50\nDeltaBlue: 300\n'])
-    self.assertEquals(0, self._CallMain())
+    self.assertEqual(0, self._CallMain())
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': ['50.0', '100.0'], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['300.0', '200.0'], 'stddev': ''},
@@ -274,8 +276,8 @@ class PerfTest(unittest.TestCase):
                        'Simple: 3 ms.\n',
                        'Richards: 100\n',
                        'Richards: 50\n'])
-    self.assertEquals(0, self._CallMain())
-    self.assertEquals([
+    self.assertEqual(0, self._CallMain())
+    self.assertListEqual(sorted([
       {'units': 'score',
        'graphs': ['test', 'Richards'],
        'results': ['50.0', '100.0'],
@@ -288,7 +290,7 @@ class PerfTest(unittest.TestCase):
        'graphs': ['test', 'DeltaBlue'],
        'results': ['200.0'],
        'stddev': ''},
-      ], self._LoadResults()['traces'])
+      ]), sorted(self._LoadResults()['traces']))
     self._VerifyErrors([])
     self._VerifyMockMultiple(
         (os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js'),
@@ -305,7 +307,7 @@ class PerfTest(unittest.TestCase):
     self._WriteTestInput(test_input)
     self._MockCommand(['.'], ['Richards: 1.234\nRichards-stddev: 0.23\n'
                               'DeltaBlue: 10657567\nDeltaBlue-stddev: 106\n'])
-    self.assertEquals(0, self._CallMain())
+    self.assertEqual(0, self._CallMain())
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': ['1.234'], 'stddev': '0.23'},
       {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': '106'},
@@ -323,7 +325,7 @@ class PerfTest(unittest.TestCase):
                               'DeltaBlue: 6\nDeltaBlue-boom: 0.9\n',
                               'Richards: 2\nRichards-stddev: 0.5\n'
                               'DeltaBlue: 5\nDeltaBlue-stddev: 0.8\n'])
-    self.assertEquals(1, self._CallMain())
+    self.assertEqual(1, self._CallMain())
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': ['2.0', '3.0'], 'stddev': '0.7'},
       {'name': 'DeltaBlue', 'results': ['5.0', '6.0'], 'stddev': '0.8'},
@@ -344,7 +346,7 @@ class PerfTest(unittest.TestCase):
     mock.patch.object(
         run_perf.Platform, 'ReadBuildConfig',
         mock.MagicMock(return_value={'is_android': False})).start()
-    self.assertEquals(0, self._CallMain('--buildbot'))
+    self.assertEqual(0, self._CallMain('--buildbot'))
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
@@ -360,7 +362,7 @@ class PerfTest(unittest.TestCase):
     mock.patch.object(
         run_perf.Platform, 'ReadBuildConfig',
         mock.MagicMock(return_value={'is_android': False})).start()
-    self.assertEquals(0, self._CallMain('--buildbot'))
+    self.assertEqual(0, self._CallMain('--buildbot'))
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
@@ -377,7 +379,7 @@ class PerfTest(unittest.TestCase):
     mock.patch.object(
         run_perf.Platform, 'ReadBuildConfig',
         mock.MagicMock(return_value={'is_android': False})).start()
-    self.assertEquals(1, self._CallMain('--buildbot'))
+    self.assertEqual(1, self._CallMain('--buildbot'))
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': [], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
@@ -385,13 +387,14 @@ class PerfTest(unittest.TestCase):
     self._VerifyErrors(
         ['Regexp "^Richards: (.+)$" '
          'returned a non-numeric for test test/Richards.',
-         'Not all traces have the same number of results.'])
+         'Not all traces have the same number of results. Can not compute '
+         'total for test'])
     self._VerifyMock(os.path.join('out', 'Release', 'd7'), '--flag', 'run.js')
 
   def testRegexpNoMatch(self):
     self._WriteTestInput(V8_JSON)
     self._MockCommand(['.'], ['x\nRichaards: 1.234\nDeltaBlue: 10657567\ny\n'])
-    self.assertEquals(1, self._CallMain())
+    self.assertEqual(1, self._CallMain())
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': [], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
@@ -405,7 +408,7 @@ class PerfTest(unittest.TestCase):
     self._WriteTestInput(V8_JSON)
     self._MockCommand(
         ['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'], exit_code=-1)
-    self.assertEquals(1, self._CallMain())
+    self.assertEqual(1, self._CallMain())
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': [], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': [], 'stddev': ''},
@@ -419,7 +422,7 @@ class PerfTest(unittest.TestCase):
     test_input['timeout'] = 70
     self._WriteTestInput(test_input)
     self._MockCommand(['.'], [''], timed_out=True)
-    self.assertEquals(1, self._CallMain())
+    self.assertEqual(1, self._CallMain())
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': [], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': [], 'stddev': ''},
@@ -441,7 +444,7 @@ class PerfTest(unittest.TestCase):
     mock.patch(
         'run_perf.Platform.ReadBuildConfig',
         return_value={'is_android': True}).start()
-    self.assertEquals(0, self._CallMain('--arch', 'arm'))
+    self.assertEqual(0, self._CallMain('--arch', 'arm'))
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
@@ -458,7 +461,7 @@ class PerfTest(unittest.TestCase):
                        'Richards: 100\nDeltaBlue: 20\n'])
     test_output_secondary = os.path.join(
         TEST_WORKSPACE, 'results_secondary.json')
-    self.assertEquals(0, self._CallMain(
+    self.assertEqual(0, self._CallMain(
         '--outdir-secondary', 'out-secondary',
         '--json-test-results-secondary', test_output_secondary,
     ))
@@ -485,7 +488,7 @@ class PerfTest(unittest.TestCase):
     test_input = dict(V8_JSON)
     self._WriteTestInput(test_input)
     self._MockCommand(['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'])
-    self.assertEquals(0, self._CallMain('--extra-flags=--prof'))
+    self.assertEqual(0, self._CallMain('--extra-flags=--prof'))
     self._VerifyResults('test', 'score', [
       {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
@@ -499,8 +502,8 @@ class PerfTest(unittest.TestCase):
       for i in [1, 2, 3]:
         yield i, i + 1
     l, r = run_perf.Unzip(Gen())
-    self.assertEquals([1, 2, 3], list(l()))
-    self.assertEquals([2, 3, 4], list(r()))
+    self.assertListEqual([1, 2, 3], list(l()))
+    self.assertListEqual([2, 3, 4], list(r()))
 
   #############################################################################
   ### System tests
@@ -518,8 +521,8 @@ class PerfTest(unittest.TestCase):
 
   def testNormal(self):
     results = self._RunPerf('d8_mocked1.py', 'test1.json')
-    self.assertEquals([], results['errors'])
-    self.assertEquals([
+    self.assertListEqual([], results['errors'])
+    self.assertListEqual(sorted([
       {
         'units': 'score',
         'graphs': ['test1', 'Richards'],
@@ -532,12 +535,12 @@ class PerfTest(unittest.TestCase):
         'results': [u'2.1', u'2.1'],
         'stddev': '',
       },
-    ], results['traces'])
+    ]), sorted(results['traces']))
 
   def testResultsProcessor(self):
     results = self._RunPerf('d8_mocked2.py', 'test2.json')
-    self.assertEquals([], results['errors'])
-    self.assertEquals([
+    self.assertListEqual([], results['errors'])
+    self.assertListEqual([
       {
         'units': 'score',
         'graphs': ['test2', 'Richards'],
@@ -554,8 +557,8 @@ class PerfTest(unittest.TestCase):
 
   def testResultsProcessorNested(self):
     results = self._RunPerf('d8_mocked2.py', 'test3.json')
-    self.assertEquals([], results['errors'])
-    self.assertEquals([
+    self.assertListEqual([], results['errors'])
+    self.assertListEqual([
       {
         'units': 'score',
         'graphs': ['test3', 'Octane', 'Richards'],
