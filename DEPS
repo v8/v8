@@ -238,7 +238,7 @@ deps = {
   'v8/test/wasm-js/data':
     Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '43898ad2b3203eb5c1cfb28ddb0cb585f74b6b48',
   'v8/third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '21a33afeef568f72668acf77668a32307a363d6e',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '70fed1d420d31510e29aae328cbb3aa3f0a80e25',
   'v8/third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
 }
