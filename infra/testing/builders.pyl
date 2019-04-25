@@ -312,6 +312,7 @@
       'os': 'Ubuntu-14.04',
     },
     'tests': [
+      {'name': 'perf_integration'},
       # Stress sampling.
       {'name': 'mjsunit', 'variant': 'stress_sampling'},
       {'name': 'webkit', 'variant': 'stress_sampling'},
@@ -984,6 +985,7 @@
       'os': 'Ubuntu-14.04',
     },
     'tests': [
+      {'name': 'perf_integration'},
       # Infra staging.
       {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 1},
       # Stress sampling.
