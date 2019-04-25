@@ -212,12 +212,6 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
       return BinaryOperationHint::kNumber;
     case BinaryOperationFeedback::kNumberOrOddball:
       return BinaryOperationHint::kNumberOrOddball;
-    case BinaryOperationFeedback::kConsOneByteString:
-      return BinaryOperationHint::kConsOneByteString;
-    case BinaryOperationFeedback::kConsTwoByteString:
-      return BinaryOperationHint::kConsTwoByteString;
-    case BinaryOperationFeedback::kConsString:
-      return BinaryOperationHint::kConsString;
     case BinaryOperationFeedback::kString:
       return BinaryOperationHint::kString;
     case BinaryOperationFeedback::kBigInt:

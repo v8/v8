@@ -15,9 +15,9 @@ namespace v8 {
 namespace internal {
 
 // We use the full 16 bits of the instance_type field to encode heap object
-// instance types. All the high-order bits (bits 7-15) are cleared if the object
+// instance types. All the high-order bits (bits 6-15) are cleared if the object
 // is a string, and contain set bits if it is not a string.
-const uint32_t kIsNotStringMask = ~((1 << 7) - 1);
+const uint32_t kIsNotStringMask = ~((1 << 6) - 1);
 const uint32_t kStringTag = 0x0;
 
 // For strings, bits 0-2 indicate the representation of the string. In
@@ -56,12 +56,6 @@ const uint32_t kUncachedExternalStringTag = 1 << 4;
 const uint32_t kIsNotInternalizedMask = 1 << 5;
 const uint32_t kNotInternalizedTag = 1 << 5;
 const uint32_t kInternalizedTag = 0;
-
-// For strings, bit 6 indicates that the string is empty.
-// TODO(bmeurer)
-const uint32_t kIsEmptyStringMask = 1 << 6;
-const uint32_t kIsEmptyStringTag = 1 << 6;
-const uint32_t kIsNotEmptyStringTag = 0;
 
 // A ConsString with an empty string as the right side is a candidate
 // for being shortcut by the garbage collector. We don't allocate any
@@ -114,13 +108,11 @@ enum InstanceType : uint16_t {
   THIN_STRING_TYPE = kTwoByteStringTag | kThinStringTag | kNotInternalizedTag,
   THIN_ONE_BYTE_STRING_TYPE =
       kOneByteStringTag | kThinStringTag | kNotInternalizedTag,
-  EMPTY_STRING_TYPE =
-      kOneByteStringTag | kSeqStringTag | kInternalizedTag | kIsEmptyStringTag,
 
   // Non-string names
   SYMBOL_TYPE =
       1 + (kIsNotInternalizedMask | kUncachedExternalStringMask |
-           kStringEncodingMask | kIsEmptyStringMask |
+           kStringEncodingMask |
            kStringRepresentationMask),  // FIRST_NONSTRING_TYPE, LAST_NAME_TYPE
 
   // Other primitives (cannot contain non-map-word pointers to heap objects).

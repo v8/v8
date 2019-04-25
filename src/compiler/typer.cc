@@ -1170,7 +1170,7 @@ Type Typer::Visitor::TypeJSNegate(Node* node) {
 }
 
 Type Typer::Visitor::TypeTypeOf(Node* node) {
-  return Type::NonEmptyInternalizedOneByteString();
+  return Type::InternalizedString();
 }
 
 
@@ -1582,7 +1582,7 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     case Builtins::kNumberParseInt:
       return t->cache_->kIntegerOrMinusZeroOrNaN;
     case Builtins::kNumberToString:
-      return Type::NonEmptyOneByteString();
+      return Type::String();
 
     // String functions.
     case Builtins::kStringConstructor:
@@ -1642,7 +1642,7 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     case Builtins::kSetIteratorPrototypeNext:
       return Type::OtherObject();
     case Builtins::kTypedArrayPrototypeToStringTag:
-      return Type::Union(Type::InternalizedOneByteString(), Type::Undefined(),
+      return Type::Union(Type::InternalizedString(), Type::Undefined(),
                          t->zone());
 
     // Array functions.
@@ -1952,12 +1952,7 @@ Type Typer::Visitor::TypeSpeculativeNumberLessThanOrEqual(Node* node) {
   return TypeBinaryOp(node, NumberLessThanOrEqualTyper);
 }
 
-Type Typer::Visitor::TypeStringConcat(Node* node) {
-  Type length = Operand(node, 0);
-  Type first = Operand(node, 1);
-  Type second = Operand(node, 2);
-  return typer_->operation_typer_.StringConcat(length, first, second);
-}
+Type Typer::Visitor::TypeStringConcat(Node* node) { return Type::String(); }
 
 Type Typer::Visitor::TypeStringToNumber(Node* node) {
   return TypeUnaryOp(node, ToNumber);
@@ -2007,11 +2002,11 @@ Type Typer::Visitor::TypeStringLessThanOrEqual(Node* node) {
 }
 
 Type Typer::Visitor::StringFromSingleCharCodeTyper(Type type, Typer* t) {
-  return Type::NonEmptyString();
+  return Type::String();
 }
 
 Type Typer::Visitor::StringFromSingleCodePointTyper(Type type, Typer* t) {
-  return Type::NonEmptyString();
+  return Type::String();
 }
 
 Type Typer::Visitor::TypeStringToLowerCaseIntl(Node* node) {
@@ -2064,20 +2059,9 @@ Type Typer::Visitor::TypeCheckHeapObject(Node* node) {
 
 Type Typer::Visitor::TypeCheckIf(Node* node) { UNREACHABLE(); }
 
-Type Typer::Visitor::TypeCheckNonEmptyString(Node* node) {
-  return typer_->operation_typer_.CheckNonEmptyString(Operand(node, 0));
-}
-
-Type Typer::Visitor::TypeCheckNonEmptyOneByteString(Node* node) {
-  return typer_->operation_typer_.CheckNonEmptyOneByteString(Operand(node, 0));
-}
-
-Type Typer::Visitor::TypeCheckNonEmptyTwoByteString(Node* node) {
-  return typer_->operation_typer_.CheckNonEmptyTwoByteString(Operand(node, 0));
-}
-
 Type Typer::Visitor::TypeCheckInternalizedString(Node* node) {
-  return typer_->operation_typer_.CheckInternalizedString(Operand(node, 0));
+  Type arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::InternalizedString(), zone());
 }
 
 Type Typer::Visitor::TypeCheckMaps(Node* node) { UNREACHABLE(); }
@@ -2104,7 +2088,8 @@ Type Typer::Visitor::TypeCheckSmi(Node* node) {
 }
 
 Type Typer::Visitor::TypeCheckString(Node* node) {
-  return typer_->operation_typer_.CheckString(Operand(node, 0));
+  Type arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::String(), zone());
 }
 
 Type Typer::Visitor::TypeCheckSymbol(Node* node) {
@@ -2311,11 +2296,7 @@ Type Typer::Visitor::TypeNewArgumentsElements(Node* node) {
   return Type::OtherInternal();
 }
 
-Type Typer::Visitor::TypeNewConsString(Node* node) { UNREACHABLE(); }
-
-Type Typer::Visitor::TypeNewConsOneByteString(Node* node) { UNREACHABLE(); }
-
-Type Typer::Visitor::TypeNewConsTwoByteString(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeNewConsString(Node* node) { return Type::String(); }
 
 Type Typer::Visitor::TypeDelayedStringConstant(Node* node) {
   return Type::String();

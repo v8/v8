@@ -389,12 +389,9 @@
   V(CheckIf)                            \
   V(CheckMaps)                          \
   V(CheckNumber)                        \
+  V(CheckInternalizedString)            \
   V(CheckReceiver)                      \
   V(CheckReceiverOrNullOrUndefined)     \
-  V(CheckInternalizedString)            \
-  V(CheckNonEmptyString)                \
-  V(CheckNonEmptyOneByteString)         \
-  V(CheckNonEmptyTwoByteString)         \
   V(CheckString)                        \
   V(CheckSymbol)                        \
   V(CheckSmi)                           \
@@ -454,8 +451,6 @@
   V(NewDoubleElements)                  \
   V(NewSmiOrObjectElements)             \
   V(NewArgumentsElements)               \
-  V(NewConsOneByteString)               \
-  V(NewConsTwoByteString)               \
   V(NewConsString)                      \
   V(DelayedStringConstant)              \
   V(EnsureWritableFastElements)         \

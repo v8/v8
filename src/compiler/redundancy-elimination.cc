@@ -26,9 +26,6 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckHeapObject:
     case IrOpcode::kCheckIf:
     case IrOpcode::kCheckInternalizedString:
-    case IrOpcode::kCheckNonEmptyString:
-    case IrOpcode::kCheckNonEmptyOneByteString:
-    case IrOpcode::kCheckNonEmptyTwoByteString:
     case IrOpcode::kCheckNotTaggedHole:
     case IrOpcode::kCheckNumber:
     case IrOpcode::kCheckReceiver:
@@ -133,21 +130,6 @@ bool CheckSubsumes(Node const* a, Node const* b) {
     if (a->opcode() == IrOpcode::kCheckInternalizedString &&
         b->opcode() == IrOpcode::kCheckString) {
       // CheckInternalizedString(node) implies CheckString(node)
-    } else if (a->opcode() == IrOpcode::kCheckNonEmptyString &&
-               b->opcode() == IrOpcode::kCheckString) {
-      // CheckNonEmptyString(node) implies CheckString(node)
-    } else if (a->opcode() == IrOpcode::kCheckNonEmptyOneByteString &&
-               b->opcode() == IrOpcode::kCheckNonEmptyString) {
-      // CheckNonEmptyOneByteString(node) implies CheckNonEmptyString(node)
-    } else if (a->opcode() == IrOpcode::kCheckNonEmptyTwoByteString &&
-               b->opcode() == IrOpcode::kCheckNonEmptyString) {
-      // CheckNonEmptyTwoByteString(node) implies CheckNonEmptyString(node)
-    } else if (a->opcode() == IrOpcode::kCheckNonEmptyOneByteString &&
-               b->opcode() == IrOpcode::kCheckString) {
-      // CheckNonEmptyOneByteString(node) implies CheckString(node)
-    } else if (a->opcode() == IrOpcode::kCheckNonEmptyTwoByteString &&
-               b->opcode() == IrOpcode::kCheckString) {
-      // CheckNonEmptyTwoByteString(node) implies CheckString(node)
     } else if (a->opcode() == IrOpcode::kCheckSmi &&
                b->opcode() == IrOpcode::kCheckNumber) {
       // CheckSmi(node) implies CheckNumber(node)
