@@ -125,9 +125,11 @@ TEST(Run_WasmModule_CompilationHintsLazy) {
     CHECK(!module.is_null());
 
     // Lazy function was not invoked and therefore not compiled yet.
-    int func_index = 0;
+    static const int kFuncIndex = 0;
     NativeModule* native_module = module.ToHandleChecked()->native_module();
-    CHECK(!native_module->HasCode(func_index));
+    CHECK(!native_module->HasCode(kFuncIndex));
+    auto* compilation_state = native_module->compilation_state();
+    CHECK(compilation_state->baseline_compilation_finished());
 
     // Instantiate and invoke function.
     MaybeHandle<WasmInstanceObject> instance =
@@ -139,14 +141,15 @@ TEST(Run_WasmModule_CompilationHintsLazy) {
     CHECK_EQ(kReturnValue, result);
 
     // Lazy function was invoked and therefore compiled.
-    CHECK(native_module->HasCode(func_index));
+    CHECK(native_module->HasCode(kFuncIndex));
     WasmCodeRefScope code_ref_scope;
-    ExecutionTier actual_tier = native_module->GetCode(func_index)->tier();
+    ExecutionTier actual_tier = native_module->GetCode(kFuncIndex)->tier();
     static_assert(ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
                       ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                   "Assume an order on execution tiers");
     ExecutionTier baseline_tier = ExecutionTier::kLiftoff;
     CHECK_LE(baseline_tier, actual_tier);
+    CHECK(compilation_state->baseline_compilation_finished());
   }
   Cleanup();
 }
@@ -183,13 +186,16 @@ TEST(Run_WasmModule_CompilationHintsNoTiering) {
     CHECK(!module.is_null());
 
     // Synchronous compilation finished and no tiering units were initialized.
-    int func_index = 0;
+    static const int kFuncIndex = 0;
     NativeModule* native_module = module.ToHandleChecked()->native_module();
-    CHECK(native_module->HasCode(func_index));
-    WasmCodeRefScope code_ref_scope;
+    CHECK(native_module->HasCode(kFuncIndex));
     ExecutionTier expected_tier = ExecutionTier::kLiftoff;
-    ExecutionTier actual_tier = native_module->GetCode(func_index)->tier();
+    WasmCodeRefScope code_ref_scope;
+    ExecutionTier actual_tier = native_module->GetCode(kFuncIndex)->tier();
     CHECK_EQ(expected_tier, actual_tier);
+    auto* compilation_state = native_module->compilation_state();
+    CHECK(compilation_state->baseline_compilation_finished());
+    CHECK(compilation_state->top_tier_compilation_finished());
   }
   Cleanup();
 }
@@ -225,19 +231,36 @@ TEST(Run_WasmModule_CompilationHintsTierUp) {
         isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
     CHECK(!module.is_null());
 
-    // Expect code baseline code or top tier code.
-    int func_index = 0;
+    // Expect baseline or top tier code.
+    static const int kFuncIndex = 0;
     NativeModule* native_module = module.ToHandleChecked()->native_module();
-    CHECK(native_module->HasCode(func_index));
-    WasmCodeRefScope code_ref_scope;
-    ExecutionTier actual_tier = native_module->GetCode(func_index)->tier();
+    auto* compilation_state = native_module->compilation_state();
     static_assert(ExecutionTier::kInterpreter < ExecutionTier::kLiftoff &&
                       ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                   "Assume an order on execution tiers");
     ExecutionTier baseline_tier = ExecutionTier::kLiftoff;
-    CHECK_LE(baseline_tier, actual_tier);
+    {
+      CHECK(native_module->HasCode(kFuncIndex));
+      WasmCodeRefScope code_ref_scope;
+      ExecutionTier actual_tier = native_module->GetCode(kFuncIndex)->tier();
+      CHECK_LE(baseline_tier, actual_tier);
+      CHECK(compilation_state->baseline_compilation_finished());
+    }
+
+    // Busy wait for top tier compilation to finish.
+    while (!compilation_state->top_tier_compilation_finished()) {
+    }
+
+    // Expect top tier code.
     ExecutionTier top_tier = ExecutionTier::kTurbofan;
-    CHECK_LE(actual_tier, top_tier);
+    {
+      CHECK(native_module->HasCode(kFuncIndex));
+      WasmCodeRefScope code_ref_scope;
+      ExecutionTier actual_tier = native_module->GetCode(kFuncIndex)->tier();
+      CHECK_EQ(top_tier, actual_tier);
+      CHECK(compilation_state->baseline_compilation_finished());
+      CHECK(compilation_state->top_tier_compilation_finished());
+    }
   }
   Cleanup();
 }

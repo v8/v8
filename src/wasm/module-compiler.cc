@@ -338,6 +338,12 @@ class CompilationStateImpl {
     return outstanding_baseline_functions_ == 0;
   }
 
+  bool top_tier_compilation_finished() const {
+    base::MutexGuard guard(&callbacks_mutex_);
+    DCHECK_LE(outstanding_baseline_functions_, outstanding_top_tier_functions_);
+    return outstanding_top_tier_functions_ == 0;
+  }
+
   CompileMode compile_mode() const { return compile_mode_; }
   Counters* counters() const { return async_counters_.get(); }
   WasmFeatures* detected_features() { return &detected_features_; }
@@ -457,6 +463,14 @@ void CompilationState::AddCallback(CompilationState::callback_t callback) {
 }
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
+
+bool CompilationState::baseline_compilation_finished() const {
+  return Impl(this)->baseline_compilation_finished();
+}
+
+bool CompilationState::top_tier_compilation_finished() const {
+  return Impl(this)->top_tier_compilation_finished();
+}
 
 void CompilationState::OnFinishedUnit(WasmCode* code) {
   Impl(this)->OnFinishedUnit(code);
