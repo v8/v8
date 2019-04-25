@@ -160,9 +160,6 @@
           "name": "StringMatchAll",
           "main": "run.js",
           "resources": [ "string-matchall.js" ],
-          "flags": [
-            "--harmony-string-matchall"
-          ],
           "test_flags": [ "string-matchall" ],
           "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
           "run_count": 1,

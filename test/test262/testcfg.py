@@ -48,8 +48,6 @@ FEATURE_FLAGS = {
   'class-static-fields-public': '--harmony-class-fields',
   'class-fields-private': '--harmony-private-fields',
   'class-static-fields-private': '--harmony-private-fields',
-  'String.prototype.matchAll': '--harmony-string-matchall',
-  'Symbol.matchAll': '--harmony-string-matchall',
   'numeric-separator-literal': '--harmony-numeric-separator',
   'Intl.DateTimeFormat-datetimestyle': '--harmony-intl-datetime-style',
   'Intl.Locale': '--harmony-locale',

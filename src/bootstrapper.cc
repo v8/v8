@@ -1990,6 +1990,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 #endif  // V8_INTL_SUPPORT
     SimpleInstallFunction(isolate_, prototype, "match",
                           Builtins::kStringPrototypeMatch, 1, true);
+    SimpleInstallFunction(isolate_, prototype, "matchAll",
+                          Builtins::kStringPrototypeMatchAll, 1, true);
 #ifdef V8_INTL_SUPPORT
     SimpleInstallFunction(isolate_, prototype, "normalize",
                           Builtins::kStringPrototypeNormalizeIntl, 0, false);
@@ -2118,6 +2120,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallConstant(isolate_, symbol_fun, "iterator",
                     factory->iterator_symbol());
     InstallConstant(isolate_, symbol_fun, "match", factory->match_symbol());
+    InstallConstant(isolate_, symbol_fun, "matchAll",
+                    factory->match_all_symbol());
     InstallConstant(isolate_, symbol_fun, "replace", factory->replace_symbol());
     InstallConstant(isolate_, symbol_fun, "search", factory->search_symbol());
     InstallConstant(isolate_, symbol_fun, "species", factory->species_symbol());
@@ -2486,6 +2490,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       DCHECK_EQ(JSRegExp::kSymbolMatchFunctionDescriptorIndex,
                 prototype->map()->LastAdded());
 
+      InstallFunctionAtSymbol(isolate_, prototype, factory->match_all_symbol(),
+                              "[Symbol.matchAll]",
+                              Builtins::kRegExpPrototypeMatchAll, 1, true);
+      DCHECK_EQ(JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
+                prototype->map()->LastAdded());
+
       InstallFunctionAtSymbol(isolate_, prototype, factory->replace_symbol(),
                               "[Symbol.replace]",
                               Builtins::kRegExpPrototypeReplace, 2, false);
@@ -2597,6 +2607,31 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // etc. We should probably come up with a more principled approach once
     // the JavaScript builtins are gone.
     JSObject::MigrateSlowToFast(regexp_fun, 0, "Bootstrapping");
+  }
+
+  {  // --- R e g E x p S t r i n g  I t e r a t o r ---
+    Handle<JSObject> iterator_prototype(
+        native_context()->initial_iterator_prototype(), isolate());
+
+    Handle<JSObject> regexp_string_iterator_prototype = factory->NewJSObject(
+        isolate()->object_function(), AllocationType::kOld);
+    JSObject::ForceSetPrototype(regexp_string_iterator_prototype,
+                                iterator_prototype);
+
+    InstallToStringTag(isolate(), regexp_string_iterator_prototype,
+                       "RegExp String Iterator");
+
+    SimpleInstallFunction(isolate(), regexp_string_iterator_prototype, "next",
+                          Builtins::kRegExpStringIteratorPrototypeNext, 0,
+                          true);
+
+    Handle<JSFunction> regexp_string_iterator_function = CreateFunction(
+        isolate(), "RegExpStringIterator", JS_REGEXP_STRING_ITERATOR_TYPE,
+        JSRegExpStringIterator::kSize, 0, regexp_string_iterator_prototype,
+        Builtins::kIllegal);
+    regexp_string_iterator_function->shared()->set_native(false);
+    native_context()->set_initial_regexp_string_iterator_prototype_map(
+        regexp_string_iterator_function->initial_map());
   }
 
   {  // -- E r r o r
@@ -4191,68 +4226,6 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   JSObject::AddProperty(isolate_, global, "Atomics",
                         isolate()->atomics_object(), DONT_ENUM);
   InstallToStringTag(isolate_, isolate()->atomics_object(), "Atomics");
-}
-
-void Genesis::InitializeGlobal_harmony_string_matchall() {
-  if (!FLAG_harmony_string_matchall) return;
-
-  {  // String.prototype.matchAll
-    Handle<JSFunction> string_fun(native_context()->string_function(),
-                                  isolate());
-    Handle<JSObject> string_prototype(
-        JSObject::cast(string_fun->instance_prototype()), isolate());
-
-    SimpleInstallFunction(isolate(), string_prototype, "matchAll",
-                          Builtins::kStringPrototypeMatchAll, 1, true);
-  }
-
-  {  // RegExp.prototype[@@matchAll]
-    Handle<JSFunction> regexp_fun(native_context()->regexp_function(),
-                                  isolate());
-    Handle<JSObject> regexp_prototype(
-        JSObject::cast(regexp_fun->instance_prototype()), isolate());
-    InstallFunctionAtSymbol(isolate(), regexp_prototype,
-                            factory()->match_all_symbol(), "[Symbol.matchAll]",
-                            Builtins::kRegExpPrototypeMatchAll, 1, true);
-    DCHECK_EQ(JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
-              regexp_prototype->map()->LastAdded());
-
-    Handle<Map> regexp_prototype_map(regexp_prototype->map(), isolate());
-    Map::SetShouldBeFastPrototypeMap(regexp_prototype_map, true, isolate());
-    native_context()->set_regexp_prototype_map(*regexp_prototype_map);
-  }
-
-  {  // --- R e g E x p S t r i n g  I t e r a t o r ---
-    Handle<JSObject> iterator_prototype(
-        native_context()->initial_iterator_prototype(), isolate());
-
-    Handle<JSObject> regexp_string_iterator_prototype = factory()->NewJSObject(
-        isolate()->object_function(), AllocationType::kOld);
-    JSObject::ForceSetPrototype(regexp_string_iterator_prototype,
-                                iterator_prototype);
-
-    InstallToStringTag(isolate(), regexp_string_iterator_prototype,
-                       "RegExp String Iterator");
-
-    SimpleInstallFunction(isolate(), regexp_string_iterator_prototype, "next",
-                          Builtins::kRegExpStringIteratorPrototypeNext, 0,
-                          true);
-
-    Handle<JSFunction> regexp_string_iterator_function = CreateFunction(
-        isolate(), "RegExpStringIterator", JS_REGEXP_STRING_ITERATOR_TYPE,
-        JSRegExpStringIterator::kSize, 0, regexp_string_iterator_prototype,
-        Builtins::kIllegal);
-    regexp_string_iterator_function->shared()->set_native(false);
-    native_context()->set_initial_regexp_string_iterator_prototype_map(
-        regexp_string_iterator_function->initial_map());
-  }
-
-  {  // @@matchAll Symbol
-    Handle<JSFunction> symbol_fun(native_context()->symbol_function(),
-                                  isolate());
-    InstallConstant(isolate(), symbol_fun, "matchAll",
-                    factory()->match_all_symbol());
-  }
 }
 
 void Genesis::InitializeGlobal_harmony_weak_refs() {
