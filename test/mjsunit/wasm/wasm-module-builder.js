@@ -467,6 +467,7 @@ let kExprF32x4Min = 0x9e;
 let kCompilationHintStrategyDefault = 0x00;
 let kCompilationHintStrategyLazy = 0x01;
 let kCompilationHintStrategyEager = 0x02;
+let kCompilationHintStrategyLazyBaselineEagerTopTier = 0x03;
 let kCompilationHintTierDefault = 0x00;
 let kCompilationHintTierInterpreter = 0x01;
 let kCompilationHintTierBaseline = 0x02;

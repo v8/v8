@@ -147,6 +147,7 @@ enum class WasmCompilationHintStrategy : uint8_t {
   kDefault = 0,
   kLazy = 1,
   kEager = 2,
+  kLazyBaselineEagerTopTier = 3,
 };
 
 enum class WasmCompilationHintTier : uint8_t {

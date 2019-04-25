@@ -1033,13 +1033,6 @@ class ModuleDecoderImpl : public Decoder {
       hint.top_tier =
           static_cast<WasmCompilationHintTier>(hint_byte >> 4 & 0x3);
 
-      // Check strategy.
-      if (hint.strategy > WasmCompilationHintStrategy::kEager) {
-        decoder.errorf(decoder.pc(),
-                       "Invalid compilation hint %#x (unknown strategy)",
-                       hint_byte);
-      }
-
       // Ensure that the top tier never downgrades a compilation result.
       // If baseline and top tier are the same compilation will be invoked only
       // once.

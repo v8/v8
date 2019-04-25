@@ -103,3 +103,21 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
                                                        {mod: {pow: Math.pow}})
     .then(({module, instance}) => assertEquals(27, instance.exports.upow(3))));
 })();
+
+(function testInstantiateStreamingLazyBaselineModule() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addImport('mod', 'pow', kSig_i_ii);
+  builder.addFunction('upow', kSig_i_i)
+         .addBody([kExprGetLocal, 0,
+                   kExprGetLocal, 0,
+                   kExprCallFunction, 0])
+         .setCompilationHint(kCompilationHintStrategyLazyBaselineEagerTopTier,
+                             kCompilationHintTierDefault,
+                             kCompilationHintTierDefault)
+         .exportFunc();
+  let bytes = builder.toBuffer();
+  assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes),
+                                                       {mod: {pow: Math.pow}})
+    .then(({module, instance}) => assertEquals(27, instance.exports.upow(3))));
+})();

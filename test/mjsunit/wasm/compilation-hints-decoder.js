@@ -115,19 +115,16 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(9, instance.exports.sq(3))
 })();
 
-(function testDecodeCompilationHintsInvalidStrategy() {
+(function testDecodeCompilationHintsLazyBaselineEagerTopTier() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addFunction('sq', kSig_i_i)
          .addBody([kExprGetLocal, 0,
                    kExprGetLocal, 0,
                    kExprI32Mul])
-         .setCompilationHint(0x3,
+         .setCompilationHint(kCompilationHintStrategyLazyBaselineEagerTopTier,
                              kCompilationHintTierOptimized,
                              kCompilationHintTierDefault)
          .exportFunc();
-  assertThrows(() => builder.instantiate(),
-               WebAssembly.CompileError,
-               "WebAssembly.Module(): Invalid compilation hint 0xf " +
-               "(unknown strategy) @+49");
+  builder.instantiate();
 })();

@@ -53,3 +53,15 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
          .exportFunc();
   assertEquals(42, builder.instantiate().exports.id(42));
 })();
+
+(function testCompileLazyBaselineEagerTopTierModule() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction('id', kSig_i_i)
+         .addBody([kExprGetLocal, 0])
+         .setCompilationHint(kCompilationHintStrategyLazyBaselineEagerTopTier,
+                             kCompilationHintTierDefault,
+                             kCompilationHintTierDefault)
+         .exportFunc();
+  assertEquals(42, builder.instantiate().exports.id(42));
+})();
