@@ -175,7 +175,6 @@
   'regress/regress-605470': [PASS, SLOW],
   'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
-  'regress/regress-crbug-9161': [PASS, SLOW],
   'regress/wasm/regress-810973': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
   'wasm/asm-wasm-f32': [PASS, SLOW],
@@ -436,7 +435,6 @@
   'regress/regress-91010': [SKIP],
   'regress/regress-91013': [SKIP],
   'regress/regress-99167': [SKIP],
-  'regress/regress-crbug-9161': [SKIP],
 
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
@@ -580,7 +578,6 @@
   'big-object-literal': [SKIP],
   'compiler/alloc-number': [SKIP],
   'regress/regress-490': [SKIP],
-  'regress/regress-crbug-9161': [SKIP],
   'regress/regress-create-exception': [SKIP],
   'regress/regress-3247124': [SKIP],
 
