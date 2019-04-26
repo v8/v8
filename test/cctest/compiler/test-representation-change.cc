@@ -663,6 +663,18 @@ TEST(CompressedAndTagged) {
   CheckChange(IrOpcode::kChangeTaggedToCompressedSigned,
               MachineRepresentation::kTagged, Type::SignedSmall(),
               MachineRepresentation::kCompressedSigned);
+
+  // TaggedSigned to CompressedPointer
+  CheckChange(IrOpcode::kCheckedTaggedToCompressedPointer,
+              MachineRepresentation::kTaggedSigned, Type::SignedSmall(),
+              UseInfo(MachineRepresentation::kCompressedPointer,
+                      Truncation::Any(), TypeCheckKind::kHeapObject));
+
+  // CompressedSigned to TaggedPointer
+  CheckChange(IrOpcode::kCheckedCompressedToTaggedPointer,
+              MachineRepresentation::kCompressedSigned, Type::SignedSmall(),
+              UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any(),
+                      TypeCheckKind::kHeapObject));
 }
 
 static void TestMinusZeroCheck(IrOpcode::Value expected, Type from_type) {

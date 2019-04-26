@@ -592,7 +592,7 @@ Node* RepresentationChanger::GetCompressedSignedRepresentationFor(
         node);
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
     op = machine()->ChangeTaggedSignedToCompressedSigned();
-  } else if (output_rep == MachineRepresentation::kTagged) {
+  } else if (CanBeTaggedPointer(output_rep)) {
     if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
       op = simplified()->CheckedTaggedToCompressedSigned(use_info.feedback());
     } else if (output_type.Is(Type::SignedSmall())) {
@@ -642,7 +642,7 @@ Node* RepresentationChanger::GetCompressedPointerRepresentationFor(
         node);
   } else if (output_rep == MachineRepresentation::kTaggedPointer) {
     op = machine()->ChangeTaggedPointerToCompressedPointer();
-  } else if (output_rep == MachineRepresentation::kTagged &&
+  } else if (CanBeTaggedSigned(output_rep) &&
              use_info.type_check() == TypeCheckKind::kHeapObject) {
     if (!output_type.Maybe(Type::SignedSmall())) {
       return node;
@@ -650,8 +650,6 @@ Node* RepresentationChanger::GetCompressedPointerRepresentationFor(
     // TODO(turbofan): Consider adding a Bailout operator that just deopts
     // for TaggedSigned output representation.
     op = simplified()->CheckedTaggedToCompressedPointer(use_info.feedback());
-    return TypeError(node, output_rep, output_type,
-                     MachineRepresentation::kCompressedPointer);
   } else if (output_rep == MachineRepresentation::kBit) {
     // TODO(v8:8977): specialize here and below
     node = GetTaggedPointerRepresentationFor(node, output_rep, output_type,
