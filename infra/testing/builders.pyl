@@ -312,7 +312,6 @@
       'os': 'Ubuntu-14.04',
     },
     'tests': [
-      {'name': 'perf_integration'},
       # Stress sampling.
       {'name': 'mjsunit', 'variant': 'stress_sampling'},
       {'name': 'webkit', 'variant': 'stress_sampling'},
@@ -340,6 +339,7 @@
       {'name': 'benchmarks', 'variant': 'extra'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
+      {'name': 'perf_integration'},
       {'name': 'test262_variants', 'shards': 2},
       {'name': 'test262_variants', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'shards': 2},
@@ -890,6 +890,7 @@
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
+      {'name': 'perf_integration'},
       {'name': 'test262_variants', 'shards': 2},
       {'name': 'test262_variants', 'variant': 'extra'},
       {'name': 'v8initializers'},
@@ -1001,7 +1002,6 @@
       'os': 'Ubuntu-14.04',
     },
     'tests': [
-      {'name': 'perf_integration'},
       # Infra staging.
       {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 1},
       # Stress sampling.
