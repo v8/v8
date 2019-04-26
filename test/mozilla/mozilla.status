@@ -1033,6 +1033,14 @@
   'ecma_3/RegExp/regress-85721': [SKIP],
 }],  # tsan
 
+##############################################################################
+['variant == stress', {
+  # Slow tests.
+  'js1_5/Regress/regress-360969-05': [SKIP],
+  'js1_5/Regress/regress-360969-06': [SKIP],
+}],  # variant == stress
+
+##############################################################################
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps

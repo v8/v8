@@ -534,13 +534,16 @@
   'string-localecompare': [SKIP],
 
   # Too slow.
+  'asm/embenchen/zlib': [SKIP],
   'harmony/regexp-property-lu-ui': [SKIP],
+  'regress/regress-779407': [SKIP],
+  'wasm/embenchen/box2d': [SKIP],
+  'wasm/embenchen/lua_binarytrees': [SKIP],
+  'wasm/embenchen/zlib': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7102
   # Flaky due to huge string allocation.
   'regress/regress-748069': [SKIP],
-  # Slow test.
-  'regress/regress-779407': [PASS, SLOW],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -562,6 +565,10 @@
   'regress/wasm/regress-694433': [SKIP],
   'es6/typedarray': [PASS, NO_VARIANTS],
   'regress/regress-752764': [PASS, NO_VARIANTS],
+
+  # Slow tests.
+  'es6/block-conflicts-sloppy': [PASS, SLOW],
+  'regress/regress-500980': [PASS, SLOW],
 }],  # 'tsan == True'
 
 ##############################################################################
@@ -901,7 +908,7 @@
 
   # Too slow for TSAN in stress mode.
   # Goes OOM on ODROID devices: https://crbug.com/v8/9026
-  'es6/classes': [PASS, ['tsan or (arch == arm and not simulator_run)', SKIP]],
+  'es6/classes': [PASS, SLOW, ['tsan or (arch == arm and not simulator_run)', SKIP]],
   'regress/regress-1122': [PASS, ['tsan', SKIP]],
 
   # Too slow with gc_stress on arm64.
