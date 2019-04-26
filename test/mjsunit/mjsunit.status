@@ -818,6 +818,7 @@
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC.
   'compiler/native-context-specialization-hole-check': [SKIP],
+  'regress/regress-trap-allocation-memento': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 }],  # 'gc_fuzzer'
 
