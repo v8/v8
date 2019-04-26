@@ -10881,7 +10881,8 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
   *external_memory = amount;
 
   int64_t allocation_diff_since_last_mc =
-      *external_memory - *external_memory_at_last_mc;
+      static_cast<int64_t>(static_cast<uint64_t>(*external_memory) -
+                           static_cast<uint64_t>(*external_memory_at_last_mc));
   // Only check memory pressure and potentially trigger GC if the amount of
   // external memory increased.
   if (allocation_diff_since_last_mc > kMemoryReducerActivationLimit) {
