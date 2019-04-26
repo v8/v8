@@ -624,6 +624,19 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
         info->code_to_log.resize(remaining);
       }
     }
+    // If there is a GC running which has references to code contained in the
+    // deleted {NativeModule}, remove those references.
+    if (current_gc_info_) {
+      for (auto it = current_gc_info_->dead_code.begin(),
+                end = current_gc_info_->dead_code.end();
+           it != end;) {
+        if ((*it)->native_module() == native_module) {
+          it = current_gc_info_->dead_code.erase(it);
+        } else {
+          ++it;
+        }
+      }
+    }
     native_modules_.erase(it);
   }
   code_manager_.FreeNativeModule(native_module);
@@ -686,6 +699,7 @@ void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
       // count.
       dead_code = OwnedVector<WasmCode*>::Of(current_gc_info_->dead_code);
       for (WasmCode* code : dead_code) {
+        DCHECK_EQ(1, native_modules_.count(code->native_module()));
         auto* native_module_info = native_modules_[code->native_module()].get();
         DCHECK_EQ(1, native_module_info->potentially_dead_code.count(code));
         native_module_info->potentially_dead_code.erase(code);
