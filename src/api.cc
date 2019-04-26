@@ -3533,12 +3533,6 @@ MaybeLocal<String> Value::ToString(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
-
-Local<String> Value::ToString(Isolate* isolate) const {
-  RETURN_TO_LOCAL_UNCHECKED(ToString(isolate->GetCurrentContext()), String);
-}
-
-
 MaybeLocal<String> Value::ToDetailString(Local<Context> context) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsString()) return ToApiHandle<String>(obj);
@@ -3561,11 +3555,6 @@ MaybeLocal<Object> Value::ToObject(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
-
-Local<v8::Object> Value::ToObject(Isolate* isolate) const {
-  RETURN_TO_LOCAL_UNCHECKED(ToObject(isolate->GetCurrentContext()), Object);
-}
-
 MaybeLocal<BigInt> Value::ToBigInt(Local<Context> context) const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsBigInt()) return ToApiHandle<BigInt>(obj);
@@ -3581,11 +3570,6 @@ bool Value::BooleanValue(Isolate* v8_isolate) const {
   return Utils::OpenHandle(this)->BooleanValue(
       reinterpret_cast<i::Isolate*>(v8_isolate));
 }
-
-MaybeLocal<Boolean> Value::ToBoolean(Local<Context> context) const {
-  return ToBoolean(context->GetIsolate());
-}
-
 
 Local<Boolean> Value::ToBoolean(Isolate* v8_isolate) const {
   auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -3605,12 +3589,6 @@ MaybeLocal<Number> Value::ToNumber(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
-
-Local<Number> Value::ToNumber(Isolate* isolate) const {
-  RETURN_TO_LOCAL_UNCHECKED(ToNumber(isolate->GetCurrentContext()), Number);
-}
-
-
 MaybeLocal<Integer> Value::ToInteger(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return ToApiHandle<Integer>(obj);
@@ -3622,12 +3600,6 @@ MaybeLocal<Integer> Value::ToInteger(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
-
-Local<Integer> Value::ToInteger(Isolate* isolate) const {
-  RETURN_TO_LOCAL_UNCHECKED(ToInteger(isolate->GetCurrentContext()), Integer);
-}
-
-
 MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return ToApiHandle<Int32>(obj);
@@ -3638,12 +3610,6 @@ MaybeLocal<Int32> Value::ToInt32(Local<Context> context) const {
   RETURN_ON_FAILED_EXECUTION(Int32);
   RETURN_ESCAPED(result);
 }
-
-
-Local<Int32> Value::ToInt32(Isolate* isolate) const {
-  RETURN_TO_LOCAL_UNCHECKED(ToInt32(isolate->GetCurrentContext()), Int32);
-}
-
 
 MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
@@ -3903,13 +3869,6 @@ void v8::RegExp::CheckCast(v8::Value* that) {
                   "v8::RegExp::Cast()",
                   "Could not convert to regular expression");
 }
-
-
-Maybe<bool> Value::BooleanValue(Local<Context> context) const {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  return Just(Utils::OpenHandle(this)->BooleanValue(isolate));
-}
-
 
 Maybe<double> Value::NumberValue(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);

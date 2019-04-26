@@ -2489,9 +2489,6 @@ class V8_EXPORT Value : public Data {
 
   V8_WARN_UNUSED_RESULT MaybeLocal<BigInt> ToBigInt(
       Local<Context> context) const;
-  V8_DEPRECATED("ToBoolean can never throw. Use Local version.",
-                V8_WARN_UNUSED_RESULT MaybeLocal<Boolean> ToBoolean(
-                    Local<Context> context) const);
   V8_WARN_UNUSED_RESULT MaybeLocal<Number> ToNumber(
       Local<Context> context) const;
   V8_WARN_UNUSED_RESULT MaybeLocal<String> ToString(
@@ -2507,16 +2504,6 @@ class V8_EXPORT Value : public Data {
   V8_WARN_UNUSED_RESULT MaybeLocal<Int32> ToInt32(Local<Context> context) const;
 
   Local<Boolean> ToBoolean(Isolate* isolate) const;
-  V8_DEPRECATED("Use maybe version",
-                Local<Number> ToNumber(Isolate* isolate) const);
-  V8_DEPRECATED("Use maybe version",
-                Local<String> ToString(Isolate* isolate) const);
-  V8_DEPRECATED("Use maybe version",
-                Local<Object> ToObject(Isolate* isolate) const);
-  V8_DEPRECATED("Use maybe version",
-                Local<Integer> ToInteger(Isolate* isolate) const);
-  V8_DEPRECATED("Use maybe version",
-                Local<Int32> ToInt32(Isolate* isolate) const);
 
   /**
    * Attempts to convert a string to an array index.
@@ -2527,9 +2514,6 @@ class V8_EXPORT Value : public Data {
 
   bool BooleanValue(Isolate* isolate) const;
 
-  V8_DEPRECATED("BooleanValue can never throw. Use Isolate version.",
-                V8_WARN_UNUSED_RESULT Maybe<bool> BooleanValue(
-                    Local<Context> context) const);
   V8_WARN_UNUSED_RESULT Maybe<double> NumberValue(Local<Context> context) const;
   V8_WARN_UNUSED_RESULT Maybe<int64_t> IntegerValue(
       Local<Context> context) const;
