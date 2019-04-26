@@ -883,8 +883,6 @@ class Page : public MemoryChunk {
   inline LocalArrayBufferTracker* local_tracker() { return local_tracker_; }
   bool contains_array_buffers();
 
-  void ResetFreeListStatistics();
-
   size_t AvailableInFreeList();
 
   size_t AvailableInFreeListFromAllocatedBytes() {
@@ -909,7 +907,7 @@ class Page : public MemoryChunk {
     allocated_bytes_ -= bytes;
   }
 
-  void ResetAllocatedBytes();
+  void ResetAllocationStatistics();
 
   size_t ShrinkToHighWaterMark();
 
@@ -2146,8 +2144,6 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Approximate amount of physical memory committed for this space.
   size_t CommittedPhysicalMemory() override;
 
-  void ResetFreeListStatistics();
-
   // Sets the capacity, the available space and the wasted space to zero.
   // The stats are rebuilt during sweeping by adding each page to the
   // capacity and the size when it is encountered.  As free spaces are
@@ -2156,7 +2152,6 @@ class V8_EXPORT_PRIVATE PagedSpace
   void ClearStats() {
     accounting_stats_.ClearSize();
     free_list_.ResetStats();
-    ResetFreeListStatistics();
   }
 
   // Available bytes without growing.  These are the bytes on the free list.

@@ -697,7 +697,7 @@ Page* PagedSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
                 page->owner()->identity()),
             page->area_size());
   // Make sure that categories are initialized before freeing the area.
-  page->ResetAllocatedBytes();
+  page->ResetAllocationStatistics();
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();
@@ -947,7 +947,10 @@ void MemoryChunk::SetYoungGenerationPageFlags(bool is_marking) {
   }
 }
 
-void Page::ResetAllocatedBytes() { allocated_bytes_ = area_size(); }
+void Page::ResetAllocationStatistics() {
+  allocated_bytes_ = area_size();
+  wasted_memory_ = 0;
+}
 
 void Page::AllocateLocalTracker() {
   DCHECK_NULL(local_tracker_);
@@ -956,10 +959,6 @@ void Page::AllocateLocalTracker() {
 
 bool Page::contains_array_buffers() {
   return local_tracker_ != nullptr && !local_tracker_->IsEmpty();
-}
-
-void Page::ResetFreeListStatistics() {
-  wasted_memory_ = 0;
 }
 
 size_t Page::AvailableInFreeList() {
@@ -1738,13 +1737,6 @@ int PagedSpace::CountTotalPages() {
     USE(page);
   }
   return count;
-}
-
-
-void PagedSpace::ResetFreeListStatistics() {
-  for (Page* page : *this) {
-    page->ResetFreeListStatistics();
-  }
 }
 
 void PagedSpace::SetLinearAllocationArea(Address top, Address limit) {

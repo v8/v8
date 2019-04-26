@@ -279,9 +279,10 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   intptr_t max_freed_bytes = 0;
   int curr_region = -1;
 
-  // Set the allocated_bytes counter to area_size. The free operations below
-  // will decrease the counter to actual live bytes.
-  p->ResetAllocatedBytes();
+  // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
+  // counter. The free operations below will decrease allocated_bytes_ to actual
+  // live bytes and keep track of wasted_memory_.
+  p->ResetAllocationStatistics();
 
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(p, marking_state_->bitmap(p))) {
