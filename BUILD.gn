@@ -964,9 +964,14 @@ torque_files = [
   "src/builtins/typed-array-slice.tq",
   "src/builtins/typed-array-some.tq",
   "src/builtins/typed-array-subarray.tq",
+  "src/objects/intl-objects.tq",
   "test/torque/test-torque.tq",
   "third_party/v8/builtins/array-sort.tq",
 ]
+
+if (!v8_enable_i18n_support) {
+  torque_files -= [ "src/objects/intl-objects.tq" ]
+}
 
 torque_namespaces = [
   "arguments",

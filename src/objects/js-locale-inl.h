@@ -21,7 +21,7 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(JSLocale, JSObject)
 
-ACCESSORS(JSLocale, icu_locale, Managed<icu::Locale>, kICULocaleOffset)
+ACCESSORS(JSLocale, icu_locale, Managed<icu::Locale>, kIcuLocaleOffset)
 
 CAST_ACCESSOR(JSLocale)
 

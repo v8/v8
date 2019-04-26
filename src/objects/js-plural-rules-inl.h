@@ -24,9 +24,9 @@ OBJECT_CONSTRUCTORS_IMPL(JSPluralRules, JSObject)
 ACCESSORS(JSPluralRules, locale, String, kLocaleOffset)
 SMI_ACCESSORS(JSPluralRules, flags, kFlagsOffset)
 ACCESSORS(JSPluralRules, icu_plural_rules, Managed<icu::PluralRules>,
-          kICUPluralRulesOffset)
+          kIcuPluralRulesOffset)
 ACCESSORS(JSPluralRules, icu_decimal_format, Managed<icu::DecimalFormat>,
-          kICUDecimalFormatOffset)
+          kIcuDecimalFormatOffset)
 
 inline void JSPluralRules::set_type(Type type) {
   DCHECK_LT(type, Type::COUNT);

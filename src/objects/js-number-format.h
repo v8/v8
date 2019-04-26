@@ -98,16 +98,8 @@ class JSNumberFormat : public JSObject {
   inline CurrencyDisplay currency_display() const;
 
 // Layout description.
-#define JS_NUMBER_FORMAT_FIELDS(V)       \
-  V(kLocaleOffset, kTaggedSize)          \
-  V(kICUNumberFormatOffset, kTaggedSize) \
-  V(kBoundFormatOffset, kTaggedSize)     \
-  V(kFlagsOffset, kTaggedSize)           \
-  /* Total size. */                      \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_NUMBER_FORMAT_FIELDS)
-#undef JS_NUMBER_FORMAT_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSNUMBER_FORMAT_FIELDS)
 
 // Bit positions in |flags|.
 #define FLAGS_BIT_FIELDS(V, _) \

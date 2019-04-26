@@ -23,7 +23,7 @@ OBJECT_CONSTRUCTORS_IMPL(JSSegmenter, JSObject)
 // Base segmenter accessors.
 ACCESSORS(JSSegmenter, locale, String, kLocaleOffset)
 ACCESSORS(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
-          kICUBreakIteratorOffset)
+          kIcuBreakIteratorOffset)
 SMI_ACCESSORS(JSSegmenter, flags, kFlagsOffset)
 
 inline void JSSegmenter::set_granularity(Granularity granularity) {

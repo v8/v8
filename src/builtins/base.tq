@@ -524,6 +524,16 @@ extern class JSDate extends JSObject {
   cache_stamp: Undefined | Smi | NaN;
 }
 
+extern class JSGlobalObject extends JSObject {
+  native_context: NativeContext;
+  global_proxy: JSGlobalProxy;
+}
+
+extern class JSIteratorResult extends JSObject {
+  value: Object;
+  done: Boolean;
+}
+
 extern class JSAsyncFromSyncIterator extends JSObject {
   sync_iterator: JSReceiver;
   next: Object;
