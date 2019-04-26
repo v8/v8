@@ -79,6 +79,7 @@ PropertyAccessInfo PropertyAccessInfo::DataConstant(
 // static
 PropertyAccessInfo PropertyAccessInfo::DataField(
     PropertyConstness constness, MapHandles const& receiver_maps,
+    std::vector<CompilationDependencies::Dependency const*>&& dependencies,
     FieldIndex field_index, MachineRepresentation field_representation,
     Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
     MaybeHandle<Map> transition_map) {
@@ -86,7 +87,7 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
       constness == PropertyConstness::kConst ? kDataConstantField : kDataField;
   return PropertyAccessInfo(kind, holder, transition_map, field_index,
                             field_representation, field_type, field_map,
-                            receiver_maps);
+                            receiver_maps, std::move(dependencies));
 }
 
 // static
@@ -137,9 +138,12 @@ PropertyAccessInfo::PropertyAccessInfo(
     Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
     FieldIndex field_index, MachineRepresentation field_representation,
     Type field_type, MaybeHandle<Map> field_map,
-    MapHandles const& receiver_maps)
+    MapHandles const& receiver_maps,
+    std::vector<CompilationDependencies::Dependency const*>&&
+        unrecorded_dependencies)
     : kind_(kind),
       receiver_maps_(receiver_maps),
+      unrecorded_dependencies_(std::move(unrecorded_dependencies)),
       transition_map_(transition_map),
       holder_(holder),
       field_index_(field_index),
@@ -194,13 +198,15 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
             break;
           }
         }
-        // Merge the field type.
         this->field_type_ =
             Type::Union(this->field_type_, that->field_type_, zone);
-        // Merge the receiver maps.
         this->receiver_maps_.insert(this->receiver_maps_.end(),
                                     that->receiver_maps_.begin(),
                                     that->receiver_maps_.end());
+        this->unrecorded_dependencies_.insert(
+            this->unrecorded_dependencies_.end(),
+            that->unrecorded_dependencies_.begin(),
+            that->unrecorded_dependencies_.end());
         return true;
       }
       return false;
@@ -210,6 +216,8 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
     case kAccessorConstant: {
       // Check if we actually access the same constant.
       if (this->constant_.address() == that->constant_.address()) {
+        DCHECK(this->unrecorded_dependencies_.empty());
+        DCHECK(that->unrecorded_dependencies_.empty());
         this->receiver_maps_.insert(this->receiver_maps_.end(),
                                     that->receiver_maps_.begin(),
                                     that->receiver_maps_.end());
@@ -220,6 +228,8 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
 
     case kNotFound:
     case kStringLength: {
+      DCHECK(this->unrecorded_dependencies_.empty());
+      DCHECK(that->unrecorded_dependencies_.empty());
       this->receiver_maps_.insert(this->receiver_maps_.end(),
                                   that->receiver_maps_.begin(),
                                   that->receiver_maps_.end());
@@ -322,6 +332,8 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
 #endif
   MaybeHandle<Map> field_map;
   MapRef map_ref(broker(), map);
+  std::vector<CompilationDependencies::Dependency const*>
+      unrecorded_dependencies;
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
 #ifdef V8_COMPRESS_POINTERS
@@ -330,7 +342,9 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     field_representation = MachineRepresentation::kTaggedSigned;
 #endif
     map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
-    dependencies()->DependOnFieldRepresentation(map_ref, number);
+    unrecorded_dependencies.push_back(
+        dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
+                                                                  number));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
     field_representation = MachineRepresentation::kFloat64;
@@ -352,9 +366,12 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       // about the contents now.
     }
     map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
-    dependencies()->DependOnFieldRepresentation(map_ref, number);
+    unrecorded_dependencies.push_back(
+        dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
+                                                                  number));
     if (descriptors_field_type->IsClass()) {
-      dependencies()->DependOnFieldType(map_ref, number);
+      unrecorded_dependencies.push_back(
+          dependencies()->FieldTypeDependencyOffTheRecord(map_ref, number));
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map(descriptors_field_type->AsClass(), isolate());
       field_type = Type::For(MapRef(broker(), map));
@@ -362,8 +379,9 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     }
   }
   return PropertyAccessInfo::DataField(
-      details.constness(), MapHandles{receiver_map}, field_index,
-      field_representation, field_type, field_map, holder);
+      details.constness(), MapHandles{receiver_map},
+      std::move(unrecorded_dependencies), field_index, field_representation,
+      field_type, field_map, holder, MaybeHandle<Map>());
 }
 
 PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
@@ -548,15 +566,16 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
   }
 }
 
-PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
-    MapHandles const& maps, Handle<Name> name, AccessMode access_mode) const {
-  ZoneVector<PropertyAccessInfo> raw_access_infos(zone());
-  ComputePropertyAccessInfos(maps, name, access_mode, &raw_access_infos);
-  ZoneVector<PropertyAccessInfo> access_infos(zone());
-  if (FinalizePropertyAccessInfos(raw_access_infos, access_mode,
-                                  &access_infos) &&
-      access_infos.size() == 1) {
-    return access_infos.front();
+PropertyAccessInfo AccessInfoFactory::FinalizePropertyAccessInfosAsOne(
+    ZoneVector<PropertyAccessInfo> access_infos, AccessMode access_mode) const {
+  ZoneVector<PropertyAccessInfo> merged_access_infos(zone());
+  MergePropertyAccessInfos(access_infos, access_mode, &merged_access_infos);
+  if (merged_access_infos.size() == 1) {
+    PropertyAccessInfo& result = merged_access_infos.front();
+    if (!result.IsInvalid()) {
+      result.RecordDependencies(dependencies());
+      return result;
+    }
   }
   return {};
 }
@@ -570,7 +589,29 @@ void AccessInfoFactory::ComputePropertyAccessInfos(
   }
 }
 
+void PropertyAccessInfo::RecordDependencies(
+    CompilationDependencies* dependencies) {
+  for (CompilationDependencies::Dependency const* d :
+       unrecorded_dependencies_) {
+    dependencies->RecordDependency(d);
+  }
+  unrecorded_dependencies_.clear();
+}
+
 bool AccessInfoFactory::FinalizePropertyAccessInfos(
+    ZoneVector<PropertyAccessInfo> access_infos, AccessMode access_mode,
+    ZoneVector<PropertyAccessInfo>* result) const {
+  MergePropertyAccessInfos(access_infos, access_mode, result);
+  for (PropertyAccessInfo const& info : *result) {
+    if (info.IsInvalid()) return false;
+  }
+  for (PropertyAccessInfo& info : *result) {
+    info.RecordDependencies(dependencies());
+  }
+  return true;
+}
+
+void AccessInfoFactory::MergePropertyAccessInfos(
     ZoneVector<PropertyAccessInfo> infos, AccessMode access_mode,
     ZoneVector<PropertyAccessInfo>* result) const {
   DCHECK(result->empty());
@@ -582,11 +623,9 @@ bool AccessInfoFactory::FinalizePropertyAccessInfos(
         break;
       }
     }
-    if (it->IsInvalid()) return false;
     if (!merged) result->push_back(*it);
   }
   CHECK(!result->empty());
-  return true;
 }
 
 namespace {
@@ -670,7 +709,7 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
     }
     // Special fields are always mutable.
     return PropertyAccessInfo::DataField(PropertyConstness::kMutable,
-                                         MapHandles{map}, field_index,
+                                         MapHandles{map}, {}, field_index,
                                          field_representation, field_type);
   }
   return {};
@@ -699,11 +738,15 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   MaybeHandle<Map> field_map;
   MachineRepresentation field_representation = MachineRepresentation::kTagged;
   MapRef transition_map_ref(broker(), transition_map);
+  std::vector<CompilationDependencies::Dependency const*>
+      unrecorded_dependencies;
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
     field_representation = MachineRepresentation::kTaggedSigned;
     transition_map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
-    dependencies()->DependOnFieldRepresentation(transition_map_ref, number);
+    unrecorded_dependencies.push_back(
+        dependencies()->FieldRepresentationDependencyOffTheRecord(
+            transition_map_ref, number));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
     field_representation = MachineRepresentation::kFloat64;
@@ -719,20 +762,27 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
       return {};
     }
     transition_map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
-    dependencies()->DependOnFieldRepresentation(transition_map_ref, number);
+    unrecorded_dependencies.push_back(
+        dependencies()->FieldRepresentationDependencyOffTheRecord(
+            transition_map_ref, number));
     if (descriptors_field_type->IsClass()) {
-      dependencies()->DependOnFieldType(transition_map_ref, number);
+      unrecorded_dependencies.push_back(
+          dependencies()->FieldTypeDependencyOffTheRecord(transition_map_ref,
+                                                          number));
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map(descriptors_field_type->AsClass(), isolate());
       field_type = Type::For(MapRef(broker(), map));
       field_map = MaybeHandle<Map>(map);
     }
   }
-  dependencies()->DependOnTransition(MapRef(broker(), transition_map));
+  unrecorded_dependencies.push_back(
+      dependencies()->TransitionDependencyOffTheRecord(
+          MapRef(broker(), transition_map)));
   // Transitioning stores are never stores to constant fields.
   return PropertyAccessInfo::DataField(
-      PropertyConstness::kMutable, MapHandles{map}, field_index,
-      field_representation, field_type, field_map, holder, transition_map);
+      PropertyConstness::kMutable, MapHandles{map},
+      std::move(unrecorded_dependencies), field_index, field_representation,
+      field_type, field_map, holder, transition_map);
 }
 
 }  // namespace compiler

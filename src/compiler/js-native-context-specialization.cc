@@ -406,6 +406,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
       access_info_factory.ComputePropertyAccessInfo(
           receiver_map, factory()->has_instance_symbol(), AccessMode::kLoad);
   if (access_info.IsInvalid()) return NoChange();
+  access_info.RecordDependencies(dependencies());
 
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
 
@@ -725,12 +726,17 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   }
 
   // Compute property access info for "then" on {resolution}.
-  AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                        graph()->zone());
-  PropertyAccessInfo access_info =
-      access_info_factory.ComputePropertyAccessInfo(
-          MapHandles(resolution_maps.begin(), resolution_maps.end()),
-          factory()->then_string(), AccessMode::kLoad);
+  PropertyAccessInfo access_info;
+  {
+    ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
+    AccessInfoFactory access_info_factory(broker(), dependencies(),
+                                          graph()->zone());
+    access_info_factory.ComputePropertyAccessInfos(
+        MapHandles(resolution_maps.begin(), resolution_maps.end()),
+        factory()->then_string(), AccessMode::kLoad, &access_infos);
+    access_info = access_info_factory.FinalizePropertyAccessInfosAsOne(
+        access_infos, AccessMode::kLoad);
+  }
   if (access_info.IsInvalid()) return NoChange();
 
   // We can further optimize the case where {resolution}
@@ -2459,6 +2465,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
       access_info_factory.ComputePropertyAccessInfo(
           receiver_map, cached_name.object(), AccessMode::kStoreInLiteral);
   if (access_info.IsInvalid()) return NoChange();
+  access_info.RecordDependencies(dependencies());
 
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
