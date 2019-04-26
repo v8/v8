@@ -37,14 +37,20 @@
   'octane/typescript': [PASS, SLOW],
 }],  # ALWAYS
 
-['variant == stress', {
+# Slow variants.
+['variant in [jitless, nooptimization, stress]', {
   # Slow tests.
+  'kraken/ai-astar': [PASS, SLOW],
+  'kraken/imaging-desaturate': [PASS, SLOW],
   'octane/box2d': [PASS, SLOW],
   'octane/code-load': [PASS, SLOW],
   'octane/crypto': [PASS, SLOW],
   'octane/gbemu-part1': [PASS, SLOW],
   'octane/pdfjs': [PASS, SLOW],
+  'octane/regexp': [PASS, SLOW],
+}],
 
+['variant == stress', {
   # Too slow for stress mode.
   'octane/mandreel': [SKIP],
   'octane/typescript': [SKIP],
@@ -54,12 +60,6 @@
 }],
 
 ['variant == jitless', {
-  # Slow tests.
-  'kraken/ai-astar': [PASS, SLOW],
-  'kraken/imaging-desaturate': [PASS, SLOW],
-  'octane/crypto': [PASS, SLOW],
-  'octane/regexp': [PASS, SLOW],
-
   # Too slow for jitless mode.
   'octane/zlib': [SKIP],
 }],
