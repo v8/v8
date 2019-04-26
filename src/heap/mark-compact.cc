@@ -3769,7 +3769,7 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
 }
 
 void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
-  space->ClearStats();
+  space->ClearAllocatorState();
 
   int will_be_swept = 0;
   bool unused_page_present = false;

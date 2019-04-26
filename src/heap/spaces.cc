@@ -2941,7 +2941,7 @@ void FreeList::Reset() {
   for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
     categories_[i] = nullptr;
   }
-  ResetStats();
+  wasted_bytes_ = 0;
 }
 
 size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {

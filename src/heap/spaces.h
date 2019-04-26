@@ -164,8 +164,6 @@ class FreeListCategory {
 
   void Reset();
 
-  void ResetStats() { Reset(); }
-
   void RepairFreeList(Heap* heap);
 
   // Relinks the category into the currently owning free list. Requires that the
@@ -1864,12 +1862,6 @@ class FreeList {
   // Clear the free list.
   void Reset();
 
-  void ResetStats() {
-    wasted_bytes_ = 0;
-    ForAllFreeListCategories(
-        [](FreeListCategory* category) { category->ResetStats(); });
-  }
-
   // Return the number of bytes available on the free list.
   size_t Available() {
     size_t available = 0;
@@ -2148,10 +2140,10 @@ class V8_EXPORT_PRIVATE PagedSpace
   // The stats are rebuilt during sweeping by adding each page to the
   // capacity and the size when it is encountered.  As free spaces are
   // discovered during the sweeping they are subtracted from the size and added
-  // to the available and wasted totals.
-  void ClearStats() {
+  // to the available and wasted totals. The free list is cleared as well.
+  void ClearAllocatorState() {
     accounting_stats_.ClearSize();
-    free_list_.ResetStats();
+    free_list_.Reset();
   }
 
   // Available bytes without growing.  These are the bytes on the free list.
