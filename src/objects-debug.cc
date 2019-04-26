@@ -1912,8 +1912,6 @@ void WasmDebugInfo::WasmDebugInfoVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kInterpreterHandleOffset);
   CHECK(interpreter_handle()->IsUndefined(isolate) ||
         interpreter_handle()->IsForeign());
-  VerifyObjectField(isolate, kInterpretedFunctionsOffset);
-  CHECK(interpreted_functions()->IsFixedArray());
   VerifyObjectField(isolate, kLocalsNamesOffset);
   VerifyObjectField(isolate, kCWasmEntriesOffset);
   VerifyObjectField(isolate, kCWasmEntryMapOffset);

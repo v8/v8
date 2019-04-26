@@ -1401,6 +1401,11 @@ std::vector<WasmCode*> NativeModule::AddCompiledCode(
   return code_vector;
 }
 
+bool NativeModule::IsRedirectedToInterpreter(uint32_t func_index) {
+  base::MutexGuard lock(&allocation_mutex_);
+  return has_interpreter_redirection(func_index);
+}
+
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
   // For now, we neither free the {WasmCode} objects, nor do we free any code.
   // We just zap the code to ensure it's not executed any more.

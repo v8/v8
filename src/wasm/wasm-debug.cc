@@ -473,21 +473,6 @@ wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo debug_info) {
   return Managed<wasm::InterpreterHandle>::cast(handle_obj)->raw();
 }
 
-Handle<FixedArray> GetOrCreateInterpretedFunctions(
-    Isolate* isolate, Handle<WasmDebugInfo> debug_info) {
-  Handle<FixedArray> arr(debug_info->interpreted_functions(), isolate);
-  int num_functions = debug_info->wasm_instance()
-                          ->module_object()
-                          ->native_module()
-                          ->num_functions();
-  if (arr->length() == 0 && num_functions > 0) {
-    arr = isolate->factory()->NewFixedArray(num_functions);
-    debug_info->set_interpreted_functions(*arr);
-  }
-  DCHECK_EQ(num_functions, arr->length());
-  return arr;
-}
-
 }  // namespace
 
 Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
@@ -496,7 +481,6 @@ Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   Handle<WasmDebugInfo> debug_info = Handle<WasmDebugInfo>::cast(
       factory->NewStruct(WASM_DEBUG_INFO_TYPE, AllocationType::kOld));
   debug_info->set_wasm_instance(*instance);
-  debug_info->set_interpreted_functions(*factory->empty_fixed_array());
   instance->set_debug_info(*debug_info);
   return debug_info;
 }
@@ -530,8 +514,6 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
   Isolate* isolate = debug_info->GetIsolate();
   // Ensure that the interpreter is instantiated.
   GetOrCreateInterpreterHandle(isolate, debug_info);
-  Handle<FixedArray> interpreted_functions =
-      GetOrCreateInterpretedFunctions(isolate, debug_info);
   Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
   wasm::NativeModule* native_module =
       instance->module_object()->native_module();
@@ -544,7 +526,9 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
   for (int func_index : func_indexes) {
     DCHECK_LE(0, func_index);
     DCHECK_GT(module->functions.size(), func_index);
-    if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) continue;
+    // Note that this is just a best effort check. Multiple threads can still
+    // race at redirecting the same function to the interpreter, which is OK.
+    if (native_module->IsRedirectedToInterpreter(func_index)) continue;
 
     wasm::WasmCodeRefScope code_ref_scope;
     wasm::WasmCompilationResult result = compiler::CompileWasmInterpreterEntry(
@@ -555,12 +539,8 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
         result.tagged_parameter_slots, std::move(result.protected_instructions),
         std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
         wasm::ExecutionTier::kInterpreter);
-    Address instruction_start = wasm_code->instruction_start();
     native_module->PublishCode(std::move(wasm_code));
-
-    Handle<Foreign> foreign_holder =
-        isolate->factory()->NewForeign(instruction_start, AllocationType::kOld);
-    interpreted_functions->set(func_index, *foreign_holder);
+    DCHECK(native_module->IsRedirectedToInterpreter(func_index));
   }
 }
 

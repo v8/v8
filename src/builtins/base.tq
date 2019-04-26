@@ -713,7 +713,6 @@ extern class WasmExportedFunctionData extends Struct {
 extern class WasmDebugInfo extends Struct {
   instance: WasmInstanceObject;
   interpreter_handle: Foreign | Undefined;
-  interpreted_functions: FixedArray;
   locals_names: FixedArray;
   c_wasm_entries: FixedArray;
   c_wasm_entry_map: Foreign;  // Managed<wasm::SignatureMap>

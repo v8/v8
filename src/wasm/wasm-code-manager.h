@@ -405,6 +405,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* AddCompiledCode(WasmCompilationResult);
   std::vector<WasmCode*> AddCompiledCode(Vector<WasmCompilationResult>);
 
+  // Allows to check whether a function has been redirected to the interpreter
+  // by publishing an entry stub with the {Kind::kInterpreterEntry} code kind.
+  bool IsRedirectedToInterpreter(uint32_t func_index);
+
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all
   // {WasmCode} objects must not be used any more.
@@ -440,7 +444,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* CreateEmptyJumpTable(uint32_t jump_table_size);
 
-  // Hold the {mutex_} when calling this method.
+  // Hold the {allocation_mutex_} when calling this method.
   bool has_interpreter_redirection(uint32_t func_index) {
     DCHECK_LT(func_index, num_functions());
     DCHECK_LE(module_->num_imported_functions, func_index);
@@ -450,7 +454,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return byte & (1 << (bitset_idx % kBitsPerByte));
   }
 
-  // Hold the {mutex_} when calling this method.
+  // Hold the {allocation_mutex_} when calling this method.
   void SetInterpreterRedirection(uint32_t func_index) {
     DCHECK_LT(func_index, num_functions());
     DCHECK_LE(module_->num_imported_functions, func_index);
