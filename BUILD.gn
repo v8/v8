@@ -2785,7 +2785,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/type-hints.cc",
     "src/type-hints.h",
     "src/type-traits.h",
-    "src/unicode-cache.h",
     "src/unicode-decoder.cc",
     "src/unicode-decoder.h",
     "src/unicode-inl.h",

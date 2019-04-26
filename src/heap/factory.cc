@@ -49,7 +49,6 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/transitions-inl.h"
-#include "src/unicode-cache.h"
 #include "src/unicode-inl.h"
 
 namespace v8 {
@@ -632,8 +631,19 @@ Handle<AccessorPair> Factory::NewAccessorPair() {
 
 // Internalized strings are created in the old generation (data space).
 Handle<String> Factory::InternalizeUtf8String(Vector<const char> string) {
-  Utf8StringKey key(string, HashSeed(isolate()));
-  return InternalizeStringWithKey(&key);
+  Vector<const uint8_t> utf8_data = Vector<const uint8_t>::cast(string);
+  Utf8Decoder decoder(utf8_data);
+  if (decoder.is_ascii()) return InternalizeOneByteString(utf8_data);
+  if (decoder.is_one_byte()) {
+    std::unique_ptr<uint8_t[]> buffer(new uint8_t[decoder.utf16_length()]);
+    decoder.Decode(buffer.get(), utf8_data);
+    return InternalizeOneByteString(
+        Vector<const uint8_t>(buffer.get(), decoder.utf16_length()));
+  }
+  std::unique_ptr<uint16_t[]> buffer(new uint16_t[decoder.utf16_length()]);
+  decoder.Decode(buffer.get(), utf8_data);
+  return InternalizeTwoByteString(
+      Vector<const uc16>(buffer.get(), decoder.utf16_length()));
 }
 
 Handle<String> Factory::InternalizeOneByteString(Vector<const uint8_t> string) {
@@ -675,122 +685,86 @@ MaybeHandle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
   return result;
 }
 
-MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
+MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> data,
                                                AllocationType allocation) {
-  DCHECK_NE(allocation, AllocationType::kReadOnly);
-  // Check for ASCII first since this is the common case.
-  const char* ascii_data = string.start();
-  int length = string.length();
-  int non_ascii_start = String::NonAsciiStart(ascii_data, length);
-  if (non_ascii_start >= length) {
-    // If the string is ASCII, we do not need to convert the characters
-    // since UTF8 is backwards compatible with ASCII.
-    return NewStringFromOneByte(Vector<const uint8_t>::cast(string),
-                                allocation);
+  Vector<const uint8_t> utf8_data = Vector<const uint8_t>::cast(data);
+  Utf8Decoder decoder(utf8_data);
+
+  if (decoder.utf16_length() == 0) return empty_string();
+
+  if (decoder.is_one_byte()) {
+    // Allocate string.
+    Handle<SeqOneByteString> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate(), result,
+        NewRawOneByteString(decoder.utf16_length(), allocation), String);
+
+    DisallowHeapAllocation no_gc;
+    decoder.Decode(result->GetChars(no_gc), utf8_data);
+    return result;
   }
-
-  std::unique_ptr<uint16_t[]> buffer(new uint16_t[length - non_ascii_start]);
-
-  const uint8_t* cursor =
-      reinterpret_cast<const uint8_t*>(&string[non_ascii_start]);
-  const uint8_t* end = reinterpret_cast<const uint8_t*>(string.end());
-
-  uint16_t* output_cursor = buffer.get();
-
-  uint32_t incomplete_char = 0;
-  unibrow::Utf8::State state = unibrow::Utf8::State::kAccept;
-
-  while (cursor < end) {
-    unibrow::uchar t =
-        unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
-
-    if (V8_LIKELY(t <= unibrow::Utf16::kMaxNonSurrogateCharCode)) {
-      *(output_cursor++) = static_cast<uc16>(t);  // The most frequent case.
-    } else if (t == unibrow::Utf8::kIncomplete) {
-      continue;
-    } else {
-      *(output_cursor++) = unibrow::Utf16::LeadSurrogate(t);
-      *(output_cursor++) = unibrow::Utf16::TrailSurrogate(t);
-    }
-  }
-
-  unibrow::uchar t = unibrow::Utf8::ValueOfIncrementalFinish(&state);
-  if (t != unibrow::Utf8::kBufferEmpty) {
-    *(output_cursor++) = static_cast<uc16>(t);
-  }
-
-  DCHECK_LE(output_cursor, buffer.get() + length - non_ascii_start);
-  int utf16_length = static_cast<int>(output_cursor - buffer.get());
-  DCHECK_GT(utf16_length, 0);
 
   // Allocate string.
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(), result,
-      NewRawTwoByteString(non_ascii_start + utf16_length, allocation), String);
-
-  DCHECK_LE(non_ascii_start + utf16_length, length);
+      NewRawTwoByteString(decoder.utf16_length(), allocation), String);
 
   DisallowHeapAllocation no_gc;
-  uint16_t* data = result->GetChars(no_gc);
-  CopyChars(data, ascii_data, non_ascii_start);
-  CopyChars(data + non_ascii_start, buffer.get(), utf16_length);
-
+  decoder.Decode(result->GetChars(no_gc), utf8_data);
   return result;
 }
 
 MaybeHandle<String> Factory::NewStringFromUtf8SubString(
     Handle<SeqOneByteString> str, int begin, int length,
     AllocationType allocation) {
-  Access<UnicodeCache::Utf8Decoder> decoder(
-      isolate()->unicode_cache()->utf8_decoder());
-  int non_ascii_start;
-  int utf16_length = 0;
+  Vector<const uint8_t> utf8_data;
   {
     DisallowHeapAllocation no_gc;
-    const char* ascii_data =
-        reinterpret_cast<const char*>(str->GetChars(no_gc) + begin);
-    non_ascii_start = String::NonAsciiStart(ascii_data, length);
-    if (non_ascii_start < length) {
-      // Non-ASCII and we need to decode.
-      auto non_ascii = Vector<const char>(ascii_data + non_ascii_start,
-                                          length - non_ascii_start);
-      decoder->Reset(non_ascii);
+    utf8_data = Vector<const uint8_t>(str->GetChars(no_gc) + begin, length);
+  }
+  Utf8Decoder decoder(utf8_data);
 
-      utf16_length = static_cast<int>(decoder->Utf16Length());
-    }
+  if (length == 1) {
+    uint16_t t;
+    // Decode even in the case of length 1 since it can be a bad character.
+    decoder.Decode(&t, utf8_data);
+    return LookupSingleCharacterStringFromCode(t);
   }
 
-  if (non_ascii_start >= length) {
+  if (decoder.is_ascii()) {
     // If the string is ASCII, we can just make a substring.
     // TODO(v8): the allocation flag is ignored in this case.
     return NewSubString(str, begin, begin + length);
   }
 
-  DCHECK_GT(utf16_length, 0);
+  DCHECK_GT(decoder.utf16_length(), 0);
+
+  if (decoder.is_one_byte()) {
+    // Allocate string.
+    Handle<SeqOneByteString> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate(), result,
+        NewRawOneByteString(decoder.utf16_length(), allocation), String);
+    DisallowHeapAllocation no_gc;
+    // Update pointer references, since the original string may have moved after
+    // allocation.
+    utf8_data = Vector<const uint8_t>(str->GetChars(no_gc) + begin, length);
+    decoder.Decode(result->GetChars(no_gc), utf8_data);
+    return result;
+  }
 
   // Allocate string.
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(), result,
-      NewRawTwoByteString(non_ascii_start + utf16_length, allocation), String);
+      NewRawTwoByteString(decoder.utf16_length(), allocation), String);
 
+  DisallowHeapAllocation no_gc;
   // Update pointer references, since the original string may have moved after
   // allocation.
-  DisallowHeapAllocation no_gc;
-  const char* ascii_data =
-      reinterpret_cast<const char*>(str->GetChars(no_gc) + begin);
-  auto non_ascii = Vector<const char>(ascii_data + non_ascii_start,
-                                      length - non_ascii_start);
-
-  // Copy ASCII portion.
-  uint16_t* data = result->GetChars(no_gc);
-  for (int i = 0; i < non_ascii_start; i++) {
-    *data++ = *ascii_data++;
-  }
-
-  // Now write the remainder.
-  decoder->WriteUtf16(data, utf16_length, non_ascii);
+  utf8_data = Vector<const uint8_t>(str->GetChars(no_gc) + begin, length);
+  decoder.Decode(result->GetChars(no_gc), utf8_data);
   return result;
 }
 
@@ -830,35 +804,8 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(
 
 namespace {
 
-bool inline IsOneByte(Vector<const char> str, int chars) {
-  // TODO(dcarney): incorporate Latin-1 check when Latin-1 is supported?
-  return chars == str.length();
-}
-
 bool inline IsOneByte(Handle<String> str) {
   return str->IsOneByteRepresentation();
-}
-
-inline void WriteOneByteData(Vector<const char> vector, uint8_t* chars,
-                             int len) {
-  // Only works for one byte strings.
-  DCHECK(vector.length() == len);
-  MemCopy(chars, vector.start(), len);
-}
-
-inline void WriteTwoByteData(Vector<const char> vector, uint16_t* chars,
-                             int len) {
-  unibrow::Utf8Iterator it = unibrow::Utf8Iterator(vector);
-  while (!it.Done()) {
-    DCHECK_GT(len, 0);
-    len -= 1;
-
-    uint16_t c = *it;
-    ++it;
-    DCHECK_NE(unibrow::Utf8::kBadChar, c);
-    *chars++ = c;
-  }
-  DCHECK_EQ(len, 0);
 }
 
 inline void WriteOneByteData(Handle<String> s, uint8_t* chars, int len) {
@@ -954,19 +901,6 @@ Handle<String> Factory::AllocateInternalizedStringImpl(T t, int chars,
                      chars);
   }
   return answer;
-}
-
-Handle<String> Factory::NewInternalizedStringFromUtf8(Vector<const char> str,
-                                                      int chars,
-                                                      uint32_t hash_field) {
-  if (IsOneByte(str, chars)) {
-    Handle<SeqOneByteString> result =
-        AllocateRawOneByteInternalizedString(str.length(), hash_field);
-    DisallowHeapAllocation no_allocation;
-    MemCopy(result->GetChars(no_allocation), str.start(), str.length());
-    return result;
-  }
-  return AllocateInternalizedStringImpl<false>(str, chars, hash_field);
 }
 
 Handle<String> Factory::NewOneByteInternalizedString(Vector<const uint8_t> str,

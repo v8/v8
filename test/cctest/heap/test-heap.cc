@@ -153,13 +153,13 @@ static void CheckOddball(Isolate* isolate, Object obj, const char* string) {
   CHECK(obj->IsOddball());
   Handle<Object> handle(obj, isolate);
   Object print_string = *Object::ToString(isolate, handle).ToHandleChecked();
-  CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
+  CHECK(String::cast(print_string)->IsOneByteEqualTo(CStrVector(string)));
 }
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
   Handle<Object> handle(Smi::FromInt(value), isolate);
   Object print_string = *Object::ToString(isolate, handle).ToHandleChecked();
-  CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
+  CHECK(String::cast(print_string)->IsOneByteEqualTo(CStrVector(string)));
 }
 
 
@@ -168,7 +168,7 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
   CHECK(number->IsNumber());
   Handle<Object> print_string =
       Object::ToString(isolate, number).ToHandleChecked();
-  CHECK(String::cast(*print_string)->IsUtf8EqualTo(CStrVector(string)));
+  CHECK(String::cast(*print_string)->IsOneByteEqualTo(CStrVector(string)));
 }
 
 void CheckEmbeddedObjectsAreEqual(Handle<Code> lhs, Handle<Code> rhs) {
@@ -764,10 +764,10 @@ static void CheckInternalizedStrings(const char** strings) {
     CHECK(a->IsInternalizedString());
     Handle<String> b = factory->InternalizeUtf8String(string);
     CHECK_EQ(*b, *a);
-    CHECK(b->IsUtf8EqualTo(CStrVector(string)));
+    CHECK(b->IsOneByteEqualTo(CStrVector(string)));
     b = isolate->factory()->InternalizeUtf8String(CStrVector(string));
     CHECK_EQ(*b, *a);
-    CHECK(b->IsUtf8EqualTo(CStrVector(string)));
+    CHECK(b->IsOneByteEqualTo(CStrVector(string)));
   }
 }
 

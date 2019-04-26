@@ -397,17 +397,18 @@ Handle<Object> JSStackFrame::GetMethodName() {
   }
 
   Handle<String> name(function_->shared()->Name(), isolate_);
+  name = String::Flatten(isolate_, name);
 
   // The static initializer function is not a method, so don't add a
   // class name, just return the function name.
-  if (name->IsUtf8EqualTo(CStrVector("<static_fields_initializer>"), true)) {
+  if (name->HasOneBytePrefix(CStrVector("<static_fields_initializer>"))) {
     return name;
   }
 
   // ES2015 gives getters and setters name prefixes which must
   // be stripped to find the property name.
-  if (name->IsUtf8EqualTo(CStrVector("get "), true) ||
-      name->IsUtf8EqualTo(CStrVector("set "), true)) {
+  if (name->HasOneBytePrefix(CStrVector("get ")) ||
+      name->HasOneBytePrefix(CStrVector("set "))) {
     name = isolate_->factory()->NewProperSubString(name, 4, name->length());
   }
   if (CheckMethodName(isolate_, receiver, name, function_,

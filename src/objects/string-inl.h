@@ -265,27 +265,6 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
   Handle<String> AsHandle(Isolate* isolate) override;
 };
 
-// Utf8StringKey carries a vector of chars as key.
-class Utf8StringKey : public StringTableKey {
- public:
-  explicit Utf8StringKey(Vector<const char> string, uint64_t seed)
-      : StringTableKey(StringHasher::ComputeUtf8Hash(string, seed, &chars_)),
-        string_(string) {}
-
-  bool IsMatch(Object string) override {
-    return String::cast(string)->IsUtf8EqualTo(string_);
-  }
-
-  Handle<String> AsHandle(Isolate* isolate) override {
-    return isolate->factory()->NewInternalizedStringFromUtf8(string_, chars_,
-                                                             HashField());
-  }
-
- private:
-  Vector<const char> string_;
-  int chars_;  // Caches the number of characters when computing the hash code.
-};
-
 bool String::Equals(String other) {
   if (other == *this) return true;
   if (this->IsInternalizedString() && other->IsInternalizedString()) {

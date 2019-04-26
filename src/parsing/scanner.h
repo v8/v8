@@ -16,7 +16,6 @@
 #include "src/message-template.h"
 #include "src/parsing/token.h"
 #include "src/pointer-with-payload.h"
-#include "src/unicode-decoder.h"
 #include "src/unicode.h"
 
 namespace v8 {

@@ -4558,47 +4558,6 @@ uint32_t StringHasher::GetHashField() {
   }
 }
 
-uint32_t StringHasher::ComputeUtf8Hash(Vector<const char> chars, uint64_t seed,
-                                       int* utf16_length_out) {
-  int vector_length = chars.length();
-  // Handle some edge cases
-  if (vector_length <= 1) {
-    DCHECK(vector_length == 0 ||
-           static_cast<uint8_t>(chars.start()[0]) <=
-               unibrow::Utf8::kMaxOneByteChar);
-    *utf16_length_out = vector_length;
-    return HashSequentialString(chars.start(), vector_length, seed);
-  }
-
-  // Start with a fake length which won't affect computation.
-  // It will be updated later.
-  StringHasher hasher(String::kMaxArrayIndexSize, seed);
-  DCHECK(hasher.is_array_index_);
-
-  unibrow::Utf8Iterator it = unibrow::Utf8Iterator(chars);
-  int utf16_length = 0;
-  bool is_index = true;
-
-  while (utf16_length < String::kMaxHashCalcLength && !it.Done()) {
-    utf16_length++;
-    uint16_t c = *it;
-    ++it;
-    hasher.AddCharacter(c);
-    if (is_index) is_index = hasher.UpdateIndex(c);
-  }
-
-  // Now that hashing is done, we just need to calculate utf16_length
-  while (!it.Done()) {
-    ++it;
-    utf16_length++;
-  }
-
-  *utf16_length_out = utf16_length;
-  // Must set length here so that hash computation is correct.
-  hasher.length_ = utf16_length;
-  return hasher.GetHashField();
-}
-
 void IteratingStringHasher::VisitConsString(ConsString cons_string) {
   // Run small ConsStrings through ConsStringIterator.
   if (cons_string->length() < 64) {

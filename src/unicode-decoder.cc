@@ -2,87 +2,80 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
-#include "src/unicode-inl.h"
 #include "src/unicode-decoder.h"
-#include <stdio.h>
-#include <stdlib.h>
 
-namespace unibrow {
+#include "src/memcopy.h"
+#include "src/unicode-inl.h"
 
-uint16_t Utf8Iterator::operator*() {
-  if (V8_UNLIKELY(char_ > Utf16::kMaxNonSurrogateCharCode)) {
-    return trailing_ ? Utf16::TrailSurrogate(char_)
-                     : Utf16::LeadSurrogate(char_);
+namespace v8 {
+namespace internal {
+
+Utf8Decoder::Utf8Decoder(const Vector<const uint8_t>& chars)
+    : encoding_(Encoding::kAscii),
+      non_ascii_start_(NonAsciiStart(chars.start(), chars.length())),
+      utf16_length_(non_ascii_start_) {
+  if (non_ascii_start_ == chars.length()) return;
+
+  const uint8_t* cursor = chars.start() + non_ascii_start_;
+  const uint8_t* end = chars.start() + chars.length();
+
+  bool is_one_byte = true;
+  uint32_t incomplete_char = 0;
+  unibrow::Utf8::State state = unibrow::Utf8::State::kAccept;
+
+  while (cursor < end) {
+    unibrow::uchar t =
+        unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
+    if (t != unibrow::Utf8::kIncomplete) {
+      is_one_byte = is_one_byte && t <= unibrow::Latin1::kMaxChar;
+      utf16_length_++;
+      if (t > unibrow::Utf16::kMaxNonSurrogateCharCode) utf16_length_++;
+    }
   }
 
-  DCHECK_EQ(trailing_, false);
-  return char_;
-}
-
-Utf8Iterator& Utf8Iterator::operator++() {
-  if (V8_UNLIKELY(this->Done())) {
-    char_ = Utf8::kBufferEmpty;
-    return *this;
+  unibrow::uchar t = unibrow::Utf8::ValueOfIncrementalFinish(&state);
+  if (t != unibrow::Utf8::kBufferEmpty) {
+    is_one_byte = false;
+    utf16_length_++;
   }
 
-  if (V8_UNLIKELY(char_ > Utf16::kMaxNonSurrogateCharCode && !trailing_)) {
-    trailing_ = true;
-    return *this;
+  encoding_ = is_one_byte ? Encoding::kLatin1 : Encoding::kUtf16;
+}
+
+template <typename Char>
+void Utf8Decoder::Decode(Char* out, const Vector<const uint8_t>& data) {
+  CopyChars(out, data.start(), non_ascii_start_);
+
+  out += non_ascii_start_;
+
+  uint32_t incomplete_char = 0;
+  unibrow::Utf8::State state = unibrow::Utf8::State::kAccept;
+
+  const uint8_t* cursor = data.start() + non_ascii_start_;
+  const uint8_t* end = data.start() + data.length();
+
+  while (cursor < end) {
+    unibrow::uchar t =
+        unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
+    if (t != unibrow::Utf8::kIncomplete) {
+      if (sizeof(Char) == 1 || t <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+        *(out++) = static_cast<Char>(t);
+      } else {
+        *(out++) = unibrow::Utf16::LeadSurrogate(t);
+        *(out++) = unibrow::Utf16::TrailSurrogate(t);
+      }
+    }
   }
 
-  trailing_ = false;
-  offset_ = cursor_;
-
-  char_ =
-      Utf8::ValueOf(reinterpret_cast<const uint8_t*>(stream_.begin()) + cursor_,
-                    stream_.length() - cursor_, &cursor_);
-  return *this;
+  unibrow::uchar t = unibrow::Utf8::ValueOfIncrementalFinish(&state);
+  if (t != unibrow::Utf8::kBufferEmpty) *out = static_cast<Char>(t);
 }
 
-Utf8Iterator Utf8Iterator::operator++(int) {
-  Utf8Iterator old(*this);
-  ++*this;
-  return old;
-}
+template void Utf8Decoder::Decode(uint8_t* out,
+                                  const Vector<const uint8_t>& data);
 
-bool Utf8Iterator::Done() {
-  return offset_ == static_cast<size_t>(stream_.length());
-}
+template void Utf8Decoder::Decode(uint16_t* out,
+                                  const Vector<const uint8_t>& data);
 
-void Utf8DecoderBase::Reset(uint16_t* buffer, size_t buffer_length,
-                            const v8::internal::Vector<const char>& stream) {
-  size_t utf16_length = 0;
-
-  Utf8Iterator it = Utf8Iterator(stream);
-  // Loop until stream is read, writing to buffer as long as buffer has space.
-  while (utf16_length < buffer_length && !it.Done()) {
-    *buffer++ = *it;
-    ++it;
-    utf16_length++;
-  }
-  bytes_read_ = it.Offset();
-  trailing_ = it.Trailing();
-  chars_written_ = utf16_length;
-
-  // Now that writing to buffer is done, we just need to calculate utf16_length
-  while (!it.Done()) {
-    ++it;
-    utf16_length++;
-  }
-  utf16_length_ = utf16_length;
-}
-
-void Utf8DecoderBase::WriteUtf16Slow(
-    uint16_t* data, size_t length,
-    const v8::internal::Vector<const char>& stream, size_t offset,
-    bool trailing) {
-  Utf8Iterator it = Utf8Iterator(stream, offset, trailing);
-  while (!it.Done()) {
-    DCHECK_GT(length--, 0);
-    *data++ = *it;
-    ++it;
-  }
-}
-
-}  // namespace unibrow
+}  // namespace internal
+}  // namespace v8

@@ -70,7 +70,7 @@ bool SourceCodeCache::Lookup(Isolate* isolate, Vector<const char> name,
                              Handle<SharedFunctionInfo>* handle) {
   for (int i = 0; i < cache_->length(); i += 2) {
     SeqOneByteString str = SeqOneByteString::cast(cache_->get(i));
-    if (str->IsUtf8EqualTo(name)) {
+    if (str->IsOneByteEqualTo(Vector<const uint8_t>::cast(name))) {
       *handle = Handle<SharedFunctionInfo>(
           SharedFunctionInfo::cast(cache_->get(i + 1)), isolate);
       return true;

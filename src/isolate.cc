@@ -71,7 +71,6 @@
 #include "src/string-stream.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/unicode-cache.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
 #include "src/version.h"
@@ -3056,9 +3055,6 @@ Isolate::~Isolate() {
   delete entry_stack_;
   entry_stack_ = nullptr;
 
-  delete unicode_cache_;
-  unicode_cache_ = nullptr;
-
   delete date_cache_;
   date_cache_ = nullptr;
 
@@ -3330,7 +3326,6 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
 
   compilation_cache_ = new CompilationCache(this);
   descriptor_lookup_cache_ = new DescriptorLookupCache();
-  unicode_cache_ = new UnicodeCache();
   inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);
   global_handles_ = new GlobalHandles(this);
   eternal_handles_ = new EternalHandles();

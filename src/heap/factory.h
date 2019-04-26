@@ -314,11 +314,6 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
-  // Allocates an internalized string in old space based on the character
-  // stream.
-  Handle<String> NewInternalizedStringFromUtf8(Vector<const char> str,
-                                               int chars, uint32_t hash_field);
-
   Handle<String> NewOneByteInternalizedString(Vector<const uint8_t> str,
                                               uint32_t hash_field);
 

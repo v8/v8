@@ -17,8 +17,10 @@ namespace internal {
 
 static void CheckObject(Isolate* isolate, Handle<Object> obj,
                         const char* string) {
-  Object print_string = *Object::NoSideEffectsToString(isolate, obj);
-  CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
+  Handle<String> print_string = String::Flatten(
+      isolate,
+      Handle<String>::cast(Object::NoSideEffectsToString(isolate, obj)));
+  CHECK(print_string->IsOneByteEqualTo(CStrVector(string)));
 }
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {

@@ -24,10 +24,6 @@ class V8_EXPORT_PRIVATE StringHasher {
   static inline uint32_t HashSequentialString(const schar* chars, int length,
                                               uint64_t seed);
 
-  // Reads all the data, even for long strings and computes the utf16 length.
-  static uint32_t ComputeUtf8Hash(Vector<const char> chars, uint64_t seed,
-                                  int* utf16_length_out);
-
   // Calculated hash value for a string consisting of 1 to
   // String::kMaxArrayIndexSize digits with no leading zeros (except "0").
   // value is represented decimal value.

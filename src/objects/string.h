@@ -268,14 +268,16 @@ class String : public Name {
   inline bool Equals(String other);
   inline static bool Equals(Isolate* isolate, Handle<String> one,
                             Handle<String> two);
-  V8_EXPORT_PRIVATE bool IsUtf8EqualTo(Vector<const char> str,
-                                       bool allow_prefix_match = false);
 
   // Dispatches to Is{One,Two}ByteEqualTo.
   template <typename Char>
   bool IsEqualTo(Vector<const Char> str);
 
+  V8_EXPORT_PRIVATE bool HasOneBytePrefix(Vector<const char> str);
   V8_EXPORT_PRIVATE bool IsOneByteEqualTo(Vector<const uint8_t> str);
+  V8_EXPORT_PRIVATE bool IsOneByteEqualTo(Vector<const char> str) {
+    return IsOneByteEqualTo(Vector<const uint8_t>::cast(str));
+  }
   bool IsTwoByteEqualTo(Vector<const uc16> str);
 
   // Return a UTF8 representation of the string.  The string is null
@@ -366,50 +368,12 @@ class String : public Name {
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   static void WriteToFlat(String source, sinkchar* sink, int from, int to);
 
-  // The return value may point to the first aligned word containing the first
-  // non-one-byte character, rather than directly to the non-one-byte character.
-  // If the return value is >= the passed length, the entire string was
-  // one-byte.
-  static inline int NonAsciiStart(const char* chars, int length) {
-    const char* start = chars;
-    const char* limit = chars + length;
-
-    if (length >= kIntptrSize) {
-      // Check unaligned bytes.
-      while (!IsAligned(reinterpret_cast<intptr_t>(chars), sizeof(uintptr_t))) {
-        if (static_cast<uint8_t>(*chars) > unibrow::Utf8::kMaxOneByteChar) {
-          return static_cast<int>(chars - start);
-        }
-        ++chars;
-      }
-      // Check aligned words.
-      DCHECK_EQ(unibrow::Utf8::kMaxOneByteChar, 0x7F);
-      const uintptr_t non_one_byte_mask = kUintptrAllBitsSet / 0xFF * 0x80;
-      while (chars + sizeof(uintptr_t) <= limit) {
-        if (*reinterpret_cast<const uintptr_t*>(chars) & non_one_byte_mask) {
-          return static_cast<int>(chars - start);
-        }
-        chars += sizeof(uintptr_t);
-      }
-    }
-    // Check remaining unaligned bytes.
-    while (chars < limit) {
-      if (static_cast<uint8_t>(*chars) > unibrow::Utf8::kMaxOneByteChar) {
-        return static_cast<int>(chars - start);
-      }
-      ++chars;
-    }
-
-    return static_cast<int>(chars - start);
-  }
-
   static inline bool IsAscii(const char* chars, int length) {
-    return NonAsciiStart(chars, length) >= length;
+    return IsAscii(reinterpret_cast<const uint8_t*>(chars), length);
   }
 
   static inline bool IsAscii(const uint8_t* chars, int length) {
-    return NonAsciiStart(reinterpret_cast<const char*>(chars), length) >=
-           length;
+    return NonAsciiStart(chars, length) >= length;
   }
 
   static inline int NonOneByteStart(const uc16* chars, int length) {

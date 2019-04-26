@@ -1180,26 +1180,6 @@ Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
   return Smi::FromInt(last_index);
 }
 
-bool String::IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match) {
-  int slen = length();
-  // Can't check exact length equality, but we can check bounds.
-  int str_len = str.length();
-  if (!allow_prefix_match &&
-      (str_len < slen ||
-       str_len > slen * static_cast<int>(unibrow::Utf8::kMaxEncodedSize))) {
-    return false;
-  }
-
-  int i = 0;
-  unibrow::Utf8Iterator it = unibrow::Utf8Iterator(str);
-  while (i < slen && !it.Done()) {
-    if (Get(i++) != *it) return false;
-    ++it;
-  }
-
-  return (allow_prefix_match || i == slen) && it.Done();
-}
-
 template <>
 bool String::IsEqualTo(Vector<const uint8_t> str) {
   return IsOneByteEqualTo(str);
@@ -1208,6 +1188,18 @@ bool String::IsEqualTo(Vector<const uint8_t> str) {
 template <>
 bool String::IsEqualTo(Vector<const uc16> str) {
   return IsTwoByteEqualTo(str);
+}
+
+bool String::HasOneBytePrefix(Vector<const char> str) {
+  int slen = str.length();
+  if (slen > length()) return false;
+  DisallowHeapAllocation no_gc;
+  FlatContent content = GetFlatContent(no_gc);
+  if (content.IsOneByte()) {
+    return CompareChars(content.ToOneByteVector().start(), str.start(), slen) ==
+           0;
+  }
+  return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;
 }
 
 bool String::IsOneByteEqualTo(Vector<const uint8_t> str) {
