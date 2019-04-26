@@ -66,12 +66,8 @@ namespace array_slice {
       const newElement: Object = e != Hole ?
           argumentsContext[UnsafeCast<Smi>(e)] :
           unmappedElements.objects[current];
-      // It is safe to skip the write barrier here because resultElements was
-      // allocated together with result in a folded allocation.
-      // TODO(tebbi): The verification of this fails at the moment due to
-      // missing load elimination.
-      StoreFixedArrayElement(
-          resultElements, indexOut++, newElement, UNSAFE_SKIP_WRITE_BARRIER);
+      StoreFixedArrayElementSmi(
+          resultElements, indexOut++, newElement, SKIP_WRITE_BARRIER);
     }
 
     // Fill in the rest of the result that contains the unmapped parameters

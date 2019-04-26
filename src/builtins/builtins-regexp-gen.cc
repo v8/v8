@@ -35,7 +35,7 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::IntPtrZero() {
 
 TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
     TNode<Context> context, TNode<Smi> length, TNode<Smi> index,
-    TNode<String> input, TNode<FixedArray>* elements_out) {
+    TNode<String> input) {
 #ifdef DEBUG
   TNode<Smi> max_length = SmiConstant(JSArray::kInitialMaxFastElementArray);
   CSA_ASSERT(this, SmiLessThanOrEqual(length, max_length));
@@ -89,7 +89,6 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   FillFixedArrayWithValue(elements_kind, elements, IntPtrZero(), length_intptr,
                           RootIndex::kUndefinedValue);
 
-  if (elements_out) *elements_out = CAST(elements);
   return CAST(result);
 }
 
@@ -178,9 +177,9 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   TNode<String> first =
       CAST(CallBuiltin(Builtins::kSubString, context, string, start, end));
 
-  TNode<FixedArray> result_elements;
-  TNode<JSRegExpResult> result = AllocateRegExpResult(
-      context, num_results, start, string, &result_elements);
+  TNode<JSRegExpResult> result =
+      AllocateRegExpResult(context, num_results, start, string);
+  TNode<FixedArray> result_elements = CAST(LoadElements(result));
 
   UnsafeStoreFixedArrayElement(result_elements, 0, first, SKIP_WRITE_BARRIER);
 

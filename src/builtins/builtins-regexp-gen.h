@@ -38,9 +38,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   // Allocate a RegExpResult with the given length (the number of captures,
   // including the match itself), index (the index where the match starts),
   // and input string.
-  TNode<JSRegExpResult> AllocateRegExpResult(
-      TNode<Context> context, TNode<Smi> length, TNode<Smi> index,
-      TNode<String> input, TNode<FixedArray>* elements_out = nullptr);
+  TNode<JSRegExpResult> AllocateRegExpResult(TNode<Context> context,
+                                             TNode<Smi> length,
+                                             TNode<Smi> index,
+                                             TNode<String> input);
 
   TNode<Object> FastLoadLastIndex(TNode<JSRegExp> regexp);
   TNode<Object> SlowLoadLastIndex(TNode<Context> context, TNode<Object> regexp);

@@ -687,10 +687,6 @@ class Runtime : public AllStatic {
   // sentinel, always.
   static bool IsNonReturning(FunctionId id);
 
-  // Check if a runtime function with the given {id}  may trigger a heap
-  // allocation.
-  static bool MayAllocate(FunctionId id);
-
   // Get the intrinsic function with the given name.
   static const Function* FunctionForName(const unsigned char* name, int length);
 

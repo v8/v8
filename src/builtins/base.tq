@@ -920,8 +920,6 @@ const INTPTR_PARAMETERS: constexpr ParameterMode
 
 const SKIP_WRITE_BARRIER:
     constexpr WriteBarrierMode generates 'SKIP_WRITE_BARRIER';
-const UNSAFE_SKIP_WRITE_BARRIER:
-    constexpr WriteBarrierMode generates 'UNSAFE_SKIP_WRITE_BARRIER';
 
 extern class AsyncGeneratorRequest extends Struct {
   next: AsyncGeneratorRequest | Undefined;
@@ -2044,20 +2042,12 @@ extern operator '.objects[]=' macro StoreFixedArrayElement(
     FixedArray, constexpr int31, Smi): void;
 extern operator '.objects[]=' macro StoreFixedArrayElement(
     FixedArray, constexpr int31, HeapObject): void;
-extern operator '.objects[]=' macro StoreFixedArrayElement(
+extern operator '.objects[]=' macro StoreFixedArrayElementSmi(
     FixedArray, Smi, Object): void;
-extern macro StoreFixedArrayElement(
+extern operator '.objects[]=' macro StoreFixedArrayElementSmi(
     FixedArray, Smi, Object, constexpr WriteBarrierMode): void;
 extern macro StoreFixedArrayElement(
-    FixedArray, Smi, Smi, constexpr WriteBarrierMode): void;
-extern macro StoreFixedArrayElement(
-    FixedArray, constexpr int31, Object, constexpr WriteBarrierMode): void;
-extern macro StoreFixedArrayElement(
-    FixedArray, constexpr int31, Smi, constexpr WriteBarrierMode): void;
-extern macro StoreFixedArrayElement(
     FixedArray, intptr, Object, constexpr WriteBarrierMode): void;
-extern macro StoreFixedArrayElement(
-    FixedArray, intptr, Smi, constexpr WriteBarrierMode): void;
 extern operator '.floats[]=' macro StoreFixedDoubleArrayElement(
     FixedDoubleArray, intptr, float64): void;
 extern operator '.floats[]=' macro StoreFixedDoubleArrayElementSmi(

@@ -352,8 +352,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
         TryChangeToHoleyMapMulti(receiver, receiver_map, elements_kind, context,
                                  PACKED_SMI_ELEMENTS, PACKED_ELEMENTS, slow);
       }
-      StoreNoWriteBarrier(MachineRepresentation::kTaggedSigned, elements,
-                          offset, value);
+      StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
+                          value);
       MaybeUpdateLengthAndReturn(receiver, intptr_index, value, update_length);
 
       BIND(&non_smi_value);

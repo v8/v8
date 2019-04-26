@@ -962,11 +962,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);
-  Node* UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
-                                  Node* value);
-  Node* UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
-                                  Node* offset, Node* value);
-
   // Stores uncompressed tagged value to (most likely off JS heap) memory
   // location without write barrier.
   Node* StoreFullTaggedNoWriteBarrier(Node* base, Node* tagged_value);

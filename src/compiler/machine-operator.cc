@@ -550,11 +550,6 @@ struct MachineOperatorGlobalCache {
     Store##Type##NoWriteBarrier##Operator()                                \
         : Store##Type##Operator(kNoWriteBarrier) {}                        \
   };                                                                       \
-  struct Store##Type##AssertNoWriteBarrier##Operator final                 \
-      : public Store##Type##Operator {                                     \
-    Store##Type##AssertNoWriteBarrier##Operator()                          \
-        : Store##Type##Operator(kAssertNoWriteBarrier) {}                  \
-  };                                                                       \
   struct Store##Type##MapWriteBarrier##Operator final                      \
       : public Store##Type##Operator {                                     \
     Store##Type##MapWriteBarrier##Operator()                               \
@@ -595,8 +590,6 @@ struct MachineOperatorGlobalCache {
                                   kNoWriteBarrier)) {}                     \
   };                                                                       \
   Store##Type##NoWriteBarrier##Operator kStore##Type##NoWriteBarrier;      \
-  Store##Type##AssertNoWriteBarrier##Operator                              \
-      kStore##Type##AssertNoWriteBarrier;                                  \
   Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;    \
   Store##Type##PointerWriteBarrier##Operator                               \
       kStore##Type##PointerWriteBarrier;                                   \
@@ -952,8 +945,6 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
     switch (store_rep.write_barrier_kind()) {                    \
       case kNoWriteBarrier:                                      \
         return &cache_.k##Store##kRep##NoWriteBarrier;           \
-      case kAssertNoWriteBarrier:                                \
-        return &cache_.k##Store##kRep##AssertNoWriteBarrier;     \
       case kMapWriteBarrier:                                     \
         return &cache_.k##Store##kRep##MapWriteBarrier;          \
       case kPointerWriteBarrier:                                 \

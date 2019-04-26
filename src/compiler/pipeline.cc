@@ -1510,8 +1510,7 @@ struct MemoryOptimizationPhase {
         data->jsgraph(), temp_zone, data->info()->GetPoisoningMitigationLevel(),
         data->info()->is_allocation_folding_enabled()
             ? MemoryOptimizer::AllocationFolding::kDoAllocationFolding
-            : MemoryOptimizer::AllocationFolding::kDontAllocationFolding,
-        data->debug_name());
+            : MemoryOptimizer::AllocationFolding::kDontAllocationFolding);
     optimizer.Optimize();
   }
 };
