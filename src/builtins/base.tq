@@ -1749,6 +1749,7 @@ extern macro ChangeFloat64ToUintPtr(float64): uintptr;
 extern macro ChangeInt32ToIntPtr(int32): intptr;   // Sign-extends.
 extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
 extern macro LoadNativeContext(Context): NativeContext;
+extern macro TruncateFloat64ToFloat32(float64): float32;
 extern macro LoadJSArrayElementsMap(constexpr ElementsKind, Context): Map;
 extern macro LoadJSArrayElementsMap(ElementsKind, Context): Map;
 extern macro ChangeNonnegativeNumberToUintPtr(Number): uintptr;
@@ -1943,6 +1944,12 @@ Convert<uintptr, Number>(n: Number): uintptr {
 }
 Convert<float64, float32>(f: float32): float64 {
   return ChangeFloat32ToFloat64(f);
+}
+Convert<float32, float64>(f: float64): float32 {
+  return TruncateFloat64ToFloat32(f);
+}
+Convert<float32, Number>(n: Number): float32 {
+  return Convert<float32>(ChangeNumberToFloat64(n));
 }
 Convert<Number, float64>(d: float64): Number {
   return AllocateHeapNumberWithValue(d);

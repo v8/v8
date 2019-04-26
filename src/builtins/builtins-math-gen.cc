@@ -141,15 +141,6 @@ void MathBuiltinsAssembler::MathRoundingOperation(
   }
 }
 
-void MathBuiltinsAssembler::MathUnaryOperation(
-    Node* context, Node* x,
-    TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>)) {
-  Node* x_value = TruncateTaggedToFloat64(context, x);
-  Node* value = (this->*float64op)(x_value);
-  Node* result = AllocateHeapNumberWithValue(value);
-  Return(result);
-}
-
 void MathBuiltinsAssembler::MathMaxMin(
     Node* context, Node* argc,
     TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>,
@@ -170,73 +161,12 @@ void MathBuiltinsAssembler::MathMaxMin(
   arguments.PopAndReturn(ChangeFloat64ToTagged(result.value()));
 }
 
-// ES6 #sec-math.acos
-TF_BUILTIN(MathAcos, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Acos);
-}
-
-// ES6 #sec-math.acosh
-TF_BUILTIN(MathAcosh, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Acosh);
-}
-
-// ES6 #sec-math.asin
-TF_BUILTIN(MathAsin, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Asin);
-}
-
-// ES6 #sec-math.asinh
-TF_BUILTIN(MathAsinh, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Asinh);
-}
-
-// ES6 #sec-math.atan
-TF_BUILTIN(MathAtan, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Atan);
-}
-
-// ES6 #sec-math.atanh
-TF_BUILTIN(MathAtanh, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Atanh);
-}
-
-// ES6 #sec-math.atan2
-TF_BUILTIN(MathAtan2, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* y = Parameter(Descriptor::kY);
-  Node* x = Parameter(Descriptor::kX);
-
-  Node* y_value = TruncateTaggedToFloat64(context, y);
-  Node* x_value = TruncateTaggedToFloat64(context, x);
-  Node* value = Float64Atan2(y_value, x_value);
-  Node* result = AllocateHeapNumberWithValue(value);
-  Return(result);
-}
 
 // ES6 #sec-math.ceil
 TF_BUILTIN(MathCeil, MathBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* x = Parameter(Descriptor::kX);
   MathRoundingOperation(context, x, &CodeStubAssembler::Float64Ceil);
-}
-
-// ES6 #sec-math.cbrt
-TF_BUILTIN(MathCbrt, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Cbrt);
 }
 
 // ES6 #sec-math.clz32
@@ -297,50 +227,11 @@ TF_BUILTIN(MathClz32, CodeStubAssembler) {
   }
 }
 
-// ES6 #sec-math.cos
-TF_BUILTIN(MathCos, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Cos);
-}
-
-// ES6 #sec-math.cosh
-TF_BUILTIN(MathCosh, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Cosh);
-}
-
-// ES6 #sec-math.exp
-TF_BUILTIN(MathExp, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Exp);
-}
-
-// ES6 #sec-math.expm1
-TF_BUILTIN(MathExpm1, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Expm1);
-}
-
 // ES6 #sec-math.floor
 TF_BUILTIN(MathFloor, MathBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* x = Parameter(Descriptor::kX);
   MathRoundingOperation(context, x, &CodeStubAssembler::Float64Floor);
-}
-
-// ES6 #sec-math.fround
-TF_BUILTIN(MathFround, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  Node* x_value = TruncateTaggedToFloat64(context, x);
-  Node* value32 = TruncateFloat64ToFloat32(x_value);
-  Node* value = ChangeFloat32ToFloat64(value32);
-  Node* result = AllocateHeapNumberWithValue(value);
-  Return(result);
 }
 
 // ES6 #sec-math.imul
@@ -353,34 +244,6 @@ TF_BUILTIN(MathImul, CodeStubAssembler) {
   Node* value = Int32Mul(x_value, y_value);
   Node* result = ChangeInt32ToTagged(value);
   Return(result);
-}
-
-// ES6 #sec-math.log
-TF_BUILTIN(MathLog, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Log);
-}
-
-// ES6 #sec-math.log1p
-TF_BUILTIN(MathLog1p, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Log1p);
-}
-
-// ES6 #sec-math.log10
-TF_BUILTIN(MathLog10, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Log10);
-}
-
-// ES6 #sec-math.log2
-TF_BUILTIN(MathLog2, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Log2);
 }
 
 CodeStubAssembler::Node* MathBuiltinsAssembler::MathPow(Node* context,
@@ -464,41 +327,6 @@ TF_BUILTIN(MathSign, CodeStubAssembler) {
 
   BIND(&if_xispositive);
   Return(SmiConstant(1));
-}
-
-// ES6 #sec-math.sin
-TF_BUILTIN(MathSin, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Sin);
-}
-
-// ES6 #sec-math.sinh
-TF_BUILTIN(MathSinh, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Sinh);
-}
-
-// ES6 #sec-math.sqrt
-TF_BUILTIN(MathSqrt, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Sqrt);
-}
-
-// ES6 #sec-math.tan
-TF_BUILTIN(MathTan, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Tan);
-}
-
-// ES6 #sec-math.tanh
-TF_BUILTIN(MathTanh, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  MathUnaryOperation(context, x, &CodeStubAssembler::Float64Tanh);
 }
 
 // ES6 #sec-math.trunc

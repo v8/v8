@@ -643,50 +643,16 @@ namespace internal {
   /* Math */                                                                   \
   /* ES6 #sec-math.abs */                                                      \
   TFJ(MathAbs, 1, kReceiver, kX)                                               \
-  /* ES6 #sec-math.acos */                                                     \
-  TFJ(MathAcos, 1, kReceiver, kX)                                              \
-  /* ES6 #sec-math.acosh */                                                    \
-  TFJ(MathAcosh, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.asin */                                                     \
-  TFJ(MathAsin, 1, kReceiver, kX)                                              \
-  /* ES6 #sec-math.asinh */                                                    \
-  TFJ(MathAsinh, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.atan */                                                     \
-  TFJ(MathAtan, 1, kReceiver, kX)                                              \
-  /* ES6 #sec-math.atanh */                                                    \
-  TFJ(MathAtanh, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.atan2 */                                                    \
-  TFJ(MathAtan2, 2, kReceiver, kY, kX)                                         \
-  /* ES6 #sec-math.cbrt */                                                     \
-  TFJ(MathCbrt, 1, kReceiver, kX)                                              \
   /* ES6 #sec-math.ceil */                                                     \
   TFJ(MathCeil, 1, kReceiver, kX)                                              \
   /* ES6 #sec-math.clz32 */                                                    \
   TFJ(MathClz32, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.cos */                                                      \
-  TFJ(MathCos, 1, kReceiver, kX)                                               \
-  /* ES6 #sec-math.cosh */                                                     \
-  TFJ(MathCosh, 1, kReceiver, kX)                                              \
-  /* ES6 #sec-math.exp */                                                      \
-  TFJ(MathExp, 1, kReceiver, kX)                                               \
-  /* ES6 #sec-math.expm1 */                                                    \
-  TFJ(MathExpm1, 1, kReceiver, kX)                                             \
   /* ES6 #sec-math.floor */                                                    \
   TFJ(MathFloor, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.fround */                                                   \
-  TFJ(MathFround, 1, kReceiver, kX)                                            \
   /* ES6 #sec-math.hypot */                                                    \
   CPP(MathHypot)                                                               \
   /* ES6 #sec-math.imul */                                                     \
   TFJ(MathImul, 2, kReceiver, kX, kY)                                          \
-  /* ES6 #sec-math.log */                                                      \
-  TFJ(MathLog, 1, kReceiver, kX)                                               \
-  /* ES6 #sec-math.log1p */                                                    \
-  TFJ(MathLog1p, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.log10 */                                                    \
-  TFJ(MathLog10, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.log2 */                                                     \
-  TFJ(MathLog2, 1, kReceiver, kX)                                              \
   /* ES6 #sec-math.max */                                                      \
   TFJ(MathMax, SharedFunctionInfo::kDontAdaptArgumentsSentinel)                \
   /* ES6 #sec-math.min */                                                      \
@@ -699,16 +665,6 @@ namespace internal {
   TFJ(MathRound, 1, kReceiver, kX)                                             \
   /* ES6 #sec-math.sign */                                                     \
   TFJ(MathSign, 1, kReceiver, kX)                                              \
-  /* ES6 #sec-math.sin */                                                      \
-  TFJ(MathSin, 1, kReceiver, kX)                                               \
-  /* ES6 #sec-math.sinh */                                                     \
-  TFJ(MathSinh, 1, kReceiver, kX)                                              \
-  /* ES6 #sec-math.sqrt */                                                     \
-  TFJ(MathTan, 1, kReceiver, kX)                                               \
-  /* ES6 #sec-math.tan */                                                      \
-  TFJ(MathTanh, 1, kReceiver, kX)                                              \
-  /* ES6 #sec-math.tanh */                                                     \
-  TFJ(MathSqrt, 1, kReceiver, kX)                                              \
   /* ES6 #sec-math.trunc */                                                    \
   TFJ(MathTrunc, 1, kReceiver, kX)                                             \
                                                                                \
