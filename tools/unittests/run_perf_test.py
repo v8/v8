@@ -381,14 +381,13 @@ class PerfTest(unittest.TestCase):
         mock.MagicMock(return_value={'is_android': False})).start()
     self.assertEqual(1, self._CallMain('--buildbot'))
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': [], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
     ])
     self._VerifyErrors(
         ['Regexp "^Richards: (.+)$" '
          'returned a non-numeric for test test/Richards.',
-         'Not all traces have the same number of results. Can not compute '
-         'total for test'])
+         'Not all traces have produced results. Can not compute total for '
+         'test.'])
     self._VerifyMock(os.path.join('out', 'Release', 'd7'), '--flag', 'run.js')
 
   def testRegexpNoMatch(self):
@@ -396,7 +395,6 @@ class PerfTest(unittest.TestCase):
     self._MockCommand(['.'], ['x\nRichaards: 1.234\nDeltaBlue: 10657567\ny\n'])
     self.assertEqual(1, self._CallMain())
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': [], 'stddev': ''},
       {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
     ])
     self._VerifyErrors(
@@ -409,10 +407,7 @@ class PerfTest(unittest.TestCase):
     self._MockCommand(
         ['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'], exit_code=-1)
     self.assertEqual(1, self._CallMain())
-    self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': [], 'stddev': ''},
-      {'name': 'DeltaBlue', 'results': [], 'stddev': ''},
-    ])
+    self._VerifyResults('test', 'score', [])
     self._VerifyErrors([])
     self._VerifyMock(
         os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
@@ -423,10 +418,7 @@ class PerfTest(unittest.TestCase):
     self._WriteTestInput(test_input)
     self._MockCommand(['.'], [''], timed_out=True)
     self.assertEqual(1, self._CallMain())
-    self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': [], 'stddev': ''},
-      {'name': 'DeltaBlue', 'results': [], 'stddev': ''},
-    ])
+    self._VerifyResults('test', 'score', [])
     self._VerifyErrors([])
     self._VerifyMock(os.path.join('out', 'x64.release', 'd7'),
                      '--flag', 'run.js', timeout=70)
