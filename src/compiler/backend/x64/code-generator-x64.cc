@@ -1961,29 +1961,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64DecompressSigned: {
       CHECK(instr->HasOutput());
-      ASSEMBLE_MOVX(movsxlq);
+      ASSEMBLE_MOVX(DecompressTaggedSigned);
       break;
     }
     case kX64DecompressPointer: {
       CHECK(instr->HasOutput());
-      ASSEMBLE_MOVX(movsxlq);
-      __ addq(i.OutputRegister(), kRootRegister);
+      ASSEMBLE_MOVX(DecompressTaggedPointer);
       break;
     }
     case kX64DecompressAny: {
       CHECK(instr->HasOutput());
-      ASSEMBLE_MOVX(movsxlq);
-      // TODO(solanes): Do branchful compute?
-      // Branchlessly compute |masked_root|:
-      STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
-      Register masked_root = kScratchRegister;
-      __ movl(masked_root, i.OutputRegister());
-      __ andl(masked_root, Immediate(kSmiTagMask));
-      __ negq(masked_root);
-      __ andq(masked_root, kRootRegister);
-      // Now this add operation will either leave the value unchanged if it is a
-      // smi or add the isolate root if it is a heap object.
-      __ addq(i.OutputRegister(), masked_root);
+      ASSEMBLE_MOVX(DecompressAnyTagged);
       break;
     }
     // TODO(solanes): Combine into one Compress? They seem to be identical.

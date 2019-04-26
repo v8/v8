@@ -293,11 +293,10 @@ void TurboAssembler::DecompressTaggedSigned(Register destination,
   RecordComment("]");
 }
 
-void TurboAssembler::DecompressTaggedPointer(Register destination,
-                                             Register source) {
-  RecordComment("[ DecompressTaggedPointer");
+void TurboAssembler::DecompressTaggedSigned(Register destination,
+                                            Register source) {
+  RecordComment("[ DecompressTaggedSigned");
   movsxlq(destination, source);
-  addq(destination, kRootRegister);
   RecordComment("]");
 }
 
@@ -309,12 +308,16 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
   RecordComment("]");
 }
 
-void TurboAssembler::DecompressAnyTagged(Register destination,
-                                         Operand field_operand,
-                                         Register scratch) {
-  DCHECK(!AreAliased(destination, scratch));
-  RecordComment("[ DecompressAnyTagged");
-  movsxlq(destination, field_operand);
+void TurboAssembler::DecompressTaggedPointer(Register destination,
+                                             Register source) {
+  RecordComment("[ DecompressTaggedPointer");
+  movsxlq(destination, source);
+  addq(destination, kRootRegister);
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressRegisterAnyTagged(Register destination,
+                                                 Register scratch) {
   if (kUseBranchlessPtrDecompression) {
     // Branchlessly compute |masked_root|:
     // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
@@ -333,6 +336,24 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
     addq(destination, kRootRegister);
     bind(&done);
   }
+}
+
+void TurboAssembler::DecompressAnyTagged(Register destination,
+                                         Operand field_operand,
+                                         Register scratch) {
+  DCHECK(!AreAliased(destination, scratch));
+  RecordComment("[ DecompressAnyTagged");
+  movsxlq(destination, field_operand);
+  DecompressRegisterAnyTagged(destination, scratch);
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressAnyTagged(Register destination, Register source,
+                                         Register scratch) {
+  DCHECK(!AreAliased(destination, scratch));
+  RecordComment("[ DecompressAnyTagged");
+  movsxlq(destination, source);
+  DecompressRegisterAnyTagged(destination, scratch);
   RecordComment("]");
 }
 

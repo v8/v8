@@ -510,9 +510,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // The following macros work even when pointer compression is not enabled.
   void DecompressTaggedSigned(Register destination, Operand field_operand);
-  void DecompressTaggedPointer(Register destination, Register source);
+  void DecompressTaggedSigned(Register destination, Register source);
   void DecompressTaggedPointer(Register destination, Operand field_operand);
+  void DecompressTaggedPointer(Register destination, Register source);
+  // Auxiliary function used by DecompressAnyTagged to perform the actual
+  // decompression. Assumes destination is already signed extended.
+  void DecompressRegisterAnyTagged(Register destination, Register scratch);
   void DecompressAnyTagged(Register destination, Operand field_operand,
+                           Register scratch = kScratchRegister);
+  void DecompressAnyTagged(Register destination, Register source,
                            Register scratch = kScratchRegister);
 
  protected:

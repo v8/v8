@@ -2801,10 +2801,10 @@ void TurboAssembler::DecompressTaggedSigned(const Register& destination,
   RecordComment("]");
 }
 
-void TurboAssembler::DecompressTaggedPointer(const Register& destination,
-                                             const Register& source) {
-  RecordComment("[ DecompressTaggedPointer");
-  Add(destination, kRootRegister, Operand(source, SXTW));
+void TurboAssembler::DecompressTaggedSigned(const Register& destination,
+                                            const Register& source) {
+  RecordComment("[ DecompressTaggedSigned");
+  Sxtw(destination, source);
   RecordComment("]");
 }
 
@@ -2813,6 +2813,13 @@ void TurboAssembler::DecompressTaggedPointer(const Register& destination,
   RecordComment("[ DecompressTaggedPointer");
   Ldrsw(destination, field_operand);
   Add(destination, kRootRegister, destination);
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressTaggedPointer(const Register& destination,
+                                             const Register& source) {
+  RecordComment("[ DecompressTaggedPointer");
+  Add(destination, kRootRegister, Operand(source, SXTW));
   RecordComment("]");
 }
 
@@ -2834,6 +2841,31 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
     Add(destination, masked_root, destination);
   } else {
     Label done;
+    JumpIfSmi(destination, &done);
+    Add(destination, kRootRegister, destination);
+    bind(&done);
+  }
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressAnyTagged(const Register& destination,
+                                         const Register& source) {
+  RecordComment("[ DecompressAnyTagged");
+  if (kUseBranchlessPtrDecompression) {
+    UseScratchRegisterScope temps(this);
+    // Branchlessly compute |masked_root|:
+    // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
+    STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
+    Register masked_root = temps.AcquireX();
+    // Sign extend tag bit to entire register.
+    Sbfx(masked_root, source, 0, kSmiTagSize);
+    And(masked_root, masked_root, kRootRegister);
+    // Now this add operation will either leave the value unchanged if it is a
+    // smi or add the isolate root if it is a heap object.
+    Add(destination, masked_root, Operand(source, SXTW));
+  } else {
+    Label done;
+    Sxtw(destination, source);
     JumpIfSmi(destination, &done);
     Add(destination, kRootRegister, destination);
     bind(&done);
