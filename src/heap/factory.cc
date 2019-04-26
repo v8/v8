@@ -71,63 +71,116 @@ int ComputeCodeObjectSize(const CodeDesc& desc) {
   return object_size;
 }
 
-void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
-                    const CodeDesc& desc, Code::Kind kind,
-                    Handle<Object> self_ref, int32_t builtin_index,
-                    Handle<ByteArray> source_position_table,
-                    Handle<DeoptimizationData> deopt_data,
-                    Handle<ByteArray> reloc_info,
-                    Handle<CodeDataContainer> data_container,
-                    bool is_turbofanned, int stack_slots) {
-  DCHECK(IsAligned(code->address(), kCodeAlignment));
-  DCHECK_IMPLIES(
-      !heap->memory_allocator()->code_range().is_empty(),
-      heap->memory_allocator()->code_range().contains(code->address()));
+}  // namespace
 
-  constexpr bool kIsNotOffHeapTrampoline = false;
-  const bool has_unwinding_info = desc.unwinding_info != nullptr;
+CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
+                         Code::Kind kind)
+    : isolate_(isolate),
+      code_desc_(desc),
+      kind_(kind),
+      source_position_table_(isolate_->factory()->empty_byte_array()) {}
 
-  code->set_raw_instruction_size(desc.instr_size);
-  code->set_relocation_info(*reloc_info);
-  code->initialize_flags(kind, has_unwinding_info, is_turbofanned, stack_slots,
-                         kIsNotOffHeapTrampoline);
-  code->set_builtin_index(builtin_index);
-  code->set_code_data_container(*data_container);
-  code->set_deoptimization_data(*deopt_data);
-  code->set_source_position_table(*source_position_table);
-  code->set_safepoint_table_offset(desc.safepoint_table_offset);
-  code->set_handler_table_offset(desc.handler_table_offset);
-  code->set_constant_pool_offset(desc.constant_pool_offset);
-  code->set_code_comments_offset(desc.code_comments_offset);
+MaybeHandle<Code> CodeBuilder::BuildInternal(bool failing_allocation) {
+  const auto factory = isolate_->factory();
+  // Allocate objects needed for code initialization.
+  Handle<ByteArray> reloc_info = factory->NewByteArray(
+      code_desc_.reloc_size, Builtins::IsBuiltinId(builtin_index_)
+                                 ? AllocationType::kReadOnly
+                                 : AllocationType::kOld);
+  Handle<CodeDataContainer> data_container = factory->NewCodeDataContainer(0);
+  Handle<Code> code;
+  {
+    int object_size = ComputeCodeObjectSize(code_desc_);
+    Heap* heap = isolate_->heap();
 
-  // Allow self references to created code object by patching the handle to
-  // point to the newly allocated Code object.
-  if (!self_ref.is_null()) {
-    DCHECK(self_ref->IsOddball());
-    DCHECK(Oddball::cast(*self_ref)->kind() == Oddball::kSelfReferenceMarker);
-    if (FLAG_embedded_builtins) {
-      auto builder = heap->isolate()->builtins_constants_table_builder();
-      if (builder != nullptr) builder->PatchSelfReference(self_ref, code);
+    CodePageCollectionMemoryModificationScope code_allocation(heap);
+    HeapObject result;
+    if (failing_allocation) {
+      result =
+          heap->AllocateRawWithLightRetry(object_size, AllocationType::kCode);
+      // Return an empty handle if we cannot allocate the code object.
+      if (result.is_null()) return MaybeHandle<Code>();
+    } else {
+      result =
+          heap->AllocateRawWithRetryOrFail(object_size, AllocationType::kCode);
     }
-    *(self_ref.location()) = code->ptr();
-  }
 
-  // Migrate generated code.
-  // The generated code can contain embedded objects (typically from handles)
-  // in a pointer-to-tagged-value format (i.e. with indirection like a handle)
-  // that are dereferenced during the copy to point directly to the actual heap
-  // objects. These pointers can include references to the code object itself,
-  // through the self_reference parameter.
-  code->CopyFromNoFlush(heap, desc);
+    if (movability_ == kImmovable) {
+      result = heap->EnsureImmovableCode(result, object_size);
+    }
 
-  code->clear_padding();
+    // The code object has not been fully initialized yet.  We rely on the
+    // fact that no allocation will happen from this point on.
+    DisallowHeapAllocation no_gc;
+
+    result->set_map_after_allocation(*factory->code_map(), SKIP_WRITE_BARRIER);
+    code = handle(Code::cast(result), isolate_);
+    DCHECK(IsAligned(code->address(), kCodeAlignment));
+    DCHECK_IMPLIES(
+        !heap->memory_allocator()->code_range().is_empty(),
+        heap->memory_allocator()->code_range().contains(code->address()));
+
+    constexpr bool kIsNotOffHeapTrampoline = false;
+    const bool has_unwinding_info = code_desc_.unwinding_info != nullptr;
+
+    code->set_raw_instruction_size(code_desc_.instr_size);
+    code->set_relocation_info(*reloc_info);
+    code->initialize_flags(kind_, has_unwinding_info, is_turbofanned_,
+                           stack_slots_, kIsNotOffHeapTrampoline);
+    code->set_builtin_index(builtin_index_);
+    code->set_code_data_container(*data_container);
+    code->set_deoptimization_data(*deoptimization_data_);
+    code->set_source_position_table(*source_position_table_);
+    code->set_safepoint_table_offset(code_desc_.safepoint_table_offset);
+    code->set_handler_table_offset(code_desc_.handler_table_offset);
+    code->set_constant_pool_offset(code_desc_.constant_pool_offset);
+    code->set_code_comments_offset(code_desc_.code_comments_offset);
+
+    // Allow self references to created code object by patching the handle to
+    // point to the newly allocated Code object.
+    Handle<Object> self_reference;
+    if (self_reference_.ToHandle(&self_reference)) {
+      DCHECK(self_reference->IsOddball());
+      DCHECK(Oddball::cast(*self_reference)->kind() ==
+             Oddball::kSelfReferenceMarker);
+      if (FLAG_embedded_builtins) {
+        auto builder = isolate_->builtins_constants_table_builder();
+        if (builder != nullptr)
+          builder->PatchSelfReference(self_reference, code);
+      }
+      *(self_reference.location()) = code->ptr();
+    }
+
+    // Migrate generated code.
+    // The generated code can contain embedded objects (typically from handles)
+    // in a pointer-to-tagged-value format (i.e. with indirection like a handle)
+    // that are dereferenced during the copy to point directly to the actual
+    // heap objects. These pointers can include references to the code object
+    // itself, through the self_reference parameter.
+    code->CopyFromNoFlush(heap, code_desc_);
+
+    code->clear_padding();
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) code->ObjectVerify(heap->isolate());
+    if (FLAG_verify_heap) code->ObjectVerify(isolate_);
 #endif
+
+    // Flush the instruction cache before changing the permissions.
+    // Note: we do this before setting permissions to ReadExecute because on
+    // some older ARM kernels there is a bug which causes an access error on
+    // cache flush instructions to trigger access error on non-writable memory.
+    // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
+    code->FlushICache();
+  }
+
+  return code;
 }
 
-}  // namespace
+MaybeHandle<Code> CodeBuilder::TryBuild() { return BuildInternal(false); }
+
+Handle<Code> CodeBuilder::Build() {
+  return BuildInternal(true).ToHandleChecked();
+}
 
 HeapObject Factory::AllocateRawWithImmortalMap(int size,
                                                AllocationType allocation,
@@ -2670,115 +2723,6 @@ Handle<CodeDataContainer> Factory::NewCodeDataContainer(int flags) {
   data_container->set_kind_specific_flags(flags);
   data_container->clear_padding();
   return data_container;
-}
-
-MaybeHandle<Code> Factory::TryNewCode(
-    const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
-    int32_t builtin_index, MaybeHandle<ByteArray> maybe_source_position_table,
-    MaybeHandle<DeoptimizationData> maybe_deopt_data, Movability movability,
-    bool is_turbofanned, int stack_slots) {
-  // Allocate objects needed for code initialization.
-  Handle<ByteArray> reloc_info =
-      NewByteArray(desc.reloc_size, Builtins::IsBuiltinId(builtin_index)
-                                        ? AllocationType::kReadOnly
-                                        : AllocationType::kOld);
-  Handle<CodeDataContainer> data_container = NewCodeDataContainer(0);
-  Handle<ByteArray> source_position_table =
-      maybe_source_position_table.is_null()
-          ? empty_byte_array()
-          : maybe_source_position_table.ToHandleChecked();
-  Handle<DeoptimizationData> deopt_data =
-      maybe_deopt_data.is_null() ? DeoptimizationData::Empty(isolate())
-                                 : maybe_deopt_data.ToHandleChecked();
-  Handle<Code> code;
-  {
-    int object_size = ComputeCodeObjectSize(desc);
-
-    Heap* heap = isolate()->heap();
-    CodePageCollectionMemoryModificationScope code_allocation(heap);
-    HeapObject result =
-        heap->AllocateRawWithLightRetry(object_size, AllocationType::kCode);
-
-    // Return an empty handle if we cannot allocate the code object.
-    if (result.is_null()) return MaybeHandle<Code>();
-
-    if (movability == kImmovable) {
-      result = heap->EnsureImmovableCode(result, object_size);
-    }
-
-    // The code object has not been fully initialized yet.  We rely on the
-    // fact that no allocation will happen from this point on.
-    DisallowHeapAllocation no_gc;
-
-    result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
-    code = handle(Code::cast(result), isolate());
-
-    InitializeCode(heap, code, object_size, desc, kind, self_ref, builtin_index,
-                   source_position_table, deopt_data, reloc_info,
-                   data_container, is_turbofanned, stack_slots);
-
-    // Flush the instruction cache before changing the permissions.
-    // Note: we do this before setting permissions to ReadExecute because on
-    // some older ARM kernels there is a bug which causes an access error on
-    // cache flush instructions to trigger access error on non-writable memory.
-    // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
-    code->FlushICache();
-  }
-
-  return code;
-}
-
-Handle<Code> Factory::NewCode(
-    const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
-    int32_t builtin_index, MaybeHandle<ByteArray> maybe_source_position_table,
-    MaybeHandle<DeoptimizationData> maybe_deopt_data, Movability movability,
-    bool is_turbofanned, int stack_slots) {
-  // Allocate objects needed for code initialization.
-  Handle<ByteArray> reloc_info =
-      NewByteArray(desc.reloc_size, Builtins::IsBuiltinId(builtin_index)
-                                        ? AllocationType::kReadOnly
-                                        : AllocationType::kOld);
-  Handle<CodeDataContainer> data_container = NewCodeDataContainer(0);
-  Handle<ByteArray> source_position_table =
-      maybe_source_position_table.is_null()
-          ? empty_byte_array()
-          : maybe_source_position_table.ToHandleChecked();
-  Handle<DeoptimizationData> deopt_data =
-      maybe_deopt_data.is_null() ? DeoptimizationData::Empty(isolate())
-                                 : maybe_deopt_data.ToHandleChecked();
-
-  Handle<Code> code;
-  {
-    int object_size = ComputeCodeObjectSize(desc);
-
-    Heap* heap = isolate()->heap();
-    CodePageCollectionMemoryModificationScope code_allocation(heap);
-    HeapObject result =
-        heap->AllocateRawWithRetryOrFail(object_size, AllocationType::kCode);
-    if (movability == kImmovable) {
-      result = heap->EnsureImmovableCode(result, object_size);
-    }
-
-    // The code object has not been fully initialized yet.  We rely on the
-    // fact that no allocation will happen from this point on.
-    DisallowHeapAllocation no_gc;
-
-    result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
-    code = handle(Code::cast(result), isolate());
-
-    InitializeCode(heap, code, object_size, desc, kind, self_ref, builtin_index,
-                   source_position_table, deopt_data, reloc_info,
-                   data_container, is_turbofanned, stack_slots);
-
-    // Flush the instruction cache before changing the permissions.
-    // Note: we do this before setting permissions to ReadExecute because on
-    // some older ARM kernels there is a bug which causes an access error on
-    // cache flush instructions to trigger access error on non-writable memory.
-    // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
-    code->FlushICache();
-  }
-
-  return code;
 }
 
 Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,

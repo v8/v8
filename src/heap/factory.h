@@ -100,6 +100,71 @@ enum FunctionMode {
       kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
+// Allows creation of Code objects. It provides two build methods, one of which
+// tries to gracefully handle allocation failure.
+class V8_EXPORT_PRIVATE CodeBuilder final {
+ public:
+  CodeBuilder(Isolate* isolate, const CodeDesc& desc, Code::Kind kind);
+
+  // Builds a new code object (fully initialized). All header fields of the
+  // returned object are immutable and the code object is write protected.
+  V8_WARN_UNUSED_RESULT Handle<Code> Build();
+  // Like Build, builds a new code object. May return an empty handle if the
+  // allocation fails.
+  V8_WARN_UNUSED_RESULT MaybeHandle<Code> TryBuild();
+
+  // Sets the self-reference object in which a reference to the code object is
+  // stored. This allows generated code to reference its own Code object by
+  // using this handle.
+  CodeBuilder& set_self_reference(Handle<Object> self_reference) {
+    DCHECK(!self_reference.is_null());
+    self_reference_ = self_reference;
+    return *this;
+  }
+  CodeBuilder& set_builtin_index(int32_t builtin_index) {
+    builtin_index_ = builtin_index;
+    return *this;
+  }
+  CodeBuilder& set_source_position_table(Handle<ByteArray> table) {
+    DCHECK(!table.is_null());
+    source_position_table_ = table;
+    return *this;
+  }
+  CodeBuilder& set_deoptimization_data(Handle<DeoptimizationData> deopt_data) {
+    DCHECK(!deopt_data.is_null());
+    deoptimization_data_ = deopt_data;
+    return *this;
+  }
+  CodeBuilder& set_immovable() {
+    movability_ = kImmovable;
+    return *this;
+  }
+  CodeBuilder& set_is_turbofanned() {
+    is_turbofanned_ = true;
+    return *this;
+  }
+  CodeBuilder& set_stack_slots(int stack_slots) {
+    stack_slots_ = stack_slots;
+    return *this;
+  }
+
+ private:
+  MaybeHandle<Code> BuildInternal(bool failing_allocation);
+
+  Isolate* const isolate_;
+  const CodeDesc& code_desc_;
+  const Code::Kind kind_;
+
+  MaybeHandle<Object> self_reference_;
+  int32_t builtin_index_ = Builtins::kNoBuiltinId;
+  Handle<ByteArray> source_position_table_;
+  Handle<DeoptimizationData> deoptimization_data_ =
+      DeoptimizationData::Empty(isolate_);
+  Movability movability_ = kMovable;
+  bool is_turbofanned_ = false;
+  int stack_slots_ = 0;
+};
+
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory {
  public:
@@ -794,6 +859,31 @@ class V8_EXPORT_PRIVATE Factory {
   // Creates a new CodeDataContainer for a Code object.
   Handle<CodeDataContainer> NewCodeDataContainer(int flags);
 
+  // Constructs a CodeBuilder given the NewCode and TryNewCode parameters,
+  // taking care not to pass null handles to methods expecting non-null handles.
+  CodeBuilder NewCodeBuilder(const CodeDesc& desc, Code::Kind kind,
+                             Handle<Object> self_ref, int32_t builtin_index,
+                             MaybeHandle<ByteArray> maybe_source_position_table,
+                             MaybeHandle<DeoptimizationData> maybe_deopt_data,
+                             Movability movability, bool is_turbofanned,
+                             int stack_slots) {
+    CodeBuilder builder(isolate(), desc, kind);
+    builder.set_builtin_index(builtin_index);
+    builder.set_stack_slots(stack_slots);
+
+    if (!self_ref.is_null()) builder.set_self_reference(self_ref);
+    if (!maybe_source_position_table.is_null()) {
+      builder.set_source_position_table(
+          maybe_source_position_table.ToHandleChecked());
+    }
+    if (!maybe_deopt_data.is_null()) {
+      builder.set_deoptimization_data(maybe_deopt_data.ToHandleChecked());
+    }
+    if (movability == kImmovable) builder.set_immovable();
+    if (is_turbofanned) builder.set_is_turbofanned();
+    return builder;
+  }
+
   // Allocates a new code object (fully initialized). All header fields of the
   // returned object are immutable and the code object is write protected.
   // The reference to the Code object is stored in self_reference.
@@ -807,7 +897,12 @@ class V8_EXPORT_PRIVATE Factory {
                        MaybeHandle<DeoptimizationData> maybe_deopt_data =
                            MaybeHandle<DeoptimizationData>(),
                        Movability movability = kMovable,
-                       bool is_turbofanned = false, int stack_slots = 0);
+                       bool is_turbofanned = false, int stack_slots = 0) {
+    return NewCodeBuilder(desc, kind, self_reference, builtin_index,
+                          maybe_source_position_table, maybe_deopt_data,
+                          movability, is_turbofanned, stack_slots)
+        .Build();
+  }
 
   // Like NewCode, this function allocates a new code object (fully
   // initialized). It may return an empty handle if the allocation does not
@@ -820,7 +915,12 @@ class V8_EXPORT_PRIVATE Factory {
       MaybeHandle<DeoptimizationData> maybe_deopt_data =
           MaybeHandle<DeoptimizationData>(),
       Movability movability = kMovable, bool is_turbofanned = false,
-      int stack_slots = 0);
+      int stack_slots = 0) {
+    return NewCodeBuilder(desc, kind, self_reference, builtin_index,
+                          maybe_source_position_table, maybe_deopt_data,
+                          movability, is_turbofanned, stack_slots)
+        .TryBuild();
+  }
 
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.
