@@ -205,9 +205,11 @@ bool EqualNzcv(uint32_t expected, uint32_t result) {
   return true;
 }
 
-
-bool EqualRegisters(const RegisterDump* a, const RegisterDump* b) {
-  for (unsigned i = 0; i < kNumberOfRegisters; i++) {
+bool EqualV8Registers(const RegisterDump* a, const RegisterDump* b) {
+  CPURegList available_regs = kCallerSaved;
+  available_regs.Combine(kCalleeSaved);
+  while (!available_regs.IsEmpty()) {
+    int i = available_regs.PopLowestIndex().code();
     if (a->xreg(i) != b->xreg(i)) {
       printf("x%d\t Expected 0x%016" PRIx64 "\t Found 0x%016" PRIx64 "\n",
              i, a->xreg(i), b->xreg(i));

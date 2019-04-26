@@ -40,25 +40,11 @@ CPURegList TurboAssembler::DefaultFPTmpList() {
 
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion) const {
-  int bytes = 0;
   auto list = kCallerSaved;
-  // We only allow one exclusion register, so if the list is of even length
-  // before exclusions, it must still be afterwards, to maintain alignment.
-  // Therefore, we can ignore the exclusion register in the computation.
-  // However, we leave it in the argument list to mirror the prototype for
-  // Push/PopCallerSaved().
+  list.Remove(exclusion);
+  list.Align();
 
-  // X18 is excluded from caller-saved register list on ARM64 which makes
-  // caller-saved registers in odd number. padreg is used accordingly to
-  // maintain the alignment.
-  DCHECK_EQ(list.Count() % 2, 1);
-  if (exclusion.Is(no_reg)) {
-    bytes += kXRegSizeInBits / 8;
-  } else {
-    bytes -= kXRegSizeInBits / 8;
-  }
-
-  bytes += list.Count() * kXRegSizeInBits / 8;
+  int bytes = list.Count() * kXRegSizeInBits / 8;
 
   if (fp_mode == kSaveFPRegs) {
     DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
@@ -69,20 +55,13 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 
 int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
                                     Register exclusion) {
-  int bytes = 0;
   auto list = kCallerSaved;
+  list.Remove(exclusion);
+  list.Align();
 
-  // X18 is excluded from caller-saved register list on ARM64, use padreg
-  // accordingly to maintain alignment.
-  if (!exclusion.Is(no_reg)) {
-    list.Remove(exclusion);
-  } else {
-    list.Combine(padreg);
-  }
-
-  DCHECK_EQ(list.Count() % 2, 0);
   PushCPURegList(list);
-  bytes += list.Count() * kXRegSizeInBits / 8;
+
+  int bytes = list.Count() * kXRegSizeInBits / 8;
 
   if (fp_mode == kSaveFPRegs) {
     DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
@@ -101,16 +80,9 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion) {
   }
 
   auto list = kCallerSaved;
+  list.Remove(exclusion);
+  list.Align();
 
-  // X18 is excluded from caller-saved register list on ARM64, use padreg
-  // accordingly to maintain alignment.
-  if (!exclusion.Is(no_reg)) {
-    list.Remove(exclusion);
-  } else {
-    list.Combine(padreg);
-  }
-
-  DCHECK_EQ(list.Count() % 2, 0);
   PopCPURegList(list);
   bytes += list.Count() * kXRegSizeInBits / 8;
 
@@ -3411,11 +3383,8 @@ void MacroAssembler::Printf(const char * format,
   TmpList()->set_list(0);
   FPTmpList()->set_list(0);
 
-  // x18 is the platform register and is reserved for the use of platform ABIs.
-  // It is not part of the kCallerSaved list, but we add it here anyway to
-  // ensure `reg_list.Count() % 2 == 0` which is required in multiple spots.
   CPURegList saved_registers = kCallerSaved;
-  saved_registers.Combine(x18.code());
+  saved_registers.Align();
 
   // Preserve all caller-saved registers as well as NZCV.
   // PushCPURegList asserts that the size of each list is a multiple of 16

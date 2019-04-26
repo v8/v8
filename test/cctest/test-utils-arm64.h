@@ -206,7 +206,8 @@ bool Equal128(uint64_t expected_h, uint64_t expected_l,
 
 bool EqualNzcv(uint32_t expected, uint32_t result);
 
-bool EqualRegisters(const RegisterDump* a, const RegisterDump* b);
+// Compares two RegisterDumps, only comparing registers that V8 uses.
+bool EqualV8Registers(const RegisterDump* a, const RegisterDump* b);
 
 // Create an array of type {RegType}, size {Size}, filled with {NoReg}.
 template <typename RegType, size_t Size>
