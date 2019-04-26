@@ -2741,12 +2741,15 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   i::Address address = reinterpret_cast<i::Address>(object);
   i::Isolate* isolate = i::Isolate::Current();
 
-  i::wasm::WasmCode* wasm_code =
-      isolate->wasm_engine()->code_manager()->LookupCode(address);
-  if (wasm_code) {
-    i::StdoutStream os;
-    wasm_code->Disassemble(nullptr, os, address);
-    return;
+  {
+    i::wasm::WasmCodeRefScope scope;
+    i::wasm::WasmCode* wasm_code =
+        isolate->wasm_engine()->code_manager()->LookupCode(address);
+    if (wasm_code) {
+      i::StdoutStream os;
+      wasm_code->Disassemble(nullptr, os, address);
+      return;
+    }
   }
 
   if (!isolate->heap()->InSpaceSlow(address, i::CODE_SPACE) &&
