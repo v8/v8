@@ -703,12 +703,17 @@ bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
   auto added = it->second->potentially_dead_code.insert(code);
   if (!added.second) return false;  // An entry already existed.
   new_potentially_dead_code_size_ += code->instructions().size();
-  // Trigger a GC if 1MiB plus 10% of committed code are potentially dead.
-  size_t dead_code_limit = 1 * MB + code_manager_.committed_code_space() / 10;
-  if (FLAG_wasm_code_gc && new_potentially_dead_code_size_ > dead_code_limit &&
-      !current_gc_info_) {
-    new_potentially_dead_code_size_ = 0;
-    TriggerGC();
+  if (FLAG_wasm_code_gc) {
+    // Trigger a GC if 1MiB plus 10% of committed code are potentially dead.
+    size_t dead_code_limit =
+        FLAG_stress_wasm_code_gc
+            ? 0
+            : 1 * MB + code_manager_.committed_code_space() / 10;
+    bool need_gc = new_potentially_dead_code_size_ > dead_code_limit;
+    if (need_gc && !current_gc_info_) {
+      new_potentially_dead_code_size_ = 0;
+      TriggerGC();
+    }
   }
   return true;
 }
