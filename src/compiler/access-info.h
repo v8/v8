@@ -64,9 +64,8 @@ class PropertyAccessInfo final {
   enum Kind {
     kInvalid,
     kNotFound,
-    kDataConstant,
     kDataField,
-    kDataConstantField,
+    kDataConstant,
     kAccessorConstant,
     kModuleExport,
     kStringLength
@@ -74,17 +73,21 @@ class PropertyAccessInfo final {
 
   static PropertyAccessInfo NotFound(MapHandles const& receiver_maps,
                                      MaybeHandle<JSObject> holder);
-  static PropertyAccessInfo DataConstant(MapHandles const& receiver_maps,
-                                         Handle<Object> constant,
-                                         MaybeHandle<JSObject> holder);
   static PropertyAccessInfo DataField(
-      PropertyConstness constness, MapHandles const& receiver_maps,
+      MapHandles const& receiver_maps,
       std::vector<CompilationDependencies::Dependency const*>&&
           unrecorded_dependencies,
       FieldIndex field_index, MachineRepresentation field_representation,
       Type field_type, MaybeHandle<Map> field_map = MaybeHandle<Map>(),
       MaybeHandle<JSObject> holder = MaybeHandle<JSObject>(),
       MaybeHandle<Map> transition_map = MaybeHandle<Map>());
+  static PropertyAccessInfo DataConstant(
+      MapHandles const& receiver_maps,
+      std::vector<CompilationDependencies::Dependency const*>&&
+          unrecorded_dependencies,
+      FieldIndex field_index, MachineRepresentation field_representation,
+      Type field_type, MaybeHandle<Map> field_map,
+      MaybeHandle<JSObject> holder);
   static PropertyAccessInfo AccessorConstant(MapHandles const& receiver_maps,
                                              Handle<Object> constant,
                                              MaybeHandle<JSObject> holder);
@@ -101,11 +104,8 @@ class PropertyAccessInfo final {
 
   bool IsInvalid() const { return kind() == kInvalid; }
   bool IsNotFound() const { return kind() == kNotFound; }
-  bool IsDataConstant() const { return kind() == kDataConstant; }
   bool IsDataField() const { return kind() == kDataField; }
-  // TODO(ishell): rename to IsDataConstant() once constant field tracking
-  // is done.
-  bool IsDataConstantField() const { return kind() == kDataConstantField; }
+  bool IsDataConstant() const { return kind() == kDataConstant; }
   bool IsAccessorConstant() const { return kind() == kAccessorConstant; }
   bool IsModuleExport() const { return kind() == kModuleExport; }
   bool IsStringLength() const { return kind() == kStringLength; }

@@ -452,8 +452,6 @@ MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, Handle<Map> map,
 
   MaybeObjectHandle wrapped_type = WrapFieldType(isolate, type);
 
-  DCHECK_IMPLIES(!FLAG_track_constant_fields,
-                 constness == PropertyConstness::kMutable);
   Descriptor d = Descriptor::DataField(name, index, attributes, constness,
                                        representation, wrapped_type);
   Handle<Map> new_map = Map::CopyAddDescriptor(isolate, map, &d, flag);
@@ -471,18 +469,10 @@ MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, Handle<Map> map,
     return MaybeHandle<Map>();
   }
 
-  if (FLAG_track_constant_fields) {
-    Representation representation = constant->OptimalRepresentation();
-    Handle<FieldType> type = constant->OptimalType(isolate, representation);
-    return CopyWithField(isolate, map, name, type, attributes,
-                         PropertyConstness::kConst, representation, flag);
-  } else {
-    // Allocate new instance descriptors with (name, constant) added.
-    Descriptor d =
-        Descriptor::DataConstant(isolate, name, 0, constant, attributes);
-    Handle<Map> new_map = Map::CopyAddDescriptor(isolate, map, &d, flag);
-    return new_map;
-  }
+  Representation representation = constant->OptimalRepresentation();
+  Handle<FieldType> type = constant->OptimalType(isolate, representation);
+  return CopyWithField(isolate, map, name, type, attributes,
+                       PropertyConstness::kConst, representation, flag);
 }
 
 bool Map::TransitionRemovesTaggedField(Map target) const {
@@ -757,8 +747,6 @@ void Map::UpdateFieldType(Isolate* isolate, int descriptor, Handle<Name> name,
     if (new_constness != details.constness() ||
         !new_representation.Equals(details.representation()) ||
         descriptors->GetFieldType(descriptor) != *new_wrapped_type.object()) {
-      DCHECK_IMPLIES(!FLAG_track_constant_fields,
-                     new_constness == PropertyConstness::kMutable);
       Descriptor d = Descriptor::DataField(
           name, descriptors->GetFieldIndex(descriptor), details.attributes(),
           new_constness, new_representation, new_wrapped_type);
@@ -1084,21 +1072,12 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map) {
           return Map();
         }
         DCHECK_EQ(kData, old_details.kind());
-        if (old_details.location() == kField) {
-          FieldType old_type = old_descriptors->GetFieldType(i);
-          if (FieldTypeIsCleared(old_details.representation(), old_type) ||
-              !old_type->NowIs(new_type)) {
-            return Map();
-          }
-        } else {
-          DCHECK_EQ(kDescriptor, old_details.location());
-          DCHECK(!FLAG_track_constant_fields);
-          Object old_value = old_descriptors->GetStrongValue(i);
-          if (!new_type->NowContains(old_value)) {
-            return Map();
-          }
+        DCHECK_EQ(kField, old_details.location());
+        FieldType old_type = old_descriptors->GetFieldType(i);
+        if (FieldTypeIsCleared(old_details.representation(), old_type) ||
+            !old_type->NowIs(new_type)) {
+          return Map();
         }
-
       } else {
         DCHECK_EQ(kAccessor, new_details.kind());
 #ifdef DEBUG
@@ -2084,15 +2063,8 @@ bool CanHoldValue(DescriptorArray descriptors, int descriptor,
   } else {
     DCHECK_EQ(kDescriptor, details.location());
     DCHECK_EQ(PropertyConstness::kConst, details.constness());
-    if (details.kind() == kData) {
-      DCHECK(!FLAG_track_constant_fields);
-      DCHECK(descriptors->GetStrongValue(descriptor) != value ||
-             value->FitsRepresentation(details.representation()));
-      return descriptors->GetStrongValue(descriptor) == value;
-    } else {
-      DCHECK_EQ(kAccessor, details.kind());
-      return false;
-    }
+    DCHECK_EQ(kAccessor, details.kind());
+    return false;
   }
   UNREACHABLE();
 }
@@ -2165,15 +2137,10 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
   TransitionFlag flag = INSERT_TRANSITION;
   MaybeHandle<Map> maybe_map;
   if (!map->TooManyFastProperties(store_origin)) {
-    if (!FLAG_track_constant_fields && value->IsJSFunction()) {
-      maybe_map =
-          Map::CopyWithConstant(isolate, map, name, value, attributes, flag);
-    } else {
-      Representation representation = value->OptimalRepresentation();
-      Handle<FieldType> type = value->OptimalType(isolate, representation);
-      maybe_map = Map::CopyWithField(isolate, map, name, type, attributes,
-                                     constness, representation, flag);
-    }
+    Representation representation = value->OptimalRepresentation();
+    Handle<FieldType> type = value->OptimalType(isolate, representation);
+    maybe_map = Map::CopyWithField(isolate, map, name, type, attributes,
+                                   constness, representation, flag);
   }
 
   Handle<Map> result;
@@ -2241,7 +2208,7 @@ Handle<Map> Map::ReconfigureExistingProperty(Isolate* isolate, Handle<Map> map,
   MapUpdater mu(isolate, map);
   DCHECK_EQ(kData, kind);  // Only kData case is supported so far.
   Handle<Map> new_map = mu.ReconfigureToDataField(
-      descriptor, attributes, kDefaultFieldConstness, Representation::None(),
+      descriptor, attributes, PropertyConstness::kConst, Representation::None(),
       FieldType::None(isolate));
   return new_map;
 }

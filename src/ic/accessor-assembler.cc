@@ -1213,7 +1213,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
         if (FLAG_unbox_double_fields) {
           if (do_transitioning_store) {
             StoreMap(object, object_map);
-          } else if (FLAG_track_constant_fields) {
+          } else {
             Label if_mutable(this);
             GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
             TNode<Float64T> current_value =
@@ -1231,14 +1231,12 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
             StoreObjectField(object, field_offset, mutable_heap_number);
           } else {
             Node* mutable_heap_number = LoadObjectField(object, field_offset);
-            if (FLAG_track_constant_fields) {
-              Label if_mutable(this);
-              GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-              TNode<Float64T> current_value =
-                  LoadHeapNumberValue(mutable_heap_number);
-              BranchIfSameNumberValue(current_value, double_value, &done, slow);
-              BIND(&if_mutable);
-            }
+            Label if_mutable(this);
+            GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
+            TNode<Float64T> current_value =
+                LoadHeapNumberValue(mutable_heap_number);
+            BranchIfSameNumberValue(current_value, double_value, &done, slow);
+            BIND(&if_mutable);
             StoreHeapNumberValue(mutable_heap_number, double_value);
           }
         }
@@ -1249,7 +1247,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
       {
         if (do_transitioning_store) {
           StoreMap(object, object_map);
-        } else if (FLAG_track_constant_fields) {
+        } else {
           Label if_mutable(this);
           GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
           TNode<Object> current_value =
@@ -1306,28 +1304,27 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           Node* mutable_heap_number =
               LoadPropertyArrayElement(properties, backing_store_index);
           TNode<Float64T> double_value = ChangeNumberToFloat64(value);
-          if (FLAG_track_constant_fields) {
-            Label if_mutable(this);
-            GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-            TNode<Float64T> current_value =
-                LoadHeapNumberValue(mutable_heap_number);
-            BranchIfSameNumberValue(current_value, double_value, &done, slow);
-            BIND(&if_mutable);
-          }
+
+          Label if_mutable(this);
+          GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
+          TNode<Float64T> current_value =
+              LoadHeapNumberValue(mutable_heap_number);
+          BranchIfSameNumberValue(current_value, double_value, &done, slow);
+
+          BIND(&if_mutable);
           StoreHeapNumberValue(mutable_heap_number, double_value);
           Goto(&done);
         }
         BIND(&tagged_rep);
         {
-          if (FLAG_track_constant_fields) {
-            Label if_mutable(this);
-            GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-            TNode<Object> current_value =
-                LoadPropertyArrayElement(properties, backing_store_index);
-            BranchIfSameValue(current_value, value, &done, slow,
-                              SameValueMode::kNumbersOnly);
-            BIND(&if_mutable);
-          }
+          Label if_mutable(this);
+          GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
+          TNode<Object> current_value =
+              LoadPropertyArrayElement(properties, backing_store_index);
+          BranchIfSameValue(current_value, value, &done, slow,
+                            SameValueMode::kNumbersOnly);
+
+          BIND(&if_mutable);
           StorePropertyArrayElement(properties, backing_store_index, value);
           Goto(&done);
         }
@@ -1586,16 +1583,11 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
   Comment("field store");
 #ifdef DEBUG
   Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
-  if (FLAG_track_constant_fields) {
-    CSA_ASSERT(
-        this,
-        Word32Or(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kField)),
-                 WordEqual(handler_kind,
-                           IntPtrConstant(StoreHandler::kConstField))));
-  } else {
-    CSA_ASSERT(this,
-               WordEqual(handler_kind, IntPtrConstant(StoreHandler::kField)));
-  }
+  CSA_ASSERT(
+      this,
+      Word32Or(
+          WordEqual(handler_kind, IntPtrConstant(StoreHandler::kField)),
+          WordEqual(handler_kind, IntPtrConstant(StoreHandler::kConstField))));
 #endif
 
   Node* field_representation =
@@ -1680,13 +1672,11 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
     GotoIf(TaggedIsSmi(value), bailout);
 
     Label done(this);
-    if (FLAG_track_constant_fields) {
-      // Skip field type check in favor of constant value check when storing
-      // to constant field.
-      GotoIf(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
-                       IntPtrConstant(StoreHandler::kConstField)),
-             &done);
-    }
+    // Skip field type check in favor of constant value check when storing
+    // to constant field.
+    GotoIf(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
+                     IntPtrConstant(StoreHandler::kConstField)),
+           &done);
     TNode<IntPtrT> descriptor =
         Signed(DecodeWord<StoreHandler::DescriptorBits>(handler_word));
     TNode<MaybeObject> maybe_field_type =
@@ -1828,25 +1818,23 @@ void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
   }
 
   // Do constant value check if necessary.
-  if (FLAG_track_constant_fields) {
-    Label done(this);
-    GotoIfNot(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
-                        IntPtrConstant(StoreHandler::kConstField)),
-              &done);
-    {
-      if (store_value_as_double) {
-        TNode<Float64T> current_value =
-            LoadObjectField<Float64T>(CAST(property_storage), offset);
-        BranchIfSameNumberValue(current_value, UncheckedCast<Float64T>(value),
-                                &done, bailout);
-      } else {
-        Node* current_value = LoadObjectField(property_storage, offset);
-        Branch(WordEqual(current_value, value), &done, bailout);
-      }
+  Label const_checked(this);
+  GotoIfNot(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
+                      IntPtrConstant(StoreHandler::kConstField)),
+            &const_checked);
+  {
+    if (store_value_as_double) {
+      TNode<Float64T> current_value =
+          LoadObjectField<Float64T>(CAST(property_storage), offset);
+      BranchIfSameNumberValue(current_value, UncheckedCast<Float64T>(value),
+                              &const_checked, bailout);
+    } else {
+      Node* current_value = LoadObjectField(property_storage, offset);
+      Branch(WordEqual(current_value, value), &const_checked, bailout);
     }
-    BIND(&done);
   }
 
+  BIND(&const_checked);
   // Do the store.
   if (store_value_as_double) {
     StoreObjectFieldNoWriteBarrier(property_storage, offset, value,

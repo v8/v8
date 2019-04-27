@@ -73,16 +73,9 @@ Descriptor Descriptor::DataConstant(Handle<Name> key, Handle<Object> value,
 Descriptor Descriptor::DataConstant(Isolate* isolate, Handle<Name> key,
                                     int field_index, Handle<Object> value,
                                     PropertyAttributes attributes) {
-  if (FLAG_track_constant_fields) {
-    MaybeObjectHandle any_type(FieldType::Any(), isolate);
-    return DataField(key, field_index, attributes, PropertyConstness::kConst,
-                     Representation::Tagged(), any_type);
-
-  } else {
-    return Descriptor(key, MaybeObjectHandle(value), kData, attributes,
-                      kDescriptor, PropertyConstness::kConst,
-                      value->OptimalRepresentation(), field_index);
-  }
+  MaybeObjectHandle any_type(FieldType::Any(), isolate);
+  return DataField(key, field_index, attributes, PropertyConstness::kConst,
+                   Representation::Tagged(), any_type);
 }
 
 Descriptor Descriptor::AccessorConstant(Handle<Name> key,

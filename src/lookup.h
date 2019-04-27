@@ -180,7 +180,6 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Handle<FieldType> GetFieldType() const;
   int GetFieldDescriptorIndex() const;
   int GetAccessorIndex() const;
-  int GetConstantIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
   Handle<Object> GetAccessors() const;
   inline Handle<InterceptorInfo> GetInterceptor() const;

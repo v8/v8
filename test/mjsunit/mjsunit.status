@@ -54,9 +54,6 @@
   # Issue 3784: setters-on-elements is flaky
   'setters-on-elements': [PASS, FAIL],
 
-  # Issue 5495: enable the test when the constant field tracking in enabled.
-  'const-field-tracking': [SKIP],
-
   # Issue 8505: Math.pow is incorrect for asm.js
   'regress/wasm/regress-8505': [SKIP],
 

@@ -565,9 +565,6 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
             ? kField
             : kDescriptor;
 
-    if (!FLAG_track_constant_fields && next_location == kField) {
-      next_constness = PropertyConstness::kMutable;
-    }
     // Ensure that mutable values are stored in fields.
     DCHECK_IMPLIES(next_constness == PropertyConstness::kMutable,
                    next_location == kField);
@@ -610,14 +607,8 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       DCHECK_EQ(PropertyConstness::kConst, next_constness);
 
       Handle<Object> value(GetValue(i), isolate_);
-      Descriptor d;
-      if (next_kind == kData) {
-        DCHECK(!FLAG_track_constant_fields);
-        d = Descriptor::DataConstant(key, value, next_attributes);
-      } else {
-        DCHECK_EQ(kAccessor, next_kind);
-        d = Descriptor::AccessorConstant(key, value, next_attributes);
-      }
+      DCHECK_EQ(kAccessor, next_kind);
+      Descriptor d = Descriptor::AccessorConstant(key, value, next_attributes);
       new_descriptors->Set(i, &d);
     }
   }
@@ -650,8 +641,6 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
           Map::WrapFieldType(isolate_, next_field_type));
       Descriptor d;
       if (next_kind == kData) {
-        DCHECK_IMPLIES(!FLAG_track_constant_fields,
-                       next_constness == PropertyConstness::kMutable);
         d = Descriptor::DataField(key, current_offset, next_attributes,
                                   next_constness, next_representation,
                                   wrapped_type);

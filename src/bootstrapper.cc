@@ -1649,7 +1649,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Set up %ArrayPrototype%.
     // The %ArrayPrototype% has TERMINAL_FAST_ELEMENTS_KIND in order to ensure
     // that constant functions stay constant after turning prototype to setup
-    // mode and back when constant field tracking is enabled.
+    // mode and back.
     Handle<JSArray> proto = factory->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND,
                                                 AllocationType::kOld);
     JSFunction::SetPrototype(array_function, proto);
@@ -5289,28 +5289,17 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
 
       } else {
         DCHECK_EQ(kDescriptor, details.location());
-        if (details.kind() == kData) {
-          DCHECK(!FLAG_track_constant_fields);
-          HandleScope inner(isolate());
-          Handle<Name> key = Handle<Name>(descs->GetKey(i), isolate());
-          // If the property is already there we skip it.
-          if (PropertyAlreadyExists(isolate(), to, key)) continue;
-          Handle<Object> value(descs->GetStrongValue(i), isolate());
-          JSObject::AddProperty(isolate(), to, key, value,
-                                details.attributes());
-        } else {
-          DCHECK_EQ(kAccessor, details.kind());
-          Handle<Name> key(descs->GetKey(i), isolate());
-          // If the property is already there we skip it.
-          if (PropertyAlreadyExists(isolate(), to, key)) continue;
-          HandleScope inner(isolate());
-          DCHECK(!to->HasFastProperties());
-          // Add to dictionary.
-          Handle<Object> value(descs->GetStrongValue(i), isolate());
-          PropertyDetails d(kAccessor, details.attributes(),
-                            PropertyCellType::kMutable);
-          JSObject::SetNormalizedProperty(to, key, value, d);
-        }
+        DCHECK_EQ(kAccessor, details.kind());
+        Handle<Name> key(descs->GetKey(i), isolate());
+        // If the property is already there we skip it.
+        if (PropertyAlreadyExists(isolate(), to, key)) continue;
+        HandleScope inner(isolate());
+        DCHECK(!to->HasFastProperties());
+        // Add to dictionary.
+        Handle<Object> value(descs->GetStrongValue(i), isolate());
+        PropertyDetails d(kAccessor, details.attributes(),
+                          PropertyCellType::kMutable);
+        JSObject::SetNormalizedProperty(to, key, value, d);
       }
     }
   } else if (from->IsJSGlobalObject()) {

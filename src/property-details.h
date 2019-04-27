@@ -7,7 +7,7 @@
 
 #include "include/v8.h"
 #include "src/allocation.h"
-// TODO(ishell): remove once FLAG_track_constant_fields is removed.
+// TODO(bmeurer): Remove once FLAG_modify_field_representation_inplace is gone.
 #include "src/flags.h"
 #include "src/utils.h"
 
@@ -77,11 +77,6 @@ enum PropertyLocation { kField = 0, kDescriptor = 1 };
 // Order of modes is significant.
 // Must fit in the BitField PropertyDetails::ConstnessField.
 enum class PropertyConstness { kMutable = 0, kConst = 1 };
-
-// TODO(ishell): remove once constant field tracking is done.
-const PropertyConstness kDefaultFieldConstness =
-    FLAG_track_constant_fields ? PropertyConstness::kConst
-                               : PropertyConstness::kMutable;
 
 class Representation {
  public:

@@ -969,19 +969,13 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         if (receiver_is_holder) return smi_handler;
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
 
-      } else if (lookup->property_details().location() == kField) {
+      } else {
+        DCHECK_EQ(kField, lookup->property_details().location());
         FieldIndex field = lookup->GetFieldIndex();
         smi_handler = LoadHandler::LoadField(isolate(), field);
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
         if (receiver_is_holder) return smi_handler;
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
-      } else {
-        DCHECK_EQ(kDescriptor, lookup->property_details().location());
-        smi_handler =
-            LoadHandler::LoadConstant(isolate(), lookup->GetConstantIndex());
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantDH);
-        if (receiver_is_holder) return smi_handler;
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
       }
       return LoadHandler::LoadFromPrototype(isolate(), map, holder,
                                             smi_handler);

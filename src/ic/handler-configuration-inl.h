@@ -153,7 +153,7 @@ Handle<Smi> StoreHandler::StoreField(Isolate* isolate, Kind kind,
       UNREACHABLE();
   }
 
-  DCHECK(kind == kField || (kind == kConstField && FLAG_track_constant_fields));
+  DCHECK(kind == kField || kind == kConstField);
 
   int config = KindBits::encode(kind) |
                IsInobjectBits::encode(field_index.is_inobject()) |
@@ -167,8 +167,6 @@ Handle<Smi> StoreHandler::StoreField(Isolate* isolate, int descriptor,
                                      FieldIndex field_index,
                                      PropertyConstness constness,
                                      Representation representation) {
-  DCHECK_IMPLIES(!FLAG_track_constant_fields,
-                 constness == PropertyConstness::kMutable);
   Kind kind = constness == PropertyConstness::kMutable ? kField : kConstField;
   return StoreField(isolate, kind, descriptor, field_index, representation);
 }

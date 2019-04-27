@@ -13805,43 +13805,40 @@ void CodeStubAssembler::GotoIfInitialPrototypePropertiesModified(
   TNode<Map> prototype_map = LoadMap(LoadMapPrototype(object_map));
   GotoIfNot(WordEqual(prototype_map, initial_prototype_map), if_modified);
 
-  if (FLAG_track_constant_fields) {
-    // With constant field tracking, we need to make sure that important
-    // properties in the prototype has not been tampered with. We do this by
-    // checking that their slots in the prototype's descriptor array are still
-    // marked as const.
-    TNode<DescriptorArray> descriptors = LoadMapDescriptors(prototype_map);
+  // We need to make sure that relevant properties in the prototype have
+  // not been tampered with. We do this by checking that their slots
+  // in the prototype's descriptor array are still marked as const.
+  TNode<DescriptorArray> descriptors = LoadMapDescriptors(prototype_map);
 
-    TNode<Uint32T> combined_details;
-    for (int i = 0; i < properties.length(); i++) {
-      // Assert the descriptor index is in-bounds.
-      int descriptor = properties[i].descriptor_index;
-      CSA_ASSERT(this, Int32LessThan(Int32Constant(descriptor),
-                                     LoadNumberOfDescriptors(descriptors)));
-      // Assert that the name is correct. This essentially checks that
-      // the descriptor index corresponds to the insertion order in
-      // the bootstrapper.
-      CSA_ASSERT(this,
-                 WordEqual(LoadKeyByDescriptorEntry(descriptors, descriptor),
-                           LoadRoot(properties[i].name_root_index)));
+  TNode<Uint32T> combined_details;
+  for (int i = 0; i < properties.length(); i++) {
+    // Assert the descriptor index is in-bounds.
+    int descriptor = properties[i].descriptor_index;
+    CSA_ASSERT(this, Int32LessThan(Int32Constant(descriptor),
+                                   LoadNumberOfDescriptors(descriptors)));
+    // Assert that the name is correct. This essentially checks that
+    // the descriptor index corresponds to the insertion order in
+    // the bootstrapper.
+    CSA_ASSERT(this,
+               WordEqual(LoadKeyByDescriptorEntry(descriptors, descriptor),
+                         LoadRoot(properties[i].name_root_index)));
 
-      TNode<Uint32T> details =
-          DescriptorArrayGetDetails(descriptors, Uint32Constant(descriptor));
-      if (i == 0) {
-        combined_details = details;
-      } else {
-        combined_details = Unsigned(Word32And(combined_details, details));
-      }
+    TNode<Uint32T> details =
+        DescriptorArrayGetDetails(descriptors, Uint32Constant(descriptor));
+    if (i == 0) {
+      combined_details = details;
+    } else {
+      combined_details = Unsigned(Word32And(combined_details, details));
     }
-
-    TNode<Uint32T> constness =
-        DecodeWord32<PropertyDetails::ConstnessField>(combined_details);
-
-    GotoIfNot(
-        Word32Equal(constness,
-                    Int32Constant(static_cast<int>(PropertyConstness::kConst))),
-        if_modified);
   }
+
+  TNode<Uint32T> constness =
+      DecodeWord32<PropertyDetails::ConstnessField>(combined_details);
+
+  GotoIfNot(
+      Word32Equal(constness,
+                  Int32Constant(static_cast<int>(PropertyConstness::kConst))),
+      if_modified);
 }
 
 TNode<String> CodeStubAssembler::TaggedToDirectString(TNode<Object> value,

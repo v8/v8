@@ -433,39 +433,31 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     return reduction.Changed() ? reduction : Changed(node);
   }
 
-  if (access_info.IsDataConstant() || access_info.IsDataConstantField()) {
+  if (access_info.IsDataConstant()) {
     // Determine actual holder.
     Handle<JSObject> holder;
     bool found_on_proto = access_info.holder().ToHandle(&holder);
     if (!found_on_proto) holder = receiver;
 
-    Handle<Object> constant;
-    if (access_info.IsDataConstant()) {
-      DCHECK(!FLAG_track_constant_fields);
-      constant = access_info.constant();
-    } else {
-      DCHECK(FLAG_track_constant_fields);
-      DCHECK(access_info.IsDataConstantField());
-      FieldIndex field_index = access_info.field_index();
-      constant = JSObject::FastPropertyAt(holder, Representation::Tagged(),
-                                          field_index);
-      if (!constant->IsCallable()) {
-        return NoChange();
-      }
+    FieldIndex field_index = access_info.field_index();
+    Handle<Object> constant =
+        JSObject::FastPropertyAt(holder, Representation::Tagged(), field_index);
+    if (!constant->IsCallable()) {
+      return NoChange();
+    }
 
-      // Install dependency on constness. Unfortunately, access_info does not
-      // track descriptor index, so we have to search for it.
-      MapRef holder_map(broker(), handle(holder->map(), isolate()));
-      Handle<DescriptorArray> descriptors(
-          holder_map.object()->instance_descriptors(), isolate());
-      int descriptor_index = descriptors->Search(
-          *(factory()->has_instance_symbol()), *(holder_map.object()));
-      CHECK_NE(descriptor_index, DescriptorArray::kNotFound);
-      holder_map.SerializeOwnDescriptors();
-      if (dependencies()->DependOnFieldConstness(
-              holder_map, descriptor_index) != PropertyConstness::kConst) {
-        return NoChange();
-      }
+    // Install dependency on constness. Unfortunately, access_info does not
+    // track descriptor index, so we have to search for it.
+    MapRef holder_map(broker(), handle(holder->map(), isolate()));
+    Handle<DescriptorArray> descriptors(
+        holder_map.object()->instance_descriptors(), isolate());
+    int descriptor_index = descriptors->Search(
+        *(factory()->has_instance_symbol()), *(holder_map.object()));
+    CHECK_NE(descriptor_index, DescriptorArray::kNotFound);
+    holder_map.SerializeOwnDescriptors();
+    if (dependencies()->DependOnFieldConstness(holder_map, descriptor_index) !=
+        PropertyConstness::kConst) {
+      return NoChange();
     }
 
     if (found_on_proto) {
@@ -2157,9 +2149,6 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   Node* value;
   if (access_info.IsNotFound()) {
     value = jsgraph()->UndefinedConstant();
-  } else if (access_info.IsDataConstant()) {
-    DCHECK(!FLAG_track_constant_fields);
-    value = jsgraph()->Constant(access_info.constant());
   } else if (access_info.IsAccessorConstant()) {
     value = InlinePropertyGetterCall(receiver, context, frame_state, &effect,
                                      &control, if_exceptions, access_info);
@@ -2171,7 +2160,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   } else if (access_info.IsStringLength()) {
     value = graph()->NewNode(simplified()->StringLength(), receiver);
   } else {
-    DCHECK(access_info.IsDataField() || access_info.IsDataConstantField());
+    DCHECK(access_info.IsDataField() || access_info.IsDataConstant());
     PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
     value = access_builder.BuildLoadDataField(name, access_info, receiver,
                                               &effect, &control);
@@ -2234,20 +2223,11 @@ JSNativeContextSpecialization::BuildPropertyStore(
   DCHECK(!access_info.IsNotFound());
 
   // Generate the actual property access.
-  if (access_info.IsDataConstant()) {
-    DCHECK(!FLAG_track_constant_fields);
-    Node* constant_value = jsgraph()->Constant(access_info.constant());
-    Node* check =
-        graph()->NewNode(simplified()->ReferenceEqual(), value, constant_value);
-    effect =
-        graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongValue),
-                         check, effect, control);
-    value = constant_value;
-  } else if (access_info.IsAccessorConstant()) {
+  if (access_info.IsAccessorConstant()) {
     InlinePropertySetterCall(receiver, value, context, frame_state, &effect,
                              &control, if_exceptions, access_info);
   } else {
-    DCHECK(access_info.IsDataField() || access_info.IsDataConstantField());
+    DCHECK(access_info.IsDataField() || access_info.IsDataConstant());
     FieldIndex const field_index = access_info.field_index();
     Type const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
@@ -2266,9 +2246,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
         field_type,
         MachineType::TypeForRepresentation(field_representation),
         kFullWriteBarrier};
-    bool store_to_constant_field = FLAG_track_constant_fields &&
-                                   (access_mode == AccessMode::kStore) &&
-                                   access_info.IsDataConstantField();
+    bool store_to_constant_field =
+        (access_mode == AccessMode::kStore) && access_info.IsDataConstant();
 
     DCHECK(access_mode == AccessMode::kStore ||
            access_mode == AccessMode::kStoreInLiteral);

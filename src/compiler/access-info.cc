@@ -70,24 +70,26 @@ PropertyAccessInfo PropertyAccessInfo::NotFound(MapHandles const& receiver_maps,
 }
 
 // static
-PropertyAccessInfo PropertyAccessInfo::DataConstant(
-    MapHandles const& receiver_maps, Handle<Object> constant,
-    MaybeHandle<JSObject> holder) {
-  return PropertyAccessInfo(kDataConstant, holder, constant, receiver_maps);
-}
-
-// static
 PropertyAccessInfo PropertyAccessInfo::DataField(
-    PropertyConstness constness, MapHandles const& receiver_maps,
+    MapHandles const& receiver_maps,
     std::vector<CompilationDependencies::Dependency const*>&& dependencies,
     FieldIndex field_index, MachineRepresentation field_representation,
     Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
     MaybeHandle<Map> transition_map) {
-  Kind kind =
-      constness == PropertyConstness::kConst ? kDataConstantField : kDataField;
-  return PropertyAccessInfo(kind, holder, transition_map, field_index,
+  return PropertyAccessInfo(kDataField, holder, transition_map, field_index,
                             field_representation, field_type, field_map,
                             receiver_maps, std::move(dependencies));
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::DataConstant(
+    MapHandles const& receiver_maps,
+    std::vector<CompilationDependencies::Dependency const*>&& dependencies,
+    FieldIndex field_index, MachineRepresentation field_representation,
+    Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder) {
+  return PropertyAccessInfo(kDataConstant, holder, MaybeHandle<Map>(),
+                            field_index, field_representation, field_type,
+                            field_map, receiver_maps, std::move(dependencies));
 }
 
 // static
@@ -161,7 +163,7 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       return that->kind_ == kInvalid;
 
     case kDataField:
-    case kDataConstantField: {
+    case kDataConstant: {
       // Check if we actually access the same field (we use the
       // GetFieldAccessStubKey method here just like the ICs do
       // since that way we only compare the relevant bits of the
@@ -212,7 +214,6 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       return false;
     }
 
-    case kDataConstant:
     case kAccessorConstant: {
       // Check if we actually access the same constant.
       if (this->constant_.address() == that->constant_.address()) {
@@ -378,10 +379,17 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       field_map = MaybeHandle<Map>(map);
     }
   }
-  return PropertyAccessInfo::DataField(
-      details.constness(), MapHandles{receiver_map},
-      std::move(unrecorded_dependencies), field_index, field_representation,
-      field_type, field_map, holder, MaybeHandle<Map>());
+  switch (details.constness()) {
+    case PropertyConstness::kMutable:
+      return PropertyAccessInfo::DataField(
+          MapHandles{receiver_map}, std::move(unrecorded_dependencies),
+          field_index, field_representation, field_type, field_map, holder);
+    case PropertyConstness::kConst:
+      return PropertyAccessInfo::DataConstant(
+          MapHandles{receiver_map}, std::move(unrecorded_dependencies),
+          field_index, field_representation, field_type, field_map, holder);
+  }
+  UNREACHABLE();
 }
 
 PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
@@ -493,16 +501,9 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         }
       } else {
         DCHECK_EQ(kDescriptor, details.location());
-        if (details.kind() == kData) {
-          DCHECK(!FLAG_track_constant_fields);
-          return PropertyAccessInfo::DataConstant(
-              MapHandles{receiver_map},
-              handle(descriptors->GetStrongValue(number), isolate()), holder);
-        } else {
-          DCHECK_EQ(kAccessor, details.kind());
-          return ComputeAccessorDescriptorAccessInfo(
-              receiver_map, name, map, holder, number, access_mode);
-        }
+        DCHECK_EQ(kAccessor, details.kind());
+        return ComputeAccessorDescriptorAccessInfo(receiver_map, name, map,
+                                                   holder, number, access_mode);
       }
       UNREACHABLE();
     }
@@ -708,8 +709,7 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
       }
     }
     // Special fields are always mutable.
-    return PropertyAccessInfo::DataField(PropertyConstness::kMutable,
-                                         MapHandles{map}, {}, field_index,
+    return PropertyAccessInfo::DataField(MapHandles{map}, {}, field_index,
                                          field_representation, field_type);
   }
   return {};
@@ -780,9 +780,8 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
           MapRef(broker(), transition_map)));
   // Transitioning stores are never stores to constant fields.
   return PropertyAccessInfo::DataField(
-      PropertyConstness::kMutable, MapHandles{map},
-      std::move(unrecorded_dependencies), field_index, field_representation,
-      field_type, field_map, holder, transition_map);
+      MapHandles{map}, std::move(unrecorded_dependencies), field_index,
+      field_representation, field_type, field_map, holder, transition_map);
 }
 
 }  // namespace compiler

@@ -233,25 +233,21 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
   LookupIterator it(isolate(), holder, name.object(),
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (it.state() == LookupIterator::DATA) {
-    bool is_readonly_non_configurable = it.IsReadOnly() && !it.IsConfigurable();
-    if (is_readonly_non_configurable ||
-        (FLAG_track_constant_fields && access_info.IsDataConstantField())) {
-      Node* value = jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
-      if (!is_readonly_non_configurable) {
-        // It's necessary to add dependency on the map that introduced
-        // the field.
-        DCHECK(access_info.IsDataConstantField());
-        DCHECK(!it.is_dictionary_holder());
-        MapRef map(broker(),
-                   handle(it.GetHolder<HeapObject>()->map(), isolate()));
-        map.SerializeOwnDescriptors();  // TODO(neis): Remove later.
-        if (dependencies()->DependOnFieldConstness(
-                map, it.GetFieldDescriptorIndex()) !=
-            PropertyConstness::kConst) {
-          return nullptr;
-        }
+    if (it.IsReadOnly() && !it.IsConfigurable()) {
+      return jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
+    } else if (access_info.IsDataConstant()) {
+      // It's necessary to add dependency on the map that introduced
+      // the field.
+      DCHECK(access_info.IsDataConstant());
+      DCHECK(!it.is_dictionary_holder());
+      MapRef map(broker(),
+                 handle(it.GetHolder<HeapObject>()->map(), isolate()));
+      map.SerializeOwnDescriptors();  // TODO(neis): Remove later.
+      if (dependencies()->DependOnFieldConstness(
+              map, it.GetFieldDescriptorIndex()) != PropertyConstness::kConst) {
+        return nullptr;
       }
-      return value;
+      return jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
     }
   }
   return nullptr;
@@ -260,7 +256,7 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
 Node* PropertyAccessBuilder::BuildLoadDataField(
     NameRef const& name, PropertyAccessInfo const& access_info, Node* receiver,
     Node** effect, Node** control) {
-  DCHECK(access_info.IsDataField() || access_info.IsDataConstantField());
+  DCHECK(access_info.IsDataField() || access_info.IsDataConstant());
   if (Node* value =
           TryBuildLoadConstantDataField(name, access_info, receiver)) {
     return value;

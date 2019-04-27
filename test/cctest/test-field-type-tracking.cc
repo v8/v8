@@ -193,15 +193,9 @@ class Expectations {
 
   void SetDataConstant(int index, PropertyAttributes attrs,
                        Handle<JSFunction> value) {
-    if (FLAG_track_constant_fields) {
-      Handle<FieldType> field_type(FieldType::Class(value->map()), isolate_);
-      Init(index, kData, attrs, PropertyConstness::kConst, kField,
-           Representation::HeapObject(), field_type);
-
-    } else {
-      Init(index, kData, attrs, PropertyConstness::kConst, kDescriptor,
-           Representation::HeapObject(), value);
-    }
+    Handle<FieldType> field_type(FieldType::Class(value->map()), isolate_);
+    Init(index, kData, attrs, PropertyConstness::kConst, kField,
+         Representation::HeapObject(), field_type);
   }
 
   void SetDataConstant(int index, Handle<JSFunction> value) {
@@ -278,18 +272,12 @@ class Expectations {
         UNREACHABLE();
       }
     } else {
+      CHECK_EQ(kAccessor, details.kind());
       Object value = descriptors->GetStrongValue(descriptor);
-      // kDescriptor
-      if (details.kind() == kData) {
-        CHECK(!FLAG_track_constant_fields);
-        return value == expected_value;
-      } else {
-        // kAccessor
-        if (value == expected_value) return true;
-        if (!value->IsAccessorPair()) return false;
-        AccessorPair pair = AccessorPair::cast(value);
-        return pair->Equals(expected_value, *setter_values_[descriptor]);
-      }
+      if (value == expected_value) return true;
+      if (!value->IsAccessorPair()) return false;
+      AccessorPair pair = AccessorPair::cast(value);
+      return pair->Equals(expected_value, *setter_values_[descriptor]);
     }
     UNREACHABLE();
   }
@@ -645,7 +633,7 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
       map = expectations.AddDataField(map, NONE, from.constness,
                                       from.representation, from.type);
     } else {
-      map = expectations.AddDataField(map, NONE, kDefaultFieldConstness,
+      map = expectations.AddDataField(map, NONE, PropertyConstness::kConst,
                                       Representation::Double(), any_type);
       if (i == detach_property_at_index) {
         detach_point_map = map;
@@ -660,7 +648,8 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
     detach_point_map = Map::ReconfigureProperty(
         isolate, detach_point_map, detach_property_at_index, kData, NONE,
         Representation::Tagged(), any_type);
-    expectations.SetDataField(detach_property_at_index, kDefaultFieldConstness,
+    expectations.SetDataField(detach_property_at_index,
+                              PropertyConstness::kConst,
                               Representation::Tagged(), any_type);
     CHECK(map->is_deprecated());
     CHECK(expectations.Check(*detach_point_map,
@@ -1190,22 +1179,20 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeSmiFieldToDouble) {
 
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
-  if (FLAG_track_constant_fields) {
-    TestReconfigureDataFieldAttribute_GeneralizeField(
-        {PropertyConstness::kConst, Representation::Smi(), any_type},
-        {PropertyConstness::kConst, Representation::Double(), any_type},
-        {PropertyConstness::kConst, Representation::Double(), any_type});
+  TestReconfigureDataFieldAttribute_GeneralizeField(
+      {PropertyConstness::kConst, Representation::Smi(), any_type},
+      {PropertyConstness::kConst, Representation::Double(), any_type},
+      {PropertyConstness::kConst, Representation::Double(), any_type});
 
-    TestReconfigureDataFieldAttribute_GeneralizeField(
-        {PropertyConstness::kConst, Representation::Smi(), any_type},
-        {PropertyConstness::kMutable, Representation::Double(), any_type},
-        {PropertyConstness::kMutable, Representation::Double(), any_type});
+  TestReconfigureDataFieldAttribute_GeneralizeField(
+      {PropertyConstness::kConst, Representation::Smi(), any_type},
+      {PropertyConstness::kMutable, Representation::Double(), any_type},
+      {PropertyConstness::kMutable, Representation::Double(), any_type});
 
-    TestReconfigureDataFieldAttribute_GeneralizeField(
-        {PropertyConstness::kMutable, Representation::Smi(), any_type},
-        {PropertyConstness::kConst, Representation::Double(), any_type},
-        {PropertyConstness::kMutable, Representation::Double(), any_type});
-  }
+  TestReconfigureDataFieldAttribute_GeneralizeField(
+      {PropertyConstness::kMutable, Representation::Smi(), any_type},
+      {PropertyConstness::kConst, Representation::Double(), any_type},
+      {PropertyConstness::kMutable, Representation::Double(), any_type});
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
@@ -1222,22 +1209,20 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeSmiFieldToTagged) {
   Handle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  if (FLAG_track_constant_fields) {
-    TestReconfigureDataFieldAttribute_GeneralizeField(
-        {PropertyConstness::kConst, Representation::Smi(), any_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-        {PropertyConstness::kConst, Representation::Tagged(), any_type});
+  TestReconfigureDataFieldAttribute_GeneralizeField(
+      {PropertyConstness::kConst, Representation::Smi(), any_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), value_type},
+      {PropertyConstness::kConst, Representation::Tagged(), any_type});
 
-    TestReconfigureDataFieldAttribute_GeneralizeField(
-        {PropertyConstness::kConst, Representation::Smi(), any_type},
-        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  TestReconfigureDataFieldAttribute_GeneralizeField(
+      {PropertyConstness::kConst, Representation::Smi(), any_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-    TestReconfigureDataFieldAttribute_GeneralizeField(
-        {PropertyConstness::kMutable, Representation::Smi(), any_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
-  }
+  TestReconfigureDataFieldAttribute_GeneralizeField(
+      {PropertyConstness::kMutable, Representation::Smi(), any_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), value_type},
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
@@ -1254,22 +1239,20 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeDoubleFieldToTagged) {
   Handle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  if (FLAG_track_constant_fields) {
-    TestReconfigureDataFieldAttribute_GeneralizeField(
-        {PropertyConstness::kConst, Representation::Double(), any_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-        {PropertyConstness::kConst, Representation::Tagged(), any_type});
+  TestReconfigureDataFieldAttribute_GeneralizeField(
+      {PropertyConstness::kConst, Representation::Double(), any_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), value_type},
+      {PropertyConstness::kConst, Representation::Tagged(), any_type});
 
-    TestReconfigureDataFieldAttribute_GeneralizeField(
-        {PropertyConstness::kConst, Representation::Double(), any_type},
-        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  TestReconfigureDataFieldAttribute_GeneralizeField(
+      {PropertyConstness::kConst, Representation::Double(), any_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-    TestReconfigureDataFieldAttribute_GeneralizeField(
-        {PropertyConstness::kMutable, Representation::Double(), any_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
-  }
+  TestReconfigureDataFieldAttribute_GeneralizeField(
+      {PropertyConstness::kMutable, Representation::Double(), any_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), value_type},
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Double(), any_type},
@@ -1293,28 +1276,25 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjFieldToHeapObj) {
   Handle<FieldType> expected_type = any_type;
 
   // Check generalizations that trigger deopts.
-  if (FLAG_track_constant_fields) {
-    TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
-        {PropertyConstness::kConst, Representation::HeapObject(), current_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), new_type},
-        {PropertyConstness::kConst, Representation::HeapObject(),
-         expected_type});
+  TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
+      {PropertyConstness::kConst, Representation::HeapObject(), current_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), new_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), expected_type});
 
-      // PropertyConstness::kConst to PropertyConstness::kMutable migration does
-      // not create a new map, therefore trivial generalization.
-      TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
-          {PropertyConstness::kConst, Representation::HeapObject(),
-           current_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(),
-           expected_type});
-    TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
-        {PropertyConstness::kMutable, Representation::HeapObject(),
-         current_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), new_type},
-        {PropertyConstness::kMutable, Representation::HeapObject(),
-         expected_type});
-  }
+  // PropertyConstness::kConst to PropertyConstness::kMutable migration does
+  // not create a new map, therefore trivial generalization.
+  TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
+      {PropertyConstness::kConst, Representation::HeapObject(), current_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(),
+       expected_type});
+
+  TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
+      {PropertyConstness::kMutable, Representation::HeapObject(), current_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), new_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(),
+       expected_type});
+
   TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::HeapObject(), current_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
@@ -1325,27 +1305,25 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjFieldToHeapObj) {
   // Check generalizations that do not trigger deopts.
   new_type = FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  if (FLAG_track_constant_fields) {
-    TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
-        {PropertyConstness::kConst, Representation::HeapObject(), any_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), new_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), any_type},
-        false);
+  TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
+      {PropertyConstness::kConst, Representation::HeapObject(), any_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), new_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), any_type},
+      false);
 
-      // PropertyConstness::kConst to PropertyConstness::kMutable migration does
-      // not create a new map, therefore trivial generalization.
-      TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
-          {PropertyConstness::kConst, Representation::HeapObject(), any_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(),
-           any_type});
+  // PropertyConstness::kConst to PropertyConstness::kMutable migration does
+  // not create a new map, therefore trivial generalization.
+  TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
+      {PropertyConstness::kConst, Representation::HeapObject(), any_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), any_type});
 
-    TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
-        {PropertyConstness::kMutable, Representation::HeapObject(), any_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), new_type},
-        {PropertyConstness::kMutable, Representation::HeapObject(), any_type},
-        false);
-  }
+  TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
+      {PropertyConstness::kMutable, Representation::HeapObject(), any_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), new_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), any_type},
+      false);
+
   TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::HeapObject(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
@@ -1599,24 +1577,14 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
     }
 
     void UpdateExpectations(int property_index, Expectations& expectations) {
-      PropertyConstness expected_constness = FLAG_track_constant_fields
-                                                 ? PropertyConstness::kConst
-                                                 : PropertyConstness::kMutable;
-      expectations.SetDataField(property_index, expected_constness,
+      expectations.SetDataField(property_index, PropertyConstness::kConst,
                                 Representation::HeapObject(), function_type_);
     }
   };
 
   TestConfig config;
-  if (FLAG_track_constant_fields) {
-    CheckSameMap checker;
-    TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
-
-  } else {
-    // Two branches are "incompatible" so the |map1| should be deprecated.
-    CheckDeprecated checker;
-    TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
-  }
+  CheckSameMap checker;
+  TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
 }
 
 
@@ -1739,7 +1707,7 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToDataFieldAfterTargetMap) {
       } else {
         Isolate* isolate = CcTest::i_isolate();
         Handle<FieldType> any_type = FieldType::Any(isolate);
-        return expectations.AddDataField(map, NONE, kDefaultFieldConstness,
+        return expectations.AddDataField(map, NONE, PropertyConstness::kConst,
                                          Representation::Smi(), any_type);
       }
     }
@@ -1967,22 +1935,21 @@ TEST(ReconfigureElementsKind_GeneralizeSmiFieldToDouble) {
 
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
-  if (FLAG_track_constant_fields) {
-    TestReconfigureElementsKind_GeneralizeField(
-        {PropertyConstness::kConst, Representation::Smi(), any_type},
-        {PropertyConstness::kConst, Representation::Double(), any_type},
-        {PropertyConstness::kConst, Representation::Double(), any_type});
+  TestReconfigureElementsKind_GeneralizeField(
+      {PropertyConstness::kConst, Representation::Smi(), any_type},
+      {PropertyConstness::kConst, Representation::Double(), any_type},
+      {PropertyConstness::kConst, Representation::Double(), any_type});
 
-    TestReconfigureElementsKind_GeneralizeField(
-        {PropertyConstness::kConst, Representation::Smi(), any_type},
-        {PropertyConstness::kMutable, Representation::Double(), any_type},
-        {PropertyConstness::kMutable, Representation::Double(), any_type});
+  TestReconfigureElementsKind_GeneralizeField(
+      {PropertyConstness::kConst, Representation::Smi(), any_type},
+      {PropertyConstness::kMutable, Representation::Double(), any_type},
+      {PropertyConstness::kMutable, Representation::Double(), any_type});
 
-    TestReconfigureElementsKind_GeneralizeField(
-        {PropertyConstness::kMutable, Representation::Smi(), any_type},
-        {PropertyConstness::kConst, Representation::Double(), any_type},
-        {PropertyConstness::kMutable, Representation::Double(), any_type});
-  }
+  TestReconfigureElementsKind_GeneralizeField(
+      {PropertyConstness::kMutable, Representation::Smi(), any_type},
+      {PropertyConstness::kConst, Representation::Double(), any_type},
+      {PropertyConstness::kMutable, Representation::Double(), any_type});
+
   TestReconfigureElementsKind_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::Double(), any_type},
@@ -1998,22 +1965,21 @@ TEST(ReconfigureElementsKind_GeneralizeSmiFieldToTagged) {
   Handle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  if (FLAG_track_constant_fields) {
-    TestReconfigureElementsKind_GeneralizeField(
-        {PropertyConstness::kConst, Representation::Smi(), any_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-        {PropertyConstness::kConst, Representation::Tagged(), any_type});
+  TestReconfigureElementsKind_GeneralizeField(
+      {PropertyConstness::kConst, Representation::Smi(), any_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), value_type},
+      {PropertyConstness::kConst, Representation::Tagged(), any_type});
 
-    TestReconfigureElementsKind_GeneralizeField(
-        {PropertyConstness::kConst, Representation::Smi(), any_type},
-        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  TestReconfigureElementsKind_GeneralizeField(
+      {PropertyConstness::kConst, Representation::Smi(), any_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-    TestReconfigureElementsKind_GeneralizeField(
-        {PropertyConstness::kMutable, Representation::Smi(), any_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
-  }
+  TestReconfigureElementsKind_GeneralizeField(
+      {PropertyConstness::kMutable, Representation::Smi(), any_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), value_type},
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+
   TestReconfigureElementsKind_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
@@ -2029,22 +1995,21 @@ TEST(ReconfigureElementsKind_GeneralizeDoubleFieldToTagged) {
   Handle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  if (FLAG_track_constant_fields) {
-    TestReconfigureElementsKind_GeneralizeField(
-        {PropertyConstness::kConst, Representation::Double(), any_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-        {PropertyConstness::kConst, Representation::Tagged(), any_type});
+  TestReconfigureElementsKind_GeneralizeField(
+      {PropertyConstness::kConst, Representation::Double(), any_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), value_type},
+      {PropertyConstness::kConst, Representation::Tagged(), any_type});
 
-    TestReconfigureElementsKind_GeneralizeField(
-        {PropertyConstness::kConst, Representation::Double(), any_type},
-        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  TestReconfigureElementsKind_GeneralizeField(
+      {PropertyConstness::kConst, Representation::Double(), any_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-    TestReconfigureElementsKind_GeneralizeField(
-        {PropertyConstness::kMutable, Representation::Double(), any_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
-  }
+  TestReconfigureElementsKind_GeneralizeField(
+      {PropertyConstness::kMutable, Representation::Double(), any_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), value_type},
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+
   TestReconfigureElementsKind_GeneralizeField(
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
@@ -2067,28 +2032,25 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
   Handle<FieldType> expected_type = any_type;
 
   // Check generalizations that trigger deopts.
-  if (FLAG_track_constant_fields) {
-    TestReconfigureElementsKind_GeneralizeFieldTrivial(
-        {PropertyConstness::kConst, Representation::HeapObject(), current_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), new_type},
-        {PropertyConstness::kConst, Representation::HeapObject(),
-         expected_type});
-      // PropertyConstness::kConst to PropertyConstness::kMutable migration does
-      // not create a new map, therefore trivial generalization.
-      TestReconfigureElementsKind_GeneralizeFieldTrivial(
-          {PropertyConstness::kConst, Representation::HeapObject(),
-           current_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(),
-           expected_type});
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
+      {PropertyConstness::kConst, Representation::HeapObject(), current_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), new_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), expected_type});
 
-    TestReconfigureElementsKind_GeneralizeFieldTrivial(
-        {PropertyConstness::kMutable, Representation::HeapObject(),
-         current_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), new_type},
-        {PropertyConstness::kMutable, Representation::HeapObject(),
-         expected_type});
-  }
+  // PropertyConstness::kConst to PropertyConstness::kMutable migration does
+  // not create a new map, therefore trivial generalization.
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
+      {PropertyConstness::kConst, Representation::HeapObject(), current_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(),
+       expected_type});
+
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
+      {PropertyConstness::kMutable, Representation::HeapObject(), current_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), new_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(),
+       expected_type});
+
   TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::HeapObject(), current_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
@@ -2099,25 +2061,23 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
   // Check generalizations that do not trigger deopts.
   new_type = FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  if (FLAG_track_constant_fields) {
-    TestReconfigureElementsKind_GeneralizeFieldTrivial(
-        {PropertyConstness::kConst, Representation::HeapObject(), any_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), new_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), any_type});
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
+      {PropertyConstness::kConst, Representation::HeapObject(), any_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), new_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), any_type});
 
-      // PropertyConstness::kConst to PropertyConstness::kMutable migration does
-      // not create a new map, therefore trivial generalization.
-      TestReconfigureElementsKind_GeneralizeFieldTrivial(
-          {PropertyConstness::kConst, Representation::HeapObject(), any_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
-          {PropertyConstness::kMutable, Representation::HeapObject(),
-           any_type});
+  // PropertyConstness::kConst to PropertyConstness::kMutable migration does
+  // not create a new map, therefore trivial generalization.
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
+      {PropertyConstness::kConst, Representation::HeapObject(), any_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), any_type});
 
-    TestReconfigureElementsKind_GeneralizeFieldTrivial(
-        {PropertyConstness::kMutable, Representation::HeapObject(), any_type},
-        {PropertyConstness::kConst, Representation::HeapObject(), new_type},
-        {PropertyConstness::kMutable, Representation::HeapObject(), any_type});
-  }
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
+      {PropertyConstness::kMutable, Representation::HeapObject(), any_type},
+      {PropertyConstness::kConst, Representation::HeapObject(), new_type},
+      {PropertyConstness::kMutable, Representation::HeapObject(), any_type});
+
   TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::HeapObject(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), new_type},
@@ -2133,22 +2093,21 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjectFieldToTagged) {
   Handle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  if (FLAG_track_constant_fields) {
-    TestReconfigureElementsKind_GeneralizeField(
-        {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-        {PropertyConstness::kConst, Representation::Smi(), any_type},
-        {PropertyConstness::kConst, Representation::Tagged(), any_type});
+  TestReconfigureElementsKind_GeneralizeField(
+      {PropertyConstness::kConst, Representation::HeapObject(), value_type},
+      {PropertyConstness::kConst, Representation::Smi(), any_type},
+      {PropertyConstness::kConst, Representation::Tagged(), any_type});
 
-    TestReconfigureElementsKind_GeneralizeField(
-        {PropertyConstness::kConst, Representation::HeapObject(), value_type},
-        {PropertyConstness::kMutable, Representation::Smi(), any_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  TestReconfigureElementsKind_GeneralizeField(
+      {PropertyConstness::kConst, Representation::HeapObject(), value_type},
+      {PropertyConstness::kMutable, Representation::Smi(), any_type},
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-    TestReconfigureElementsKind_GeneralizeField(
-        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-        {PropertyConstness::kConst, Representation::Smi(), any_type},
-        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
-  }
+  TestReconfigureElementsKind_GeneralizeField(
+      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+      {PropertyConstness::kConst, Representation::Smi(), any_type},
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+
   TestReconfigureElementsKind_GeneralizeField(
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
@@ -2806,7 +2765,6 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
       Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
   Handle<SharedFunctionInfo> info =
       factory->NewSharedFunctionInfoForBuiltin(name, Builtins::kIllegal);
-  Handle<FieldType> function_type = FieldType::Class(sloppy_map, isolate);
   CHECK(sloppy_map->is_stable());
 
   Handle<JSFunction> js_func1 =
@@ -2817,16 +2775,8 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
       factory->NewFunction(sloppy_map, info, isolate->native_context());
   TransitionToDataConstantOperator transition_op2(js_func2);
 
-  if (FLAG_track_constant_fields) {
-    SameMapChecker checker;
-    TestTransitionTo(transition_op1, transition_op2, checker);
-
-  } else {
-    FieldGeneralizationChecker checker(
-        kPropCount - 1, PropertyConstness::kMutable,
-        Representation::HeapObject(), function_type);
-    TestTransitionTo(transition_op1, transition_op2, checker);
-  }
+  SameMapChecker checker;
+  TestTransitionTo(transition_op1, transition_op2, checker);
 }
 
 
@@ -2846,7 +2796,7 @@ TEST(TransitionDataConstantToDataField) {
   TransitionToDataFieldOperator transition_op2(
       PropertyConstness::kMutable, Representation::Tagged(), any_type, value2);
 
-  if (FLAG_track_constant_fields && FLAG_modify_field_representation_inplace) {
+  if (FLAG_modify_field_representation_inplace) {
     SameMapChecker checker;
     TestTransitionTo(transition_op1, transition_op2, checker);
   } else {
@@ -2921,10 +2871,6 @@ void TestStoreToConstantField(const char* store_func_source,
 
   Handle<JSFunction> store_func = GetGlobal<JSFunction>("store");
 
-  const PropertyConstness kExpectedInitialFieldConstness =
-      FLAG_track_constant_fields ? PropertyConstness::kConst
-                                 : PropertyConstness::kMutable;
-
   Handle<Map> initial_map = Map::Create(isolate, 4);
 
   // Store value1 to obj1 and check that it got property with expected
@@ -2941,7 +2887,7 @@ void TestStoreToConstantField(const char* store_func_source,
 
   CHECK(map->instance_descriptors()->GetDetails(0).representation().Equals(
       expected_rep));
-  CHECK_EQ(kExpectedInitialFieldConstness,
+  CHECK_EQ(PropertyConstness::kConst,
            map->instance_descriptors()->GetDetails(0).constness());
 
   // Store value2 to obj2 and check that it got same map and property details
@@ -2956,7 +2902,7 @@ void TestStoreToConstantField(const char* store_func_source,
 
   CHECK(map->instance_descriptors()->GetDetails(0).representation().Equals(
       expected_rep));
-  CHECK_EQ(kExpectedInitialFieldConstness,
+  CHECK_EQ(PropertyConstness::kConst,
            map->instance_descriptors()->GetDetails(0).constness());
 
   // Store value2 to obj1 and check that property became mutable.
@@ -3006,12 +2952,8 @@ void TestStoreToConstantField_NaN(const char* store_func_source,
   Handle<Object> nan2 = isolate->factory()->NewNumber(nan_double2);
 
   // NaNs with different bit patters are treated as equal upon stores.
-  const PropertyConstness kExpectedFieldConstness =
-      FLAG_track_constant_fields ? PropertyConstness::kConst
-                                 : PropertyConstness::kMutable;
-
   TestStoreToConstantField(store_func_source, nan1, nan2,
-                           Representation::Double(), kExpectedFieldConstness,
+                           Representation::Double(), PropertyConstness::kConst,
                            store_repetitions);
 }
 

@@ -478,16 +478,12 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   if (!holder_obj->HasFastProperties()) return;
 
   PropertyConstness new_constness = PropertyConstness::kConst;
-  if (FLAG_track_constant_fields) {
-    if (constness() == PropertyConstness::kConst) {
-      DCHECK_EQ(kData, property_details_.kind());
-      // Check that current value matches new value otherwise we should make
-      // the property mutable.
-      if (!IsConstFieldValueEqualTo(*value))
-        new_constness = PropertyConstness::kMutable;
-    }
-  } else {
-    new_constness = PropertyConstness::kMutable;
+  if (constness() == PropertyConstness::kConst) {
+    DCHECK_EQ(kData, property_details_.kind());
+    // Check that current value matches new value otherwise we should make
+    // the property mutable.
+    if (!IsConstFieldValueEqualTo(*value))
+      new_constness = PropertyConstness::kMutable;
   }
 
   Handle<Map> old_map(holder_obj->map(), isolate_);
@@ -642,7 +638,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
 
   Handle<Map> transition =
       Map::TransitionToDataProperty(isolate_, map, name_, value, attributes,
-                                    kDefaultFieldConstness, store_origin);
+                                    PropertyConstness::kConst, store_origin);
   state_ = TRANSITION;
   transition_ = transition;
 
@@ -958,17 +954,6 @@ int LookupIterator::GetAccessorIndex() const {
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(kDescriptor, property_details_.location());
   DCHECK_EQ(kAccessor, property_details_.kind());
-  return descriptor_number();
-}
-
-
-int LookupIterator::GetConstantIndex() const {
-  DCHECK(has_property_);
-  DCHECK(holder_->HasFastProperties());
-  DCHECK_EQ(kDescriptor, property_details_.location());
-  DCHECK_EQ(kData, property_details_.kind());
-  DCHECK(!FLAG_track_constant_fields);
-  DCHECK(!IsElement());
   return descriptor_number();
 }
 

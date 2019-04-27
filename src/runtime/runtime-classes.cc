@@ -297,21 +297,17 @@ bool AddDescriptorsByTemplate(
           : ShallowCopyDictionaryTemplate(isolate,
                                           elements_dictionary_template);
 
-  Handle<PropertyArray> property_array =
-      isolate->factory()->empty_property_array();
-  if (FLAG_track_constant_fields) {
-    // If we store constants in instances, count the number of properties
-    // that must be in the instance and create the property array to
-    // hold the constants.
-    int count = 0;
-    for (int i = 0; i < nof_descriptors; i++) {
-      PropertyDetails details = descriptors_template->GetDetails(i);
-      if (details.location() == kDescriptor && details.kind() == kData) {
-        count++;
-      }
+  // Count the number of properties that must be in the instance and
+  // create the property array to hold the constants.
+  int count = 0;
+  for (int i = 0; i < nof_descriptors; i++) {
+    PropertyDetails details = descriptors_template->GetDetails(i);
+    if (details.location() == kDescriptor && details.kind() == kData) {
+      count++;
     }
-    property_array = isolate->factory()->NewPropertyArray(count);
   }
+  Handle<PropertyArray> property_array =
+      isolate->factory()->NewPropertyArray(count);
 
   // Read values from |descriptors_template| and store possibly post-processed
   // values into "instantiated" |descriptors| array.
@@ -355,9 +351,7 @@ bool AddDescriptorsByTemplate(
       UNREACHABLE();
     }
     DCHECK(value->FitsRepresentation(details.representation()));
-    // With constant field tracking, we store the values in the instance.
-    if (FLAG_track_constant_fields && details.location() == kDescriptor &&
-        details.kind() == kData) {
+    if (details.location() == kDescriptor && details.kind() == kData) {
       details = PropertyDetails(details.kind(), details.attributes(), kField,
                                 PropertyConstness::kConst,
                                 details.representation(), field_index)
@@ -469,26 +463,14 @@ bool AddDescriptorsByTemplate(
 }
 
 Handle<JSObject> CreateClassPrototype(Isolate* isolate) {
-  Factory* factory = isolate->factory();
+  // For constant tracking we want to avoid the hassle of handling
+  // in-object properties, so create a map with no in-object
+  // properties.
 
-  const int kInobjectFields = 0;
-
-  Handle<Map> map;
-  if (FLAG_track_constant_fields) {
-    // For constant tracking we want to avoid tha hassle of handling
-    // in-object properties, so create a map with no in-object
-    // properties.
-
-    // TODO(ishell) Support caching of zero in-object properties map
-    // by ObjectLiteralMapFromCache().
-    map = Map::Create(isolate, 0);
-  } else {
-    // Just use some JSObject map of certain size.
-    map = factory->ObjectLiteralMapFromCache(isolate->native_context(),
-                                             kInobjectFields);
-  }
-
-  return factory->NewJSObjectFromMap(map);
+  // TODO(ishell) Support caching of zero in-object properties map
+  // by ObjectLiteralMapFromCache().
+  Handle<Map> map = Map::Create(isolate, 0);
+  return isolate->factory()->NewJSObjectFromMap(map);
 }
 
 bool InitClassPrototype(Isolate* isolate,

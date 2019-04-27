@@ -1046,8 +1046,6 @@ DEFINE_IMPLICATION(trace_ic, log_code)
 DEFINE_GENERIC_IMPLICATION(
     trace_ic, TracingFlags::ic_stats.store(
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
-DEFINE_BOOL_READONLY(track_constant_fields, true,
-                     "enable constant field tracking")
 DEFINE_BOOL_READONLY(fast_map_update, false,
                      "enable fast map update by caching the migration target")
 DEFINE_BOOL(modify_field_representation_inplace, true,

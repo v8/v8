@@ -3329,14 +3329,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
     PropertyKind kind = dictionary->DetailsAt(index).kind();
     if (kind == kData) {
-      if (FLAG_track_constant_fields) {
-        number_of_fields += 1;
-      } else {
-        Object value = dictionary->ValueAt(index);
-        if (!value->IsJSFunction()) {
-          number_of_fields += 1;
-        }
-      }
+      number_of_fields += 1;
     }
   }
 
@@ -3411,22 +3404,15 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
     Descriptor d;
     if (details.kind() == kData) {
-      if (!FLAG_track_constant_fields && value->IsJSFunction()) {
-        d = Descriptor::DataConstant(key, handle(value, isolate),
-                                     details.attributes());
-      } else {
-        // Ensure that we make constant field only when elements kind is not
-        // transitionable.
-        PropertyConstness constness =
-            FLAG_track_constant_fields && !is_transitionable_elements_kind
-                ? PropertyConstness::kConst
-                : PropertyConstness::kMutable;
-        d = Descriptor::DataField(
-            key, current_offset, details.attributes(), constness,
-            // TODO(verwaest): value->OptimalRepresentation();
-            Representation::Tagged(),
-            MaybeObjectHandle(FieldType::Any(isolate)));
-      }
+      // Ensure that we make constant field only when elements kind is not
+      // transitionable.
+      PropertyConstness constness = is_transitionable_elements_kind
+                                        ? PropertyConstness::kMutable
+                                        : PropertyConstness::kConst;
+      d = Descriptor::DataField(
+          key, current_offset, details.attributes(), constness,
+          // TODO(verwaest): value->OptimalRepresentation();
+          Representation::Tagged(), MaybeObjectHandle(FieldType::Any(isolate)));
     } else {
       DCHECK_EQ(kAccessor, details.kind());
       d = Descriptor::AccessorConstant(key, handle(value, isolate),
