@@ -493,11 +493,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       flags |= JSTypeHintLowering::kBailoutOnUninitialized;
     }
     CallFrequency frequency = call.frequency();
-    BytecodeGraphBuilder graph_builder(
+    BuildGraphFromBytecode(
         zone(), bytecode_array, shared_info, feedback_vector, BailoutId::None(),
         jsgraph(), frequency, source_positions_, native_context(), inlining_id,
         flags, false, info_->is_analyze_environment_liveness());
-    graph_builder.CreateGraph();
 
     // Extract the inlinee start/end nodes.
     start = graph()->start();

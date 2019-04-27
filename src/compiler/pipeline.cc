@@ -1066,14 +1066,13 @@ struct GraphBuilderPhase {
       flags |= JSTypeHintLowering::kBailoutOnUninitialized;
     }
     CallFrequency frequency = CallFrequency(1.0f);
-    BytecodeGraphBuilder graph_builder(
+    BuildGraphFromBytecode(
         temp_zone, data->info()->bytecode_array(), data->info()->shared_info(),
         handle(data->info()->closure()->feedback_vector(), data->isolate()),
         data->info()->osr_offset(), data->jsgraph(), frequency,
         data->source_positions(), data->native_context(),
         SourcePosition::kNotInlined, flags, true,
         data->info()->is_analyze_environment_liveness());
-    graph_builder.CreateGraph();
   }
 };
 
