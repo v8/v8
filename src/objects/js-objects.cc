@@ -3853,6 +3853,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   Handle<Map> old_map(object->map(), isolate);
+  old_map = Map::Update(isolate, old_map);
   TransitionsAccessor transitions(isolate, old_map);
   Map transition = transitions.SearchSpecial(*transition_marker);
   if (!transition.is_null()) {
