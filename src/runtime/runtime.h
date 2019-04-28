@@ -285,7 +285,7 @@ namespace internal {
   F(ClassOf, 1, 1)                                              \
   F(CollectTypeProfile, 3, 1)                                   \
   F(CompleteInobjectSlackTrackingForMap, 1, 1)                  \
-  F(CopyDataProperties, 2, 1)                                   \
+  I(CopyDataProperties, 2, 1)                                   \
   F(CopyDataPropertiesWithExcludedProperties, -1 /* >= 1 */, 1) \
   I(CreateDataProperty, 3, 1)                                   \
   I(CreateIterResultObject, 2, 1)                               \

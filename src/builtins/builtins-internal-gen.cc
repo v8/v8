@@ -599,6 +599,113 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
   }
 }
 
+namespace {
+
+class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
+ public:
+  explicit SetOrCopyDataPropertiesAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+ protected:
+  TNode<Object> SetOrCopyDataProperties(TNode<Context> context,
+                                        TNode<JSReceiver> target,
+                                        TNode<Object> source, Label* if_runtime,
+                                        bool use_set = true) {
+    Label if_done(this), if_noelements(this),
+        if_sourcenotjsobject(this, Label::kDeferred);
+
+    // JSValue wrappers for numbers don't have any enumerable own properties,
+    // so we can immediately skip the whole operation if {source} is a Smi.
+    GotoIf(TaggedIsSmi(source), &if_done);
+
+    // Otherwise check if {source} is a proper JSObject, and if not, defer
+    // to testing for non-empty strings below.
+    TNode<Map> source_map = LoadMap(CAST(source));
+    TNode<Int32T> source_instance_type = LoadMapInstanceType(source_map);
+    GotoIfNot(IsJSObjectInstanceType(source_instance_type),
+              &if_sourcenotjsobject);
+
+    TNode<FixedArrayBase> source_elements = LoadElements(CAST(source));
+    GotoIf(IsEmptyFixedArray(source_elements), &if_noelements);
+    Branch(IsEmptySlowElementDictionary(source_elements), &if_noelements,
+           if_runtime);
+
+    BIND(&if_noelements);
+    {
+      // If the target is deprecated, the object will be updated on first store.
+      // If the source for that store equals the target, this will invalidate
+      // the cached representation of the source. Handle this case in runtime.
+      TNode<Map> target_map = LoadMap(target);
+      GotoIf(IsDeprecatedMap(target_map), if_runtime);
+
+      if (use_set) {
+        TNode<BoolT> target_is_simple_receiver = IsSimpleObjectMap(target_map);
+        ForEachEnumerableOwnProperty(
+            context, source_map, CAST(source), kEnumerationOrder,
+            [=](TNode<Name> key, TNode<Object> value) {
+              KeyedStoreGenericGenerator::SetProperty(
+                  state(), context, target, target_is_simple_receiver, key,
+                  value, LanguageMode::kStrict);
+            },
+            if_runtime);
+      } else {
+        ForEachEnumerableOwnProperty(
+            context, source_map, CAST(source), kEnumerationOrder,
+            [=](TNode<Name> key, TNode<Object> value) {
+              CallBuiltin(Builtins::kSetPropertyInLiteral, context, target, key,
+                          value);
+            },
+            if_runtime);
+      }
+      Goto(&if_done);
+    }
+
+    BIND(&if_sourcenotjsobject);
+    {
+      // Handle other JSReceivers in the runtime.
+      GotoIf(IsJSReceiverInstanceType(source_instance_type), if_runtime);
+
+      // Non-empty strings are the only non-JSReceivers that need to be
+      // handled explicitly by Object.assign() and CopyDataProperties.
+      GotoIfNot(IsStringInstanceType(source_instance_type), &if_done);
+      TNode<IntPtrT> source_length = LoadStringLengthAsWord(CAST(source));
+      Branch(WordEqual(source_length, IntPtrConstant(0)), &if_done, if_runtime);
+    }
+
+    BIND(&if_done);
+    return UndefinedConstant();
+  }
+};
+
+}  // namespace
+
+// ES #sec-copydataproperties
+TF_BUILTIN(CopyDataProperties, SetOrCopyDataPropertiesAssembler) {
+  TNode<JSObject> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<Object> source = CAST(Parameter(Descriptor::kSource));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  CSA_ASSERT(this, WordNotEqual(target, source));
+
+  Label if_runtime(this, Label::kDeferred);
+  Return(SetOrCopyDataProperties(context, target, source, &if_runtime, false));
+
+  BIND(&if_runtime);
+  TailCallRuntime(Runtime::kCopyDataProperties, context, target, source);
+}
+
+TF_BUILTIN(SetDataProperties, SetOrCopyDataPropertiesAssembler) {
+  TNode<JSReceiver> target = CAST(Parameter(Descriptor::kTarget));
+  TNode<Object> source = CAST(Parameter(Descriptor::kSource));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  Label if_runtime(this, Label::kDeferred);
+  Return(SetOrCopyDataProperties(context, target, source, &if_runtime, true));
+
+  BIND(&if_runtime);
+  TailCallRuntime(Runtime::kSetDataProperties, context, target, source);
+}
+
 TF_BUILTIN(ForInEnumerate, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* context = Parameter(Descriptor::kContext);

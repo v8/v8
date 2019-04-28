@@ -29,6 +29,7 @@ namespace interpreter {
   V(GeneratorClose, generator_close, 1)                              \
   V(GetImportMetaObject, get_import_meta_object, 0)                  \
   V(Call, call, -1)                                                  \
+  V(CopyDataProperties, copy_data_properties, 2)                     \
   V(CreateIterResultObject, create_iter_result_object, 2)            \
   V(CreateAsyncFromSyncIterator, create_async_from_sync_iterator, 1) \
   V(HasProperty, has_property, 2)                                    \

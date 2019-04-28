@@ -263,6 +263,9 @@ namespace internal {
   /* Object property helpers */                                                \
   TFS(HasProperty, kObject, kKey)                                              \
   TFS(DeleteProperty, kObject, kKey, kLanguageMode)                            \
+  /* ES #sec-copydataproperties */                                             \
+  TFS(CopyDataProperties, kTarget, kSource)                                    \
+  TFS(SetDataProperties, kTarget, kSource)                                     \
                                                                                \
   /* Abort */                                                                  \
   TFC(Abort, Abort)                                                            \

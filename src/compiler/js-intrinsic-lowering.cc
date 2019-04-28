@@ -30,6 +30,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       Runtime::FunctionForId(CallRuntimeParametersOf(node->op()).id());
   if (f->intrinsic_type != Runtime::IntrinsicType::INLINE) return NoChange();
   switch (f->function_id) {
+    case Runtime::kInlineCopyDataProperties:
+      return ReduceCopyDataProperties(node);
     case Runtime::kInlineCreateIterResultObject:
       return ReduceCreateIterResultObject(node);
     case Runtime::kInlineDeoptimizeNow:
@@ -84,6 +86,10 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   return NoChange();
 }
 
+Reduction JSIntrinsicLowering::ReduceCopyDataProperties(Node* node) {
+  return Change(
+      node, Builtins::CallableFor(isolate(), Builtins::kCopyDataProperties), 0);
+}
 
 Reduction JSIntrinsicLowering::ReduceCreateIterResultObject(Node* node) {
   Node* const value = NodeProperties::GetValueInput(node, 0);
