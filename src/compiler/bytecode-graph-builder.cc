@@ -35,10 +35,11 @@ class BytecodeGraphBuilder {
                        Handle<SharedFunctionInfo> shared,
                        Handle<FeedbackVector> feedback_vector,
                        BailoutId osr_offset, JSGraph* jsgraph,
-                       CallFrequency& invocation_frequency,
+                       CallFrequency invocation_frequency,
                        SourcePositionTable* source_positions,
                        Handle<Context> native_context, int inlining_id,
-                       JSTypeHintLowering::Flags flags, bool stack_check,
+                       JSTypeHintLowering::Flags flags,
+                       bool skip_first_stack_check,
                        bool analyze_environment_liveness);
 
   // Creates a graph by visiting bytecodes.
@@ -50,12 +51,9 @@ class BytecodeGraphBuilder {
   struct SubEnvironment;
 
   void RemoveMergeEnvironmentsBeforeOffset(int limit_offset);
-  void AdvanceToOsrEntryAndPeelLoops(
-      interpreter::BytecodeArrayIterator* iterator,
-      SourcePositionTableIterator* source_position_iterator);
+  void AdvanceToOsrEntryAndPeelLoops();
 
-  void VisitSingleBytecode(
-      SourcePositionTableIterator* source_position_iterator);
+  void VisitSingleBytecode();
   void VisitBytecodes();
 
   // Get or create the node that represents the outer function closure.
@@ -289,7 +287,7 @@ class BytecodeGraphBuilder {
 
   // Update the current position of the {SourcePositionTable} to that of the
   // bytecode at {offset}, if any.
-  void UpdateSourcePosition(SourcePositionTableIterator* it, int offset);
+  void UpdateSourcePosition(int offset);
 
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
@@ -330,22 +328,19 @@ class BytecodeGraphBuilder {
     return frame_state_function_info_;
   }
 
-  const interpreter::BytecodeArrayIterator& bytecode_iterator() const {
-    return *bytecode_iterator_;
+  SourcePositionTableIterator& source_position_iterator() {
+    return source_position_iterator_;
   }
 
-  void set_bytecode_iterator(
-      interpreter::BytecodeArrayIterator* bytecode_iterator) {
-    bytecode_iterator_ = bytecode_iterator;
+  interpreter::BytecodeArrayIterator& bytecode_iterator() {
+    return bytecode_iterator_;
   }
 
-  const BytecodeAnalysis* bytecode_analysis() const {
+  BytecodeAnalysis const& bytecode_analysis() const {
     return bytecode_analysis_;
   }
 
-  void set_bytecode_analysis(const BytecodeAnalysis* bytecode_analysis) {
-    bytecode_analysis_ = bytecode_analysis;
-  }
+  void RunBytecodeAnalysis() { bytecode_analysis_.Analyze(osr_offset_); }
 
   int currently_peeled_loop_offset() const {
     return currently_peeled_loop_offset_;
@@ -355,9 +350,9 @@ class BytecodeGraphBuilder {
     currently_peeled_loop_offset_ = offset;
   }
 
-  bool stack_check() const { return stack_check_; }
+  bool skip_next_stack_check() const { return skip_next_stack_check_; }
 
-  void set_stack_check(bool stack_check) { stack_check_ = stack_check; }
+  void unset_skip_next_stack_check() { skip_next_stack_check_ = false; }
 
   bool analyze_environment_liveness() const {
     return analyze_environment_liveness_;
@@ -382,20 +377,21 @@ class BytecodeGraphBuilder {
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
 
-  Zone* local_zone_;
-  JSGraph* jsgraph_;
+  Zone* const local_zone_;
+  JSGraph* const jsgraph_;
   CallFrequency const invocation_frequency_;
-  Handle<BytecodeArray> bytecode_array_;
-  Handle<FeedbackVector> feedback_vector_;
-  const JSTypeHintLowering type_hint_lowering_;
-  const FrameStateFunctionInfo* frame_state_function_info_;
-  const interpreter::BytecodeArrayIterator* bytecode_iterator_;
-  const BytecodeAnalysis* bytecode_analysis_;
+  Handle<BytecodeArray> const bytecode_array_;
+  Handle<FeedbackVector> const feedback_vector_;
+  JSTypeHintLowering const type_hint_lowering_;
+  const FrameStateFunctionInfo* const frame_state_function_info_;
+  SourcePositionTableIterator source_position_iterator_;
+  interpreter::BytecodeArrayIterator bytecode_iterator_;
+  BytecodeAnalysis bytecode_analysis_;
   Environment* environment_;
-  BailoutId osr_offset_;
+  BailoutId const osr_offset_;
   int currently_peeled_loop_offset_;
-  bool stack_check_;
-  bool analyze_environment_liveness_;
+  bool skip_next_stack_check_;
+  bool const analyze_environment_liveness_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
@@ -433,7 +429,7 @@ class BytecodeGraphBuilder {
   StateValuesCache state_values_cache_;
 
   // The source position table, to be populated.
-  SourcePositionTable* source_positions_;
+  SourcePositionTable* const source_positions_;
 
   SourcePosition const start_position_;
 
@@ -944,10 +940,10 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     Zone* local_zone, Handle<BytecodeArray> bytecode_array,
     Handle<SharedFunctionInfo> shared_info,
     Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
-    JSGraph* jsgraph, CallFrequency& invocation_frequency,
+    JSGraph* jsgraph, CallFrequency invocation_frequency,
     SourcePositionTable* source_positions, Handle<Context> native_context,
-    int inlining_id, JSTypeHintLowering::Flags flags, bool stack_check,
-    bool analyze_environment_liveness)
+    int inlining_id, JSTypeHintLowering::Flags flags,
+    bool skip_first_stack_check, bool analyze_environment_liveness)
     : local_zone_(local_zone),
       jsgraph_(jsgraph),
       invocation_frequency_(invocation_frequency),
@@ -958,12 +954,15 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
           FrameStateType::kInterpretedFunction,
           bytecode_array->parameter_count(), bytecode_array->register_count(),
           shared_info)),
-      bytecode_iterator_(nullptr),
-      bytecode_analysis_(nullptr),
+      source_position_iterator_(
+          handle(bytecode_array->SourcePositionTableIfCollected(), isolate())),
+      bytecode_iterator_(bytecode_array),
+      bytecode_analysis_(bytecode_array, local_zone,
+                         analyze_environment_liveness),
       environment_(nullptr),
       osr_offset_(osr_offset),
       currently_peeled_loop_offset_(-1),
-      stack_check_(stack_check),
+      skip_next_stack_check_(skip_first_stack_check),
       analyze_environment_liveness_(analyze_environment_liveness),
       merge_environments_(local_zone),
       generator_merge_environments_(local_zone),
@@ -1041,7 +1040,7 @@ void BytecodeGraphBuilder::PrepareEagerCheckpoint() {
     BailoutId bailout_id(bytecode_iterator().current_offset());
 
     const BytecodeLivenessState* liveness_before =
-        bytecode_analysis()->GetInLivenessFor(
+        bytecode_analysis().GetInLivenessFor(
             bytecode_iterator().current_offset());
 
     Node* frame_state_before = environment()->Checkpoint(
@@ -1075,7 +1074,7 @@ void BytecodeGraphBuilder::PrepareFrameState(Node* node,
     BailoutId bailout_id(bytecode_iterator().current_offset());
 
     const BytecodeLivenessState* liveness_after =
-        bytecode_analysis()->GetOutLivenessFor(
+        bytecode_analysis().GetOutLivenessFor(
             bytecode_iterator().current_offset());
 
     Node* frame_state_after =
@@ -1092,19 +1091,18 @@ void BytecodeGraphBuilder::PrepareFrameState(Node* node,
 // the source position can be achieved.
 class BytecodeGraphBuilder::OsrIteratorState {
  public:
-  OsrIteratorState(interpreter::BytecodeArrayIterator* iterator,
-                   SourcePositionTableIterator* source_position_iterator,
-                   BytecodeGraphBuilder* graph_builder)
-      : iterator_(iterator),
-        source_position_iterator_(source_position_iterator),
-        graph_builder_(graph_builder),
+  explicit OsrIteratorState(BytecodeGraphBuilder* graph_builder)
+      : graph_builder_(graph_builder),
         saved_states_(graph_builder->local_zone()) {}
 
   void ProcessOsrPrelude() {
     ZoneVector<int> outer_loop_offsets(graph_builder_->local_zone());
-
-    const BytecodeAnalysis& bytecode_analysis =
-        *(graph_builder_->bytecode_analysis());
+    SourcePositionTableIterator& source_position_iterator =
+        graph_builder_->source_position_iterator();
+    interpreter::BytecodeArrayIterator& bytecode_iterator =
+        graph_builder_->bytecode_iterator();
+    BytecodeAnalysis const& bytecode_analysis =
+        graph_builder_->bytecode_analysis();
     int osr_offset = bytecode_analysis.osr_entry_point();
 
     // We find here the outermost loop which contains the OSR loop.
@@ -1120,10 +1118,9 @@ class BytecodeGraphBuilder::OsrIteratorState {
     // We will not processs any bytecode before the outermost_loop_offset, but
     // the source_position_iterator needs to be advanced step by step through
     // the bytecode.
-    for (; iterator_->current_offset() != outermost_loop_offset;
-         iterator_->Advance()) {
-      graph_builder_->UpdateSourcePosition(source_position_iterator_,
-                                           iterator_->current_offset());
+    for (; bytecode_iterator.current_offset() != outermost_loop_offset;
+         bytecode_iterator.Advance()) {
+      graph_builder_->UpdateSourcePosition(bytecode_iterator.current_offset());
     }
 
     // We save some iterators states at the offsets of the loop headers of the
@@ -1133,22 +1130,22 @@ class BytecodeGraphBuilder::OsrIteratorState {
              outer_loop_offsets.crbegin();
          it != outer_loop_offsets.crend(); ++it) {
       int next_loop_offset = *it;
-      for (; iterator_->current_offset() != next_loop_offset;
-           iterator_->Advance()) {
-        graph_builder_->UpdateSourcePosition(source_position_iterator_,
-                                             iterator_->current_offset());
+      for (; bytecode_iterator.current_offset() != next_loop_offset;
+           bytecode_iterator.Advance()) {
+        graph_builder_->UpdateSourcePosition(
+            bytecode_iterator.current_offset());
       }
       graph_builder_->ExitThenEnterExceptionHandlers(
-          iterator_->current_offset());
+          bytecode_iterator.current_offset());
       saved_states_.push(
           IteratorsStates(graph_builder_->current_exception_handler(),
-                          source_position_iterator_->GetState()));
+                          source_position_iterator.GetState()));
     }
 
     // Finishing by advancing to the OSR entry
-    for (; iterator_->current_offset() != osr_offset; iterator_->Advance()) {
-      graph_builder_->UpdateSourcePosition(source_position_iterator_,
-                                           iterator_->current_offset());
+    for (; bytecode_iterator.current_offset() != osr_offset;
+         bytecode_iterator.Advance()) {
+      graph_builder_->UpdateSourcePosition(bytecode_iterator.current_offset());
     }
 
     // Enters all remaining exception handler which end before the OSR loop
@@ -1160,12 +1157,13 @@ class BytecodeGraphBuilder::OsrIteratorState {
   }
 
   void RestoreState(int target_offset, int new_parent_offset) {
-    iterator_->SetOffset(target_offset);
+    graph_builder_->bytecode_iterator().SetOffset(target_offset);
     // In case of a return, we must not build loop exits for
     // not-yet-built outer loops.
     graph_builder_->set_currently_peeled_loop_offset(new_parent_offset);
     IteratorsStates saved_state = saved_states_.top();
-    source_position_iterator_->RestoreState(saved_state.source_iterator_state_);
+    graph_builder_->source_position_iterator().RestoreState(
+        saved_state.source_iterator_state_);
     graph_builder_->set_current_exception_handler(
         saved_state.exception_handler_index_);
     saved_states_.pop();
@@ -1183,8 +1181,6 @@ class BytecodeGraphBuilder::OsrIteratorState {
           source_iterator_state_(source_iterator_state) {}
   };
 
-  interpreter::BytecodeArrayIterator* iterator_;
-  SourcePositionTableIterator* source_position_iterator_;
   BytecodeGraphBuilder* graph_builder_;
   ZoneStack<IteratorsStates> saved_states_;
 };
@@ -1203,15 +1199,11 @@ void BytecodeGraphBuilder::RemoveMergeEnvironmentsBeforeOffset(
 // We will iterate through the OSR loop, then its parent, and so on
 // until we have reached the outmost loop containing the OSR loop. We do
 // not generate nodes for anything before the outermost loop.
-void BytecodeGraphBuilder::AdvanceToOsrEntryAndPeelLoops(
-    interpreter::BytecodeArrayIterator* iterator,
-    SourcePositionTableIterator* source_position_iterator) {
-  const BytecodeAnalysis& analysis = *(bytecode_analysis());
-  int osr_offset = analysis.osr_entry_point();
-  OsrIteratorState iterator_states(iterator, source_position_iterator, this);
-
+void BytecodeGraphBuilder::AdvanceToOsrEntryAndPeelLoops() {
+  OsrIteratorState iterator_states(this);
   iterator_states.ProcessOsrPrelude();
-  DCHECK_EQ(iterator->current_offset(), osr_offset);
+  int osr_offset = bytecode_analysis().osr_entry_point();
+  DCHECK_EQ(bytecode_iterator().current_offset(), osr_offset);
 
   environment()->FillWithOsrValues();
 
@@ -1229,27 +1221,29 @@ void BytecodeGraphBuilder::AdvanceToOsrEntryAndPeelLoops(
   // parent loop entirely, and so on.
 
   int current_parent_offset =
-      analysis.GetLoopInfoFor(osr_offset).parent_offset();
+      bytecode_analysis().GetLoopInfoFor(osr_offset).parent_offset();
   while (current_parent_offset != -1) {
     const LoopInfo& current_parent_loop =
-        analysis.GetLoopInfoFor(current_parent_offset);
+        bytecode_analysis().GetLoopInfoFor(current_parent_offset);
     // We iterate until the back edge of the parent loop, which we detect by
     // the offset that the JumpLoop targets.
-    for (; !iterator->done(); iterator->Advance()) {
-      if (iterator->current_bytecode() == interpreter::Bytecode::kJumpLoop &&
-          iterator->GetJumpTargetOffset() == current_parent_offset) {
+    for (; !bytecode_iterator().done(); bytecode_iterator().Advance()) {
+      if (bytecode_iterator().current_bytecode() ==
+              interpreter::Bytecode::kJumpLoop &&
+          bytecode_iterator().GetJumpTargetOffset() == current_parent_offset) {
         // Reached the end of the current parent loop.
         break;
       }
-      VisitSingleBytecode(source_position_iterator);
+      VisitSingleBytecode();
     }
-    DCHECK(!iterator->done());  // Should have found the loop's jump target.
+    DCHECK(!bytecode_iterator()
+                .done());  // Should have found the loop's jump target.
 
     // We also need to take care of the merge environments and exceptions
     // handlers here because the omitted JumpLoop bytecode can still be the
     // target of jumps or the first bytecode after a try block.
-    ExitThenEnterExceptionHandlers(iterator->current_offset());
-    SwitchToMergeEnvironment(iterator->current_offset());
+    ExitThenEnterExceptionHandlers(bytecode_iterator().current_offset());
+    SwitchToMergeEnvironment(bytecode_iterator().current_offset());
 
     // This jump is the jump of our parent loop, which is not yet created.
     // So we do not build the jump nodes, but restore the bytecode and the
@@ -1263,18 +1257,16 @@ void BytecodeGraphBuilder::AdvanceToOsrEntryAndPeelLoops(
     // Completely clearing the environment is not possible because merge
     // environments for forward jumps out of the loop need to be preserved
     // (e.g. a return or a labeled break in the middle of a loop).
-    RemoveMergeEnvironmentsBeforeOffset(iterator->current_offset());
+    RemoveMergeEnvironmentsBeforeOffset(bytecode_iterator().current_offset());
     iterator_states.RestoreState(current_parent_offset,
                                  current_parent_loop.parent_offset());
     current_parent_offset = current_parent_loop.parent_offset();
   }
 }
 
-void BytecodeGraphBuilder::VisitSingleBytecode(
-    SourcePositionTableIterator* source_position_iterator) {
-  const interpreter::BytecodeArrayIterator& iterator = bytecode_iterator();
-  int current_offset = iterator.current_offset();
-  UpdateSourcePosition(source_position_iterator, current_offset);
+void BytecodeGraphBuilder::VisitSingleBytecode() {
+  int current_offset = bytecode_iterator().current_offset();
+  UpdateSourcePosition(current_offset);
   ExitThenEnterExceptionHandlers(current_offset);
   DCHECK_GE(exception_handlers_.empty() ? current_offset
                                         : exception_handlers_.top().end_offset_,
@@ -1283,15 +1275,13 @@ void BytecodeGraphBuilder::VisitSingleBytecode(
 
   if (environment() != nullptr) {
     BuildLoopHeaderEnvironment(current_offset);
-
-    // Skip the first stack check if stack_check is false
-    if (!stack_check() &&
-        iterator.current_bytecode() == interpreter::Bytecode::kStackCheck) {
-      set_stack_check(true);
+    if (skip_next_stack_check() && bytecode_iterator().current_bytecode() ==
+                                       interpreter::Bytecode::kStackCheck) {
+      unset_skip_next_stack_check();
       return;
     }
 
-    switch (iterator.current_bytecode()) {
+    switch (bytecode_iterator().current_bytecode()) {
 #define BYTECODE_CASE(name, ...)       \
   case interpreter::Bytecode::k##name: \
     Visit##name();                     \
@@ -1303,41 +1293,33 @@ void BytecodeGraphBuilder::VisitSingleBytecode(
 }
 
 void BytecodeGraphBuilder::VisitBytecodes() {
-  BytecodeAnalysis bytecode_analysis(bytecode_array(), local_zone(),
-                                     analyze_environment_liveness());
-  bytecode_analysis.Analyze(osr_offset_);
-  set_bytecode_analysis(&bytecode_analysis);
-
-  interpreter::BytecodeArrayIterator iterator(bytecode_array());
-  set_bytecode_iterator(&iterator);
-  SourcePositionTableIterator source_position_iterator(
-      handle(bytecode_array()->SourcePositionTableIfCollected(), isolate()));
+  RunBytecodeAnalysis();
 
   if (analyze_environment_liveness() && FLAG_trace_environment_liveness) {
     StdoutStream of;
-    bytecode_analysis.PrintLivenessTo(of);
+    bytecode_analysis().PrintLivenessTo(of);
   }
 
-  if (!bytecode_analysis.resume_jump_targets().empty()) {
+  if (!bytecode_analysis().resume_jump_targets().empty()) {
     environment()->BindGeneratorState(
         jsgraph()->SmiConstant(JSGeneratorObject::kGeneratorExecuting));
   }
 
-  if (bytecode_analysis.HasOsrEntryPoint()) {
+  if (bytecode_analysis().HasOsrEntryPoint()) {
     // We peel the OSR loop and any outer loop containing it except that we
     // leave the nodes corresponding to the whole outermost loop (including
     // the last copies of the loops it contains) to be generated by the normal
     // bytecode iteration below.
-    AdvanceToOsrEntryAndPeelLoops(&iterator, &source_position_iterator);
+    AdvanceToOsrEntryAndPeelLoops();
   }
 
   bool has_one_shot_bytecode = false;
-  for (; !iterator.done(); iterator.Advance()) {
+  for (; !bytecode_iterator().done(); bytecode_iterator().Advance()) {
     if (interpreter::Bytecodes::IsOneShotBytecode(
-            iterator.current_bytecode())) {
+            bytecode_iterator().current_bytecode())) {
       has_one_shot_bytecode = true;
     }
-    VisitSingleBytecode(&source_position_iterator);
+    VisitSingleBytecode();
   }
 
   if (has_one_shot_bytecode) {
@@ -1345,8 +1327,6 @@ void BytecodeGraphBuilder::VisitBytecodes() {
         v8::Isolate::UseCounterFeature::kOptimizedFunctionWithOneShotBytecode);
   }
 
-  set_bytecode_analysis(nullptr);
-  set_bytecode_iterator(nullptr);
   DCHECK(exception_handlers_.empty());
 }
 
@@ -1610,7 +1590,7 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
         NewMerge();
       } else {
         slow_environment->Merge(environment(),
-                                bytecode_analysis()->GetInLivenessFor(
+                                bytecode_analysis().GetInLivenessFor(
                                     bytecode_iterator().current_offset()));
       }
     }
@@ -1662,7 +1642,7 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
     }
 
     fast_environment->Merge(environment(),
-                            bytecode_analysis()->GetOutLivenessFor(
+                            bytecode_analysis().GetOutLivenessFor(
                                 bytecode_iterator().current_offset()));
     set_environment(fast_environment);
     mark_as_needing_eager_checkpoint(true);
@@ -1715,7 +1695,7 @@ void BytecodeGraphBuilder::BuildLdaLookupGlobalSlot(TypeofMode typeof_mode) {
     }
 
     fast_environment->Merge(environment(),
-                            bytecode_analysis()->GetOutLivenessFor(
+                            bytecode_analysis().GetOutLivenessFor(
                                 bytecode_iterator().current_offset()));
     set_environment(fast_environment);
     mark_as_needing_eager_checkpoint(true);
@@ -2555,7 +2535,7 @@ void BytecodeGraphBuilder::VisitInvokeIntrinsic() {
 }
 
 void BytecodeGraphBuilder::VisitThrow() {
-  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
+  BuildLoopExitsForFunctionExit(bytecode_analysis().GetInLivenessFor(
       bytecode_iterator().current_offset()));
   Node* value = environment()->LookupAccumulator();
   Node* call = NewNode(javascript()->CallRuntime(Runtime::kThrow), value);
@@ -2565,7 +2545,7 @@ void BytecodeGraphBuilder::VisitThrow() {
 }
 
 void BytecodeGraphBuilder::VisitAbort() {
-  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
+  BuildLoopExitsForFunctionExit(bytecode_analysis().GetInLivenessFor(
       bytecode_iterator().current_offset()));
   AbortReason reason =
       static_cast<AbortReason>(bytecode_iterator().GetIndexOperand(0));
@@ -2575,7 +2555,7 @@ void BytecodeGraphBuilder::VisitAbort() {
 }
 
 void BytecodeGraphBuilder::VisitReThrow() {
-  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
+  BuildLoopExitsForFunctionExit(bytecode_analysis().GetInLivenessFor(
       bytecode_iterator().current_offset()));
   Node* value = environment()->LookupAccumulator();
   NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
@@ -2591,7 +2571,7 @@ void BytecodeGraphBuilder::BuildHoleCheckAndThrow(
     SubEnvironment sub_environment(this);
 
     NewIfTrue();
-    BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
+    BuildLoopExitsForFunctionExit(bytecode_analysis().GetInLivenessFor(
         bytecode_iterator().current_offset()));
     Node* node;
     const Operator* op = javascript()->CallRuntime(runtime_id);
@@ -3221,7 +3201,7 @@ void BytecodeGraphBuilder::BuildReturn(const BytecodeLivenessState* liveness) {
 }
 
 void BytecodeGraphBuilder::VisitReturn() {
-  BuildReturn(bytecode_analysis()->GetInLivenessFor(
+  BuildReturn(bytecode_analysis().GetInLivenessFor(
       bytecode_iterator().current_offset()));
 }
 
@@ -3342,7 +3322,7 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
       jsgraph()->Constant(bytecode_iterator().current_offset() +
                           (BytecodeArray::kHeaderSize - kHeapObjectTag));
 
-  const BytecodeLivenessState* liveness = bytecode_analysis()->GetInLivenessFor(
+  const BytecodeLivenessState* liveness = bytecode_analysis().GetInLivenessFor(
       bytecode_iterator().current_offset());
 
   // Maybe overallocate the value list since we don't know how many registers
@@ -3385,7 +3365,7 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
 
   // TODO(leszeks): This over-approximates the liveness at exit, only the
   // accumulator should be live by this point.
-  BuildReturn(bytecode_analysis()->GetInLivenessFor(
+  BuildReturn(bytecode_analysis().GetInLivenessFor(
       bytecode_iterator().current_offset()));
 }
 
@@ -3453,7 +3433,7 @@ void BytecodeGraphBuilder::VisitSwitchOnGeneratorState() {
         NewNode(javascript()->GeneratorRestoreContext(), generator);
     environment()->SetContext(generator_context);
 
-    BuildSwitchOnGeneratorState(bytecode_analysis()->resume_jump_targets(),
+    BuildSwitchOnGeneratorState(bytecode_analysis().resume_jump_targets(),
                                 false);
   }
 
@@ -3468,9 +3448,8 @@ void BytecodeGraphBuilder::VisitResumeGenerator() {
   // We assume we are restoring registers starting fromm index 0.
   CHECK_EQ(0, first_reg.index());
 
-  const BytecodeLivenessState* liveness =
-      bytecode_analysis()->GetOutLivenessFor(
-          bytecode_iterator().current_offset());
+  const BytecodeLivenessState* liveness = bytecode_analysis().GetOutLivenessFor(
+      bytecode_iterator().current_offset());
 
   int parameter_count_without_receiver =
       bytecode_array()->parameter_count() - 1;
@@ -3513,19 +3492,19 @@ void BytecodeGraphBuilder::SwitchToMergeEnvironment(int current_offset) {
     mark_as_needing_eager_checkpoint(true);
     if (environment() != nullptr) {
       it->second->Merge(environment(),
-                        bytecode_analysis()->GetInLivenessFor(current_offset));
+                        bytecode_analysis().GetInLivenessFor(current_offset));
     }
     set_environment(it->second);
   }
 }
 
 void BytecodeGraphBuilder::BuildLoopHeaderEnvironment(int current_offset) {
-  if (bytecode_analysis()->IsLoopHeader(current_offset)) {
+  if (bytecode_analysis().IsLoopHeader(current_offset)) {
     mark_as_needing_eager_checkpoint(true);
     const LoopInfo& loop_info =
-        bytecode_analysis()->GetLoopInfoFor(current_offset);
+        bytecode_analysis().GetLoopInfoFor(current_offset);
     const BytecodeLivenessState* liveness =
-        bytecode_analysis()->GetInLivenessFor(current_offset);
+        bytecode_analysis().GetInLivenessFor(current_offset);
 
     const auto& resume_jump_targets = loop_info.resume_jump_targets();
     bool generate_suspend_switch = !resume_jump_targets.empty();
@@ -3567,7 +3546,7 @@ void BytecodeGraphBuilder::MergeIntoSuccessorEnvironment(int target_offset) {
   } else {
     // Merge any values which are live coming into the successor.
     merge_environment->Merge(
-        environment(), bytecode_analysis()->GetInLivenessFor(target_offset));
+        environment(), bytecode_analysis().GetInLivenessFor(target_offset));
   }
   set_environment(nullptr);
 }
@@ -3582,15 +3561,15 @@ void BytecodeGraphBuilder::BuildLoopExitsForBranch(int target_offset) {
   // Only build loop exits for forward edges.
   if (target_offset > origin_offset) {
     BuildLoopExitsUntilLoop(
-        bytecode_analysis()->GetLoopOffsetFor(target_offset),
-        bytecode_analysis()->GetInLivenessFor(target_offset));
+        bytecode_analysis().GetLoopOffsetFor(target_offset),
+        bytecode_analysis().GetInLivenessFor(target_offset));
   }
 }
 
 void BytecodeGraphBuilder::BuildLoopExitsUntilLoop(
     int loop_offset, const BytecodeLivenessState* liveness) {
   int origin_offset = bytecode_iterator().current_offset();
-  int current_loop = bytecode_analysis()->GetLoopOffsetFor(origin_offset);
+  int current_loop = bytecode_analysis().GetLoopOffsetFor(origin_offset);
   // The limit_offset is the stop offset for building loop exists, used for OSR.
   // It prevents the creations of loopexits for loops which do not exist.
   loop_offset = std::max(loop_offset, currently_peeled_loop_offset_);
@@ -3598,7 +3577,7 @@ void BytecodeGraphBuilder::BuildLoopExitsUntilLoop(
   while (loop_offset < current_loop) {
     Node* loop_node = merge_environments_[current_loop]->GetControlDependency();
     const LoopInfo& loop_info =
-        bytecode_analysis()->GetLoopInfoFor(current_loop);
+        bytecode_analysis().GetLoopInfoFor(current_loop);
     environment()->PrepareForLoopExit(loop_node, loop_info.assignments(),
                                       liveness);
     current_loop = loop_info.parent_offset();
@@ -4048,29 +4027,29 @@ Node* BytecodeGraphBuilder::MergeValue(Node* value, Node* other,
   return value;
 }
 
-void BytecodeGraphBuilder::UpdateSourcePosition(SourcePositionTableIterator* it,
-                                                int offset) {
-  if (it->done()) return;
-  if (it->code_offset() == offset) {
+void BytecodeGraphBuilder::UpdateSourcePosition(int offset) {
+  if (source_position_iterator().done()) return;
+  if (source_position_iterator().code_offset() == offset) {
     source_positions_->SetCurrentPosition(SourcePosition(
-        it->source_position().ScriptOffset(), start_position_.InliningId()));
-    it->Advance();
+        source_position_iterator().source_position().ScriptOffset(),
+        start_position_.InliningId()));
+    source_position_iterator().Advance();
   } else {
-    DCHECK_GT(it->code_offset(), offset);
+    DCHECK_GT(source_position_iterator().code_offset(), offset);
   }
 }
 
 void BuildGraphFromBytecode(
     Zone* local_zone, Handle<BytecodeArray> bytecode_array,
     Handle<SharedFunctionInfo> shared, Handle<FeedbackVector> feedback_vector,
-    BailoutId osr_offset, JSGraph* jsgraph, CallFrequency& invocation_frequency,
+    BailoutId osr_offset, JSGraph* jsgraph, CallFrequency invocation_frequency,
     SourcePositionTable* source_positions, Handle<Context> native_context,
-    int inlining_id, JSTypeHintLowering::Flags flags, bool stack_check,
-    bool analyze_environment_liveness) {
+    int inlining_id, JSTypeHintLowering::Flags flags,
+    bool skip_first_stack_check, bool analyze_environment_liveness) {
   BytecodeGraphBuilder builder(
       local_zone, bytecode_array, shared, feedback_vector, osr_offset, jsgraph,
       invocation_frequency, source_positions, native_context, inlining_id,
-      flags, stack_check, analyze_environment_liveness);
+      flags, skip_first_stack_check, analyze_environment_liveness);
   builder.CreateGraph();
 }
 

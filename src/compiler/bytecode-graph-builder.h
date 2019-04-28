@@ -26,10 +26,10 @@ class SourcePositionTable;
 void BuildGraphFromBytecode(
     Zone* local_zone, Handle<BytecodeArray> bytecode_array,
     Handle<SharedFunctionInfo> shared, Handle<FeedbackVector> feedback_vector,
-    BailoutId osr_offset, JSGraph* jsgraph, CallFrequency& invocation_frequency,
+    BailoutId osr_offset, JSGraph* jsgraph, CallFrequency invocation_frequency,
     SourcePositionTable* source_positions, Handle<Context> native_context,
-    int inlining_id, JSTypeHintLowering::Flags flags, bool stack_check,
-    bool analyze_environment_liveness);
+    int inlining_id, JSTypeHintLowering::Flags flags,
+    bool skip_first_stack_check, bool analyze_environment_liveness);
 
 }  // namespace compiler
 }  // namespace internal
