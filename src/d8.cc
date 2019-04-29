@@ -1971,8 +1971,9 @@ static void PrintNonErrorsMessageCallback(Local<Message> message,
 
 void Shell::Initialize(Isolate* isolate) {
   // Set up counters
-  if (i::StrLength(i::FLAG_map_counters) != 0)
+  if (i::FLAG_map_counters[0] != '\0') {
     MapCounters(isolate, i::FLAG_map_counters);
+  }
   // Disable default message reporting.
   isolate->AddMessageListenerWithErrorLevel(
       PrintNonErrorsMessageCallback,

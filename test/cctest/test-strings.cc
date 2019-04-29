@@ -916,10 +916,10 @@ TEST(Utf8Conversion) {
   const char* one_byte_string = "abcdef12345";
   int len = v8::String::NewFromUtf8(CcTest::isolate(), one_byte_string,
                                     v8::NewStringType::kNormal,
-                                    StrLength(one_byte_string))
+                                    static_cast<int>(strlen(one_byte_string)))
                 .ToLocalChecked()
                 ->Utf8Length(CcTest::isolate());
-  CHECK_EQ(StrLength(one_byte_string), len);
+  CHECK_EQ(strlen(one_byte_string), len);
   // A mixed one-byte and two-byte string
   // U+02E4 -> CB A4
   // U+0064 -> 64

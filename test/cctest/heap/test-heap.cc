@@ -417,7 +417,7 @@ static void VerifyStringAllocation(Isolate* isolate, const char* string) {
   HandleScope scope(isolate);
   Handle<String> s = isolate->factory()->NewStringFromUtf8(
       CStrVector(string)).ToHandleChecked();
-  CHECK_EQ(StrLength(string), s->length());
+  CHECK_EQ(strlen(string), s->length());
   for (int index = 0; index < s->length(); index++) {
     CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(index));
   }
@@ -444,7 +444,7 @@ TEST(LocalHandles) {
   v8::HandleScope scope(CcTest::isolate());
   const char* name = "Kasper the spunky";
   Handle<String> string = factory->NewStringFromAsciiChecked(name);
-  CHECK_EQ(StrLength(name), string->length());
+  CHECK_EQ(strlen(name), string->length());
 }
 
 

@@ -321,9 +321,9 @@ class LocalContext {
 
 
 static inline uint16_t* AsciiToTwoByteString(const char* source) {
-  int array_length = i::StrLength(source) + 1;
+  size_t array_length = strlen(source) + 1;
   uint16_t* converted = i::NewArray<uint16_t>(array_length);
-  for (int i = 0; i < array_length; i++) converted[i] = source[i];
+  for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
   return converted;
 }
 

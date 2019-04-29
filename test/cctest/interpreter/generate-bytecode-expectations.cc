@@ -134,8 +134,8 @@ bool CollectGoldenFiles(std::vector<std::string>* golden_file_list,
   if (!directory) return false;
 
   auto str_ends_with = [](const char* string, const char* suffix) {
-    int string_size = i::StrLength(string);
-    int suffix_size = i::StrLength(suffix);
+    size_t string_size = strlen(string);
+    size_t suffix_size = strlen(suffix);
     if (string_size < suffix_size) return false;
 
     return strcmp(string + (string_size - suffix_size), suffix) == 0;

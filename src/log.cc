@@ -140,7 +140,9 @@ class CodeEventLogger::NameBuffer {
   }
 
   void AppendBytes(const char* bytes) {
-    AppendBytes(bytes, StrLength(bytes));
+    size_t len = strlen(bytes);
+    DCHECK_GE(kMaxInt, len);
+    AppendBytes(bytes, static_cast<int>(len));
   }
 
   void AppendByte(char c) {

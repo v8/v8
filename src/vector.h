@@ -259,13 +259,6 @@ class OwnedVector {
   size_t length_ = 0;
 };
 
-// TODO(clemensh): Remove this; replace all uses by {strlen}.
-inline int StrLength(const char* string) {
-  size_t length = strlen(string);
-  DCHECK(length == static_cast<size_t>(static_cast<int>(length)));
-  return static_cast<int>(length);
-}
-
 template <size_t N>
 constexpr Vector<const uint8_t> StaticCharVector(const char (&array)[N]) {
   return Vector<const uint8_t>::cast(Vector<const char>(array, N - 1));

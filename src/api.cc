@@ -6276,20 +6276,21 @@ void* External::Value() const {
 namespace {
 
 inline int StringLength(const char* string) {
-  return i::StrLength(string);
+  size_t len = strlen(string);
+  CHECK_GE(i::kMaxInt, len);
+  return static_cast<int>(len);
 }
-
 
 inline int StringLength(const uint8_t* string) {
-  return i::StrLength(reinterpret_cast<const char*>(string));
+  return StringLength(reinterpret_cast<const char*>(string));
 }
 
-
 inline int StringLength(const uint16_t* string) {
-  int length = 0;
+  size_t length = 0;
   while (string[length] != '\0')
     length++;
-  return length;
+  CHECK_GE(i::kMaxInt, length);
+  return static_cast<int>(length);
 }
 
 V8_WARN_UNUSED_RESULT

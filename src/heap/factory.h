@@ -348,7 +348,7 @@ class V8_EXPORT_PRIVATE Factory {
   inline Handle<String> NewStringFromStaticChars(
       const char (&str)[N],
       AllocationType allocation = AllocationType::kYoung) {
-    DCHECK(N == StrLength(str) + 1);
+    DCHECK_EQ(N, strlen(str) + 1);
     return NewStringFromOneByte(StaticCharVector(str), allocation)
         .ToHandleChecked();
   }

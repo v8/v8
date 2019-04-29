@@ -803,20 +803,15 @@ parsing_done:
 }
 
 double StringToDouble(const char* str, int flags, double empty_string_val) {
-  // We cast to const uint8_t* here to avoid instantiating the
-  // InternalStringToDouble() template for const char* as well.
-  const uint8_t* start = reinterpret_cast<const uint8_t*>(str);
-  const uint8_t* end = start + StrLength(str);
-  return InternalStringToDouble(start, end, flags, empty_string_val);
+  // We use {OneByteVector} instead of {CStrVector} to avoid instantiating the
+  // InternalStringToDouble() template for {const char*} as well.
+  return StringToDouble(OneByteVector(str), flags, empty_string_val);
 }
 
 double StringToDouble(Vector<const uint8_t> str, int flags,
                       double empty_string_val) {
-  // We cast to const uint8_t* here to avoid instantiating the
-  // InternalStringToDouble() template for const char* as well.
-  const uint8_t* start = reinterpret_cast<const uint8_t*>(str.begin());
-  const uint8_t* end = start + str.length();
-  return InternalStringToDouble(start, end, flags, empty_string_val);
+  return InternalStringToDouble(str.begin(), str.end(), flags,
+                                empty_string_val);
 }
 
 double StringToDouble(Vector<const uc16> str, int flags,
@@ -1101,8 +1096,9 @@ static char* CreateExponentialRepresentation(char* decimal_rep,
   if (significant_digits != 1) {
     builder.AddCharacter('.');
     builder.AddString(decimal_rep + 1);
-    int rep_length = StrLength(decimal_rep);
-    builder.AddPadding('0', significant_digits - rep_length);
+    size_t rep_length = strlen(decimal_rep);
+    DCHECK_GE(significant_digits, rep_length);
+    builder.AddPadding('0', significant_digits - static_cast<int>(rep_length));
   }
 
   builder.AddCharacter('e');
@@ -1211,8 +1207,10 @@ char* DoubleToPrecisionCString(double value, int p) {
         builder.AddCharacter('.');
         const int extra = negative ? 2 : 1;
         if (decimal_rep_length > decimal_point) {
-          const int len = StrLength(decimal_rep + decimal_point);
-          const int n = Min(len, p - (builder.position() - extra));
+          const size_t len = strlen(decimal_rep + decimal_point);
+          DCHECK_GE(kMaxInt, len);
+          const int n =
+              Min(static_cast<int>(len), p - (builder.position() - extra));
           builder.AddSubstring(decimal_rep + decimal_point, n);
         }
         builder.AddPadding('0', extra + (p - builder.position()));

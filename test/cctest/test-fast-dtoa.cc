@@ -43,17 +43,13 @@ namespace test_fast_dtoa {
 
 static const int kBufferSize = 100;
 
-
-// Removes trailing '0' digits.
-static void TrimRepresentation(Vector<char> representation) {
-  int len = StrLength(representation.begin());
-  int i;
-  for (i = len - 1; i >= 0; --i) {
-    if (representation[i] != '0') break;
-  }
-  representation[i + 1] = '\0';
+// Removes trailing '0' digits (modifies {representation}). Can create an empty
+// string if all digits are 0.
+static void TrimRepresentation(char* representation) {
+  size_t len = strlen(representation);
+  while (len > 0 && representation[len - 1] == '0') --len;
+  representation[len] = '\0';
 }
-
 
 TEST(FastDtoaShortestVariousDoubles) {
   char buffer_container[kBufferSize];
@@ -135,14 +131,14 @@ TEST(FastDtoaPrecisionVariousDoubles) {
   status = FastDtoa(1.0, FAST_DTOA_PRECISION, 3, buffer, &length, &point);
   CHECK(status);
   CHECK_GE(3, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("1", buffer.begin()));
   CHECK_EQ(1, point);
 
   status = FastDtoa(1.5, FAST_DTOA_PRECISION, 10, buffer, &length, &point);
   if (status) {
     CHECK_GE(10, length);
-    TrimRepresentation(buffer);
+    TrimRepresentation(buffer.begin());
     CHECK_EQ(0, strcmp("15", buffer.begin()));
     CHECK_EQ(1, point);
   }
@@ -165,7 +161,7 @@ TEST(FastDtoaPrecisionVariousDoubles) {
                     buffer, &length, &point);
   if (status) {
     CHECK_GE(14, length);
-    TrimRepresentation(buffer);
+    TrimRepresentation(buffer.begin());
     CHECK_EQ(0, strcmp("4294967272", buffer.begin()));
     CHECK_EQ(10, point);
   }
@@ -192,7 +188,7 @@ TEST(FastDtoaPrecisionVariousDoubles) {
                     buffer, &length, &point);
   CHECK(status);
   CHECK_GE(10, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("35844466", buffer.begin()));
   CHECK_EQ(299, point);
 
@@ -208,7 +204,7 @@ TEST(FastDtoaPrecisionVariousDoubles) {
   status = FastDtoa(v, FAST_DTOA_PRECISION, 17, buffer, &length, &point);
   CHECK(status);
   CHECK_GE(20, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("22250738585072009", buffer.begin()));
   CHECK_EQ(-307, point);
 
@@ -281,7 +277,7 @@ TEST(FastDtoaGayPrecision) {
     if (!status) continue;
     succeeded++;
     if (number_digits <= 15) succeeded_15++;
-    TrimRepresentation(buffer);
+    TrimRepresentation(buffer.begin());
     CHECK_EQ(current_test.decimal_point, point);
     CHECK_EQ(0, strcmp(current_test.representation, buffer.begin()));
   }

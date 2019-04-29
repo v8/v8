@@ -2067,11 +2067,13 @@ class OutputStreamWriter {
     MaybeWriteChunk();
   }
   void AddString(const char* s) {
-    AddSubstring(s, StrLength(s));
+    size_t len = strlen(s);
+    DCHECK_GE(kMaxInt, len);
+    AddSubstring(s, static_cast<int>(len));
   }
   void AddSubstring(const char* s, int n) {
     if (n <= 0) return;
-    DCHECK(static_cast<size_t>(n) <= strlen(s));
+    DCHECK_LE(n, strlen(s));
     const char* s_end = s + n;
     while (s < s_end) {
       int s_chunk_size =

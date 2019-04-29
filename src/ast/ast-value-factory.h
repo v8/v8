@@ -296,8 +296,7 @@ class AstValueFactory {
     return GetOneByteStringInternal(literal);
   }
   const AstRawString* GetOneByteString(const char* string) {
-    return GetOneByteString(Vector<const uint8_t>(
-        reinterpret_cast<const uint8_t*>(string), StrLength(string)));
+    return GetOneByteString(OneByteVector(string));
   }
   const AstRawString* GetTwoByteString(Vector<const uint16_t> literal) {
     return GetTwoByteStringInternal(literal);

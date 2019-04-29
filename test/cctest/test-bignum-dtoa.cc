@@ -42,17 +42,13 @@ namespace v8 {
 namespace internal {
 namespace test_bignum_dtoa {
 
-// Removes trailing '0' digits.
-// Can return the empty string if all digits are 0.
-static void TrimRepresentation(Vector<char> representation) {
-  int len = StrLength(representation.begin());
-  int i;
-  for (i = len - 1; i >= 0; --i) {
-    if (representation[i] != '0') break;
-  }
-  representation[i + 1] = '\0';
+// Removes trailing '0' digits (modifies {representation}). Can create an empty
+// string if all digits are 0.
+static void TrimRepresentation(char* representation) {
+  size_t len = strlen(representation);
+  while (len > 0 && representation[len - 1] == '0') --len;
+  representation[len] = '\0';
 }
-
 
 static const int kBufferSize = 100;
 
@@ -69,13 +65,13 @@ TEST(BignumDtoaVariousDoubles) {
 
   BignumDtoa(1.0, BIGNUM_DTOA_FIXED, 3, buffer, &length, &point);
   CHECK_GE(3, length - point);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("1", buffer.begin()));
   CHECK_EQ(1, point);
 
   BignumDtoa(1.0, BIGNUM_DTOA_PRECISION, 3, buffer, &length, &point);
   CHECK_GE(3, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("1", buffer.begin()));
   CHECK_EQ(1, point);
 
@@ -85,13 +81,13 @@ TEST(BignumDtoaVariousDoubles) {
 
   BignumDtoa(1.5, BIGNUM_DTOA_FIXED, 10, buffer, &length, &point);
   CHECK_GE(10, length - point);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("15", buffer.begin()));
   CHECK_EQ(1, point);
 
   BignumDtoa(1.5, BIGNUM_DTOA_PRECISION, 10, buffer, &length, &point);
   CHECK_GE(10, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("15", buffer.begin()));
   CHECK_EQ(1, point);
 
@@ -102,12 +98,12 @@ TEST(BignumDtoaVariousDoubles) {
 
   BignumDtoa(min_double, BIGNUM_DTOA_FIXED, 5, buffer, &length, &point);
   CHECK_GE(5, length - point);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("", buffer.begin()));
 
   BignumDtoa(min_double, BIGNUM_DTOA_PRECISION, 5, buffer, &length, &point);
   CHECK_GE(5, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("49407", buffer.begin()));
   CHECK_EQ(-323, point);
 
@@ -118,7 +114,7 @@ TEST(BignumDtoaVariousDoubles) {
 
   BignumDtoa(max_double, BIGNUM_DTOA_PRECISION, 7, buffer, &length, &point);
   CHECK_GE(7, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("1797693", buffer.begin()));
   CHECK_EQ(309, point);
 
@@ -133,7 +129,7 @@ TEST(BignumDtoaVariousDoubles) {
 
   BignumDtoa(4294967272.0, BIGNUM_DTOA_PRECISION, 14, buffer, &length, &point);
   CHECK_GE(14, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("4294967272", buffer.begin()));
   CHECK_EQ(10, point);
 
@@ -145,7 +141,7 @@ TEST(BignumDtoaVariousDoubles) {
   BignumDtoa(4.1855804968213567e298, BIGNUM_DTOA_PRECISION, 20,
              buffer, &length, &point);
   CHECK_GE(20, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("41855804968213567225", buffer.begin()));
   CHECK_EQ(299, point);
 
@@ -157,7 +153,7 @@ TEST(BignumDtoaVariousDoubles) {
   BignumDtoa(5.5626846462680035e-309, BIGNUM_DTOA_PRECISION, 1,
              buffer, &length, &point);
   CHECK_GE(1, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("6", buffer.begin()));
   CHECK_EQ(-308, point);
 
@@ -170,14 +166,14 @@ TEST(BignumDtoaVariousDoubles) {
   BignumDtoa(2147483648.0, BIGNUM_DTOA_FIXED, 2,
              buffer, &length, &point);
   CHECK_GE(2, length - point);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("2147483648", buffer.begin()));
   CHECK_EQ(10, point);
 
   BignumDtoa(2147483648.0, BIGNUM_DTOA_PRECISION, 5,
              buffer, &length, &point);
   CHECK_GE(5, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("21475", buffer.begin()));
   CHECK_EQ(10, point);
 
@@ -189,7 +185,7 @@ TEST(BignumDtoaVariousDoubles) {
   BignumDtoa(3.5844466002796428e+298, BIGNUM_DTOA_PRECISION, 10,
              buffer, &length, &point);
   CHECK_GE(10, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("35844466", buffer.begin()));
   CHECK_EQ(299, point);
 
@@ -201,7 +197,7 @@ TEST(BignumDtoaVariousDoubles) {
 
   BignumDtoa(v, BIGNUM_DTOA_PRECISION, 20, buffer, &length, &point);
   CHECK_GE(20, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("22250738585072013831", buffer.begin()));
   CHECK_EQ(-307, point);
 
@@ -213,7 +209,7 @@ TEST(BignumDtoaVariousDoubles) {
 
   BignumDtoa(v, BIGNUM_DTOA_PRECISION, 20, buffer, &length, &point);
   CHECK_GE(20, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("2225073858507200889", buffer.begin()));
   CHECK_EQ(-307, point);
 
@@ -229,27 +225,27 @@ TEST(BignumDtoaVariousDoubles) {
   v = 4194304.0;
   BignumDtoa(v, BIGNUM_DTOA_FIXED, 5, buffer, &length, &point);
   CHECK_GE(5, length - point);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("4194304", buffer.begin()));
 
   v = 3.3161339052167390562200598e-237;
   BignumDtoa(v, BIGNUM_DTOA_PRECISION, 19, buffer, &length, &point);
   CHECK_GE(19, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("3316133905216739056", buffer.begin()));
   CHECK_EQ(-236, point);
 
   v = 7.9885183916008099497815232e+191;
   BignumDtoa(v, BIGNUM_DTOA_PRECISION, 4, buffer, &length, &point);
   CHECK_GE(4, length);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("7989", buffer.begin()));
   CHECK_EQ(192, point);
 
   v = 1.0000000000000012800000000e+17;
   BignumDtoa(v, BIGNUM_DTOA_FIXED, 1, buffer, &length, &point);
   CHECK_GE(1, length - point);
-  TrimRepresentation(buffer);
+  TrimRepresentation(buffer.begin());
   CHECK_EQ(0, strcmp("100000000000000128", buffer.begin()));
   CHECK_EQ(18, point);
 }
@@ -288,7 +284,7 @@ TEST(BignumDtoaGayFixed) {
     BignumDtoa(v, BIGNUM_DTOA_FIXED, number_digits, buffer, &length, &point);
     CHECK_EQ(current_test.decimal_point, point);
     CHECK_GE(number_digits, length - point);
-    TrimRepresentation(buffer);
+    TrimRepresentation(buffer.begin());
     CHECK_EQ(0, strcmp(current_test.representation, buffer.begin()));
   }
 }
@@ -310,7 +306,7 @@ TEST(BignumDtoaGayPrecision) {
                buffer, &length, &point);
     CHECK_EQ(current_test.decimal_point, point);
     CHECK_GE(number_digits, length);
-    TrimRepresentation(buffer);
+    TrimRepresentation(buffer.begin());
     CHECK_EQ(0, strcmp(current_test.representation, buffer.begin()));
   }
 }

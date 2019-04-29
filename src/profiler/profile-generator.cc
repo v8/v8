@@ -720,15 +720,14 @@ bool CpuProfilesCollection::StartProfiling(const char* title,
 
 
 CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
-  const int title_len = StrLength(title);
+  const bool empty_title = (title[0] == '\0');
   CpuProfile* profile = nullptr;
   current_profiles_semaphore_.Wait();
 
-  auto it =
-      std::find_if(current_profiles_.rbegin(), current_profiles_.rend(),
-                   [&](const std::unique_ptr<CpuProfile>& p) {
-                     return title_len == 0 || strcmp(p->title(), title) == 0;
-                   });
+  auto it = std::find_if(current_profiles_.rbegin(), current_profiles_.rend(),
+                         [&](const std::unique_ptr<CpuProfile>& p) {
+                           return empty_title || strcmp(p->title(), title) == 0;
+                         });
 
   if (it != current_profiles_.rend()) {
     (*it)->FinishProfile();
@@ -747,8 +746,7 @@ bool CpuProfilesCollection::IsLastProfile(const char* title) {
   // Called from VM thread, and only it can mutate the list,
   // so no locking is needed here.
   if (current_profiles_.size() != 1) return false;
-  return StrLength(title) == 0
-      || strcmp(current_profiles_[0]->title(), title) == 0;
+  return title[0] == '\0' || strcmp(current_profiles_[0]->title(), title) == 0;
 }
 
 

@@ -46,8 +46,8 @@ void CompareStringsOneWay(const char* s1, const char* s2,
   changes->clear();
   LiveEdit::CompareStrings(isolate, i_s1, i_s2, changes);
 
-  int len1 = StrLength(s1);
-  int len2 = StrLength(s2);
+  int len1 = static_cast<int>(strlen(s1));
+  int len2 = static_cast<int>(strlen(s2));
 
   int pos1 = 0;
   int pos2 = 0;

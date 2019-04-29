@@ -46,7 +46,6 @@
 using v8::internal::Address;
 using v8::internal::EmbeddedVector;
 using v8::internal::Logger;
-using v8::internal::StrLength;
 
 namespace {
 
@@ -287,16 +286,13 @@ namespace {
 class SimpleExternalString : public v8::String::ExternalStringResource {
  public:
   explicit SimpleExternalString(const char* source)
-      : utf_source_(StrLength(source)) {
-    for (int i = 0; i < utf_source_.length(); ++i)
-      utf_source_[i] = source[i];
-  }
+      : utf_source_(i::OwnedVector<uint16_t>::Of(i::CStrVector(source))) {}
   ~SimpleExternalString() override = default;
-  size_t length() const override { return utf_source_.length(); }
+  size_t length() const override { return utf_source_.size(); }
   const uint16_t* data() const override { return utf_source_.begin(); }
 
  private:
-  i::ScopedVector<uint16_t> utf_source_;
+  i::OwnedVector<uint16_t> utf_source_;
 };
 
 }  // namespace

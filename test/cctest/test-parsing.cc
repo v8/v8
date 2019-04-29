@@ -1044,9 +1044,9 @@ TEST(ScopeUsesArgumentsSuperThis) {
            (source_data[i].expected == NONE)) && j != 2) {
         continue;
       }
-      int kProgramByteSize = i::StrLength(surroundings[j].prefix) +
-                             i::StrLength(surroundings[j].suffix) +
-                             i::StrLength(source_data[i].body);
+      int kProgramByteSize = static_cast<int>(strlen(surroundings[j].prefix) +
+                                              strlen(surroundings[j].suffix) +
+                                              strlen(source_data[i].body));
       i::ScopedVector<char> program(kProgramByteSize + 1);
       i::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
                   source_data[i].body, surroundings[j].suffix);
@@ -1412,9 +1412,9 @@ TEST(ScopePositions) {
     int kPrefixLen = Utf8LengthHelper(source_data[i].outer_prefix);
     int kInnerLen = Utf8LengthHelper(source_data[i].inner_source);
     int kSuffixLen = Utf8LengthHelper(source_data[i].outer_suffix);
-    int kPrefixByteLen = i::StrLength(source_data[i].outer_prefix);
-    int kInnerByteLen = i::StrLength(source_data[i].inner_source);
-    int kSuffixByteLen = i::StrLength(source_data[i].outer_suffix);
+    int kPrefixByteLen = static_cast<int>(strlen(source_data[i].outer_prefix));
+    int kInnerByteLen = static_cast<int>(strlen(source_data[i].inner_source));
+    int kSuffixByteLen = static_cast<int>(strlen(source_data[i].outer_suffix));
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
     i::ScopedVector<char> program(kProgramByteSize + 1);
@@ -1757,12 +1757,13 @@ TEST(ParserSync) {
   for (int i = 0; context_data[i][0] != nullptr; ++i) {
     for (int j = 0; statement_data[j] != nullptr; ++j) {
       for (int k = 0; termination_data[k] != nullptr; ++k) {
-        int kPrefixLen = i::StrLength(context_data[i][0]);
-        int kStatementLen = i::StrLength(statement_data[j]);
-        int kTerminationLen = i::StrLength(termination_data[k]);
-        int kSuffixLen = i::StrLength(context_data[i][1]);
-        int kProgramSize = kPrefixLen + kStatementLen + kTerminationLen
-            + kSuffixLen + i::StrLength("label: for (;;) {  }");
+        int kPrefixLen = static_cast<int>(strlen(context_data[i][0]));
+        int kStatementLen = static_cast<int>(strlen(statement_data[j]));
+        int kTerminationLen = static_cast<int>(strlen(termination_data[k]));
+        int kSuffixLen = static_cast<int>(strlen(context_data[i][1]));
+        int kProgramSize = kPrefixLen + kStatementLen + kTerminationLen +
+                           kSuffixLen +
+                           static_cast<int>(strlen("label: for (;;) {  }"));
 
         // Plug the source code pieces together.
         i::ScopedVector<char> program(kProgramSize + 1);
@@ -1859,9 +1860,9 @@ void RunParserSyncTest(
   }
   for (int i = 0; context_data[i][0] != nullptr; ++i) {
     for (int j = 0; statement_data[j] != nullptr; ++j) {
-      int kPrefixLen = i::StrLength(context_data[i][0]);
-      int kStatementLen = i::StrLength(statement_data[j]);
-      int kSuffixLen = i::StrLength(context_data[i][1]);
+      int kPrefixLen = static_cast<int>(strlen(context_data[i][0]));
+      int kStatementLen = static_cast<int>(strlen(statement_data[j]));
+      int kSuffixLen = static_cast<int>(strlen(context_data[i][1]));
       int kProgramSize = kPrefixLen + kStatementLen + kSuffixLen;
 
       // Plug the source code pieces together.

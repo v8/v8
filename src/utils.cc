@@ -23,13 +23,15 @@ SimpleStringBuilder::SimpleStringBuilder(int size) {
 
 
 void SimpleStringBuilder::AddString(const char* s) {
-  AddSubstring(s, StrLength(s));
+  size_t len = strlen(s);
+  DCHECK_GE(kMaxInt, len);
+  AddSubstring(s, static_cast<int>(len));
 }
 
 
 void SimpleStringBuilder::AddSubstring(const char* s, int n) {
   DCHECK(!is_finalized() && position_ + n <= buffer_.length());
-  DCHECK(static_cast<size_t>(n) <= strlen(s));
+  DCHECK_LE(n, strlen(s));
   MemCopy(&buffer_[position_], s, n * kCharSize);
   position_ += n;
 }
@@ -154,7 +156,7 @@ void Flush(FILE* out) {
 char* ReadLine(const char* prompt) {
   char* result = nullptr;
   char line_buf[256];
-  int offset = 0;
+  size_t offset = 0;
   bool keep_going = true;
   fprintf(stdout, "%s", prompt);
   fflush(stdout);
@@ -166,7 +168,7 @@ char* ReadLine(const char* prompt) {
       }
       return nullptr;
     }
-    int len = StrLength(line_buf);
+    size_t len = strlen(line_buf);
     if (len > 1 &&
         line_buf[len - 2] == '\\' &&
         line_buf[len - 1] == '\n') {
@@ -185,7 +187,7 @@ char* ReadLine(const char* prompt) {
       result = NewArray<char>(len + 1);
     } else {
       // Allocate a new result with enough room for the new addition.
-      int new_len = offset + len + 1;
+      size_t new_len = offset + len + 1;
       char* new_result = NewArray<char>(new_len);
       // Copy the existing input into the new array and set the new
       // array as the result.

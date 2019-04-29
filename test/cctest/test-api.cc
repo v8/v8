@@ -14962,9 +14962,9 @@ THREADED_TEST(MorphCompositeStringTest) {
     i::Isolate* i_isolate = CcTest::i_isolate();
     v8::HandleScope scope(isolate);
     OneByteVectorResource one_byte_resource(
-        i::Vector<const char>(c_string, i::StrLength(c_string)));
+        i::Vector<const char>(c_string, strlen(c_string)));
     UC16VectorResource uc16_resource(
-        i::Vector<const uint16_t>(two_byte_string, i::StrLength(c_string)));
+        i::Vector<const uint16_t>(two_byte_string, strlen(c_string)));
 
     Local<String> lhs(v8::Utils::ToLocal(
         factory->NewExternalStringFromOneByte(&one_byte_resource)
