@@ -2512,6 +2512,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/module.h",
     "src/objects/name-inl.h",
     "src/objects/name.h",
+    "src/objects/object-list-macros.h",
     "src/objects/object-macros-undef.h",
     "src/objects/object-macros.h",
     "src/objects/oddball-inl.h",

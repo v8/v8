@@ -493,6 +493,12 @@
   base::Relaxed_Store(reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset)), \
                       static_cast<base::Atomic8>(value));
 
+#ifdef OBJECT_PRINT
+#define DECL_PRINTER(Name) void Name##Print(std::ostream& os);  // NOLINT
+#else
+#define DECL_PRINTER(Name)
+#endif
+
 #ifdef VERIFY_HEAP
 #define DECL_VERIFIER(Name) void Name##Verify(Isolate* isolate);
 #define EXPORT_DECL_VERIFIER(Name) \
