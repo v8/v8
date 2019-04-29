@@ -22,6 +22,11 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+#define TRACE_CODE_GC(...)                                         \
+  do {                                                             \
+    if (FLAG_trace_wasm_code_gc) PrintF("[wasm-gc] " __VA_ARGS__); \
+  } while (false)
+
 namespace {
 // A task to log a set of {WasmCode} objects in an isolate. It does not own any
 // data itself, since it is owned by the platform, so lifetime is not really
@@ -640,6 +645,9 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
         } else {
           ++it;
         }
+        TRACE_CODE_GC(
+            "Native module %p died, reducing dead code objects to %zu.\n",
+            native_module, current_gc_info_->dead_code.size());
       }
     }
     native_modules_.erase(it);
@@ -683,6 +691,8 @@ void WasmEngine::SampleTopTierCodeSizeInAllIsolates(
 
 void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
                                      Vector<WasmCode*> live_code) {
+  TRACE_CODE_GC("Isolate %d reporting %zu live code objects.\n", isolate->id(),
+                live_code.size());
   // Get the set of dead code under the mutex, but decrement the ref count after
   // releasing the mutex to avoid deadlocks.
   OwnedVector<WasmCode*> dead_code;
@@ -697,12 +707,19 @@ void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
     if (fg_task) fg_task->Cancel();
     current_gc_info_->outstanding_isolates.erase(outstanding_isolate_it);
     for (WasmCode* code : live_code) current_gc_info_->dead_code.erase(code);
+    TRACE_CODE_GC(
+        "Remaining dead code objects: %zu; outstanding isolates: %zu.\n",
+        current_gc_info_->dead_code.size(),
+        current_gc_info_->outstanding_isolates.size());
+
     // If there are more outstanding isolates, return here.
     if (!current_gc_info_->outstanding_isolates.empty()) return;
 
     // All remaining code in {current_gc_info->dead_code} is really dead.
     // Move it from the set of potentially dead code to the set of dead code,
     // and decrement its ref count.
+    TRACE_CODE_GC("Decrementing ref count on %zu code objects.\n",
+                  current_gc_info_->dead_code.size());
     dead_code = OwnedVector<WasmCode*>::Of(current_gc_info_->dead_code);
     for (WasmCode* code : dead_code) {
       DCHECK_EQ(1, native_modules_.count(code->native_module()));
@@ -733,6 +750,9 @@ bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
             : 1 * MB + code_manager_.committed_code_space() / 10;
     bool need_gc = new_potentially_dead_code_size_ > dead_code_limit;
     if (need_gc && !current_gc_info_) {
+      TRACE_CODE_GC(
+          "Triggering GC (potentially dead: %zu bytes; limit: %zu bytes).\n",
+          new_potentially_dead_code_size_, dead_code_limit);
       new_potentially_dead_code_size_ = 0;
       TriggerGC();
     }
@@ -752,6 +772,8 @@ void WasmEngine::FreeDeadCode(NativeModule* native_module,
     }
   }
 
+  TRACE_CODE_GC("Freeing %zu code object%s of module %p.\n", codes.size(),
+                codes.size() == 1 ? "" : "s", native_module);
   native_module->FreeCode(codes);
 }
 
@@ -779,6 +801,9 @@ void WasmEngine::TriggerGC() {
       current_gc_info_->dead_code.insert(code);
     }
   }
+  TRACE_CODE_GC(
+      "Starting GC. Total number of potentially dead code objects: %zu\n",
+      current_gc_info_->dead_code.size());
 }
 
 namespace {
@@ -817,6 +842,8 @@ uint32_t max_table_init_entries() {
   return std::min(uint32_t{kV8MaxWasmTableInitEntries},
                   FLAG_wasm_max_table_size);
 }
+
+#undef TRACE_CODE_GC
 
 }  // namespace wasm
 }  // namespace internal
