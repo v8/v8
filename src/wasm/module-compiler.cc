@@ -338,7 +338,6 @@ class CompilationStateImpl {
   std::unique_ptr<WasmCompilationUnit> GetNextCompilationUnit(
       int task_id, CompileBaselineOnly baseline_only);
 
-  void OnFinishedUnit(WasmCode*);
   void OnFinishedUnits(Vector<WasmCode*>);
 
   void OnBackgroundTaskStopped(int task_id, const WasmFeatures& detected);
@@ -495,14 +494,6 @@ bool CompilationState::baseline_compilation_finished() const {
 
 bool CompilationState::top_tier_compilation_finished() const {
   return Impl(this)->top_tier_compilation_finished();
-}
-
-void CompilationState::OnFinishedUnit(WasmCode* code) {
-  Impl(this)->OnFinishedUnit(code);
-}
-
-void CompilationState::OnFinishedUnits(Vector<WasmCode*> code_vector) {
-  Impl(this)->OnFinishedUnits(code_vector);
 }
 
 // static
@@ -2034,10 +2025,6 @@ std::unique_ptr<WasmCompilationUnit>
 CompilationStateImpl::GetNextCompilationUnit(
     int task_id, CompileBaselineOnly baseline_only) {
   return compilation_unit_queues_.GetNextUnit(task_id, baseline_only);
-}
-
-void CompilationStateImpl::OnFinishedUnit(WasmCode* code) {
-  OnFinishedUnits({&code, 1});
 }
 
 void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
