@@ -6448,7 +6448,7 @@ namespace {
 void LoadLiteral(MacroAssembler* masm, Register reg, uint64_t imm) {
   // Since we do not allow non-relocatable entries in the literal pool, we need
   // to fake a relocation mode that is not NONE here.
-  masm->Ldr(reg, Immediate(imm, RelocInfo::EMBEDDED_OBJECT));
+  masm->Ldr(reg, Immediate(imm, RelocInfo::FULL_EMBEDDED_OBJECT));
 }
 
 }  // namespace

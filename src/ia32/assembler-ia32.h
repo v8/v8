@@ -113,7 +113,7 @@ class Immediate {
   inline explicit Immediate(const ExternalReference& ext)
       : Immediate(ext.address(), RelocInfo::EXTERNAL_REFERENCE) {}
   inline explicit Immediate(Handle<HeapObject> handle)
-      : Immediate(handle.address(), RelocInfo::EMBEDDED_OBJECT) {}
+      : Immediate(handle.address(), RelocInfo::FULL_EMBEDDED_OBJECT) {}
   inline explicit Immediate(Smi value)
       : Immediate(static_cast<intptr_t>(value.ptr())) {}
 
@@ -126,7 +126,7 @@ class Immediate {
 
   bool is_heap_object_request() const {
     DCHECK_IMPLIES(is_heap_object_request_,
-                   rmode_ == RelocInfo::EMBEDDED_OBJECT ||
+                   rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
     return is_heap_object_request_;
   }
@@ -142,7 +142,8 @@ class Immediate {
   }
 
   bool is_embedded_object() const {
-    return !is_heap_object_request() && rmode() == RelocInfo::EMBEDDED_OBJECT;
+    return !is_heap_object_request() &&
+           rmode() == RelocInfo::FULL_EMBEDDED_OBJECT;
   }
 
   Handle<HeapObject> embedded_object() const {

@@ -266,6 +266,10 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   return GetCodeTarget(ReadUnalignedValue<int32_t>(pc));
 }
 
+Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(Address pc) {
+  return GetCompressedEmbeddedObject(ReadUnalignedValue<int32_t>(pc));
+}
+
 Address Assembler::runtime_entry_at(Address pc) {
   return ReadUnalignedValue<int32_t>(pc) + options().code_range_start;
 }
@@ -292,8 +296,9 @@ Address RelocInfo::target_address() {
 
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
-         IsWasmStubCall(rmode_) || IsEmbeddedObject(rmode_) ||
-         IsExternalReference(rmode_) || IsOffHeapTarget(rmode_));
+         IsWasmStubCall(rmode_) || IsFullEmbeddedObject(rmode_) ||
+         IsCompressedEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
+         IsOffHeapTarget(rmode_));
   return pc_;
 }
 
@@ -307,21 +312,43 @@ int RelocInfo::target_address_size() {
   if (IsCodedSpecially()) {
     return Assembler::kSpecialTargetSize;
   } else {
-    return kSystemPointerSize;
+    return IsCompressedEmbeddedObject(rmode_) ? kTaggedSize
+                                              : kSystemPointerSize;
   }
 }
 
 HeapObject RelocInfo::target_object() {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
+  if (IsCompressedEmbeddedObject(rmode_)) {
+    CHECK(!host_.is_null());
+    Object o = static_cast<Object>(DecompressTaggedPointer(
+        host_.ptr(), ReadUnalignedValue<Tagged_t>(pc_)));
+    return HeapObject::cast(o);
+  }
+  return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
+}
+
+HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
+  if (IsCompressedEmbeddedObject(rmode_)) {
+    Address root = isolate->isolate_root();
+    Object o = static_cast<Object>(
+        DecompressTaggedPointer<OnHeapAddressKind::kIsolateRoot>(
+            root, ReadUnalignedValue<Tagged_t>(pc_)));
+    return HeapObject::cast(o);
+  }
   return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  if (rmode_ == EMBEDDED_OBJECT) {
-    return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
-  } else {
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
+  if (IsCodeTarget(rmode_)) {
     return origin->code_target_object_handle_at(pc_);
+  } else {
+    if (IsCompressedEmbeddedObject(rmode_)) {
+      return origin->compressed_embedded_object_handle_at(pc_);
+    }
+    return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
   }
 }
 
@@ -353,8 +380,15 @@ Address RelocInfo::target_internal_reference_address() {
 void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  WriteUnalignedValue(pc_, target->ptr());
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
+  if (IsCompressedEmbeddedObject(rmode_)) {
+#ifdef V8_COMPRESS_POINTERS
+    Tagged_t tagged = CompressTagged(target->ptr());
+    WriteUnalignedValue(pc_, tagged);
+#endif  // V8_COMPRESS_POINTERS
+  } else {
+    WriteUnalignedValue(pc_, target->ptr());
+  }
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
   }
@@ -383,9 +417,12 @@ Address RelocInfo::target_off_heap_target() {
 }
 
 void RelocInfo::WipeOut() {
-  if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
+  if (IsFullEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
       IsInternalReference(rmode_) || IsOffHeapTarget(rmode_)) {
     WriteUnalignedValue(pc_, kNullAddress);
+  } else if (IsCompressedEmbeddedObject(rmode_)) {
+    Address smi_address = Smi::FromInt(0).ptr();
+    WriteUnalignedValue(pc_, CompressTagged(smi_address));
   } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
     // Effectively write zero into the relocation.
     Assembler::set_target_address_at(pc_, constant_pool_,

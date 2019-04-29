@@ -3773,7 +3773,8 @@ class SlotVerifyingVisitor : public ObjectVisitor {
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     Object target = rinfo->target_object();
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
-      CHECK(InTypedSet(EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
+      CHECK(InTypedSet(FULL_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
+            InTypedSet(COMPRESSED_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
             (rinfo->IsInConstantPool() &&
              InTypedSet(OBJECT_SLOT, rinfo->constant_pool_entry_address())));
     }
@@ -5810,8 +5811,8 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
 }
 
 void Heap::WriteBarrierForCodeSlow(Code code) {
-  for (RelocIterator it(code, RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));
-       !it.done(); it.next()) {
+  for (RelocIterator it(code, RelocInfo::EmbeddedObjectModeMask()); !it.done();
+       it.next()) {
     GenerationalBarrierForCode(code, it.rinfo(), it.rinfo()->target_object());
     MarkingBarrierForCode(code, it.rinfo(), it.rinfo()->target_object());
   }
@@ -5868,7 +5869,10 @@ void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
     if (RelocInfo::IsCodeTargetMode(rmode)) {
       slot_type = CODE_ENTRY_SLOT;
     } else {
-      DCHECK(RelocInfo::IsEmbeddedObject(rmode));
+      // Constant pools don't currently support compressed objects, as
+      // their values are all pointer sized (though this could change
+      // therefore we have a DCHECK).
+      DCHECK(RelocInfo::IsFullEmbeddedObject(rmode));
       slot_type = OBJECT_SLOT;
     }
   }

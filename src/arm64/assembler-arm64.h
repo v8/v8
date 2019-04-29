@@ -338,6 +338,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This might need to be temporarily encoded as an offset into code_targets_.
   inline Handle<Code> code_target_object_handle_at(Address pc);
 
+  inline Handle<HeapObject> compressed_embedded_object_handle_at(Address pc);
+
   // Returns the target address for a runtime function for the call encoded
   // at 'pc'.
   // Runtime entries can be temporarily encoded as the offset between the

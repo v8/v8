@@ -174,7 +174,7 @@ class ConcurrentMarkingVisitor final
                                ObjectSlot end) final {}
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
-    DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+    DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
     HeapObject object = rinfo->target_object();
     RecordRelocSlot(host, rinfo, object);
     if (!marking_state_.IsBlackOrGrey(object)) {

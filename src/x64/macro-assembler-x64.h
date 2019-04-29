@@ -308,9 +308,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(Register target, Register source);
 
   void Move(Register dst, Handle<HeapObject> source,
-            RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
+            RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
   void Move(Operand dst, Handle<HeapObject> source,
-            RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
+            RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
 
   // Loads a pointer into a register with a relocation mode.
   void Move(Register dst, Address ptr, RelocInfo::Mode rmode) {
@@ -323,8 +323,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
   void MovePair(Register dst0, Register src0, Register dst1, Register src1);
 
-  void MoveStringConstant(Register result, const StringConstantBase* string,
-                          RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
+  void MoveStringConstant(
+      Register result, const StringConstantBase* string,
+      RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
 
   // Convert smi to word-size sign-extended value.
   void SmiUntag(Register dst, Register src);

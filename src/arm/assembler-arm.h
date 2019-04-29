@@ -156,8 +156,8 @@ class V8_EXPORT_PRIVATE Operand {
   bool IsHeapObjectRequest() const {
     DCHECK_IMPLIES(is_heap_object_request_, IsImmediate());
     DCHECK_IMPLIES(is_heap_object_request_,
-        rmode_ == RelocInfo::EMBEDDED_OBJECT ||
-        rmode_ == RelocInfo::CODE_TARGET);
+                   rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
+                       rmode_ == RelocInfo::CODE_TARGET);
     return is_heap_object_request_;
   }
 
