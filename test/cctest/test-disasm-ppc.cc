@@ -47,13 +47,13 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 
   disasm.InstructionDecode(disasm_buffer, pc);
 
-  if (strcmp(compare_string, disasm_buffer.start()) != 0) {
+  if (strcmp(compare_string, disasm_buffer.begin()) != 0) {
     fprintf(stderr,
             "expected: \n"
             "%s\n"
             "disassembled: \n"
             "%s\n\n",
-            compare_string, disasm_buffer.start());
+            compare_string, disasm_buffer.begin());
     return false;
   }
   return true;

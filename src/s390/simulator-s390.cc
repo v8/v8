@@ -202,7 +202,7 @@ void S390Debugger::Debug() {
       // use a reasonably large buffer
       v8::internal::EmbeddedVector<char, 256> buffer;
       dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(sim_->get_pc()));
-      PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(), buffer.start());
+      PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(), buffer.begin());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -248,7 +248,7 @@ void S390Debugger::Debug() {
               dasm.InstructionDecode(buffer,
                                     reinterpret_cast<byte*>(sim_->get_pc()));
               PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
-                    buffer.start());
+                    buffer.begin());
               sim_->ExecuteInstruction(
                       reinterpret_cast<Instruction*>(sim_->get_pc()));
             }
@@ -258,14 +258,14 @@ void S390Debugger::Debug() {
             while (!sim_->has_bad_pc()) {
               dasm.InstructionDecode(buffer,
                                     reinterpret_cast<byte*>(sim_->get_pc()));
-              char* mnemonicStart = buffer.start();
+              char* mnemonicStart = buffer.begin();
               while (*mnemonicStart != 0 && *mnemonicStart != ' ')
                 mnemonicStart++;
               SScanF(mnemonicStart, "%s", mnemonic);
               if (!strcmp(arg1, mnemonic)) break;
 
               PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
-                    buffer.start());
+                    buffer.begin());
               sim_->ExecuteInstruction(
                       reinterpret_cast<Instruction*>(sim_->get_pc()));
             }
@@ -476,7 +476,7 @@ void S390Debugger::Debug() {
           prev = cur;
           cur += dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(prev),
-                 buffer.start());
+                 buffer.begin());
           numInstructions--;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -2375,7 +2375,7 @@ void Simulator::ExecuteInstruction(Instruction* instr, bool auto_incr_pc) {
     v8::internal::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(instr));
     PrintF("%05" PRId64 "  %08" V8PRIxPTR "  %s\n", icount_,
-           reinterpret_cast<intptr_t>(instr), buffer.start());
+           reinterpret_cast<intptr_t>(instr), buffer.begin());
 
     // Flush stdout to prevent incomplete file output during abnormal exits
     // This is caused by the output being buffered before being written to file

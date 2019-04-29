@@ -203,7 +203,7 @@ void PPCDebugger::Debug() {
       // use a reasonably large buffer
       v8::internal::EmbeddedVector<char, 256> buffer;
       dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(sim_->get_pc()));
-      PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(), buffer.start());
+      PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(), buffer.begin());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -245,7 +245,7 @@ void PPCDebugger::Debug() {
             dasm.InstructionDecode(buffer,
                                    reinterpret_cast<byte*>(sim_->get_pc()));
             PrintF("  0x%08" V8PRIxPTR "  %s\n", sim_->get_pc(),
-                   buffer.start());
+                   buffer.begin());
             sim_->ExecuteInstruction(
                 reinterpret_cast<Instruction*>(sim_->get_pc()));
           }
@@ -458,7 +458,7 @@ void PPCDebugger::Debug() {
           prev = cur;
           cur += dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" V8PRIxPTR "  %s\n", reinterpret_cast<intptr_t>(prev),
-                 buffer.start());
+                 buffer.begin());
         }
       } else if (strcmp(cmd, "gdb") == 0) {
         PrintF("relinquishing control to gdb\n");
@@ -3702,7 +3702,7 @@ void Simulator::Trace(Instruction* instr) {
   v8::internal::EmbeddedVector<char, 256> buffer;
   dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(instr));
   PrintF("%05d  %08" V8PRIxPTR "  %s\n", icount_,
-         reinterpret_cast<intptr_t>(instr), buffer.start());
+         reinterpret_cast<intptr_t>(instr), buffer.begin());
 }
 
 
