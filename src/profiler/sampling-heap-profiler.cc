@@ -25,10 +25,9 @@ namespace internal {
 //
 // Let u be a uniformly distributed random number between 0 and 1, then
 // next_sample = (- ln u) / λ
-intptr_t SamplingAllocationObserver::GetNextSampleInterval(uint64_t rate) {
-  if (FLAG_sampling_heap_profiler_suppress_randomness) {
+intptr_t SamplingHeapProfiler::Observer::GetNextSampleInterval(uint64_t rate) {
+  if (FLAG_sampling_heap_profiler_suppress_randomness)
     return static_cast<intptr_t>(rate);
-  }
   double u = random_->NextDouble();
   double next = (-base::ieee754::log(u)) * rate;
   return next < kTaggedSize
@@ -55,12 +54,8 @@ SamplingHeapProfiler::SamplingHeapProfiler(
     v8::HeapProfiler::SamplingFlags flags)
     : isolate_(Isolate::FromHeap(heap)),
       heap_(heap),
-      new_space_observer_(new SamplingAllocationObserver(
-          heap_, static_cast<intptr_t>(rate), rate, this,
-          isolate_->random_number_generator())),
-      other_spaces_observer_(new SamplingAllocationObserver(
-          heap_, static_cast<intptr_t>(rate), rate, this,
-          isolate_->random_number_generator())),
+      allocation_observer_(heap_, static_cast<intptr_t>(rate), rate, this,
+                           isolate_->random_number_generator()),
       names_(names),
       profile_root_(nullptr, "(root)", v8::UnboundScript::kNoScriptId, 0,
                     next_node_id()),
@@ -68,13 +63,13 @@ SamplingHeapProfiler::SamplingHeapProfiler(
       rate_(rate),
       flags_(flags) {
   CHECK_GT(rate_, 0u);
-  heap_->AddAllocationObserversToAllSpaces(other_spaces_observer_.get(),
-                                           new_space_observer_.get());
+  heap_->AddAllocationObserversToAllSpaces(&allocation_observer_,
+                                           &allocation_observer_);
 }
 
 SamplingHeapProfiler::~SamplingHeapProfiler() {
-  heap_->RemoveAllocationObserversFromAllSpaces(other_spaces_observer_.get(),
-                                                new_space_observer_.get());
+  heap_->RemoveAllocationObserversFromAllSpaces(&allocation_observer_,
+                                                &allocation_observer_);
 }
 
 void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
@@ -279,7 +274,7 @@ v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
   }
   auto profile = new v8::internal::AllocationProfile();
   TranslateAllocationNode(profile, &profile_root_, scripts);
-  profile->samples_ = SamplingHeapProfiler::BuildSamples();
+  profile->samples_ = BuildSamples();
 
   return profile;
 }
