@@ -1006,8 +1006,9 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   CodeDesc code_desc;
   Isolate* isolate = this->isolate();
   masm_.GetCode(isolate, &code_desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(code_desc, Code::REGEXP, masm_.CodeObject());
+  Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, Code::REGEXP)
+                          .set_self_reference(masm_.CodeObject())
+                          .Build();
   PROFILE(isolate, RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
 }

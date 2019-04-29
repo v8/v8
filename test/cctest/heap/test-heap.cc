@@ -201,8 +201,7 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 
   Handle<Code> copy;
   {
@@ -225,8 +224,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   CHECK(code->IsCode());
 
   HeapObject obj = HeapObject::cast(*code);
@@ -237,8 +235,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
     CHECK_EQ(*code, found);
   }
 
-  Handle<Code> copy =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> copy = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   HeapObject obj_copy = HeapObject::cast(*copy);
   Object not_right =
       isolate->FindCodeObject(obj_copy->address() + obj_copy->Size() / 2);
@@ -4259,8 +4256,10 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   masm.Push(isolate->factory()->undefined_value());
   masm.Drop(2);
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::OPTIMIZED_FUNCTION, masm.CodeObject());
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, Code::OPTIMIZED_FUNCTION)
+          .set_self_reference(masm.CodeObject())
+          .Build();
   CHECK(code->IsCode());
   return code;
 }
@@ -6073,9 +6072,8 @@ Handle<Code> GenerateDummyImmovableCode(Isolate* isolate) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::STUB, Handle<Code>(), Builtins::kNoBuiltinId,
-      MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate), kImmovable);
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, Code::STUB).set_immovable().Build();
   CHECK(code->IsCode());
 
   return code;

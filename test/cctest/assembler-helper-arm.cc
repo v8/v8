@@ -21,8 +21,7 @@ Handle<Code> AssembleCodeImpl(std::function<void(MacroAssembler&)> assemble) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   if (FLAG_print_code) {
     code->Print();
   }

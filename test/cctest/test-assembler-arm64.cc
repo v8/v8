@@ -14722,8 +14722,9 @@ TEST(pool_size) {
   HandleScope handle_scope(isolate);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, masm.CodeObject());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB)
+                          .set_self_reference(masm.CodeObject())
+                          .Build();
 
   unsigned pool_count = 0;
   int pool_mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL) |

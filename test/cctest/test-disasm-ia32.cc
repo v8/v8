@@ -902,8 +902,7 @@ TEST(DisasmIa320) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
   USE(code);
 #ifdef OBJECT_PRINT
   StdoutStream os;

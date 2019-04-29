@@ -32,9 +32,8 @@ TEST(Factory_NewCode) {
   desc.unwinding_info = nullptr;
   desc.unwinding_info_size = 0;
   desc.origin = nullptr;
-  Handle<Object> self_ref;
   Handle<Code> code =
-      i_isolate->factory()->NewCode(desc, Code::WASM_FUNCTION, self_ref);
+      Factory::CodeBuilder(i_isolate, desc, Code::WASM_FUNCTION).Build();
 
   CHECK(i_isolate->heap()->InSpace(*code, CODE_LO_SPACE));
 #if VERIFY_HEAP

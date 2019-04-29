@@ -299,8 +299,9 @@ Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
   OffHeapTrampolineGenerator generator(isolate);
   CodeDesc desc = generator.Generate(off_heap_entry);
 
-  return isolate->factory()->NewCode(desc, Code::BUILTIN,
-                                     generator.CodeObject());
+  return Factory::CodeBuilder(isolate, desc, Code::BUILTIN)
+      .set_self_reference(generator.CodeObject())
+      .Build();
 }
 
 // static

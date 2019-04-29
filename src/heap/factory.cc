@@ -73,14 +73,14 @@ int ComputeCodeObjectSize(const CodeDesc& desc) {
 
 }  // namespace
 
-CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
-                         Code::Kind kind)
+Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
+                                  Code::Kind kind)
     : isolate_(isolate),
       code_desc_(desc),
       kind_(kind),
       source_position_table_(isolate_->factory()->empty_byte_array()) {}
 
-MaybeHandle<Code> CodeBuilder::BuildInternal(bool failing_allocation) {
+MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(bool failing_allocation) {
   const auto factory = isolate_->factory();
   // Allocate objects needed for code initialization.
   Handle<ByteArray> reloc_info = factory->NewByteArray(
@@ -176,9 +176,11 @@ MaybeHandle<Code> CodeBuilder::BuildInternal(bool failing_allocation) {
   return code;
 }
 
-MaybeHandle<Code> CodeBuilder::TryBuild() { return BuildInternal(false); }
+MaybeHandle<Code> Factory::CodeBuilder::TryBuild() {
+  return BuildInternal(false);
+}
 
-Handle<Code> CodeBuilder::Build() {
+Handle<Code> Factory::CodeBuilder::Build() {
   return BuildInternal(true).ToHandleChecked();
 }
 

@@ -407,10 +407,14 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
     unwinding_info_writer_.eh_frame_writer()->GetEhFrame(&desc);
   }
 
-  MaybeHandle<Code> maybe_code = isolate()->factory()->TryNewCode(
-      desc, info()->code_kind(), Handle<Object>(), info()->builtin_index(),
-      source_positions, deopt_data, kMovable, true,
-      frame()->GetTotalFrameSlotCount());
+  MaybeHandle<Code> maybe_code =
+      Factory::CodeBuilder(isolate(), desc, info()->code_kind())
+          .set_builtin_index(info()->builtin_index())
+          .set_source_position_table(source_positions)
+          .set_deoptimization_data(deopt_data)
+          .set_is_turbofanned()
+          .set_stack_slots(frame()->GetTotalFrameSlotCount())
+          .TryBuild();
 
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {

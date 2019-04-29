@@ -2063,7 +2063,6 @@ class Heap {
   friend class heap::TestMemoryAllocatorScope;
 
   // The allocator interface.
-  friend class CodeBuilder;
   friend class Factory;
 
   // The Isolate constructs us.

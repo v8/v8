@@ -590,10 +590,9 @@ Handle<Code> CreateDummyOptimizedCode(Isolate* isolate) {
   desc.buffer = buffer;
   desc.buffer_size = arraysize(buffer);
   desc.instr_size = arraysize(buffer);
-  return isolate->factory()->NewCode(
-      desc, Code::OPTIMIZED_FUNCTION, Handle<Object>(), Builtins::kNoBuiltinId,
-      MaybeHandle<ByteArray>(), MaybeHandle<DeoptimizationData>(), kMovable,
-      true);
+  return Factory::CodeBuilder(isolate, desc, Code::OPTIMIZED_FUNCTION)
+      .set_is_turbofanned()
+      .Build();
 }
 
 // This test ensures that field generalization at |property_index| is done

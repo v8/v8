@@ -81,8 +81,10 @@ Handle<Code> BuildPlaceholder(Isolate* isolate, int32_t builtin_index) {
   }
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::BUILTIN, masm.CodeObject(), builtin_index);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::BUILTIN)
+                          .set_self_reference(masm.CodeObject())
+                          .set_builtin_index(builtin_index)
+                          .Build();
   return scope.CloseAndEscape(code);
 }
 
@@ -119,13 +121,10 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
   masm.GetCode(isolate, &desc, MacroAssembler::kNoSafepointTable,
                handler_table_offset);
 
-  static constexpr bool kIsNotTurbofanned = false;
-  static constexpr int kStackSlots = 0;
-
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::BUILTIN, masm.CodeObject(), builtin_index,
-      MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate), kMovable,
-      kIsNotTurbofanned, kStackSlots);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::BUILTIN)
+                          .set_self_reference(masm.CodeObject())
+                          .set_builtin_index(builtin_index)
+                          .Build();
 #if defined(V8_OS_WIN_X64)
   isolate->SetBuiltinUnwindData(builtin_index, masm.GetUnwindInfo());
 #endif
@@ -150,8 +149,10 @@ Code BuildAdaptor(Isolate* isolate, int32_t builtin_index,
   Builtins::Generate_Adaptor(&masm, builtin_address, exit_frame_type);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::BUILTIN, masm.CodeObject(), builtin_index);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::BUILTIN)
+                          .set_self_reference(masm.CodeObject())
+                          .set_builtin_index(builtin_index)
+                          .Build();
   PostBuildProfileAndTracing(isolate, *code, name);
   return *code;
 }
