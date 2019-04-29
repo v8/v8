@@ -772,8 +772,6 @@ enum GarbageCollector { SCAVENGER, MARK_COMPACTOR, MINOR_MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
-enum Movability { kMovable, kImmovable };
-
 enum VisitMode {
   VISIT_ALL,
   VISIT_ALL_IN_MINOR_MC_MARK,

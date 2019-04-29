@@ -969,7 +969,7 @@ class V8_EXPORT_PRIVATE Factory {
       return *this;
     }
     CodeBuilder& set_immovable() {
-      movability_ = kImmovable;
+      is_movable_ = false;
       return *this;
     }
     CodeBuilder& set_is_turbofanned() {
@@ -993,7 +993,7 @@ class V8_EXPORT_PRIVATE Factory {
     Handle<ByteArray> source_position_table_;
     Handle<DeoptimizationData> deoptimization_data_ =
         DeoptimizationData::Empty(isolate_);
-    Movability movability_ = kMovable;
+    bool is_movable_ = true;
     bool is_turbofanned_ = false;
     int stack_slots_ = 0;
   };

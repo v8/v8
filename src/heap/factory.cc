@@ -105,7 +105,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(bool failing_allocation) {
           heap->AllocateRawWithRetryOrFail(object_size, AllocationType::kCode);
     }
 
-    if (movability_ == kImmovable) {
+    if (!is_movable_) {
       result = heap->EnsureImmovableCode(result, object_size);
     }
 
