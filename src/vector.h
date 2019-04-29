@@ -81,32 +81,6 @@ class Vector {
     return Vector<T>(result, length_);
   }
 
-  template <typename CompareFunction>
-  void Sort(CompareFunction cmp, size_t s, size_t l) {
-    std::sort(begin() + s, begin() + s + l, RawComparer<CompareFunction>(cmp));
-  }
-
-  template <typename CompareFunction>
-  void Sort(CompareFunction cmp) {
-    std::sort(begin(), begin() + length(), RawComparer<CompareFunction>(cmp));
-  }
-
-  void Sort() { std::sort(begin(), begin() + length()); }
-
-  template <typename CompareFunction>
-  void StableSort(CompareFunction cmp, size_t s, size_t l) {
-    std::stable_sort(begin() + s, begin() + s + l,
-                     RawComparer<CompareFunction>(cmp));
-  }
-
-  template <typename CompareFunction>
-  void StableSort(CompareFunction cmp) {
-    std::stable_sort(begin(), begin() + length(),
-                     RawComparer<CompareFunction>(cmp));
-  }
-
-  void StableSort() { std::stable_sort(begin(), begin() + length()); }
-
   void Truncate(size_t length) {
     DCHECK(length <= length_);
     length_ = length;
@@ -157,18 +131,6 @@ class Vector {
  private:
   T* start_;
   size_t length_;
-
-  template <typename CookedComparer>
-  class RawComparer {
-   public:
-    explicit RawComparer(CookedComparer cmp) : cmp_(cmp) {}
-    bool operator()(const T& a, const T& b) {
-      return cmp_(&a, &b) < 0;
-    }
-
-   private:
-    CookedComparer cmp_;
-  };
 };
 
 

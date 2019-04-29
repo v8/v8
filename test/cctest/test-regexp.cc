@@ -674,7 +674,7 @@ TEST(DispatchTableConstruction) {
     for (int j = 0; j < 2 * kRangeSize; j++) {
       range[j] = PseudoRandom(i + 25, j + 87) % kLimit;
     }
-    range.Sort();
+    std::sort(range.begin(), range.end());
     for (int j = 1; j < 2 * kRangeSize; j++) {
       CHECK(range[j-1] <= range[j]);
     }
