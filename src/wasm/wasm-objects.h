@@ -262,7 +262,9 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
 
   inline uint32_t current_length();
   inline wasm::ValueType type();
-  void Grow(Isolate* isolate, uint32_t count);
+
+  static int Grow(Isolate* isolate, Handle<WasmTableObject> table,
+                  uint32_t count, Handle<Object> init_value);
 
   static Handle<WasmTableObject> New(Isolate* isolate, wasm::ValueType type,
                                      uint32_t initial, bool has_maximum,

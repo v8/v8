@@ -1412,40 +1412,13 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::FixedArray> old_array(receiver->elements(), i_isolate);
-  uint32_t old_size = static_cast<uint32_t>(old_array->length());
+  int old_size = i::WasmTableObject::Grow(i_isolate, receiver, grow_by,
+                                          i_isolate->factory()->null_value());
 
-  uint64_t max_size64 = receiver->maximum_length().IsUndefined(i_isolate)
-                            ? i::FLAG_wasm_max_table_size
-                            : receiver->maximum_length()->Number();
-  if (max_size64 > i::FLAG_wasm_max_table_size) {
-    max_size64 = i::FLAG_wasm_max_table_size;
-  }
-
-  DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
-
-  uint64_t new_size64 =
-      static_cast<uint64_t>(old_size) + static_cast<uint64_t>(grow_by);
-  if (new_size64 > max_size64) {
-    thrower.RangeError("maximum table size exceeded");
+  if (old_size < 0) {
+    thrower.RangeError("failed to grow table by %u", grow_by);
     return;
   }
-  uint32_t new_size = static_cast<uint32_t>(new_size64);
-
-  if (new_size != old_size) {
-    receiver->Grow(i_isolate, new_size - old_size);
-
-    i::Handle<i::FixedArray> new_array =
-        i_isolate->factory()->NewFixedArray(new_size);
-    for (uint32_t i = 0; i < old_size; ++i) {
-      new_array->set(i, old_array->get(i));
-    }
-    i::Object null = i::ReadOnlyRoots(i_isolate).null_value();
-    for (uint32_t i = old_size; i < new_size; ++i) new_array->set(i, null);
-    receiver->set_elements(*new_array);
-  }
-
-  // TODO(gdeepti): use weak links for instances
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(old_size);
 }

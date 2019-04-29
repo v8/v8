@@ -835,13 +835,27 @@ void WasmTableObject::AddDispatchTable(Isolate* isolate,
   table_obj->set_dispatch_tables(*new_dispatch_tables);
 }
 
-void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
-  if (count == 0) return;  // Degenerate case: nothing to do.
+int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
+                          uint32_t count, Handle<Object> init_value) {
+  uint32_t old_size = table->current_length();
+  if (count == 0) return old_size;  // Degenerate case: nothing to do.
 
-  Handle<FixedArray> dispatch_tables(this->dispatch_tables(), isolate);
+  // Check if growing by {count} is valid.
+  uint32_t max_size;
+  if (!table->maximum_length()->ToUint32(&max_size)) {
+    max_size = FLAG_wasm_max_table_size;
+  }
+  DCHECK_LE(old_size, max_size);
+  if (max_size - old_size < count) return -1;
+
+  uint32_t new_size = old_size + count;
+  auto new_store = isolate->factory()->CopyFixedArrayAndGrow(
+      handle(table->elements(), isolate), count);
+
+  table->set_elements(*new_store, WriteBarrierMode::UPDATE_WRITE_BARRIER);
+
+  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
   DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
-  uint32_t old_size = elements()->length();
-
   // Tables are stored in the instance object, no code patching is
   // necessary. We simply have to grow the raw tables in each instance
   // that has imported this table.
@@ -853,10 +867,14 @@ void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
     Handle<WasmInstanceObject> instance(
         WasmInstanceObject::cast(dispatch_tables->get(i)), isolate);
     DCHECK_EQ(old_size, instance->indirect_function_table_size());
-    uint32_t new_size = old_size + count;
     WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(instance,
                                                                    new_size);
   }
+
+  for (uint32_t entry = old_size; entry < new_size; ++entry) {
+    WasmTableObject::Set(isolate, table, entry, init_value);
+  }
+  return old_size;
 }
 
 bool WasmTableObject::IsInBounds(Isolate* isolate,

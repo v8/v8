@@ -2000,37 +2000,11 @@ auto Table::size() const -> size_t {
 
 auto Table::grow(size_t delta, const Ref* ref) -> bool {
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
-  const uint32_t kMax = i::FLAG_wasm_max_table_size;
-  if (delta > kMax) return false;
-  uint32_t old_size = table->current_length();
-  if (kMax - old_size < delta) return false;
-  uint32_t new_size = old_size + static_cast<uint32_t>(delta);
-  // TODO(v8): The max check should happen in WasmTableObject::Grow.
-  uint32_t max;
-  if (table->maximum_length()->ToUint32(&max)) {
-    if (new_size > max) return false;
-  }
-  if (new_size != old_size) {
-    i::Isolate* isolate = table->GetIsolate();
-    i::HandleScope scope(isolate);
-    table->Grow(isolate, static_cast<uint32_t>(delta));
-    // TODO(v8): This should happen in WasmTableObject::Grow.
-    i::Handle<i::FixedArray> old_array(table->elements(), isolate);
-    i::Handle<i::FixedArray> new_array =
-        isolate->factory()->NewFixedArray(static_cast<int>(new_size));
-    for (int i = 0; i < static_cast<int>(old_size); i++) {
-      new_array->set(i, old_array->get(i));
-    }
-    i::Handle<i::Object> val =
-        ref ? i::Handle<i::Object>::cast(impl(ref)->v8_object())
-            : i::Handle<i::Object>::cast(
-                  i::ReadOnlyRoots(isolate).null_value_handle());
-    for (int i = old_size; i < static_cast<int>(new_size); i++) {
-      new_array->set(i, *val);
-    }
-    table->set_elements(*new_array);
-  }
-  return true;
+  i::Isolate* isolate = table->GetIsolate();
+  int result =
+      i::WasmTableObject::Grow(isolate, table, static_cast<uint32_t>(delta),
+                               isolate->factory()->null_value());
+  return result >= 0;
 }
 
 // Memory Instances
