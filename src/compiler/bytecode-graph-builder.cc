@@ -38,9 +38,7 @@ class BytecodeGraphBuilder {
                        CallFrequency invocation_frequency,
                        SourcePositionTable* source_positions,
                        Handle<Context> native_context, int inlining_id,
-                       JSTypeHintLowering::Flags flags,
-                       bool skip_first_stack_check,
-                       bool analyze_environment_liveness);
+                       BytecodeGraphBuilderFlags flags);
 
   // Creates a graph by visiting bytecodes.
   void CreateGraph();
@@ -354,10 +352,6 @@ class BytecodeGraphBuilder {
 
   void unset_skip_next_stack_check() { skip_next_stack_check_ = false; }
 
-  bool analyze_environment_liveness() const {
-    return analyze_environment_liveness_;
-  }
-
   int current_exception_handler() { return current_exception_handler_; }
 
   void set_current_exception_handler(int index) {
@@ -391,7 +385,6 @@ class BytecodeGraphBuilder {
   BailoutId const osr_offset_;
   int currently_peeled_loop_offset_;
   bool skip_next_stack_check_;
-  bool const analyze_environment_liveness_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
@@ -942,14 +935,17 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
     JSGraph* jsgraph, CallFrequency invocation_frequency,
     SourcePositionTable* source_positions, Handle<Context> native_context,
-    int inlining_id, JSTypeHintLowering::Flags flags,
-    bool skip_first_stack_check, bool analyze_environment_liveness)
+    int inlining_id, BytecodeGraphBuilderFlags flags)
     : local_zone_(local_zone),
       jsgraph_(jsgraph),
       invocation_frequency_(invocation_frequency),
       bytecode_array_(bytecode_array),
       feedback_vector_(feedback_vector),
-      type_hint_lowering_(jsgraph, feedback_vector, flags),
+      type_hint_lowering_(
+          jsgraph, feedback_vector,
+          (flags & BytecodeGraphBuilderFlag::kBailoutOnUninitialized)
+              ? JSTypeHintLowering::kBailoutOnUninitialized
+              : JSTypeHintLowering::kNoFlags),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kInterpretedFunction,
           bytecode_array->parameter_count(), bytecode_array->register_count(),
@@ -957,13 +953,14 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       source_position_iterator_(
           handle(bytecode_array->SourcePositionTableIfCollected(), isolate())),
       bytecode_iterator_(bytecode_array),
-      bytecode_analysis_(bytecode_array, local_zone,
-                         analyze_environment_liveness),
+      bytecode_analysis_(
+          bytecode_array, local_zone,
+          flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness),
       environment_(nullptr),
       osr_offset_(osr_offset),
       currently_peeled_loop_offset_(-1),
-      skip_next_stack_check_(skip_first_stack_check),
-      analyze_environment_liveness_(analyze_environment_liveness),
+      skip_next_stack_check_(flags &
+                             BytecodeGraphBuilderFlag::kSkipFirstStackCheck),
       merge_environments_(local_zone),
       generator_merge_environments_(local_zone),
       exception_handlers_(local_zone),
@@ -1294,11 +1291,6 @@ void BytecodeGraphBuilder::VisitSingleBytecode() {
 
 void BytecodeGraphBuilder::VisitBytecodes() {
   RunBytecodeAnalysis();
-
-  if (analyze_environment_liveness() && FLAG_trace_environment_liveness) {
-    StdoutStream of;
-    bytecode_analysis().PrintLivenessTo(of);
-  }
 
   if (!bytecode_analysis().resume_jump_targets().empty()) {
     environment()->BindGeneratorState(
@@ -4044,12 +4036,11 @@ void BuildGraphFromBytecode(
     Handle<SharedFunctionInfo> shared, Handle<FeedbackVector> feedback_vector,
     BailoutId osr_offset, JSGraph* jsgraph, CallFrequency invocation_frequency,
     SourcePositionTable* source_positions, Handle<Context> native_context,
-    int inlining_id, JSTypeHintLowering::Flags flags,
-    bool skip_first_stack_check, bool analyze_environment_liveness) {
-  BytecodeGraphBuilder builder(
-      local_zone, bytecode_array, shared, feedback_vector, osr_offset, jsgraph,
-      invocation_frequency, source_positions, native_context, inlining_id,
-      flags, skip_first_stack_check, analyze_environment_liveness);
+    int inlining_id, BytecodeGraphBuilderFlags flags) {
+  BytecodeGraphBuilder builder(local_zone, bytecode_array, shared,
+                               feedback_vector, osr_offset, jsgraph,
+                               invocation_frequency, source_positions,
+                               native_context, inlining_id, flags);
   builder.CreateGraph();
 }
 

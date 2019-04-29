@@ -488,14 +488,18 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   {
     // Run the BytecodeGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
-    JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags;
-    if (info_->is_bailout_on_uninitialized()) {
-      flags |= JSTypeHintLowering::kBailoutOnUninitialized;
+    BytecodeGraphBuilderFlags flags(
+        BytecodeGraphBuilderFlag::kSkipFirstStackCheck);
+    if (info_->is_analyze_environment_liveness()) {
+      flags |= BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness;
     }
-    BuildGraphFromBytecode(
-        zone(), bytecode_array, shared_info, feedback_vector, BailoutId::None(),
-        jsgraph(), call.frequency(), source_positions_, native_context(),
-        inlining_id, flags, true, info_->is_analyze_environment_liveness());
+    if (info_->is_bailout_on_uninitialized()) {
+      flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
+    }
+    BuildGraphFromBytecode(zone(), bytecode_array, shared_info, feedback_vector,
+                           BailoutId::None(), jsgraph(), call.frequency(),
+                           source_positions_, native_context(), inlining_id,
+                           flags);
 
     // Extract the inlinee start/end nodes.
     start = graph()->start();

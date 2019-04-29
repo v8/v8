@@ -9,7 +9,6 @@
 #include "src/compiler/js-type-hint-lowering.h"
 #include "src/handles.h"
 #include "src/utils.h"
-#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -17,19 +16,26 @@ namespace internal {
 class BytecodeArray;
 class FeedbackVector;
 class SharedFunctionInfo;
+class Zone;
 
 namespace compiler {
 
 class JSGraph;
 class SourcePositionTable;
 
+enum class BytecodeGraphBuilderFlag : uint8_t {
+  kSkipFirstStackCheck = 1 << 0,
+  kAnalyzeEnvironmentLiveness = 1 << 1,
+  kBailoutOnUninitialized = 1 << 2,
+};
+using BytecodeGraphBuilderFlags = base::Flags<BytecodeGraphBuilderFlag>;
+
 void BuildGraphFromBytecode(
     Zone* local_zone, Handle<BytecodeArray> bytecode_array,
     Handle<SharedFunctionInfo> shared, Handle<FeedbackVector> feedback_vector,
     BailoutId osr_offset, JSGraph* jsgraph, CallFrequency invocation_frequency,
     SourcePositionTable* source_positions, Handle<Context> native_context,
-    int inlining_id, JSTypeHintLowering::Flags flags,
-    bool skip_first_stack_check, bool analyze_environment_liveness);
+    int inlining_id, BytecodeGraphBuilderFlags flags);
 
 }  // namespace compiler
 }  // namespace internal

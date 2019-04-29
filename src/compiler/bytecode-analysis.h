@@ -35,8 +35,8 @@ class V8_EXPORT_PRIVATE BytecodeLoopAssignments {
   int local_count() const { return bit_vector_->length() - parameter_count_; }
 
  private:
-  int parameter_count_;
-  BitVector* bit_vector_;
+  int const parameter_count_;
+  BitVector* const bit_vector_;
 };
 
 // Jump targets for resuming a suspended generator.
@@ -129,8 +129,6 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis {
   // Gets the out-liveness for the bytecode at {offset}.
   const BytecodeLivenessState* GetOutLivenessFor(int offset) const;
 
-  std::ostream& PrintLivenessTo(std::ostream& os) const;
-
  private:
   struct LoopStackEntry {
     int header_offset;
@@ -152,10 +150,11 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis {
   Zone* zone() const { return zone_; }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
 
- private:
-  Handle<BytecodeArray> bytecode_array_;
-  bool do_liveness_analysis_;
-  Zone* zone_;
+  std::ostream& PrintLivenessTo(std::ostream& os) const;
+
+  Handle<BytecodeArray> const bytecode_array_;
+  bool const do_liveness_analysis_;
+  Zone* const zone_;
 
   ZoneStack<LoopStackEntry> loop_stack_;
   ZoneVector<int> loop_end_index_queue_;

@@ -538,6 +538,12 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
     }
   }
 
+  DCHECK(do_liveness_analysis_);
+  if (FLAG_trace_environment_liveness) {
+    StdoutStream of;
+    PrintLivenessTo(of);
+  }
+
   DCHECK(LivenessIsValid());
 }
 

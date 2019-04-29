@@ -1061,17 +1061,19 @@ struct GraphBuilderPhase {
   static const char* phase_name() { return "V8.TFBytecodeGraphBuilder"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags;
+    BytecodeGraphBuilderFlags flags;
+    if (data->info()->is_analyze_environment_liveness()) {
+      flags |= BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness;
+    }
     if (data->info()->is_bailout_on_uninitialized()) {
-      flags |= JSTypeHintLowering::kBailoutOnUninitialized;
+      flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
     BuildGraphFromBytecode(
         temp_zone, data->info()->bytecode_array(), data->info()->shared_info(),
         handle(data->info()->closure()->feedback_vector(), data->isolate()),
         data->info()->osr_offset(), data->jsgraph(), CallFrequency(1.0f),
         data->source_positions(), data->native_context(),
-        SourcePosition::kNotInlined, flags, false,
-        data->info()->is_analyze_environment_liveness());
+        SourcePosition::kNotInlined, flags);
   }
 };
 
