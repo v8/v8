@@ -2043,21 +2043,23 @@ Handle<Map> Map::CopyForPreventExtensions(Isolate* isolate, Handle<Map> map,
     ElementsKind new_kind = IsStringWrapperElementsKind(map->elements_kind())
                                 ? SLOW_STRING_WRAPPER_ELEMENTS
                                 : DICTIONARY_ELEMENTS;
-    switch (map->elements_kind()) {
-      case PACKED_ELEMENTS:
-        if (attrs_to_add == SEALED) {
-          new_kind = PACKED_SEALED_ELEMENTS;
-        } else if (attrs_to_add == FROZEN) {
-          new_kind = PACKED_FROZEN_ELEMENTS;
-        }
-        break;
-      case PACKED_SEALED_ELEMENTS:
-        if (attrs_to_add == FROZEN) {
-          new_kind = PACKED_FROZEN_ELEMENTS;
-        }
-        break;
-      default:
-        break;
+    if (FLAG_enable_sealed_frozen_elements_kind) {
+      switch (map->elements_kind()) {
+        case PACKED_ELEMENTS:
+          if (attrs_to_add == SEALED) {
+            new_kind = PACKED_SEALED_ELEMENTS;
+          } else if (attrs_to_add == FROZEN) {
+            new_kind = PACKED_FROZEN_ELEMENTS;
+          }
+          break;
+        case PACKED_SEALED_ELEMENTS:
+          if (attrs_to_add == FROZEN) {
+            new_kind = PACKED_FROZEN_ELEMENTS;
+          }
+          break;
+        default:
+          break;
+      }
     }
     new_map->set_elements_kind(new_kind);
   }

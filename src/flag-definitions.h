@@ -354,6 +354,9 @@ DEFINE_BOOL(enable_one_shot_optimization, true,
             "Enable size optimizations for the code that will "
             "only be executed once")
 
+// Flag for sealed, frozen elements kind instead of dictionary elements kind
+DEFINE_BOOL(enable_sealed_frozen_elements_kind, true,
+            "Enable sealed, frozen elements kind")
 
 // Flags for data representation optimizations
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
