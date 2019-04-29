@@ -103,7 +103,7 @@ class WasmSerializationTest {
       Vector<const byte> deserialized_module_wire_bytes =
           module_object->native_module()->wire_bytes();
       CHECK_EQ(deserialized_module_wire_bytes.size(), wire_bytes_.size());
-      CHECK_EQ(memcmp(deserialized_module_wire_bytes.start(),
+      CHECK_EQ(memcmp(deserialized_module_wire_bytes.begin(),
                       wire_bytes_.data(), wire_bytes_.size()),
                0);
     }

@@ -1398,7 +1398,8 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
       : data_(vector) {}
   ~OneByteVectorResource() override = default;
   size_t length() const override { return data_.length(); }
-  const char* data() const override { return data_.start(); }
+  const char* data() const override { return data_.begin(); }
+
  private:
   i::Vector<const char> data_;
 };
@@ -1705,7 +1706,6 @@ TEST(InvalidExternalString) {
   }
 }
 
-
 #define INVALID_STRING_TEST(FUN, TYPE)                                         \
   TEST(StringOOM##FUN) {                                                       \
     CcTest::InitializeVM();                                                    \
@@ -1715,9 +1715,9 @@ TEST(InvalidExternalString) {
     static const int invalid = String::kMaxLength + 1;                         \
     HandleScope scope(isolate);                                                \
     Vector<TYPE> dummy = Vector<TYPE>::New(invalid);                           \
-    memset(dummy.start(), 0x0, dummy.length() * sizeof(TYPE));                 \
+    memset(dummy.begin(), 0x0, dummy.length() * sizeof(TYPE));                 \
     CHECK(isolate->factory()->FUN(Vector<const TYPE>::cast(dummy)).is_null()); \
-    memset(dummy.start(), 0x20, dummy.length() * sizeof(TYPE));                \
+    memset(dummy.begin(), 0x20, dummy.length() * sizeof(TYPE));                \
     CHECK(isolate->has_pending_exception());                                   \
     isolate->clear_pending_exception();                                        \
     dummy.Dispose();                                                           \

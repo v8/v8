@@ -46,7 +46,7 @@ class StringSearchBase {
   }
 
   static inline bool IsOneByteString(Vector<const uc16> string) {
-    return String::IsOneByte(string.start(), string.length());
+    return String::IsOneByte(string.begin(), string.length());
   }
 
   friend class Isolate;
@@ -218,11 +218,11 @@ inline int FindFirstCharacter(Vector<const PatternChar> pattern,
   do {
     DCHECK_GE(max_n - pos, 0);
     const SubjectChar* char_pos = reinterpret_cast<const SubjectChar*>(
-        memchr(subject.start() + pos, search_byte,
+        memchr(subject.begin() + pos, search_byte,
                (max_n - pos) * sizeof(SubjectChar)));
     if (char_pos == nullptr) return -1;
     char_pos = AlignDown(char_pos, sizeof(SubjectChar));
-    pos = static_cast<int>(char_pos - subject.start());
+    pos = static_cast<int>(char_pos - subject.begin());
     if (subject[pos] == search_char) return pos;
   } while (++pos < max_n);
 
@@ -288,8 +288,7 @@ int StringSearch<PatternChar, SubjectChar>::LinearSearch(
     i++;
     // Loop extracted to separate function to allow using return to do
     // a deeper break.
-    if (CharCompare(pattern.start() + 1,
-                    subject.start() + i,
+    if (CharCompare(pattern.begin() + 1, subject.begin() + i,
                     pattern_length - 1)) {
       return i - 1;
     }
@@ -357,7 +356,7 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreSearch(
 template <typename PatternChar, typename SubjectChar>
 void StringSearch<PatternChar, SubjectChar>::PopulateBoyerMooreTable() {
   int pattern_length = pattern_.length();
-  const PatternChar* pattern = pattern_.start();
+  const PatternChar* pattern = pattern_.begin();
   // Only look at the last kBMMaxShift characters of pattern (from start_
   // to pattern_length).
   int start = start_;

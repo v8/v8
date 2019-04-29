@@ -206,9 +206,9 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   size_t new_size = bytes_offset + bytes.size();
   OwnedVector<uint8_t> new_bytes = OwnedVector<uint8_t>::New(new_size);
   if (old_size > 0) {
-    memcpy(new_bytes.start(), old_bytes.start(), old_size);
+    memcpy(new_bytes.start(), old_bytes.begin(), old_size);
   }
-  memcpy(new_bytes.start() + bytes_offset, bytes.start(), bytes.length());
+  memcpy(new_bytes.start() + bytes_offset, bytes.begin(), bytes.length());
   native_module_->SetWireBytes(std::move(new_bytes));
   return bytes_offset;
 }
@@ -248,7 +248,7 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(Vector<const byte> bytes) {
   Address new_data_address =
       reinterpret_cast<Address>(data_segment_data_.data());
 
-  memcpy(data_segment_data_.data() + old_data_size, bytes.start(),
+  memcpy(data_segment_data_.data() + old_data_size, bytes.begin(),
          bytes.length());
 
   // The data_segment_data_ offset may have moved, so update all the starts.
@@ -503,11 +503,11 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
 
   CompilationEnv env = builder_->CreateCompilationEnv();
   ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
-  memcpy(func_wire_bytes.start(), wire_bytes.start() + function_->code.offset(),
+  memcpy(func_wire_bytes.begin(), wire_bytes.begin() + function_->code.offset(),
          func_wire_bytes.length());
 
   FunctionBody func_body{function_->sig, function_->code.offset(),
-                         func_wire_bytes.start(), func_wire_bytes.end()};
+                         func_wire_bytes.begin(), func_wire_bytes.end()};
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
   WasmCompilationUnit unit(function_->func_index, builder_->execution_tier());

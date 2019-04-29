@@ -57,7 +57,7 @@ class Collector {
     if (size > current_chunk_.length() - index_) {
       Grow(size);
     }
-    T* position = current_chunk_.start() + index_;
+    T* position = current_chunk_.begin() + index_;
     index_ += size;
     size_ += size;
     for (int i = 0; i < size; i++) {
@@ -74,7 +74,7 @@ class Collector {
     if (source.length() > current_chunk_.length() - index_) {
       Grow(source.length());
     }
-    T* position = current_chunk_.start() + index_;
+    T* position = current_chunk_.begin() + index_;
     index_ += source.length();
     size_ += source.length();
     for (int i = 0; i < source.length(); i++) {

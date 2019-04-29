@@ -169,11 +169,11 @@ const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
   if (flat.IsOneByte()) {
     if (!*dest) {
       dest->reset(NewArray<uc16>(length));
-      CopyChars(dest->get(), flat.ToOneByteVector().start(), length);
+      CopyChars(dest->get(), flat.ToOneByteVector().begin(), length);
     }
     return reinterpret_cast<const UChar*>(dest->get());
   } else {
-    return reinterpret_cast<const UChar*>(flat.ToUC16Vector().start());
+    return reinterpret_cast<const UChar*>(flat.ToUC16Vector().begin());
   }
 }
 
@@ -267,7 +267,7 @@ String Intl::ConvertOneByteToLower(String src, String dst) {
   uint8_t* dst_data = SeqOneByteString::cast(dst)->GetChars(no_gc);
 
   if (src_flat.IsOneByte()) {
-    const uint8_t* src_data = src_flat.ToOneByteVector().start();
+    const uint8_t* src_data = src_flat.ToOneByteVector().begin();
 
     bool has_changed_character = false;
     int index_to_first_unprocessed =
@@ -289,7 +289,7 @@ String Intl::ConvertOneByteToLower(String src, String dst) {
     int index_to_first_unprocessed = FindFirstUpperOrNonAscii(src, length);
     if (index_to_first_unprocessed == length) return src;
 
-    const uint16_t* src_data = src_flat.ToUC16Vector().start();
+    const uint16_t* src_data = src_flat.ToUC16Vector().begin();
     CopyChars(dst_data, src_data, index_to_first_unprocessed);
     for (int index = index_to_first_unprocessed; index < length; ++index) {
       dst_data[index] = ToLatin1Lower(static_cast<uint16_t>(src_data[index]));
@@ -348,7 +348,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
         bool has_changed_character = false;
         int index_to_first_unprocessed = FastAsciiConvert<false>(
             reinterpret_cast<char*>(result->GetChars(no_gc)),
-            reinterpret_cast<const char*>(src.start()), length,
+            reinterpret_cast<const char*>(src.begin()), length,
             &has_changed_character);
         if (index_to_first_unprocessed == length) {
           return has_changed_character ? result : s;

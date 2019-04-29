@@ -82,7 +82,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
 
     if (name != nullptr) {
       SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc), name);
-      return v8_buffer_.start();
+      return v8_buffer_.begin();
     }
 
     int offs = static_cast<int>(reinterpret_cast<Address>(pc) -
@@ -90,7 +90,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
     // print as code offset, if it seems reasonable
     if (0 <= offs && offs < code_.instruction_size()) {
       SNPrintF(v8_buffer_, "%p  <+0x%x>", static_cast<void*>(pc), offs);
-      return v8_buffer_.start();
+      return v8_buffer_.begin();
     }
 
     wasm::WasmCodeRefScope wasm_code_ref_scope;
@@ -101,7 +101,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
     if (wasm_code != nullptr) {
       SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc),
                wasm::GetWasmCodeKindAsString(wasm_code->kind()));
-      return v8_buffer_.start();
+      return v8_buffer_.begin();
     }
   }
 
@@ -136,7 +136,7 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
         static_cast<RootIndex>(offset_in_roots_table / kSystemPointerSize);
 
     SNPrintF(v8_buffer_, "root (%s)", RootsTable::name(root_index));
-    return v8_buffer_.start();
+    return v8_buffer_.begin();
 
   } else if (static_cast<unsigned>(offset - kExtRefsTableStart) <
              kExtRefsTableSize) {
@@ -155,7 +155,7 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
     SNPrintF(v8_buffer_, "external reference (%s)",
              isolate_->external_reference_table()->NameFromOffset(
                  offset_in_extref_table));
-    return v8_buffer_.start();
+    return v8_buffer_.begin();
 
   } else if (static_cast<unsigned>(offset - kBuiltinsTableStart) <
              kBuiltinsTableSize) {
@@ -166,7 +166,7 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
 
     const char* name = Builtins::name(builtin_id);
     SNPrintF(v8_buffer_, "builtin (%s)", name);
-    return v8_buffer_.start();
+    return v8_buffer_.begin();
 
   } else {
     // It must be a direct access to one of the external values.
@@ -177,7 +177,7 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
     auto iter = directly_accessed_external_refs_.find(offset);
     if (iter != directly_accessed_external_refs_.end()) {
       SNPrintF(v8_buffer_, "external value (%s)", iter->second);
-      return v8_buffer_.start();
+      return v8_buffer_.begin();
     }
     return nullptr;
   }
@@ -273,7 +273,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
   CHECK(!code.is_null());
   v8::internal::EmbeddedVector<char, 128> decode_buffer;
   v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
-  StringBuilder out(out_buffer.start(), out_buffer.length());
+  StringBuilder out(out_buffer.begin(), out_buffer.length());
   byte* pc = begin;
   disasm::Disassembler d(converter,
                          disasm::Disassembler::kContinueOnUnimplementedOpcode);
@@ -356,7 +356,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
                      prev_pc - begin);
 
     // Instruction.
-    out.AddFormatted("%s", decode_buffer.start());
+    out.AddFormatted("%s", decode_buffer.begin());
 
     // Print all the reloc info for this instruction which are not comments.
     for (size_t i = 0; i < pcs.size(); i++) {

@@ -27,7 +27,7 @@ class WasmCodeFuzzer : public WasmExecutionFuzzer {
     TestSignatures sigs;
     WasmModuleBuilder builder(zone);
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-    f->EmitCode(data.start(), static_cast<uint32_t>(data.size()));
+    f->EmitCode(data.begin(), static_cast<uint32_t>(data.size()));
     uint8_t end_opcode = kExprEnd;
     f->EmitCode(&end_opcode, 1);
     builder.AddExport(CStrVector("main"), f);

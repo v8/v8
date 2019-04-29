@@ -71,10 +71,10 @@ char* SimpleStringBuilder::Finalize() {
   buffer_[position_] = '\0';
   // Make sure nobody managed to add a 0-character to the
   // buffer while building the string.
-  DCHECK(strlen(buffer_.start()) == static_cast<size_t>(position_));
+  DCHECK(strlen(buffer_.begin()) == static_cast<size_t>(position_));
   position_ = -1;
   DCHECK(is_finalized());
-  return buffer_.start();
+  return buffer_.begin();
 }
 
 std::ostream& operator<<(std::ostream& os, FeedbackSlot slot) {
@@ -137,12 +137,12 @@ int SNPrintF(Vector<char> str, const char* format, ...) {
 
 
 int VSNPrintF(Vector<char> str, const char* format, va_list args) {
-  return base::OS::VSNPrintF(str.start(), str.length(), format, args);
+  return base::OS::VSNPrintF(str.begin(), str.length(), format, args);
 }
 
 
 void StrNCpy(Vector<char> dest, const char* src, size_t n) {
-  base::OS::StrNCpy(dest.start(), dest.length(), src, n);
+  base::OS::StrNCpy(dest.begin(), dest.length(), src, n);
 }
 
 

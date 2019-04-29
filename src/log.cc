@@ -237,7 +237,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
   if (name.empty()) {
     name_buffer_->AppendBytes("<wasm-unknown>");
   } else {
-    name_buffer_->AppendBytes(name.start(), name.length());
+    name_buffer_->AppendBytes(name.begin(), name.length());
   }
   name_buffer_->AppendByte('-');
   if (code->IsAnonymous()) {
@@ -295,7 +295,7 @@ PerfBasicLogger::PerfBasicLogger(Isolate* isolate)
       base::OS::GetCurrentProcessId());
   CHECK_NE(size, -1);
   perf_output_handle_ =
-      base::OS::FOpen(perf_dump_name.start(), base::OS::LogFileOpenMode);
+      base::OS::FOpen(perf_dump_name.begin(), base::OS::LogFileOpenMode);
   CHECK_NOT_NULL(perf_output_handle_);
   setvbuf(perf_output_handle_, nullptr, _IOLBF, 0);
 }
@@ -542,10 +542,10 @@ LowLevelLogger::LowLevelLogger(Isolate* isolate, const char* name)
   // Open the low-level log file.
   size_t len = strlen(name);
   ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLogExt)));
-  MemCopy(ll_name.start(), name, len);
-  MemCopy(ll_name.start() + len, kLogExt, sizeof(kLogExt));
+  MemCopy(ll_name.begin(), name, len);
+  MemCopy(ll_name.begin() + len, kLogExt, sizeof(kLogExt));
   ll_output_handle_ =
-      base::OS::FOpen(ll_name.start(), base::OS::LogFileOpenMode);
+      base::OS::FOpen(ll_name.begin(), base::OS::LogFileOpenMode);
   setvbuf(ll_output_handle_, nullptr, _IOLBF, 0);
 
   LogCodeInfo();
@@ -677,7 +677,7 @@ void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
   memset(static_cast<void*>(&event), 0, sizeof(event));
   event.type = JitCodeEvent::CODE_ADDED;
   event.code_type = JitCodeEvent::JIT_CODE;
-  event.code_start = code->instructions().start();
+  event.code_start = code->instructions().begin();
   event.code_len = code->instructions().length();
   event.name.str = name;
   event.name.len = length;
@@ -1232,7 +1232,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(msg, tag, AbstractCode::Kind::WASM_FUNCTION,
-                         code->instructions().start(),
+                         code->instructions().begin(),
                          code->instructions().length(), &timer_);
   if (name.empty()) {
     msg << "<unknown wasm>";
@@ -2062,7 +2062,7 @@ void ExistingCodeLogger::LogCompiledFunctions() {
       EnumerateCompiledFunctions(heap, nullptr, nullptr);
   ScopedVector<Handle<SharedFunctionInfo>> sfis(compiled_funcs_count);
   ScopedVector<Handle<AbstractCode>> code_objects(compiled_funcs_count);
-  EnumerateCompiledFunctions(heap, sfis.start(), code_objects.start());
+  EnumerateCompiledFunctions(heap, sfis.begin(), code_objects.begin());
 
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.

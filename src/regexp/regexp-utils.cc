@@ -89,7 +89,7 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        Execution::Call(isolate, exec, regexp, argc, argv.start()), Object);
+        Execution::Call(isolate, exec, regexp, argc, argv.begin()), Object);
 
     if (!result->IsJSReceiver() && !result->IsNull(isolate)) {
       THROW_NEW_ERROR(isolate,
@@ -115,7 +115,7 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
     ScopedVector<Handle<Object>> argv(argc);
     argv[0] = string;
 
-    return Execution::Call(isolate, regexp_exec, regexp, argc, argv.start());
+    return Execution::Call(isolate, regexp_exec, regexp, argc, argv.begin());
   }
 }
 

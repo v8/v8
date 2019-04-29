@@ -1388,7 +1388,7 @@ static void OptimizeEmptyFunction(const char* name) {
            "%%OptimizeFunctionOnNextCall(%s);"
            "%s();",
            name, name, name, name, name);
-  CompileRun(source.start());
+  CompileRun(source.begin());
 }
 
 
@@ -2375,7 +2375,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
               "f();",
               kPretenureCreationCount);
 
-  v8::Local<v8::Value> res = CompileRun(source.start());
+  v8::Local<v8::Value> res = CompileRun(source.begin());
 
   v8::Local<v8::Value> int_array =
       v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
@@ -2428,7 +2428,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
               "f();",
               kPretenureCreationCount);
 
-  v8::Local<v8::Value> res = CompileRun(source.start());
+  v8::Local<v8::Value> res = CompileRun(source.begin());
 
   i::Handle<JSObject> o = Handle<JSObject>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
@@ -2471,7 +2471,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
               "f();",
               kPretenureCreationCount);
 
-  v8::Local<v8::Value> res = CompileRun(source.start());
+  v8::Local<v8::Value> res = CompileRun(source.begin());
 
   i::Handle<JSObject> o = Handle<JSObject>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
@@ -2513,7 +2513,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
               "f();",
               kPretenureCreationCount);
 
-  v8::Local<v8::Value> res = CompileRun(source.start());
+  v8::Local<v8::Value> res = CompileRun(source.begin());
 
   i::Handle<JSObject> o = Handle<JSObject>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
@@ -2570,7 +2570,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
               "f();",
               kPretenureCreationCount);
 
-  v8::Local<v8::Value> res = CompileRun(source.start());
+  v8::Local<v8::Value> res = CompileRun(source.begin());
 
   i::Handle<JSObject> o = Handle<JSObject>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
@@ -2612,7 +2612,7 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
               "f();",
               kPretenureCreationCount);
 
-  v8::Local<v8::Value> res = CompileRun(source.start());
+  v8::Local<v8::Value> res = CompileRun(source.begin());
 
   i::Handle<JSObject> o = Handle<JSObject>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
@@ -2653,7 +2653,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
               "f();",
               kPretenureCreationCount);
 
-  v8::Local<v8::Value> res = CompileRun(source.start());
+  v8::Local<v8::Value> res = CompileRun(source.begin());
 
   v8::Local<v8::Value> int_array =
       v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
@@ -2705,7 +2705,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
               "f();",
               kPretenureCreationCount);
 
-  v8::Local<v8::Value> res = CompileRun(source.start());
+  v8::Local<v8::Value> res = CompileRun(source.begin());
 
   v8::Local<v8::Value> int_array_1 =
       v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
@@ -2757,7 +2757,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
               "f();",
               kPretenureCreationCount);
 
-  v8::Local<v8::Value> res = CompileRun(source.start());
+  v8::Local<v8::Value> res = CompileRun(source.begin());
 
   v8::Local<v8::Value> double_array_1 =
       v8::Object::Cast(*res)->Get(ctx, v8_str("0")).ToLocalChecked();
@@ -2837,7 +2837,7 @@ TEST(Regress1465) {
     for (int i = 0; i < transitions_count; i++) {
       EmbeddedVector<char, 64> buffer;
       SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
-      CompileRun(buffer.start());
+      CompileRun(buffer.begin());
     }
     CompileRun("var root = new F;");
   }
@@ -2875,7 +2875,7 @@ static void AddTransitions(int transitions_count) {
   for (int i = 0; i < transitions_count; i++) {
     EmbeddedVector<char, 64> buffer;
     SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
-    CompileRun(buffer.start());
+    CompileRun(buffer.begin());
   }
 }
 
@@ -4176,7 +4176,7 @@ static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,
           "%s(); %s();"
           "%%OptimizeFunctionOnNextCall(%s);"
           "%s();", name, name, name, name, name);
-  CompileRun(source.start());
+  CompileRun(source.begin());
   i::Handle<JSFunction> fun = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()

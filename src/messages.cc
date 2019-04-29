@@ -1026,7 +1026,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, result,
             Execution::Call(isolate, prepare_stack_trace, global_error, argc,
-                            argv.start()),
+                            argv.begin()),
             Object);
 
         return result;

@@ -408,7 +408,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
     if (thrower.error()) {
       ScopedVector<char> error_reason(100);
       SNPrintF(error_reason, "Internal wasm failure: %s", thrower.error_msg());
-      ReportInstantiationFailure(script, position, error_reason.start());
+      ReportInstantiationFailure(script, position, error_reason.begin());
     } else {
       ReportInstantiationFailure(script, position, "Internal wasm failure");
     }

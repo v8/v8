@@ -63,7 +63,7 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
   std::vector<std::string> disassembly;
   for (byte* pc = begin; pc < end;) {
     pc += disasm.InstructionDecode(buffer, pc);
-    disassembly.emplace_back(buffer.start());
+    disassembly.emplace_back(buffer.begin());
   }
 
   bool test_passed = true;

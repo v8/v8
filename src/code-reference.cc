@@ -33,16 +33,16 @@ struct WasmOps {
 
   Address constant_pool() const { return code->constant_pool(); }
   Address instruction_start() const {
-    return reinterpret_cast<Address>(code->instructions().start());
+    return reinterpret_cast<Address>(code->instructions().begin());
   }
   Address instruction_end() const {
-    return reinterpret_cast<Address>(code->instructions().start() +
+    return reinterpret_cast<Address>(code->instructions().begin() +
                                      code->instructions().size());
   }
   int instruction_size() const { return code->instructions().length(); }
-  const byte* relocation_start() const { return code->reloc_info().start(); }
+  const byte* relocation_start() const { return code->reloc_info().begin(); }
   const byte* relocation_end() const {
-    return code->reloc_info().start() + code->reloc_info().length();
+    return code->reloc_info().begin() + code->reloc_info().length();
   }
   int relocation_size() const { return code->reloc_info().length(); }
   Address code_comments() const { return code->code_comments(); }

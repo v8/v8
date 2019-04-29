@@ -141,8 +141,8 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
     case 'i': case 'd': case 'u': case 'x': case 'c': case 'X': {
       int value = current.data_.u_int_;
       EmbeddedVector<char, 24> formatted;
-      int length = SNPrintF(formatted, temp.start(), value);
-      Add(Vector<const char>(formatted.start(), length));
+      int length = SNPrintF(formatted, temp.begin(), value);
+      Add(Vector<const char>(formatted.begin(), length));
       break;
     }
     case 'f': case 'g': case 'G': case 'e': case 'E': {
@@ -156,16 +156,16 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
         Add("nan");
       } else {
         EmbeddedVector<char, 28> formatted;
-        SNPrintF(formatted, temp.start(), value);
-        Add(formatted.start());
+        SNPrintF(formatted, temp.begin(), value);
+        Add(formatted.begin());
       }
       break;
     }
     case 'p': {
       void* value = current.data_.u_pointer_;
       EmbeddedVector<char, 20> formatted;
-      SNPrintF(formatted, temp.start(), value);
-      Add(formatted.start());
+      SNPrintF(formatted, temp.begin(), value);
+      Add(formatted.begin());
       break;
     }
     default:

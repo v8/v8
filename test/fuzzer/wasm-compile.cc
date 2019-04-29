@@ -69,7 +69,7 @@ class DataRange {
     // arbitrary expressions.
     const size_t num_bytes = std::min(max_bytes, data_.size());
     T result = T();
-    memcpy(&result, data_.start(), num_bytes);
+    memcpy(&result, data_.begin(), num_bytes);
     data_ += num_bytes;
     return result;
   }

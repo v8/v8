@@ -900,7 +900,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
   WriteVarint<uint32_t>(static_cast<uint32_t>(wire_bytes.size()));
   uint8_t* destination;
   if (ReserveRawBytes(wire_bytes.size()).To(&destination)) {
-    memcpy(destination, wire_bytes.start(), wire_bytes.size());
+    memcpy(destination, wire_bytes.begin(), wire_bytes.size());
   }
 
   wasm::WasmSerializer wasm_serializer(native_module);
@@ -1007,8 +1007,8 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate,
                                      v8::ValueDeserializer::Delegate* delegate)
     : isolate_(isolate),
       delegate_(delegate),
-      position_(data.start()),
-      end_(data.start() + data.length()),
+      position_(data.begin()),
+      end_(data.begin() + data.length()),
       allocation_(data.length() > kPretenureThreshold ? AllocationType::kOld
                                                       : AllocationType::kYoung),
       id_map_(isolate->global_handles()->Create(

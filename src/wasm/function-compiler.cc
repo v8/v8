@@ -24,19 +24,19 @@ class WasmInstructionBufferImpl {
         : buffer_(buffer), holder_(holder) {}
 
     ~View() override {
-      if (buffer_.start() == holder_->old_buffer_.start()) {
+      if (buffer_.begin() == holder_->old_buffer_.start()) {
         DCHECK_EQ(buffer_.size(), holder_->old_buffer_.size());
         holder_->old_buffer_ = {};
       }
     }
 
-    byte* start() const override { return buffer_.start(); }
+    byte* start() const override { return buffer_.begin(); }
 
     int size() const override { return static_cast<int>(buffer_.size()); }
 
     std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
       // If we grow, we must be the current buffer of {holder_}.
-      DCHECK_EQ(buffer_.start(), holder_->buffer_.start());
+      DCHECK_EQ(buffer_.begin(), holder_->buffer_.start());
       DCHECK_EQ(buffer_.size(), holder_->buffer_.size());
       DCHECK_NULL(holder_->old_buffer_);
 
@@ -127,7 +127,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     Counters* counters, WasmFeatures* detected) {
   auto* func = &env->module->functions[func_index_];
   Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
-  wasm::FunctionBody func_body{func->sig, func->code.offset(), code.start(),
+  wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
                                code.end()};
 
   auto size_histogram = SELECT_WASM_COUNTER(counters, env->module->origin, wasm,

@@ -733,7 +733,7 @@ MaybeHandle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
 
   DisallowHeapAllocation no_gc;
   // Copy the characters into the new object.
-  CopyChars(SeqOneByteString::cast(*result)->GetChars(no_gc), string.start(),
+  CopyChars(SeqOneByteString::cast(*result)->GetChars(no_gc), string.begin(),
             length);
   return result;
 }
@@ -846,7 +846,7 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(const uc16* string,
 
 MaybeHandle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
                                                   AllocationType allocation) {
-  return NewStringFromTwoByte(string.start(), string.length(), allocation);
+  return NewStringFromTwoByte(string.begin(), string.length(), allocation);
 }
 
 MaybeHandle<String> Factory::NewStringFromTwoByte(
@@ -912,7 +912,7 @@ Handle<String> Factory::AllocateTwoByteInternalizedString(
   DisallowHeapAllocation no_gc;
 
   // Fill in the characters.
-  MemCopy(answer->GetChars(no_gc), str.start(), str.length() * kUC16Size);
+  MemCopy(answer->GetChars(no_gc), str.begin(), str.length() * kUC16Size);
 
   return answer;
 }
@@ -961,7 +961,7 @@ Handle<String> Factory::NewOneByteInternalizedString(Vector<const uint8_t> str,
   Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), hash_field);
   DisallowHeapAllocation no_allocation;
-  MemCopy(result->GetChars(no_allocation), str.start(), str.length());
+  MemCopy(result->GetChars(no_allocation), str.begin(), str.length());
   return result;
 }
 

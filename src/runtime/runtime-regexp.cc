@@ -405,7 +405,7 @@ void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
   DCHECK_LT(0, limit);
   // Collect indices of pattern in subject using memchr.
   // Stop after finding at most limit values.
-  const uint8_t* subject_start = subject.start();
+  const uint8_t* subject_start = subject.begin();
   const uint8_t* subject_end = subject_start + subject.length();
   const uint8_t* pos = subject_start;
   while (limit > 0) {
@@ -421,7 +421,7 @@ void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
 void FindTwoByteStringIndices(const Vector<const uc16> subject, uc16 pattern,
                               std::vector<int>* indices, unsigned int limit) {
   DCHECK_LT(0, limit);
-  const uc16* subject_start = subject.start();
+  const uc16* subject_start = subject.begin();
   const uc16* subject_end = subject_start + subject.length();
   for (const uc16* pos = subject_start; pos < subject_end && limit > 0; pos++) {
     if (*pos == pattern) {
@@ -1489,7 +1489,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, replacement_obj,
       Execution::Call(isolate, replace_obj, factory->undefined_value(), argc,
-                      argv.start()));
+                      argv.begin()));
 
   Handle<String> replacement;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -1578,7 +1578,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
     Handle<Object> splitter_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, splitter_obj,
-        Execution::New(isolate, ctor, argc, argv.start()));
+        Execution::New(isolate, ctor, argc, argv.begin()));
 
     splitter = Handle<JSReceiver>::cast(splitter_obj);
   }
@@ -1851,7 +1851,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, replacement_obj,
           Execution::Call(isolate, replace_obj, factory->undefined_value(),
-                          argc, argv.start()));
+                          argc, argv.begin()));
 
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, replacement, Object::ToString(isolate, replacement_obj));

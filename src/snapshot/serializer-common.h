@@ -382,7 +382,7 @@ class Checksum {
     // DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload.start()),
     //                  kIntptrSize));
     DCHECK(IsAligned(payload.length(), kIntptrSize));
-    const uintptr_t* cur = reinterpret_cast<const uintptr_t*>(payload.start());
+    const uintptr_t* cur = reinterpret_cast<const uintptr_t*>(payload.begin());
     const uintptr_t* end = cur + payload.length() / kIntptrSize;
     while (cur < end) {
       // Unsigned overflow expected and intended.

@@ -254,7 +254,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
   }
 
   Vector<const byte> module_bytes() const { return module_bytes_; }
-  const byte* start() const { return module_bytes_.start(); }
+  const byte* start() const { return module_bytes_.begin(); }
   const byte* end() const { return module_bytes_.end(); }
   size_t length() const { return module_bytes_.length(); }
 
@@ -310,7 +310,7 @@ class TruncatedUserString {
  public:
   template <typename T>
   explicit TruncatedUserString(Vector<T> name)
-      : TruncatedUserString(name.start(), name.length()) {}
+      : TruncatedUserString(name.begin(), name.length()) {}
 
   TruncatedUserString(const byte* start, size_t len)
       : TruncatedUserString(reinterpret_cast<const char*>(start), len) {}

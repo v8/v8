@@ -50,7 +50,7 @@ Handle<String> MakeString(const char* str) {
 Handle<String> MakeName(const char* str, int suffix) {
   EmbeddedVector<char, 128> buffer;
   SNPrintF(buffer, "%s%d", str, suffix);
-  return MakeString(buffer.start());
+  return MakeString(buffer.begin());
 }
 
 int sum9(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,

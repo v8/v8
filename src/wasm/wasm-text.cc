@@ -49,7 +49,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
   WasmName fun_name = wire_bytes.GetNameOrNull(fun, module);
   if (IsValidFunctionName(fun_name)) {
     os << " $";
-    os.write(fun_name.start(), fun_name.length());
+    os.write(fun_name.begin(), fun_name.length());
   }
   if (fun->sig->parameter_count()) {
     os << " (param";

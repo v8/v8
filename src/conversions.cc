@@ -263,10 +263,10 @@ void StringToIntHelper::ParseInt() {
     DisallowHeapAllocation no_gc;
     if (IsOneByte()) {
       Vector<const uint8_t> vector = GetOneByteVector();
-      DetectRadixInternal(vector.start(), vector.length());
+      DetectRadixInternal(vector.begin(), vector.length());
     } else {
       Vector<const uc16> vector = GetTwoByteVector();
-      DetectRadixInternal(vector.start(), vector.length());
+      DetectRadixInternal(vector.begin(), vector.length());
     }
   }
   if (state_ != kRunning) return;
@@ -278,11 +278,11 @@ void StringToIntHelper::ParseInt() {
     if (IsOneByte()) {
       Vector<const uint8_t> vector = GetOneByteVector();
       DCHECK_EQ(length_, vector.length());
-      ParseInternal(vector.start());
+      ParseInternal(vector.begin());
     } else {
       Vector<const uc16> vector = GetTwoByteVector();
       DCHECK_EQ(length_, vector.length());
-      ParseInternal(vector.start());
+      ParseInternal(vector.begin());
     }
   }
   DCHECK_NE(state_, kRunning);
@@ -468,13 +468,13 @@ class NumberParseIntHelper : public StringToIntHelper {
     if (IsOneByte()) {
       Vector<const uint8_t> vector = GetOneByteVector();
       DCHECK_EQ(length(), vector.length());
-      result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.start())
-                                : HandleBaseTenCase(vector.start());
+      result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.begin())
+                                : HandleBaseTenCase(vector.begin());
     } else {
       Vector<const uc16> vector = GetTwoByteVector();
       DCHECK_EQ(length(), vector.length());
-      result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.start())
-                                : HandleBaseTenCase(vector.start());
+      result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.begin())
+                                : HandleBaseTenCase(vector.begin());
     }
     set_state(kDone);
   }
@@ -814,15 +814,15 @@ double StringToDouble(Vector<const uint8_t> str, int flags,
                       double empty_string_val) {
   // We cast to const uint8_t* here to avoid instantiating the
   // InternalStringToDouble() template for const char* as well.
-  const uint8_t* start = reinterpret_cast<const uint8_t*>(str.start());
+  const uint8_t* start = reinterpret_cast<const uint8_t*>(str.begin());
   const uint8_t* end = start + str.length();
   return InternalStringToDouble(start, end, flags, empty_string_val);
 }
 
 double StringToDouble(Vector<const uc16> str, int flags,
                       double empty_string_val) {
-  const uc16* end = str.start() + str.length();
-  return InternalStringToDouble(str.start(), end, flags, empty_string_val);
+  const uc16* end = str.begin() + str.length();
+  return InternalStringToDouble(str.begin(), end, flags, empty_string_val);
 }
 
 double StringToInt(Isolate* isolate, Handle<String> string, int radix) {
@@ -942,7 +942,7 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
         // (see ES section 7.1.12.1 #sec-tostring-applied-to-the-number-type)
         return IntToCString(FastD2I(v), buffer);
       }
-      SimpleStringBuilder builder(buffer.start(), buffer.length());
+      SimpleStringBuilder builder(buffer.begin(), buffer.length());
       int decimal_point;
       int sign;
       const int kV8DtoaBufferCapacity = kBase10MaximalLength + 1;
@@ -1006,7 +1006,7 @@ const char* IntToCString(int n, Vector<char> buffer) {
     n /= 10;
   } while (n);
   if (negative) buffer[--i] = '-';
-  return buffer.start() + i;
+  return buffer.begin() + i;
 }
 
 

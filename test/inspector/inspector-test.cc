@@ -262,7 +262,7 @@ class ExecuteStringTask : public TaskRunner::Task {
       int length = static_cast<int>(name_.size());
       v8::internal::Vector<uint16_t> buffer =
           v8::internal::Vector<uint16_t>::New(length);
-      std::copy(name_.begin(), name_.end(), buffer.start());
+      std::copy(name_.begin(), name_.end(), buffer.begin());
       data->RegisterModule(context, buffer, &scriptSource);
     }
   }

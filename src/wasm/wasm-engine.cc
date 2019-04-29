@@ -216,7 +216,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // object.
   Handle<ByteArray> asm_js_offset_table =
       isolate->factory()->NewByteArray(asm_js_offset_table_bytes.length());
-  asm_js_offset_table->copy_in(0, asm_js_offset_table_bytes.start(),
+  asm_js_offset_table->copy_in(0, asm_js_offset_table_bytes.begin(),
                                asm_js_offset_table_bytes.length());
 
   return AsmWasmData::New(isolate, std::move(native_module), export_wrappers,

@@ -155,7 +155,7 @@ std::unique_ptr<char[]> OptimizedCompilationInfo::GetDebugName() const {
   Vector<const char> name_vec = debug_name_;
   if (name_vec.empty()) name_vec = ArrayVector("unknown");
   std::unique_ptr<char[]> name(new char[name_vec.length() + 1]);
-  memcpy(name.get(), name_vec.start(), name_vec.length());
+  memcpy(name.get(), name_vec.begin(), name_vec.length());
   name[name_vec.length()] = '\0';
   return name;
 }

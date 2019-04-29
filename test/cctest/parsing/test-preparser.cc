@@ -713,12 +713,12 @@ TEST(PreParserScopeAnalysis) {
       i::HandleScope scope(isolate);
 
       i::Handle<i::String> source =
-          factory->InternalizeUtf8String(program.start());
+          factory->InternalizeUtf8String(program.begin());
       source->PrintOn(stdout);
       printf("\n");
 
       // Compile and run the script to get a pointer to the lazy function.
-      v8::Local<v8::Value> v = CompileRun(program.start());
+      v8::Local<v8::Value> v = CompileRun(program.begin());
       i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
       i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
       i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared(), isolate);

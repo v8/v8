@@ -33,7 +33,7 @@ const char* StringsStorage::GetCopy(const char* src) {
     Vector<char> dst = Vector<char>::New(len + 1);
     StrNCpy(dst, src, len);
     dst[len] = '\0';
-    entry->key = dst.start();
+    entry->key = dst.begin();
     entry->value = entry->key;
   }
   return reinterpret_cast<const char*>(entry->value);
@@ -63,10 +63,10 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
   Vector<char> str = Vector<char>::New(1024);
   int len = VSNPrintF(str, format, args);
   if (len == -1) {
-    DeleteArray(str.start());
+    DeleteArray(str.begin());
     return GetCopy(format);
   }
-  return AddOrDisposeString(str.start(), len);
+  return AddOrDisposeString(str.begin(), len);
 }
 
 const char* StringsStorage::GetName(Name name) {

@@ -124,7 +124,7 @@ void HeapEntry::Print(
     HeapGraphEdge& edge = **i;
     const char* edge_prefix = "";
     EmbeddedVector<char, 64> index;
-    const char* edge_name = index.start();
+    const char* edge_name = index.begin();
     switch (edge.type()) {
       case HeapGraphEdge::kContextVariable:
         edge_prefix = "#";
@@ -2077,7 +2077,7 @@ class OutputStreamWriter {
       int s_chunk_size =
           Min(chunk_size_ - chunk_pos_, static_cast<int>(s_end - s));
       DCHECK_GT(s_chunk_size, 0);
-      MemCopy(chunk_.start() + chunk_pos_, s, s_chunk_size);
+      MemCopy(chunk_.begin() + chunk_pos_, s, s_chunk_size);
       s += s_chunk_size;
       chunk_pos_ += s_chunk_size;
       MaybeWriteChunk();
@@ -2110,7 +2110,7 @@ class OutputStreamWriter {
       int result = SNPrintF(buffer, format, n);
       USE(result);
       DCHECK_NE(result, -1);
-      AddString(buffer.start());
+      AddString(buffer.begin());
     }
   }
   void MaybeWriteChunk() {
@@ -2121,8 +2121,9 @@ class OutputStreamWriter {
   }
   void WriteChunk() {
     if (aborted_) return;
-    if (stream_->WriteAsciiChunk(chunk_.start(), chunk_pos_) ==
-        v8::OutputStream::kAbort) aborted_ = true;
+    if (stream_->WriteAsciiChunk(chunk_.begin(), chunk_pos_) ==
+        v8::OutputStream::kAbort)
+      aborted_ = true;
     chunk_pos_ = 0;
   }
 
@@ -2269,7 +2270,7 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
   buffer_pos = utoa(to_node_index(edge->to()), buffer, buffer_pos);
   buffer[buffer_pos++] = '\n';
   buffer[buffer_pos++] = '\0';
-  writer_->AddString(buffer.start());
+  writer_->AddString(buffer.begin());
 }
 
 void HeapSnapshotJSONSerializer::SerializeEdges() {
@@ -2306,7 +2307,7 @@ void HeapSnapshotJSONSerializer::SerializeNode(const HeapEntry* entry) {
   buffer_pos = utoa(entry->trace_node_id(), buffer, buffer_pos);
   buffer[buffer_pos++] = '\n';
   buffer[buffer_pos++] = '\0';
-  writer_->AddString(buffer.start());
+  writer_->AddString(buffer.begin());
 }
 
 void HeapSnapshotJSONSerializer::SerializeNodes() {
@@ -2445,7 +2446,7 @@ void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
   buffer[buffer_pos++] = ',';
   buffer[buffer_pos++] = '[';
   buffer[buffer_pos++] = '\0';
-  writer_->AddString(buffer.start());
+  writer_->AddString(buffer.begin());
 
   int i = 0;
   for (AllocationTraceNode* child : node->children()) {
@@ -2500,7 +2501,7 @@ void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
     buffer_pos = SerializePosition(info->column, buffer, buffer_pos);
     buffer[buffer_pos++] = '\n';
     buffer[buffer_pos++] = '\0';
-    writer_->AddString(buffer.start());
+    writer_->AddString(buffer.begin());
   }
 }
 
@@ -2528,7 +2529,7 @@ void HeapSnapshotJSONSerializer::SerializeSamples() {
     buffer_pos = utoa(sample.last_assigned_id(), buffer, buffer_pos);
     buffer[buffer_pos++] = '\n';
     buffer[buffer_pos++] = '\0';
-    writer_->AddString(buffer.start());
+    writer_->AddString(buffer.begin());
   }
 }
 
@@ -2615,7 +2616,7 @@ void HeapSnapshotJSONSerializer::SerializeLocation(
   buffer_pos = utoa(location.col, buffer, buffer_pos);
   buffer[buffer_pos++] = '\n';
   buffer[buffer_pos++] = '\0';
-  writer_->AddString(buffer.start());
+  writer_->AddString(buffer.begin());
 }
 
 void HeapSnapshotJSONSerializer::SerializeLocations() {

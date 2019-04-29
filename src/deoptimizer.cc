@@ -1687,7 +1687,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       }
     }
     frame_writer.PushTranslatedValue(
-        register_values[code], trace_scope_ != nullptr ? str.start() : "");
+        register_values[code], trace_scope_ != nullptr ? str.begin() : "");
   }
 
   // Some architectures must pad the stack frame with extra stack slots

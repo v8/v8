@@ -37,7 +37,7 @@ class Vector {
   Vector<T> SubVector(size_t from, size_t to) const {
     DCHECK_LE(from, to);
     DCHECK_LE(to, length_);
-    return Vector<T>(start() + from, to - from);
+    return Vector<T>(begin() + from, to - from);
   }
 
   // Returns the length of the vector. Only use this if you really need an
@@ -52,9 +52,6 @@ class Vector {
 
   // Returns whether or not the vector is empty.
   constexpr bool empty() const { return length_ == 0; }
-
-  // Returns the pointer to the start of the data in the vector.
-  constexpr T* start() const { return start_; }
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
@@ -71,9 +68,11 @@ class Vector {
     return start_[length_ - 1];
   }
 
-  typedef T* iterator;
-  constexpr iterator begin() const { return start_; }
-  constexpr iterator end() const { return start_ + length_; }
+  // Returns a pointer to the start of the data in the vector.
+  constexpr T* begin() const { return start_; }
+
+  // Returns a pointer past the end of the data in the vector.
+  constexpr T* end() const { return start_ + length_; }
 
   // Returns a clone of this vector with a new backing store.
   Vector<T> Clone() const {
@@ -84,31 +83,29 @@ class Vector {
 
   template <typename CompareFunction>
   void Sort(CompareFunction cmp, size_t s, size_t l) {
-    std::sort(start() + s, start() + s + l, RawComparer<CompareFunction>(cmp));
+    std::sort(begin() + s, begin() + s + l, RawComparer<CompareFunction>(cmp));
   }
 
   template <typename CompareFunction>
   void Sort(CompareFunction cmp) {
-    std::sort(start(), start() + length(), RawComparer<CompareFunction>(cmp));
+    std::sort(begin(), begin() + length(), RawComparer<CompareFunction>(cmp));
   }
 
-  void Sort() {
-    std::sort(start(), start() + length());
-  }
+  void Sort() { std::sort(begin(), begin() + length()); }
 
   template <typename CompareFunction>
   void StableSort(CompareFunction cmp, size_t s, size_t l) {
-    std::stable_sort(start() + s, start() + s + l,
+    std::stable_sort(begin() + s, begin() + s + l,
                      RawComparer<CompareFunction>(cmp));
   }
 
   template <typename CompareFunction>
   void StableSort(CompareFunction cmp) {
-    std::stable_sort(start(), start() + length(),
+    std::stable_sort(begin(), begin() + length(),
                      RawComparer<CompareFunction>(cmp));
   }
 
-  void StableSort() { std::stable_sort(start(), start() + length()); }
+  void StableSort() { std::stable_sort(begin(), begin() + length()); }
 
   void Truncate(size_t length) {
     DCHECK(length <= length_);
@@ -142,7 +139,7 @@ class Vector {
 
   template <typename S>
   static constexpr Vector<T> cast(Vector<S> input) {
-    return Vector<T>(reinterpret_cast<T*>(input.start()),
+    return Vector<T>(reinterpret_cast<T*>(input.begin()),
                      input.length() * sizeof(S) / sizeof(T));
   }
 
@@ -180,9 +177,7 @@ class ScopedVector : public Vector<T> {
  public:
   explicit ScopedVector(size_t length)
       : Vector<T>(NewArray<T>(length), length) {}
-  ~ScopedVector() {
-    DeleteArray(this->start());
-  }
+  ~ScopedVector() { DeleteArray(this->begin()); }
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedVector);

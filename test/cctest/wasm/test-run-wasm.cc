@@ -3718,7 +3718,7 @@ TEST(Liftoff_tier_up) {
     WasmCode* sub_code = native_module->GetCode(sub.function_index());
     size_t sub_size = sub_code->instructions().size();
     std::unique_ptr<byte[]> buffer(new byte[sub_code->instructions().size()]);
-    memcpy(buffer.get(), sub_code->instructions().start(), sub_size);
+    memcpy(buffer.get(), sub_code->instructions().begin(), sub_size);
     desc.buffer = buffer.get();
     desc.instr_size = static_cast<int>(sub_size);
     std::unique_ptr<WasmCode> new_code = native_module->AddCode(

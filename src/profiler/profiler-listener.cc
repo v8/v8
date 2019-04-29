@@ -204,7 +204,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
   rec->entry = new CodeEntry(
-      tag, GetName(name.start()), CodeEntry::kWasmResourceNamePrefix,
+      tag, GetName(name.begin()), CodeEntry::kWasmResourceNamePrefix,
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
       nullptr, code->instruction_start(), true);
   rec->instruction_size = code->instructions().length();

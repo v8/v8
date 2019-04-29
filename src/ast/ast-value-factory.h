@@ -60,9 +60,7 @@ class AstRawString final : public ZoneObject {
   // Access the physical representation:
   bool is_one_byte() const { return is_one_byte_; }
   int byte_length() const { return literal_bytes_.length(); }
-  const unsigned char* raw_data() const {
-    return literal_bytes_.start();
-  }
+  const unsigned char* raw_data() const { return literal_bytes_.begin(); }
 
   // For storing AstRawStrings in a hash map.
   uint32_t hash_field() const { return hash_field_; }

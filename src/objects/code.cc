@@ -704,7 +704,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
                                                   constant_pool_offset());
       for (int i = 0; i < pool_size; i += kSystemPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
-        os << static_cast<const void*>(ptr) << "  " << buf.start() << "\n";
+        os << static_cast<const void*>(ptr) << "  " << buf.begin() << "\n";
       }
     }
   }

@@ -90,7 +90,7 @@ class ZoneBuffer : public ZoneObject {
 
   void write_string(Vector<const char> name) {
     write_size(name.length());
-    write(reinterpret_cast<const byte*>(name.start()), name.length());
+    write(reinterpret_cast<const byte*>(name.begin()), name.length());
   }
 
   size_t reserve_u32v() {

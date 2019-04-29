@@ -84,7 +84,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
     local_decls.Emit(buffer);
     // Emit the code.
     if (code.size() > 0) {
-      memcpy(buffer + locals_size, code.start(), code.size());
+      memcpy(buffer + locals_size, code.begin(), code.size());
     }
     if (append_end == kAppendEnd) {
       // Append an extra end opcode.
@@ -116,7 +116,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
         PrepareBytecode(CodeToVector(std::forward<Code>(raw_code)), append_end);
 
     // Validate the code.
-    FunctionBody body(sig, 0, code.start(), code.end());
+    FunctionBody body(sig, 0, code.begin(), code.end());
     WasmFeatures unused_detected_features;
     DecodeResult result =
         VerifyWasmCode(zone()->allocator(), enabled_features_, module,

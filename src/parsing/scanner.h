@@ -344,7 +344,7 @@ class V8_EXPORT_PRIVATE Scanner {
     if (peek_location().length() != N + 1) return false;
 
     Vector<const uint8_t> next = next_literal_one_byte_string();
-    const char* chars = reinterpret_cast<const char*>(next.start());
+    const char* chars = reinterpret_cast<const char*>(next.begin());
     return next.length() == N - 1 && strncmp(s, chars, N - 1) == 0;
   }
 
@@ -354,7 +354,7 @@ class V8_EXPORT_PRIVATE Scanner {
     if (!is_literal_one_byte()) return false;
 
     Vector<const uint8_t> current = literal_one_byte_string();
-    const char* chars = reinterpret_cast<const char*>(current.start());
+    const char* chars = reinterpret_cast<const char*>(current.begin());
     return current.length() == N - 1 && strncmp(s, chars, N - 1) == 0;
   }
 
@@ -456,21 +456,21 @@ class V8_EXPORT_PRIVATE Scanner {
 
     bool Equals(Vector<const char> keyword) const {
       return is_one_byte() && keyword.length() == position_ &&
-             (memcmp(keyword.start(), backing_store_.start(), position_) == 0);
+             (memcmp(keyword.begin(), backing_store_.begin(), position_) == 0);
     }
 
     Vector<const uint16_t> two_byte_literal() const {
       DCHECK(!is_one_byte());
       DCHECK_EQ(position_ & 0x1, 0);
       return Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(backing_store_.start()),
+          reinterpret_cast<const uint16_t*>(backing_store_.begin()),
           position_ >> 1);
     }
 
     Vector<const uint8_t> one_byte_literal() const {
       DCHECK(is_one_byte());
       return Vector<const uint8_t>(
-          reinterpret_cast<const uint8_t*>(backing_store_.start()), position_);
+          reinterpret_cast<const uint8_t*>(backing_store_.begin()), position_);
     }
 
     int length() const { return is_one_byte() ? position_ : (position_ >> 1); }

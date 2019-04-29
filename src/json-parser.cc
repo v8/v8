@@ -290,7 +290,7 @@ bool JsonParser<Char>::ParseJsonString(Handle<String> expected) {
     DCHECK_EQ('"', c0_);
     if (content.IsOneByte()) {
       const Char* input_chars = chars_ + position_ + 1;
-      const uint8_t* expected_chars = content.ToOneByteVector().start();
+      const uint8_t* expected_chars = content.ToOneByteVector().begin();
       for (int i = 0; i < length; i++) {
         Char c0 = input_chars[i];
         if (c0 != expected_chars[i] || c0 == '"' || c0 < 0x20 || c0 == '\\') {
@@ -304,7 +304,7 @@ bool JsonParser<Char>::ParseJsonString(Handle<String> expected) {
       }
     } else {
       const Char* input_chars = chars_ + position_ + 1;
-      const uint16_t* expected_chars = content.ToUC16Vector().start();
+      const uint16_t* expected_chars = content.ToUC16Vector().begin();
       for (int i = 0; i < length; i++) {
         Char c0 = input_chars[i];
         if (c0 != expected_chars[i] || c0 == '"' || c0 < 0x20 || c0 == '\\') {
@@ -721,9 +721,9 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
                             std::numeric_limits<double>::quiet_NaN());
   } else {
     Vector<uint8_t> buffer = Vector<uint8_t>::New(length);
-    String::WriteToFlat(*source_, buffer.start(), beg_pos, position_);
+    String::WriteToFlat(*source_, buffer.begin(), beg_pos, position_);
     Vector<const uint8_t> result =
-        Vector<const uint8_t>(buffer.start(), length);
+        Vector<const uint8_t>(buffer.begin(), length);
     number = StringToDouble(result,
                             NO_FLAGS,  // Hex, octal or trailing junk.
                             0.0);

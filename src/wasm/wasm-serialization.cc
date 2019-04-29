@@ -34,7 +34,7 @@ namespace {
 class Writer {
  public:
   explicit Writer(Vector<byte> buffer)
-      : start_(buffer.start()), end_(buffer.end()), pos_(buffer.start()) {}
+      : start_(buffer.begin()), end_(buffer.end()), pos_(buffer.begin()) {}
 
   size_t bytes_written() const { return pos_ - start_; }
   byte* current_location() const { return pos_; }
@@ -57,7 +57,7 @@ class Writer {
   void WriteVector(const Vector<const byte> v) {
     DCHECK_GE(current_size(), v.size());
     if (v.size() > 0) {
-      memcpy(current_location(), v.start(), v.size());
+      memcpy(current_location(), v.begin(), v.size());
       pos_ += v.size();
     }
     if (FLAG_trace_wasm_serialization) {
@@ -77,7 +77,7 @@ class Writer {
 class Reader {
  public:
   explicit Reader(Vector<const byte> buffer)
-      : start_(buffer.start()), end_(buffer.end()), pos_(buffer.start()) {}
+      : start_(buffer.begin()), end_(buffer.end()), pos_(buffer.begin()) {}
 
   size_t bytes_read() const { return pos_ - start_; }
   const byte* current_location() const { return pos_; }
@@ -102,7 +102,7 @@ class Reader {
   void ReadVector(Vector<byte> v) {
     if (v.size() > 0) {
       DCHECK_GE(current_size(), v.size());
-      memcpy(v.start(), current_location(), v.size());
+      memcpy(v.begin(), current_location(), v.size());
       pos_ += v.size();
     }
     if (FLAG_trace_wasm_serialization) {
@@ -358,7 +358,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->Write(code->tier());
 
   // Get a pointer to the destination buffer, to hold relocated code.
-  byte* serialized_code_start = writer->current_buffer().start();
+  byte* serialized_code_start = writer->current_buffer().begin();
   byte* code_start = serialized_code_start;
   size_t code_size = code->instructions().size();
   writer->Skip(code_size);
@@ -377,7 +377,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
     code_start = aligned_buffer.get();
   }
 #endif
-  memcpy(code_start, code->instructions().start(), code_size);
+  memcpy(code_start, code->instructions().begin(), code_size);
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
              RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
@@ -592,7 +592,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   code->Validate();
 
   // Finally, flush the icache for that code.
-  FlushInstructionCache(code->instructions().start(),
+  FlushInstructionCache(code->instructions().begin(),
                         code->instructions().size());
 
   return true;
@@ -603,7 +603,7 @@ bool IsSupportedVersion(Vector<const byte> version) {
   byte current_version[kVersionSize];
   Writer writer({current_version, kVersionSize});
   WriteVersion(&writer);
-  return memcmp(version.start(), current_version, kVersionSize) == 0;
+  return memcmp(version.begin(), current_version, kVersionSize) == 0;
 }
 
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(

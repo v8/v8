@@ -19,7 +19,7 @@ NativesExternalStringResource::NativesExternalStringResource(NativeType type,
   CHECK_EQ(EXTRAS, type_);
   DCHECK(index < ExtraNatives::GetBuiltinsCount());
   source = ExtraNatives::GetScriptSource(index);
-  data_ = source.start();
+  data_ = source.begin();
   length_ = source.length();
 }
 

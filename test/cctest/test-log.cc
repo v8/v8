@@ -293,7 +293,8 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
   }
   ~SimpleExternalString() override = default;
   size_t length() const override { return utf_source_.length(); }
-  const uint16_t* data() const override { return utf_source_.start(); }
+  const uint16_t* data() const override { return utf_source_.begin(); }
+
  private:
   i::ScopedVector<uint16_t> utf_source_;
 };
@@ -367,7 +368,7 @@ UNINITIALIZED_TEST(LogCallbacks) {
     i::EmbeddedVector<char, 100> suffix_buffer;
     i::SNPrintF(suffix_buffer, ",0x%" V8PRIxPTR ",1,method1", ObjMethod1_entry);
     CHECK(logger.ContainsLine(
-        {"code-creation,Callback,-2,", std::string(suffix_buffer.start())}));
+        {"code-creation,Callback,-2,", std::string(suffix_buffer.begin())}));
   }
   isolate->Dispose();
 }
@@ -412,7 +413,7 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
     i::SNPrintF(prop1_getter_record, ",0x%" V8PRIxPTR ",1,get prop1",
                 Prop1Getter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
-                               std::string(prop1_getter_record.start())}));
+                               std::string(prop1_getter_record.begin())}));
 
     Address Prop1Setter_entry = reinterpret_cast<Address>(Prop1Setter);
 #if USES_FUNCTION_DESCRIPTORS
@@ -422,7 +423,7 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
     i::SNPrintF(prop1_setter_record, ",0x%" V8PRIxPTR ",1,set prop1",
                 Prop1Setter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
-                               std::string(prop1_setter_record.start())}));
+                               std::string(prop1_setter_record.begin())}));
 
     Address Prop2Getter_entry = reinterpret_cast<Address>(Prop2Getter);
 #if USES_FUNCTION_DESCRIPTORS
@@ -432,7 +433,7 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
     i::SNPrintF(prop2_getter_record, ",0x%" V8PRIxPTR ",1,get prop2",
                 Prop2Getter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
-                               std::string(prop2_getter_record.start())}));
+                               std::string(prop2_getter_record.begin())}));
   }
   isolate->Dispose();
 }
@@ -480,7 +481,7 @@ UNINITIALIZED_TEST(EquivalenceOfLoggingAndTraversal) {
     i::Vector<const char> source =
         i::NativesCollection<i::TEST>::GetScriptsSource();
     v8::Local<v8::String> source_str =
-        v8::String::NewFromUtf8(isolate, source.start(),
+        v8::String::NewFromUtf8(isolate, source.begin(),
                                 v8::NewStringType::kNormal, source.length())
             .ToLocalChecked();
     v8::TryCatch try_catch(isolate);
@@ -498,9 +499,9 @@ UNINITIALIZED_TEST(EquivalenceOfLoggingAndTraversal) {
     if (!result->IsTrue()) {
       v8::Local<v8::String> s = result->ToString(logger.env()).ToLocalChecked();
       i::ScopedVector<char> data(s->Utf8Length(isolate) + 1);
-      CHECK(data.start());
-      s->WriteUtf8(isolate, data.start());
-      FATAL("%s\n", data.start());
+      CHECK(data.begin());
+      s->WriteUtf8(isolate, data.begin());
+      FATAL("%s\n", data.begin());
     }
   }
   isolate->Dispose();
@@ -520,7 +521,7 @@ UNINITIALIZED_TEST(LogVersion) {
                 i::Version::GetMinor(), i::Version::GetBuild(),
                 i::Version::GetPatch(), i::Version::IsCandidate());
     CHECK(
-        logger.ContainsLine({"v8-version,", std::string(line_buffer.start())}));
+        logger.ContainsLine({"v8-version,", std::string(line_buffer.begin())}));
   }
   isolate->Dispose();
 }
@@ -1260,12 +1261,12 @@ UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
     i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
                 builtin->InstructionStart(), builtin->InstructionSize());
     CHECK(logger.ContainsLine(
-        {"code-creation,Builtin,3,", std::string(buffer.start())}));
+        {"code-creation,Builtin,3,", std::string(buffer.begin())}));
 
     i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,", builtin->InstructionStart(),
                 builtin->InstructionSize());
     CHECK(!logger.ContainsLine(
-        {"code-creation,LazyCompile,3,", std::string(buffer.start())}));
+        {"code-creation,LazyCompile,3,", std::string(buffer.begin())}));
   }
   isolate->Dispose();
 }

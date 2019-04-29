@@ -3036,7 +3036,7 @@ class EmptyExternalStringResource : public v8::String::ExternalStringResource {
   EmptyExternalStringResource() { empty_[0] = 0; }
   ~EmptyExternalStringResource() override = default;
   size_t length() const override { return empty_.length(); }
-  const uint16_t* data() const override { return empty_.start(); }
+  const uint16_t* data() const override { return empty_.begin(); }
 
  private:
   ::v8::internal::EmbeddedVector<uint16_t, 1> empty_;
@@ -3449,7 +3449,7 @@ static void TestDebugBreakInLoop(const char* loop_head,
     SNPrintF(buffer, "function f() {%s%s%s}", loop_head, loop_bodies[i],
              loop_tail);
 
-    i::PrintF("%s\n", buffer.start());
+    i::PrintF("%s\n", buffer.begin());
 
     for (int j = 0; j < 3; j++) {
       break_point_hit_count_deoptimize = j;
@@ -3462,7 +3462,7 @@ static void TestDebugBreakInLoop(const char* loop_head,
       terminate_after_max_break_point_hit = true;
 
       // Function with infinite loop.
-      CompileRun(buffer.start());
+      CompileRun(buffer.begin());
 
       // Set the debug break to enter the debugger as soon as possible.
       v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());

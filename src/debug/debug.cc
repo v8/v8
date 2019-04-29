@@ -2032,7 +2032,7 @@ void Debug::PrintBreakLocation() {
     String::FlatContent content = source->GetFlatContent(no_gc);
     if (content.IsOneByte()) {
       PrintF("[debug] %.*s\n", line_end - line_start,
-             content.ToOneByteVector().start() + line_start);
+             content.ToOneByteVector().begin() + line_start);
       PrintF("[debug] ");
       for (int i = 0; i < column; i++) PrintF(" ");
       PrintF("^\n");

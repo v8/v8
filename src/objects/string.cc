@@ -77,8 +77,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
     // Assert that the resource and the string are equivalent.
     DCHECK(static_cast<size_t>(this->length()) == resource->length());
     ScopedVector<uc16> smart_chars(this->length());
-    String::WriteToFlat(*this, smart_chars.start(), 0, this->length());
-    DCHECK_EQ(0, memcmp(smart_chars.start(), resource->data(),
+    String::WriteToFlat(*this, smart_chars.begin(), 0, this->length());
+    DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));
   }
 #endif                      // DEBUG
@@ -145,12 +145,12 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     DCHECK(static_cast<size_t>(this->length()) == resource->length());
     if (this->IsTwoByteRepresentation()) {
       ScopedVector<uint16_t> smart_chars(this->length());
-      String::WriteToFlat(*this, smart_chars.start(), 0, this->length());
-      DCHECK(String::IsOneByte(smart_chars.start(), this->length()));
+      String::WriteToFlat(*this, smart_chars.begin(), 0, this->length());
+      DCHECK(String::IsOneByte(smart_chars.begin(), this->length()));
     }
     ScopedVector<char> smart_chars(this->length());
-    String::WriteToFlat(*this, smart_chars.start(), 0, this->length());
-    DCHECK_EQ(0, memcmp(smart_chars.start(), resource->data(),
+    String::WriteToFlat(*this, smart_chars.begin(), 0, this->length());
+    DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));
   }
 #endif                      // DEBUG
@@ -764,8 +764,8 @@ bool String::SlowEquals(Isolate* isolate, Handle<String> one,
   String::FlatContent flat2 = two->GetFlatContent(no_gc);
 
   if (flat1.IsOneByte() && flat2.IsOneByte()) {
-    return CompareRawStringContents(flat1.ToOneByteVector().start(),
-                                    flat2.ToOneByteVector().start(),
+    return CompareRawStringContents(flat1.ToOneByteVector().begin(),
+                                    flat2.ToOneByteVector().begin(),
                                     one_length);
   } else {
     for (int i = 0; i < one_length; i++) {
@@ -815,19 +815,19 @@ ComparisonResult String::Compare(Isolate* isolate, Handle<String> x,
     Vector<const uint8_t> x_chars = x_content.ToOneByteVector();
     if (y_content.IsOneByte()) {
       Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
-      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
+      r = CompareChars(x_chars.begin(), y_chars.begin(), prefix_length);
     } else {
       Vector<const uc16> y_chars = y_content.ToUC16Vector();
-      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
+      r = CompareChars(x_chars.begin(), y_chars.begin(), prefix_length);
     }
   } else {
     Vector<const uc16> x_chars = x_content.ToUC16Vector();
     if (y_content.IsOneByte()) {
       Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
-      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
+      r = CompareChars(x_chars.begin(), y_chars.begin(), prefix_length);
     } else {
       Vector<const uc16> y_chars = y_content.ToUC16Vector();
-      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
+      r = CompareChars(x_chars.begin(), y_chars.begin(), prefix_length);
     }
   }
   if (r < 0) {
@@ -1196,10 +1196,10 @@ bool String::HasOneBytePrefix(Vector<const char> str) {
   DisallowHeapAllocation no_gc;
   FlatContent content = GetFlatContent(no_gc);
   if (content.IsOneByte()) {
-    return CompareChars(content.ToOneByteVector().start(), str.start(), slen) ==
+    return CompareChars(content.ToOneByteVector().begin(), str.begin(), slen) ==
            0;
   }
-  return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;
+  return CompareChars(content.ToUC16Vector().begin(), str.begin(), slen) == 0;
 }
 
 bool String::IsOneByteEqualTo(Vector<const uint8_t> str) {
@@ -1208,10 +1208,10 @@ bool String::IsOneByteEqualTo(Vector<const uint8_t> str) {
   DisallowHeapAllocation no_gc;
   FlatContent content = GetFlatContent(no_gc);
   if (content.IsOneByte()) {
-    return CompareChars(content.ToOneByteVector().start(), str.start(), slen) ==
+    return CompareChars(content.ToOneByteVector().begin(), str.begin(), slen) ==
            0;
   }
-  return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;
+  return CompareChars(content.ToUC16Vector().begin(), str.begin(), slen) == 0;
 }
 
 bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
@@ -1220,10 +1220,10 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
   DisallowHeapAllocation no_gc;
   FlatContent content = GetFlatContent(no_gc);
   if (content.IsOneByte()) {
-    return CompareChars(content.ToOneByteVector().start(), str.start(), slen) ==
+    return CompareChars(content.ToOneByteVector().begin(), str.begin(), slen) ==
            0;
   }
-  return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;
+  return CompareChars(content.ToUC16Vector().begin(), str.begin(), slen) == 0;
 }
 
 uint32_t String::ComputeAndSetHash() {
@@ -1367,7 +1367,7 @@ FlatStringReader::FlatStringReader(Isolate* isolate, Vector<const char> input)
       str_(nullptr),
       is_one_byte_(true),
       length_(input.length()),
-      start_(input.start()) {}
+      start_(input.begin()) {}
 
 void FlatStringReader::PostGarbageCollection() {
   if (str_ == nullptr) return;
@@ -1379,9 +1379,9 @@ void FlatStringReader::PostGarbageCollection() {
   DCHECK(content.IsFlat());
   is_one_byte_ = content.IsOneByte();
   if (is_one_byte_) {
-    start_ = content.ToOneByteVector().start();
+    start_ = content.ToOneByteVector().begin();
   } else {
-    start_ = content.ToUC16Vector().start();
+    start_ = content.ToUC16Vector().begin();
   }
 }
 

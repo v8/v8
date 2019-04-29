@@ -398,7 +398,7 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
       Vector<const uint8_t> chars = content.ToOneByteVector();
       // Note, this will initialize all elements (not only the prefix)
       // to prevent GC from seeing partially initialized array.
-      position = CopyCachedOneByteCharsToArray(isolate->heap(), chars.start(),
+      position = CopyCachedOneByteCharsToArray(isolate->heap(), chars.begin(),
                                                *elements, length);
     } else {
       MemsetTagged(elements->data_start(),

@@ -601,7 +601,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
                               static_cast<uint32_t>(instance->memory_size()));
       Address dest_addr =
           reinterpret_cast<Address>(instance->memory_start()) + dest_offset;
-      Address src_addr = reinterpret_cast<Address>(wire_bytes.start()) +
+      Address src_addr = reinterpret_cast<Address>(wire_bytes.begin()) +
                          segment.source.offset();
       memory_copy_wrapper(dest_addr, src_addr, size);
       if (!ok) {
@@ -616,7 +616,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
       uint32_t dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
       DCHECK(IsInBounds(dest_offset, size, instance->memory_size()));
       byte* dest = instance->memory_start() + dest_offset;
-      const byte* src = wire_bytes.start() + segment.source.offset();
+      const byte* src = wire_bytes.begin() + segment.source.offset();
       memcpy(dest, src, size);
     }
   }

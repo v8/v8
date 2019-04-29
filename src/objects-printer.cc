@@ -1266,7 +1266,7 @@ void JSDate::JSDatePrint(std::ostream& os) {  // NOLINT
              hour()->IsSmi() ? Smi::ToInt(hour()) : -1,
              min()->IsSmi() ? Smi::ToInt(min()) : -1,
              sec()->IsSmi() ? Smi::ToInt(sec()) : -1);
-    os << buf.start();
+    os << buf.begin();
   }
   JSObjectPrintBody(os, *this);
 }

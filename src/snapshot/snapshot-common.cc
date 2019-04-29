@@ -152,7 +152,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   uint32_t payload_length =
       static_cast<uint32_t>(startup_snapshot->RawData().length());
   CopyBytes(data + payload_offset,
-            reinterpret_cast<const char*>(startup_snapshot->RawData().start()),
+            reinterpret_cast<const char*>(startup_snapshot->RawData().begin()),
             payload_length);
   if (FLAG_profile_deserialization) {
     PrintF("Snapshot blob consists of:\n%10d bytes in %d chunks for startup\n",
@@ -166,7 +166,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   payload_length = read_only_snapshot->RawData().length();
   CopyBytes(
       data + payload_offset,
-      reinterpret_cast<const char*>(read_only_snapshot->RawData().start()),
+      reinterpret_cast<const char*>(read_only_snapshot->RawData().begin()),
       payload_length);
   if (FLAG_profile_deserialization) {
     PrintF("%10d bytes for read-only\n", payload_length);
@@ -180,7 +180,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
     payload_length = context_snapshot->RawData().length();
     CopyBytes(
         data + payload_offset,
-        reinterpret_cast<const char*>(context_snapshot->RawData().start()),
+        reinterpret_cast<const char*>(context_snapshot->RawData().begin()),
         payload_length);
     if (FLAG_profile_deserialization) {
       PrintF("%10d bytes in %d chunks for context #%d\n", payload_length,

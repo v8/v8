@@ -684,7 +684,7 @@ void SetCompileError(ErrorThrower* thrower, ModuleWireBytes wire_bytes,
                      const WasmFunction* func, const WasmModule* module,
                      WasmError error) {
   WasmName name = wire_bytes.GetNameOrNull(func, module);
-  if (name.start() == nullptr) {
+  if (name.begin() == nullptr) {
     thrower->CompileError("Compiling function #%d failed: %s @+%u",
                           func->func_index, error.message().c_str(),
                           error.offset());
@@ -703,7 +703,7 @@ DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
                                     AccountingAllocator* allocator,
                                     WasmFeatures enabled_features) {
   const WasmFunction* func = &module->functions[func_index];
-  FunctionBody body{func->sig, func->code.offset(), code.start(), code.end()};
+  FunctionBody body{func->sig, func->code.offset(), code.begin(), code.end()};
   DecodeResult result;
 
   auto time_counter =
@@ -1728,7 +1728,7 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
   if (section_code == SectionCode::kUnknownSectionCode) {
     Decoder decoder(bytes, offset);
     section_code = ModuleDecoder::IdentifyUnknownSection(
-        decoder, bytes.start() + bytes.length());
+        decoder, bytes.begin() + bytes.length());
     if (section_code == SectionCode::kUnknownSectionCode) {
       // Skip unknown sections that we do not know how to handle.
       return true;

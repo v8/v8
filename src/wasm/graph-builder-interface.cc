@@ -580,7 +580,7 @@ class WasmGraphBuildingInterface {
   }
 
   TFNode** GetNodes(Vector<Value> values) {
-    return GetNodes(values.start(), values.size());
+    return GetNodes(values.begin(), values.size());
   }
 
   void SetEnv(SsaEnv* env) {

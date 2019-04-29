@@ -151,7 +151,7 @@ TEST(TransitionArray_DifferentFieldNames) {
   for (int i = 0; i < PROPS_COUNT; i++) {
     EmbeddedVector<char, 64> buffer;
     SNPrintF(buffer, "prop%d", i);
-    Handle<String> name = factory->InternalizeUtf8String(buffer.start());
+    Handle<String> name = factory->InternalizeUtf8String(buffer.begin());
     Handle<Map> map =
         Map::CopyWithField(isolate, map0, name, FieldType::Any(isolate),
                            attributes, PropertyConstness::kMutable,
@@ -243,7 +243,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   for (int i = 0; i < PROPS_COUNT; i++) {
     EmbeddedVector<char, 64> buffer;
     SNPrintF(buffer, "prop%d", i);
-    Handle<String> name = factory->InternalizeUtf8String(buffer.start());
+    Handle<String> name = factory->InternalizeUtf8String(buffer.begin());
     Handle<Map> map =
         Map::CopyWithField(isolate, map0, name, FieldType::Any(isolate), NONE,
                            PropertyConstness::kMutable,

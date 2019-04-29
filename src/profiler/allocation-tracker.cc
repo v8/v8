@@ -78,9 +78,8 @@ AllocationTraceTree::AllocationTraceTree()
 AllocationTraceNode* AllocationTraceTree::AddPathFromEnd(
     const Vector<unsigned>& path) {
   AllocationTraceNode* node = root();
-  for (unsigned* entry = path.start() + path.length() - 1;
-       entry != path.start() - 1;
-       --entry) {
+  for (unsigned* entry = path.begin() + path.length() - 1;
+       entry != path.begin() - 1; --entry) {
     node = node->FindOrAddChild(*entry);
   }
   return node;

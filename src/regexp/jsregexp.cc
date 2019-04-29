@@ -2754,7 +2754,7 @@ RegExpNode* TextNode::FilterOneByte(int depth) {
         }
         if (c > unibrow::Latin1::kMaxChar) return set_replacement(nullptr);
         // Replace quark in case we converted to Latin-1.
-        uint16_t* writable_quarks = const_cast<uint16_t*>(quarks.start());
+        uint16_t* writable_quarks = const_cast<uint16_t*>(quarks.begin());
         writable_quarks[j] = c;
       }
     } else {

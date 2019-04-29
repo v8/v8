@@ -85,7 +85,7 @@ RUNTIME_FUNCTION(Runtime_Call) {
     argv[i] = args.at(2 + i);
   }
   RETURN_RESULT_OR_FAILURE(
-      isolate, Execution::Call(isolate, target, receiver, argc, argv.start()));
+      isolate, Execution::Call(isolate, target, receiver, argc, argv.begin()));
 }
 
 

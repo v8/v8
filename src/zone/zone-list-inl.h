@@ -34,7 +34,7 @@ void ZoneList<T>::AddAll(const Vector<T>& other, Zone* zone) {
   if (capacity_ < result_length)
     Resize(result_length, ZoneAllocationPolicy(zone));
   if (std::is_fundamental<T>()) {
-    memcpy(data_ + length_, other.start(), sizeof(*data_) * other.length());
+    memcpy(data_ + length_, other.begin(), sizeof(*data_) * other.length());
   } else {
     for (int i = 0; i < other.length(); i++) data_[length_ + i] = other.at(i);
   }

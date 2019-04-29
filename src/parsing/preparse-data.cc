@@ -420,7 +420,7 @@ Handle<PreparseData> PreparseDataBuilder::ByteData::CopyToHeap(
   int data_length = zone_byte_data_.length();
   Handle<PreparseData> data =
       isolate->factory()->NewPreparseData(data_length, children_length);
-  data->copy_in(0, zone_byte_data_.start(), data_length);
+  data->copy_in(0, zone_byte_data_.begin(), data_length);
   return data;
 }
 

@@ -31,7 +31,7 @@ class CodeTracer final : public Malloced {
       SNPrintF(filename_, "code-%d.asm", base::OS::GetCurrentProcessId());
     }
 
-    WriteChars(filename_.start(), "", 0, false);
+    WriteChars(filename_.begin(), "", 0, false);
   }
 
   class Scope {
@@ -51,7 +51,7 @@ class CodeTracer final : public Malloced {
     }
 
     if (file_ == nullptr) {
-      file_ = base::OS::FOpen(filename_.start(), "ab");
+      file_ = base::OS::FOpen(filename_.begin(), "ab");
     }
 
     scope_depth_++;

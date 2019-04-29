@@ -46,7 +46,7 @@ class Decoder {
   Decoder(const byte* start, const byte* end, uint32_t buffer_offset = 0)
       : Decoder(start, start, end, buffer_offset) {}
   explicit Decoder(const Vector<const byte> bytes, uint32_t buffer_offset = 0)
-      : Decoder(bytes.start(), bytes.start() + bytes.length(), buffer_offset) {}
+      : Decoder(bytes.begin(), bytes.begin() + bytes.length(), buffer_offset) {}
   Decoder(const byte* start, const byte* pc, const byte* end,
           uint32_t buffer_offset = 0)
       : start_(start), pc_(pc), end_(end), buffer_offset_(buffer_offset) {
@@ -287,7 +287,7 @@ class Decoder {
     EmbeddedVector<char, kMaxErrorMsg> buffer;
     int len = VSNPrintF(buffer, format, args);
     CHECK_LT(0, len);
-    error_ = {offset, {buffer.start(), static_cast<size_t>(len)}};
+    error_ = {offset, {buffer.begin(), static_cast<size_t>(len)}};
     onFirstError();
   }
 

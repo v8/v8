@@ -20,7 +20,7 @@ class Sample {
   Sample() = default;
 
   typedef const void* const* const_iterator;
-  const_iterator begin() const { return data_.start(); }
+  const_iterator begin() const { return data_.begin(); }
   const_iterator end() const { return &data_[data_.length()]; }
 
   int size() const { return data_.length(); }
@@ -151,7 +151,7 @@ class SamplingTestHelper {
     state.sp = &state;
 #endif
     v8::SampleInfo info;
-    isolate_->GetStackSample(state, sample_.data().start(),
+    isolate_->GetStackSample(state, sample_.data().begin(),
                              static_cast<size_t>(sample_.size()), &info);
     size_t frames_count = info.frames_count;
     CHECK_LE(frames_count, static_cast<size_t>(sample_.size()));

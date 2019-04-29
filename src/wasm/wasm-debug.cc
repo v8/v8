@@ -180,7 +180,7 @@ class InterpreterHandle {
     WasmCodeRefScope code_ref_scope;
     WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
     thread->InitFrame(&module()->functions[func_index],
-                      argument_values.start());
+                      argument_values.begin());
     bool finished = false;
     while (!finished) {
       // TODO(clemensh): Add occasional StackChecks.

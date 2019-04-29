@@ -128,7 +128,7 @@ void PerfJitLogger::OpenJitDumpFile() {
                       base::OS::GetCurrentProcessId());
   CHECK_NE(size, -1);
 
-  int fd = open(perf_dump_name.start(), O_CREAT | O_TRUNC | O_RDWR, 0666);
+  int fd = open(perf_dump_name.begin(), O_CREAT | O_TRUNC | O_RDWR, 0666);
   if (fd == -1) return;
 
   marker_address_ = OpenMarkerFile(fd);
@@ -242,7 +242,7 @@ void PerfJitLogger::LogRecordedBuffer(const wasm::WasmCode* code,
 
   if (perf_output_handle_ == nullptr) return;
 
-  WriteJitCodeLoadEntry(code->instructions().start(),
+  WriteJitCodeLoadEntry(code->instructions().begin(),
                         code->instructions().length(), name, length);
 }
 
@@ -380,7 +380,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code code, SharedFunctionInfo shared) {
     DisallowHeapAllocation no_gc;
     std::unique_ptr<char[]> name_storage;
     Vector<const char> name_string = GetScriptName(info, &name_storage, no_gc);
-    LogWriteBytes(name_string.start(),
+    LogWriteBytes(name_string.begin(),
                   static_cast<uint32_t>(name_string.size()) + 1);
   }
   char padding_bytes[8] = {0};

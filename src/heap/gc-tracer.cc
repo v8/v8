@@ -447,7 +447,7 @@ void GCTracer::Output(const char* format, ...) const {
   VSNPrintF(buffer, format, arguments2);
   va_end(arguments2);
 
-  heap_->AddToRingBuffer(buffer.start());
+  heap_->AddToRingBuffer(buffer.begin());
 }
 
 void GCTracer::Print() const {

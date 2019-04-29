@@ -76,7 +76,7 @@ static Vector<const char> TrimLeadingZeros(Vector<const char> buffer) {
       return buffer.SubVector(i, buffer.length());
     }
   }
-  return Vector<const char>(buffer.start(), 0);
+  return Vector<const char>(buffer.begin(), 0);
 }
 
 
@@ -86,7 +86,7 @@ static Vector<const char> TrimTrailingZeros(Vector<const char> buffer) {
       return buffer.SubVector(0, i + 1);
     }
   }
-  return Vector<const char>(buffer.start(), 0);
+  return Vector<const char>(buffer.begin(), 0);
 }
 
 

@@ -199,7 +199,7 @@ class SequentialStringKey : public StringTableKey {
  public:
   explicit SequentialStringKey(Vector<const Char> string, uint64_t seed)
       : StringTableKey(StringHasher::HashSequentialString<Char>(
-            string.start(), string.length(), seed)),
+            string.begin(), string.length(), seed)),
         string_(string) {}
 
   Vector<const Char> string_;

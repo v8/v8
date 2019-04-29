@@ -269,12 +269,12 @@ Vector<const uint8_t> ConstructSource(Vector<const uint8_t> head,
                                       Vector<const uint8_t> tail, int repeats) {
   int source_length = head.length() + body.length() * repeats + tail.length();
   uint8_t* source = NewArray<uint8_t>(static_cast<size_t>(source_length));
-  CopyChars(source, head.start(), head.length());
+  CopyChars(source, head.begin(), head.length());
   for (int i = 0; i < repeats; i++) {
-    CopyChars(source + head.length() + i * body.length(), body.start(),
+    CopyChars(source + head.length() + i * body.length(), body.begin(),
               body.length());
   }
-  CopyChars(source + head.length() + repeats * body.length(), tail.start(),
+  CopyChars(source + head.length() + repeats * body.length(), tail.begin(),
             tail.length());
   return Vector<const uint8_t>(const_cast<const uint8_t*>(source),
                                source_length);
@@ -618,7 +618,7 @@ static void PartiallySerializeCustomContext(
           StaticCharVector("function g() { return [,"), StaticCharVector("1,"),
           StaticCharVector("];} a = g(); b = g(); b.push(1);"), 100000);
       v8::MaybeLocal<v8::String> source_str = v8::String::NewFromOneByte(
-          v8_isolate, source.start(), v8::NewStringType::kNormal,
+          v8_isolate, source.begin(), v8::NewStringType::kNormal,
           source.length());
       CompileRun(source_str.ToLocalChecked());
       source.Dispose();
@@ -1545,7 +1545,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
                       StaticCharVector("\0"), 10000);
 
   v8::StartupData data =
-      CreateSnapshotDataBlob(reinterpret_cast<const char*>(source.start()));
+      CreateSnapshotDataBlob(reinterpret_cast<const char*>(source.begin()));
 
   v8::Isolate::CreateParams params;
   params.snapshot_blob = &data;
@@ -2172,7 +2172,7 @@ TEST(CodeSerializerLargeExternalString) {
                       StaticCharVector(""), 999999);
   Handle<String> name = f->NewStringFromOneByte(string).ToHandleChecked();
   SerializerOneByteResource one_byte_resource(
-      reinterpret_cast<const char*>(string.start()), string.length());
+      reinterpret_cast<const char*>(string.begin()), string.length());
   name = f->InternalizeString(name);
   name->MakeExternal(&one_byte_resource);
   CHECK(name->IsExternalOneByteString());

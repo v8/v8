@@ -145,7 +145,7 @@ void WasmCode::RegisterTrapHandlerData() {
   size_t size = instructions().size();
   const int index =
       RegisterHandlerData(base, size, protected_instructions().size(),
-                          protected_instructions().start());
+                          protected_instructions().begin());
 
   // TODO(eholk): if index is negative, fail.
   CHECK_LE(0, index);
@@ -288,8 +288,8 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   }
   DCHECK_LT(0, instruction_size);
   os << "Instructions (size = " << instruction_size << ")\n";
-  Disassembler::Decode(nullptr, &os, instructions().start(),
-                       instructions().start() + instruction_size,
+  Disassembler::Decode(nullptr, &os, instructions().begin(),
+                       instructions().begin() + instruction_size,
                        CodeReference(this), current_pc);
   os << "\n";
 
@@ -547,7 +547,7 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
         JumpTableAssembler::StubSlotIndexToOffset(pair.second);
     runtime_stub_entries_[pair.second] = base + slot_offset;
   }
-  FlushInstructionCache(jump_table->instructions().start(),
+  FlushInstructionCache(jump_table->instructions().begin(),
                         jump_table->instructions().size());
   DCHECK_NULL(runtime_stub_table_);
   runtime_stub_table_ = jump_table;
@@ -609,7 +609,7 @@ WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
       static_cast<size_t>(code->code_comments_offset());
 
   Vector<uint8_t> dst_code_bytes = AllocateForCode(instructions.size());
-  memcpy(dst_code_bytes.begin(), instructions.start(), instructions.size());
+  memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
@@ -635,7 +635,7 @@ WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
   }
 
   // Flush the i-cache after relocation.
-  FlushInstructionCache(dst_code_bytes.start(), dst_code_bytes.size());
+  FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
 
   DCHECK_NE(kind, WasmCode::Kind::kInterpreterEntry);
   std::unique_ptr<WasmCode> new_code{new WasmCode{
@@ -740,7 +740,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   // Flush the i-cache for the region holding the relocated code.
   // Do this last, as this seems to trigger an LTO bug that clobbers a register
   // on arm, see https://crbug.com/952759#c6.
-  FlushInstructionCache(dst_code_bytes.start(), dst_code_bytes.size());
+  FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
 
   return code;
 }
@@ -827,7 +827,7 @@ WasmCode* NativeModule::AddDeserializedCode(
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier) {
   Vector<uint8_t> dst_code_bytes = AllocateForCode(instructions.size());
-  memcpy(dst_code_bytes.begin(), instructions.start(), instructions.size());
+  memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
   std::unique_ptr<WasmCode> code{new WasmCode{
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,

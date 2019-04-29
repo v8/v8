@@ -284,12 +284,12 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
     // File are named `HASH.{ok,failed}.wasm`.
-    size_t hash = base::hash_range(module_bytes.start(), module_bytes.end());
+    size_t hash = base::hash_range(module_bytes.begin(), module_bytes.end());
     EmbeddedVector<char, 32> buf;
     SNPrintF(buf, "%016zx.%s.wasm", hash, ok() ? "ok" : "failed");
-    std::string name(buf.start());
+    std::string name(buf.begin());
     if (FILE* wasm_file = base::OS::FOpen((path + name).c_str(), "wb")) {
-      if (fwrite(module_bytes.start(), module_bytes.length(), 1, wasm_file) !=
+      if (fwrite(module_bytes.begin(), module_bytes.length(), 1, wasm_file) !=
           1) {
         OFStream os(stderr);
         os << "Error while dumping wasm file" << std::endl;

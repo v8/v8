@@ -1407,7 +1407,7 @@ auto Module::imports() const -> vec<ImportType*> {
   i::Vector<const uint8_t> wire_bytes =
       impl(this)->v8_object()->native_module()->wire_bytes();
   vec<const byte_t> binary = vec<const byte_t>::adopt(
-      wire_bytes.size(), reinterpret_cast<const byte_t*>(wire_bytes.start()));
+      wire_bytes.size(), reinterpret_cast<const byte_t*>(wire_bytes.begin()));
   auto imports = wasm::bin::imports(binary);
   binary.release();
   return imports;
@@ -1417,7 +1417,7 @@ vec<ExportType*> ExportsImpl(i::Handle<i::WasmModuleObject> module_obj) {
   i::Vector<const uint8_t> wire_bytes =
       module_obj->native_module()->wire_bytes();
   vec<const byte_t> binary = vec<const byte_t>::adopt(
-      wire_bytes.size(), reinterpret_cast<const byte_t*>(wire_bytes.start()));
+      wire_bytes.size(), reinterpret_cast<const byte_t*>(wire_bytes.begin()));
   auto exports = wasm::bin::exports(binary);
   binary.release();
   return exports;
@@ -1440,7 +1440,7 @@ auto Module::serialize() const -> vec<byte_t> {
   byte_t* ptr = buffer.get();
   i::wasm::LEBHelper::write_u64v(reinterpret_cast<uint8_t**>(&ptr),
                                  binary_size);
-  std::memcpy(ptr, wire_bytes.start(), binary_size);
+  std::memcpy(ptr, wire_bytes.begin(), binary_size);
   ptr += binary_size;
   if (!serializer.SerializeNativeModule(
           {reinterpret_cast<uint8_t*>(ptr), serial_size})) {

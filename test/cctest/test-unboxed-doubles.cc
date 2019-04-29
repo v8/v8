@@ -55,7 +55,7 @@ static Handle<String> MakeString(const char* str) {
 static Handle<String> MakeName(const char* str, int suffix) {
   EmbeddedVector<char, 128> buffer;
   SNPrintF(buffer, "%s%d", str, suffix);
-  return MakeString(buffer.start());
+  return MakeString(buffer.begin());
 }
 
 
@@ -112,7 +112,7 @@ static Handle<DescriptorArray> CreateDescriptorArray(Isolate* isolate,
   for (int i = 0; i < kPropsCount; i++) {
     EmbeddedVector<char, 64> buffer;
     SNPrintF(buffer, "prop%d", i);
-    Handle<String> name = factory->InternalizeUtf8String(buffer.start());
+    Handle<String> name = factory->InternalizeUtf8String(buffer.begin());
 
     TestPropertyKind kind = props[i];
 
@@ -656,7 +656,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
   for (int i = 0; i < kPropsCount; i++) {
     EmbeddedVector<char, 64> buffer;
     SNPrintF(buffer, "prop%d", i);
-    Handle<String> name = factory->InternalizeUtf8String(buffer.start());
+    Handle<String> name = factory->InternalizeUtf8String(buffer.begin());
 
     Handle<LayoutDescriptor> layout_descriptor;
     TestPropertyKind kind = props[i];

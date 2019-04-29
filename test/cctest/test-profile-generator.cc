@@ -590,8 +590,8 @@ TEST(Issue51919) {
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
     i::Vector<char> title = i::Vector<char>::New(16);
     i::SNPrintF(title, "%d", i);
-    CHECK(collection.StartProfiling(title.start(), false));
-    titles[i] = title.start();
+    CHECK(collection.StartProfiling(title.begin(), false));
+    titles[i] = title.begin();
   }
   CHECK(!collection.StartProfiling("maximum", false));
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i)

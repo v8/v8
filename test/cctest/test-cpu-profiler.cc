@@ -133,7 +133,7 @@ i::AbstractCode CreateCode(LocalContext* env) {
   i::EmbeddedVector<char, 32> name;
 
   i::SNPrintF(name, "function_%d", ++counter);
-  const char* name_start = name.start();
+  const char* name_start = name.begin();
   i::SNPrintF(script,
       "function %s() {\n"
            "var counter = 0;\n"
@@ -141,7 +141,7 @@ i::AbstractCode CreateCode(LocalContext* env) {
            "return '%s_' + counter;\n"
        "}\n"
        "%s();\n", name_start, counter, name_start, name_start);
-  CompileRun(script.start());
+  CompileRun(script.begin());
 
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env->local(), name_start)));
@@ -1133,9 +1133,9 @@ static void TickLines(bool optimize) {
               "%s();\n"
               "%s"
               "%s();\n",
-              func_name, func_name, optimize_call.start(), func_name);
+              func_name, func_name, optimize_call.begin(), func_name);
 
-  CompileRun(script.start());
+  CompileRun(script.begin());
 
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
@@ -2097,7 +2097,7 @@ TEST(CollectDeoptEvents) {
   for (int i = 0; i < 3; ++i) {
     i::EmbeddedVector<char, sizeof(opt_source) + 100> buffer;
     i::SNPrintF(buffer, opt_source, i, i);
-    v8::Script::Compile(env, v8_str(buffer.start()))
+    v8::Script::Compile(env, v8_str(buffer.begin()))
         .ToLocalChecked()
         ->Run(env)
         .ToLocalChecked();

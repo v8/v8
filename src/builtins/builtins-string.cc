@@ -361,7 +361,7 @@ V8_WARN_UNUSED_RESULT static Object ConvertCase(
     bool has_changed_character = false;
     int index_to_first_unprocessed = FastAsciiConvert<Converter::kIsToLower>(
         reinterpret_cast<char*>(result->GetChars(no_gc)),
-        reinterpret_cast<const char*>(flat_content.ToOneByteVector().start()),
+        reinterpret_cast<const char*>(flat_content.ToOneByteVector().begin()),
         length, &has_changed_character);
     // If not ASCII, we discard the result and take the 2 byte path.
     if (index_to_first_unprocessed == length)

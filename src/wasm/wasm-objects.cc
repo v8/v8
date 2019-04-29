@@ -179,7 +179,7 @@ bool IsBreakablePosition(wasm::NativeModule* native_module, int func_index,
   AccountingAllocator alloc;
   Zone tmp(&alloc, ZONE_NAME);
   wasm::BodyLocalDecls locals(&tmp);
-  const byte* module_start = native_module->wire_bytes().start();
+  const byte* module_start = native_module->wire_bytes().begin();
   const WasmFunction& func = native_module->module()->functions[func_index];
   wasm::BytecodeIterator iterator(module_start + func.code.offset(),
                                   module_start + func.code.end_offset(),
@@ -610,7 +610,7 @@ bool WasmModuleObject::GetPossibleBreakpoints(
 
   AccountingAllocator alloc;
   Zone tmp(&alloc, ZONE_NAME);
-  const byte* module_start = native_module()->wire_bytes().start();
+  const byte* module_start = native_module()->wire_bytes().begin();
 
   for (uint32_t func_idx = start_func_index; func_idx <= end_func_index;
        ++func_idx) {
@@ -678,7 +678,7 @@ MaybeHandle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
   Vector<const uint8_t> name_vec = wire_bytes + ref.offset();
   name_vec.Truncate(ref.length());
   // UTF8 validation happens at decode time.
-  DCHECK(unibrow::Utf8::ValidateEncoding(name_vec.start(), name_vec.length()));
+  DCHECK(unibrow::Utf8::ValidateEncoding(name_vec.begin(), name_vec.length()));
   return isolate->factory()->NewStringFromUtf8(
       Vector<const char>::cast(name_vec));
 }
@@ -1399,7 +1399,7 @@ void ImportedFunctionEntry::SetWasmToJs(
   TRACE_IFT("Import callable %p[%d] = {callable=%p, target=%p}\n",
             reinterpret_cast<void*>(instance_->ptr()), index_,
             reinterpret_cast<void*>(callable->ptr()),
-            wasm_to_js_wrapper->instructions().start());
+            wasm_to_js_wrapper->instructions().begin());
   DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_to_js_wrapper->kind());
   Handle<Tuple2> tuple =
       isolate->factory()->NewTuple2(instance_, callable, AllocationType::kOld);
@@ -1578,7 +1578,7 @@ void WasmInstanceObject::InitDataSegmentArrays(
     auto source_bytes = wire_bytes.SubVector(segment.source.offset(),
                                              segment.source.end_offset());
     instance->data_segment_starts()[i] =
-        reinterpret_cast<Address>(source_bytes.start());
+        reinterpret_cast<Address>(source_bytes.begin());
     instance->data_segment_sizes()[i] = source_bytes.length();
   }
 }

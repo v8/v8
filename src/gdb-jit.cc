@@ -1162,7 +1162,7 @@ class DebugInfoSection : public DebugSection {
       int current_abbreviation = 4;
 
       EmbeddedVector<char, 256> buffer;
-      StringBuilder builder(buffer.start(), buffer.length());
+      StringBuilder builder(buffer.begin(), buffer.length());
 
       for (int param = 0; param < params; ++param) {
         w->WriteULEB128(current_abbreviation++);
@@ -2128,7 +2128,7 @@ void EventHandler(const v8::JitCodeEvent* event) {
       Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
       LineInfo* lineinfo = GetLineInfo(addr);
       EmbeddedVector<char, 256> buffer;
-      StringBuilder builder(buffer.start(), buffer.length());
+      StringBuilder builder(buffer.begin(), buffer.length());
       builder.AddSubstring(event->name.str, static_cast<int>(event->name.len));
       // It's called UnboundScript in the API but it's a SharedFunctionInfo.
       SharedFunctionInfo shared = event->script.IsEmpty()

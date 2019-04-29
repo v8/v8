@@ -82,7 +82,7 @@ static double Inc(Isolate* isolate, int x) {
   EmbeddedVector<char, 512> buffer;
   SNPrintF(buffer, source, x);
 
-  Handle<JSFunction> fun = Compile(buffer.start());
+  Handle<JSFunction> fun = Compile(buffer.begin());
   if (fun.is_null()) return -1;
 
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
@@ -276,14 +276,14 @@ TEST(GetScriptLineNumber) {
   const int max_rows = 1000;
   const int buffer_size = max_rows + sizeof(function_f);
   ScopedVector<char> buffer(buffer_size);
-  memset(buffer.start(), '\n', buffer_size - 1);
+  memset(buffer.begin(), '\n', buffer_size - 1);
   buffer[buffer_size - 1] = '\0';
 
   for (int i = 0; i < max_rows; ++i) {
     if (i > 0)
       buffer[i - 1] = '\n';
     MemCopy(&buffer[i], function_f, sizeof(function_f) - 1);
-    v8::Local<v8::String> script_body = v8_str(buffer.start());
+    v8::Local<v8::String> script_body = v8_str(buffer.begin());
     v8::Script::Compile(context.local(), script_body, &origin)
         .ToLocalChecked()
         ->Run(context.local())

@@ -217,7 +217,7 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
   signature_expected_receiver = receiver;
   bool expected_to_throw = receiver.IsEmpty();
   v8::TryCatch try_catch(isolate);
-  CompileRun(source.start());
+  CompileRun(source.begin());
   CHECK_EQ(expected_to_throw, try_catch.HasCaught());
   if (!expected_to_throw) {
     CHECK_EQ(10, signature_callback_count);
@@ -247,7 +247,7 @@ static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
   signature_expected_receiver = receiver;
   bool expected_to_throw = receiver.IsEmpty();
   v8::TryCatch try_catch(isolate);
-  CompileRun(source.start());
+  CompileRun(source.begin());
   CHECK_EQ(expected_to_throw, try_catch.HasCaught());
   if (!expected_to_throw) {
     CHECK_EQ(3, signature_callback_count);
@@ -358,7 +358,7 @@ THREADED_TEST(ReceiverSignature) {
     i::ScopedVector<char> source(200);
     i::SNPrintF(
         source, "var test_object = %s; test_object", test_objects[i]);
-    Local<Value> test_object = CompileRun(source.start());
+    Local<Value> test_object = CompileRun(source.begin());
     TestSignature("test_object.prop();", test_object, isolate);
     TestSignature("test_object.accessor;", test_object, isolate);
     TestSignature("test_object[accessor_key];", test_object, isolate);
@@ -2864,7 +2864,7 @@ THREADED_TEST(InternalFieldsOfRegularObjects) {
   for (size_t i = 0; i < arraysize(sources); ++i) {
     i::ScopedVector<char> source(128);
     i::SNPrintF(source, "(function() { return %s })()", sources[i]);
-    v8::Local<v8::Object> obj = CompileRun(source.start()).As<v8::Object>();
+    v8::Local<v8::Object> obj = CompileRun(source.begin()).As<v8::Object>();
     CHECK_EQ(0, obj->InternalFieldCount());
   }
 }
@@ -3765,9 +3765,9 @@ THREADED_TEST(ArrayBuffer_External) {
   v8::HandleScope handle_scope(isolate);
 
   i::ScopedVector<uint8_t> my_data(100);
-  memset(my_data.start(), 0, 100);
+  memset(my_data.begin(), 0, 100);
   Local<v8::ArrayBuffer> ab3 =
-      v8::ArrayBuffer::New(isolate, my_data.start(), 100);
+      v8::ArrayBuffer::New(isolate, my_data.begin(), 100);
   CheckInternalFieldsAreZero(ab3);
   CHECK_EQ(100, static_cast<int>(ab3->ByteLength()));
   CHECK(ab3->IsExternal());
@@ -3797,9 +3797,9 @@ THREADED_TEST(ArrayBuffer_DisableDetach) {
   v8::HandleScope handle_scope(isolate);
 
   i::ScopedVector<uint8_t> my_data(100);
-  memset(my_data.start(), 0, 100);
+  memset(my_data.begin(), 0, 100);
   Local<v8::ArrayBuffer> ab =
-      v8::ArrayBuffer::New(isolate, my_data.start(), 100);
+      v8::ArrayBuffer::New(isolate, my_data.begin(), 100);
   CHECK(ab->IsDetachable());
 
   i::Handle<i::JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
@@ -3824,7 +3824,7 @@ static void CheckIsTypedArrayVarDetached(const char* name) {
   i::SNPrintF(source,
               "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
               name, name, name);
-  CHECK(CompileRun(source.start())->IsTrue());
+  CHECK(CompileRun(source.begin())->IsTrue());
   v8::Local<v8::TypedArray> ta =
       v8::Local<v8::TypedArray>::Cast(CompileRun(name));
   CheckIsDetached(ta);
@@ -4085,9 +4085,9 @@ THREADED_TEST(SharedArrayBuffer_External) {
   v8::HandleScope handle_scope(isolate);
 
   i::ScopedVector<uint8_t> my_data(100);
-  memset(my_data.start(), 0, 100);
+  memset(my_data.begin(), 0, 100);
   Local<v8::SharedArrayBuffer> ab3 =
-      v8::SharedArrayBuffer::New(isolate, my_data.start(), 100);
+      v8::SharedArrayBuffer::New(isolate, my_data.begin(), 100);
   CheckInternalFieldsAreZero(ab3);
   CHECK_EQ(100, static_cast<int>(ab3->ByteLength()));
   CHECK(ab3->IsExternal());
@@ -4430,9 +4430,9 @@ class TwoPassCallbackData {
     HandleScope scope(isolate);
     i::ScopedVector<char> buffer(40);
     i::SNPrintF(buffer, "%p", static_cast<void*>(this));
-    auto string =
-        v8::String::NewFromUtf8(isolate, buffer.start(),
-                                v8::NewStringType::kNormal).ToLocalChecked();
+    auto string = v8::String::NewFromUtf8(isolate, buffer.begin(),
+                                          v8::NewStringType::kNormal)
+                      .ToLocalChecked();
     cell_.Reset(isolate, string);
     (*instance_counter_)++;
   }
@@ -7462,9 +7462,9 @@ TEST(ExtensionWithSourceLength) {
     i::ScopedVector<char> extension_name(32);
     i::SNPrintF(extension_name, "ext #%d", source_len);
     v8::RegisterExtension(v8::base::make_unique<Extension>(
-        extension_name.start(), kEmbeddedExtensionSource, 0, nullptr,
+        extension_name.begin(), kEmbeddedExtensionSource, 0, nullptr,
         source_len));
-    const char* extension_names[1] = {extension_name.start()};
+    const char* extension_names[1] = {extension_name.begin()};
     v8::ExtensionConfiguration extensions(1, extension_names);
     v8::Local<Context> context = Context::New(CcTest::isolate(), &extensions);
     if (source_len == kEmbeddedExtensionSourceValidLen) {
@@ -11208,7 +11208,7 @@ THREADED_TEST(Regress91517) {
   i::ScopedVector<char> name_buf(1024);
   for (int i = 1; i <= 1000; i++) {
     i::SNPrintF(name_buf, "sdf%d", i);
-    t2->InstanceTemplate()->Set(v8_str(name_buf.start()), v8_num(2));
+    t2->InstanceTemplate()->Set(v8_str(name_buf.begin()), v8_num(2));
   }
 
   Local<v8::Object> o1 = t1->GetFunction(context.local())
@@ -14902,7 +14902,7 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
       : data_(vector) {}
   ~OneByteVectorResource() override = default;
   size_t length() const override { return data_.length(); }
-  const char* data() const override { return data_.start(); }
+  const char* data() const override { return data_.begin(); }
   void Dispose() override {}
 
  private:
@@ -14916,7 +14916,7 @@ class UC16VectorResource : public v8::String::ExternalStringResource {
       : data_(vector) {}
   ~UC16VectorResource() override = default;
   size_t length() const override { return data_.length(); }
-  const i::uc16* data() const override { return data_.start(); }
+  const i::uc16* data() const override { return data_.begin(); }
   void Dispose() override {}
 
  private:
@@ -15756,13 +15756,13 @@ static void ObjectWithExternalArrayTestHelper(Local<Context> context,
   i::SNPrintF(test_buf,
               boundary_program,
               low);
-  result = CompileRun(test_buf.start());
+  result = CompileRun(test_buf.begin());
   CHECK_EQ(low, result->IntegerValue(context).FromJust());
 
   i::SNPrintF(test_buf,
               boundary_program,
               high);
-  result = CompileRun(test_buf.start());
+  result = CompileRun(test_buf.begin());
   CHECK_EQ(high, result->IntegerValue(context).FromJust());
 
   // Check misprediction of type in IC.
@@ -15790,7 +15790,7 @@ static void ObjectWithExternalArrayTestHelper(Local<Context> context,
               "}"
               "caught_exception;",
               element_count);
-  result = CompileRun(test_buf.start());
+  result = CompileRun(test_buf.begin());
   CHECK(!result->BooleanValue(v8_isolate));
 
   // Make sure out-of-range stores do not throw.
@@ -15803,7 +15803,7 @@ static void ObjectWithExternalArrayTestHelper(Local<Context> context,
               "}"
               "caught_exception;",
               element_count);
-  result = CompileRun(test_buf.start());
+  result = CompileRun(test_buf.begin());
   CHECK(!result->BooleanValue(v8_isolate));
 
   // Check other boundary conditions, values and operations.
@@ -15895,7 +15895,7 @@ static void ObjectWithExternalArrayTestHelper(Local<Context> context,
                 (is_unsigned ?
                      unsigned_data :
                      (is_pixel_data ? pixel_data : signed_data)));
-    result = CompileRun(test_buf.start());
+    result = CompileRun(test_buf.begin());
     CHECK(result->BooleanValue(v8_isolate));
   }
 
@@ -16091,7 +16091,7 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
   v8::HandleScope handle_scope(isolate);
 
   Local<ArrayBufferType> ab =
-      ArrayBufferType::New(isolate, backing_store.start(),
+      ArrayBufferType::New(isolate, backing_store.begin(),
                            (kElementCount + 2) * sizeof(ElementType));
   Local<TypedArray> ta =
       TypedArray::New(ab, 2*sizeof(ElementType), kElementCount);
@@ -16101,7 +16101,7 @@ void TypedArrayTestHelper(i::ExternalArrayType array_type, int64_t low,
   CHECK_EQ(kElementCount * sizeof(ElementType), ta->ByteLength());
   CHECK(ab->Equals(env.local(), ta->Buffer()).FromJust());
 
-  ElementType* data = backing_store.start() + 2;
+  ElementType* data = backing_store.begin() + 2;
   for (int i = 0; i < kElementCount; i++) {
     data[i] = static_cast<ElementType>(i);
   }
@@ -16178,7 +16178,7 @@ THREADED_TEST(DataView) {
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::ArrayBuffer> ab =
-      v8::ArrayBuffer::New(isolate, backing_store.start(), 2 + kSize);
+      v8::ArrayBuffer::New(isolate, backing_store.begin(), 2 + kSize);
   Local<v8::DataView> dv = v8::DataView::New(ab, 2, kSize);
   CheckInternalFieldsAreZero<v8::ArrayBufferView>(dv);
   CHECK_EQ(2u, dv->ByteOffset());
@@ -16317,7 +16317,7 @@ THREADED_TEST(SharedDataView) {
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::SharedArrayBuffer> ab =
-      v8::SharedArrayBuffer::New(isolate, backing_store.start(), 2 + kSize);
+      v8::SharedArrayBuffer::New(isolate, backing_store.begin(), 2 + kSize);
   Local<v8::DataView> dv =
       v8::DataView::New(ab, 2, kSize);
   CheckInternalFieldsAreZero<v8::ArrayBufferView>(dv);
@@ -17561,9 +17561,9 @@ TEST(SourceURLInStackTrace) {
 
   i::ScopedVector<char> code(1024);
   i::SNPrintF(code, source, "//# sourceURL=eval_url");
-  CHECK(CompileRun(code.start())->IsUndefined());
+  CHECK(CompileRun(code.begin())->IsUndefined());
   i::SNPrintF(code, source, "//@ sourceURL=eval_url");
-  CHECK(CompileRun(code.start())->IsUndefined());
+  CHECK(CompileRun(code.begin())->IsUndefined());
 }
 
 
@@ -17644,9 +17644,9 @@ TEST(InlineScriptWithSourceURLInStackTrace) {
 
   i::ScopedVector<char> code(1024);
   i::SNPrintF(code, source, "//# sourceURL=source_url");
-  CHECK(CompileRunWithOrigin(code.start(), "url", 0, 1)->IsUndefined());
+  CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 1)->IsUndefined());
   i::SNPrintF(code, source, "//@ sourceURL=source_url");
-  CHECK(CompileRunWithOrigin(code.start(), "url", 0, 1)->IsUndefined());
+  CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 1)->IsUndefined());
 }
 
 void SetPromise(const char* name, v8::Local<v8::Promise> promise) {
@@ -18059,9 +18059,9 @@ TEST(DynamicWithSourceURLInStackTrace) {
 
   i::ScopedVector<char> code(1024);
   i::SNPrintF(code, source, "//# sourceURL=source_url");
-  CHECK(CompileRunWithOrigin(code.start(), "url", 0, 0)->IsUndefined());
+  CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 0)->IsUndefined());
   i::SNPrintF(code, source, "//@ sourceURL=source_url");
-  CHECK(CompileRunWithOrigin(code.start(), "url", 0, 0)->IsUndefined());
+  CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 0)->IsUndefined());
 }
 
 
@@ -18081,7 +18081,7 @@ TEST(DynamicWithSourceURLInStackTraceString) {
   i::ScopedVector<char> code(1024);
   i::SNPrintF(code, source, "//# sourceURL=source_url");
   v8::TryCatch try_catch(context->GetIsolate());
-  CompileRunWithOrigin(code.start(), "", 0, 0);
+  CompileRunWithOrigin(code.begin(), "", 0, 0);
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value stack(
       context->GetIsolate(),
@@ -20127,7 +20127,7 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
                     "  return fib(n-1) + fib(n-2);"
                     "}"
                     "fib(%d)", limit);
-  Local<Value> value = CompileRun(code.start());
+  Local<Value> value = CompileRun(code.begin());
   CHECK(value->IsNumber());
   return static_cast<int>(value->NumberValue(context.local()).FromJust());
 }
@@ -21297,7 +21297,7 @@ void RecursiveCall(const v8::FunctionCallbackInfo<v8::Value>& args) {
     char script[64];
     i::Vector<char> script_vector(script, sizeof(script));
     i::SNPrintF(script_vector, "recursion(%d)", level);
-    CompileRun(script_vector.start());
+    CompileRun(script_vector.begin());
     v8::base::OS::Print("Leaving recursion level %d.\n", level);
     CHECK_EQ(0, callback_fired);
   } else {
@@ -22612,7 +22612,7 @@ void CheckCorrectThrow(const char* script) {
   catch_callback_called = false;
   i::ScopedVector<char> source(1024);
   i::SNPrintF(source, "try { %s; } catch (e) { catcher(e); }", script);
-  CompileRun(source.start());
+  CompileRun(source.begin());
   CHECK(access_check_fail_thrown);
   CHECK(catch_callback_called);
 
@@ -23602,36 +23602,35 @@ class ApiCallOptimizationChecker {
     }
     // build source string
     i::ScopedVector<char> source(1000);
-    i::SNPrintF(
-        source,
-        "%s\n"  // wrap functions
-        "function wrap_f() { return wrap_f_%d(); }\n"
-        "function wrap_get() { return wrap_get_%d(); }\n"
-        "function wrap_set() { return wrap_set_%d(); }\n"
-        "check = function(returned) {\n"
-        "  if (returned !== 'returned') { throw returned; }\n"
-        "}\n"
-        "\n"
-        "check(wrap_f());\n"
-        "check(wrap_f());\n"
-        "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
-        "check(wrap_f());\n"
-        "\n"
-        "check(wrap_get());\n"
-        "check(wrap_get());\n"
-        "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
-        "check(wrap_get());\n"
-        "\n"
-        "check = function(returned) {\n"
-        "  if (returned !== 1) { throw returned; }\n"
-        "}\n"
-        "check(wrap_set());\n"
-        "check(wrap_set());\n"
-        "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
-        "check(wrap_set());\n",
-        wrap_function.start(), key, key, key, key, key, key);
+    i::SNPrintF(source,
+                "%s\n"  // wrap functions
+                "function wrap_f() { return wrap_f_%d(); }\n"
+                "function wrap_get() { return wrap_get_%d(); }\n"
+                "function wrap_set() { return wrap_set_%d(); }\n"
+                "check = function(returned) {\n"
+                "  if (returned !== 'returned') { throw returned; }\n"
+                "}\n"
+                "\n"
+                "check(wrap_f());\n"
+                "check(wrap_f());\n"
+                "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
+                "check(wrap_f());\n"
+                "\n"
+                "check(wrap_get());\n"
+                "check(wrap_get());\n"
+                "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
+                "check(wrap_get());\n"
+                "\n"
+                "check = function(returned) {\n"
+                "  if (returned !== 1) { throw returned; }\n"
+                "}\n"
+                "check(wrap_set());\n"
+                "check(wrap_set());\n"
+                "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
+                "check(wrap_set());\n",
+                wrap_function.begin(), key, key, key, key, key, key);
     v8::TryCatch try_catch(isolate);
-    CompileRun(source.start());
+    CompileRun(source.begin());
     CHECK(!try_catch.HasCaught());
     CHECK_EQ(9, count);
   }
@@ -26617,25 +26616,25 @@ TEST(ObjectTemplateArrayProtoIntrinsics) {
 
     i::SNPrintF(test_string, "typeof obj1.%s",
                 intrinsics_comparisons[i].object_property_name);
-    ExpectString(test_string.start(), "function");
+    ExpectString(test_string.begin(), "function");
 
     i::SNPrintF(test_string, "obj1.%s === %s",
                 intrinsics_comparisons[i].object_property_name,
                 intrinsics_comparisons[i].array_property_name);
-    ExpectTrue(test_string.start());
+    ExpectTrue(test_string.begin());
 
     i::SNPrintF(test_string, "obj1.%s = 42",
                 intrinsics_comparisons[i].object_property_name);
-    CompileRun(test_string.start());
+    CompileRun(test_string.begin());
 
     i::SNPrintF(test_string, "obj1.%s === %s",
                 intrinsics_comparisons[i].object_property_name,
                 intrinsics_comparisons[i].array_property_name);
-    ExpectFalse(test_string.start());
+    ExpectFalse(test_string.begin());
 
     i::SNPrintF(test_string, "typeof obj1.%s",
                 intrinsics_comparisons[i].object_property_name);
-    ExpectString(test_string.start(), "number");
+    ExpectString(test_string.begin(), "number");
   }
 }
 

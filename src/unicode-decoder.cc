@@ -12,12 +12,12 @@ namespace internal {
 
 Utf8Decoder::Utf8Decoder(const Vector<const uint8_t>& chars)
     : encoding_(Encoding::kAscii),
-      non_ascii_start_(NonAsciiStart(chars.start(), chars.length())),
+      non_ascii_start_(NonAsciiStart(chars.begin(), chars.length())),
       utf16_length_(non_ascii_start_) {
   if (non_ascii_start_ == chars.length()) return;
 
-  const uint8_t* cursor = chars.start() + non_ascii_start_;
-  const uint8_t* end = chars.start() + chars.length();
+  const uint8_t* cursor = chars.begin() + non_ascii_start_;
+  const uint8_t* end = chars.begin() + chars.length();
 
   bool is_one_byte = true;
   uint32_t incomplete_char = 0;
@@ -44,15 +44,15 @@ Utf8Decoder::Utf8Decoder(const Vector<const uint8_t>& chars)
 
 template <typename Char>
 void Utf8Decoder::Decode(Char* out, const Vector<const uint8_t>& data) {
-  CopyChars(out, data.start(), non_ascii_start_);
+  CopyChars(out, data.begin(), non_ascii_start_);
 
   out += non_ascii_start_;
 
   uint32_t incomplete_char = 0;
   unibrow::Utf8::State state = unibrow::Utf8::State::kAccept;
 
-  const uint8_t* cursor = data.start() + non_ascii_start_;
-  const uint8_t* end = data.start() + data.length();
+  const uint8_t* cursor = data.begin() + non_ascii_start_;
+  const uint8_t* end = data.begin() + data.length();
 
   while (cursor < end) {
     unibrow::uchar t =

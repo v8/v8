@@ -1949,7 +1949,7 @@ MaybeHandle<BigInt> BigInt::FromSerializedDigits(
   void* digits =
       reinterpret_cast<void*>(result->ptr() + kDigitsOffset - kHeapObjectTag);
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  memcpy(digits, digits_storage.start(), bytelength);
+  memcpy(digits, digits_storage.begin(), bytelength);
   void* padding_start =
       reinterpret_cast<void*>(reinterpret_cast<Address>(digits) + bytelength);
   memset(padding_start, 0, length * kDigitSize - bytelength);

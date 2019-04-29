@@ -102,7 +102,7 @@ TEST(BitSetComputer) {
   CHECK_EQ(words, TwoBits::word_count(3000));
   const int offset = 10;
   Vector<unsigned char> buffer = Vector<unsigned char>::New(offset + words);
-  memset(buffer.start(), 0, sizeof(unsigned char) * buffer.length());
+  memset(buffer.begin(), 0, sizeof(unsigned char) * buffer.length());
   for (int i = 0; i < words; i++) {
     const int index = TwoBits::index(offset, i);
     unsigned char data = buffer[index];
@@ -128,15 +128,15 @@ TEST(SNPrintF) {
     static const char kMarker = static_cast<char>(42);
     Vector<char> buffer = Vector<char>::New(i + 1);
     buffer[i] = kMarker;
-    int n = SNPrintF(Vector<char>(buffer.start(), i), "%s", s);
+    int n = SNPrintF(Vector<char>(buffer.begin(), i), "%s", s);
     CHECK(n <= i);
     CHECK(n == length || n == -1);
-    CHECK_EQ(0, strncmp(buffer.start(), s, i - 1));
+    CHECK_EQ(0, strncmp(buffer.begin(), s, i - 1));
     CHECK_EQ(kMarker, buffer[i]);
     if (i <= length) {
-      CHECK_EQ(i - 1, StrLength(buffer.start()));
+      CHECK_EQ(i - 1, StrLength(buffer.begin()));
     } else {
-      CHECK_EQ(length, StrLength(buffer.start()));
+      CHECK_EQ(length, StrLength(buffer.begin()));
     }
     buffer.Dispose();
   }
@@ -260,8 +260,8 @@ TEST(SequenceCollectorRegression) {
   collector.AddBlock(
       i::Vector<const char>("12345678901234567890123456789012", 32));
   i::Vector<char> seq = collector.EndSequence();
-  CHECK_EQ(0, strncmp("0123456789012345678901234567890123",
-                      seq.start(), seq.length()));
+  CHECK_EQ(0, strncmp("0123456789012345678901234567890123", seq.begin(),
+                      seq.length()));
 }
 
 

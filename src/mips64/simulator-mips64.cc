@@ -330,7 +330,7 @@ void MipsDebugger::Debug() {
       v8::internal::EmbeddedVector<char, 256> buffer;
       dasm.InstructionDecode(buffer,
                              reinterpret_cast<byte*>(sim_->get_pc()));
-      PrintF("  0x%016" PRIx64 "   %s\n", sim_->get_pc(), buffer.start());
+      PrintF("  0x%016" PRIx64 "   %s\n", sim_->get_pc(), buffer.begin());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -524,7 +524,7 @@ void MipsDebugger::Debug() {
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" PRIxPTR "   %s\n", reinterpret_cast<intptr_t>(cur),
-                 buffer.start());
+                 buffer.begin());
           cur += kInstrSize;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -644,7 +644,7 @@ void MipsDebugger::Debug() {
         while (cur < end) {
           dasm.InstructionDecode(buffer, cur);
           PrintF("  0x%08" PRIxPTR "   %s\n", reinterpret_cast<intptr_t>(cur),
-                 buffer.start());
+                 buffer.begin());
           cur += kInstrSize;
         }
       } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
@@ -7389,8 +7389,8 @@ void Simulator::InstructionDecode(Instruction* instr) {
 
   if (::v8::internal::FLAG_trace_sim) {
     PrintF("  0x%08" PRIxPTR "   %-44s   %s\n",
-           reinterpret_cast<intptr_t>(instr), buffer.start(),
-           trace_buf_.start());
+           reinterpret_cast<intptr_t>(instr), buffer.begin(),
+           trace_buf_.begin());
   }
 
   if (!pc_modified_) {

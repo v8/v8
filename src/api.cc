@@ -5271,7 +5271,7 @@ static int WriteUtf8Impl(i::Vector<const Char> string, char* write_start,
   bool write_null = !(options & v8::String::NO_NULL_TERMINATION);
   bool replace_invalid_utf8 = (options & v8::String::REPLACE_INVALID_UTF8);
   char* current_write = write_start;
-  const Char* read_start = string.start();
+  const Char* read_start = string.begin();
   int read_index = 0;
   int read_length = string.length();
   int prev_char = unibrow::Utf16::kNoPreviousCharacter;
@@ -7261,7 +7261,7 @@ OwnedBuffer CompiledWasmModule::Serialize() {
 
 MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
   i::Vector<const uint8_t> bytes_vec = native_module_->wire_bytes();
-  return {bytes_vec.start(), bytes_vec.size()};
+  return {bytes_vec.begin(), bytes_vec.size()};
 }
 
 WasmModuleObject::TransferrableModule
@@ -9434,7 +9434,7 @@ uint32_t debug::WasmScript::GetFunctionHash(int function_index) {
       module_object->native_module()->wire_bytes());
   i::Vector<const i::byte> function_bytes = wire_bytes.GetFunctionBytes(&func);
   // TODO(herhut): Maybe also take module, name and signature into account.
-  return i::StringHasher::HashSequentialString(function_bytes.start(),
+  return i::StringHasher::HashSequentialString(function_bytes.begin(),
                                                function_bytes.length(), 0);
 }
 

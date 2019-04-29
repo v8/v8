@@ -37,7 +37,7 @@ Handle<String> MakeString(const char* str) {
 Handle<String> MakeName(const char* str, int suffix) {
   EmbeddedVector<char, 128> buffer;
   SNPrintF(buffer, "%s%d", str, suffix);
-  return MakeString(buffer.start());
+  return MakeString(buffer.begin());
 }
 
 template <typename T, typename M>

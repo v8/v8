@@ -64,7 +64,7 @@ ManuallyImportedJSFunction CreateJSSelector(FunctionSig* sig, int which) {
 
   Handle<JSFunction> js_function =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-          *v8::Local<v8::Function>::Cast(CompileRun(source.start()))));
+          *v8::Local<v8::Function>::Cast(CompileRun(source.begin()))));
   ManuallyImportedJSFunction import = {sig, js_function};
 
   return import;

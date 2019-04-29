@@ -482,7 +482,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
   SNPrintF(f_source_buffer,
            "function f(x, y) { return x %s y; };",
            binary_op);
-  char* f_source = f_source_buffer.start();
+  char* f_source = f_source_buffer.begin();
 
   AllowNativesSyntaxNoInlining options;
   // Compile function f and collect to type feedback to insert binary op stub

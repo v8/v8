@@ -130,7 +130,7 @@ static void CreateTraceCallerFunction(v8::Local<v8::Context> context,
   CreateFramePointerGrabberConstructor(context, "FPGrabber");
 
   // Compile the script.
-  CompileRun(trace_call_buf.start());
+  CompileRun(trace_call_buf.begin());
 }
 
 

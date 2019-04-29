@@ -2152,8 +2152,8 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
       ScopedVector<char> name_buffer(100);
       name->NameShortPrint(name_buffer);
       buffer.reset(new ScopedVector<char>(128));
-      SNPrintF(*buffer, "TooManyFastProperties %s", name_buffer.start());
-      reason = buffer->start();
+      SNPrintF(*buffer, "TooManyFastProperties %s", name_buffer.begin());
+      reason = buffer->begin();
     }
 #endif
     Handle<Object> maybe_constructor(map->GetConstructor(), isolate);

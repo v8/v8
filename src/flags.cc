@@ -554,7 +554,7 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
     p = SkipWhiteSpace(p);
   }
 
-  return SetFlagsFromCommandLine(&argc, argv.start(), false);
+  return SetFlagsFromCommandLine(&argc, argv.begin(), false);
 }
 
 // static

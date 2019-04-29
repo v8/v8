@@ -74,7 +74,7 @@ void Scanner::LiteralBuffer::ExpandBuffer() {
   int min_capacity = Max(kInitialCapacity, backing_store_.length());
   Vector<byte> new_store = Vector<byte>::New(NewCapacity(min_capacity));
   if (position_ > 0) {
-    MemCopy(new_store.start(), backing_store_.start(), position_);
+    MemCopy(new_store.begin(), backing_store_.begin(), position_);
   }
   backing_store_.Dispose();
   backing_store_ = new_store;
@@ -91,12 +91,12 @@ void Scanner::LiteralBuffer::ConvertToTwoByte() {
   } else {
     new_store = backing_store_;
   }
-  uint8_t* src = backing_store_.start();
-  uint16_t* dst = reinterpret_cast<uint16_t*>(new_store.start());
+  uint8_t* src = backing_store_.begin();
+  uint16_t* dst = reinterpret_cast<uint16_t*>(new_store.begin());
   for (int i = position_ - 1; i >= 0; i--) {
     dst[i] = src[i];
   }
-  if (new_store.start() != backing_store_.start()) {
+  if (new_store.begin() != backing_store_.begin()) {
     backing_store_.Dispose();
     backing_store_ = new_store;
   }
@@ -1011,7 +1011,7 @@ Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(bool escaped,
   if (can_be_keyword && next().literal_chars.is_one_byte()) {
     Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
     Token::Value token =
-        KeywordOrIdentifierToken(chars.start(), chars.length());
+        KeywordOrIdentifierToken(chars.begin(), chars.length());
     if (IsInRange(token, Token::IDENTIFIER, Token::YIELD)) return token;
 
     if (token == Token::FUTURE_STRICT_RESERVED_WORD) {
@@ -1156,7 +1156,7 @@ const char* Scanner::CurrentLiteralAsCString(Zone* zone) const {
   Vector<const uint8_t> vector = literal_one_byte_string();
   int length = vector.length();
   char* buffer = zone->NewArray<char>(length + 1);
-  memcpy(buffer, vector.start(), length);
+  memcpy(buffer, vector.begin(), length);
   buffer[length] = '\0';
   return buffer;
 }

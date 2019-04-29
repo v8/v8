@@ -7072,15 +7072,15 @@ class StringTableNoAllocateKey : public StringTableKey {
             shape2.encoding_tag() == kOneByteStringTag) {
           String::FlatContent flat1 = string_->GetFlatContent(no_gc);
           String::FlatContent flat2 = other->GetFlatContent(no_gc);
-          return CompareRawStringContents(flat1.ToOneByteVector().start(),
-                                          flat2.ToOneByteVector().start(), len);
+          return CompareRawStringContents(flat1.ToOneByteVector().begin(),
+                                          flat2.ToOneByteVector().begin(), len);
         }
         if (shape1.encoding_tag() == kTwoByteStringTag &&
             shape2.encoding_tag() == kTwoByteStringTag) {
           String::FlatContent flat1 = string_->GetFlatContent(no_gc);
           String::FlatContent flat2 = other->GetFlatContent(no_gc);
-          return CompareRawStringContents(flat1.ToUC16Vector().start(),
-                                          flat2.ToUC16Vector().start(), len);
+          return CompareRawStringContents(flat1.ToUC16Vector().begin(),
+                                          flat2.ToUC16Vector().begin(), len);
         }
       }
       StringComparator comparator;
@@ -7091,7 +7091,7 @@ class StringTableNoAllocateKey : public StringTableKey {
     if (one_byte_) {
       if (flat_content.IsOneByte()) {
         return CompareRawStringContents(
-            one_byte_content_, flat_content.ToOneByteVector().start(), len);
+            one_byte_content_, flat_content.ToOneByteVector().begin(), len);
       } else {
         DCHECK(flat_content.IsTwoByte());
         for (int i = 0; i < len; i++) {
@@ -7102,7 +7102,7 @@ class StringTableNoAllocateKey : public StringTableKey {
     } else {
       if (flat_content.IsTwoByte()) {
         return CompareRawStringContents(
-            two_byte_content_, flat_content.ToUC16Vector().start(), len);
+            two_byte_content_, flat_content.ToUC16Vector().begin(), len);
       } else {
         DCHECK(flat_content.IsOneByte());
         for (int i = 0; i < len; i++) {

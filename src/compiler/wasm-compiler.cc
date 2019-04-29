@@ -4781,7 +4781,7 @@ void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
   CHECK_LT(0, len);
   va_end(arguments);
   Handle<String> name_str =
-      isolate->factory()->NewStringFromAsciiChecked(buffer.start());
+      isolate->factory()->NewStringFromAsciiChecked(buffer.begin());
   PROFILE(isolate, CodeCreateEvent(tag, AbstractCode::cast(*code), *name_str));
 }
 
@@ -6066,7 +6066,7 @@ wasm::WasmCompilationResult CompileWasmInterpreterEntry(
 
   wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
       wasm_engine, incoming, &jsgraph, Code::WASM_INTERPRETER_ENTRY,
-      wasm::WasmCode::kInterpreterEntry, func_name.start(),
+      wasm::WasmCode::kInterpreterEntry, func_name.begin(),
       WasmStubAssemblerOptions());
   result.result_tier = wasm::ExecutionTier::kInterpreter;
 
@@ -6182,7 +6182,7 @@ Vector<const char> GetDebugName(Zone* zone, int index) {
   DCHECK(name_len > 0 && name_len < name_vector.length());
 
   char* index_name = zone->NewArray<char>(name_len);
-  memcpy(index_name, name_vector.start(), name_len);
+  memcpy(index_name, name_vector.begin(), name_len);
   return Vector<const char>(index_name, name_len);
 }
 }  // namespace

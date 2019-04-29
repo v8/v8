@@ -97,7 +97,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   Vector<byte> instructions() const { return instructions_; }
   Address instruction_start() const {
-    return reinterpret_cast<Address>(instructions_.start());
+    return reinterpret_cast<Address>(instructions_.begin());
   }
   Vector<const byte> reloc_info() const { return reloc_info_.as_vector(); }
   Vector<const byte> source_positions() const {
@@ -127,7 +127,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   uint32_t tagged_parameter_slots() const { return tagged_parameter_slots_; }
   bool is_liftoff() const { return tier_ == ExecutionTier::kLiftoff; }
   bool contains(Address pc) const {
-    return reinterpret_cast<Address>(instructions_.start()) <= pc &&
+    return reinterpret_cast<Address>(instructions_.begin()) <= pc &&
            pc < reinterpret_cast<Address>(instructions_.end());
   }
 
