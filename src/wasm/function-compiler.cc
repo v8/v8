@@ -112,15 +112,6 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier(
   return FLAG_liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
 }
 
-WasmCompilationUnit::WasmCompilationUnit(int index, ExecutionTier tier)
-    : func_index_(index), tier_(tier) {
-  SwitchTier(tier);
-}
-
-// Declared here such that {TurbofanWasmCompilationUnit} can be opaque in the
-// header file.
-WasmCompilationUnit::~WasmCompilationUnit() = default;
-
 WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     WasmEngine* wasm_engine, CompilationEnv* env,
     const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
@@ -162,13 +153,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       // If Liftoff failed, fall back to turbofan.
       // TODO(wasm): We could actually stop or remove the tiering unit for this
       // function to avoid compiling it twice with TurboFan.
-      SwitchTier(ExecutionTier::kTurbofan);
-      DCHECK_NOT_NULL(turbofan_unit_);
       V8_FALLTHROUGH;
 
     case ExecutionTier::kTurbofan:
-      result = turbofan_unit_->ExecuteCompilation(wasm_engine, env, func_body,
-                                                  counters, detected);
+      result = compiler::ExecuteTurbofanWasmCompilation(
+          wasm_engine, env, func_body, func_index_, counters, detected);
       break;
 
     case ExecutionTier::kInterpreter:
@@ -187,15 +176,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
   }
 
   return result;
-}
-
-void WasmCompilationUnit::SwitchTier(ExecutionTier new_tier) {
-  // This method is being called in the constructor, where {turbofan_unit_} is
-  // not set, or to switch tier from kLiftoff to kTurbofan.
-  DCHECK(!turbofan_unit_);
-  if (new_tier == ExecutionTier::kTurbofan) {
-    turbofan_unit_.reset(new compiler::TurbofanWasmCompilationUnit(this));
-  }
 }
 
 // static

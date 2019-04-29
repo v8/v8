@@ -6121,18 +6121,13 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   return code;
 }
 
-TurbofanWasmCompilationUnit::TurbofanWasmCompilationUnit(
-    wasm::WasmCompilationUnit* wasm_unit)
-    : wasm_unit_(wasm_unit) {}
-
-// Clears unique_ptrs, but (part of) the type is forward declared in the header.
-TurbofanWasmCompilationUnit::~TurbofanWasmCompilationUnit() = default;
-
-bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
-    AccountingAllocator* allocator, wasm::CompilationEnv* env,
-    const wasm::FunctionBody& func_body, wasm::WasmFeatures* detected,
-    double* decode_ms, MachineGraph* mcgraph, NodeOriginTable* node_origins,
-    SourcePositionTable* source_positions) {
+bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
+                               wasm::CompilationEnv* env,
+                               const wasm::FunctionBody& func_body,
+                               int func_index, wasm::WasmFeatures* detected,
+                               double* decode_ms, MachineGraph* mcgraph,
+                               NodeOriginTable* node_origins,
+                               SourcePositionTable* source_positions) {
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
     decode_timer.Start();
@@ -6162,8 +6157,8 @@ bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
         .LowerGraph();
   }
 
-  if (wasm_unit_->func_index_ >= FLAG_trace_wasm_ast_start &&
-      wasm_unit_->func_index_ < FLAG_trace_wasm_ast_end) {
+  if (func_index >= FLAG_trace_wasm_ast_start &&
+      func_index < FLAG_trace_wasm_ast_end) {
     PrintRawWasmCode(allocator, func_body, env->module, wasm::kPrintLocals);
   }
   if (FLAG_trace_wasm_decode_time) {
@@ -6187,9 +6182,9 @@ Vector<const char> GetDebugName(Zone* zone, int index) {
 }
 }  // namespace
 
-wasm::WasmCompilationResult TurbofanWasmCompilationUnit::ExecuteCompilation(
+wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::WasmEngine* wasm_engine, wasm::CompilationEnv* env,
-    const wasm::FunctionBody& func_body, Counters* counters,
+    const wasm::FunctionBody& func_body, int func_index, Counters* counters,
     wasm::WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteTurbofanCompilation");
@@ -6204,8 +6199,8 @@ wasm::WasmCompilationResult TurbofanWasmCompilationUnit::ExecuteCompilation(
           InstructionSelector::SupportedMachineOperatorFlags(),
           InstructionSelector::AlignmentRequirements()));
 
-  OptimizedCompilationInfo info(GetDebugName(&zone, wasm_unit_->func_index_),
-                                &zone, Code::WASM_FUNCTION);
+  OptimizedCompilationInfo info(GetDebugName(&zone, func_index), &zone,
+                                Code::WASM_FUNCTION);
   if (env->runtime_exception_support) {
     info.SetWasmRuntimeExceptionSupport();
   }
@@ -6222,8 +6217,8 @@ wasm::WasmCompilationResult TurbofanWasmCompilationUnit::ExecuteCompilation(
   SourcePositionTable* source_positions =
       new (mcgraph->zone()) SourcePositionTable(mcgraph->graph());
   if (!BuildGraphForWasmFunction(wasm_engine->allocator(), env, func_body,
-                                 detected, &decode_ms, mcgraph, node_origins,
-                                 source_positions)) {
+                                 func_index, detected, &decode_ms, mcgraph,
+                                 node_origins, source_positions)) {
     return wasm::WasmCompilationResult{};
   }
 
@@ -6245,7 +6240,7 @@ wasm::WasmCompilationResult TurbofanWasmCompilationUnit::ExecuteCompilation(
 
   Pipeline::GenerateCodeForWasmFunction(
       &info, wasm_engine, mcgraph, call_descriptor, source_positions,
-      node_origins, func_body, env->module, wasm_unit_->func_index_);
+      node_origins, func_body, env->module, func_index);
 
   if (FLAG_trace_wasm_decode_time) {
     double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();

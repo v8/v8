@@ -45,30 +45,17 @@ struct WasmFeatures;
 
 namespace compiler {
 
-class TurbofanWasmCompilationUnit {
- public:
-  explicit TurbofanWasmCompilationUnit(wasm::WasmCompilationUnit* wasm_unit);
-  ~TurbofanWasmCompilationUnit();
+bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
+                               wasm::CompilationEnv* env,
+                               const wasm::FunctionBody& func_body,
+                               int func_index, wasm::WasmFeatures* detected,
+                               double* decode_ms, MachineGraph* mcgraph,
+                               NodeOriginTable* node_origins,
+                               SourcePositionTable* source_positions);
 
-  bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
-                                 wasm::CompilationEnv* env,
-                                 const wasm::FunctionBody& func_body,
-                                 wasm::WasmFeatures* detected,
-                                 double* decode_ms, MachineGraph* mcgraph,
-                                 NodeOriginTable* node_origins,
-                                 SourcePositionTable* source_positions);
-
-  wasm::WasmCompilationResult ExecuteCompilation(wasm::WasmEngine*,
-                                                 wasm::CompilationEnv*,
-                                                 const wasm::FunctionBody&,
-                                                 Counters*,
-                                                 wasm::WasmFeatures* detected);
-
- private:
-  wasm::WasmCompilationUnit* const wasm_unit_;
-
-  DISALLOW_COPY_AND_ASSIGN(TurbofanWasmCompilationUnit);
-};
+wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
+    wasm::WasmEngine*, wasm::CompilationEnv*, const wasm::FunctionBody&,
+    int func_index, Counters*, wasm::WasmFeatures* detected);
 
 wasm::WasmCompilationResult ExecuteInterpreterEntryCompilation(
     wasm::WasmEngine*, wasm::CompilationEnv*, const wasm::FunctionBody&,

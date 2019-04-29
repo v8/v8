@@ -19,16 +19,10 @@ namespace internal {
 class AssemblerBuffer;
 class Counters;
 
-namespace compiler {
-class Pipeline;
-class TurbofanWasmCompilationUnit;
-}  // namespace compiler
-
 namespace wasm {
 
 class NativeModule;
 class WasmCode;
-class WasmCompilationUnit;
 class WasmEngine;
 struct WasmFunction;
 
@@ -68,9 +62,8 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
  public:
   static ExecutionTier GetDefaultExecutionTier(const WasmModule*);
 
-  WasmCompilationUnit(int index, ExecutionTier);
-
-  ~WasmCompilationUnit();
+  WasmCompilationUnit(int index, ExecutionTier tier)
+      : func_index_(index), tier_(tier) {}
 
   WasmCompilationResult ExecuteCompilation(
       WasmEngine*, CompilationEnv*, const std::shared_ptr<WireBytesStorage>&,
@@ -83,15 +76,8 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
                                   ExecutionTier);
 
  private:
-  friend class compiler::TurbofanWasmCompilationUnit;
-
   const int func_index_;
-  ExecutionTier tier_;
-
-  // TurbofanWasmCompilationUnit, set if {tier_ == kTurbofan}.
-  std::unique_ptr<compiler::TurbofanWasmCompilationUnit> turbofan_unit_;
-
-  void SwitchTier(ExecutionTier new_tier);
+  const ExecutionTier tier_;
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };
