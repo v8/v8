@@ -910,9 +910,13 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 #define HAS_SMI_TAG(value) \
   ((static_cast<intptr_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
 
-#define HAS_HEAP_OBJECT_TAG(value)                              \
+#define HAS_STRONG_HEAP_OBJECT_TAG(value)                       \
   (((static_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
     ::i::kHeapObjectTag))
+
+#define HAS_WEAK_HEAP_OBJECT_TAG(value)                         \
+  (((static_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
+    ::i::kWeakHeapObjectTag))
 
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
 #define OBJECT_POINTER_ALIGN(value) \
@@ -1477,12 +1481,6 @@ enum IsolateAddressId {
 #undef DECLARE_ENUM
       kIsolateAddressCount
 };
-
-V8_INLINE static bool HasWeakHeapObjectTag(Address value) {
-  // TODO(jkummerow): Consolidate integer types here.
-  return ((static_cast<intptr_t>(value) & kHeapObjectTagMask) ==
-          kWeakHeapObjectTag);
-}
 
 enum class HeapObjectReferenceType {
   WEAK,

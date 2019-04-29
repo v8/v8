@@ -226,7 +226,7 @@ inline void MarkingBarrierForElements(Heap* heap, HeapObject object) {
 
 inline void MarkingBarrierForCode(Code host, RelocInfo* rinfo,
                                   HeapObject object) {
-  DCHECK(!HasWeakHeapObjectTag(object.ptr()));
+  DCHECK(!HasWeakHeapObjectTag(object));
   heap_internals::MemoryChunk* object_chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   if (!object_chunk->IsMarking()) return;

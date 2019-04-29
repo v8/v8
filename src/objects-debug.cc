@@ -570,7 +570,7 @@ void VerifyJSObjectElements(Isolate* isolate, JSObject object) {
   } else if (object->HasObjectElements()) {
     for (int i = 0; i < elements->length(); i++) {
       Object element = elements->get(i);
-      CHECK_IMPLIES(!element->IsSmi(), !HasWeakHeapObjectTag(element));
+      CHECK(!HasWeakHeapObjectTag(element));
     }
   }
 }

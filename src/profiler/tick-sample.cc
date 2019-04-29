@@ -273,7 +273,8 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
 
       // If the bytecode array is a heap object and the bytecode offset is a
       // Smi, use those, otherwise fall back to using the frame's pc.
-      if (HAS_HEAP_OBJECT_TAG(bytecode_array) && HAS_SMI_TAG(bytecode_offset)) {
+      if (HAS_STRONG_HEAP_OBJECT_TAG(bytecode_array) &&
+          HAS_SMI_TAG(bytecode_offset)) {
         frames[i++] = reinterpret_cast<void*>(
             bytecode_array + i::Internals::SmiValue(bytecode_offset));
         continue;

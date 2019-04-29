@@ -50,19 +50,17 @@ bool MaybeObject::GetHeapObject(HeapObject* result,
   if (IsSmi() || IsCleared()) {
     return false;
   }
-  *reference_type = HasWeakHeapObjectTag(ptr_)
+  *reference_type = HAS_WEAK_HEAP_OBJECT_TAG(ptr_)
                         ? HeapObjectReferenceType::WEAK
                         : HeapObjectReferenceType::STRONG;
   *result = GetHeapObject();
   return true;
 }
 
-bool MaybeObject::IsStrong() const {
-  return !HasWeakHeapObjectTag(ptr_) && !IsSmi();
-}
+bool MaybeObject::IsStrong() const { return HAS_STRONG_HEAP_OBJECT_TAG(ptr_); }
 
 bool MaybeObject::GetHeapObjectIfStrong(HeapObject* result) const {
-  if (!HasWeakHeapObjectTag(ptr_) && !IsSmi()) {
+  if (!HAS_WEAK_HEAP_OBJECT_TAG(ptr_) && !IsSmi()) {
     *result = HeapObject::cast(Object(ptr_));
     return true;
   }
@@ -75,10 +73,12 @@ HeapObject MaybeObject::GetHeapObjectAssumeStrong() const {
 }
 
 bool MaybeObject::IsWeak() const {
-  return HasWeakHeapObjectTag(ptr_) && !IsCleared();
+  return HAS_WEAK_HEAP_OBJECT_TAG(ptr_) && !IsCleared();
 }
 
-bool MaybeObject::IsWeakOrCleared() const { return HasWeakHeapObjectTag(ptr_); }
+bool MaybeObject::IsWeakOrCleared() const {
+  return HAS_WEAK_HEAP_OBJECT_TAG(ptr_);
+}
 
 bool MaybeObject::GetHeapObjectIfWeak(HeapObject* result) const {
   if (IsWeak()) {
@@ -137,18 +137,18 @@ void HeapObjectReference::Update(THeapObjectSlot slot, HeapObject value) {
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   Address old_value = (*slot).ptr();
   DCHECK(!HAS_SMI_TAG(old_value));
-  Address new_value = value->ptr();
+  Address new_value = value.ptr();
   DCHECK(Internals::HasHeapObjectTag(new_value));
 
 #ifdef DEBUG
-  bool weak_before = HasWeakHeapObjectTag(old_value);
+  bool weak_before = HAS_WEAK_HEAP_OBJECT_TAG(old_value);
 #endif
 
   slot.store(
       HeapObjectReference(new_value | (old_value & kWeakHeapObjectMask)));
 
 #ifdef DEBUG
-  bool weak_after = HasWeakHeapObjectTag((*slot).ptr());
+  bool weak_after = HAS_WEAK_HEAP_OBJECT_TAG((*slot).ptr());
   DCHECK_EQ(weak_before, weak_after);
 #endif
 }

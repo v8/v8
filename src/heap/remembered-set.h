@@ -303,7 +303,7 @@ class UpdateTypedSlotHelper {
     Code code = Code::GetObjectFromEntryAddress(entry_address);
     Code old_code = code;
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&code));
-    DCHECK(!HasWeakHeapObjectTag(code.ptr()));
+    DCHECK(!HasWeakHeapObjectTag(code));
     if (code != old_code) {
       Memory<Address>(entry_address) = code->entry();
     }
@@ -319,7 +319,7 @@ class UpdateTypedSlotHelper {
     Code old_target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     Code new_target = old_target;
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
-    DCHECK(!HasWeakHeapObjectTag(new_target.ptr()));
+    DCHECK(!HasWeakHeapObjectTag(new_target));
     if (new_target != old_target) {
       rinfo->set_target_address(
           Code::cast(new_target)->raw_instruction_start());
@@ -336,7 +336,7 @@ class UpdateTypedSlotHelper {
     HeapObject old_target = rinfo->target_object();
     HeapObject new_target = old_target;
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
-    DCHECK(!HasWeakHeapObjectTag(new_target->ptr()));
+    DCHECK(!HasWeakHeapObjectTag(new_target));
     if (new_target != old_target) {
       rinfo->set_target_object(heap, HeapObject::cast(new_target));
     }

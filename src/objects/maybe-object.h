@@ -82,7 +82,7 @@ class MaybeObject {
   inline bool IsObject() const;
   template <typename T>
   T cast() const {
-    DCHECK(!HasWeakHeapObjectTag(ptr_));
+    DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(ptr_));
     return T::cast(Object(ptr_));
   }
 
@@ -92,7 +92,7 @@ class MaybeObject {
   }
 
   static MaybeObject FromObject(Object object) {
-    DCHECK(!HasWeakHeapObjectTag(object.ptr()));
+    DCHECK(!HasWeakHeapObjectTag(object));
     return MaybeObject(object.ptr());
   }
 

@@ -909,7 +909,7 @@ class Object {
   // Always returns false because Object is not expected to be a weak pointer
   // to a HeapObject.
   inline bool GetHeapObjectIfWeak(HeapObject* result) const {
-    DCHECK(!HasWeakHeapObjectTag(ptr()));
+    DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(ptr_));
     return false;
   }
   // Always returns false because Object is not expected to be a weak pointer
@@ -1033,7 +1033,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Brief& v);
 // Objects should never have the weak tag; this variant is for overzealous
 // checking.
 V8_INLINE static bool HasWeakHeapObjectTag(const Object value) {
-  return ((value->ptr() & kHeapObjectTagMask) == kWeakHeapObjectTag);
+  return HAS_WEAK_HEAP_OBJECT_TAG(value.ptr());
 }
 
 // Heap objects typically have a map pointer in their first word.  However,

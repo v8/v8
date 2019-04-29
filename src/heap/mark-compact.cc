@@ -2525,8 +2525,8 @@ static inline SlotCallbackResult UpdateSlot(TSlot slot) {
 
 template <AccessMode access_mode, typename TSlot>
 static inline SlotCallbackResult UpdateStrongSlot(TSlot slot) {
-  DCHECK(!HasWeakHeapObjectTag((*slot).ptr()));
   typename TSlot::TObject obj = slot.Relaxed_Load();
+  DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
   HeapObject heap_obj;
   if (obj.GetHeapObject(&heap_obj)) {
     return UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(slot, obj,

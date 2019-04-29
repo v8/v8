@@ -361,7 +361,7 @@ HeapObject Deserializer::GetBackReferencedObject(int space) {
   }
 
   hot_objects_.Add(obj);
-  DCHECK(!HasWeakHeapObjectTag(obj->ptr()));
+  DCHECK(!HasWeakHeapObjectTag(obj));
   return obj;
 }
 
