@@ -172,8 +172,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       break;
 
     case ExecutionTier::kInterpreter:
-      result = interpreter_unit_->ExecuteCompilation(
-          wasm_engine, env, func_body, counters, detected);
+      result = compiler::ExecuteInterpreterEntryCompilation(
+          wasm_engine, env, func_body, func_index_, counters, detected);
       break;
   }
 
@@ -190,28 +190,12 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
 }
 
 void WasmCompilationUnit::SwitchTier(ExecutionTier new_tier) {
-  // This method is being called in the constructor, where neither
-  // {turbofan_unit_} nor {interpreter_unit_} are set, or to switch tier from
-  // kLiftoff to kTurbofan.
-  switch (new_tier) {
-    case ExecutionTier::kLiftoff:
-      DCHECK(!turbofan_unit_);
-      DCHECK(!interpreter_unit_);
-      return;
-    case ExecutionTier::kTurbofan:
-      DCHECK(!turbofan_unit_);
-      DCHECK(!interpreter_unit_);
-      turbofan_unit_.reset(new compiler::TurbofanWasmCompilationUnit(this));
-      return;
-    case ExecutionTier::kInterpreter:
-      DCHECK(!turbofan_unit_);
-      DCHECK(!interpreter_unit_);
-      interpreter_unit_.reset(new compiler::InterpreterCompilationUnit(this));
-      return;
-    case ExecutionTier::kNone:
-      UNREACHABLE();
+  // This method is being called in the constructor, where {turbofan_unit_} is
+  // not set, or to switch tier from kLiftoff to kTurbofan.
+  DCHECK(!turbofan_unit_);
+  if (new_tier == ExecutionTier::kTurbofan) {
+    turbofan_unit_.reset(new compiler::TurbofanWasmCompilationUnit(this));
   }
-  UNREACHABLE();
 }
 
 // static

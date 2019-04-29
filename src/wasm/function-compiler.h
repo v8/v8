@@ -20,7 +20,6 @@ class AssemblerBuffer;
 class Counters;
 
 namespace compiler {
-class InterpreterCompilationUnit;
 class Pipeline;
 class TurbofanWasmCompilationUnit;
 }  // namespace compiler
@@ -85,15 +84,12 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
 
  private:
   friend class compiler::TurbofanWasmCompilationUnit;
-  friend class compiler::InterpreterCompilationUnit;
 
   const int func_index_;
   ExecutionTier tier_;
 
   // TurbofanWasmCompilationUnit, set if {tier_ == kTurbofan}.
   std::unique_ptr<compiler::TurbofanWasmCompilationUnit> turbofan_unit_;
-  // InterpreterCompilationUnit, set if {tier_ == kInterpreter}.
-  std::unique_ptr<compiler::InterpreterCompilationUnit> interpreter_unit_;
 
   void SwitchTier(ExecutionTier new_tier);
 

@@ -70,22 +70,9 @@ class TurbofanWasmCompilationUnit {
   DISALLOW_COPY_AND_ASSIGN(TurbofanWasmCompilationUnit);
 };
 
-class InterpreterCompilationUnit final {
- public:
-  explicit InterpreterCompilationUnit(wasm::WasmCompilationUnit* wasm_unit)
-      : wasm_unit_(wasm_unit) {}
-
-  wasm::WasmCompilationResult ExecuteCompilation(wasm::WasmEngine*,
-                                                 wasm::CompilationEnv*,
-                                                 const wasm::FunctionBody&,
-                                                 Counters*,
-                                                 wasm::WasmFeatures* detected);
-
- private:
-  wasm::WasmCompilationUnit* const wasm_unit_;
-
-  DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationUnit);
-};
+wasm::WasmCompilationResult ExecuteInterpreterEntryCompilation(
+    wasm::WasmEngine*, wasm::CompilationEnv*, const wasm::FunctionBody&,
+    int func_index, Counters*, wasm::WasmFeatures* detected);
 
 // Calls to WASM imports are handled in several different ways, depending on the
 // type of the target function/callable and whether the signature matches the

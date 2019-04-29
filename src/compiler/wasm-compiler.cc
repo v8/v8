@@ -5534,7 +5534,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return true;
   }
 
-  void BuildWasmInterpreterEntry(uint32_t func_index) {
+  void BuildWasmInterpreterEntry(int func_index) {
     int param_count = static_cast<int>(sig_->parameter_count());
 
     // Build the start and the parameter nodes.
@@ -6263,9 +6263,9 @@ wasm::WasmCompilationResult TurbofanWasmCompilationUnit::ExecuteCompilation(
   return std::move(*result);
 }
 
-wasm::WasmCompilationResult InterpreterCompilationUnit::ExecuteCompilation(
+wasm::WasmCompilationResult ExecuteInterpreterEntryCompilation(
     wasm::WasmEngine* wasm_engine, wasm::CompilationEnv* env,
-    const wasm::FunctionBody& func_body, Counters* counters,
+    const wasm::FunctionBody& func_body, int func_index, Counters* counters,
     wasm::WasmFeatures* detected) {
   Zone zone(wasm_engine->allocator(), ZONE_NAME);
   const wasm::WasmModule* module = env ? env->module : nullptr;
@@ -6274,9 +6274,8 @@ wasm::WasmCompilationResult InterpreterCompilationUnit::ExecuteCompilation(
   decoder.Decode();
   if (decoder.failed()) return wasm::WasmCompilationResult{};
 
-  wasm::WasmCompilationResult result =
-      CompileWasmInterpreterEntry(wasm_engine, env->enabled_features,
-                                  wasm_unit_->func_index_, func_body.sig);
+  wasm::WasmCompilationResult result = CompileWasmInterpreterEntry(
+      wasm_engine, env->enabled_features, func_index, func_body.sig);
   DCHECK(result.succeeded());
   DCHECK_EQ(wasm::ExecutionTier::kInterpreter, result.result_tier);
 
