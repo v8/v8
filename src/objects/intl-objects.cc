@@ -993,6 +993,21 @@ Handle<Object> Intl::CompareStrings(Isolate* isolate,
                                     Handle<String> string2) {
   Factory* factory = isolate->factory();
 
+  // Early return for identical strings.
+  if (string1.is_identical_to(string2)) {
+    return factory->NewNumberFromInt(UCollationResult::UCOL_EQUAL);
+  }
+
+  // Early return for empty strings.
+  if (string1->length() == 0) {
+    return factory->NewNumberFromInt(string2->length() == 0
+                                         ? UCollationResult::UCOL_EQUAL
+                                         : UCollationResult::UCOL_LESS);
+  }
+  if (string2->length() == 0) {
+    return factory->NewNumberFromInt(UCollationResult::UCOL_GREATER);
+  }
+
   string1 = String::Flatten(isolate, string1);
   string2 = String::Flatten(isolate, string2);
 
