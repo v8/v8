@@ -10919,9 +10919,7 @@ Node* CodeStubAssembler::BuildFastLoop(
     ParameterMode parameter_mode, IndexAdvanceMode advance_mode) {
   CSA_SLOW_ASSERT(this, MatchesParameterMode(start_index, parameter_mode));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(end_index, parameter_mode));
-  MachineRepresentation index_rep = (parameter_mode == INTPTR_PARAMETERS)
-                                        ? MachineType::PointerRepresentation()
-                                        : MachineRepresentation::kTaggedSigned;
+  MachineRepresentation index_rep = ParameterRepresentation(parameter_mode);
   VARIABLE(var, index_rep, start_index);
   VariableList vars_copy(vars.begin(), vars.end(), zone());
   vars_copy.push_back(&var);
