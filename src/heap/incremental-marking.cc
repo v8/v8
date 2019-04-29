@@ -385,7 +385,8 @@ void IncrementalMarking::StartMarking() {
     // marking (including write barriers) is fully set up.
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
-    heap_->local_embedder_heap_tracer()->TracePrologue();
+    heap_->local_embedder_heap_tracer()->TracePrologue(
+        heap_->flags_for_embedder_tracer());
   }
 }
 

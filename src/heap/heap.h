@@ -936,6 +936,8 @@ class Heap {
   void SetEmbedderStackStateForNextFinalizaton(
       EmbedderHeapTracer::EmbedderStackState stack_state);
 
+  EmbedderHeapTracer::TraceFlags flags_for_embedder_tracer() const;
+
   // ===========================================================================
   // External string table API. ================================================
   // ===========================================================================

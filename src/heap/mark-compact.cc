@@ -796,7 +796,8 @@ void MarkCompactCollector::Prepare() {
 
   if (!was_marked_incrementally_) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
-    heap_->local_embedder_heap_tracer()->TracePrologue();
+    heap_->local_embedder_heap_tracer()->TracePrologue(
+        heap_->flags_for_embedder_tracer());
   }
 
   // Don't start compaction if we are in the middle of incremental

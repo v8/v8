@@ -7171,6 +7171,11 @@ enum class MemoryPressureLevel { kNone, kModerate, kCritical };
  */
 class V8_EXPORT EmbedderHeapTracer {
  public:
+  enum class TraceFlags : uint64_t {
+    kNoFlags = 0,
+    kReduceMemory = 1 << 0,
+  };
+
   // Indicator for the stack state of the embedder.
   enum EmbedderStackState {
     kUnknown,
@@ -7209,7 +7214,8 @@ class V8_EXPORT EmbedderHeapTracer {
   /**
    * Called at the beginning of a GC cycle.
    */
-  virtual void TracePrologue() = 0;
+  V8_DEPRECATE_SOON("Use version with flags.", virtual void TracePrologue()) {}
+  virtual void TracePrologue(TraceFlags flags);
 
   /**
    * Called to advance tracing in the embedder.
@@ -7282,6 +7288,18 @@ class V8_EXPORT EmbedderHeapTracer {
 
   friend class internal::LocalEmbedderHeapTracer;
 };
+
+constexpr EmbedderHeapTracer::TraceFlags operator&(
+    EmbedderHeapTracer::TraceFlags lhs, EmbedderHeapTracer::TraceFlags rhs) {
+  return static_cast<EmbedderHeapTracer::TraceFlags>(
+      static_cast<uint64_t>(lhs) & static_cast<uint64_t>(rhs));
+}
+
+constexpr EmbedderHeapTracer::TraceFlags operator|(
+    EmbedderHeapTracer::TraceFlags lhs, EmbedderHeapTracer::TraceFlags rhs) {
+  return static_cast<EmbedderHeapTracer::TraceFlags>(
+      static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs));
+}
 
 /**
  * Callback and supporting data used in SnapshotCreator to implement embedder

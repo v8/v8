@@ -48,7 +48,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   EmbedderHeapTracer* remote_tracer() const { return remote_tracer_; }
 
   void SetRemoteTracer(EmbedderHeapTracer* tracer);
-  void TracePrologue();
+  void TracePrologue(EmbedderHeapTracer::TraceFlags flags);
   void TraceEpilogue();
   void EnterFinalPause();
   bool Trace(double deadline);

@@ -4813,6 +4813,12 @@ EmbedderHeapTracer* Heap::GetEmbedderHeapTracer() const {
   return local_embedder_heap_tracer()->remote_tracer();
 }
 
+EmbedderHeapTracer::TraceFlags Heap::flags_for_embedder_tracer() const {
+  if (ShouldReduceMemory())
+    return EmbedderHeapTracer::TraceFlags::kReduceMemory;
+  return EmbedderHeapTracer::TraceFlags::kNoFlags;
+}
+
 void Heap::RegisterExternallyReferencedObject(Address* location) {
   // The embedder is not aware of whether numbers are materialized as heap
   // objects are just passed around as Smis.
