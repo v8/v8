@@ -465,14 +465,7 @@ bool WasmMemoryTracker::CanFreeSharedMemory_Locked(const void* backing_store) {
   const auto& value = isolates_per_buffer_.find(backing_store);
   // If no isolates share this buffer, backing store can be freed.
   // Erase the buffer entry.
-  if (value == isolates_per_buffer_.end()) return true;
-  if (value->second.empty()) {
-    // If no isolates share this buffer, the global handles to memory objects
-    // associated with this buffer should have been destroyed.
-    // DCHECK(shared_memory_map_.find(backing_store) ==
-    // shared_memory_map_.end());
-    return true;
-  }
+  if (value == isolates_per_buffer_.end() || value->second.empty()) return true;
   return false;
 }
 
