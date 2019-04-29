@@ -384,7 +384,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   inline Handle<Code> code_target_object_handle_at(Address pc);
-  inline Handle<HeapObject> compressed_embedded_object_handle_at(Address pc);
   inline Address runtime_entry_at(Address pc);
 
   // Number of bytes taken up by the branch target in the code.

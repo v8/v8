@@ -136,7 +136,6 @@ void WriteVersion(Writer* writer) {
 void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   DCHECK(rinfo->HasTargetAddressAddress());
-  DCHECK(!RelocInfo::IsCompressedEmbeddedObject(rinfo->rmode()));
   WriteUnalignedValue(rinfo->target_address_address(), tag);
 #elif V8_TARGET_ARCH_ARM64
   Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());
@@ -162,7 +161,6 @@ void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 
 uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
-  DCHECK(!RelocInfo::IsCompressedEmbeddedObject(rinfo->rmode()));
   return ReadUnalignedValue<uint32_t>(rinfo->target_address_address());
 #elif V8_TARGET_ARCH_ARM64
   Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());

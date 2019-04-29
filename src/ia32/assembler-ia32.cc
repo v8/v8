@@ -63,14 +63,14 @@ namespace internal {
 Immediate Immediate::EmbeddedNumber(double value) {
   int32_t smi;
   if (DoubleToSmiInteger(value, &smi)) return Immediate(Smi::FromInt(smi));
-  Immediate result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
+  Immediate result(0, RelocInfo::EMBEDDED_OBJECT);
   result.is_heap_object_request_ = true;
   result.value_.heap_object_request = HeapObjectRequest(value);
   return result;
 }
 
 Immediate Immediate::EmbeddedStringConstant(const StringConstantBase* str) {
-  Immediate result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
+  Immediate result(0, RelocInfo::EMBEDDED_OBJECT);
   result.is_heap_object_request_ = true;
   result.value_.heap_object_request = HeapObjectRequest(str);
   return result;
@@ -3269,7 +3269,7 @@ void Assembler::emit_operand(int code, Operand adr) {
   DCHECK(!options().isolate_independent_code ||
          adr.rmode_ != RelocInfo::CODE_TARGET);
   DCHECK(!options().isolate_independent_code ||
-         adr.rmode_ != RelocInfo::FULL_EMBEDDED_OBJECT);
+         adr.rmode_ != RelocInfo::EMBEDDED_OBJECT);
   DCHECK(!options().isolate_independent_code ||
          adr.rmode_ != RelocInfo::EXTERNAL_REFERENCE);
 

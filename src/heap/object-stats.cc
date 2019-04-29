@@ -1024,13 +1024,15 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
                                      ObjectStats::OPTIMIZED_CODE_LITERALS_TYPE);
     }
   }
-  int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
+  int const mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
-    DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-    Object target = it.rinfo()->target_object();
-    if (target->IsFixedArrayExact()) {
-      RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
-          code, HeapObject::cast(target), ObjectStats::EMBEDDED_OBJECT_TYPE);
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    if (mode == RelocInfo::EMBEDDED_OBJECT) {
+      Object target = it.rinfo()->target_object();
+      if (target->IsFixedArrayExact()) {
+        RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
+            code, HeapObject::cast(target), ObjectStats::EMBEDDED_OBJECT_TYPE);
+      }
     }
   }
 }

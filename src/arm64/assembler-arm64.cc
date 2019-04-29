@@ -292,7 +292,7 @@ bool AreConsecutive(const VRegister& reg1, const VRegister& reg2,
 
 void Immediate::InitializeHandle(Handle<HeapObject> handle) {
   value_ = static_cast<intptr_t>(handle.address());
-  rmode_ = RelocInfo::FULL_EMBEDDED_OBJECT;
+  rmode_ = RelocInfo::EMBEDDED_OBJECT;
 }
 
 
@@ -1709,14 +1709,14 @@ Operand Operand::EmbeddedNumber(double number) {
   if (DoubleToSmiInteger(number, &smi)) {
     return Operand(Immediate(Smi::FromInt(smi)));
   }
-  Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
   result.heap_object_request_.emplace(number);
   DCHECK(result.IsHeapObjectRequest());
   return result;
 }
 
 Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
-  Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
   result.heap_object_request_.emplace(str);
   DCHECK(result.IsHeapObjectRequest());
   return result;

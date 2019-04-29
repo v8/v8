@@ -1818,7 +1818,7 @@ void Assembler::movq_heap_number(Register dst, double value) {
   emit_rex(dst, kInt64Size);
   emit(0xB8 | dst.low_bits());
   RequestHeapObject(HeapObjectRequest(value));
-  emit(Immediate64(kNullAddress, RelocInfo::FULL_EMBEDDED_OBJECT));
+  emit(Immediate64(kNullAddress, RelocInfo::EMBEDDED_OBJECT));
 }
 
 void Assembler::movq_string(Register dst, const StringConstantBase* str) {
@@ -1826,7 +1826,7 @@ void Assembler::movq_string(Register dst, const StringConstantBase* str) {
   emit_rex(dst, kInt64Size);
   emit(0xB8 | dst.low_bits());
   RequestHeapObject(HeapObjectRequest(str));
-  emit(Immediate64(kNullAddress, RelocInfo::FULL_EMBEDDED_OBJECT));
+  emit(Immediate64(kNullAddress, RelocInfo::EMBEDDED_OBJECT));
 }
 
 // Loads the ip-relative location of the src label into the target location

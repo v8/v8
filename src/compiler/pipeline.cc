@@ -1022,10 +1022,11 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
   std::vector<Handle<Map>> retained_maps;
   {
     DisallowHeapAllocation no_gc;
-    int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
+    int const mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
     for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-      DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-      if (code->IsWeakObjectInOptimizedCode(it.rinfo()->target_object())) {
+      RelocInfo::Mode mode = it.rinfo()->rmode();
+      if (mode == RelocInfo::EMBEDDED_OBJECT &&
+          code->IsWeakObjectInOptimizedCode(it.rinfo()->target_object())) {
         Handle<HeapObject> object(HeapObject::cast(it.rinfo()->target_object()),
                                   isolate);
         if (object->IsMap()) {
