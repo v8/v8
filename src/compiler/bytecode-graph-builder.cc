@@ -51,6 +51,10 @@ class BytecodeGraphBuilder {
   void RemoveMergeEnvironmentsBeforeOffset(int limit_offset);
   void AdvanceToOsrEntryAndPeelLoops();
 
+  // Advance {bytecode_iterator} to the given offset. If possible, also advance
+  // {source_position_iterator} while updating the source position table.
+  void AdvanceIteratorsTo(int bytecode_offset);
+
   void VisitSingleBytecode();
   void VisitBytecodes();
 
@@ -1080,6 +1084,13 @@ void BytecodeGraphBuilder::PrepareFrameState(Node* node,
   }
 }
 
+void BytecodeGraphBuilder::AdvanceIteratorsTo(int bytecode_offset) {
+  for (; bytecode_iterator().current_offset() != bytecode_offset;
+       bytecode_iterator().Advance()) {
+    UpdateSourcePosition(bytecode_iterator().current_offset());
+  }
+}
+
 // Stores the state of the SourcePosition iterator, and the index to the
 // current exception handlers stack. We need, during the OSR graph generation,
 // to backup the states of these iterators at the LoopHeader offset of each
@@ -1094,10 +1105,6 @@ class BytecodeGraphBuilder::OsrIteratorState {
 
   void ProcessOsrPrelude() {
     ZoneVector<int> outer_loop_offsets(graph_builder_->local_zone());
-    SourcePositionTableIterator& source_position_iterator =
-        graph_builder_->source_position_iterator();
-    interpreter::BytecodeArrayIterator& bytecode_iterator =
-        graph_builder_->bytecode_iterator();
     BytecodeAnalysis const& bytecode_analysis =
         graph_builder_->bytecode_analysis();
     int osr_offset = bytecode_analysis.osr_entry_point();
@@ -1111,14 +1118,7 @@ class BytecodeGraphBuilder::OsrIteratorState {
     }
     outermost_loop_offset =
         outer_loop_offsets.empty() ? osr_offset : outer_loop_offsets.back();
-
-    // We will not processs any bytecode before the outermost_loop_offset, but
-    // the source_position_iterator needs to be advanced step by step through
-    // the bytecode.
-    for (; bytecode_iterator.current_offset() != outermost_loop_offset;
-         bytecode_iterator.Advance()) {
-      graph_builder_->UpdateSourcePosition(bytecode_iterator.current_offset());
-    }
+    graph_builder_->AdvanceIteratorsTo(outermost_loop_offset);
 
     // We save some iterators states at the offsets of the loop headers of the
     // outer loops (the ones containing the OSR loop). They will be used for
@@ -1126,24 +1126,16 @@ class BytecodeGraphBuilder::OsrIteratorState {
     for (ZoneVector<int>::const_reverse_iterator it =
              outer_loop_offsets.crbegin();
          it != outer_loop_offsets.crend(); ++it) {
-      int next_loop_offset = *it;
-      for (; bytecode_iterator.current_offset() != next_loop_offset;
-           bytecode_iterator.Advance()) {
-        graph_builder_->UpdateSourcePosition(
-            bytecode_iterator.current_offset());
-      }
+      graph_builder_->AdvanceIteratorsTo(*it);
       graph_builder_->ExitThenEnterExceptionHandlers(
-          bytecode_iterator.current_offset());
-      saved_states_.push(
-          IteratorsStates(graph_builder_->current_exception_handler(),
-                          source_position_iterator.GetState()));
+          graph_builder_->bytecode_iterator().current_offset());
+      saved_states_.push(IteratorsStates(
+          graph_builder_->current_exception_handler(),
+          graph_builder_->source_position_iterator().GetState()));
     }
 
     // Finishing by advancing to the OSR entry
-    for (; bytecode_iterator.current_offset() != osr_offset;
-         bytecode_iterator.Advance()) {
-      graph_builder_->UpdateSourcePosition(bytecode_iterator.current_offset());
-    }
+    graph_builder_->AdvanceIteratorsTo(osr_offset);
 
     // Enters all remaining exception handler which end before the OSR loop
     // so that on next call of VisitSingleBytecode they will get popped from
