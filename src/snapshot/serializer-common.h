@@ -370,7 +370,7 @@ class Checksum {
 #ifdef MEMORY_SANITIZER
     // Computing the checksum includes padding bytes for objects like strings.
     // Mark every object as initialized in the code serializer.
-    MSAN_MEMORY_IS_INITIALIZED(payload.start(), payload.length());
+    MSAN_MEMORY_IS_INITIALIZED(payload.begin(), payload.length());
 #endif  // MEMORY_SANITIZER
     // Fletcher's checksum. Modified to reduce 64-bit sums to 32-bit.
     uintptr_t a = 1;
@@ -379,7 +379,7 @@ class Checksum {
     // access payload through an uintptr_t pointer later on; and some
     // architectures, e.g. arm, may generate instructions that expect correct
     // alignment. However, we do not control alignment for external snapshots.
-    // DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload.start()),
+    // DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload.begin()),
     //                  kIntptrSize));
     DCHECK(IsAligned(payload.length(), kIntptrSize));
     const uintptr_t* cur = reinterpret_cast<const uintptr_t*>(payload.begin());
