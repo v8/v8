@@ -53,7 +53,8 @@ GC_STRESS_FLAGS = ['--gc-interval=500', '--stress-compaction',
                    '--concurrent-recompilation-queue-length=64',
                    '--concurrent-recompilation-delay=500',
                    '--concurrent-recompilation',
-                   '--stress-flush-bytecode']
+                   '--stress-flush-bytecode',
+                   '--wasm-code-gc', '--stress-wasm-code-gc']
 
 RANDOM_GC_STRESS_FLAGS = ['--random-gc-interval=5000',
                           '--stress-compaction-random']
