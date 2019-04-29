@@ -489,14 +489,6 @@ class PerfTest(unittest.TestCase):
     self._VerifyMock(os.path.join('out', 'x64.release', 'd7'),
                      '--flag', '--prof', 'run.js')
 
-  def testUnzip(self):
-    def Gen():
-      for i in [1, 2, 3]:
-        yield i, i + 1
-    l, r = run_perf.Unzip(Gen())
-    self.assertListEqual([1, 2, 3], list(l()))
-    self.assertListEqual([2, 3, 4], list(r()))
-
   #############################################################################
   ### System tests
 
