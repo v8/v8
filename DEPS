@@ -236,7 +236,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'v8/test/wasm-js/data':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '43898ad2b3203eb5c1cfb28ddb0cb585f74b6b48',
+    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '6281d0d386845cc7b1aa3a2150b0203307909861',
   'v8/third_party/perfetto':
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '70fed1d420d31510e29aae328cbb3aa3f0a80e25',
   'v8/third_party/protobuf':
