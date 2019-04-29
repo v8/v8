@@ -7492,7 +7492,7 @@ v8::ArrayBuffer::Contents::Contents(void* data, size_t byte_length,
 void WasmMemoryDeleter(void* buffer, size_t lenght, void* info) {
   internal::wasm::WasmEngine* engine =
       reinterpret_cast<internal::wasm::WasmEngine*>(info);
-  CHECK(engine->memory_tracker()->FreeMemoryIfIsWasmMemory(nullptr, buffer));
+  CHECK(engine->memory_tracker()->FreeWasmMemory(nullptr, buffer));
 }
 
 void ArrayBufferDeleter(void* buffer, size_t length, void* info) {

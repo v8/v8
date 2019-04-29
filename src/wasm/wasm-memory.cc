@@ -260,8 +260,8 @@ bool WasmMemoryTracker::IsWasmMemoryGrowable(Handle<JSArrayBuffer> buffer) {
   return allocation->second.is_growable;
 }
 
-bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(Isolate* isolate,
-                                                 const void* buffer_start) {
+bool WasmMemoryTracker::FreeWasmMemory(Isolate* isolate,
+                                       const void* buffer_start) {
   base::MutexGuard scope_lock(&mutex_);
   const auto& result = allocations_.find(buffer_start);
   if (result == allocations_.end()) return false;
