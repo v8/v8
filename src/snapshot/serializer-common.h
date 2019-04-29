@@ -375,8 +375,14 @@ class Checksum {
     // Fletcher's checksum. Modified to reduce 64-bit sums to 32-bit.
     uintptr_t a = 1;
     uintptr_t b = 0;
-    const uintptr_t* cur = reinterpret_cast<const uintptr_t*>(payload.start());
+    // TODO(jgruber, v8:9171): The following DCHECK should ideally hold since we
+    // access payload through an uintptr_t pointer later on; and some
+    // architectures, e.g. arm, may generate instructions that expect correct
+    // alignment. However, we do not control alignment for external snapshots.
+    // DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload.start()),
+    //                  kIntptrSize));
     DCHECK(IsAligned(payload.length(), kIntptrSize));
+    const uintptr_t* cur = reinterpret_cast<const uintptr_t*>(payload.start());
     const uintptr_t* end = cur + payload.length() / kIntptrSize;
     while (cur < end) {
       // Unsigned overflow expected and intended.
