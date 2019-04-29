@@ -170,7 +170,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   // Decrement the ref count on a set of {WasmCode} objects, potentially
   // belonging to different {NativeModule}s. Dead code will be deleted.
-  static void DecrementRefCount(Vector<WasmCode*>);
+  static void DecrementRefCount(Vector<WasmCode* const>);
 
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
@@ -408,6 +408,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Free a set of functions of this module. Uncommits whole pages if possible.
   // The given vector must be ordered by the instruction start address, and all
   // {WasmCode} objects must not be used any more.
+  // Should only be called via {WasmEngine::FreeDeadCode}, so the engine can do
+  // its accounting.
   void FreeCode(Vector<WasmCode* const>);
 
  private:
@@ -663,9 +665,7 @@ class GlobalWasmCodeRef {
     code_->IncRef();
   }
 
-  ~GlobalWasmCodeRef() {
-    if (code_->DecRef()) code_->native_module()->FreeCode(VectorOf(&code_, 1));
-  }
+  ~GlobalWasmCodeRef() { WasmCode::DecrementRefCount({&code_, 1}); }
 
   // Get a pointer to the contained {WasmCode} object. This is only guaranteed
   // to exist as long as this {GlobalWasmCodeRef} exists.

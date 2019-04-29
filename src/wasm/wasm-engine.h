@@ -195,6 +195,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // case.
   V8_WARN_UNUSED_RESULT bool AddPotentiallyDeadCode(WasmCode*);
 
+  // Free dead code on a native module.
+  void FreeDeadCode(NativeModule*, Vector<WasmCode* const>);
+
   // Call on process start and exit.
   static void InitializeOncePerProcess();
   static void GlobalTearDown();

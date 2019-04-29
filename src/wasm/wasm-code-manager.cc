@@ -400,7 +400,7 @@ V8_WARN_UNUSED_RESULT bool WasmCode::DecRefOnPotentiallyDeadCode() {
 }
 
 // static
-void WasmCode::DecrementRefCount(Vector<WasmCode*> code_vec) {
+void WasmCode::DecrementRefCount(Vector<WasmCode* const> code_vec) {
   // Decrement the ref counter of all given code objects. Keep the ones whose
   // ref count drops to zero.
   std::unordered_map<NativeModule*, std::vector<WasmCode*>> dead_code;
@@ -412,7 +412,7 @@ void WasmCode::DecrementRefCount(Vector<WasmCode*> code_vec) {
   for (auto& dead_code_entry : dead_code) {
     NativeModule* native_module = dead_code_entry.first;
     Vector<WasmCode*> code_vec = VectorOf(dead_code_entry.second);
-    native_module->FreeCode(code_vec);
+    native_module->engine()->FreeDeadCode(native_module, code_vec);
   }
 }
 
