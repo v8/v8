@@ -2032,9 +2032,11 @@ class LiftoffCompiler {
 
 }  // namespace
 
-WasmCompilationResult LiftoffCompilationUnit::ExecuteCompilation(
-    AccountingAllocator* allocator, CompilationEnv* env,
-    const FunctionBody& func_body, Counters* counters, WasmFeatures* detected) {
+WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
+                                                CompilationEnv* env,
+                                                const FunctionBody& func_body,
+                                                Counters* counters,
+                                                WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteLiftoffCompilation");
   base::ElapsedTimer compile_timer;

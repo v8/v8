@@ -27,7 +27,6 @@ class TurbofanWasmCompilationUnit;
 
 namespace wasm {
 
-class LiftoffCompilationUnit;
 class NativeModule;
 class WasmCode;
 class WasmCompilationUnit;
@@ -85,15 +84,12 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
                                   ExecutionTier);
 
  private:
-  friend class LiftoffCompilationUnit;
   friend class compiler::TurbofanWasmCompilationUnit;
   friend class compiler::InterpreterCompilationUnit;
 
   const int func_index_;
   ExecutionTier tier_;
 
-  // LiftoffCompilationUnit, set if {tier_ == kLiftoff}.
-  std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;
   // TurbofanWasmCompilationUnit, set if {tier_ == kTurbofan}.
   std::unique_ptr<compiler::TurbofanWasmCompilationUnit> turbofan_unit_;
   // InterpreterCompilationUnit, set if {tier_ == kInterpreter}.
