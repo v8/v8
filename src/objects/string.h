@@ -146,10 +146,6 @@ class String : public Name {
   V8_INLINE Vector<const Char> GetCharVector(
       const DisallowHeapAllocation& no_gc);
 
-  // Get chars from sequential or external strings.
-  template <typename Char>
-  inline const Char* GetChars(const DisallowHeapAllocation& no_gc);
-
   // Get and set the length of the string.
   inline int length() const;
   inline void set_length(int value);
