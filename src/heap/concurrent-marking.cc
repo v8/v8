@@ -330,14 +330,24 @@ class ConcurrentMarkingVisitor final
     marking_state_.GreyToBlack(object);
     int size = FixedArray::BodyDescriptor::SizeOf(map, object);
     size_t current_progress_bar = chunk->ProgressBar();
-    int start = std::max(static_cast<int>(current_progress_bar),
-                         FixedArray::BodyDescriptor::kStartOffset);
+    if (current_progress_bar == 0) {
+      // Try to move the progress bar forward to start offset. This solves the
+      // problem of not being able to observe a progress bar reset when
+      // processing the first kProgressBarScanningChunk.
+      if (!chunk->TrySetProgressBar(0,
+                                    FixedArray::BodyDescriptor::kStartOffset))
+        return 0;
+      current_progress_bar = FixedArray::BodyDescriptor::kStartOffset;
+    }
+    int start = static_cast<int>(current_progress_bar);
     int end = Min(size, start + kProgressBarScanningChunk);
     if (start < end) {
       VisitPointers(object, object.RawField(start), object.RawField(end));
-      bool success = chunk->TrySetProgressBar(current_progress_bar, end);
-      CHECK(success);
-      if (end < size) {
+      // Setting the progress bar can fail if the object that is currently
+      // scanned is also revisited. In this case, there may be two tasks racing
+      // on the progress counter. The looser can bail out because the progress
+      // bar is reset before the tasks race on the object.
+      if (chunk->TrySetProgressBar(current_progress_bar, end) && (end < size)) {
         // The object can be pushed back onto the marking worklist only after
         // progress bar was updated.
         shared_.Push(object);

@@ -47,7 +47,7 @@ void GenerationalBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
 // Marking write barrier.
 void MarkingBarrier(HeapObject object, ObjectSlot slot, Object value);
 void MarkingBarrier(HeapObject object, MaybeObjectSlot slot, MaybeObject value);
-void MarkingBarrierForElements(Heap* heap, FixedArray array);
+void MarkingBarrierForElements(Heap* heap, HeapObject object);
 void MarkingBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
 
 void MarkingBarrierForDescriptorArray(Heap* heap, HeapObject host,

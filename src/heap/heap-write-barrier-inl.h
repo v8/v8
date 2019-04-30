@@ -43,7 +43,7 @@ V8_EXPORT_PRIVATE void Heap_GenerationalBarrierForElementsSlow(Heap* heap,
                                                                int offset,
                                                                int length);
 V8_EXPORT_PRIVATE void Heap_MarkingBarrierForElementsSlow(Heap* heap,
-                                                          FixedArray object);
+                                                          HeapObject object);
 V8_EXPORT_PRIVATE void Heap_MarkingBarrierForDescriptorArraySlow(
     Heap* heap, HeapObject host, HeapObject descriptor_array,
     int number_of_own_descriptors);
@@ -216,12 +216,12 @@ inline void MarkingBarrier(HeapObject object, MaybeObjectSlot slot,
                                          value_heap_object);
 }
 
-inline void MarkingBarrierForElements(Heap* heap, FixedArray array) {
+inline void MarkingBarrierForElements(Heap* heap, HeapObject object) {
   heap_internals::MemoryChunk* object_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(array);
+      heap_internals::MemoryChunk::FromHeapObject(object);
   if (!object_chunk->IsMarking()) return;
 
-  Heap_MarkingBarrierForElementsSlow(heap, array);
+  Heap_MarkingBarrierForElementsSlow(heap, object);
 }
 
 inline void MarkingBarrierForCode(Code host, RelocInfo* rinfo,

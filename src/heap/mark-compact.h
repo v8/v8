@@ -619,8 +619,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
                                    HeapObject target);
   V8_INLINE static void RecordSlot(HeapObject object, HeapObjectSlot slot,
                                    HeapObject target);
-  V8_INLINE static void RecordSlot(MemoryChunk* source_page,
-                                   HeapObjectSlot slot, HeapObject target);
   void RecordLiveSlotsOnPage(Page* page);
 
   void UpdateSlots(SlotsBuffer* buffer);

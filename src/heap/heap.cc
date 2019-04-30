@@ -30,7 +30,6 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -112,8 +111,8 @@ void Heap_GenerationalBarrierForElementsSlow(Heap* heap, FixedArray array,
   Heap::GenerationalBarrierForElementsSlow(heap, array, offset, length);
 }
 
-void Heap_MarkingBarrierForElementsSlow(Heap* heap, FixedArray array) {
-  Heap::MarkingBarrierForElementsSlow(heap, array);
+void Heap_MarkingBarrierForElementsSlow(Heap* heap, HeapObject object) {
+  Heap::MarkingBarrierForElementsSlow(heap, object);
 }
 
 void Heap_MarkingBarrierForDescriptorArraySlow(Heap* heap, HeapObject host,
@@ -5896,8 +5895,14 @@ void Heap::MarkingBarrierSlow(HeapObject object, Address slot,
                                                value);
 }
 
-void Heap::MarkingBarrierForElementsSlow(Heap* heap, FixedArray array) {
-  heap->incremental_marking()->RecordWrites(array);
+void Heap::MarkingBarrierForElementsSlow(Heap* heap, HeapObject object) {
+  IncrementalMarking::MarkingState* marking_state =
+      heap->incremental_marking()->marking_state();
+  if (!marking_state->IsBlack(object)) {
+    marking_state->WhiteToGrey(object);
+    marking_state->GreyToBlack(object);
+  }
+  heap->incremental_marking()->RevisitObject(object);
 }
 
 void Heap::MarkingBarrierForCodeSlow(Code host, RelocInfo* rinfo,

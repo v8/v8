@@ -117,30 +117,6 @@ void IncrementalMarking::RecordWriteIntoCode(Code host, RelocInfo* rinfo,
   }
 }
 
-void IncrementalMarking::RecordWrites(FixedArray array) {
-  int length = array->length();
-  MarkCompactCollector* collector = heap_->mark_compact_collector();
-  MemoryChunk* source_page = MemoryChunk::FromHeapObject(array);
-  if (source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
-    for (int i = 0; i < length; i++) {
-      Object value = array->get(i);
-      if (value->IsHeapObject()) {
-        BaseRecordWrite(array, HeapObject::cast(value));
-      }
-    }
-  } else {
-    for (int i = 0; i < length; i++) {
-      Object value = array->get(i);
-      if (value->IsHeapObject() &&
-          BaseRecordWrite(array, HeapObject::cast(value))) {
-        collector->RecordSlot(source_page,
-                              HeapObjectSlot(array->RawFieldOfElementAt(i)),
-                              HeapObject::cast(value));
-      }
-    }
-  }
-}
-
 bool IncrementalMarking::WhiteToGreyAndPush(HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
     marking_worklist()->Push(obj);
@@ -721,6 +697,12 @@ void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
   bytes_marked_ -= Min(bytes_marked_, dead_bytes_in_new_space);
 }
 
+bool IncrementalMarking::IsFixedArrayWithProgressBar(HeapObject obj) {
+  if (!obj->IsFixedArray()) return false;
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
+  return chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR);
+}
+
 int IncrementalMarking::VisitObject(Map map, HeapObject obj) {
   DCHECK(marking_state()->IsGrey(obj) || marking_state()->IsBlack(obj));
   if (!marking_state()->GreyToBlack(obj)) {
@@ -753,9 +735,11 @@ void IncrementalMarking::ProcessBlackAllocatedObject(HeapObject obj) {
 void IncrementalMarking::RevisitObject(HeapObject obj) {
   DCHECK(IsMarking());
   DCHECK(marking_state()->IsBlack(obj));
-  DCHECK_IMPLIES(MemoryChunk::FromHeapObject(obj)->IsFlagSet(
-                     MemoryChunk::HAS_PROGRESS_BAR),
-                 0u == MemoryChunk::FromHeapObject(obj)->ProgressBar());
+  Page* page = Page::FromHeapObject(obj);
+  if (page->owner()->identity() == LO_SPACE ||
+      page->owner()->identity() == NEW_LO_SPACE) {
+    page->ResetProgressBar();
+  }
   Map map = obj->map();
   WhiteToGreyAndPush(map);
   IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector(),
