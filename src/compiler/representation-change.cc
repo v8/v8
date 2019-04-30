@@ -836,6 +836,8 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
          use_info.truncation().IdentifiesZeroAndMinusZero())) {
       op = machine()->ChangeInt32ToFloat64();
     } else if (output_type.Is(Type::Unsigned32()) ||
+               (output_type.Is(Type::Unsigned32OrMinusZero()) &&
+                use_info.truncation().IdentifiesZeroAndMinusZero()) ||
                use_info.truncation().IsUsedAsWord32()) {
       // Either the output is uint32 or the uses only care about the
       // low 32 bits (so we can pick uint32 safely).
