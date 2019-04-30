@@ -1618,7 +1618,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
     FieldIndex index = boilerplate_map.GetFieldIndexFor(i);
     FieldAccess access = {
         kTaggedBase,        index.offset(), property_name.object(),
-        MaybeHandle<Map>(), Type::Any(),    MachineType::AnyTagged(),
+        MaybeHandle<Map>(), Type::Any(),    MachineType::TypeCompressedTagged(),
         kFullWriteBarrier};
     Node* value;
     if (boilerplate_map.IsUnboxedDoubleField(i)) {

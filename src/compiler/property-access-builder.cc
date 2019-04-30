@@ -287,7 +287,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       FieldAccess const storage_access = {
           kTaggedBase,           field_index.offset(),
           name.object(),         MaybeHandle<Map>(),
-          Type::OtherInternal(), MachineType::TaggedPointer(),
+          Type::OtherInternal(), MachineType::TypeCompressedTaggedPointer(),
           kPointerWriteBarrier,  LoadSensitivity::kCritical};
       storage = *effect = graph()->NewNode(
           simplified()->LoadField(storage_access), storage, *effect, *control);

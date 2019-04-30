@@ -174,11 +174,11 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
           case AccessMode::kHas:
           case AccessMode::kLoad: {
             if (this->field_representation_ != that->field_representation_) {
-              if (!IsAnyTagged(this->field_representation_) ||
-                  !IsAnyTagged(that->field_representation_)) {
+              if (!IsAnyCompressedTagged(this->field_representation_) ||
+                  !IsAnyCompressedTagged(that->field_representation_)) {
                 return false;
               }
-              this->field_representation_ = MachineRepresentation::kTagged;
+              this->field_representation_ = MachineType::RepCompressedTagged();
             }
             if (this->field_map_.address() != that->field_map_.address()) {
               this->field_map_ = MaybeHandle<Map>();
@@ -325,23 +325,15 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   FieldIndex field_index =
       FieldIndex::ForPropertyIndex(*map, index, details_representation);
   Type field_type = Type::NonInternal();
-#ifdef V8_COMPRESS_POINTERS
   MachineRepresentation field_representation =
-      MachineRepresentation::kCompressed;
-#else
-  MachineRepresentation field_representation = MachineRepresentation::kTagged;
-#endif
+      MachineType::RepCompressedTagged();
   MaybeHandle<Map> field_map;
   MapRef map_ref(broker(), map);
   std::vector<CompilationDependencies::Dependency const*>
       unrecorded_dependencies;
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
-#ifdef V8_COMPRESS_POINTERS
-    field_representation = MachineRepresentation::kCompressedSigned;
-#else
-    field_representation = MachineRepresentation::kTaggedSigned;
-#endif
+    field_representation = MachineType::RepCompressedTaggedSigned();
     map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
@@ -352,11 +344,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
-#ifdef V8_COMPRESS_POINTERS
-    field_representation = MachineRepresentation::kCompressedPointer;
-#else
-    field_representation = MachineRepresentation::kTaggedPointer;
-#endif
+    field_representation = MachineType::RepCompressedTaggedPointer();
     Handle<FieldType> descriptors_field_type(descriptors->GetFieldType(number),
                                              isolate());
     if (descriptors_field_type->IsNone()) {
@@ -689,7 +677,8 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
   FieldIndex field_index;
   if (Accessors::IsJSObjectFieldAccessor(isolate(), map, name, &field_index)) {
     Type field_type = Type::NonInternal();
-    MachineRepresentation field_representation = MachineRepresentation::kTagged;
+    MachineRepresentation field_representation =
+        MachineType::RepCompressedTagged();
     if (map->IsJSArrayMap()) {
       DCHECK(
           Name::Equals(isolate(), isolate()->factory()->length_string(), name));
@@ -700,10 +689,10 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
       // case of other arrays.
       if (IsDoubleElementsKind(map->elements_kind())) {
         field_type = type_cache_->kFixedDoubleArrayLengthType;
-        field_representation = MachineRepresentation::kTaggedSigned;
+        field_representation = MachineType::RepCompressedTaggedSigned();
       } else if (IsFastElementsKind(map->elements_kind())) {
         field_type = type_cache_->kFixedArrayLengthType;
-        field_representation = MachineRepresentation::kTaggedSigned;
+        field_representation = MachineType::RepCompressedTaggedSigned();
       } else {
         field_type = type_cache_->kJSArrayLengthType;
       }
@@ -736,13 +725,14 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
                                                         details_representation);
   Type field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
-  MachineRepresentation field_representation = MachineRepresentation::kTagged;
+  MachineRepresentation field_representation =
+      MachineType::RepCompressedTagged();
   MapRef transition_map_ref(broker(), transition_map);
   std::vector<CompilationDependencies::Dependency const*>
       unrecorded_dependencies;
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
-    field_representation = MachineRepresentation::kTaggedSigned;
+    field_representation = MachineType::RepCompressedTaggedSigned();
     transition_map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
@@ -753,7 +743,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
-    field_representation = MachineRepresentation::kTaggedPointer;
+    field_representation = MachineType::RepCompressedTaggedPointer();
     Handle<FieldType> descriptors_field_type(
         transition_map->instance_descriptors()->GetFieldType(number),
         isolate());

@@ -4800,7 +4800,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   FieldAccess index_access = AccessBuilder::ForJSArrayIteratorNextIndex();
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
     index_access.type = TypeCache::Get()->kJSTypedArrayLengthType;
-    index_access.machine_type = MachineType::TaggedSigned();
+    index_access.machine_type = MachineType::TypeCompressedTaggedSigned();
     index_access.write_barrier_kind = kNoWriteBarrier;
   } else {
     index_access.type = TypeCache::Get()->kJSArrayLengthType;
