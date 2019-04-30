@@ -500,14 +500,6 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   return AddAndPublishAnonymousCode(code, WasmCode::kFunction);
 }
 
-void NativeModule::UseLazyStubs() {
-  uint32_t start = module_->num_imported_functions;
-  uint32_t end = start + module_->num_declared_functions;
-  for (uint32_t func_index = start; func_index < end; func_index++) {
-    UseLazyStub(func_index);
-  }
-}
-
 void NativeModule::UseLazyStub(uint32_t func_index) {
   DCHECK_LE(module_->num_imported_functions, func_index);
   DCHECK_LT(func_index,

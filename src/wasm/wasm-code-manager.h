@@ -305,11 +305,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(Handle<Code> code);
 
-  // Use this to setup lazy compilation for the entire module ({UseLazyStubs})
-  // or for individual functions ({UseLazyStub}). It will use the existing
-  // {WasmCode::kWasmCompileLazy} runtime stub and populate the jump table with
-  // trampolines to that runtime stub.
-  void UseLazyStubs();
+  // Use {UseLazyStub} to setup lazy compilation per function. It will use the
+  // existing {WasmCode::kWasmCompileLazy} runtime stub and populate the jump
+  // table with trampolines accordingly.
   void UseLazyStub(uint32_t func_index);
 
   // Initializes all runtime stubs by setting up entry addresses in the runtime
