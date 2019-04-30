@@ -574,9 +574,9 @@ class SetOncePointer {
     pointer_ = value;
   }
 
-  T* operator=(T* value) {
+  SetOncePointer& operator=(T* value) {
     set(value);
-    return value;
+    return *this;
   }
 
   bool operator==(std::nullptr_t) const { return pointer_ == nullptr; }

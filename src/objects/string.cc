@@ -295,7 +295,6 @@ void String::StringShortPrint(StringStream* accumulator, bool show_details) {
     }
     if (show_details) accumulator->Put('>');
   }
-  return;
 }
 
 void String::PrintUC16(std::ostream& os, int start, int end) {  // NOLINT

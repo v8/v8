@@ -84,7 +84,7 @@ static void WriteLine(std::ostream& os, bool machine_format, const char* name,
         stats.max_allocated_bytes_, stats.absolute_max_allocated_bytes_);
 
     os << buffer;
-    if (stats.function_name_.size() > 0) {
+    if (!stats.function_name_.empty()) {
       os << "   " << stats.function_name_.c_str();
     }
     os << std::endl;

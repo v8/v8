@@ -243,7 +243,7 @@ std::vector<char> ReadCharsFromFile(const char* filename, bool* exists,
 }
 
 std::string VectorToString(const std::vector<char>& chars) {
-  if (chars.size() == 0) {
+  if (chars.empty()) {
     return std::string();
   }
   return std::string(chars.begin(), chars.end());

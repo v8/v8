@@ -7506,7 +7506,6 @@ void CompilationCacheTable::Remove(Object value) {
       ElementRemoved();
     }
   }
-  return;
 }
 
 template <typename Derived, typename Shape>

@@ -568,7 +568,7 @@ bool FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
 Map FeedbackNexus::GetFirstMap() const {
   MapHandles maps;
   ExtractMaps(&maps);
-  if (maps.size() > 0) return *maps.at(0);
+  if (!maps.empty()) return *maps.at(0);
   return Map();
 }
 
