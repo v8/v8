@@ -791,7 +791,8 @@ TEST(MIPS9) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  USE(code);
 }
 
 

@@ -1105,7 +1105,8 @@ static GeneratedCode<F4> GenerateMacroFloat32MinMax(MacroAssembler* masm) {
 
   CodeDesc desc;
   masm->GetCode(masm->isolate(), &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(masm->isolate(), desc, Code::STUB).Build();
 #ifdef DEBUG
   StdoutStream os;
   code->Print(os);
