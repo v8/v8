@@ -843,12 +843,12 @@ class WasmModuleBuilder {
     return this;
   }
 
-  addImportedTable(module, name, initial, maximum) {
+  addImportedTable(module, name, initial, maximum, type) {
     if (this.tables.length != 0) {
       throw new Error('Imported tables must be declared before local ones');
     }
     let o = {module: module, name: name, kind: kExternalTable, initial: initial,
-             maximum: maximum};
+             maximum: maximum, type: type || kWasmAnyFunctionTypeForm};
     this.imports.push(o);
     return this.num_imported_tables++;
   }
@@ -999,7 +999,7 @@ class WasmModuleBuilder {
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
           } else if (imp.kind == kExternalTable) {
-            section.emit_u8(kWasmAnyFunctionTypeForm);
+            section.emit_u8(imp.type);
             var has_max = (typeof imp.maximum) != "undefined";
             section.emit_u8(has_max ? 1 : 0); // flags
             section.emit_u32v(imp.initial); // initial

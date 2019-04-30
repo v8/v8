@@ -140,6 +140,11 @@ class InstanceBuilder {
                                Handle<String> import_name,
                                Handle<Object> value);
 
+  // Initialize imported tables of type anyfunc.
+  bool InitializeImportedIndirectFunctionTable(
+      Handle<WasmInstanceObject> instance, int import_index,
+      Handle<WasmTableObject> table_object);
+
   // Process a single imported table.
   bool ProcessImportedTable(Handle<WasmInstanceObject> instance,
                             int import_index, int table_index,
@@ -808,6 +813,49 @@ bool InstanceBuilder::ProcessImportedFunction(
   return true;
 }
 
+bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
+    Handle<WasmInstanceObject> instance, int import_index,
+    Handle<WasmTableObject> table_object) {
+  int imported_table_size = table_object->elements().length();
+  // Allocate a new dispatch table.
+  if (!instance->has_indirect_function_table()) {
+    WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
+        instance, imported_table_size);
+  }
+  // Initialize the dispatch table with the (foreign) JS functions
+  // that are already in the table.
+  for (int i = 0; i < imported_table_size; ++i) {
+    bool is_valid;
+    bool is_null;
+    MaybeHandle<WasmInstanceObject> maybe_target_instance;
+    int function_index;
+    WasmTableObject::GetFunctionTableEntry(isolate_, table_object, i, &is_valid,
+                                           &is_null, &maybe_target_instance,
+                                           &function_index);
+    if (!is_valid) {
+      thrower_->LinkError("table import %d[%d] is not a wasm function",
+                          import_index, i);
+      return false;
+    }
+    if (is_null) continue;
+
+    Handle<WasmInstanceObject> target_instance =
+        maybe_target_instance.ToHandleChecked();
+    FunctionSig* sig = target_instance->module_object()
+                           ->module()
+                           ->functions[function_index]
+                           .sig;
+
+    // Look up the signature's canonical id. If there is no canonical
+    // id, then the signature does not appear at all in this module,
+    // so putting {-1} in the table will cause checks to always fail.
+    IndirectFunctionTableEntry(instance, i)
+        .Set(module_->signature_map.Find(*sig), target_instance,
+             function_index);
+  }
+  return true;
+}
+
 bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
                                            int import_index, int table_index,
                                            Handle<String> module_name,
@@ -851,42 +899,17 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
     }
   }
 
-  // Allocate a new dispatch table.
-  if (!instance->has_indirect_function_table()) {
-    WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
-        instance, imported_table_size);
+  if (table.type != table_object->type()) {
+    ReportLinkError("imported table does not match the expected type",
+                    import_index, module_name, import_name);
+    return false;
   }
-  // Initialize the dispatch table with the (foreign) JS functions
-  // that are already in the table.
-  for (int i = 0; i < imported_table_size; ++i) {
-    bool is_valid;
-    bool is_null;
-    MaybeHandle<WasmInstanceObject> maybe_target_instance;
-    int function_index;
-    WasmTableObject::GetFunctionTableEntry(isolate_, table_object, i, &is_valid,
-                                           &is_null, &maybe_target_instance,
-                                           &function_index);
-    if (!is_valid) {
-      thrower_->LinkError("table import %d[%d] is not a wasm function",
-                          import_index, i);
-      return false;
-    }
-    if (is_null) continue;
 
-    Handle<WasmInstanceObject> target_instance =
-        maybe_target_instance.ToHandleChecked();
-    FunctionSig* sig = target_instance->module_object()
-                           ->module()
-                           ->functions[function_index]
-                           .sig;
-
-    // Look up the signature's canonical id. If there is no canonical
-    // id, then the signature does not appear at all in this module,
-    // so putting {-1} in the table will cause checks to always fail.
-    IndirectFunctionTableEntry(instance, i)
-        .Set(module_->signature_map.Find(*sig), target_instance,
-             function_index);
+  if (table.type == kWasmAnyFunc && !InitializeImportedIndirectFunctionTable(
+                                        instance, import_index, table_object)) {
+    return false;
   }
+
   return true;
 }
 
