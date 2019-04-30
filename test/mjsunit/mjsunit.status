@@ -309,7 +309,6 @@
   # Slow tests.
   'array-constructor': [PASS, SLOW],
   'json': [PASS, SLOW],
-  'large-object-literal-slow-elements': [PASS, SLOW],
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', NO_VARIANTS]],
