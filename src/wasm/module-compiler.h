@@ -53,7 +53,7 @@ V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is
 // also lazy.
-bool CompileLazy(Isolate*, NativeModule*, uint32_t func_index);
+bool CompileLazy(Isolate*, NativeModule*, int func_index);
 
 // Encapsulates all the state and steps of an asynchronous compilation.
 // An asynchronous compile job consists of a number of tasks that are executed

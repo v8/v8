@@ -155,7 +155,7 @@ class CompilationUnitQueues {
     }
   }
 
-  std::unique_ptr<WasmCompilationUnit> GetNextUnit(
+  base::Optional<WasmCompilationUnit> GetNextUnit(
       int task_id, CompileBaselineOnly baseline_only) {
     DCHECK_LE(0, task_id);
     DCHECK_GT(queues_.size(), task_id);
@@ -171,7 +171,7 @@ class CompilationUnitQueues {
       {
         base::MutexGuard mutex_guard(&queue->mutex_);
         if (!queue->units_[tier].empty()) {
-          auto unit = std::move(queue->units_[tier].back());
+          auto unit = queue->units_[tier].back();
           queue->units_[tier].pop_back();
           DecrementUnitCount(tier);
           return unit;
@@ -185,17 +185,18 @@ class CompilationUnitQueues {
       for (; steal_trials > 0;
            --steal_trials, steal_task_id = next_task_id(steal_task_id)) {
         if (steal_task_id == task_id) continue;
-        if (auto unit = StealUnitsAndGetFirst(task_id, steal_task_id, tier)) {
+        if (auto maybe_unit =
+                StealUnitsAndGetFirst(task_id, steal_task_id, tier)) {
           DecrementUnitCount(tier);
-          return unit;
+          return maybe_unit;
         }
       }
     }
     return {};
   }
 
-  void AddUnits(Vector<std::unique_ptr<WasmCompilationUnit>> baseline_units,
-                Vector<std::unique_ptr<WasmCompilationUnit>> top_tier_units) {
+  void AddUnits(Vector<WasmCompilationUnit> baseline_units,
+                Vector<WasmCompilationUnit> top_tier_units) {
     DCHECK_LT(0, baseline_units.size() + top_tier_units.size());
     // Add to the individual queues in a round-robin fashion. No special care is
     // taken to balance them; they will be balanced by work stealing.
@@ -208,18 +209,16 @@ class CompilationUnitQueues {
     Queue* queue = &queues_[queue_to_add];
     base::MutexGuard guard(&queue->mutex_);
     if (!baseline_units.empty()) {
-      queue->units_[kBaseline].insert(
-          queue->units_[kBaseline].end(),
-          std::make_move_iterator(baseline_units.begin()),
-          std::make_move_iterator(baseline_units.end()));
+      queue->units_[kBaseline].insert(queue->units_[kBaseline].end(),
+                                      baseline_units.begin(),
+                                      baseline_units.end());
       num_units_[kBaseline].fetch_add(baseline_units.size(),
                                       std::memory_order_relaxed);
     }
     if (!top_tier_units.empty()) {
-      queue->units_[kTopTier].insert(
-          queue->units_[kTopTier].end(),
-          std::make_move_iterator(top_tier_units.begin()),
-          std::make_move_iterator(top_tier_units.end()));
+      queue->units_[kTopTier].insert(queue->units_[kTopTier].end(),
+                                     top_tier_units.begin(),
+                                     top_tier_units.end());
       num_units_[kTopTier].fetch_add(top_tier_units.size(),
                                      std::memory_order_relaxed);
     }
@@ -246,7 +245,7 @@ class CompilationUnitQueues {
     base::Mutex mutex_;
 
     // Protected by {mutex_}:
-    std::vector<std::unique_ptr<WasmCompilationUnit>> units_[kNumTiers];
+    std::vector<WasmCompilationUnit> units_[kNumTiers];
     int next_steal_task_id_;
     // End of fields protected by {mutex_}.
   };
@@ -275,32 +274,28 @@ class CompilationUnitQueues {
   }
 
   // Steal units of {wanted_tier} from {steal_from_task_id} to {task_id}. Return
-  // first stolen unit (rest put in queue of {task_id}), or {nullptr} if
+  // first stolen unit (rest put in queue of {task_id}), or {nullopt} if
   // {steal_from_task_id} had no units of {wanted_tier}.
-  std::unique_ptr<WasmCompilationUnit> StealUnitsAndGetFirst(
+  base::Optional<WasmCompilationUnit> StealUnitsAndGetFirst(
       int task_id, int steal_from_task_id, int wanted_tier) {
     DCHECK_NE(task_id, steal_from_task_id);
-    std::vector<std::unique_ptr<WasmCompilationUnit>> stolen;
+    std::vector<WasmCompilationUnit> stolen;
+    base::Optional<WasmCompilationUnit> returned_unit;
     {
       Queue* steal_queue = &queues_[steal_from_task_id];
       base::MutexGuard guard(&steal_queue->mutex_);
       auto* steal_from_vector = &steal_queue->units_[wanted_tier];
       if (steal_from_vector->empty()) return {};
       size_t remaining = steal_from_vector->size() / 2;
-      stolen.assign(
-          std::make_move_iterator(steal_from_vector->begin()) + remaining,
-          std::make_move_iterator(steal_from_vector->end()));
-      steal_from_vector->resize(remaining);
+      auto steal_begin = steal_from_vector->begin() + remaining;
+      returned_unit = *steal_begin;
+      stolen.assign(steal_begin + 1, steal_from_vector->end());
+      steal_from_vector->erase(steal_begin, steal_from_vector->end());
     }
-    DCHECK(!stolen.empty());
-    auto returned_unit = std::move(stolen.back());
-    stolen.pop_back();
     Queue* queue = &queues_[task_id];
     base::MutexGuard guard(&queue->mutex_);
     auto* target_queue = &queue->units_[wanted_tier];
-    target_queue->insert(target_queue->end(),
-                         std::make_move_iterator(stolen.begin()),
-                         std::make_move_iterator(stolen.end()));
+    target_queue->insert(target_queue->end(), stolen.begin(), stolen.end());
     queue->next_steal_task_id_ = next_task_id(steal_from_task_id);
     return returned_unit;
   }
@@ -331,11 +326,10 @@ class CompilationStateImpl {
   void AddCallback(CompilationState::callback_t);
 
   // Inserts new functions to compile and kicks off compilation.
-  void AddCompilationUnits(
-      Vector<std::unique_ptr<WasmCompilationUnit>> baseline_units,
-      Vector<std::unique_ptr<WasmCompilationUnit>> top_tier_units);
-  void AddTopTierCompilationUnit(std::unique_ptr<WasmCompilationUnit>);
-  std::unique_ptr<WasmCompilationUnit> GetNextCompilationUnit(
+  void AddCompilationUnits(Vector<WasmCompilationUnit> baseline_units,
+                           Vector<WasmCompilationUnit> top_tier_units);
+  void AddTopTierCompilationUnit(WasmCompilationUnit);
+  base::Optional<WasmCompilationUnit> GetNextCompilationUnit(
       int task_id, CompileBaselineOnly baseline_only);
 
   void OnFinishedUnits(Vector<WasmCode*>);
@@ -616,9 +610,9 @@ class CompilationUnitBuilder {
     ExecutionTierPair tiers = GetRequestedExecutionTiers(
         native_module_->module(), compilation_state()->compile_mode(),
         native_module_->enabled_features(), func_index);
-    baseline_units_.emplace_back(CreateUnit(func_index, tiers.baseline_tier));
+    baseline_units_.emplace_back(func_index, tiers.baseline_tier);
     if (tiers.baseline_tier != tiers.top_tier) {
-      tiering_units_.emplace_back(CreateUnit(func_index, tiers.top_tier));
+      tiering_units_.emplace_back(func_index, tiers.top_tier);
     }
   }
 
@@ -636,7 +630,7 @@ class CompilationUnitBuilder {
               GetCompileStrategy(module, native_module_->enabled_features(),
                                  func_index, lazy_module));
 #endif
-    tiering_units_.emplace_back(CreateUnit(func_index, tiers.top_tier));
+    tiering_units_.emplace_back(func_index, tiers.top_tier);
   }
 
   bool Commit() {
@@ -653,19 +647,14 @@ class CompilationUnitBuilder {
   }
 
  private:
-  std::unique_ptr<WasmCompilationUnit> CreateUnit(uint32_t func_index,
-                                                  ExecutionTier tier) {
-    return base::make_unique<WasmCompilationUnit>(func_index, tier);
-  }
-
   CompilationStateImpl* compilation_state() const {
     return Impl(native_module_->compilation_state());
   }
 
   NativeModule* const native_module_;
   const ExecutionTier default_tier_;
-  std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_units_;
-  std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_units_;
+  std::vector<WasmCompilationUnit> baseline_units_;
+  std::vector<WasmCompilationUnit> tiering_units_;
 };
 
 void SetCompileError(ErrorThrower* thrower, ModuleWireBytes wire_bytes,
@@ -746,7 +735,7 @@ bool IsLazyModule(const WasmModule* module) {
 }  // namespace
 
 bool CompileLazy(Isolate* isolate, NativeModule* native_module,
-                 uint32_t func_index) {
+                 int func_index) {
   const WasmModule* module = native_module->module();
   auto enabled_features = native_module->enabled_features();
   Counters* counters = isolate->counters();
@@ -758,7 +747,7 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
   base::ElapsedTimer compilation_timer;
   compilation_timer.Start();
 
-  DCHECK(!native_module->HasCode(static_cast<uint32_t>(func_index)));
+  DCHECK(!native_module->HasCode(func_index));
 
   TRACE_LAZY("Compiling wasm-function#%d.\n", func_index);
 
@@ -809,9 +798,8 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
   if (GetCompileStrategy(module, enabled_features, func_index, lazy_module) ==
           CompileStrategy::kLazy &&
       tiers.baseline_tier < tiers.top_tier) {
-    auto tiering_unit =
-        base::make_unique<WasmCompilationUnit>(func_index, tiers.top_tier);
-    compilation_state->AddTopTierCompilationUnit(std::move(tiering_unit));
+    WasmCompilationUnit tiering_unit{func_index, tiers.top_tier};
+    compilation_state->AddTopTierCompilationUnit(tiering_unit);
   }
 
   return true;
@@ -853,7 +841,7 @@ bool ExecuteCompilationUnits(
   std::shared_ptr<WireBytesStorage> wire_bytes;
   std::shared_ptr<const WasmModule> module;
   WasmEngine* wasm_engine = nullptr;
-  std::unique_ptr<WasmCompilationUnit> unit;
+  base::Optional<WasmCompilationUnit> unit;
   WasmFeatures detected_features = kNoWasmFeatures;
 
   auto stop = [is_foreground, task_id,
@@ -878,7 +866,7 @@ bool ExecuteCompilationUnits(
     wasm_engine = compile_scope.native_module()->engine();
     unit = compile_scope.compilation_state()->GetNextCompilationUnit(
         task_id, baseline_only);
-    if (unit == nullptr) {
+    if (!unit) {
       stop(compile_scope);
       return false;
     }
@@ -922,13 +910,13 @@ bool ExecuteCompilationUnits(
 
       // Get next unit.
       if (deadline < platform->MonotonicallyIncreasingTime()) {
-        unit = nullptr;
+        unit = {};
       } else {
         unit = compile_scope.compilation_state()->GetNextCompilationUnit(
             task_id, baseline_only);
       }
 
-      if (unit == nullptr) {
+      if (!unit) {
         publish_results(&compile_scope);
         stop(compile_scope);
         return true;
@@ -2012,19 +2000,18 @@ void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
 }
 
 void CompilationStateImpl::AddCompilationUnits(
-    Vector<std::unique_ptr<WasmCompilationUnit>> baseline_units,
-    Vector<std::unique_ptr<WasmCompilationUnit>> top_tier_units) {
+    Vector<WasmCompilationUnit> baseline_units,
+    Vector<WasmCompilationUnit> top_tier_units) {
   compilation_unit_queues_.AddUnits(baseline_units, top_tier_units);
 
   RestartBackgroundTasks();
 }
 
-void CompilationStateImpl::AddTopTierCompilationUnit(
-    std::unique_ptr<WasmCompilationUnit> unit) {
+void CompilationStateImpl::AddTopTierCompilationUnit(WasmCompilationUnit unit) {
   AddCompilationUnits({}, {&unit, 1});
 }
 
-std::unique_ptr<WasmCompilationUnit>
+base::Optional<WasmCompilationUnit>
 CompilationStateImpl::GetNextCompilationUnit(
     int task_id, CompileBaselineOnly baseline_only) {
   return compilation_unit_queues_.GetNextUnit(task_id, baseline_only);

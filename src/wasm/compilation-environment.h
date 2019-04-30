@@ -123,8 +123,9 @@ class CompilationState {
   V8_EXPORT_PRIVATE bool top_tier_compilation_finished() const;
 
  private:
+  // NativeModule is allowed to call the static {New} method.
   friend class NativeModule;
-  friend class WasmCompilationUnit;
+
   CompilationState() = delete;
 
   // The CompilationState keeps a {std::weak_ptr} back to the {NativeModule}

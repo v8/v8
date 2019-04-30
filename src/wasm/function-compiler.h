@@ -76,11 +76,14 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
                                   ExecutionTier);
 
  private:
-  const int func_index_;
-  const ExecutionTier tier_;
-
-  DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
+  int func_index_;
+  ExecutionTier tier_;
 };
+
+// {WasmCompilationUnit} should be trivially copyable and small enough so we can
+// efficiently pass it by value.
+ASSERT_TRIVIALLY_COPYABLE(WasmCompilationUnit);
+STATIC_ASSERT(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 
 }  // namespace wasm
 }  // namespace internal
