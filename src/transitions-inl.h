@@ -176,6 +176,49 @@ int TransitionArray::SearchName(Name name, int* out_insertion_index) {
                                        out_insertion_index);
 }
 
+TransitionsAccessor::TransitionsAccessor(Isolate* isolate, Map map,
+                                         DisallowHeapAllocation* no_gc)
+    : isolate_(isolate), map_(map) {
+  Initialize();
+  USE(no_gc);
+}
+
+TransitionsAccessor::TransitionsAccessor(Isolate* isolate, Handle<Map> map)
+    : isolate_(isolate), map_handle_(map), map_(*map) {
+  Initialize();
+}
+
+void TransitionsAccessor::Reload() {
+  DCHECK(!map_handle_.is_null());
+  map_ = *map_handle_;
+  Initialize();
+}
+
+void TransitionsAccessor::Initialize() {
+  raw_transitions_ = map_->raw_transitions();
+  HeapObject heap_object;
+  if (raw_transitions_->IsSmi() || raw_transitions_->IsCleared()) {
+    encoding_ = kUninitialized;
+  } else if (raw_transitions_->IsWeak()) {
+    encoding_ = kWeakRef;
+  } else if (raw_transitions_->GetHeapObjectIfStrong(&heap_object)) {
+    if (heap_object->IsTransitionArray()) {
+      encoding_ = kFullTransitionArray;
+    } else if (heap_object->IsPrototypeInfo()) {
+      encoding_ = kPrototypeInfo;
+    } else {
+      DCHECK(map_->is_deprecated());
+      DCHECK(heap_object->IsMap());
+      encoding_ = kMigrationTarget;
+    }
+  } else {
+    UNREACHABLE();
+  }
+#if DEBUG
+  needs_reload_ = false;
+#endif
+}
+
 int TransitionArray::number_of_transitions() const {
   if (length() < kFirstIndex) return 0;
   return Get(kTransitionLengthIndex).ToSmi().value();
@@ -241,6 +284,33 @@ void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
   WeakFixedArray::Set(
       kTransitionLengthIndex,
       MaybeObject::FromSmi(Smi::FromInt(number_of_transitions)));
+}
+
+Handle<String> TransitionsAccessor::ExpectedTransitionKey() {
+  DisallowHeapAllocation no_gc;
+  switch (encoding()) {
+    case kPrototypeInfo:
+    case kUninitialized:
+    case kMigrationTarget:
+    case kFullTransitionArray:
+      return Handle<String>::null();
+    case kWeakRef: {
+      Map target = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
+      PropertyDetails details = GetSimpleTargetDetails(target);
+      if (details.location() != kField) return Handle<String>::null();
+      DCHECK_EQ(kData, details.kind());
+      if (details.attributes() != NONE) return Handle<String>::null();
+      Name name = GetSimpleTransitionKey(target);
+      if (!name->IsString()) return Handle<String>::null();
+      return handle(String::cast(name), isolate_);
+    }
+  }
+  UNREACHABLE();
+}
+
+Handle<Map> TransitionsAccessor::ExpectedTransitionTarget() {
+  DCHECK(!ExpectedTransitionKey().is_null());
+  return handle(GetTarget(0), isolate_);
 }
 
 }  // namespace internal
