@@ -451,18 +451,21 @@ class TraceWritingThread : public base::Thread {
         tracing_controller_(tracing_controller) {}
 
   void Run() override {
-    for (int i = 0; i < 1000; i++) {
+    running_.store(true);
+    while (running_.load()) {
       TRACE_EVENT0("v8", "v8.Test");
       tracing_controller_->AddTraceEvent('A', nullptr, "v8", "", 1, 1, 0,
                                          nullptr, nullptr, nullptr, nullptr, 0);
       tracing_controller_->AddTraceEventWithTimestamp('A', nullptr, "v8", "", 1,
                                                       1, 0, nullptr, nullptr,
                                                       nullptr, nullptr, 0, 0);
-      base::OS::Sleep(base::TimeDelta::FromMilliseconds(1));
     }
   }
 
+  void Stop() { running_.store(false); }
+
  private:
+  std::atomic_bool running_{false};
   v8::platform::tracing::TracingController* tracing_controller_;
 };
 
@@ -487,10 +490,13 @@ TEST(AddTraceEventMultiThreaded) {
 
   TraceWritingThread thread(tracing_controller);
   thread.StartSynchronously();
+  TRACE_EVENT0("v8", "v8.Test2");
+  TRACE_EVENT0("v8", "v8.Test2");
 
-  base::OS::Sleep(base::TimeDelta::FromMilliseconds(100));
+  base::OS::Sleep(base::TimeDelta::FromMilliseconds(10));
   tracing_controller->StopTracing();
 
+  thread.Stop();
   thread.Join();
 
   i::V8::SetPlatformForTesting(old_platform);

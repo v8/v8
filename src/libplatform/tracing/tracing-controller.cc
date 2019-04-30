@@ -12,6 +12,19 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 
+#ifdef V8_USE_PERFETTO
+#include <fcntl.h>
+
+#include "base/trace_event/common/trace_event_common.h"
+#include "perfetto/trace/chrome/chrome_trace_event.pbzero.h"
+#include "perfetto/trace/trace_packet.pbzero.h"
+#include "perfetto/tracing/core/data_source_config.h"
+#include "perfetto/tracing/core/trace_config.h"
+#include "perfetto/tracing/core/trace_packet.h"
+#include "perfetto/tracing/core/trace_writer.h"
+#include "src/libplatform/tracing/perfetto-tracing-controller.h"
+#endif  // V8_USE_PERFETTO
+
 namespace v8 {
 namespace platform {
 namespace tracing {
@@ -70,6 +83,58 @@ int64_t TracingController::CurrentCpuTimestampMicroseconds() {
   return base::ThreadTicks::Now().ToInternalValue();
 }
 
+namespace {
+
+#ifdef V8_USE_PERFETTO
+void AddArgsToTraceProto(
+    ::perfetto::protos::pbzero::ChromeTraceEvent* event, int num_args,
+    const char** arg_names, const uint8_t* arg_types,
+    const uint64_t* arg_values,
+    std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables) {
+  for (int i = 0; i < num_args; i++) {
+    ::perfetto::protos::pbzero::ChromeTraceEvent_Arg* arg = event->add_args();
+    // TODO(petermarshall): Set name_index instead if need be.
+    arg->set_name(arg_names[i]);
+
+    TraceObject::ArgValue arg_value;
+    arg_value.as_uint = arg_values[i];
+    switch (arg_types[i]) {
+      case TRACE_VALUE_TYPE_CONVERTABLE: {
+        // TODO(petermarshall): Support AppendToProto for Convertables.
+        std::string json_value;
+        arg_convertables[i]->AppendAsTraceFormat(&json_value);
+        arg->set_json_value(json_value.c_str());
+        break;
+      }
+      case TRACE_VALUE_TYPE_BOOL:
+        arg->set_bool_value(arg_value.as_bool);
+        break;
+      case TRACE_VALUE_TYPE_UINT:
+        arg->set_uint_value(arg_value.as_uint);
+        break;
+      case TRACE_VALUE_TYPE_INT:
+        arg->set_int_value(arg_value.as_int);
+        break;
+      case TRACE_VALUE_TYPE_DOUBLE:
+        arg->set_double_value(arg_value.as_double);
+        break;
+      case TRACE_VALUE_TYPE_POINTER:
+        arg->set_pointer_value(arg_value.as_uint);
+        break;
+      // TODO(petermarshall): Treat copy strings specially.
+      case TRACE_VALUE_TYPE_COPY_STRING:
+      case TRACE_VALUE_TYPE_STRING:
+        arg->set_string_value(arg_value.as_string);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+#endif  // V8_USE_PERFETTO
+
+}  // namespace
+
 uint64_t TracingController::AddTraceEvent(
     char phase, const uint8_t* category_enabled_flag, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, int num_args,
@@ -77,20 +142,11 @@ uint64_t TracingController::AddTraceEvent(
     const uint64_t* arg_values,
     std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
     unsigned int flags) {
-  uint64_t handle = 0;
-  if (recording_.load(std::memory_order_acquire)) {
-    TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
-    if (trace_object) {
-      {
-        base::MutexGuard lock(mutex_.get());
-        trace_object->Initialize(
-            phase, category_enabled_flag, name, scope, id, bind_id, num_args,
-            arg_names, arg_types, arg_values, arg_convertables, flags,
-            CurrentTimestampMicroseconds(), CurrentCpuTimestampMicroseconds());
-      }
-    }
-  }
-  return handle;
+  int64_t now_us = CurrentTimestampMicroseconds();
+
+  return AddTraceEventWithTimestamp(
+      phase, category_enabled_flag, name, scope, id, bind_id, num_args,
+      arg_names, arg_types, arg_values, arg_convertables, flags, now_us);
 }
 
 uint64_t TracingController::AddTraceEventWithTimestamp(
@@ -100,6 +156,47 @@ uint64_t TracingController::AddTraceEventWithTimestamp(
     const uint64_t* arg_values,
     std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
     unsigned int flags, int64_t timestamp) {
+  int64_t cpu_now_us = CurrentCpuTimestampMicroseconds();
+
+#ifdef V8_USE_PERFETTO
+  if (perfetto_recording_.load()) {
+    ::perfetto::TraceWriter* writer =
+        perfetto_tracing_controller_->GetOrCreateThreadLocalWriter();
+    // TODO(petermarshall): We shouldn't start one packet for each event.
+    // We should try to bundle them together in one bundle.
+    auto packet = writer->NewTracePacket();
+    auto* trace_event_bundle = packet->set_chrome_events();
+    auto* trace_event = trace_event_bundle->add_trace_events();
+
+    trace_event->set_name(name);
+    trace_event->set_timestamp(timestamp);
+    // TODO(petermarshall): Deal with instant (X) vs B/E events. Need to return
+    // a handle that can be used to edit the event in
+    // UpdateTraceEventDuration().
+    trace_event->set_phase(phase);
+    trace_event->set_thread_id(base::OS::GetCurrentThreadId());
+    trace_event->set_duration(0);
+    trace_event->set_thread_duration(0);
+    if (scope) trace_event->set_scope(scope);
+    trace_event->set_id(id);
+    trace_event->set_flags(flags);
+    if (category_enabled_flag) {
+      const char* category_group_name =
+          GetCategoryGroupName(category_enabled_flag);
+      DCHECK_NOT_NULL(category_group_name);
+      trace_event->set_category_group_name(category_group_name);
+    }
+    trace_event->set_process_id(base::OS::GetCurrentProcessId());
+    trace_event->set_thread_timestamp(cpu_now_us);
+    trace_event->set_bind_id(bind_id);
+
+    AddArgsToTraceProto(trace_event, num_args, arg_names, arg_types, arg_values,
+                        arg_convertables);
+
+    packet->Finalize();
+  }
+#endif  // V8_USE_PERFETTO
+
   uint64_t handle = 0;
   if (recording_.load(std::memory_order_acquire)) {
     TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
@@ -109,7 +206,7 @@ uint64_t TracingController::AddTraceEventWithTimestamp(
         trace_object->Initialize(phase, category_enabled_flag, name, scope, id,
                                  bind_id, num_args, arg_names, arg_types,
                                  arg_values, arg_convertables, flags, timestamp,
-                                 CurrentCpuTimestampMicroseconds());
+                                 cpu_now_us);
       }
     }
   }
@@ -118,10 +215,40 @@ uint64_t TracingController::AddTraceEventWithTimestamp(
 
 void TracingController::UpdateTraceEventDuration(
     const uint8_t* category_enabled_flag, const char* name, uint64_t handle) {
+  int64_t now_us = CurrentTimestampMicroseconds();
+  int64_t cpu_now_us = CurrentCpuTimestampMicroseconds();
+
+#ifdef V8_USE_PERFETTO
+  // TODO(petermarshall): Should we still record the end of unfinished events
+  // when tracing has stopped?
+  if (perfetto_recording_.load()) {
+    // TODO(petermarshall): We shouldn't start one packet for each event. We
+    // should try to bundle them together in one bundle.
+    auto* writer = perfetto_tracing_controller_->GetOrCreateThreadLocalWriter();
+
+    auto packet = writer->NewTracePacket();
+    auto* trace_event_bundle = packet->set_chrome_events();
+    auto* trace_event = trace_event_bundle->add_trace_events();
+
+    // TODO(petermarshall): Properly deal with begin/end events by using a
+    // thread-local stack of pending events like
+    // chrome_bundle_thread_local_event_sink.cc does.
+    trace_event->set_phase('E');
+    if (category_enabled_flag) {
+      const char* category_group_name =
+          GetCategoryGroupName(category_enabled_flag);
+      DCHECK_NOT_NULL(category_group_name);
+      trace_event->set_category_group_name(category_group_name);
+    }
+    trace_event->set_name(name);
+    trace_event->set_timestamp(now_us);
+    trace_event->set_thread_timestamp(cpu_now_us);
+  }
+#endif  // V8_USE_PERFETTO
+
   TraceObject* trace_object = trace_buffer_->GetEventByHandle(handle);
   if (!trace_object) return;
-  trace_object->UpdateDuration(CurrentTimestampMicroseconds(),
-                               CurrentCpuTimestampMicroseconds());
+  trace_object->UpdateDuration(now_us, cpu_now_us);
 }
 
 const char* TracingController::GetCategoryGroupName(
@@ -141,6 +268,25 @@ const char* TracingController::GetCategoryGroupName(
 }
 
 void TracingController::StartTracing(TraceConfig* trace_config) {
+#ifdef V8_USE_PERFETTO
+  perfetto_tracing_controller_ = base::make_unique<PerfettoTracingController>();
+
+  ::perfetto::TraceConfig perfetto_trace_config;
+  // Enable long tracing mode with continuous draining into file.
+  perfetto_trace_config.set_write_into_file(true);
+  perfetto_trace_config.set_file_write_period_ms(1000);
+
+  perfetto_trace_config.add_buffers()->set_size_kb(4096);
+  auto* ds_config = perfetto_trace_config.add_data_sources()->mutable_config();
+  ds_config->set_name("v8.trace_events");
+
+  // TODO(petermarshall): Set all the params from |trace_config| and don't
+  // write to a file by default.
+  int fd = open("v8_trace.proto", O_RDWR | O_CREAT | O_TRUNC, 0644);
+  perfetto_tracing_controller_->StartTracingToFile(fd, perfetto_trace_config);
+  perfetto_recording_.store(true);
+#endif  // V8_USE_PERFETTO
+
   trace_config_.reset(trace_config);
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
   {
@@ -169,6 +315,13 @@ void TracingController::StopTracing() {
   for (auto o : observers_copy) {
     o->OnTraceDisabled();
   }
+
+#ifdef V8_USE_PERFETTO
+  perfetto_recording_.store(false);
+  perfetto_tracing_controller_->StopTracing();
+  perfetto_tracing_controller_.reset();
+#endif  // V8_USE_PERFETTO
+
   {
     base::MutexGuard lock(mutex_.get());
     trace_buffer_->Flush();

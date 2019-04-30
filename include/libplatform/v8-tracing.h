@@ -23,6 +23,8 @@ class Mutex;
 namespace platform {
 namespace tracing {
 
+class PerfettoTracingController;
+
 const int kTraceMaxNumArgs = 2;
 
 class V8_PLATFORM_EXPORT TraceObject {
@@ -280,6 +282,10 @@ class V8_PLATFORM_EXPORT TracingController
   std::unique_ptr<base::Mutex> mutex_;
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_;
   std::atomic_bool recording_{false};
+#ifdef V8_USE_PERFETTO
+  std::atomic_bool perfetto_recording_{false};
+  std::unique_ptr<PerfettoTracingController> perfetto_tracing_controller_;
+#endif
 
   // Disallow copy and assign
   TracingController(const TracingController&) = delete;

@@ -34,6 +34,8 @@ AUTO_EXCLUDE = [
 ]
 AUTO_EXCLUDE_PATTERNS = [
   'src/base/atomicops_internals_.*',
+  # TODO(petermarshall): Enable once Perfetto is built by default.
+  'src/libplatform/tracing/perfetto*',
 ] + [
   # platform-specific headers
   '\\b{}\\b'.format(p) for p in
