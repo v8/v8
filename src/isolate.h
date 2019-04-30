@@ -1168,13 +1168,7 @@ class Isolate final : private HiddenFactory {
   inline bool IsArraySpeciesLookupChainIntact();
   inline bool IsTypedArraySpeciesLookupChainIntact();
   inline bool IsRegExpSpeciesLookupChainIntact();
-
-  // Check that the @@species protector is intact, which guards the lookup of
-  // "constructor" on JSPromise instances, whose [[Prototype]] is the initial
-  // %PromisePrototype%, and the Symbol.species lookup on the
-  // %PromisePrototype%.
   inline bool IsPromiseSpeciesLookupChainIntact();
-
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver receiver);
   inline bool IsStringLengthOverflowIntact();
@@ -1220,7 +1214,7 @@ class Isolate final : private HiddenFactory {
   inline bool IsArrayBufferDetachingIntact();
 
   // Disable promise optimizations if promise (debug) hooks have ever been
-  // active, because those can observe promises.
+  // active.
   bool IsPromiseHookProtectorIntact();
 
   // Make sure a lookup of "resolve" on the %Promise% intrinsic object
