@@ -158,6 +158,12 @@ class Snapshot : public AllStatic {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Snapshot);
 };
 
+// Convenience wrapper around snapshot data blob creation used e.g. by tests and
+// mksnapshot.
+V8_EXPORT_PRIVATE v8::StartupData CreateSnapshotDataBlobInternal(
+    v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
+    const char* embedded_source);
+
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
 void SetSnapshotFromFile(StartupData* snapshot_blob);
 #endif

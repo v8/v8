@@ -119,6 +119,9 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_DEBUG(F, I)          \
   F(ClearStepping, 0, 1)                        \
   F(CollectGarbage, 1, 1)                       \
+  F(DebugAsyncFunctionEntered, 1, 1)            \
+  F(DebugAsyncFunctionFinished, 2, 1)           \
+  F(DebugAsyncFunctionSuspended, 1, 1)          \
   F(DebugBreakAtEntry, 1, 1)                    \
   F(DebugCollectCoverage, 0, 1)                 \
   F(DebugGetLoadedScriptIds, 0, 1)              \
@@ -126,9 +129,6 @@ namespace internal {
   F(DebugPopPromise, 0, 1)                      \
   F(DebugPrepareStepInSuspendedGenerator, 0, 1) \
   F(DebugPushPromise, 1, 1)                     \
-  F(DebugAsyncFunctionEntered, 1, 1)            \
-  F(DebugAsyncFunctionFinished, 2, 1)           \
-  F(DebugAsyncFunctionSuspended, 1, 1)          \
   F(DebugToggleBlockCoverage, 1, 1)             \
   F(DebugTogglePreciseCoverage, 1, 1)           \
   F(FunctionGetInferredName, 1, 1)              \
@@ -137,12 +137,13 @@ namespace internal {
   F(GetGeneratorScopeDetails, 2, 1)             \
   F(GetHeapUsage, 0, 1)                         \
   F(HandleDebuggerStatement, 0, 1)              \
-  I(IncBlockCounter, 2, 1)                      \
   F(IsBreakOnException, 1, 1)                   \
+  F(LiveEditPatchScript, 2, 1)                  \
+  F(ProfileCreateSnapshotDataBlob, 0, 1)        \
   F(ScheduleBreak, 0, 1)                        \
   F(ScriptLocationFromLine2, 4, 1)              \
   F(SetGeneratorScopeVariableValue, 4, 1)       \
-  F(LiveEditPatchScript, 2, 1)
+  I(IncBlockCounter, 2, 1)
 
 #define FOR_EACH_INTRINSIC_FORIN(F, I) \
   F(ForInEnumerate, 1, 1)              \

@@ -169,32 +169,8 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
   return true;
 }
 
-v8::StartupData CreateSnapshotDataBlob(
-    v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
-    const char* embedded_source) {
-  // Create a new isolate and a new context from scratch, optionally run
-  // a script to embed, and serialize to create a snapshot blob.
-  DisableEmbeddedBlobRefcounting();
-  v8::StartupData result = {nullptr, 0};
-  {
-    v8::SnapshotCreator snapshot_creator;
-    v8::Isolate* isolate = snapshot_creator.GetIsolate();
-    {
-      v8::HandleScope scope(isolate);
-      v8::Local<v8::Context> context = v8::Context::New(isolate);
-      if (embedded_source != nullptr &&
-          !RunExtraCode(isolate, context, embedded_source, "<embedded>")) {
-        return result;
-      }
-      snapshot_creator.SetDefaultContext(context);
-    }
-    result = snapshot_creator.CreateBlob(function_code_handling);
-  }
-  return result;
-}
-
 v8::StartupData CreateSnapshotDataBlob(const char* embedded_source = nullptr) {
-  return CreateSnapshotDataBlob(
+  return CreateSnapshotDataBlobInternal(
       v8::SnapshotCreator::FunctionCodeHandling::kClear, embedded_source);
 }
 
@@ -770,6 +746,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlob1) {
   DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params1;
@@ -801,6 +778,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOverwriteGlobal) {
   DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params1;
@@ -839,6 +817,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
       function f() { return global; }
       )javascript";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params1;
@@ -878,8 +857,9 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
       "function i() { return '/* a comment */'.search(re2); }\n"
       "f(); f(); g(); g(); h(); h(); i(); i();\n";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 =
-      CreateSnapshotDataBlob(function_code_handling, source);
+      CreateSnapshotDataBlobInternal(function_code_handling, source);
 
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
@@ -945,6 +925,7 @@ UNINITIALIZED_TEST(SnapshotChecksum) {
   DisableAlwaysOpt();
   const char* source1 = "function f() { return 42; }";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 = CreateSnapshotDataBlob(source1);
   CHECK(i::Snapshot::VerifyChecksum(&data1));
   const_cast<char*>(data1.data)[142] = data1.data[142] ^ 4;  // Flip a bit.
@@ -1302,6 +1283,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlob2) {
       "function g() { return 43; }"
       "/./.test('a')";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data2 = CreateSnapshotDataBlob(source2);
 
   v8::Isolate::CreateParams params2;
@@ -1346,6 +1328,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
 
   const char* source2 = "o.a(42)";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params;
@@ -1397,6 +1380,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithLocker) {
 
   const char* source1 = "function f() { return 42; }";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 = CreateSnapshotDataBlob(source1);
 
   v8::Isolate::CreateParams params1;
@@ -1430,6 +1414,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStackOverflow) {
       "  b = c;"
       "}";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data = CreateSnapshotDataBlob(source);
 
   v8::Isolate::CreateParams params;
@@ -1470,6 +1455,7 @@ UNINITIALIZED_TEST(SnapshotDataBlobWithWarmup) {
   DisableAlwaysOpt();
   const char* warmup = "Math.abs(1); Math.random = 1;";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData cold = CreateSnapshotDataBlob();
   v8::StartupData warm = WarmUpSnapshotDataBlob(cold, warmup);
   delete[] cold.data;
@@ -1505,6 +1491,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithWarmup) {
       "var a = 5";
   const char* warmup = "a = f()";
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData cold = CreateSnapshotDataBlob(source);
   v8::StartupData warm = WarmUpSnapshotDataBlob(cold, warmup);
   delete[] cold.data;
@@ -1544,6 +1531,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
                       StaticCharVector("a.push(function() {return 7});"),
                       StaticCharVector("\0"), 10000);
 
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData data =
       CreateSnapshotDataBlob(reinterpret_cast<const char*>(source.begin()));
 
@@ -3815,25 +3803,6 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
   }
   isolate->Dispose();
   delete[] blob.data;
-  FreeCurrentEmbeddedBlob();
-}
-
-UNINITIALIZED_TEST(SerializationStats) {
-  FLAG_profile_deserialization = true;
-  FLAG_always_opt = false;
-  v8::StartupData blob = CreateSnapshotDataBlob();
-  delete[] blob.data;
-
-  // Track the embedded blob size as well.
-  {
-    int embedded_blob_size = 0;
-    if (FLAG_embedded_builtins) {
-      i::EmbeddedData d = i::EmbeddedData::FromBlob();
-      embedded_blob_size = static_cast<int>(d.size());
-    }
-    PrintF("Embedded blob is %d bytes\n", embedded_blob_size);
-  }
-
   FreeCurrentEmbeddedBlob();
 }
 
