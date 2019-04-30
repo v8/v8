@@ -992,23 +992,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
                          const WasmModule* wasm_module,
                          NativeModule* native_module) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  auto* compilation_state = Impl(native_module->compilation_state());
   const bool lazy_module = IsLazyModule(wasm_module);
-  if (lazy_module) {
-    if (wasm_module->origin == kWasmOrigin && !FLAG_wasm_lazy_validation) {
-      // Validate wasm modules for lazy compilation if requested. Never validate
-      // asm.js modules as these are valid by construction (otherwise a CHECK
-      // will fail during lazy compilation).
-      ValidateSequentially(wasm_module, native_module, isolate->counters(),
-                           isolate->allocator(), thrower, lazy_module);
-      // On error: Return and leave the module in an unexecutable state.
-      if (thrower->error()) return;
-    }
-    compilation_state->InitializeCompilationProgress(lazy_module);
-    native_module->UseLazyStubs();
-    return;
-  }
-
   if (!FLAG_wasm_lazy_validation &&
       MayCompriseLazyFunctions(wasm_module, native_module->enabled_features(),
                                lazy_module)) {
@@ -1029,6 +1013,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
   // compilation failed.
   auto baseline_finished_semaphore = std::make_shared<base::Semaphore>(0);
   // The callback captures a shared ptr to the semaphore.
+  auto* compilation_state = Impl(native_module->compilation_state());
   compilation_state->AddCallback(
       [baseline_finished_semaphore](CompilationEvent event) {
         if (event == CompilationEvent::kFinishedBaselineCompilation ||
