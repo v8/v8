@@ -112,20 +112,26 @@ Node* GraphAssembler::Allocate(AllocationType allocation, Node* size) {
 }
 
 Node* GraphAssembler::LoadField(FieldAccess const& access, Node* object) {
-  return current_effect_ =
-             graph()->NewNode(simplified()->LoadField(access), object,
-                              current_effect_, current_control_);
+  Node* value = current_effect_ =
+      graph()->NewNode(simplified()->LoadField(access), object, current_effect_,
+                       current_control_);
+  return InsertDecompressionIfNeeded(access.machine_type.representation(),
+                                     value);
 }
 
 Node* GraphAssembler::LoadElement(ElementAccess const& access, Node* object,
                                   Node* index) {
-  return current_effect_ =
-             graph()->NewNode(simplified()->LoadElement(access), object, index,
-                              current_effect_, current_control_);
+  Node* value = current_effect_ =
+      graph()->NewNode(simplified()->LoadElement(access), object, index,
+                       current_effect_, current_control_);
+  return InsertDecompressionIfNeeded(access.machine_type.representation(),
+                                     value);
 }
 
 Node* GraphAssembler::StoreField(FieldAccess const& access, Node* object,
                                  Node* value) {
+  value =
+      InsertCompressionIfNeeded(access.machine_type.representation(), value);
   return current_effect_ =
              graph()->NewNode(simplified()->StoreField(access), object, value,
                               current_effect_, current_control_);
@@ -133,6 +139,8 @@ Node* GraphAssembler::StoreField(FieldAccess const& access, Node* object,
 
 Node* GraphAssembler::StoreElement(ElementAccess const& access, Node* object,
                                    Node* index, Node* value) {
+  value =
+      InsertCompressionIfNeeded(access.machine_type.representation(), value);
   return current_effect_ =
              graph()->NewNode(simplified()->StoreElement(access), object, index,
                               value, current_effect_, current_control_);
@@ -272,6 +280,50 @@ Node* GraphAssembler::ExtractCurrentEffect() {
   Node* result = current_effect_;
   current_effect_ = nullptr;
   return result;
+}
+
+Node* GraphAssembler::InsertDecompressionIfNeeded(MachineRepresentation rep,
+                                                  Node* value) {
+  if (COMPRESS_POINTERS_BOOL) {
+    switch (rep) {
+      case MachineRepresentation::kCompressedPointer:
+        value = graph()->NewNode(
+            machine()->ChangeCompressedPointerToTaggedPointer(), value);
+        break;
+      case MachineRepresentation::kCompressedSigned:
+        value = graph()->NewNode(
+            machine()->ChangeCompressedSignedToTaggedSigned(), value);
+        break;
+      case MachineRepresentation::kCompressed:
+        value = graph()->NewNode(machine()->ChangeCompressedToTagged(), value);
+        break;
+      default:
+        break;
+    }
+  }
+  return value;
+}
+
+Node* GraphAssembler::InsertCompressionIfNeeded(MachineRepresentation rep,
+                                                Node* value) {
+  if (COMPRESS_POINTERS_BOOL) {
+    switch (rep) {
+      case MachineRepresentation::kCompressedPointer:
+        value = graph()->NewNode(
+            machine()->ChangeTaggedPointerToCompressedPointer(), value);
+        break;
+      case MachineRepresentation::kCompressedSigned:
+        value = graph()->NewNode(
+            machine()->ChangeTaggedSignedToCompressedSigned(), value);
+        break;
+      case MachineRepresentation::kCompressed:
+        value = graph()->NewNode(machine()->ChangeTaggedToCompressed(), value);
+        break;
+      default:
+        break;
+    }
+  }
+  return value;
 }
 
 void GraphAssembler::Reset(Node* effect, Node* control) {
