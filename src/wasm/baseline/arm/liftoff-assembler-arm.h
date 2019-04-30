@@ -153,8 +153,9 @@ inline void I64BinopI(LiftoffAssembler* assm, LiftoffRegister dst,
   }
   (assm->*op)(scratch, lhs.low_gp(), Operand(imm), SetCC, al);
   // Top half of the immediate sign extended, either 0 or -1.
-  (assm->*op_with_carry)(dst.high_gp(), lhs.high_gp(),
-                         Operand(imm < 0 ? -1 : 0), LeaveCC, al);
+  int32_t sign_extend = imm < 0 ? -1 : 0;
+  (assm->*op_with_carry)(dst.high_gp(), lhs.high_gp(), Operand(sign_extend),
+                         LeaveCC, al);
   if (!can_use_dst) {
     assm->mov(dst.low_gp(), scratch);
   }
@@ -618,6 +619,12 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t index,
                                      Register rhs) {             \
     instruction(dst, lhs, rhs);                                  \
   }
+#define I32_BINOP_I(name, instruction)                           \
+  I32_BINOP(name, instruction)                                   \
+  void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
+                                     int32_t imm) {              \
+    instruction(dst, lhs, Operand(imm));                         \
+  }
 #define I32_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_##name(Register dst, Register src,               \
                                      Register amount, LiftoffRegList pinned) { \
@@ -648,12 +655,12 @@ void LiftoffAssembler::FillI64Half(Register reg, uint32_t index,
     instruction(dst, lhs, rhs);                                              \
   }
 
-I32_BINOP(i32_add, add)
+I32_BINOP_I(i32_add, add)
 I32_BINOP(i32_sub, sub)
 I32_BINOP(i32_mul, mul)
-I32_BINOP(i32_and, and_)
-I32_BINOP(i32_or, orr)
-I32_BINOP(i32_xor, eor)
+I32_BINOP_I(i32_and, and_)
+I32_BINOP_I(i32_or, orr)
+I32_BINOP_I(i32_xor, eor)
 I32_SHIFTOP(i32_shl, lsl)
 I32_SHIFTOP(i32_sar, asr)
 I32_SHIFTOP(i32_shr, lsr)
@@ -678,10 +685,6 @@ FP64_UNOP(f64_sqrt, vsqrt)
 #undef FP32_BINOP
 #undef FP64_UNOP
 #undef FP64_BINOP
-
-void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, int32_t imm) {
-  add(dst, lhs, Operand(imm));
-}
 
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   clz(dst, src);

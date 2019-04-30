@@ -469,6 +469,14 @@ void EmitCommutativeBinOp(LiftoffAssembler* assm, Register dst, Register lhs,
     (assm->*op)(dst, rhs);
   }
 }
+
+template <void (Assembler::*op)(Register, Immediate),
+          void (Assembler::*mov)(Register, Register)>
+void EmitCommutativeBinOpImm(LiftoffAssembler* assm, Register dst, Register lhs,
+                             int32_t imm) {
+  if (dst != lhs) (assm->*mov)(dst, lhs);
+  (assm->*op)(dst, Immediate(imm));
+}
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
@@ -592,14 +600,29 @@ void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, Register rhs) {
                                                                     lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::andl, &Assembler::movl>(
+      this, dst, lhs, imm);
+}
+
 void LiftoffAssembler::emit_i32_or(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::orl, &Assembler::movl>(this, dst,
                                                                    lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i32_or(Register dst, Register lhs, int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::orl, &Assembler::movl>(this, dst,
+                                                                      lhs, imm);
+}
+
 void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::xorl, &Assembler::movl>(this, dst,
                                                                     lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::xorl, &Assembler::movl>(
+      this, dst, lhs, imm);
 }
 
 namespace liftoff {
@@ -778,16 +801,34 @@ void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst.gp(), lhs.gp(), rhs.gp());
 }
 
+void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::andq, &Assembler::movq>(
+      this, dst.gp(), lhs.gp(), imm);
+}
+
 void LiftoffAssembler::emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
                                    LiftoffRegister rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::orq, &Assembler::movq>(
       this, dst.gp(), lhs.gp(), rhs.gp());
 }
 
+void LiftoffAssembler::emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
+                                   int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::orq, &Assembler::movq>(
+      this, dst.gp(), lhs.gp(), imm);
+}
+
 void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::xorq, &Assembler::movq>(
       this, dst.gp(), lhs.gp(), rhs.gp());
+}
+
+void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::xorq, &Assembler::movq>(
+      this, dst.gp(), lhs.gp(), imm);
 }
 
 void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,

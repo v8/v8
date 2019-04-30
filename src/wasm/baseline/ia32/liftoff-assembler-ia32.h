@@ -557,6 +557,13 @@ void EmitCommutativeBinOp(LiftoffAssembler* assm, Register dst, Register lhs,
     (assm->*op)(dst, rhs);
   }
 }
+
+template <void (Assembler::*op)(Register, int32_t)>
+void EmitCommutativeBinOpImm(LiftoffAssembler* assm, Register dst, Register lhs,
+                             int32_t imm) {
+  if (dst != lhs) assm->mov(dst, lhs);
+  (assm->*op)(dst, imm);
+}
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
@@ -659,12 +666,24 @@ void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::and_>(this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::and_>(this, dst, lhs, imm);
+}
+
 void LiftoffAssembler::emit_i32_or(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::or_>(this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i32_or(Register dst, Register lhs, int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::or_>(this, dst, lhs, imm);
+}
+
 void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::xor_>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::xor_>(this, dst, lhs, imm);
 }
 
 namespace liftoff {
@@ -825,7 +844,8 @@ inline void OpWithCarryI(LiftoffAssembler* assm, LiftoffRegister dst,
 
   if (dst_high != lhs.high_gp()) assm->mov(dst_high, lhs.high_gp());
   // Top half of the immediate sign extended, either 0 or -1.
-  (assm->*op_with_carry)(dst_high, imm < 0 ? -1 : 0);
+  int32_t sign_extend = imm < 0 ? -1 : 0;
+  (assm->*op_with_carry)(dst_high, sign_extend);
 
   // If necessary, move result into the right registers.
   LiftoffRegister tmp_result = LiftoffRegister::ForPair(dst_low, dst_high);
