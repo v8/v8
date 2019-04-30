@@ -278,7 +278,11 @@ DISABLE_ASAN void memory_copy_wrapper(Address dst, Address src, uint32_t size) {
   }
 }
 
-void memory_fill_wrapper(Address dst, uint32_t value, uint32_t size) {
+// Asan on Windows triggers exceptions in this function that confuse the
+// WebAssembly trap handler, so Asan is disabled. See the comment on
+// memory_copy_wrapper above for more info.
+DISABLE_ASAN void memory_fill_wrapper(Address dst, uint32_t value,
+                                      uint32_t size) {
   // Use an explicit forward copy to match the required semantics for the
   // memory.fill instruction. It is assumed that the caller of this function
   // has already performed bounds checks, so {dst + size} should not overflow.
