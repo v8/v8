@@ -97,6 +97,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
   caller_context->Global()->Set(caller_context, object_key, object).ToChecked();
   const char script[] =
       "function f() { object.property; object.property = 0; } "
+      "%PrepareFunctionForOptimization(f); "
       "f(); f(); "
       "%OptimizeFunctionOnNextCall(f); "
       "f();";
