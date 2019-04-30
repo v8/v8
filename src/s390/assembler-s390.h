@@ -138,7 +138,7 @@ class Operand {
   bool is_heap_object_request() const {
     DCHECK_IMPLIES(is_heap_object_request_, !rm_.is_valid());
     DCHECK_IMPLIES(is_heap_object_request_,
-                   rmode_ == RelocInfo::EMBEDDED_OBJECT ||
+                   rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
     return is_heap_object_request_;
   }

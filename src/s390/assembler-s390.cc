@@ -294,20 +294,20 @@ Operand::Operand(Handle<HeapObject> handle) {
   AllowHandleDereference using_location;
   rm_ = no_reg;
   value_.immediate = static_cast<intptr_t>(handle.address());
-  rmode_ = RelocInfo::EMBEDDED_OBJECT;
+  rmode_ = RelocInfo::FULL_EMBEDDED_OBJECT;
 }
 
 Operand Operand::EmbeddedNumber(double value) {
   int32_t smi;
   if (DoubleToSmiInteger(value, &smi)) return Operand(Smi::FromInt(smi));
-  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
   result.is_heap_object_request_ = true;
   result.value_.heap_object_request = HeapObjectRequest(value);
   return result;
 }
 
 Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
-  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
   result.is_heap_object_request_ = true;
   result.value_.heap_object_request = HeapObjectRequest(str);
   return result;
