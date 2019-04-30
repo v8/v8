@@ -297,7 +297,7 @@ Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
 bool Operand::IsHeapObjectRequest() const {
   DCHECK_IMPLIES(heap_object_request_.has_value(), reg_.Is(NoReg));
   DCHECK_IMPLIES(heap_object_request_.has_value(),
-                 immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT ||
+                 immediate_.rmode() == RelocInfo::FULL_EMBEDDED_OBJECT ||
                      immediate_.rmode() == RelocInfo::CODE_TARGET);
   return heap_object_request_.has_value();
 }
@@ -339,9 +339,9 @@ Operand Operand::ToExtendedRegister() const {
 
 Immediate Operand::immediate_for_heap_object_request() const {
   DCHECK((heap_object_request().kind() == HeapObjectRequest::kHeapNumber &&
-          immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT) ||
+          immediate_.rmode() == RelocInfo::FULL_EMBEDDED_OBJECT) ||
          (heap_object_request().kind() == HeapObjectRequest::kStringConstant &&
-          immediate_.rmode() == RelocInfo::EMBEDDED_OBJECT));
+          immediate_.rmode() == RelocInfo::FULL_EMBEDDED_OBJECT));
   return immediate_;
 }
 
@@ -554,6 +554,12 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   }
 }
 
+Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(Address pc) {
+  Instruction* instr = reinterpret_cast<Instruction*>(pc);
+  CHECK(!instr->IsLdrLiteralX());
+  return GetCompressedEmbeddedObject(ReadUnalignedValue<int32_t>(pc));
+}
+
 Address Assembler::runtime_entry_at(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   if (instr->IsLdrLiteralX()) {
@@ -686,13 +692,17 @@ Address RelocInfo::constant_pool_entry_address() {
 }
 
 HeapObject RelocInfo::target_object() {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   return HeapObject::cast(
       Object(Assembler::target_address_at(pc_, constant_pool_)));
 }
 
+HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
+  return target_object();
+}
+
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
-  if (rmode_ == EMBEDDED_OBJECT) {
+  if (IsFullEmbeddedObject(rmode_)) {
     return Handle<HeapObject>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc_, constant_pool_)));
   } else {
@@ -704,7 +714,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
 void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target->ptr(),
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null()) {
@@ -755,7 +765,7 @@ Address RelocInfo::target_off_heap_target() {
 }
 
 void RelocInfo::WipeOut() {
-  DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
+  DCHECK(IsFullEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_) || IsOffHeapTarget(rmode_));
   if (IsInternalReference(rmode_)) {

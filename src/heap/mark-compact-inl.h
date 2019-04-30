@@ -331,7 +331,7 @@ template <FixedArrayVisitationMode fixed_array_mode,
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
                     MarkingState>::VisitEmbeddedPointer(Code host,
                                                         RelocInfo* rinfo) {
-  DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+  DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
   HeapObject object = HeapObject::cast(rinfo->target_object());
   collector_->RecordRelocSlot(host, rinfo, object);
   if (!marking_state()->IsBlackOrGrey(object)) {

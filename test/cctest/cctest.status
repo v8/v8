@@ -551,6 +551,7 @@
   'test-run-unwinding-info/*': [SKIP],
   'test-run-variables/*': [SKIP],
   'test-torque/*': [SKIP],
+  'test-macro-assembler-x64/EmbeddedObj': [SKIP],
 
   # Field representation tracking is disabled in jitless mode.
   'test-field-type-tracking/*': [SKIP],

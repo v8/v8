@@ -280,6 +280,9 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // Update to the code target at {code_target_index} to {target}.
   void UpdateCodeTarget(intptr_t code_target_index, Handle<Code> target);
 
+  int AddCompressedEmbeddedObject(Handle<HeapObject> object);
+  Handle<HeapObject> GetCompressedEmbeddedObject(intptr_t index) const;
+
   // The buffer into which code and relocation info are generated.
   std::unique_ptr<AssemblerBuffer> buffer_;
   // Cached from {buffer_->start()}, for faster access.
@@ -325,6 +328,13 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // code handles we encounter in calls in this vector, and encode the index of
   // the code handle in the vector instead.
   std::vector<Handle<Code>> code_targets_;
+
+  // When pointer compression is enabled, we need to store indexes to this
+  // table in the code until we are ready to copy the code and embed the real
+  // object pointers. We don't need to do the same thing for non-compressed
+  // embedded objects, because we've got enough space (kPointerSize) in the
+  // code stream to just embed the address of the object handle.
+  std::vector<Handle<HeapObject>> compressed_embedded_objects_;
 
   const AssemblerOptions options_;
   uint64_t enabled_cpu_features_;

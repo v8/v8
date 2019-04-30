@@ -90,19 +90,23 @@ int RelocInfo::target_address_size() {
 }
 
 HeapObject RelocInfo::target_object() {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || rmode_ == FULL_EMBEDDED_OBJECT);
   return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
 }
 
+HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
+  return target_object();
+}
+
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || rmode_ == FULL_EMBEDDED_OBJECT);
   return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
 }
 
 void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || rmode_ == FULL_EMBEDDED_OBJECT);
   WriteUnalignedValue(pc_, target->ptr());
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
@@ -157,7 +161,7 @@ Address RelocInfo::target_off_heap_target() {
 }
 
 void RelocInfo::WipeOut() {
-  if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
+  if (IsFullEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
       IsInternalReference(rmode_)) {
     WriteUnalignedValue(pc_, kNullAddress);
   } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) ||
@@ -182,7 +186,7 @@ void Assembler::emit_q(uint64_t x) {
 }
 
 void Assembler::emit(Handle<HeapObject> handle) {
-  emit(handle.address(), RelocInfo::EMBEDDED_OBJECT);
+  emit(handle.address(), RelocInfo::FULL_EMBEDDED_OBJECT);
 }
 
 void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {

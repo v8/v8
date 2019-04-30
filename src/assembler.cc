@@ -258,18 +258,30 @@ int AssemblerBase::AddCodeTarget(Handle<Code> target) {
   }
 }
 
+int AssemblerBase::AddCompressedEmbeddedObject(Handle<HeapObject> object) {
+  DCHECK(!options().v8_agnostic_code);
+  int current = static_cast<int>(compressed_embedded_objects_.size());
+  compressed_embedded_objects_.push_back(object);
+  return current;
+}
+
+Handle<HeapObject> AssemblerBase::GetCompressedEmbeddedObject(
+    intptr_t index) const {
+  DCHECK(!options().v8_agnostic_code);
+  DCHECK_LT(static_cast<size_t>(index), compressed_embedded_objects_.size());
+  return compressed_embedded_objects_[index];
+}
+
 Handle<Code> AssemblerBase::GetCodeTarget(intptr_t code_target_index) const {
   DCHECK(!options().v8_agnostic_code);
-  DCHECK_LE(0, code_target_index);
-  DCHECK_LT(code_target_index, code_targets_.size());
+  DCHECK_LT(static_cast<size_t>(code_target_index), code_targets_.size());
   return code_targets_[code_target_index];
 }
 
 void AssemblerBase::UpdateCodeTarget(intptr_t code_target_index,
                                      Handle<Code> code) {
   DCHECK(!options().v8_agnostic_code);
-  DCHECK_LE(0, code_target_index);
-  DCHECK_LT(code_target_index, code_targets_.size());
+  DCHECK_LT(static_cast<size_t>(code_target_index), code_targets_.size());
   code_targets_[code_target_index] = code;
 }
 

@@ -220,12 +220,14 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
   } else if (rmode == RelocInfo::DEOPT_ID) {
     out->AddFormatted("    ;; debug: deopt index %d",
                       static_cast<int>(relocinfo->data()));
-  } else if (rmode == RelocInfo::EMBEDDED_OBJECT) {
+  } else if (RelocInfo::IsEmbeddedObjectMode(rmode)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
     relocinfo->target_object()->ShortPrint(&accumulator);
     std::unique_ptr<char[]> obj_name = accumulator.ToCString();
-    out->AddFormatted("    ;; object: %s", obj_name.get());
+    const bool is_compressed = RelocInfo::IsCompressedEmbeddedObject(rmode);
+    out->AddFormatted("    ;; %sobject: %s",
+                      is_compressed ? "(compressed) " : "", obj_name.get());
   } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
     const char* reference_name =
         ref_encoder ? ref_encoder->NameOfAddress(
@@ -362,7 +364,13 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       const CodeReference& host = code;
       Address constant_pool =
           host.is_null() ? kNullAddress : host.constant_pool();
-      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], Code(), constant_pool);
+      Code code_pointer;
+      if (!host.is_null() && host.is_js()) {
+        code_pointer = *host.as_js_code();
+      }
+
+      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], code_pointer,
+                          constant_pool);
 
       bool first_reloc_info = (i == 0);
       PrintRelocInfo(&out, isolate, ref_encoder, os, code, &relocinfo,

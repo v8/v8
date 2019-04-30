@@ -213,7 +213,7 @@ class FullMarkingVerifier : public MarkingVerifier {
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+    DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
     if (!host->IsWeakObject(rinfo->target_object())) {
       HeapObject object = rinfo->target_object();
       VerifyHeapObjectImpl(object);
@@ -1145,7 +1145,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
 
   inline void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
-    DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+    DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
     HeapObject object = HeapObject::cast(rinfo->target_object());
     GenerationalBarrierForCode(host, rinfo, object);
     collector_->RecordRelocSlot(host, rinfo, object);
@@ -2412,7 +2412,9 @@ MarkCompactCollector::PrepareRecordRelocSlot(Code host, RelocInfo* rinfo,
       if (RelocInfo::IsCodeTargetMode(rmode)) {
         slot_type = CODE_ENTRY_SLOT;
       } else {
-        DCHECK(RelocInfo::IsEmbeddedObject(rmode));
+        // Constant pools don't support compressed values at this time
+        // (this may change, therefore use a DCHECK).
+        DCHECK(RelocInfo::IsFullEmbeddedObject(rmode));
         slot_type = OBJECT_SLOT;
       }
     }

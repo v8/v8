@@ -240,7 +240,8 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   static const int kRelocMask =
       RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-      RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+      RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
+      RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
       RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
   HeapIterator iterator(isolate->heap());
   for (HeapObject obj = iterator.next(); !obj.is_null();
@@ -259,7 +260,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         rinfo->set_target_address(new_target->raw_instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
-        DCHECK(RelocInfo::IsEmbeddedObject(rinfo->rmode()));
+        DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
         Object object = rinfo->target_object();
         if (!object->IsCode()) continue;
         Code target = Code::cast(object);
