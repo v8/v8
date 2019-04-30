@@ -449,8 +449,7 @@ TEST(EmbeddedObj) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
   code->Print(os);
