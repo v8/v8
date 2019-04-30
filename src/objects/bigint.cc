@@ -1956,7 +1956,7 @@ MaybeHandle<BigInt> BigInt::FromSerializedDigits(
 #elif defined(V8_TARGET_BIG_ENDIAN)
   digit_t* digit = reinterpret_cast<digit_t*>(digits);
   const digit_t* digit_storage =
-      reinterpret_cast<const digit_t*>(digits_storage.start());
+      reinterpret_cast<const digit_t*>(digits_storage.begin());
   for (int i = 0; i < bytelength / kDigitSize; i++) {
     *digit = ByteReverse(*digit_storage);
     digit_storage++;
