@@ -2803,9 +2803,10 @@ class RepresentationSelector {
             access.machine_type.representation();
 
         // Convert to Smi if possible, such that we can avoid a write barrier.
-        if (field_representation == MachineRepresentation::kTagged &&
+        if ((field_representation == MachineRepresentation::kTagged ||
+             field_representation == MachineRepresentation::kCompressed) &&
             TypeOf(value_node).Is(Type::SignedSmall())) {
-          field_representation = MachineRepresentation::kTaggedSigned;
+          field_representation = MachineType::RepCompressedTaggedSigned();
         }
         WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
             access.base_is_tagged, field_representation, access.offset,
@@ -2845,9 +2846,10 @@ class RepresentationSelector {
             access.machine_type.representation();
 
         // Convert to Smi if possible, such that we can avoid a write barrier.
-        if (element_representation == MachineRepresentation::kTagged &&
+        if ((element_representation == MachineRepresentation::kTagged ||
+             element_representation == MachineRepresentation::kCompressed) &&
             TypeOf(value_node).Is(Type::SignedSmall())) {
-          element_representation = MachineRepresentation::kTaggedSigned;
+          element_representation = MachineType::RepCompressedTaggedSigned();
         }
         WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
             access.base_is_tagged, element_representation, access.type,

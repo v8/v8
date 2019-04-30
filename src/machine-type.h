@@ -235,6 +235,77 @@ class MachineType {
     return MachineType(MachineRepresentation::kBit, MachineSemantic::kNone);
   }
 
+  // These methods return compressed representations when the compressed
+  // pointer flag is enabled. Otherwise, they returned the corresponding tagged
+  // one.
+  constexpr static MachineRepresentation RepCompressedTagged() {
+#ifdef V8_COMPRESS_POINTERS
+    return MachineRepresentation::kCompressed;
+#else
+    return MachineRepresentation::kTagged;
+#endif
+  }
+  constexpr static MachineRepresentation RepCompressedTaggedSigned() {
+#ifdef V8_COMPRESS_POINTERS
+    return MachineRepresentation::kCompressedSigned;
+#else
+    return MachineRepresentation::kTaggedSigned;
+#endif
+  }
+  constexpr static MachineRepresentation RepCompressedTaggedPointer() {
+#ifdef V8_COMPRESS_POINTERS
+    return MachineRepresentation::kCompressedPointer;
+#else
+    return MachineRepresentation::kTaggedPointer;
+#endif
+  }
+
+  constexpr static MachineType TypeCompressedTagged() {
+#ifdef V8_COMPRESS_POINTERS
+    return MachineType::AnyCompressed();
+#else
+    return MachineType::AnyTagged();
+#endif
+  }
+  constexpr static MachineType TypeCompressedTaggedSigned() {
+#ifdef V8_COMPRESS_POINTERS
+    return MachineType::CompressedSigned();
+#else
+    return MachineType::TaggedSigned();
+#endif
+  }
+  constexpr static MachineType TypeCompressedTaggedPointer() {
+#ifdef V8_COMPRESS_POINTERS
+    return MachineType::CompressedPointer();
+#else
+    return MachineType::TaggedPointer();
+#endif
+  }
+
+  constexpr bool IsCompressedTagged() const {
+#ifdef V8_COMPRESS_POINTERS
+    return IsCompressed();
+#else
+    return IsTagged();
+#endif
+  }
+
+  constexpr bool IsCompressedTaggedSigned() const {
+#ifdef V8_COMPRESS_POINTERS
+    return IsCompressedSigned();
+#else
+    return IsTaggedSigned();
+#endif
+  }
+
+  constexpr bool IsCompressedTaggedPointer() const {
+#ifdef V8_COMPRESS_POINTERS
+    return IsCompressedPointer();
+#else
+    return IsTaggedPointer();
+#endif
+  }
+
   static MachineType TypeForRepresentation(const MachineRepresentation& rep,
                                            bool isSigned = true) {
     switch (rep) {
@@ -331,6 +402,16 @@ inline bool CanBeCompressedSigned(MachineRepresentation rep) {
 inline bool IsAnyCompressed(MachineRepresentation rep) {
   return CanBeCompressedPointer(rep) ||
          rep == MachineRepresentation::kCompressedSigned;
+}
+
+// TODO(solanes): remove '|| IsAnyTagged(rep)' when all the representation
+// changes are in place
+inline bool IsAnyCompressedTagged(MachineRepresentation rep) {
+#ifdef V8_COMPRESS_POINTERS
+  return IsAnyCompressed(rep) || IsAnyTagged(rep);
+#else
+  return IsAnyTagged(rep);
+#endif
 }
 
 // Gets the log2 of the element size in bytes of the machine type.

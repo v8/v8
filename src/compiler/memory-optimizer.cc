@@ -467,13 +467,13 @@ void MemoryOptimizer::VisitLoadElement(Node* node,
   ElementAccess const& access = ElementAccessOf(node->op());
   Node* index = node->InputAt(1);
   node->ReplaceInput(1, ComputeIndex(access, index));
+  MachineType type = access.machine_type;
   if (NeedsPoisoning(access.load_sensitivity) &&
-      access.machine_type.representation() !=
-          MachineRepresentation::kTaggedPointer) {
-    NodeProperties::ChangeOp(node,
-                             machine()->PoisonedLoad(access.machine_type));
+      type.representation() != MachineRepresentation::kTaggedPointer &&
+      type.representation() != MachineRepresentation::kCompressedPointer) {
+    NodeProperties::ChangeOp(node, machine()->PoisonedLoad(type));
   } else {
-    NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
+    NodeProperties::ChangeOp(node, machine()->Load(type));
   }
   EnqueueUses(node, state);
 }
@@ -483,13 +483,13 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state) {
   FieldAccess const& access = FieldAccessOf(node->op());
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
+  MachineType type = access.machine_type;
   if (NeedsPoisoning(access.load_sensitivity) &&
-      access.machine_type.representation() !=
-          MachineRepresentation::kTaggedPointer) {
-    NodeProperties::ChangeOp(node,
-                             machine()->PoisonedLoad(access.machine_type));
+      type.representation() != MachineRepresentation::kTaggedPointer &&
+      type.representation() != MachineRepresentation::kCompressedPointer) {
+    NodeProperties::ChangeOp(node, machine()->PoisonedLoad(type));
   } else {
-    NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
+    NodeProperties::ChangeOp(node, machine()->Load(type));
   }
   EnqueueUses(node, state);
 }
