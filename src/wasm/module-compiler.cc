@@ -323,7 +323,7 @@ class CompilationStateImpl {
   // Initialize compilation progress. Set compilation tiers to expect for
   // baseline and top tier compilation. Must be set before {AddCompilationUnits}
   // is invoked which triggers background compilation.
-  void InitializeCompilationProgress();
+  void InitializeCompilationProgress(bool lazy_module);
 
   // Add the callback function to be called on compilation events. Needs to be
   // set before {AddCompilationUnits} is run to ensure that it receives all
@@ -538,7 +538,8 @@ const WasmCompilationHint* GetCompilationHint(const WasmModule* module,
 
 CompileStrategy GetCompileStrategy(const WasmModule* module,
                                    const WasmFeatures& enabled_features,
-                                   uint32_t func_index) {
+                                   uint32_t func_index, bool lazy_module) {
+  if (lazy_module) return CompileStrategy::kLazy;
   if (!enabled_features.compilation_hints) return CompileStrategy::kDefault;
   auto* hint = GetCompilationHint(module, func_index);
   if (hint == nullptr) return CompileStrategy::kDefault;
@@ -552,14 +553,6 @@ CompileStrategy GetCompileStrategy(const WasmModule* module,
     case WasmCompilationHintStrategy::kDefault:
       return CompileStrategy::kDefault;
   }
-}
-
-CompileStrategy GetCompileStrategy(const WasmModule* module,
-                                   const NativeModule* native_module,
-                                   const WasmFeatures& enabled_features,
-                                   uint32_t func_index) {
-  if (native_module->lazy_compilation()) return CompileStrategy::kLazy;
-  return GetCompileStrategy(module, enabled_features, func_index);
 }
 
 struct ExecutionTierPair {
@@ -635,10 +628,14 @@ class CompilationUnitBuilder {
         native_module_->enabled_features(), func_index);
     // In this case, the baseline is lazily compiled, if at all. The compilation
     // unit is added even if the baseline tier is the same.
-    DCHECK_EQ(
-        CompileStrategy::kLazyBaselineEagerTopTier,
-        GetCompileStrategy(native_module_->module(),
-                           native_module_->enabled_features(), func_index));
+#ifdef DEBUG
+    auto* module = native_module_->module();
+    DCHECK_EQ(kWasmOrigin, module->origin);
+    const bool lazy_module = false;
+    DCHECK_EQ(CompileStrategy::kLazyBaselineEagerTopTier,
+              GetCompileStrategy(module, native_module_->enabled_features(),
+                                 func_index, lazy_module));
+#endif
     tiering_units_.emplace_back(CreateUnit(func_index, tiers.top_tier));
   }
 
@@ -713,7 +710,7 @@ enum OnlyLazyFunctions : bool {
 
 void ValidateSequentially(
     const WasmModule* module, NativeModule* native_module, Counters* counters,
-    AccountingAllocator* allocator, ErrorThrower* thrower,
+    AccountingAllocator* allocator, ErrorThrower* thrower, bool lazy_module,
     OnlyLazyFunctions only_lazy_functions = kAllFunctions) {
   DCHECK(!thrower->error());
   uint32_t start = module->num_imported_functions;
@@ -722,8 +719,8 @@ void ValidateSequentially(
   for (uint32_t func_index = start; func_index < end; func_index++) {
     // Skip non-lazy functions if requested.
     if (only_lazy_functions) {
-      CompileStrategy strategy = GetCompileStrategy(
-          module, native_module, enabled_features, func_index);
+      CompileStrategy strategy =
+          GetCompileStrategy(module, enabled_features, func_index, lazy_module);
       if (strategy != CompileStrategy::kLazy &&
           strategy != CompileStrategy::kLazyBaselineEagerTopTier) {
         continue;
@@ -739,6 +736,11 @@ void ValidateSequentially(
       SetCompileError(thrower, wire_bytes, func, module, result.error());
     }
   }
+}
+
+bool IsLazyModule(const WasmModule* module) {
+  return FLAG_wasm_lazy_compilation ||
+         (FLAG_asm_wasm_lazy_compilation && module->origin == kAsmJsOrigin);
 }
 
 }  // namespace
@@ -803,7 +805,8 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
   int throughput_sample = static_cast<int>(func_kb / compilation_seconds);
   counters->wasm_lazy_compilation_throughput()->AddSample(throughput_sample);
 
-  if (GetCompileStrategy(module, enabled_features, func_index) ==
+  const bool lazy_module = IsLazyModule(module);
+  if (GetCompileStrategy(module, enabled_features, func_index, lazy_module) ==
           CompileStrategy::kLazy &&
       tiers.baseline_tier < tiers.top_tier) {
     auto tiering_unit =
@@ -942,7 +945,8 @@ bool ExecuteCompilationUnits(
 void InitializeCompilationUnits(NativeModule* native_module) {
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
-  compilation_state->InitializeCompilationProgress();
+  const bool lazy_module = IsLazyModule(native_module->module());
+  compilation_state->InitializeCompilationProgress(lazy_module);
 
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   CompilationUnitBuilder builder(native_module);
@@ -951,7 +955,7 @@ void InitializeCompilationUnits(NativeModule* native_module) {
   uint32_t end = start + module->num_declared_functions;
   for (uint32_t func_index = start; func_index < end; func_index++) {
     CompileStrategy strategy = GetCompileStrategy(
-        module, native_module, native_module->enabled_features(), func_index);
+        module, native_module->enabled_features(), func_index, lazy_module);
     if (strategy == CompileStrategy::kLazy) {
       native_module->UseLazyStub(func_index);
     } else if (strategy == CompileStrategy::kLazyBaselineEagerTopTier) {
@@ -969,32 +973,48 @@ bool NeedsDeterministicCompile() {
   return FLAG_trace_wasm_decoder || FLAG_wasm_num_compilation_tasks <= 1;
 }
 
+bool MayCompriseLazyFunctions(const WasmModule* module,
+                              const WasmFeatures& enabled_features,
+                              bool lazy_module) {
+  if (lazy_module || enabled_features.compilation_hints) return true;
+#ifdef ENABLE_SLOW_DCHECKS
+  int start = module->num_imported_functions;
+  int end = start + module->num_declared_functions;
+  for (int func_index = start; func_index < end; func_index++) {
+    SLOW_DCHECK(GetCompileStrategy(module, enabled_features, func_index,
+                                   lazy_module) != CompileStrategy::kLazy);
+  }
+#endif
+  return false;
+}
+
 void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
                          const WasmModule* wasm_module,
                          NativeModule* native_module) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   auto* compilation_state = Impl(native_module->compilation_state());
-  if (FLAG_wasm_lazy_compilation ||
-      (FLAG_asm_wasm_lazy_compilation && wasm_module->origin == kAsmJsOrigin)) {
+  const bool lazy_module = IsLazyModule(wasm_module);
+  if (lazy_module) {
     if (wasm_module->origin == kWasmOrigin && !FLAG_wasm_lazy_validation) {
       // Validate wasm modules for lazy compilation if requested. Never validate
       // asm.js modules as these are valid by construction (otherwise a CHECK
       // will fail during lazy compilation).
       ValidateSequentially(wasm_module, native_module, isolate->counters(),
-                           isolate->allocator(), thrower);
+                           isolate->allocator(), thrower, lazy_module);
       // On error: Return and leave the module in an unexecutable state.
       if (thrower->error()) return;
     }
-    native_module->set_lazy_compilation(true);
-    compilation_state->InitializeCompilationProgress();
+    compilation_state->InitializeCompilationProgress(lazy_module);
     native_module->UseLazyStubs();
     return;
   }
 
-  if (native_module->enabled_features().compilation_hints &&
-      !FLAG_wasm_lazy_validation) {
+  if (!FLAG_wasm_lazy_validation &&
+      MayCompriseLazyFunctions(wasm_module, native_module->enabled_features(),
+                               lazy_module)) {
     ValidateSequentially(wasm_module, native_module, isolate->counters(),
-                         isolate->allocator(), thrower, kOnlyLazyFunctions);
+                         isolate->allocator(), thrower, lazy_module,
+                         kOnlyLazyFunctions);
     // On error: Return and leave the module in an unexecutable state.
     if (thrower->error()) return;
   }
@@ -1041,8 +1061,9 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
   compilation_state->PublishDetectedFeatures(isolate);
 
   if (compilation_state->failed()) {
+    DCHECK_IMPLIES(lazy_module, !FLAG_wasm_lazy_validation);
     ValidateSequentially(wasm_module, native_module, isolate->counters(),
-                         isolate->allocator(), thrower);
+                         isolate->allocator(), thrower, lazy_module);
     CHECK(thrower->error());
   }
 }
@@ -1123,6 +1144,7 @@ AsyncCompileJob::AsyncCompileJob(
     std::shared_ptr<CompilationResultResolver> resolver)
     : isolate_(isolate),
       enabled_features_(enabled),
+      wasm_lazy_compilation_(FLAG_wasm_lazy_compilation),
       bytes_copy_(std::move(bytes_copy)),
       wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
       resolver_(std::move(resolver)) {
@@ -1297,8 +1319,11 @@ void AsyncCompileJob::DecodeFailed(const WasmError& error) {
 
 void AsyncCompileJob::AsyncCompileFailed() {
   ErrorThrower thrower(isolate_, "WebAssembly.compile()");
+  DCHECK_EQ(native_module_->module()->origin, kWasmOrigin);
+  const bool lazy_module = wasm_lazy_compilation_;
   ValidateSequentially(native_module_->module(), native_module_.get(),
-                       isolate_->counters(), isolate_->allocator(), &thrower);
+                       isolate_->counters(), isolate_->allocator(), &thrower,
+                       lazy_module);
   DCHECK(thrower.error());
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
@@ -1489,36 +1514,40 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       TRACE_COMPILE("(1) Decoding module...\n");
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                    "AsyncCompileJob::DecodeModule");
-      result = DecodeWasmModule(
-          job->enabled_features_, job->wire_bytes_.start(),
-          job->wire_bytes_.end(), false, kWasmOrigin, counters_,
-          job->isolate()->wasm_engine()->allocator());
+      auto enabled_features = job->enabled_features_;
+      result = DecodeWasmModule(enabled_features, job->wire_bytes_.start(),
+                                job->wire_bytes_.end(), false, kWasmOrigin,
+                                counters_,
+                                job->isolate()->wasm_engine()->allocator());
 
       // Validate lazy functions here if requested.
-      auto enabled_features = job->enabled_features_;
-      if (enabled_features.compilation_hints && !FLAG_wasm_lazy_validation &&
-          result.ok()) {
+      if (!FLAG_wasm_lazy_validation && result.ok()) {
         const WasmModule* module = result.value().get();
-        auto allocator = job->isolate()->wasm_engine()->allocator();
-        int start = module->num_imported_functions;
-        int end = start + module->num_declared_functions;
+        DCHECK_EQ(module->origin, kWasmOrigin);
+        const bool lazy_module = job->wasm_lazy_compilation_;
+        if (MayCompriseLazyFunctions(module, enabled_features, lazy_module)) {
+          auto allocator = job->isolate()->wasm_engine()->allocator();
+          int start = module->num_imported_functions;
+          int end = start + module->num_declared_functions;
 
-        for (int func_index = start; func_index < end; func_index++) {
-          const WasmFunction* func = &module->functions[func_index];
-          Vector<const uint8_t> code = job->wire_bytes_.GetFunctionBytes(func);
+          for (int func_index = start; func_index < end; func_index++) {
+            const WasmFunction* func = &module->functions[func_index];
+            Vector<const uint8_t> code =
+                job->wire_bytes_.GetFunctionBytes(func);
 
-          CompileStrategy strategy =
-              GetCompileStrategy(module, enabled_features, func_index);
-          bool validate_lazily_compiled_function =
-              strategy == CompileStrategy::kLazy ||
-              strategy == CompileStrategy::kLazyBaselineEagerTopTier;
-          if (validate_lazily_compiled_function) {
-            DecodeResult function_result =
-                ValidateSingleFunction(module, func_index, code, counters_,
-                                       allocator, enabled_features);
-            if (function_result.failed()) {
-              result = ModuleResult(function_result.error());
-              break;
+            CompileStrategy strategy = GetCompileStrategy(
+                module, enabled_features, func_index, lazy_module);
+            bool validate_lazily_compiled_function =
+                strategy == CompileStrategy::kLazy ||
+                strategy == CompileStrategy::kLazyBaselineEagerTopTier;
+            if (validate_lazily_compiled_function) {
+              DecodeResult function_result =
+                  ValidateSingleFunction(module, func_index, code, counters_,
+                                         allocator, enabled_features);
+              if (function_result.failed()) {
+                result = ModuleResult(function_result.error());
+                break;
+              }
             }
           }
         }
@@ -1754,7 +1783,9 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
       decoder_.shared_module(), false);
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
   compilation_state->SetWireBytesStorage(std::move(wire_bytes_storage));
-  compilation_state->InitializeCompilationProgress();
+  DCHECK_EQ(job_->native_module_->module()->origin, kWasmOrigin);
+  const bool lazy_module = job_->wasm_lazy_compilation_;
+  compilation_state->InitializeCompilationProgress(lazy_module);
 
   // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
   // AsyncStreamingProcessor have to finish.
@@ -1774,12 +1805,14 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
 
   NativeModule* native_module = job_->native_module_.get();
   const WasmModule* module = native_module->module();
-  auto enabled_features = native_module->enabled_features();
+  auto enabled_features = job_->enabled_features_;
   uint32_t func_index =
       num_functions_ + decoder_.module()->num_imported_functions;
+  DCHECK_EQ(module->origin, kWasmOrigin);
+  const bool lazy_module = job_->wasm_lazy_compilation_;
 
   CompileStrategy strategy =
-      GetCompileStrategy(module, enabled_features, func_index);
+      GetCompileStrategy(module, enabled_features, func_index, lazy_module);
   bool validate_lazily_compiled_function =
       !FLAG_wasm_lazy_validation &&
       (strategy == CompileStrategy::kLazy ||
@@ -1926,7 +1959,7 @@ void CompilationStateImpl::AbortCompilation() {
   callbacks_.clear();
 }
 
-void CompilationStateImpl::InitializeCompilationProgress() {
+void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module) {
   DCHECK(!failed());
   auto enabled_features = native_module_->enabled_features();
   auto* module = native_module_->module();
@@ -1941,8 +1974,8 @@ void CompilationStateImpl::InitializeCompilationProgress() {
   for (int func_index = start; func_index < end; func_index++) {
     ExecutionTierPair requested_tiers = GetRequestedExecutionTiers(
         module, compile_mode(), enabled_features, func_index);
-    CompileStrategy strategy = GetCompileStrategy(module, native_module_,
-                                                  enabled_features, func_index);
+    CompileStrategy strategy =
+        GetCompileStrategy(module, enabled_features, func_index, lazy_module);
 
     bool required_for_baseline = strategy == CompileStrategy::kEager;
     bool required_for_top_tier = strategy != CompileStrategy::kLazy;
@@ -1967,24 +2000,9 @@ void CompilationStateImpl::InitializeCompilationProgress() {
         RequiredTopTierField::update(function_progress, required_top_tier);
     compilation_progress_.push_back(function_progress);
   }
-  DCHECK_IMPLIES(
-      !enabled_features.compilation_hints && !FLAG_wasm_lazy_compilation &&
-          !(FLAG_asm_wasm_lazy_compilation && module->origin == kAsmJsOrigin),
-      outstanding_baseline_functions_ ==
-          static_cast<int>(module->num_declared_functions));
-  DCHECK_IMPLIES(
-      !enabled_features.compilation_hints && !FLAG_wasm_lazy_compilation &&
-          !(FLAG_asm_wasm_lazy_compilation && module->origin == kAsmJsOrigin),
-      outstanding_top_tier_functions_ ==
-          static_cast<int>(module->num_declared_functions));
-  DCHECK_IMPLIES(
-      FLAG_wasm_lazy_compilation ||
-          (FLAG_asm_wasm_lazy_compilation && module->origin == kAsmJsOrigin),
-      outstanding_baseline_functions_ == 0);
-  DCHECK_IMPLIES(
-      FLAG_wasm_lazy_compilation ||
-          (FLAG_asm_wasm_lazy_compilation && module->origin == kAsmJsOrigin),
-      outstanding_top_tier_functions_ == 0);
+  DCHECK_IMPLIES(lazy_module, outstanding_baseline_functions_ == 0);
+  DCHECK_IMPLIES(lazy_module, outstanding_top_tier_functions_ == 0);
+  DCHECK_LE(0, outstanding_baseline_functions_);
   DCHECK_LE(outstanding_baseline_functions_, outstanding_top_tier_functions_);
 
   // Trigger callbacks if module needs no baseline or top tier compilation. This

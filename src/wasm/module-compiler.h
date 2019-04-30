@@ -149,6 +149,7 @@ class AsyncCompileJob {
 
   Isolate* const isolate_;
   const WasmFeatures enabled_features_;
+  const bool wasm_lazy_compilation_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.
   std::unique_ptr<byte[]> bytes_copy_;

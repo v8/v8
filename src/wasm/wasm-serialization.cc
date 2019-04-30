@@ -633,8 +633,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
       std::move(wire_bytes_copy), script, Handle<ByteArray>::null());
   NativeModule* native_module = module_object->native_module();
 
-  native_module->set_lazy_compilation(FLAG_wasm_lazy_compilation);
-
   NativeModuleDeserializer deserializer(native_module);
   WasmCodeRefScope wasm_code_ref_scope;
 
