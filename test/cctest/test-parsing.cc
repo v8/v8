@@ -1526,10 +1526,7 @@ const char* ReadString(unsigned* start) {
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
-  kAllowHarmonyPublicFields,
-  kAllowHarmonyPrivateFields,
   kAllowHarmonyPrivateMethods,
-  kAllowHarmonyStaticFields,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
   kAllowHarmonyNumericSeparator
@@ -1543,10 +1540,7 @@ enum ParserSyncTestResult {
 
 void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.contains(kAllowNatives);
-  i::FLAG_harmony_public_fields = flags.contains(kAllowHarmonyPublicFields);
-  i::FLAG_harmony_private_fields = flags.contains(kAllowHarmonyPrivateFields);
   i::FLAG_harmony_private_methods = flags.contains(kAllowHarmonyPrivateMethods);
-  i::FLAG_harmony_static_fields = flags.contains(kAllowHarmonyStaticFields);
   i::FLAG_harmony_dynamic_import = flags.contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.contains(kAllowHarmonyImportMeta);
   i::FLAG_harmony_numeric_separator =
@@ -1555,14 +1549,8 @@ void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
 
 void SetParserFlags(i::PreParser* parser, base::EnumSet<ParserFlag> flags) {
   parser->set_allow_natives(flags.contains(kAllowNatives));
-  parser->set_allow_harmony_public_fields(
-      flags.contains(kAllowHarmonyPublicFields));
-  parser->set_allow_harmony_private_fields(
-      flags.contains(kAllowHarmonyPrivateFields));
   parser->set_allow_harmony_private_methods(
       flags.contains(kAllowHarmonyPrivateMethods));
-  parser->set_allow_harmony_static_fields(
-      flags.contains(kAllowHarmonyStaticFields));
   parser->set_allow_harmony_dynamic_import(
       flags.contains(kAllowHarmonyDynamicImport));
   parser->set_allow_harmony_import_meta(
@@ -5284,15 +5272,7 @@ TEST(StaticClassFieldsNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields,
-                                            kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    always_flags, arraysize(always_flags));
-
-  // Without the static flag, all of these are errors
-  static const ParserFlag no_static_flags[] = {kAllowHarmonyPublicFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    no_static_flags, arraysize(no_static_flags));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(ClassFieldsNoErrors) {
@@ -5376,14 +5356,7 @@ TEST(ClassFieldsNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    always_flags, arraysize(always_flags));
-
-  static const ParserFlag static_flags[] = {kAllowHarmonyPublicFields,
-                                            kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    static_flags, arraysize(static_flags));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(PrivateMethodsNoErrors) {
@@ -5473,8 +5446,7 @@ TEST(PrivateMethodsNoErrors) {
 
   RunParserSyncTest(context_data, class_body_data, kError);
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateFields,
-                                               kAllowHarmonyPrivateMethods};
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
   RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
                     private_methods, arraysize(private_methods));
 }
@@ -5533,7 +5505,6 @@ TEST(PrivateMethodsAndFieldsNoErrors) {
   RunParserSyncTest(context_data, class_body_data, kError);
 
   static const ParserFlag private_methods_and_fields[] = {
-      kAllowHarmonyPrivateFields, kAllowHarmonyPublicFields,
       kAllowHarmonyPrivateMethods};
   RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
                     private_methods_and_fields,
@@ -5596,8 +5567,7 @@ TEST(PrivateMethodsErrors) {
 
   RunParserSyncTest(context_data, class_body_data, kError);
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateFields,
-                                               kAllowHarmonyPrivateMethods};
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
   RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
                     private_methods, arraysize(private_methods));
 }
@@ -5630,8 +5600,7 @@ TEST(PrivateMembersInNonClassNoErrors) {
 
   RunParserSyncTest(context_data, class_body_data, kError);
 
-  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateFields,
-                                               kAllowHarmonyPrivateMethods};
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
   RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
                     private_methods, arraysize(private_methods));
 }
@@ -5696,11 +5665,7 @@ TEST(PrivateClassFieldsNoErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_fields, arraysize(private_fields));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 TEST(StaticClassFieldsErrors) {
@@ -5745,14 +5710,7 @@ TEST(StaticClassFieldsErrors) {
   };
   // clang-format on
 
-  static const ParserFlag no_static_flags[] = {kAllowHarmonyPublicFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    no_static_flags, arraysize(no_static_flags));
-
-  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields,
-                                            kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(context_data, class_body_data, kError);
 }
 
 TEST(ClassFieldsErrors) {
@@ -5796,14 +5754,7 @@ TEST(ClassFieldsErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    always_flags, arraysize(always_flags));
-
-  static const ParserFlag static_flags[] = {kAllowHarmonyPublicFields,
-                                            kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    static_flags, arraysize(static_flags));
+  RunParserSyncTest(context_data, class_body_data, kError);
 }
 
 TEST(PrivateClassFieldsErrors) {
@@ -5881,10 +5832,6 @@ TEST(PrivateClassFieldsErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_fields, arraysize(private_fields));
 }
 
 TEST(PrivateStaticClassFieldsNoErrors) {
@@ -5949,18 +5896,7 @@ TEST(PrivateStaticClassFieldsNoErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag public_static_fields[] = {kAllowHarmonyPublicFields,
-                                                    kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    public_static_fields, arraysize(public_static_fields));
-
-  static const ParserFlag private_static_fields[] = {
-      kAllowHarmonyPublicFields, kAllowHarmonyStaticFields,
-      kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
-                    private_static_fields, arraysize(private_static_fields));
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr);
 }
 
 TEST(PrivateStaticClassFieldsErrors) {
@@ -6061,17 +5997,6 @@ TEST(PrivateStaticClassFieldsErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kError);
-
-  static const ParserFlag public_static_fields[] = {kAllowHarmonyPublicFields,
-                                                    kAllowHarmonyStaticFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    public_static_fields, arraysize(public_static_fields));
-
-  static const ParserFlag private_static_fields[] = {
-      kAllowHarmonyPublicFields, kAllowHarmonyStaticFields,
-      kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
-                    private_static_fields, arraysize(private_static_fields));
 }
 
 TEST(PrivateNameResolutionErrors) {
@@ -6119,10 +6044,6 @@ TEST(PrivateNameResolutionErrors) {
 
   // clang-format on
   RunParserSyncTest(context_data, statement_data, kError);
-
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0,
-                    private_fields, arraysize(private_fields));
 }
 
 TEST(PrivateNameErrors) {
@@ -6171,10 +6092,6 @@ TEST(PrivateNameErrors) {
 
   // clang-format on
   RunParserSyncTest(context_data, statement_data, kError);
-
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0,
-                    private_fields, arraysize(private_fields));
 }
 
 TEST(ClassExpressionErrors) {
@@ -6186,8 +6103,6 @@ TEST(ClassExpressionErrors) {
       "class name extends",
       "class extends",
       "class {",
-      "class { m }",
-      "class { m; n }",
       "class { m: 1 }",
       "class { m(); n() }",
       "class { get m }",
@@ -6210,8 +6125,6 @@ TEST(ClassDeclarationErrors) {
       "class name extends",
       "class extends",
       "class name {",
-      "class name { m }",
-      "class name { m; n }",
       "class name { m: 1 }",
       "class name { m(); n() }",
       "class name { get x }",
@@ -11392,8 +11305,6 @@ TEST(PrivateNamesSyntaxErrorEarly) {
 
       nullptr};
 
-  static const ParserFlag flags[] = {kAllowHarmonyPrivateFields};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1);
   RunParserSyncTest(context_data, statement_data, kError);
 }
 

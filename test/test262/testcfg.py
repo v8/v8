@@ -44,10 +44,6 @@ from testrunner.outproc import test262
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
-  'class-fields-public': '--harmony-public-fields',
-  'class-static-fields-public': '--harmony-class-fields',
-  'class-fields-private': '--harmony-private-fields',
-  'class-static-fields-private': '--harmony-private-fields',
   'numeric-separator-literal': '--harmony-numeric-separator',
   'Intl.DateTimeFormat-datetimestyle': '--harmony-intl-datetime-style',
   'Intl.Locale': '--harmony-locale',

@@ -233,11 +233,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
           parsing_module_, parsing_on_main_thread_);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
       SET_ALLOW(natives);
-      SET_ALLOW(harmony_public_fields);
-      SET_ALLOW(harmony_static_fields);
       SET_ALLOW(harmony_dynamic_import);
       SET_ALLOW(harmony_import_meta);
-      SET_ALLOW(harmony_private_fields);
       SET_ALLOW(harmony_private_methods);
       SET_ALLOW(eval_cache);
 #undef SET_ALLOW

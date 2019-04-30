@@ -405,12 +405,6 @@ class V8_EXPORT_PRIVATE Scanner {
 
   bool FoundHtmlComment() const { return found_html_comment_; }
 
-  bool allow_harmony_private_fields() const {
-    return allow_harmony_private_fields_;
-  }
-  void set_allow_harmony_private_fields(bool allow) {
-    allow_harmony_private_fields_ = allow;
-  }
   bool allow_harmony_numeric_separator() const {
     return allow_harmony_numeric_separator_;
   }
@@ -812,7 +806,6 @@ class V8_EXPORT_PRIVATE Scanner {
   bool found_html_comment_;
 
   // Harmony flags to allow ESNext features.
-  bool allow_harmony_private_fields_;
   bool allow_harmony_numeric_separator_;
 
   const bool is_module_;

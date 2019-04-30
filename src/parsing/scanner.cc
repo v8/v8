@@ -556,12 +556,6 @@ Token::Value Scanner::ScanString() {
 }
 
 Token::Value Scanner::ScanPrivateName() {
-  if (!allow_harmony_private_fields()) {
-    ReportScannerError(source_pos(),
-                       MessageTemplate::kInvalidOrUnexpectedToken);
-    return Token::ILLEGAL;
-  }
-
   next().literal_chars.Start();
   DCHECK_EQ(c0_, '#');
   DCHECK(!IsIdentifierStart(kEndOfInput));

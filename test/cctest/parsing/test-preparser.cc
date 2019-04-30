@@ -110,9 +110,6 @@ TEST(PreParserScopeAnalysis) {
     Inner(const char* p, const char* s, SkipTests skip, Bailout bailout)
         : params(p), source(s), skip(skip), bailout(bailout) {}
 
-    Inner(const char* s, std::function<void()> p, std::function<void()> e)
-        : source(s), prologue(p), epilogue(e) {}
-
     const char* params = "";
     const char* source;
     SkipTests skip = DONT_SKIP;
@@ -659,33 +656,11 @@ TEST(PreParserScopeAnalysis) {
       {"class MyClass extends MyBase { static m() { var var1; function foo() { "
        "var1 = 11; } } }"},
 
-      {"class X { ['bar'] = 1; }; new X;",
-       [] { i::FLAG_harmony_public_fields = true; },
-       [] { i::FLAG_harmony_public_fields = false; }},
-      {"class X { static ['foo'] = 2; }; new X;",
-       [] {
-         i::FLAG_harmony_public_fields = true;
-         i::FLAG_harmony_static_fields = true;
-       },
-       [] {
-         i::FLAG_harmony_public_fields = false;
-         i::FLAG_harmony_static_fields = false;
-       }},
-      {"class X { ['bar'] = 1; static ['foo'] = 2; }; new X;",
-       [] {
-         i::FLAG_harmony_public_fields = true;
-         i::FLAG_harmony_static_fields = true;
-       },
-       [] {
-         i::FLAG_harmony_public_fields = false;
-         i::FLAG_harmony_static_fields = false;
-       }},
-      {"class X { #x = 1 }; new X;",
-       [] { i::FLAG_harmony_private_fields = true; },
-       [] { i::FLAG_harmony_private_fields = false; }},
-      {"function t() { return class { #x = 1 }; } new t();",
-       [] { i::FLAG_harmony_private_fields = true; },
-       [] { i::FLAG_harmony_private_fields = false; }},
+      {"class X { ['bar'] = 1; }; new X;"},
+      {"class X { static ['foo'] = 2; }; new X;"},
+      {"class X { ['bar'] = 1; static ['foo'] = 2; }; new X;"},
+      {"class X { #x = 1 }; new X;"},
+      {"function t() { return class { #x = 1 }; } new t();"},
   };
 
   for (unsigned i = 0; i < arraysize(outers); ++i) {
@@ -704,8 +679,6 @@ TEST(PreParserScopeAnalysis) {
       int params_len = Utf8LengthHelper(inner.params);
       int source_len = Utf8LengthHelper(inner.source);
       int len = code_len + params_len + source_len;
-
-      if (inner.prologue != nullptr) inner.prologue();
 
       i::ScopedVector<char> program(len + 1);
       i::SNPrintF(program, code, inner.params, inner.source);
@@ -770,8 +743,6 @@ TEST(PreParserScopeAnalysis) {
       i::ScopeTestHelper::CompareScopes(
           scope_without_skipped_functions, scope_with_skipped_functions,
           inner.precise_maybe_assigned == PreciseMaybeAssigned::YES);
-
-      if (inner.epilogue != nullptr) inner.epilogue();
     }
   }
 }

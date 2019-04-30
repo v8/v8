@@ -422,12 +422,9 @@ Parser::Parser(ParseInfo* info)
   allow_lazy_ = info->allow_lazy_compile() && info->allow_lazy_parsing() &&
                 info->extension() == nullptr && can_compile_lazily;
   set_allow_natives(info->allow_natives_syntax());
-  set_allow_harmony_public_fields(info->allow_harmony_public_fields());
-  set_allow_harmony_static_fields(info->allow_harmony_static_fields());
   set_allow_harmony_dynamic_import(info->allow_harmony_dynamic_import());
   set_allow_harmony_import_meta(info->allow_harmony_import_meta());
   set_allow_harmony_numeric_separator(info->allow_harmony_numeric_separator());
-  set_allow_harmony_private_fields(info->allow_harmony_private_fields());
   set_allow_harmony_private_methods(info->allow_harmony_private_methods());
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -2808,8 +2805,6 @@ void Parser::DeclareClassField(ClassScope* scope,
                                const AstRawString* property_name,
                                bool is_static, bool is_computed_name,
                                bool is_private, ClassInfo* class_info) {
-  DCHECK(allow_harmony_public_fields() || allow_harmony_private_fields());
-
   if (is_static) {
     class_info->static_fields->Add(property, zone());
   } else {

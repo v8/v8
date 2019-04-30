@@ -263,11 +263,8 @@ class ParserBase {
         script_id_(script_id),
         default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile),
         allow_natives_(false),
-        allow_harmony_public_fields_(false),
-        allow_harmony_static_fields_(false),
         allow_harmony_dynamic_import_(false),
         allow_harmony_import_meta_(false),
-        allow_harmony_private_fields_(false),
         allow_harmony_private_methods_(false),
         allow_eval_cache_(true) {
     pointer_buffer_.reserve(32);
@@ -279,8 +276,6 @@ class ParserBase {
   void set_allow_##name(bool allow) { allow_##name##_ = allow; }
 
   ALLOW_ACCESSORS(natives)
-  ALLOW_ACCESSORS(harmony_public_fields)
-  ALLOW_ACCESSORS(harmony_static_fields)
   ALLOW_ACCESSORS(harmony_dynamic_import)
   ALLOW_ACCESSORS(harmony_import_meta)
   ALLOW_ACCESSORS(harmony_private_methods)
@@ -294,13 +289,6 @@ class ParserBase {
   }
   void set_allow_harmony_numeric_separator(bool allow) {
     scanner()->set_allow_harmony_numeric_separator(allow);
-  }
-
-  bool allow_harmony_private_fields() const {
-    return scanner()->allow_harmony_private_fields();
-  }
-  void set_allow_harmony_private_fields(bool allow) {
-    scanner()->set_allow_harmony_private_fields(allow);
   }
 
   uintptr_t stack_limit() const { return stack_limit_; }
@@ -1442,11 +1430,8 @@ class ParserBase {
   bool accept_IN_ = true;
 
   bool allow_natives_;
-  bool allow_harmony_public_fields_;
-  bool allow_harmony_static_fields_;
   bool allow_harmony_dynamic_import_;
   bool allow_harmony_import_meta_;
-  bool allow_harmony_private_fields_;
   bool allow_harmony_private_methods_;
   bool allow_eval_cache_;
 };
@@ -1566,7 +1551,7 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
   if (V8_LIKELY(Token::IsPropertyName(next))) {
     name = impl()->GetSymbol();
     key = factory()->NewStringLiteral(name, pos);
-  } else if (allow_harmony_private_fields() && next == Token::PRIVATE_NAME) {
+  } else if (next == Token::PRIVATE_NAME) {
     // In the case of a top level function, we completely skip
     // analysing it's scope, meaning, we don't have a chance to
     // resolve private names and find that they are not enclosed in a
@@ -2128,9 +2113,6 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
   DCHECK_EQ(prop_info->position, PropertyPosition::kClassLiteral);
 
   Token::Value name_token = peek();
-  DCHECK_IMPLIES(name_token == Token::PRIVATE_NAME,
-                 allow_harmony_private_fields());
-
   int property_beg_pos = scanner()->peek_location().beg_pos;
   int name_token_position = property_beg_pos;
   ExpressionT name_expression;
@@ -2166,44 +2148,34 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
     case ParsePropertyKind::kAssign:
     case ParsePropertyKind::kClassField:
     case ParsePropertyKind::kShorthandOrClassField:
-    case ParsePropertyKind::kNotSet:  // This case is a name followed by a name
-                                      // or other property. Here we have to
-                                      // assume that's an uninitialized field
-                                      // followed by a linebreak followed by a
-                                      // property, with ASI adding the
-                                      // semicolon. If not, there will be a
-                                      // syntax error after parsing the first
-                                      // name as an uninitialized field.
-      if (allow_harmony_public_fields() || allow_harmony_private_fields()) {
-        prop_info->kind = ParsePropertyKind::kClassField;
-        DCHECK_IMPLIES(prop_info->is_computed_name, !prop_info->is_private);
+    case ParsePropertyKind::kNotSet: {  // This case is a name followed by a
+                                        // name or other property. Here we have
+                                        // to assume that's an uninitialized
+                                        // field followed by a linebreak
+                                        // followed by a property, with ASI
+                                        // adding the semicolon. If not, there
+                                        // will be a syntax error after parsing
+                                        // the first name as an uninitialized
+                                        // field.
+      prop_info->kind = ParsePropertyKind::kClassField;
+      DCHECK_IMPLIES(prop_info->is_computed_name, !prop_info->is_private);
 
-        if (prop_info->is_static && !allow_harmony_static_fields()) {
-          ReportUnexpectedToken(Next());
-          return impl()->NullLiteralProperty();
-        }
-
-        if (!prop_info->is_computed_name) {
-          CheckClassFieldName(prop_info->name, prop_info->is_static);
-        }
-
-        ExpressionT initializer = ParseMemberInitializer(
-            class_info, property_beg_pos, prop_info->is_static);
-        ExpectSemicolon();
-
-        ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
-            name_expression, initializer, ClassLiteralProperty::FIELD,
-            prop_info->is_static, prop_info->is_computed_name,
-            prop_info->is_private);
-        impl()->SetFunctionNameFromPropertyName(result, prop_info->name);
-
-        return result;
-
-      } else {
-        ReportUnexpectedToken(Next());
-        return impl()->NullLiteralProperty();
+      if (!prop_info->is_computed_name) {
+        CheckClassFieldName(prop_info->name, prop_info->is_static);
       }
 
+      ExpressionT initializer = ParseMemberInitializer(
+          class_info, property_beg_pos, prop_info->is_static);
+      ExpectSemicolon();
+
+      ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
+          name_expression, initializer, ClassLiteralProperty::FIELD,
+          prop_info->is_static, prop_info->is_computed_name,
+          prop_info->is_private);
+      impl()->SetFunctionNameFromPropertyName(result, prop_info->name);
+
+      return result;
+    }
     case ParsePropertyKind::kMethod: {
       // MethodDefinition
       //    PropertyName '(' StrictFormalParameters ')' '{' FunctionBody '}'

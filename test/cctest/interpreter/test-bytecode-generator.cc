@@ -2650,8 +2650,6 @@ TEST(ClassAndSuperClass) {
 }
 
 TEST(PublicClassFields) {
-  bool old_flag = i::FLAG_harmony_public_fields;
-  i::FLAG_harmony_public_fields = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
@@ -2700,12 +2698,9 @@ TEST(PublicClassFields) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PublicClassFields.golden")));
-  i::FLAG_harmony_public_fields = old_flag;
 }
 
 TEST(PrivateClassFields) {
-  bool old_flag = i::FLAG_harmony_private_fields;
-  i::FLAG_harmony_private_fields = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
@@ -2760,14 +2755,9 @@ TEST(PrivateClassFields) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PrivateClassFields.golden")));
-  i::FLAG_harmony_private_fields = old_flag;
 }
 
 TEST(StaticClassFields) {
-  bool old_flag = i::FLAG_harmony_public_fields;
-  bool old_static_flag = i::FLAG_harmony_static_fields;
-  i::FLAG_harmony_public_fields = true;
-  i::FLAG_harmony_static_fields = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
 
@@ -2826,8 +2816,6 @@ TEST(StaticClassFields) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("StaticClassFields.golden")));
-  i::FLAG_harmony_public_fields = old_flag;
-  i::FLAG_harmony_static_fields = old_static_flag;
 }
 
 TEST(Generators) {

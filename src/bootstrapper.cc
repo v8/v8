@@ -4185,11 +4185,7 @@ void Genesis::InitializeCallSiteBuiltins() {
   void Genesis::InitializeGlobal_##id() {}
 
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_namespace_exports)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_public_fields)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_fields)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_methods)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_static_fields)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_fields)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_dynamic_import)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_meta)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_numeric_separator)

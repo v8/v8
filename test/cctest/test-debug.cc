@@ -4546,8 +4546,6 @@ TEST(GetPrivateFields) {
   v8::internal::Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(v8_isolate);
   v8::Local<v8::Context> context = env.local();
-  v8::internal::FLAG_harmony_class_fields = true;
-  v8::internal::FLAG_harmony_private_fields = true;
   v8::Local<v8::String> source = v8_str(
       "var X = class {\n"
       "  #foo = 1;\n"
