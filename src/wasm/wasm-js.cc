@@ -36,14 +36,14 @@ namespace v8 {
 class WasmStreaming::WasmStreamingImpl {
  public:
   WasmStreamingImpl(
-      Isolate* isolate,
+      Isolate* isolate, const char* api_method_name,
       std::shared_ptr<internal::wasm::CompilationResultResolver> resolver)
       : isolate_(isolate), resolver_(std::move(resolver)) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
     auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
     streaming_decoder_ = i_isolate->wasm_engine()->StartStreamingCompilation(
         i_isolate, enabled_features, handle(i_isolate->context(), i_isolate),
-        resolver_);
+        api_method_name, resolver_);
   }
 
   void OnBytesReceived(const uint8_t* bytes, size_t size) {
@@ -569,7 +569,8 @@ void WebAssemblyCompileStreaming(
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compile()");
+  const char* const kAPIMethodName = "WebAssembly.compileStreaming()";
+  ScheduledErrorThrower thrower(i_isolate, kAPIMethodName);
   Local<Context> context = isolate->GetCurrentContext();
 
   // Create and assign the return value of this function.
@@ -593,8 +594,8 @@ void WebAssemblyCompileStreaming(
   i::Handle<i::Managed<WasmStreaming>> data =
       i::Managed<WasmStreaming>::Allocate(
           i_isolate, 0,
-          base::make_unique<WasmStreaming::WasmStreamingImpl>(isolate,
-                                                              resolver));
+          base::make_unique<WasmStreaming::WasmStreamingImpl>(
+              isolate, kAPIMethodName, resolver));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   ASSIGN(
@@ -828,8 +829,8 @@ void WebAssemblyInstantiateStreaming(
 
   HandleScope scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
-  ScheduledErrorThrower thrower(i_isolate,
-                                "WebAssembly.instantiateStreaming()");
+  const char* const kAPIMethodName = "WebAssembly.instantiateStreaming()";
+  ScheduledErrorThrower thrower(i_isolate, kAPIMethodName);
 
   // Create and assign the return value of this function.
   ASSIGN(Promise::Resolver, result_resolver, Promise::Resolver::New(context));
@@ -873,7 +874,7 @@ void WebAssemblyInstantiateStreaming(
       i::Managed<WasmStreaming>::Allocate(
           i_isolate, 0,
           base::make_unique<WasmStreaming::WasmStreamingImpl>(
-              isolate, compilation_resolver));
+              isolate, kAPIMethodName, compilation_resolver));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   ASSIGN(

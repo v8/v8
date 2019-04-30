@@ -98,6 +98,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   std::shared_ptr<StreamingDecoder> StartStreamingCompilation(
       Isolate* isolate, const WasmFeatures& enabled, Handle<Context> context,
+      const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver);
 
   // Compiles the function with the given index at a specific compilation tier.
@@ -214,7 +215,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   AsyncCompileJob* CreateAsyncCompileJob(
       Isolate* isolate, const WasmFeatures& enabled,
       std::unique_ptr<byte[]> bytes_copy, size_t length,
-      Handle<Context> context,
+      Handle<Context> context, const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver);
 
   void TriggerGC();

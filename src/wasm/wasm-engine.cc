@@ -330,9 +330,10 @@ void WasmEngine::AsyncCompile(
     Isolate* isolate, const WasmFeatures& enabled,
     std::shared_ptr<CompilationResultResolver> resolver,
     const ModuleWireBytes& bytes, bool is_shared) {
+  const char* const kAPIMethodName = "WebAssembly.compile()";
   if (!FLAG_wasm_async_compilation) {
     // Asynchronous compilation disabled; fall back on synchronous compilation.
-    ErrorThrower thrower(isolate, "WasmCompile");
+    ErrorThrower thrower(isolate, kAPIMethodName);
     MaybeHandle<WasmModuleObject> module_object;
     if (is_shared) {
       // Make a copy of the wire bytes to avoid concurrent modification.
@@ -357,7 +358,7 @@ void WasmEngine::AsyncCompile(
     std::shared_ptr<StreamingDecoder> streaming_decoder =
         StartStreamingCompilation(isolate, enabled,
                                   handle(isolate->context(), isolate),
-                                  std::move(resolver));
+                                  kAPIMethodName, std::move(resolver));
     streaming_decoder->OnBytesReceived(bytes.module_bytes());
     streaming_decoder->Finish();
     return;
@@ -369,16 +370,17 @@ void WasmEngine::AsyncCompile(
 
   AsyncCompileJob* job = CreateAsyncCompileJob(
       isolate, enabled, std::move(copy), bytes.length(),
-      handle(isolate->context(), isolate), std::move(resolver));
+      handle(isolate->context(), isolate), kAPIMethodName, std::move(resolver));
   job->Start();
 }
 
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
     Isolate* isolate, const WasmFeatures& enabled, Handle<Context> context,
+    const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
   AsyncCompileJob* job =
       CreateAsyncCompileJob(isolate, enabled, std::unique_ptr<byte[]>(nullptr),
-                            0, context, std::move(resolver));
+                            0, context, api_method_name, std::move(resolver));
   return job->CreateStreamingDecoder();
 }
 
@@ -444,10 +446,11 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     Isolate* isolate, const WasmFeatures& enabled,
     std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
+    const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
   AsyncCompileJob* job =
       new AsyncCompileJob(isolate, enabled, std::move(bytes_copy), length,
-                          context, std::move(resolver));
+                          context, api_method_name, std::move(resolver));
   // Pass ownership to the unique_ptr in {async_compile_jobs_}.
   base::MutexGuard guard(&mutex_);
   async_compile_jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);

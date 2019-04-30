@@ -13,7 +13,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let bytes = builder.toBuffer();
   assertPromiseResult(WebAssembly.compileStreaming(Promise.resolve(bytes))
     .then(assertUnreachable,
-          error => assertEquals("WebAssembly.compile(): function body must " +
-                                "end with \"end\" opcode @+26",
+          error => assertEquals("WebAssembly.compileStreaming(): function " +
+                                "body must end with \"end\" opcode @+26",
                                 error.message)));
 })();

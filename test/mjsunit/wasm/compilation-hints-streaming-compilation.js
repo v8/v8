@@ -48,8 +48,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes),
                                                        {mod: {pow: Math.pow}})
     .then(assertUnreachable,
-          error => assertEquals("WebAssembly.compile(): Invalid compilation " +
-                                "hint 0x2d (forbidden downgrade) @+78",
+          error => assertEquals("WebAssembly.instantiateStreaming(): Invalid " +
+                                "compilation hint 0x2d (forbidden downgrade) " +
+                                "@+78",
                                 error.message)));
 })();
 
@@ -73,8 +74,10 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes),
                                                        {mod: {pow: Math.pow}})
     .then(assertUnreachable,
-          error => assertEquals("WebAssembly.compile(): call[1] expected " +
-          "type f32, found get_local of type i32 @+94", error.message)));
+          error => assertEquals("WebAssembly.instantiateStreaming(): call[1] " +
+                                "expected type f32, found get_local of type " +
+                                "i32 @+94",
+                                error.message)));
 })();
 
 (function testInstantiateStreamingEmptyModule() {

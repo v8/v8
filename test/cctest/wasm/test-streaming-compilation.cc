@@ -132,6 +132,7 @@ class StreamTester {
 
     stream_ = i_isolate->wasm_engine()->StartStreamingCompilation(
         i_isolate, kAllWasmFeatures, v8::Utils::OpenHandle(*context),
+        "WebAssembly.compileStreaming()",
         std::make_shared<TestResolver>(&state_, &error_message_,
                                        &native_module_));
   }
@@ -1211,8 +1212,8 @@ STREAM_TEST(TestCompileErrorFunctionName) {
 
     CHECK(tester.IsPromiseRejected());
     CHECK_EQ(
-        "CompileError: WebAssembly.compile(): Compiling function #0:\"f\" "
-        "failed: function body must end with \"end\" opcode @+25",
+        "CompileError: WebAssembly.compileStreaming(): Compiling function "
+        "#0:\"f\" failed: function body must end with \"end\" opcode @+25",
         tester.error_message());
   }
 }

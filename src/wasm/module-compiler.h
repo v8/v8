@@ -66,7 +66,7 @@ class AsyncCompileJob {
  public:
   AsyncCompileJob(Isolate* isolate, const WasmFeatures& enabled_features,
                   std::unique_ptr<byte[]> bytes_copy, size_t length,
-                  Handle<Context> context,
+                  Handle<Context> context, const char* api_method_name,
                   std::shared_ptr<CompilationResultResolver> resolver);
   ~AsyncCompileJob();
 
@@ -148,6 +148,7 @@ class AsyncCompileJob {
   void NextStep(Args&&... args);
 
   Isolate* const isolate_;
+  const char* const api_method_name_;
   const WasmFeatures enabled_features_;
   const bool wasm_lazy_compilation_;
   // Copy of the module wire bytes, moved into the {native_module_} on its

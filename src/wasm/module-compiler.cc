@@ -1114,8 +1114,10 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 AsyncCompileJob::AsyncCompileJob(
     Isolate* isolate, const WasmFeatures& enabled,
     std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
+    const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver)
     : isolate_(isolate),
+      api_method_name_(api_method_name),
       enabled_features_(enabled),
       wasm_lazy_compilation_(FLAG_wasm_lazy_compilation),
       bytes_copy_(std::move(bytes_copy)),
@@ -1282,7 +1284,7 @@ void AsyncCompileJob::FinishCompile() {
 }
 
 void AsyncCompileJob::DecodeFailed(const WasmError& error) {
-  ErrorThrower thrower(isolate_, "WebAssembly.compile()");
+  ErrorThrower thrower(isolate_, api_method_name_);
   thrower.CompileFailed(error);
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
@@ -1291,7 +1293,7 @@ void AsyncCompileJob::DecodeFailed(const WasmError& error) {
 }
 
 void AsyncCompileJob::AsyncCompileFailed() {
-  ErrorThrower thrower(isolate_, "WebAssembly.compile()");
+  ErrorThrower thrower(isolate_, api_method_name_);
   DCHECK_EQ(native_module_->module()->origin, kWasmOrigin);
   const bool lazy_module = wasm_lazy_compilation_;
   ValidateSequentially(native_module_->module(), native_module_.get(),
