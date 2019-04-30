@@ -126,17 +126,8 @@ uint32_t WasmCode::code_comments_size() const {
   return static_cast<uint32_t>(unpadded_binary_size_ - code_comments_offset_);
 }
 
-size_t WasmCode::trap_handler_index() const {
-  CHECK(HasTrapHandlerIndex());
-  return static_cast<size_t>(trap_handler_index_);
-}
-
-void WasmCode::set_trap_handler_index(size_t value) {
-  trap_handler_index_ = value;
-}
-
 void WasmCode::RegisterTrapHandlerData() {
-  DCHECK(!HasTrapHandlerIndex());
+  DCHECK(!has_trap_handler_index());
   if (kind() != WasmCode::kFunction) return;
   if (protected_instructions_.empty()) return;
 
@@ -149,10 +140,9 @@ void WasmCode::RegisterTrapHandlerData() {
 
   // TODO(eholk): if index is negative, fail.
   CHECK_LE(0, index);
-  set_trap_handler_index(static_cast<size_t>(index));
+  set_trap_handler_index(index);
+  DCHECK(has_trap_handler_index());
 }
-
-bool WasmCode::HasTrapHandlerIndex() const { return trap_handler_index_ >= 0; }
 
 bool WasmCode::ShouldBeLogged(Isolate* isolate) {
   // The return value is cached in {WasmEngine::IsolateData::log_codes}. Ensure
@@ -373,10 +363,8 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
 }
 
 WasmCode::~WasmCode() {
-  if (HasTrapHandlerIndex()) {
-    CHECK_LT(trap_handler_index(),
-             static_cast<size_t>(std::numeric_limits<int>::max()));
-    trap_handler::ReleaseHandlerData(static_cast<int>(trap_handler_index()));
+  if (has_trap_handler_index()) {
+    trap_handler::ReleaseHandlerData(trap_handler_index());
   }
 }
 

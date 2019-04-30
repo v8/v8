@@ -213,9 +213,15 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   // Code objects that have been registered with the global trap handler within
   // this process, will have a {trap_handler_index} associated with them.
-  size_t trap_handler_index() const;
-  void set_trap_handler_index(size_t);
-  bool HasTrapHandlerIndex() const;
+  int trap_handler_index() const {
+    CHECK(has_trap_handler_index());
+    return trap_handler_index_;
+  }
+  void set_trap_handler_index(int value) {
+    CHECK(!has_trap_handler_index());
+    trap_handler_index_ = value;
+  }
+  bool has_trap_handler_index() const { return trap_handler_index_ >= 0; }
 
   // Register protected instruction information with the trap handler. Sets
   // trap_handler_index.
@@ -243,7 +249,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   size_t handler_table_offset_ = 0;
   size_t code_comments_offset_ = 0;
   size_t unpadded_binary_size_ = 0;
-  intptr_t trap_handler_index_ = -1;
+  int trap_handler_index_ = -1;
   OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions_;
   ExecutionTier tier_;
 
