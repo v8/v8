@@ -19,7 +19,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates-inl.h"
 #include "src/property.h"
-#include "src/transitions.h"
+#include "src/transitions-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
