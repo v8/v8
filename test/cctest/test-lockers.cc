@@ -157,6 +157,7 @@ TEST(LazyDeoptimizationMultithread) {
         "function f() { g(); return obj.x; }"
         "function g() { if (b) { unlock_for_deoptimization(); } }"
         "%NeverOptimizeFunction(g);"
+        "%PrepareFunctionForOptimization(f);"
         "f(); f(); %OptimizeFunctionOnNextCall(f);"
         "f();");
 
@@ -212,6 +213,7 @@ TEST(LazyDeoptimizationMultithreadWithNatives) {
         "function g() { "
         "  unlock_for_deoptimization(); }"
         "%NeverOptimizeFunction(g);"
+        "%PrepareFunctionForOptimization(f);"
         "f(); f(); %OptimizeFunctionOnNextCall(f);");
 
     // Trigger the unlocking.
@@ -262,6 +264,7 @@ TEST(EagerDeoptimizationMultithread) {
     // Optimizes a function f, which will be deoptimized by another thread.
     CompileRun(
         "function f(obj) { unlock_for_deoptimization(); return obj.x; }"
+        "%PrepareFunctionForOptimization(f);"
         "f({x: 1}); f({x: 1});"
         "%OptimizeFunctionOnNextCall(f);"
         "f({x: 1});");

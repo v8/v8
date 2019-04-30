@@ -65,6 +65,7 @@ TEST(DisasmPoisonMonomorphicLoad) {
 
   CompileRun(
       "function mono(o) { return o.x; };"
+      "%PrepareFunctionForOptimization(mono);"
       "mono({ x : 1 });"
       "mono({ x : 1 });"
       "%OptimizeFunctionOnNextCall(mono);"
@@ -146,6 +147,7 @@ TEST(DisasmPoisonPolymorphicLoad) {
       "let o1 = { x : 1 };"
       "let o2 = { y : 1 };"
       "o2.x = 2;"
+      "%PrepareFunctionForOptimization(poly);"
       "poly(o1);"
       "poly(o2);"
       "poly(o1);"

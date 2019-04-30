@@ -55,7 +55,8 @@ UNINITIALIZED_TEST(StackUnwindingWinX64) {
       "    var o = instance.foo;\n"
       "    instance.foo = o + 1;\n"
       "  }\n"
-      "}\n";
+      "};\n"
+      "%PrepareFunctionForOptimization(start);\n";
 
   // This test may fail on Windows 7
   if (!::IsWindows8OrGreater()) {

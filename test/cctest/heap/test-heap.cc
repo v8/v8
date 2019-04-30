@@ -1250,7 +1250,9 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   // the function is enqueued as a candidate.
   {
     v8::HandleScope scope(CcTest::isolate());
-    CompileRun("%OptimizeFunctionOnNextCall(foo); foo();");
+    CompileRun(
+        "%PrepareFunctionForOptimization(foo);"
+        "%OptimizeFunctionOnNextCall(foo); foo();");
   }
 
   // Simulate one final GC and make sure the candidate wasn't flushed.
@@ -1277,7 +1279,8 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
       "function make_closure(x) {"
       "  return function() { return x + 3 };"
       "}"
-      "var f = make_closure(5); f();"
+      "var f = make_closure(5);"
+      "%PrepareFunctionForOptimization(f); f();"
       "var g = make_closure(5);");
 
   // Check f is compiled.
@@ -1381,10 +1384,11 @@ static void OptimizeEmptyFunction(const char* name) {
   EmbeddedVector<char, 256> source;
   SNPrintF(source,
            "function %s() { return 0; }"
+           "%%PrepareFunctionForOptimization(%s);"
            "%s(); %s();"
            "%%OptimizeFunctionOnNextCall(%s);"
            "%s();",
-           name, name, name, name, name);
+           name, name, name, name, name, name);
   CompileRun(source.begin());
 }
 
@@ -1983,6 +1987,7 @@ TEST(LeakNativeContextViaMap) {
     CHECK(ctx2->Global()->Set(ctx2, v8_str("o"), v).FromJust());
     v8::Local<v8::Value> res = CompileRun(
         "function f() { return o.x; }"
+        "%PrepareFunctionForOptimization(f);"
         "for (var i = 0; i < 10; ++i) f();"
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
@@ -2032,6 +2037,7 @@ TEST(LeakNativeContextViaFunction) {
     CHECK(ctx2->Global()->Set(ctx2, v8_str("o"), v).FromJust());
     v8::Local<v8::Value> res = CompileRun(
         "function f(x) { return x(); }"
+        "%PrepareFunctionForOptimization(f);"
         "for (var i = 0; i < 10; ++i) f(o);"
         "%OptimizeFunctionOnNextCall(f);"
         "f(o);");
@@ -2079,6 +2085,7 @@ TEST(LeakNativeContextViaMapKeyed) {
     CHECK(ctx2->Global()->Set(ctx2, v8_str("o"), v).FromJust());
     v8::Local<v8::Value> res = CompileRun(
         "function f() { return o[0]; }"
+        "%PrepareFunctionForOptimization(f);"
         "for (var i = 0; i < 10; ++i) f();"
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
@@ -2130,6 +2137,7 @@ TEST(LeakNativeContextViaMapProto) {
         "  p.__proto__ = o;"
         "  return p.x;"
         "}"
+        "%PrepareFunctionForOptimization(f);"
         "for (var i = 0; i < 10; ++i) f();"
         "%OptimizeFunctionOnNextCall(f);"
         "f();");
@@ -2171,6 +2179,7 @@ TEST(InstanceOfStubWriteBarrier) {
         "function mkbar () { return new (new Function(\"\")) (); }"
         "function f (x) { return (x instanceof foo); }"
         "function g () { f(mkbar()); }"
+        "%PrepareFunctionForOptimization(f);"
         "f(new foo()); f(new foo());"
         "%OptimizeFunctionOnNextCall(f);"
         "f(new foo()); g();");
@@ -2324,6 +2333,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
       "  }"
       "}"
       "function f(x) { return new c(x); };"
+      "%PrepareFunctionForOptimization(f);"
       "f(1); f(2); f(3);"
       "%OptimizeFunctionOnNextCall(f);"
       "f(4);");
@@ -2366,6 +2376,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
               "  }"
               "  return elements[number_elements-1]"
               "};"
+              "%%PrepareFunctionForOptimization(f);"
               "f(); gc();"
               "f(); f();"
               "%%OptimizeFunctionOnNextCall(f);"
@@ -2419,6 +2430,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
               "  }"
               "  return elements[number_elements - 1];"
               "};"
+              "%%PrepareFunctionForOptimization(f);"
               "f(); gc();"
               "f(); f();"
               "%%OptimizeFunctionOnNextCall(f);"
@@ -2462,6 +2474,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
               "  }"
               "  return elements[number_elements-1];"
               "};"
+              "%%PrepareFunctionForOptimization(f);"
               "f(); gc(); gc();"
               "f(); f();"
               "%%OptimizeFunctionOnNextCall(f);"
@@ -2504,6 +2517,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
               "  }"
               "  return elements[number_elements - 1];"
               "};"
+              "%%PrepareFunctionForOptimization(f);"
               "f(); gc();"
               "f(); f();"
               "%%OptimizeFunctionOnNextCall(f);"
@@ -2561,6 +2575,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
               "  }"
               "  return elements[i - 1];"
               "};"
+              "%%PrepareFunctionForOptimization(f);"
               "f(); gc();"
               "f(); f();"
               "%%OptimizeFunctionOnNextCall(f);"
@@ -2603,6 +2618,7 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
               "  }"
               "  return elements[number_elements - 1];"
               "};"
+              "%%PrepareFunctionForOptimization(f);"
               "f(); gc();"
               "f(); f();"
               "%%OptimizeFunctionOnNextCall(f);"
@@ -2644,6 +2660,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
               "  }"
               "  return elements[number_elements - 1];"
               "};"
+              "%%PrepareFunctionForOptimization(f);"
               "f(); gc();"
               "f(); f();"
               "%%OptimizeFunctionOnNextCall(f);"
@@ -2696,6 +2713,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
               "  }"
               "  return elements[number_elements - 1];"
               "};"
+              "%%PrepareFunctionForOptimization(f);"
               "f(); gc();"
               "f(); f();"
               "%%OptimizeFunctionOnNextCall(f);"
@@ -2748,6 +2766,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
               "  }"
               "  return elements[number_elements - 1];"
               "};"
+              "%%PrepareFunctionForOptimization(f);"
               "f(); gc();"
               "f(); f();"
               "%%OptimizeFunctionOnNextCall(f);"
@@ -2791,6 +2810,7 @@ TEST(OptimizedAllocationArrayLiterals) {
       "  numbers[0] = 3.14;"
       "  return numbers;"
       "};"
+      "%PrepareFunctionForOptimization(f);"
       "f(); f(); f();"
       "%OptimizeFunctionOnNextCall(f);"
       "f();");
@@ -3474,19 +3494,20 @@ TEST(DetailedErrorStackTrace) {
 TEST(DetailedErrorStackTraceInline) {
   FLAG_allow_natives_syntax = true;
   static const char* source =
-      "function add(x) {                 "
-      " if (x == 42)                     "
-      "  throw new Error();              "
-      " return x + x;                    "
-      "}                                 "
-      "add(0);                           "
-      "add(1);                           "
-      "function foo(x) {                 "
-      " return add(x + 1)                "
-      "}                                 "
-      "foo(40);                          "
-      "%OptimizeFunctionOnNextCall(foo); "
-      "foo(41);                          ";
+      "function add(x) {                     "
+      " if (x == 42)                         "
+      "  throw new Error();                  "
+      " return x + x;                        "
+      "}                                     "
+      "add(0);                               "
+      "add(1);                               "
+      "function foo(x) {                     "
+      " return add(x + 1)                    "
+      "}                                     "
+      "%PrepareFunctionForOptimization(foo); "
+      "foo(40);                              "
+      "%OptimizeFunctionOnNextCall(foo);     "
+      "foo(41);                              ";
 
   DetailedErrorStackTraceTest(source, [](Handle<FrameArray> stack_trace) {
     FixedArray parameters_add = stack_trace->Parameters(0);
@@ -3702,17 +3723,19 @@ TEST(DisableInlineAllocation) {
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
-  CompileRun("function test() {"
-             "  var x = [];"
-             "  for (var i = 0; i < 10; i++) {"
-             "    x[i] = [ {}, [1,2,3], [1,x,3] ];"
-             "  }"
-             "}"
-             "function run() {"
-             "  %OptimizeFunctionOnNextCall(test);"
-             "  test();"
-             "  %DeoptimizeFunction(test);"
-             "}");
+  CompileRun(
+      "function test() {"
+      "  var x = [];"
+      "  for (var i = 0; i < 10; i++) {"
+      "    x[i] = [ {}, [1,2,3], [1,x,3] ];"
+      "  }"
+      "}"
+      "function run() {"
+      "  %PrepareFunctionForOptimization(test);"
+      "  %OptimizeFunctionOnNextCall(test);"
+      "  test();"
+      "  %DeoptimizeFunction(test);"
+      "}");
 
   // Warm-up with inline allocation enabled.
   CompileRun("test(); test(); run();");
@@ -3771,10 +3794,12 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     v8::HandleScope scope(context->GetIsolate());
 
     int count = AllocationSitesCount(heap);
-    CompileRun("var bar = function() { return (new Array()); };"
-               "var a = bar();"
-               "bar();"
-               "bar();");
+    CompileRun(
+        "var bar = function() { return (new Array()); };"
+        "%PrepareFunctionForOptimization(bar);"
+        "var a = bar();"
+        "bar();"
+        "bar();");
 
     // One allocation site should have been created.
     int new_count = AllocationSitesCount(heap);
@@ -3991,6 +4016,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
         "  function bar() {"
         "    return foo(1);"
         "  };"
+        "  %PrepareFunctionForOptimization(bar);"
         "  var foo = function(x) { with (x) { return 1 + x; } };"
         "  %NeverOptimizeFunction(foo);"
         "  bar(foo);"
@@ -4035,6 +4061,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
         "function bar() {"
         "  return foo(1);"
         "};"
+        "%PrepareFunctionForOptimization(bar);"
         "function foo(x) { with (x) { return 1 + x; } };"
         "%NeverOptimizeFunction(foo);"
         "bar();"
@@ -4081,6 +4108,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
         "  function bar_func() {"
         "    return foo(1);"
         "  };"
+        "  %PrepareFunctionForOptimization(bar_func);"
         "  bar = bar_func;"
         "  foo = foo_func;"
         "  bar_func();"
@@ -4140,6 +4168,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
         "};"
         "function foo(x) { with (x) { return 1 + x; } };"
         "%NeverOptimizeFunction(foo);"
+        "%PrepareFunctionForOptimization(bar);"
         "bar();"
         "bar();"
         "bar();"
@@ -4169,10 +4198,12 @@ static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,
                                                 const char* name) {
   EmbeddedVector<char, 256> source;
   SNPrintF(source,
-          "function %s() { return 0; }"
-          "%s(); %s();"
-          "%%OptimizeFunctionOnNextCall(%s);"
-          "%s();", name, name, name, name, name);
+           "function %s() { return 0; }"
+           "%%PrepareFunctionForOptimization(%s);"
+           "%s(); %s();"
+           "%%OptimizeFunctionOnNextCall(%s);"
+           "%s();",
+           name, name, name, name, name, name);
   CompileRun(source.begin());
   i::Handle<JSFunction> fun = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -4672,6 +4703,7 @@ TEST(AddInstructionChangesNewSpacePromotion) {
       "  oldSpaceObject = object;"
       "  return object;"
       "}"
+      "%PrepareFunctionForOptimization(crash);"
       "crash(1);"
       "crash(1);"
       "%OptimizeFunctionOnNextCall(crash);"

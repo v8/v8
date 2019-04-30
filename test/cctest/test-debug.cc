@@ -710,6 +710,7 @@ TEST(BreakPointInlinedBuiltin) {
   builtin = CompileRun("Math.sin").As<v8::Function>();
   CompileRun("function test(x) { return 1 + Math.sin(x) }");
   CompileRun(
+      "%PrepareFunctionForOptimization(test);"
       "test(0.5); test(0.6);"
       "%OptimizeFunctionOnNextCall(test); test(0.7);");
   CHECK_EQ(0, break_point_hit_count);
@@ -722,7 +723,9 @@ TEST(BreakPointInlinedBuiltin) {
   CHECK_EQ(2, break_point_hit_count);
 
   // Re-optimize.
-  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun(
+      "%PrepareFunctionForOptimization(test);"
+      "%OptimizeFunctionOnNextCall(test);");
   ExpectBoolean("test(0.3) < 2", true);
   CHECK_EQ(3, break_point_hit_count);
 
@@ -755,6 +758,7 @@ TEST(BreakPointInlineBoundBuiltin) {
                 .As<v8::Function>();
   CompileRun("function test(x) { return 'a' + boundrepeat(x) }");
   CompileRun(
+      "%PrepareFunctionForOptimization(test);"
       "test(4); test(5);"
       "%OptimizeFunctionOnNextCall(test); test(6);");
   CHECK_EQ(0, break_point_hit_count);
@@ -767,7 +771,9 @@ TEST(BreakPointInlineBoundBuiltin) {
   CHECK_EQ(2, break_point_hit_count);
 
   // Re-optimize.
-  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun(
+      "%PrepareFunctionForOptimization(f);"
+      "%OptimizeFunctionOnNextCall(test);");
   CompileRun("test(8);");
   CHECK_EQ(3, break_point_hit_count);
 
@@ -797,6 +803,7 @@ TEST(BreakPointInlinedConstructorBuiltin) {
   builtin = CompileRun("Promise").As<v8::Function>();
   CompileRun("function test(x) { return new Promise(()=>x); }");
   CompileRun(
+      "%PrepareFunctionForOptimization(test);"
       "test(4); test(5);"
       "%OptimizeFunctionOnNextCall(test); test(6);");
   CHECK_EQ(0, break_point_hit_count);
@@ -809,7 +816,9 @@ TEST(BreakPointInlinedConstructorBuiltin) {
   CHECK_EQ(2, break_point_hit_count);
 
   // Re-optimize.
-  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun(
+      "%PrepareFunctionForOptimization(f);"
+      "%OptimizeFunctionOnNextCall(test);");
   CompileRun("test(8);");
   CHECK_EQ(3, break_point_hit_count);
 
@@ -840,6 +849,7 @@ TEST(BreakPointBuiltinConcurrentOpt) {
   CompileRun("function test(x) { return 1 + Math.sin(x) }");
   // Trigger concurrent compile job. It is suspended until unblock.
   CompileRun(
+      "%PrepareFunctionForOptimization(test);"
       "test(0.5); test(0.6);"
       "%OptimizeFunctionOnNextCall(test, 'concurrent'); test(0.7);");
   CHECK_EQ(0, break_point_hit_count);
@@ -878,6 +888,7 @@ TEST(BreakPointBuiltinTFOperator) {
   builtin = CompileRun("String.prototype.indexOf").As<v8::Function>();
   CompileRun("function test(x) { return 1 + 'foo'.indexOf(x) }");
   CompileRun(
+      "%PrepareFunctionForOptimization(f);"
       "test('a'); test('b');"
       "%OptimizeFunctionOnNextCall(test); test('c');");
   CHECK_EQ(0, break_point_hit_count);
@@ -890,7 +901,9 @@ TEST(BreakPointBuiltinTFOperator) {
   CHECK_EQ(2, break_point_hit_count);
 
   // Re-optimize.
-  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun(
+      "%PrepareFunctionForOptimization(f);"
+      "%OptimizeFunctionOnNextCall(test);");
   CompileRun("test('e');");
   CHECK_EQ(3, break_point_hit_count);
 
@@ -1210,7 +1223,9 @@ TEST(BreakPointInlineApiFunction) {
       function_template->GetFunction(env.local()).ToLocalChecked();
 
   env->Global()->Set(env.local(), v8_str("f"), function).ToChecked();
-  CompileRun("function g() { return 1 +  f(); }");
+  CompileRun(
+      "function g() { return 1 +  f(); };"
+      "%PrepareFunctionForOptimization(g);");
 
   // === Test simple builtin ===
   break_point_hit_count = 0;
@@ -1381,6 +1396,7 @@ TEST(BreakPointInlining) {
       CompileRun("function f(x) { return x*2; } f").As<v8::Function>();
   CompileRun("function test(x) { return 1 + f(x) }");
   CompileRun(
+      "%PrepareFunctionForOptimization(test);"
       "test(0.5); test(0.6);"
       "%OptimizeFunctionOnNextCall(test); test(0.7);");
   CHECK_EQ(0, break_point_hit_count);
@@ -1393,7 +1409,9 @@ TEST(BreakPointInlining) {
   CHECK_EQ(2, break_point_hit_count);
 
   // Re-optimize.
-  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun(
+      "%PrepareFunctionForOptimization(test);"
+      "%OptimizeFunctionOnNextCall(test);");
   CompileRun("test(0.3);");
   CHECK_EQ(3, break_point_hit_count);
 
@@ -3575,7 +3593,7 @@ class DebugBreakInlineListener : public v8::debug::DebugDelegate {
                              const std::vector<v8::debug::BreakpointId>&
                                  inspector_break_points_hit) override {
     int expected_frame_count = 4;
-    int expected_line_number[] = {1, 4, 7, 12};
+    int expected_line_number[] = {1, 4, 7, 13};
 
     int frame_count = 0;
     auto iterator = v8::debug::StackTraceIterator::Create(CcTest::isolate());
@@ -3593,18 +3611,19 @@ TEST(DebugBreakInline) {
   v8::HandleScope scope(env->GetIsolate());
   v8::Local<v8::Context> context = env.local();
   const char* source =
-      "function debug(b) {             \n"
-      "  if (b) debugger;              \n"
-      "}                               \n"
-      "function f(b) {                 \n"
-      "  debug(b)                      \n"
-      "};                              \n"
-      "function g(b) {                 \n"
-      "  f(b);                         \n"
-      "};                              \n"
-      "g(false);                       \n"
-      "g(false);                       \n"
-      "%OptimizeFunctionOnNextCall(g); \n"
+      "function debug(b) {                 \n"
+      "  if (b) debugger;                  \n"
+      "}                                   \n"
+      "function f(b) {                     \n"
+      "  debug(b)                          \n"
+      "};                                  \n"
+      "function g(b) {                     \n"
+      "  f(b);                             \n"
+      "};                                  \n"
+      "%PrepareFunctionForOptimization(g); \n"
+      "g(false);                           \n"
+      "g(false);                           \n"
+      "%OptimizeFunctionOnNextCall(g);     \n"
       "g(true);";
   DebugBreakInlineListener delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);

@@ -114,7 +114,8 @@ const char* foo_source = R"(
     let y = x ^ b;
     let z = y / a;
     return x + y - z;
-  }
+  };
+  %PrepareFunctionForOptimization(foo);
   foo(1, 2);
   foo(1, 2);
   %OptimizeFunctionOnNextCall(foo);

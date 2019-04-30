@@ -304,9 +304,11 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
 
   // Make sure function f has a call that uses a type feedback slot.
-  CompileRun("function fun() {};"
-             "fun1 = fun;"
-             "function f(a) { a(); } f(fun1);");
+  CompileRun(
+      "function fun() {};"
+      "fun1 = fun;"
+      "%PrepareFunctionForOptimization(f);"
+      "function f(a) { a(); } f(fun1);");
 
   Handle<JSFunction> f = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -391,6 +393,7 @@ TEST(OptimizedCodeSharing1) {
         "var closure0 = MakeClosure();"
         "var closure1 = MakeClosure();"  // We only share optimized code
                                          // if there are at least two closures.
+        "%PrepareFunctionForOptimization(closure0);"
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());"
@@ -1008,6 +1011,7 @@ TEST(DecideToPretenureDuringCompilation) {
           "    foo(shouldKeep);"
           "  }"
           "}"
+          "%PrepareFunctionForOptimization(bar);"
           "bar();");
 
       // This number should be >= kPretenureRatio * 10000,
@@ -1031,7 +1035,9 @@ TEST(DecideToPretenureDuringCompilation) {
 
       // Check `bar` can get optimized again, meaning the compiler state is
       // recoverable from this point.
-      CompileRun("%OptimizeFunctionOnNextCall(bar);");
+      CompileRun(
+          "%PrepareFunctionForOptimization(bar);"
+          "%OptimizeFunctionOnNextCall(bar);");
       CompileRun("bar();");
 
       Handle<Object> foo_obj =

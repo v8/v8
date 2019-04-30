@@ -734,6 +734,7 @@ TEST(BailoutReason) {
   USE(i_function);
 
   CompileRun(
+      "%PrepareFunctionForOptimization(Debugger);"
       "%OptimizeFunctionOnNextCall(Debugger);"
       "%NeverOptimizeFunction(Debugger);"
       "Debugger();"

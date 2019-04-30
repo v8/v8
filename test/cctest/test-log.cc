@@ -600,6 +600,7 @@ UNINITIALIZED_TEST(LogAll) {
         let result;
 
         // Warm up the ICs.
+        %PrepareFunctionForOptimization(testAddFn);
         for (let i = 0; i < 100000; i++) {
           result = testAddFn(i, i);
         };

@@ -1112,13 +1112,17 @@ static void TickLines(bool optimize) {
   i::HandleScope scope(isolate);
 
   i::EmbeddedVector<char, 512> script;
+  i::EmbeddedVector<char, 64> prepare_opt;
   i::EmbeddedVector<char, 64> optimize_call;
 
   const char* func_name = "func";
   if (optimize) {
+    i::SNPrintF(prepare_opt, "%%PrepareFunctionForOptimization(%s);\n",
+                func_name);
     i::SNPrintF(optimize_call, "%%OptimizeFunctionOnNextCall(%s);\n",
                 func_name);
   } else {
+    prepare_opt[0] = '\0';
     optimize_call[0] = '\0';
   }
   i::SNPrintF(script,
@@ -1130,10 +1134,12 @@ static void TickLines(bool optimize) {
               "    n += m * m * m;\n"
               "  }\n"
               "}\n"
+              "%s"
               "%s();\n"
               "%s"
               "%s();\n",
-              func_name, func_name, optimize_call.begin(), func_name);
+              func_name, prepare_opt.begin(), func_name, optimize_call.begin(),
+              func_name);
 
   CompileRun(script.begin());
 
@@ -1647,12 +1653,6 @@ TEST(JsNativeJsRuntimeJsSampleMultiple) {
 }
 
 static const char* inlining_test_source =
-    "%NeverOptimizeFunction(action);\n"
-    "%NeverOptimizeFunction(start);\n"
-    "level1();\n"
-    "%OptimizeFunctionOnNextCall(level1);\n"
-    "%OptimizeFunctionOnNextCall(level2);\n"
-    "%OptimizeFunctionOnNextCall(level3);\n"
     "var finish = false;\n"
     "function action(n) {\n"
     "  var s = 0;\n"
@@ -1670,7 +1670,16 @@ static const char* inlining_test_source =
     "    level1();\n"
     "  finish = true;\n"
     "  level1();\n"
-    "}";
+    "}"
+    "%PrepareFunctionForOptimization(level1);\n"
+    "%PrepareFunctionForOptimization(level2);\n"
+    "%PrepareFunctionForOptimization(level3);\n"
+    "%NeverOptimizeFunction(action);\n"
+    "%NeverOptimizeFunction(start);\n"
+    "level1();\n"
+    "%OptimizeFunctionOnNextCall(level1);\n"
+    "%OptimizeFunctionOnNextCall(level2);\n"
+    "%OptimizeFunctionOnNextCall(level3);\n";
 
 // The test check multiple entrances/exits between JS and native code.
 //
@@ -1710,15 +1719,6 @@ TEST(Inlining) {
 }
 
 static const char* inlining_test_source2 = R"(
-    %NeverOptimizeFunction(action);
-    %NeverOptimizeFunction(start);
-    level1();
-    level1();
-    %OptimizeFunctionOnNextCall(level1);
-    %OptimizeFunctionOnNextCall(level2);
-    %OptimizeFunctionOnNextCall(level3);
-    %OptimizeFunctionOnNextCall(level4);
-    level1();
     function action(n) {
       var s = 0;
       for (var i = 0; i < n; ++i) s += i*i*i;
@@ -1746,6 +1746,19 @@ static const char* inlining_test_source2 = R"(
       while (--n)
         level1();
     };
+    %NeverOptimizeFunction(action);
+    %NeverOptimizeFunction(start);
+    %PrepareFunctionForOptimization(level1);
+    %PrepareFunctionForOptimization(level2);
+    %PrepareFunctionForOptimization(level3);
+    %PrepareFunctionForOptimization(level4);
+    level1();
+    level1();
+    %OptimizeFunctionOnNextCall(level1);
+    %OptimizeFunctionOnNextCall(level2);
+    %OptimizeFunctionOnNextCall(level3);
+    %OptimizeFunctionOnNextCall(level4);
+    level1();
   )";
 
 // The simulator builds are extremely slow. We run them with fewer iterations.
@@ -1805,33 +1818,33 @@ TEST(Inlining2) {
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* start_node = GetChild(env, root, "start");
 
-  NameLinePair l421_a17[] = {{"level1", 36},
-                             {"level2", 32},
-                             {"level3", 26},
-                             {"level4", 21},
-                             {"action", 17}};
+  NameLinePair l421_a17[] = {{"level1", 27},
+                             {"level2", 23},
+                             {"level3", 17},
+                             {"level4", 12},
+                             {"action", 8}};
   CheckBranch(start_node, l421_a17, arraysize(l421_a17));
-  NameLinePair l422_a17[] = {{"level1", 36},
-                             {"level2", 32},
-                             {"level3", 26},
-                             {"level4", 22},
-                             {"action", 17}};
+  NameLinePair l422_a17[] = {{"level1", 27},
+                             {"level2", 23},
+                             {"level3", 17},
+                             {"level4", 13},
+                             {"action", 8}};
   CheckBranch(start_node, l422_a17, arraysize(l422_a17));
 
-  NameLinePair l421_a18[] = {{"level1", 36},
-                             {"level2", 32},
-                             {"level3", 26},
-                             {"level4", 21},
-                             {"action", 18}};
+  NameLinePair l421_a18[] = {{"level1", 27},
+                             {"level2", 23},
+                             {"level3", 17},
+                             {"level4", 12},
+                             {"action", 9}};
   CheckBranch(start_node, l421_a18, arraysize(l421_a18));
-  NameLinePair l422_a18[] = {{"level1", 36},
-                             {"level2", 32},
-                             {"level3", 26},
-                             {"level4", 22},
-                             {"action", 18}};
+  NameLinePair l422_a18[] = {{"level1", 27},
+                             {"level2", 23},
+                             {"level3", 17},
+                             {"level4", 13},
+                             {"action", 9}};
   CheckBranch(start_node, l422_a18, arraysize(l422_a18));
 
-  NameLinePair action_direct[] = {{"level1", 36}, {"action", 30}};
+  NameLinePair action_direct[] = {{"level1", 27}, {"action", 21}};
   CheckBranch(start_node, action_direct, arraysize(action_direct));
 
   profile->Delete();
@@ -1982,6 +1995,7 @@ TEST(FunctionDetailsInlining) {
       "\n"
       "\n"
       "// Warm up before profiling or the inlining doesn't happen.\n"
+      "%PrepareFunctionForOptimization(alpha);\n"
       "p = alpha(p);\n"
       "p = alpha(p);\n"
       "%OptimizeFunctionOnNextCall(alpha);\n"
@@ -2106,6 +2120,8 @@ TEST(CollectDeoptEvents) {
   const char* source =
       "startProfiling();\n"
       "\n"
+      "%PrepareFunctionForOptimization(opt_function0);\n"
+      "\n"
       "opt_function0(1, 1);\n"
       "\n"
       "%OptimizeFunctionOnNextCall(opt_function0)\n"
@@ -2114,6 +2130,8 @@ TEST(CollectDeoptEvents) {
       "\n"
       "opt_function0(undefined, 1);\n"
       "\n"
+      "%PrepareFunctionForOptimization(opt_function1);\n"
+      "\n"
       "opt_function1(1, 1);\n"
       "\n"
       "%OptimizeFunctionOnNextCall(opt_function1)\n"
@@ -2121,6 +2139,8 @@ TEST(CollectDeoptEvents) {
       "opt_function1(1, 1);\n"
       "\n"
       "opt_function1(NaN, 1);\n"
+      "\n"
+      "%PrepareFunctionForOptimization(opt_function2);\n"
       "\n"
       "opt_function2(1, 1);\n"
       "\n"
@@ -2225,6 +2245,8 @@ TEST(DeoptAtFirstLevelInlinedSource) {
       "\n"
       "startProfiling();\n"
       "\n"
+      "%PrepareFunctionForOptimization(test);\n"
+      "\n"
       "test(10, 10);\n"
       "\n"
       "%OptimizeFunctionOnNextCall(test)\n"
@@ -2295,6 +2317,8 @@ TEST(DeoptAtSecondLevelInlinedSource) {
       "function test1(left, right) { return test2(left, right); } \n"
       "\n"
       "startProfiling();\n"
+      "\n"
+      "%PrepareFunctionForOptimization(test1);\n"
       "\n"
       "test1(10, 10);\n"
       "\n"
@@ -2367,6 +2391,8 @@ TEST(DeoptUntrackedFunction) {
   //   0.........1.........2.........3.........4.........5.........6.........7
   const char* source =
       "function test(left, right) { return opt_function(left, right); }\n"
+      "\n"
+      "%PrepareFunctionForOptimization(test);\n"
       "\n"
       "test(10, 10);\n"
       "\n"
@@ -2521,6 +2547,7 @@ TEST(Issue763073) {
       "function f() { return function g(x) { }; }"
       // Create first closure, optimize it, and deoptimize it.
       "var g = f();"
+      "%PrepareFunctionForOptimization(g);\n"
       "g(1);"
       "%OptimizeFunctionOnNextCall(g);"
       "g(1);"
@@ -2528,6 +2555,7 @@ TEST(Issue763073) {
       // Create second closure, and optimize it. This will create another
       // optimized code object and put in the (shared) type feedback vector.
       "var h = f();"
+      "%PrepareFunctionForOptimization(h);\n"
       "h(1);"
       "%OptimizeFunctionOnNextCall(h);"
       "h(1);");
@@ -2965,6 +2993,7 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI) {
       "  return fib(i - 1) +"
       "         fib(i - 2);"
       "}"
+      "%PrepareFunctionForOptimization(fib);\n"
       "fib(5);"
       "%OptimizeFunctionOnNextCall(fib);"
       "fib(5);"
@@ -3015,6 +3044,7 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
       return x;
     }
 
+    %PrepareFunctionForOptimization(foo);
     foo(5);
     %OptimizeFunctionOnNextCall(foo);
     foo(5);

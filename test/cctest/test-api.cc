@@ -237,7 +237,8 @@ static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
   i::SNPrintF(source,
               "function test() {"
               "  %s"
-              "}"
+              "};"
+              "%%PrepareFunctionForOptimization(test);"
               "try { test() } catch(e) {}"
               "try { test() } catch(e) {}"
               "%%OptimizeFunctionOnNextCall(test);"
@@ -11070,7 +11071,8 @@ THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
             .FromJust());
 
   CompileRun(
-      "function foo(x) { i = x; }"
+      "function foo(x) { i = x; };"
+      "%PrepareFunctionForOptimization(foo);"
       "foo(0)");
 
   i::Handle<i::JSFunction> foo(i::Handle<i::JSFunction>::cast(
@@ -15917,7 +15919,8 @@ static void ObjectWithExternalArrayTestHelper(Local<Context> context,
       "   sum += (ext_array[i] -= 1);"
       " } "
       " return sum;"
-      "}"
+      "};"
+      "%PrepareFunctionForOptimization(ee_op_test_complex_func);"
       "sum=0;"
       "sum=ee_op_test_complex_func(sum);"
       "sum=ee_op_test_complex_func(sum);"
@@ -15934,7 +15937,8 @@ static void ObjectWithExternalArrayTestHelper(Local<Context> context,
       "   sum += (--ext_array[i]);"
       " } "
       " return sum;"
-      "}"
+      "};"
+      "%PrepareFunctionForOptimization(ee_op_test_count_func);"
       "sum=0;"
       "sum=ee_op_test_count_func(sum);"
       "sum=ee_op_test_count_func(sum);"
@@ -17513,7 +17517,8 @@ TEST(PromiseRejectCallbackConstructError) {
   CompileRun(
       "function f(p) {"
       "    p.catch(() => {});"
-      "}"
+      "};"
+      "%PrepareFunctionForOptimization(f);"
       "f(Promise.reject());"
       "f(Promise.reject());"
       "%OptimizeFunctionOnNextCall(f);"
@@ -21948,15 +21953,19 @@ static void CheckInstanceCheckedAccessors(bool expects_callbacks) {
   CheckInstanceCheckedResult(1, 1, expects_callbacks, &try_catch);
 
   // Test path through generated LoadIC and StoredIC.
-  CompileRun("function test_get(o) { o.foo; }"
-             "test_get(obj);");
+  CompileRun(
+      "function test_get(o) { o.foo; };"
+      "%PrepareFunctionForOptimization(test_get);"
+      "test_get(obj);");
   CheckInstanceCheckedResult(2, 1, expects_callbacks, &try_catch);
   CompileRun("test_get(obj);");
   CheckInstanceCheckedResult(3, 1, expects_callbacks, &try_catch);
   CompileRun("test_get(obj);");
   CheckInstanceCheckedResult(4, 1, expects_callbacks, &try_catch);
-  CompileRun("function test_set(o) { o.foo = 23; }"
-             "test_set(obj);");
+  CompileRun(
+      "function test_set(o) { o.foo = 23; }"
+      "%PrepareFunctionForOptimization(test_set);"
+      "test_set(obj);");
   CheckInstanceCheckedResult(4, 2, expects_callbacks, &try_catch);
   CompileRun("test_set(obj);");
   CheckInstanceCheckedResult(4, 3, expects_callbacks, &try_catch);
@@ -22155,6 +22164,7 @@ static void Helper137002(bool do_store,
   CompileRun(do_store ?
              "function f(x) { x.foo = void 0; }" :
              "function f(x) { return x.foo; }");
+  CompileRun("%PrepareFunctionForOptimization(f);");
   CompileRun("obj.y = void 0;");
   if (!interceptor) {
     CompileRun("%OptimizeObjectForAddingMultipleProperties(obj, 1);");
@@ -23088,21 +23098,23 @@ class RequestInterruptTestWithMathAbs
         .FromJust();
 
     i::FLAG_allow_natives_syntax = true;
-    CompileRun("function loopish(o) {"
-               "  var pre = 10;"
-               "  while (o.abs(1) > 0) {"
-               "    if (o.abs(1) >= 0 && !ShouldContinue()) break;"
-               "    if (pre > 0) {"
-               "      if (--pre === 0) WakeUpInterruptor(o === Math);"
-               "    }"
-               "  }"
-               "}"
-               "var i = 50;"
-               "var obj = {abs: function () { return i-- }, x: null};"
-               "delete obj.x;"
-               "loopish(obj);"
-               "%OptimizeFunctionOnNextCall(loopish);"
-               "loopish(Math);");
+    CompileRun(
+        "function loopish(o) {"
+        "  var pre = 10;"
+        "  while (o.abs(1) > 0) {"
+        "    if (o.abs(1) >= 0 && !ShouldContinue()) break;"
+        "    if (pre > 0) {"
+        "      if (--pre === 0) WakeUpInterruptor(o === Math);"
+        "    }"
+        "  }"
+        "};"
+        "%PrepareFunctionForOptimization(loopish);"
+        "var i = 50;"
+        "var obj = {abs: function () { return i-- }, x: null};"
+        "delete obj.x;"
+        "loopish(obj);"
+        "%OptimizeFunctionOnNextCall(loopish);"
+        "loopish(Math);");
 
     i::FLAG_allow_natives_syntax = false;
   }
@@ -23609,13 +23621,15 @@ class ApiCallOptimizationChecker {
                 "function wrap_set() { return wrap_set_%d(); }\n"
                 "check = function(returned) {\n"
                 "  if (returned !== 'returned') { throw returned; }\n"
-                "}\n"
+                "};\n"
                 "\n"
+                "%%PrepareFunctionForOptimization(wrap_f_%d);"
                 "check(wrap_f());\n"
                 "check(wrap_f());\n"
                 "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
                 "check(wrap_f());\n"
                 "\n"
+                "%%PrepareFunctionForOptimization(wrap_get_%d);"
                 "check(wrap_get());\n"
                 "check(wrap_get());\n"
                 "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
@@ -23623,12 +23637,14 @@ class ApiCallOptimizationChecker {
                 "\n"
                 "check = function(returned) {\n"
                 "  if (returned !== 1) { throw returned; }\n"
-                "}\n"
+                "};\n"
+                "%%PrepareFunctionForOptimization(wrap_set_%d);"
                 "check(wrap_set());\n"
                 "check(wrap_set());\n"
                 "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
                 "check(wrap_set());\n",
-                wrap_function.begin(), key, key, key, key, key, key);
+                wrap_function.begin(), key, key, key, key, key, key, key, key,
+                key);
     v8::TryCatch try_catch(isolate);
     CompileRun(source.begin());
     CHECK(!try_catch.HasCaught());
@@ -23666,6 +23682,7 @@ TEST(FunctionCallOptimizationMultipleArgs) {
       "    x(1,2,3);\n"
       "  }\n"
       "}\n"
+      "%PrepareFunctionForOptimization(x_wrap);\n"
       "x_wrap();\n"
       "%OptimizeFunctionOnNextCall(x_wrap);"
       "x_wrap();\n");
@@ -23693,6 +23710,7 @@ TEST(ApiCallbackCanReturnSymbols) {
       "    x();\n"
       "  }\n"
       "}\n"
+      "%PrepareFunctionForOptimization(x_wrap);\n"
       "x_wrap();\n"
       "%OptimizeFunctionOnNextCall(x_wrap);"
       "x_wrap();\n");
@@ -25627,6 +25645,7 @@ TEST(TurboAsmDisablesDetach) {
       "}"
       "var buffer = new ArrayBuffer(4096);"
       "var module = Module(this, {}, buffer);"
+      "%PrepareFunctionForOptimization(module.load);"
       "%OptimizeFunctionOnNextCall(module.load);"
       "module.load();"
       "buffer";
@@ -25643,6 +25662,7 @@ TEST(TurboAsmDisablesDetach) {
       "}"
       "var buffer = new ArrayBuffer(4096);"
       "var module = Module(this, {}, buffer);"
+      "%PrepareFunctionForOptimization(module.store);"
       "%OptimizeFunctionOnNextCall(module.store);"
       "module.store();"
       "buffer";
@@ -25846,6 +25866,7 @@ TEST(ExtrasCreatePromise) {
   CHECK(env->Global()->Set(env.local(), v8_str("func"), func).FromJust());
 
   auto promise = CompileRun(
+                     "%PrepareFunctionForOptimization(func);\n"
                      "func();\n"
                      "func();\n"
                      "%OptimizeFunctionOnNextCall(func);\n"
@@ -25870,6 +25891,7 @@ TEST(ExtrasCreatePromiseWithParent) {
 
   auto promise = CompileRun(
                      "var parent = new Promise((a, b) => {});\n"
+                     "%PrepareFunctionForOptimization(func);\n"
                      "func(parent);\n"
                      "func(parent);\n"
                      "%OptimizeFunctionOnNextCall(func);\n"
@@ -25896,6 +25918,7 @@ TEST(ExtrasRejectPromise) {
                               "function newPromise() {\n"
                               "  return new Promise((a, b) => {});\n"
                               "}\n"
+                              "%PrepareFunctionForOptimization(func);\n"
                               "func(newPromise(), 1);\n"
                               "func(newPromise(), 1);\n"
                               "%OptimizeFunctionOnNextCall(func);\n"
@@ -25925,6 +25948,7 @@ TEST(ExtrasResolvePromise) {
                              "function newPromise() {\n"
                              "  return new Promise((a, b) => {});\n"
                              "}\n"
+                             "%PrepareFunctionForOptimization(func);\n"
                              "func(newPromise(), newPromise());\n"
                              "func(newPromise(), newPromise());\n"
                              "%OptimizeFunctionOnNextCall(func);\n"
@@ -25938,6 +25962,7 @@ TEST(ExtrasResolvePromise) {
                                "function newPromise() {\n"
                                "  return new Promise((a, b) => {});\n"
                                "}\n"
+                               "%PrepareFunctionForOptimization(func);\n"
                                "func(newPromise(), 1);\n"
                                "func(newPromise(), 1);\n"
                                "%OptimizeFunctionOnNextCall(func);\n"

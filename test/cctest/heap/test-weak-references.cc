@@ -606,6 +606,7 @@ TEST(Regress7768) {
   // function ("f"). The weak reference is the only reference to the function.
   CompileRun(
       "function myfunc(f) { f(); } "
+      "%PrepareFunctionForOptimization(myfunc); "
       "(function wrapper() { "
       "   function f() {}; myfunc(f); myfunc(f); "
       "   %OptimizeFunctionOnNextCall(myfunc); myfunc(f); "

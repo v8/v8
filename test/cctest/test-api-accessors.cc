@@ -108,7 +108,8 @@ TEST(CachedAccessorTurboFan) {
       "    x = obj.draft;"
       "  }"
       "  return x;"
-      "}");
+      "};"
+      "%PrepareFunctionForOptimization(f);");
 
   ExpectInt32("f()", 123);
 
@@ -132,7 +133,8 @@ TEST(CachedAccessorTurboFan) {
       "    r = x.draft;"
       "  }"
       "  return r;"
-      "}");
+      "};"
+      "%PrepareFunctionForOptimization(g);");
 
   ExpectInt32("g()", 456);
 
@@ -190,7 +192,8 @@ TEST(CachedAccessorOnGlobalObject) {
         "    x = draft;"
         "  }"
         "  return x;"
-        "}");
+        "}"
+        "%PrepareFunctionForOptimization(f);");
 
     ExpectInt32("f()", 123);
 
@@ -214,7 +217,8 @@ TEST(CachedAccessorOnGlobalObject) {
         "    r = x.draft;"
         "  }"
         "  return r;"
-        "}");
+        "}"
+        "%PrepareFunctionForOptimization(g);");
 
     ExpectInt32("g()", 456);
 
