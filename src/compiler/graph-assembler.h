@@ -284,6 +284,12 @@ class GraphAssembler {
   Node* ExtractCurrentEffect();
 
  private:
+  // Adds a decompression node if pointer compression is enabled and the
+  // representation loaded is a compressed one. To be used after loads.
+  Node* InsertDecompressionIfNeeded(MachineRepresentation rep, Node* value);
+  // Adds a compression node if pointer compression is enabled and the
+  // representation to be stored is a compressed one. To be used before stores.
+  Node* InsertCompressionIfNeeded(MachineRepresentation rep, Node* value);
   template <typename... Vars>
   void MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label, Vars... vars);
 
