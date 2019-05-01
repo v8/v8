@@ -145,7 +145,6 @@ bool Serializer::SerializeHotObject(HeapObject obj) {
     obj->ShortPrint();
     PrintF("\n");
   }
-  // TODO(ishell): remove kHotObjectWithSkip
   sink_.Put(kHotObject + index, "HotObject");
   return true;
 }
