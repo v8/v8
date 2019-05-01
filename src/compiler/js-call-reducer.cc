@@ -56,8 +56,11 @@ class MapInference {
   // Is there any information at all?
   V8_WARN_UNUSED_RESULT bool HaveMaps() const;
 
-  // This query doesn't require a guard.
+  // These queries don't require a guard.
+  //
   V8_WARN_UNUSED_RESULT bool AllOfInstanceTypesAreJSReceiver() const;
+  // Here, {type} must not be a String type.
+  V8_WARN_UNUSED_RESULT bool AllOfInstanceTypesAre(InstanceType type) const;
 
   // These queries require a guard. (Even instance types are generally not
   // reliable because of how the representation of a string can change.)
@@ -137,6 +140,12 @@ bool MapInference::HaveMaps() const { return !maps_.empty(); }
 
 bool MapInference::AllOfInstanceTypesAreJSReceiver() const {
   return AllOfInstanceTypesUnsafe(InstanceTypeChecker::IsJSReceiver);
+}
+
+bool MapInference::AllOfInstanceTypesAre(InstanceType type) const {
+  CHECK(!InstanceTypeChecker::IsString(type));
+  return AllOfInstanceTypesUnsafe(
+      [type](InstanceType other) { return type == other; });
 }
 
 bool MapInference::AllOfInstanceTypes(std::function<bool(InstanceType)> f) {
@@ -5333,68 +5342,70 @@ Reduction JSCallReducer::ReduceStringIteratorPrototypeNext(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-  if (NodeProperties::HasInstanceTypeWitness(broker(), receiver, effect,
-                                             JS_STRING_ITERATOR_TYPE)) {
-    Node* string = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSStringIteratorString()),
-        receiver, effect, control);
-    Node* index = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSStringIteratorIndex()),
-        receiver, effect, control);
-    Node* length = graph()->NewNode(simplified()->StringLength(), string);
 
-    // branch0: if (index < length)
-    Node* check0 =
-        graph()->NewNode(simplified()->NumberLessThan(), index, length);
-    Node* branch0 =
-        graph()->NewNode(common()->Branch(BranchHint::kNone), check0, control);
-
-    Node* etrue0 = effect;
-    Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-    Node* done_true;
-    Node* vtrue0;
-    {
-      done_true = jsgraph()->FalseConstant();
-      Node* codepoint = etrue0 = graph()->NewNode(
-          simplified()->StringCodePointAt(UnicodeEncoding::UTF16), string,
-          index, etrue0, if_true0);
-      vtrue0 = graph()->NewNode(
-          simplified()->StringFromSingleCodePoint(UnicodeEncoding::UTF16),
-          codepoint);
-
-      // Update iterator.[[NextIndex]]
-      Node* char_length =
-          graph()->NewNode(simplified()->StringLength(), vtrue0);
-      index = graph()->NewNode(simplified()->NumberAdd(), index, char_length);
-      etrue0 = graph()->NewNode(
-          simplified()->StoreField(AccessBuilder::ForJSStringIteratorIndex()),
-          receiver, index, etrue0, if_true0);
-    }
-
-    Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
-    Node* done_false;
-    Node* vfalse0;
-    {
-      vfalse0 = jsgraph()->UndefinedConstant();
-      done_false = jsgraph()->TrueConstant();
-    }
-
-    control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
-    effect = graph()->NewNode(common()->EffectPhi(2), etrue0, effect, control);
-    Node* value =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                         vtrue0, vfalse0, control);
-    Node* done =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                         done_true, done_false, control);
-
-    value = effect = graph()->NewNode(javascript()->CreateIterResultObject(),
-                                      value, done, context, effect);
-
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() ||
+      !inference.AllOfInstanceTypesAre(JS_STRING_ITERATOR_TYPE)) {
+    return inference.NoChange();
   }
-  return NoChange();
+
+  Node* string = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSStringIteratorString()),
+      receiver, effect, control);
+  Node* index = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSStringIteratorIndex()),
+      receiver, effect, control);
+  Node* length = graph()->NewNode(simplified()->StringLength(), string);
+
+  // branch0: if (index < length)
+  Node* check0 =
+      graph()->NewNode(simplified()->NumberLessThan(), index, length);
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kNone), check0, control);
+
+  Node* etrue0 = effect;
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* done_true;
+  Node* vtrue0;
+  {
+    done_true = jsgraph()->FalseConstant();
+    Node* codepoint = etrue0 = graph()->NewNode(
+        simplified()->StringCodePointAt(UnicodeEncoding::UTF16), string, index,
+        etrue0, if_true0);
+    vtrue0 = graph()->NewNode(
+        simplified()->StringFromSingleCodePoint(UnicodeEncoding::UTF16),
+        codepoint);
+
+    // Update iterator.[[NextIndex]]
+    Node* char_length = graph()->NewNode(simplified()->StringLength(), vtrue0);
+    index = graph()->NewNode(simplified()->NumberAdd(), index, char_length);
+    etrue0 = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSStringIteratorIndex()),
+        receiver, index, etrue0, if_true0);
+  }
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* done_false;
+  Node* vfalse0;
+  {
+    vfalse0 = jsgraph()->UndefinedConstant();
+    done_false = jsgraph()->TrueConstant();
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, effect, control);
+  Node* value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2), vtrue0,
+                       vfalse0, control);
+  Node* done =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       done_true, done_false, control);
+
+  value = effect = graph()->NewNode(javascript()->CreateIterResultObject(),
+                                    value, done, context, effect);
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 // ES #sec-string.prototype.concat
@@ -6160,9 +6171,10 @@ Reduction JSCallReducer::ReduceMapPrototypeGet(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* key = NodeProperties::GetValueInput(node, 2);
 
-  if (!NodeProperties::HasInstanceTypeWitness(broker(), receiver, effect,
-                                              JS_MAP_TYPE))
-    return NoChange();
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(JS_MAP_TYPE)) {
+    return inference.NoChange();
+  }
 
   Node* table = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSCollectionTable()), receiver,
@@ -6205,9 +6217,10 @@ Reduction JSCallReducer::ReduceMapPrototypeHas(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* key = NodeProperties::GetValueInput(node, 2);
 
-  if (!NodeProperties::HasInstanceTypeWitness(broker(), receiver, effect,
-                                              JS_MAP_TYPE))
-    return NoChange();
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(JS_MAP_TYPE)) {
+    return inference.NoChange();
+  }
 
   Node* table = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSCollectionTable()), receiver,
@@ -6245,16 +6258,18 @@ Reduction JSCallReducer::ReduceCollectionIteration(
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  if (NodeProperties::HasInstanceTypeWitness(
-          broker(), receiver, effect,
-          InstanceTypeForCollectionKind(collection_kind))) {
-    Node* js_create_iterator = effect = graph()->NewNode(
-        javascript()->CreateCollectionIterator(collection_kind, iteration_kind),
-        receiver, context, effect, control);
-    ReplaceWithValue(node, js_create_iterator, effect);
-    return Replace(js_create_iterator);
+
+  InstanceType type = InstanceTypeForCollectionKind(collection_kind);
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(type)) {
+    return inference.NoChange();
   }
-  return NoChange();
+
+  Node* js_create_iterator = effect = graph()->NewNode(
+      javascript()->CreateCollectionIterator(collection_kind, iteration_kind),
+      receiver, context, effect, control);
+  ReplaceWithValue(node, js_create_iterator, effect);
+  return Replace(js_create_iterator);
 }
 
 Reduction JSCallReducer::ReduceCollectionPrototypeSize(
@@ -6263,20 +6278,22 @@ Reduction JSCallReducer::ReduceCollectionPrototypeSize(
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  if (NodeProperties::HasInstanceTypeWitness(
-          broker(), receiver, effect,
-          InstanceTypeForCollectionKind(collection_kind))) {
-    Node* table = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSCollectionTable()),
-        receiver, effect, control);
-    Node* value = effect = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForOrderedHashMapOrSetNumberOfElements()),
-        table, effect, control);
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
+
+  InstanceType type = InstanceTypeForCollectionKind(collection_kind);
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(type)) {
+    return inference.NoChange();
   }
-  return NoChange();
+
+  Node* table = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSCollectionTable()), receiver,
+      effect, control);
+  Node* value = effect = graph()->NewNode(
+      simplified()->LoadField(
+          AccessBuilder::ForOrderedHashMapOrSetNumberOfElements()),
+      table, effect, control);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
@@ -6586,42 +6603,44 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  if (NodeProperties::HasInstanceTypeWitness(broker(), receiver, effect,
-                                             instance_type)) {
-    // Load the {receiver}s field.
-    Node* value = effect = graph()->NewNode(simplified()->LoadField(access),
-                                            receiver, effect, control);
-
-    // See if we can skip the detaching check.
-    if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
-      // Check whether {receiver}s JSArrayBuffer was detached.
-      Node* buffer = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
-          receiver, effect, control);
-      Node* buffer_bit_field = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
-          buffer, effect, control);
-      Node* check = graph()->NewNode(
-          simplified()->NumberEqual(),
-          graph()->NewNode(
-              simplified()->NumberBitwiseAnd(), buffer_bit_field,
-              jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
-          jsgraph()->ZeroConstant());
-
-      // TODO(turbofan): Ideally we would bail out here if the {receiver}s
-      // JSArrayBuffer was detached, but there's no way to guard against
-      // deoptimization loops right now, since the JSCall {node} is usually
-      // created from a LOAD_IC inlining, and so there's no CALL_IC slot
-      // from which we could use the speculation bit.
-      value = graph()->NewNode(
-          common()->Select(MachineRepresentation::kTagged, BranchHint::kTrue),
-          check, value, jsgraph()->ZeroConstant());
-    }
-
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() ||
+      !inference.AllOfInstanceTypesAre(instance_type)) {
+    return inference.NoChange();
   }
-  return NoChange();
+
+  // Load the {receiver}s field.
+  Node* value = effect = graph()->NewNode(simplified()->LoadField(access),
+                                          receiver, effect, control);
+
+  // See if we can skip the detaching check.
+  if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // Check whether {receiver}s JSArrayBuffer was detached.
+    Node* buffer = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+        receiver, effect, control);
+    Node* buffer_bit_field = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
+        buffer, effect, control);
+    Node* check = graph()->NewNode(
+        simplified()->NumberEqual(),
+        graph()->NewNode(
+            simplified()->NumberBitwiseAnd(), buffer_bit_field,
+            jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
+        jsgraph()->ZeroConstant());
+
+    // TODO(turbofan): Ideally we would bail out here if the {receiver}s
+    // JSArrayBuffer was detached, but there's no way to guard against
+    // deoptimization loops right now, since the JSCall {node} is usually
+    // created from a LOAD_IC inlining, and so there's no CALL_IC slot
+    // from which we could use the speculation bit.
+    value = graph()->NewNode(
+        common()->Select(MachineRepresentation::kTagged, BranchHint::kTrue),
+        check, value, jsgraph()->ZeroConstant());
+  }
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 namespace {
@@ -6667,122 +6686,120 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
   }
 
   // Only do stuff if the {receiver} is really a DataView.
-  if (NodeProperties::HasInstanceTypeWitness(broker(), receiver, effect,
-                                             JS_DATA_VIEW_TYPE)) {
-    Node* byte_offset;
-
-    // Check that the {offset} is within range for the {receiver}.
-    HeapObjectMatcher m(receiver);
-    if (m.HasValue()) {
-      // We only deal with DataViews here whose [[ByteLength]] is at least
-      // {element_size}, as for all other DataViews it'll be out-of-bounds.
-      JSDataViewRef dataview = m.Ref(broker()).AsJSDataView();
-      if (dataview.byte_length() < element_size) return NoChange();
-
-      // Check that the {offset} is within range of the {byte_length}.
-      Node* byte_length =
-          jsgraph()->Constant(dataview.byte_length() - (element_size - 1));
-      offset = effect =
-          graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
-                           byte_length, effect, control);
-
-      // Load the [[ByteOffset]] from the {dataview}.
-      byte_offset = jsgraph()->Constant(dataview.byte_offset());
-    } else {
-      // We only deal with DataViews here that have Smi [[ByteLength]]s.
-      Node* byte_length = effect =
-          graph()->NewNode(simplified()->LoadField(
-                               AccessBuilder::ForJSArrayBufferViewByteLength()),
-                           receiver, effect, control);
-
-      if (element_size > 1) {
-        // For non-byte accesses we also need to check that the {offset}
-        // plus the {element_size}-1 fits within the given {byte_length}.
-        // So to keep this as a single check on the {offset}, we subtract
-        // the {element_size}-1 from the {byte_length} here (clamped to
-        // positive safe integer range), and perform a check against that
-        // with the {offset} below.
-        byte_length = graph()->NewNode(
-            simplified()->NumberMax(), jsgraph()->ZeroConstant(),
-            graph()->NewNode(simplified()->NumberSubtract(), byte_length,
-                             jsgraph()->Constant(element_size - 1)));
-      }
-
-      // Check that the {offset} is within range of the {byte_length}.
-      offset = effect =
-          graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
-                           byte_length, effect, control);
-
-      // Also load the [[ByteOffset]] from the {receiver}.
-      byte_offset = effect =
-          graph()->NewNode(simplified()->LoadField(
-                               AccessBuilder::ForJSArrayBufferViewByteOffset()),
-                           receiver, effect, control);
-    }
-
-    // Coerce {is_little_endian} to boolean.
-    is_little_endian =
-        graph()->NewNode(simplified()->ToBoolean(), is_little_endian);
-
-    // Coerce {value} to Number.
-    if (access == DataViewAccess::kSet) {
-      value = effect = graph()->NewNode(
-          simplified()->SpeculativeToNumber(
-              NumberOperationHint::kNumberOrOddball, p.feedback()),
-          value, effect, control);
-    }
-
-    // Get the underlying buffer and check that it has not been detached.
-    Node* buffer = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
-        receiver, effect, control);
-
-    if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
-      // Bail out if the {buffer} was detached.
-      Node* buffer_bit_field = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
-          buffer, effect, control);
-      Node* check = graph()->NewNode(
-          simplified()->NumberEqual(),
-          graph()->NewNode(
-              simplified()->NumberBitwiseAnd(), buffer_bit_field,
-              jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
-          jsgraph()->ZeroConstant());
-      effect = graph()->NewNode(
-          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached,
-                                p.feedback()),
-          check, effect, control);
-    }
-
-    // Get the buffer's backing store.
-    Node* backing_store = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBackingStore()),
-        buffer, effect, control);
-
-    switch (access) {
-      case DataViewAccess::kGet:
-        // Perform the load.
-        value = effect =
-            graph()->NewNode(simplified()->LoadDataViewElement(element_type),
-                             buffer, backing_store, byte_offset, offset,
-                             is_little_endian, effect, control);
-        break;
-      case DataViewAccess::kSet:
-        // Perform the store.
-        effect =
-            graph()->NewNode(simplified()->StoreDataViewElement(element_type),
-                             buffer, backing_store, byte_offset, offset, value,
-                             is_little_endian, effect, control);
-        value = jsgraph()->UndefinedConstant();
-        break;
-    }
-
-    // Continue on the regular path.
-    ReplaceWithValue(node, value, effect, control);
-    return Changed(value);
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() ||
+      !inference.AllOfInstanceTypesAre(JS_DATA_VIEW_TYPE)) {
+    return inference.NoChange();
   }
 
-  return NoChange();
+  Node* byte_offset;
+
+  // Check that the {offset} is within range for the {receiver}.
+  HeapObjectMatcher m(receiver);
+  if (m.HasValue()) {
+    // We only deal with DataViews here whose [[ByteLength]] is at least
+    // {element_size}, as for all other DataViews it'll be out-of-bounds.
+    JSDataViewRef dataview = m.Ref(broker()).AsJSDataView();
+    if (dataview.byte_length() < element_size) return NoChange();
+
+    // Check that the {offset} is within range of the {byte_length}.
+    Node* byte_length =
+        jsgraph()->Constant(dataview.byte_length() - (element_size - 1));
+    offset = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
+                                       offset, byte_length, effect, control);
+
+    // Load the [[ByteOffset]] from the {dataview}.
+    byte_offset = jsgraph()->Constant(dataview.byte_offset());
+  } else {
+    // We only deal with DataViews here that have Smi [[ByteLength]]s.
+    Node* byte_length = effect =
+        graph()->NewNode(simplified()->LoadField(
+                             AccessBuilder::ForJSArrayBufferViewByteLength()),
+                         receiver, effect, control);
+
+    if (element_size > 1) {
+      // For non-byte accesses we also need to check that the {offset}
+      // plus the {element_size}-1 fits within the given {byte_length}.
+      // So to keep this as a single check on the {offset}, we subtract
+      // the {element_size}-1 from the {byte_length} here (clamped to
+      // positive safe integer range), and perform a check against that
+      // with the {offset} below.
+      byte_length = graph()->NewNode(
+          simplified()->NumberMax(), jsgraph()->ZeroConstant(),
+          graph()->NewNode(simplified()->NumberSubtract(), byte_length,
+                           jsgraph()->Constant(element_size - 1)));
+    }
+
+    // Check that the {offset} is within range of the {byte_length}.
+    offset = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
+                                       offset, byte_length, effect, control);
+
+    // Also load the [[ByteOffset]] from the {receiver}.
+    byte_offset = effect =
+        graph()->NewNode(simplified()->LoadField(
+                             AccessBuilder::ForJSArrayBufferViewByteOffset()),
+                         receiver, effect, control);
+  }
+
+  // Coerce {is_little_endian} to boolean.
+  is_little_endian =
+      graph()->NewNode(simplified()->ToBoolean(), is_little_endian);
+
+  // Coerce {value} to Number.
+  if (access == DataViewAccess::kSet) {
+    value = effect = graph()->NewNode(
+        simplified()->SpeculativeToNumber(NumberOperationHint::kNumberOrOddball,
+                                          p.feedback()),
+        value, effect, control);
+  }
+
+  // Get the underlying buffer and check that it has not been detached.
+  Node* buffer = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+      receiver, effect, control);
+
+  if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // Bail out if the {buffer} was detached.
+    Node* buffer_bit_field = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
+        buffer, effect, control);
+    Node* check = graph()->NewNode(
+        simplified()->NumberEqual(),
+        graph()->NewNode(
+            simplified()->NumberBitwiseAnd(), buffer_bit_field,
+            jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
+        jsgraph()->ZeroConstant());
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached,
+                              p.feedback()),
+        check, effect, control);
+  }
+
+  // Get the buffer's backing store.
+  Node* backing_store = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayBufferBackingStore()),
+      buffer, effect, control);
+
+  switch (access) {
+    case DataViewAccess::kGet:
+      // Perform the load.
+      value = effect =
+          graph()->NewNode(simplified()->LoadDataViewElement(element_type),
+                           buffer, backing_store, byte_offset, offset,
+                           is_little_endian, effect, control);
+      break;
+    case DataViewAccess::kSet:
+      // Perform the store.
+      effect =
+          graph()->NewNode(simplified()->StoreDataViewElement(element_type),
+                           buffer, backing_store, byte_offset, offset, value,
+                           is_little_endian, effect, control);
+      value = jsgraph()->UndefinedConstant();
+      break;
+  }
+
+  ReplaceWithValue(node, value, effect, control);
+  return Changed(value);
 }
 
 // ES6 section 18.2.2 isFinite ( number )
@@ -6840,15 +6857,17 @@ Reduction JSCallReducer::ReduceDatePrototypeGetTime(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  if (NodeProperties::HasInstanceTypeWitness(broker(), receiver, effect,
-                                             JS_DATE_TYPE)) {
-    Node* value = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSDateValue()), receiver,
-        effect, control);
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
+
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(JS_DATE_TYPE)) {
+    return inference.NoChange();
   }
-  return NoChange();
+
+  Node* value = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForJSDateValue()),
+                       receiver, effect, control);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 // ES6 section 20.3.3.1 Date.now ( )

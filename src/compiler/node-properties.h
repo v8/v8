@@ -158,9 +158,6 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   static base::Optional<MapRef> GetJSCreateMap(JSHeapBroker* broker,
                                                Node* receiver);
 
-  static bool HasInstanceTypeWitness(JSHeapBroker* broker, Node* receiver,
-                                     Node* effect, InstanceType instance_type);
-
   // Walks up the {effect} chain to check that there's no observable side-effect
   // between the {effect} and it's {dominator}. Aborts the walk if there's join
   // in the effect chain.
