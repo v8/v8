@@ -163,6 +163,9 @@ class Simulator : public SimulatorBase {
 
   Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
+  // Accessor to the internal Link Register
+  intptr_t get_lr() const;
+
   // Accessor to the internal simulator stack area.
   uintptr_t StackLimit(uintptr_t c_limit) const;
 

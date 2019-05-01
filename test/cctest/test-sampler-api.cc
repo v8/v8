@@ -75,12 +75,15 @@ class SimulatorHelper {
         simulator_->get_register(v8::internal::Simulator::sp));
     state->fp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::fp));
+    state->lr = reinterpret_cast<void*>(simulator_->get_lr());
 #elif V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
     state->pc = reinterpret_cast<void*>(simulator_->get_pc());
     state->sp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::sp));
     state->fp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::fp));
+    state->lr = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::ra));
 #endif
   }
 

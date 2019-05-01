@@ -420,11 +420,13 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
       reinterpret_cast<void*>(ucontext->uc_mcontext.regs->gpr[PT_R1]);
   state->fp =
       reinterpret_cast<void*>(ucontext->uc_mcontext.regs->gpr[PT_R31]);
+  state->lr = reinterpret_cast<void*>(ucontext->uc_mcontext.regs->link);
 #else
   // Some C libraries, notably Musl, define the regs member as a void pointer
   state->pc = reinterpret_cast<void*>(ucontext->uc_mcontext.gp_regs[32]);
   state->sp = reinterpret_cast<void*>(ucontext->uc_mcontext.gp_regs[1]);
   state->fp = reinterpret_cast<void*>(ucontext->uc_mcontext.gp_regs[31]);
+  state->lr = reinterpret_cast<void*>(ucontext->uc_mcontext.gp_regs[36]);
 #endif
 #elif V8_HOST_ARCH_S390
 #if V8_TARGET_ARCH_32_BIT
@@ -437,6 +439,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 #endif  // V8_TARGET_ARCH_32_BIT
   state->sp = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[15]);
   state->fp = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[11]);
+  state->lr = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[14]);
 #endif  // V8_HOST_ARCH_*
 #elif V8_OS_IOS
 

@@ -838,6 +838,8 @@ bool Simulator::has_bad_pc() const {
 // Raw access to the PC register without the special adjustment when reading.
 intptr_t Simulator::get_pc() const { return special_reg_pc_; }
 
+// Accessor to the internal Link Register
+intptr_t Simulator::get_lr() const { return special_reg_lr_; }
 
 // Runtime FP routines take:
 // - two double arguments
