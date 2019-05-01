@@ -15,8 +15,8 @@ function foo(i, deopt = false) {
     }
 }
 
+%PrepareFunctionForOptimization(foo);
 assertEquals(0, %GetDeoptCount(foo));
-
 foo(10);
 foo(10);
 %OptimizeFunctionOnNextCall(foo);
