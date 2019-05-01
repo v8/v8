@@ -190,11 +190,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Reduction ReduceNumberConstructor(Node* node);
 
-  Node* InsertMapChecksIfUnreliableReceiverMaps(
-      NodeProperties::InferReceiverMapsResult result,
-      ZoneHandleSet<Map> const& receiver_maps, VectorSlotPair const& feedback,
-      Node* receiver, Node* effect, Node* control);
-
   // Returns the updated {to} node, and updates control and effect along the
   // way.
   Node* DoFilterPostCallbackWork(ElementsKind kind, Node** control,

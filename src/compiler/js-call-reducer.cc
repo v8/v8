@@ -4,6 +4,8 @@
 
 #include "src/compiler/js-call-reducer.h"
 
+#include <functional>
+
 #include "src/api-inl.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-utils.h"
@@ -32,6 +34,184 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+// The MapInference class provides access to the "inferred" maps of an
+// {object}. This information can be either "reliable", meaning that the object
+// is guaranteed to have one of these maps at runtime, or "unreliable", meaning
+// that the object is guaranteed to have HAD one of these maps.
+//
+// The MapInference class does not expose whether or not the information is
+// reliable. A client is expected to eventually make the information reliable by
+// calling one of several methods that will either insert map checks, or record
+// stability dependencies (or do nothing if the information was already
+// reliable).
+class MapInference {
+ public:
+  MapInference(JSHeapBroker* broker, Node* object, Node* effect);
+
+  // The destructor checks that the information has been made reliable (if
+  // necessary) and force-crashes if not.
+  ~MapInference();
+
+  // Is there any information at all?
+  V8_WARN_UNUSED_RESULT bool HaveMaps() const;
+
+  // This query doesn't require a guard.
+  V8_WARN_UNUSED_RESULT bool AllOfInstanceTypesAreJSReceiver() const;
+
+  // These queries require a guard. (Even instance types are generally not
+  // reliable because of how the representation of a string can change.)
+  V8_WARN_UNUSED_RESULT MapHandles const& GetMaps();
+  V8_WARN_UNUSED_RESULT bool AllOfInstanceTypes(
+      std::function<bool(InstanceType)> f);
+
+  // These methods provide a guard.
+  //
+  // Returns true iff maps were already reliable or stability dependencies were
+  // successfully recorded.
+  V8_WARN_UNUSED_RESULT bool RelyOnMapsViaStability(
+      CompilationDependencies* dependencies);
+  // Records stability dependencies if possible, otherwise it inserts map
+  // checks. Does nothing if maps were already reliable. Returns true iff
+  // dependencies were taken.
+  bool RelyOnMapsPreferStability(CompilationDependencies* dependencies,
+                                 JSGraph* jsgraph, Node** effect, Node* control,
+                                 const VectorSlotPair& feedback);
+  // Inserts map checks even if maps were already reliable.
+  void InsertMapChecks(JSGraph* jsgraph, Node** effect, Node* control,
+                       const VectorSlotPair& feedback);
+
+  // Internally marks the maps as reliable (thus bypassing the safety check) and
+  // returns the NoChange reduction. USE THIS ONLY WHEN RETURNING, e.g.:
+  //   if (foo) return inference.NoChange();
+  V8_WARN_UNUSED_RESULT Reduction NoChange();
+
+ private:
+  JSHeapBroker* const broker_;
+  Node* const object_;
+
+  MapHandles maps_;
+  enum {
+    kReliableOrGuarded,
+    kUnreliableDontNeedGuard,
+    kUnreliableNeedGuard
+  } maps_state_;
+
+  bool Safe() const;
+  void SetNeedGuardIfUnreliable();
+  void SetGuarded();
+
+  V8_WARN_UNUSED_RESULT bool AllOfInstanceTypesUnsafe(
+      std::function<bool(InstanceType)> f) const;
+  V8_WARN_UNUSED_RESULT bool RelyOnMapsHelper(
+      CompilationDependencies* dependencies, JSGraph* jsgraph, Node** effect,
+      Node* control, const VectorSlotPair& feedback);
+};
+
+MapInference::MapInference(JSHeapBroker* broker, Node* object, Node* effect)
+    : broker_(broker), object_(object) {
+  ZoneHandleSet<Map> maps;
+  auto result =
+      NodeProperties::InferReceiverMaps(broker_, object_, effect, &maps);
+  maps_.insert(maps_.end(), maps.begin(), maps.end());
+  maps_state_ = (result == NodeProperties::kUnreliableReceiverMaps)
+                    ? kUnreliableDontNeedGuard
+                    : kReliableOrGuarded;
+  DCHECK_EQ(maps_.empty(), result == NodeProperties::kNoReceiverMaps);
+}
+
+bool MapInference::Safe() const { return maps_state_ != kUnreliableNeedGuard; }
+
+void MapInference::SetNeedGuardIfUnreliable() {
+  CHECK(HaveMaps());
+  if (maps_state_ == kUnreliableDontNeedGuard) {
+    maps_state_ = kUnreliableNeedGuard;
+  }
+}
+
+void MapInference::SetGuarded() { maps_state_ = kReliableOrGuarded; }
+
+MapInference::~MapInference() { CHECK(Safe()); }
+
+bool MapInference::HaveMaps() const { return !maps_.empty(); }
+
+bool MapInference::AllOfInstanceTypesAreJSReceiver() const {
+  return AllOfInstanceTypesUnsafe(InstanceTypeChecker::IsJSReceiver);
+}
+
+bool MapInference::AllOfInstanceTypes(std::function<bool(InstanceType)> f) {
+  SetNeedGuardIfUnreliable();
+  return AllOfInstanceTypesUnsafe(f);
+}
+
+bool MapInference::AllOfInstanceTypesUnsafe(
+    std::function<bool(InstanceType)> f) const {
+  CHECK(HaveMaps());
+  return std::all_of(maps_.begin(), maps_.end(),
+                     [f](Handle<Map> map) { return f(map->instance_type()); });
+}
+
+MapHandles const& MapInference::GetMaps() {
+  SetNeedGuardIfUnreliable();
+  return maps_;
+}
+
+void MapInference::InsertMapChecks(JSGraph* jsgraph, Node** effect,
+                                   Node* control,
+                                   const VectorSlotPair& feedback) {
+  CHECK(HaveMaps());
+  CHECK(feedback.IsValid());
+  ZoneHandleSet<Map> maps;
+  for (Handle<Map> map : maps_) maps.insert(map, jsgraph->graph()->zone());
+  *effect = jsgraph->graph()->NewNode(
+      jsgraph->simplified()->CheckMaps(CheckMapsFlag::kNone, maps, feedback),
+      object_, *effect, control);
+  SetGuarded();
+}
+
+bool MapInference::RelyOnMapsViaStability(
+    CompilationDependencies* dependencies) {
+  CHECK(HaveMaps());
+  return RelyOnMapsHelper(dependencies, nullptr, nullptr, nullptr, {});
+}
+
+bool MapInference::RelyOnMapsPreferStability(
+    CompilationDependencies* dependencies, JSGraph* jsgraph, Node** effect,
+    Node* control, const VectorSlotPair& feedback) {
+  CHECK(HaveMaps());
+  if (Safe()) return false;
+  if (RelyOnMapsViaStability(dependencies)) return true;
+  CHECK(RelyOnMapsHelper(nullptr, jsgraph, effect, control, feedback));
+  return false;
+}
+
+bool MapInference::RelyOnMapsHelper(CompilationDependencies* dependencies,
+                                    JSGraph* jsgraph, Node** effect,
+                                    Node* control,
+                                    const VectorSlotPair& feedback) {
+  if (Safe()) return true;
+
+  auto is_stable = [](Handle<Map> map) { return map->is_stable(); };
+  if (dependencies != nullptr &&
+      std::all_of(maps_.cbegin(), maps_.cend(), is_stable)) {
+    for (Handle<Map> map : maps_) {
+      dependencies->DependOnStableMap(MapRef(broker_, map));
+    }
+    SetGuarded();
+    return true;
+  } else if (feedback.IsValid()) {
+    InsertMapChecks(jsgraph, effect, control, feedback);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+Reduction MapInference::NoChange() {
+  SetGuarded();
+  maps_.clear();  // Just to make some CHECKs fail if {this} gets used after.
+  return Reducer::NoChange();
+}
 
 Reduction JSCallReducer::ReduceMathUnary(Node* node, const Operator* op) {
   CallParameters const& p = CallParametersOf(node->op());
@@ -389,6 +569,11 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
 // ES section #sec-function.prototype.bind
 Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
   // Value inputs to the {node} are as follows:
   //
   //  - target, which is Function.prototype.bind JSFunction
@@ -407,12 +592,10 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   // a JSFunction with the same [[Prototype]], and all maps we've
   // seen for the {receiver} so far indicate that {receiver} is
   // definitely a constructor or not a constructor.
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  DCHECK_NE(0, receiver_maps.size());
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
+
   MapRef first_receiver_map(broker(), receiver_maps[0]);
   bool const is_constructor = first_receiver_map.is_constructor();
   first_receiver_map.SerializePrototype();
@@ -426,12 +609,12 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     if (!receiver_map.prototype().equals(prototype) ||
         receiver_map.is_constructor() != is_constructor ||
         receiver_map.instance_type() < FIRST_FUNCTION_TYPE) {
-      return NoChange();
+      return inference.NoChange();
     }
 
     // Disallow binding of slow-mode functions. We need to figure out
     // whether the length and name property are in the original state.
-    if (receiver_map.is_dictionary_map()) return NoChange();
+    if (receiver_map.is_dictionary_map()) return inference.NoChange();
 
     // Check whether the length and name properties are still present
     // as AccessorInfo objects. In that case, their values can be
@@ -440,22 +623,22 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     // runtime otherwise.
     Handle<DescriptorArray> descriptors(
         receiver_map.object()->instance_descriptors(), isolate());
-    if (descriptors->number_of_descriptors() < 2) return NoChange();
+    if (descriptors->number_of_descriptors() < 2) return inference.NoChange();
     if (descriptors->GetKey(JSFunction::kLengthDescriptorIndex) !=
         ReadOnlyRoots(isolate()).length_string()) {
-      return NoChange();
+      return inference.NoChange();
     }
     if (!descriptors->GetStrongValue(JSFunction::kLengthDescriptorIndex)
              ->IsAccessorInfo()) {
-      return NoChange();
+      return inference.NoChange();
     }
     if (descriptors->GetKey(JSFunction::kNameDescriptorIndex) !=
         ReadOnlyRoots(isolate()).name_string()) {
-      return NoChange();
+      return inference.NoChange();
     }
     if (!descriptors->GetStrongValue(JSFunction::kNameDescriptorIndex)
              ->IsAccessorInfo()) {
-      return NoChange();
+      return inference.NoChange();
     }
   }
 
@@ -464,10 +647,10 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   MapRef map = is_constructor
                    ? native_context().bound_function_with_constructor_map()
                    : native_context().bound_function_without_constructor_map();
-  if (!map.prototype().equals(prototype)) return NoChange();
+  if (!map.prototype().equals(prototype)) return inference.NoChange();
 
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, VectorSlotPair(), receiver, effect, control);
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control, p.feedback());
 
   // Replace the {node} with a JSCreateBoundFunction.
   int const arity = std::max(0, node->op()->ValueInputCount() - 3);
@@ -569,45 +752,36 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   Node* effect = NodeProperties::GetEffectInput(node);
 
   // Try to determine the {object} map.
-  ZoneHandleSet<Map> object_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), object, effect, &object_maps);
-  if (result != NodeProperties::kNoReceiverMaps) {
-    MapRef candidate_map(broker(), object_maps[0]);
-    candidate_map.SerializePrototype();
-    ObjectRef candidate_prototype = candidate_map.prototype();
+  MapInference inference(broker(), object, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& object_maps = inference.GetMaps();
 
-    // Check if we can constant-fold the {candidate_prototype}.
-    for (size_t i = 0; i < object_maps.size(); ++i) {
-      MapRef object_map(broker(), object_maps[i]);
-      object_map.SerializePrototype();
-      if (IsSpecialReceiverInstanceType(object_map.instance_type()) ||
-          object_map.has_hidden_prototype() ||
-          !object_map.prototype().equals(candidate_prototype)) {
-        // We exclude special receivers, like JSProxy or API objects that
-        // might require access checks here; we also don't want to deal
-        // with hidden prototypes at this point.
-        return NoChange();
-      }
-      // The above check also excludes maps for primitive values, which is
-      // important because we are not applying [[ToObject]] here as expected.
-      DCHECK(!object_map.IsPrimitiveMap() && object_map.IsJSReceiverMap());
-      if (result == NodeProperties::kUnreliableReceiverMaps &&
-          !object_map.is_stable()) {
-        return NoChange();
-      }
+  MapRef candidate_map(broker(), object_maps[0]);
+  candidate_map.SerializePrototype();
+  ObjectRef candidate_prototype = candidate_map.prototype();
+
+  // Check if we can constant-fold the {candidate_prototype}.
+  for (size_t i = 0; i < object_maps.size(); ++i) {
+    MapRef object_map(broker(), object_maps[i]);
+    object_map.SerializePrototype();
+    if (IsSpecialReceiverInstanceType(object_map.instance_type()) ||
+        object_map.has_hidden_prototype() ||
+        !object_map.prototype().equals(candidate_prototype)) {
+      // We exclude special receivers, like JSProxy or API objects that
+      // might require access checks here; we also don't want to deal
+      // with hidden prototypes at this point.
+      return inference.NoChange();
     }
-    if (result == NodeProperties::kUnreliableReceiverMaps) {
-      for (size_t i = 0; i < object_maps.size(); ++i) {
-        dependencies()->DependOnStableMap(MapRef(broker(), object_maps[i]));
-      }
-    }
-    Node* value = jsgraph()->Constant(candidate_prototype);
-    ReplaceWithValue(node, value);
-    return Replace(value);
+    // The above check also excludes maps for primitive values, which is
+    // important because we are not applying [[ToObject]] here as expected.
+    DCHECK(!object_map.IsPrimitiveMap() && object_map.IsJSReceiverMap());
   }
-
-  return NoChange();
+  if (!inference.RelyOnMapsViaStability(dependencies())) {
+    return inference.NoChange();
+  }
+  Node* value = jsgraph()->Constant(candidate_prototype);
+  ReplaceWithValue(node, value);
+  return Replace(value);
 }
 
 // ES6 section 19.1.2.11 Object.getPrototypeOf ( O )
@@ -730,14 +904,9 @@ Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
 
   // Ensure that the {receiver} is known to be a JSReceiver (so that
   // the ToObject step of Object.prototype.isPrototypeOf is a no-op).
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!receiver_map.IsJSReceiverMap()) return NoChange();
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAreJSReceiver()) {
+    return inference.NoChange();
   }
 
   // We don't check whether {value} is a proper JSReceiver here explicitly,
@@ -996,7 +1165,7 @@ void JSCallReducer::WireInLoopEnd(Node* loop, Node* eloop, Node* vloop, Node* k,
 
 namespace {
 bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
-                                    ZoneHandleSet<Map> receiver_maps,
+                                    MapHandles const& receiver_maps,
                                     ElementsKind* kind_return) {
   DCHECK_NE(0, receiver_maps.size());
   *kind_return = MapRef(broker, receiver_maps[0]).elements_kind();
@@ -1011,7 +1180,7 @@ bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
 }
 
 bool CanInlineArrayResizingBuiltin(JSHeapBroker* broker,
-                                   ZoneHandleSet<Map> receiver_maps,
+                                   MapHandles const& receiver_maps,
                                    ElementsKind* kind_return,
                                    bool builtin_is_push = false) {
   DCHECK_NE(0, receiver_maps.size());
@@ -1049,8 +1218,6 @@ Reduction JSCallReducer::ReduceArrayForEach(
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-
-  // Try to determine the {receiver} map.
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* fncallback = node->op()->ValueInputCount() > 2
                          ? NodeProperties::GetValueInput(node, 2)
@@ -1058,24 +1225,21 @@ Reduction JSCallReducer::ReduceArrayForEach(
   Node* this_arg = node->op()->ValueInputCount() > 3
                        ? NodeProperties::GetValueInput(node, 3)
                        : jsgraph()->UndefinedConstant();
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+
+  // Try to determine the {receiver} map.
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return NoChange();
+    return inference.NoChange();
   }
-
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
+  bool const stability_dependency = inference.RelyOnMapsPreferStability(
+      dependencies(), jsgraph(), &effect, control, p.feedback());
 
   Node* k = jsgraph()->ZeroConstant();
-
   Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
       effect, control);
@@ -1109,25 +1273,25 @@ Reduction JSCallReducer::ReduceArrayForEach(
   Node* if_false = graph()->NewNode(common()->IfFalse(), continue_branch);
   control = if_true;
 
-  Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), shared, Builtins::kArrayForEachLoopEagerDeoptContinuation,
-      node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-      outer_frame_state, ContinuationFrameStateMode::EAGER);
+  {
+    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+        jsgraph(), shared, Builtins::kArrayForEachLoopEagerDeoptContinuation,
+        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
+        outer_frame_state, ContinuationFrameStateMode::EAGER);
+    effect =
+        graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
+  }
 
-  effect =
-      graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
-
-  // Make sure the map hasn't changed during the iteration
-  effect =
-      graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                               receiver_maps, p.feedback()),
-                       receiver, effect, control);
+  // Deopt if the map has changed during the iteration.
+  if (!stability_dependency) {
+    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
+  }
 
   Node* element =
       SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-
   Node* next_k =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
+
   checkpoint_params[3] = next_k;
 
   Node* hole_true = nullptr;
@@ -1157,7 +1321,7 @@ Reduction JSCallReducer::ReduceArrayForEach(
         common()->TypeGuard(Type::NonInternal()), element, effect, control);
   }
 
-  frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+  Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
       jsgraph(), shared, Builtins::kArrayForEachLoopLazyDeoptContinuation,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::LAZY);
@@ -1206,18 +1370,6 @@ Reduction JSCallReducer::ReduceArrayForEach(
   return Replace(jsgraph()->UndefinedConstant());
 }
 
-Node* JSCallReducer::InsertMapChecksIfUnreliableReceiverMaps(
-    NodeProperties::InferReceiverMapsResult result,
-    ZoneHandleSet<Map> const& receiver_maps, VectorSlotPair const& feedback,
-    Node* receiver, Node* effect, Node* control) {
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    effect = graph()->NewNode(
-        simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps, feedback),
-        receiver, effect, control);
-  }
-  return effect;
-}
-
 Reduction JSCallReducer::ReduceArrayReduce(
     Node* node, ArrayReduceDirection direction,
     const SharedFunctionInfoRef& shared) {
@@ -1233,37 +1385,23 @@ Reduction JSCallReducer::ReduceArrayReduce(
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-
-  // Try to determine the {receiver} map.
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* fncallback = node->op()->ValueInputCount() > 2
                          ? NodeProperties::GetValueInput(node, 2)
                          : jsgraph()->UndefinedConstant();
 
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+  // Try to determine the {receiver} map.
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return NoChange();
+    return inference.NoChange();
   }
-
-  std::function<Node*(Node*)> hole_check = [this, kind](Node* element) {
-    if (IsDoubleElementsKind(kind)) {
-      return graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
-    } else {
-      return graph()->NewNode(simplified()->ReferenceEqual(), element,
-                              jsgraph()->TheHoleConstant());
-    }
-  };
-
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
+  bool const stability_dependency = inference.RelyOnMapsPreferStability(
+      dependencies(), jsgraph(), &effect, control, p.feedback());
 
   Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
@@ -1297,6 +1435,15 @@ Reduction JSCallReducer::ReduceArrayReduce(
   // empty arrays.
   WireInCallbackIsCallableCheck(fncallback, context, check_frame_state, effect,
                                 &control, &check_fail, &check_throw);
+
+  std::function<Node*(Node*)> hole_check = [this, kind](Node* element) {
+    if (IsDoubleElementsKind(kind)) {
+      return graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
+    } else {
+      return graph()->NewNode(simplified()->ReferenceEqual(), element,
+                              jsgraph()->TheHoleConstant());
+    }
+  };
 
   // Set initial accumulator value
   Node* cur = jsgraph()->TheHoleConstant();
@@ -1387,16 +1534,16 @@ Reduction JSCallReducer::ReduceArrayReduce(
         ContinuationFrameStateMode::EAGER);
     effect =
         graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
+    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
   }
 
-  // Make sure the map hasn't changed during the iteration
-  effect = graph()->NewNode(
-      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
-      effect, control);
+  // Deopt if the map has changed during the iteration.
+  if (!stability_dependency) {
+    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
+  }
 
   Node* element =
       SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-
   Node* next_k = graph()->NewNode(next_op, k, jsgraph()->OneConstant());
 
   Node* hole_true = nullptr;
@@ -1495,8 +1642,6 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-
-  // Try to determine the {receiver} map.
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* fncallback = node->op()->ValueInputCount() > 2
                          ? NodeProperties::GetValueInput(node, 2)
@@ -1504,30 +1649,27 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
   Node* this_arg = node->op()->ValueInputCount() > 3
                        ? NodeProperties::GetValueInput(node, 3)
                        : jsgraph()->UndefinedConstant();
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+
+  // Try to determine the {receiver} map.
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return NoChange();
+    return inference.NoChange();
   }
-
-  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
+  if (!dependencies()->DependOnArraySpeciesProtector())
+    return inference.NoChange();
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
+  bool const stability_dependency = inference.RelyOnMapsPreferStability(
+      dependencies(), jsgraph(), &effect, control, p.feedback());
 
   Node* array_constructor = jsgraph()->Constant(
       native_context().GetInitialJSArrayMap(kind).GetConstructor());
-
   Node* k = jsgraph()->ZeroConstant();
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
-
   Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
       effect, control);
@@ -1576,23 +1718,22 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
   Node* if_false = graph()->NewNode(common()->IfFalse(), continue_branch);
   control = if_true;
 
-  Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), shared, Builtins::kArrayMapLoopEagerDeoptContinuation,
-      node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-      outer_frame_state, ContinuationFrameStateMode::EAGER);
+  {
+    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+        jsgraph(), shared, Builtins::kArrayMapLoopEagerDeoptContinuation,
+        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
+        outer_frame_state, ContinuationFrameStateMode::EAGER);
+    effect =
+        graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
+  }
 
-  effect =
-      graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
-
-  // Make sure the map hasn't changed during the iteration
-  effect =
-      graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                               receiver_maps, p.feedback()),
-                       receiver, effect, control);
+  // Deopt if the map has changed during the iteration.
+  if (!stability_dependency) {
+    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
+  }
 
   Node* element =
       SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-
   Node* next_k =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
 
@@ -1625,7 +1766,7 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
 
   // This frame state is dealt with by hand in
   // ArrayMapLoopLazyDeoptContinuation.
-  frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+  Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
       jsgraph(), shared, Builtins::kArrayMapLoopLazyDeoptContinuation,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::LAZY);
@@ -1693,7 +1834,6 @@ Reduction JSCallReducer::ReduceArrayFilter(
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-  // Try to determine the {receiver} map.
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* fncallback = node->op()->ValueInputCount() > 2
                          ? NodeProperties::GetValueInput(node, 2)
@@ -1701,32 +1841,30 @@ Reduction JSCallReducer::ReduceArrayFilter(
   Node* this_arg = node->op()->ValueInputCount() > 3
                        ? NodeProperties::GetValueInput(node, 3)
                        : jsgraph()->UndefinedConstant();
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+
+  // Try to determine the {receiver} map.
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return NoChange();
+    return inference.NoChange();
   }
-
-  // The output array is packed (filter doesn't visit holes).
-  const ElementsKind packed_kind = GetPackedElementsKind(kind);
-
-  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
+  if (!dependencies()->DependOnArraySpeciesProtector())
+    return inference.NoChange();
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
+  bool const stability_dependency = inference.RelyOnMapsPreferStability(
+      dependencies(), jsgraph(), &effect, control, p.feedback());
 
+  // The output array is packed (filter doesn't visit holes).
+  const ElementsKind packed_kind = GetPackedElementsKind(kind);
   MapRef initial_map = native_context().GetInitialJSArrayMap(packed_kind);
 
   Node* k = jsgraph()->ZeroConstant();
   Node* to = jsgraph()->ZeroConstant();
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
 
   Node* a;  // Construct the output array.
   {
@@ -1792,25 +1930,21 @@ Reduction JSCallReducer::ReduceArrayFilter(
     Node* checkpoint_params[] = {receiver, fncallback,      this_arg, a,
                                  k,        original_length, to};
     const int stack_parameters = arraysize(checkpoint_params);
-
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
         jsgraph(), shared, Builtins::kArrayFilterLoopEagerDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::EAGER);
-
     effect =
         graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
   }
 
-  // Make sure the map hasn't changed during the iteration.
-  effect =
-      graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                               receiver_maps, p.feedback()),
-                       receiver, effect, control);
+  // Deopt if the map has changed during the iteration.
+  if (!stability_dependency) {
+    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
+  }
 
   Node* element =
       SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-
   Node* next_k =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
 
@@ -1957,8 +2091,6 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-
-  // Try to determine the {receiver} map.
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* fncallback = node->op()->ValueInputCount() > 2
                          ? NodeProperties::GetValueInput(node, 2)
@@ -1966,28 +2098,24 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
   Node* this_arg = node->op()->ValueInputCount() > 3
                        ? NodeProperties::GetValueInput(node, 3)
                        : jsgraph()->UndefinedConstant();
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+
+  // Try to determine the {receiver} map.
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return NoChange();
+    return inference.NoChange();
   }
-
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
+  bool const stability_dependency = inference.RelyOnMapsPreferStability(
+      dependencies(), jsgraph(), &effect, control, p.feedback());
 
   Node* k = jsgraph()->ZeroConstant();
-
   Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
       effect, control);
-
   Node* checkpoint_params[] = {receiver, fncallback, this_arg, k,
                                original_length};
   const int stack_parameters = arraysize(checkpoint_params);
@@ -2021,27 +2149,22 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
     if_false = graph()->NewNode(common()->IfFalse(), continue_branch);
   }
 
-  // Check the map hasn't changed during the iteration.
   {
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
         jsgraph(), shared, eager_continuation_builtin, node->InputAt(0),
         context, &checkpoint_params[0], stack_parameters, outer_frame_state,
         ContinuationFrameStateMode::EAGER);
-
     effect =
         graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
-
-    effect =
-        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                                 receiver_maps, p.feedback()),
-                         receiver, effect, control);
   }
 
-  // Load k-th element from receiver.
+  // Deopt if the map has changed during the iteration.
+  if (!stability_dependency) {
+    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
+  }
+
   Node* element =
       SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-
-  // Increment k for the next iteration.
   Node* next_k = checkpoint_params[3] =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
 
@@ -2265,7 +2388,6 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-  // Try to determine the {receiver} map.
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* fncallback = node->op()->ValueInputCount() > 2
                          ? NodeProperties::GetValueInput(node, 2)
@@ -2273,27 +2395,25 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
   Node* this_arg = node->op()->ValueInputCount() > 3
                        ? NodeProperties::GetValueInput(node, 3)
                        : jsgraph()->UndefinedConstant();
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+
+  // Try to determine the {receiver} map.
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return NoChange();
+    return inference.NoChange();
   }
-
-  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
+  if (!dependencies()->DependOnArraySpeciesProtector())
+    return inference.NoChange();
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
+  bool const stability_dependency = inference.RelyOnMapsPreferStability(
+      dependencies(), jsgraph(), &effect, control, p.feedback());
 
   Node* k = jsgraph()->ZeroConstant();
-
   Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
       effect, control);
@@ -2335,25 +2455,21 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
     Node* checkpoint_params[] = {receiver, fncallback, this_arg, k,
                                  original_length};
     const int stack_parameters = arraysize(checkpoint_params);
-
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
         jsgraph(), shared, Builtins::kArrayEveryLoopEagerDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::EAGER);
-
     effect =
         graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
   }
 
-  // Make sure the map hasn't changed during the iteration.
-  effect =
-      graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                               receiver_maps, p.feedback()),
-                       receiver, effect, control);
+  // Deopt if the map has changed during the iteration.
+  if (!stability_dependency) {
+    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
+  }
 
   Node* element =
       SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-
   Node* next_k =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
 
@@ -2524,23 +2640,19 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return NoChange();
+    return inference.NoChange();
   }
-
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control, p.feedback());
 
   Callable const callable = search_variant == SearchVariant::kIndexOf
                                 ? GetCallableForArrayIndexOf(kind, isolate())
@@ -2601,7 +2713,6 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-  // Try to determine the {receiver} map.
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* fncallback = node->op()->ValueInputCount() > 2
                          ? NodeProperties::GetValueInput(node, 2)
@@ -2609,27 +2720,25 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   Node* this_arg = node->op()->ValueInputCount() > 3
                        ? NodeProperties::GetValueInput(node, 3)
                        : jsgraph()->UndefinedConstant();
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+
+  // Try to determine the {receiver} map.
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
-    return NoChange();
+    return inference.NoChange();
   }
-
-  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
+  if (!dependencies()->DependOnArraySpeciesProtector())
+    return inference.NoChange();
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
+  bool const stability_dependency = inference.RelyOnMapsPreferStability(
+      dependencies(), jsgraph(), &effect, control, p.feedback());
 
   Node* k = jsgraph()->ZeroConstant();
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
-
   Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
       effect, control);
@@ -2676,25 +2785,21 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
     Node* checkpoint_params[] = {receiver, fncallback, this_arg, k,
                                  original_length};
     const int stack_parameters = arraysize(checkpoint_params);
-
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
         jsgraph(), shared, Builtins::kArraySomeLoopEagerDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::EAGER);
-
     effect =
         graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
   }
 
-  // Make sure the map hasn't changed during the iteration.
-  effect =
-      graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                               receiver_maps, p.feedback()),
-                       receiver, effect, control);
+  // Deopt if the map has changed during the iteration.
+  if (!stability_dependency) {
+    inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
+  }
 
   Node* element =
       SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
-
   Node* next_k =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
 
@@ -2809,6 +2914,10 @@ Reduction JSCallReducer::ReduceCallApiFunction(
     Node* node, const SharedFunctionInfoRef& shared) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
   int const argc = static_cast<int>(p.arity()) - 2;
   Node* global_proxy =
       jsgraph()->Constant(native_context().global_proxy_object());
@@ -2826,11 +2935,10 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   if (!call_optimization.is_simple_api_call()) return NoChange();
 
   // Try to infer the {receiver} maps from the graph.
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result != NodeProperties::kNoReceiverMaps) {
+  MapInference inference(broker(), receiver, effect);
+  if (inference.HaveMaps()) {
+    MapHandles const& receiver_maps = inference.GetMaps();
+
     // Check that all {receiver_maps} are actually JSReceiver maps and
     // that the {function_template_info} accepts them without access
     // checks (even if "access check needed" is set for {receiver}).
@@ -2855,7 +2963,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
       if (!receiver_map.IsJSReceiverMap() ||
           (receiver_map.is_access_check_needed() &&
            !function_template_info->accept_any_receiver())) {
-        return NoChange();
+        return inference.NoChange();
       }
     }
 
@@ -2863,14 +2971,20 @@ Reduction JSCallReducer::ReduceCallApiFunction(
     CallOptimization::HolderLookup lookup;
     Handle<JSObject> api_holder =
         call_optimization.LookupHolderOfExpectedType(receiver_maps[0], &lookup);
-    if (lookup == CallOptimization::kHolderNotFound) return NoChange();
+    if (lookup == CallOptimization::kHolderNotFound)
+      return inference.NoChange();
     for (size_t i = 1; i < receiver_maps.size(); ++i) {
       CallOptimization::HolderLookup lookupi;
       Handle<JSObject> holderi = call_optimization.LookupHolderOfExpectedType(
           receiver_maps[i], &lookupi);
-      if (lookup != lookupi) return NoChange();
-      if (!api_holder.is_identical_to(holderi)) return NoChange();
+      if (lookup != lookupi) return inference.NoChange();
+      if (!api_holder.is_identical_to(holderi)) return inference.NoChange();
     }
+
+    // TODO(neis): The maps were used in a way that does not actually require
+    // map checks or stability dependencies.
+    inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                        control, p.feedback());
 
     // Determine the appropriate holder for the {lookup}.
     holder = lookup == CallOptimization::kHolderFound
@@ -4303,22 +4417,17 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  DCHECK_NE(0, receiver_maps.size());
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
   if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kind, true)) {
-    return NoChange();
+    return inference.NoChange();
   }
-
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control, p.feedback());
 
   // Collect the value inputs to push.
   std::vector<Node*> values(num_values);
@@ -4401,22 +4510,17 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  DCHECK_NE(0, receiver_maps.size());
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
   if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kind)) {
-    return NoChange();
+    return inference.NoChange();
   }
-
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control, p.feedback());
 
   // Load the "length" property of the {receiver}.
   Node* length = effect = graph()->NewNode(
@@ -4504,22 +4608,17 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  DCHECK_NE(0, receiver_maps.size());
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
   if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kind)) {
-    return NoChange();
+    return inference.NoChange();
   }
-
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control, p.feedback());
 
   // Load length of the {receiver}.
   Node* length = effect = graph()->NewNode(
@@ -4698,12 +4797,9 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
     return NoChange();
   }
 
-  // Try to determine the {receiver} maps.
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   // Check that the maps are of JSArray (and more).
   // TODO(turbofan): Consider adding special case for the common pattern
@@ -4711,20 +4807,20 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
   bool can_be_holey = false;
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
-    if (!receiver_map.supports_fast_array_iteration()) return NoChange();
-
+    if (!receiver_map.supports_fast_array_iteration())
+      return inference.NoChange();
     if (IsHoleyElementsKind(receiver_map.elements_kind())) {
       can_be_holey = true;
     }
   }
 
-  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
+  if (!dependencies()->DependOnArraySpeciesProtector())
+    return inference.NoChange();
   if (can_be_holey) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control, p.feedback());
 
   // TODO(turbofan): We can do even better here, either adding a CloneArray
   // simplified operator, whose output type indicates that it's an Array,
@@ -4781,15 +4877,9 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node, IterationKind kind) {
   Node* control = NodeProperties::GetControlInput(node);
 
   // Check if we know that {receiver} is a valid JSReceiver.
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  DCHECK_NE(0, receiver_maps.size());
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!receiver_map.IsJSReceiverMap()) return NoChange();
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAreJSReceiver()) {
+    return inference.NoChange();
   }
 
   // Morph the {node} into a JSCreateArrayIterator with the given {kind}.
@@ -4802,22 +4892,6 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node, IterationKind kind) {
   NodeProperties::ChangeOp(node, javascript()->CreateArrayIterator(kind));
   return Changed(node);
 }
-
-namespace {
-
-bool InferIteratedObjectMaps(JSHeapBroker* broker, Node* iterator,
-                             ZoneHandleSet<Map>* iterated_object_maps) {
-  DCHECK_EQ(IrOpcode::kJSCreateArrayIterator, iterator->opcode());
-  Node* iterated_object = NodeProperties::GetValueInput(iterator, 0);
-  Node* effect = NodeProperties::GetEffectInput(iterator);
-
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker, iterated_object, effect,
-                                        iterated_object_maps);
-  return result != NodeProperties::kNoReceiverMaps;
-}
-
-}  // namespace
 
 // ES #sec-%arrayiteratorprototype%.next
 Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
@@ -4832,17 +4906,15 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     return NoChange();
   }
 
-  // Check if the {iterator} is a JSCreateArrayIterator.
   if (iterator->opcode() != IrOpcode::kJSCreateArrayIterator) return NoChange();
+
   IterationKind const iteration_kind =
       CreateArrayIteratorParametersOf(iterator->op()).kind();
-
-  // Try to infer the [[IteratedObject]] maps from the {iterator}.
-  ZoneHandleSet<Map> iterated_object_maps;
-  if (!InferIteratedObjectMaps(broker(), iterator, &iterated_object_maps)) {
-    return NoChange();
-  }
-  DCHECK_NE(0, iterated_object_maps.size());
+  Node* iterated_object = NodeProperties::GetValueInput(iterator, 0);
+  Node* iterator_effect = NodeProperties::GetEffectInput(iterator);
+  MapInference inference(broker(), iterated_object, iterator_effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& iterated_object_maps = inference.GetMaps();
 
   // Check that various {iterated_object_maps} have compatible elements kinds.
   ElementsKind elements_kind =
@@ -4866,22 +4938,11 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     }
   }
 
-  // Install code dependency on the array protector for holey arrays.
   if (IsHoleyElementsKind(elements_kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-
-  // Load the (current) {iterated_object} from the {iterator}.
-  Node* iterated_object = effect =
-      graph()->NewNode(simplified()->LoadField(
-                           AccessBuilder::ForJSArrayIteratorIteratedObject()),
-                       iterator, effect, control);
-
-  // Ensure that the {iterated_object} map didn't change.
-  effect = graph()->NewNode(
-      simplified()->CheckMaps(CheckMapsFlag::kNone, iterated_object_maps,
-                              p.feedback()),
-      iterated_object, effect, control);
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control, p.feedback());
 
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
     // See if we can skip the detaching check.
@@ -5646,34 +5707,26 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Check if we know something about {receiver} already.
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  DCHECK_NE(0, receiver_maps.size());
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   // Check whether all {receiver_maps} are JSPromise maps and
   // have the initial Promise.prototype as their [[Prototype]].
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
-    if (!receiver_map.IsJSPromiseMap()) return NoChange();
+    if (!receiver_map.IsJSPromiseMap()) return inference.NoChange();
     receiver_map.SerializePrototype();
     if (!receiver_map.prototype().equals(
             native_context().promise_prototype())) {
-      return NoChange();
+      return inference.NoChange();
     }
   }
 
-  // Check that the Promise.then protector is intact. This protector guards
-  // that all JSPromise instances whose [[Prototype]] is the initial
-  // %PromisePrototype% yield the initial %PromisePrototype%.then method
-  // when looking up "then".
-  if (!dependencies()->DependOnPromiseThenProtector()) return NoChange();
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
+  if (!dependencies()->DependOnPromiseThenProtector())
+    return inference.NoChange();
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control, p.feedback());
 
   // Massage the {node} to call "then" instead by first removing all inputs
   // following the onRejected parameter, and then filling up the parameters
@@ -5707,43 +5760,30 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
     return NoChange();
   }
 
-  // Check if we know something about {receiver} already.
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  DCHECK_NE(0, receiver_maps.size());
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   // Check whether all {receiver_maps} are JSPromise maps and
   // have the initial Promise.prototype as their [[Prototype]].
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
-    if (!receiver_map.IsJSPromiseMap()) return NoChange();
+    if (!receiver_map.IsJSPromiseMap()) return inference.NoChange();
     receiver_map.SerializePrototype();
     if (!receiver_map.prototype().equals(
             native_context().promise_prototype())) {
-      return NoChange();
+      return inference.NoChange();
     }
   }
 
-  // Check that promises aren't being observed through (debug) hooks.
-  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
-
-  // Check that the Promise#then protector is intact. This protector guards
-  // that all JSPromise instances whose [[Prototype]] is the initial
-  // %PromisePrototype% yield the initial %PromisePrototype%.then method
-  // when looking up "then".
-  if (!dependencies()->DependOnPromiseThenProtector()) return NoChange();
-
-  // Also check that the @@species protector is intact, which guards the
-  // lookup of "constructor" on JSPromise instances, whoch [[Prototype]] is
-  // the initial %PromisePrototype%, and the Symbol.species lookup on the
-  // %PromisePrototype%.
-  if (!dependencies()->DependOnPromiseSpeciesProtector()) return NoChange();
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
+  if (!dependencies()->DependOnPromiseHookProtector())
+    return inference.NoChange();
+  if (!dependencies()->DependOnPromiseThenProtector())
+    return inference.NoChange();
+  if (!dependencies()->DependOnPromiseSpeciesProtector())
+    return inference.NoChange();
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control, p.feedback());
 
   // Check if {on_finally} is callable, and if so wrap it into appropriate
   // closures that perform the finalization.
@@ -5813,8 +5853,12 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   // At this point we definitely know that {receiver} has one of the
   // {receiver_maps}, so insert a MapGuard as a hint for the lowering
   // of the call to "then" below.
-  effect = graph()->NewNode(simplified()->MapGuard(receiver_maps), receiver,
-                            effect, control);
+  {
+    ZoneHandleSet<Map> maps;
+    for (Handle<Map> map : receiver_maps) maps.insert(map, graph()->zone());
+    effect = graph()->NewNode(simplified()->MapGuard(maps), receiver, effect,
+                              control);
+  }
 
   // Massage the {node} to call "then" instead by first removing all inputs
   // following the onFinally parameter, and then replacing the only parameter
@@ -5855,37 +5899,28 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
 
-  // Check if we know something about {receiver} already.
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  DCHECK_NE(0, receiver_maps.size());
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps()) return inference.NoChange();
+  MapHandles const& receiver_maps = inference.GetMaps();
 
   // Check whether all {receiver_maps} are JSPromise maps and
   // have the initial Promise.prototype as their [[Prototype]].
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
-    if (!receiver_map.IsJSPromiseMap()) return NoChange();
+    if (!receiver_map.IsJSPromiseMap()) return inference.NoChange();
     receiver_map.SerializePrototype();
     if (!receiver_map.prototype().equals(
             native_context().promise_prototype())) {
-      return NoChange();
+      return inference.NoChange();
     }
   }
 
-  // Check that promises aren't being observed through (debug) hooks.
-  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
-
-  // Check if the @@species protector is intact. The @@species protector
-  // guards the "constructor" lookup on all JSPromise instances and the
-  // initial Promise.prototype, as well as the  Symbol.species lookup on
-  // the Promise constructor.
-  if (!dependencies()->DependOnPromiseSpeciesProtector()) return NoChange();
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, receiver_maps, p.feedback(), receiver, effect, control);
+  if (!dependencies()->DependOnPromiseHookProtector())
+    return inference.NoChange();
+  if (!dependencies()->DependOnPromiseSpeciesProtector())
+    return inference.NoChange();
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control, p.feedback());
 
   // Check that {on_fulfilled} is callable.
   on_fulfilled = graph()->NewNode(
@@ -5935,20 +5970,10 @@ Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Check if we know something about {receiver} already.
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult infer_receiver_maps_result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (infer_receiver_maps_result == NodeProperties::kNoReceiverMaps) {
-    return NoChange();
-  }
-  DCHECK_NE(0, receiver_maps.size());
-
-  // Only reduce when all {receiver_maps} are JSReceiver maps.
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!receiver_map.IsJSReceiverMap()) return NoChange();
+  // Only reduce when the receiver is guaranteed to be a JSReceiver.
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAreJSReceiver()) {
+    return inference.NoChange();
   }
 
   // Morph the {node} into a JSPromiseResolve operation.
@@ -6276,23 +6301,24 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
   // how to update the escape analysis / arrange the graph in a way that
   // this becomes possible.
 
-  // Infer the {receiver} instance type.
   InstanceType receiver_instance_type;
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  DCHECK_NE(0, receiver_maps.size());
-  receiver_instance_type = receiver_maps[0]->instance_type();
-  for (size_t i = 1; i < receiver_maps.size(); ++i) {
-    if (receiver_maps[i]->instance_type() != receiver_instance_type) {
-      return NoChange();
+  {
+    MapInference inference(broker(), receiver, effect);
+    if (!inference.HaveMaps()) return inference.NoChange();
+    MapHandles const& receiver_maps = inference.GetMaps();
+    receiver_instance_type = receiver_maps[0]->instance_type();
+    for (size_t i = 1; i < receiver_maps.size(); ++i) {
+      if (receiver_maps[i]->instance_type() != receiver_instance_type) {
+        return inference.NoChange();
+      }
     }
-  }
-  if (receiver_instance_type < collection_iterator_instance_type_first ||
-      receiver_instance_type > collection_iterator_instance_type_last) {
-    return NoChange();
+    if (receiver_instance_type < collection_iterator_instance_type_first ||
+        receiver_instance_type > collection_iterator_instance_type_last) {
+      return inference.NoChange();
+    }
+    if (!inference.RelyOnMapsViaStability(dependencies())) {
+      return inference.NoChange();
+    }
   }
 
   // Transition the JSCollectionIterator {receiver} if necessary
@@ -6875,16 +6901,12 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* regexp = NodeProperties::GetValueInput(node, 1);
 
-  // Check if we know something about the {regexp}.
-  ZoneHandleSet<Map> regexp_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), regexp, effect, &regexp_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-
-  for (auto map : regexp_maps) {
-    MapRef receiver_map(broker(), map);
-    if (receiver_map.instance_type() != JS_REGEXP_TYPE) return NoChange();
+  MapInference inference(broker(), regexp, effect);
+  if (!inference.HaveMaps() ||
+      !inference.AllOfInstanceTypes(InstanceTypeChecker::IsJSRegExp)) {
+    return inference.NoChange();
   }
+  MapHandles const& regexp_maps = inference.GetMaps();
 
   // Compute property access info for "exec" on {resolution}.
   PropertyAccessInfo ai_exec;
@@ -6898,19 +6920,19 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
     ai_exec = access_info_factory.FinalizePropertyAccessInfosAsOne(
         access_infos, AccessMode::kLoad);
   }
-  if (ai_exec.IsInvalid()) return NoChange();
+  if (ai_exec.IsInvalid()) return inference.NoChange();
 
   // If "exec" has been modified on {regexp}, we can't do anything.
   if (ai_exec.IsDataConstant()) {
     Handle<JSObject> holder;
     // Do not reduce if the exec method is not on the prototype chain.
-    if (!ai_exec.holder().ToHandle(&holder)) return NoChange();
+    if (!ai_exec.holder().ToHandle(&holder)) return inference.NoChange();
 
     // Bail out if the exec method is not the original one.
     Handle<Object> constant = JSObject::FastPropertyAt(
         holder, Representation::Tagged(), ai_exec.field_index());
     if (!constant.is_identical_to(isolate()->regexp_exec_function())) {
-      return NoChange();
+      return inference.NoChange();
     }
 
     // Protect the exec method change in the holder.
@@ -6924,10 +6946,8 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
     holder_map.SerializeOwnDescriptors();
     dependencies()->DependOnFieldType(holder_map, descriptor_index);
   } else {
-    return NoChange();
+    return inference.NoChange();
   }
-
-  PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
 
   // Add proper dependencies on the {regexp}s [[Prototype]]s.
   Handle<JSObject> holder;
@@ -6936,9 +6956,8 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
         ai_exec.receiver_maps(), kStartAtPrototype,
         JSObjectRef(broker(), holder));
   }
-
-  effect = InsertMapChecksIfUnreliableReceiverMaps(
-      result, regexp_maps, p.feedback(), regexp, effect, control);
+  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                      control, p.feedback());
 
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
