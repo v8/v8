@@ -1505,6 +1505,10 @@ class PreParser : public ParserBase<PreParser> {
     scanner()->set_parser_error();
   }
 
+  const AstRawString* GetRawNameFromIdentifier(const PreParserIdentifier& arg) {
+    return arg.string_;
+  }
+
   // "null" return type creators.
   V8_INLINE static PreParserIdentifier NullIdentifier() {
     return PreParserIdentifier::Null();

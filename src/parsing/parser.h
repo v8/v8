@@ -698,6 +698,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     scanner_.set_parser_error();
   }
 
+  const AstRawString* GetRawNameFromIdentifier(const AstRawString* arg) {
+    return arg;
+  }
+
   void ReportUnexpectedTokenAt(
       Scanner::Location location, Token::Value token,
       MessageTemplate message = MessageTemplate::kUnexpectedToken);

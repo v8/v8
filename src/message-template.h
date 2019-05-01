@@ -398,7 +398,7 @@ namespace internal {
   T(InvalidRegExpFlags, "Invalid flags supplied to RegExp constructor '%'")    \
   T(InvalidOrUnexpectedToken, "Invalid or unexpected token")                   \
   T(InvalidPrivateFieldResolution,                                             \
-    "Undefined private field %: must be declared in an enclosing class")       \
+    "Private field '%' must be declared in an enclosing class")                \
   T(InvalidPrivateFieldRead,                                                   \
     "Read of private field % from an object which did not contain the field")  \
   T(InvalidPrivateFieldWrite,                                                  \

@@ -1559,16 +1559,16 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     //
     // Here, we check if this is a new private name reference in a top
     // level function and throw an error if so.
-    //
-    // Bug(v8:7468): This hack will go away once we refactor private
-    // name resolution to happen independently from scope resolution.
     ClassScope* class_scope = scope()->GetClassScope();
+    // Parse the identifier so that we can display it in the error message
+    name = impl()->GetIdentifier();
     if (class_scope == nullptr) {
-      ReportMessage(MessageTemplate::kInvalidPrivateFieldResolution);
+      impl()->ReportMessageAt(Scanner::Location(pos, pos + 1),
+                              MessageTemplate::kInvalidPrivateFieldResolution,
+                              impl()->GetRawNameFromIdentifier(name),
+                              kSyntaxError);
       return impl()->FailureExpression();
     }
-
-    name = impl()->GetIdentifier();
     key = impl()->ExpressionFromPrivateName(class_scope, name, pos);
   } else {
     ReportUnexpectedToken(next);
