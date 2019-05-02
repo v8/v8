@@ -284,7 +284,7 @@ class DefaultSentinel(Node):
     self.binary = binary
     self.run_count = 10
     self.timeout = 60
-    self.retry_count = 0
+    self.retry_count = 4
     self.path = []
     self.graphs = []
     self.flags = []

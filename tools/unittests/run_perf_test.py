@@ -403,9 +403,12 @@ class PerfTest(unittest.TestCase):
         os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
 
   def testOneRunCrashed(self):
-    self._WriteTestInput(V8_JSON)
+    test_input = dict(V8_JSON)
+    test_input['retry_count'] = 1
+    self._WriteTestInput(test_input)
     self._MockCommand(
-        ['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'], exit_code=-1)
+        ['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n', ''],
+        exit_code=-1)
     self.assertEqual(1, self._CallMain())
     self._VerifyResults('test', 'score', [])
     self._VerifyErrors([])
@@ -415,6 +418,7 @@ class PerfTest(unittest.TestCase):
   def testOneRunTimingOut(self):
     test_input = dict(V8_JSON)
     test_input['timeout'] = 70
+    test_input['retry_count'] = 0
     self._WriteTestInput(test_input)
     self._MockCommand(['.'], [''], timed_out=True)
     self.assertEqual(1, self._CallMain())
