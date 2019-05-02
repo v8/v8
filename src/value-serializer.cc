@@ -24,7 +24,7 @@
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/smi.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/transitions.h"
+#include "src/transitions-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
