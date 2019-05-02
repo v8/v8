@@ -4921,6 +4921,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
       CreateArrayIteratorParametersOf(iterator->op()).kind();
   Node* iterated_object = NodeProperties::GetValueInput(iterator, 0);
   Node* iterator_effect = NodeProperties::GetEffectInput(iterator);
+
   MapInference inference(broker(), iterated_object, iterator_effect);
   if (!inference.HaveMaps()) return inference.NoChange();
   MapHandles const& iterated_object_maps = inference.GetMaps();
@@ -4932,26 +4933,28 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     // TurboFan doesn't support loading from BigInt typed arrays yet.
     if (elements_kind == BIGUINT64_ELEMENTS ||
         elements_kind == BIGINT64_ELEMENTS) {
-      return NoChange();
+      return inference.NoChange();
     }
     for (Handle<Map> map : iterated_object_maps) {
       MapRef iterated_object_map(broker(), map);
       if (iterated_object_map.elements_kind() != elements_kind) {
-        return NoChange();
+        return inference.NoChange();
       }
     }
   } else {
     if (!CanInlineArrayIteratingBuiltin(broker(), iterated_object_maps,
                                         &elements_kind)) {
-      return NoChange();
+      return inference.NoChange();
     }
   }
 
   if (IsHoleyElementsKind(elements_kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-  inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
-                                      control, p.feedback());
+  // Since the map inference was done relative to {iterator_effect} rather than
+  // {effect}, we need to guard the use of the map(s) even when the inference
+  // was reliable.
+  inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
 
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
     // See if we can skip the detaching check.
