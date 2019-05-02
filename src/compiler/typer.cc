@@ -486,12 +486,12 @@ Typer::Visitor::ComparisonOutcome Typer::Visitor::Invert(
 }
 
 Type Typer::Visitor::FalsifyUndefined(ComparisonOutcome outcome, Typer* t) {
+  if (outcome == 0) return Type::None();
   if ((outcome & kComparisonFalse) != 0 ||
       (outcome & kComparisonUndefined) != 0) {
     return (outcome & kComparisonTrue) != 0 ? Type::Boolean()
                                             : t->singleton_false_;
   }
-  // Type should be non empty, so we know it should be true.
   DCHECK_NE(0, outcome & kComparisonTrue);
   return t->singleton_true_;
 }
@@ -1025,6 +1025,8 @@ Type Typer::Visitor::JSStrictEqualTyper(Type lhs, Type rhs, Typer* t) {
 Typer::Visitor::ComparisonOutcome Typer::Visitor::JSCompareTyper(Type lhs,
                                                                  Type rhs,
                                                                  Typer* t) {
+  if (lhs.IsNone() || rhs.IsNone()) return {};
+
   lhs = ToPrimitive(lhs, t);
   rhs = ToPrimitive(rhs, t);
   if (lhs.Maybe(Type::String()) && rhs.Maybe(Type::String())) {
@@ -1047,6 +1049,8 @@ Typer::Visitor::ComparisonOutcome Typer::Visitor::NumberCompareTyper(Type lhs,
   DCHECK(lhs.Is(Type::Number()));
   DCHECK(rhs.Is(Type::Number()));
 
+  if (lhs.IsNone() || rhs.IsNone()) return {};
+
   // Shortcut for NaNs.
   if (lhs.Is(Type::NaN()) || rhs.Is(Type::NaN())) return kComparisonUndefined;
 
@@ -1059,11 +1063,9 @@ Typer::Visitor::ComparisonOutcome Typer::Visitor::NumberCompareTyper(Type lhs,
   } else if (lhs.Max() < rhs.Min()) {
     result = kComparisonTrue;
   } else {
-    // We cannot figure out the result, return both true and false. (We do not
-    // have to return undefined because that cannot affect the result of
-    // FalsifyUndefined.)
     return ComparisonOutcome(kComparisonTrue) |
-           ComparisonOutcome(kComparisonFalse);
+           ComparisonOutcome(kComparisonFalse) |
+           ComparisonOutcome(kComparisonUndefined);
   }
   // Add the undefined if we could see NaN.
   if (lhs.Maybe(Type::NaN()) || rhs.Maybe(Type::NaN())) {
