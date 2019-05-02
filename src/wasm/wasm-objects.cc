@@ -782,7 +782,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
                                              wasm::ValueType type,
                                              uint32_t initial, bool has_maximum,
                                              uint32_t maximum,
-                                             Handle<FixedArray>* elements) {
+                                             Handle<FixedArray>* entries) {
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArray(initial);
   Object null = ReadOnlyRoots(isolate).null_value();
   for (int i = 0; i < static_cast<int>(initial); ++i) {
@@ -795,7 +795,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
       isolate->factory()->NewJSObject(table_ctor));
 
   table_obj->set_raw_type(static_cast<int>(type));
-  table_obj->set_elements(*backing_store);
+  table_obj->set_entries(*backing_store);
   Handle<Object> max;
   if (has_maximum) {
     max = isolate->factory()->NewNumberFromUint(maximum);
@@ -805,8 +805,8 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
   table_obj->set_maximum_length(*max);
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
-  if (elements != nullptr) {
-    *elements = backing_store;
+  if (entries != nullptr) {
+    *entries = backing_store;
   }
   return Handle<WasmTableObject>::cast(table_obj);
 }
@@ -850,9 +850,9 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
 
   uint32_t new_size = old_size + count;
   auto new_store = isolate->factory()->CopyFixedArrayAndGrow(
-      handle(table->elements(), isolate), count);
+      handle(table->entries(), isolate), count);
 
-  table->set_elements(*new_store, WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  table->set_entries(*new_store, WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
   DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
@@ -882,41 +882,41 @@ bool WasmTableObject::IsInBounds(Isolate* isolate,
                                  uint32_t entry_index) {
   return (entry_index <
               static_cast<uint32_t>(std::numeric_limits<int>::max()) &&
-          static_cast<int>(entry_index) < table->elements()->length());
+          static_cast<int>(entry_index) < table->entries()->length());
 }
 
 bool WasmTableObject::IsValidElement(Isolate* isolate,
                                      Handle<WasmTableObject> table,
-                                     Handle<Object> element) {
+                                     Handle<Object> entry) {
   // Anyref tables take everything.
   if (table->type() == wasm::kWasmAnyRef) return true;
   // Anyfunc tables can store {null} or {WasmExportedFunction} objects.
-  if (element->IsNull(isolate)) return true;
-  return WasmExportedFunction::IsWasmExportedFunction(*element);
+  if (entry->IsNull(isolate)) return true;
+  return WasmExportedFunction::IsWasmExportedFunction(*entry);
 }
 
 void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
-                          uint32_t index, Handle<Object> element) {
+                          uint32_t index, Handle<Object> entry) {
   // Callers need to perform bounds checks, type check, and error handling.
   DCHECK(IsInBounds(isolate, table, index));
-  DCHECK(IsValidElement(isolate, table, element));
+  DCHECK(IsValidElement(isolate, table, entry));
 
-  Handle<FixedArray> elements(table->elements(), isolate);
+  Handle<FixedArray> entries(table->entries(), isolate);
   // The FixedArray is addressed with int's.
   int entry_index = static_cast<int>(index);
   if (table->type() == wasm::kWasmAnyRef) {
-    elements->set(entry_index, *element);
+    entries->set(entry_index, *entry);
     return;
   }
 
-  if (element->IsNull(isolate)) {
+  if (entry->IsNull(isolate)) {
     ClearDispatchTables(isolate, table, entry_index);  // Degenerate case.
-    elements->set(entry_index, ReadOnlyRoots(isolate).null_value());
+    entries->set(entry_index, ReadOnlyRoots(isolate).null_value());
     return;
   }
 
-  DCHECK(WasmExportedFunction::IsWasmExportedFunction(*element));
-  auto exported_function = Handle<WasmExportedFunction>::cast(element);
+  DCHECK(WasmExportedFunction::IsWasmExportedFunction(*entry));
+  auto exported_function = Handle<WasmExportedFunction>::cast(entry);
   Handle<WasmInstanceObject> target_instance(exported_function->instance(),
                                              isolate);
   int func_index = exported_function->function_index();
@@ -926,47 +926,46 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   UpdateDispatchTables(isolate, table, entry_index, wasm_function->sig,
                        handle(exported_function->instance(), isolate),
                        func_index);
-  elements->set(entry_index, *element);
+  entries->set(entry_index, *entry);
 }
 
 Handle<Object> WasmTableObject::Get(Isolate* isolate,
                                     Handle<WasmTableObject> table,
                                     uint32_t index) {
-  Handle<FixedArray> elements(table->elements(), isolate);
+  Handle<FixedArray> entries(table->entries(), isolate);
   // Callers need to perform bounds checks and error handling.
   DCHECK(IsInBounds(isolate, table, index));
 
   // The FixedArray is addressed with int's.
   int entry_index = static_cast<int>(index);
 
-  Handle<Object> element(elements->get(entry_index), isolate);
+  Handle<Object> entry(entries->get(entry_index), isolate);
 
   // First we handle the easy anyref table case.
-  if (table->type() == wasm::kWasmAnyRef) return element;
+  if (table->type() == wasm::kWasmAnyRef) return entry;
 
   // Now we handle the anyfunc case.
-  if (WasmExportedFunction::IsWasmExportedFunction(*element)) {
-    return element;
+  if (WasmExportedFunction::IsWasmExportedFunction(*entry)) {
+    return entry;
   }
 
-  if (element->IsNull(isolate)) {
-    return element;
+  if (entry->IsNull(isolate)) {
+    return entry;
   }
 
-  // {element} is not a valid entry in the table. It has to be a placeholder
+  // {entry} is not a valid entry in the table. It has to be a placeholder
   // for lazy initialization.
-  Handle<Tuple2> tuple = Handle<Tuple2>::cast(element);
+  Handle<Tuple2> tuple = Handle<Tuple2>::cast(entry);
   auto instance = handle(WasmInstanceObject::cast(tuple->value1()), isolate);
   int function_index = Smi::cast(tuple->value2()).value();
 
   // Check if we already compiled a wrapper for the function but did not store
   // it in the table slot yet.
-  MaybeHandle<Object> maybe_element =
-      WasmInstanceObject::GetWasmExportedFunction(isolate, instance,
-                                                  function_index);
-  if (maybe_element.ToHandle(&element)) {
-    elements->set(entry_index, *element);
-    return element;
+  MaybeHandle<Object> maybe_entry = WasmInstanceObject::GetWasmExportedFunction(
+      isolate, instance, function_index);
+  if (maybe_entry.ToHandle(&entry)) {
+    entries->set(entry_index, *entry);
+    return entry;
   }
 
   const WasmModule* module = instance->module_object()->module();
@@ -984,7 +983,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
       isolate, instance, function_name, function_index,
       static_cast<int>(function.sig->parameter_count()), wrapper_code);
 
-  elements->set(entry_index, *result);
+  entries->set(entry_index, *result);
   WasmInstanceObject::SetWasmExportedFunction(isolate, instance, function_index,
                                               result);
   return result;
@@ -1044,7 +1043,7 @@ void WasmTableObject::SetFunctionTablePlaceholder(
   Handle<Tuple2> tuple = isolate->factory()->NewTuple2(
       instance, Handle<Smi>(Smi::FromInt(func_index), isolate),
       AllocationType::kYoung);
-  table->elements()->set(entry_index, *tuple);
+  table->entries()->set(entry_index, *tuple);
 }
 
 void WasmTableObject::GetFunctionTableEntry(
@@ -1052,10 +1051,10 @@ void WasmTableObject::GetFunctionTableEntry(
     bool* is_valid, bool* is_null, MaybeHandle<WasmInstanceObject>* instance,
     int* function_index) {
   DCHECK_EQ(table->type(), wasm::kWasmAnyFunc);
-  DCHECK_LT(entry_index, table->elements()->length());
+  DCHECK_LT(entry_index, table->entries()->length());
   // We initialize {is_valid} with {true}. We may change it later.
   *is_valid = true;
-  Handle<Object> element(table->elements()->get(entry_index), isolate);
+  Handle<Object> element(table->entries()->get(entry_index), isolate);
 
   *is_null = element->IsNull(isolate);
   if (*is_null) return;
@@ -1693,12 +1692,12 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
       WasmTableObject::cast(instance->tables()->get(table_src_index)), isolate);
   if (copy_backward) {
     for (uint32_t i = count; i > 0; i--) {
-      dst_table->elements()->set(dst + i - 1,
-                                 src_table->elements()->get(src + i - 1));
+      dst_table->entries()->set(dst + i - 1,
+                                src_table->entries()->get(src + i - 1));
     }
   } else {
     for (uint32_t i = 0; i < count; i++) {
-      dst_table->elements()->set(dst + i, src_table->elements()->get(src + i));
+      dst_table->entries()->set(dst + i, src_table->entries()->get(src + i));
     }
   }
   return ok;

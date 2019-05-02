@@ -3373,10 +3373,10 @@ void WasmGraphBuilder::BoundsCheckTable(uint32_t table_index, Node* entry_index,
   Node* tables = LOAD_INSTANCE_FIELD(Tables, MachineType::TaggedPointer());
   Node* table = LOAD_FIXED_ARRAY_SLOT_ANY(tables, table_index);
 
-  int storage_field_size = WasmTableObject::kElementsOffsetEnd -
-                           WasmTableObject::kElementsOffset + 1;
+  int storage_field_size =
+      WasmTableObject::kEntriesOffsetEnd - WasmTableObject::kEntriesOffset + 1;
   Node* storage = LOAD_RAW(
-      table, wasm::ObjectAccess::ToTagged(WasmTableObject::kElementsOffset),
+      table, wasm::ObjectAccess::ToTagged(WasmTableObject::kEntriesOffset),
       assert_size(storage_field_size, MachineType::TaggedPointer()));
 
   int length_field_size =

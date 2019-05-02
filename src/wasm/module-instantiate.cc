@@ -432,7 +432,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       auto table_object = handle(WasmTableObject::cast(instance->tables()->get(
                                      elem_segment.table_index)),
                                  isolate_);
-      size_t table_size = table_object->elements()->length();
+      size_t table_size = table_object->entries()->length();
       if (!IsInBounds(base, elem_segment.entries.size(), table_size)) {
         thrower_->LinkError("table initializer is out of bounds");
         return {};
@@ -816,7 +816,7 @@ bool InstanceBuilder::ProcessImportedFunction(
 bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     Handle<WasmInstanceObject> instance, int import_index,
     Handle<WasmTableObject> table_object) {
-  int imported_table_size = table_object->elements().length();
+  int imported_table_size = table_object->entries().length();
   // Allocate a new dispatch table.
   if (!instance->has_indirect_function_table()) {
     WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
@@ -871,7 +871,7 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
   instance->tables()->set(table_index, *value);
   auto table_object = Handle<WasmTableObject>::cast(value);
 
-  int imported_table_size = table_object->elements().length();
+  int imported_table_size = table_object->entries().length();
   if (imported_table_size < static_cast<int>(table.initial_size)) {
     thrower_->LinkError("table import %d is smaller than initial %d, got %u",
                         import_index, table.initial_size, imported_table_size);
@@ -1495,7 +1495,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
   // for both instantiation and in the implementation of the table.init
   // instruction.
   bool ok =
-      ClampToBounds<size_t>(dst, &count, table_object->elements()->length());
+      ClampToBounds<size_t>(dst, &count, table_object->entries()->length());
   // Use & instead of && so the clamp is not short-circuited.
   ok &= ClampToBounds<size_t>(src, &count, elem_segment.entries.size());
 
@@ -1528,8 +1528,8 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate, table_object, entry_index, instance, func_index);
     } else {
-      table_object->elements()->set(entry_index,
-                                    *wasm_exported_function.ToHandleChecked());
+      table_object->entries()->set(entry_index,
+                                   *wasm_exported_function.ToHandleChecked());
     }
     // UpdateDispatchTables() updates all other dispatch tables, since
     // we have not yet added the dispatch table we are currently building.

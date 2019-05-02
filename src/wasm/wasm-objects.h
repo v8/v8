@@ -247,7 +247,7 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
  public:
   DECL_CAST(WasmTableObject)
 
-  DECL_ACCESSORS(elements, FixedArray)
+  DECL_ACCESSORS(entries, FixedArray)
   // TODO(titzer): introduce DECL_I64_ACCESSORS macro
   DECL_ACCESSORS(maximum_length, Object)
   DECL_ACCESSORS(dispatch_tables, FixedArray)
@@ -269,7 +269,7 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
   static Handle<WasmTableObject> New(Isolate* isolate, wasm::ValueType type,
                                      uint32_t initial, bool has_maximum,
                                      uint32_t maximum,
-                                     Handle<FixedArray>* elements);
+                                     Handle<FixedArray>* entries);
 
   static void AddDispatchTable(Isolate* isolate, Handle<WasmTableObject> table,
                                Handle<WasmInstanceObject> instance,
@@ -282,7 +282,7 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
                              Handle<Object> entry);
 
   static void Set(Isolate* isolate, Handle<WasmTableObject> table,
-                  uint32_t index, Handle<Object> element);
+                  uint32_t index, Handle<Object> entry);
 
   static Handle<Object> Get(Isolate* isolate, Handle<WasmTableObject> table,
                             uint32_t index);

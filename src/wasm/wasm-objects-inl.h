@@ -117,7 +117,7 @@ bool WasmModuleObject::is_asm_js() {
 }
 
 // WasmTableObject
-ACCESSORS(WasmTableObject, elements, FixedArray, kElementsOffset)
+ACCESSORS(WasmTableObject, entries, FixedArray, kEntriesOffset)
 ACCESSORS(WasmTableObject, maximum_length, Object, kMaximumLengthOffset)
 ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
 SMI_ACCESSORS(WasmTableObject, raw_type, kRawTypeOffset)
@@ -322,7 +322,7 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 #undef WRITE_PRIMITIVE_FIELD
 #undef PRIMITIVE_ACCESSORS
 
-uint32_t WasmTableObject::current_length() { return elements()->length(); }
+uint32_t WasmTableObject::current_length() { return entries()->length(); }
 
 wasm::ValueType WasmTableObject::type() {
   return static_cast<wasm::ValueType>(raw_type());
