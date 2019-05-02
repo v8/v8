@@ -528,8 +528,7 @@ void FixedTypedArray<Traits>::FixedTypedArrayVerify(Isolate* isolate) {
     CHECK_EQ(reinterpret_cast<Address>(external_pointer()),
              FixedTypedArrayBase::kDataOffset - kHeapObjectTag);
   } else {
-    CHECK_EQ(Smi::kZero, base_pointer());
-    CHECK_EQ(0, length());
+    CHECK_EQ(base_pointer(), Smi::kZero);
   }
 }
 

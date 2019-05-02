@@ -3080,10 +3080,8 @@ class TypedElementsAccessor
 
   static uint32_t GetCapacityImpl(JSObject holder,
                                   FixedArrayBase backing_store) {
-    JSTypedArray typed_array = JSTypedArray::cast(holder);
-    if (WasDetached(typed_array)) return 0;
-    // TODO(bmeurer, v8:4153): We need to support arbitrary size_t here.
-    return static_cast<uint32_t>(typed_array->length());
+    if (WasDetached(holder)) return 0;
+    return backing_store->length();
   }
 
   static uint32_t NumberOfElementsImpl(JSObject receiver,
@@ -3135,7 +3133,7 @@ class TypedElementsAccessor
     // Ensure indexes are within array bounds
     CHECK_LE(0, start);
     CHECK_LE(start, end);
-    CHECK_LE(end, array->length());
+    CHECK_LE(end, array->length_value());
 
     DisallowHeapAllocation no_gc;
     BackingStore elements = BackingStore::cast(receiver->elements());
@@ -3155,24 +3153,23 @@ class TypedElementsAccessor
                                        Handle<Object> value,
                                        uint32_t start_from, uint32_t length) {
     DisallowHeapAllocation no_gc;
-    JSTypedArray typed_array = JSTypedArray::cast(*receiver);
 
     // TODO(caitp): return Just(false) here when implementing strict throwing on
     // detached views.
-    if (WasDetached(typed_array)) {
+    if (WasDetached(*receiver)) {
       return Just(value->IsUndefined(isolate) && length > start_from);
     }
 
-    BackingStore elements = BackingStore::cast(typed_array->elements());
-    if (value->IsUndefined(isolate) && length > typed_array->length()) {
+    BackingStore elements = BackingStore::cast(receiver->elements());
+    if (value->IsUndefined(isolate) &&
+        length > static_cast<uint32_t>(elements->length())) {
       return Just(true);
     }
     ctype typed_search_value;
     // Prototype has no elements, and not searching for the hole --- limit
     // search to backing store length.
-    if (typed_array->length() < length) {
-      // TODO(bmeurer, v8:4153): Don't cast to uint32_t here.
-      length = static_cast<uint32_t>(typed_array->length());
+    if (static_cast<uint32_t>(elements->length()) < length) {
+      length = elements->length();
     }
 
     if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
@@ -3218,11 +3215,10 @@ class TypedElementsAccessor
                                          Handle<Object> value,
                                          uint32_t start_from, uint32_t length) {
     DisallowHeapAllocation no_gc;
-    JSTypedArray typed_array = JSTypedArray::cast(*receiver);
 
-    if (WasDetached(typed_array)) return Just<int64_t>(-1);
+    if (WasDetached(*receiver)) return Just<int64_t>(-1);
 
-    BackingStore elements = BackingStore::cast(typed_array->elements());
+    BackingStore elements = BackingStore::cast(receiver->elements());
     ctype typed_search_value;
 
     if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
@@ -3254,9 +3250,8 @@ class TypedElementsAccessor
 
     // Prototype has no elements, and not searching for the hole --- limit
     // search to backing store length.
-    if (typed_array->length() < length) {
-      // TODO(bmeurer, v8:4153): Don't cast to uint32_t here.
-      length = static_cast<uint32_t>(typed_array->length());
+    if (static_cast<uint32_t>(elements->length()) < length) {
+      length = elements->length();
     }
 
     for (uint32_t k = start_from; k < length; ++k) {
@@ -3270,11 +3265,9 @@ class TypedElementsAccessor
                                              Handle<Object> value,
                                              uint32_t start_from) {
     DisallowHeapAllocation no_gc;
-    JSTypedArray typed_array = JSTypedArray::cast(*receiver);
+    DCHECK(!WasDetached(*receiver));
 
-    DCHECK(!WasDetached(typed_array));
-
-    BackingStore elements = BackingStore::cast(typed_array->elements());
+    BackingStore elements = BackingStore::cast(receiver->elements());
     ctype typed_search_value;
 
     if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
@@ -3304,7 +3297,8 @@ class TypedElementsAccessor
       }
     }
 
-    DCHECK_LT(start_from, typed_array->length());
+    DCHECK_LT(start_from, elements->length());
+
     uint32_t k = start_from;
     do {
       ctype element_k = elements->get_scalar(k);
@@ -3315,13 +3309,11 @@ class TypedElementsAccessor
 
   static void ReverseImpl(JSObject receiver) {
     DisallowHeapAllocation no_gc;
-    JSTypedArray typed_array = JSTypedArray::cast(receiver);
+    DCHECK(!WasDetached(receiver));
 
-    DCHECK(!WasDetached(typed_array));
+    BackingStore elements = BackingStore::cast(receiver->elements());
 
-    BackingStore elements = BackingStore::cast(typed_array->elements());
-
-    size_t len = typed_array->length();
+    uint32_t len = elements->length();
     if (len == 0) return;
 
     ctype* data = static_cast<ctype*>(elements->DataPtr());
@@ -3357,10 +3349,10 @@ class TypedElementsAccessor
     CHECK(!source->WasDetached());
     CHECK(!destination->WasDetached());
     DCHECK_LE(start, end);
-    DCHECK_LE(end, source->length());
+    DCHECK_LE(end, source->length_value());
 
     size_t count = end - start;
-    DCHECK_LE(count, destination->length());
+    DCHECK_LE(count, destination->length_value());
 
     FixedTypedArrayBase src_elements =
         FixedTypedArrayBase::cast(source->elements());
@@ -3432,9 +3424,10 @@ class TypedElementsAccessor
     BackingStore destination_elements =
         BackingStore::cast(destination->elements());
 
-    DCHECK_LE(offset, destination->length());
-    DCHECK_LE(length, destination->length() - offset);
-    DCHECK_LE(length, source->length());
+    DCHECK_LE(offset, destination->length_value());
+    DCHECK_LE(length, destination->length_value() - offset);
+    DCHECK(source->length()->IsSmi());
+    DCHECK_LE(length, source->length_value());
 
     InstanceType source_type = source_elements->map()->instance_type();
     InstanceType destination_type =
@@ -3524,7 +3517,7 @@ class TypedElementsAccessor
            length <= current_length);
     USE(current_length);
 
-    size_t dest_length = destination->length();
+    size_t dest_length = destination->length_value();
     DCHECK(length + offset <= dest_length);
     USE(dest_length);
 
@@ -3636,7 +3629,7 @@ class TypedElementsAccessor
     Isolate* isolate = destination->GetIsolate();
     Handle<JSTypedArray> destination_ta =
         Handle<JSTypedArray>::cast(destination);
-    DCHECK_LE(offset + length, destination_ta->length());
+    DCHECK_LE(offset + length, destination_ta->length_value());
     CHECK(!destination_ta->WasDetached());
 
     if (length == 0) return *isolate->factory()->undefined_value();
@@ -3664,7 +3657,8 @@ class TypedElementsAccessor
       }
       // If we have to copy more elements than we have in the source, we need to
       // do special handling and conversion; that happens in the slow case.
-      if (!source_ta->WasDetached() && length + offset <= source_ta->length()) {
+      if (!source_ta->WasDetached() &&
+          length + offset <= source_ta->length_value()) {
         CopyElementsFromTypedArray(*source_ta, *destination_ta, length, offset);
         return *isolate->factory()->undefined_value();
       }

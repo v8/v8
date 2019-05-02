@@ -470,8 +470,9 @@ extern class JSArrayBufferView extends JSObject {
 }
 
 extern class JSTypedArray extends JSArrayBufferView {
-  AttachOffHeapBuffer(buffer: JSArrayBuffer, map: Map, byteOffset: uintptr):
-      void {
+  AttachOffHeapBuffer(
+      buffer: JSArrayBuffer, map: Map, length: PositiveSmi,
+      byteOffset: uintptr): void {
     const basePointer: Smi = 0;
 
     // The max byteOffset is 8 * MaxSmi on the particular platform. 32 bit
@@ -492,7 +493,7 @@ extern class JSTypedArray extends JSArrayBufferView {
     this.buffer = buffer;
     this.elements = new FixedTypedArrayBase{
       map,
-      length: 0,
+      length,
       base_pointer: basePointer,
       external_pointer: externalPointer
     };

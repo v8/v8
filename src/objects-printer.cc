@@ -1379,7 +1379,7 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n - buffer: " << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
-  os << "\n - length: " << length();
+  os << "\n - length: " << Brief(length());
   if (!buffer()->IsJSArrayBuffer()) {
     os << "\n <invalid buffer>\n";
     return;

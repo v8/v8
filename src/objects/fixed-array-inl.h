@@ -641,9 +641,7 @@ double Float64ArrayTraits::defaultValue() {
 
 template <class Traits>
 typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
-  // TODO(bmeurer, v8:4153): Solve this differently.
-  // DCHECK((index < this->length()));
-  CHECK_GE(index, 0);
+  DCHECK((index >= 0) && (index < this->length()));
   return FixedTypedArray<Traits>::get_scalar_from_data_ptr(DataPtr(), index);
 }
 
@@ -678,9 +676,7 @@ typename Traits::ElementType FixedTypedArray<Traits>::get_scalar_from_data_ptr(
 
 template <class Traits>
 void FixedTypedArray<Traits>::set(int index, ElementType value) {
-  // TODO(bmeurer, v8:4153): Solve this differently.
-  // CHECK((index < this->length()));
-  CHECK_GE(index, 0);
+  CHECK((index >= 0) && (index < this->length()));
   // See the comment in FixedTypedArray<Traits>::get_scalar.
   auto* ptr = reinterpret_cast<ElementType*>(DataPtr());
   TSAN_ANNOTATE_IGNORE_WRITES_BEGIN;

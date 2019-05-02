@@ -1254,15 +1254,13 @@ bool ConvertKeyToIndex(Handle<Object> receiver, Handle<Object> key,
 }
 
 bool IsOutOfBoundsAccess(Handle<Object> receiver, uint32_t index) {
-  size_t length;
+  uint32_t length = 0;
   if (receiver->IsJSArray()) {
-    length = JSArray::cast(*receiver)->length()->Number();
-  } else if (receiver->IsJSTypedArray()) {
-    length = JSTypedArray::cast(*receiver)->length();
-  } else if (receiver->IsJSObject()) {
-    length = JSObject::cast(*receiver)->elements()->length();
+    JSArray::cast(*receiver)->length()->ToArrayLength(&length);
   } else if (receiver->IsString()) {
     length = String::cast(*receiver)->length();
+  } else if (receiver->IsJSObject()) {
+    length = JSObject::cast(*receiver)->elements()->length();
   } else {
     return false;
   }
