@@ -427,7 +427,6 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
       CompilationState::New(*shared_this, std::move(async_counters));
   DCHECK_NOT_NULL(module_);
   owned_code_space_.emplace_back(std::move(code_space));
-  owned_code_.reserve(num_functions());
 
 #if defined(V8_OS_WIN_X64)
   // On some platforms, specifically Win64, we need to reserve some pages at
@@ -793,7 +792,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
   }
   WasmCodeRefScope::AddRef(code.get());
   WasmCode* result = code.get();
-  owned_code_.emplace_back(std::move(code));
+  owned_code_.emplace(result->instruction_start(), std::move(code));
   return result;
 }
 
@@ -987,42 +986,14 @@ void NativeModule::SetWireBytes(OwnedVector<const uint8_t> wire_bytes) {
 
 WasmCode* NativeModule::Lookup(Address pc) const {
   base::MutexGuard lock(&allocation_mutex_);
-  if (owned_code_.empty()) return nullptr;
-  // First update the sorted portion counter.
-  if (owned_code_sorted_portion_ == 0) ++owned_code_sorted_portion_;
-  while (owned_code_sorted_portion_ < owned_code_.size() &&
-         owned_code_[owned_code_sorted_portion_ - 1]->instruction_start() <=
-             owned_code_[owned_code_sorted_portion_]->instruction_start()) {
-    ++owned_code_sorted_portion_;
-  }
-  // Execute at most two rounds: First check whether the {pc} is within the
-  // sorted portion of {owned_code_}. If it's not, then sort the whole vector
-  // and retry.
-  while (true) {
-    auto iter =
-        std::upper_bound(owned_code_.begin(), owned_code_.end(), pc,
-                         [](Address pc, const std::unique_ptr<WasmCode>& code) {
-                           DCHECK_NE(kNullAddress, pc);
-                           DCHECK_NOT_NULL(code);
-                           return pc < code->instruction_start();
-                         });
-    if (iter != owned_code_.begin()) {
-      --iter;
-      WasmCode* candidate = iter->get();
-      DCHECK_NOT_NULL(candidate);
-      if (candidate->contains(pc)) {
-        WasmCodeRefScope::AddRef(candidate);
-        return candidate;
-      }
-    }
-    if (owned_code_sorted_portion_ == owned_code_.size()) return nullptr;
-    std::sort(owned_code_.begin(), owned_code_.end(),
-              [](const std::unique_ptr<WasmCode>& code1,
-                 const std::unique_ptr<WasmCode>& code2) {
-                return code1->instruction_start() < code2->instruction_start();
-              });
-    owned_code_sorted_portion_ = owned_code_.size();
-  }
+  auto iter = owned_code_.upper_bound(pc);
+  if (iter == owned_code_.begin()) return nullptr;
+  --iter;
+  WasmCode* candidate = iter->second.get();
+  DCHECK_EQ(candidate->instruction_start(), iter->first);
+  if (!candidate->contains(pc)) return nullptr;
+  WasmCodeRefScope::AddRef(candidate);
+  return candidate;
 }
 
 Address NativeModule::GetCallTargetForFunction(uint32_t func_index) const {
@@ -1383,9 +1354,11 @@ bool NativeModule::IsRedirectedToInterpreter(uint32_t func_index) {
 }
 
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
-  // For now, we neither free the {WasmCode} objects, nor do we free any code.
-  // We just zap the code to ensure it's not executed any more.
-  // TODO(clemensh): Actually free the {WasmCode} objects and the code pages.
+  // For now, we only free the {WasmCode} objects and zap the code they referred
+  // to. We do not actually free the code pages yet.
+  // TODO(clemensh): Actually free the underlying code pages.
+
+  // Zap code area.
   size_t code_size = 0;
   for (WasmCode* code : codes) {
     ZapCode(code->instruction_start(), code->instructions().size());
@@ -1394,6 +1367,13 @@ void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
     code_size += code->instructions().size();
   }
   freed_code_size_.fetch_add(code_size);
+
+  // Free the {WasmCode} objects. This will also unregister trap handler data.
+  base::MutexGuard guard(&allocation_mutex_);
+  for (WasmCode* code : codes) {
+    DCHECK_EQ(1, owned_code_.count(code->instruction_start()));
+    owned_code_.erase(code->instruction_start());
+  }
 }
 
 void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
