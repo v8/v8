@@ -38,16 +38,9 @@ namespace internal {
 // cleared when the map they refer to is not otherwise reachable.
 class V8_EXPORT_PRIVATE TransitionsAccessor {
  public:
-  TransitionsAccessor(Isolate* isolate, Map map, DisallowHeapAllocation* no_gc)
-      : isolate_(isolate), map_(map) {
-    Initialize();
-    USE(no_gc);
-  }
-  TransitionsAccessor(Isolate* isolate, Handle<Map> map)
-      : isolate_(isolate), map_handle_(map), map_(*map) {
-    Initialize();
-  }
-
+  inline TransitionsAccessor(Isolate* isolate, Map map,
+                             DisallowHeapAllocation* no_gc);
+  inline TransitionsAccessor(Isolate* isolate, Handle<Map> map);
   // Insert a new transition into |map|'s transition array, extending it
   // as necessary.
   // Requires the constructor that takes a Handle<Map> to have been used.
@@ -70,8 +63,8 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
     return FindTransitionToDataProperty(name, kFieldOnly);
   }
 
-  Handle<String> ExpectedTransitionKey();
-  Handle<Map> ExpectedTransitionTarget();
+  inline Handle<String> ExpectedTransitionKey();
+  inline Handle<Map> ExpectedTransitionTarget();
 
   int NumberOfTransitions();
   // The size of transition arrays are limited so they do not end up in large
@@ -143,11 +136,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
     kFullTransitionArray,
   };
 
-  void Reload() {
-    DCHECK(!map_handle_.is_null());
-    map_ = *map_handle_;
-    Initialize();
-  }
+  inline void Reload();
 
   inline Encoding encoding() {
     DCHECK(!needs_reload_);
@@ -170,7 +159,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 #endif
   }
 
-  void Initialize();
+  inline void Initialize();
 
   inline Map GetSimpleTransition();
   bool HasSimpleTransitionTo(Map map);

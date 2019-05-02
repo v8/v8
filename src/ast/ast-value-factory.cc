@@ -54,37 +54,16 @@ class OneByteStringStream {
 
 }  // namespace
 
-class AstRawStringInternalizationKey : public StringTableKey {
- public:
-  explicit AstRawStringInternalizationKey(const AstRawString* string)
-      : StringTableKey(string->hash_field()), string_(string) {}
-
-  bool IsMatch(Object other) override {
-    if (string_->is_one_byte())
-      return String::cast(other)->IsOneByteEqualTo(string_->literal_bytes_);
-    return String::cast(other)->IsTwoByteEqualTo(
-        Vector<const uint16_t>::cast(string_->literal_bytes_));
-  }
-
-  Handle<String> AsHandle(Isolate* isolate) override {
-    if (string_->is_one_byte())
-      return isolate->factory()->NewOneByteInternalizedString(
-          string_->literal_bytes_, string_->hash_field());
-    return isolate->factory()->NewTwoByteInternalizedString(
-        Vector<const uint16_t>::cast(string_->literal_bytes_),
-        string_->hash_field());
-  }
-
- private:
-  const AstRawString* string_;
-};
-
 void AstRawString::Internalize(Isolate* isolate) {
   DCHECK(!has_string_);
   if (literal_bytes_.length() == 0) {
     set_string(isolate->factory()->empty_string());
+  } else if (is_one_byte()) {
+    OneByteStringKey key(hash_field_, literal_bytes_);
+    set_string(StringTable::LookupKey(isolate, &key));
   } else {
-    AstRawStringInternalizationKey key(this);
+    TwoByteStringKey key(hash_field_,
+                         Vector<const uint16_t>::cast(literal_bytes_));
     set_string(StringTable::LookupKey(isolate, &key));
   }
 }

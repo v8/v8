@@ -195,29 +195,45 @@ Char FlatStringReader::Get(int index) {
 }
 
 template <typename Char>
-class SequentialStringKey : public StringTableKey {
+class SequentialStringKey final : public StringTableKey {
  public:
-  explicit SequentialStringKey(Vector<const Char> string, uint64_t seed)
-      : StringTableKey(StringHasher::HashSequentialString<Char>(
-            string.begin(), string.length(), seed)),
-        string_(string) {}
+  SequentialStringKey(const Vector<const Char>& chars, uint64_t seed)
+      : SequentialStringKey(StringHasher::HashSequentialString<Char>(
+                                chars.begin(), chars.length(), seed),
+                            chars) {}
 
-  Vector<const Char> string_;
-};
+  SequentialStringKey(int hash, const Vector<const Char>& chars)
+      : StringTableKey(hash), chars_(chars) {}
 
-class OneByteStringKey : public SequentialStringKey<uint8_t> {
- public:
-  OneByteStringKey(Vector<const uint8_t> str, uint64_t seed)
-      : SequentialStringKey<uint8_t>(str, seed) {}
-
-  bool IsMatch(Object string) override {
-    return String::cast(string)->IsOneByteEqualTo(string_);
+  bool IsMatch(Object other) override {
+    DisallowHeapAllocation no_gc;
+    String s = String::cast(other);
+    if (s.length() != chars_.length()) return false;
+    if (s->IsOneByteRepresentation()) {
+      const uint8_t* chars = s.GetChars<uint8_t>(no_gc);
+      return CompareChars(chars, chars_.begin(), chars_.length()) == 0;
+    }
+    const uint16_t* chars = s.GetChars<uint16_t>(no_gc);
+    return CompareChars(chars, chars_.begin(), chars_.length()) == 0;
   }
 
-  Handle<String> AsHandle(Isolate* isolate) override;
+  Handle<String> AsHandle(Isolate* isolate) override {
+    if (sizeof(Char) == 1) {
+      return isolate->factory()->NewOneByteInternalizedString(
+          Vector<const uint8_t>::cast(chars_), HashField());
+    }
+    return isolate->factory()->NewTwoByteInternalizedString(
+        Vector<const uint16_t>::cast(chars_), HashField());
+  }
+
+ private:
+  Vector<const Char> chars_;
 };
 
-class SeqOneByteSubStringKey : public StringTableKey {
+using OneByteStringKey = SequentialStringKey<uint8_t>;
+using TwoByteStringKey = SequentialStringKey<uint16_t>;
+
+class SeqOneByteSubStringKey final : public StringTableKey {
  public:
 // VS 2017 on official builds gives this spurious warning:
 // warning C4789: buffer 'key' of size 16 bytes will be overrun; 4 bytes will
@@ -253,18 +269,6 @@ class SeqOneByteSubStringKey : public StringTableKey {
   int length_;
 };
 
-class TwoByteStringKey : public SequentialStringKey<uc16> {
- public:
-  explicit TwoByteStringKey(Vector<const uc16> str, uint64_t seed)
-      : SequentialStringKey<uc16>(str, seed) {}
-
-  bool IsMatch(Object string) override {
-    return String::cast(string)->IsTwoByteEqualTo(string_);
-  }
-
-  Handle<String> AsHandle(Isolate* isolate) override;
-};
-
 bool String::Equals(String other) {
   if (other == *this) return true;
   if (this->IsInternalizedString() && other->IsInternalizedString()) {
@@ -279,6 +283,13 @@ bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
     return false;
   }
   return SlowEquals(isolate, one, two);
+}
+
+template <typename Char>
+const Char* String::GetChars(const DisallowHeapAllocation& no_gc) {
+  return StringShape(*this).IsExternal()
+             ? CharTraits<Char>::ExternalString::cast(*this).GetChars()
+             : CharTraits<Char>::String::cast(*this).GetChars(no_gc);
 }
 
 Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
