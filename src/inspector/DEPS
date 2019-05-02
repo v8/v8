@@ -13,6 +13,9 @@ include_rules = [
   "+src/v8memory.h",
   "+src/inspector",
   "+src/tracing",
+  "+src/vector.h",
   "+src/debug/debug-interface.h",
   "+src/debug/interface-types.h",
+  "+../../third_party/inspector_protocol/encoding/encoding.h",
+  "+../../third_party/inspector_protocol/encoding/encoding.cc",
 ]
