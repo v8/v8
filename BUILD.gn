@@ -1811,6 +1811,8 @@ v8_compiler_sources = [
   "src/compiler/machine-operator-reducer.h",
   "src/compiler/machine-operator.cc",
   "src/compiler/machine-operator.h",
+  "src/compiler/map-inference.cc",
+  "src/compiler/map-inference.h",
   "src/compiler/memory-optimizer.cc",
   "src/compiler/memory-optimizer.h",
   "src/compiler/node-aux-data.h",
