@@ -528,12 +528,10 @@ void InstructionSelector::VisitStore(Node* node) {
     inputs[input_count++] = g.UseUniqueRegister(value);
     RecordWriteMode record_write_mode =
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-    size_t const temp_count = arraysize(temps);
     InstructionCode code = kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
     code |= MiscField::encode(static_cast<int>(record_write_mode));
-    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
+    Emit(code, 0, nullptr, input_count, inputs);
   } else {
     InstructionCode opcode = kArchNop;
     switch (rep) {

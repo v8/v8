@@ -403,7 +403,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Store input value into generator object.
   __ str(r0, FieldMemOperand(r1, JSGeneratorObject::kInputOrDebugPosOffset));
-  __ RecordWriteField(r1, JSGeneratorObject::kInputOrDebugPosOffset, r0, r3,
+  __ RecordWriteField(r1, JSGeneratorObject::kInputOrDebugPosOffset, r0,
                       kLRHasNotBeenSaved, kDontSaveFPRegs);
 
   // Load suspended function and context.
@@ -841,13 +841,12 @@ void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
   __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
-static void ReplaceClosureCodeWithOptimizedCode(
-    MacroAssembler* masm, Register optimized_code, Register closure,
-    Register scratch1, Register scratch2, Register scratch3) {
+static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
+                                                Register optimized_code,
+                                                Register closure) {
   // Store code entry in the closure.
   __ str(optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset));
-  __ mov(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.
-  __ RecordWriteField(closure, JSFunction::kCodeOffset, scratch1, scratch2,
+  __ RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
                       kLRHasNotBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
 }
@@ -882,14 +881,14 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
 
 static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
                                            Register feedback_vector,
-                                           Register scratch1, Register scratch2,
-                                           Register scratch3) {
+                                           Register scratch1,
+                                           Register scratch2) {
   // ----------- S t a t e -------------
   //  -- r3 : new target (preserved for callee if needed, and caller)
   //  -- r1 : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
   // -----------------------------------
-  DCHECK(!AreAliased(feedback_vector, r1, r3, scratch1, scratch2, scratch3));
+  DCHECK(!AreAliased(feedback_vector, r1, r3, scratch1, scratch2));
 
   Label optimized_code_slot_is_weak_ref, fallthrough;
 
@@ -962,8 +961,7 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     // the optimized functions list, then tail call the optimized code.
     // The feedback vector is no longer used, so re-use it as a scratch
     // register.
-    ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure,
-                                        scratch2, scratch3, feedback_vector);
+    ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure);
     static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
     __ LoadCodeObjectEntry(r2, optimized_code_entry);
     __ Jump(r2);
@@ -1082,7 +1080,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Read off the optimized code slot in the feedback vector, and if there
   // is optimized code or an optimization marker, call that instead.
-  MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, r4, r6, r5);
+  MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, r4, r6);
 
   // Increment invocation count for the function.
   __ ldr(r9, FieldMemOperand(feedback_vector,

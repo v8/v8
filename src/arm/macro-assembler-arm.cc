@@ -610,9 +610,8 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index,
       MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)), cond);
 }
 
-
 void MacroAssembler::RecordWriteField(Register object, int offset,
-                                      Register value, Register dst,
+                                      Register value,
                                       LinkRegisterStatus lr_status,
                                       SaveFPRegsMode save_fp,
                                       RememberedSetAction remembered_set_action,
@@ -630,26 +629,21 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so so offset must be a multiple of kPointerSize.
   DCHECK(IsAligned(offset, kPointerSize));
 
-  add(dst, object, Operand(offset - kHeapObjectTag));
   if (emit_debug_code()) {
     Label ok;
-    tst(dst, Operand(kPointerSize - 1));
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    add(scratch, object, Operand(offset - kHeapObjectTag));
+    tst(scratch, Operand(kPointerSize - 1));
     b(eq, &ok);
     stop("Unaligned cell in write barrier");
     bind(&ok);
   }
 
-  RecordWrite(object, dst, value, lr_status, save_fp, remembered_set_action,
-              OMIT_SMI_CHECK);
+  RecordWrite(object, Operand(offset - kHeapObjectTag), value, lr_status,
+              save_fp, remembered_set_action, OMIT_SMI_CHECK);
 
   bind(&done);
-
-  // Clobber clobbered input registers when running with the debug-code flag
-  // turned on to provoke errors.
-  if (emit_debug_code()) {
-    mov(value, Operand(bit_cast<int32_t>(kZapValue + 4)));
-    mov(dst, Operand(bit_cast<int32_t>(kZapValue + 8)));
-  }
 }
 
 void TurboAssembler::SaveRegisters(RegList registers) {
@@ -675,7 +669,7 @@ void TurboAssembler::RestoreRegisters(RegList registers) {
   ldm(ia_w, sp, regs);
 }
 
-void TurboAssembler::CallEphemeronKeyBarrier(Register object, Register address,
+void TurboAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
                                              SaveFPRegsMode fp_mode) {
   EphemeronKeyBarrierDescriptor descriptor;
   RegList registers = descriptor.allocatable_registers();
@@ -689,7 +683,7 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object, Register address,
   Register fp_mode_parameter(
       descriptor.GetRegisterParameter(EphemeronKeyBarrierDescriptor::kFPMode));
 
-  MovePair(object_parameter, object, slot_parameter, address);
+  MoveObjectAndSlot(object_parameter, slot_parameter, object, offset);
   Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
   Call(isolate()->builtins()->builtin_handle(Builtins::kEphemeronKeyBarrier),
        RelocInfo::CODE_TARGET);
@@ -697,26 +691,24 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object, Register address,
 }
 
 void TurboAssembler::CallRecordWriteStub(
-    Register object, Register address,
-    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode) {
+    Register object, Operand offset, RememberedSetAction remembered_set_action,
+    SaveFPRegsMode fp_mode) {
   CallRecordWriteStub(
-      object, address, remembered_set_action, fp_mode,
+      object, offset, remembered_set_action, fp_mode,
       isolate()->builtins()->builtin_handle(Builtins::kRecordWrite),
       kNullAddress);
 }
 
 void TurboAssembler::CallRecordWriteStub(
-    Register object, Register address,
-    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
-    Address wasm_target) {
-  CallRecordWriteStub(object, address, remembered_set_action, fp_mode,
+    Register object, Operand offset, RememberedSetAction remembered_set_action,
+    SaveFPRegsMode fp_mode, Address wasm_target) {
+  CallRecordWriteStub(object, offset, remembered_set_action, fp_mode,
                       Handle<Code>::null(), wasm_target);
 }
 
 void TurboAssembler::CallRecordWriteStub(
-    Register object, Register address,
-    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
-    Handle<Code> code_target, Address wasm_target) {
+    Register object, Operand offset, RememberedSetAction remembered_set_action,
+    SaveFPRegsMode fp_mode, Handle<Code> code_target, Address wasm_target) {
   DCHECK_NE(code_target.is_null(), wasm_target == kNullAddress);
   // TODO(albertnetymk): For now we ignore remembered_set_action and fp_mode,
   // i.e. always emit remember set and save FP registers in RecordWriteStub. If
@@ -737,7 +729,7 @@ void TurboAssembler::CallRecordWriteStub(
   Register fp_mode_parameter(
       descriptor.GetRegisterParameter(RecordWriteDescriptor::kFPMode));
 
-  MovePair(object_parameter, object, slot_parameter, address);
+  MoveObjectAndSlot(object_parameter, slot_parameter, object, offset);
 
   Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
   Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
@@ -750,20 +742,54 @@ void TurboAssembler::CallRecordWriteStub(
   RestoreRegisters(registers);
 }
 
-// Will clobber 3 registers: object, address, and value. The register 'object'
-// contains a heap object pointer. The heap object tag is shifted away.
-// A scratch register also needs to be available.
-void MacroAssembler::RecordWrite(Register object, Register address,
+void TurboAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
+                                       Register object, Operand offset) {
+  DCHECK_NE(dst_object, dst_slot);
+  DCHECK(offset.IsRegister() || offset.IsImmediate());
+  // If `offset` is a register, it cannot overlap with `object`.
+  DCHECK_IMPLIES(offset.IsRegister(), offset.rm() != object);
+
+  // If the slot register does not overlap with the object register, we can
+  // overwrite it.
+  if (dst_slot != object) {
+    add(dst_slot, object, offset);
+    Move(dst_object, object);
+    return;
+  }
+
+  DCHECK_EQ(dst_slot, object);
+
+  // If the destination object register does not overlap with the offset
+  // register, we can overwrite it.
+  if (!offset.IsRegister() || (offset.rm() != dst_object)) {
+    Move(dst_object, dst_slot);
+    add(dst_slot, dst_slot, offset);
+    return;
+  }
+
+  DCHECK_EQ(dst_object, offset.rm());
+
+  // We only have `dst_slot` and `dst_object` left as distinct registers so we
+  // have to swap them. We write this as a add+sub sequence to avoid using a
+  // scratch register.
+  add(dst_slot, dst_slot, dst_object);
+  sub(dst_object, dst_slot, dst_object);
+}
+
+// The register 'object' contains a heap object pointer. The heap object tag is
+// shifted away. A scratch register also needs to be available.
+void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  Register value, LinkRegisterStatus lr_status,
                                  SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
-  DCHECK(object != value);
+  DCHECK_NE(object, value);
   if (emit_debug_code()) {
     {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      ldr(scratch, MemOperand(address));
+      add(scratch, object, offset);
+      ldr(scratch, MemOperand(scratch));
       cmp(scratch, value);
     }
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
@@ -782,32 +808,21 @@ void MacroAssembler::RecordWrite(Register object, Register address,
     JumpIfSmi(value, &done);
   }
 
-  CheckPageFlag(value,
-                value,  // Used as scratch.
-                MemoryChunk::kPointersToHereAreInterestingMask, eq, &done);
-  CheckPageFlag(object,
-                value,  // Used as scratch.
-                MemoryChunk::kPointersFromHereAreInterestingMask,
-                eq,
+  CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                &done);
+  CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, eq,
                 &done);
 
   // Record the actual write.
   if (lr_status == kLRHasNotBeenSaved) {
     push(lr);
   }
-  CallRecordWriteStub(object, address, remembered_set_action, fp_mode);
+  CallRecordWriteStub(object, offset, remembered_set_action, fp_mode);
   if (lr_status == kLRHasNotBeenSaved) {
     pop(lr);
   }
 
   bind(&done);
-
-  // Clobber clobbered registers when running with the debug-code flag
-  // turned on to provoke errors.
-  if (emit_debug_code()) {
-    mov(address, Operand(bit_cast<int32_t>(kZapValue + 12)));
-    mov(value, Operand(bit_cast<int32_t>(kZapValue + 16)));
-  }
 }
 
 void TurboAssembler::PushCommonFrame(Register marker_reg) {
@@ -2458,8 +2473,10 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   }
 }
 
-void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
-                                   Condition cc, Label* condition_met) {
+void TurboAssembler::CheckPageFlag(Register object, int mask, Condition cc,
+                                   Label* condition_met) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   DCHECK(cc == eq || cc == ne);
   Bfc(scratch, object, 0, kPageSizeBits);
   ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));

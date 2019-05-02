@@ -168,34 +168,14 @@ namespace {
 
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
-  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register index,
-                       Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode,
+  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand offset,
+                       Register value, RecordWriteMode mode,
+                       StubCallMode stub_mode,
                        UnwindingInfoWriter* unwinding_info_writer)
       : OutOfLineCode(gen),
         object_(object),
-        index_(index),
-        index_immediate_(0),
+        offset_(offset),
         value_(value),
-        scratch0_(scratch0),
-        scratch1_(scratch1),
-        mode_(mode),
-        stub_mode_(stub_mode),
-        must_save_lr_(!gen->frame_access_state()->has_frame()),
-        unwinding_info_writer_(unwinding_info_writer),
-        zone_(gen->zone()) {}
-
-  OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t index,
-                       Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode,
-                       UnwindingInfoWriter* unwinding_info_writer)
-      : OutOfLineCode(gen),
-        object_(object),
-        index_(no_reg),
-        index_immediate_(index),
-        value_(value),
-        scratch0_(scratch0),
-        scratch1_(scratch1),
         mode_(mode),
         stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
@@ -206,15 +186,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
     }
-    __ CheckPageFlag(value_, scratch0_,
-                     MemoryChunk::kPointersToHereAreInterestingMask, eq,
+    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
-    if (index_ == no_reg) {
-      __ add(scratch1_, object_, Operand(index_immediate_));
-    } else {
-      DCHECK_EQ(0, index_immediate_);
-      __ add(scratch1_, object_, Operand(index_));
-    }
     RememberedSetAction const remembered_set_action =
         mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
                                              : OMIT_REMEMBERED_SET;
@@ -226,12 +199,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset());
     }
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
-      __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+      __ CallEphemeronKeyBarrier(object_, offset_, save_fp_mode);
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
-      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+      __ CallRecordWriteStub(object_, offset_, remembered_set_action,
                              save_fp_mode, wasm::WasmCode::kWasmRecordWrite);
     } else {
-      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+      __ CallRecordWriteStub(object_, offset_, remembered_set_action,
                              save_fp_mode);
     }
     if (must_save_lr_) {
@@ -242,11 +215,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
  private:
   Register const object_;
-  Register const index_;
-  int32_t const index_immediate_;  // Valid if index_==no_reg.
+  Operand const offset_;
   Register const value_;
-  Register const scratch0_;
-  Register const scratch1_;
   RecordWriteMode const mode_;
   StubCallMode stub_mode_;
   bool must_save_lr_;
@@ -972,29 +942,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);
-      Register scratch0 = i.TempRegister(0);
-      Register scratch1 = i.TempRegister(1);
-      OutOfLineRecordWrite* ool;
 
       AddressingMode addressing_mode =
           AddressingModeField::decode(instr->opcode());
+      Operand offset(0);
       if (addressing_mode == kMode_Offset_RI) {
-        int32_t index = i.InputInt32(1);
-        ool = new (zone()) OutOfLineRecordWrite(
-            this, object, index, value, scratch0, scratch1, mode,
-            DetermineStubCallMode(), &unwinding_info_writer_);
-        __ str(value, MemOperand(object, index));
+        int32_t immediate = i.InputInt32(1);
+        offset = Operand(immediate);
+        __ str(value, MemOperand(object, immediate));
       } else {
         DCHECK_EQ(kMode_Offset_RR, addressing_mode);
-        Register index(i.InputRegister(1));
-        ool = new (zone()) OutOfLineRecordWrite(
-            this, object, index, value, scratch0, scratch1, mode,
-            DetermineStubCallMode(), &unwinding_info_writer_);
-        __ str(value, MemOperand(object, index));
+        Register reg = i.InputRegister(1);
+        offset = Operand(reg);
+        __ str(value, MemOperand(object, reg));
       }
-      __ CheckPageFlag(object, scratch0,
-                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                       ool->entry());
+      auto ool = new (zone()) OutOfLineRecordWrite(
+          this, object, offset, value, mode, DetermineStubCallMode(),
+          &unwinding_info_writer_);
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+                       ne, ool->entry());
       __ bind(ool->exit());
       break;
     }

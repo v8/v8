@@ -337,7 +337,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void VmovLow(Register dst, DwVfpRegister src);
   void VmovLow(DwVfpRegister dst, Register src);
 
-  void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
+  void CheckPageFlag(Register object, int mask, Condition cc,
                      Label* condition_met);
 
   // Check whether d16-d31 are available on the CPU. The result is given by the
@@ -347,14 +347,24 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SaveRegisters(RegList registers);
   void RestoreRegisters(RegList registers);
 
-  void CallRecordWriteStub(Register object, Register address,
+  void CallRecordWriteStub(Register object, Operand offset,
                            RememberedSetAction remembered_set_action,
                            SaveFPRegsMode fp_mode);
-  void CallRecordWriteStub(Register object, Register address,
+  void CallRecordWriteStub(Register object, Operand offset,
                            RememberedSetAction remembered_set_action,
                            SaveFPRegsMode fp_mode, Address wasm_target);
-  void CallEphemeronKeyBarrier(Register object, Register address,
+  void CallEphemeronKeyBarrier(Register object, Operand offset,
                                SaveFPRegsMode fp_mode);
+
+  // For a given |object| and |offset|:
+  //   - Move |object| to |dst_object|.
+  //   - Compute the address of the slot pointed to by |offset| in |object| and
+  //     write it to |dst_slot|. |offset| can be either an immediate or a
+  //     register.
+  // This method makes sure |object| and |offset| are allowed to overlap with
+  // the destination registers.
+  void MoveObjectAndSlot(Register dst_object, Register dst_slot,
+                         Register object, Operand offset);
 
   // Does a runtime check for 16/32 FP registers. Either way, pushes 32 double
   // values to location, saving [d0..(d15|d31)].
@@ -541,7 +551,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallCFunctionHelper(Register function, int num_reg_arguments,
                            int num_double_arguments);
 
-  void CallRecordWriteStub(Register object, Register address,
+  void CallRecordWriteStub(Register object, Operand offset,
                            RememberedSetAction remembered_set_action,
                            SaveFPRegsMode fp_mode, Handle<Code> code_target,
                            Address wasm_target);
@@ -566,20 +576,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
-  // stored.  value and scratch registers are clobbered by the operation.
+  // stored.
   // The offset is the offset from the start of the object, not the offset from
   // the tagged HeapObject pointer.  For use with FieldMemOperand(reg, off).
   void RecordWriteField(
-      Register object, int offset, Register value, Register scratch,
-      LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
+      Register object, int offset, Register value, LinkRegisterStatus lr_status,
+      SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
 
-  // For a given |object| notify the garbage collector that the slot |address|
-  // has been written.  |value| is the object being stored. The value and
-  // address registers are clobbered by the operation.
+  // For a given |object| notify the garbage collector that the slot at |offset|
+  // has been written. |value| is the object being stored.
   void RecordWrite(
-      Register object, Register address, Register value,
+      Register object, Operand offset, Register value,
       LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);

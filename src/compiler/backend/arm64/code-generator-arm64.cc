@@ -260,16 +260,14 @@ namespace {
 
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
-  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand index,
-                       Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode,
+  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand offset,
+                       Register value, RecordWriteMode mode,
+                       StubCallMode stub_mode,
                        UnwindingInfoWriter* unwinding_info_writer)
       : OutOfLineCode(gen),
         object_(object),
-        index_(index),
+        offset_(offset),
         value_(value),
-        scratch0_(scratch0),
-        scratch1_(scratch1),
         mode_(mode),
         stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
@@ -283,10 +281,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (COMPRESS_POINTERS_BOOL) {
       __ DecompressTaggedPointer(value_, value_);
     }
-    __ CheckPageFlag(value_, scratch0_,
-                     MemoryChunk::kPointersToHereAreInterestingMask, ne,
+    __ CheckPageFlag(value_, MemoryChunk::kPointersToHereAreInterestingMask, ne,
                      exit());
-    __ Add(scratch1_, object_, index_);
     RememberedSetAction const remembered_set_action =
         mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
                                              : OMIT_REMEMBERED_SET;
@@ -298,15 +294,15 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(), sp);
     }
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
-      __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+      __ CallEphemeronKeyBarrier(object_, offset_, save_fp_mode);
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
-      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+      __ CallRecordWriteStub(object_, offset_, remembered_set_action,
                              save_fp_mode, wasm::WasmCode::kWasmRecordWrite);
     } else {
-      __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+      __ CallRecordWriteStub(object_, offset_, remembered_set_action,
                              save_fp_mode);
     }
     if (must_save_lr_) {
@@ -317,10 +313,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
  private:
   Register const object_;
-  Operand const index_;
+  Operand const offset_;
   Register const value_;
-  Register const scratch0_;
-  Register const scratch1_;
   RecordWriteMode const mode_;
   StubCallMode const stub_mode_;
   bool must_save_lr_;
@@ -851,26 +845,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AddressingMode addressing_mode =
           AddressingModeField::decode(instr->opcode());
       Register object = i.InputRegister(0);
-      Operand index(0);
+      Operand offset(0);
       if (addressing_mode == kMode_MRI) {
-        index = Operand(i.InputInt64(1));
+        offset = Operand(i.InputInt64(1));
       } else {
         DCHECK_EQ(addressing_mode, kMode_MRR);
-        index = Operand(i.InputRegister(1));
+        offset = Operand(i.InputRegister(1));
       }
       Register value = i.InputRegister(2);
-      Register scratch0 = i.TempRegister(0);
-      Register scratch1 = i.TempRegister(1);
       auto ool = new (zone()) OutOfLineRecordWrite(
-          this, object, index, value, scratch0, scratch1, mode,
-          DetermineStubCallMode(), &unwinding_info_writer_);
-      __ StoreTaggedField(value, MemOperand(object, index));
+          this, object, offset, value, mode, DetermineStubCallMode(),
+          &unwinding_info_writer_);
+      __ StoreTaggedField(value, MemOperand(object, offset));
       if (COMPRESS_POINTERS_BOOL) {
         __ DecompressTaggedPointer(object, object);
       }
-      __ CheckPageFlag(object, scratch0,
-                       MemoryChunk::kPointersFromHereAreInterestingMask, eq,
-                       ool->entry());
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+                       eq, ool->entry());
       __ Bind(ool->exit());
       break;
     }
