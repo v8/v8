@@ -71,6 +71,25 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
 
 namespace {
 
+void Generate_StackOverflowCheck(
+    MacroAssembler* masm, Register num_args, Register scratch,
+    Label* stack_overflow,
+    Label::Distance stack_overflow_distance = Label::kFar) {
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  __ LoadRoot(kScratchRegister, RootIndex::kRealStackLimit);
+  __ movq(scratch, rsp);
+  // Make scratch the space we have left. The stack might already be overflowed
+  // here which will cause scratch to become negative.
+  __ subq(scratch, kScratchRegister);
+  __ sarq(scratch, Immediate(kSystemPointerSizeLog2));
+  // Check if the arguments will overflow the stack.
+  __ cmpq(scratch, num_args);
+  // Signed comparison.
+  __ j(less_equal, stack_overflow, stack_overflow_distance);
+}
+
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax: number of arguments
@@ -78,6 +97,9 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   //  -- rdx: new target
   //  -- rsi: context
   // -----------------------------------
+
+  Label stack_overflow;
+  Generate_StackOverflowCheck(masm, rax, rcx, &stack_overflow, Label::kFar);
 
   // Enter a construct frame.
   {
@@ -136,25 +158,13 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   __ PushReturnAddressFrom(rcx);
 
   __ ret(0);
-}
 
-void Generate_StackOverflowCheck(
-    MacroAssembler* masm, Register num_args, Register scratch,
-    Label* stack_overflow,
-    Label::Distance stack_overflow_distance = Label::kFar) {
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  __ LoadRoot(kScratchRegister, RootIndex::kRealStackLimit);
-  __ movq(scratch, rsp);
-  // Make scratch the space we have left. The stack might already be overflowed
-  // here which will cause scratch to become negative.
-  __ subq(scratch, kScratchRegister);
-  __ sarq(scratch, Immediate(kSystemPointerSizeLog2));
-  // Check if the arguments will overflow the stack.
-  __ cmpq(scratch, num_args);
-  // Signed comparison.
-  __ j(less_equal, stack_overflow, stack_overflow_distance);
+  __ bind(&stack_overflow);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    __ int3();  // This should be unreachable.
+  }
 }
 
 }  // namespace
