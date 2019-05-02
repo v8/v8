@@ -113,6 +113,7 @@ class PipelineData {
         instruction_zone_(instruction_zone_scope_.zone()),
         codegen_zone_scope_(zone_stats_, ZONE_NAME),
         codegen_zone_(codegen_zone_scope_.zone()),
+        broker_(new JSHeapBroker(isolate_, info_->zone())),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         assembler_options_(AssemblerOptions::Default(isolate)) {
@@ -131,7 +132,6 @@ class PipelineData {
     javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
     jsgraph_ = new (graph_zone_)
         JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
-    broker_ = new (info_->zone()) JSHeapBroker(isolate_, info_->zone());
     dependencies_ =
         new (info_->zone()) CompilationDependencies(broker_, info_->zone());
   }
@@ -226,7 +226,6 @@ class PipelineData {
     delete code_generator_;
     code_generator_ = nullptr;
     DeleteTyper();
-
     DeleteRegisterAllocationZone();
     DeleteInstructionZone();
     DeleteCodegenZone();
@@ -274,6 +273,11 @@ class PipelineData {
   }
 
   JSHeapBroker* broker() const { return broker_; }
+  std::unique_ptr<JSHeapBroker> ReleaseBroker() {
+    std::unique_ptr<JSHeapBroker> broker(broker_);
+    broker_ = nullptr;
+    return broker;
+  }
 
   Schedule* schedule() const { return schedule_; }
   void set_schedule(Schedule* schedule) {
@@ -362,6 +366,7 @@ class PipelineData {
     codegen_zone_scope_.Destroy();
     codegen_zone_ = nullptr;
     dependencies_ = nullptr;
+    delete broker_;
     broker_ = nullptr;
     frame_ = nullptr;
   }
@@ -419,7 +424,6 @@ class PipelineData {
   void InitializeCodeGenerator(Linkage* linkage,
                                std::unique_ptr<AssemblerBuffer> buffer) {
     DCHECK_NULL(code_generator_);
-
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
@@ -2370,16 +2374,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForWasmHeapStub(
 // static
 MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     OptimizedCompilationInfo* info, Isolate* isolate,
-    JSHeapBroker** out_broker) {
+    std::unique_ptr<JSHeapBroker>* out_broker) {
   ZoneStats zone_stats(isolate->allocator());
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
       CreatePipelineStatistics(Handle<Script>::null(), info, isolate,
                                &zone_stats));
   PipelineData data(&zone_stats, isolate, info, pipeline_statistics.get());
-  if (out_broker != nullptr) {
-    *out_broker = data.broker();
-  }
-
   PipelineImpl pipeline(&data);
 
   Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
@@ -2391,6 +2391,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   Handle<Code> code;
   if (pipeline.FinalizeCode(out_broker == nullptr).ToHandle(&code) &&
       pipeline.CommitDependencies(code)) {
+    if (out_broker != nullptr) *out_broker = data.ReleaseBroker();
     return code;
   }
   return MaybeHandle<Code>();

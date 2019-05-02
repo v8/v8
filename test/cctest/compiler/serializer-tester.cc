@@ -45,7 +45,7 @@ SerializerTester::SerializerTester(const char* source)
                    i::OptimizedCompilationInfo::kSplittingEnabled |
                    i::OptimizedCompilationInfo::kAnalyzeEnvironmentLiveness;
   Optimize(function, main_zone(), main_isolate(), flags, &broker_);
-  function_ = JSFunctionRef(broker_, function);
+  function_ = JSFunctionRef(broker(), function);
 }
 
 TEST(SerializeEmptyFunction) {

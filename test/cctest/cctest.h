@@ -500,11 +500,13 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
 
 // Takes a JSFunction and runs it through the test version of the optimizing
 // pipeline, allocating the temporary compilation artifacts in a given Zone.
-// For possible {flags} values, look at OptimizedCompilationInfo::Flag.
-// If passed a non-null pointer for {broker}, outputs the JSHeapBroker to it.
+// For possible {flags} values, look at OptimizedCompilationInfo::Flag.  If
+// {out_broker} is not nullptr, returns the JSHeapBroker via that (transferring
+// ownership to the caller).
 i::Handle<i::JSFunction> Optimize(
     i::Handle<i::JSFunction> function, i::Zone* zone, i::Isolate* isolate,
-    uint32_t flags, i::compiler::JSHeapBroker** out_broker = nullptr);
+    uint32_t flags,
+    std::unique_ptr<i::compiler::JSHeapBroker>* out_broker = nullptr);
 
 static inline void ExpectString(const char* code, const char* expected) {
   v8::Local<v8::Value> result = CompileRun(code);
