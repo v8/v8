@@ -585,9 +585,9 @@ template <class MapContainer>
 void CompilationDependencies::DependOnStablePrototypeChains(
     MapContainer const& receiver_maps, WhereToStart start,
     base::Optional<JSObjectRef> last_prototype) {
-  // Determine actual holder and perform prototype chain checks.
   for (auto map : receiver_maps) {
     MapRef receiver_map(broker_, map);
+    if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
     if (receiver_map.IsPrimitiveMap()) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
@@ -595,7 +595,6 @@ void CompilationDependencies::DependOnStablePrototypeChains(
           broker_->native_context().GetConstructorFunction(receiver_map);
       if (constructor.has_value()) receiver_map = constructor->initial_map();
     }
-    if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
     DependOnStablePrototypeChain(this, receiver_map, last_prototype);
   }
 }
