@@ -34,7 +34,7 @@ VARIANTS = ['default']
 MORE_VARIANTS = [
   'jitless',
   'stress',
-  'stress_background_compile',
+  'stress_js_bg_compile_wasm_code_gc',
   'stress_incremental_marking',
 ]
 

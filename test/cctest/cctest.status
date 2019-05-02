@@ -418,9 +418,9 @@
 
 ##############################################################################
 # The test relies on deterministic compilation.
-['variant == stress_background_compile', {
+['variant == stress_js_bg_compile_wasm_code_gc', {
   'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
-}],  # variant == stress_background_compile
+}],  # variant == stress_js_bg_compile_wasm_code_gc
 
 ##############################################################################
 ['variant == no_wasm_traps', {
