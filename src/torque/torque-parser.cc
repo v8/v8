@@ -616,6 +616,9 @@ base::Optional<ParseResult> MakeSpecializationDeclaration(
 base::Optional<ParseResult> MakeStructDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<Identifier*>();
+  if (!IsValidTypeName(name->value)) {
+    NamingConventionError("Struct", name->value, "UpperCamelCase");
+  }
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<StructFieldExpression>>();
   Declaration* result =
