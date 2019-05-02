@@ -165,57 +165,43 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     }
     return load;
   }
+  std::pair<MachineRepresentation, Node*> InsertCompressionIfNeeded(
+      MachineRepresentation rep, Node* value) {
+    if (COMPRESS_POINTERS_BOOL) {
+      switch (rep) {
+        case MachineRepresentation::kTaggedPointer:
+          rep = MachineRepresentation::kCompressedPointer;
+          value = AddNode(machine()->ChangeTaggedPointerToCompressedPointer(),
+                          value);
+          break;
+        case MachineRepresentation::kTaggedSigned:
+          rep = MachineRepresentation::kCompressedSigned;
+          value =
+              AddNode(machine()->ChangeTaggedSignedToCompressedSigned(), value);
+          break;
+        case MachineRepresentation::kTagged:
+          rep = MachineRepresentation::kCompressed;
+          value = AddNode(machine()->ChangeTaggedToCompressed(), value);
+          break;
+        default:
+          break;
+      }
+    }
+    return std::make_pair(rep, value);
+  }
   Node* Store(MachineRepresentation rep, Node* base, Node* value,
               WriteBarrierKind write_barrier) {
     return Store(rep, base, IntPtrConstant(0), value, write_barrier);
   }
   Node* Store(MachineRepresentation rep, Node* base, Node* index, Node* value,
               WriteBarrierKind write_barrier) {
-    if (COMPRESS_POINTERS_BOOL) {
-      switch (rep) {
-        case MachineRepresentation::kTaggedPointer:
-          rep = MachineRepresentation::kCompressedPointer;
-          value = AddNode(machine()->ChangeTaggedPointerToCompressedPointer(),
-                          value);
-          break;
-        case MachineRepresentation::kTaggedSigned:
-          rep = MachineRepresentation::kCompressedSigned;
-          value =
-              AddNode(machine()->ChangeTaggedSignedToCompressedSigned(), value);
-          break;
-        case MachineRepresentation::kTagged:
-          rep = MachineRepresentation::kCompressed;
-          value = AddNode(machine()->ChangeTaggedToCompressed(), value);
-          break;
-        default:
-          break;
-      }
-    }
+    std::tie(rep, value) = InsertCompressionIfNeeded(rep, value);
     return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
                    base, index, value);
   }
   void OptimizedStoreField(MachineRepresentation rep, Node* object, int offset,
                            Node* value, WriteBarrierKind write_barrier) {
-    if (COMPRESS_POINTERS_BOOL) {
-      switch (rep) {
-        case MachineRepresentation::kTaggedPointer:
-          rep = MachineRepresentation::kCompressedPointer;
-          value = AddNode(machine()->ChangeTaggedPointerToCompressedPointer(),
-                          value);
-          break;
-        case MachineRepresentation::kTaggedSigned:
-          rep = MachineRepresentation::kCompressedSigned;
-          value =
-              AddNode(machine()->ChangeTaggedSignedToCompressedSigned(), value);
-          break;
-        case MachineRepresentation::kTagged:
-          rep = MachineRepresentation::kCompressed;
-          value = AddNode(machine()->ChangeTaggedToCompressed(), value);
-          break;
-        default:
-          break;
-      }
-    }
+    std::tie(rep, value) = InsertCompressionIfNeeded(rep, value);
     AddNode(simplified()->StoreField(FieldAccess(
                 BaseTaggedness::kTaggedBase, offset, MaybeHandle<Name>(),
                 MaybeHandle<Map>(), Type::Any(),
@@ -235,7 +221,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return UnalignedLoad(type, base, IntPtrConstant(0));
   }
   Node* UnalignedLoad(MachineType type, Node* base, Node* index) {
-    if (machine()->UnalignedLoadSupported(type.representation())) {
+    MachineRepresentation rep = type.representation();
+    // Tagged or compressed should never be unaligned
+    DCHECK(!(IsAnyTagged(rep) || IsAnyCompressed(rep)));
+    if (machine()->UnalignedLoadSupported(rep)) {
       return AddNode(machine()->Load(type), base, index);
     } else {
       return AddNode(machine()->UnalignedLoad(type), base, index);
@@ -246,6 +235,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* UnalignedStore(MachineRepresentation rep, Node* base, Node* index,
                        Node* value) {
+    // Tagged or compressed should never be unaligned
+    DCHECK(!(IsAnyTagged(rep) || IsAnyCompressed(rep)));
     if (machine()->UnalignedStoreSupported(rep)) {
       return AddNode(machine()->Store(StoreRepresentation(
                          rep, WriteBarrierKind::kNoWriteBarrier)),

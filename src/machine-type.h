@@ -404,11 +404,9 @@ inline bool IsAnyCompressed(MachineRepresentation rep) {
          rep == MachineRepresentation::kCompressedSigned;
 }
 
-// TODO(solanes): remove '|| IsAnyTagged(rep)' when all the representation
-// changes are in place
 inline bool IsAnyCompressedTagged(MachineRepresentation rep) {
 #ifdef V8_COMPRESS_POINTERS
-  return IsAnyCompressed(rep) || IsAnyTagged(rep);
+  return IsAnyCompressed(rep);
 #else
   return IsAnyTagged(rep);
 #endif

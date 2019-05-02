@@ -391,10 +391,6 @@ TEST(RunUnalignedLoadImmIndex) {
   RunLoadImmIndex<int32_t>(MachineType::Int32(), TestAlignment::kUnaligned);
   RunLoadImmIndex<uint32_t>(MachineType::Uint32(), TestAlignment::kUnaligned);
   RunLoadImmIndex<void*>(MachineType::Pointer(), TestAlignment::kUnaligned);
-  RunLoadImmIndex<Smi>(MachineType::TaggedSigned(), TestAlignment::kUnaligned);
-  RunLoadImmIndex<HeapObject>(MachineType::TaggedPointer(),
-                              TestAlignment::kUnaligned);
-  RunLoadImmIndex<Object>(MachineType::AnyTagged(), TestAlignment::kUnaligned);
   RunLoadImmIndex<float>(MachineType::Float32(), TestAlignment::kUnaligned);
   RunLoadImmIndex<double>(MachineType::Float64(), TestAlignment::kUnaligned);
 #if V8_TARGET_ARCH_64_BIT
@@ -428,10 +424,6 @@ TEST(RunUnalignedLoadStore) {
   RunLoadStore<int32_t>(MachineType::Int32(), TestAlignment::kUnaligned);
   RunLoadStore<uint32_t>(MachineType::Uint32(), TestAlignment::kUnaligned);
   RunLoadStore<void*>(MachineType::Pointer(), TestAlignment::kUnaligned);
-  RunLoadStore<Smi>(MachineType::TaggedSigned(), TestAlignment::kUnaligned);
-  RunLoadStore<HeapObject>(MachineType::TaggedPointer(),
-                           TestAlignment::kUnaligned);
-  RunLoadStore<Object>(MachineType::AnyTagged(), TestAlignment::kUnaligned);
   RunLoadStore<float>(MachineType::Float32(), TestAlignment::kUnaligned);
   RunLoadStore<double>(MachineType::Float64(), TestAlignment::kUnaligned);
 #if V8_TARGET_ARCH_64_BIT
@@ -445,10 +437,6 @@ TEST(RunUnalignedLoadStoreUnalignedAccess) {
   RunUnalignedLoadStoreUnalignedAccess<int32_t>(MachineType::Int32());
   RunUnalignedLoadStoreUnalignedAccess<uint32_t>(MachineType::Uint32());
   RunUnalignedLoadStoreUnalignedAccess<void*>(MachineType::Pointer());
-  RunUnalignedLoadStoreUnalignedAccess<Smi>(MachineType::TaggedSigned());
-  RunUnalignedLoadStoreUnalignedAccess<HeapObject>(
-      MachineType::TaggedPointer());
-  RunUnalignedLoadStoreUnalignedAccess<Object>(MachineType::AnyTagged());
   RunUnalignedLoadStoreUnalignedAccess<float>(MachineType::Float32());
   RunUnalignedLoadStoreUnalignedAccess<double>(MachineType::Float64());
 #if V8_TARGET_ARCH_64_BIT
