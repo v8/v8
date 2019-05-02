@@ -6477,21 +6477,23 @@ class RegExpKey : public HashTableKey {
   Smi flags_;
 };
 
+Handle<String> OneByteStringKey::AsHandle(Isolate* isolate) {
+  return isolate->factory()->NewOneByteInternalizedString(string_, HashField());
+}
+
+Handle<String> TwoByteStringKey::AsHandle(Isolate* isolate) {
+  return isolate->factory()->NewTwoByteInternalizedString(string_, HashField());
+}
+
 Handle<String> SeqOneByteSubStringKey::AsHandle(Isolate* isolate) {
   return isolate->factory()->NewOneByteInternalizedSubString(
       string_, from_, length_, HashField());
 }
 
-bool SeqOneByteSubStringKey::IsMatch(Object object) {
+bool SeqOneByteSubStringKey::IsMatch(Object string) {
   DisallowHeapAllocation no_gc;
-  String string = String::cast(object);
-  if (string.length() != length_) return false;
-  if (string.IsOneByteRepresentation()) {
-    const uint8_t* data = string.GetChars<uint8_t>(no_gc);
-    return CompareChars(string_->GetChars(no_gc) + from_, data, length_) == 0;
-  }
-  const uint16_t* data = string.GetChars<uint16_t>(no_gc);
-  return CompareChars(string_->GetChars(no_gc) + from_, data, length_) == 0;
+  Vector<const uint8_t> chars(string_->GetChars(no_gc) + from_, length_);
+  return String::cast(string)->IsOneByteEqualTo(chars);
 }
 
 // InternalizedStringKey carries a string/internalized-string object as key.
