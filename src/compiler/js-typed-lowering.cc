@@ -2022,7 +2022,8 @@ Reduction JSTypedLowering::ReduceJSLoadMessage(Node* node) {
   ExternalReference const ref =
       ExternalReference::address_of_pending_message_obj(isolate());
   node->ReplaceInput(0, jsgraph()->ExternalConstant(ref));
-  NodeProperties::ChangeOp(node, simplified()->LoadMessage());
+  NodeProperties::ChangeOp(
+      node, simplified()->LoadField(AccessBuilder::ForExternalTaggedValue()));
   return Changed(node);
 }
 
@@ -2033,7 +2034,8 @@ Reduction JSTypedLowering::ReduceJSStoreMessage(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 0);
   node->ReplaceInput(0, jsgraph()->ExternalConstant(ref));
   node->ReplaceInput(1, value);
-  NodeProperties::ChangeOp(node, simplified()->StoreMessage());
+  NodeProperties::ChangeOp(
+      node, simplified()->StoreField(AccessBuilder::ForExternalTaggedValue()));
   return Changed(node);
 }
 

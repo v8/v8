@@ -1119,28 +1119,6 @@ struct SimplifiedOperatorGlobalCache final {
   };
   LoadStackArgumentOperator kLoadStackArgument;
 
-  struct LoadMessageOperator final : public Operator {
-    LoadMessageOperator()
-        : Operator(                    // --
-              IrOpcode::kLoadMessage,  // opcode
-              Operator::kNoDeopt | Operator::kNoThrow |
-                  Operator::kNoWrite,  // flags
-              "LoadMessage",           // name
-              1, 1, 1, 1, 1, 0) {}     // counts
-  };
-  LoadMessageOperator kLoadMessage;
-
-  struct StoreMessageOperator final : public Operator {
-    StoreMessageOperator()
-        : Operator(                     // --
-              IrOpcode::kStoreMessage,  // opcode
-              Operator::kNoDeopt | Operator::kNoThrow |
-                  Operator::kNoRead,  // flags
-              "StoreMessage",         // name
-              2, 1, 1, 0, 1, 0) {}    // counts
-  };
-  StoreMessageOperator kStoreMessage;
-
 #define SPECULATIVE_NUMBER_BINOP(Name)                                      \
   template <NumberOperationHint kHint>                                      \
   struct Name##Operator final : public Operator1<NumberOperationHint> {     \
@@ -1732,14 +1710,6 @@ SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
   }
 ACCESS_OP_LIST(ACCESS)
 #undef ACCESS
-
-const Operator* SimplifiedOperatorBuilder::LoadMessage() {
-  return &cache_.kLoadMessage;
-}
-
-const Operator* SimplifiedOperatorBuilder::StoreMessage() {
-  return &cache_.kStoreMessage;
-}
 
 const Operator* SimplifiedOperatorBuilder::LoadStackArgument() {
   return &cache_.kLoadStackArgument;

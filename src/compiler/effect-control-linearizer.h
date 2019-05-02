@@ -172,11 +172,9 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerMaybeGrowFastElements(Node* node, Node* frame_state);
   void LowerTransitionElementsKind(Node* node);
   Node* LowerLoadFieldByIndex(Node* node);
-  Node* LowerLoadMessage(Node* node);
   Node* LowerLoadTypedElement(Node* node);
   Node* LowerLoadDataViewElement(Node* node);
   Node* LowerLoadStackArgument(Node* node);
-  void LowerStoreMessage(Node* node);
   void LowerStoreTypedElement(Node* node);
   void LowerStoreDataViewElement(Node* node);
   void LowerStoreSignedSmallElement(Node* node);

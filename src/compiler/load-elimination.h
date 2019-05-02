@@ -251,8 +251,6 @@ class V8_EXPORT_PRIVATE LoadElimination final
   Reduction ReduceStoreTypedElement(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReduceStart(Node* node);
-  Reduction ReduceStoreMessage(Node* node);
-  Reduction ReduceLoadMessage(Node* node);
   Reduction ReduceOtherNode(Node* node);
 
   Reduction UpdateState(Node* node, AbstractState const* state);

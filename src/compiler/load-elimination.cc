@@ -116,10 +116,6 @@ Reduction LoadElimination::Reduce(Node* node) {
       return ReduceLoadField(node, FieldAccessOf(node->op()));
     case IrOpcode::kStoreField:
       return ReduceStoreField(node, FieldAccessOf(node->op()));
-    case IrOpcode::kStoreMessage:
-      return ReduceStoreField(node, AccessBuilder::ForExternalIntPtr());
-    case IrOpcode::kLoadMessage:
-      return ReduceLoadField(node, AccessBuilder::ForExternalIntPtr());
     case IrOpcode::kLoadElement:
       return ReduceLoadElement(node);
     case IrOpcode::kStoreElement:
@@ -1155,10 +1151,6 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
           case IrOpcode::kStoreField:
             state = ComputeLoopStateForStoreField(current, state,
                                                   FieldAccessOf(current->op()));
-            break;
-          case IrOpcode::kStoreMessage:
-            state = ComputeLoopStateForStoreField(
-                current, state, AccessBuilder::ForExternalIntPtr());
             break;
           case IrOpcode::kStoreElement: {
             Node* const object = NodeProperties::GetValueInput(current, 0);
