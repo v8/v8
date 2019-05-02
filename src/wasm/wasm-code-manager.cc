@@ -1026,10 +1026,6 @@ WasmCode* NativeModule::Lookup(Address pc) const {
 }
 
 Address NativeModule::GetCallTargetForFunction(uint32_t func_index) const {
-  // TODO(clemensh): Measure performance win of returning instruction start
-  // directly if we have turbofan code. Downside: Redirecting functions (e.g.
-  // for debugging) gets much harder.
-
   // Return the jump table slot for that function index.
   DCHECK_NOT_NULL(jump_table_);
   uint32_t slot_idx = func_index - module_->num_imported_functions;
