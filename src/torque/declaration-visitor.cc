@@ -278,9 +278,7 @@ void DeclarationVisitor::Visit(ClassDeclaration* decl) {
     if (!decl->super) {
       ReportError("Extern class must extend another type.");
     }
-    // Compute the offset of the class' first member. If the class extends
-    // another class, it's the size of the extended class, otherwise zero.
-    const Type* super_type = Declarations::LookupType(*decl->super);
+    const Type* super_type = Declarations::GetType(*decl->super);
     if (super_type != TypeOracle::GetTaggedType()) {
       const ClassType* super_class = ClassType::DynamicCast(super_type);
       if (!super_class) {

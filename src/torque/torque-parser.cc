@@ -575,7 +575,7 @@ base::Optional<ParseResult> MakeClassDeclaration(
   if (!IsValidTypeName(name->value)) {
     NamingConventionError("Type", name->value, "UpperCamelCase");
   }
-  auto extends = child_results->NextAs<base::Optional<std::string>>();
+  auto extends = child_results->NextAs<base::Optional<TypeExpression*>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<ClassFieldExpression>>();
@@ -1650,7 +1650,7 @@ struct TorqueGrammar : Grammar {
            MakeExternConstDeclaration),
       Rule({CheckIf(Token("@generatePrint")), CheckIf(Token("extern")),
             CheckIf(Token("transient")), Token("class"), &name,
-            Optional<std::string>(Sequence({Token("extends"), &identifier})),
+            Optional<TypeExpression*>(Sequence({Token("extends"), &type})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
             Token("{"), List<Declaration*>(&method),

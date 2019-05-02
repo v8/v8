@@ -79,6 +79,23 @@ TEST(LanguageServer, GotoTypeDefinitionNoDataForFile) {
   EXPECT_FALSE(LanguageServerData::FindDefinition(test_id, {0, 0}));
 }
 
+TEST(LanguageServer, GotoDefinitionClassSuperType) {
+  const std::string source =
+      "type void;\n"
+      "type never;\n"
+      "type Tagged generates 'TNode<Object>' constexpr 'ObjectPtr';\n"
+      "extern class HeapObject extends Tagged {}";
+
+  TestCompiler compiler;
+  compiler.Compile(source);
+
+  // Find the definition for 'Tagged' of the 'extends' on line 3.
+  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  auto maybe_position = LanguageServerData::FindDefinition(id, {3, 33});
+  ASSERT_TRUE(maybe_position.has_value());
+  EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 5}, {2, 11}}));
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8
