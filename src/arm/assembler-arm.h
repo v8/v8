@@ -83,7 +83,10 @@ class V8_EXPORT_PRIVATE Operand {
  public:
   // immediate
   V8_INLINE explicit Operand(int32_t immediate,
-                             RelocInfo::Mode rmode = RelocInfo::NONE);
+                             RelocInfo::Mode rmode = RelocInfo::NONE)
+      : rmode_(rmode) {
+    value_.immediate = immediate;
+  }
   V8_INLINE static Operand Zero();
   V8_INLINE explicit Operand(const ExternalReference& f);
   explicit Operand(Handle<HeapObject> handle);

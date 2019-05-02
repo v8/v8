@@ -108,26 +108,6 @@ void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
   // Check if the arguments will overflow the stack.
   __ Cmp(scratch, Operand(num_args, LSL, kSystemPointerSizeLog2));
   __ B(le, stack_overflow);
-
-#if defined(V8_OS_WIN)
-  // Simulate _chkstk to extend stack guard page on Windows ARM64.
-  const int kPageSize = 4096;
-  Label chkstk, chkstk_done;
-  Register probe = temps.AcquireX();
-
-  __ Sub(scratch, sp, Operand(num_args, LSL, kSystemPointerSizeLog2));
-  __ Mov(probe, sp);
-
-  // Loop start of stack probe.
-  __ Bind(&chkstk);
-  __ Sub(probe, probe, kPageSize);
-  __ Cmp(probe, scratch);
-  __ B(lo, &chkstk_done);
-  __ Ldrb(xzr, MemOperand(probe));
-  __ B(&chkstk);
-
-  __ Bind(&chkstk_done);
-#endif
 }
 
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
@@ -2500,7 +2480,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ Sub(x10, sp, x10);
       // Check if the arguments will overflow the stack.
       __ Cmp(x10, Operand(bound_argc, LSL, kSystemPointerSizeLog2));
-      __ B(hs, &done);
+      __ B(gt, &done);
       __ TailCallRuntime(Runtime::kThrowStackOverflow);
       __ Bind(&done);
     }
@@ -3594,7 +3574,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   //   sp[5 * kSystemPointerSize]: undefined (kNewTarget)
 
   // Reserve space on the stack.
-  __ Sub(sp, sp, Operand(FCA::kArgsLength * kSystemPointerSize));
+  __ Claim(FCA::kArgsLength, kSystemPointerSize);
 
   // kHolder.
   __ Str(holder, MemOperand(sp, 0 * kSystemPointerSize));

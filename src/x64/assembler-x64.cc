@@ -1566,24 +1566,33 @@ void Assembler::j(Condition cc,
   emitl(code_target_index);
 }
 
-
-void Assembler::jmp(Label* L, Label::Distance distance) {
-  EnsureSpace ensure_space(this);
+void Assembler::jmp_rel(int offset) {
   const int short_size = sizeof(int8_t);
   const int long_size = sizeof(int32_t);
+  --offset;  // This is how jumps are specified on x64.
+  if (is_int8(offset - short_size) && !predictable_code_size()) {
+    // 1110 1011 #8-bit disp.
+    emit(0xEB);
+    emit((offset - short_size) & 0xFF);
+  } else {
+    // 1110 1001 #32-bit disp.
+    emit(0xE9);
+    emitl(offset - long_size);
+  }
+}
+
+void Assembler::jmp(Label* L, Label::Distance distance) {
+  const int long_size = sizeof(int32_t);
+
   if (L->is_bound()) {
-    int offs = L->pos() - pc_offset() - 1;
-    DCHECK_LE(offs, 0);
-    if (is_int8(offs - short_size) && !predictable_code_size()) {
-      // 1110 1011 #8-bit disp.
-      emit(0xEB);
-      emit((offs - short_size) & 0xFF);
-    } else {
-      // 1110 1001 #32-bit disp.
-      emit(0xE9);
-      emitl(offs - long_size);
-    }
-  } else if (distance == Label::kNear) {
+    int offset = L->pos() - pc_offset();
+    DCHECK_LE(offset, 0);  // backward jump.
+    jmp_rel(offset);
+    return;
+  }
+
+  EnsureSpace ensure_space(this);
+  if (distance == Label::kNear) {
     emit(0xEB);
     byte disp = 0x00;
     if (L->is_near_linked()) {
@@ -1621,7 +1630,6 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
     }
   }
 }
-
 
 void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));

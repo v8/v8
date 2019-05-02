@@ -865,7 +865,7 @@ TEST(OperandOffset) {
 
 void TestFloat32x4Abs(MacroAssembler* masm, Label* exit, float x, float y,
                       float z, float w) {
-  __ subq(rsp, Immediate(kSimd128Size));
+  __ AllocateStackSpace(kSimd128Size);
 
   __ Move(xmm1, x);
   __ Movss(Operand(rsp, 0 * kFloatSize), xmm1);
@@ -902,7 +902,7 @@ void TestFloat32x4Abs(MacroAssembler* masm, Label* exit, float x, float y,
 
 void TestFloat32x4Neg(MacroAssembler* masm, Label* exit, float x, float y,
                       float z, float w) {
-  __ subq(rsp, Immediate(kSimd128Size));
+  __ AllocateStackSpace(kSimd128Size);
 
   __ Move(xmm1, x);
   __ Movss(Operand(rsp, 0 * kFloatSize), xmm1);
@@ -938,7 +938,7 @@ void TestFloat32x4Neg(MacroAssembler* masm, Label* exit, float x, float y,
 }
 
 void TestFloat64x2Abs(MacroAssembler* masm, Label* exit, double x, double y) {
-  __ subq(rsp, Immediate(kSimd128Size));
+  __ AllocateStackSpace(kSimd128Size);
 
   __ Move(xmm1, x);
   __ Movsd(Operand(rsp, 0 * kDoubleSize), xmm1);
@@ -962,7 +962,7 @@ void TestFloat64x2Abs(MacroAssembler* masm, Label* exit, double x, double y) {
 }
 
 void TestFloat64x2Neg(MacroAssembler* masm, Label* exit, double x, double y) {
-  __ subq(rsp, Immediate(kSimd128Size));
+  __ AllocateStackSpace(kSimd128Size);
 
   __ Move(xmm1, x);
   __ Movsd(Operand(rsp, 0 * kDoubleSize), xmm1);

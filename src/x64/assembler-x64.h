@@ -764,6 +764,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void jmp(Register adr);
   void jmp(Operand src);
 
+  // Unconditional jump relative to the current address. Low-level routine,
+  // use with caution!
+  void jmp_rel(int offset);
+
   // Conditional jumps
   void j(Condition cc,
          Label* L,

@@ -44,6 +44,8 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     // Push registers d0-d15, and possibly d16-d31, on the stack.
     // If d16-d31 are not pushed, decrease the stack pointer instead.
     __ vstm(db_w, sp, d16, d31, ne);
+    // Okay to not call AllocateStackSpace here because the size is a known
+    // small number and we need to use condition codes.
     __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
     __ vstm(db_w, sp, d0, d15);
 

@@ -52,6 +52,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Returns the pc offset at which the frame ends.
   int LeaveFrame(StackFrame::Type type);
 
+// Allocate stack space of given size (i.e. decrement {sp} by the value
+// stored in the given register, or by a constant). If you need to perform a
+// stack check, do it before calling this function because this function may
+// write into the newly allocated space. It may also overwrite the given
+// register's value, in the version that takes a register.
+#ifdef V8_OS_WIN
+  void AllocateStackSpace(Register bytes_scratch);
+  void AllocateStackSpace(int bytes);
+#else
+  void AllocateStackSpace(Register bytes) { sub(sp, sp, bytes); }
+  void AllocateStackSpace(int bytes) { sub(sp, sp, Operand(bytes)); }
+#endif
+
   // Push a fixed frame, consisting of lr, fp
   void PushCommonFrame(Register marker_reg = no_reg);
 

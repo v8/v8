@@ -859,7 +859,7 @@ void MacroAssembler::PushSafepointRegisters() {
   // stack, so adjust the stack for unsaved registers.
   const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
   DCHECK_GE(num_unsaved, 0);
-  sub(sp, sp, Operand(num_unsaved * kPointerSize));
+  AllocateStackSpace(num_unsaved * kPointerSize);
   stm(db_w, sp, kSafepointSavedRegisters);
 }
 
@@ -1322,6 +1322,44 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type) {
   return frame_ends;
 }
 
+#ifdef V8_OS_WIN
+void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
+  // "Functions that allocate 4 KB or more on the stack must ensure that each
+  // page prior to the final page is touched in order." Source:
+  // https://docs.microsoft.com/en-us/cpp/build/overview-of-arm-abi-conventions?view=vs-2019#stack
+  UseScratchRegisterScope temps(this);
+  DwVfpRegister scratch = temps.AcquireD();
+  Label check_offset;
+  Label touch_next_page;
+  jmp(&check_offset);
+  bind(&touch_next_page);
+  sub(sp, sp, Operand(kStackPageSize));
+  // Just to touch the page, before we increment further.
+  vldr(scratch, MemOperand(sp));
+  sub(bytes_scratch, bytes_scratch, Operand(kStackPageSize));
+
+  bind(&check_offset);
+  cmp(bytes_scratch, Operand(kStackPageSize));
+  b(gt, &touch_next_page);
+
+  sub(sp, sp, bytes_scratch);
+}
+
+void TurboAssembler::AllocateStackSpace(int bytes) {
+  UseScratchRegisterScope temps(this);
+  DwVfpRegister scratch = no_dreg;
+  while (bytes > kStackPageSize) {
+    if (scratch == no_dreg) {
+      scratch = temps.AcquireD();
+    }
+    sub(sp, sp, Operand(kStackPageSize));
+    vldr(scratch, MemOperand(sp));
+    bytes -= kStackPageSize;
+  }
+  sub(sp, sp, Operand(bytes));
+}
+#endif
+
 void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
                                     StackFrame::Type frame_type) {
   DCHECK(frame_type == StackFrame::EXIT ||
@@ -1362,7 +1400,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   // Reserve place for the return address and stack space and align the frame
   // preparing for calling the runtime function.
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
-  sub(sp, sp, Operand((stack_space + 1) * kPointerSize));
+  AllocateStackSpace((stack_space + 1) * kPointerSize);
   if (frame_alignment > 0) {
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     and_(sp, sp, Operand(-frame_alignment));
@@ -1824,7 +1862,7 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
 
   // If we fell through then inline version didn't succeed - call stub instead.
   push(lr);
-  sub(sp, sp, Operand(kDoubleSize));  // Put input on stack.
+  AllocateStackSpace(kDoubleSize);  // Put input on stack.
   vstr(double_input, MemOperand(sp, 0));
 
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
@@ -2353,12 +2391,12 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
     // Make stack end at alignment and make room for num_arguments - 4 words
     // and the original value of sp.
     mov(scratch, sp);
-    sub(sp, sp, Operand((stack_passed_arguments + 1) * kPointerSize));
+    AllocateStackSpace((stack_passed_arguments + 1) * kPointerSize);
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     and_(sp, sp, Operand(-frame_alignment));
     str(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else if (stack_passed_arguments > 0) {
-    sub(sp, sp, Operand(stack_passed_arguments * kPointerSize));
+    AllocateStackSpace(stack_passed_arguments * kPointerSize);
   }
 }
 

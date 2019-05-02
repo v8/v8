@@ -247,7 +247,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
         zone_(gen->zone()) {}
 
   void Generate() final {
-    __ sub(esp, Immediate(kDoubleSize));
+    __ AllocateStackSpace(kDoubleSize);
     __ movsd(MemOperand(esp, 0), input_);
     if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
@@ -360,7 +360,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 4); \
     /* Return value is in st(0) on ia32. */                              \
     /* Store it into the result register. */                             \
-    __ sub(esp, Immediate(kDoubleSize));                                 \
+    __ AllocateStackSpace(kDoubleSize);                                  \
     __ fstp_d(Operand(esp, 0));                                          \
     __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));                 \
     __ add(esp, Immediate(kDoubleSize));                                 \
@@ -374,7 +374,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 2); \
     /* Return value is in st(0) on ia32. */                              \
     /* Store it into the result register. */                             \
-    __ sub(esp, Immediate(kDoubleSize));                                 \
+    __ AllocateStackSpace(kDoubleSize);                                  \
     __ fstp_d(Operand(esp, 0));                                          \
     __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));                 \
     __ add(esp, Immediate(kDoubleSize));                                 \
@@ -522,7 +522,7 @@ void AdjustStackPointerForTailCall(TurboAssembler* tasm,
                           StandardFrameConstants::kFixedSlotCountAboveFp;
   int stack_slot_delta = new_slot_above_sp - current_sp_offset;
   if (stack_slot_delta > 0) {
-    tasm->sub(esp, Immediate(stack_slot_delta * kSystemPointerSize));
+    tasm->AllocateStackSpace(stack_slot_delta * kSystemPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
     tasm->add(esp, Immediate(-stack_slot_delta * kSystemPointerSize));
@@ -1366,7 +1366,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEFloat64Mod: {
       Register tmp = i.TempRegister(1);
       __ mov(tmp, esp);
-      __ sub(esp, Immediate(kDoubleSize));
+      __ AllocateStackSpace(kDoubleSize);
       __ and_(esp, -8);  // align to 8 byte boundary.
       // Move values to st(0) and st(1).
       __ movsd(Operand(esp, 0), i.InputDoubleRegister(1));
@@ -1687,45 +1687,45 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32PushFloat32:
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ sub(esp, Immediate(kFloatSize));
+        __ AllocateStackSpace(kFloatSize);
         __ movss(Operand(esp, 0), i.InputDoubleRegister(0));
         frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
       } else if (HasImmediateInput(instr, 0)) {
         __ Move(kScratchDoubleReg, i.InputFloat32(0));
-        __ sub(esp, Immediate(kFloatSize));
+        __ AllocateStackSpace(kFloatSize);
         __ movss(Operand(esp, 0), kScratchDoubleReg);
         frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
       } else {
         __ movss(kScratchDoubleReg, i.InputOperand(0));
-        __ sub(esp, Immediate(kFloatSize));
+        __ AllocateStackSpace(kFloatSize);
         __ movss(Operand(esp, 0), kScratchDoubleReg);
         frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
       }
       break;
     case kIA32PushFloat64:
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ sub(esp, Immediate(kDoubleSize));
+        __ AllocateStackSpace(kDoubleSize);
         __ movsd(Operand(esp, 0), i.InputDoubleRegister(0));
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
       } else if (HasImmediateInput(instr, 0)) {
         __ Move(kScratchDoubleReg, i.InputDouble(0));
-        __ sub(esp, Immediate(kDoubleSize));
+        __ AllocateStackSpace(kDoubleSize);
         __ movsd(Operand(esp, 0), kScratchDoubleReg);
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
       } else {
         __ movsd(kScratchDoubleReg, i.InputOperand(0));
-        __ sub(esp, Immediate(kDoubleSize));
+        __ AllocateStackSpace(kDoubleSize);
         __ movsd(Operand(esp, 0), kScratchDoubleReg);
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
       }
       break;
     case kIA32PushSimd128:
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ sub(esp, Immediate(kSimd128Size));
+        __ AllocateStackSpace(kSimd128Size);
         __ movups(Operand(esp, 0), i.InputSimd128Register(0));
       } else {
         __ movups(kScratchDoubleReg, i.InputOperand(0));
-        __ sub(esp, Immediate(kSimd128Size));
+        __ AllocateStackSpace(kSimd128Size);
         __ movups(Operand(esp, 0), kScratchDoubleReg);
       }
       frame_access_state()->IncreaseSPDelta(kSimd128Size / kSystemPointerSize);
@@ -1737,7 +1737,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ push(operand);
         frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
       } else if (instr->InputAt(0)->IsFPRegister()) {
-        __ sub(esp, Immediate(kFloatSize));
+        __ AllocateStackSpace(kFloatSize);
         __ movsd(Operand(esp, 0), i.InputDoubleRegister(0));
         frame_access_state()->IncreaseSPDelta(kFloatSize / kSystemPointerSize);
       } else if (HasImmediateInput(instr, 0)) {
@@ -4291,7 +4291,7 @@ void CodeGenerator::AssembleConstructFrame() {
     required_slots -= base::bits::CountPopulation(saves);
     required_slots -= frame()->GetReturnSlotCount();
     if (required_slots > 0) {
-      __ sub(esp, Immediate(required_slots * kSystemPointerSize));
+      __ AllocateStackSpace(required_slots * kSystemPointerSize);
     }
   }
 
@@ -4304,7 +4304,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   // Allocate return slots (located after callee-saved).
   if (frame()->GetReturnSlotCount() > 0) {
-    __ sub(esp, Immediate(frame()->GetReturnSlotCount() * kSystemPointerSize));
+    __ AllocateStackSpace(frame()->GetReturnSlotCount() * kSystemPointerSize);
   }
 }
 

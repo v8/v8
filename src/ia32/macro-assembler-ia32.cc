@@ -276,7 +276,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   if (fp_mode == kSaveFPRegs) {
     // Save all XMM registers except XMM0.
     int delta = kDoubleSize * (XMMRegister::kNumRegisters - 1);
-    sub(esp, Immediate(delta));
+    AllocateStackSpace(delta);
     for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(Operand(esp, (i - 1) * kDoubleSize), reg);
@@ -798,26 +798,34 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 #ifdef V8_OS_WIN
-void TurboAssembler::AllocateStackFrame(Register bytes_scratch) {
+void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
   // In windows, we cannot increment the stack size by more than one page
   // (minimum page size is 4KB) without accessing at least one byte on the
   // page. Check this:
   // https://msdn.microsoft.com/en-us/library/aa227153(v=vs.60).aspx.
-  constexpr int kPageSize = 4 * 1024;
   Label check_offset;
   Label touch_next_page;
   jmp(&check_offset);
   bind(&touch_next_page);
-  sub(esp, Immediate(kPageSize));
+  sub(esp, Immediate(kStackPageSize));
   // Just to touch the page, before we increment further.
   mov(Operand(esp, 0), Immediate(0));
-  sub(bytes_scratch, Immediate(kPageSize));
+  sub(bytes_scratch, Immediate(kStackPageSize));
 
   bind(&check_offset);
-  cmp(bytes_scratch, kPageSize);
+  cmp(bytes_scratch, kStackPageSize);
   j(greater, &touch_next_page);
 
   sub(esp, bytes_scratch);
+}
+
+void TurboAssembler::AllocateStackSpace(int bytes) {
+  while (bytes > kStackPageSize) {
+    sub(esp, Immediate(kStackPageSize));
+    mov(Operand(esp, 0), Immediate(0));
+    bytes -= kStackPageSize;
+  }
+  sub(esp, Immediate(bytes));
 }
 #endif
 
@@ -861,14 +869,14 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
   if (save_doubles) {
     int space =
         XMMRegister::kNumRegisters * kDoubleSize + argc * kSystemPointerSize;
-    sub(esp, Immediate(space));
+    AllocateStackSpace(space);
     const int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(Operand(ebp, offset - ((i + 1) * kDoubleSize)), reg);
     }
   } else {
-    sub(esp, Immediate(argc * kSystemPointerSize));
+    AllocateStackSpace(argc * kSystemPointerSize);
   }
 
   // Get the required frame alignment for the OS.
@@ -1631,7 +1639,7 @@ void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
   // We don't have an xmm scratch register, so move the data via the stack. This
   // path is rarely required, so it's acceptable to be slow.
   DCHECK_LT(imm8, 2);
-  sub(esp, Immediate(kDoubleSize));
+  AllocateStackSpace(kDoubleSize);
   movsd(Operand(esp, 0), src);
   mov(dst, Operand(esp, imm8 * kUInt32Size));
   add(esp, Immediate(kDoubleSize));
@@ -1652,7 +1660,7 @@ void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, uint8_t imm8) {
   // We don't have an xmm scratch register, so move the data via the stack. This
   // path is rarely required, so it's acceptable to be slow.
   DCHECK_LT(imm8, 2);
-  sub(esp, Immediate(kDoubleSize));
+  AllocateStackSpace(kDoubleSize);
   // Write original content of {dst} to the stack.
   movsd(Operand(esp, 0), dst);
   // Overwrite the portion specified in {imm8}.
@@ -1812,12 +1820,12 @@ void TurboAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
     // Make stack end at alignment and make room for num_arguments words
     // and the original value of esp.
     mov(scratch, esp);
-    sub(esp, Immediate((num_arguments + 1) * kSystemPointerSize));
+    AllocateStackSpace((num_arguments + 1) * kSystemPointerSize);
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     and_(esp, -frame_alignment);
     mov(Operand(esp, num_arguments * kSystemPointerSize), scratch);
   } else {
-    sub(esp, Immediate(num_arguments * kSystemPointerSize));
+    AllocateStackSpace(num_arguments * kSystemPointerSize);
   }
 }
 

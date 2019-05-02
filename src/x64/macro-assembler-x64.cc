@@ -723,7 +723,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == kSaveFPRegs) {
     int delta = kDoubleSize * XMMRegister::kNumRegisters;
-    subq(rsp, Immediate(delta));
+    AllocateStackSpace(delta);
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       Movsd(Operand(rsp, i * kDoubleSize), reg);
@@ -2480,6 +2480,38 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   popq(rbp);
 }
 
+#ifdef V8_OS_WIN
+void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
+  // In windows, we cannot increment the stack size by more than one page
+  // (minimum page size is 4KB) without accessing at least one byte on the
+  // page. Check this:
+  // https://msdn.microsoft.com/en-us/library/aa227153(v=vs.60).aspx.
+  Label check_offset;
+  Label touch_next_page;
+  jmp(&check_offset);
+  bind(&touch_next_page);
+  subq(rsp, Immediate(kStackPageSize));
+  // Just to touch the page, before we increment further.
+  movb(Operand(rsp, 0), Immediate(0));
+  subq(bytes_scratch, Immediate(kStackPageSize));
+
+  bind(&check_offset);
+  cmpq(bytes_scratch, Immediate(kStackPageSize));
+  j(greater, &touch_next_page);
+
+  subq(rsp, bytes_scratch);
+}
+
+void TurboAssembler::AllocateStackSpace(int bytes) {
+  while (bytes > kStackPageSize) {
+    subq(rsp, Immediate(kStackPageSize));
+    movb(Operand(rsp, 0), Immediate(0));
+    bytes -= kStackPageSize;
+  }
+  subq(rsp, Immediate(bytes));
+}
+#endif
+
 void MacroAssembler::EnterExitFramePrologue(bool save_rax,
                                             StackFrame::Type frame_type) {
   DCHECK(frame_type == StackFrame::EXIT ||
@@ -2525,7 +2557,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   if (save_doubles) {
     int space = XMMRegister::kNumRegisters * kDoubleSize +
                 arg_stack_space * kSystemPointerSize;
-    subq(rsp, Immediate(space));
+    AllocateStackSpace(space);
     int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
     const RegisterConfiguration* config = RegisterConfiguration::Default();
     for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
@@ -2534,7 +2566,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
       Movsd(Operand(rbp, offset - ((i + 1) * kDoubleSize)), reg);
     }
   } else if (arg_stack_space > 0) {
-    subq(rsp, Immediate(arg_stack_space * kSystemPointerSize));
+    AllocateStackSpace(arg_stack_space * kSystemPointerSize);
   }
 
   // Get the required frame alignment for the OS.
@@ -2665,7 +2697,7 @@ void TurboAssembler::PrepareCallCFunction(int num_arguments) {
   DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
-  subq(rsp, Immediate((argument_slots_on_stack + 1) * kSystemPointerSize));
+  AllocateStackSpace((argument_slots_on_stack + 1) * kSystemPointerSize);
   andq(rsp, Immediate(-frame_alignment));
   movq(Operand(rsp, argument_slots_on_stack * kSystemPointerSize),
        kScratchRegister);

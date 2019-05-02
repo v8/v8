@@ -188,10 +188,6 @@ Handle<Code> Assembler::relative_code_target_object_handle_at(
   return GetCodeTarget(code_target_index);
 }
 
-Operand::Operand(int32_t immediate, RelocInfo::Mode rmode) : rmode_(rmode) {
-  value_.immediate = immediate;
-}
-
 Operand Operand::Zero() { return Operand(static_cast<int32_t>(0)); }
 
 Operand::Operand(const ExternalReference& f)

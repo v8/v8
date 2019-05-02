@@ -101,11 +101,11 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
       assm->push(reg.low_gp());
       break;
     case kWasmF32:
-      assm->sub(esp, Immediate(sizeof(float)));
+      assm->AllocateStackSpace(sizeof(float));
       assm->movss(Operand(esp, 0), reg.fp());
       break;
     case kWasmF64:
-      assm->sub(esp, Immediate(sizeof(double)));
+      assm->AllocateStackSpace(sizeof(double));
       assm->movsd(Operand(esp, 0), reg.fp());
       break;
     default:
@@ -171,8 +171,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
       AssemblerOptions{},
       ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
 #if V8_OS_WIN
-  constexpr int kPageSize = 4 * 1024;
-  if (bytes > kPageSize) {
+  if (bytes > kStackPageSize) {
     // Generate OOL code (at the end of the function, where the current
     // assembler is pointing) to do the explicit stack limit check (see
     // https://docs.microsoft.com/en-us/previous-versions/visualstudio/
@@ -186,10 +185,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                            patching_assembler.pc_offset());
 
     // Now generate the OOL code.
-    // Use {edi} as scratch register; it is not being used as parameter
-    // register (see wasm-linkage.h).
-    mov(edi, bytes);
-    AllocateStackFrame(edi);
+    AllocateStackSpace(bytes);
     // Jump back to the start of the function (from {pc_offset()} to {offset +
     // kSubSpSize}).
     int func_start_offset = offset + liftoff::kSubSpSize - pc_offset();
@@ -1459,7 +1455,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     case kExprI64ReinterpretF64:
       // Push src to the stack.
-      sub(esp, Immediate(8));
+      AllocateStackSpace(8);
       movsd(Operand(esp, 0), src.fp());
       // Pop to dst.
       pop(dst.low_gp());
@@ -1709,7 +1705,7 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList fp_regs = regs & kFpCacheRegList;
   unsigned num_fp_regs = fp_regs.GetNumRegsSet();
   if (num_fp_regs) {
-    sub(esp, Immediate(num_fp_regs * kStackSlotSize));
+    AllocateStackSpace(num_fp_regs * kStackSlotSize);
     unsigned offset = 0;
     while (!fp_regs.is_empty()) {
       LiftoffRegister reg = fp_regs.GetFirstRegSet();
@@ -1750,7 +1746,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
                              const LiftoffRegister* rets,
                              ValueType out_argument_type, int stack_bytes,
                              ExternalReference ext_ref) {
-  sub(esp, Immediate(stack_bytes));
+  AllocateStackSpace(stack_bytes);
 
   int arg_bytes = 0;
   for (ValueType param_type : sig->parameters()) {
@@ -1815,7 +1811,7 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  sub(esp, Immediate(size));
+  AllocateStackSpace(size);
   mov(addr, esp);
 }
 

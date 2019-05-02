@@ -150,6 +150,26 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
 #endif
   PatchingAssembler patching_assembler(AssemblerOptions{},
                                        buffer_start_ + offset, 1);
+#if V8_OS_WIN
+  if (bytes > kStackPageSize) {
+    // Generate OOL code (at the end of the function, where the current
+    // assembler is pointing) to do the explicit stack limit check (see
+    // https://docs.microsoft.com/en-us/previous-versions/visualstudio/
+    // visual-studio-6.0/aa227153(v=vs.60)).
+    // At the function start, emit a jump to that OOL code (from {offset} to
+    // {pc_offset()}).
+    int ool_offset = pc_offset() - offset;
+    patching_assembler.b(ool_offset >> kInstrSizeLog2);
+
+    // Now generate the OOL code.
+    Claim(bytes, 1);
+    // Jump back to the start of the function (from {pc_offset()} to {offset +
+    // kInstrSize}).
+    int func_start_offset = offset + kInstrSize - pc_offset();
+    b(func_start_offset >> kInstrSizeLog2);
+    return;
+  }
+#endif
   patching_assembler.PatchSubSp(bytes);
 }
 

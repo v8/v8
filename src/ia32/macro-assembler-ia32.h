@@ -40,17 +40,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
   void LeaveFrame(StackFrame::Type type);
 
-// Allocate a stack frame of given size (i.e. decrement {esp} by the value
-// stored in the given register).
+// Allocate stack space of given size (i.e. decrement {esp} by the value
+// stored in the given register, or by a constant). If you need to perform a
+// stack check, do it before calling this function because this function may
+// write into the newly allocated space. It may also overwrite the given
+// register's value, in the version that takes a register.
 #ifdef V8_OS_WIN
-  // On win32, take special care if the number of bytes is greater than 4096:
-  // Ensure that each page within the new stack frame is touched once in
-  // decreasing order. See
-  // https://msdn.microsoft.com/en-us/library/aa227153(v=vs.60).aspx.
-  // Use {bytes_scratch} as scratch register for this procedure.
-  void AllocateStackFrame(Register bytes_scratch);
+  void AllocateStackSpace(Register bytes_scratch);
+  void AllocateStackSpace(int bytes);
 #else
-  void AllocateStackFrame(Register bytes) { sub(esp, bytes); }
+  void AllocateStackSpace(Register bytes) { sub(esp, bytes); }
+  void AllocateStackSpace(int bytes) { sub(esp, Immediate(bytes)); }
 #endif
 
   // Print a message to stdout and abort execution.

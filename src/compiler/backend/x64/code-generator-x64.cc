@@ -201,7 +201,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
         zone_(gen->zone()) {}
 
   void Generate() final {
-    __ subq(rsp, Immediate(kDoubleSize));
+    __ AllocateStackSpace(kDoubleSize);
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                       kDoubleSize);
     __ Movsd(MemOperand(rsp, 0), input_);
@@ -615,7 +615,7 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
 namespace {
 
-void AdjustStackPointerForTailCall(Assembler* assembler,
+void AdjustStackPointerForTailCall(TurboAssembler* assembler,
                                    FrameAccessState* state,
                                    int new_slot_above_sp,
                                    bool allow_shrinkage = true) {
@@ -623,7 +623,7 @@ void AdjustStackPointerForTailCall(Assembler* assembler,
                           StandardFrameConstants::kFixedSlotCountAboveFp;
   int stack_slot_delta = new_slot_above_sp - current_sp_offset;
   if (stack_slot_delta > 0) {
-    assembler->subq(rsp, Immediate(stack_slot_delta * kSystemPointerSize));
+    assembler->AllocateStackSpace(stack_slot_delta * kSystemPointerSize);
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
     assembler->addq(rsp, Immediate(-stack_slot_delta * kSystemPointerSize));
@@ -1360,7 +1360,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Movapd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
     case kSSEFloat64Mod: {
-      __ subq(rsp, Immediate(kDoubleSize));
+      __ AllocateStackSpace(kDoubleSize);
       unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                        kDoubleSize);
       // Move values to st(0) and st(1).
@@ -2178,14 +2178,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else if (instr->InputAt(0)->IsFloatRegister() ||
                  instr->InputAt(0)->IsDoubleRegister()) {
         // TODO(titzer): use another machine instruction?
-        __ subq(rsp, Immediate(kDoubleSize));
+        __ AllocateStackSpace(kDoubleSize);
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kSystemPointerSize);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          kDoubleSize);
         __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
       } else if (instr->InputAt(0)->IsSimd128Register()) {
         // TODO(titzer): use another machine instruction?
-        __ subq(rsp, Immediate(kSimd128Size));
+        __ AllocateStackSpace(kSimd128Size);
         frame_access_state()->IncreaseSPDelta(kSimd128Size /
                                               kSystemPointerSize);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
@@ -2202,7 +2202,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK(instr->InputAt(0)->IsSimd128StackSlot());
         __ Movups(kScratchDoubleReg, i.InputOperand(0));
         // TODO(titzer): use another machine instruction?
-        __ subq(rsp, Immediate(kSimd128Size));
+        __ AllocateStackSpace(kSimd128Size);
         frame_access_state()->IncreaseSPDelta(kSimd128Size /
                                               kSystemPointerSize);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
@@ -3819,7 +3819,7 @@ void CodeGenerator::AssembleConstructFrame() {
                       (kQuadWordSize / kSystemPointerSize);
     required_slots -= frame()->GetReturnSlotCount();
     if (required_slots > 0) {
-      __ subq(rsp, Immediate(required_slots * kSystemPointerSize));
+      __ AllocateStackSpace(required_slots * kSystemPointerSize);
     }
   }
 
@@ -3827,7 +3827,7 @@ void CodeGenerator::AssembleConstructFrame() {
     const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
     const int stack_size = saves_fp_count * kQuadWordSize;
     // Adjust the stack pointer.
-    __ subq(rsp, Immediate(stack_size));
+    __ AllocateStackSpace(stack_size);
     // Store the registers on the stack.
     int slot_idx = 0;
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
@@ -3847,7 +3847,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   // Allocate return slots (located after callee-saved).
   if (frame()->GetReturnSlotCount() > 0) {
-    __ subq(rsp, Immediate(frame()->GetReturnSlotCount() * kSystemPointerSize));
+    __ AllocateStackSpace(frame()->GetReturnSlotCount() * kSystemPointerSize);
   }
 }
 

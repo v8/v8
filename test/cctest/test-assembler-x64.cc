@@ -958,7 +958,7 @@ TEST(AssemblerX64FMA_sd) {
     __ mulsd(xmm3, xmm1);
     __ addsd(xmm3, xmm2);  // Expected result in xmm3
 
-    __ subq(rsp, Immediate(kDoubleSize));  // For memory operand
+    __ AllocateStackSpace(kDoubleSize);  // For memory operand
     // vfmadd132sd
     __ movl(rax, Immediate(1));  // Test number
     __ movaps(xmm8, xmm0);
@@ -1183,7 +1183,7 @@ TEST(AssemblerX64FMA_ss) {
     __ mulss(xmm3, xmm1);
     __ addss(xmm3, xmm2);  // Expected result in xmm3
 
-    __ subq(rsp, Immediate(kDoubleSize));  // For memory operand
+    __ AllocateStackSpace(kDoubleSize);  // For memory operand
     // vfmadd132ss
     __ movl(rax, Immediate(1));  // Test number
     __ movaps(xmm8, xmm0);
@@ -2484,7 +2484,7 @@ TEST(AssemblerX64vmovups) {
     __ shufps(xmm0, xmm0, 0x0);  // brocast first argument
     __ shufps(xmm1, xmm1, 0x0);  // brocast second argument
     // copy xmm1 to xmm0 through the stack to test the "vmovups reg, mem".
-    __ subq(rsp, Immediate(kSimd128Size));
+    __ AllocateStackSpace(kSimd128Size);
     __ vmovups(Operand(rsp, 0), xmm1);
     __ vmovups(xmm0, Operand(rsp, 0));
     __ addq(rsp, Immediate(kSimd128Size));

@@ -709,7 +709,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ mov(ebx, Operand(ebp, kStartIndex));
 
   // Allocate space on stack for registers.
-  __ sub(esp, Immediate(num_registers_ * kSystemPointerSize));
+  __ AllocateStackSpace(num_registers_ * kSystemPointerSize);
   // Load string length.
   __ mov(esi, Operand(ebp, kInputEnd));
   // Load input position.
@@ -728,18 +728,6 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ mov(Operand(ebp, kStringStartMinusOne), eax);
-
-#if V8_OS_WIN
-  // Ensure that we write to each stack page, in order. Skipping a page
-  // on Windows can cause segmentation faults. Assuming page size is 4k.
-  const int kPageSize = 4096;
-  const int kRegistersPerPage = kPageSize / kSystemPointerSize;
-  for (int i = num_saved_registers_ + kRegistersPerPage - 1;
-      i < num_registers_;
-      i += kRegistersPerPage) {
-    __ mov(register_location(i), eax);  // One write every page.
-  }
-#endif  // V8_OS_WIN
 
   Label load_char_start_regexp, start_regexp;
   // Load newline if index is at start, previous character otherwise.

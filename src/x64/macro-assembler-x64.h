@@ -416,6 +416,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
   void LeaveFrame(StackFrame::Type type);
 
+// Allocate stack space of given size (i.e. decrement {rsp} by the value
+// stored in the given register, or by a constant). If you need to perform a
+// stack check, do it before calling this function because this function may
+// write into the newly allocated space. It may also overwrite the given
+// register's value, in the version that takes a register.
+#ifdef V8_OS_WIN
+  void AllocateStackSpace(Register bytes_scratch);
+  void AllocateStackSpace(int bytes);
+#else
+  void AllocateStackSpace(Register bytes) { subq(rsp, bytes); }
+  void AllocateStackSpace(int bytes) { subq(rsp, Immediate(bytes)); }
+#endif
+
   // Removes current frame and its arguments from the stack preserving the
   // arguments and a return address pushed to the stack for the next call.  Both
   // |callee_args_count| and |caller_args_count_reg| do not include receiver.

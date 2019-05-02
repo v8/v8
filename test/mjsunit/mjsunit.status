@@ -109,6 +109,7 @@
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
   'migrations': [SKIP],
   'array-functions-prototype-misc': [PASS, SLOW, ['mode == debug', SKIP]],
+  'compiler/regress-9017': [PASS, SLOW],
   'compiler/regress-808472': [PASS, ['mode == debug', SKIP]],
   'es6/promise-all-overflow-1': [SKIP],
   'es6/promise-all-overflow-2': [PASS, SLOW, ['mode == debug or arch != x64', SKIP]],

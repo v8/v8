@@ -24,7 +24,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   const int kNumberOfRegisters = Register::kNumRegisters;
 
   const int kDoubleRegsSize = kDoubleSize * XMMRegister::kNumRegisters;
-  __ sub(esp, Immediate(kDoubleRegsSize));
+  __ AllocateStackSpace(kDoubleRegsSize);
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
@@ -35,7 +35,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 
   STATIC_ASSERT(kFloatSize == kSystemPointerSize);
   const int kFloatRegsSize = kFloatSize * XMMRegister::kNumRegisters;
-  __ sub(esp, Immediate(kFloatRegsSize));
+  __ AllocateStackSpace(kFloatRegsSize);
   for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
     int code = config->GetAllocatableFloatCode(i);
     XMMRegister xmm_reg = XMMRegister::from_code(code);

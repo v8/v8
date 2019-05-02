@@ -671,7 +671,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   __ bind(&stack_ok);
 
   // Allocate space on stack for registers.
-  __ sub(sp, sp, Operand(num_registers_ * kPointerSize));
+  __ AllocateStackSpace(num_registers_ * kPointerSize);
   // Load string end.
   __ ldr(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
   // Load input start.
@@ -1058,7 +1058,7 @@ void RegExpMacroAssemblerARM::CallCheckStackGuardState() {
   // We need to make room for the return address on the stack.
   int stack_alignment = base::OS::ActivationFrameAlignment();
   DCHECK(IsAligned(stack_alignment, kPointerSize));
-  __ sub(sp, sp, Operand(stack_alignment));
+  __ AllocateStackSpace(stack_alignment);
 
   // r0 will point to the return address, placed by DirectCEntry.
   __ mov(r0, sp);

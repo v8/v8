@@ -254,6 +254,28 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
   PatchingAssembler patching_assembler(AssemblerOptions{},
                                        buffer_start_ + offset,
                                        liftoff::kPatchInstructionsRequired);
+#if V8_OS_WIN
+  if (bytes > kStackPageSize) {
+    // Generate OOL code (at the end of the function, where the current
+    // assembler is pointing) to do the explicit stack limit check (see
+    // https://docs.microsoft.com/en-us/previous-versions/visualstudio/
+    // visual-studio-6.0/aa227153(v=vs.60)).
+    // At the function start, emit a jump to that OOL code (from {offset} to
+    // {pc_offset()}).
+    int ool_offset = pc_offset() - offset;
+    patching_assembler.b(ool_offset - Instruction::kPcLoadDelta);
+    patching_assembler.PadWithNops();
+
+    // Now generate the OOL code.
+    AllocateStackSpace(bytes);
+    // Jump back to the start of the function (from {pc_offset()} to {offset +
+    // liftoff::kPatchInstructionsRequired * kInstrSize}).
+    int func_start_offset =
+        offset + liftoff::kPatchInstructionsRequired * kInstrSize - pc_offset();
+    b(func_start_offset - Instruction::kPcLoadDelta);
+    return;
+  }
+#endif
   patching_assembler.sub(sp, sp, Operand(bytes));
   patching_assembler.PadWithNops();
 }
@@ -1381,7 +1403,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
   // a pointer to them.
   DCHECK(IsAligned(stack_bytes, kSystemPointerSize));
   // Reserve space in the stack.
-  sub(sp, sp, Operand(stack_bytes));
+  AllocateStackSpace(stack_bytes);
 
   int arg_bytes = 0;
   for (ValueType param_type : sig->parameters()) {
@@ -1467,7 +1489,7 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  sub(sp, sp, Operand(size));
+  AllocateStackSpace(size);
   mov(addr, sp);
 }
 

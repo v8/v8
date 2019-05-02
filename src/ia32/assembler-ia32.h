@@ -752,7 +752,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void jmp(Register reg) { jmp(Operand(reg)); }
   void jmp(Operand adr);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
-  // unconditionoal jump relative to the current address. Low-level rountine,
+  // Unconditional jump relative to the current address. Low-level routine,
   // use with caution!
   void jmp_rel(int offset);
 

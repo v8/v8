@@ -646,10 +646,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Load a literal from the inline constant pool.
   inline void Ldr(const CPURegister& rt, const Operand& imm);
 
-  // Claim or drop stack space without actually accessing memory.
+  // Claim or drop stack space.
   //
-  // In debug mode, both of these will write invalid data into the claimed or
-  // dropped space.
+  // On Windows, Claim will write a value every 4k, as is required by the stack
+  // expansion mechanism.
   //
   // The stack pointer must be aligned to 16 bytes and the size claimed or
   // dropped must be a multiple of 16 bytes.
@@ -1616,13 +1616,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // higher address than 'dst1'. The offset is in bytes. The stack pointer must
   // be aligned to 16 bytes.
   void PeekPair(const CPURegister& dst1, const CPURegister& dst2, int offset);
-
-  // Variants of Claim and Drop, where the 'count' parameter is a SMI held in a
-  // register.
-  inline void ClaimBySMI(const Register& count_smi,
-                         uint64_t unit_size = kXRegSize);
-  inline void DropBySMI(const Register& count_smi,
-                        uint64_t unit_size = kXRegSize);
 
   // Compare a register with an operand, and branch to label depending on the
   // condition. May corrupt the status flags.
