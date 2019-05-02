@@ -779,6 +779,7 @@
   'never-optimize': [SKIP],
   'readonly': [SKIP],
   'array-feedback': [SKIP],
+  'array-reduce': [SKIP],
   'deopt-recursive-eager-once': [SKIP],
   'deopt-recursive-lazy-once': [SKIP],
   'deopt-recursive-soft-once': [SKIP],
