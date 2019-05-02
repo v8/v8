@@ -460,12 +460,12 @@ class Isolate final : private HiddenFactory {
         : isolate_(isolate),
           thread_id_(thread_id),
           stack_limit_(0),
-          thread_state_(nullptr),
+          thread_state_(nullptr)
 #if USE_SIMULATOR
-          simulator_(nullptr),
+          ,
+          simulator_(nullptr)
 #endif
-          next_(nullptr),
-          prev_(nullptr) {
+    {
     }
     ~PerIsolateThreadData();
     Isolate* isolate() const { return isolate_; }
@@ -491,9 +491,6 @@ class Isolate final : private HiddenFactory {
 #if USE_SIMULATOR
     Simulator* simulator_;
 #endif
-
-    PerIsolateThreadData* next_;
-    PerIsolateThreadData* prev_;
 
     friend class Isolate;
     friend class ThreadDataTable;
