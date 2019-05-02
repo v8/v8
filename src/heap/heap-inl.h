@@ -224,6 +224,9 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
       // already.
       UnprotectAndRegisterMemoryChunk(object);
       ZapCodeObject(object->address(), size_in_bytes);
+      if (!large_object) {
+        MemoryChunk::FromHeapObject(object)->RegisterCodeObject(object);
+      }
     }
     OnAllocationEvent(object, size_in_bytes);
   }

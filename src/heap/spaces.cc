@@ -602,6 +602,35 @@ void MemoryChunk::SetReadAndWritable() {
   }
 }
 
+void MemoryChunk::RegisterCodeObject(HeapObject code) {
+  DCHECK(MemoryChunk::FromHeapObject(code)->owner()->identity() == CODE_SPACE);
+  code_object_registry_->insert(code->address());
+}
+
+void MemoryChunk::RegisterCodeObjectInSwapRegistry(HeapObject code) {
+  DCHECK(MemoryChunk::FromHeapObject(code)->owner()->identity() == CODE_SPACE);
+  code_object_registry_swap_->insert(code->address());
+}
+
+void MemoryChunk::CreateSwapCodeObjectRegistry() {
+  DCHECK(!code_object_registry_swap_);
+  DCHECK(code_object_registry_);
+  code_object_registry_swap_ = new std::set<Address>();
+}
+
+void MemoryChunk::SwapCodeRegistries() {
+  DCHECK(code_object_registry_swap_);
+  DCHECK(code_object_registry_);
+  std::swap(code_object_registry_swap_, code_object_registry_);
+  delete code_object_registry_swap_;
+  code_object_registry_swap_ = nullptr;
+}
+
+bool MemoryChunk::CodeObjectRegistryContains(HeapObject object) {
+  return code_object_registry_->find(object->address()) !=
+         code_object_registry_->end();
+}
+
 namespace {
 
 PageAllocator::Permission DefaultWritableCodePermissions() {
@@ -687,6 +716,13 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   }
 
   chunk->reservation_ = std::move(reservation);
+
+  if (owner->identity() == CODE_SPACE) {
+    chunk->code_object_registry_ = new std::set<Address>();
+  } else {
+    chunk->code_object_registry_ = nullptr;
+  }
+  chunk->code_object_registry_swap_ = nullptr;
 
   return chunk;
 }
@@ -1309,6 +1345,8 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   if (local_tracker_ != nullptr) ReleaseLocalTracker();
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
   if (marking_bitmap_ != nullptr) ReleaseMarkingBitmap();
+  if (code_object_registry_ != nullptr) delete code_object_registry_;
+  DCHECK(!code_object_registry_swap_);
 
   if (!IsLargePage()) {
     Page* page = static_cast<Page*>(this);
@@ -1565,6 +1603,7 @@ void PagedSpace::RefillFreeList() {
         added += RelinkFreeListCategories(p);
       }
       added += p->wasted_memory();
+      if (identity() == CODE_SPACE) p->SwapCodeRegistries();
       if (is_local() && (added > kCompactionMemoryWanted)) break;
     }
   }

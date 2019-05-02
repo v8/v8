@@ -6619,6 +6619,37 @@ HEAP_TEST(MemoryReducerActivationForSmallHeaps) {
   CHECK_EQ(heap->memory_reducer()->state_.action, MemoryReducer::Action::kWait);
 }
 
+TEST(CodeObjectRegistry) {
+  // We turn off compaction to ensure that code is not moving.
+  FLAG_never_compact = true;
+
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  Handle<Code> code1;
+  HandleScope outer_scope(heap->isolate());
+  Address code2_address;
+  {
+    code1 = DummyOptimizedCode(isolate);
+    Handle<Code> code2 = DummyOptimizedCode(isolate);
+    code2_address = code2->address();
+    // If this check breaks, change the allocation to ensure that both code
+    // objects are on the same page.
+    CHECK_EQ(MemoryChunk::FromHeapObject(*code1),
+             MemoryChunk::FromHeapObject(*code2));
+    CHECK(MemoryChunk::FromHeapObject(*code1)->CodeObjectRegistryContains(
+        *code1));
+    CHECK(MemoryChunk::FromHeapObject(*code2)->CodeObjectRegistryContains(
+        *code2));
+  }
+  CcTest::CollectAllAvailableGarbage();
+  CHECK(
+      MemoryChunk::FromHeapObject(*code1)->CodeObjectRegistryContains(*code1));
+  CHECK(
+      MemoryChunk::FromAddress(code2_address)
+          ->CodeObjectRegistryContains(HeapObject::FromAddress(code2_address)));
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

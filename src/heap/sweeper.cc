@@ -249,6 +249,8 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
          space->identity() == CODE_SPACE || space->identity() == MAP_SPACE);
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
 
+  bool is_code_page = space->identity() == CODE_SPACE;
+
   // TODO(ulan): we don't have to clear type old-to-old slots in code space
   // because the concurrent marker doesn't mark code objects. This requires
   // the write barrier for code objects to check the color of the code object.
@@ -274,6 +276,8 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
     skip_list->Clear();
   }
 
+  if (is_code_page) p->CreateSwapCodeObjectRegistry();
+
   intptr_t live_bytes = 0;
   intptr_t freed_bytes = 0;
   intptr_t max_freed_bytes = 0;
@@ -287,6 +291,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(p, marking_state_->bitmap(p))) {
     HeapObject const object = object_and_size.first;
+    if (is_code_page) p->RegisterCodeObjectInSwapRegistry(object);
     DCHECK(marking_state_->IsBlack(object));
     Address free_end = object->address();
     if (free_end != free_start) {
