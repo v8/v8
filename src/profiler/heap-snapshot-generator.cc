@@ -11,6 +11,7 @@
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/global-handles.h"
+#include "src/heap/combined-heap.h"
 #include "src/layout-descriptor.h"
 #include "src/objects-body-descriptors.h"
 #include "src/objects-inl.h"
@@ -394,7 +395,7 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
   }
   heap_->PreciseCollectAllGarbage(Heap::kNoGCFlags,
                                   GarbageCollectionReason::kHeapProfiler);
-  HeapIterator iterator(heap_);
+  CombinedHeapIterator iterator(heap_);
   for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     FindOrAddEntry(obj->address(), obj->Size());
@@ -645,7 +646,7 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject object) {
 }
 
 int V8HeapExplorer::EstimateObjectsCount() {
-  HeapIterator it(heap_, HeapIterator::kFilterUnreachable);
+  CombinedHeapIterator it(heap_, HeapIterator::kFilterUnreachable);
   int objects_count = 0;
   while (!it.next().is_null()) ++objects_count;
   return objects_count;
@@ -1456,7 +1457,7 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 
   bool interrupted = false;
 
-  HeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
+  CombinedHeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
   // Heap iteration with filtering must be finished in any case.
   for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next(), progress_->ProgressStep()) {

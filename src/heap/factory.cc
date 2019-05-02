@@ -83,10 +83,8 @@ Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
 MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(bool failing_allocation) {
   const auto factory = isolate_->factory();
   // Allocate objects needed for code initialization.
-  Handle<ByteArray> reloc_info = factory->NewByteArray(
-      code_desc_.reloc_size, Builtins::IsBuiltinId(builtin_index_)
-                                 ? AllocationType::kReadOnly
-                                 : AllocationType::kOld);
+  Handle<ByteArray> reloc_info =
+      factory->NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
   Handle<CodeDataContainer> data_container = factory->NewCodeDataContainer(0);
   Handle<Code> code;
   {

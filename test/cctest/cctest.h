@@ -133,6 +133,7 @@ class CcTest {
   }
 
   static i::Heap* heap();
+  static i::ReadOnlyHeap* read_only_heap();
 
   static void CollectGarbage(i::AllocationSpace space);
   static void CollectAllGarbage(i::Isolate* isolate = nullptr);

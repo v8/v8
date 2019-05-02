@@ -40,6 +40,9 @@ void ReadOnlySerializer::SerializeObject(HeapObject obj) {
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer object_serializer(this, obj, &sink_);
   object_serializer.Serialize();
+#ifdef DEBUG
+  serialized_objects_.insert(obj);
+#endif
 }
 
 void ReadOnlySerializer::SerializeReadOnlyRoots() {
@@ -60,6 +63,16 @@ void ReadOnlySerializer::FinalizeSerialization() {
                    FullObjectSlot(&undefined));
   SerializeDeferredObjects();
   Pad();
+
+#ifdef DEBUG
+  // Check that every object on read-only heap is reachable (and was
+  // serialized).
+  ReadOnlyHeapIterator iterator(isolate()->heap()->read_only_heap());
+  for (HeapObject object = iterator.next(); !object.is_null();
+       object = iterator.next()) {
+    CHECK(serialized_objects_.count(object));
+  }
+#endif
 }
 
 bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {

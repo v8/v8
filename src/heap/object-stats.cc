@@ -12,6 +12,7 @@
 #include "src/compilation-cache.h"
 #include "src/counters.h"
 #include "src/globals.h"
+#include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/isolate.h"
@@ -1079,14 +1080,10 @@ class ObjectStatsVisitor {
 namespace {
 
 void IterateHeap(Heap* heap, ObjectStatsVisitor* visitor) {
-  SpaceIterator space_it(heap);
-  HeapObject obj;
-  while (space_it.has_next()) {
-    std::unique_ptr<ObjectIterator> it(space_it.next()->GetObjectIterator());
-    ObjectIterator* obj_it = it.get();
-    for (obj = obj_it->Next(); !obj.is_null(); obj = obj_it->Next()) {
-      visitor->Visit(obj, obj->Size());
-    }
+  CombinedHeapIterator iterator(heap);
+  for (HeapObject obj = iterator.next(); !obj.is_null();
+       obj = iterator.next()) {
+    visitor->Visit(obj, obj->Size());
   }
 }
 
