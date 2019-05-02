@@ -164,6 +164,7 @@
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
+  'harmony/futex': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
   'md5': [PASS, SLOW],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
@@ -309,6 +310,7 @@
   # Slow tests.
   'array-constructor': [PASS, SLOW],
   'json': [PASS, SLOW],
+  'large-object-literal-slow-elements': [PASS, SLOW],
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', NO_VARIANTS]],
@@ -561,10 +563,11 @@
   # BUG(v8:6924). The test uses a lot of memory.
   'regress/wasm/regress-694433': [SKIP],
   'es6/typedarray': [PASS, NO_VARIANTS],
-  'regress/regress-752764': [PASS, NO_VARIANTS],
+  'regress/regress-752764': [PASS, SLOW, NO_VARIANTS],
 
   # Slow tests.
   'es6/block-conflicts-sloppy': [PASS, SLOW],
+  'math-floor-part1': [PASS, SLOW],
   'regress/regress-500980': [PASS, SLOW],
 }],  # 'tsan == True'
 

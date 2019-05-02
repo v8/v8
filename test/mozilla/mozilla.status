@@ -150,7 +150,7 @@
   'js1_2/function/Number': [SKIP],
 
   # TODO(2018): Might timeout in debug mode.
-  'js1_5/GC/regress-203278-2': [PASS, ['mode == debug', NO_VARIANTS, FAIL]],
+  'js1_5/GC/regress-203278-2': [PASS, SLOW, ['mode == debug', NO_VARIANTS, FAIL]],
 
   # These tests use invalid LHS expressions in assignments.
   'js1_5/Regress/regress-319391': [SKIP],
@@ -209,8 +209,8 @@
   ##################### FLAKY TESTS #####################
 
   # These tests time out in debug mode but pass in product mode
-  'js1_5/Regress/regress-360969-05': [PASS, ['mode == debug', NO_VARIANTS]],
-  'js1_5/Regress/regress-360969-06': [PASS, ['mode == debug', NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-05': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-06': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
   'js1_5/extensions/regress-365527': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
 
   'js1_5/Regress/regress-280769-3': [PASS, ['mode == debug', FAIL]],
@@ -712,7 +712,7 @@
 
   # This test seems designed to fail (it produces a 700Mbyte string).
   # We fail on out of memory.  The important thing is not to crash.
-  'js1_5/Regress/regress-303213': [FAIL, ['mode == debug', NO_VARIANTS]],
+  'js1_5/Regress/regress-303213': [FAIL, SLOW, ['mode == debug', NO_VARIANTS]],
 
   # This test fails since we now throw in String.prototype.match when apply
   # is given null or undefined as this argument (and so does firefox nightly).
