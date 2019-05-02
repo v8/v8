@@ -267,6 +267,9 @@ TrackingPageAllocator* SequentialUnmapperTest::tracking_page_allocator_ =
 v8::PageAllocator* SequentialUnmapperTest::old_page_allocator_ = nullptr;
 bool SequentialUnmapperTest::old_flag_;
 
+// TODO(v8:7464): Enable these once there is a good way to free the shared
+// read-only space.
+#ifndef V8_SHARED_RO_HEAP
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
   Page* page = allocator()->AllocatePage(
@@ -326,6 +329,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
     tracking_page_allocator()->CheckIsFree(page->address(), page_size);
   }
 }
+#endif  // V8_SHARED_RO_HEAP
 
 }  // namespace internal
 }  // namespace v8

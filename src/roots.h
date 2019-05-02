@@ -24,9 +24,10 @@ class Heap;
 class Isolate;
 class Map;
 class PropertyCell;
+class ReadOnlyHeap;
+class RootVisitor;
 class String;
 class Symbol;
-class RootVisitor;
 
 // Defines all the read-only roots in Heap.
 #define STRONG_READ_ONLY_ROOT_LIST(V)                                          \
@@ -509,6 +510,9 @@ class RootsTable {
 
 class ReadOnlyRoots {
  public:
+  static constexpr size_t kEntriesCount =
+      static_cast<size_t>(RootIndex::kReadOnlyRootsCount);
+
   V8_INLINE explicit ReadOnlyRoots(Heap* heap);
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
 
@@ -534,7 +538,13 @@ class ReadOnlyRoots {
 #endif
 
  private:
-  RootsTable& roots_table_;
+  V8_INLINE explicit ReadOnlyRoots(Address* ro_roots);
+
+  V8_INLINE Address& at(RootIndex root_index) const;
+
+  Address* read_only_roots_;
+
+  friend class ReadOnlyHeap;
 };
 
 }  // namespace internal

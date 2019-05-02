@@ -6,13 +6,14 @@
 #define V8_HEAP_READ_ONLY_HEAP_H_
 
 #include "src/base/macros.h"
-#include "src/heap/heap.h"
 #include "src/objects.h"
+#include "src/objects/heap-object.h"
 #include "src/roots.h"
 
 namespace v8 {
 namespace internal {
 
+class Isolate;
 class Page;
 class ReadOnlyDeserializer;
 class ReadOnlySpace;
@@ -24,20 +25,30 @@ class ReadOnlyHeap final {
   static constexpr size_t kEntriesCount =
       static_cast<size_t>(RootIndex::kReadOnlyRootsCount);
 
-  // If necessary create read-only heap and initialize its artifacts (if the
-  // deserializer is provided).
-  // TODO(goszczycki): Ideally we'd create this without needing a heap.
+  // If necessary creates read-only heap and initializes its artifacts (if
+  // the deserializer is provided). Then attaches the read-only heap to the
+  // isolate.
+  // TODO(v8:7464): Ideally we'd create this without needing a heap.
   static void SetUp(Isolate* isolate, ReadOnlyDeserializer* des);
-  // Indicate that all read-only space objects have been created and will not
-  // be written to. This is not thread safe, and should really only be used as
-  // part of mksnapshot or when read-only heap sharing is disabled.
-  void OnCreateHeapObjectsComplete();
-  // Indicate that the current isolate no longer requires the read-only heap and
-  // it may be safely disposed of.
+  // Indicates that the isolate has been set up and all read-only space objects
+  // have been created and will not be written to. This is not thread safe, and
+  // should really only be used during snapshot creation or when read-only heap
+  // sharing is disabled.
+  void OnCreateHeapObjectsComplete(Isolate* isolate);
+  // Indicates that the current isolate no longer requires the read-only heap
+  // and it may be safely disposed of.
   void OnHeapTearDown();
 
   // Returns whether the object resides in the read-only space.
   V8_EXPORT_PRIVATE static bool Contains(HeapObject object);
+  // Gets read-only roots from an appropriate root list: shared read-only root
+  // list if the shared read-only heap has been initialized or the isolate
+  // specific roots table.
+  V8_EXPORT_PRIVATE static ReadOnlyRoots GetReadOnlyRoots(HeapObject object);
+
+  // Clears any shared read-only heap artifacts for testing, forcing read-only
+  // heap to be re-created on next set up.
+  V8_EXPORT_PRIVATE static void ClearSharedHeapForTest();
 
   std::vector<Object>* read_only_object_cache() {
     return &read_only_object_cache_;
@@ -45,9 +56,18 @@ class ReadOnlyHeap final {
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
  private:
-  static ReadOnlyHeap* Init(Isolate* isolate, ReadOnlyDeserializer* des);
+  // Creates a new read-only heap and attaches it to the provided isolate.
+  static ReadOnlyHeap* CreateAndAttachToIsolate(Isolate* isolate);
+  // Runs the read-only deserailizer and calls InitFromIsolate to complete
+  // read-only heap initialization.
+  void DeseralizeIntoIsolate(Isolate* isolate, ReadOnlyDeserializer* des);
+  // Initializes read-only heap from an already set-up isolate, copying
+  // read-only roots from the isolate. This then seals the space off from
+  // further writes, marks it as read-only and detaches it from the heap (unless
+  // sharing is disabled).
+  void InitFromIsolate(Isolate* isolate);
 
-  bool deserializing_ = false;
+  bool init_complete_ = false;
   ReadOnlySpace* read_only_space_ = nullptr;
   std::vector<Object> read_only_object_cache_;
 
