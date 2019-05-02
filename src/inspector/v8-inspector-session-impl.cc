@@ -4,8 +4,6 @@
 
 #include "src/inspector/v8-inspector-session-impl.h"
 
-#include "src/base/logging.h"
-#include "src/base/macros.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -17,16 +15,11 @@
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-heap-profiler-agent-impl.h"
 #include "src/inspector/v8-inspector-impl.h"
-#include "src/inspector/v8-inspector-protocol-encoding.h"
 #include "src/inspector/v8-profiler-agent-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-schema-agent-impl.h"
 
 namespace v8_inspector {
-namespace {
-using ::v8_inspector_protocol_encoding::SpanFrom;
-using IPEStatus = ::v8_inspector_protocol_encoding::Status;
-}  // namespace
 
 // static
 bool V8InspectorSession::canDispatchMethod(const StringView& method) {
@@ -362,17 +355,8 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(
 }
 
 std::unique_ptr<StringBuffer> V8InspectorSessionImpl::stateJSON() {
-  std::vector<uint8_t> json;
-  IPEStatus status = ConvertCBORToJSON(SpanFrom(state()), &json);
-  DCHECK(status.ok());
-  USE(status);
-  return v8::base::make_unique<BinaryStringBuffer>(std::move(json));
-}
-
-std::vector<uint8_t> V8InspectorSessionImpl::state() {
-  std::vector<uint8_t> out;
-  m_state->writeBinary(&out);
-  return out;
+  String16 json = m_state->toJSONString();
+  return StringBufferImpl::adopt(json);
 }
 
 std::vector<std::unique_ptr<protocol::Schema::API::Domain>>
