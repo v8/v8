@@ -57,11 +57,11 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4087d634b477b47b360f36ba97d97d9cb3717400',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd6fe3ed558a837b83c4464f5945a9647ca444e66',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e49aed39f09461c756b8053e8e60dfa6732d5ef5',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '020b429fbf42915482a97b437a67b6e8398ca9fa',
   'v8/third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '35f7e139f33f1ddbfdb68b65dda29aff430c3f6f',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'ae4b77dc8966796f0bd93bb6342023276749e148',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a959e4f0cb643003f2d75d179cede449979e3e77',
   'v8/buildtools':
@@ -158,7 +158,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '5b26b374b8473afea4bdbabf30203b81a4913bbb',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '5a34ef7bdaf7e88601764c191f6ea7002b99a805',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -170,7 +170,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'a53e931dcd00c2556ee181d832e699c9f3c29036',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '9997a830ee5589c2da79198bc3b60d1c47e50118',
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'b41863e42637544c2941b574c7877d3e1f663e25',
   'v8/third_party/markupsafe':
@@ -184,7 +184,7 @@ deps = {
   'v8/test/test262/data':
     Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'ba013cf7fc049b1802b785d1756600d01b13e5a1',
   'v8/test/test262/harness':
-    Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '9bd99c6f33be10561970bfe16f2f16a8a3d88722',
+    Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '4555345a943d0c99a9461182705543fb171dda4b',
   'v8/third_party/qemu-linux-x64': {
       'packages': [
           {
