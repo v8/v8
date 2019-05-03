@@ -1281,9 +1281,6 @@ class Heap {
 #ifdef VERIFY_HEAP
   // Verify the heap is in its normal state before or after a GC.
   V8_EXPORT_PRIVATE void Verify();
-  // Verify the read-only heap after all read-only heap objects have been
-  // created.
-  void VerifyReadOnlyHeap();
   void VerifyRememberedSetFor(HeapObject object);
 #endif
 

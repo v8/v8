@@ -98,9 +98,7 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
     os << map()->instance_type();
   }
   os << "]";
-  if (ReadOnlyHeap::Contains(*this)) {
-    os << " in ReadOnlySpace";
-  } else if (GetHeapFromWritableObject(*this)->InOldSpace(*this)) {
+  if (GetHeapFromWritableObject(*this)->InOldSpace(*this)) {
     os << " in OldSpace";
   }
   if (!IsMap()) os << "\n - map: " << Brief(map());

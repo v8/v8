@@ -61,15 +61,15 @@ RootIndex RootsTable::RootIndexForEmptyFixedTypedArray(
 
 void ReadOnlyRoots::Iterate(RootVisitor* visitor) {
   visitor->VisitRootPointers(Root::kReadOnlyRootList, nullptr,
-                             FullObjectSlot(read_only_roots_),
-                             FullObjectSlot(&read_only_roots_[kEntriesCount]));
+                             roots_table_.read_only_roots_begin(),
+                             roots_table_.read_only_roots_end());
   visitor->Synchronize(VisitorSynchronization::kReadOnlyRootList);
 }
 
 #ifdef DEBUG
 
 bool ReadOnlyRoots::CheckType(RootIndex index) const {
-  Object root(at(index));
+  Object root(roots_table_[index]);
   switch (index) {
 #define CHECKTYPE(Type, name, CamelName) \
   case RootIndex::k##CamelName:          \

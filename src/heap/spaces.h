@@ -318,11 +318,7 @@ class MemoryChunk {
     // |INCREMENTAL_MARKING|: Indicates whether incremental marking is currently
     // enabled.
     INCREMENTAL_MARKING = 1u << 18,
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 19,
-
-    // The memory chunk freeing bookkeeping has been performed but the chunk has
-    // not yet been freed.
-    UNREGISTERED = 1u << 20
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 19
   };
 
   using Flags = uintptr_t;
@@ -479,10 +475,7 @@ class MemoryChunk {
   size_t size() const { return size_; }
   void set_size(size_t size) { size_ = size; }
 
-  inline Heap* heap() const {
-    DCHECK_NOT_NULL(heap_);
-    return heap_;
-  }
+  inline Heap* heap() const { return heap_; }
 
   Heap* synchronized_heap();
 
@@ -1014,10 +1007,7 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
     external_backing_store_bytes_ = nullptr;
   }
 
-  Heap* heap() const {
-    DCHECK_NOT_NULL(heap_);
-    return heap_;
-  }
+  Heap* heap() const { return heap_; }
 
   // Identity used in error reporting.
   AllocationSpace identity() { return id_; }
@@ -1106,8 +1096,6 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
   bool AllocationObserversActive() {
     return !allocation_observers_paused_ && !allocation_observers_.empty();
   }
-
-  void DetachFromHeap() { heap_ = nullptr; }
 
   std::vector<AllocationObserver*> allocation_observers_;
 
@@ -1454,20 +1442,15 @@ class MemoryAllocator {
 
   Unmapper* unmapper() { return &unmapper_; }
 
-  // Performs all necessary bookkeeping to free the memory, but does not free
-  // it.
-  void UnregisterMemory(MemoryChunk* chunk);
+  // PreFree logically frees the object, i.e., it takes care of the size
+  // bookkeeping and calls the allocation callback.
+  void PreFreeMemory(MemoryChunk* chunk);
 
  private:
   void InitializeCodePageAllocator(v8::PageAllocator* page_allocator,
                                    size_t requested);
 
-  // PreFreeMemory logically frees the object, i.e., it unregisters the memory,
-  // logs a delete event and adds the chunk to remembered unmapped pages.
-  void PreFreeMemory(MemoryChunk* chunk);
-
-  // PerformFreeMemory can be called concurrently when PreFree was executed
-  // before.
+  // FreeMemory can be called concurrently when PreFree was executed before.
   void PerformFreeMemory(MemoryChunk* chunk);
 
   // See AllocatePage for public interface. Note that currently we only support
@@ -2993,36 +2976,41 @@ class MapSpace : public PagedSpace {
 
 class ReadOnlySpace : public PagedSpace {
  public:
+  class WritableScope {
+   public:
+    explicit WritableScope(ReadOnlySpace* space) : space_(space) {
+      space_->MarkAsReadWrite();
+    }
+
+    ~WritableScope() { space_->MarkAsReadOnly(); }
+
+   private:
+    ReadOnlySpace* space_;
+  };
+
   explicit ReadOnlySpace(Heap* heap);
 
-  // TODO(v8:7464): Remove this once PagedSpace::Unseal no longer writes to
+  // TODO(v8:7464): Remove this once PagedSpace::TearDown no longer writes to
   // memory_chunk_list_.
-  ~ReadOnlySpace() override { Unseal(); }
+  ~ReadOnlySpace() override { MarkAsReadWrite(); }
 
   bool writable() const { return !is_marked_read_only_; }
 
   V8_EXPORT_PRIVATE void ClearStringPaddingIfNeeded();
-
-  enum class SealMode { kDetachFromHeapAndForget, kDoNotDetachFromHeap };
-
-  // Seal the space by marking it read-only, optionally detaching it
-  // from the heap and forgetting it for memory bookkeeping purposes (e.g.
-  // prevent space's memory from registering as leaked).
-  void Seal(SealMode ro_mode);
+  void MarkAsReadOnly();
+  // Make the heap forget the space for memory bookkeeping purposes
+  // (e.g. prevent space's memory from registering as leaked).
+  void Forget();
 
   // During boot the free_space_map is created, and afterwards we may need
   // to write it into the free list nodes that were already created.
   void RepairFreeListsAfterDeserialization();
 
  private:
-  // Unseal the space after is has been sealed, by making it writable.
-  // TODO(v8:7464): Only possible if the space hasn't been detached.
-  void Unseal();
-  void SetPermissionsForPages(MemoryAllocator* memory_allocator,
-                              PageAllocator::Permission access);
+  void MarkAsReadWrite();
+  void SetPermissionsForPages(PageAllocator::Permission access);
 
   bool is_marked_read_only_ = false;
-
   //
   // String padding must be cleared just before serialization and therefore the
   // string padding in the space will already have been cleared if the space was

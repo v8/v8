@@ -3444,21 +3444,13 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
     if (!create_heap_objects) {
       startup_deserializer->DeserializeInto(this);
     } else {
-      heap_.read_only_space()->ClearStringPaddingIfNeeded();
-      heap_.read_only_heap()->OnCreateHeapObjectsComplete(this);
+      heap_.read_only_heap()->OnCreateHeapObjectsComplete();
     }
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
     interpreter_->Initialize();
     heap_.NotifyDeserializationComplete();
   }
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    heap_.VerifyReadOnlyHeap();
-  }
-#endif
-
   delete setup_delegate_;
   setup_delegate_ = nullptr;
 

@@ -631,7 +631,9 @@ void HeapObject::VerifySmiField(int offset) {
 #endif
 
 ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
-  return ReadOnlyHeap::GetReadOnlyRoots(*this);
+  // TODO(v8:7464): When RO_SPACE is embedded, this will access a global
+  // variable instead.
+  return ReadOnlyRoots(GetHeapFromWritableObject(*this));
 }
 
 Map HeapObject::map() const { return map_word().ToMap(); }

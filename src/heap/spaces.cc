@@ -50,11 +50,7 @@ HeapObjectIterator::HeapObjectIterator(PagedSpace* space)
       cur_end_(kNullAddress),
       space_(space),
       page_range_(space->first_page(), nullptr),
-      current_page_(page_range_.begin()) {
-#ifdef V8_SHARED_RO_HEAP
-  DCHECK_NE(space->identity(), RO_SPACE);
-#endif
-}
+      current_page_(page_range_.begin()) {}
 
 HeapObjectIterator::HeapObjectIterator(Page* page)
     : cur_addr_(kNullAddress),
@@ -64,14 +60,10 @@ HeapObjectIterator::HeapObjectIterator(Page* page)
       current_page_(page_range_.begin()) {
 #ifdef DEBUG
   Space* owner = page->owner();
-  // TODO(v8:7464): Always enforce this once PagedSpace::Verify is no longer
-  // used to verify read-only space for non-shared builds.
-#ifdef V8_SHARED_RO_HEAP
-  DCHECK_NE(owner->identity(), RO_SPACE);
-#endif
-  // Do not access the heap of the read-only space.
-  DCHECK(owner->identity() == RO_SPACE || owner->identity() == OLD_SPACE ||
-         owner->identity() == MAP_SPACE || owner->identity() == CODE_SPACE);
+  DCHECK(owner == page->heap()->old_space() ||
+         owner == page->heap()->map_space() ||
+         owner == page->heap()->code_space() ||
+         owner == page->heap()->read_only_space());
 #endif  // DEBUG
 }
 
@@ -81,19 +73,17 @@ bool HeapObjectIterator::AdvanceToNextPage() {
   DCHECK_EQ(cur_addr_, cur_end_);
   if (current_page_ == page_range_.end()) return false;
   Page* cur_page = *(current_page_++);
-
-#ifdef ENABLE_MINOR_MC
   Heap* heap = space_->heap();
+
   heap->mark_compact_collector()->sweeper()->EnsurePageIsIterable(cur_page);
-  if (cur_page->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
+#ifdef ENABLE_MINOR_MC
+  if (cur_page->IsFlagSet(Page::SWEEP_TO_ITERATE))
     heap->minor_mark_compact_collector()->MakeIterable(
         cur_page, MarkingTreatmentMode::CLEAR,
         FreeSpaceTreatmentMode::IGNORE_FREE_SPACE);
-  }
 #else
   DCHECK(!cur_page->IsFlagSet(Page::SWEEP_TO_ITERATE));
 #endif  // ENABLE_MINOR_MC
-
   cur_addr_ = cur_page->area_start();
   cur_end_ = cur_page->area_end();
   DCHECK(cur_page->SweepingDone());
@@ -1122,8 +1112,13 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
       static_cast<int>(released_bytes));
 }
 
-void MemoryAllocator::UnregisterMemory(MemoryChunk* chunk) {
-  DCHECK(!chunk->IsFlagSet(MemoryChunk::UNREGISTERED));
+void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
+  DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
+  LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
+
+  isolate_->heap()->RememberUnmappedPage(reinterpret_cast<Address>(chunk),
+                                         chunk->IsEvacuationCandidate());
+
   VirtualMemory* reservation = chunk->reserved_memory();
   const size_t size =
       reservation->IsReserved() ? reservation->size() : chunk->size();
@@ -1135,21 +1130,13 @@ void MemoryAllocator::UnregisterMemory(MemoryChunk* chunk) {
     size_executable_ -= size;
   }
 
+  chunk->SetFlag(MemoryChunk::PRE_FREED);
+
   if (chunk->executable()) UnregisterExecutableMemoryChunk(chunk);
-  chunk->SetFlag(MemoryChunk::UNREGISTERED);
 }
 
-void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
-  DCHECK(!chunk->IsFlagSet(MemoryChunk::PRE_FREED));
-  LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
-  UnregisterMemory(chunk);
-  isolate_->heap()->RememberUnmappedPage(reinterpret_cast<Address>(chunk),
-                                         chunk->IsEvacuationCandidate());
-  chunk->SetFlag(MemoryChunk::PRE_FREED);
-}
 
 void MemoryAllocator::PerformFreeMemory(MemoryChunk* chunk) {
-  DCHECK(chunk->IsFlagSet(MemoryChunk::UNREGISTERED));
   DCHECK(chunk->IsFlagSet(MemoryChunk::PRE_FREED));
   chunk->ReleaseAllocatedMemory();
 
@@ -2042,8 +2029,8 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       // be in map space.
       Map map = object->map();
       CHECK(map->IsMap());
-      CHECK(isolate->heap()->map_space()->Contains(map) ||
-            ReadOnlyHeap::Contains(map));
+      CHECK(heap()->map_space()->Contains(map) ||
+            heap()->read_only_space()->Contains(map));
 
       // Perform space-specific object verification.
       VerifyObject(object);
@@ -2052,7 +2039,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       object->ObjectVerify(isolate);
 
       if (!FLAG_verify_heap_skip_remembered_set) {
-        isolate->heap()->VerifyRememberedSetFor(object);
+        heap()->VerifyRememberedSetFor(object);
       }
 
       // All the interior pointers should be contained in the heap.
@@ -3348,22 +3335,34 @@ ReadOnlySpace::ReadOnlySpace(Heap* heap)
 
 void ReadOnlyPage::MakeHeaderRelocatable() {
   if (mutex_ != nullptr) {
+    // TODO(v8:7464): heap_ and owner_ need to be cleared as well.
     delete mutex_;
-    heap_ = nullptr;
     mutex_ = nullptr;
     local_tracker_ = nullptr;
     reservation_.Reset();
   }
 }
 
-void ReadOnlySpace::SetPermissionsForPages(MemoryAllocator* memory_allocator,
-                                           PageAllocator::Permission access) {
+void ReadOnlySpace::Forget() {
   for (Page* p : *this) {
+    heap()->memory_allocator()->PreFreeMemory(p);
+  }
+}
+
+void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
+  MemoryAllocator* memory_allocator = heap()->memory_allocator();
+  for (Page* p : *this) {
+    ReadOnlyPage* page = static_cast<ReadOnlyPage*>(p);
+    if (access == PageAllocator::kRead) {
+      page->MakeHeaderRelocatable();
+    }
+
     // Read only pages don't have valid reservation object so we get proper
     // page allocator manually.
     v8::PageAllocator* page_allocator =
-        memory_allocator->page_allocator(p->executable());
-    CHECK(SetPermissions(page_allocator, p->address(), p->size(), access));
+        memory_allocator->page_allocator(page->executable());
+    CHECK(
+        SetPermissions(page_allocator, page->address(), page->size(), access));
   }
 }
 
@@ -3398,6 +3397,7 @@ void ReadOnlySpace::RepairFreeListsAfterDeserialization() {
 void ReadOnlySpace::ClearStringPaddingIfNeeded() {
   if (is_string_padding_cleared_) return;
 
+  WritableScope writable_scope(this);
   ReadOnlyHeapIterator iterator(this);
   for (HeapObject o = iterator.next(); !o.is_null(); o = iterator.next()) {
     if (o->IsSeqOneByteString()) {
@@ -3409,27 +3409,16 @@ void ReadOnlySpace::ClearStringPaddingIfNeeded() {
   is_string_padding_cleared_ = true;
 }
 
-void ReadOnlySpace::Seal(SealMode ro_mode) {
+void ReadOnlySpace::MarkAsReadOnly() {
   DCHECK(!is_marked_read_only_);
-
   FreeLinearAllocationArea();
   is_marked_read_only_ = true;
-  auto* memory_allocator = heap()->memory_allocator();
-
-  if (ro_mode == SealMode::kDetachFromHeapAndForget) {
-    DetachFromHeap();
-    for (Page* p : *this) {
-      memory_allocator->UnregisterMemory(p);
-      static_cast<ReadOnlyPage*>(p)->MakeHeaderRelocatable();
-    }
-  }
-
-  SetPermissionsForPages(memory_allocator, PageAllocator::kRead);
+  SetPermissionsForPages(PageAllocator::kRead);
 }
 
-void ReadOnlySpace::Unseal() {
+void ReadOnlySpace::MarkAsReadWrite() {
   DCHECK(is_marked_read_only_);
-  SetPermissionsForPages(heap()->memory_allocator(), PageAllocator::kReadWrite);
+  SetPermissionsForPages(PageAllocator::kReadWrite);
   is_marked_read_only_ = false;
 }
 
