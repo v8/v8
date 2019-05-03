@@ -1992,6 +1992,10 @@ class LiftoffCompiler {
                  Vector<Value> args) {
     unsupported(decoder, "table.copy");
   }
+  void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Value& value, Value& delta, Value* result) {
+    unsupported(decoder, "table.grow");
+  }
 
  private:
   LiftoffAssembler asm_;

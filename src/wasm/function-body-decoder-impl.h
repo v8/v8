@@ -732,7 +732,9 @@ struct ControlBase {
     const Value& value, const Value& size)                                    \
   F(TableInit, const TableInitImmediate<validate>& imm, Vector<Value> args)   \
   F(ElemDrop, const ElemDropImmediate<validate>& imm)                         \
-  F(TableCopy, const TableCopyImmediate<validate>& imm, Vector<Value> args)
+  F(TableCopy, const TableCopyImmediate<validate>& imm, Vector<Value> args)   \
+  F(TableGrow, const TableIndexImmediate<validate>& imm, const Value& value,  \
+    const Value& delta, Value* result)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
 // lengths, etc.
@@ -1296,6 +1298,10 @@ class WasmDecoder : public Decoder {
             TableCopyImmediate<validate> imm(decoder, pc);
             return 2 + imm.length;
           }
+          case kExprTableGrow: {
+            TableIndexImmediate<validate> imm(decoder, pc);
+            return 2 + imm.length;
+          }
           default:
             decoder->error(pc, "invalid numeric opcode");
             return 2;
@@ -1545,7 +1551,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   const char* SafeOpcodeNameAt(const byte* pc) {
     if (pc >= this->end_) return "<end>";
-    return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(*pc));
+    WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
+    if (!WasmOpcodes::IsPrefixOpcode(opcode)) {
+      return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(opcode));
+    }
+    // We need one more byte.
+    ++pc;
+    if (pc >= this->end_) return "<end>";
+    byte sub_opcode = *pc;
+    opcode = static_cast<WasmOpcode>(opcode << 8 | sub_opcode);
+    return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(opcode));
   }
 
   inline Zone* zone() const { return zone_; }
@@ -2058,7 +2073,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           TableIndexImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
-          auto value = Pop(0, this->module_->tables[imm.index].type);
+          auto value = Pop(1, this->module_->tables[imm.index].type);
           auto index = Pop(0, kWasmI32);
           CALL_INTERFACE_IF_REACHABLE(SetTable, index, value, imm);
           break;
@@ -2216,6 +2231,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           opcode = static_cast<WasmOpcode>(opcode << 8 | numeric_index);
           if (opcode < kExprMemoryInit) {
             CHECK_PROTOTYPE_OPCODE(sat_f2i_conversions);
+          } else if (opcode == kExprTableGrow) {
+            CHECK_PROTOTYPE_OPCODE(anyref);
           } else {
             CHECK_PROTOTYPE_OPCODE(bulk_memory);
           }
@@ -2649,6 +2666,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           len += imm.length;
           PopArgs(sig);
           CALL_INTERFACE_IF_REACHABLE(TableCopy, imm, VectorOf(args_));
+          break;
+        }
+        case kExprTableGrow: {
+          TableIndexImmediate<validate> imm(this, this->pc_ + 1);
+          if (!this->Validate(this->pc_, imm)) break;
+          len += imm.length;
+          auto delta = Pop(1, sig->GetParam(1));
+          auto value = Pop(0, this->module_->tables[imm.index].type);
+          auto* result = Push(kWasmI32);
+          CALL_INTERFACE_IF_REACHABLE(TableGrow, imm, value, delta, result);
           break;
         }
         default:

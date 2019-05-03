@@ -851,7 +851,6 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
   uint32_t new_size = old_size + count;
   auto new_store = isolate->factory()->CopyFixedArrayAndGrow(
       handle(table->entries(), isolate), count);
-
   table->set_entries(*new_store, WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
@@ -864,6 +863,12 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
   // the instances that import a given table.
   for (int i = 0; i < dispatch_tables->length();
        i += kDispatchTableNumElements) {
+    int table_index =
+        Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset))->value();
+    if (table_index > 0) {
+      continue;
+    }
+    // For Table 0 we have to update the indirect function table.
     Handle<WasmInstanceObject> instance(
         WasmInstanceObject::cast(dispatch_tables->get(i)), isolate);
     DCHECK_EQ(old_size, instance->indirect_function_table_size());
@@ -1026,6 +1031,12 @@ void WasmTableObject::ClearDispatchTables(Isolate* isolate,
   DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
   for (int i = 0; i < dispatch_tables->length();
        i += kDispatchTableNumElements) {
+    int table_index =
+        Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset))->value();
+    if (table_index > 0) {
+      // Only table 0 has a dispatch table in the instance at the moment.
+      continue;
+    }
     Handle<WasmInstanceObject> target_instance(
         WasmInstanceObject::cast(
             dispatch_tables->get(i + kDispatchTableInstanceOffset)),

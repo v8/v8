@@ -390,6 +390,7 @@ let kExprMemoryFill = 0x0b;
 let kExprTableInit = 0x0c;
 let kExprElemDrop = 0x0d;
 let kExprTableCopy = 0x0e;
+let kExprTableGrow = 0x0f;
 
 // Atomic opcodes.
 let kExprAtomicNotify = 0x00;

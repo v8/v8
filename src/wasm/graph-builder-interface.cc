@@ -534,31 +534,42 @@ class WasmGraphBuildingInterface {
     BUILD(MemoryInit, imm.data_segment_index, dst.node, src.node, size.node,
           decoder->position());
   }
+
   void DataDrop(FullDecoder* decoder, const DataDropImmediate<validate>& imm) {
     BUILD(DataDrop, imm.index, decoder->position());
   }
+
   void MemoryCopy(FullDecoder* decoder,
                   const MemoryCopyImmediate<validate>& imm, const Value& dst,
                   const Value& src, const Value& size) {
     BUILD(MemoryCopy, dst.node, src.node, size.node, decoder->position());
   }
+
   void MemoryFill(FullDecoder* decoder,
                   const MemoryIndexImmediate<validate>& imm, const Value& dst,
                   const Value& value, const Value& size) {
     BUILD(MemoryFill, dst.node, value.node, size.node, decoder->position());
   }
+
   void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
                  Vector<Value> args) {
     BUILD(TableInit, imm.table.index, imm.elem_segment_index, args[0].node,
           args[1].node, args[2].node, decoder->position());
   }
+
   void ElemDrop(FullDecoder* decoder, const ElemDropImmediate<validate>& imm) {
     BUILD(ElemDrop, imm.index, decoder->position());
   }
+
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
                  Vector<Value> args) {
     BUILD(TableCopy, imm.table_src.index, imm.table_dst.index, args[0].node,
           args[1].node, args[2].node, decoder->position());
+  }
+
+  void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Value& value, Value& delta, Value* result) {
+    result->node = BUILD(TableGrow, imm.index, value.node, delta.node);
   }
 
  private:

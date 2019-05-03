@@ -420,7 +420,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(MemoryFill, 0xfc0b, v_iii)      \
   V(TableInit, 0xfc0c, v_iii)       \
   V(ElemDrop, 0xfc0d, v_v)          \
-  V(TableCopy, 0xfc0e, v_iii)
+  V(TableCopy, 0xfc0e, v_iii)       \
+  V(TableGrow, 0xfc0f, i_ai)
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
   V(AtomicNotify, 0xfe00, i_ii)                 \
@@ -547,7 +548,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64)  \
   V(i_iil, kWasmI32, kWasmI32, kWasmI32, kWasmI64)  \
   V(i_ill, kWasmI32, kWasmI32, kWasmI64, kWasmI64)  \
-  V(i_r, kWasmI32, kWasmAnyRef)
+  V(i_r, kWasmI32, kWasmAnyRef)                     \
+  V(i_ai, kWasmI32, kWasmAnyFunc, kWasmI32)
 
 #define FOREACH_SIMD_SIGNATURE(V)          \
   V(s_s, kWasmS128, kWasmS128)             \

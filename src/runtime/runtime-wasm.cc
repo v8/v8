@@ -604,5 +604,23 @@ RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
   if (oob) return ThrowTableOutOfBounds(isolate, instance);
   return ReadOnlyRoots(isolate).undefined_value();
 }
+
+RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  auto instance =
+      Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
+  CONVERT_UINT32_ARG_CHECKED(table_index, 0);
+  CONVERT_ARG_CHECKED(Object, value_raw, 1);
+  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  Handle<Object> value(value_raw, isolate);
+  CONVERT_UINT32_ARG_CHECKED(delta, 2);
+
+  Handle<WasmTableObject> table(
+      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+  int result = WasmTableObject::Grow(isolate, table, delta, value);
+
+  return Smi::FromInt(result);
+}
 }  // namespace internal
 }  // namespace v8

@@ -3169,16 +3169,48 @@ TEST_F(FunctionBodyDecoderTest, TableCopy) {
                   {WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
-TEST_F(FunctionBodyDecoderTest, BulkTableOpsWithoutTable) {
+TEST_F(FunctionBodyDecoderTest, TableGrow) {
   TestModuleBuilder builder;
-  builder.InitializeTable();
-  builder.AddPassiveElementSegment();
+  byte tab_func = builder.AddTable(kWasmAnyFunc, 10, true, 20);
+  byte tab_ref = builder.AddTable(kWasmAnyRef, 10, true, 20);
 
-  WASM_FEATURE_SCOPE(bulk_memory);
-  ExpectFailure(sigs.v_v(),
-                {WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
-  ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(0)});
-  ExpectFailure(sigs.v_v(), {WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  module = builder.module();
+
+  ExpectFailure(sigs.i_a(),
+                {WASM_TABLE_GROW(tab_func, WASM_REF_NULL, WASM_ONE)});
+  WASM_FEATURE_SCOPE(anyref);
+  ExpectValidates(sigs.i_a(),
+                  {WASM_TABLE_GROW(tab_func, WASM_REF_NULL, WASM_ONE)});
+  ExpectValidates(sigs.i_r(),
+                  {WASM_TABLE_GROW(tab_ref, WASM_REF_NULL, WASM_ONE)});
+  // Anyfunc table cannot be initialized with an anyref value.
+  ExpectFailure(sigs.i_r(),
+                {WASM_TABLE_GROW(tab_func, WASM_GET_LOCAL(0), WASM_ONE)});
+  // Anyref table can be initialized with an anyfunc value.
+  ExpectValidates(sigs.i_a(),
+                  {WASM_TABLE_GROW(tab_ref, WASM_GET_LOCAL(0), WASM_ONE)});
+  // Check that the table index gets verified.
+  ExpectFailure(sigs.i_r(),
+                {WASM_TABLE_GROW(tab_ref + 2, WASM_REF_NULL, WASM_ONE)});
+}
+
+TEST_F(FunctionBodyDecoderTest, TableOpsWithoutTable) {
+  TestModuleBuilder builder;
+  builder.AddTable(kWasmAnyRef, 10, true, 20);
+  {
+    WASM_FEATURE_SCOPE(anyref);
+    ExpectFailure(sigs.i_v(), {WASM_TABLE_GROW(0, WASM_REF_NULL, WASM_ONE)});
+  }
+
+  {
+    WASM_FEATURE_SCOPE(bulk_memory);
+    builder.AddPassiveElementSegment();
+    ExpectFailure(sigs.v_v(),
+                  {WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+    ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(0)});
+    ExpectFailure(sigs.v_v(),
+                  {WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  }
 }
 
 class BranchTableIteratorTest : public TestWithZone {

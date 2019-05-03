@@ -618,6 +618,9 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_ELEM_DROP(seg) WASM_NUMERIC_OP(kExprElemDrop), U32V_1(seg)
 #define WASM_TABLE_COPY(dst, src, size) \
   dst, src, size, WASM_NUMERIC_OP(kExprTableCopy), TABLE_ZERO, TABLE_ZERO
+#define WASM_TABLE_GROW(table, initial_value, delta)     \
+  initial_value, delta, WASM_NUMERIC_OP(kExprTableGrow), \
+      static_cast<byte>(table)
 
 //------------------------------------------------------------------------------
 // Memory Operations.

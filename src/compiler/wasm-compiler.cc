@@ -4733,6 +4733,16 @@ Node* WasmGraphBuilder::TableCopy(uint32_t table_src_index,
   return result;
 }
 
+Node* WasmGraphBuilder::TableGrow(uint32_t table_index, Node* value,
+                                  Node* delta) {
+  Node* args[] = {
+      graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)), value,
+      BuildConvertUint32ToSmiWithSaturation(delta, FLAG_wasm_max_table_size)};
+  Node* result =
+      BuildCallToRuntime(Runtime::kWasmTableGrow, args, arraysize(args));
+  return BuildChangeSmiToInt32(result);
+}
+
 class WasmDecorator final : public GraphDecorator {
  public:
   explicit WasmDecorator(NodeOriginTable* origins, wasm::Decoder* decoder)
