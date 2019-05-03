@@ -416,7 +416,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   // seen for the {receiver} so far indicate that {receiver} is
   // definitely a constructor or not a constructor.
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   MapRef first_receiver_map(broker(), receiver_maps[0]);
@@ -576,7 +576,7 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
 
   // Try to determine the {object} map.
   MapInference inference(broker(), object, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& object_maps = inference.GetMaps();
 
   MapRef candidate_map(broker(), object_maps[0]);
@@ -729,7 +729,7 @@ Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
   // the ToObject step of Object.prototype.isPrototypeOf is a no-op).
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAreJSReceiver()) {
-    return inference.NoChange();
+    return NoChange();
   }
 
   // We don't check whether {value} is a proper JSReceiver here explicitly,
@@ -1051,7 +1051,7 @@ Reduction JSCallReducer::ReduceArrayForEach(
 
   // Try to determine the {receiver} map.
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
@@ -1215,7 +1215,7 @@ Reduction JSCallReducer::ReduceArrayReduce(
 
   // Try to determine the {receiver} map.
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
@@ -1475,7 +1475,7 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
 
   // Try to determine the {receiver} map.
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
@@ -1667,7 +1667,7 @@ Reduction JSCallReducer::ReduceArrayFilter(
 
   // Try to determine the {receiver} map.
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
@@ -1924,7 +1924,7 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
 
   // Try to determine the {receiver} map.
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
@@ -2221,7 +2221,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
 
   // Try to determine the {receiver} map.
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
@@ -2464,7 +2464,7 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
   Node* control = NodeProperties::GetControlInput(node);
 
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
@@ -2546,7 +2546,7 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
 
   // Try to determine the {receiver} map.
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
@@ -4241,7 +4241,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
@@ -4334,7 +4334,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
@@ -4432,7 +4432,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   ElementsKind kind;
@@ -4621,7 +4621,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
   }
 
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   // Check that the maps are of JSArray (and more).
@@ -4702,7 +4702,7 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node, IterationKind kind) {
   // Check if we know that {receiver} is a valid JSReceiver.
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAreJSReceiver()) {
-    return inference.NoChange();
+    return NoChange();
   }
 
   // Morph the {node} into a JSCreateArrayIterator with the given {kind}.
@@ -4737,7 +4737,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   Node* iterator_effect = NodeProperties::GetEffectInput(iterator);
 
   MapInference inference(broker(), iterated_object, iterator_effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& iterated_object_maps = inference.GetMaps();
 
   // Check that various {iterated_object_maps} have compatible elements kinds.
@@ -5163,7 +5163,7 @@ Reduction JSCallReducer::ReduceStringIteratorPrototypeNext(Node* node) {
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() ||
       !inference.AllOfInstanceTypesAre(JS_STRING_ITERATOR_TYPE)) {
-    return inference.NoChange();
+    return NoChange();
   }
 
   Node* string = effect = graph()->NewNode(
@@ -5536,7 +5536,7 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   // Check whether all {receiver_maps} are JSPromise maps and
@@ -5589,7 +5589,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   }
 
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   // Check whether all {receiver_maps} are JSPromise maps and
@@ -5728,7 +5728,7 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
 
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return inference.NoChange();
+  if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   // Check whether all {receiver_maps} are JSPromise maps and
@@ -5801,7 +5801,7 @@ Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
   // Only reduce when the receiver is guaranteed to be a JSReceiver.
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAreJSReceiver()) {
-    return inference.NoChange();
+    return NoChange();
   }
 
   // Morph the {node} into a JSPromiseResolve operation.
@@ -5990,7 +5990,7 @@ Reduction JSCallReducer::ReduceMapPrototypeGet(Node* node) {
 
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(JS_MAP_TYPE)) {
-    return inference.NoChange();
+    return NoChange();
   }
 
   Node* table = effect = graph()->NewNode(
@@ -6036,7 +6036,7 @@ Reduction JSCallReducer::ReduceMapPrototypeHas(Node* node) {
 
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(JS_MAP_TYPE)) {
-    return inference.NoChange();
+    return NoChange();
   }
 
   Node* table = effect = graph()->NewNode(
@@ -6079,7 +6079,7 @@ Reduction JSCallReducer::ReduceCollectionIteration(
   InstanceType type = InstanceTypeForCollectionKind(collection_kind);
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(type)) {
-    return inference.NoChange();
+    return NoChange();
   }
 
   Node* js_create_iterator = effect = graph()->NewNode(
@@ -6099,7 +6099,7 @@ Reduction JSCallReducer::ReduceCollectionPrototypeSize(
   InstanceType type = InstanceTypeForCollectionKind(collection_kind);
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(type)) {
-    return inference.NoChange();
+    return NoChange();
   }
 
   Node* table = effect = graph()->NewNode(
@@ -6138,7 +6138,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
   InstanceType receiver_instance_type;
   {
     MapInference inference(broker(), receiver, effect);
-    if (!inference.HaveMaps()) return inference.NoChange();
+    if (!inference.HaveMaps()) return NoChange();
     MapHandles const& receiver_maps = inference.GetMaps();
     receiver_instance_type = receiver_maps[0]->instance_type();
     for (size_t i = 1; i < receiver_maps.size(); ++i) {
@@ -6423,7 +6423,7 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() ||
       !inference.AllOfInstanceTypesAre(instance_type)) {
-    return inference.NoChange();
+    return NoChange();
   }
 
   // Load the {receiver}s field.
@@ -6506,7 +6506,7 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() ||
       !inference.AllOfInstanceTypesAre(JS_DATA_VIEW_TYPE)) {
-    return inference.NoChange();
+    return NoChange();
   }
 
   Node* byte_offset;
@@ -6677,7 +6677,7 @@ Reduction JSCallReducer::ReduceDatePrototypeGetTime(Node* node) {
 
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(JS_DATE_TYPE)) {
-    return inference.NoChange();
+    return NoChange();
   }
 
   Node* value = effect =

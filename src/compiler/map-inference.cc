@@ -52,6 +52,12 @@ bool MapInference::AllOfInstanceTypesAre(InstanceType type) const {
       [type](InstanceType other) { return type == other; });
 }
 
+bool MapInference::AnyOfInstanceTypesAre(InstanceType type) const {
+  CHECK(!InstanceTypeChecker::IsString(type));
+  return AnyOfInstanceTypesUnsafe(
+      [type](InstanceType other) { return type == other; });
+}
+
 bool MapInference::AllOfInstanceTypes(std::function<bool(InstanceType)> f) {
   SetNeedGuardIfUnreliable();
   return AllOfInstanceTypesUnsafe(f);
@@ -61,6 +67,13 @@ bool MapInference::AllOfInstanceTypesUnsafe(
     std::function<bool(InstanceType)> f) const {
   CHECK(HaveMaps());
   return std::all_of(maps_.begin(), maps_.end(),
+                     [f](Handle<Map> map) { return f(map->instance_type()); });
+}
+
+bool MapInference::AnyOfInstanceTypesUnsafe(
+    std::function<bool(InstanceType)> f) const {
+  CHECK(HaveMaps());
+  return std::any_of(maps_.begin(), maps_.end(),
                      [f](Handle<Map> map) { return f(map->instance_type()); });
 }
 

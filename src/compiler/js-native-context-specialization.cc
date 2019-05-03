@@ -14,6 +14,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/type-cache.h"
@@ -669,16 +670,11 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
     return NoChange();
   }
 
-  // Check if we know something about the {value}.
-  ZoneHandleSet<Map> value_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), value, effect, &value_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  DCHECK_NE(0, value_maps.size());
-
-  // Check that the {value} cannot be a JSPromise.
-  for (Handle<Map> const value_map : value_maps) {
-    if (value_map->IsJSPromiseMap()) return NoChange();
+  // Only optimize if {value} cannot be a JSPromise.
+  MapInference inference(broker(), value, effect);
+  if (!inference.HaveMaps() ||
+      inference.AnyOfInstanceTypesAre(JS_PROMISE_TYPE)) {
+    return NoChange();
   }
 
   if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
@@ -702,20 +698,9 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   // Check if we know something about the {resolution}.
-  ZoneHandleSet<Map> resolution_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), resolution, effect,
-                                        &resolution_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  DCHECK_NE(0, resolution_maps.size());
-
-  // When the {resolution_maps} information is unreliable, we can
-  // still optimize if all individual {resolution_maps} are stable.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    for (Handle<Map> resolution_map : resolution_maps) {
-      if (!resolution_map->is_stable()) return NoChange();
-    }
-  }
+  MapInference inference(broker(), resolution, effect);
+  if (!inference.HaveMaps()) return NoChange();
+  MapHandles const& resolution_maps = inference.GetMaps();
 
   // Compute property access info for "then" on {resolution}.
   PropertyAccessInfo access_info;
@@ -724,21 +709,22 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
     AccessInfoFactory access_info_factory(broker(), dependencies(),
                                           graph()->zone());
     access_info_factory.ComputePropertyAccessInfos(
-        MapHandles(resolution_maps.begin(), resolution_maps.end()),
-        factory()->then_string(), AccessMode::kLoad, &access_infos);
+        resolution_maps, factory()->then_string(), AccessMode::kLoad,
+        &access_infos);
     access_info = access_info_factory.FinalizePropertyAccessInfosAsOne(
         access_infos, AccessMode::kLoad);
   }
-  if (access_info.IsInvalid()) return NoChange();
+  if (access_info.IsInvalid()) return inference.NoChange();
 
-  // We can further optimize the case where {resolution}
-  // definitely doesn't have a "then" property.
-  if (!access_info.IsNotFound()) return NoChange();
+  // Only optimize when {resolution} definitely doesn't have a "then" property.
+  if (!access_info.IsNotFound()) return inference.NoChange();
 
-  dependencies()->DependOnStablePrototypeChains(
-      access_info.receiver_maps(),
-      result == NodeProperties::kUnreliableReceiverMaps ? kStartAtReceiver
-                                                        : kStartAtPrototype);
+  if (!inference.RelyOnMapsViaStability(dependencies())) {
+    return inference.NoChange();
+  }
+
+  dependencies()->DependOnStablePrototypeChains(access_info.receiver_maps(),
+                                                kStartAtPrototype);
 
   // Simply fulfill the {promise} with the {resolution}.
   Node* value = effect =
@@ -2528,14 +2514,9 @@ Reduction JSNativeContextSpecialization::ReduceJSToObject(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-
-  for (size_t i = 0; i < receiver_maps.size(); ++i) {
-    if (!receiver_maps[i]->IsJSReceiverMap()) return NoChange();
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAreJSReceiver()) {
+    return NoChange();
   }
 
   ReplaceWithValue(node, receiver, effect);

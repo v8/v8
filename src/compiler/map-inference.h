@@ -48,6 +48,7 @@ class MapInference {
   V8_WARN_UNUSED_RESULT bool AllOfInstanceTypesAreJSReceiver() const;
   // Here, {type} must not be a String type.
   V8_WARN_UNUSED_RESULT bool AllOfInstanceTypesAre(InstanceType type) const;
+  V8_WARN_UNUSED_RESULT bool AnyOfInstanceTypesAre(InstanceType type) const;
 
   // These queries require a guard. (Even instance types are generally not
   // reliable because of how the representation of a string can change.)
@@ -92,6 +93,8 @@ class MapInference {
   void SetGuarded();
 
   V8_WARN_UNUSED_RESULT bool AllOfInstanceTypesUnsafe(
+      std::function<bool(InstanceType)> f) const;
+  V8_WARN_UNUSED_RESULT bool AnyOfInstanceTypesUnsafe(
       std::function<bool(InstanceType)> f) const;
   V8_WARN_UNUSED_RESULT bool RelyOnMapsHelper(
       CompilationDependencies* dependencies, JSGraph* jsgraph, Node** effect,
