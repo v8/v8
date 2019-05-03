@@ -80,6 +80,7 @@ function array_literal_test() {
   assertEquals(1, f0[0]);
 }
 
+%PrepareFunctionForOptimization(array_literal_test);
 for (var i = 0; i < 3; i++) {
   array_literal_test();
 }
@@ -109,6 +110,7 @@ function test_large_literal() {
                 new Object(), new Object(), new Object(), new Object()]);
 }
 
+%PrepareFunctionForOptimization(test_large_literal);
 for (var i = 0; i < 3; i++) {
   test_large_literal();
 }
@@ -123,6 +125,7 @@ function deopt_array(use_literal) {
   }
 }
 
+%PrepareFunctionForOptimization(deopt_array);
 deopt_array(false);
 deopt_array(false);
 deopt_array(false);
@@ -140,6 +143,7 @@ function deopt_array_literal_all_smis(a) {
   return [0, 1, a];
 }
 
+%PrepareFunctionForOptimization(deopt_array_literal_all_smis);
 deopt_array_literal_all_smis(2);
 deopt_array_literal_all_smis(3);
 deopt_array_literal_all_smis(4);
@@ -165,6 +169,7 @@ function deopt_array_literal_all_doubles(a) {
   return [0.5, 1, a];
 }
 
+%PrepareFunctionForOptimization(deopt_array_literal_all_doubles);
 deopt_array_literal_all_doubles(.5);
 deopt_array_literal_all_doubles(.5);
 deopt_array_literal_all_doubles(.5);
