@@ -20,6 +20,7 @@
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/memory-tracing.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-limits.h"
@@ -3612,12 +3613,21 @@ class ThreadImpl {
     return {ExternalCallResult::EXTERNAL_RETURNED};
   }
 
-  static WasmCode* GetTargetCode(WasmCodeManager* code_manager,
-                                 Address target) {
+  static WasmCode* GetTargetCode(Isolate* isolate, Address target) {
+    WasmCodeManager* code_manager = isolate->wasm_engine()->code_manager();
     NativeModule* native_module = code_manager->LookupNativeModule(target);
     if (native_module->is_jump_table_slot(target)) {
       uint32_t func_index =
           native_module->GetFunctionIndexFromJumpTableSlot(target);
+
+      if (!native_module->HasCode(func_index)) {
+        bool success = CompileLazy(isolate, native_module, func_index);
+        if (!success) {
+          DCHECK(isolate->has_pending_exception());
+          return nullptr;
+        }
+      }
+
       return native_module->GetCode(func_index);
     }
     WasmCode* code = native_module->Lookup(target);
@@ -3631,8 +3641,12 @@ class ThreadImpl {
 
     ImportedFunctionEntry entry(instance_object_, function_index);
     Handle<Object> object_ref(entry.object_ref(), isolate_);
-    WasmCode* code =
-        GetTargetCode(isolate_->wasm_engine()->code_manager(), entry.target());
+    WasmCode* code = GetTargetCode(isolate_, entry.target());
+
+    // In case a function's body is invalid and the function is lazily validated
+    // and compiled we may get an exception.
+    if (code == nullptr) return TryHandleException(isolate_);
+
     FunctionSig* sig = module()->functions[function_index].sig;
     return CallExternalWasmFunction(isolate_, object_ref, code, sig);
   }
@@ -3661,8 +3675,11 @@ class ThreadImpl {
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
     FunctionSig* signature = module()->signatures[sig_index];
     Handle<Object> object_ref = handle(entry.object_ref(), isolate_);
-    WasmCode* code =
-        GetTargetCode(isolate_->wasm_engine()->code_manager(), entry.target());
+    WasmCode* code = GetTargetCode(isolate_, entry.target());
+
+    // In case a function's body is invalid and the function is lazily validated
+    // and compiled we may get an exception.
+    if (code == nullptr) return TryHandleException(isolate_);
 
     if (!object_ref->IsWasmInstanceObject() || /* call to an import */
         !instance_object_.is_identical_to(object_ref) /* cross-instance */) {
