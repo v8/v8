@@ -393,7 +393,10 @@
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
-  'tools/compiler-trace-flags-wasm': [SKIP]
+  'tools/compiler-trace-flags-wasm': [SKIP],
+
+  # Slow with pointer compression.
+  'regress/regress-crbug-319860': [PASS, ['pointer_compression', SLOW]],
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
@@ -930,6 +933,7 @@
 ##############################################################################
 ['variant == stress and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
+  'es6/classes': [SKIP],
   'generated-transition-stub': [SKIP],
   'regress/regress-336820': [SKIP],
   'wasm/grow-memory': [SKIP],
