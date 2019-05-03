@@ -1,0 +1,26 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace string_iterator {
+
+  macro NewJSStringIterator(implicit context: Context)(
+      string: String, nextIndex: Smi): JSStringIterator {
+    return new JSStringIterator{
+      map: GetInitialStringIteratorMap(),
+      properties_or_hash: kEmptyFixedArray,
+      elements: kEmptyFixedArray,
+      string: string,
+      next_index: nextIndex
+    };
+  }
+
+  // ES6 #sec-string.prototype-@@iterator
+  transitioning javascript builtin StringPrototypeIterator(
+      implicit context: Context)(receiver: Object): JSStringIterator {
+    const name: String =
+        ToThisString(receiver, 'String.prototype[Symbol.iterator]');
+    const index: Smi = 0;
+    return NewJSStringIterator(name, index);
+  }
+}

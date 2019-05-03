@@ -1002,8 +1002,6 @@ namespace internal {
   TFJ(StringPrototypeValueOf, 0, kReceiver)                                    \
   /* ES6 #sec-string.raw */                                                    \
   CPP(StringRaw)                                                               \
-  /* ES6 #sec-string.prototype-@@iterator */                                   \
-  TFJ(StringPrototypeIterator, 0, kReceiver)                                   \
                                                                                \
   /* StringIterator */                                                         \
   /* ES6 #sec-%stringiteratorprototype%.next */                                \

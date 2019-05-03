@@ -2223,30 +2223,6 @@ TF_BUILTIN(StringPrototypeValueOf, CodeStubAssembler) {
   Return(result);
 }
 
-TF_BUILTIN(StringPrototypeIterator, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-
-  Node* string =
-      ToThisString(context, receiver, "String.prototype[Symbol.iterator]");
-
-  Node* native_context = LoadNativeContext(context);
-  Node* map = LoadContextElement(native_context,
-                                 Context::INITIAL_STRING_ITERATOR_MAP_INDEX);
-  Node* iterator = Allocate(JSStringIterator::kSize);
-  StoreMapNoWriteBarrier(iterator, map);
-  StoreObjectFieldRoot(iterator, JSValue::kPropertiesOrHashOffset,
-                       RootIndex::kEmptyFixedArray);
-  StoreObjectFieldRoot(iterator, JSObject::kElementsOffset,
-                       RootIndex::kEmptyFixedArray);
-  StoreObjectFieldNoWriteBarrier(iterator, JSStringIterator::kStringOffset,
-                                 string);
-  Node* index = SmiConstant(0);
-  StoreObjectFieldNoWriteBarrier(iterator, JSStringIterator::kNextIndexOffset,
-                                 index);
-  Return(iterator);
-}
-
 // Return the |word32| codepoint at {index}. Supports SeqStrings and
 // ExternalStrings.
 TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(

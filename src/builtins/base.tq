@@ -443,6 +443,8 @@ const REFLECT_APPLY_INDEX: constexpr NativeContextSlot
     generates 'Context::REFLECT_APPLY_INDEX';
 const REGEXP_LAST_MATCH_INFO_INDEX: constexpr NativeContextSlot
     generates 'Context::REGEXP_LAST_MATCH_INFO_INDEX';
+const INITIAL_STRING_ITERATOR_MAP_INDEX: constexpr NativeContextSlot
+    generates 'Context::INITIAL_STRING_ITERATOR_MAP_INDEX';
 extern operator '[]' macro LoadContextElement(
     NativeContext, NativeContextSlot): Object;
 extern operator '[]=' macro StoreContextElement(
@@ -2180,6 +2182,10 @@ macro GetFastPackedSmiElementsJSArrayMap(implicit context: Context)(): Map {
 macro GetProxyRevocableResultMap(implicit context: Context)(): Map {
   return UnsafeCast<Map>(
       LoadNativeContext(context)[PROXY_REVOCABLE_RESULT_MAP_INDEX]);
+}
+macro GetInitialStringIteratorMap(implicit context: Context)(): Map {
+  return UnsafeCast<Map>(
+      LoadNativeContext(context)[INITIAL_STRING_ITERATOR_MAP_INDEX]);
 }
 macro GetReflectApply(implicit context: Context)(): Callable {
   return UnsafeCast<Callable>(LoadNativeContext(context)[REFLECT_APPLY_INDEX]);
