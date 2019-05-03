@@ -27,7 +27,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CHECK(!sta->WasDetached());
   CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, sta->length());
+  CHECK_LT(index, NumberToSize(sta->length()));
   CHECK_EQ(sta->type(), kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();

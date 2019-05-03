@@ -448,9 +448,7 @@ FastKeyAccumulator::GetOwnKeysWithUninitializedEnumCache() {
   Handle<JSObject> object = Handle<JSObject>::cast(receiver_);
   // Uninitalized enum cache
   Map map = object->map();
-  if (object->elements() != ReadOnlyRoots(isolate_).empty_fixed_array() &&
-      object->elements() !=
-          ReadOnlyRoots(isolate_).empty_slow_element_dictionary()) {
+  if (object->elements()->length() != 0) {
     // Assume that there are elements.
     return MaybeHandle<FixedArray>();
   }
