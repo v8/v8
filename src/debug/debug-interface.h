@@ -57,6 +57,12 @@ MaybeLocal<Array> GetInternalProperties(Isolate* isolate, Local<Value> value);
 V8_EXPORT_PRIVATE MaybeLocal<Array> GetPrivateFields(Local<Context> context,
                                                      Local<Object> value);
 
+/**
+ * Forwards to v8::Object::CreationContext, but with special handling for
+ * JSGlobalProxy objects.
+ */
+Local<Context> GetCreationContext(Local<Object> value);
+
 enum ExceptionBreakState {
   NoBreakOnException = 0,
   BreakOnUncaughtException = 1,

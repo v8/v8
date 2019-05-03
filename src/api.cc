@@ -9100,6 +9100,14 @@ MaybeLocal<Array> debug::GetPrivateFields(Local<Context> context,
   RETURN_ESCAPED(Utils::ToLocal(result));
 }
 
+Local<Context> debug::GetCreationContext(Local<Object> value) {
+  i::Handle<i::Object> val = Utils::OpenHandle(*value);
+  if (val->IsJSGlobalProxy()) {
+    return Local<Context>();
+  }
+  return value->CreationContext();
+}
+
 void debug::ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->debug()->ChangeBreakOnException(
