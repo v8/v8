@@ -6310,9 +6310,9 @@ inline int StringLength(const uint16_t* string) {
 
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           v8::NewStringType type,
+                                           NewStringType type,
                                            i::Vector<const char> string) {
-  if (type == v8::NewStringType::kInternalized) {
+  if (type == NewStringType::kInternalized) {
     return factory->InternalizeUtf8String(string);
   }
   return factory->NewStringFromUtf8(string);
@@ -6320,9 +6320,9 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
 
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           v8::NewStringType type,
+                                           NewStringType type,
                                            i::Vector<const uint8_t> string) {
-  if (type == v8::NewStringType::kInternalized) {
+  if (type == NewStringType::kInternalized) {
     return factory->InternalizeOneByteString(string);
   }
   return factory->NewStringFromOneByte(string);
@@ -6330,14 +6330,13 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
 
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           v8::NewStringType type,
+                                           NewStringType type,
                                            i::Vector<const uint16_t> string) {
-  if (type == v8::NewStringType::kInternalized) {
+  if (type == NewStringType::kInternalized) {
     return factory->InternalizeTwoByteString(string);
   }
   return factory->NewStringFromTwoByte(string);
 }
-
 
 STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
 
@@ -6363,43 +6362,21 @@ STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
     result = Utils::ToLocal(handle_result);                                \
   }
 
-Local<String> String::NewFromUtf8(Isolate* isolate,
-                                  const char* data,
-                                  NewStringType type,
-                                  int length) {
-  NEW_STRING(isolate, String, NewFromUtf8, char, data,
-             static_cast<v8::NewStringType>(type), length);
-  RETURN_TO_LOCAL_UNCHECKED(result, String);
-}
-
-
 MaybeLocal<String> String::NewFromUtf8(Isolate* isolate, const char* data,
-                                       v8::NewStringType type, int length) {
+                                       NewStringType type, int length) {
   NEW_STRING(isolate, String, NewFromUtf8, char, data, type, length);
   return result;
 }
 
-
 MaybeLocal<String> String::NewFromOneByte(Isolate* isolate, const uint8_t* data,
-                                          v8::NewStringType type, int length) {
+                                          NewStringType type, int length) {
   NEW_STRING(isolate, String, NewFromOneByte, uint8_t, data, type, length);
   return result;
 }
 
-
-Local<String> String::NewFromTwoByte(Isolate* isolate,
-                                     const uint16_t* data,
-                                     NewStringType type,
-                                     int length) {
-  NEW_STRING(isolate, String, NewFromTwoByte, uint16_t, data,
-             static_cast<v8::NewStringType>(type), length);
-  RETURN_TO_LOCAL_UNCHECKED(result, String);
-}
-
-
 MaybeLocal<String> String::NewFromTwoByte(Isolate* isolate,
                                           const uint16_t* data,
-                                          v8::NewStringType type, int length) {
+                                          NewStringType type, int length) {
   NEW_STRING(isolate, String, NewFromTwoByte, uint16_t, data, type, length);
   return result;
 }
@@ -6465,13 +6442,6 @@ MaybeLocal<String> v8::String::NewExternalOneByte(
     return Utils::ToLocal(i_isolate->factory()->empty_string());
   }
 }
-
-
-Local<String> v8::String::NewExternal(
-    Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
-  RETURN_TO_LOCAL_UNCHECKED(NewExternalOneByte(isolate, resource), String);
-}
-
 
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   i::DisallowHeapAllocation no_allocation;
@@ -6753,22 +6723,13 @@ double v8::Date::ValueOf() const {
 
 // Assert that the static TimeZoneDetection cast in
 // DateTimeConfigurationChangeNotification is valid.
-#define TIME_ZONE_DETECTION_ASSERT_EQ(value)                               \
-  STATIC_ASSERT(                                                           \
-      static_cast<int>(v8::Isolate::TimeZoneDetection::value) ==           \
-      static_cast<int>(base::TimezoneCache::TimeZoneDetection::value));    \
-  STATIC_ASSERT(static_cast<int>(v8::Isolate::TimeZoneDetection::value) == \
-                static_cast<int>(v8::Date::TimeZoneDetection::value));
+#define TIME_ZONE_DETECTION_ASSERT_EQ(value)                     \
+  STATIC_ASSERT(                                                 \
+      static_cast<int>(v8::Isolate::TimeZoneDetection::value) == \
+      static_cast<int>(base::TimezoneCache::TimeZoneDetection::value));
 TIME_ZONE_DETECTION_ASSERT_EQ(kSkip)
 TIME_ZONE_DETECTION_ASSERT_EQ(kRedetect)
 #undef TIME_ZONE_DETECTION_ASSERT_EQ
-
-// static
-void v8::Date::DateTimeConfigurationChangeNotification(
-    Isolate* isolate, TimeZoneDetection time_zone_detection) {
-  isolate->DateTimeConfigurationChangeNotification(
-      static_cast<v8::Isolate::TimeZoneDetection>(time_zone_detection));
-}
 
 MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
                                        Local<String> pattern, Flags flags) {
