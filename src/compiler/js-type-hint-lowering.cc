@@ -501,7 +501,8 @@ Node* JSTypeHintLowering::TryBuildSoftDeopt(FeedbackNexus& nexus, Node* effect,
         jsgraph()->common()->Deoptimize(DeoptimizeKind::kSoft, reason,
                                         VectorSlotPair()),
         jsgraph()->Dead(), effect, control);
-    Node* frame_state = NodeProperties::FindFrameStateBefore(deoptimize);
+    Node* frame_state =
+        NodeProperties::FindFrameStateBefore(deoptimize, jsgraph()->Dead());
     deoptimize->ReplaceInput(0, frame_state);
     return deoptimize;
   }

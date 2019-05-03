@@ -254,10 +254,15 @@ void NodeProperties::ChangeOp(Node* node, const Operator* new_op) {
 
 
 // static
-Node* NodeProperties::FindFrameStateBefore(Node* node) {
+Node* NodeProperties::FindFrameStateBefore(Node* node,
+                                           Node* unreachable_sentinel) {
   Node* effect = NodeProperties::GetEffectInput(node);
   while (effect->opcode() != IrOpcode::kCheckpoint) {
-    if (effect->opcode() == IrOpcode::kDead) return effect;
+    if (effect->opcode() == IrOpcode::kDead ||
+        effect->opcode() == IrOpcode::kUnreachable) {
+      return unreachable_sentinel;
+    }
+    DCHECK(effect->op()->HasProperty(Operator::kNoWrite));
     DCHECK_EQ(1, effect->op()->EffectInputCount());
     effect = NodeProperties::GetEffectInput(effect);
   }

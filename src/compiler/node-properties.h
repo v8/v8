@@ -118,7 +118,8 @@ class V8_EXPORT_PRIVATE NodeProperties final {
 
   // Find the last frame state that is effect-wise before the given node. This
   // assumes a linear effect-chain up to a {CheckPoint} node in the graph.
-  static Node* FindFrameStateBefore(Node* node);
+  // Returns {unreachable_sentinel} if {node} is determined to be unreachable.
+  static Node* FindFrameStateBefore(Node* node, Node* unreachable_sentinel);
 
   // Collect the output-value projection for the given output index.
   static Node* FindProjection(Node* node, size_t projection_index);
