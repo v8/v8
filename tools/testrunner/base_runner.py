@@ -722,7 +722,7 @@ class BaseTestRunner(object):
     if self.build_config.lite_mode:
       factor *= 2
     if self.build_config.predictable:
-      factor *= 2
+      factor *= 2.5
     if self.build_config.use_sanitizer:
       factor *= 1.5
 
