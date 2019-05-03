@@ -2073,7 +2073,8 @@ Node* WasmGraphBuilder::MemoryGrow(Node* input) {
 
 Node* WasmGraphBuilder::Throw(uint32_t exception_index,
                               const wasm::WasmException* exception,
-                              const Vector<Node*> values) {
+                              const Vector<Node*> values,
+                              wasm::WasmCodePosition position) {
   needs_stack_check_ = true;
   uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(exception);
   Node* create_parameters[] = {
@@ -2082,6 +2083,7 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
   Node* except_obj =
       BuildCallToRuntime(Runtime::kWasmThrowCreate, create_parameters,
                          arraysize(create_parameters));
+  SetSourcePosition(except_obj, position);
   Node* values_array =
       BuildCallToRuntime(Runtime::kWasmExceptionGetValues, &except_obj, 1);
   uint32_t index = 0;
@@ -2140,9 +2142,11 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
       Operator::kNoProperties, StubCallMode::kCallWasmRuntimeStub);
   Node* call_target = mcgraph()->RelocatableIntPtrConstant(
       wasm::WasmCode::kWasmThrow, RelocInfo::WASM_STUB_CALL);
-  return SetEffect(SetControl(
+  Node* call = SetEffect(SetControl(
       graph()->NewNode(mcgraph()->common()->Call(call_descriptor), call_target,
                        except_obj, Effect(), Control())));
+  SetSourcePosition(call, position);
+  return call;
 }
 
 void WasmGraphBuilder::BuildEncodeException32BitValue(Node* values_array,
@@ -3916,8 +3920,9 @@ void WasmGraphBuilder::SimdScalarLoweringForTesting() {
 void WasmGraphBuilder::SetSourcePosition(Node* node,
                                          wasm::WasmCodePosition position) {
   DCHECK_NE(position, wasm::kNoCodePosition);
-  if (source_position_table_)
+  if (source_position_table_) {
     source_position_table_->SetSourcePosition(node, SourcePosition(position));
+  }
 }
 
 Node* WasmGraphBuilder::S128Zero() {

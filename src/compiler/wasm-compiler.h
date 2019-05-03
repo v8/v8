@@ -205,7 +205,7 @@ class WasmGraphBuilder {
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* MemoryGrow(Node* input);
   Node* Throw(uint32_t exception_index, const wasm::WasmException* exception,
-              const Vector<Node*> values);
+              const Vector<Node*> values, wasm::WasmCodePosition position);
   Node* Rethrow(Node* except_obj);
   Node* ExceptionTagEqual(Node* caught_tag, Node* expected_tag);
   Node* LoadExceptionTagFromTable(uint32_t exception_index);
