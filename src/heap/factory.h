@@ -982,7 +982,7 @@ class V8_EXPORT_PRIVATE Factory {
     }
 
    private:
-    MaybeHandle<Code> BuildInternal(bool failing_allocation);
+    MaybeHandle<Code> BuildInternal(bool retry_allocation_or_fail);
 
     Isolate* const isolate_;
     const CodeDesc& code_desc_;

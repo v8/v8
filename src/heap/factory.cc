@@ -80,7 +80,8 @@ Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
       kind_(kind),
       source_position_table_(isolate_->factory()->empty_byte_array()) {}
 
-MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(bool failing_allocation) {
+MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
+    bool retry_allocation_or_fail) {
   const auto factory = isolate_->factory();
   // Allocate objects needed for code initialization.
   Handle<ByteArray> reloc_info =
@@ -93,14 +94,14 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(bool failing_allocation) {
 
     CodePageCollectionMemoryModificationScope code_allocation(heap);
     HeapObject result;
-    if (failing_allocation) {
+    if (retry_allocation_or_fail) {
+      result =
+          heap->AllocateRawWithRetryOrFail(object_size, AllocationType::kCode);
+    } else {
       result =
           heap->AllocateRawWithLightRetry(object_size, AllocationType::kCode);
       // Return an empty handle if we cannot allocate the code object.
       if (result.is_null()) return MaybeHandle<Code>();
-    } else {
-      result =
-          heap->AllocateRawWithRetryOrFail(object_size, AllocationType::kCode);
     }
 
     if (!is_movable_) {

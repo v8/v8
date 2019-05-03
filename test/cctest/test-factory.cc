@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 namespace test_factory {
 
-TEST(Factory_NewCode) {
+TEST(Factory_CodeBuilder) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
