@@ -18,7 +18,6 @@ function foo(i, deopt = false, deoptobj = null) {
 
 assertEquals(0, %GetDeoptCount(foo));
 
-%PrepareFunctionForOptimization(foo);
 foo(10);
 foo(10);
 %OptimizeFunctionOnNextCall(foo);

@@ -8,7 +8,6 @@ function foo(s) {
   return s[5];
 }
 
-%PrepareFunctionForOptimization(foo);
 assertEquals("f", foo("abcdef"));
 assertEquals(undefined, foo("a"));
 %OptimizeFunctionOnNextCall(foo);
@@ -24,7 +23,6 @@ String.prototype.__proto__ = new Proxy(String.prototype.__proto__, {
 });
 
 assertEquals("f", foo("abcdef"));
-%PrepareFunctionForOptimization(foo);
 assertEquals("5", foo("a"));
 %OptimizeFunctionOnNextCall(foo);
 assertEquals("f", foo("abcdef"));

@@ -15,7 +15,6 @@
   function readA(x) {
     return x.a;
   }
-  %PrepareFunctionForOptimization(readA);
   var a = new A();
   assertUnoptimized(readA);
   readA(a); readA(a); readA(a);
@@ -27,7 +26,6 @@
   b.b = o;
   assertEquals(readA(b), o);
   assertUnoptimized(readA);
-  %PrepareFunctionForOptimization(readA);
   %OptimizeFunctionOnNextCall(readA);
   assertEquals(readA(a), o);
   assertOptimized(readA);
@@ -39,7 +37,6 @@
     return x.a;
   }
   assertUnoptimized(readAFromB);
-  %PrepareFunctionForOptimization(readAFromB);
   readAFromB(b); readAFromB(b); readAFromB(b);
   %OptimizeFunctionOnNextCall(readAFromB);
   assertEquals(readAFromB(b), o);
@@ -52,8 +49,6 @@
   c.a = [1];
   assertUnoptimized(readA);
   assertUnoptimized(readAFromB);
-  %PrepareFunctionForOptimization(readA);
-  %PrepareFunctionForOptimization(readAFromB);
   assertEquals(readA(a), o);
   assertEquals(readA(b), o);
   assertEquals(readA(c), [1]);
@@ -82,9 +77,7 @@
   A.prototype = {y: 20};
   function B(o) { return o.a.y; }
   function C() { this.a = new A(); }
-  %EnsureFeedbackVectorForFunction(C);
 
-  %PrepareFunctionForOptimization(B);
   B(new C());
   B(new C());
   %OptimizeFunctionOnNextCall(B);
@@ -95,7 +88,6 @@
   assertEquals(10, B(c));
   assertUnoptimized(B);
 
-  %PrepareFunctionForOptimization(B);
   var c = new C();
   %OptimizeFunctionOnNextCall(B);
   assertEquals(20, B(c));
@@ -124,7 +116,6 @@
   var f2 = new Foo({x: 2});
   var f3 = new Foo({x: 3});
   function readX(f) { return f.x.x; }
-  %PrepareFunctionForOptimization(readX);
   assertEquals(readX(f1), 1);
   assertEquals(readX(f2), 2);
   assertUnoptimized(readX);
@@ -132,7 +123,6 @@
   assertEquals(readX(f3), 3);
   assertOptimized(readX);
   function writeX(f, x) { f.x = x; }
-  %PrepareFunctionForOptimization(writeX);
   writeX(f1, {x: 11});
   writeX(f2, {x: 22});
   assertUnoptimized(writeX);
@@ -156,7 +146,6 @@
   var f2 = new Narf(2);
   var f3 = new Narf(3);
   function baz(f, y) { f.y = y; }
-  %PrepareFunctionForOptimization(baz);
   baz(f1, {b: 9});
   baz(f2, {b: 9});
   baz(f2, {b: 9});
@@ -172,7 +161,6 @@
   function readA(o) { return o.x.a; }
   var f = new Foo({a:1});
   var b = new Bar({a:2});
-  %PrepareFunctionForOptimization(readA);
   assertEquals(readA(f), 1);
   assertEquals(readA(b), 2);
   assertEquals(readA(f), 1);

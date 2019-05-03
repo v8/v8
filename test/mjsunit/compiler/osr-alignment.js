@@ -38,7 +38,6 @@ function f1() {
   }
   return sum;
 }
-%PrepareFunctionForOptimization(f1);
 
 function f2() {
   var sum = 0;
@@ -51,7 +50,6 @@ function f2() {
   }
   return sum;
 }
-%PrepareFunctionForOptimization(f2);
 
 function f3() {
   var sum = 0;
@@ -64,7 +62,6 @@ function f3() {
   }
   return sum;
 }
-%PrepareFunctionForOptimization(f3);
 
 function test1() {
   var j = 11;

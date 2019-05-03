@@ -19,6 +19,4 @@ function gen() {
   return eval("(" + body + ")");
 }
 
-var f = gen();
-%PrepareFunctionForOptimization(f);
-f();
+gen()();

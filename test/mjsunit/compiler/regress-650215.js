@@ -13,5 +13,4 @@ function f() {
   return x;
 }
 
-%PrepareFunctionForOptimization(f);
 assertEquals(0, f());

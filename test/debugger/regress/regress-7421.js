@@ -23,7 +23,6 @@ function wrapper1() {
   }
   f1();
 }
-%PrepareFunctionForOptimization(wrapper1);
 
 function f2() {
   counter++;

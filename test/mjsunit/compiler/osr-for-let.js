@@ -24,7 +24,6 @@ function bar() {
   }
   return result;
 }
-%PrepareFunctionForOptimization(bar);
 
 test(4005, bar);
 
@@ -36,7 +35,6 @@ function baz() {
   }
   return sum;
 }
-%PrepareFunctionForOptimization(baz);
 
 test(2, baz);
 
@@ -48,7 +46,6 @@ function qux() {
   }
   return result;
 }
-%PrepareFunctionForOptimization(qux);
 
 test(1, qux);
 
@@ -63,7 +60,6 @@ function nux() {
   }
   return result;
 }
-%PrepareFunctionForOptimization(nux);
 
 test(1, nux);
 
@@ -82,6 +78,5 @@ function blo() {
   }
   return result;
 }
-%PrepareFunctionForOptimization(blo);
 
 test(4005, blo());

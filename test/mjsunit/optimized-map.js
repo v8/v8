@@ -20,8 +20,7 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
         a.abc = 25;
       }
       return v;
-    };
-    %EnsureFeedbackVectorForFunction(callback);
+    }
     a.map(callback);
   };
   %PrepareFunctionForOptimization(eagerDeoptInCalled);
@@ -42,8 +41,7 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
       result += v;
       a.length = (i == 13 && deopt) ? 25 : 27;
       return v;
-    };
-    %EnsureFeedbackVectorForFunction(callback);
+    }
     a.map(callback);
   };
   %PrepareFunctionForOptimization(eagerDeoptInCalled);
@@ -67,8 +65,7 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
         a_noescape.length = 25;
       }
       return v;
-    };
-    %EnsureFeedbackVectorForFunction(callback);
+    }
     a_noescape.map(callback);
   };
   %PrepareFunctionForOptimization(eagerDeoptInCalled);
@@ -96,7 +93,6 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
       gc(); gc();
       return v;
     };
-    %EnsureFeedbackVectorForFunction(callback);
     %NeverOptimizeFunction(callback);
     b.map(callback);
   };
@@ -121,7 +117,6 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
       }
       return 2 * v;
     };
-    %EnsureFeedbackVectorForFunction(callback);
     %NeverOptimizeFunction(callback);
     return b.map(callback);
   };
@@ -142,8 +137,7 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
           %DeoptimizeNow();
       }
       return v;
-    };
-    %EnsureFeedbackVectorForFunction(callback);
+    }
     b.map(callback);
   };
   %PrepareFunctionForOptimization(lazyDeopt);
@@ -167,7 +161,6 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
       }
       return v;
     };
-    %EnsureFeedbackVectorForFunction(callback);
     %NeverOptimizeFunction(callback);
     b.map(callback);
   };
@@ -193,8 +186,7 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
           gc();
       }
       return v;
-    };
-    %EnsureFeedbackVectorForFunction(callback);
+    }
     c.map(callback);
   };
   %PrepareFunctionForOptimization(lazyDeopt);
@@ -219,8 +211,7 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
         throw("a");
       }
       return v;
-    };
-    %EnsureFeedbackVectorForFunction(callback);
+    }
     try {
       c.map(callback);
     } catch (e) {
@@ -250,7 +241,6 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
       }
       return v;
     };
-    %EnsureFeedbackVectorForFunction(callback);
     %NeverOptimizeFunction(callback);
     try {
       c.map(callback);
@@ -280,7 +270,6 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
       }
       return 2 * v;
     };
-    %EnsureFeedbackVectorForFunction(callback);
     %NeverOptimizeFunction(callback);
     var result = 0;
     try {
@@ -314,7 +303,6 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
       }
       return v;
     };
-    %EnsureFeedbackVectorForFunction(callback);
     var o = [1,2,3];
     b.map(callback);
   };
@@ -338,7 +326,6 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
       }
       return v;
     };
-    %EnsureFeedbackVectorForFunction(callback);
     %NeverOptimizeFunction(callback);
     var o = [1,2,3];
     b.map(callback);
@@ -365,7 +352,6 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
       }
       return v;
     };
-    %EnsureFeedbackVectorForFunction(callback);
     var o = [1,2,3];
     b.map(callback);
   };
@@ -389,7 +375,6 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
       }
       return v;
     };
-    %EnsureFeedbackVectorForFunction(callback);
     a.map(callback);
   };
   %PrepareFunctionForOptimization(lazyDeopt);
@@ -423,8 +408,7 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
         // array.
         return v;
       }
-    };
-    %EnsureFeedbackVectorForFunction(callback);
+    }
     return c.map(callback);
   };
   %PrepareFunctionForOptimization(to_double);
@@ -455,8 +439,7 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
         // Later, to PACKED_ELEMENTS.
         return v + 'hello';
       }
-    };
-    %EnsureFeedbackVectorForFunction(callback);
+    }
     return c.map(callback);
   };
   %PrepareFunctionForOptimization(to_fast);
@@ -477,7 +460,6 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
   function double_results() {
     // TurboFan recognizes the result is a double.
     var callback = v => v + 0.5;
-    %EnsureFeedbackVectorForFunction(callback);
     return a.map(callback);
   }
   %PrepareFunctionForOptimization(double_results);

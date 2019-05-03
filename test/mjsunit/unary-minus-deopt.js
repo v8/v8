@@ -37,7 +37,6 @@ function unaryMinusTest(x) {
   return (g & -g) - 1 | 0;
 }
 
-%PrepareFunctionForOptimization(unaryMinusTest);
 unaryMinusTest(3);
 unaryMinusTest(3);
 %OptimizeFunctionOnNextCall(unaryMinusTest);
@@ -48,7 +47,6 @@ assertOptimized(unaryMinusTest);
 unaryMinusTest(31);
 // The following is normally true, but not with --stress-opt. :-/
 // assertUnoptimized(unaryMinusTest);
-%PrepareFunctionForOptimization(unaryMinusTest);
 
 // We should have learned something from the deopt.
 unaryMinusTest(31);

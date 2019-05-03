@@ -40,7 +40,6 @@ function f() {
   }
   return sum;
 }
-%PrepareFunctionForOptimization(f);
 
 
 assertEquals(1450, f());

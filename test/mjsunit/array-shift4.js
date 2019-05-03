@@ -17,7 +17,6 @@ function makeArray() {
   return a;
 }
 
-%PrepareFunctionForOptimization(doShift);
 doShift(makeArray());
 doShift(makeArray());
 %OptimizeFunctionOnNextCall(doShift);

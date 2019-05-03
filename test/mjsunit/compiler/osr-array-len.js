@@ -14,7 +14,6 @@ function fastaRandom(n, table) {
     n--;
   }
 }
-%PrepareFunctionForOptimization(fastaRandom);
 
 print("---BEGIN 1");
 assertEquals(undefined, fastaRandom(6, null));

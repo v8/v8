@@ -5,18 +5,14 @@
 // Flags: --allow-natives-syntax
 
 {
-  function f() {
-    for(let i = 0; i < 10; ++i){
-      try{
-        // Carefully constructed by a fuzzer to use a new register for s(), whose
-        // write is dead due to the unconditional throw after s()=N, but which is
-        // read in the ({...g}) call, which therefore must also be marked dead and
-        // elided.
-        with(f&&g&&(s()=N)({...g})){}
-      } catch {}
-      %OptimizeOsr();
-    }
+  for(let i = 0; i < 10; ++i){
+    try{
+      // Carefully constructed by a fuzzer to use a new register for s(), whose
+      // write is dead due to the unconditional throw after s()=N, but which is
+      // read in the ({...g}) call, which therefore must also be marked dead and
+      // elided.
+      with(f&&g&&(s()=N)({...g})){}
+    } catch {}
+    %OptimizeOsr();
   }
-  %PrepareFunctionForOptimization(f);
-  f();
 }

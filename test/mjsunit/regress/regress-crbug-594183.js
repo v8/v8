@@ -24,7 +24,6 @@ function load() {
   return sum;
 }
 
-%PrepareFunctionForOptimization(load);
 load();
 load();
 %OptimizeFunctionOnNextCall(load);
@@ -38,7 +37,6 @@ function store() {
   }
 }
 
-%PrepareFunctionForOptimization(store);
 store();
 store();
 %OptimizeFunctionOnNextCall(store);
@@ -72,7 +70,6 @@ function inferrable_store(key) {
   store_element(o5, key);
 }
 
-%PrepareFunctionForOptimization(inferrable_store);
 inferrable_store(0);
 inferrable_store(0);
 %OptimizeFunctionOnNextCall(inferrable_store);

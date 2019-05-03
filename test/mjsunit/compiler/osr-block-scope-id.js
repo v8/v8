@@ -24,7 +24,6 @@ function foo() {
   result.push(out);
   return result;
 }
-%PrepareFunctionForOptimization(foo);
 
 
 function check() {

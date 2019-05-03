@@ -45,7 +45,6 @@ function test_wrapper() {
     } while (--count > 0);
   }
 
-  %PrepareFunctionForOptimization(testDoubleConversion4);
   testDoubleConversion4(new Array(5));
   testDoubleConversion4(new Array(5));  // Call twice to make sure that second
                                         // store is a transition and not
@@ -72,7 +71,6 @@ function test_wrapper() {
     } while (--count > 0);
   }
 
-  %PrepareFunctionForOptimization(testExactMapHoisting);
   testExactMapHoisting(new Array(5));
   testExactMapHoisting(new Array(5));  // Call twice to make sure that second
                                        // store is a transition and not
@@ -104,7 +102,6 @@ function test_wrapper() {
     } while (--count > 0);
   }
 
-  %PrepareFunctionForOptimization(testExactMapHoisting2);
   testExactMapHoisting2(new Array(5));
   testExactMapHoisting2(new Array(5));  // Call twice to make sure that second
                                         // store is a transition and not
@@ -132,7 +129,6 @@ function test_wrapper() {
     } while (--count > 0);
   }
 
-  %PrepareFunctionForOptimization(testExactMapHoisting3);
   var add_transition = new Array(5);
   add_transition.foo = 0;
   add_transition[0] = new Object();  // For FAST_ELEMENT transition to be created
@@ -159,7 +155,6 @@ function test_wrapper() {
   }
 
   /*
-  %PrepareFunctionForOptimization(testDominatingTransitionHoisting1);
   testDominatingTransitionHoisting1(new Array(5));
   testDominatingTransitionHoisting1(new Array(5));  // Call twice to make sure
                                                     // that second store is a
@@ -185,7 +180,6 @@ function test_wrapper() {
     } while (--count > 3);
   }
 
-  %PrepareFunctionForOptimization(testHoistingWithSideEffect);
   testHoistingWithSideEffect(new Array(5));
   testHoistingWithSideEffect(new Array(5));  // Call twice to make sure that
                                              // second store is a transition and
@@ -209,7 +203,6 @@ function test_wrapper() {
     } while (--count > 3);
   }
 
-  %PrepareFunctionForOptimization(testStraightLineDupeElinination);
   testStraightLineDupeElinination(new Array(0, 0, 0, 0, 0),0,0,0,0,.5);
   testStraightLineDupeElinination(new Array(0, 0, 0, 0, 0),0,0,0,.5,0);
   testStraightLineDupeElinination(new Array(0, 0, 0, 0, 0),0,0,.5,0,0);

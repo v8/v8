@@ -9,5 +9,4 @@ function f() {
     if (i == 5) %OptimizeOsr();
   }
 }
-%EnsureFeedbackVectorForFunction(f);
 f();

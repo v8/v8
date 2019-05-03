@@ -29,7 +29,6 @@
 
 function o1() {
 }
-%PrepareFunctionForOptimization(o1);
 
 o1(); o1();
 %OptimizeFunctionOnNextCall(o1);
@@ -46,8 +45,6 @@ function u1() {
 function u2() {
   u1();
 }
-%PrepareFunctionForOptimization(u1);
-%PrepareFunctionForOptimization(u2);
 
 u1(); u1();
 u2(); u2();

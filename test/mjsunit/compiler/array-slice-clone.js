@@ -21,7 +21,6 @@
   }
 
   %PrepareFunctionForOptimization(slice0);
-  %PrepareFunctionForOptimization(slice);
 
   assertEquals(arr, slice());
   assertFalse(arr === slice());
@@ -30,6 +29,7 @@
 
   %OptimizeFunctionOnNextCall(slice0);
   assertEquals(slice(), slice0());
+  %PrepareFunctionForOptimization(slice);
   %OptimizeFunctionOnNextCall(slice);
 
   assertEquals(slice(), slice0());
@@ -415,7 +415,6 @@
 
   function test() {
     %PrepareFunctionForOptimization(slice0);
-    %PrepareFunctionForOptimization(slice);
 
     assertEquals(arr, slice());
     assertFalse(arr === slice());
@@ -424,6 +423,7 @@
 
     %OptimizeFunctionOnNextCall(slice0);
     assertEquals(slice(), slice0());
+    %PrepareFunctionForOptimization(slice);
     %OptimizeFunctionOnNextCall(slice);
 
     assertEquals(slice(), slice0());
@@ -455,13 +455,13 @@
   }
 
   function test() {
-    %PrepareFunctionForOptimization(slice0);
-    %PrepareFunctionForOptimization(slice);
     assertEquals(arr, slice());
     assertFalse(arr === slice());
     assertEquals(slice(), slice0());
     assertEquals(slice0(), slice());
 
+    %PrepareFunctionForOptimization(slice0);
+    %PrepareFunctionForOptimization(slice);
     %OptimizeFunctionOnNextCall(slice0);
     assertEquals(slice(), slice0());
     %OptimizeFunctionOnNextCall(slice);

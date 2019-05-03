@@ -11,7 +11,6 @@
       return 23;
     } while(false)
   }
-  %PrepareFunctionForOptimization(f);
   assertEquals(23, f());
   assertEquals(23, f());
 })();
@@ -25,7 +24,6 @@
     } while(false)
     return 999;
   }
-  %PrepareFunctionForOptimization(g);
   var gen = g();
   assertEquals({ value:23, done:false }, gen.next());
   assertEquals({ value:42, done:false }, gen.next());

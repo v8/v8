@@ -13,5 +13,4 @@ function f() {
     gc();
   }
 }
-%PrepareFunctionForOptimization(f);
 f();

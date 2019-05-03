@@ -13,7 +13,6 @@
     return a;
   }
 
-  %PrepareFunctionForOptimization(foo);
   foo();
   foo();
   %OptimizeFunctionOnNextCall(foo);
@@ -27,13 +26,9 @@
     return o.x + o.y;
   }
   function mapPlus(a, y) {
-    var f = (x => hot({x, y}));
-    %EnsureFeedbackVectorForFunction(f);
-    return a.map(f);
+    return a.map(x => hot({x, y}));
   }
 
-  %EnsureFeedbackVectorForFunction(mapPlus);
-  %PrepareFunctionForOptimization(hot);
   var a = [1, 2, 3];
   print(mapPlus(a, 1));
   print(mapPlus(a, 2));
@@ -49,12 +44,10 @@
 (function() {
   var sopen = 'function wrapper() {  ';
   var s1 = 'function foo() { return bar(5); } ';
-  var s2 = '%PrepareFunctionForOptimization(foo); ';
-  var s3 = 'foo(); foo(); %OptimizeFunctionOnNextCall(foo); foo(); ';
+  var s2 = 'foo(); foo(); %OptimizeFunctionOnNextCall(foo); foo(); ';
   var sclose = '}  wrapper(); ';
-  var s = sopen + s1 + s2 + s3 + sclose;
+  var s = sopen + s1 + s2 + sclose;
   function bar(i){return i + 3};
-  %EnsureFeedbackVectorForFunction(bar);
 
   for (var i = 0; i < 4; i++) {
     eval(s);

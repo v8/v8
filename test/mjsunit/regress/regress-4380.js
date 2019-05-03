@@ -9,7 +9,6 @@ function bar(a) {
   return x == undefined;
 }
 
-%PrepareFunctionForOptimization(bar);
 // Make the keyed load be polymorphic on holey smi and holey fast.
 bar([, 2, 3]);
 bar([, 'two', 'three']);

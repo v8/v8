@@ -15,5 +15,4 @@ function f() {
     throw "no loop, thank you";
   }
 }
-%PrepareFunctionForOptimization(f);
 assertThrows(f);

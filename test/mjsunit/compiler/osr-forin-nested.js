@@ -18,7 +18,6 @@ function foo(t) {
   }
   return 5;
 }
-%PrepareFunctionForOptimization(foo);
 
 test(5, foo, {x:20});
 
@@ -32,6 +31,5 @@ function bar(t) {
   }
   return sum;
 }
-%PrepareFunctionForOptimization(bar);
 
 test(62, bar, {x:20,y:11});

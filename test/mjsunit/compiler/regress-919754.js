@@ -12,5 +12,4 @@ function f(get, ...a) {
   }
   return get();
 }
-%PrepareFunctionForOptimization(f);
 assertThrows(f);

@@ -10,7 +10,6 @@ function foo(a) {
   }
 }
 
-%PrepareFunctionForOptimization(foo);
 foo([1,2,3]);
 foo([2,3,4]);
 %OptimizeFunctionOnNextCall(foo);

@@ -15,7 +15,6 @@ function f() {
   }
   return sum;
 }
-%PrepareFunctionForOptimization(f);
 
 
 for (var i = 0; i < 2; i++) {

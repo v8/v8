@@ -55,7 +55,6 @@ function callConstantFunctionOnPrototype(obj) {
   obj.holderMethod();
 }
 
-%PrepareFunctionForOptimization(callConstantFunctionOnPrototype);
 callConstantFunctionOnPrototype(receiver);
 callConstantFunctionOnPrototype(receiver);
 %OptimizeFunctionOnNextCall(callConstantFunctionOnPrototype);

@@ -16,6 +16,5 @@ function f(x) {
   }
   return sum;
 }
-%PrepareFunctionForOptimization(f);
 
 assertEquals(50, f(5));

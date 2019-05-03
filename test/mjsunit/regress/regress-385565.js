@@ -43,7 +43,6 @@ Array.prototype.f = function() {
 var o1 = {m: 1};
 var o2 = {a: 0, m:1};
 
-%PrepareFunctionForOptimization(callsFReceiver);
 var r1 = callsFReceiver(o1);
 callsFReceiver(o1);
 %OptimizeFunctionOnNextCall(callsFReceiver);
@@ -57,7 +56,6 @@ assertEquals(1, r1);
 assertTrue(r1 === r2);
 assertTrue(r2 === r3);
 
-%OptimizeFunctionOnNextCall(callsFReceiver);
 r1 = callsFReceiver(o1);
 callsFReceiver(o1);
 %OptimizeFunctionOnNextCall(callsFReceiver);

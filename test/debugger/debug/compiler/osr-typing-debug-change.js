@@ -37,7 +37,6 @@ function ChangeSmiConstantAndOsr() {
   }
   return j;
 }
-%PrepareFunctionForOptimization(ChangeSmiConstantAndOsr);
 var r1 = ChangeSmiConstantAndOsr();
 if (changed) {
   assertEquals("result", r1);
@@ -55,7 +54,6 @@ function ChangeFloatConstantAndOsr() {
   }
   return j;
 }
-%PrepareFunctionForOptimization(ChangeFloatConstantAndOsr);
 var r2 = ChangeFloatConstantAndOsr();
 if (changed) {
   assertEquals("result", r2);
@@ -74,7 +72,6 @@ function ChangeFloatVarAndOsr() {
   }
   return j;
 }
-%PrepareFunctionForOptimization(ChangeFloatVarAndOsr);
 var r3 = ChangeFloatVarAndOsr();
 if (changed) {
   assertEquals("result0.1", r3);
@@ -108,7 +105,6 @@ function ChangeIntVarAndOsr() {
   }
   return j;
 }
-%PrepareFunctionForOptimization(ChangeIntVarAndOsr);
 
 var r4 = ChangeIntVarAndOsr();
 if (changed) {

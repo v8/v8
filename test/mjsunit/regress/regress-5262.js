@@ -20,7 +20,6 @@ function f(osr_and_recurse) {
   }
   return 65;
 }
-%PrepareFunctionForOptimization(f);
 assertEquals(65, f(false));
 assertEquals(65, f(false));
 assertEquals(42, f(true));

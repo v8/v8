@@ -18,7 +18,6 @@
     }
   }
 
-  %PrepareFunctionForOptimization(g);
   g();
 })();
 
@@ -34,6 +33,5 @@
     }
   }
 
-  %PrepareFunctionForOptimization(g);
   g();
 })();

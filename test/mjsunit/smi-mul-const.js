@@ -28,7 +28,6 @@
 // Flags: --allow-natives-syntax --opt --noalways-opt
 
 function check(func, input, expected) {
-  %PrepareFunctionForOptimization(func);
   func(-1);
   func(-1);
   %OptimizeFunctionOnNextCall(func);

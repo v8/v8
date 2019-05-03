@@ -6,7 +6,6 @@
 
 function foo(o) { return o.x; }
 
-%PrepareFunctionForOptimization(foo);
 assertEquals(undefined, foo({}));
 assertEquals(undefined, foo(1));
 assertEquals(undefined, foo({}));

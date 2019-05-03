@@ -15,7 +15,6 @@ var f = (function() {
     }
   }
 })();
-%PrepareFunctionForOptimization(f);
 
 g = (function() { f((Array), counter()); });
 g();

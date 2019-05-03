@@ -14,7 +14,6 @@ function Cb(a, trigger) {
   }
   return g;
 }
-%PrepareFunctionForOptimization(Cb);
 
 var s1 = "long string to make cons string 1";
 var s2 = "long string to make cons string 2";

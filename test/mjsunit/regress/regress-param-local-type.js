@@ -37,7 +37,6 @@ function f(a) {  // First parameter is tagged.
   n = i + a;
 }
 
-%PrepareFunctionForOptimization(f);
 f(1);
 f(1);
 %OptimizeFunctionOnNextCall(f);
@@ -52,7 +51,6 @@ function g() {  // 0th parameter (receiver) is tagged.
   n = i + this;
 }
 
-%PrepareFunctionForOptimization(g);
 g.call(1);
 g.call(1);
 %OptimizeFunctionOnNextCall(g);

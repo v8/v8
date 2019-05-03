@@ -44,7 +44,6 @@ function bar(goal) {
   }
   return sum;
 }
-%PrepareFunctionForOptimization(bar);
 
 for (var i = 0; i < 13; i++) {
   %DeoptimizeFunction(bar);

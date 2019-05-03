@@ -26,7 +26,6 @@ function gen(w) {  // defeat compiler cache.
 function check(x,a,b,c) {
   for (var i = 0; i < 3; i++) {
     var f = gen(i);
-    %PrepareFunctionForOptimization(f);
     assertEquals(x, f(a, b, c));
   }
 }

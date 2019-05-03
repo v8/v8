@@ -34,7 +34,6 @@
     for (var i = 0; osr && i < 2; i++) %OptimizeOsr();
     return result;
   }
-  %PrepareFunctionForOptimization(f);
 
   assertEquals("result", f(true, 3, false));
   assertEquals("result", f(true, 3, false));
@@ -59,7 +58,6 @@
   function f() {
     return g(void(h() + ""));
   };
-  %PrepareFunctionForOptimization(f);
 
   f();
   %OptimizeFunctionOnNextCall(f);
