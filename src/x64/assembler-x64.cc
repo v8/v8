@@ -1567,6 +1567,7 @@ void Assembler::j(Condition cc,
 }
 
 void Assembler::jmp_rel(int offset) {
+  EnsureSpace ensure_space(this);
   const int short_size = sizeof(int8_t);
   const int long_size = sizeof(int32_t);
   --offset;  // This is how jumps are specified on x64.
