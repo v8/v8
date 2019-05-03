@@ -7,6 +7,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -560,20 +561,9 @@ bool NodeProperties::CanBePrimitive(JSHeapBroker* broker, Node* receiver,
       return value.map().IsPrimitiveMap();
     }
     default: {
-      // We don't really care about the exact maps here,
-      // just the instance types, which don't change
-      // across potential side-effecting operations.
-      ZoneHandleSet<Map> maps;
-      if (InferReceiverMaps(broker, receiver, effect, &maps) !=
-          kNoReceiverMaps) {
-        // Check if one of the {maps} is not a JSReceiver map.
-        for (size_t i = 0; i < maps.size(); ++i) {
-          MapRef map(broker, maps[i]);
-          if (!map.IsJSReceiverMap()) return true;
-        }
-        return false;
-      }
-      return true;
+      MapInference inference(broker, receiver, effect);
+      return !inference.HaveMaps() ||
+             !inference.AllOfInstanceTypesAreJSReceiver();
     }
   }
 }
