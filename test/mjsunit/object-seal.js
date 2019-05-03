@@ -220,9 +220,11 @@ assertDoesNotThrow(function() { objControl.splice(0, 0, 100, 101, 102); });
 // Verify that crankshaft still does the right thing.
 obj = [1, 2, 3];
 
-push_call = function(a) { a.push(1000); return a; }
+push_call = function(a) { a.push(1000); return a; };
+%PrepareFunctionForOptimization(push_call);
 // Include a call site that doesn't have a custom built-in.
-var shift_call = function(a) { a.shift(1000); return a; }
+var shift_call = function(a) { a.shift(1000); return a; };
+%PrepareFunctionForOptimization(shift_call);
 for (var i = 0; i < 3; i++) {
   push_call(obj);
   shift_call(obj);

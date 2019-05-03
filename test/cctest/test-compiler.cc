@@ -784,7 +784,9 @@ TEST(InvocationCount) {
 
   CompileRun(
       "function bar() {};"
+      "%EnsureFeedbackVectorForFunction(bar);"
       "function foo() { return bar(); };"
+      "%EnsureFeedbackVectorForFunction(foo);"
       "foo();");
   Handle<JSFunction> foo = Handle<JSFunction>::cast(GetGlobalProperty("foo"));
   CHECK_EQ(1, foo->feedback_vector()->invocation_count());
