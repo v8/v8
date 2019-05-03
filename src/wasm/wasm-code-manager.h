@@ -168,6 +168,13 @@ class V8_EXPORT_PRIVATE WasmCode final {
     }
   }
 
+  // Decrement the ref count on code that is known to be dead, even though there
+  // might still be C++ references. Returns whether this drops the last
+  // reference and the code needs to be freed.
+  V8_WARN_UNUSED_RESULT bool DecRefOnDeadCode() {
+    return ref_count_.fetch_sub(1, std::memory_order_relaxed) == 1;
+  }
+
   // Decrement the ref count on a set of {WasmCode} objects, potentially
   // belonging to different {NativeModule}s. Dead code will be deleted.
   static void DecrementRefCount(Vector<WasmCode* const>);
@@ -229,7 +236,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   // Slow path for {DecRef}: The code becomes potentially dead.
   // Returns whether this code becomes dead and needs to be freed.
-  bool DecRefOnPotentiallyDeadCode();
+  V8_NOINLINE bool DecRefOnPotentiallyDeadCode();
 
   Vector<byte> instructions_;
   OwnedVector<const byte> reloc_info_;

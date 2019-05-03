@@ -377,31 +377,24 @@ V8_WARN_UNUSED_RESULT bool WasmCode::DecRefOnPotentiallyDeadCode() {
   }
   // If we reach here, the code was already potentially dead. Decrement the ref
   // count, and return true if it drops to zero.
-  int old_count = ref_count_.load(std::memory_order_relaxed);
-  while (true) {
-    DCHECK_LE(1, old_count);
-    if (ref_count_.compare_exchange_weak(old_count, old_count - 1,
-                                         std::memory_order_relaxed)) {
-      return old_count == 1;
-    }
-  }
+  return DecRefOnDeadCode();
 }
 
 // static
 void WasmCode::DecrementRefCount(Vector<WasmCode* const> code_vec) {
   // Decrement the ref counter of all given code objects. Keep the ones whose
   // ref count drops to zero.
-  std::unordered_map<NativeModule*, std::vector<WasmCode*>> dead_code;
+  WasmEngine::DeadCodeMap dead_code;
+  WasmEngine* engine = nullptr;
   for (WasmCode* code : code_vec) {
-    if (code->DecRef()) dead_code[code->native_module()].push_back(code);
+    if (!code->DecRef()) continue;  // Remaining references.
+    dead_code[code->native_module()].push_back(code);
+    if (!engine) engine = code->native_module()->engine();
+    DCHECK_EQ(engine, code->native_module()->engine());
   }
 
-  // For each native module, free all its code objects at once.
-  for (auto& dead_code_entry : dead_code) {
-    NativeModule* native_module = dead_code_entry.first;
-    Vector<WasmCode*> code_vec = VectorOf(dead_code_entry.second);
-    native_module->engine()->FreeDeadCode(native_module, code_vec);
-  }
+  DCHECK_EQ(dead_code.empty(), engine == nullptr);
+  if (engine) engine->FreeDeadCode(dead_code);
 }
 
 NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,

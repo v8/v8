@@ -196,8 +196,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // case.
   V8_WARN_UNUSED_RESULT bool AddPotentiallyDeadCode(WasmCode*);
 
-  // Free dead code on a native module.
-  void FreeDeadCode(NativeModule*, Vector<WasmCode* const>);
+  // Free dead code.
+  using DeadCodeMap = std::unordered_map<NativeModule*, std::vector<WasmCode*>>;
+  void FreeDeadCode(const DeadCodeMap&);
+  void FreeDeadCodeLocked(const DeadCodeMap&);
 
   // Call on process start and exit.
   static void InitializeOncePerProcess();

@@ -648,10 +648,10 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
         } else {
           ++it;
         }
-        TRACE_CODE_GC(
-            "Native module %p died, reducing dead code objects to %zu.\n",
-            native_module, current_gc_info_->dead_code.size());
       }
+      TRACE_CODE_GC(
+          "Native module %p died, reducing dead code objects to %zu.\n",
+          native_module, current_gc_info_->dead_code.size());
     }
     native_modules_.erase(it);
   }
@@ -696,45 +696,44 @@ void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
                                      Vector<WasmCode*> live_code) {
   TRACE_CODE_GC("Isolate %d reporting %zu live code objects.\n", isolate->id(),
                 live_code.size());
-  // Get the set of dead code under the mutex, but decrement the ref count after
-  // releasing the mutex to avoid deadlocks.
-  OwnedVector<WasmCode*> dead_code;
-  {
-    base::MutexGuard guard(&mutex_);
-    DCHECK_NOT_NULL(current_gc_info_);
-    auto outstanding_isolate_it =
-        current_gc_info_->outstanding_isolates.find(isolate);
-    DCHECK_NE(current_gc_info_->outstanding_isolates.end(),
-              outstanding_isolate_it);
-    auto* fg_task = outstanding_isolate_it->second;
-    if (fg_task) fg_task->Cancel();
-    current_gc_info_->outstanding_isolates.erase(outstanding_isolate_it);
-    for (WasmCode* code : live_code) current_gc_info_->dead_code.erase(code);
-    TRACE_CODE_GC(
-        "Remaining dead code objects: %zu; outstanding isolates: %zu.\n",
-        current_gc_info_->dead_code.size(),
-        current_gc_info_->outstanding_isolates.size());
+  DeadCodeMap dead_code;
+  base::MutexGuard guard(&mutex_);
+  DCHECK_NOT_NULL(current_gc_info_);
+  auto outstanding_isolate_it =
+      current_gc_info_->outstanding_isolates.find(isolate);
+  DCHECK_NE(current_gc_info_->outstanding_isolates.end(),
+            outstanding_isolate_it);
+  auto* fg_task = outstanding_isolate_it->second;
+  if (fg_task) fg_task->Cancel();
+  current_gc_info_->outstanding_isolates.erase(outstanding_isolate_it);
+  for (WasmCode* code : live_code) current_gc_info_->dead_code.erase(code);
+  TRACE_CODE_GC(
+      "Remaining dead code objects: %zu; outstanding isolates: %zu.\n",
+      current_gc_info_->dead_code.size(),
+      current_gc_info_->outstanding_isolates.size());
 
-    // If there are more outstanding isolates, return here.
-    if (!current_gc_info_->outstanding_isolates.empty()) return;
+  // If there are more outstanding isolates, return here.
+  if (!current_gc_info_->outstanding_isolates.empty()) return;
 
-    // All remaining code in {current_gc_info->dead_code} is really dead.
-    // Move it from the set of potentially dead code to the set of dead code,
-    // and decrement its ref count.
-    TRACE_CODE_GC("Decrementing ref count on %zu code objects.\n",
-                  current_gc_info_->dead_code.size());
-    dead_code = OwnedVector<WasmCode*>::Of(current_gc_info_->dead_code);
-    for (WasmCode* code : dead_code) {
-      DCHECK_EQ(1, native_modules_.count(code->native_module()));
-      auto* native_module_info = native_modules_[code->native_module()].get();
-      DCHECK_EQ(1, native_module_info->potentially_dead_code.count(code));
-      native_module_info->potentially_dead_code.erase(code);
-      DCHECK_EQ(0, native_module_info->dead_code.count(code));
-      native_module_info->dead_code.insert(code);
+  // All remaining code in {current_gc_info->dead_code} is really dead.
+  // Move it from the set of potentially dead code to the set of dead code,
+  // and decrement its ref count.
+  TRACE_CODE_GC("Decrementing ref count on %zu code objects.\n",
+                current_gc_info_->dead_code.size());
+  for (WasmCode* code : current_gc_info_->dead_code) {
+    DCHECK_EQ(1, native_modules_.count(code->native_module()));
+    auto* native_module_info = native_modules_[code->native_module()].get();
+    DCHECK_EQ(1, native_module_info->potentially_dead_code.count(code));
+    native_module_info->potentially_dead_code.erase(code);
+    DCHECK_EQ(0, native_module_info->dead_code.count(code));
+    native_module_info->dead_code.insert(code);
+    if (code->DecRefOnDeadCode()) {
+      dead_code[code->native_module()].push_back(code);
     }
-    current_gc_info_.reset();
   }
-  if (!dead_code.empty()) WasmCode::DecrementRefCount(dead_code.as_vector());
+  current_gc_info_.reset();
+
+  FreeDeadCodeLocked(dead_code);
 }
 
 bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
@@ -763,21 +762,26 @@ bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
   return true;
 }
 
-void WasmEngine::FreeDeadCode(NativeModule* native_module,
-                              Vector<WasmCode* const> codes) {
-  {
-    base::MutexGuard guard(&mutex_);
+void WasmEngine::FreeDeadCode(const DeadCodeMap& dead_code) {
+  base::MutexGuard guard(&mutex_);
+  FreeDeadCodeLocked(dead_code);
+}
+
+void WasmEngine::FreeDeadCodeLocked(const DeadCodeMap& dead_code) {
+  DCHECK(!mutex_.TryLock());
+  for (auto& dead_code_entry : dead_code) {
+    NativeModule* native_module = dead_code_entry.first;
+    const std::vector<WasmCode*>& code_vec = dead_code_entry.second;
     DCHECK_EQ(1, native_modules_.count(native_module));
     auto* info = native_modules_[native_module].get();
-    for (WasmCode* code : codes) {
+    TRACE_CODE_GC("Freeing %zu code object%s of module %p.\n", code_vec.size(),
+                  code_vec.size() == 1 ? "" : "s", native_module);
+    for (WasmCode* code : code_vec) {
       DCHECK_EQ(1, info->dead_code.count(code));
       info->dead_code.erase(code);
     }
+    native_module->FreeCode(VectorOf(code_vec));
   }
-
-  TRACE_CODE_GC("Freeing %zu code object%s of module %p.\n", codes.size(),
-                codes.size() == 1 ? "" : "s", native_module);
-  native_module->FreeCode(codes);
 }
 
 void WasmEngine::TriggerGC() {
