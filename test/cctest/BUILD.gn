@@ -6,6 +6,11 @@ import("../../gni/v8.gni")
 
 v8_executable("cctest") {
   testonly = true
+
+  sources = [
+    "cctest.cc",
+  ]
+
   deps = [
     ":cctest_sources",
   ]
@@ -57,7 +62,6 @@ v8_source_set("cctest_sources") {
     "../common/wasm/flag-utils.h",
     "../common/wasm/test-signatures.h",
     "../common/wasm/wasm-macro-gen.h",
-    "cctest.cc",
     "compiler/c-signature.h",
     "compiler/call-tester.h",
     "compiler/code-assembler-tester.h",
