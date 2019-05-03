@@ -1007,9 +1007,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kLoadDataViewElement:
       result = LowerLoadDataViewElement(node);
       break;
-    case IrOpcode::kLoadStackArgument:
-      result = LowerLoadStackArgument(node);
-      break;
     case IrOpcode::kStoreTypedElement:
       LowerStoreTypedElement(node);
       break;
@@ -4525,16 +4522,6 @@ Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
   // We're done, return {result}.
   __ Bind(&done);
   return done.PhiAt(0);
-}
-
-Node* EffectControlLinearizer::LowerLoadStackArgument(Node* node) {
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-
-  Node* argument =
-      __ LoadElement(AccessBuilder::ForStackArgument(), base, index);
-
-  return __ BitcastWordToTagged(argument);
 }
 
 void EffectControlLinearizer::LowerStoreDataViewElement(Node* node) {

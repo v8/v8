@@ -2821,11 +2821,6 @@ class RepresentationSelector {
                    access.machine_type.representation());
         return;
       }
-      case IrOpcode::kLoadStackArgument: {
-        if (truncation.IsUnused()) return VisitUnused(node);
-        VisitBinop(node, UseInfo::Word(), MachineRepresentation::kTagged);
-        return;
-      }
       case IrOpcode::kStoreElement: {
         ElementAccess access = ElementAccessOf(node->op());
         Node* value_node = node->InputAt(2);

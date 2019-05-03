@@ -964,7 +964,7 @@ ElementAccess AccessBuilder::ForStackArgument() {
   ElementAccess access = {
       kUntaggedBase,
       CommonFrameConstants::kFixedFrameSizeAboveFp - kSystemPointerSize,
-      Type::NonInternal(), MachineType::Pointer(),
+      Type::NonInternal(), MachineType::AnyTagged(),
       WriteBarrierKind::kNoWriteBarrier};
   return access;
 }
