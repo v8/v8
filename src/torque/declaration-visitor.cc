@@ -65,7 +65,7 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
   }
 
   if (javascript) {
-    if (signature.types().size() < 2 ||
+    if (signature.types().size() >= 2 &&
         !(signature.types()[1] ==
           Declarations::LookupGlobalType(OBJECT_TYPE_STRING))) {
       std::stringstream stream;

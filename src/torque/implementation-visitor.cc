@@ -2719,8 +2719,9 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(std::string& file_name) {
         assert(builtin->IsFixedArgsJavaScript());
         // FixedArg javascript builtins need to offer the parameter
         // count.
-        assert(builtin->parameter_names().size() >= 2);
-        new_contents_stream << ", " << (builtin->parameter_names().size() - 2);
+        int size = static_cast<int>(builtin->parameter_names().size());
+        assert(size >= 1);
+        new_contents_stream << ", " << (std::max(size - 2, 0));
         // And the receiver is explicitly declared.
         new_contents_stream << ", kReceiver";
         firstParameterIndex = 2;
