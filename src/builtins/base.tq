@@ -614,6 +614,7 @@ type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
 type MessageTemplate constexpr 'MessageTemplate';
+type PrimitiveType constexpr 'PrimitiveType';
 type ToIntegerTruncationMode
 constexpr 'CodeStubAssembler::ToIntegerTruncationMode';
 type AllocationFlags constexpr 'AllocationFlags';
@@ -891,6 +892,9 @@ const kInvalidDataViewAccessorOffset: constexpr MessageTemplate
 const kStrictReadOnlyProperty: constexpr MessageTemplate
     generates 'MessageTemplate::kStrictReadOnlyProperty';
 
+const kString: constexpr PrimitiveType
+    generates 'PrimitiveType::kString';
+
 type Hole extends Oddball;
 type Null extends Oddball;
 type Undefined extends Oddball;
@@ -1156,6 +1160,8 @@ extern transitioning macro ToSmiLength(implicit context: Context)(Object):
 extern transitioning macro ToString_Inline(Context, Object): String;
 extern transitioning macro ToThisString(implicit context: Context)(
     Object, String): String;
+extern transitioning macro ToThisValue(implicit context: Context)(
+    Object, constexpr PrimitiveType, constexpr string): Object;
 extern transitioning macro GetProperty(implicit context: Context)(
     Object, Object): Object;
 extern transitioning builtin SetProperty(implicit context: Context)(

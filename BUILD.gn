@@ -949,6 +949,7 @@ torque_files = [
   "src/builtins/proxy-revoke.tq",
   "src/builtins/regexp.tq",
   "src/builtins/regexp-replace.tq",
+  "src/builtins/string.tq",
   "src/builtins/string-endswith.tq",
   "src/builtins/string-html.tq",
   "src/builtins/string-iterator.tq",

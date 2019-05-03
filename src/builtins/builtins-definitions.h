@@ -992,14 +992,10 @@ namespace internal {
   /* ES6 #sec-string.prototype.substring */                                    \
   TFJ(StringPrototypeSubstring,                                                \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-  /* ES6 #sec-string.prototype.tostring */                                     \
-  TFJ(StringPrototypeToString, 0, kReceiver)                                   \
   TFJ(StringPrototypeTrim, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   TFJ(StringPrototypeTrimEnd, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
   TFJ(StringPrototypeTrimStart,                                                \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-  /* ES6 #sec-string.prototype.valueof */                                      \
-  TFJ(StringPrototypeValueOf, 0, kReceiver)                                    \
   /* ES6 #sec-string.raw */                                                    \
   CPP(StringRaw)                                                               \
                                                                                \

@@ -2203,26 +2203,6 @@ void StringTrimAssembler::GotoIfNotWhiteSpaceOrLineTerminator(
   BIND(&out);
 }
 
-// ES6 #sec-string.prototype.tostring
-TF_BUILTIN(StringPrototypeToString, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
-
-  Node* result = ToThisValue(context, receiver, PrimitiveType::kString,
-                             "String.prototype.toString");
-  Return(result);
-}
-
-// ES6 #sec-string.prototype.valueof
-TF_BUILTIN(StringPrototypeValueOf, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
-
-  Node* result = ToThisValue(context, receiver, PrimitiveType::kString,
-                             "String.prototype.valueOf");
-  Return(result);
-}
-
 // Return the |word32| codepoint at {index}. Supports SeqStrings and
 // ExternalStrings.
 TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(

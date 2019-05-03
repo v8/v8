@@ -1,0 +1,17 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace string {
+  // ES6 #sec-string.prototype.tostring
+  transitioning javascript builtin
+  StringPrototypeToString(implicit context: Context)(receiver: Object): Object {
+    return ToThisValue(receiver, kString, 'String.prototype.toString');
+  }
+
+  // ES6 #sec-string.prototype.valueof
+  transitioning javascript builtin
+  StringPrototypeValueOf(implicit context: Context)(receiver: Object): Object {
+    return ToThisValue(receiver, kString, 'String.prototype.valueOf');
+  }
+}
