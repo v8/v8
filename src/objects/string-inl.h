@@ -260,22 +260,8 @@ class SeqOneByteSubStringKey final : public StringTableKey {
 #pragma warning(pop)
 #endif
 
-  bool IsMatch(Object object) override {
-    DisallowHeapAllocation no_gc;
-    String string = String::cast(object);
-    if (string.length() != length_) return false;
-    if (string.IsOneByteRepresentation()) {
-      const uint8_t* data = string.GetChars<uint8_t>(no_gc);
-      return CompareChars(string_->GetChars(no_gc) + from_, data, length_) == 0;
-    }
-    const uint16_t* data = string.GetChars<uint16_t>(no_gc);
-    return CompareChars(string_->GetChars(no_gc) + from_, data, length_) == 0;
-  }
-
-  Handle<String> AsHandle(Isolate* isolate) override {
-    return isolate->factory()->NewOneByteInternalizedSubString(
-        string_, from_, length_, HashField());
-  }
+  bool IsMatch(Object string) override;
+  Handle<String> AsHandle(Isolate* isolate) override;
 
  private:
   Handle<SeqOneByteString> string_;
