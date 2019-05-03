@@ -8,13 +8,12 @@
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
-#include "src/parsing/literal-buffer.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
-enum ParseElementResult { kElementFound, kElementNotFound };
+enum ParseElementResult { kElementFound, kElementNotFound, kNullHandle };
 
 class JsonParseInternalizer {
  public:
@@ -33,24 +32,6 @@ class JsonParseInternalizer {
 
   Isolate* isolate_;
   Handle<JSReceiver> reviver_;
-};
-
-enum class JsonToken : uint8_t {
-  NUMBER,
-  NEGATIVE_NUMBER,
-  STRING,
-  LBRACE,
-  RBRACE,
-  LBRACK,
-  RBRACK,
-  TRUE_LITERAL,
-  FALSE_LITERAL,
-  NULL_LITERAL,
-  WHITESPACE,
-  COLON,
-  COMMA,
-  ILLEGAL,
-  EOS
 };
 
 // A simple json parser.
@@ -74,12 +55,7 @@ class JsonParser final {
   static const int kEndOfString = -1;
 
  private:
-  template <typename LiteralChar>
-  Handle<String> MakeString(bool requires_internalization,
-                            const Vector<const LiteralChar>& chars);
-
-  Handle<String> MakeString(bool requires_internalization, int offset,
-                            int length);
+  Handle<String> Internalize(int start, int length);
 
   JsonParser(Isolate* isolate, Handle<String> source);
   ~JsonParser();
@@ -87,67 +63,38 @@ class JsonParser final {
   // Parse a string containing a single JSON value.
   MaybeHandle<Object> ParseJson();
 
-  void advance() { ++cursor_; }
-  Char NextCharacter();
-
-  V8_INLINE JsonToken peek() const { return next_; }
-
-  void Consume(JsonToken token) {
-    DCHECK_EQ(peek(), token);
-    advance();
-  }
-
-  void Expect(JsonToken token) {
-    if (V8_LIKELY(peek() == token)) {
-      advance();
-    } else {
-      ReportUnexpectedCharacter(peek());
-    }
-  }
-
-  void ExpectNext(JsonToken token) {
-    SkipWhitespace();
-    Expect(token);
-  }
-
-  bool Check(JsonToken token) {
-    SkipWhitespace();
-    if (next_ != token) return false;
-    advance();
-    return true;
-  }
-
-  template <size_t N>
-  void ScanLiteral(const char (&s)[N]) {
-    DCHECK(!is_at_end());
-    if (V8_UNLIKELY(static_cast<size_t>(end_ - cursor_) < N - 1)) {
-      ReportUnexpectedCharacter(JsonToken::EOS);
-      return;
-    }
-    // There's at least 1 character, we always consume a character and compare
-    // the next character. The first character was compared before we jumped to
-    // ScanLiteral.
-    STATIC_ASSERT(N > 2);
-    if (V8_LIKELY(CompareChars(s + 1, cursor_ + 1, N - 2) == 0)) {
-      cursor_ += N - 1;
-    } else {
-      ReportUnexpectedCharacter();
-    }
-  }
+  V8_INLINE void Advance();
 
   // The JSON lexical grammar is specified in the ECMAScript 5 standard,
   // section 15.12.1.1. The only allowed whitespace characters between tokens
   // are tab, carriage-return, newline and space.
-  void SkipWhitespace();
+
+  V8_INLINE void AdvanceSkipWhitespace();
+  V8_INLINE void SkipWhitespace();
+  V8_INLINE uc32 AdvanceGetChar();
+
+  // Checks that current charater is c.
+  // If so, then consume c and skip whitespace.
+  V8_INLINE bool MatchSkipWhiteSpace(uc32 c);
 
   // A JSON string (production JSONString) is subset of valid JavaScript string
   // literals. The string must only be double-quoted (not single-quoted), and
   // the only allowed backslash-escapes are ", /, \, b, f, n, r, t and
   // four-digit hex escapes (uXXXX). Any other use of backslashes is invalid.
-  Handle<String> ParseJsonString(bool requires_internalization,
-                                 Handle<String> expected = Handle<String>());
+  bool ParseJsonString(Handle<String> expected);
+
+  Handle<String> ParseJsonString() {
+    Handle<String> result = ScanJsonString();
+    if (result.is_null()) return result;
+    return factory()->InternalizeString(result);
+  }
 
   Handle<String> ScanJsonString();
+  // Creates a new string and copies prefix[start..end] into the beginning
+  // of it. Then scans the rest of the string, adding characters after the
+  // prefix. Called by ScanJsonString when reaching a '\' or non-Latin1 char.
+  template <typename StringType, typename SinkChar>
+  Handle<String> SlowScanJsonString(Handle<String> prefix, int start, int end);
 
   // A JSON number (production JSONNumber) is a subset of the valid JavaScript
   // decimal number literals.
@@ -155,7 +102,7 @@ class JsonParser final {
   // digit before and after a decimal point, may not have prefixed zeros (unless
   // the integer part is zero), and may include an exponent part (e.g., "e-10").
   // Hexadecimal and octal numbers are not allowed.
-  Handle<Object> ParseJsonNumber(int sign, const Char* start);
+  Handle<Object> ParseJsonNumber();
 
   // Parse a single JSON value from input (grammar production JSONValue).
   // A JSON value is either a (double-quoted) string literal, a number literal,
@@ -171,9 +118,8 @@ class JsonParser final {
   Handle<Object> ParseJsonObject();
 
   // Helper for ParseJsonObject. Parses the form "123": obj, which is recorded
-  // as an element, not a property. Returns false if we should retry parsing the
-  // key as a non-element. (Returns true if it's an index or hits EOS).
-  bool ParseElement(Handle<JSObject> json_object);
+  // as an element, not a property.
+  ParseElementResult ParseElement(Handle<JSObject> json_object);
 
   // Parses a JSON array literal (grammar production JSONArray). An array
   // literal is a square-bracketed and comma separated sequence (possibly empty)
@@ -182,8 +128,12 @@ class JsonParser final {
   // it allow a terminal comma, like a JavaScript array does.
   Handle<Object> ParseJsonArray();
 
-  // Mark that a parsing error has happened at the current character.
-  void ReportUnexpectedCharacter(JsonToken token = JsonToken::ILLEGAL);
+
+  // Mark that a parsing error has happened at the current token, and
+  // return a null handle. Primarily for readability.
+  inline Handle<Object> ReportUnexpectedCharacter() {
+    return Handle<Object>::null();
+  }
 
   inline Isolate* isolate() { return isolate_; }
   inline Factory* factory() { return isolate_->factory(); }
@@ -201,57 +151,47 @@ class JsonParser final {
     DisallowHeapAllocation no_gc;
     const Char* chars = Handle<SeqString>::cast(source_)->GetChars(no_gc);
     if (chars_ != chars) {
-      size_t position = cursor_ - chars_;
-      size_t length = end_ - chars_;
       chars_ = chars;
-      cursor_ = chars_ + position;
-      end_ = chars_ + length;
     }
   }
 
  private:
   static const bool kIsOneByte = sizeof(Char) == 1;
-  static const int kMaxInternalizedStringValueLength = 25;
 
-  // Casts |c| to uc32 avoiding LiteralBuffer::AddChar(char) in one-byte-strings
-  // with escapes that can result in two-byte strings.
-  void AddLiteralChar(uc32 c) { literal_buffer_.AddChar(c); }
+  Zone* zone() { return &zone_; }
 
   void CommitStateToJsonObject(Handle<JSObject> json_object, Handle<Map> map,
-                               const Vector<const Handle<Object>>& properties);
-
-  bool is_at_end() const {
-    DCHECK_LE(cursor_, end_);
-    return cursor_ == end_;
-  }
-
-  int position() const { return static_cast<int>(cursor_ - chars_); }
+                               Vector<const Handle<Object>> properties);
 
   Isolate* isolate_;
   Zone zone_;
-  const uint64_t hash_seed_;
   AllocationType allocation_;
   Handle<JSFunction> object_constructor_;
-  const Handle<String> original_source_;
   Handle<String> source_;
+  int offset_;
+  int length_;
 
   // Cached pointer to the raw chars in source. In case source is on-heap, we
-  // register an UpdatePointers callback. For this reason, chars_, cursor_ and
-  // end_ should never be locally cached across a possible allocation. The scope
-  // in which we cache chars has to be guarded by a DisallowHeapAllocation
-  // scope.
+  // register an UpdatePointers callback. For this reason, chars_ should never
+  // be locally cached across a possible allocation. The scope in which we
+  // cache chars has to be guarded by a DisallowHeapAllocation scope.
+  // TODO(verwaest): Move chars_ and functions that operate over chars to a
+  // separate helper class that makes it clear that all functions need to be
+  // guarded.
   const Char* chars_;
-  const Char* cursor_;
-  const Char* end_;
 
-  JsonToken next_;
-  LiteralBuffer literal_buffer_;
-  // Indicates whether the bytes underneath source_ can relocate during GC.
-  bool chars_may_relocate_;
+  uc32 c0_;
+  int position_;
 
   // Property handles are stored here inside ParseJsonObject.
   ZoneVector<Handle<Object>> properties_;
 };
+
+template <>
+Handle<String> JsonParser<uint8_t>::Internalize(int start, int length);
+
+template <>
+Handle<String> JsonParser<uint16_t>::Internalize(int start, int length);
 
 // Explicit instantiation declarations.
 extern template class JsonParser<uint8_t>;
