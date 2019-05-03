@@ -99,6 +99,7 @@ function TestLoadFromConstantFieldOfAPrototype(the_value, other_value) {
 
   // Ensure O.prototype is in fast mode by loading from its field.
   function warmup() { return new O().v; }
+  %EnsureFeedbackVectorForFunction(warmup);
   warmup(); warmup(); warmup();
   assertTrue(%HasFastProperties(O.prototype));
 

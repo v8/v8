@@ -30,6 +30,7 @@
   assertUnoptimized(foo);
   assertTrue(%HasDictionaryElements(a));
 
+  %PrepareFunctionForOptimization(foo);
   var b = [];
   foo(b, 1);
   foo(b, 2);
