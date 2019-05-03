@@ -148,7 +148,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   ~WasmCode();
 
   void IncRef() {
-    int old_val = ref_count_.fetch_add(1, std::memory_order_relaxed);
+    int old_val = ref_count_.fetch_add(1, std::memory_order_acq_rel);
     DCHECK_LE(1, old_val);
     DCHECK_GT(kMaxInt, old_val);
     USE(old_val);
@@ -157,12 +157,12 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // Decrement the ref count. Returns whether this code becomes dead and needs
   // to be freed.
   V8_WARN_UNUSED_RESULT bool DecRef() {
-    int old_count = ref_count_.load(std::memory_order_relaxed);
+    int old_count = ref_count_.load(std::memory_order_acquire);
     while (true) {
       DCHECK_LE(1, old_count);
       if (V8_UNLIKELY(old_count == 1)) return DecRefOnPotentiallyDeadCode();
       if (ref_count_.compare_exchange_weak(old_count, old_count - 1,
-                                           std::memory_order_relaxed)) {
+                                           std::memory_order_acq_rel)) {
         return false;
       }
     }
@@ -172,7 +172,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // might still be C++ references. Returns whether this drops the last
   // reference and the code needs to be freed.
   V8_WARN_UNUSED_RESULT bool DecRefOnDeadCode() {
-    return ref_count_.fetch_sub(1, std::memory_order_relaxed) == 1;
+    return ref_count_.fetch_sub(1, std::memory_order_acq_rel) == 1;
   }
 
   // Decrement the ref count on a set of {WasmCode} objects, potentially
