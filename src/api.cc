@@ -3033,6 +3033,10 @@ bool StackFrame::IsWasm() const {
   return i::StackTraceFrame::IsWasm(Utils::OpenHandle(this));
 }
 
+bool StackFrame::IsUserJavaScript() const {
+  return i::StackTraceFrame::IsUserJavaScript(Utils::OpenHandle(this));
+}
+
 // --- J S O N ---
 
 MaybeLocal<Value> JSON::Parse(Local<Context> context,

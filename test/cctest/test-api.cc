@@ -16446,6 +16446,7 @@ void checkStackFrame(const char* expected_script_name,
   CHECK_EQ(expected_column, frame->GetColumn());
   CHECK_EQ(is_eval, frame->IsEval());
   CHECK_EQ(is_constructor, frame->IsConstructor());
+  CHECK(frame->IsUserJavaScript());
 }
 
 

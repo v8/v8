@@ -27,6 +27,7 @@ class StackFrameInfo : public Struct {
   DECL_BOOLEAN_ACCESSORS(is_eval)
   DECL_BOOLEAN_ACCESSORS(is_constructor)
   DECL_BOOLEAN_ACCESSORS(is_wasm)
+  DECL_BOOLEAN_ACCESSORS(is_user_java_script)
   DECL_INT_ACCESSORS(flag)
 
   DECL_CAST(StackFrameInfo)
@@ -43,6 +44,7 @@ class StackFrameInfo : public Struct {
   static const int kIsEvalBit = 0;
   static const int kIsConstructorBit = 1;
   static const int kIsWasmBit = 2;
+  static const int kIsUserJavaScriptBit = 3;
 
   OBJECT_CONSTRUCTORS(StackFrameInfo, Struct);
 };
@@ -80,6 +82,7 @@ class StackTraceFrame : public Struct {
   static bool IsEval(Handle<StackTraceFrame> frame);
   static bool IsConstructor(Handle<StackTraceFrame> frame);
   static bool IsWasm(Handle<StackTraceFrame> frame);
+  static bool IsUserJavaScript(Handle<StackTraceFrame> frame);
 
  private:
   OBJECT_CONSTRUCTORS(StackTraceFrame, Struct);

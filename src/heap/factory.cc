@@ -3826,8 +3826,11 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   if (!is_wasm) {
     Handle<Object> function = it.Frame()->GetFunction();
     if (function->IsJSFunction()) {
-      function_name =
-          JSFunction::GetDebugName(Handle<JSFunction>::cast(function));
+      Handle<JSFunction> fun = Handle<JSFunction>::cast(function);
+      function_name = JSFunction::GetDebugName(fun);
+
+      const bool is_user_java_script = fun->shared()->IsUserJavaScript();
+      info->set_is_user_java_script(is_user_java_script);
     }
   }
   info->set_function_name(*function_name);
