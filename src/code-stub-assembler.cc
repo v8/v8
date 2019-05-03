@@ -8137,9 +8137,7 @@ void CodeStubAssembler::Increment(Variable* variable, int value,
                                   ParameterMode mode) {
   DCHECK_IMPLIES(mode == INTPTR_PARAMETERS,
                  variable->rep() == MachineType::PointerRepresentation());
-  DCHECK_IMPLIES(mode == SMI_PARAMETERS,
-                 variable->rep() == MachineRepresentation::kTagged ||
-                     variable->rep() == MachineRepresentation::kTaggedSigned);
+  DCHECK_IMPLIES(mode == SMI_PARAMETERS, CanBeTaggedSigned(variable->rep()));
   variable->Bind(IntPtrOrSmiAdd(variable->value(),
                                 IntPtrOrSmiConstant(value, mode), mode));
 }

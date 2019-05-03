@@ -855,9 +855,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
           jsgraph()->common()->DeadValue(MachineRepresentation::kFloat64),
           unreachable);
     }
-  } else if (output_rep == MachineRepresentation::kTagged ||
-             output_rep == MachineRepresentation::kTaggedSigned ||
-             output_rep == MachineRepresentation::kTaggedPointer) {
+  } else if (IsAnyTagged(output_rep)) {
     if (output_type.Is(Type::Undefined())) {
       return jsgraph()->Float64Constant(
           std::numeric_limits<double>::quiet_NaN());

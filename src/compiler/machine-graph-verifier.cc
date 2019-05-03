@@ -926,13 +926,9 @@ class MachineRepresentationChecker {
                     MachineRepresentation actual) {
     switch (expected) {
       case MachineRepresentation::kTagged:
-        return (actual == MachineRepresentation::kTagged ||
-                actual == MachineRepresentation::kTaggedSigned ||
-                actual == MachineRepresentation::kTaggedPointer);
+        return IsAnyTagged(actual);
       case MachineRepresentation::kCompressed:
-        return (actual == MachineRepresentation::kCompressed ||
-                actual == MachineRepresentation::kCompressedSigned ||
-                actual == MachineRepresentation::kCompressedPointer);
+        return IsAnyCompressed(actual);
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kCompressedSigned:

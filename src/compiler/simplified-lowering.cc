@@ -2791,8 +2791,7 @@ class RepresentationSelector {
             access.machine_type.representation();
 
         // Convert to Smi if possible, such that we can avoid a write barrier.
-        if ((field_representation == MachineRepresentation::kTagged ||
-             field_representation == MachineRepresentation::kCompressed) &&
+        if (field_representation == MachineType::RepCompressedTagged() &&
             TypeOf(value_node).Is(Type::SignedSmall())) {
           field_representation = MachineType::RepCompressedTaggedSigned();
         }
@@ -2829,8 +2828,7 @@ class RepresentationSelector {
             access.machine_type.representation();
 
         // Convert to Smi if possible, such that we can avoid a write barrier.
-        if ((element_representation == MachineRepresentation::kTagged ||
-             element_representation == MachineRepresentation::kCompressed) &&
+        if (element_representation == MachineType::RepCompressedTagged() &&
             TypeOf(value_node).Is(Type::SignedSmall())) {
           element_representation = MachineType::RepCompressedTaggedSigned();
         }
