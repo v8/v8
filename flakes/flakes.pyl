@@ -116,7 +116,7 @@
     "test_name": "cctest/test-cpu-profiler/DeoptUntrackedFunction",
     "timeout_sec": 60,
     "total_timeout_sec": 120,
-    "variant": "no_liftoff",
+    "variant": "default",
   },
   {
     "bisect_buildername": "V8 Win32 - nosnap - shared",
