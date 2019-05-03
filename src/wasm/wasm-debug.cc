@@ -146,8 +146,6 @@ class InterpreterHandle {
         interpreter_(isolate, module_, GetBytes(*debug_info),
                      handle(debug_info->wasm_instance(), isolate)) {}
 
-  ~InterpreterHandle() { DCHECK_EQ(0, activations_.size()); }
-
   WasmInterpreter* interpreter() { return &interpreter_; }
   const WasmModule* module() const { return module_; }
 
