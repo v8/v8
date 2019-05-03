@@ -180,6 +180,12 @@ class OwnedVector {
   constexpr T* begin() const { return start(); }
   constexpr T* end() const { return start() + size(); }
 
+  // Access individual vector elements - checks bounds in debug mode.
+  T& operator[](size_t index) const {
+    DCHECK_LT(index, length_);
+    return data_[index];
+  }
+
   // Returns a {Vector<T>} view of the data in this vector.
   Vector<T> as_vector() const { return Vector<T>(start(), size()); }
 
