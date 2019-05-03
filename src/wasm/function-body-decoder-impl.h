@@ -734,7 +734,8 @@ struct ControlBase {
   F(ElemDrop, const ElemDropImmediate<validate>& imm)                         \
   F(TableCopy, const TableCopyImmediate<validate>& imm, Vector<Value> args)   \
   F(TableGrow, const TableIndexImmediate<validate>& imm, const Value& value,  \
-    const Value& delta, Value* result)
+    const Value& delta, Value* result)                                        \
+  F(TableSize, const TableIndexImmediate<validate>& imm, Value* result)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
 // lengths, etc.
@@ -1298,7 +1299,8 @@ class WasmDecoder : public Decoder {
             TableCopyImmediate<validate> imm(decoder, pc);
             return 2 + imm.length;
           }
-          case kExprTableGrow: {
+          case kExprTableGrow:
+          case kExprTableSize: {
             TableIndexImmediate<validate> imm(decoder, pc);
             return 2 + imm.length;
           }
@@ -2231,7 +2233,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           opcode = static_cast<WasmOpcode>(opcode << 8 | numeric_index);
           if (opcode < kExprMemoryInit) {
             CHECK_PROTOTYPE_OPCODE(sat_f2i_conversions);
-          } else if (opcode == kExprTableGrow) {
+          } else if (opcode == kExprTableGrow || opcode == kExprTableSize) {
             CHECK_PROTOTYPE_OPCODE(anyref);
           } else {
             CHECK_PROTOTYPE_OPCODE(bulk_memory);
@@ -2676,6 +2678,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           auto value = Pop(0, this->module_->tables[imm.index].type);
           auto* result = Push(kWasmI32);
           CALL_INTERFACE_IF_REACHABLE(TableGrow, imm, value, delta, result);
+          break;
+        }
+        case kExprTableSize: {
+          TableIndexImmediate<validate> imm(this, this->pc_ + 1);
+          if (!this->Validate(this->pc_, imm)) break;
+          len += imm.length;
+          auto* result = Push(kWasmI32);
+          CALL_INTERFACE_IF_REACHABLE(TableSize, imm, result);
           break;
         }
         default:

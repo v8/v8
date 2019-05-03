@@ -621,6 +621,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_TABLE_GROW(table, initial_value, delta)     \
   initial_value, delta, WASM_NUMERIC_OP(kExprTableGrow), \
       static_cast<byte>(table)
+#define WASM_TABLE_SIZE(table) \
+  WASM_NUMERIC_OP(kExprTableSize), static_cast<byte>(table)
 
 //------------------------------------------------------------------------------
 // Memory Operations.

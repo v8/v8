@@ -1996,6 +1996,10 @@ class LiftoffCompiler {
                  Value& value, Value& delta, Value* result) {
     unsupported(decoder, "table.grow");
   }
+  void TableSize(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Value* result) {
+    unsupported(decoder, "table.size");
+  }
 
  private:
   LiftoffAssembler asm_;

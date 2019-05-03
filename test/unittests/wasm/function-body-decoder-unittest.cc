@@ -3194,12 +3194,25 @@ TEST_F(FunctionBodyDecoderTest, TableGrow) {
                 {WASM_TABLE_GROW(tab_ref + 2, WASM_REF_NULL, WASM_ONE)});
 }
 
+TEST_F(FunctionBodyDecoderTest, TableSize) {
+  TestModuleBuilder builder;
+  int tab = builder.AddTable(kWasmAnyFunc, 10, true, 20);
+
+  module = builder.module();
+
+  ExpectFailure(sigs.i_v(), {WASM_TABLE_SIZE(tab)});
+  WASM_FEATURE_SCOPE(anyref);
+  ExpectValidates(sigs.i_v(), {WASM_TABLE_SIZE(tab)});
+  ExpectFailure(sigs.i_v(), {WASM_TABLE_SIZE(tab + 2)});
+}
+
 TEST_F(FunctionBodyDecoderTest, TableOpsWithoutTable) {
   TestModuleBuilder builder;
   builder.AddTable(kWasmAnyRef, 10, true, 20);
   {
     WASM_FEATURE_SCOPE(anyref);
     ExpectFailure(sigs.i_v(), {WASM_TABLE_GROW(0, WASM_REF_NULL, WASM_ONE)});
+    ExpectFailure(sigs.i_v(), {WASM_TABLE_SIZE(0)});
   }
 
   {

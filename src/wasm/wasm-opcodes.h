@@ -421,7 +421,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(TableInit, 0xfc0c, v_iii)       \
   V(ElemDrop, 0xfc0d, v_v)          \
   V(TableCopy, 0xfc0e, v_iii)       \
-  V(TableGrow, 0xfc0f, i_ai)
+  V(TableGrow, 0xfc0f, i_ai)        \
+  V(TableSize, 0xfc10, i_v)
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
   V(AtomicNotify, 0xfe00, i_ii)                 \
