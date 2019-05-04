@@ -161,70 +161,11 @@ void MathBuiltinsAssembler::MathMaxMin(
   arguments.PopAndReturn(ChangeFloat64ToTagged(result.value()));
 }
 
-
 // ES6 #sec-math.ceil
 TF_BUILTIN(MathCeil, MathBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* x = Parameter(Descriptor::kX);
   MathRoundingOperation(context, x, &CodeStubAssembler::Float64Ceil);
-}
-
-// ES6 #sec-math.clz32
-TF_BUILTIN(MathClz32, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-
-  // Shared entry point for the clz32 operation.
-  VARIABLE(var_clz32_x, MachineRepresentation::kWord32);
-  Label do_clz32(this);
-
-  // We might need to loop once for ToNumber conversion.
-  VARIABLE(var_x, MachineRepresentation::kTagged);
-  Label loop(this, &var_x);
-  var_x.Bind(Parameter(Descriptor::kX));
-  Goto(&loop);
-  BIND(&loop);
-  {
-    // Load the current {x} value.
-    Node* x = var_x.value();
-
-    // Check if {x} is a Smi or a HeapObject.
-    Label if_xissmi(this), if_xisnotsmi(this);
-    Branch(TaggedIsSmi(x), &if_xissmi, &if_xisnotsmi);
-
-    BIND(&if_xissmi);
-    {
-      var_clz32_x.Bind(SmiToInt32(x));
-      Goto(&do_clz32);
-    }
-
-    BIND(&if_xisnotsmi);
-    {
-      // Check if {x} is a HeapNumber.
-      Label if_xisheapnumber(this), if_xisnotheapnumber(this, Label::kDeferred);
-      Branch(IsHeapNumber(x), &if_xisheapnumber, &if_xisnotheapnumber);
-
-      BIND(&if_xisheapnumber);
-      {
-        var_clz32_x.Bind(TruncateHeapNumberValueToWord32(x));
-        Goto(&do_clz32);
-      }
-
-      BIND(&if_xisnotheapnumber);
-      {
-        // Need to convert {x} to a Number first.
-        var_x.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, x));
-        Goto(&loop);
-      }
-    }
-  }
-
-  BIND(&do_clz32);
-  {
-    Node* x_value = var_clz32_x.value();
-    Node* value = Word32Clz(x_value);
-    Node* result = ChangeInt32ToTagged(value);
-    Return(result);
-  }
 }
 
 // ES6 #sec-math.floor
@@ -307,26 +248,6 @@ TF_BUILTIN(MathRound, MathBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* x = Parameter(Descriptor::kX);
   MathRoundingOperation(context, x, &CodeStubAssembler::Float64Round);
-}
-
-// ES6 #sec-math.sign
-TF_BUILTIN(MathSign, CodeStubAssembler) {
-  // Convert the {x} value to a Number.
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  Node* x_value = TruncateTaggedToFloat64(context, x);
-
-  // Return -1 if {x} is negative, 1 if {x} is positive, or {x} itself.
-  Label if_xisnegative(this), if_xispositive(this);
-  GotoIf(Float64LessThan(x_value, Float64Constant(0.0)), &if_xisnegative);
-  GotoIf(Float64LessThan(Float64Constant(0.0), x_value), &if_xispositive);
-  Return(ChangeFloat64ToTagged(x_value));
-
-  BIND(&if_xisnegative);
-  Return(SmiConstant(-1));
-
-  BIND(&if_xispositive);
-  Return(SmiConstant(1));
 }
 
 // ES6 #sec-math.trunc

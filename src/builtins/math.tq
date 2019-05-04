@@ -76,6 +76,26 @@ namespace math {
     return Convert<Number>(Float64Cbrt(value));
   }
 
+  // ES6 #sec-math.clz32
+  extern macro Word32Clz(int32): int32;
+
+  transitioning javascript builtin
+  MathClz32(context: Context, receiver: Object, x: Object): Number {
+    const num = ToNumber_Inline(context, x);
+
+    let value: int32;
+    typeswitch (num) {
+      case (s: Smi): {
+        value = Convert<int32>(s);
+      }
+      case (h: HeapNumber): {
+        value = TruncateHeapNumberValueToWord32(h);
+      }
+    }
+
+    return Convert<Number>(Word32Clz(value));
+  }
+
   // ES6 #sec-math.cos
   extern macro Float64Cos(float64): float64;
 
@@ -163,6 +183,21 @@ namespace math {
   MathSin(context: Context, receiver: Object, x: Object): Number {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Sin(value));
+  }
+
+  // ES6 #sec-math.sign
+  transitioning javascript builtin
+  MathSign(context: Context, receiver: Object, x: Object): Number {
+    const num = ToNumber_Inline(context, x);
+    const value = Convert<float64>(num);
+
+    if (value < 0) {
+      return -1;
+    } else if (value > 0) {
+      return 1;
+    } else {
+      return num;
+    }
   }
 
   // ES6 #sec-math.sinh

@@ -645,8 +645,6 @@ namespace internal {
   TFJ(MathAbs, 1, kReceiver, kX)                                               \
   /* ES6 #sec-math.ceil */                                                     \
   TFJ(MathCeil, 1, kReceiver, kX)                                              \
-  /* ES6 #sec-math.clz32 */                                                    \
-  TFJ(MathClz32, 1, kReceiver, kX)                                             \
   /* ES6 #sec-math.floor */                                                    \
   TFJ(MathFloor, 1, kReceiver, kX)                                             \
   /* ES6 #sec-math.hypot */                                                    \
@@ -663,8 +661,6 @@ namespace internal {
   TFJ(MathRandom, 0, kReceiver)                                                \
   /* ES6 #sec-math.round */                                                    \
   TFJ(MathRound, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.sign */                                                     \
-  TFJ(MathSign, 1, kReceiver, kX)                                              \
   /* ES6 #sec-math.trunc */                                                    \
   TFJ(MathTrunc, 1, kReceiver, kX)                                             \
                                                                                \
