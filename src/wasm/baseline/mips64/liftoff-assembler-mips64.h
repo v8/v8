@@ -500,10 +500,6 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
   UNREACHABLE();
 }
 
-void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, int32_t imm) {
-  Addu(dst, lhs, Operand(imm));
-}
-
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
   TurboAssembler::Mul(dst, lhs, rhs);
 }
@@ -559,6 +555,21 @@ I32_BINOP(xor, xor_)
 
 #undef I32_BINOP
 
+#define I32_BINOP_I(name, instruction)                               \
+  void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
+                                         int32_t imm) {              \
+    instruction(dst, lhs, Operand(imm));                             \
+  }
+
+// clang-format off
+I32_BINOP_I(add, Addu)
+I32_BINOP_I(and, And)
+I32_BINOP_I(or, Or)
+I32_BINOP_I(xor, Xor)
+// clang-format on
+
+#undef I32_BINOP_I
+
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   TurboAssembler::Clz(dst, src);
   return true;
@@ -593,11 +604,6 @@ I32_SHIFTOP_I(shr, srl)
 
 #undef I32_SHIFTOP
 #undef I32_SHIFTOP_I
-
-void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
-                                    int32_t imm) {
-  Daddu(dst.gp(), lhs.gp(), Operand(imm));
-}
 
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
@@ -663,6 +669,21 @@ I64_BINOP(xor, xor_)
 // clang-format on
 
 #undef I64_BINOP
+
+#define I64_BINOP_I(name, instruction)                                       \
+  void LiftoffAssembler::emit_i64_##name(LiftoffRegister dst,                \
+                                         LiftoffRegister lhs, int32_t imm) { \
+    instruction(dst.gp(), lhs.gp(), Operand(imm));                           \
+  }
+
+// clang-format off
+I64_BINOP_I(add, Daddu)
+I64_BINOP_I(and, And)
+I64_BINOP_I(or, Or)
+I64_BINOP_I(xor, Xor)
+// clang-format on
+
+#undef I64_BINOP_I
 
 #define I64_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_i64_##name(LiftoffRegister dst,                  \
