@@ -72,7 +72,23 @@ class Declarable {
   }
   virtual const char* type_name() const { return "<<unknown>>"; }
   Scope* ParentScope() const { return parent_scope_; }
-  const SourcePosition& pos() const { return pos_; }
+
+  // The SourcePosition of the whole declarable. For example, for a macro
+  // this will encompass not only the signature, but also the body.
+  SourcePosition Position() const { return position_; }
+  void SetPosition(const SourcePosition& position) { position_ = position; }
+
+  // The SourcePosition of the identifying name of the declarable. For example,
+  // for a macro this will be the SourcePosition of the name.
+  // Note that this SourcePosition might not make sense for all kinds of
+  // declarables, in that case, the default SourcePosition is returned.
+  SourcePosition IdentifierPosition() const {
+    return identifier_position_.source.IsValid() ? identifier_position_
+                                                 : position_;
+  }
+  void SetIdentifierPosition(const SourcePosition& position) {
+    identifier_position_ = position;
+  }
 
  protected:
   explicit Declarable(Kind kind) : kind_(kind) {}
@@ -80,7 +96,8 @@ class Declarable {
  private:
   const Kind kind_;
   Scope* const parent_scope_ = CurrentScope::Get();
-  SourcePosition pos_ = CurrentSourcePosition::Get();
+  SourcePosition position_ = CurrentSourcePosition::Get();
+  SourcePosition identifier_position_ = SourcePosition::Invalid();
 };
 
 #define DECLARE_DECLARABLE_BOILERPLATE(x, y)                  \

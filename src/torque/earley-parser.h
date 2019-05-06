@@ -303,10 +303,13 @@ class Item {
   void CheckAmbiguity(const Item& other, const LexerResult& tokens) const;
 
   MatchedInput GetMatchedInput(const LexerResult& tokens) const {
-    return {tokens.token_contents[start_].begin,
-            start_ == pos_ ? tokens.token_contents[start_].begin
-                           : tokens.token_contents[pos_ - 1].end,
-            tokens.token_contents[start_].pos};
+    const MatchedInput& start = tokens.token_contents[start_];
+    const MatchedInput& end = start_ == pos_ ? tokens.token_contents[start_]
+                                             : tokens.token_contents[pos_ - 1];
+    CHECK_EQ(start.pos.source, end.pos.source);
+    SourcePosition combined{start.pos.source, start.pos.start, end.pos.end};
+
+    return {start.begin, end.end, combined};
   }
 
   // We exclude {prev_} and {child_} from equality and hash computations,

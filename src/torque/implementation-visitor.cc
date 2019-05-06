@@ -1990,7 +1990,8 @@ LocationReference ImplementationVisitor::GetLocationReference(
       QualifiedName(expr->namespace_qualification, expr->name->value);
   if (base::Optional<Builtin*> builtin = Declarations::TryLookupBuiltin(name)) {
     if (GlobalContext::collect_language_server_data()) {
-      LanguageServerData::AddDefinition(expr->name->pos, (*builtin)->pos());
+      LanguageServerData::AddDefinition(expr->name->pos,
+                                        (*builtin)->Position());
     }
     return LocationReference::Temporary(GetBuiltinCode(*builtin),
                                         "builtin " + expr->name->value);
@@ -2446,7 +2447,7 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
       Callable* callable = LookupCallable(name, Declarations::Lookup(name),
                                           arguments, specialization_types);
       LanguageServerData::AddDefinition(expr->callee->name->pos,
-                                        callable->pos());
+                                        callable->IdentifierPosition());
     }
     return scope.Yield(
         GenerateCall(name, arguments, specialization_types, is_tailcall));
@@ -2688,7 +2689,7 @@ void ImplementationVisitor::VisitAllDeclarables() {
 
 void ImplementationVisitor::Visit(Declarable* declarable) {
   CurrentScope::Scope current_scope(declarable->ParentScope());
-  CurrentSourcePosition::Scope current_source_position(declarable->pos());
+  CurrentSourcePosition::Scope current_source_position(declarable->Position());
   switch (declarable->kind()) {
     case Declarable::kMacro:
       return Visit(Macro::cast(declarable));
