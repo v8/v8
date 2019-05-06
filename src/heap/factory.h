@@ -236,16 +236,16 @@ class V8_EXPORT_PRIVATE Factory {
 
   // Finds the internalized copy for string in the string table.
   // If not found, a new string is added to the table and returned.
-  Handle<String> InternalizeUtf8String(Vector<const char> str);
+  Handle<String> InternalizeUtf8String(const Vector<const char>& str);
   Handle<String> InternalizeUtf8String(const char* str) {
     return InternalizeUtf8String(CStrVector(str));
   }
 
-  Handle<String> InternalizeOneByteString(Vector<const uint8_t> str);
+  Handle<String> InternalizeOneByteString(const Vector<const uint8_t>& str);
   Handle<String> InternalizeOneByteString(Handle<SeqOneByteString>, int from,
                                           int length);
 
-  Handle<String> InternalizeTwoByteString(Vector<const uc16> str);
+  Handle<String> InternalizeTwoByteString(const Vector<const uc16>& str);
 
   template <class StringTableKey>
   Handle<String> InternalizeStringWithKey(StringTableKey* key);
@@ -276,7 +276,7 @@ class V8_EXPORT_PRIVATE Factory {
   //
   // One-byte strings are pretenured when used as keys in the SourceCodeCache.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromOneByte(
-      Vector<const uint8_t> str,
+      const Vector<const uint8_t>& str,
       AllocationType allocation = AllocationType::kYoung);
 
   template <size_t N>
@@ -297,7 +297,7 @@ class V8_EXPORT_PRIVATE Factory {
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
-      Vector<const char> str,
+      const Vector<const char>& str,
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8SubString(
@@ -305,7 +305,7 @@ class V8_EXPORT_PRIVATE Factory {
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
-      Vector<const uc16> str,
+      const Vector<const uc16>& str,
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
@@ -314,14 +314,14 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
-  Handle<String> NewOneByteInternalizedString(Vector<const uint8_t> str,
+  Handle<String> NewOneByteInternalizedString(const Vector<const uint8_t>& str,
                                               uint32_t hash_field);
 
   Handle<String> NewOneByteInternalizedSubString(
       Handle<SeqOneByteString> string, int offset, int length,
       uint32_t hash_field);
 
-  Handle<String> NewTwoByteInternalizedString(Vector<const uc16> str,
+  Handle<String> NewTwoByteInternalizedString(const Vector<const uc16>& str,
                                               uint32_t hash_field);
 
   Handle<String> NewInternalizedStringImpl(Handle<String> string, int chars,
@@ -1050,8 +1050,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
       int length, uint32_t hash_field);
 
-  Handle<String> AllocateTwoByteInternalizedString(Vector<const uc16> str,
-                                                   uint32_t hash_field);
+  Handle<String> AllocateTwoByteInternalizedString(
+      const Vector<const uc16>& str, uint32_t hash_field);
 
   MaybeHandle<String> NewStringFromTwoByte(const uc16* string, int length,
                                            AllocationType allocation);
