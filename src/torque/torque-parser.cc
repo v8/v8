@@ -578,6 +578,9 @@ base::Optional<ParseResult> MakeClassDeclaration(
     NamingConventionError("Type", name->value, "UpperCamelCase");
   }
   auto extends = child_results->NextAs<base::Optional<TypeExpression*>>();
+  if (extends && !BasicTypeExpression::DynamicCast(*extends)) {
+    ReportError("Expected type name in extends clause.");
+  }
   auto generates = child_results->NextAs<base::Optional<std::string>>();
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<ClassFieldExpression>>();
