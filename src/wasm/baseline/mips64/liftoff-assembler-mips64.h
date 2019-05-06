@@ -436,13 +436,13 @@ void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
   MemOperand dst = liftoff::GetStackSlot(index);
   switch (type) {
     case kWasmI32:
-      sw(reg.gp(), dst);
+      Sw(reg.gp(), dst);
       break;
     case kWasmI64:
-      sd(reg.gp(), dst);
+      Sd(reg.gp(), dst);
       break;
     case kWasmF32:
-      swc1(reg.fp(), dst);
+      Swc1(reg.fp(), dst);
       break;
     case kWasmF64:
       TurboAssembler::Sdc1(reg.fp(), dst);
@@ -480,13 +480,13 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
   MemOperand src = liftoff::GetStackSlot(index);
   switch (type) {
     case kWasmI32:
-      lw(reg.gp(), src);
+      Lw(reg.gp(), src);
       break;
     case kWasmI64:
-      ld(reg.gp(), src);
+      Ld(reg.gp(), src);
       break;
     case kWasmF32:
-      lwc1(reg.fp(), src);
+      Lwc1(reg.fp(), src);
       break;
     case kWasmF64:
       TurboAssembler::Ldc1(reg.fp(), src);
