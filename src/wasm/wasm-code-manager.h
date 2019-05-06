@@ -58,8 +58,8 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
   // Merge the parameter region into this object while preserving ordering of
   // the regions. The assumption is that the passed parameter is not
   // intersecting this object - for example, it was obtained from a previous
-  // Allocate.
-  void Merge(base::AddressRegion);
+  // Allocate. Returns the merged region.
+  base::AddressRegion Merge(base::AddressRegion);
 
   // Allocate a contiguous region of size {size}. Return an empty pool on
   // failure.
@@ -523,8 +523,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // this module marking those functions that have been redirected.
   std::unique_ptr<uint8_t[]> interpreter_redirections_;
 
+  // Code space that was reserved and is available for allocations (subset of
+  // {owned_code_space_}).
   DisjointAllocationPool free_code_space_;
+  // Code space that was allocated for code (subset of {owned_code_space_}).
   DisjointAllocationPool allocated_code_space_;
+  // Code space that was allocated before but is dead now. Full pages within
+  // this region are discarded. It's still a subset of {owned_code_space_}).
+  DisjointAllocationPool freed_code_space_;
   std::vector<VirtualMemory> owned_code_space_;
 
   // End of fields protected by {allocation_mutex_}.

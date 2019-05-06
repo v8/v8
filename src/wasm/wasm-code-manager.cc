@@ -43,7 +43,7 @@ namespace wasm {
 
 using trap_handler::ProtectedInstructionData;
 
-void DisjointAllocationPool::Merge(base::AddressRegion region) {
+base::AddressRegion DisjointAllocationPool::Merge(base::AddressRegion region) {
   auto dest_it = regions_.begin();
   auto dest_end = regions_.end();
 
@@ -53,7 +53,7 @@ void DisjointAllocationPool::Merge(base::AddressRegion region) {
   // After last dest region: insert and done.
   if (dest_it == dest_end) {
     regions_.push_back(region);
-    return;
+    return region;
   }
 
   // Adjacent (from below) to dest: merge and done.
@@ -62,13 +62,13 @@ void DisjointAllocationPool::Merge(base::AddressRegion region) {
                                       region.size() + dest_it->size()};
     DCHECK_EQ(merged_region.end(), dest_it->end());
     *dest_it = merged_region;
-    return;
+    return merged_region;
   }
 
   // Before dest: insert and done.
   if (dest_it->begin() > region.end()) {
     regions_.insert(dest_it, region);
-    return;
+    return region;
   }
 
   // Src is adjacent from above. Merge and check whether the merged region is
@@ -83,6 +83,7 @@ void DisjointAllocationPool::Merge(base::AddressRegion region) {
     DCHECK_EQ(dest_it->end(), next_dest->end());
     regions_.erase(next_dest);
   }
+  return *dest_it;
 }
 
 base::AddressRegion DisjointAllocationPool::Allocate(size_t size) {
@@ -1348,17 +1349,16 @@ bool NativeModule::IsRedirectedToInterpreter(uint32_t func_index) {
 }
 
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
-  // For now, we only free the {WasmCode} objects and zap the code they referred
-  // to. We do not actually free the code pages yet.
-  // TODO(clemensh): Actually free the underlying code pages.
-
-  // Zap code area.
+  // Zap code area and collect freed code regions.
+  DisjointAllocationPool freed_regions;
   size_t code_size = 0;
   for (WasmCode* code : codes) {
     ZapCode(code->instruction_start(), code->instructions().size());
     FlushInstructionCache(code->instruction_start(),
                           code->instructions().size());
     code_size += code->instructions().size();
+    freed_regions.Merge(base::AddressRegion{code->instruction_start(),
+                                            code->instructions().size()});
   }
   freed_code_size_.fetch_add(code_size);
 
@@ -1367,6 +1367,20 @@ void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
   for (WasmCode* code : codes) {
     DCHECK_EQ(1, owned_code_.count(code->instruction_start()));
     owned_code_.erase(code->instruction_start());
+  }
+
+  // Merge {freed_regions} into {freed_code_space_} and discard full pages.
+  PageAllocator* allocator = GetPlatformPageAllocator();
+  size_t page_size = allocator->AllocatePageSize();
+  for (auto region : freed_regions.regions()) {
+    auto merged_region = freed_code_space_.Merge(region);
+    Address discard_start = std::max(RoundUp(merged_region.begin(), page_size),
+                                     RoundDown(region.begin(), page_size));
+    Address discard_end = std::min(RoundDown(merged_region.end(), page_size),
+                                   RoundUp(region.end(), page_size));
+    if (discard_start >= discard_end) continue;
+    allocator->DiscardSystemPages(reinterpret_cast<void*>(discard_start),
+                                  discard_end - discard_start);
   }
 }
 
