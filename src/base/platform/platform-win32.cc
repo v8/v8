@@ -1397,5 +1397,7 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   DCHECK(result);
 }
 
+void OS::AdjustSchedulingParams() {}
+
 }  // namespace base
 }  // namespace v8

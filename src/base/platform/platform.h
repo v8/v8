@@ -249,6 +249,8 @@ class V8_BASE_EXPORT OS {
 
   static int GetCurrentThreadId();
 
+  static void AdjustSchedulingParams();
+
   static void ExitProcess(int exit_code);
 
  private:
