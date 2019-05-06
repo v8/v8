@@ -365,6 +365,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(heap_object);
   }
 
+  TNode<JSStringIterator> HeapObjectToJSStringIterator(
+      TNode<HeapObject> heap_object, Label* fail) {
+    GotoIfNot(IsJSStringIterator(heap_object), fail);
+    return CAST(heap_object);
+  }
+
   TNode<JSReceiver> HeapObjectToCallable(TNode<HeapObject> heap_object,
                                          Label* fail) {
     GotoIfNot(IsCallable(heap_object), fail);
@@ -2193,6 +2199,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSPromiseMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSPromise(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSProxy(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSStringIterator(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSReceiverInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSReceiverMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSReceiver(SloppyTNode<HeapObject> object);

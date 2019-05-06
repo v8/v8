@@ -532,11 +532,6 @@ extern class JSGlobalObject extends JSObject {
   global_proxy: JSGlobalProxy;
 }
 
-extern class JSIteratorResult extends JSObject {
-  value: Object;
-  done: Boolean;
-}
-
 extern class JSAsyncFromSyncIterator extends JSObject {
   sync_iterator: JSReceiver;
   next: Object;
@@ -618,6 +613,10 @@ type PrimitiveType constexpr 'PrimitiveType';
 type ToIntegerTruncationMode
 constexpr 'CodeStubAssembler::ToIntegerTruncationMode';
 type AllocationFlags constexpr 'AllocationFlags';
+
+type UnicodeEncoding constexpr 'UnicodeEncoding';
+const UTF16:
+    constexpr UnicodeEncoding generates 'UnicodeEncoding::UTF16';
 
 extern class Foreign extends HeapObject { foreign_address: RawPtr; }
 
@@ -991,6 +990,22 @@ extern class JSRegExp extends JSObject {
   flags: Smi | Undefined;
 }
 
+extern class JSIteratorResult extends JSObject {
+  value: Object;
+  done: Boolean;
+}
+
+macro NewJSIteratorResult(implicit context: Context)(
+    value: Object, done: Boolean): JSIteratorResult {
+  return new JSIteratorResult{
+    map: GetIteratorResultMap(),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    value,
+    done
+  };
+}
+
 // Note: Although a condition for a FastJSRegExp is having a positive smi
 // lastIndex (see RegExpBuiltinsAssembler::BranchIfFastRegExp), it is possible
 // for this to change without transitioning the transient type. As a precaution,
@@ -1185,6 +1200,8 @@ extern macro ThrowTypeError(implicit context: Context)(
     constexpr MessageTemplate, constexpr string): never;
 extern macro ThrowTypeError(implicit context: Context)(
     constexpr MessageTemplate, Object): never;
+extern macro ThrowTypeError(implicit context: Context)(
+    constexpr MessageTemplate, Object, Object): never;
 extern macro ThrowTypeError(implicit context: Context)(
     constexpr MessageTemplate, Object, Object, Object): never;
 extern macro ArraySpeciesCreate(Context, Object, Number): JSReceiver;
@@ -1456,6 +1473,8 @@ extern macro HeapObjectToJSDataView(HeapObject): JSDataView
     labels CastError;
 extern macro HeapObjectToJSProxy(HeapObject): JSProxy
     labels CastError;
+extern macro HeapObjectToJSStringIterator(HeapObject): JSStringIterator
+    labels CastError;
 extern macro HeapObjectToJSArrayBuffer(HeapObject): JSArrayBuffer
     labels CastError;
 extern macro TaggedToHeapObject(Object): HeapObject
@@ -1546,6 +1565,11 @@ Cast<JSDataView>(o: HeapObject): JSDataView
 Cast<JSProxy>(o: HeapObject): JSProxy
     labels CastError {
   return HeapObjectToJSProxy(o) otherwise CastError;
+}
+
+Cast<JSStringIterator>(o: HeapObject): JSStringIterator
+    labels CastError {
+  return HeapObjectToJSStringIterator(o) otherwise CastError;
 }
 
 Cast<JSTypedArray>(o: HeapObject): JSTypedArray
@@ -2188,6 +2212,9 @@ macro GetFastPackedSmiElementsJSArrayMap(implicit context: Context)(): Map {
 macro GetProxyRevocableResultMap(implicit context: Context)(): Map {
   return UnsafeCast<Map>(
       LoadNativeContext(context)[PROXY_REVOCABLE_RESULT_MAP_INDEX]);
+}
+macro GetIteratorResultMap(implicit context: Context)(): Map {
+  return UnsafeCast<Map>(LoadNativeContext(context)[ITERATOR_RESULT_MAP_INDEX]);
 }
 macro GetInitialStringIteratorMap(implicit context: Context)(): Map {
   return UnsafeCast<Map>(

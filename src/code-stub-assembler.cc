@@ -6208,6 +6208,11 @@ TNode<BoolT> CodeStubAssembler::IsJSProxy(SloppyTNode<HeapObject> object) {
   return HasInstanceType(object, JS_PROXY_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSStringIterator(
+    SloppyTNode<HeapObject> object) {
+  return HasInstanceType(object, JS_STRING_ITERATOR_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSGlobalProxy(
     SloppyTNode<HeapObject> object) {
   return HasInstanceType(object, JS_GLOBAL_PROXY_TYPE);

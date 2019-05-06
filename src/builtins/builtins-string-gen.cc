@@ -2268,59 +2268,6 @@ TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
   return var_result.value();
 }
 
-// ES6 #sec-%stringiteratorprototype%.next
-TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
-  VARIABLE(var_value, MachineRepresentation::kTagged);
-  VARIABLE(var_done, MachineRepresentation::kTagged);
-
-  var_value.Bind(UndefinedConstant());
-  var_done.Bind(TrueConstant());
-
-  Label throw_bad_receiver(this), next_codepoint(this), return_result(this);
-
-  Node* context = Parameter(Descriptor::kContext);
-  Node* iterator = Parameter(Descriptor::kReceiver);
-
-  GotoIf(TaggedIsSmi(iterator), &throw_bad_receiver);
-  GotoIfNot(
-      InstanceTypeEqual(LoadInstanceType(iterator), JS_STRING_ITERATOR_TYPE),
-      &throw_bad_receiver);
-
-  Node* string = LoadObjectField(iterator, JSStringIterator::kStringOffset);
-  TNode<IntPtrT> position = SmiUntag(
-      CAST(LoadObjectField(iterator, JSStringIterator::kNextIndexOffset)));
-  TNode<IntPtrT> length = LoadStringLengthAsWord(string);
-
-  Branch(IntPtrLessThan(position, length), &next_codepoint, &return_result);
-
-  BIND(&next_codepoint);
-  {
-    UnicodeEncoding encoding = UnicodeEncoding::UTF16;
-    TNode<Int32T> ch = LoadSurrogatePairAt(string, length, position, encoding);
-    TNode<String> value = StringFromSingleCodePoint(ch, encoding);
-    var_value.Bind(value);
-    TNode<IntPtrT> length = LoadStringLengthAsWord(value);
-    StoreObjectFieldNoWriteBarrier(iterator, JSStringIterator::kNextIndexOffset,
-                                   SmiTag(Signed(IntPtrAdd(position, length))));
-    var_done.Bind(FalseConstant());
-    Goto(&return_result);
-  }
-
-  BIND(&return_result);
-  {
-    Node* result =
-        AllocateJSIteratorResult(context, var_value.value(), var_done.value());
-    Return(result);
-  }
-
-  BIND(&throw_bad_receiver);
-  {
-    // The {receiver} is not a valid JSGeneratorObject.
-    ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
-                   StringConstant("String Iterator.prototype.next"), iterator);
-  }
-}
-
 void StringBuiltinsAssembler::BranchIfStringPrimitiveWithNoCustomIteration(
     TNode<Object> object, TNode<Context> context, Label* if_true,
     Label* if_false) {

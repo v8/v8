@@ -28,6 +28,11 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                                     Label* if_true,
                                                     Label* if_false);
 
+  TNode<Int32T> LoadSurrogatePairAt(SloppyTNode<String> string,
+                                    SloppyTNode<IntPtrT> length,
+                                    SloppyTNode<IntPtrT> index,
+                                    UnicodeEncoding encoding);
+
  protected:
   TNode<JSArray> StringToList(TNode<Context> context, TNode<String> string);
 
@@ -71,11 +76,6 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                         TNode<Object> receiver, TNode<Object> maybe_position,
                         TNode<Object> default_return,
                         const StringAtAccessor& accessor);
-
-  TNode<Int32T> LoadSurrogatePairAt(SloppyTNode<String> string,
-                                    SloppyTNode<IntPtrT> length,
-                                    SloppyTNode<IntPtrT> index,
-                                    UnicodeEncoding encoding);
 
   void StringIndexOf(Node* const subject_string, Node* const search_string,
                      Node* const position,

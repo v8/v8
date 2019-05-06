@@ -999,9 +999,6 @@ namespace internal {
   /* ES6 #sec-string.raw */                                                    \
   CPP(StringRaw)                                                               \
                                                                                \
-  /* StringIterator */                                                         \
-  /* ES6 #sec-%stringiteratorprototype%.next */                                \
-  TFJ(StringIteratorPrototypeNext, 0, kReceiver)                               \
   TFS(StringToList, kSource)                                                   \
                                                                                \
   /* Symbol */                                                                 \
