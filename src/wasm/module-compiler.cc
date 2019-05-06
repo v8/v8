@@ -747,8 +747,6 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
   base::ElapsedTimer compilation_timer;
   compilation_timer.Start();
 
-  DCHECK(!native_module->HasCode(func_index));
-
   TRACE_LAZY("Compiling wasm-function#%d.\n", func_index);
 
   CompilationStateImpl* compilation_state =
