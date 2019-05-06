@@ -186,11 +186,14 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
   ~VirtualMemory();
 
   // Move constructor.
-  VirtualMemory(VirtualMemory&& other) V8_NOEXCEPT { TakeControl(&other); }
+  VirtualMemory(VirtualMemory&& other) V8_NOEXCEPT { *this = std::move(other); }
 
   // Move assignment operator.
   VirtualMemory& operator=(VirtualMemory&& other) V8_NOEXCEPT {
-    TakeControl(&other);
+    DCHECK(!IsReserved());
+    page_allocator_ = other.page_allocator_;
+    region_ = other.region_;
+    other.Reset();
     return *this;
   }
 
@@ -234,10 +237,6 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
 
   // Frees all memory.
   void Free();
-
-  // Assign control of the reserved region to a different VirtualMemory object.
-  // The old object is no longer functional (IsReserved() returns false).
-  void TakeControl(VirtualMemory* from);
 
   bool InVM(Address address, size_t size) {
     return region_.contains(address, size);

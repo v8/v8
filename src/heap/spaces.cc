@@ -207,7 +207,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
       NewEvent("CodeRange", reinterpret_cast<void*>(reservation.address()),
                requested));
 
-  heap_reservation_.TakeControl(&reservation);
+  heap_reservation_ = std::move(reservation);
   code_page_allocator_instance_ = base::make_unique<base::BoundedPageAllocator>(
       page_allocator, aligned_base, size,
       static_cast<size_t>(MemoryChunk::kAlignment));
@@ -457,7 +457,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
     return kNullAddress;
   }
 
-  controller->TakeControl(&reservation);
+  *controller = std::move(reservation);
   return base;
 }
 
@@ -942,7 +942,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   // linear allocation area.
   if ((base + chunk_size) == 0u) {
     CHECK(!last_chunk_.IsReserved());
-    last_chunk_.TakeControl(&reservation);
+    last_chunk_ = std::move(reservation);
     UncommitMemory(&last_chunk_);
     size_ -= chunk_size;
     if (executable == EXECUTABLE) {

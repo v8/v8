@@ -78,7 +78,7 @@ void StoreBuffer::SetUp() {
   }
   current_ = 0;
   top_ = start_[current_];
-  virtual_memory_.TakeControl(&reservation);
+  virtual_memory_ = std::move(reservation);
 }
 
 void StoreBuffer::TearDown() {

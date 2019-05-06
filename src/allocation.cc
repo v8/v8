@@ -283,12 +283,5 @@ void VirtualMemory::Free() {
                   RoundUp(region.size(), page_allocator->AllocatePageSize())));
 }
 
-void VirtualMemory::TakeControl(VirtualMemory* from) {
-  DCHECK(!IsReserved());
-  page_allocator_ = from->page_allocator_;
-  region_ = from->region_;
-  from->Reset();
-}
-
 }  // namespace internal
 }  // namespace v8
