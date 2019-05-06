@@ -81,7 +81,8 @@
   INNER_OP_LIST(V)        \
   V(Unreachable)          \
   V(DeadValue)            \
-  V(Dead)
+  V(Dead)                 \
+  V(StaticAssert)
 
 // Opcodes for JavaScript operators.
 #define JS_COMPARE_BINOP_LIST(V) \
@@ -886,7 +887,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   // Returns true if opcode for common operator.
   static bool IsCommonOpcode(Value value) {
-    return kStart <= value && value <= kDead;
+    return kStart <= value && value <= kStaticAssert;
   }
 
   // Returns true if opcode for control operator.

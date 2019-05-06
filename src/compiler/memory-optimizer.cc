@@ -101,6 +101,7 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kUnalignedStore:
     case IrOpcode::kUnsafePointerAdd:
     case IrOpcode::kUnreachable:
+    case IrOpcode::kStaticAssert:
     case IrOpcode::kWord32AtomicAdd:
     case IrOpcode::kWord32AtomicAnd:
     case IrOpcode::kWord32AtomicCompareExchange:

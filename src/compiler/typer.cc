@@ -995,6 +995,8 @@ Type Typer::Visitor::TypeDeadValue(Node* node) { return Type::None(); }
 
 Type Typer::Visitor::TypeUnreachable(Node* node) { return Type::None(); }
 
+Type Typer::Visitor::TypeStaticAssert(Node* node) { UNREACHABLE(); }
+
 // JS comparison operators.
 
 Type Typer::Visitor::JSEqualTyper(Type lhs, Type rhs, Typer* t) {

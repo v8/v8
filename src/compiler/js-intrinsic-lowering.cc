@@ -28,6 +28,7 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kJSCallRuntime) return NoChange();
   const Runtime::Function* const f =
       Runtime::FunctionForId(CallRuntimeParametersOf(node->op()).id());
+  if (f->function_id == Runtime::kStaticAssert) return ReduceStaticAssert(node);
   if (f->intrinsic_type != Runtime::IntrinsicType::INLINE) return NoChange();
   switch (f->function_id) {
     case Runtime::kInlineCopyDataProperties:
@@ -266,6 +267,19 @@ Reduction JSIntrinsicLowering::ReduceIsJSReceiver(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceIsSmi(Node* node) {
   return Change(node, simplified()->ObjectIsSmi());
+}
+
+Reduction JSIntrinsicLowering::ReduceStaticAssert(Node* node) {
+  if (FLAG_always_opt) {
+    // Ignore static asserts, as we most likely won't have enough information
+    RelaxEffectsAndControls(node);
+  } else {
+    Node* value = NodeProperties::GetValueInput(node, 0);
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* assert = graph()->NewNode(common()->StaticAssert(), value, effect);
+    ReplaceWithValue(node, node, assert, nullptr);
+  }
+  return Changed(jsgraph_->UndefinedConstant());
 }
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {

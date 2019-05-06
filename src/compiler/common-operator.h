@@ -454,6 +454,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Dead();
   const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();
+  const Operator* StaticAssert();
   const Operator* End(size_t control_input_count);
   const Operator* Branch(BranchHint = BranchHint::kNone,
                          IsSafetyCheck = IsSafetyCheck::kSafetyCheck);

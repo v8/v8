@@ -1250,5 +1250,12 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_StaticAssert) {
+  SealHandleScope shs(isolate);
+  // Always lowered to StaticAssert node in Turbofan, so we should never get
+  // here in compiled code.
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

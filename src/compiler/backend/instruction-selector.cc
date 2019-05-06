@@ -1329,6 +1329,9 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kUnreachable:
       VisitUnreachable(node);
       return;
+    case IrOpcode::kStaticAssert:
+      VisitStaticAssert(node);
+      return;
     case IrOpcode::kDeadValue:
       VisitDeadValue(node);
       return;
@@ -2837,6 +2840,11 @@ void InstructionSelector::VisitDebugBreak(Node* node) {
 void InstructionSelector::VisitUnreachable(Node* node) {
   OperandGenerator g(this);
   Emit(kArchDebugBreak, g.NoOutput());
+}
+
+void InstructionSelector::VisitStaticAssert(Node* node) {
+  node->InputAt(0)->Print();
+  FATAL("Expected static assert to hold, but got non-true input!\n");
 }
 
 void InstructionSelector::VisitDeadValue(Node* node) {

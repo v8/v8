@@ -628,6 +628,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);
   void VisitUnreachable(Node* node);
+  void VisitStaticAssert(Node* node);
   void VisitDeadValue(Node* node);
 
   void VisitWordCompareZero(Node* user, Node* value, FlagsContinuation* cont);
