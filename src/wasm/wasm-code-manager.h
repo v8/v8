@@ -525,7 +525,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   DisjointAllocationPool free_code_space_;
   DisjointAllocationPool allocated_code_space_;
-  std::list<VirtualMemory> owned_code_space_;
+  std::vector<VirtualMemory> owned_code_space_;
 
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////

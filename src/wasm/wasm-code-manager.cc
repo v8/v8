@@ -419,6 +419,7 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   compilation_state_ =
       CompilationState::New(*shared_this, std::move(async_counters));
   DCHECK_NOT_NULL(module_);
+  owned_code_space_.reserve(can_request_more ? 4 : 1);
   owned_code_space_.emplace_back(std::move(code_space));
 
 #if defined(V8_OS_WIN_X64)
