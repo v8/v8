@@ -558,6 +558,8 @@ class BytecodeArrayRef : public FixedArrayBaseRef {
   Handle<BytecodeArray> object() const;
 
   int register_count() const;
+  int parameter_count() const;
+  interpreter::Register incoming_new_target_or_generator_register() const;
 };
 
 class JSArrayRef : public JSObjectRef {

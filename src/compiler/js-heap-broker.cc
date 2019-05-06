@@ -1277,14 +1277,23 @@ void FixedDoubleArrayData::SerializeContents(JSHeapBroker* broker) {
 class BytecodeArrayData : public FixedArrayBaseData {
  public:
   int register_count() const { return register_count_; }
+  int parameter_count() const { return parameter_count_; }
+  interpreter::Register incoming_new_target_or_generator_register() const {
+    return incoming_new_target_or_generator_register_;
+  }
 
   BytecodeArrayData(JSHeapBroker* broker, ObjectData** storage,
                     Handle<BytecodeArray> object)
       : FixedArrayBaseData(broker, storage, object),
-        register_count_(object->register_count()) {}
+        register_count_(object->register_count()),
+        parameter_count_(object->parameter_count()),
+        incoming_new_target_or_generator_register_(
+            object->incoming_new_target_or_generator_register()) {}
 
  private:
   int const register_count_;
+  int const parameter_count_;
+  interpreter::Register const incoming_new_target_or_generator_register_;
 };
 
 class JSArrayData : public JSObjectData {
@@ -2575,6 +2584,9 @@ BIMODAL_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
 BIMODAL_ACCESSOR_C(AllocationSite, AllocationType, GetAllocationType)
 
 BIMODAL_ACCESSOR_C(BytecodeArray, int, register_count)
+BIMODAL_ACCESSOR_C(BytecodeArray, int, parameter_count)
+BIMODAL_ACCESSOR_C(BytecodeArray, interpreter::Register,
+                   incoming_new_target_or_generator_register)
 
 BIMODAL_ACCESSOR(Cell, Object, value)
 

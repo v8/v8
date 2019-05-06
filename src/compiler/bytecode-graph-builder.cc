@@ -31,7 +31,8 @@ namespace compiler {
 
 class BytecodeGraphBuilder {
  public:
-  BytecodeGraphBuilder(Zone* local_zone, Handle<BytecodeArray> bytecode_array,
+  BytecodeGraphBuilder(JSHeapBroker* broker, Zone* local_zone,
+                       Handle<BytecodeArray> bytecode_array,
                        Handle<SharedFunctionInfo> shared,
                        Handle<FeedbackVector> feedback_vector,
                        BailoutId osr_offset, JSGraph* jsgraph,
@@ -371,10 +372,13 @@ class BytecodeGraphBuilder {
 
   Handle<Context> native_context() const { return native_context_; }
 
+  JSHeapBroker* broker() const { return broker_; }
+
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
 
+  JSHeapBroker* const broker_;
   Zone* const local_zone_;
   JSGraph* const jsgraph_;
   CallFrequency const invocation_frequency_;
@@ -934,13 +938,15 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
 }
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
-    Zone* local_zone, Handle<BytecodeArray> bytecode_array,
+    JSHeapBroker* broker, Zone* local_zone,
+    Handle<BytecodeArray> bytecode_array,
     Handle<SharedFunctionInfo> shared_info,
     Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
     JSGraph* jsgraph, CallFrequency invocation_frequency,
     SourcePositionTable* source_positions, Handle<Context> native_context,
     int inlining_id, BytecodeGraphBuilderFlags flags)
-    : local_zone_(local_zone),
+    : broker_(broker),
+      local_zone_(local_zone),
       jsgraph_(jsgraph),
       invocation_frequency_(invocation_frequency),
       bytecode_array_(bytecode_array),
@@ -1005,18 +1011,21 @@ VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
 }
 
 void BytecodeGraphBuilder::CreateGraph() {
+  BytecodeArrayRef bytecode_array_ref(broker(), bytecode_array());
+
   SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
 
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
   // parameters (including the receiver) plus new target, number of arguments,
   // context and closure.
-  int actual_parameter_count = bytecode_array()->parameter_count() + 4;
+  int actual_parameter_count = bytecode_array_ref.parameter_count() + 4;
   graph()->SetStart(graph()->NewNode(common()->Start(actual_parameter_count)));
 
-  Environment env(this, bytecode_array()->register_count(),
-                  bytecode_array()->parameter_count(),
-                  bytecode_array()->incoming_new_target_or_generator_register(),
-                  graph()->start());
+  Environment env(
+      this, bytecode_array_ref.register_count(),
+      bytecode_array_ref.parameter_count(),
+      bytecode_array_ref.incoming_new_target_or_generator_register(),
+      graph()->start());
   set_environment(&env);
 
   VisitBytecodes();
@@ -4023,13 +4032,16 @@ void BytecodeGraphBuilder::UpdateSourcePosition(int offset) {
   }
 }
 
-void BuildGraphFromBytecode(
-    Zone* local_zone, Handle<BytecodeArray> bytecode_array,
-    Handle<SharedFunctionInfo> shared, Handle<FeedbackVector> feedback_vector,
-    BailoutId osr_offset, JSGraph* jsgraph, CallFrequency invocation_frequency,
-    SourcePositionTable* source_positions, Handle<Context> native_context,
-    int inlining_id, BytecodeGraphBuilderFlags flags) {
-  BytecodeGraphBuilder builder(local_zone, bytecode_array, shared,
+void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
+                            Handle<BytecodeArray> bytecode_array,
+                            Handle<SharedFunctionInfo> shared,
+                            Handle<FeedbackVector> feedback_vector,
+                            BailoutId osr_offset, JSGraph* jsgraph,
+                            CallFrequency invocation_frequency,
+                            SourcePositionTable* source_positions,
+                            Handle<Context> native_context, int inlining_id,
+                            BytecodeGraphBuilderFlags flags) {
+  BytecodeGraphBuilder builder(broker, local_zone, bytecode_array, shared,
                                feedback_vector, osr_offset, jsgraph,
                                invocation_frequency, source_positions,
                                native_context, inlining_id, flags);

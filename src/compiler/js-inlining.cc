@@ -496,10 +496,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     if (info_->is_bailout_on_uninitialized()) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
-    BuildGraphFromBytecode(zone(), bytecode_array, shared_info, feedback_vector,
-                           BailoutId::None(), jsgraph(), call.frequency(),
-                           source_positions_, native_context(), inlining_id,
-                           flags);
+    BuildGraphFromBytecode(broker(), zone(), bytecode_array, shared_info,
+                           feedback_vector, BailoutId::None(), jsgraph(),
+                           call.frequency(), source_positions_,
+                           native_context(), inlining_id, flags);
 
     // Extract the inlinee start/end nodes.
     start = graph()->start();

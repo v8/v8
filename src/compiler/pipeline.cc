@@ -1072,7 +1072,8 @@ struct GraphBuilderPhase {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
     BuildGraphFromBytecode(
-        temp_zone, data->info()->bytecode_array(), data->info()->shared_info(),
+        data->broker(), temp_zone, data->info()->bytecode_array(),
+        data->info()->shared_info(),
         handle(data->info()->closure()->feedback_vector(), data->isolate()),
         data->info()->osr_offset(), data->jsgraph(), CallFrequency(1.0f),
         data->source_positions(), data->native_context(),
