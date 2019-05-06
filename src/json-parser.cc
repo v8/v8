@@ -262,10 +262,6 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
   }
   cursor_ = chars_ + start;
   end_ = cursor_ + length;
-
-  allocation_ = (source->length() >= kPretenureTreshold)
-                    ? AllocationType::kOld
-                    : AllocationType::kYoung;
 }
 
 template <typename Char>
@@ -453,8 +449,7 @@ bool JsonParser<Char>::ParseElement(Handle<JSObject> json_object) {
 template <typename Char>
 Handle<Object> JsonParser<Char>::ParseJsonObject() {
   HandleScope scope(isolate());
-  Handle<JSObject> json_object =
-      factory()->NewJSObject(object_constructor(), allocation_);
+  Handle<JSObject> json_object = factory()->NewJSObject(object_constructor());
   Handle<Map> map(json_object->map(), isolate());
   int descriptor = 0;
   VectorSegment<ZoneVector<Handle<Object>>> properties(&properties_);
@@ -643,19 +638,18 @@ Handle<Object> JsonParser<Char>::ParseJsonArray() {
   switch (kind) {
     case PACKED_ELEMENTS:
     case PACKED_SMI_ELEMENTS: {
-      Handle<FixedArray> elems =
-          factory()->NewFixedArray(elements_size, allocation_);
+      Handle<FixedArray> elems = factory()->NewFixedArray(elements_size);
       for (int i = 0; i < elements_size; i++) elems->set(i, *elements[i]);
-      json_array = factory()->NewJSArrayWithElements(elems, kind, allocation_);
+      json_array = factory()->NewJSArrayWithElements(elems, kind);
       break;
     }
     case PACKED_DOUBLE_ELEMENTS: {
       Handle<FixedDoubleArray> elems = Handle<FixedDoubleArray>::cast(
-          factory()->NewFixedDoubleArray(elements_size, allocation_));
+          factory()->NewFixedDoubleArray(elements_size));
       for (int i = 0; i < elements_size; i++) {
         elems->set(i, elements[i]->Number());
       }
-      json_array = factory()->NewJSArrayWithElements(elems, kind, allocation_);
+      json_array = factory()->NewJSArrayWithElements(elems, kind);
       break;
     }
     default:
@@ -757,7 +751,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber(int sign, const Char* start) {
     DCHECK(!std::isnan(number));
   }
 
-  return factory()->NewNumber(number, allocation_);
+  return factory()->NewNumber(number);
 }
 
 namespace {
@@ -810,12 +804,11 @@ Handle<String> JsonParser<Char>::MakeString(
       chars.length() > kMaxInternalizedStringValueLength) {
     if (sizeof(LiteralChar) == 1) {
       return factory()
-          ->NewStringFromOneByte(Vector<const uint8_t>::cast(chars),
-                                 allocation_)
+          ->NewStringFromOneByte(Vector<const uint8_t>::cast(chars))
           .ToHandleChecked();
     }
     return factory()
-        ->NewStringFromTwoByte(Vector<const uint16_t>::cast(chars), allocation_)
+        ->NewStringFromTwoByte(Vector<const uint16_t>::cast(chars))
         .ToHandleChecked();
   }
 

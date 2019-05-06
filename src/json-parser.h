@@ -167,7 +167,6 @@ class JsonParser final {
   Handle<String> ParseJsonString(bool requires_internalization,
                                  Handle<String> expected = Handle<String>());
 
-  Handle<String> ScanJsonString();
 
   // A JSON number (production JSONNumber) is a subset of the valid JavaScript
   // decimal number literals.
@@ -212,7 +211,6 @@ class JsonParser final {
   inline Handle<JSFunction> object_constructor() { return object_constructor_; }
 
   static const int kInitialSpecialStringLength = 32;
-  static const int kPretenureTreshold = 100 * 1024;
 
   static void UpdatePointersCallback(v8::Isolate* v8_isolate, v8::GCType type,
                                      v8::GCCallbackFlags flags, void* parser) {
@@ -252,7 +250,9 @@ class JsonParser final {
   Isolate* isolate_;
   Zone zone_;
   const uint64_t hash_seed_;
-  AllocationType allocation_;
+  JsonToken next_;
+  // Indicates whether the bytes underneath source_ can relocate during GC.
+  bool chars_may_relocate_;
   Handle<JSFunction> object_constructor_;
   const Handle<String> original_source_;
   Handle<String> source_;
@@ -262,14 +262,11 @@ class JsonParser final {
   // end_ should never be locally cached across a possible allocation. The scope
   // in which we cache chars has to be guarded by a DisallowHeapAllocation
   // scope.
-  const Char* chars_;
   const Char* cursor_;
   const Char* end_;
+  const Char* chars_;
 
-  JsonToken next_;
   LiteralBuffer literal_buffer_;
-  // Indicates whether the bytes underneath source_ can relocate during GC.
-  bool chars_may_relocate_;
 
   // Property handles are stored here inside ParseJsonObject.
   ZoneVector<Handle<Object>> properties_;
