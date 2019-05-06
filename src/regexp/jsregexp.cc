@@ -340,7 +340,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                             sample_subject, is_one_byte);
   if (result.error_message != nullptr) {
     // Unable to compile regexp.
-    if (FLAG_abort_on_stack_or_string_length_overflow &&
+    if (FLAG_correctness_fuzzer_suppressions &&
         strncmp(result.error_message, "Stack overflow", 15) == 0) {
       FATAL("Aborting on stack overflow");
     }

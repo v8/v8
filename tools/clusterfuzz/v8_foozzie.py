@@ -103,7 +103,7 @@ PREAMBLE = [
 ARCH_MOCKS = os.path.join(BASE_PATH, 'v8_mock_archs.js')
 SANITY_CHECKS = os.path.join(BASE_PATH, 'v8_sanity_checks.js')
 
-FLAGS = ['--abort-on-stack-or-string-length-overflow', '--expose-gc',
+FLAGS = ['--correctness-fuzzer-suppressions', '--expose-gc',
          '--allow-natives-syntax', '--invoke-weak-callbacks', '--omit-quit',
          '--es-staging', '--no-wasm-async-compilation',
          '--suppress-asm-messages']

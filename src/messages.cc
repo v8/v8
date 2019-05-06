@@ -1304,11 +1304,19 @@ MaybeHandle<Object> ErrorUtils::MakeGenericError(
     // pending exceptions would be cleared. Preserve this behavior.
     isolate->clear_pending_exception();
   }
+  Handle<String> msg;
+  if (FLAG_correctness_fuzzer_suppressions) {
+    // Ignore error messages in correctness fuzzing, because the spec leaves
+    // room for undefined behavior.
+    msg = isolate->factory()->InternalizeUtf8String(
+        "Message suppressed for fuzzers (--correctness-fuzzer-suppressions)");
+  } else {
+    msg = DoFormatMessage(isolate, index, arg0, arg1, arg2);
+  }
 
   DCHECK(mode != SKIP_UNTIL_SEEN);
 
   Handle<Object> no_caller;
-  Handle<String> msg = DoFormatMessage(isolate, index, arg0, arg1, arg2);
   return ErrorUtils::Construct(isolate, constructor, constructor, msg, mode,
                                no_caller, false);
 }

@@ -88,7 +88,7 @@ void V8::InitializeOncePerProcessImpl() {
   // continue exposing wasm on correctness fuzzers even in jitless mode.
   // TODO(jgruber): Remove this once / if wasm can run without executable
   // memory.
-  if (FLAG_jitless && !FLAG_abort_on_stack_or_string_length_overflow) {
+  if (FLAG_jitless && !FLAG_correctness_fuzzer_suppressions) {
     FLAG_expose_wasm = false;
   }
 

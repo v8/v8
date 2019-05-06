@@ -84,10 +84,10 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
     // We are over the address space limit. Fail.
     //
     // When running under the correctness fuzzer (i.e.
-    // --abort-on-stack-or-string-length-overflow is preset), we crash
+    // --correctness-fuzzer-suppressions is preset), we crash
     // instead so it is not incorrectly reported as a correctness
     // violation. See https://crbug.com/828293#c4
-    if (FLAG_abort_on_stack_or_string_length_overflow) {
+    if (FLAG_correctness_fuzzer_suppressions) {
       FATAL("could not allocate wasm memory");
     }
     AddAllocationStatusSample(

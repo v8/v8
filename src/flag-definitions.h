@@ -1130,12 +1130,11 @@ DEFINE_BOOL(stack_trace_on_illegal, false,
             "print stack trace when an illegal exception is thrown")
 DEFINE_BOOL(abort_on_uncaught_exception, false,
             "abort program (dump core) when an uncaught exception is thrown")
-// TODO(jgruber,machenbach): Rename to --correctness-fuzzer-suppressions.
-DEFINE_BOOL(abort_on_stack_or_string_length_overflow, false,
-            "Abort program when the stack overflows or a string exceeds "
-            "maximum length (as opposed to throwing RangeError). This is "
-            "useful for fuzzing where the spec behaviour would introduce "
-            "nondeterminism.")
+DEFINE_BOOL(correctness_fuzzer_suppressions, false,
+            "Suppress certain unspecified behaviors to ease correctness "
+            "fuzzing: Abort program when the stack overflows or a string "
+            "exceeds maximum length (as opposed to throwing RangeError). "
+            "Use a fixed suppression string for error messages.")
 DEFINE_BOOL(randomize_hashes, true,
             "randomize hashes to avoid predictable hash collisions "
             "(with snapshots this option cannot override the baked-in seed)")

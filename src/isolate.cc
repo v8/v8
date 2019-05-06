@@ -1370,7 +1370,7 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
 }
 
 Object Isolate::StackOverflow() {
-  if (FLAG_abort_on_stack_or_string_length_overflow) {
+  if (FLAG_correctness_fuzzer_suppressions) {
     FATAL("Aborting on stack overflow");
   }
 
