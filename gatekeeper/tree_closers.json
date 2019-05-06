@@ -84,6 +84,7 @@
     "https://build.chromium.org/p/client.v8.fyi": [
       {
         "excluded_builders" : [
+          "Android V8 FYI Release (Nexus 5X)",
           "Linux Snapshot Builder",
           "Linux V8 FYI Release - pointer compression (NVIDIA)"
         ],
