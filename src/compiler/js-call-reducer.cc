@@ -6118,6 +6118,11 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
     InstanceType collection_iterator_instance_type_first,
     InstanceType collection_iterator_instance_type_last) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -6150,9 +6155,8 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
         receiver_instance_type > collection_iterator_instance_type_last) {
       return inference.NoChange();
     }
-    if (!inference.RelyOnMapsViaStability(dependencies())) {
-      return inference.NoChange();
-    }
+    inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                        control, p.feedback());
   }
 
   // Transition the JSCollectionIterator {receiver} if necessary
