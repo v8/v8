@@ -201,8 +201,8 @@ struct ExtendingLoadMatcher {
     DCHECK(m.IsWord64Sar());
     if (m.left().IsLoad() && m.right().Is(32) &&
         selector_->CanCover(m.node(), m.left().node())) {
-      DCHECK_EQ(selector_->GetEffectiveLevel(node),
-                selector_->GetEffectiveLevel(m.left().node()));
+      DCHECK_EQ(selector_->GetEffectLevel(node),
+                selector_->GetEffectLevel(m.left().node()));
       MachineRepresentation rep =
           LoadRepresentationOf(m.left().node()->op()).representation();
       DCHECK_EQ(3, ElementSizeLog2Of(rep));
