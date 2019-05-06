@@ -548,7 +548,7 @@ class ImplementationVisitor : public FileVisitor {
                                base::Optional<StackRange> arguments = {});
 
   std::vector<Binding<LocalLabel>*> LabelsFromIdentifiers(
-      const std::vector<std::string>& names);
+      const std::vector<Identifier*>& names);
 
   StackRange LowerParameter(const Type* type, const std::string& parameter_name,
                             Stack<std::string>* lowered_parameters);

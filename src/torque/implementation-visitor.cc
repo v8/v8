@@ -408,11 +408,11 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
     std::vector<std::string> label_parameter_variables;
     for (size_t i = 0; i < label_info.types.size(); ++i) {
       LowerLabelParameter(label_info.types[i],
-                          ExternalLabelParameterName(label_info.name, i),
+                          ExternalLabelParameterName(label_info.name->value, i),
                           &label_parameter_variables);
     }
-    assembler().Emit(GotoExternalInstruction{ExternalLabelName(label_info.name),
-                                             label_parameter_variables});
+    assembler().Emit(GotoExternalInstruction{
+        ExternalLabelName(label_info.name->value), label_parameter_variables});
   }
 
   if (return_type != TypeOracle::GetNeverType()) {
@@ -1621,7 +1621,8 @@ void ImplementationVisitor::GenerateFunctionDeclaration(
     if (!first) {
       o << ", ";
     }
-    o << "compiler::CodeAssemblerLabel* " << ExternalLabelName(label_info.name);
+    o << "compiler::CodeAssemblerLabel* "
+      << ExternalLabelName(label_info.name->value);
     size_t i = 0;
     for (const Type* type : label_info.types) {
       std::string generated_type_name;
@@ -1634,7 +1635,7 @@ void ImplementationVisitor::GenerateFunctionDeclaration(
       }
       o << ", ";
       o << generated_type_name << " "
-        << ExternalLabelParameterName(label_info.name, i);
+        << ExternalLabelParameterName(label_info.name->value, i);
       ++i;
     }
   }
@@ -2553,11 +2554,20 @@ StackRange ImplementationVisitor::GenerateLabelGoto(
 }
 
 std::vector<Binding<LocalLabel>*> ImplementationVisitor::LabelsFromIdentifiers(
-    const std::vector<std::string>& names) {
+    const std::vector<Identifier*>& names) {
   std::vector<Binding<LocalLabel>*> result;
   result.reserve(names.size());
   for (const auto& name : names) {
-    result.push_back(LookupLabel(name));
+    Binding<LocalLabel>* label = LookupLabel(name->value);
+    result.push_back(label);
+
+    // Link up labels in "otherwise" part of the call expression with
+    // either the label in the signature of the calling macro or the label
+    // block ofa surrounding "try".
+    if (GlobalContext::collect_language_server_data()) {
+      LanguageServerData::AddDefinition(name->pos,
+                                        label->declaration_position());
+    }
   }
   return result;
 }

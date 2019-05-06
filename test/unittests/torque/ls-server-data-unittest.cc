@@ -79,6 +79,49 @@ TEST(LanguageServer, GotoTypeDefinitionNoDataForFile) {
   EXPECT_FALSE(LanguageServerData::FindDefinition(test_id, {0, 0}));
 }
 
+TEST(LanguageServer, GotoLabelDefinitionInSignature) {
+  const std::string source =
+      "type void;\n"
+      "type never;\n"
+      "macro Foo(): never labels Fail {\n"
+      "  goto Fail;\n"
+      "}\n"
+      "macro Bar() labels Bailout {\n"
+      "  Foo() otherwise Bailout;\n"
+      "}\n";
+
+  TestCompiler compiler;
+  compiler.Compile(source);
+
+  // Find the definition for 'Bailout' of the otherwise clause on line 6.
+  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  auto maybe_position = LanguageServerData::FindDefinition(id, {6, 18});
+  ASSERT_TRUE(maybe_position.has_value());
+  EXPECT_EQ(*maybe_position, (SourcePosition{id, {5, 19}, {5, 26}}));
+}
+
+TEST(LanguageServer, GotoLabelDefinitionInTryBlock) {
+  const std::string source =
+      "type void;\n"
+      "type never;\n"
+      "macro Foo(): never labels Fail {\n"
+      "  goto Fail;\n"
+      "}\n"
+      "macro Bar() {\n"
+      "  try { Foo() otherwise Bailout; }\n"
+      "  label Bailout {}\n"
+      "}\n";
+
+  TestCompiler compiler;
+  compiler.Compile(source);
+
+  // Find the definition for 'Bailout' of the otherwise clause on line 6.
+  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  auto maybe_position = LanguageServerData::FindDefinition(id, {6, 25});
+  ASSERT_TRUE(maybe_position.has_value());
+  EXPECT_EQ(*maybe_position, (SourcePosition{id, {7, 8}, {7, 15}}));
+}
+
 TEST(LanguageServer, GotoDefinitionClassSuperType) {
   const std::string source =
       "type void;\n"

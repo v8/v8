@@ -595,7 +595,7 @@ struct LabelDefinition {
 typedef std::vector<LabelDefinition> LabelDefinitionVector;
 
 struct LabelDeclaration {
-  std::string name;
+  Identifier* name;
   TypeVector types;
 };
 

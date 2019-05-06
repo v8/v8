@@ -241,7 +241,7 @@ struct CallMethodExpression : Expression {
   CallMethodExpression(SourcePosition pos, Expression* target,
                        IdentifierExpression* method,
                        std::vector<Expression*> arguments,
-                       std::vector<std::string> labels)
+                       std::vector<Identifier*> labels)
       : Expression(kKind, pos),
         target(target),
         method(method),
@@ -250,21 +250,21 @@ struct CallMethodExpression : Expression {
   Expression* target;
   IdentifierExpression* method;
   std::vector<Expression*> arguments;
-  std::vector<std::string> labels;
+  std::vector<Identifier*> labels;
 };
 
 struct CallExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(CallExpression)
   CallExpression(SourcePosition pos, IdentifierExpression* callee,
                  std::vector<Expression*> arguments,
-                 std::vector<std::string> labels)
+                 std::vector<Identifier*> labels)
       : Expression(kKind, pos),
         callee(callee),
         arguments(std::move(arguments)),
         labels(std::move(labels)) {}
   IdentifierExpression* callee;
   std::vector<Expression*> arguments;
-  std::vector<std::string> labels;
+  std::vector<Identifier*> labels;
 };
 
 struct NameAndExpression {
@@ -624,13 +624,13 @@ struct ForOfLoopStatement : Statement {
 
 struct LabelBlock : AstNode {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(LabelBlock)
-  LabelBlock(SourcePosition pos, std::string label,
+  LabelBlock(SourcePosition pos, Identifier* label,
              const ParameterList& parameters, Statement* body)
       : AstNode(kKind, pos),
-        label(std::move(label)),
+        label(label),
         parameters(parameters),
         body(std::move(body)) {}
-  std::string label;
+  Identifier* label;
   ParameterList parameters;
   Statement* body;
 };
@@ -712,7 +712,7 @@ struct ClassFieldExpression {
 };
 
 struct LabelAndTypes {
-  std::string name;
+  Identifier* name;
   std::vector<TypeExpression*> types;
 };
 

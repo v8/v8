@@ -208,7 +208,7 @@ Expression* MakeCall(IdentifierExpression* callee,
                      base::Optional<Expression*> target,
                      std::vector<Expression*> arguments,
                      const std::vector<Statement*>& otherwise) {
-  std::vector<std::string> labels;
+  std::vector<Identifier*> labels;
 
   // All IdentifierExpressions are treated as label names and can be directly
   // used as labels identifiers. All other statements in a call's otherwise
@@ -221,14 +221,16 @@ Expression* MakeCall(IdentifierExpression* callee,
         if (id->generic_arguments.size() != 0) {
           ReportError("An otherwise label cannot have generic parameters");
         }
-        labels.push_back(id->name->value);
+        labels.push_back(id->name);
         continue;
       }
     }
     auto label_name = std::string("_label") + std::to_string(label_id++);
-    labels.push_back(label_name);
+    auto label_id = MakeNode<Identifier>(label_name);
+    label_id->pos = SourcePosition::Invalid();
+    labels.push_back(label_id);
     auto* label_block =
-        MakeNode<LabelBlock>(label_name, ParameterList::Empty(), statement);
+        MakeNode<LabelBlock>(label_id, ParameterList::Empty(), statement);
     temp_labels.push_back(label_block);
   }
 
@@ -809,8 +811,8 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
       current_block->statements.push_back(
           MakeNode<ExpressionStatement>(MakeNode<TryLabelExpression>(
               false, MakeNode<StatementExpression>(case_block),
-              MakeNode<LabelBlock>("_NextCase", ParameterList::Empty(),
-                                   next_block))));
+              MakeNode<LabelBlock>(MakeNode<Identifier>("_NextCase"),
+                                   ParameterList::Empty(), next_block))));
       current_block = next_block;
     }
     accumulated_types =
@@ -952,14 +954,13 @@ base::Optional<ParseResult> MakeForLoopStatement(
 }
 
 base::Optional<ParseResult> MakeLabelBlock(ParseResultIterator* child_results) {
-  auto label = child_results->NextAs<std::string>();
-  if (!IsUpperCamelCase(label)) {
-    NamingConventionError("Label", label, "UpperCamelCase");
+  auto label = child_results->NextAs<Identifier*>();
+  if (!IsUpperCamelCase(label->value)) {
+    NamingConventionError("Label", label->value, "UpperCamelCase");
   }
   auto parameters = child_results->NextAs<ParameterList>();
   auto body = child_results->NextAs<Statement*>();
-  LabelBlock* result =
-      MakeNode<LabelBlock>(std::move(label), std::move(parameters), body);
+  LabelBlock* result = MakeNode<LabelBlock>(label, std::move(parameters), body);
   return ParseResult{result};
 }
 
@@ -974,8 +975,8 @@ base::Optional<ParseResult> MakeCatchBlock(ParseResultIterator* child_results) {
   parameters.types.push_back(MakeNode<BasicTypeExpression>(
       std::vector<std::string>{}, false, "Object"));
   parameters.has_varargs = false;
-  LabelBlock* result =
-      MakeNode<LabelBlock>("_catch", std::move(parameters), body);
+  LabelBlock* result = MakeNode<LabelBlock>(MakeNode<Identifier>("_catch"),
+                                            std::move(parameters), body);
   return ParseResult{result};
 }
 
@@ -1114,12 +1115,12 @@ base::Optional<ParseResult> MakeConditionalExpression(
 
 base::Optional<ParseResult> MakeLabelAndTypes(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
-  if (!IsUpperCamelCase(name)) {
-    NamingConventionError("Label", name, "UpperCamelCase");
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsUpperCamelCase(name->value)) {
+    NamingConventionError("Label", name->value, "UpperCamelCase");
   }
   auto types = child_results->NextAs<std::vector<TypeExpression*>>();
-  return ParseResult{LabelAndTypes{std::move(name), std::move(types)}};
+  return ParseResult{LabelAndTypes{name, std::move(types)}};
 }
 
 base::Optional<ParseResult> MakeNameAndType(
@@ -1335,7 +1336,7 @@ struct TorqueGrammar : Grammar {
 
   // Result: LabelAndTypes
   Symbol labelParameter = {Rule(
-      {&identifier,
+      {&name,
        TryOrDefault<TypeList>(Sequence({Token("("), typeList, Token(")")}))},
       MakeLabelAndTypes)};
 
@@ -1542,7 +1543,7 @@ struct TorqueGrammar : Grammar {
 
   // Result: LabelBlock*
   Symbol labelBlock = {
-      Rule({Token("label"), &identifier,
+      Rule({Token("label"), &name,
             TryOrDefault<ParameterList>(&parameterListNoVararg), &block},
            MakeLabelBlock)};
 
