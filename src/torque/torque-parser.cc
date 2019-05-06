@@ -890,10 +890,9 @@ base::Optional<ParseResult> MakeContinueStatement(
 
 base::Optional<ParseResult> MakeGotoStatement(
     ParseResultIterator* child_results) {
-  auto label = child_results->NextAs<std::string>();
+  auto label = child_results->NextAs<Identifier*>();
   auto arguments = child_results->NextAs<std::vector<Expression*>>();
-  Statement* result =
-      MakeNode<GotoStatement>(std::move(label), std::move(arguments));
+  Statement* result = MakeNode<GotoStatement>(label, std::move(arguments));
   return ParseResult{result};
 }
 
@@ -1582,7 +1581,7 @@ struct TorqueGrammar : Grammar {
       Rule({Token("tail"), &callExpression}, MakeTailCallStatement),
       Rule({Token("break")}, MakeBreakStatement),
       Rule({Token("continue")}, MakeContinueStatement),
-      Rule({Token("goto"), &identifier,
+      Rule({Token("goto"), &name,
             TryOrDefault<std::vector<Expression*>>(&argumentList)},
            MakeGotoStatement),
       Rule({OneOf({"debug", "unreachable"})}, MakeDebugStatement)};

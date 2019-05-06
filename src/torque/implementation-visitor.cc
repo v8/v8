@@ -811,11 +811,16 @@ VisitResult ImplementationVisitor::Visit(LocationExpression* expr) {
 }
 
 const Type* ImplementationVisitor::Visit(GotoStatement* stmt) {
-  LocalLabel* label = LookupLabel(stmt->label);
+  Binding<LocalLabel>* label = LookupLabel(stmt->label->value);
   size_t parameter_count = label->parameter_types.size();
   if (stmt->arguments.size() != parameter_count) {
     ReportError("goto to label has incorrect number of parameters (expected ",
                 parameter_count, " found ", stmt->arguments.size(), ")");
+  }
+
+  if (GlobalContext::collect_language_server_data()) {
+    LanguageServerData::AddDefinition(stmt->label->pos,
+                                      label->declaration_position());
   }
 
   size_t i = 0;

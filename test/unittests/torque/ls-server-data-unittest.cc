@@ -139,6 +139,65 @@ TEST(LanguageServer, GotoDefinitionClassSuperType) {
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 5}, {2, 11}}));
 }
 
+TEST(LanguageServer, GotoLabelDefinitionInSignatureGotoStmt) {
+  const std::string source =
+      "type void;\n"
+      "type never;\n"
+      "macro Foo(): never labels Fail {\n"
+      "  goto Fail;\n"
+      "}\n";
+
+  TestCompiler compiler;
+  compiler.Compile(source);
+
+  // Find the definition for 'Fail' of the goto statement on line 3.
+  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  auto maybe_position = LanguageServerData::FindDefinition(id, {3, 7});
+  ASSERT_TRUE(maybe_position.has_value());
+  EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 26}, {2, 30}}));
+}
+
+TEST(LanguageServer, GotoLabelDefinitionInTryBlockGoto) {
+  const std::string source =
+      "type void;\n"
+      "type never;\n"
+      "macro Bar() {\n"
+      "  try { goto Bailout; }\n"
+      "  label Bailout {}\n"
+      "}\n";
+
+  TestCompiler compiler;
+  compiler.Compile(source);
+
+  // Find the definition for 'Bailout' of the goto statement on line 3.
+  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  auto maybe_position = LanguageServerData::FindDefinition(id, {3, 13});
+  ASSERT_TRUE(maybe_position.has_value());
+  EXPECT_EQ(*maybe_position, (SourcePosition{id, {4, 8}, {4, 15}}));
+}
+
+TEST(LanguageServer, GotoLabelDefinitionGotoInOtherwise) {
+  const std::string source =
+      "type void;\n"
+      "type never;\n"
+      "macro Foo(): never labels Fail {\n"
+      "  goto Fail;\n"
+      "}\n"
+      "macro Bar() {\n"
+      "  try { Foo() otherwise goto Bailout; }\n"
+      "  label Bailout {}\n"
+      "}\n";
+
+  TestCompiler compiler;
+  compiler.Compile(source);
+
+  // Find the definition for 'Bailout' of the otherwise clause on line 6.
+  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  auto maybe_position = LanguageServerData::FindDefinition(id, {6, 30});
+  ASSERT_TRUE(maybe_position.has_value());
+  EXPECT_EQ(*maybe_position, (SourcePosition{id, {7, 8}, {7, 15}}));
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

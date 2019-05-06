@@ -569,12 +569,10 @@ struct ContinueStatement : Statement {
 
 struct GotoStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(GotoStatement)
-  GotoStatement(SourcePosition pos, std::string label,
+  GotoStatement(SourcePosition pos, Identifier* label,
                 const std::vector<Expression*>& arguments)
-      : Statement(kKind, pos),
-        label(std::move(label)),
-        arguments(std::move(arguments)) {}
-  std::string label;
+      : Statement(kKind, pos), label(label), arguments(std::move(arguments)) {}
+  Identifier* label;
   std::vector<Expression*> arguments;
 };
 
