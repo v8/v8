@@ -90,6 +90,8 @@ std::string Status::ToASCIIString() const {
     case Error::CBOR_ENVELOPE_SIZE_LIMIT_EXCEEDED:
       return ToASCIIString("CBOR: envelope size limit exceeded");
   }
+  // Some compilers can't figure out that we can't get here.
+  return "INVALID ERROR CODE";
 }
 
 std::string Status::ToASCIIString(const char* msg) const {
@@ -1145,20 +1147,21 @@ enum class Container {
 class State {
  public:
   explicit State(Container container) : container_(container) {}
-  void StartElement(std::vector<uint8_t>* out) {
-    // FIXME!!!
-  }
-  void StartElement(std::string* out) {
-    assert(container_ != Container::NONE || size_ == 0);
-    if (size_ != 0) {
-      char delim = (!(size_ & 1) || container_ == Container::ARRAY) ? ',' : ':';
-      out->append(1, delim);
-    }
-    ++size_;
-  }
+  void StartElement(std::vector<uint8_t>* out) { StartElementTmpl(out); }
+  void StartElement(std::string* out) { StartElementTmpl(out); }
   Container container() const { return container_; }
 
  private:
+  template <typename C>
+  void StartElementTmpl(C* out) {
+    assert(container_ != Container::NONE || size_ == 0);
+    if (size_ != 0) {
+      char delim = (!(size_ & 1) || container_ == Container::ARRAY) ? ',' : ':';
+      out->push_back(delim);
+    }
+    ++size_;
+  }
+
   Container container_ = Container::NONE;
   int size_ = 0;
 };
