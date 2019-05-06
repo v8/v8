@@ -1291,6 +1291,7 @@ action("v8_dump_build_config") {
     "$root_out_dir/v8_build_config.json",
   ]
   is_gcov_coverage = v8_code_coverage && !is_clang
+  is_full_debug = v8_enable_debugging_features && !v8_optimized_debug
   args = [
     rebase_path("$root_out_dir/v8_build_config.json", root_build_dir),
     "current_cpu=\"$current_cpu\"",
@@ -1301,6 +1302,7 @@ action("v8_dump_build_config") {
     "is_clang=$is_clang",
     "is_component_build=$is_component_build",
     "is_debug=$v8_enable_debugging_features",
+    "is_full_debug=$is_full_debug",
     "is_gcov_coverage=$is_gcov_coverage",
     "is_msan=$is_msan",
     "is_tsan=$is_tsan",

@@ -185,6 +185,7 @@ class BuildConfig(object):
     self.is_android = build_config['is_android']
     self.is_clang = build_config['is_clang']
     self.is_debug = build_config['is_debug']
+    self.is_full_debug = build_config['is_full_debug']
     self.msan = build_config['is_msan']
     self.no_i18n = not build_config['v8_enable_i18n_support']
     self.no_snap = not build_config['v8_use_snapshot']
@@ -722,9 +723,11 @@ class BaseTestRunner(object):
     if self.build_config.lite_mode:
       factor *= 2
     if self.build_config.predictable:
-      factor *= 2.5
+      factor *= 3
     if self.build_config.use_sanitizer:
       factor *= 1.5
+    if self.build_config.is_full_debug:
+      factor *= 2
 
     return factor
 
