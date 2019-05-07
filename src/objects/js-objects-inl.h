@@ -718,34 +718,16 @@ ACCESSORS(JSDate, hour, Object, kHourOffset)
 ACCESSORS(JSDate, min, Object, kMinOffset)
 ACCESSORS(JSDate, sec, Object, kSecOffset)
 
-bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
-  return shared_info()->IsUndefined();
-}
-
-int JSMessageObject::GetStartPosition() const {
-  DCHECK(DidEnsureSourcePositionsAvailable());
-  return start_position();
-}
-
-int JSMessageObject::GetEndPosition() const {
-  DCHECK(DidEnsureSourcePositionsAvailable());
-  return end_position();
-}
-
 MessageTemplate JSMessageObject::type() const {
   Object value = READ_FIELD(*this, kMessageTypeOffset);
   return MessageTemplateFromInt(Smi::ToInt(value));
 }
-
 void JSMessageObject::set_type(MessageTemplate value) {
   WRITE_FIELD(*this, kMessageTypeOffset, Smi::FromInt(static_cast<int>(value)));
 }
-
 ACCESSORS(JSMessageObject, argument, Object, kArgumentsOffset)
 ACCESSORS(JSMessageObject, script, Script, kScriptOffset)
 ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)
-ACCESSORS(JSMessageObject, shared_info, HeapObject, kSharedInfoOffset)
-ACCESSORS(JSMessageObject, bytecode_offset, Smi, kBytecodeOffsetOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
 SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)

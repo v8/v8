@@ -321,11 +321,8 @@ extern class JSMessageObject extends JSObject {
   arguments: Object;
   script: Script;
   stack_frames: Object;
-  shared_info: SharedFunctionInfo | Undefined;
-
   // Raw data fields.
   // TODO(ishell): store as int32 instead of Smi.
-  bytecode_offset: Smi;
   start_position: Smi;
   end_position: Smi;
   error_level: Smi;

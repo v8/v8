@@ -24,30 +24,14 @@ namespace internal {
 
 MessageLocation::MessageLocation(Handle<Script> script, int start_pos,
                                  int end_pos)
-    : script_(script),
-      start_pos_(start_pos),
-      end_pos_(end_pos),
-      bytecode_offset_(-1) {}
-
+    : script_(script), start_pos_(start_pos), end_pos_(end_pos) {}
 MessageLocation::MessageLocation(Handle<Script> script, int start_pos,
                                  int end_pos, Handle<SharedFunctionInfo> shared)
     : script_(script),
       start_pos_(start_pos),
       end_pos_(end_pos),
-      bytecode_offset_(-1),
       shared_(shared) {}
-
-MessageLocation::MessageLocation(Handle<Script> script,
-                                 Handle<SharedFunctionInfo> shared,
-                                 int bytecode_offset)
-    : script_(script),
-      start_pos_(-1),
-      end_pos_(-1),
-      bytecode_offset_(bytecode_offset),
-      shared_(shared) {}
-
-MessageLocation::MessageLocation()
-    : start_pos_(-1), end_pos_(-1), bytecode_offset_(-1) {}
+MessageLocation::MessageLocation() : start_pos_(-1), end_pos_(-1) {}
 
 // If no message listeners have been registered this one is called
 // by default.
@@ -75,15 +59,11 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
 
   int start = -1;
   int end = -1;
-  int bytecode_offset = -1;
   Handle<Script> script_handle = isolate->factory()->empty_script();
-  Handle<SharedFunctionInfo> shared_info;
   if (location != nullptr) {
     start = location->start_pos();
     end = location->end_pos();
     script_handle = location->script();
-    bytecode_offset = location->bytecode_offset();
-    shared_info = location->shared();
   }
 
   Handle<Object> stack_frames_handle = stack_frames.is_null()
@@ -91,8 +71,7 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
       : Handle<Object>::cast(stack_frames);
 
   Handle<JSMessageObject> message_obj = factory->NewJSMessageObject(
-      message, argument, start, end, shared_info, bytecode_offset,
-      script_handle, stack_frames_handle);
+      message, argument, start, end, script_handle, stack_frames_handle);
 
   return message_obj;
 }

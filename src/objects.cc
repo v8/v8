@@ -21,7 +21,6 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/bits.h"
-#include "src/base/debug/stack_trace.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
@@ -5614,13 +5613,6 @@ void SharedFunctionInfo::SetPosition(int start_position, int end_position) {
   } else {
     UNREACHABLE();
   }
-}
-
-bool SharedFunctionInfo::AreSourcePositionsAvailable() const {
-  if (FLAG_enable_lazy_source_positions) {
-    return !HasBytecodeArray() || GetBytecodeArray()->HasSourcePositionTable();
-  }
-  return true;
 }
 
 // static

@@ -2859,28 +2859,20 @@ Maybe<int> Message::GetLineNumber(Local<Context> context) const {
   i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
-  i::JSMessageObject::EnsureSourcePositionsAvailable(isolate, self);
-  return Just(self->GetLineNumber());
+  auto msg = i::Handle<i::JSMessageObject>::cast(self);
+  return Just(msg->GetLineNumber());
 }
 
 
 int Message::GetStartPosition() const {
   auto self = Utils::OpenHandle(this);
-  i::Isolate* isolate = self->GetIsolate();
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
-  i::JSMessageObject::EnsureSourcePositionsAvailable(isolate, self);
-  return self->GetStartPosition();
+  return self->start_position();
 }
 
 
 int Message::GetEndPosition() const {
   auto self = Utils::OpenHandle(this);
-  i::Isolate* isolate = self->GetIsolate();
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
-  i::JSMessageObject::EnsureSourcePositionsAvailable(isolate, self);
-  return self->GetEndPosition();
+  return self->end_position();
 }
 
 int Message::ErrorLevel() const {
@@ -2893,8 +2885,8 @@ int Message::GetStartColumn() const {
   i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
-  i::JSMessageObject::EnsureSourcePositionsAvailable(isolate, self);
-  return self->GetColumnNumber();
+  auto msg = i::Handle<i::JSMessageObject>::cast(self);
+  return msg->GetColumnNumber();
 }
 
 Maybe<int> Message::GetStartColumn(Local<Context> context) const {
@@ -2906,11 +2898,11 @@ int Message::GetEndColumn() const {
   i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
-  i::JSMessageObject::EnsureSourcePositionsAvailable(isolate, self);
-  const int column_number = self->GetColumnNumber();
+  auto msg = i::Handle<i::JSMessageObject>::cast(self);
+  const int column_number = msg->GetColumnNumber();
   if (column_number == -1) return -1;
-  const int start = self->GetStartPosition();
-  const int end = self->GetEndPosition();
+  const int start = self->start_position();
+  const int end = self->end_position();
   return column_number + (end - start);
 }
 
@@ -2940,8 +2932,8 @@ MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
   i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
-  i::JSMessageObject::EnsureSourcePositionsAvailable(isolate, self);
-  RETURN_ESCAPED(Utils::ToLocal(self->GetSourceLine()));
+  auto msg = i::Handle<i::JSMessageObject>::cast(self);
+  RETURN_ESCAPED(Utils::ToLocal(msg->GetSourceLine()));
 }
 
 

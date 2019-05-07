@@ -1336,21 +1336,9 @@ void FrameSummary::EnsureSourcePositionsAvailable() {
   }
 }
 
-bool FrameSummary::AreSourcePositionsAvailable() const {
-  if (IsJavaScript()) {
-    return java_script_summary_.AreSourcePositionsAvailable();
-  }
-  return true;
-}
-
 void FrameSummary::JavaScriptFrameSummary::EnsureSourcePositionsAvailable() {
   Handle<SharedFunctionInfo> shared(function()->shared(), isolate());
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared);
-}
-
-bool FrameSummary::JavaScriptFrameSummary::AreSourcePositionsAvailable() const {
-  return !FLAG_enable_lazy_source_positions ||
-         function()->shared()->GetBytecodeArray()->HasSourcePositionTable();
 }
 
 bool FrameSummary::JavaScriptFrameSummary::is_subject_to_debugging() const {
