@@ -158,15 +158,16 @@ Node* GraphAssembler::Unreachable() {
 
 Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,
                             Node* value) {
+  value = InsertCompressionIfNeeded(rep.representation(), value);
   return current_effect_ =
              graph()->NewNode(machine()->Store(rep), object, offset, value,
                               current_effect_, current_control_);
 }
 
-Node* GraphAssembler::Load(MachineType rep, Node* object, Node* offset) {
-  return current_effect_ =
-             graph()->NewNode(machine()->Load(rep), object, offset,
-                              current_effect_, current_control_);
+Node* GraphAssembler::Load(MachineType type, Node* object, Node* offset) {
+  Node* value = current_effect_ = graph()->NewNode(
+      machine()->Load(type), object, offset, current_effect_, current_control_);
+  return InsertDecompressionIfNeeded(type.representation(), value);
 }
 
 Node* GraphAssembler::StoreUnaligned(MachineRepresentation rep, Node* object,
@@ -180,13 +181,13 @@ Node* GraphAssembler::StoreUnaligned(MachineRepresentation rep, Node* object,
                                             current_effect_, current_control_);
 }
 
-Node* GraphAssembler::LoadUnaligned(MachineType rep, Node* object,
+Node* GraphAssembler::LoadUnaligned(MachineType type, Node* object,
                                     Node* offset) {
   Operator const* const op =
-      (rep.representation() == MachineRepresentation::kWord8 ||
-       machine()->UnalignedLoadSupported(rep.representation()))
-          ? machine()->Load(rep)
-          : machine()->UnalignedLoad(rep);
+      (type.representation() == MachineRepresentation::kWord8 ||
+       machine()->UnalignedLoadSupported(type.representation()))
+          ? machine()->Load(type)
+          : machine()->UnalignedLoad(type);
   return current_effect_ = graph()->NewNode(op, object, offset, current_effect_,
                                             current_control_);
 }

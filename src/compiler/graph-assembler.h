@@ -233,11 +233,11 @@ class GraphAssembler {
                      Node* value);
 
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
-  Node* Load(MachineType rep, Node* object, Node* offset);
+  Node* Load(MachineType type, Node* object, Node* offset);
 
   Node* StoreUnaligned(MachineRepresentation rep, Node* object, Node* offset,
                        Node* value);
-  Node* LoadUnaligned(MachineType rep, Node* object, Node* offset);
+  Node* LoadUnaligned(MachineType type, Node* object, Node* offset);
 
   Node* Retain(Node* buffer);
   Node* UnsafePointerAdd(Node* base, Node* external);

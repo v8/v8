@@ -3127,7 +3127,7 @@ Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
 
     __ Bind(&if_adaptor_frame);
     Node* arguments_length = __ Load(
-        MachineType::TaggedSigned(), arguments_frame,
+        MachineType::TypeCompressedTaggedSigned(), arguments_frame,
         __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset));
 
     Node* rest_length =
@@ -3152,7 +3152,7 @@ Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
 
     __ Bind(&if_adaptor_frame);
     Node* arguments_length = __ Load(
-        MachineType::TaggedSigned(), arguments_frame,
+        MachineType::TypeCompressedTaggedSigned(), arguments_frame,
         __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset));
     __ Goto(&done, arguments_length);
 
@@ -3169,8 +3169,9 @@ Node* EffectControlLinearizer::LowerArgumentsFrame(Node* node) {
       __ Load(MachineType::Pointer(), frame,
               __ IntPtrConstant(StandardFrameConstants::kCallerFPOffset));
   Node* parent_frame_type = __ Load(
-      MachineType::AnyTagged(), parent_frame,
+      MachineType::TypeCompressedTagged(), parent_frame,
       __ IntPtrConstant(CommonFrameConstants::kContextOrFrameTypeOffset));
+
   __ GotoIf(__ WordEqual(parent_frame_type,
                          __ IntPtrConstant(StackFrame::TypeToMarker(
                              StackFrame::ARGUMENTS_ADAPTOR))),
@@ -3260,9 +3261,9 @@ Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
     __ GotoIfNot(check, &done, result);
 
     // Storing "the_hole" doesn't need a write barrier.
-    ElementAccess const access = {kTaggedBase, FixedArray::kHeaderSize,
-                                  Type::Any(), MachineType::AnyTagged(),
-                                  kNoWriteBarrier};
+    ElementAccess const access = {
+        kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
+        MachineType::TypeCompressedTagged(), kNoWriteBarrier};
     __ StoreElement(access, result, index, the_hole);
 
     // Advance the {index}.
@@ -4372,7 +4373,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
       Node* offset =
           __ IntAdd(__ WordShl(index, __ IntPtrConstant(kTaggedSizeLog2 - 1)),
                     __ IntPtrConstant(JSObject::kHeaderSize - kHeapObjectTag));
-      Node* result = __ Load(MachineType::AnyTagged(), object, offset);
+      Node* result =
+          __ Load(MachineType::TypeCompressedTagged(), object, offset);
       __ Goto(&done, result);
     }
 
@@ -4387,7 +4389,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
                                __ IntPtrConstant(kTaggedSizeLog2 - 1)),
                     __ IntPtrConstant((FixedArray::kHeaderSize - kTaggedSize) -
                                       kHeapObjectTag));
-      Node* result = __ Load(MachineType::AnyTagged(), properties, offset);
+      Node* result =
+          __ Load(MachineType::TypeCompressedTagged(), properties, offset);
       __ Goto(&done, result);
     }
   }
@@ -4413,7 +4416,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
         Node* result = __ Load(MachineType::Float64(), object, offset);
         __ Goto(&done_double, result);
       } else {
-        Node* result = __ Load(MachineType::AnyTagged(), object, offset);
+        Node* result =
+            __ Load(MachineType::TypeCompressedTagged(), object, offset);
         result = __ LoadField(AccessBuilder::ForHeapNumberValue(), result);
         __ Goto(&done_double, result);
       }
@@ -4428,7 +4432,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
                                __ IntPtrConstant(kTaggedSizeLog2)),
                     __ IntPtrConstant((FixedArray::kHeaderSize - kTaggedSize) -
                                       kHeapObjectTag));
-      Node* result = __ Load(MachineType::AnyTagged(), properties, offset);
+      Node* result =
+          __ Load(MachineType::TypeCompressedTagged(), properties, offset);
       result = __ LoadField(AccessBuilder::ForHeapNumberValue(), result);
       __ Goto(&done_double, result);
     }
@@ -4986,7 +4991,7 @@ void EffectControlLinearizer::LowerStoreSignedSmallElement(Node* node) {
     // the ElementAccess information.
     ElementAccess access = AccessBuilder::ForFixedArrayElement();
     access.type = Type::SignedSmall();
-    access.machine_type = MachineType::TaggedSigned();
+    access.machine_type = MachineType::TypeCompressedTaggedSigned();
     access.write_barrier_kind = kNoWriteBarrier;
     Node* smi_value = ChangeInt32ToSmi(value);
     __ StoreElement(access, elements, index, smi_value);
@@ -5476,7 +5481,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
       AccessBuilder::ForOrderedHashMapOrSetNumberOfBuckets(), table));
   hash = __ WordAnd(hash, __ IntSub(number_of_buckets, __ IntPtrConstant(1)));
   Node* first_entry = ChangeSmiToIntPtr(__ Load(
-      MachineType::TaggedSigned(), table,
+      MachineType::TypeCompressedTaggedSigned(), table,
       __ IntAdd(__ WordShl(hash, __ IntPtrConstant(kTaggedSizeLog2)),
                 __ IntPtrConstant(OrderedHashMap::HashTableStartOffset() -
                                   kHeapObjectTag))));
@@ -5495,7 +5500,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
         number_of_buckets);
 
     Node* candidate_key = __ Load(
-        MachineType::AnyTagged(), table,
+        MachineType::TypeCompressedTagged(), table,
         __ IntAdd(__ WordShl(entry, __ IntPtrConstant(kTaggedSizeLog2)),
                   __ IntPtrConstant(OrderedHashMap::HashTableStartOffset() -
                                     kHeapObjectTag)));
@@ -5523,7 +5528,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
     __ Bind(&if_notmatch);
     {
       Node* next_entry = ChangeSmiToIntPtr(__ Load(
-          MachineType::TaggedSigned(), table,
+          MachineType::TypeCompressedTaggedSigned(), table,
           __ IntAdd(
               __ WordShl(entry, __ IntPtrConstant(kTaggedSizeLog2)),
               __ IntPtrConstant(OrderedHashMap::HashTableStartOffset() +
