@@ -5,6 +5,7 @@
 #ifndef V8_TORQUE_CONSTANTS_H_
 #define V8_TORQUE_CONSTANTS_H_
 
+#include <cstring>
 #include <string>
 
 namespace v8 {
@@ -44,12 +45,13 @@ static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 
 inline bool IsConstexprName(const std::string& name) {
-  return name.substr(0, strlen(CONSTEXPR_TYPE_PREFIX)) == CONSTEXPR_TYPE_PREFIX;
+  return name.substr(0, std::strlen(CONSTEXPR_TYPE_PREFIX)) ==
+         CONSTEXPR_TYPE_PREFIX;
 }
 
 inline std::string GetNonConstexprName(const std::string& name) {
   if (!IsConstexprName(name)) return name;
-  return name.substr(strlen(CONSTEXPR_TYPE_PREFIX));
+  return name.substr(std::strlen(CONSTEXPR_TYPE_PREFIX));
 }
 
 inline std::string GetConstexprName(const std::string& name) {
