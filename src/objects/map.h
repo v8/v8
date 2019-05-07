@@ -518,17 +518,16 @@ class Map : public HeapObject {
   static inline bool IsMostGeneralFieldType(Representation representation,
                                             FieldType field_type);
 
-  // Generalizes constness, representation and field_type if objects with given
-  // instance type can have fast elements that can be transitioned by stubs or
-  // optimized code to more general elements kind.
+  // Generalizes representation and field_type if objects with given
+  // instance type can have fast elements that can be transitioned by
+  // stubs or optimized code to more general elements kind.
   // This generalization is necessary in order to ensure that elements kind
   // transitions performed by stubs / optimized code don't silently transition
-  // PropertyConstness::kMutable fields back to VariableMode::kConst state or
+  // fields with representation "Tagged" back to "Smi" or "HeapObject" or
   // fields with HeapObject representation and "Any" type back to "Class" type.
   static inline void GeneralizeIfCanHaveTransitionableFastElementsKind(
       Isolate* isolate, InstanceType instance_type,
-      PropertyConstness* constness, Representation* representation,
-      Handle<FieldType>* field_type);
+      Representation* representation, Handle<FieldType>* field_type);
 
   V8_EXPORT_PRIVATE static Handle<Map> ReconfigureProperty(
       Isolate* isolate, Handle<Map> map, int modify_index,

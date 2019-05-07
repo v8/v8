@@ -122,19 +122,16 @@ bool Map::CanHaveFastTransitionableElementsKind() const {
 
 // static
 void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
-    Isolate* isolate, InstanceType instance_type, PropertyConstness* constness,
+    Isolate* isolate, InstanceType instance_type,
     Representation* representation, Handle<FieldType>* field_type) {
   if (CanHaveFastTransitionableElementsKind(instance_type)) {
     // We don't support propagation of field generalization through elements
     // kind transitions because they are inserted into the transition tree
     // before field transitions. In order to avoid complexity of handling
     // such a case we ensure that all maps with transitionable elements kinds
-    // have the most general field type.
-    if (representation->IsHeapObject()) {
-      // The field type is either already Any or should become Any if it was
-      // something else.
-      *field_type = FieldType::Any(isolate);
-    }
+    // have the most general field representation and type.
+    *field_type = FieldType::Any(isolate);
+    *representation = Representation::Tagged();
   }
 }
 

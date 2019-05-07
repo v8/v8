@@ -147,8 +147,8 @@ Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
   }
 
   Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
-      isolate_, old_map_->instance_type(), &new_constness_,
-      &new_representation_, &new_field_type_);
+      isolate_, old_map_->instance_type(), &new_representation_,
+      &new_field_type_);
 
   if (TryReconfigureToDataFieldInplace() == kEnd) return result_map_;
   if (FindRootMap() == kEnd) return result_map_;
@@ -586,8 +586,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
           target_field_type, isolate_);
 
       Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
-          isolate_, instance_type, &next_constness, &next_representation,
-          &next_field_type);
+          isolate_, instance_type, &next_representation, &next_field_type);
 
       MaybeObjectHandle wrapped_type(
           Map::WrapFieldType(isolate_, next_field_type));

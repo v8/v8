@@ -41,7 +41,7 @@ class FieldType : public Object {
   bool NowIs(FieldType other) const;
   bool NowIs(Handle<FieldType> other) const;
 
-  void PrintTo(std::ostream& os) const;
+  V8_EXPORT_PRIVATE void PrintTo(std::ostream& os) const;
 
   FieldType* operator->() { return this; }
   const FieldType* operator->() const { return this; }

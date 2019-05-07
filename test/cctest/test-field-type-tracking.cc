@@ -123,6 +123,7 @@ class Expectations {
       // Maps with transitionable elements kinds must have the most general
       // field type.
       value = FieldType::Any(isolate_);
+      representation = Representation::Tagged();
     }
     constnesses_[index] = constness;
     attributes_[index] = attributes;
@@ -138,7 +139,7 @@ class Expectations {
       os << "Descriptor @ ";
 
       if (kinds_[i] == kData) {
-        os << Brief(*values_[i]);
+        Handle<FieldType>::cast(values_[i])->PrintTo(os);
       } else {
         // kAccessor
         os << "(get: " << Brief(*values_[i])
@@ -1727,104 +1728,6 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToDataFieldAfterTargetMap) {
 
 namespace {
 
-// This test ensures that field generalization is correctly propagated from one
-// branch of transition tree (|map2) to another (|map|).
-//
-//   + - p0 - p1 - p2A - p3 - p4: |map|
-//   |
-//  ek
-//   |
-//  {} - p0 - p1 - p2B - p3 - p4: |map2|
-//
-// where "p2A" and "p2B" differ only in the representation/field type.
-//
-static void TestReconfigureElementsKind_GeneralizeField(
-    const CRFTData& from, const CRFTData& to, const CRFTData& expected) {
-  Isolate* isolate = CcTest::i_isolate();
-
-  Expectations expectations(isolate, PACKED_SMI_ELEMENTS);
-
-  // Create a map, add required properties to it and initialize expectations.
-  Handle<Map> initial_map = Map::Create(isolate, 0);
-  initial_map->set_instance_type(JS_ARRAY_TYPE);
-  initial_map->set_elements_kind(PACKED_SMI_ELEMENTS);
-
-  Handle<Map> map = initial_map;
-  map = expectations.AsElementsKind(map, PACKED_ELEMENTS);
-  for (int i = 0; i < kPropCount; i++) {
-    map = expectations.AddDataField(map, NONE, from.constness,
-                                    from.representation, from.type);
-  }
-  CHECK(!map->is_deprecated());
-  CHECK(map->is_stable());
-  CHECK(expectations.Check(*map));
-
-  // Create another branch in transition tree (property at index |kDiffProp|
-  // has different representatio/field type), initialize expectations.
-  const int kDiffProp = kPropCount / 2;
-  Expectations expectations2(isolate, PACKED_SMI_ELEMENTS);
-
-  Handle<Map> map2 = initial_map;
-  for (int i = 0; i < kPropCount; i++) {
-    if (i == kDiffProp) {
-      map2 = expectations2.AddDataField(map2, NONE, to.constness,
-                                        to.representation, to.type);
-    } else {
-      map2 = expectations2.AddDataField(map2, NONE, from.constness,
-                                        from.representation, from.type);
-    }
-  }
-  CHECK(!map2->is_deprecated());
-  CHECK(map2->is_stable());
-  CHECK(expectations2.Check(*map2));
-
-  // Create dummy optimized code object to test correct dependencies
-  // on the field owner.
-  Handle<Code> code = CreateDummyOptimizedCode(isolate);
-  Handle<Map> field_owner(map->FindFieldOwner(isolate, kDiffProp), isolate);
-  DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
-                                   field_owner,
-                                   DependentCode::kFieldOwnerGroup);
-  CHECK(!code->marked_for_deoptimization());
-
-  // Reconfigure elements kinds of |map2|, which should generalize
-  // representations in |map|.
-  Handle<Map> new_map =
-      Map::ReconfigureElementsKind(isolate, map2, PACKED_ELEMENTS);
-
-  // |map2| should be left unchanged but marked unstable.
-  CHECK(!map2->is_stable());
-  CHECK(!map2->is_deprecated());
-  CHECK_NE(*map2, *new_map);
-  CHECK(expectations2.Check(*map2));
-
-  // |map| should be deprecated and |new_map| should match new expectations.
-  expectations.SetDataField(kDiffProp, expected.constness,
-                            expected.representation, expected.type);
-
-  CHECK(map->is_deprecated());
-  CHECK(!code->marked_for_deoptimization());
-  CHECK_NE(*map, *new_map);
-
-  CHECK(!new_map->is_deprecated());
-  CHECK(expectations.Check(*new_map));
-
-  // Update deprecated |map|, it should become |new_map|.
-  Handle<Map> updated_map = Map::Update(isolate, map);
-  CHECK_EQ(*new_map, *updated_map);
-  CheckMigrationTarget(isolate, *map, *updated_map);
-
-  // Ensure Map::FindElementsKindTransitionedMap() is able to find the
-  // transitioned map.
-  {
-    MapHandles map_list;
-    map_list.push_back(updated_map);
-    Map transitioned_map =
-        map2->FindElementsKindTransitionedMap(isolate, map_list);
-    CHECK_EQ(*updated_map, transitioned_map);
-  }
-}
-
 // This test ensures that trivial field generalization (from HeapObject to
 // HeapObject) is correctly propagated from one branch of transition tree
 // (|map2|) to another (|map|).
@@ -1934,22 +1837,22 @@ TEST(ReconfigureElementsKind_GeneralizeSmiFieldToDouble) {
 
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kConst, Representation::Smi(), any_type},
       {PropertyConstness::kConst, Representation::Double(), any_type},
       {PropertyConstness::kConst, Representation::Double(), any_type});
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kConst, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::Double(), any_type});
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kConst, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::Double(), any_type});
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::Double(), any_type});
@@ -1964,22 +1867,22 @@ TEST(ReconfigureElementsKind_GeneralizeSmiFieldToTagged) {
   Handle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kConst, Representation::Smi(), any_type},
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
       {PropertyConstness::kConst, Representation::Tagged(), any_type});
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kConst, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type});
@@ -1994,22 +1897,22 @@ TEST(ReconfigureElementsKind_GeneralizeDoubleFieldToTagged) {
   Handle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kConst, Representation::Double(), any_type},
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
       {PropertyConstness::kConst, Representation::Tagged(), any_type});
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kConst, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type});
@@ -2092,22 +1995,22 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjectFieldToTagged) {
   Handle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
       {PropertyConstness::kConst, Representation::Smi(), any_type},
       {PropertyConstness::kConst, Representation::Tagged(), any_type});
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kConst, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kConst, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 
-  TestReconfigureElementsKind_GeneralizeField(
+  TestReconfigureElementsKind_GeneralizeFieldTrivial(
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type});

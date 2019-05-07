@@ -447,7 +447,7 @@ MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, Handle<Map> map,
     type = FieldType::Any(isolate);
   } else {
     Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
-        isolate, map->instance_type(), &constness, &representation, &type);
+        isolate, map->instance_type(), &representation, &type);
   }
 
   MaybeObjectHandle wrapped_type = WrapFieldType(isolate, type);
