@@ -43,12 +43,13 @@ FieldAccess AccessBuilder::ForExternalUint8Value() {
 }
 
 // static
+// TODO(v8:8977, v8:7703): Change MachineType::TaggedPointer to
+// MachineType::TypeCompressedTaggedPointer
 FieldAccess AccessBuilder::ForMap() {
-  FieldAccess access = {
-      kTaggedBase,           HeapObject::kMapOffset,
-      MaybeHandle<Name>(),   MaybeHandle<Map>(),
-      Type::OtherInternal(), MachineType::TypeCompressedTaggedPointer(),
-      kMapWriteBarrier};
+  FieldAccess access = {kTaggedBase,           HeapObject::kMapOffset,
+                        MaybeHandle<Name>(),   MaybeHandle<Map>(),
+                        Type::OtherInternal(), MachineType::TaggedPointer(),
+                        kMapWriteBarrier};
   return access;
 }
 
@@ -83,22 +84,24 @@ FieldAccess AccessBuilder::ForBigIntBitfield() {
 }
 
 // static
+// TODO(v8:8977, v8:7703): Change MachineType::AnyTagged to
+// MachineType::TypeCompressedTagged
 FieldAccess AccessBuilder::ForJSObjectPropertiesOrHash() {
-  FieldAccess access = {
-      kTaggedBase,          JSObject::kPropertiesOrHashOffset,
-      MaybeHandle<Name>(),  MaybeHandle<Map>(),
-      Type::Any(),          MachineType::TypeCompressedTagged(),
-      kPointerWriteBarrier, LoadSensitivity::kCritical};
+  FieldAccess access = {kTaggedBase,          JSObject::kPropertiesOrHashOffset,
+                        MaybeHandle<Name>(),  MaybeHandle<Map>(),
+                        Type::Any(),          MachineType::AnyTagged(),
+                        kPointerWriteBarrier, LoadSensitivity::kCritical};
   return access;
 }
 
 // static
+// TODO(v8:8977, v8:7703): Change MachineType::TaggedPointer to
+// MachineType::TypeCompressedTaggedPointer
 FieldAccess AccessBuilder::ForJSObjectElements() {
-  FieldAccess access = {
-      kTaggedBase,          JSObject::kElementsOffset,
-      MaybeHandle<Name>(),  MaybeHandle<Map>(),
-      Type::Internal(),     MachineType::TypeCompressedTaggedPointer(),
-      kPointerWriteBarrier, LoadSensitivity::kCritical};
+  FieldAccess access = {kTaggedBase,          JSObject::kElementsOffset,
+                        MaybeHandle<Name>(),  MaybeHandle<Map>(),
+                        Type::Internal(),     MachineType::TaggedPointer(),
+                        kPointerWriteBarrier, LoadSensitivity::kCritical};
   return access;
 }
 
@@ -667,12 +670,13 @@ FieldAccess AccessBuilder::ForStringLength() {
 }
 
 // static
+// TODO(v8:8977, v8:7703): Change MachineType::TaggedPointer to
+// MachineType::TypeCompressedTaggedPointer
 FieldAccess AccessBuilder::ForConsStringFirst() {
-  FieldAccess access = {
-      kTaggedBase,         ConsString::kFirstOffset,
-      Handle<Name>(),      MaybeHandle<Map>(),
-      Type::String(),      MachineType::TypeCompressedTaggedPointer(),
-      kPointerWriteBarrier};
+  FieldAccess access = {kTaggedBase,         ConsString::kFirstOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::String(),      MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
   return access;
 }
 
@@ -687,12 +691,13 @@ FieldAccess AccessBuilder::ForConsStringSecond() {
 }
 
 // static
+// TODO(v8:8977, v8:7703): Change MachineType::TaggedPointer to
+// MachineType::TypeCompressedTaggedPointer
 FieldAccess AccessBuilder::ForThinStringActual() {
-  FieldAccess access = {
-      kTaggedBase,         ThinString::kActualOffset,
-      Handle<Name>(),      MaybeHandle<Map>(),
-      Type::String(),      MachineType::TypeCompressedTaggedPointer(),
-      kPointerWriteBarrier};
+  FieldAccess access = {kTaggedBase,         ThinString::kActualOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::String(),      MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
   return access;
 }
 
@@ -707,12 +712,13 @@ FieldAccess AccessBuilder::ForSlicedStringOffset() {
 }
 
 // static
+// TODO(v8:8977, v8:7703): Change MachineType::TaggedPointer to
+// MachineType::TypeCompressedTaggedPointer
 FieldAccess AccessBuilder::ForSlicedStringParent() {
-  FieldAccess access = {
-      kTaggedBase,         SlicedString::kParentOffset,
-      Handle<Name>(),      MaybeHandle<Map>(),
-      Type::String(),      MachineType::TypeCompressedTaggedPointer(),
-      kPointerWriteBarrier};
+  FieldAccess access = {kTaggedBase,         SlicedString::kParentOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::String(),      MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
   return access;
 }
 
@@ -779,11 +785,13 @@ FieldAccess AccessBuilder::ForJSGlobalObjectNativeContext() {
 }
 
 // static
+// TODO(v8:8977, v8:7703): Change MachineType::TaggedPointer to
+// MachineType::TypeCompressedTaggedPointer
 FieldAccess AccessBuilder::ForJSGlobalProxyNativeContext() {
   FieldAccess access = {
       kTaggedBase,         JSGlobalProxy::kNativeContextOffset,
       Handle<Name>(),      MaybeHandle<Map>(),
-      Type::Internal(),    MachineType::TypeCompressedTaggedPointer(),
+      Type::Internal(),    MachineType::TaggedPointer(),
       kPointerWriteBarrier};
   return access;
 }
@@ -913,10 +921,11 @@ FieldAccess AccessBuilder::ForContextSlot(size_t index) {
 }
 
 // static
+// TODO(v8:8977, v8:7703): Change MachineType::AnyTagged to
+// MachineType::TypeCompressedTagged
 ElementAccess AccessBuilder::ForFixedArrayElement() {
   ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
-                          MachineType::TypeCompressedTagged(),
-                          kFullWriteBarrier};
+                          MachineType::AnyTagged(), kFullWriteBarrier};
   return access;
 }
 
