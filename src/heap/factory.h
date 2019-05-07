@@ -347,7 +347,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   // Creates a single character string where the character has given code.
   // A cache is used for Latin1 codes.
-  Handle<String> LookupSingleCharacterStringFromCode(uint32_t code);
+  Handle<String> LookupSingleCharacterStringFromCode(uint16_t code);
 
   // Create a new cons string object which consists of a pair of strings.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewConsString(Handle<String> left,

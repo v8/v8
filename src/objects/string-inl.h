@@ -203,12 +203,10 @@ class SequentialStringKey final : public StringTableKey {
                             chars) {}
 
   SequentialStringKey(int hash, const Vector<const Char>& chars)
-      : StringTableKey(hash), chars_(chars) {}
+      : StringTableKey(hash, chars.length()), chars_(chars) {}
 
-  bool IsMatch(Object other) override {
+  bool IsMatch(String s) override {
     DisallowHeapAllocation no_gc;
-    String s = String::cast(other);
-    if (s.length() != chars_.length()) return false;
     if (s->IsOneByteRepresentation()) {
       const uint8_t* chars = s.GetChars<uint8_t>(no_gc);
       return CompareChars(chars, chars_.begin(), chars_.length()) == 0;
@@ -220,10 +218,10 @@ class SequentialStringKey final : public StringTableKey {
   Handle<String> AsHandle(Isolate* isolate) override {
     if (sizeof(Char) == 1) {
       return isolate->factory()->NewOneByteInternalizedString(
-          Vector<const uint8_t>::cast(chars_), HashField());
+          Vector<const uint8_t>::cast(chars_), hash_field());
     }
     return isolate->factory()->NewTwoByteInternalizedString(
-        Vector<const uint16_t>::cast(chars_), HashField());
+        Vector<const uint16_t>::cast(chars_), hash_field());
   }
 
  private:
@@ -244,43 +242,41 @@ class SeqOneByteSubStringKey final : public StringTableKey {
 #pragma warning(disable : 4789)
 #endif
   SeqOneByteSubStringKey(Isolate* isolate, Handle<SeqOneByteString> string,
-                         int from, int length)
-      : StringTableKey(0), string_(string), from_(from), length_(length) {
+                         int from, int len)
+      : StringTableKey(0, len), string_(string), from_(from) {
     // We have to set the hash later.
     DisallowHeapAllocation no_gc;
     uint32_t hash = StringHasher::HashSequentialString(
-        string->GetChars(no_gc) + from, length, HashSeed(isolate));
+        string->GetChars(no_gc) + from, len, HashSeed(isolate));
     set_hash_field(hash);
 
-    DCHECK_LE(0, length_);
-    DCHECK_LE(from_ + length_, string_->length());
+    DCHECK_LE(0, length());
+    DCHECK_LE(from_ + length(), string_->length());
     DCHECK(string_->IsSeqOneByteString());
   }
 #if defined(V8_CC_MSVC)
 #pragma warning(pop)
 #endif
 
-  bool IsMatch(Object object) override {
+  bool IsMatch(String string) override {
     DisallowHeapAllocation no_gc;
-    String string = String::cast(object);
-    if (string.length() != length_) return false;
     if (string.IsOneByteRepresentation()) {
       const uint8_t* data = string.GetChars<uint8_t>(no_gc);
-      return CompareChars(string_->GetChars(no_gc) + from_, data, length_) == 0;
+      return CompareChars(string_->GetChars(no_gc) + from_, data, length()) ==
+             0;
     }
     const uint16_t* data = string.GetChars<uint16_t>(no_gc);
-    return CompareChars(string_->GetChars(no_gc) + from_, data, length_) == 0;
+    return CompareChars(string_->GetChars(no_gc) + from_, data, length()) == 0;
   }
 
   Handle<String> AsHandle(Isolate* isolate) override {
     return isolate->factory()->NewOneByteInternalizedSubString(
-        string_, from_, length_, HashField());
+        string_, from_, length(), hash_field());
   }
 
  private:
   Handle<SeqOneByteString> string_;
   int from_;
-  int length_;
 };
 
 bool String::Equals(String other) {

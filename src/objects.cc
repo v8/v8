@@ -6482,7 +6482,7 @@ class RegExpKey : public HashTableKey {
 class InternalizedStringKey : public StringTableKey {
  public:
   explicit InternalizedStringKey(Handle<String> string)
-      : StringTableKey(0), string_(string) {
+      : StringTableKey(0, string->length()), string_(string) {
     DCHECK(!string->IsInternalizedString());
     DCHECK(string->IsFlat());
     // Make sure hash_field is computed.
@@ -6490,9 +6490,7 @@ class InternalizedStringKey : public StringTableKey {
     set_hash_field(string->hash_field());
   }
 
-  bool IsMatch(Object string) override {
-    return string_->SlowEquals(String::cast(string));
-  }
+  bool IsMatch(String string) override { return string_->SlowEquals(string); }
 
   Handle<String> AsHandle(Isolate* isolate) override {
     // Internalize the string if possible.
@@ -6758,77 +6756,6 @@ uint32_t HashTable<Derived, Shape>::FindInsertionEntry(uint32_t hash) {
   return entry;
 }
 
-// This class is used for looking up two character strings in the string table.
-// If we don't have a hit we don't want to waste much time so we unroll the
-// string hash calculation loop here for speed.  Doesn't work if the two
-// characters form a decimal integer, since such strings have a different hash
-// algorithm.
-class TwoCharHashTableKey : public StringTableKey {
- public:
-  TwoCharHashTableKey(uint16_t c1, uint16_t c2, uint64_t seed)
-      : StringTableKey(ComputeHashField(c1, c2, seed)), c1_(c1), c2_(c2) {}
-
-  bool IsMatch(Object o) override {
-    String other = String::cast(o);
-    if (other->length() != 2) return false;
-    if (other->Get(0) != c1_) return false;
-    return other->Get(1) == c2_;
-  }
-
-  Handle<String> AsHandle(Isolate* isolate) override {
-    // The TwoCharHashTableKey is only used for looking in the string
-    // table, not for adding to it.
-    UNREACHABLE();
-  }
-
- private:
-  uint32_t ComputeHashField(uint16_t c1, uint16_t c2, uint64_t seed) {
-    // Char 1.
-    uint32_t hash = static_cast<uint32_t>(seed);
-    hash += c1;
-    hash += hash << 10;
-    hash ^= hash >> 6;
-    // Char 2.
-    hash += c2;
-    hash += hash << 10;
-    hash ^= hash >> 6;
-    // GetHash.
-    hash += hash << 3;
-    hash ^= hash >> 11;
-    hash += hash << 15;
-    if ((hash & String::kHashBitMask) == 0) hash = StringHasher::kZeroHash;
-    hash = (hash << String::kHashShift) | String::kIsNotArrayIndexMask;
-#ifdef DEBUG
-    // If this assert fails then we failed to reproduce the two-character
-    // version of the string hashing algorithm above.  One reason could be
-    // that we were passed two digits as characters, since the hash
-    // algorithm is different in that case.
-    uint16_t chars[2] = {c1, c2};
-    uint32_t check_hash = StringHasher::HashSequentialString(chars, 2, seed);
-    DCHECK_EQ(hash, check_hash);
-#endif
-    return hash;
-  }
-
-  uint16_t c1_;
-  uint16_t c2_;
-};
-
-MaybeHandle<String> StringTable::LookupTwoCharsStringIfExists(
-    Isolate* isolate,
-    uint16_t c1,
-    uint16_t c2) {
-  TwoCharHashTableKey key(c1, c2, HashSeed(isolate));
-  Handle<StringTable> string_table = isolate->factory()->string_table();
-  int entry = string_table->FindEntry(isolate, &key);
-  if (entry == kNotFound) return MaybeHandle<String>();
-
-  Handle<String> result(String::cast(string_table->KeyAt(entry)), isolate);
-  DCHECK(StringShape(*result).IsInternalized());
-  DCHECK_EQ(result->Hash(), key.Hash());
-  return result;
-}
-
 void StringTable::EnsureCapacityForDeserialization(Isolate* isolate,
                                                    int expected) {
   Handle<StringTable> table = isolate->factory()->string_table();
@@ -6963,7 +6890,7 @@ Handle<String> StringTable::AddKeyNoResize(Isolate* isolate,
   DCHECK_EQ(table->FindEntry(isolate, key), kNotFound);
 
   // Add the new string and return it along with the string table.
-  int entry = table->FindInsertionEntry(key->Hash());
+  int entry = table->FindInsertionEntry(key->hash());
   table->set(EntryToIndex(entry), *string);
   table->ElementAdded();
 
@@ -6987,7 +6914,7 @@ namespace {
 class StringTableNoAllocateKey : public StringTableKey {
  public:
   StringTableNoAllocateKey(String string, uint64_t seed)
-      : StringTableKey(0), string_(string) {
+      : StringTableKey(0, string.length()), string_(string) {
     StringShape shape(string);
     one_byte_ = shape.encoding_tag() == kOneByteStringTag;
     DCHECK(!shape.IsInternalized());
@@ -7036,14 +6963,9 @@ class StringTableNoAllocateKey : public StringTableKey {
     }
   }
 
-  bool IsMatch(Object otherstring) override {
-    String other = String::cast(otherstring);
+  bool IsMatch(String other) override {
     DCHECK(other->IsInternalizedString());
     DCHECK(other->IsFlat());
-    if (Hash() != other->Hash()) return false;
-    int len = string_->length();
-    if (len != other->length()) return false;
-
     DisallowHeapAllocation no_gc;
     if (!special_flattening_) {
       if (string_->Get(0) != other->Get(0)) return false;
@@ -7055,14 +6977,16 @@ class StringTableNoAllocateKey : public StringTableKey {
           String::FlatContent flat1 = string_->GetFlatContent(no_gc);
           String::FlatContent flat2 = other->GetFlatContent(no_gc);
           return CompareRawStringContents(flat1.ToOneByteVector().begin(),
-                                          flat2.ToOneByteVector().begin(), len);
+                                          flat2.ToOneByteVector().begin(),
+                                          length());
         }
         if (shape1.encoding_tag() == kTwoByteStringTag &&
             shape2.encoding_tag() == kTwoByteStringTag) {
           String::FlatContent flat1 = string_->GetFlatContent(no_gc);
           String::FlatContent flat2 = other->GetFlatContent(no_gc);
           return CompareRawStringContents(flat1.ToUC16Vector().begin(),
-                                          flat2.ToUC16Vector().begin(), len);
+                                          flat2.ToUC16Vector().begin(),
+                                          length());
         }
       }
       StringComparator comparator;
@@ -7072,11 +6996,12 @@ class StringTableNoAllocateKey : public StringTableKey {
     String::FlatContent flat_content = other->GetFlatContent(no_gc);
     if (one_byte_) {
       if (flat_content.IsOneByte()) {
-        return CompareRawStringContents(
-            one_byte_content_, flat_content.ToOneByteVector().begin(), len);
+        return CompareRawStringContents(one_byte_content_,
+                                        flat_content.ToOneByteVector().begin(),
+                                        length());
       } else {
         DCHECK(flat_content.IsTwoByte());
-        for (int i = 0; i < len; i++) {
+        for (int i = 0; i < length(); i++) {
           if (flat_content.Get(i) != one_byte_content_[i]) return false;
         }
         return true;
@@ -7084,10 +7009,10 @@ class StringTableNoAllocateKey : public StringTableKey {
     } else {
       if (flat_content.IsTwoByte()) {
         return CompareRawStringContents(
-            two_byte_content_, flat_content.ToUC16Vector().begin(), len);
+            two_byte_content_, flat_content.ToUC16Vector().begin(), length());
       } else {
         DCHECK(flat_content.IsOneByte());
-        for (int i = 0; i < len; i++) {
+        for (int i = 0; i < length(); i++) {
           if (flat_content.Get(i) != two_byte_content_[i]) return false;
         }
         return true;
@@ -7144,7 +7069,7 @@ Address StringTable::LookupStringIfExists_NoAllocate(Isolate* isolate,
   }
 
   DCHECK(!string->IsInternalizedString());
-  int entry = table->FindEntry(ReadOnlyRoots(isolate), &key, key.Hash());
+  int entry = table->FindEntry(ReadOnlyRoots(isolate), &key, key.hash());
   if (entry != kNotFound) {
     String internalized = String::cast(table->KeyAt(entry));
     if (FLAG_thin_strings) {

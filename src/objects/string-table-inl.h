@@ -40,12 +40,27 @@ uint32_t StringSetShape::HashForObject(ReadOnlyRoots roots, Object object) {
   return String::cast(object)->Hash();
 }
 
-StringTableKey::StringTableKey(uint32_t hash_field)
-    : HashTableKey(hash_field >> Name::kHashShift), hash_field_(hash_field) {}
+bool StringTableShape::IsMatch(Key key, Object value) {
+  String string = String::cast(value);
+  if (string.hash_field() != key->hash_field()) return false;
+  if (string.length() != key->length()) return false;
+  return key->IsMatch(string);
+}
+
+StringTableKey::StringTableKey(uint32_t hash_field, int length)
+    : hash_field_(hash_field), length_(length) {}
 
 void StringTableKey::set_hash_field(uint32_t hash_field) {
   hash_field_ = hash_field;
-  set_hash(hash_field >> Name::kHashShift);
+}
+
+uint32_t StringTableKey::hash() const {
+  return hash_field_ >> Name::kHashShift;
+}
+
+// static
+uint32_t StringTableShape::Hash(Isolate* isolate, Key key) {
+  return key->hash();
 }
 
 Handle<Object> StringTableShape::AsHandle(Isolate* isolate,

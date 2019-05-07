@@ -14,30 +14,34 @@
 namespace v8 {
 namespace internal {
 
-class StringTableKey : public HashTableKey {
+class StringTableKey {
  public:
-  explicit inline StringTableKey(uint32_t hash_field);
+  virtual ~StringTableKey() {}
+  inline StringTableKey(uint32_t hash_field, int length);
 
   virtual Handle<String> AsHandle(Isolate* isolate) = 0;
-  uint32_t HashField() const {
+  uint32_t hash_field() const {
     DCHECK_NE(0, hash_field_);
     return hash_field_;
   }
+
+  virtual bool IsMatch(String string) = 0;
+  inline uint32_t hash() const;
+  int length() const { return length_; }
 
  protected:
   inline void set_hash_field(uint32_t hash_field);
 
  private:
   uint32_t hash_field_ = 0;
+  int length_;
 };
 
 class StringTableShape : public BaseShape<StringTableKey*> {
  public:
-  static inline bool IsMatch(Key key, Object value) {
-    return key->IsMatch(value);
-  }
+  static inline bool IsMatch(Key key, Object value);
 
-  static inline uint32_t Hash(Isolate* isolate, Key key) { return key->Hash(); }
+  static inline uint32_t Hash(Isolate* isolate, Key key);
 
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
@@ -71,10 +75,6 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   static Handle<StringTable> CautiousShrink(Isolate* isolate,
                                             Handle<StringTable> table);
 
-  // Looks up a string that is equal to the given string and returns
-  // string handle if it is found, or an empty handle otherwise.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> LookupTwoCharsStringIfExists(
-      Isolate* isolate, uint16_t c1, uint16_t c2);
   // {raw_string} must be a tagged String pointer.
   // Returns a tagged pointer: either an internalized string, or a Smi
   // sentinel.

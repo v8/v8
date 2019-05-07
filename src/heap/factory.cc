@@ -1080,8 +1080,8 @@ MaybeHandle<SeqTwoByteString> Factory::NewRawTwoByteString(
   return string;
 }
 
-Handle<String> Factory::LookupSingleCharacterStringFromCode(uint32_t code) {
-  if (code <= String::kMaxOneByteCharCodeU) {
+Handle<String> Factory::LookupSingleCharacterStringFromCode(uint16_t code) {
+  if (code <= unibrow::Latin1::kMaxChar) {
     {
       DisallowHeapAllocation no_allocation;
       Object value = single_character_string_cache()->get(code);
@@ -1089,61 +1089,27 @@ Handle<String> Factory::LookupSingleCharacterStringFromCode(uint32_t code) {
         return handle(String::cast(value), isolate());
       }
     }
-    uint8_t buffer[1];
-    buffer[0] = static_cast<uint8_t>(code);
+    uint8_t buffer[] = {static_cast<uint8_t>(code)};
     Handle<String> result =
         InternalizeOneByteString(Vector<const uint8_t>(buffer, 1));
     single_character_string_cache()->set(code, *result);
     return result;
   }
-  DCHECK_LE(code, String::kMaxUtf16CodeUnitU);
-
-  Handle<SeqTwoByteString> result = NewRawTwoByteString(1).ToHandleChecked();
-  result->SeqTwoByteStringSet(0, static_cast<uint16_t>(code));
-  return result;
-}
-
-// Returns true for a character in a range.  Both limits are inclusive.
-static inline bool Between(uint32_t character, uint32_t from, uint32_t to) {
-  // This makes uses of the the unsigned wraparound.
-  return character - from <= to - from;
+  uint16_t buffer[] = {code};
+  return InternalizeTwoByteString(Vector<const uint16_t>(buffer, 1));
 }
 
 static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
                                                           uint16_t c1,
                                                           uint16_t c2) {
-  // Numeric strings have a different hash algorithm not known by
-  // LookupTwoCharsStringIfExists, so we skip this step for such strings.
-  if (!Between(c1, '0', '9') || !Between(c2, '0', '9')) {
-    Handle<String> result;
-    if (StringTable::LookupTwoCharsStringIfExists(isolate, c1, c2)
-            .ToHandle(&result)) {
-      return result;
-    }
+  if ((c1 | c2) <= unibrow::Latin1::kMaxChar) {
+    uint8_t buffer[] = {static_cast<uint8_t>(c1), static_cast<uint8_t>(c2)};
+    return isolate->factory()->InternalizeOneByteString(
+        Vector<const uint8_t>(buffer, 2));
   }
-
-  // Now we know the length is 2, we might as well make use of that fact
-  // when building the new string.
-  if (static_cast<unsigned>(c1 | c2) <= String::kMaxOneByteCharCodeU) {
-    // We can do this.
-    DCHECK(base::bits::IsPowerOfTwo(String::kMaxOneByteCharCodeU +
-                                    1));  // because of this.
-    Handle<SeqOneByteString> str =
-        isolate->factory()->NewRawOneByteString(2).ToHandleChecked();
-    DisallowHeapAllocation no_allocation;
-    uint8_t* dest = str->GetChars(no_allocation);
-    dest[0] = static_cast<uint8_t>(c1);
-    dest[1] = static_cast<uint8_t>(c2);
-    return str;
-  } else {
-    Handle<SeqTwoByteString> str =
-        isolate->factory()->NewRawTwoByteString(2).ToHandleChecked();
-    DisallowHeapAllocation no_allocation;
-    uc16* dest = str->GetChars(no_allocation);
-    dest[0] = c1;
-    dest[1] = c2;
-    return str;
-  }
+  uint16_t buffer[] = {c1, c2};
+  return isolate->factory()->InternalizeTwoByteString(
+      Vector<const uint16_t>(buffer, 2));
 }
 
 template <typename SinkChar, typename StringType>

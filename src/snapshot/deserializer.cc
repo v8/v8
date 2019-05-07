@@ -166,16 +166,14 @@ void Deserializer::LogScriptEvents(Script script) {
 }
 
 StringTableInsertionKey::StringTableInsertionKey(String string)
-    : StringTableKey(ComputeHashField(string)), string_(string) {
+    : StringTableKey(ComputeHashField(string), string.length()),
+      string_(string) {
   DCHECK(string->IsInternalizedString());
 }
 
-bool StringTableInsertionKey::IsMatch(Object string) {
-  // We know that all entries in a hash table had their hash keys created.
-  // Use that knowledge to have fast failure.
-  if (Hash() != String::cast(string)->Hash()) return false;
-  // We want to compare the content of two internalized strings here.
-  return string_->SlowEquals(String::cast(string));
+bool StringTableInsertionKey::IsMatch(String string) {
+  // We want to compare the content of two strings here.
+  return string_->SlowEquals(string);
 }
 
 Handle<String> StringTableInsertionKey::AsHandle(Isolate* isolate) {

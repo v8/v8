@@ -190,7 +190,7 @@ class StringTableInsertionKey : public StringTableKey {
  public:
   explicit StringTableInsertionKey(String string);
 
-  bool IsMatch(Object string) override;
+  bool IsMatch(String string) override;
 
   V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override;
 
