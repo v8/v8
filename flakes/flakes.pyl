@@ -19,6 +19,28 @@
 
 [
   {
+    "bisect_buildername": "V8 Linux - debug builder",
+    "bisect_mastername": "client.v8",
+    "bug_url": "https://crbug.com/v8/9214",
+    "build_config": "Debug",
+    "extra_args": [
+      "--extra-flags=--optimize-for-size",
+    ],
+    "isolated_name": "optimize_for_size",
+    "num_shards": 2,
+    "repetitions": 5000,
+    "swarming_dimensions": [
+      "cpu:x86-64-avx2",
+      "gpu:none",
+      "os:Ubuntu-14.04",
+      "pool:Chrome",
+    ],
+    "test_name": "cctest/test-tracing/AddTraceEventMultiThreaded",
+    "timeout_sec": 60,
+    "total_timeout_sec": 120,
+    "variant": "default",
+  },
+  {
     "bisect_buildername": "V8 Linux - builder",
     "bisect_mastername": "client.v8",
     "bug_url": "https://crbug.com/v8/9207",
