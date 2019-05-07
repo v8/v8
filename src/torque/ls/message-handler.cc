@@ -180,7 +180,6 @@ void RecompileTorque(MessageWriter writer) {
   options.output_directory = "";
   options.verbose = false;
   options.collect_language_server_data = true;
-  options.force_assert_statements = true;
 
   TorqueCompilerResult result = CompileTorque(TorqueFileList::Get(), options);
 

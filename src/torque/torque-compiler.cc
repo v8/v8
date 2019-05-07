@@ -51,9 +51,6 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   if (options.collect_language_server_data) {
     GlobalContext::SetCollectLanguageServerData();
   }
-  if (options.force_assert_statements) {
-    GlobalContext::SetForceAssertStatements();
-  }
   TypeOracle::Scope type_oracle;
 
   // Two-step process of predeclaration + resolution allows to resolve type

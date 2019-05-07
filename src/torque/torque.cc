@@ -33,7 +33,6 @@ int WrappedMain(int argc, const char** argv) {
   options.output_directory = output_directory;
   options.verbose = verbose;
   options.collect_language_server_data = false;
-  options.force_assert_statements = false;
 
   TorqueCompilerResult result = CompileTorque(files, options);
 

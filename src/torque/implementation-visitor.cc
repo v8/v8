@@ -1002,7 +1002,7 @@ std::string FormatAssertSource(const std::string& str) {
 }  // namespace
 
 const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
-  bool do_check = !stmt->debug_only || GlobalContext::force_assert_statements();
+  bool do_check = !stmt->debug_only;
 #if defined(DEBUG)
   do_check = true;
 #endif
