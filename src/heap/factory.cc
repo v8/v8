@@ -3505,7 +3505,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
 
 Handle<JSMessageObject> Factory::NewJSMessageObject(
     MessageTemplate message, Handle<Object> argument, int start_position,
-    int end_position, Handle<Script> script, Handle<Object> stack_frames) {
+    int end_position, Handle<SharedFunctionInfo> shared_info,
+    int bytecode_offset, Handle<Script> script, Handle<Object> stack_frames) {
   Handle<Map> map = message_object_map();
   Handle<JSMessageObject> message_obj(
       JSMessageObject::cast(New(map, AllocationType::kYoung)), isolate());
@@ -3518,6 +3519,23 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
   message_obj->set_start_position(start_position);
   message_obj->set_end_position(end_position);
   message_obj->set_script(*script);
+  if (start_position >= 0) {
+    // If there's a start_position, then there's no need to store the
+    // SharedFunctionInfo as it will never be necessary to regenerate the
+    // position.
+    message_obj->set_shared_info(*undefined_value());
+    message_obj->set_bytecode_offset(Smi::FromInt(0));
+  } else {
+    message_obj->set_bytecode_offset(Smi::FromInt(bytecode_offset));
+    if (shared_info.is_null()) {
+      message_obj->set_shared_info(*undefined_value());
+      DCHECK_EQ(bytecode_offset, -1);
+    } else {
+      message_obj->set_shared_info(*shared_info);
+      DCHECK_GE(bytecode_offset, 0);
+    }
+  }
+
   message_obj->set_stack_frames(*stack_frames);
   message_obj->set_error_level(v8::Isolate::kMessageError);
   return message_obj;

@@ -86,10 +86,10 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   printf("loc start: %d, end: %d\n", loc.start_pos(), loc.end_pos());
   Handle<JSMessageObject> message = i_isolate->CreateMessage(exc, nullptr);
   printf("msg start: %d, end: %d, line: %d, col: %d\n",
-         message->start_position(), message->end_position(),
+         message->GetStartPosition(), message->GetEndPosition(),
          message->GetLineNumber(), message->GetColumnNumber());
-  CHECK_EQ(loc.start_pos(), message->start_position());
-  CHECK_EQ(loc.end_pos(), message->end_position());
+  CHECK_EQ(loc.start_pos(), message->GetStartPosition());
+  CHECK_EQ(loc.end_pos(), message->GetEndPosition());
   // In the message, the line is 1-based, but the column is 0-based.
   CHECK_EQ(topLocation.line_nr, message->GetLineNumber());
   CHECK_LE(1, topLocation.column);

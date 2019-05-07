@@ -400,12 +400,6 @@
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
-['lite_mode', {
-  # TODO(v8:8510): Tests that currently fail with lazy source positions.
-  'stack-traces-overflow': [SKIP],
-}], # lite_mode
-
-##############################################################################
 ['byteorder == big', {
   # Emscripten requires little-endian, skip all tests on big endian platforms.
   'asm/embenchen/*': [SKIP],
