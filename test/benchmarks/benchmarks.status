@@ -71,6 +71,11 @@
   'octane/typescript': [SKIP],
 }],  # 'gc_fuzzer'
 
+['predictable', {
+  # https://crbug.com/v8/8537
+  'octane/typescript': [SKIP],
+}],  # 'predictable'
+
 ##############################################################################
 ['variant == jitless and not embedded_builtins', {
   '*': [SKIP],
