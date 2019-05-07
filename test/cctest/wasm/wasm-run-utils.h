@@ -21,6 +21,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/zone-stats.h"
+#include "src/optimized-compilation-info.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/local-decl-encoder.h"
@@ -38,7 +39,7 @@
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
-#include "test/cctest/compiler/graph-builder-tester.h"
+#include "test/cctest/compiler/graph-and-builders.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
 

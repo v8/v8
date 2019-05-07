@@ -15,7 +15,6 @@
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
-#include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
 
@@ -6878,15 +6877,13 @@ TEST(RunBitcastInt32ToFloat32) {
 
 
 TEST(RunComputedCodeObject) {
-  GraphBuilderTester<int32_t> a;
+  RawMachineAssemblerTester<int32_t> a;
   a.Return(a.Int32Constant(33));
-  a.End();
-  Handle<Code> code_a = a.GetCode();
+  CHECK_EQ(33, a.Call());
 
-  GraphBuilderTester<int32_t> b;
+  RawMachineAssemblerTester<int32_t> b;
   b.Return(b.Int32Constant(44));
-  b.End();
-  Handle<Code> code_b = b.GetCode();
+  CHECK_EQ(44, b.Call());
 
   RawMachineAssemblerTester<int32_t> r(MachineType::Int32());
   RawMachineLabel tlabel;
@@ -6894,10 +6891,10 @@ TEST(RunComputedCodeObject) {
   RawMachineLabel merge;
   r.Branch(r.Parameter(0), &tlabel, &flabel);
   r.Bind(&tlabel);
-  Node* fa = r.HeapConstant(code_a);
+  Node* fa = r.HeapConstant(a.GetCode());
   r.Goto(&merge);
   r.Bind(&flabel);
-  Node* fb = r.HeapConstant(code_b);
+  Node* fb = r.HeapConstant(b.GetCode());
   r.Goto(&merge);
   r.Bind(&merge);
   Node* phi = r.Phi(MachineRepresentation::kWord32, fa, fb);
