@@ -1353,10 +1353,10 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
 
     BIND(&if_bigint);
     {
-      Node* result =
-          CallRuntime(Runtime::kBigIntToBoolean, NoContextConstant(), value);
-      CSA_ASSERT(this, IsBoolean(result));
-      Branch(WordEqual(result, TrueConstant()), if_true, if_false);
+      TNode<BigInt> bigint = CAST(value);
+      TNode<Word32T> bitfield = LoadBigIntBitfield(bigint);
+      TNode<Uint32T> length = DecodeWord32<BigIntBase::LengthBits>(bitfield);
+      Branch(Word32Equal(length, Int32Constant(0)), if_false, if_true);
     }
   }
 }
