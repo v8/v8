@@ -19,6 +19,11 @@ struct TorqueCompilerOptions {
   std::string output_directory;
   bool verbose;
   bool collect_language_server_data;
+
+  // assert(...) are only generated for debug builds. The provide
+  // language server support for statements inside asserts, this flag
+  // can force generate them.
+  bool force_assert_statements;
 };
 
 struct TorqueCompilerResult {
