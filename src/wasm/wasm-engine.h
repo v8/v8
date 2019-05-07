@@ -225,6 +225,15 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   void TriggerGC();
 
+  // Remove an isolate from the outstanding isolates of the current GC. Returns
+  // true if the isolate was still outstanding, false otherwise. Hold {mutex_}
+  // when calling this method.
+  bool RemoveIsolateFromCurrentGC(Isolate*);
+
+  // Finish a GC if there are no more outstanding isolates. Hold {mutex_} when
+  // calling this method.
+  void PotentiallyFinishCurrentGC();
+
   WasmMemoryTracker memory_tracker_;
   WasmCodeManager code_manager_;
   AccountingAllocator allocator_;
