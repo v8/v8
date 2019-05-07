@@ -2721,8 +2721,7 @@ void CodeStubAssembler::StoreObjectField(Node* object, int offset,
   DCHECK_NE(HeapObject::kMapOffset, offset);  // Use StoreMap instead.
 
   OptimizedStoreField(MachineRepresentation::kTagged,
-                      UncheckedCast<HeapObject>(object), offset, value,
-                      WriteBarrierKind::kFullWriteBarrier);
+                      UncheckedCast<HeapObject>(object), offset, value);
 }
 
 void CodeStubAssembler::StoreObjectField(Node* object, Node* offset,
@@ -2737,8 +2736,8 @@ void CodeStubAssembler::StoreObjectField(Node* object, Node* offset,
 
 void CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
     Node* object, int offset, Node* value, MachineRepresentation rep) {
-  OptimizedStoreField(rep, UncheckedCast<HeapObject>(object), offset, value,
-                      WriteBarrierKind::kNoWriteBarrier);
+  OptimizedStoreFieldNoWriteBarrier(rep, UncheckedCast<HeapObject>(object),
+                                    offset, value);
 }
 
 void CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
@@ -2762,9 +2761,9 @@ void CodeStubAssembler::StoreMapNoWriteBarrier(Node* object,
 
 void CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  OptimizedStoreField(MachineRepresentation::kTaggedPointer,
-                      UncheckedCast<HeapObject>(object), HeapObject::kMapOffset,
-                      map, WriteBarrierKind::kNoWriteBarrier);
+  OptimizedStoreFieldNoWriteBarrier(MachineRepresentation::kTaggedPointer,
+                                    UncheckedCast<HeapObject>(object),
+                                    HeapObject::kMapOffset, map);
 }
 
 void CodeStubAssembler::StoreObjectFieldRoot(Node* object, int offset,

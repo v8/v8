@@ -15,7 +15,6 @@
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
-#include "src/globals.h"
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
@@ -973,8 +972,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                       AllocationType allocation,
                                       AllowLargeObjects allow_large_objects);
   void OptimizedStoreField(MachineRepresentation rep, TNode<HeapObject> object,
-                           int offset, Node* value,
-                           WriteBarrierKind write_barrier);
+                           int offset, Node* value);
+  void OptimizedStoreFieldNoWriteBarrier(MachineRepresentation rep,
+                                         TNode<HeapObject> object, int offset,
+                                         Node* value);
   void OptimizedStoreMap(TNode<HeapObject> object, TNode<Map>);
   // {value_high} is used for 64-bit stores on 32-bit platforms, must be
   // nullptr in other cases.

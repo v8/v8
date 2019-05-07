@@ -7,8 +7,8 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/elements-kind.h"
-#include "src/globals.h"
 #include "src/objects/js-objects.h"
 
 namespace v8 {

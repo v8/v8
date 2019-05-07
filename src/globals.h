@@ -732,35 +732,6 @@ enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
 enum class AccessMode { ATOMIC, NON_ATOMIC };
 
-// Supported write barrier modes.
-enum WriteBarrierKind : uint8_t {
-  kNoWriteBarrier,
-  kMapWriteBarrier,
-  kPointerWriteBarrier,
-  kEphemeronKeyWriteBarrier,
-  kFullWriteBarrier
-};
-
-inline size_t hash_value(WriteBarrierKind kind) {
-  return static_cast<uint8_t>(kind);
-}
-
-inline std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
-  switch (kind) {
-    case kNoWriteBarrier:
-      return os << "NoWriteBarrier";
-    case kMapWriteBarrier:
-      return os << "MapWriteBarrier";
-    case kPointerWriteBarrier:
-      return os << "PointerWriteBarrier";
-    case kEphemeronKeyWriteBarrier:
-      return os << "EphemeronKeyWriteBarrier";
-    case kFullWriteBarrier:
-      return os << "FullWriteBarrier";
-  }
-  UNREACHABLE();
-}
-
 enum class AllowLargeObjects { kFalse, kTrue };
 
 enum MinimumCapacity {

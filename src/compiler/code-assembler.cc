@@ -994,11 +994,18 @@ Node* CodeAssembler::Store(Node* base, Node* value) {
 
 void CodeAssembler::OptimizedStoreField(MachineRepresentation rep,
                                         TNode<HeapObject> object, int offset,
-                                        Node* value,
-                                        WriteBarrierKind write_barrier) {
+                                        Node* value) {
   raw_assembler()->OptimizedStoreField(rep, object, offset, value,
-                                       write_barrier);
+                                       WriteBarrierKind::kFullWriteBarrier);
 }
+
+void CodeAssembler::OptimizedStoreFieldNoWriteBarrier(MachineRepresentation rep,
+                                                      TNode<HeapObject> object,
+                                                      int offset, Node* value) {
+  raw_assembler()->OptimizedStoreField(rep, object, offset, value,
+                                       WriteBarrierKind::kNoWriteBarrier);
+}
+
 void CodeAssembler::OptimizedStoreMap(TNode<HeapObject> object,
                                       TNode<Map> map) {
   raw_assembler()->OptimizedStoreMap(object, map);

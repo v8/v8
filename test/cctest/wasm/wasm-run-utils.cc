@@ -415,7 +415,8 @@ void WasmFunctionWrapper::Init(CallDescriptor* call_descriptor,
   if (!return_type.IsNone()) {
     effect = graph()->NewNode(
         machine()->Store(compiler::StoreRepresentation(
-            return_type.representation(), WriteBarrierKind::kNoWriteBarrier)),
+            return_type.representation(),
+            compiler::WriteBarrierKind::kNoWriteBarrier)),
         graph()->NewNode(common()->Parameter(param_types.length()),
                          graph()->start()),
         graph()->NewNode(common()->Int32Constant(0)), call, effect,

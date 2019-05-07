@@ -8,7 +8,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/enum-set.h"
 #include "src/base/flags.h"
-#include "src/globals.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/machine-type.h"
 #include "src/zone/zone.h"
 

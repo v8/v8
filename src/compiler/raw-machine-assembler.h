@@ -16,6 +16,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/globals.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"

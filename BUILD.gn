@@ -1899,6 +1899,7 @@ v8_compiler_sources = [
   "src/compiler/verifier.h",
   "src/compiler/wasm-compiler.cc",
   "src/compiler/wasm-compiler.h",
+  "src/compiler/write-barrier-kind.h",
   "src/compiler/zone-stats.cc",
   "src/compiler/zone-stats.h",
 ]

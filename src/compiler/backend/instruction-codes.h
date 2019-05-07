@@ -27,7 +27,7 @@
 #define TARGET_ARCH_OPCODE_LIST(V)
 #define TARGET_ADDRESSING_MODE_LIST(V)
 #endif
-#include "src/globals.h"
+#include "src/compiler/write-barrier-kind.h"
 #include "src/utils.h"
 
 namespace v8 {
