@@ -249,12 +249,11 @@ Expression* MakeCall(IdentifierExpression* callee,
   return result;
 }
 
-Expression* MakeCall(const std::string& callee,
+Expression* MakeCall(Identifier* callee,
                      const std::vector<TypeExpression*>& generic_arguments,
                      const std::vector<Expression*>& arguments,
                      const std::vector<Statement*>& otherwise) {
-  return MakeCall(MakeNode<IdentifierExpression>(MakeNode<Identifier>(callee),
-                                                 generic_arguments),
+  return MakeCall(MakeNode<IdentifierExpression>(callee, generic_arguments),
                   base::nullopt, arguments, otherwise);
 }
 
@@ -287,7 +286,7 @@ base::Optional<ParseResult> MakeNewExpression(
 base::Optional<ParseResult> MakeBinaryOperator(
     ParseResultIterator* child_results) {
   auto left = child_results->NextAs<Expression*>();
-  auto op = child_results->NextAs<std::string>();
+  auto op = child_results->NextAs<Identifier*>();
   auto right = child_results->NextAs<Expression*>();
   return ParseResult{MakeCall(op, TypeList{},
                               std::vector<Expression*>{left, right},
@@ -307,7 +306,7 @@ base::Optional<ParseResult> MakeIntrinsicCallExpression(
 
 base::Optional<ParseResult> MakeUnaryOperator(
     ParseResultIterator* child_results) {
-  auto op = child_results->NextAs<std::string>();
+  auto op = child_results->NextAs<Identifier*>();
   auto e = child_results->NextAs<Expression*>();
   return ParseResult{MakeCall(op, TypeList{}, std::vector<Expression*>{e},
                               std::vector<Statement*>{})};
@@ -379,7 +378,7 @@ base::Optional<ParseResult> MakeParameterListFromNameAndTypeList(
 
 base::Optional<ParseResult> MakeAssertStatement(
     ParseResultIterator* child_results) {
-  auto kind = child_results->NextAs<std::string>();
+  auto kind = child_results->NextAs<Identifier*>()->value;
   auto expr_with_source = child_results->NextAs<ExpressionWithSource>();
   DCHECK(kind == "assert" || kind == "check");
   Statement* result = MakeNode<AssertStatement>(
@@ -389,7 +388,7 @@ base::Optional<ParseResult> MakeAssertStatement(
 
 base::Optional<ParseResult> MakeDebugStatement(
     ParseResultIterator* child_results) {
-  auto kind = child_results->NextAs<std::string>();
+  auto kind = child_results->NextAs<Identifier*>()->value;
   DCHECK(kind == "unreachable" || kind == "debug");
   Statement* result = MakeNode<DebugStatement>(kind, kind == "unreachable");
   return ParseResult{result};
@@ -795,7 +794,8 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
     }
     BlockStatement* case_block;
     if (i < cases.size() - 1) {
-      value = MakeCall("Cast", std::vector<TypeExpression*>{cases[i].type},
+      value = MakeCall(MakeNode<Identifier>("Cast"),
+                       std::vector<TypeExpression*>{cases[i].type},
                        std::vector<Expression*>{value},
                        std::vector<Statement*>{MakeNode<ExpressionStatement>(
                            MakeNode<IdentifierExpression>(
@@ -859,9 +859,9 @@ base::Optional<ParseResult> MakeTailCallStatement(
 
 base::Optional<ParseResult> MakeVarDeclarationStatement(
     ParseResultIterator* child_results) {
-  auto kind = child_results->NextAs<std::string>();
-  bool const_qualified = kind == "const";
-  if (!const_qualified) DCHECK_EQ("let", kind);
+  auto kind = child_results->NextAs<Identifier*>();
+  bool const_qualified = kind->value == "const";
+  if (!const_qualified) DCHECK_EQ("let", kind->value);
   auto name = child_results->NextAs<Identifier*>();
   if (!IsLowerCamelCase(name->value)) {
     NamingConventionError("Variable", name->value, "lowerCamelCase");
@@ -1001,6 +1001,12 @@ base::Optional<ParseResult> MakeIdentifier(ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
   Identifier* result = MakeNode<Identifier>(std::move(name));
   return ParseResult{result};
+}
+
+base::Optional<ParseResult> MakeIdentifierFromMatchedInput(
+    ParseResultIterator* child_results) {
+  return ParseResult{
+      MakeNode<Identifier>(child_results->matched_input().ToString())};
 }
 
 base::Optional<ParseResult> MakeIdentifierExpression(
@@ -1172,8 +1178,9 @@ base::Optional<ParseResult> MakeStructField(
 
 base::Optional<ParseResult> ExtractAssignmentOperator(
     ParseResultIterator* child_results) {
-  auto op = child_results->NextAs<std::string>();
-  base::Optional<std::string> result = std::string(op.begin(), op.end() - 1);
+  auto op = child_results->NextAs<Identifier*>();
+  base::Optional<std::string> result =
+      std::string(op->value.begin(), op->value.end() - 1);
   return ParseResult(std::move(result));
 }
 
@@ -1385,11 +1392,11 @@ struct TorqueGrammar : Grammar {
             Token(","), Token("..."), &identifier, Token(")")},
            MakeParameterListFromNameAndTypeList<true>)};
 
-  // Result: std::string
+  // Result: Identifier*
   Symbol* OneOf(const std::vector<std::string>& alternatives) {
     Symbol* result = NewSymbol();
     for (const std::string& s : alternatives) {
-      result->AddRule(Rule({Token(s)}, YieldMatchedInput));
+      result->AddRule(Rule({Token(s)}, MakeIdentifierFromMatchedInput));
     }
     return result;
   }
