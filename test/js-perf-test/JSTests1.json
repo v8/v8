@@ -46,6 +46,19 @@
       ]
     },
     {
+      "name": "BigInt",
+      "path": ["BigInt"],
+      "main": "run.js",
+      "resources": [
+        "to-boolean.js"
+      ],
+      "results_regexp": "^%s\\-BigInt\\(Score\\): (.+)$",
+      "tests": [
+        { "name": "BigInt-ToBoolean" },
+        { "name": "BigInt-BooleanConstructor" }
+      ]
+    },
+    {
       "name": "TypedArrays",
       "path": ["TypedArrays"],
       "results_regexp": "^TypedArrays\\-%s\\(Score\\): (.+)$",
