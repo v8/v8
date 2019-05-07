@@ -7,6 +7,7 @@
 #include "src/code-tracer.h"
 #include "src/compilation-statistics.h"
 #include "src/counters.h"
+#include "src/frames.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-promise.h"
@@ -698,22 +699,21 @@ void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
                 live_code.size());
   DeadCodeMap dead_code;
   base::MutexGuard guard(&mutex_);
-  DCHECK_NOT_NULL(current_gc_info_);
-  auto outstanding_isolate_it =
-      current_gc_info_->outstanding_isolates.find(isolate);
-  DCHECK_NE(current_gc_info_->outstanding_isolates.end(),
-            outstanding_isolate_it);
-  auto* fg_task = outstanding_isolate_it->second;
-  if (fg_task) fg_task->Cancel();
-  current_gc_info_->outstanding_isolates.erase(outstanding_isolate_it);
+  // This report might come in late (note that we trigger both a stack guard and
+  // a foreground task). In that case, ignore it.
+  if (current_gc_info_ == nullptr) return;
+  auto& outstanding_isolates = current_gc_info_->outstanding_isolates;
+  auto outstanding_isolate_it = outstanding_isolates.find(isolate);
+  if (outstanding_isolate_it == outstanding_isolates.end()) return;
+  if (auto* fg_task = outstanding_isolate_it->second) fg_task->Cancel();
+  outstanding_isolates.erase(outstanding_isolate_it);
   for (WasmCode* code : live_code) current_gc_info_->dead_code.erase(code);
   TRACE_CODE_GC(
       "Remaining dead code objects: %zu; outstanding isolates: %zu.\n",
-      current_gc_info_->dead_code.size(),
-      current_gc_info_->outstanding_isolates.size());
+      current_gc_info_->dead_code.size(), outstanding_isolates.size());
 
   // If there are more outstanding isolates, return here.
-  if (!current_gc_info_->outstanding_isolates.empty()) return;
+  if (!outstanding_isolates.empty()) return;
 
   // All remaining code in {current_gc_info->dead_code} is really dead.
   // Move it from the set of potentially dead code to the set of dead code,
@@ -734,6 +734,19 @@ void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
   current_gc_info_.reset();
 
   FreeDeadCodeLocked(dead_code);
+}
+
+void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
+  wasm::WasmCodeRefScope code_ref_scope;
+  std::unordered_set<wasm::WasmCode*> live_wasm_code;
+  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
+    StackFrame* const frame = it.frame();
+    if (frame->type() != StackFrame::WASM_COMPILED) continue;
+    live_wasm_code.insert(WasmCompiledFrame::cast(frame)->wasm_code());
+  }
+
+  ReportLiveCodeForGC(isolate,
+                      OwnedVector<WasmCode*>::Of(live_wasm_code).as_vector());
 }
 
 bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
@@ -790,7 +803,6 @@ void WasmEngine::TriggerGC() {
   current_gc_info_.reset(new CurrentGCInfo());
   // Add all potentially dead code to this GC, and trigger a GC task in each
   // isolate.
-  // TODO(clemensh): Also trigger a stack check interrupt.
   for (auto& entry : native_modules_) {
     NativeModuleInfo* info = entry.second.get();
     if (info->potentially_dead_code.empty()) continue;
@@ -803,6 +815,7 @@ void WasmEngine::TriggerGC() {
         isolates_[isolate]->foreground_task_runner->PostTask(
             std::move(new_task));
       }
+      isolate->stack_guard()->RequestWasmCodeGC();
     }
     for (WasmCode* code : info->potentially_dead_code) {
       current_gc_info_->dead_code.insert(code);

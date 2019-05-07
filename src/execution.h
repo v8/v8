@@ -97,7 +97,8 @@ class V8_EXPORT_PRIVATE StackGuard final {
   V(API_INTERRUPT, ApiInterrupt, 3)                               \
   V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 4) \
   V(GROW_SHARED_MEMORY, GrowSharedMemory, 5)                      \
-  V(LOG_WASM_CODE, LogWasmCode, 6)
+  V(LOG_WASM_CODE, LogWasmCode, 6)                                \
+  V(WASM_CODE_GC, WasmCodeGC, 7)
 
 #define V(NAME, Name, id)                                                    \
   inline bool Check##Name() { return CheckInterrupt(NAME); }                 \

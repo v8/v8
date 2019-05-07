@@ -186,8 +186,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // This will spawn foreground tasks that do *not* keep the NativeModule alive.
   void SampleTopTierCodeSizeInAllIsolates(const std::shared_ptr<NativeModule>&);
 
-  // Called by each Isolate to report its live code for a GC cycle.
-  void ReportLiveCodeForGC(Isolate*, Vector<WasmCode*> live_code);
+  // Called by each Isolate to report its live code for a GC cycle. First
+  // version reports an externally determined set of live code (might be empty),
+  // second version gets live code from the execution stack of that isolate.
+  void ReportLiveCodeForGC(Isolate*, Vector<WasmCode*>);
+  void ReportLiveCodeFromStackForGC(Isolate*);
 
   // Add potentially dead code. The occurrence in the set of potentially dead
   // code counts as a reference, and is decremented on the next GC.

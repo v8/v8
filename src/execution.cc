@@ -665,6 +665,11 @@ Object StackGuard::HandleInterrupts() {
     isolate_->wasm_engine()->LogOutstandingCodesForIsolate(isolate_);
   }
 
+  if (CheckAndClearInterrupt(WASM_CODE_GC)) {
+    TRACE_EVENT0("v8.wasm", "WasmCodeGC");
+    isolate_->wasm_engine()->ReportLiveCodeFromStackForGC(isolate_);
+  }
+
   isolate_->counters()->stack_interrupts()->Increment();
   isolate_->counters()->runtime_profiler_ticks()->Increment();
   isolate_->runtime_profiler()->MarkCandidatesForOptimization();
