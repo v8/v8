@@ -2480,6 +2480,10 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   QualifiedName qualified_name = QualifiedName(method_name);
   Callable* callable = nullptr;
   callable = LookupMethod(method_name, target, arguments, {});
+  if (GlobalContext::collect_language_server_data()) {
+    LanguageServerData::AddDefinition(expr->method->name->pos,
+                                      callable->IdentifierPosition());
+  }
   return scope.Yield(GenerateCall(callable, target, arguments, {}, false));
 }
 
