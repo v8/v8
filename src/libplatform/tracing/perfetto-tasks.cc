@@ -34,14 +34,11 @@ void PerfettoTaskRunner::PostDelayedTask(std::function<void()> f,
 }
 
 bool PerfettoTaskRunner::RunsTasksOnCurrentThread() const {
-  // TODO(petermarshall): Can be called from the V8 main thread in some
-  // situations so we actually need to implement this properly.
-  return true;
+  return runner_.RunsTasksOnCurrentThread();
 }
 
 void PerfettoTaskRunner::FinishImmediateTasks() {
-  // TODO(petermarshall): Add a check !RunsTasksOnCurrentThread() once that is
-  // implemented properly.
+  DCHECK(!RunsTasksOnCurrentThread());
   base::Semaphore semaphore(0);
   // PostTask has guaranteed ordering so this will be the last task executed.
   runner_.PostTask(
