@@ -68,7 +68,9 @@ class ConvertableToTraceFormatMock : public v8::ConvertableToTraceFormat {
 class MockTraceWriter : public TraceWriter {
  public:
   void AppendTraceEvent(TraceObject* trace_event) override {
-    events_.push_back(trace_event->name());
+    // TraceObject might not have been initialized.
+    const char* name = trace_event->name() ? trace_event->name() : "";
+    events_.push_back(name);
   }
 
   void Flush() override {}
