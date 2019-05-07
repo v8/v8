@@ -26,7 +26,6 @@ GraphTest::GraphTest(int num_parameters)
   broker()->SetNativeContextRef();
 }
 
-
 GraphTest::~GraphTest() = default;
 
 

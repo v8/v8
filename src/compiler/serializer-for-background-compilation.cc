@@ -247,9 +247,11 @@ int SerializerForBackgroundCompilation::Environment::RegisterToLocalIndex(
 }
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
-    JSHeapBroker* broker, Zone* zone, Handle<JSFunction> closure)
+    JSHeapBroker* broker, Zone* zone, Handle<JSFunction> closure,
+    bool collect_source_positions)
     : broker_(broker),
       zone_(zone),
+      collect_source_positions_(collect_source_positions),
       environment_(new (zone) Environment(zone, {closure, broker_->isolate()})),
       stashed_environments_(zone) {
   JSFunctionRef(broker, closure).Serialize();
@@ -257,9 +259,11 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
     JSHeapBroker* broker, Zone* zone, CompilationSubject function,
-    base::Optional<Hints> new_target, const HintsVector& arguments)
+    base::Optional<Hints> new_target, const HintsVector& arguments,
+    bool collect_source_positions)
     : broker_(broker),
       zone_(zone),
+      collect_source_positions_(collect_source_positions),
       environment_(new (zone) Environment(zone, broker_->isolate(), function,
                                           new_target, arguments)),
       stashed_environments_(zone) {
@@ -277,6 +281,15 @@ Hints SerializerForBackgroundCompilation::Run() {
     return Hints(zone());
   }
   shared.SetSerializedForCompilation(feedback_vector);
+
+  // We eagerly call the {EnsureSourcePositionsAvailable} for all serialized
+  // SFIs while still on the main thread. Source positions will later be used
+  // by JSInliner::ReduceJSCall.
+  if (collect_source_positions()) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(broker()->isolate(),
+                                                       shared.object());
+  }
+
   feedback_vector.SerializeSlots();
   TraverseBytecode();
   return environment()->return_value_hints();
@@ -565,7 +578,8 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
                              << *environment());
 
   SerializerForBackgroundCompilation child_serializer(
-      broker(), zone(), function, new_target, arguments);
+      broker(), zone(), function, new_target, arguments,
+      collect_source_positions());
   return child_serializer.Run();
 }
 

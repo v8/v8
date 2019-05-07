@@ -271,7 +271,8 @@ using HintsVector = ZoneVector<Hints>;
 class SerializerForBackgroundCompilation {
  public:
   SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
-                                     Handle<JSFunction> closure);
+                                     Handle<JSFunction> closure,
+                                     bool collect_source_positions);
   Hints Run();  // NOTE: Returns empty for an already-serialized function.
 
   class Environment;
@@ -280,7 +281,8 @@ class SerializerForBackgroundCompilation {
   SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
                                      CompilationSubject function,
                                      base::Optional<Hints> new_target,
-                                     const HintsVector& arguments);
+                                     const HintsVector& arguments,
+                                     bool collect_source_positions);
 
   void TraverseBytecode();
 
@@ -319,10 +321,14 @@ class SerializerForBackgroundCompilation {
 
   JSHeapBroker* broker() const { return broker_; }
   Zone* zone() const { return zone_; }
+  // The following flag is initialized from OptimizedCompilationInfo's
+  // {is_source_positions_enabled}.
+  bool collect_source_positions() const { return collect_source_positions_; }
   Environment* environment() const { return environment_; }
 
   JSHeapBroker* const broker_;
   Zone* const zone_;
+  bool const collect_source_positions_;
   Environment* const environment_;
   ZoneUnorderedMap<int, Environment*> stashed_environments_;
 };

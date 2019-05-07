@@ -1247,8 +1247,9 @@ struct SerializationPhase {
   static const char* phase_name() { return "V8.TFSerializeBytecode"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    SerializerForBackgroundCompilation serializer(data->broker(), temp_zone,
-                                                  data->info()->closure());
+    SerializerForBackgroundCompilation serializer(
+        data->broker(), temp_zone, data->info()->closure(),
+        data->info()->is_source_positions_enabled());
     serializer.Run();
   }
 };
