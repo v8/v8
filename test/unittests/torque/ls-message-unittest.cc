@@ -26,7 +26,8 @@ TEST(LanguageServerMessage, InitializeRequest) {
     // Check that the response id matches up with the request id, and that
     // the language server signals its support for definitions.
     EXPECT_EQ(response.id(), 5);
-    EXPECT_EQ(response.result().capabilities().definitionProvider(), true);
+    EXPECT_TRUE(response.result().capabilities().definitionProvider());
+    EXPECT_TRUE(response.result().capabilities().documentSymbolProvider());
   });
 }
 
@@ -176,6 +177,20 @@ TEST(LanguageServerMessage, CleanCompileSendsNoDiagnostics) {
 
   CompilationFinished(result, [](JsonValue& raw_response) {
     FAIL() << "Sending unexpected response!";
+  });
+}
+
+TEST(LanguageServerMessage, NoSymbolsSendsEmptyResponse) {
+  LanguageServerData::Scope server_data_scope;
+
+  DocumentSymbolRequest request;
+  request.set_id(42);
+  request.set_method("textDocument/documentSymbol");
+
+  HandleMessage(request.GetJsonValue(), [](JsonValue& raw_response) {
+    DocumentSymbolResponse response(raw_response);
+    EXPECT_EQ(response.id(), 42);
+    EXPECT_EQ(response.result_size(), static_cast<size_t>(0));
   });
 }
 

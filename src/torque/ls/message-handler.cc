@@ -198,6 +198,7 @@ void HandleInitializeRequest(InitializeRequest request, MessageWriter writer) {
   response.set_id(request.id());
   response.result().capabilities().textDocumentSync();
   response.result().capabilities().set_definitionProvider(true);
+  response.result().capabilities().set_documentSymbolProvider(true);
 
   // TODO(szuend): Register for document synchronisation here,
   //               so we work with the content that the client
@@ -291,6 +292,20 @@ void HandleChangeWatchedFilesNotification(
   RecompileTorqueWithDiagnostics(writer);
 }
 
+void HandleDocumentSymbolRequest(DocumentSymbolRequest request,
+                                 MessageWriter writer) {
+  DocumentSymbolResponse response;
+  response.set_id(request.id());
+
+  // TODO(szuend): Convert declarables and other symbols into SymbolInformation
+  //               objects here.
+
+  // Trigger empty array creation in case no symbols were found.
+  USE(response.result_size());
+
+  writer(response.GetJsonValue());
+}
+
 }  // namespace
 
 void HandleMessage(JsonValue& raw_message, MessageWriter writer) {
@@ -319,6 +334,9 @@ void HandleMessage(JsonValue& raw_message, MessageWriter writer) {
   } else if (method == "workspace/didChangeWatchedFiles") {
     HandleChangeWatchedFilesNotification(
         DidChangeWatchedFilesNotification(request.GetJsonValue()), writer);
+  } else if (method == "textDocument/documentSymbol") {
+    HandleDocumentSymbolRequest(DocumentSymbolRequest(request.GetJsonValue()),
+                                writer);
   } else {
     Logger::Log("[error] Message of type ", method, " is not handled!\n\n");
   }
