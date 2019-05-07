@@ -677,6 +677,7 @@ class BaseTestRunner(object):
       "gcov_coverage": self.build_config.gcov_coverage,
       "isolates": options.isolates,
       "is_clang": self.build_config.is_clang,
+      "is_full_debug": self.build_config.is_full_debug,
       "mips_arch_variant": mips_arch_variant,
       "mode": self.mode_options.status_mode
               if not self.build_config.dcheck_always_on
@@ -723,11 +724,11 @@ class BaseTestRunner(object):
     if self.build_config.lite_mode:
       factor *= 2
     if self.build_config.predictable:
-      factor *= 3
+      factor *= 4
     if self.build_config.use_sanitizer:
       factor *= 1.5
     if self.build_config.is_full_debug:
-      factor *= 2
+      factor *= 4
 
     return factor
 

@@ -406,6 +406,14 @@
 }], # lite_mode
 
 ##############################################################################
+['is_full_debug', {
+  # Tests too slow in non-optimized debug mode.
+  'compiler/regress-9017': [SKIP],
+  'regress/regress-2790': [SKIP],
+  'regress/regress-740784': [SKIP],
+}],  # 'is_full_debug'
+
+##############################################################################
 ['byteorder == big', {
   # Emscripten requires little-endian, skip all tests on big endian platforms.
   'asm/embenchen/*': [SKIP],

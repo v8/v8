@@ -211,6 +211,13 @@
 }],  # 'no_snap == True and system == windows'
 
 ##############################################################################
+['is_full_debug', {
+  # Tests too slow in non-optimized debug mode.
+  'test-api/InternalFieldsSubclassing': [SKIP],
+  'test-heap/TestInternalWeakLists': [SKIP],
+}],  # 'is_full_debug'
+
+##############################################################################
 ['byteorder == big', {
   # Skip WASM atomic tests on big-endian machines.
   # There is no support to emulate atomic WASM operations on big-endian
