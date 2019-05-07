@@ -623,6 +623,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
       static_cast<byte>(table)
 #define WASM_TABLE_SIZE(table) \
   WASM_NUMERIC_OP(kExprTableSize), static_cast<byte>(table)
+#define WASM_TABLE_FILL(table, times, value, start) \
+  times, value, start, WASM_NUMERIC_OP(kExprTableFill), static_cast<byte>(table)
 
 //------------------------------------------------------------------------------
 // Memory Operations.

@@ -577,6 +577,11 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(TableSize, imm.index);
   }
 
+  void TableFill(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Value& start, Value& value, Value& count) {
+    BUILD(TableFill, imm.index, start.node, value.node, count.node);
+  }
+
  private:
   SsaEnv* ssa_env_;
   compiler::WasmGraphBuilder* builder_;

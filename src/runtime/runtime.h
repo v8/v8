@@ -548,6 +548,7 @@ namespace internal {
   F(WasmTableInit, 5, 1)                                      \
   F(WasmTableCopy, 5, 1)                                      \
   F(WasmTableGrow, 3, 1)                                      \
+  F(WasmTableFill, 4, 1)                                      \
   F(WasmIndirectCallCheckSignatureAndGetTargetInstance, 3, 1) \
   F(WasmIndirectCallGetTargetAddress, 2, 1)                   \
   F(WasmIsValidAnyFuncValue, 1, 1)                            \

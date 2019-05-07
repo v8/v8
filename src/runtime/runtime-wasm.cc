@@ -622,5 +622,37 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
 
   return Smi::FromInt(result);
 }
+
+RUNTIME_FUNCTION(Runtime_WasmTableFill) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  auto instance =
+      Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
+  CONVERT_UINT32_ARG_CHECKED(table_index, 0);
+  CONVERT_UINT32_ARG_CHECKED(start, 1);
+  CONVERT_ARG_CHECKED(Object, value_raw, 2);
+  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  Handle<Object> value(value_raw, isolate);
+  CONVERT_UINT32_ARG_CHECKED(count, 3);
+
+  Handle<WasmTableObject> table(
+      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+
+  uint32_t table_size = static_cast<uint32_t>(table->entries()->length());
+
+  if (start >= table_size) {
+    return ThrowTableOutOfBounds(isolate, instance);
+  }
+
+  // Even when table.fill goes out-of-bounds, as many entries as possible are
+  // put into the table. Only afterwards we trap.
+  uint32_t fill_count = std::min(count, table_size - start);
+  WasmTableObject::Fill(isolate, table, start, value, fill_count);
+
+  if (fill_count < count) {
+    return ThrowTableOutOfBounds(isolate, instance);
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
 }  // namespace internal
 }  // namespace v8

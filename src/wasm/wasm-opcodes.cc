@@ -211,6 +211,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(TableCopy, "table.copy")
     CASE_OP(TableGrow, "table.grow")
     CASE_OP(TableSize, "table.size")
+    CASE_OP(TableFill, "table.fill")
 
     // SIMD opcodes.
     CASE_SIMD_OP(Splat, "splat")

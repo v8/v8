@@ -405,24 +405,26 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V)
 
-#define FOREACH_NUMERIC_OPCODE(V)   \
-  V(I32SConvertSatF32, 0xfc00, i_f) \
-  V(I32UConvertSatF32, 0xfc01, i_f) \
-  V(I32SConvertSatF64, 0xfc02, i_d) \
-  V(I32UConvertSatF64, 0xfc03, i_d) \
-  V(I64SConvertSatF32, 0xfc04, l_f) \
-  V(I64UConvertSatF32, 0xfc05, l_f) \
-  V(I64SConvertSatF64, 0xfc06, l_d) \
-  V(I64UConvertSatF64, 0xfc07, l_d) \
-  V(MemoryInit, 0xfc08, v_iii)      \
-  V(DataDrop, 0xfc09, v_v)          \
-  V(MemoryCopy, 0xfc0a, v_iii)      \
-  V(MemoryFill, 0xfc0b, v_iii)      \
-  V(TableInit, 0xfc0c, v_iii)       \
-  V(ElemDrop, 0xfc0d, v_v)          \
-  V(TableCopy, 0xfc0e, v_iii)       \
-  V(TableGrow, 0xfc0f, i_ai)        \
-  V(TableSize, 0xfc10, i_v)
+#define FOREACH_NUMERIC_OPCODE(V)                                             \
+  V(I32SConvertSatF32, 0xfc00, i_f)                                           \
+  V(I32UConvertSatF32, 0xfc01, i_f)                                           \
+  V(I32SConvertSatF64, 0xfc02, i_d)                                           \
+  V(I32UConvertSatF64, 0xfc03, i_d)                                           \
+  V(I64SConvertSatF32, 0xfc04, l_f)                                           \
+  V(I64UConvertSatF32, 0xfc05, l_f)                                           \
+  V(I64SConvertSatF64, 0xfc06, l_d)                                           \
+  V(I64UConvertSatF64, 0xfc07, l_d)                                           \
+  V(MemoryInit, 0xfc08, v_iii)                                                \
+  V(DataDrop, 0xfc09, v_v)                                                    \
+  V(MemoryCopy, 0xfc0a, v_iii)                                                \
+  V(MemoryFill, 0xfc0b, v_iii)                                                \
+  V(TableInit, 0xfc0c, v_iii)                                                 \
+  V(ElemDrop, 0xfc0d, v_v)                                                    \
+  V(TableCopy, 0xfc0e, v_iii)                                                 \
+  V(TableGrow, 0xfc0f, i_ai)                                                  \
+  V(TableSize, 0xfc10, i_v)                                                   \
+  /*TableFill is polymorph in the second parameter. It's anyref or anyfunc.*/ \
+  V(TableFill, 0xfc11, v_iii)
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
   V(AtomicNotify, 0xfe00, i_ii)                 \

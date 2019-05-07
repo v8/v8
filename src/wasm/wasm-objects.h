@@ -287,6 +287,9 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
   static Handle<Object> Get(Isolate* isolate, Handle<WasmTableObject> table,
                             uint32_t index);
 
+  static void Fill(Isolate* isolate, Handle<WasmTableObject> table,
+                   uint32_t start, Handle<Object> entry, uint32_t count);
+
   static void UpdateDispatchTables(Isolate* isolate,
                                    Handle<WasmTableObject> table,
                                    int entry_index, wasm::FunctionSig* sig,

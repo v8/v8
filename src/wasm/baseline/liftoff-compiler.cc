@@ -2000,6 +2000,10 @@ class LiftoffCompiler {
                  Value* result) {
     unsupported(decoder, "table.size");
   }
+  void TableFill(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Value& start, Value& value, Value& count) {
+    unsupported(decoder, "table.fill");
+  }
 
  private:
   LiftoffAssembler asm_;

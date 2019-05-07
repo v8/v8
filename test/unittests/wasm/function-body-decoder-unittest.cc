@@ -3206,6 +3206,31 @@ TEST_F(FunctionBodyDecoderTest, TableSize) {
   ExpectFailure(sigs.i_v(), {WASM_TABLE_SIZE(tab + 2)});
 }
 
+TEST_F(FunctionBodyDecoderTest, TableFill) {
+  TestModuleBuilder builder;
+  byte tab_func = builder.AddTable(kWasmAnyFunc, 10, true, 20);
+  byte tab_ref = builder.AddTable(kWasmAnyRef, 10, true, 20);
+
+  module = builder.module();
+
+  ExpectFailure(sigs.v_a(),
+                {WASM_TABLE_FILL(tab_func, WASM_ONE, WASM_REF_NULL, WASM_ONE)});
+  WASM_FEATURE_SCOPE(anyref);
+  ExpectValidates(sigs.v_a(), {WASM_TABLE_FILL(tab_func, WASM_ONE,
+                                               WASM_REF_NULL, WASM_ONE)});
+  ExpectValidates(sigs.v_r(), {WASM_TABLE_FILL(tab_ref, WASM_ONE, WASM_REF_NULL,
+                                               WASM_ONE)});
+  // Anyfunc table cannot be initialized with an anyref value.
+  ExpectFailure(sigs.v_r(), {WASM_TABLE_FILL(tab_func, WASM_ONE,
+                                             WASM_GET_LOCAL(0), WASM_ONE)});
+  // Anyref table can be initialized with an anyfunc value.
+  ExpectValidates(sigs.v_a(), {WASM_TABLE_FILL(tab_ref, WASM_ONE,
+                                               WASM_GET_LOCAL(0), WASM_ONE)});
+  // Check that the table index gets verified.
+  ExpectFailure(sigs.v_r(), {WASM_TABLE_FILL(tab_ref + 2, WASM_ONE,
+                                             WASM_REF_NULL, WASM_ONE)});
+}
+
 TEST_F(FunctionBodyDecoderTest, TableOpsWithoutTable) {
   TestModuleBuilder builder;
   builder.AddTable(kWasmAnyRef, 10, true, 20);
@@ -3213,8 +3238,9 @@ TEST_F(FunctionBodyDecoderTest, TableOpsWithoutTable) {
     WASM_FEATURE_SCOPE(anyref);
     ExpectFailure(sigs.i_v(), {WASM_TABLE_GROW(0, WASM_REF_NULL, WASM_ONE)});
     ExpectFailure(sigs.i_v(), {WASM_TABLE_SIZE(0)});
+    ExpectFailure(sigs.i_r(),
+                  {WASM_TABLE_FILL(0, WASM_ONE, WASM_REF_NULL, WASM_ONE)});
   }
-
   {
     WASM_FEATURE_SCOPE(bulk_memory);
     builder.AddPassiveElementSegment();

@@ -994,6 +994,19 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
   return result;
 }
 
+void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
+                           uint32_t start, Handle<Object> entry,
+                           uint32_t count) {
+  // Bounds checks must be done by the caller.
+  DCHECK_LT(start, table->entries()->length());
+  DCHECK_LE(count, table->entries()->length());
+  DCHECK_LE(start + count, table->entries()->length());
+
+  for (uint32_t i = 0; i < count; i++) {
+    WasmTableObject::Set(isolate, table, start + i, entry);
+  }
+}
+
 void WasmTableObject::UpdateDispatchTables(
     Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
     wasm::FunctionSig* sig, Handle<WasmInstanceObject> target_instance,

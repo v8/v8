@@ -735,7 +735,9 @@ struct ControlBase {
   F(TableCopy, const TableCopyImmediate<validate>& imm, Vector<Value> args)   \
   F(TableGrow, const TableIndexImmediate<validate>& imm, const Value& value,  \
     const Value& delta, Value* result)                                        \
-  F(TableSize, const TableIndexImmediate<validate>& imm, Value* result)
+  F(TableSize, const TableIndexImmediate<validate>& imm, Value* result)       \
+  F(TableFill, const TableIndexImmediate<validate>& imm, const Value& start,  \
+    const Value& value, const Value& count)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
 // lengths, etc.
@@ -1300,7 +1302,8 @@ class WasmDecoder : public Decoder {
             return 2 + imm.length;
           }
           case kExprTableGrow:
-          case kExprTableSize: {
+          case kExprTableSize:
+          case kExprTableFill: {
             TableIndexImmediate<validate> imm(decoder, pc);
             return 2 + imm.length;
           }
@@ -2233,7 +2236,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           opcode = static_cast<WasmOpcode>(opcode << 8 | numeric_index);
           if (opcode < kExprMemoryInit) {
             CHECK_PROTOTYPE_OPCODE(sat_f2i_conversions);
-          } else if (opcode == kExprTableGrow || opcode == kExprTableSize) {
+          } else if (opcode == kExprTableGrow || opcode == kExprTableSize ||
+                     opcode == kExprTableFill) {
             CHECK_PROTOTYPE_OPCODE(anyref);
           } else {
             CHECK_PROTOTYPE_OPCODE(bulk_memory);
@@ -2686,6 +2690,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           len += imm.length;
           auto* result = Push(kWasmI32);
           CALL_INTERFACE_IF_REACHABLE(TableSize, imm, result);
+          break;
+        }
+        case kExprTableFill: {
+          TableIndexImmediate<validate> imm(this, this->pc_ + 1);
+          if (!this->Validate(this->pc_, imm)) break;
+          len += imm.length;
+          auto count = Pop(2, sig->GetParam(2));
+          auto value = Pop(1, this->module_->tables[imm.index].type);
+          auto start = Pop(0, sig->GetParam(0));
+          CALL_INTERFACE_IF_REACHABLE(TableFill, imm, start, value, count);
           break;
         }
         default:

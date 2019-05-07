@@ -387,6 +387,7 @@ class WasmGraphBuilder {
                   Node* src, Node* size, wasm::WasmCodePosition position);
   Node* TableGrow(uint32_t table_index, Node* value, Node* delta);
   Node* TableSize(uint32_t table_index);
+  Node* TableFill(uint32_t table_index, Node* start, Node* value, Node* count);
 
   bool has_simd() const { return has_simd_; }
 

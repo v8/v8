@@ -392,6 +392,7 @@ let kExprElemDrop = 0x0d;
 let kExprTableCopy = 0x0e;
 let kExprTableGrow = 0x0f;
 let kExprTableSize = 0x10;
+let kExprTableFill = 0x11;
 
 // Atomic opcodes.
 let kExprAtomicNotify = 0x00;
