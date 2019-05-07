@@ -481,7 +481,8 @@ template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayPrint(
     std::ostream& os) {  // NOLINT
   PrintHeader(os, Traits::ArrayTypeName());
-  os << "\n - length: " << length() << "\n - base_pointer: ";
+  os << "\n - length: " << number_of_elements_onheap_only()
+     << "\n - base_pointer: ";
   if (base_pointer().ptr() == kNullAddress) {
     os << "<nullptr>";
   } else {
@@ -553,18 +554,18 @@ double GetScalarElement(T array, int index) {
 }
 
 template <class T>
-void DoPrintElements(std::ostream& os, Object object) {  // NOLINT
+void DoPrintElements(std::ostream& os, Object object, int length) {  // NOLINT
   const bool print_the_hole = std::is_same<T, FixedDoubleArray>::value;
   T array = T::cast(object);
-  if (array->length() == 0) return;
+  if (length == 0) return;
   int previous_index = 0;
   double previous_value = GetScalarElement(array, 0);
   double value = 0.0;
   int i;
-  for (i = 1; i <= array->length(); i++) {
-    if (i < array->length()) value = GetScalarElement(array, i);
+  for (i = 1; i <= length; i++) {
+    if (i < length) value = GetScalarElement(array, i);
     bool values_are_nan = std::isnan(previous_value) && std::isnan(value);
-    if (i != array->length() && (previous_value == value || values_are_nan) &&
+    if (i != length && (previous_value == value || values_are_nan) &&
         IsTheHoleAt(array, i - 1) == IsTheHoleAt(array, i)) {
       continue;
     }
@@ -665,10 +666,6 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
   os << " - elements: " << Brief(elements()) << " {";
-  if (elements()->length() == 0) {
-    os << " }\n";
-    return;
-  }
   switch (map()->elements_kind()) {
     case HOLEY_SMI_ELEMENTS:
     case PACKED_SMI_ELEMENTS:
@@ -682,14 +679,16 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
     }
     case HOLEY_DOUBLE_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS: {
-      DoPrintElements<FixedDoubleArray>(os, elements());
+      DoPrintElements<FixedDoubleArray>(os, elements(), elements()->length());
       break;
     }
 
-#define PRINT_ELEMENTS(Type, type, TYPE, elementType)    \
-  case TYPE##_ELEMENTS: {                                \
-    DoPrintElements<Fixed##Type##Array>(os, elements()); \
-    break;                                               \
+    // TODO(bmeurer, v8:4153): Change this to size_t later.
+#define PRINT_ELEMENTS(Type, type, TYPE, elementType)                   \
+  case TYPE##_ELEMENTS: {                                               \
+    int length = static_cast<int>(JSTypedArray::cast(*this)->length()); \
+    DoPrintElements<Fixed##Type##Array>(os, elements(), length);        \
+    break;                                                              \
   }
       TYPED_ARRAYS(PRINT_ELEMENTS)
 #undef PRINT_ELEMENTS
@@ -747,8 +746,12 @@ static void JSObjectPrintBody(std::ostream& os,
   os << " {";
   if (obj->PrintProperties(os)) os << "\n ";
   os << "}\n";
-  if (print_elements && obj->elements()->length() > 0) {
-    obj->PrintElements(os);
+  if (print_elements) {
+    int length = obj->HasFixedTypedArrayElements()
+                     ? FixedTypedArrayBase::cast(obj->elements())
+                           ->number_of_elements_onheap_only()
+                     : obj->elements()->length();
+    if (length > 0) obj->PrintElements(os);
   }
   int embedder_fields = obj->GetEmbedderFieldCount();
   if (embedder_fields > 0) {
@@ -1017,7 +1020,7 @@ void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
 void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "FixedDoubleArray");
   os << "\n - length: " << length();
-  DoPrintElements<FixedDoubleArray>(os, *this);
+  DoPrintElements<FixedDoubleArray>(os, *this, length());
   os << "\n";
 }
 
@@ -1379,7 +1382,7 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n - buffer: " << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
-  os << "\n - length: " << Brief(length());
+  os << "\n - length: " << length();
   if (!buffer()->IsJSArrayBuffer()) {
     os << "\n <invalid buffer>\n";
     return;

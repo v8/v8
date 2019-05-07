@@ -10499,12 +10499,6 @@ void CodeStubAssembler::EmitBigTypedArrayElementStore(
   TVARIABLE(UintPtrT, var_high);
   BigIntToRawBytes(bigint_value, &var_low, &var_high);
 
-  // Assert that offset < elements.length. Given that it's an offset for a raw
-  // pointer we correct it by the usual kHeapObjectTag offset.
-  CSA_ASSERT(
-      this, IsOffsetInBounds(offset, LoadAndUntagFixedArrayBaseLength(elements),
-                             kHeapObjectTag, BIGINT64_ELEMENTS));
-
   MachineRepresentation rep = WordT::kMachineRepresentation;
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (!Is64()) {

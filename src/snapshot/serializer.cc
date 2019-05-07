@@ -391,7 +391,7 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
     // detached TypedArrays and clears the values in the FixedTypedArray so that
     // we don't try to serialize the now invalid backing store.
     elements->set_external_pointer(reinterpret_cast<void*>(Smi::kZero.ptr()));
-    elements->set_length(0);
+    elements->set_number_of_elements_onheap_only(0);
   }
   SerializeObject();
 }

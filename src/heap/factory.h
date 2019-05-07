@@ -484,7 +484,7 @@ class V8_EXPORT_PRIVATE Factory {
                                          Handle<FixedArray> constant_pool);
 
   Handle<FixedTypedArrayBase> NewFixedTypedArrayWithExternalPointer(
-      int length, ExternalArrayType array_type, void* external_pointer,
+      ExternalArrayType array_type, void* external_pointer,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<FixedTypedArrayBase> NewFixedTypedArray(

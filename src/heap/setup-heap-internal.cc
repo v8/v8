@@ -202,7 +202,7 @@ AllocationResult Heap::AllocateEmptyFixedTypedArray(
   elements->set_base_pointer(elements, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(
       FixedTypedArrayBase::ExternalPointerPtrForOnHeapArray());
-  elements->set_length(0);
+  elements->set_number_of_elements_onheap_only(0);
   return elements;
 }
 

@@ -63,8 +63,29 @@ CAST_ACCESSOR(TemplateList)
 CAST_ACCESSOR(WeakFixedArray)
 CAST_ACCESSOR(WeakArrayList)
 
-SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
+
+int FixedArrayBase::length() const {
+  DCHECK(!IsInRange(map()->instance_type(), FIRST_FIXED_TYPED_ARRAY_TYPE,
+                    LAST_FIXED_TYPED_ARRAY_TYPE));
+  Object value = READ_FIELD(*this, kLengthOffset);
+  return Smi::ToInt(value);
+}
+void FixedArrayBase::set_length(int value) {
+  DCHECK(!IsInRange(map()->instance_type(), FIRST_FIXED_TYPED_ARRAY_TYPE,
+                    LAST_FIXED_TYPED_ARRAY_TYPE));
+  WRITE_FIELD(*this, kLengthOffset, Smi::FromInt(value));
+}
+
+void FixedTypedArrayBase::set_number_of_elements_onheap_only(int value) {
+  WRITE_FIELD(*this, kLengthOffset, Smi::FromInt(value));
+}
+
+int FixedTypedArrayBase::number_of_elements_onheap_only() const {
+  Object value = READ_FIELD(*this, kLengthOffset);
+  return Smi::ToInt(value);
+}
+
 SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 
@@ -592,16 +613,11 @@ int FixedTypedArrayBase::ElementSize(InstanceType type) {
 
 int FixedTypedArrayBase::DataSize(InstanceType type) const {
   if (base_pointer() == Smi::kZero) return 0;
-  return length() * ElementSize(type);
+  return number_of_elements_onheap_only() * ElementSize(type);
 }
 
 int FixedTypedArrayBase::DataSize() const {
   return DataSize(map()->instance_type());
-}
-
-size_t FixedTypedArrayBase::ByteLength() const {
-  return static_cast<size_t>(length()) *
-         static_cast<size_t>(ElementSize(map()->instance_type()));
 }
 
 int FixedTypedArrayBase::size() const {
@@ -641,7 +657,9 @@ double Float64ArrayTraits::defaultValue() {
 
 template <class Traits>
 typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
-  DCHECK((index >= 0) && (index < this->length()));
+  // TODO(bmeurer, v8:4153): Solve this differently.
+  // DCHECK((index < this->length()));
+  CHECK_GE(index, 0);
   return FixedTypedArray<Traits>::get_scalar_from_data_ptr(DataPtr(), index);
 }
 
@@ -676,7 +694,9 @@ typename Traits::ElementType FixedTypedArray<Traits>::get_scalar_from_data_ptr(
 
 template <class Traits>
 void FixedTypedArray<Traits>::set(int index, ElementType value) {
-  CHECK((index >= 0) && (index < this->length()));
+  // TODO(bmeurer, v8:4153): Solve this differently.
+  // CHECK((index < this->length()));
+  CHECK_GE(index, 0);
   // See the comment in FixedTypedArray<Traits>::get_scalar.
   auto* ptr = reinterpret_cast<ElementType*>(DataPtr());
   TSAN_ANNOTATE_IGNORE_WRITES_BEGIN;

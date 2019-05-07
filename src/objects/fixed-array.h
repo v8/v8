@@ -590,6 +590,21 @@ class FixedTypedArrayBase : public FixedArrayBase {
   // Dispatched behavior.
   DECL_CAST(FixedTypedArrayBase)
 
+  // [number_of_elements_onheap]: This length is the number of elements stored
+  // in this FixedTypedArray if it is on-heap. It is always 0 for the off-heap
+  // case (where the base_pointer == 0). It is only useful for printing,
+  // verification and object setup as it does not represent the length of the
+  // associated JSTypedArray object anymore.
+  inline int number_of_elements_onheap_only() const;
+  inline void set_number_of_elements_onheap_only(int value);
+
+  // These length accessors are deleted because the meaning of length() has
+  // changed (see comment above). For the length of a JSTypedArray, use
+  // JSTypedArray::length(). For the number of elements in an on-heap
+  // FixedTypedArray, use number_of_elements_onheap_only() above.
+  inline int length() const = delete;
+  inline void set_length(int) = delete;
+
   DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
                                 TORQUE_GENERATED_FIXED_TYPED_ARRAY_BASE_FIELDS)
   static const int kHeaderSize = kSize;
@@ -628,8 +643,6 @@ class FixedTypedArrayBase : public FixedArrayBase {
   inline void* DataPtr();
 
   inline int DataSize() const;
-
-  inline size_t ByteLength() const;
 
   static inline intptr_t ExternalPointerValueForOnHeapArray() {
     return FixedTypedArrayBase::kDataOffset - kHeapObjectTag;

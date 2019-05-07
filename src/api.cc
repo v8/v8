@@ -7598,7 +7598,7 @@ size_t v8::ArrayBufferView::ByteLength() {
 
 size_t v8::TypedArray::Length() {
   i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
-  return obj->WasDetached() ? 0 : obj->length_value();
+  return obj->WasDetached() ? 0 : obj->length();
 }
 
 static_assert(v8::TypedArray::kMaxLength == i::Smi::kMaxValue,

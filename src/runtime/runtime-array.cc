@@ -222,8 +222,10 @@ Object RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
     JSObject::ValidateElements(*object);
   } else if (object->HasFixedTypedArrayElements()) {
     // Typed arrays cannot have holes or undefined elements.
-    int array_length = FixedArrayBase::cast(object->elements())->length();
-    return Smi::FromInt(Min(limit, static_cast<uint32_t>(array_length)));
+    // TODO(bmeurer, v8:4153): Change this to size_t later.
+    uint32_t array_length =
+        static_cast<uint32_t>(Handle<JSTypedArray>::cast(receiver)->length());
+    return Smi::FromInt(Min(limit, array_length));
   } else if (!object->HasDoubleElements()) {
     JSObject::EnsureWritableFastElements(object);
   }

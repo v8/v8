@@ -953,7 +953,7 @@ MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
           isolate, array, length);
     } else if (object->IsJSTypedArray()) {
       Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(object);
-      size_t length = array->length_value();
+      size_t length = array->length();
       if (array->WasDetached() ||
           length > static_cast<size_t>(FixedArray::kMaxLength)) {
         return MaybeHandle<FixedArray>();
@@ -1998,10 +1998,11 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case FREE_SPACE_TYPE:
       os << "<FreeSpace[" << FreeSpace::cast(*this)->size() << "]>";
       break;
-#define TYPED_ARRAY_SHORT_PRINT(Type, type, TYPE, ctype)                       \
-  case FIXED_##TYPE##_ARRAY_TYPE:                                              \
-    os << "<Fixed" #Type "Array[" << Fixed##Type##Array::cast(*this)->length() \
-       << "]>";                                                                \
+#define TYPED_ARRAY_SHORT_PRINT(Type, type, TYPE, ctype)                    \
+  case FIXED_##TYPE##_ARRAY_TYPE:                                           \
+    os << "<Fixed" #Type "Array["                                           \
+       << Fixed##Type##Array::cast(*this)->number_of_elements_onheap_only() \
+       << "]>";                                                             \
     break;
 
       TYPED_ARRAYS(TYPED_ARRAY_SHORT_PRINT)

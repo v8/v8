@@ -148,8 +148,9 @@ void DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
   bool has_exotic_indices = receiver->IsJSTypedArray();
   if (stage_ == kExoticIndices) {
     if (!has_exotic_indices) return;
-    exotic_length_ = static_cast<uint32_t>(
-        Handle<JSTypedArray>::cast(receiver)->length_value());
+    // TODO(bmeurer, v8:4153): Change this to size_t later.
+    exotic_length_ =
+        static_cast<uint32_t>(Handle<JSTypedArray>::cast(receiver)->length());
     return;
   }
   bool skip_indices = has_exotic_indices;

@@ -60,13 +60,6 @@ RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   return accessor->CopyElements(source, target, length);
 }
 
-RUNTIME_FUNCTION(Runtime_TypedArrayGetLength) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
-  return holder->length();
-}
-
 RUNTIME_FUNCTION(Runtime_ArrayBufferViewWasDetached) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -112,7 +105,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, array, 0);
   DCHECK(!array->WasDetached());
 
-  size_t length = array->length_value();
+  size_t length = array->length();
   if (length <= 1) return *array;
 
   Handle<FixedTypedArrayBase> elements(
@@ -218,7 +211,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySet) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
                                      Object::ToLength(isolate, len));
 
-  if (uint_offset + len->Number() > target->length_value()) {
+  if (uint_offset + len->Number() > target->length()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
   }

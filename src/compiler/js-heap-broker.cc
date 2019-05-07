@@ -354,7 +354,7 @@ class JSTypedArrayData : public JSObjectData {
                    Handle<JSTypedArray> object);
 
   bool is_on_heap() const { return is_on_heap_; }
-  size_t length_value() const { return length_value_; }
+  size_t length() const { return length_; }
   void* elements_external_pointer() const { return elements_external_pointer_; }
 
   void Serialize(JSHeapBroker* broker);
@@ -364,7 +364,7 @@ class JSTypedArrayData : public JSObjectData {
 
  private:
   bool const is_on_heap_;
-  size_t const length_value_;
+  size_t const length_;
   void* const elements_external_pointer_;
 
   bool serialized_ = false;
@@ -375,7 +375,7 @@ JSTypedArrayData::JSTypedArrayData(JSHeapBroker* broker, ObjectData** storage,
                                    Handle<JSTypedArray> object)
     : JSObjectData(broker, storage, object),
       is_on_heap_(object->is_on_heap()),
-      length_value_(object->length_value()),
+      length_(object->length()),
       elements_external_pointer_(
           FixedTypedArrayBase::cast(object->elements())->external_pointer()) {}
 
@@ -2613,7 +2613,7 @@ BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 BIMODAL_ACCESSOR(JSFunction, FeedbackVector, feedback_vector)
 
 BIMODAL_ACCESSOR_C(JSTypedArray, bool, is_on_heap)
-BIMODAL_ACCESSOR_C(JSTypedArray, size_t, length_value)
+BIMODAL_ACCESSOR_C(JSTypedArray, size_t, length)
 BIMODAL_ACCESSOR(JSTypedArray, HeapObject, buffer)
 
 BIMODAL_ACCESSOR_B(Map, bit_field2, elements_kind, Map::ElementsKindBits)

@@ -1823,10 +1823,8 @@ Handle<BytecodeArray> Factory::NewBytecodeArray(
 }
 
 Handle<FixedTypedArrayBase> Factory::NewFixedTypedArrayWithExternalPointer(
-    int length, ExternalArrayType array_type, void* external_pointer,
+    ExternalArrayType array_type, void* external_pointer,
     AllocationType allocation) {
-  // TODO(7881): Smi length check
-  DCHECK(0 <= length && length <= Smi::kMaxValue);
   int size = FixedTypedArrayBase::kHeaderSize;
   HeapObject result = AllocateRawWithImmortalMap(
       size, allocation,
@@ -1835,7 +1833,7 @@ Handle<FixedTypedArrayBase> Factory::NewFixedTypedArrayWithExternalPointer(
                                        isolate());
   elements->set_base_pointer(Smi::kZero, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(external_pointer);
-  elements->set_length(length);
+  elements->set_number_of_elements_onheap_only(0);
   return elements;
 }
 
@@ -1858,7 +1856,7 @@ Handle<FixedTypedArrayBase> Factory::NewFixedTypedArray(
   elements->set_base_pointer(*elements, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(
       FixedTypedArrayBase::ExternalPointerPtrForOnHeapArray());
-  elements->set_length(static_cast<int>(length));
+  elements->set_number_of_elements_onheap_only(static_cast<int>(length));
   if (initialize) memset(elements->DataPtr(), 0, elements->DataSize());
   return elements;
 }
@@ -3313,12 +3311,11 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
   size_t byte_length = length * element_size;
   SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length);
 
-  Handle<Object> length_object = NewNumberFromSize(length, allocation);
-  obj->set_length(*length_object);
+  obj->set_length(length);
 
   Handle<FixedTypedArrayBase> elements = NewFixedTypedArrayWithExternalPointer(
-      static_cast<int>(length), type,
-      static_cast<uint8_t*>(buffer->backing_store()) + byte_offset, allocation);
+      type, static_cast<uint8_t*>(buffer->backing_store()) + byte_offset,
+      allocation);
   Handle<Map> map = JSObject::GetElementsTransitionMap(obj, elements_kind);
   JSObject::SetMapAndElements(obj, map, elements);
   return obj;
@@ -3346,7 +3343,7 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
 
   obj->set_byte_offset(0);
   obj->set_byte_length(byte_length);
-  obj->set_length(Smi::FromIntptr(static_cast<intptr_t>(number_of_elements)));
+  obj->set_length(number_of_elements);
 
   Handle<JSArrayBuffer> buffer =
       NewJSArrayBuffer(SharedFlag::kNotShared, allocation);

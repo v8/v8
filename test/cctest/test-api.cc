@@ -16007,7 +16007,8 @@ static void FixedTypedArrayTestHelper(i::ExternalArrayType array_type,
       FixedTypedArrayClass::cast(jsobj->elements()), isolate);
   CHECK_EQ(FixedTypedArrayClass::kInstanceType,
            fixed_array->map()->instance_type());
-  CHECK_EQ(kElementCount, fixed_array->length());
+  CHECK_EQ(kElementCount, jsobj->length());
+  CHECK_EQ(kElementCount, fixed_array->number_of_elements_onheap_only());
   CcTest::CollectAllGarbage();
   for (int i = 0; i < kElementCount; i++) {
     fixed_array->set(i, static_cast<ElementType>(i));

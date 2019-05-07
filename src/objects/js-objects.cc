@@ -3998,7 +3998,7 @@ bool JSObject::HasEnumerableElements() {
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       {
-        int length = object->elements()->length();
+        size_t length = JSTypedArray::cast(object)->length();
         return length > 0;
       }
     case DICTIONARY_ELEMENTS: {

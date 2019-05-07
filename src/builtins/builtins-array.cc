@@ -936,7 +936,9 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       {
-        uint32_t length = static_cast<uint32_t>(object->elements()->length());
+        // TODO(bmeurer, v8:4153): Change this to size_t later.
+        uint32_t length =
+            static_cast<uint32_t>(Handle<JSTypedArray>::cast(object)->length());
         if (range <= length) {
           length = range;
           // We will add all indices, so we might as well clear it first
