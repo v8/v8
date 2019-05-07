@@ -1005,7 +1005,8 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
     // the integrity level transition sets the elements to dictionary mode.
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
            to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
-           IsFixedTypedArrayElementsKind(to_kind));
+           IsFixedTypedArrayElementsKind(to_kind) ||
+           IsHoleyFrozenOrSealedElementsKind(to_kind));
     to_kind = info.integrity_level_source_map->elements_kind();
   }
   if (from_kind != to_kind) {
@@ -2004,10 +2005,10 @@ Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
   return copy;
 }
 
-Handle<Map> Map::CopyForPreventExtensions(Isolate* isolate, Handle<Map> map,
-                                          PropertyAttributes attrs_to_add,
-                                          Handle<Symbol> transition_marker,
-                                          const char* reason) {
+Handle<Map> Map::CopyForPreventExtensions(
+    Isolate* isolate, Handle<Map> map, PropertyAttributes attrs_to_add,
+    Handle<Symbol> transition_marker, const char* reason,
+    bool support_holey_frozen_or_sealed_elements_kind) {
   int num_descriptors = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> new_desc = DescriptorArray::CopyUpToAddAttributes(
       isolate, handle(map->instance_descriptors(), isolate), num_descriptors,
@@ -2034,6 +2035,24 @@ Handle<Map> Map::CopyForPreventExtensions(Isolate* isolate, Handle<Map> map,
         case PACKED_SEALED_ELEMENTS:
           if (attrs_to_add == FROZEN) {
             new_kind = PACKED_FROZEN_ELEMENTS;
+          }
+          break;
+        case HOLEY_ELEMENTS:
+          if (!support_holey_frozen_or_sealed_elements_kind) {
+            break;
+          }
+          if (attrs_to_add == SEALED) {
+            new_kind = HOLEY_SEALED_ELEMENTS;
+          } else if (attrs_to_add == FROZEN) {
+            new_kind = HOLEY_FROZEN_ELEMENTS;
+          }
+          break;
+        case HOLEY_SEALED_ELEMENTS:
+          if (!support_holey_frozen_or_sealed_elements_kind) {
+            break;
+          }
+          if (attrs_to_add == FROZEN) {
+            new_kind = HOLEY_FROZEN_ELEMENTS;
           }
           break;
         default:

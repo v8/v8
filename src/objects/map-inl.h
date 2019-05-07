@@ -498,7 +498,7 @@ bool Map::has_dictionary_elements() const {
 }
 
 bool Map::has_frozen_or_sealed_elements() const {
-  return IsPackedFrozenOrSealedElementsKind(elements_kind());
+  return IsFrozenOrSealedElementsKind(elements_kind());
 }
 
 bool Map::has_sealed_elements() const {

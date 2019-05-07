@@ -715,3 +715,14 @@ arr[3] = 'c';
 assertEquals(arr[3], undefined);
 arr.length = 2;
 assertEquals(arr.length, 3);
+
+// Change length with holey entries at the end
+var arr = ['a', ,];
+Object.seal(arr);
+assertEquals(arr.length, 2);
+arr.length = 0;
+assertEquals(arr.length, 1);
+arr.length = 3;
+assertEquals(arr.length, 3);
+arr.length = 0;
+assertEquals(arr.length, 1);

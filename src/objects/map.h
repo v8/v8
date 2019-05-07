@@ -723,7 +723,8 @@ class Map : public HeapObject {
 
   V8_EXPORT_PRIVATE static Handle<Map> CopyForPreventExtensions(
       Isolate* isolate, Handle<Map> map, PropertyAttributes attrs_to_add,
-      Handle<Symbol> transition_marker, const char* reason);
+      Handle<Symbol> transition_marker, const char* reason,
+      bool support_holey_frozen_or_sealed_elements_kind = true);
 
   static Handle<Map> FixProxy(Handle<Map> map, InstanceType type, int size);
 

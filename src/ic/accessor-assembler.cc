@@ -1887,7 +1887,8 @@ void AccessorAssembler::EmitElementLoad(
                      PACKED_SMI_ELEMENTS, PACKED_ELEMENTS,
                      PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
                      // Handled by if_fast_holey.
-                     HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
+                     HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS, HOLEY_FROZEN_ELEMENTS,
+                     HOLEY_SEALED_ELEMENTS,
                      // Handled by if_fast_double.
                      PACKED_DOUBLE_ELEMENTS,
                      // Handled by if_fast_holey_double.
@@ -1896,7 +1897,7 @@ void AccessorAssembler::EmitElementLoad(
       // FAST_{SMI,}_ELEMENTS
       &if_fast_packed, &if_fast_packed, &if_fast_packed, &if_fast_packed,
       // FAST_HOLEY_{SMI,}_ELEMENTS
-      &if_fast_holey, &if_fast_holey,
+      &if_fast_holey, &if_fast_holey, &if_fast_holey, &if_fast_holey,
       // PACKED_DOUBLE_ELEMENTS
       &if_fast_double,
       // HOLEY_DOUBLE_ELEMENTS

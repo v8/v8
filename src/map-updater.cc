@@ -332,7 +332,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
            to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
            IsFixedTypedArrayElementsKind(to_kind) ||
-           IsPackedFrozenOrSealedElementsKind(to_kind));
+           IsFrozenOrSealedElementsKind(to_kind));
     to_kind = integrity_source_map_->elements_kind();
   }
 
@@ -798,7 +798,8 @@ MapUpdater::State MapUpdater::ConstructNewMapWithIntegrityLevelTransition() {
 
   result_map_ = Map::CopyForPreventExtensions(
       isolate_, target_map_, integrity_level_, integrity_level_symbol_,
-      "CopyForPreventExtensions");
+      "CopyForPreventExtensions",
+      old_map_->elements_kind() != DICTIONARY_ELEMENTS);
 
   state_ = kEnd;
   return state_;

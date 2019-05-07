@@ -1512,7 +1512,7 @@ TNode<Smi> CodeStubAssembler::LoadFastJSArrayLength(
   CSA_ASSERT(this, Word32Or(IsFastElementsKind(LoadElementsKind(array)),
                             IsElementsKindInRange(LoadElementsKind(array),
                                                   PACKED_SEALED_ELEMENTS,
-                                                  PACKED_FROZEN_ELEMENTS)));
+                                                  HOLEY_FROZEN_ELEMENTS)));
   // JSArray length is always a positive Smi for fast arrays.
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
   return UncheckedCast<Smi>(length);
@@ -2443,7 +2443,8 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
                      PACKED_SMI_ELEMENTS, PACKED_ELEMENTS,
                      PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
                      // Handled by if_holey.
-                     HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
+                     HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS, HOLEY_SEALED_ELEMENTS,
+                     HOLEY_FROZEN_ELEMENTS,
                      // Handled by if_packed_double.
                      PACKED_DOUBLE_ELEMENTS,
                      // Handled by if_holey_double.
@@ -2451,7 +2452,7 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
   Label* labels[] = {// PACKED_{SMI,}_ELEMENTS
                      &if_packed, &if_packed, &if_packed, &if_packed,
                      // HOLEY_{SMI,}_ELEMENTS
-                     &if_holey, &if_holey,
+                     &if_holey, &if_holey, &if_holey, &if_holey,
                      // PACKED_DOUBLE_ELEMENTS
                      &if_packed_double,
                      // HOLEY_DOUBLE_ELEMENTS
@@ -5905,11 +5906,11 @@ TNode<BoolT> CodeStubAssembler::IsExtensibleMap(SloppyTNode<Map> map) {
   return IsSetWord32<Map::IsExtensibleBit>(LoadMapBitField2(map));
 }
 
-TNode<BoolT> CodeStubAssembler::IsPackedFrozenOrSealedElementsKindMap(
+TNode<BoolT> CodeStubAssembler::IsFrozenOrSealedElementsKindMap(
     SloppyTNode<Map> map) {
   CSA_ASSERT(this, IsMap(map));
   return IsElementsKindInRange(LoadMapElementsKind(map), PACKED_SEALED_ELEMENTS,
-                               PACKED_FROZEN_ELEMENTS);
+                               HOLEY_FROZEN_ELEMENTS);
 }
 
 TNode<BoolT> CodeStubAssembler::IsExtensibleNonPrototypeMap(TNode<Map> map) {
@@ -10590,8 +10591,9 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     BIND(&done);
     return;
   }
-  DCHECK(IsFastElementsKind(elements_kind) ||
-         elements_kind == PACKED_SEALED_ELEMENTS);
+  DCHECK(
+      IsFastElementsKind(elements_kind) ||
+      IsInRange(elements_kind, PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS));
 
   Node* length =
       SelectImpl(IsJSArray(object), [=]() { return LoadJSArrayLength(object); },
@@ -10609,7 +10611,8 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   }
 
   if (IsGrowStoreMode(store_mode) &&
-      !(elements_kind == PACKED_SEALED_ELEMENTS)) {
+      !(IsInRange(elements_kind, PACKED_SEALED_ELEMENTS,
+                  HOLEY_SEALED_ELEMENTS))) {
     elements = CheckForCapacityGrow(object, elements, elements_kind, length,
                                     intptr_key, parameter_mode, bailout);
   } else {

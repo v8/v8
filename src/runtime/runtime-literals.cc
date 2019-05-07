@@ -157,6 +157,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
+    case HOLEY_FROZEN_ELEMENTS:
+    case HOLEY_SEALED_ELEMENTS:
     case HOLEY_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(copy->elements()), isolate);
       if (elements->map() == ReadOnlyRoots(isolate).fixed_cow_array_map()) {

@@ -670,6 +670,8 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
     case HOLEY_SMI_ELEMENTS:
     case PACKED_SMI_ELEMENTS:
     case HOLEY_ELEMENTS:
+    case HOLEY_FROZEN_ELEMENTS:
+    case HOLEY_SEALED_ELEMENTS:
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:

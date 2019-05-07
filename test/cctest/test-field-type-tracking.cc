@@ -2232,11 +2232,12 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
-    TestConfig(PropertyAttributes attributes, Handle<Symbol> symbol)
-        : attributes(attributes), symbol(symbol) {}
+    TestConfig(PropertyAttributes attributes, Handle<Symbol> symbol,
+               ElementsKind kind)
+        : attributes(attributes), symbol(symbol), elements_kind(kind) {}
 
     Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
-      expectations.SetElementsKind(DICTIONARY_ELEMENTS);
+      expectations.SetElementsKind(elements_kind);
       expectations.ChangeAttributesForAllProperties(attributes);
       return Map::CopyForPreventExtensions(CcTest::i_isolate(), map, attributes,
                                            symbol, "CopyForPreventExtensions");
@@ -2247,11 +2248,13 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
 
     PropertyAttributes attributes;
     Handle<Symbol> symbol;
+    ElementsKind elements_kind;
   };
   Factory* factory = isolate->factory();
-  TestConfig configs[] = {{FROZEN, factory->frozen_symbol()},
-                          {SEALED, factory->sealed_symbol()},
-                          {NONE, factory->nonextensible_symbol()}};
+  TestConfig configs[] = {
+      {FROZEN, factory->frozen_symbol(), HOLEY_FROZEN_ELEMENTS},
+      {SEALED, factory->sealed_symbol(), HOLEY_SEALED_ELEMENTS},
+      {NONE, factory->nonextensible_symbol(), DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
         configs[i],
@@ -2279,8 +2282,9 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
-    TestConfig(PropertyAttributes attributes, Handle<Symbol> symbol)
-        : attributes(attributes), symbol(symbol) {}
+    TestConfig(PropertyAttributes attributes, Handle<Symbol> symbol,
+               ElementsKind kind)
+        : attributes(attributes), symbol(symbol), elements_kind(kind) {}
 
     Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
       Isolate* isolate = CcTest::i_isolate();
@@ -2295,7 +2299,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
           .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 
-      expectations.SetElementsKind(DICTIONARY_ELEMENTS);
+      expectations.SetElementsKind(elements_kind);
       expectations.ChangeAttributesForAllProperties(attributes);
       return Map::CopyForPreventExtensions(isolate, map, attributes, symbol,
                                            "CopyForPreventExtensions");
@@ -2306,11 +2310,13 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
 
     PropertyAttributes attributes;
     Handle<Symbol> symbol;
+    ElementsKind elements_kind;
   };
   Factory* factory = isolate->factory();
-  TestConfig configs[] = {{FROZEN, factory->frozen_symbol()},
-                          {SEALED, factory->sealed_symbol()},
-                          {NONE, factory->nonextensible_symbol()}};
+  TestConfig configs[] = {
+      {FROZEN, factory->frozen_symbol(), HOLEY_FROZEN_ELEMENTS},
+      {SEALED, factory->sealed_symbol(), HOLEY_SEALED_ELEMENTS},
+      {NONE, factory->nonextensible_symbol(), DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
         configs[i],

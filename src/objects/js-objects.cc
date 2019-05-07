@@ -3969,6 +3969,8 @@ bool JSObject::HasEnumerableElements() {
       return length > 0;
     }
     case HOLEY_SMI_ELEMENTS:
+    case HOLEY_FROZEN_ELEMENTS:
+    case HOLEY_SEALED_ELEMENTS:
     case HOLEY_ELEMENTS: {
       FixedArray elements = FixedArray::cast(object->elements());
       int length = object->IsJSArray()
@@ -4725,6 +4727,8 @@ int JSObject::GetFastElementsUsage() {
       V8_FALLTHROUGH;
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_ELEMENTS:
+    case HOLEY_FROZEN_ELEMENTS:
+    case HOLEY_SEALED_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS:
       return HoleyElementsUsage(*this, FixedArray::cast(store));
     case HOLEY_DOUBLE_ELEMENTS:

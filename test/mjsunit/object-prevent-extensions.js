@@ -409,3 +409,14 @@ assertEquals(arr[2], undefined);
 assertEquals(arr.pop(), undefined);
 assertEquals(arr.length, 1);
 assertEquals(arr[1], undefined);
+
+// Change length with holey entries at the end
+var arr = ['a', ,];
+Object.preventExtensions(arr);
+assertEquals(arr.length, 2);
+arr.length = 0;
+assertEquals(arr.length, 0);
+arr.length = 3;
+assertEquals(arr.length, 3);
+arr.length = 0;
+assertEquals(arr.length, 0);

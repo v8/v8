@@ -688,7 +688,8 @@ void Map::MapVerify(Isolate* isolate) {
   CHECK_IMPLIES(is_access_check_needed(), may_have_interesting_symbols());
   CHECK_IMPLIES(IsJSObjectMap() && !CanHaveFastTransitionableElementsKind(),
                 IsDictionaryElementsKind(elements_kind()) ||
-                    IsTerminalElementsKind(elements_kind()));
+                    IsTerminalElementsKind(elements_kind()) ||
+                    IsHoleyFrozenOrSealedElementsKind(elements_kind()));
   CHECK_IMPLIES(is_deprecated(), !is_stable());
   if (is_prototype_map()) {
     DCHECK(prototype_info() == Smi::kZero ||
@@ -2328,6 +2329,8 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     case HOLEY_DOUBLE_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS:
     case HOLEY_ELEMENTS:
+    case HOLEY_FROZEN_ELEMENTS:
+    case HOLEY_SEALED_ELEMENTS:
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:

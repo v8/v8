@@ -43,9 +43,13 @@ enum ElementsKind : uint8_t {
   PACKED_DOUBLE_ELEMENTS,
   HOLEY_DOUBLE_ELEMENTS,
 
-  // The sealed, frozen kind for packed elements.
+  // The sealed kind for elements.
   PACKED_SEALED_ELEMENTS,
+  HOLEY_SEALED_ELEMENTS,
+
+  // The frozen kind for elements.
   PACKED_FROZEN_ELEMENTS,
+  HOLEY_FROZEN_ELEMENTS,
 
   // The "slow" kind.
   DICTIONARY_ELEMENTS,
@@ -75,7 +79,7 @@ enum ElementsKind : uint8_t {
   FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = UINT8_ELEMENTS,
   LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND = BIGINT64_ELEMENTS,
   TERMINAL_FAST_ELEMENTS_KIND = HOLEY_ELEMENTS,
-  LAST_FROZEN_ELEMENTS_KIND = PACKED_FROZEN_ELEMENTS,
+  LAST_FROZEN_ELEMENTS_KIND = HOLEY_FROZEN_ELEMENTS,
 
 // Alias for kSystemPointerSize-sized elements
 #ifdef V8_COMPRESS_POINTERS
@@ -154,28 +158,26 @@ inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
   return IsDoubleElementsKind(kind) || IsFixedFloatElementsKind(kind);
 }
 
-inline bool IsPackedFrozenOrSealedElementsKind(ElementsKind kind) {
-  DCHECK_IMPLIES(
-      IsInRange(kind, PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS),
-      FLAG_enable_sealed_frozen_elements_kind);
-  return IsInRange(kind, PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS);
+inline bool IsFrozenOrSealedElementsKind(ElementsKind kind) {
+  DCHECK_IMPLIES(IsInRange(kind, PACKED_SEALED_ELEMENTS, HOLEY_FROZEN_ELEMENTS),
+                 FLAG_enable_sealed_frozen_elements_kind);
+  return IsInRange(kind, PACKED_SEALED_ELEMENTS, HOLEY_FROZEN_ELEMENTS);
 }
 
 inline bool IsSealedElementsKind(ElementsKind kind) {
-  DCHECK_IMPLIES(kind == PACKED_SEALED_ELEMENTS,
+  DCHECK_IMPLIES(IsInRange(kind, PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS),
                  FLAG_enable_sealed_frozen_elements_kind);
-  return kind == PACKED_SEALED_ELEMENTS;
+  return IsInRange(kind, PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS);
 }
 
 inline bool IsFrozenElementsKind(ElementsKind kind) {
-  DCHECK_IMPLIES(kind == PACKED_FROZEN_ELEMENTS,
+  DCHECK_IMPLIES(IsInRange(kind, PACKED_FROZEN_ELEMENTS, HOLEY_FROZEN_ELEMENTS),
                  FLAG_enable_sealed_frozen_elements_kind);
-  return kind == PACKED_FROZEN_ELEMENTS;
+  return IsInRange(kind, PACKED_FROZEN_ELEMENTS, HOLEY_FROZEN_ELEMENTS);
 }
 
 inline bool IsSmiOrObjectElementsKind(ElementsKind kind) {
-  return kind == PACKED_SMI_ELEMENTS || kind == HOLEY_SMI_ELEMENTS ||
-         kind == PACKED_ELEMENTS || kind == HOLEY_ELEMENTS;
+  return IsInRange(kind, PACKED_SMI_ELEMENTS, HOLEY_ELEMENTS);
 }
 
 inline bool IsSmiElementsKind(ElementsKind kind) {
@@ -190,13 +192,23 @@ inline bool IsObjectElementsKind(ElementsKind kind) {
   return IsInRange(kind, PACKED_ELEMENTS, HOLEY_ELEMENTS);
 }
 
+inline bool IsHoleyFrozenOrSealedElementsKind(ElementsKind kind) {
+  DCHECK_IMPLIES(kind == HOLEY_SEALED_ELEMENTS || kind == HOLEY_FROZEN_ELEMENTS,
+                 FLAG_enable_sealed_frozen_elements_kind);
+  return kind == HOLEY_SEALED_ELEMENTS || kind == HOLEY_FROZEN_ELEMENTS;
+}
+
 inline bool IsHoleyElementsKind(ElementsKind kind) {
   return kind == HOLEY_SMI_ELEMENTS || kind == HOLEY_DOUBLE_ELEMENTS ||
          kind == HOLEY_ELEMENTS;
 }
 
+inline bool IsHoleyElementsKindForRead(ElementsKind kind) {
+  return IsHoleyElementsKind(kind) || IsHoleyFrozenOrSealedElementsKind(kind);
+}
+
 inline bool IsHoleyOrDictionaryElementsKind(ElementsKind kind) {
-  return IsHoleyElementsKind(kind) || kind == DICTIONARY_ELEMENTS;
+  return IsHoleyElementsKindForRead(kind) || kind == DICTIONARY_ELEMENTS;
 }
 
 
