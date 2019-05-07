@@ -532,7 +532,9 @@ void String::WriteToFlat(String src, sinkchar* sink, int f, int t) {
   int from = f;
   int to = t;
   while (true) {
-    DCHECK(0 <= from && from <= to && to <= source->length());
+    DCHECK_LE(0, from);
+    DCHECK_LE(from, to);
+    DCHECK_LE(to, source->length());
     switch (StringShape(source).full_representation_tag()) {
       case kOneByteStringTag | kExternalStringTag: {
         CopyChars(sink, ExternalOneByteString::cast(source)->GetChars() + from,

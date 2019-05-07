@@ -6479,7 +6479,7 @@ class RegExpKey : public HashTableKey {
 };
 
 // InternalizedStringKey carries a string/internalized-string object as key.
-class InternalizedStringKey : public StringTableKey {
+class InternalizedStringKey final : public StringTableKey {
  public:
   explicit InternalizedStringKey(Handle<String> string)
       : StringTableKey(0, string->length()), string_(string) {
@@ -6911,147 +6911,68 @@ Handle<StringTable> StringTable::CautiousShrink(Isolate* isolate,
 
 namespace {
 
-class StringTableNoAllocateKey : public StringTableKey {
- public:
-  StringTableNoAllocateKey(String string, uint64_t seed)
-      : StringTableKey(0, string.length()), string_(string) {
-    StringShape shape(string);
-    one_byte_ = shape.encoding_tag() == kOneByteStringTag;
-    DCHECK(!shape.IsInternalized());
-    DCHECK(!shape.IsThin());
-    int length = string->length();
-    if (shape.IsCons() && length <= String::kMaxHashCalcLength) {
-      special_flattening_ = true;
-      uint32_t hash_field = 0;
-      if (one_byte_) {
-        if (V8_LIKELY(length <=
-                      static_cast<int>(arraysize(one_byte_buffer_)))) {
-          one_byte_content_ = one_byte_buffer_;
-        } else {
-          one_byte_content_ = new uint8_t[length];
-        }
-        String::WriteToFlat(string, one_byte_content_, 0, length);
-        hash_field =
-            StringHasher::HashSequentialString(one_byte_content_, length, seed);
-      } else {
-        if (V8_LIKELY(length <=
-                      static_cast<int>(arraysize(two_byte_buffer_)))) {
-          two_byte_content_ = two_byte_buffer_;
-        } else {
-          two_byte_content_ = new uint16_t[length];
-        }
-        String::WriteToFlat(string, two_byte_content_, 0, length);
-        hash_field =
-            StringHasher::HashSequentialString(two_byte_content_, length, seed);
-      }
-      string->set_hash_field(hash_field);
-    } else {
-      special_flattening_ = false;
-      one_byte_content_ = nullptr;
-      string->Hash();
-    }
+template <typename Char>
+Address LookupString(Isolate* isolate, String string) {
+  DisallowHeapAllocation no_gc;
+  StringTable table = isolate->heap()->string_table();
+  uint64_t seed = HashSeed(isolate);
 
-    DCHECK(string->HasHashCode());
-    set_hash_field(string->hash_field());
+  int length = string.length();
+
+  std::unique_ptr<Char[]> buffer;
+  const Char* chars;
+
+  if (string.IsConsString()) {
+    buffer.reset(new Char[length]);
+    String::WriteToFlat(string, buffer.get(), 0, length);
+    chars = buffer.get();
+  } else {
+    String source = string;
+    size_t start = 0;
+    if (source.IsSlicedString()) {
+      SlicedString sliced = SlicedString::cast(source);
+      start = sliced.offset();
+      source = sliced.parent();
+    }
+    if (source.IsThinString()) source = ThinString::cast(source).actual();
+    chars = source.GetChars<Char>(no_gc) + start;
+  }
+  // TODO(verwaest): Internalize to one-byte when possible.
+  SequentialStringKey<Char> key(Vector<const Char>(chars, length), seed);
+
+  // String could be an array index.
+  uint32_t hash_field = key.hash_field();
+
+  if (Name::ContainsCachedArrayIndex(hash_field)) {
+    return Smi::FromInt(String::ArrayIndexValueBits::decode(hash_field)).ptr();
   }
 
-  ~StringTableNoAllocateKey() override {
-    if (one_byte_) {
-      if (one_byte_content_ != one_byte_buffer_) delete[] one_byte_content_;
-    } else {
-      if (two_byte_content_ != two_byte_buffer_) delete[] two_byte_content_;
-    }
+  if ((hash_field & Name::kIsNotArrayIndexMask) == 0) {
+    // It is an indexed, but it's not cached.
+    return Smi::FromInt(ResultSentinel::kUnsupported).ptr();
   }
 
-  bool IsMatch(String other) override {
-    DCHECK(other->IsInternalizedString());
-    DCHECK(other->IsFlat());
-    DisallowHeapAllocation no_gc;
-    if (!special_flattening_) {
-      if (string_->Get(0) != other->Get(0)) return false;
-      if (string_->IsFlat()) {
-        StringShape shape1(string_);
-        StringShape shape2(other);
-        if (shape1.encoding_tag() == kOneByteStringTag &&
-            shape2.encoding_tag() == kOneByteStringTag) {
-          String::FlatContent flat1 = string_->GetFlatContent(no_gc);
-          String::FlatContent flat2 = other->GetFlatContent(no_gc);
-          return CompareRawStringContents(flat1.ToOneByteVector().begin(),
-                                          flat2.ToOneByteVector().begin(),
-                                          length());
-        }
-        if (shape1.encoding_tag() == kTwoByteStringTag &&
-            shape2.encoding_tag() == kTwoByteStringTag) {
-          String::FlatContent flat1 = string_->GetFlatContent(no_gc);
-          String::FlatContent flat2 = other->GetFlatContent(no_gc);
-          return CompareRawStringContents(flat1.ToUC16Vector().begin(),
-                                          flat2.ToUC16Vector().begin(),
-                                          length());
-        }
-      }
-      StringComparator comparator;
-      return comparator.Equals(string_, other);
-    }
-
-    String::FlatContent flat_content = other->GetFlatContent(no_gc);
-    if (one_byte_) {
-      if (flat_content.IsOneByte()) {
-        return CompareRawStringContents(one_byte_content_,
-                                        flat_content.ToOneByteVector().begin(),
-                                        length());
-      } else {
-        DCHECK(flat_content.IsTwoByte());
-        for (int i = 0; i < length(); i++) {
-          if (flat_content.Get(i) != one_byte_content_[i]) return false;
-        }
-        return true;
-      }
-    } else {
-      if (flat_content.IsTwoByte()) {
-        return CompareRawStringContents(
-            two_byte_content_, flat_content.ToUC16Vector().begin(), length());
-      } else {
-        DCHECK(flat_content.IsOneByte());
-        for (int i = 0; i < length(); i++) {
-          if (flat_content.Get(i) != two_byte_content_[i]) return false;
-        }
-        return true;
-      }
-    }
+  int entry = table->FindEntry(ReadOnlyRoots(isolate), &key, key.hash());
+  if (entry == kNotFound) {
+    // A string that's not an array index, and not in the string table,
+    // cannot have been used as a property name before.
+    return Smi::FromInt(ResultSentinel::kNotFound).ptr();
   }
 
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override {
-    UNREACHABLE();
+  String internalized = String::cast(table->KeyAt(entry));
+  if (FLAG_thin_strings) {
+    MakeStringThin(string, internalized, isolate);
   }
-
- private:
-  String string_;
-  bool one_byte_;
-  bool special_flattening_;
-  union {
-    uint8_t* one_byte_content_;
-    uint16_t* two_byte_content_;
-  };
-  union {
-    uint8_t one_byte_buffer_[256];
-    uint16_t two_byte_buffer_[128];
-  };
-};
+  return internalized.ptr();
+}
 
 }  // namespace
 
 // static
 Address StringTable::LookupStringIfExists_NoAllocate(Isolate* isolate,
                                                      Address raw_string) {
-  DisallowHeapAllocation no_gc;
   String string = String::cast(Object(raw_string));
-  Heap* heap = isolate->heap();
-  StringTable table = heap->string_table();
-
-  StringTableNoAllocateKey key(string, HashSeed(isolate));
-
-  // String could be an array index.
-  uint32_t hash = string->hash_field();
+  DCHECK(!string.IsInternalizedString());
 
   // Valid array indices are >= 0, so they cannot be mixed up with any of
   // the result sentinels, which are negative.
@@ -7060,26 +6981,10 @@ Address StringTable::LookupStringIfExists_NoAllocate(Isolate* isolate,
   STATIC_ASSERT(
       !String::ArrayIndexValueBits::is_valid(ResultSentinel::kNotFound));
 
-  if (Name::ContainsCachedArrayIndex(hash)) {
-    return Smi::FromInt(String::ArrayIndexValueBits::decode(hash)).ptr();
+  if (string.IsOneByteRepresentation()) {
+    return i::LookupString<uint8_t>(isolate, string);
   }
-  if ((hash & Name::kIsNotArrayIndexMask) == 0) {
-    // It is an indexed, but it's not cached.
-    return Smi::FromInt(ResultSentinel::kUnsupported).ptr();
-  }
-
-  DCHECK(!string->IsInternalizedString());
-  int entry = table->FindEntry(ReadOnlyRoots(isolate), &key, key.hash());
-  if (entry != kNotFound) {
-    String internalized = String::cast(table->KeyAt(entry));
-    if (FLAG_thin_strings) {
-      MakeStringThin(string, internalized, isolate);
-    }
-    return internalized.ptr();
-  }
-  // A string that's not an array index, and not in the string table,
-  // cannot have been used as a property name before.
-  return Smi::FromInt(ResultSentinel::kNotFound).ptr();
+  return i::LookupString<uint16_t>(isolate, string);
 }
 
 String StringTable::ForwardStringIfExists(Isolate* isolate, StringTableKey* key,

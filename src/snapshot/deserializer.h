@@ -186,7 +186,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 };
 
 // Used to insert a deserialized internalized string into the string table.
-class StringTableInsertionKey : public StringTableKey {
+class StringTableInsertionKey final : public StringTableKey {
  public:
   explicit StringTableInsertionKey(String string);
 
