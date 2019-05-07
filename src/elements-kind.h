@@ -199,22 +199,19 @@ inline bool IsHoleyFrozenOrSealedElementsKind(ElementsKind kind) {
 }
 
 inline bool IsHoleyElementsKind(ElementsKind kind) {
-  return kind == HOLEY_SMI_ELEMENTS || kind == HOLEY_DOUBLE_ELEMENTS ||
-         kind == HOLEY_ELEMENTS;
+  return kind % 2 == 1 && kind <= HOLEY_DOUBLE_ELEMENTS;
 }
 
 inline bool IsHoleyElementsKindForRead(ElementsKind kind) {
-  return IsHoleyElementsKind(kind) || IsHoleyFrozenOrSealedElementsKind(kind);
+  return kind % 2 == 1 && kind <= HOLEY_FROZEN_ELEMENTS;
 }
 
 inline bool IsHoleyOrDictionaryElementsKind(ElementsKind kind) {
   return IsHoleyElementsKindForRead(kind) || kind == DICTIONARY_ELEMENTS;
 }
 
-
 inline bool IsFastPackedElementsKind(ElementsKind kind) {
-  return kind == PACKED_SMI_ELEMENTS || kind == PACKED_DOUBLE_ELEMENTS ||
-         kind == PACKED_ELEMENTS;
+  return kind % 2 == 0 && kind <= PACKED_DOUBLE_ELEMENTS;
 }
 
 
