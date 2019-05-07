@@ -429,8 +429,8 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   // See src/heap/spaces.cc, MemoryAllocator::InitializeCodePageAllocator() and
   // https://cs.chromium.org/chromium/src/components/crash/content/app/crashpad_win.cc?rcl=fd680447881449fba2edcf0589320e7253719212&l=204
   // for details.
-  if (engine_->code_manager()
-          ->CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
+      FLAG_win64_unwinding_info) {
     AllocateForCode(Heap::GetCodeRangeReservedAreaSize());
   }
 #endif
@@ -1038,21 +1038,10 @@ WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
                                  size_t max_committed)
     : memory_tracker_(memory_tracker),
       max_committed_code_space_(max_committed),
-#if defined(V8_OS_WIN_X64)
-      is_win64_unwind_info_disabled_for_testing_(false),
-#endif
       total_committed_code_space_(0),
       critical_committed_code_space_(max_committed / 2) {
   DCHECK_LE(max_committed, kMaxWasmCodeMemory);
 }
-
-#if defined(V8_OS_WIN_X64)
-bool WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange() const {
-  return win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
-         FLAG_win64_unwinding_info &&
-         !is_win64_unwind_info_disabled_for_testing_;
-}
-#endif
 
 bool WasmCodeManager::Commit(Address start, size_t size) {
   // TODO(v8:8462) Remove eager commit once perf supports remapping.
@@ -1207,7 +1196,8 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
              size);
 
 #if defined(V8_OS_WIN_X64)
-  if (CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
+      FLAG_win64_unwinding_info) {
     win64_unwindinfo::RegisterNonABICompliantCodeRange(
         reinterpret_cast<void*>(start), size);
   }
@@ -1393,7 +1383,8 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
                code_space.address(), code_space.end(), code_space.size());
 
 #if defined(V8_OS_WIN_X64)
-    if (CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+    if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
+        FLAG_win64_unwinding_info) {
       win64_unwindinfo::UnregisterNonABICompliantCodeRange(
           reinterpret_cast<void*>(code_space.address()));
     }
