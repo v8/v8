@@ -20,7 +20,7 @@ namespace torque {
 
 Namespace* GetOrCreateNamespace(const std::string& name);
 
-class TypeDeclarationVisitor {
+class PredeclarationVisitor {
  public:
   static void Predeclare(Ast* ast) {
     CurrentScope::Scope current_namespace(GlobalContext::GetDefaultNamespace());
@@ -36,6 +36,9 @@ class TypeDeclarationVisitor {
   }
   static void Predeclare(TypeDeclaration* decl) {
     Declarations::PredeclareTypeAlias(decl->name, decl, false);
+  }
+  static void Predeclare(GenericDeclaration* decl) {
+    Declarations::DeclareGeneric(decl->callable->name, decl);
   }
 };
 
@@ -85,7 +88,9 @@ class DeclarationVisitor {
 
   static void Visit(ConstDeclaration* decl);
   static void Visit(StandardDeclaration* decl);
-  static void Visit(GenericDeclaration* decl);
+  static void Visit(GenericDeclaration* decl) {
+    // The PredeclarationVisitor already handled this case.
+  }
   static void Visit(SpecializationDeclaration* decl);
   static void Visit(ExternConstDeclaration* decl);
   static void Visit(CppIncludeDeclaration* decl);

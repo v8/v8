@@ -22,7 +22,7 @@ Namespace* GetOrCreateNamespace(const std::string& name) {
   return existing_namespaces.front();
 }
 
-void TypeDeclarationVisitor::Predeclare(Declaration* decl) {
+void PredeclarationVisitor::Predeclare(Declaration* decl) {
   CurrentSourcePosition::Scope scope(decl->pos);
   switch (decl->kind) {
 #define ENUM_ITEM(name)        \
@@ -32,8 +32,10 @@ void TypeDeclarationVisitor::Predeclare(Declaration* decl) {
 #undef ENUM_ITEM
     case AstNode::Kind::kNamespaceDeclaration:
       return Predeclare(NamespaceDeclaration::cast(decl));
+    case AstNode::Kind::kGenericDeclaration:
+      return Predeclare(GenericDeclaration::cast(decl));
     default:
-      // This visitor only processes type declaration nodes.
+      // Only processes type declaration nodes, namespaces and generics.
       break;
   }
 }
@@ -202,10 +204,6 @@ void DeclarationVisitor::Visit(StandardDeclaration* decl) {
   Signature signature =
       TypeVisitor::MakeSignature(decl->callable->signature.get());
   Visit(decl->callable, signature, decl->body);
-}
-
-void DeclarationVisitor::Visit(GenericDeclaration* decl) {
-  Declarations::DeclareGeneric(decl->callable->name, decl);
 }
 
 void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
@@ -382,7 +380,7 @@ Callable* DeclarationVisitor::Specialize(
   return callable;
 }
 
-void TypeDeclarationVisitor::ResolvePredeclarations() {
+void PredeclarationVisitor::ResolvePredeclarations() {
   for (auto& p : GlobalContext::AllDeclarables()) {
     if (const TypeAlias* alias = TypeAlias::DynamicCast(p.get())) {
       CurrentScope::Scope scope_activator(alias->ParentScope());

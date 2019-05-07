@@ -55,8 +55,8 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
 
   // Two-step process of predeclaration + resolution allows to resolve type
   // declarations independent of the order they are given.
-  TypeDeclarationVisitor::Predeclare(GlobalContext::Get().ast());
-  TypeDeclarationVisitor::ResolvePredeclarations();
+  PredeclarationVisitor::Predeclare(GlobalContext::Get().ast());
+  PredeclarationVisitor::ResolvePredeclarations();
 
   // Process other declarations.
   DeclarationVisitor::Visit(GlobalContext::Get().ast());
