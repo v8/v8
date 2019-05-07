@@ -150,7 +150,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
 
   // Find entry for key otherwise return kNotFound.
   inline int FindEntry(ReadOnlyRoots roots, Key key, int32_t hash);
-  int FindEntry(Isolate* isolate, Key key);
+  inline int FindEntry(Isolate* isolate, Key key);
 
   // Rehashes the table in-place.
   void Rehash(ReadOnlyRoots roots);

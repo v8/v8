@@ -65,6 +65,7 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   // added. The return value is the string found.
   V8_EXPORT_PRIVATE static Handle<String> LookupString(Isolate* isolate,
                                                        Handle<String> key);
+  template <typename StringTableKey>
   static Handle<String> LookupKey(Isolate* isolate, StringTableKey* key);
   static Handle<String> AddKeyNoResize(Isolate* isolate, StringTableKey* key);
   static String ForwardStringIfExists(Isolate* isolate, StringTableKey* key,

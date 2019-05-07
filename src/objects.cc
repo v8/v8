@@ -6860,6 +6860,7 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
 }
 
 // static
+template <typename StringTableKey>
 Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
   Handle<StringTable> table = isolate->factory()->string_table();
   int entry = table->FindEntry(isolate, key);
@@ -6876,6 +6877,13 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
 
   return AddKeyNoResize(isolate, key);
 }
+
+template Handle<String> StringTable::LookupKey(Isolate* isolate,
+                                               OneByteStringKey* key);
+template Handle<String> StringTable::LookupKey(Isolate* isolate,
+                                               TwoByteStringKey* key);
+template Handle<String> StringTable::LookupKey(Isolate* isolate,
+                                               SeqOneByteSubStringKey* key);
 
 Handle<String> StringTable::AddKeyNoResize(Isolate* isolate,
                                            StringTableKey* key) {
