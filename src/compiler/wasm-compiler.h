@@ -222,6 +222,15 @@ class WasmGraphBuilder {
 
   void PatchInStackCheckIfNeeded();
 
+  // TODO(v8:8977, v8:7703): move this somewhere? This should be where it
+  // can be used in many places (e.g graph assembler, wasm compiler).
+  // Adds a decompression node if pointer compression is enabled and the type
+  // loaded is a compressed one. To be used after loads.
+  Node* InsertDecompressionIfNeeded(MachineType type, Node* value);
+  // Adds a compression node if pointer compression is enabled and the
+  // representation to be stored is a compressed one. To be used before stores.
+  Node* InsertCompressionIfNeeded(MachineRepresentation rep, Node* value);
+
   //-----------------------------------------------------------------------
   // Operations that read and/or write {control} and {effect}.
   //-----------------------------------------------------------------------
