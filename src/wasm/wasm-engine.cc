@@ -117,6 +117,11 @@ struct WasmEngine::CurrentGCInfo {
   // Set of dead code. Filled with all potentially dead code on initialization.
   // Code that is still in-use is removed by the individual isolates.
   std::unordered_set<WasmCode*> dead_code;
+
+  // If during this GC, another GC was requested, we skipped that other GC (we
+  // only run one GC at a time). Remember though to trigger another one once
+  // this one finishes.
+  bool run_another_gc = false;
 };
 
 struct WasmEngine::IsolateInfo {
@@ -731,7 +736,9 @@ void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
       dead_code[code->native_module()].push_back(code);
     }
   }
+  bool run_another_gc = current_gc_info_->run_another_gc;
   current_gc_info_.reset();
+  if (run_another_gc) TriggerGC();
 
   FreeDeadCodeLocked(dead_code);
 }
@@ -763,13 +770,19 @@ bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
         FLAG_stress_wasm_code_gc
             ? 0
             : 1 * MB + code_manager_.committed_code_space() / 10;
-    bool need_gc = new_potentially_dead_code_size_ > dead_code_limit;
-    if (need_gc && !current_gc_info_) {
-      TRACE_CODE_GC(
-          "Triggering GC (potentially dead: %zu bytes; limit: %zu bytes).\n",
-          new_potentially_dead_code_size_, dead_code_limit);
-      new_potentially_dead_code_size_ = 0;
-      TriggerGC();
+    if (new_potentially_dead_code_size_ > dead_code_limit) {
+      if (current_gc_info_ == nullptr) {
+        TRACE_CODE_GC(
+            "Triggering GC (potentially dead: %zu bytes; limit: %zu bytes).\n",
+            new_potentially_dead_code_size_, dead_code_limit);
+        TriggerGC();
+      } else if (!current_gc_info_->run_another_gc) {
+        TRACE_CODE_GC(
+            "Scheduling another GC after the current one (potentially dead: "
+            "%zu bytes; limit: %zu bytes).\n",
+            new_potentially_dead_code_size_, dead_code_limit);
+        current_gc_info_->run_another_gc = true;
+      }
     }
   }
   return true;
