@@ -92,12 +92,14 @@ class Declarations {
                             std::string readable_name,
                             base::Optional<std::string> external_assembler_name,
                             Signature signature, bool transitioning,
-                            base::Optional<Statement*> body);
+                            base::Optional<Statement*> body,
+                            bool is_user_defined);
   static Macro* DeclareMacro(
       const std::string& name,
       base::Optional<std::string> external_assembler_name,
       const Signature& signature, bool transitioning,
-      base::Optional<Statement*> body, base::Optional<std::string> op = {});
+      base::Optional<Statement*> body, base::Optional<std::string> op = {},
+      bool is_user_defined = true);
 
   static Method* CreateMethod(AggregateType* class_type,
                               const std::string& name, Signature signature,

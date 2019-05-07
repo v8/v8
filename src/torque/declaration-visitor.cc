@@ -449,9 +449,9 @@ Callable* DeclarationVisitor::Specialize(
   readable_name << ">";
   Callable* callable;
   if (MacroDeclaration::DynamicCast(declaration) != nullptr) {
-    callable = Declarations::CreateMacro(generated_name, readable_name.str(),
-                                         base::nullopt, type_signature,
-                                         declaration->transitioning, *body);
+    callable = Declarations::CreateMacro(
+        generated_name, readable_name.str(), base::nullopt, type_signature,
+        declaration->transitioning, *body, true);
   } else if (IntrinsicDeclaration::DynamicCast(declaration) != nullptr) {
     callable = Declarations::CreateIntrinsic(declaration->name, type_signature);
   } else {
@@ -572,7 +572,7 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
         MakeNode<ReturnStatement>(MakeNode<FieldAccessExpression>(
             parameter, MakeNode<Identifier>(field.name_and_type.name)));
     Declarations::DeclareMacro(load_macro_name, base::nullopt, load_signature,
-                               false, load_body);
+                               false, load_body, base::nullopt, false);
 
     // Store accessor
     IdentifierExpression* value = MakeNode<IdentifierExpression>(
@@ -593,7 +593,7 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
                 parameter, MakeNode<Identifier>(field.name_and_type.name)),
             value));
     Declarations::DeclareMacro(store_macro_name, base::nullopt, store_signature,
-                               false, store_body);
+                               false, store_body, base::nullopt, false);
   }
 
   DeclareMethods(class_type, class_declaration->methods);

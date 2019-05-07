@@ -211,27 +211,28 @@ ClassType* Declarations::DeclareClass(const Type* super_type,
 Macro* Declarations::CreateMacro(
     std::string external_name, std::string readable_name,
     base::Optional<std::string> external_assembler_name, Signature signature,
-    bool transitioning, base::Optional<Statement*> body) {
+    bool transitioning, base::Optional<Statement*> body, bool is_user_defined) {
   if (!external_assembler_name) {
     external_assembler_name = CurrentNamespace()->ExternalName();
   }
   return RegisterDeclarable(std::unique_ptr<Macro>(
       new Macro(std::move(external_name), std::move(readable_name),
                 std::move(*external_assembler_name), std::move(signature),
-                transitioning, body)));
+                transitioning, body, is_user_defined)));
 }
 
 Macro* Declarations::DeclareMacro(
     const std::string& name,
     base::Optional<std::string> external_assembler_name,
     const Signature& signature, bool transitioning,
-    base::Optional<Statement*> body, base::Optional<std::string> op) {
+    base::Optional<Statement*> body, base::Optional<std::string> op,
+    bool is_user_defined) {
   if (TryLookupMacro(name, signature.GetExplicitTypes())) {
     ReportError("cannot redeclare macro ", name,
                 " with identical explicit parameters");
   }
   Macro* macro = CreateMacro(name, name, std::move(external_assembler_name),
-                             signature, transitioning, body);
+                             signature, transitioning, body, is_user_defined);
   Declare(name, macro);
   if (op) {
     if (TryLookupMacro(*op, signature.GetExplicitTypes())) {

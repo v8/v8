@@ -312,14 +312,17 @@ class Macro : public Callable {
     return external_assembler_name_;
   }
 
+  bool is_user_defined() const { return is_user_defined_; }
+
  protected:
   Macro(Declarable::Kind kind, std::string external_name,
         std::string readable_name, std::string external_assembler_name,
         const Signature& signature, bool transitioning,
-        base::Optional<Statement*> body)
+        base::Optional<Statement*> body, bool is_user_defined)
       : Callable(kind, std::move(external_name), std::move(readable_name),
                  signature, transitioning, body),
-        external_assembler_name_(std::move(external_assembler_name)) {
+        external_assembler_name_(std::move(external_assembler_name)),
+        is_user_defined_(is_user_defined) {
     if (signature.parameter_types.var_args) {
       ReportError("Varargs are not supported for macros.");
     }
@@ -329,12 +332,14 @@ class Macro : public Callable {
   friend class Declarations;
   Macro(std::string external_name, std::string readable_name,
         std::string external_assembler_name, const Signature& signature,
-        bool transitioning, base::Optional<Statement*> body)
+        bool transitioning, base::Optional<Statement*> body,
+        bool is_user_defined)
       : Macro(Declarable::kMacro, std::move(external_name),
               std::move(readable_name), external_assembler_name, signature,
-              transitioning, body) {}
+              transitioning, body, is_user_defined) {}
 
   std::string external_assembler_name_;
+  bool is_user_defined_;
 };
 
 class Method : public Macro {
@@ -355,7 +360,7 @@ class Method : public Macro {
          const Signature& signature, bool transitioning, Statement* body)
       : Macro(Declarable::kMethod, std::move(external_name),
               std::move(readable_name), std::move(external_assembler_name),
-              signature, transitioning, body),
+              signature, transitioning, body, true),
         aggregate_type_(aggregate_type) {}
   AggregateType* aggregate_type_;
 };
