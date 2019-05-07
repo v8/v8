@@ -6764,66 +6764,6 @@ void StringTable::EnsureCapacityForDeserialization(Isolate* isolate,
   isolate->heap()->SetRootStringTable(*table);
 }
 
-namespace {
-
-template <class StringClass>
-void MigrateExternalStringResource(Isolate* isolate, String from, String to) {
-  StringClass cast_from = StringClass::cast(from);
-  StringClass cast_to = StringClass::cast(to);
-  const typename StringClass::Resource* to_resource = cast_to->resource();
-  if (to_resource == nullptr) {
-    // |to| is a just-created internalized copy of |from|. Migrate the resource.
-    cast_to->SetResource(isolate, cast_from->resource());
-    // Zap |from|'s resource pointer to reflect the fact that |from| has
-    // relinquished ownership of its resource.
-    isolate->heap()->UpdateExternalString(
-        from, ExternalString::cast(from)->ExternalPayloadSize(), 0);
-    cast_from->SetResource(isolate, nullptr);
-  } else if (to_resource != cast_from->resource()) {
-    // |to| already existed and has its own resource. Finalize |from|.
-    isolate->heap()->FinalizeExternalString(from);
-  }
-}
-
-void MakeStringThin(String string, String internalized, Isolate* isolate) {
-  DCHECK_NE(string, internalized);
-  DCHECK(internalized->IsInternalizedString());
-
-  if (string->IsExternalString()) {
-    if (internalized->IsExternalOneByteString()) {
-      MigrateExternalStringResource<ExternalOneByteString>(isolate, string,
-                                                           internalized);
-    } else if (internalized->IsExternalTwoByteString()) {
-      MigrateExternalStringResource<ExternalTwoByteString>(isolate, string,
-                                                           internalized);
-    } else {
-      // If the external string is duped into an existing non-external
-      // internalized string, free its resource (it's about to be rewritten
-      // into a ThinString below).
-      isolate->heap()->FinalizeExternalString(string);
-    }
-  }
-
-  DisallowHeapAllocation no_gc;
-  int old_size = string->Size();
-  isolate->heap()->NotifyObjectLayoutChange(string, old_size, no_gc);
-  bool one_byte = internalized->IsOneByteRepresentation();
-  Handle<Map> map = one_byte ? isolate->factory()->thin_one_byte_string_map()
-                             : isolate->factory()->thin_string_map();
-  DCHECK_GE(old_size, ThinString::kSize);
-  string->synchronized_set_map(*map);
-  ThinString thin = ThinString::cast(string);
-  thin->set_actual(internalized);
-  Address thin_end = thin->address() + ThinString::kSize;
-  int size_delta = old_size - ThinString::kSize;
-  if (size_delta != 0) {
-    Heap* heap = isolate->heap();
-    heap->CreateFillerObjectAt(thin_end, size_delta, ClearRecordedSlots::kNo);
-  }
-}
-
-}  // namespace
-
 // static
 Handle<String> StringTable::LookupString(Isolate* isolate,
                                          Handle<String> string) {
@@ -6835,7 +6775,7 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
 
   if (FLAG_thin_strings) {
     if (!string->IsInternalizedString()) {
-      MakeStringThin(*string, *result, isolate);
+      string->MakeThin(isolate, *result);
     }
   } else {  // !FLAG_thin_strings
     if (string->IsConsString()) {
@@ -6969,7 +6909,7 @@ Address LookupString(Isolate* isolate, String string) {
 
   String internalized = String::cast(table->KeyAt(entry));
   if (FLAG_thin_strings) {
-    MakeStringThin(string, internalized, isolate);
+    string->MakeThin(isolate, internalized);
   }
   return internalized.ptr();
 }
@@ -6993,17 +6933,6 @@ Address StringTable::LookupStringIfExists_NoAllocate(Isolate* isolate,
     return i::LookupString<uint8_t>(isolate, string);
   }
   return i::LookupString<uint16_t>(isolate, string);
-}
-
-String StringTable::ForwardStringIfExists(Isolate* isolate, StringTableKey* key,
-                                          String string) {
-  Handle<StringTable> table = isolate->factory()->string_table();
-  int entry = table->FindEntry(isolate, key);
-  if (entry == kNotFound) return String();
-
-  String canonical = String::cast(table->KeyAt(entry));
-  if (canonical != string) MakeStringThin(string, canonical, isolate);
-  return canonical;
 }
 
 Handle<StringSet> StringSet::New(Isolate* isolate) {

@@ -194,6 +194,8 @@ class StringTableInsertionKey final : public StringTableKey {
 
   V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override;
 
+  String string() const { return string_; }
+
  private:
   uint32_t ComputeHashField(String string);
 

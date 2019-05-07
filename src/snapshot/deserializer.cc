@@ -186,6 +186,21 @@ uint32_t StringTableInsertionKey::ComputeHashField(String string) {
   return string->hash_field();
 }
 
+namespace {
+
+String ForwardStringIfExists(Isolate* isolate, StringTableInsertionKey* key) {
+  StringTable table = isolate->heap()->string_table();
+  int entry = table.FindEntry(isolate, key);
+  if (entry == kNotFound) return String();
+
+  String canonical = String::cast(table->KeyAt(entry));
+  DCHECK_NE(canonical, key->string());
+  key->string().MakeThin(isolate, canonical);
+  return canonical;
+}
+
+}  // namespace
+
 HeapObject Deserializer::PostProcessNewObject(HeapObject obj, int space) {
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
     if (obj->IsString()) {
@@ -209,8 +224,7 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj, int space) {
         // Canonicalize the internalized string. If it already exists in the
         // string table, set it to forward to the existing one.
         StringTableInsertionKey key(string);
-        String canonical =
-            StringTable::ForwardStringIfExists(isolate_, &key, string);
+        String canonical = ForwardStringIfExists(isolate_, &key);
 
         if (!canonical.is_null()) return canonical;
 

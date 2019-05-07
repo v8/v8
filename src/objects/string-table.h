@@ -68,8 +68,6 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   template <typename StringTableKey>
   static Handle<String> LookupKey(Isolate* isolate, StringTableKey* key);
   static Handle<String> AddKeyNoResize(Isolate* isolate, StringTableKey* key);
-  static String ForwardStringIfExists(Isolate* isolate, StringTableKey* key,
-                                      String string);
 
   // Shink the StringTable if it's very empty (kMaxEmptyFactor) to avoid the
   // performance overhead of re-allocating the StringTable over and over again.

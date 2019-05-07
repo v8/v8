@@ -142,6 +142,8 @@ class String : public Name {
     friend class IterableSubString;
   };
 
+  void MakeThin(Isolate* isolate, String canonical);
+
   template <typename Char>
   V8_INLINE Vector<const Char> GetCharVector(
       const DisallowHeapAllocation& no_gc);

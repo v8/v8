@@ -66,6 +66,66 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
   return result;
 }
 
+namespace {
+
+template <class StringClass>
+void MigrateExternalStringResource(Isolate* isolate, String from, String to) {
+  StringClass cast_from = StringClass::cast(from);
+  StringClass cast_to = StringClass::cast(to);
+  const typename StringClass::Resource* to_resource = cast_to->resource();
+  if (to_resource == nullptr) {
+    // |to| is a just-created internalized copy of |from|. Migrate the resource.
+    cast_to->SetResource(isolate, cast_from->resource());
+    // Zap |from|'s resource pointer to reflect the fact that |from| has
+    // relinquished ownership of its resource.
+    isolate->heap()->UpdateExternalString(
+        from, ExternalString::cast(from)->ExternalPayloadSize(), 0);
+    cast_from->SetResource(isolate, nullptr);
+  } else if (to_resource != cast_from->resource()) {
+    // |to| already existed and has its own resource. Finalize |from|.
+    isolate->heap()->FinalizeExternalString(from);
+  }
+}
+
+}  // namespace
+
+void String::MakeThin(Isolate* isolate, String internalized) {
+  DisallowHeapAllocation no_gc;
+  DCHECK_NE(*this, internalized);
+  DCHECK(internalized->IsInternalizedString());
+
+  if (this->IsExternalString()) {
+    if (internalized->IsExternalOneByteString()) {
+      MigrateExternalStringResource<ExternalOneByteString>(isolate, *this,
+                                                           internalized);
+    } else if (internalized->IsExternalTwoByteString()) {
+      MigrateExternalStringResource<ExternalTwoByteString>(isolate, *this,
+                                                           internalized);
+    } else {
+      // If the external string is duped into an existing non-external
+      // internalized string, free its resource (it's about to be rewritten
+      // into a ThinString below).
+      isolate->heap()->FinalizeExternalString(*this);
+    }
+  }
+
+  int old_size = this->Size();
+  isolate->heap()->NotifyObjectLayoutChange(*this, old_size, no_gc);
+  bool one_byte = internalized->IsOneByteRepresentation();
+  Handle<Map> map = one_byte ? isolate->factory()->thin_one_byte_string_map()
+                             : isolate->factory()->thin_string_map();
+  DCHECK_GE(old_size, ThinString::kSize);
+  this->synchronized_set_map(*map);
+  ThinString thin = ThinString::cast(*this);
+  thin->set_actual(internalized);
+  Address thin_end = thin->address() + ThinString::kSize;
+  int size_delta = old_size - ThinString::kSize;
+  if (size_delta != 0) {
+    Heap* heap = isolate->heap();
+    heap->CreateFillerObjectAt(thin_end, size_delta, ClearRecordedSlots::kNo);
+  }
+}
+
 bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   DisallowHeapAllocation no_allocation;
   // Externalizing twice leaks the external resource, so it's
