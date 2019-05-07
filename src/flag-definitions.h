@@ -742,6 +742,9 @@ DEFINE_BOOL(experimental_new_space_growth_heuristic, false,
             "Grow the new space based on the percentage of survivors instead "
             "of their absolute value.")
 DEFINE_SIZE_T(max_old_space_size, 0, "max size of the old space (in Mbytes)")
+DEFINE_BOOL(huge_max_old_generation_size, false,
+            "Increase max size of the old space to 4 GB for x64 systems with"
+            "the physical memory bigger than 16 GB")
 DEFINE_SIZE_T(initial_old_space_size, 0, "initial old space size (in Mbytes)")
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
 DEFINE_INT(random_gc_interval, 0,

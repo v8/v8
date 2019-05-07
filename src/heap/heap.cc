@@ -216,8 +216,18 @@ size_t Heap::ComputeMaxOldGenerationSize(uint64_t physical_memory) {
   size_t computed_size = static_cast<size_t>(physical_memory / i::MB /
                                              old_space_physical_memory_factor *
                                              kPointerMultiplier);
-  return Max(Min(computed_size, HeapController::kMaxSize),
-             HeapController::kMinSize);
+  size_t max_size_in_mb = HeapController::kMaxSize;
+
+  // Finch experiment: Increase the heap size from 2GB to 4GB for 64-bit
+  // systems with physical memory bigger than 16GB.
+  constexpr bool x64_bit = Heap::kPointerMultiplier >= 2;
+  if (FLAG_huge_max_old_generation_size && x64_bit &&
+      physical_memory / GB > 16) {
+    DCHECK_LE(max_size_in_mb, 4096);
+    max_size_in_mb = 4096;  // 4GB
+  }
+
+  return Max(Min(computed_size, max_size_in_mb), HeapController::kMinSize);
 }
 
 size_t Heap::Capacity() {
