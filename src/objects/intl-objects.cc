@@ -193,15 +193,13 @@ const uint8_t* Intl::ToLatin1LowerTable() { return &kToLower[0]; }
 
 icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
                                             Handle<String> string) {
-  string = String::Flatten(isolate, string);
-  {
-    DisallowHeapAllocation no_gc;
-    std::unique_ptr<uc16[]> sap;
-    return icu::UnicodeString(
-        GetUCharBufferFromFlat(string->GetFlatContent(no_gc), &sap,
-                               string->length()),
-        string->length());
-  }
+  DCHECK(string->IsFlat());
+  DisallowHeapAllocation no_gc;
+  std::unique_ptr<uc16[]> sap;
+  return icu::UnicodeString(
+      GetUCharBufferFromFlat(string->GetFlatContent(no_gc), &sap,
+                             string->length()),
+      string->length());
 }
 
 namespace {
@@ -1671,6 +1669,7 @@ Intl::ResolvedLocale Intl::ResolveLocale(
 
 Managed<icu::UnicodeString> Intl::SetTextToBreakIterator(
     Isolate* isolate, Handle<String> text, icu::BreakIterator* break_iterator) {
+  text = String::Flatten(isolate, text);
   icu::UnicodeString* u_text =
       (icu::UnicodeString*)(Intl::ToICUUnicodeString(isolate, text).clone());
 

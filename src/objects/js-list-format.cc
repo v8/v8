@@ -286,8 +286,9 @@ Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
                        factory->NewNumber(i), factory->String_string()),
           Nothing<std::vector<icu::UnicodeString>>());
     }
-    result.push_back(
-        Intl::ToICUUnicodeString(isolate, Handle<String>::cast(item)));
+    Handle<String> item_str = Handle<String>::cast(item);
+    if (!item_str->IsFlat()) item_str = String::Flatten(isolate, item_str);
+    result.push_back(Intl::ToICUUnicodeString(isolate, item_str));
   }
   DCHECK(!array->HasDictionaryElements());
   return Just(result);
