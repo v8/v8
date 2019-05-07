@@ -692,6 +692,12 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
       TRACE("%lf", num);
       break;
     }
+    case kWasmAnyRef:
+    case kWasmAnyFunc:
+    case kWasmExceptRef: {
+      tagged_globals_->set(global.offset, *value->GetRef());
+      break;
+    }
     default:
       UNREACHABLE();
   }
@@ -970,13 +976,18 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     Handle<WasmInstanceObject> instance, int import_index,
     Handle<String> module_name, Handle<String> import_name,
     const WasmGlobal& global, Handle<WasmGlobalObject> global_object) {
-  if (global_object->type() != global.type) {
-    ReportLinkError("imported global does not match the expected type",
+  if (global_object->is_mutable() != global.mutability) {
+    ReportLinkError("imported global does not match the expected mutability",
                     import_index, module_name, import_name);
     return false;
   }
-  if (global_object->is_mutable() != global.mutability) {
-    ReportLinkError("imported global does not match the expected mutability",
+
+  bool is_sub_type = ValueTypes::IsSubType(global.type, global_object->type());
+  bool is_same_type = global_object->type() == global.type;
+  bool valid_type = global.mutability ? is_same_type : is_sub_type;
+
+  if (!valid_type) {
+    ReportLinkError("imported global does not match the expected type",
                     import_index, module_name, import_name);
     return false;
   }

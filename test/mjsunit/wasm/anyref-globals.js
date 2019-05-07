@@ -528,3 +528,31 @@ function dummy_func() {
   assertEquals(obj2, instance2.exports.reexport2.value);
   assertEquals(obj3, instance2.exports.reexport3.value);
 })();
+
+(function TestImportImmutableAnyFuncGlobalAsAnyRef() {
+  print(arguments.callee.name);
+  let builder1 = new WasmModuleBuilder();
+  const g3 = builder1.addGlobal(kWasmAnyFunc, true).exportAs("e3");
+  builder1.addGlobal(kWasmAnyRef, false).exportAs("e1"); // Dummy.
+  builder1.addGlobal(kWasmAnyFunc, false).exportAs("e2"); // Dummy.
+  const instance1 = builder1.instantiate();
+
+  let builder2 = new WasmModuleBuilder();
+  const i1 = builder2.addImportedGlobal('exports', 'e1', kWasmAnyRef, false);
+  const i2 = builder2.addImportedGlobal('exports', 'e2', kWasmAnyRef, false);
+  builder2.instantiate(instance1);
+})();
+
+(function TestImportMutableAnyFuncGlobalAsAnyRefFails() {
+  print(arguments.callee.name);
+  let builder1 = new WasmModuleBuilder();
+  const g3 = builder1.addGlobal(kWasmAnyFunc, true).exportAs("e3");
+  builder1.addGlobal(kWasmAnyRef, true).exportAs("e1"); // Dummy.
+  builder1.addGlobal(kWasmAnyFunc, true).exportAs("e2"); // Dummy.
+  const instance1 = builder1.instantiate();
+
+  let builder2 = new WasmModuleBuilder();
+  const i1 = builder2.addImportedGlobal('exports', 'e1', kWasmAnyRef, true);
+  const i2 = builder2.addImportedGlobal('exports', 'e2', kWasmAnyRef, true);
+  assertThrows(() => builder2.instantiate(instance1), WebAssembly.LinkError);
+})();
