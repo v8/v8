@@ -1021,6 +1021,9 @@
   # Slow tests.
   'regress/regress-crbug-493779': [SKIP],
   'string-replace-gc': [SKIP],
+
+  # https://crbug.com/v8/9221
+  'wasm/grow-shared-memory': [SKIP],
 }],  # variant == slow_path
 
 ##############################################################################
