@@ -53,10 +53,17 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   }
   TypeOracle::Scope type_oracle;
 
-  DeclarationVisitor declaration_visitor;
+  // Two-step process of predeclaration + resolution allows to resolve type
+  // declarations independent of the order they are given.
+  TypeDeclarationVisitor::Predeclare(GlobalContext::Get().ast());
+  TypeDeclarationVisitor::ResolvePredeclarations();
 
-  declaration_visitor.Visit(GlobalContext::Get().ast());
-  declaration_visitor.FinalizeStructsAndClasses();
+  // Process other declarations.
+  DeclarationVisitor::Visit(GlobalContext::Get().ast());
+
+  // A class types' fields are resolved here, which allows two class fields to
+  // mutually refer to each others.
+  TypeOracle::FinalizeClassTypes();
 
   ImplementationVisitor implementation_visitor;
   for (Namespace* n : GlobalContext::Get().GetNamespaces()) {

@@ -64,6 +64,7 @@ enum class ParseResultHolderBase::TypeId {
   kOptionalStdString,
   kStdVectorOfStatementPtr,
   kStdVectorOfDeclarationPtr,
+  kStdVectorOfStdVectorOfDeclarationPtr,
   kStdVectorOfExpressionPtr,
   kExpressionWithSource,
   kParameterList,
@@ -187,6 +188,15 @@ inline base::Optional<ParseResult> DefaultAction(
     ParseResultIterator* child_results) {
   if (!child_results->HasNext()) return base::nullopt;
   return child_results->Next();
+}
+
+template <class T, Action action>
+inline Action AsSingletonVector() {
+  return [](ParseResultIterator* child_results) -> base::Optional<ParseResult> {
+    auto result = action(child_results);
+    if (!result) return result;
+    return ParseResult{std::vector<T>{(*result).Cast<T>()}};
+  };
 }
 
 // A rule of the context-free grammar. Each rule can have an action attached to

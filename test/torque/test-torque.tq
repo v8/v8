@@ -882,4 +882,18 @@ namespace test {
     check(array.a == 2);
     check(array.b == 9);
   }
+
+  type Baztype = Foo | FooType;
+
+  extern class Foo extends JSObject { fooField: FooType; }
+
+  extern class Bar extends Foo {
+    barField: Bartype;
+    bazfield: Baztype;
+  }
+
+  type Bartype = FooType;
+
+  type FooType = Smi | Bar;
+
 }

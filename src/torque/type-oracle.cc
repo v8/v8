@@ -10,6 +10,12 @@ namespace torque {
 
 DEFINE_CONTEXTUAL_VARIABLE(TypeOracle)
 
+void TypeOracle::FinalizeClassTypes() {
+  for (const std::unique_ptr<AggregateType>& p : Get().struct_types_) {
+    p->Finalize();
+  }
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

@@ -459,7 +459,11 @@ class TypeAlias : public Declarable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(TypeAlias, type_alias)
 
-  const Type* type() const { return type_; }
+  const Type* type() const {
+    if (type_) return *type_;
+    return Resolve();
+  }
+  const Type* Resolve() const;
   bool IsRedeclaration() const { return redeclaration_; }
   SourcePosition GetDeclarationPosition() const {
     return declaration_position_;
@@ -467,6 +471,8 @@ class TypeAlias : public Declarable {
 
  private:
   friend class Declarations;
+  friend class TypeVisitor;
+
   explicit TypeAlias(
       const Type* type, bool redeclaration,
       SourcePosition declaration_position = SourcePosition::Invalid())
@@ -474,8 +480,17 @@ class TypeAlias : public Declarable {
         type_(type),
         redeclaration_(redeclaration),
         declaration_position_(declaration_position) {}
+  explicit TypeAlias(
+      TypeDeclaration* type, bool redeclaration,
+      SourcePosition declaration_position = SourcePosition::Invalid())
+      : Declarable(Declarable::kTypeAlias),
+        delayed_(type),
+        redeclaration_(redeclaration),
+        declaration_position_(declaration_position) {}
 
-  const Type* type_;
+  mutable bool being_resolved_ = false;
+  mutable base::Optional<TypeDeclaration*> delayed_;
+  mutable base::Optional<const Type*> type_;
   bool redeclaration_;
   const SourcePosition declaration_position_;
 };

@@ -244,21 +244,6 @@ void HandleTorqueFileListNotification(TorqueFileListNotification notification,
     files.push_back(file_json.ToString());
     Logger::Log("    ", file_json.ToString(), "\n");
   }
-
-  // The Torque compiler expects to see some files first,
-  // we need to order them in the correct way.
-  // TODO(szuend): Remove this, once the compiler doesn't require the input
-  //               files to be in a specific order.
-  std::vector<std::string> sort_to_front = {
-      "base.tq", "frames.tq", "arguments.tq", "array.tq", "typed_array.tq"};
-  std::sort(files.begin(), files.end(), [&](std::string a, std::string b) {
-    for (const std::string& fixed_file : sort_to_front) {
-      if (a.find(fixed_file) != std::string::npos) return true;
-      if (b.find(fixed_file) != std::string::npos) return false;
-    }
-    return a < b;
-  });
-
   RecompileTorqueWithDiagnostics(writer);
 }
 

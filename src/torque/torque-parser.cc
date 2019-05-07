@@ -4,6 +4,7 @@
 
 #include <cctype>
 
+#include "src/torque/constants.h"
 #include "src/torque/earley-parser.h"
 #include "src/torque/torque-parser.h"
 #include "src/torque/utils.h"
@@ -120,6 +121,10 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
         ParseResultTypeId::kStdVectorOfDeclarationPtr;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::vector<std::vector<Declaration*>>>::id =
+        ParseResultTypeId::kStdVectorOfStdVectorOfDeclarationPtr;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<Expression*>>::id =
         ParseResultTypeId::kStdVectorOfExpressionPtr;
 template <>
@@ -177,10 +182,12 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
 
 namespace {
 
-base::Optional<ParseResult> AddGlobalDeclaration(
+base::Optional<ParseResult> AddGlobalDeclarations(
     ParseResultIterator* child_results) {
-  auto declaration = child_results->NextAs<Declaration*>();
-  CurrentAst::Get().declarations().push_back(declaration);
+  auto declarations = child_results->NextAs<std::vector<Declaration*>>();
+  for (Declaration* declaration : declarations) {
+    CurrentAst::Get().declarations().push_back(declaration);
+  }
   return base::nullopt;
 }
 
@@ -191,6 +198,16 @@ void LintGenericParameters(const GenericParameters& parameters) {
                             "UpperCamelCase");
     }
   }
+}
+
+base::Optional<ParseResult> ConcatList(ParseResultIterator* child_results) {
+  auto list_of_lists =
+      child_results->NextAs<std::vector<std::vector<Declaration*>>>();
+  std::vector<Declaration*> result;
+  for (auto& list : list_of_lists) {
+    result.insert(result.end(), list.begin(), list.end());
+  }
+  return ParseResult{result};
 }
 
 void CheckNotDeferredStatement(Statement* statement) {
@@ -396,7 +413,7 @@ base::Optional<ParseResult> MakeDebugStatement(
 
 base::Optional<ParseResult> MakeVoidType(ParseResultIterator* child_results) {
   TypeExpression* result =
-      MakeNode<BasicTypeExpression>(std::vector<std::string>{}, false, "void");
+      MakeNode<BasicTypeExpression>(std::vector<std::string>{}, "void");
   return ParseResult{result};
 }
 
@@ -531,7 +548,7 @@ base::Optional<ParseResult> MakeTypeAliasDeclaration(
   return ParseResult{result};
 }
 
-base::Optional<ParseResult> MakeTypeDeclaration(
+base::Optional<ParseResult> MakeAbstractTypeDeclaration(
     ParseResultIterator* child_results) {
   auto transient = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
@@ -540,11 +557,31 @@ base::Optional<ParseResult> MakeTypeDeclaration(
   }
   auto extends = child_results->NextAs<base::Optional<Identifier*>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
+  Declaration* decl = MakeNode<AbstractTypeDeclaration>(
+      name, transient, extends, std::move(generates));
+
   auto constexpr_generates =
       child_results->NextAs<base::Optional<std::string>>();
-  Declaration* result =
-      MakeNode<TypeDeclaration>(name, transient, extends, std::move(generates),
-                                std::move(constexpr_generates));
+  std::vector<Declaration*> result{decl};
+
+  if (constexpr_generates) {
+    // Create a AbstractTypeDeclaration for the associated constexpr type.
+    Identifier* constexpr_name =
+        MakeNode<Identifier>(CONSTEXPR_TYPE_PREFIX + name->value);
+    constexpr_name->pos = name->pos;
+
+    base::Optional<Identifier*> constexpr_extends;
+    if (extends) {
+      constexpr_extends =
+          MakeNode<Identifier>(CONSTEXPR_TYPE_PREFIX + (*extends)->value);
+      (*constexpr_extends)->pos = name->pos;
+    }
+    AbstractTypeDeclaration* constexpr_decl = MakeNode<AbstractTypeDeclaration>(
+        constexpr_name, transient, constexpr_extends, constexpr_generates);
+    constexpr_decl->pos = name->pos;
+    result.push_back(constexpr_decl);
+  }
+
   return ParseResult{result};
 }
 
@@ -684,7 +721,8 @@ base::Optional<ParseResult> MakeBasicTypeExpression(
   auto is_constexpr = child_results->NextAs<bool>();
   auto name = child_results->NextAs<std::string>();
   TypeExpression* result = MakeNode<BasicTypeExpression>(
-      std::move(namespace_qualification), is_constexpr, std::move(name));
+      std::move(namespace_qualification),
+      is_constexpr ? GetConstexprName(name) : std::move(name));
   return ParseResult{result};
 }
 
@@ -974,8 +1012,8 @@ base::Optional<ParseResult> MakeCatchBlock(ParseResultIterator* child_results) {
   }
   ParameterList parameters;
   parameters.names.push_back(MakeNode<Identifier>(variable));
-  parameters.types.push_back(MakeNode<BasicTypeExpression>(
-      std::vector<std::string>{}, false, "Object"));
+  parameters.types.push_back(
+      MakeNode<BasicTypeExpression>(std::vector<std::string>{}, "Object"));
   parameters.has_varargs = false;
   LabelBlock* result = MakeNode<LabelBlock>(MakeNode<Identifier>("_catch"),
                                             std::move(parameters), body);
@@ -1650,14 +1688,14 @@ struct TorqueGrammar : Grammar {
        optionalLabelList, &block},
       MakeMethodDeclaration)};
 
-  // Result: Declaration*
+  // Result: std::vector<Declaration*>
   Symbol declaration = {
       Rule({Token("const"), &name, Token(":"), &type, Token("="), expression,
             Token(";")},
-           MakeConstDeclaration),
+           AsSingletonVector<Declaration*, MakeConstDeclaration>()),
       Rule({Token("const"), &name, Token(":"), &type, Token("generates"),
             &externalString, Token(";")},
-           MakeExternConstDeclaration),
+           AsSingletonVector<Declaration*, MakeExternConstDeclaration>()),
       Rule({CheckIf(Token("@generatePrint")), CheckIf(Token("extern")),
             CheckIf(Token("transient")), Token("class"), &name,
             Optional<TypeExpression*>(Sequence({Token("extends"), &type})),
@@ -1665,10 +1703,10 @@ struct TorqueGrammar : Grammar {
                 Sequence({Token("generates"), &externalString})),
             Token("{"), List<Declaration*>(&method),
             List<ClassFieldExpression>(&classField), Token("}")},
-           MakeClassDeclaration),
+           AsSingletonVector<Declaration*, MakeClassDeclaration>()),
       Rule({Token("struct"), &name, Token("{"), List<Declaration*>(&method),
             List<StructFieldExpression>(&structField), Token("}")},
-           MakeStructDeclaration),
+           AsSingletonVector<Declaration*, MakeStructDeclaration>()),
       Rule({CheckIf(Token("transient")), Token("type"), &name,
             Optional<Identifier*>(Sequence({Token("extends"), &name})),
             Optional<std::string>(
@@ -1676,13 +1714,13 @@ struct TorqueGrammar : Grammar {
             Optional<std::string>(
                 Sequence({Token("constexpr"), &externalString})),
             Token(";")},
-           MakeTypeDeclaration),
+           MakeAbstractTypeDeclaration),
       Rule({Token("type"), &name, Token("="), &type, Token(";")},
-           MakeTypeAliasDeclaration),
+           AsSingletonVector<Declaration*, MakeTypeAliasDeclaration>()),
       Rule({Token("intrinsic"), &intrinsicName,
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListNoVararg, &optionalReturnType, Token(";")},
-           MakeIntrinsicDeclaration),
+           AsSingletonVector<Declaration*, MakeIntrinsicDeclaration>()),
       Rule({Token("extern"), CheckIf(Token("transitioning")),
             Optional<std::string>(
                 Sequence({Token("operator"), &externalString})),
@@ -1691,16 +1729,16 @@ struct TorqueGrammar : Grammar {
             &identifier, TryOrDefault<GenericParameters>(&genericParameters),
             &typeListMaybeVarArgs, &optionalReturnType, optionalLabelList,
             Token(";")},
-           MakeExternalMacro),
+           AsSingletonVector<Declaration*, MakeExternalMacro>()),
       Rule({Token("extern"), CheckIf(Token("transitioning")),
             CheckIf(Token("javascript")), Token("builtin"), &identifier,
             TryOrDefault<GenericParameters>(&genericParameters),
             &typeListMaybeVarArgs, &optionalReturnType, Token(";")},
-           MakeExternalBuiltin),
+           AsSingletonVector<Declaration*, MakeExternalBuiltin>()),
       Rule(
           {Token("extern"), CheckIf(Token("transitioning")), Token("runtime"),
            &identifier, &typeListMaybeVarArgs, &optionalReturnType, Token(";")},
-          MakeExternalRuntime),
+          AsSingletonVector<Declaration*, MakeExternalRuntime>()),
       Rule({CheckIf(Token("transitioning")),
             Optional<std::string>(
                 Sequence({Token("operator"), &externalString})),
@@ -1708,26 +1746,31 @@ struct TorqueGrammar : Grammar {
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListNoVararg, &optionalReturnType, optionalLabelList,
             &optionalBody},
-           MakeTorqueMacroDeclaration),
+           AsSingletonVector<Declaration*, MakeTorqueMacroDeclaration>()),
       Rule({CheckIf(Token("transitioning")), CheckIf(Token("javascript")),
             Token("builtin"), &identifier,
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListAllowVararg, &optionalReturnType, &optionalBody},
-           MakeTorqueBuiltinDeclaration),
+           AsSingletonVector<Declaration*, MakeTorqueBuiltinDeclaration>()),
       Rule({&identifier, &genericSpecializationTypeList,
             &parameterListAllowVararg, &optionalReturnType, optionalLabelList,
             &block},
-           MakeSpecializationDeclaration),
-      Rule({Token("#include"), &externalString}, MakeCppIncludeDeclaration)};
+           AsSingletonVector<Declaration*, MakeSpecializationDeclaration>()),
+      Rule({Token("#include"), &externalString},
+           AsSingletonVector<Declaration*, MakeCppIncludeDeclaration>())};
 
-  // Result: Declaration*
+  // Result: std::vector<Declaration*>
+  Symbol declarationList = {
+      Rule({List<std::vector<Declaration*>>(&declaration)}, ConcatList)};
+
+  // Result: std::vector<Declaration*>
   Symbol namespaceDeclaration = {
-      Rule({Token("namespace"), &identifier, Token("{"),
-            List<Declaration*>(&declaration), Token("}")},
-           MakeNamespaceDeclaration)};
+      Rule({Token("namespace"), &identifier, Token("{"), &declarationList,
+            Token("}")},
+           AsSingletonVector<Declaration*, MakeNamespaceDeclaration>())};
 
-  Symbol file = {Rule({&file, &namespaceDeclaration}, AddGlobalDeclaration),
-                 Rule({&file, &declaration}, AddGlobalDeclaration), Rule({})};
+  Symbol file = {Rule({&file, &namespaceDeclaration}, AddGlobalDeclarations),
+                 Rule({&file, &declaration}, AddGlobalDeclarations), Rule({})};
 };
 
 }  // namespace

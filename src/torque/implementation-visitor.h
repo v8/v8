@@ -10,7 +10,6 @@
 #include "src/base/macros.h"
 #include "src/torque/ast.h"
 #include "src/torque/cfg.h"
-#include "src/torque/file-visitor.h"
 #include "src/torque/global-context.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
@@ -274,7 +273,7 @@ struct Arguments {
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
                            size_t label_count);
 
-class ImplementationVisitor : public FileVisitor {
+class ImplementationVisitor {
  public:
   void GenerateBuiltinDefinitions(std::string& file_name);
   void GenerateClassDefinitions(std::string& file_name);

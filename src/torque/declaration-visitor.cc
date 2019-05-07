@@ -4,12 +4,39 @@
 
 #include "src/torque/declaration-visitor.h"
 
-#include "src/globals.h"
 #include "src/torque/ast.h"
+#include "src/torque/server-data.h"
+#include "src/torque/type-visitor.h"
 
 namespace v8 {
 namespace internal {
 namespace torque {
+
+Namespace* GetOrCreateNamespace(const std::string& name) {
+  std::vector<Namespace*> existing_namespaces = FilterDeclarables<Namespace>(
+      Declarations::TryLookupShallow(QualifiedName(name)));
+  if (existing_namespaces.empty()) {
+    return Declarations::DeclareNamespace(name);
+  }
+  DCHECK_EQ(1, existing_namespaces.size());
+  return existing_namespaces.front();
+}
+
+void TypeDeclarationVisitor::Predeclare(Declaration* decl) {
+  CurrentSourcePosition::Scope scope(decl->pos);
+  switch (decl->kind) {
+#define ENUM_ITEM(name)        \
+  case AstNode::Kind::k##name: \
+    return Predeclare(name::cast(decl));
+    AST_TYPE_DECLARATION_NODE_KIND_LIST(ENUM_ITEM)
+#undef ENUM_ITEM
+    case AstNode::Kind::kNamespaceDeclaration:
+      return Predeclare(NamespaceDeclaration::cast(decl));
+    default:
+      // This visitor only processes type declaration nodes.
+      break;
+  }
+}
 
 void DeclarationVisitor::Visit(Declaration* decl) {
   CurrentSourcePosition::Scope scope(decl->pos);
@@ -168,11 +195,12 @@ void DeclarationVisitor::Visit(IntrinsicDeclaration* decl,
 
 void DeclarationVisitor::Visit(ConstDeclaration* decl) {
   Declarations::DeclareNamespaceConstant(
-      decl->name, Declarations::GetType(decl->type), decl->expression);
+      decl->name, TypeVisitor::ComputeType(decl->type), decl->expression);
 }
 
 void DeclarationVisitor::Visit(StandardDeclaration* decl) {
-  Signature signature = MakeSignature(decl->callable->signature.get());
+  Signature signature =
+      TypeVisitor::MakeSignature(decl->callable->signature.get());
   Visit(decl->callable, signature, decl->body);
 }
 
@@ -192,10 +220,12 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
   // Find the matching generic specialization based on the concrete parameter
   // list.
   Generic* matching_generic = nullptr;
-  Signature signature_with_types = MakeSignature(decl->signature.get());
+  Signature signature_with_types =
+      TypeVisitor::MakeSignature(decl->signature.get());
   for (Generic* generic : generic_list) {
-    Signature generic_signature_with_types = MakeSpecializedSignature(
-        SpecializationKey{generic, GetTypeVector(decl->generic_parameters)});
+    Signature generic_signature_with_types =
+        MakeSpecializedSignature(SpecializationKey{
+            generic, TypeVisitor::ComputeTypeVector(decl->generic_parameters)});
     if (signature_with_types.HasSameTypesAs(generic_signature_with_types,
                                             ParameterMode::kIgnoreImplicit)) {
       if (matching_generic != nullptr) {
@@ -223,19 +253,20 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
     for (Generic* generic : generic_list) {
       stream << "\n  "
              << MakeSpecializedSignature(SpecializationKey{
-                    generic, GetTypeVector(decl->generic_parameters)});
+                    generic,
+                    TypeVisitor::ComputeTypeVector(decl->generic_parameters)});
     }
     ReportError(stream.str());
   }
 
-  Specialize(SpecializationKey{matching_generic,
-                               GetTypeVector(decl->generic_parameters)},
+  Specialize(SpecializationKey{matching_generic, TypeVisitor::ComputeTypeVector(
+                                                     decl->generic_parameters)},
              matching_generic->declaration()->callable, decl->signature.get(),
              decl->body);
 }
 
 void DeclarationVisitor::Visit(ExternConstDeclaration* decl) {
-  const Type* type = Declarations::GetType(decl->type);
+  const Type* type = TypeVisitor::ComputeType(decl->type);
   if (!type->IsConstexpr()) {
     std::stringstream stream;
     stream << "extern constants must have constexpr type, but found: \""
@@ -246,121 +277,8 @@ void DeclarationVisitor::Visit(ExternConstDeclaration* decl) {
   Declarations::DeclareExternConstant(decl->name, type, decl->literal);
 }
 
-void DeclarationVisitor::DeclareMethods(
-    AggregateType* container_type, const std::vector<Declaration*>& methods) {
-  // Declare the class' methods
-  for (auto declaration : methods) {
-    CurrentSourcePosition::Scope pos_scope(declaration->pos);
-    StandardDeclaration* standard_declaration =
-        StandardDeclaration::DynamicCast(declaration);
-    DCHECK(standard_declaration);
-    TorqueMacroDeclaration* method =
-        TorqueMacroDeclaration::DynamicCast(standard_declaration->callable);
-    Signature signature = MakeSignature(method->signature.get());
-    signature.parameter_names.insert(
-        signature.parameter_names.begin() + signature.implicit_count,
-        MakeNode<Identifier>(kThisParameterName));
-    Statement* body = *(standard_declaration->body);
-    std::string method_name(method->name);
-      signature.parameter_types.types.insert(
-          signature.parameter_types.types.begin() + signature.implicit_count,
-          container_type);
-      Declarations::CreateMethod(container_type, method_name, signature, false,
-                                 body);
-  }
-}
-
-void DeclarationVisitor::Visit(StructDeclaration* decl) {
-  StructType* struct_type = Declarations::DeclareStruct(decl->name);
-  struct_declarations_.push_back(
-      std::make_tuple(CurrentScope::Get(), decl, struct_type));
-}
-
-void DeclarationVisitor::Visit(ClassDeclaration* decl) {
-  ClassType* new_class;
-  if (decl->is_extern) {
-    if (!decl->super) {
-      ReportError("Extern class must extend another type.");
-    }
-    const Type* super_type = Declarations::GetType(*decl->super);
-    if (super_type != TypeOracle::GetTaggedType()) {
-      const ClassType* super_class = ClassType::DynamicCast(super_type);
-      if (!super_class) {
-        ReportError(
-            "class \"", decl->name->value,
-            "\" must extend either Tagged or an already declared class");
-      }
-    }
-
-    // The generates clause must create a TNode<>
-    std::string generates = decl->name->value;
-    if (decl->generates) {
-      generates = *decl->generates;
-      if (generates.length() < 7 || generates.substr(0, 6) != "TNode<" ||
-          generates.substr(generates.length() - 1, 1) != ">") {
-        ReportError("generated type \"", generates,
-                    "\" should be of the form \"TNode<...>\"");
-      }
-      generates = generates.substr(6, generates.length() - 7);
-    }
-
-    new_class = Declarations::DeclareClass(
-        super_type, decl->name, decl->is_extern, decl->generate_print,
-        decl->transient, generates);
-  } else {
-    if (decl->super) {
-      ReportError("Only extern classes can inherit.");
-    }
-    if (decl->generates) {
-      ReportError("Only extern classes can specify a generated type.");
-    }
-    new_class = Declarations::DeclareClass(
-        TypeOracle::GetTaggedType(), decl->name, decl->is_extern,
-        decl->generate_print, decl->transient, "FixedArray");
-  }
-  GlobalContext::RegisterClass(decl->name->value, new_class);
-  class_declarations_.push_back(
-      std::make_tuple(CurrentScope::Get(), decl, new_class));
-}
-
 void DeclarationVisitor::Visit(CppIncludeDeclaration* decl) {
   GlobalContext::AddCppInclude(decl->include_path);
-}
-
-void DeclarationVisitor::Visit(TypeDeclaration* decl) {
-  std::string generates = decl->generates ? *decl->generates : std::string("");
-  if (decl->generates) {
-    if (generates.length() < 7 || generates.substr(0, 6) != "TNode<" ||
-        generates.substr(generates.length() - 1, 1) != ">") {
-      ReportError("generated type \"", generates,
-                  "\" should be of the form \"TNode<...>\"");
-    }
-    generates = generates.substr(6, generates.length() - 7);
-  }
-
-  const AbstractType* type = Declarations::DeclareAbstractType(
-      decl->name, decl->transient, generates, {}, decl->extends);
-
-  if (decl->constexpr_generates) {
-    if (decl->transient) {
-      ReportError("cannot declare a transient type that is also constexpr");
-    }
-    // DeclareAbstractType expects an Identifier*. A new one is created from the
-    // declaration, and the SourcePosition copied from the original name.
-    Identifier* constexpr_name =
-        MakeNode<Identifier>(CONSTEXPR_TYPE_PREFIX + decl->name->value);
-    constexpr_name->pos = decl->name->pos;
-
-    base::Optional<Identifier*> constexpr_extends;
-    if (decl->extends) {
-      constexpr_extends =
-          MakeNode<Identifier>(CONSTEXPR_TYPE_PREFIX + (*decl->extends)->value);
-      (*constexpr_extends)->pos = (*decl->extends)->pos;
-    }
-    Declarations::DeclareAbstractType(constexpr_name, false,
-                                      *decl->constexpr_generates, type,
-                                      constexpr_extends);
-  }
 }
 
 void DeclarationVisitor::DeclareSpecializedTypes(const SpecializationKey& key) {
@@ -378,7 +296,7 @@ void DeclarationVisitor::DeclareSpecializedTypes(const SpecializationKey& key) {
   for (auto type : key.specialized_types) {
     Identifier* generic_type_name =
         key.generic->declaration()->generic_parameters[i++];
-    Declarations::DeclareType(generic_type_name, type, true);
+    Declarations::DeclareType(generic_type_name, type);
   }
 }
 
@@ -390,7 +308,8 @@ Signature DeclarationVisitor::MakeSpecializedSignature(
   Namespace tmp_namespace("_tmp");
   CurrentScope::Scope tmp_namespace_scope(&tmp_namespace);
   DeclareSpecializedTypes(key);
-  return MakeSignature(key.generic->declaration()->callable->signature.get());
+  return TypeVisitor::MakeSignature(
+      key.generic->declaration()->callable->signature.get());
 }
 
 Callable* DeclarationVisitor::SpecializeImplicit(const SpecializationKey& key) {
@@ -433,8 +352,8 @@ Callable* DeclarationVisitor::Specialize(
                 " with types <", key.specialized_types, ">");
   }
 
-  Signature type_signature =
-      signature ? MakeSignature(*signature) : MakeSpecializedSignature(key);
+  Signature type_signature = signature ? TypeVisitor::MakeSignature(*signature)
+                                       : MakeSpecializedSignature(key);
 
   std::string generated_name = Declarations::GetGeneratedCallableName(
       declaration->name, key.specialized_types);
@@ -463,161 +382,13 @@ Callable* DeclarationVisitor::Specialize(
   return callable;
 }
 
-void DeclarationVisitor::FinalizeStructFieldsAndMethods(
-    StructType* struct_type, StructDeclaration* struct_declaration) {
-  size_t offset = 0;
-  for (auto& field : struct_declaration->fields) {
-    CurrentSourcePosition::Scope position_activator(
-        field.name_and_type.type->pos);
-    const Type* field_type = Declarations::GetType(field.name_and_type.type);
-    struct_type->RegisterField({field.name_and_type.name->pos,
-                                struct_type,
-                                base::nullopt,
-                                {field.name_and_type.name->value, field_type},
-                                offset,
-                                false,
-                                field.const_qualified});
-    offset += LoweredSlotCount(field_type);
-  }
-  CurrentSourcePosition::Scope position_activator(struct_declaration->pos);
-  DeclareMethods(struct_type, struct_declaration->methods);
-}
-
-void DeclarationVisitor::FinalizeClassFieldsAndMethods(
-    ClassType* class_type, ClassDeclaration* class_declaration) {
-  const ClassType* super_class = class_type->GetSuperClass();
-  size_t class_offset = super_class ? super_class->size() : 0;
-  bool seen_indexed_field = false;
-  for (ClassFieldExpression& field_expression : class_declaration->fields) {
-    CurrentSourcePosition::Scope position_activator(
-        field_expression.name_and_type.type->pos);
-    const Type* field_type =
-        Declarations::GetType(field_expression.name_and_type.type);
-    if (!class_declaration->is_extern) {
-      if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-        ReportError("non-extern classes do not support untagged fields");
-      }
-      if (field_expression.weak) {
-        ReportError("non-extern classes do not support weak fields");
-      }
+void TypeDeclarationVisitor::ResolvePredeclarations() {
+  for (auto& p : GlobalContext::AllDeclarables()) {
+    if (const TypeAlias* alias = TypeAlias::DynamicCast(p.get())) {
+      CurrentScope::Scope scope_activator(alias->ParentScope());
+      CurrentSourcePosition::Scope position_activator(alias->Position());
+      alias->Resolve();
     }
-    if (field_expression.index) {
-      if (seen_indexed_field ||
-          (super_class && super_class->HasIndexedField())) {
-        ReportError(
-            "only one indexable field is currently supported per class");
-      }
-      seen_indexed_field = true;
-      const Field* index_field =
-          &(class_type->LookupField(*field_expression.index));
-      class_type->RegisterField(
-          {field_expression.name_and_type.name->pos,
-           class_type,
-           index_field,
-           {field_expression.name_and_type.name->value, field_type},
-           class_offset,
-           field_expression.weak,
-           field_expression.const_qualified});
-    } else {
-      if (seen_indexed_field) {
-        ReportError("cannot declare non-indexable field \"",
-                    field_expression.name_and_type.name,
-                    "\" after an indexable field "
-                    "declaration");
-      }
-      const Field& field = class_type->RegisterField(
-          {field_expression.name_and_type.name->pos,
-           class_type,
-           base::nullopt,
-           {field_expression.name_and_type.name->value, field_type},
-           class_offset,
-           field_expression.weak,
-           field_expression.const_qualified});
-      size_t field_size;
-      std::string size_string;
-      std::string machine_type;
-      std::tie(field_size, size_string, machine_type) =
-          field.GetFieldSizeInformation();
-      // Our allocations don't support alignments beyond kTaggedSize.
-      size_t alignment = std::min(size_t{kTaggedSize}, field_size);
-      if (class_offset % alignment != 0) {
-        ReportError("field ", field_expression.name_and_type.name,
-                    " at offset ", class_offset, " is not ", alignment,
-                    "-byte aligned.");
-      }
-      class_offset += field_size;
-    }
-  }
-  class_type->SetSize(class_offset);
-
-  // For each field, construct AST snippits that implement a CSA accessor
-  // function and define a corresponding '.field' operator. The
-  // implementation iterator will turn the snippits into code.
-  for (auto& field : class_type->fields()) {
-    if (field.index) continue;
-    CurrentSourcePosition::Scope position_activator(field.pos);
-    IdentifierExpression* parameter =
-        MakeNode<IdentifierExpression>(MakeNode<Identifier>(std::string{"o"}));
-
-    // Load accessor
-    std::string camel_field_name = CamelifyString(field.name_and_type.name);
-    std::string load_macro_name =
-        "Load" + class_type->name() + camel_field_name;
-    Signature load_signature;
-    load_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
-    load_signature.parameter_types.types.push_back(class_type);
-    load_signature.parameter_types.var_args = false;
-    load_signature.return_type = field.name_and_type.type;
-    Statement* load_body =
-        MakeNode<ReturnStatement>(MakeNode<FieldAccessExpression>(
-            parameter, MakeNode<Identifier>(field.name_and_type.name)));
-    Declarations::DeclareMacro(load_macro_name, base::nullopt, load_signature,
-                               false, load_body, base::nullopt, false);
-
-    // Store accessor
-    IdentifierExpression* value = MakeNode<IdentifierExpression>(
-        std::vector<std::string>{}, MakeNode<Identifier>(std::string{"v"}));
-    std::string store_macro_name =
-        "Store" + class_type->name() + camel_field_name;
-    Signature store_signature;
-    store_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
-    store_signature.parameter_names.push_back(MakeNode<Identifier>("v"));
-    store_signature.parameter_types.types.push_back(class_type);
-    store_signature.parameter_types.types.push_back(field.name_and_type.type);
-    store_signature.parameter_types.var_args = false;
-    // TODO(danno): Store macros probably should return their value argument
-    store_signature.return_type = TypeOracle::GetVoidType();
-    Statement* store_body =
-        MakeNode<ExpressionStatement>(MakeNode<AssignmentExpression>(
-            MakeNode<FieldAccessExpression>(
-                parameter, MakeNode<Identifier>(field.name_and_type.name)),
-            value));
-    Declarations::DeclareMacro(store_macro_name, base::nullopt, store_signature,
-                               false, store_body, base::nullopt, false);
-  }
-
-  DeclareMethods(class_type, class_declaration->methods);
-}
-
-void DeclarationVisitor::FinalizeStructsAndClasses() {
-  for (auto current_struct_info : struct_declarations_) {
-    Scope* scope;
-    StructDeclaration* struct_declaration;
-    StructType* struct_type;
-    std::tie(scope, struct_declaration, struct_type) = current_struct_info;
-    CurrentScope::Scope scope_activator(scope);
-    CurrentSourcePosition::Scope position_activator(struct_declaration->pos);
-    FinalizeStructFieldsAndMethods(struct_type, struct_declaration);
-  }
-
-  for (auto current_class_info : class_declarations_) {
-    Scope* scope;
-    ClassDeclaration* class_declaration;
-    ClassType* class_type;
-    std::tie(scope, class_declaration, class_type) = current_class_info;
-    CurrentScope::Scope scope_activator(scope);
-    CurrentSourcePosition::Scope position_activator(class_declaration->pos);
-    FinalizeClassFieldsAndMethods(class_type, class_declaration);
   }
 }
 

@@ -5,8 +5,10 @@
 #include <iostream>
 
 #include "src/globals.h"
+#include "src/torque/ast.h"
 #include "src/torque/declarable.h"
 #include "src/torque/type-oracle.h"
+#include "src/torque/type-visitor.h"
 #include "src/torque/types.h"
 
 namespace v8 {
@@ -195,7 +197,7 @@ const Type* SubtractType(const Type* a, const Type* b) {
   return TypeOracle::GetUnionType(result);
 }
 
-void AggregateType::CheckForDuplicateFields() {
+void AggregateType::CheckForDuplicateFields() const {
   // Check the aggregate hierarchy and currently defined class for duplicate
   // field declarations.
   auto hierarchy = GetHierarchy();
@@ -224,7 +226,8 @@ void AggregateType::CheckForDuplicateFields() {
   }
 }
 
-std::vector<const AggregateType*> AggregateType::GetHierarchy() {
+std::vector<const AggregateType*> AggregateType::GetHierarchy() const {
+  if (!is_finalized_) Finalize();
   std::vector<const AggregateType*> hierarchy;
   const AggregateType* current_container_type = this;
   while (current_container_type != nullptr) {
@@ -239,6 +242,7 @@ std::vector<const AggregateType*> AggregateType::GetHierarchy() {
 }
 
 bool AggregateType::HasField(const std::string& name) const {
+  if (!is_finalized_) Finalize();
   for (auto& field : fields_) {
     if (field.name_and_type.name == name) return true;
   }
@@ -250,7 +254,7 @@ bool AggregateType::HasField(const std::string& name) const {
   return false;
 }
 
-const Field& AggregateType::LookupField(const std::string& name) const {
+const Field& AggregateType::LookupFieldInternal(const std::string& name) const {
   for (auto& field : fields_) {
     if (field.name_and_type.name == name) return field;
   }
@@ -262,11 +266,17 @@ const Field& AggregateType::LookupField(const std::string& name) const {
   ReportError("no field ", name, " found");
 }
 
+const Field& AggregateType::LookupField(const std::string& name) const {
+  if (!is_finalized_) Finalize();
+  return LookupFieldInternal(name);
+}
+
 std::string StructType::GetGeneratedTypeNameImpl() const {
   return nspace()->ExternalName() + "::" + name();
 }
 
 std::vector<Method*> AggregateType::Methods(const std::string& name) const {
+  if (!is_finalized_) Finalize();
   std::vector<Method*> result;
   std::copy_if(methods_.begin(), methods_.end(), std::back_inserter(result),
                [name](Macro* macro) { return macro->ReadableName() == name; });
@@ -284,29 +294,21 @@ std::string StructType::ToExplicitString() const {
 ClassType::ClassType(const Type* parent, Namespace* nspace,
                      const std::string& name, bool is_extern,
                      bool generate_print, bool transient,
-                     const std::string& generates)
+                     const std::string& generates, const ClassDeclaration* decl,
+                     const TypeAlias* alias)
     : AggregateType(Kind::kClassType, parent, nspace, name),
       is_extern_(is_extern),
       generate_print_(generate_print),
       transient_(transient),
       size_(0),
       has_indexed_field_(false),
-      generates_(generates) {
-  CheckForDuplicateFields();
-  if (parent) {
-    if (const ClassType* super_class = ClassType::DynamicCast(parent)) {
-      if (super_class->HasIndexedField()) {
-        has_indexed_field_ = true;
-      }
-    }
-  }
-}
+      generates_(generates),
+      decl_(decl),
+      alias_(alias) {}
 
 bool ClassType::HasIndexedField() const {
-  if (has_indexed_field_) return true;
-  const ClassType* super_class = GetSuperClass();
-  if (super_class) return super_class->HasIndexedField();
-  return false;
+  if (!is_finalized_) Finalize();
+  return has_indexed_field_;
 }
 
 std::string ClassType::GetGeneratedTNodeTypeNameImpl() const {
@@ -332,6 +334,67 @@ std::string ClassType::ToExplicitString() const {
 
 bool ClassType::AllowInstantiation() const {
   return !IsExtern() || nspace()->IsDefaultNamespace();
+}
+
+void ClassType::Finalize() const {
+  if (is_finalized_) return;
+  CurrentScope::Scope scope_activator(alias_->ParentScope());
+  CurrentSourcePosition::Scope position_activator(decl_->pos);
+  if (parent()) {
+    if (const ClassType* super_class = ClassType::DynamicCast(parent())) {
+      has_indexed_field_ = super_class->HasIndexedField();
+    }
+  }
+  TypeVisitor::VisitClassFieldsAndMethods(const_cast<ClassType*>(this),
+                                          this->decl_);
+  is_finalized_ = true;
+  CheckForDuplicateFields();
+}
+
+void ClassType::GenerateAccessors() {
+  // For each field, construct AST snippets that implement a CSA accessor
+  // function and define a corresponding '.field' operator. The
+  // implementation iterator will turn the snippets into code.
+  for (auto& field : fields_) {
+    if (field.index) continue;
+    CurrentSourcePosition::Scope position_activator(field.pos);
+    IdentifierExpression* parameter =
+        MakeNode<IdentifierExpression>(MakeNode<Identifier>(std::string{"o"}));
+
+    // Load accessor
+    std::string camel_field_name = CamelifyString(field.name_and_type.name);
+    std::string load_macro_name = "Load" + this->name() + camel_field_name;
+    Signature load_signature;
+    load_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
+    load_signature.parameter_types.types.push_back(this);
+    load_signature.parameter_types.var_args = false;
+    load_signature.return_type = field.name_and_type.type;
+    Statement* load_body =
+        MakeNode<ReturnStatement>(MakeNode<FieldAccessExpression>(
+            parameter, MakeNode<Identifier>(field.name_and_type.name)));
+    Declarations::DeclareMacro(load_macro_name, base::nullopt, load_signature,
+                               false, load_body, base::nullopt, false);
+
+    // Store accessor
+    IdentifierExpression* value = MakeNode<IdentifierExpression>(
+        std::vector<std::string>{}, MakeNode<Identifier>(std::string{"v"}));
+    std::string store_macro_name = "Store" + this->name() + camel_field_name;
+    Signature store_signature;
+    store_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
+    store_signature.parameter_names.push_back(MakeNode<Identifier>("v"));
+    store_signature.parameter_types.types.push_back(this);
+    store_signature.parameter_types.types.push_back(field.name_and_type.type);
+    store_signature.parameter_types.var_args = false;
+    // TODO(danno): Store macros probably should return their value argument
+    store_signature.return_type = TypeOracle::GetVoidType();
+    Statement* store_body =
+        MakeNode<ExpressionStatement>(MakeNode<AssignmentExpression>(
+            MakeNode<FieldAccessExpression>(
+                parameter, MakeNode<Identifier>(field.name_and_type.name)),
+            value));
+    Declarations::DeclareMacro(store_macro_name, base::nullopt, store_signature,
+                               false, store_body, base::nullopt, false);
+  }
 }
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
