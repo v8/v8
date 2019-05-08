@@ -31,6 +31,11 @@ void FeedbackCell::clear_padding() {
          FeedbackCell::kAlignedSize - FeedbackCell::kUnalignedSize);
 }
 
+void FeedbackCell::reset() {
+  set_value(GetReadOnlyRoots().undefined_value());
+  set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
+}
+
 }  // namespace internal
 }  // namespace v8
 

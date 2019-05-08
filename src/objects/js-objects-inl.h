@@ -701,8 +701,7 @@ void JSFunction::ResetIfBytecodeFlushed() {
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
     set_code(GetIsolate()->builtins()->builtin(i::Builtins::kCompileLazy));
-    raw_feedback_cell()->set_value(
-        ReadOnlyRoots(GetIsolate()).undefined_value());
+    raw_feedback_cell()->reset();
   }
 }
 

@@ -45,6 +45,7 @@ class FeedbackCell : public Struct {
   static const int kAlignedSize = RoundUp<kObjectAlignment>(int{kSize});
 
   inline void clear_padding();
+  inline void reset();
 
   using BodyDescriptor =
       FixedBodyDescriptor<kValueOffset, kInterruptBudgetOffset, kAlignedSize>;
