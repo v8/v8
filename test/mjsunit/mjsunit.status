@@ -75,7 +75,7 @@
   'regress/regress-4595': [PASS, NO_VARIANTS, ['mode == debug', SKIP]],
 
   # Too slow in debug mode, due to large allocations.
-  'regress/regress-crbug-941743': [PASS, ['mode == debug', SKIP], ['(arch == arm or arch == arm64) and simulator_run == True', SKIP]],
+  'regress/regress-crbug-941743': [PASS, ['mode == debug', SKIP], ['(arch == arm or arch == arm64 or arch == mipsel or arch == mips64el) and simulator_run == True', SKIP]],
 
   ##############################################################################
   # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
