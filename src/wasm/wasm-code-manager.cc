@@ -1369,8 +1369,9 @@ void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
     Address discard_end = std::min(RoundDown(merged_region.end(), page_size),
                                    RoundUp(region.end(), page_size));
     if (discard_start >= discard_end) continue;
-    allocator->DiscardSystemPages(reinterpret_cast<void*>(discard_start),
-                                  discard_end - discard_start);
+    // TODO(clemensh): Reenable after fixing https://crbug.com/960707.
+    // allocator->DiscardSystemPages(reinterpret_cast<void*>(discard_start),
+    //                               discard_end - discard_start);
   }
 }
 
