@@ -754,8 +754,6 @@ StartupData SnapshotCreator::CreateBlob(
     isolate->heap()->CompactWeakArrayLists(internal::AllocationType::kOld);
   }
 
-  isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
-
   if (function_code_handling == FunctionCodeHandling::kClear) {
     // Clear out re-compilable data from all shared function infos. Any
     // JSFunctions using these SFIs will have their code pointers reset by the

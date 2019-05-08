@@ -26,6 +26,7 @@
 #include "src/handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
+#include "src/heap/read-only-heap.h"
 #include "src/isolate-allocator.h"
 #include "src/isolate-data.h"
 #include "src/messages.h"

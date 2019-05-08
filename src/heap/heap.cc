@@ -3603,7 +3603,7 @@ const char* Heap::GarbageCollectionReasonToString(
 bool Heap::Contains(HeapObject value) {
   // Check RO_SPACE first because IsOutsideAllocatedSpace cannot account for a
   // shared RO_SPACE.
-  // TODO(goszczycki): Exclude read-only space. Use ReadOnlyHeap::Contains where
+  // TODO(v8:7464): Exclude read-only space. Use ReadOnlyHeap::Contains where
   // appropriate.
   if (read_only_space_ != nullptr && read_only_space_->Contains(value)) {
     return true;
@@ -3741,9 +3741,18 @@ void Heap::Verify() {
   lo_space_->Verify(isolate());
   code_lo_space_->Verify(isolate());
   new_lo_space_->Verify(isolate());
+}
 
+void Heap::VerifyReadOnlyHeap() {
+  CHECK(!read_only_space_->writable());
+  // TODO(v8:7464): Always verify read-only space once PagedSpace::Verify
+  // supports verifying shared read-only space. Currently HeapObjectIterator is
+  // explicitly disabled for read-only space when sharing is enabled, because it
+  // relies on PagedSpace::heap_ being non-null.
+#ifndef V8_SHARED_RO_HEAP
   VerifyReadOnlyPointersVisitor read_only_visitor(this);
   read_only_space_->Verify(isolate(), &read_only_visitor);
+#endif
 }
 
 class SlotVerifyingVisitor : public ObjectVisitor {

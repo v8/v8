@@ -23,6 +23,7 @@
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
+#include "src/heap/read-only-heap.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/sweeper.h"
 #include "src/heap/worklist.h"
@@ -511,10 +512,10 @@ void MarkCompactCollector::CollectGarbage() {
 }
 
 #ifdef VERIFY_HEAP
-void MarkCompactCollector::VerifyMarkbitsAreDirty(PagedSpace* space) {
-  HeapObjectIterator iterator(space);
-  for (HeapObject object = iterator.Next(); !object.is_null();
-       object = iterator.Next()) {
+void MarkCompactCollector::VerifyMarkbitsAreDirty(ReadOnlySpace* space) {
+  ReadOnlyHeapIterator iterator(space);
+  for (HeapObject object = iterator.next(); !object.is_null();
+       object = iterator.next()) {
     CHECK(non_atomic_marking_state()->IsBlack(object));
   }
 }

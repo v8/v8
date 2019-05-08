@@ -8,6 +8,7 @@
 
 #include "src/base/once.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-object-inl.h"
@@ -23,48 +24,63 @@ ReadOnlyHeap* shared_ro_heap = nullptr;
 
 // static
 void ReadOnlyHeap::SetUp(Isolate* isolate, ReadOnlyDeserializer* des) {
+  DCHECK_NOT_NULL(isolate);
 #ifdef V8_SHARED_RO_HEAP
-  void* isolate_ro_roots = reinterpret_cast<void*>(
-      isolate->roots_table().read_only_roots_begin().address());
-  base::CallOnce(&setup_ro_heap_once, [isolate, des, isolate_ro_roots]() {
-    shared_ro_heap = Init(isolate, des);
-    if (des != nullptr) {
-      std::memcpy(shared_ro_heap->read_only_roots_, isolate_ro_roots,
-                  kEntriesCount * sizeof(Address));
-    }
+  // Make sure we are only sharing read-only space when deserializing. Otherwise
+  // we would be trying to create heap objects inside an already initialized
+  // read-only space. Use ClearSharedHeapForTest if you need a new read-only
+  // space.
+  DCHECK_IMPLIES(shared_ro_heap != nullptr, des != nullptr);
+
+  base::CallOnce(&setup_ro_heap_once, [isolate, des]() {
+    shared_ro_heap = CreateAndAttachToIsolate(isolate);
+    if (des != nullptr) shared_ro_heap->DeseralizeIntoIsolate(isolate, des);
   });
 
   isolate->heap()->SetUpFromReadOnlyHeap(shared_ro_heap);
   if (des != nullptr) {
+    void* const isolate_ro_roots = reinterpret_cast<void*>(
+        isolate->roots_table().read_only_roots_begin().address());
     std::memcpy(isolate_ro_roots, shared_ro_heap->read_only_roots_,
                 kEntriesCount * sizeof(Address));
   }
 #else
-  Init(isolate, des);
+  auto* ro_heap = CreateAndAttachToIsolate(isolate);
+  if (des != nullptr) ro_heap->DeseralizeIntoIsolate(isolate, des);
 #endif  // V8_SHARED_RO_HEAP
 }
 
-void ReadOnlyHeap::OnCreateHeapObjectsComplete() {
-  DCHECK(!deserializing_);
-#ifdef V8_SHARED_RO_HEAP
-  read_only_space_->Forget();
-#endif
-  read_only_space_->MarkAsReadOnly();
+void ReadOnlyHeap::DeseralizeIntoIsolate(Isolate* isolate,
+                                         ReadOnlyDeserializer* des) {
+  DCHECK_NOT_NULL(des);
+  des->DeserializeInto(isolate);
+  InitFromIsolate(isolate);
+}
+
+void ReadOnlyHeap::OnCreateHeapObjectsComplete(Isolate* isolate) {
+  DCHECK_NOT_NULL(isolate);
+  InitFromIsolate(isolate);
 }
 
 // static
-ReadOnlyHeap* ReadOnlyHeap::Init(Isolate* isolate, ReadOnlyDeserializer* des) {
+ReadOnlyHeap* ReadOnlyHeap::CreateAndAttachToIsolate(Isolate* isolate) {
   auto* ro_heap = new ReadOnlyHeap(new ReadOnlySpace(isolate->heap()));
   isolate->heap()->SetUpFromReadOnlyHeap(ro_heap);
-  if (des != nullptr) {
-    des->DeserializeInto(isolate);
-    ro_heap->deserializing_ = true;
-#ifdef V8_SHARED_RO_HEAP
-    ro_heap->read_only_space_->Forget();
-#endif
-    ro_heap->read_only_space_->MarkAsReadOnly();
-  }
   return ro_heap;
+}
+
+void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
+  DCHECK(!init_complete_);
+#ifdef V8_SHARED_RO_HEAP
+  void* const isolate_ro_roots = reinterpret_cast<void*>(
+      isolate->roots_table().read_only_roots_begin().address());
+  std::memcpy(read_only_roots_, isolate_ro_roots,
+              kEntriesCount * sizeof(Address));
+  read_only_space_->Seal(ReadOnlySpace::SealMode::kDetachFromHeapAndForget);
+#else
+  read_only_space_->Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
+#endif
+  init_complete_ = true;
 }
 
 void ReadOnlyHeap::OnHeapTearDown() {
@@ -75,8 +91,32 @@ void ReadOnlyHeap::OnHeapTearDown() {
 }
 
 // static
+void ReadOnlyHeap::ClearSharedHeapForTest() {
+#ifdef V8_SHARED_RO_HEAP
+  DCHECK_NOT_NULL(shared_ro_heap);
+  // TODO(v8:7464): Just leak read-only space for now. The paged-space heap
+  // is null so there isn't a nice way to do this.
+  delete shared_ro_heap;
+  shared_ro_heap = nullptr;
+  setup_ro_heap_once = 0;
+#endif
+}
+
+// static
 bool ReadOnlyHeap::Contains(HeapObject object) {
   return Page::FromAddress(object.ptr())->owner()->identity() == RO_SPACE;
+}
+
+// static
+ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(HeapObject object) {
+#ifdef V8_SHARED_RO_HEAP
+  // This fails if we are creating heap objects and the roots haven't yet been
+  // copied into the read-only heap or it has been cleared for testing.
+  if (shared_ro_heap != nullptr && shared_ro_heap->init_complete_) {
+    return ReadOnlyRoots(shared_ro_heap->read_only_roots_);
+  }
+#endif
+  return ReadOnlyRoots(GetHeapFromWritableObject(object));
 }
 
 ReadOnlyHeapIterator::ReadOnlyHeapIterator(ReadOnlyHeap* ro_heap)
