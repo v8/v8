@@ -21,6 +21,7 @@ struct TestCompiler {
     options.output_directory = "";
     options.verbose = false;
     options.collect_language_server_data = true;
+    options.force_assert_statements = true;
 
     const TorqueCompilerResult result = CompileTorque(source, options);
     SourceFileMap::Get() = result.source_file_map;

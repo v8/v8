@@ -16,9 +16,14 @@ namespace internal {
 namespace torque {
 
 struct TorqueCompilerOptions {
-  std::string output_directory;
-  bool verbose;
-  bool collect_language_server_data;
+  std::string output_directory = "";
+  bool verbose = false;
+  bool collect_language_server_data = false;
+
+  // assert(...) are only generated for debug builds. The provide
+  // language server support for statements inside asserts, this flag
+  // can force generate them.
+  bool force_assert_statements = false;
 };
 
 struct TorqueCompilerResult {

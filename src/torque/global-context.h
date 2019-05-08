@@ -20,6 +20,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   explicit GlobalContext(Ast ast)
       : verbose_(false),
         collect_language_server_data_(false),
+        force_assert_statements_(false),
         ast_(std::move(ast)) {
     CurrentScope::Scope current_scope(nullptr);
     CurrentSourcePosition::Scope current_source_position(
@@ -72,11 +73,18 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   static bool collect_language_server_data() {
     return Get().collect_language_server_data_;
   }
+  static void SetForceAssertStatements() {
+    Get().force_assert_statements_ = true;
+  }
+  static bool force_assert_statements() {
+    return Get().force_assert_statements_;
+  }
   static Ast* ast() { return &Get().ast_; }
 
  private:
   bool verbose_;
   bool collect_language_server_data_;
+  bool force_assert_statements_;
   Namespace* default_namespace_;
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
