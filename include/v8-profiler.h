@@ -5,6 +5,7 @@
 #ifndef V8_V8_PROFILER_H_
 #define V8_V8_PROFILER_H_
 
+#include <limits.h>
 #include <unordered_set>
 #include <vector>
 #include "v8.h"  // NOLINT(build/include)
@@ -312,6 +313,9 @@ enum CpuProfilingNamingMode {
  */
 class V8_EXPORT CpuProfiler {
  public:
+  // Indicates that the sample buffer size should not be explicitly limited.
+  static const unsigned kNoSampleLimit = UINT_MAX;
+
   /**
    * Creates a new CPU profiler for the |isolate|. The isolate must be
    * initialized. The profiler object must be disposed after use by calling
@@ -358,9 +362,14 @@ class V8_EXPORT CpuProfiler {
    *
    * |record_samples| parameter controls whether individual samples should
    * be recorded in addition to the aggregated tree.
+   *
+   * |max_samples| controls the maximum number of samples that should be
+   * recorded by the profiler. Samples obtained after this limit will be
+   * discarded.
    */
   void StartProfiling(Local<String> title, CpuProfilingMode mode,
-                      bool record_samples = false);
+                      bool record_samples = false,
+                      unsigned max_samples = kNoSampleLimit);
   /**
    * The same as StartProfiling above, but the CpuProfilingMode defaults to
    * kLeafNodeLineNumbers mode, which was the previous default behavior of the

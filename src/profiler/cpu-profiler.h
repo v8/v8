@@ -255,8 +255,10 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   void set_use_precise_sampling(bool);
   void CollectSample();
   void StartProfiling(const char* title, bool record_samples = false,
-                      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers);
-  void StartProfiling(String title, bool record_samples, ProfilingMode mode);
+                      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers,
+                      unsigned max_samples = v8::CpuProfiler::kNoSampleLimit);
+  void StartProfiling(String title, bool record_samples, ProfilingMode mode,
+                      unsigned max_samples);
   CpuProfile* StopProfiling(const char* title);
   CpuProfile* StopProfiling(String title);
   int GetProfilesCount();

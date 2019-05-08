@@ -377,16 +377,16 @@ void CpuProfiler::CollectSample() {
 }
 
 void CpuProfiler::StartProfiling(const char* title, bool record_samples,
-                                 ProfilingMode mode) {
-  if (profiles_->StartProfiling(title, record_samples, mode)) {
+                                 ProfilingMode mode, unsigned max_samples) {
+  if (profiles_->StartProfiling(title, record_samples, mode, max_samples)) {
     TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
     StartProcessorIfNotStarted();
   }
 }
 
 void CpuProfiler::StartProfiling(String title, bool record_samples,
-                                 ProfilingMode mode) {
-  StartProfiling(profiles_->GetName(title), record_samples, mode);
+                                 ProfilingMode mode, unsigned max_samples) {
+  StartProfiling(profiles_->GetName(title), record_samples, mode, max_samples);
   isolate_->debug()->feature_tracker()->Track(DebugFeatureTracker::kProfiler);
 }
 

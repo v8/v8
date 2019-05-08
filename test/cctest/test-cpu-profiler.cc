@@ -441,7 +441,8 @@ class ProfilerHelper {
                       unsigned min_js_samples = 0,
                       unsigned min_external_samples = 0,
                       bool collect_samples = false,
-                      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers);
+                      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers,
+                      unsigned max_samples = v8::CpuProfiler::kNoSampleLimit);
 
   v8::CpuProfiler* profiler() { return profiler_; }
 
@@ -454,11 +455,12 @@ v8::CpuProfile* ProfilerHelper::Run(v8::Local<v8::Function> function,
                                     v8::Local<v8::Value> argv[], int argc,
                                     unsigned min_js_samples,
                                     unsigned min_external_samples,
-                                    bool collect_samples, ProfilingMode mode) {
+                                    bool collect_samples, ProfilingMode mode,
+                                    unsigned max_samples) {
   v8::Local<v8::String> profile_name = v8_str("my_profile");
 
   profiler_->SetSamplingInterval(100);
-  profiler_->StartProfiling(profile_name, mode, collect_samples);
+  profiler_->StartProfiling(profile_name, mode, collect_samples, max_samples);
 
   v8::internal::CpuProfiler* iprofiler =
       reinterpret_cast<v8::internal::CpuProfiler*>(profiler_);
@@ -2955,6 +2957,31 @@ TEST(DebugNaming) {
   CHECK(FindChild(prop_assignment_named_test, "object.propNamed"));
 
   profiler->Dispose();
+}
+
+TEST(SampleLimit) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  CompileRun(R"(
+    function start() {
+      let val = 1;
+      for (let i = 0; i < 10e3; i++) {
+        val = (val * 2) % 3;
+      }
+      return val;
+    }
+  )");
+
+  // Take 100 samples of `start`, but set the max samples to 50.
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+  ProfilerHelper helper(env.local());
+  v8::CpuProfile* profile =
+      helper.Run(function, nullptr, 0, 100, 0, true,
+                 v8::CpuProfilingMode::kLeafNodeLineNumbers, 50);
+
+  CHECK_EQ(profile->GetSamplesCount(), 50);
 }
 
 enum class EntryCountMode { kAll, kOnlyInlined };

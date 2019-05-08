@@ -474,10 +474,12 @@ using v8::tracing::TracedValue;
 std::atomic<uint32_t> CpuProfile::last_id_;
 
 CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
-                       bool record_samples, ProfilingMode mode)
+                       bool record_samples, ProfilingMode mode,
+                       unsigned max_samples)
     : title_(title),
       record_samples_(record_samples),
       mode_(mode),
+      max_samples_(max_samples),
       start_time_(base::TimeTicks::HighResolutionNow()),
       top_down_(profiler->isolate()),
       profiler_(profiler),
@@ -496,9 +498,13 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
   ProfileNode* top_frame_node =
       top_down_.AddPathFromEnd(path, src_line, update_stats, mode_);
 
-  if (record_samples_ && !timestamp.IsNull()) {
+  bool should_record_sample =
+      record_samples_ && !timestamp.IsNull() &&
+      (max_samples_ == v8::CpuProfiler::kNoSampleLimit ||
+       samples_.size() < max_samples_);
+
+  if (should_record_sample)
     samples_.push_back({top_frame_node, timestamp, src_line});
-  }
 
   const int kSamplesFlushCount = 100;
   const int kNodesFlushCount = 10;
@@ -698,7 +704,8 @@ CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
 
 bool CpuProfilesCollection::StartProfiling(const char* title,
                                            bool record_samples,
-                                           ProfilingMode mode) {
+                                           ProfilingMode mode,
+                                           unsigned max_samples) {
   current_profiles_semaphore_.Wait();
   if (static_cast<int>(current_profiles_.size()) >= kMaxSimultaneousProfiles) {
     current_profiles_semaphore_.Signal();
@@ -713,11 +720,10 @@ bool CpuProfilesCollection::StartProfiling(const char* title,
     }
   }
   current_profiles_.emplace_back(
-      new CpuProfile(profiler_, title, record_samples, mode));
+      new CpuProfile(profiler_, title, record_samples, mode, max_samples));
   current_profiles_semaphore_.Signal();
   return true;
 }
-
 
 CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
   const bool empty_title = (title[0] == '\0');
