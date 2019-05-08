@@ -46,14 +46,9 @@ struct WasmModule;
 // because that should have been reduced to [start, other_end).
 class V8_EXPORT_PRIVATE DisjointAllocationPool final {
  public:
-  DisjointAllocationPool() = default;
-
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(DisjointAllocationPool);
   explicit DisjointAllocationPool(base::AddressRegion region)
       : regions_({region}) {}
-
-  DisjointAllocationPool(DisjointAllocationPool&& other) V8_NOEXCEPT = default;
-  DisjointAllocationPool& operator=(DisjointAllocationPool&& other)
-      V8_NOEXCEPT = default;
 
   // Merge the parameter region into this object while preserving ordering of
   // the regions. The assumption is that the passed parameter is not
@@ -70,8 +65,6 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
 
  private:
   std::list<base::AddressRegion> regions_;
-
-  DISALLOW_COPY_AND_ASSIGN(DisjointAllocationPool);
 };
 
 class V8_EXPORT_PRIVATE WasmCode final {
