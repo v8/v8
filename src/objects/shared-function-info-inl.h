@@ -665,6 +665,10 @@ bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
   return function_data()->IsWasmExportedFunctionData();
 }
 
+bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
+  return function_data()->IsWasmCapiFunctionData();
+}
+
 Object SharedFunctionInfo::script() const {
   Object maybe_script = script_or_debug_info();
   if (maybe_script->IsDebugInfo()) {

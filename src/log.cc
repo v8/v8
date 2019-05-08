@@ -2028,6 +2028,10 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
       description = "A JavaScript to Wasm adapter";
       tag = CodeEventListener::STUB_TAG;
       break;
+    case AbstractCode::WASM_TO_CAPI_FUNCTION:
+      description = "A Wasm to C-API adapter";
+      tag = CodeEventListener::STUB_TAG;
+      break;
     case AbstractCode::WASM_TO_JS_FUNCTION:
       description = "A Wasm to JavaScript adapter";
       tag = CodeEventListener::STUB_TAG;

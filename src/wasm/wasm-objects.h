@@ -37,6 +37,7 @@ class WireBytesRef;
 class BreakPoint;
 class JSArrayBuffer;
 class SeqOneByteString;
+class WasmCapiFunction;
 class WasmDebugInfo;
 class WasmExceptionTag;
 class WasmInstanceObject;
@@ -65,6 +66,7 @@ class IndirectFunctionTableEntry {
   V8_EXPORT_PRIVATE void Set(int sig_id,
                              Handle<WasmInstanceObject> target_instance,
                              int target_func_index);
+  void Set(int sig_id, Address call_target, Object ref);
 
   void CopyFrom(const IndirectFunctionTableEntry& that);
 
@@ -295,6 +297,10 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
                                    int entry_index, wasm::FunctionSig* sig,
                                    Handle<WasmInstanceObject> target_instance,
                                    int target_func_index);
+  static void UpdateDispatchTables(Isolate* isolate,
+                                   Handle<WasmTableObject> table,
+                                   int entry_index,
+                                   Handle<WasmCapiFunction> capi_function);
 
   static void ClearDispatchTables(Isolate* isolate,
                                   Handle<WasmTableObject> table, int index);
@@ -654,6 +660,46 @@ class WasmExportedFunction : public JSFunction {
 
   DECL_CAST(WasmExportedFunction)
   OBJECT_CONSTRUCTORS(WasmExportedFunction, JSFunction);
+};
+
+// An external function exposed to Wasm via the C/C++ API.
+class WasmCapiFunction : public JSFunction {
+ public:
+  static bool IsWasmCapiFunction(Object object);
+
+  static Handle<WasmCapiFunction> New(
+      Isolate* isolate, Address call_target, void* embedder_data,
+      Handle<PodArray<wasm::ValueType>> serialized_signature);
+
+  Address GetHostCallTarget() const;
+  PodArray<wasm::ValueType> GetSerializedSignature() const;
+  // Checks whether the given {sig} has the same parameter types as the
+  // serialized signature stored within this C-API function object.
+  bool IsSignatureEqual(const wasm::FunctionSig* sig) const;
+
+  DECL_CAST(WasmCapiFunction)
+  OBJECT_CONSTRUCTORS(WasmCapiFunction, JSFunction);
+};
+
+class WasmCapiFunctionData : public Struct {
+ public:
+  DECL_PRIMITIVE_ACCESSORS(call_target, Address)
+  DECL_PRIMITIVE_ACCESSORS(embedder_data, void*)
+  DECL_ACCESSORS(wrapper_code, Code)
+  DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
+
+  DECL_CAST(WasmCapiFunctionData)
+
+  DECL_PRINTER(WasmCapiFunctionData)
+  DECL_VERIFIER(WasmCapiFunctionData)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_WASM_CAPI_FUNCTION_DATA_FIELDS)
+
+  STATIC_ASSERT(kStartOfPointerFieldsOffset == kWrapperCodeOffset);
+  typedef FlexibleBodyDescriptor<kStartOfPointerFieldsOffset> BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(WasmCapiFunctionData, Struct);
 };
 
 // Information for a WasmExportedFunction which is referenced as the function

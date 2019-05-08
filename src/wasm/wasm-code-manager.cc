@@ -351,6 +351,8 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
   switch (kind) {
     case WasmCode::kFunction:
       return "wasm function";
+    case WasmCode::kWasmToCapiWrapper:
+      return "wasm-to-capi";
     case WasmCode::kWasmToJsWrapper:
       return "wasm-to-js";
     case WasmCode::kRuntimeStub:

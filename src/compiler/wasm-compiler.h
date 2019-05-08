@@ -67,6 +67,7 @@ wasm::WasmCompilationResult ExecuteInterpreterEntryCompilation(
 enum class WasmImportCallKind : uint8_t {
   kLinkError,                      // static WASM->WASM type error
   kRuntimeTypeError,               // runtime WASM->JS type error
+  kWasmToCapi,                     // fast WASM->C-API call
   kWasmToWasm,                     // fast WASM->WASM call
   kJSFunctionArityMatch,           // fast WASM->JS call
   kJSFunctionArityMatchSloppy,     // fast WASM->JS call, sloppy receiver
@@ -110,6 +111,11 @@ GetWasmImportCallKind(Handle<JSReceiver> callable, wasm::FunctionSig* sig,
 V8_EXPORT_PRIVATE wasm::WasmCode* CompileWasmImportCallWrapper(
     wasm::WasmEngine*, wasm::NativeModule*, WasmImportCallKind,
     wasm::FunctionSig*, bool source_positions);
+
+// Compiles a host call wrapper, which allows WASM to call host functions.
+wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine*,
+                                           wasm::NativeModule*,
+                                           wasm::FunctionSig*, Address address);
 
 // Creates a code object calling a wasm function with the given signature,
 // callable from JS.

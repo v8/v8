@@ -83,6 +83,7 @@ void OptimizedCompilationInfo::ConfigureFlags() {
 #endif  // ENABLE_GDB_JIT_INTERFACE && DEBUG
       break;
     case Code::WASM_FUNCTION:
+    case Code::WASM_TO_CAPI_FUNCTION:
       SetFlag(kSwitchJumpTableEnabled);
       break;
     default:
@@ -167,6 +168,7 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
     case Code::BUILTIN:
       return StackFrame::STUB;
     case Code::WASM_FUNCTION:
+    case Code::WASM_TO_CAPI_FUNCTION:
       return StackFrame::WASM_COMPILED;
     case Code::JS_TO_WASM_FUNCTION:
       return StackFrame::JS_TO_WASM;

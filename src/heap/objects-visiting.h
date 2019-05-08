@@ -13,6 +13,7 @@
 namespace v8 {
 namespace internal {
 
+// TODO(jkummerow): Drop the duplication: V(x, x) -> V(x).
 #define TYPED_VISITOR_ID_LIST_CLASSES(V)                                  \
   V(AllocationSite, AllocationSite)                                       \
   V(BigInt, BigInt)                                                       \
@@ -59,6 +60,7 @@ namespace internal {
   V(TransitionArray, TransitionArray)                                     \
   V(UncompiledDataWithoutPreparseData, UncompiledDataWithoutPreparseData) \
   V(UncompiledDataWithPreparseData, UncompiledDataWithPreparseData)       \
+  V(WasmCapiFunctionData, WasmCapiFunctionData)                           \
   V(WasmInstanceObject, WasmInstanceObject)
 
 #define FORWARD_DECLARE(TypeName, Type) class Type;

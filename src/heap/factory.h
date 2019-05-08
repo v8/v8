@@ -65,6 +65,7 @@ class StoreHandler;
 class TemplateObjectDescription;
 class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
+class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WeakCell;
 struct SourceRange;
@@ -846,6 +847,9 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForApiFunction(
       MaybeHandle<String> maybe_name,
       Handle<FunctionTemplateInfo> function_template_info, FunctionKind kind);
+
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmCapiFunction(
+      Handle<WasmCapiFunctionData> data);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForBuiltin(
       MaybeHandle<String> name, int builtin_index,

@@ -157,6 +157,10 @@ def Main(args):
       for language in languages:
         c = runner.CompileAndRun(compiler, language)
         if c: result = c
+  if result:
+    print("\nFinished with errors.")
+  else:
+    print("\nFinished successfully.")
   return result
 
 if __name__ == "__main__":

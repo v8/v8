@@ -321,6 +321,7 @@ class StringWrapper;
 class SymbolWrapper;
 class Undetectable;
 class UniqueName;
+class WasmCapiFunctionData;
 class WasmExceptionObject;
 class WasmExceptionTag;
 class WasmExportedFunctionData;

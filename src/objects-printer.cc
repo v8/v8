@@ -2036,6 +2036,16 @@ void FunctionTemplateRareData::FunctionTemplateRareDataPrint(
   os << "\n";
 }
 
+void WasmCapiFunctionData::WasmCapiFunctionDataPrint(
+    std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmCapiFunctionData");
+  os << "\n - call_target: " << call_target();
+  os << "\n - embedder_data: " << embedder_data();
+  os << "\n - wrapper_code: " << Brief(wrapper_code());
+  os << "\n - serialized_signature: " << Brief(serialized_signature());
+  os << "\n";
+}
+
 void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "ObjectTemplateInfo");
   os << "\n - tag: " << Brief(tag());

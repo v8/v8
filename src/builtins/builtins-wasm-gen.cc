@@ -105,6 +105,14 @@ TF_BUILTIN(WasmThrow, WasmBuiltinsAssembler) {
   TailCallRuntimeWithCEntry(Runtime::kThrow, centry, context, exception);
 }
 
+TF_BUILTIN(WasmRethrow, WasmBuiltinsAssembler) {
+  TNode<Object> exception = UncheckedParameter(Descriptor::kException);
+  TNode<Object> instance = LoadInstanceFromFrame();
+  TNode<Code> centry = LoadCEntryFromInstance(instance);
+  TNode<Object> context = LoadContextFromInstance(instance);
+  TailCallRuntimeWithCEntry(Runtime::kReThrow, centry, context, exception);
+}
+
 TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {
   TNode<Uint32T> address =
       UncheckedCast<Uint32T>(Parameter(Descriptor::kAddress));

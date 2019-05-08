@@ -1069,6 +1069,7 @@ namespace internal {
   TFC(WasmStackOverflow, NoContext)                                            \
   TFC(WasmToNumber, TypeConversion)                                            \
   TFC(WasmThrow, WasmThrow)                                                    \
+  TFC(WasmRethrow, WasmThrow)                                                  \
   TFS(ThrowWasmTrapUnreachable)                                                \
   TFS(ThrowWasmTrapMemOutOfBounds)                                             \
   TFS(ThrowWasmTrapUnalignedAccess)                                            \
@@ -1383,6 +1384,7 @@ namespace internal {
   V(WasmStackOverflow)                   \
   V(WasmToNumber)                        \
   V(WasmThrow)                           \
+  V(WasmRethrow)                         \
   V(DoubleToI)                           \
   V(WasmI64ToBigInt)                     \
   V(WasmBigIntToI64)

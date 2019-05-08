@@ -114,6 +114,7 @@ namespace internal {
   V(TUPLE2_TYPE)                                         \
   V(TUPLE3_TYPE)                                         \
   V(ARRAY_BOILERPLATE_DESCRIPTION_TYPE)                  \
+  V(WASM_CAPI_FUNCTION_DATA_TYPE)                        \
   V(WASM_DEBUG_INFO_TYPE)                                \
   V(WASM_EXCEPTION_TAG_TYPE)                             \
   V(WASM_EXPORTED_FUNCTION_DATA_TYPE)                    \
@@ -298,53 +299,55 @@ namespace internal {
 // Note that for subtle reasons related to the ordering or numerical values of
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
-#define STRUCT_LIST_GENERATOR(V, _)                                           \
-  V(_, ACCESS_CHECK_INFO_TYPE, AccessCheckInfo, access_check_info)            \
-  V(_, ACCESSOR_INFO_TYPE, AccessorInfo, accessor_info)                       \
-  V(_, ACCESSOR_PAIR_TYPE, AccessorPair, accessor_pair)                       \
-  V(_, ALIASED_ARGUMENTS_ENTRY_TYPE, AliasedArgumentsEntry,                   \
-    aliased_arguments_entry)                                                  \
-  V(_, ALLOCATION_MEMENTO_TYPE, AllocationMemento, allocation_memento)        \
-  V(_, ASM_WASM_DATA_TYPE, AsmWasmData, asm_wasm_data)                        \
-  V(_, ASYNC_GENERATOR_REQUEST_TYPE, AsyncGeneratorRequest,                   \
-    async_generator_request)                                                  \
-  V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                 \
-  V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                \
-  V(_, ENUM_CACHE_TYPE, EnumCache, enum_cache)                                \
-  V(_, FUNCTION_TEMPLATE_INFO_TYPE, FunctionTemplateInfo,                     \
-    function_template_info)                                                   \
-  V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,            \
-    function_template_rare_data)                                              \
-  V(_, INTERCEPTOR_INFO_TYPE, InterceptorInfo, interceptor_info)              \
-  V(_, INTERPRETER_DATA_TYPE, InterpreterData, interpreter_data)              \
-  V(_, MODULE_INFO_ENTRY_TYPE, ModuleInfoEntry, module_info_entry)            \
-  V(_, MODULE_TYPE, Module, module)                                           \
-  V(_, OBJECT_TEMPLATE_INFO_TYPE, ObjectTemplateInfo, object_template_info)   \
-  V(_, PROMISE_CAPABILITY_TYPE, PromiseCapability, promise_capability)        \
-  V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)              \
-  V(_, PROTOTYPE_INFO_TYPE, PrototypeInfo, prototype_info)                    \
-  V(_, SCRIPT_TYPE, Script, script)                                           \
-  V(_, SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE,                           \
-    SourcePositionTableWithFrameCache, source_position_table_with_frame_cache)\
-  V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)               \
-  V(_, STACK_TRACE_FRAME_TYPE, StackTraceFrame, stack_trace_frame)            \
-  V(_, TUPLE2_TYPE, Tuple2, tuple2)                                           \
-  V(_, TUPLE3_TYPE, Tuple3, tuple3)                                           \
-  V(_, ARRAY_BOILERPLATE_DESCRIPTION_TYPE, ArrayBoilerplateDescription,       \
-    array_boilerplate_description)                                            \
-  V(_, WASM_DEBUG_INFO_TYPE, WasmDebugInfo, wasm_debug_info)                  \
-  V(_, WASM_EXCEPTION_TAG_TYPE, WasmExceptionTag, wasm_exception_tag)         \
-  V(_, WASM_EXPORTED_FUNCTION_DATA_TYPE, WasmExportedFunctionData,            \
-    wasm_exported_function_data)                                              \
-  V(_, CALLABLE_TASK_TYPE, CallableTask, callable_task)                       \
-  V(_, CALLBACK_TASK_TYPE, CallbackTask, callback_task)                       \
-  V(_, PROMISE_FULFILL_REACTION_JOB_TASK_TYPE, PromiseFulfillReactionJobTask, \
-    promise_fulfill_reaction_job_task)                                        \
-  V(_, PROMISE_REJECT_REACTION_JOB_TASK_TYPE, PromiseRejectReactionJobTask,   \
-    promise_reject_reaction_job_task)                                         \
-  V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask, \
-    promise_resolve_thenable_job_task)                                        \
-  V(_, FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,                              \
+#define STRUCT_LIST_GENERATOR(V, _)                                            \
+  V(_, ACCESS_CHECK_INFO_TYPE, AccessCheckInfo, access_check_info)             \
+  V(_, ACCESSOR_INFO_TYPE, AccessorInfo, accessor_info)                        \
+  V(_, ACCESSOR_PAIR_TYPE, AccessorPair, accessor_pair)                        \
+  V(_, ALIASED_ARGUMENTS_ENTRY_TYPE, AliasedArgumentsEntry,                    \
+    aliased_arguments_entry)                                                   \
+  V(_, ALLOCATION_MEMENTO_TYPE, AllocationMemento, allocation_memento)         \
+  V(_, ASM_WASM_DATA_TYPE, AsmWasmData, asm_wasm_data)                         \
+  V(_, ASYNC_GENERATOR_REQUEST_TYPE, AsyncGeneratorRequest,                    \
+    async_generator_request)                                                   \
+  V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                  \
+  V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                 \
+  V(_, ENUM_CACHE_TYPE, EnumCache, enum_cache)                                 \
+  V(_, FUNCTION_TEMPLATE_INFO_TYPE, FunctionTemplateInfo,                      \
+    function_template_info)                                                    \
+  V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,             \
+    function_template_rare_data)                                               \
+  V(_, INTERCEPTOR_INFO_TYPE, InterceptorInfo, interceptor_info)               \
+  V(_, INTERPRETER_DATA_TYPE, InterpreterData, interpreter_data)               \
+  V(_, MODULE_INFO_ENTRY_TYPE, ModuleInfoEntry, module_info_entry)             \
+  V(_, MODULE_TYPE, Module, module)                                            \
+  V(_, OBJECT_TEMPLATE_INFO_TYPE, ObjectTemplateInfo, object_template_info)    \
+  V(_, PROMISE_CAPABILITY_TYPE, PromiseCapability, promise_capability)         \
+  V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)               \
+  V(_, PROTOTYPE_INFO_TYPE, PrototypeInfo, prototype_info)                     \
+  V(_, SCRIPT_TYPE, Script, script)                                            \
+  V(_, SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE,                            \
+    SourcePositionTableWithFrameCache, source_position_table_with_frame_cache) \
+  V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)                \
+  V(_, STACK_TRACE_FRAME_TYPE, StackTraceFrame, stack_trace_frame)             \
+  V(_, TUPLE2_TYPE, Tuple2, tuple2)                                            \
+  V(_, TUPLE3_TYPE, Tuple3, tuple3)                                            \
+  V(_, ARRAY_BOILERPLATE_DESCRIPTION_TYPE, ArrayBoilerplateDescription,        \
+    array_boilerplate_description)                                             \
+  V(_, WASM_CAPI_FUNCTION_DATA_TYPE, WasmCapiFunctionData,                     \
+    wasm_capi_function_data)                                                   \
+  V(_, WASM_DEBUG_INFO_TYPE, WasmDebugInfo, wasm_debug_info)                   \
+  V(_, WASM_EXCEPTION_TAG_TYPE, WasmExceptionTag, wasm_exception_tag)          \
+  V(_, WASM_EXPORTED_FUNCTION_DATA_TYPE, WasmExportedFunctionData,             \
+    wasm_exported_function_data)                                               \
+  V(_, CALLABLE_TASK_TYPE, CallableTask, callable_task)                        \
+  V(_, CALLBACK_TASK_TYPE, CallbackTask, callback_task)                        \
+  V(_, PROMISE_FULFILL_REACTION_JOB_TASK_TYPE, PromiseFulfillReactionJobTask,  \
+    promise_fulfill_reaction_job_task)                                         \
+  V(_, PROMISE_REJECT_REACTION_JOB_TASK_TYPE, PromiseRejectReactionJobTask,    \
+    promise_reject_reaction_job_task)                                          \
+  V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask,  \
+    promise_resolve_thenable_job_task)                                         \
+  V(_, FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,                               \
     FinalizationGroupCleanupJobTask, finalization_group_cleanup_job_task)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_LIST entry

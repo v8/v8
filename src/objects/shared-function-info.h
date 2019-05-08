@@ -32,6 +32,7 @@ class BytecodeArray;
 class CoverageInfo;
 class DebugInfo;
 class IsCompiledScope;
+class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 
 // Data collected by the pre-parser storing information about scopes and inner
@@ -361,6 +362,8 @@ class SharedFunctionInfo : public HeapObject {
   inline bool HasUncompiledDataWithoutPreparseData() const;
   inline bool HasWasmExportedFunctionData() const;
   WasmExportedFunctionData wasm_exported_function_data() const;
+  inline bool HasWasmCapiFunctionData() const;
+  WasmCapiFunctionData wasm_capi_function_data() const;
 
   // Clear out pre-parsed scope data from UncompiledDataWithPreparseData,
   // turning it into UncompiledDataWithoutPreparseData.

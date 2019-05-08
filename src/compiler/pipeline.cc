@@ -1939,6 +1939,7 @@ struct VerifyGraphPhase {
     Verifier::CodeType code_type;
     switch (data->info()->code_kind()) {
       case Code::WASM_FUNCTION:
+      case Code::WASM_TO_CAPI_FUNCTION:
       case Code::WASM_TO_JS_FUNCTION:
       case Code::JS_TO_WASM_FUNCTION:
       case Code::WASM_INTERPRETER_ENTRY:

@@ -13459,7 +13459,8 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
                            ASM_WASM_DATA_TYPE,
                            UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
                            UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
-                           FUNCTION_TEMPLATE_INFO_TYPE};
+                           FUNCTION_TEMPLATE_INFO_TYPE,
+                           WASM_CAPI_FUNCTION_DATA_TYPE};
   Label check_is_bytecode_array(this);
   Label check_is_exported_function_data(this);
   Label check_is_asm_wasm_data(this);
@@ -13467,12 +13468,14 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   Label check_is_uncompiled_data_with_preparse_data(this);
   Label check_is_function_template_info(this);
   Label check_is_interpreter_data(this);
+  Label check_is_wasm_capi_function_data(this);
   Label* case_labels[] = {&check_is_bytecode_array,
                           &check_is_exported_function_data,
                           &check_is_asm_wasm_data,
                           &check_is_uncompiled_data_without_preparse_data,
                           &check_is_uncompiled_data_with_preparse_data,
-                          &check_is_function_template_info};
+                          &check_is_function_template_info,
+                          &check_is_wasm_capi_function_data};
   STATIC_ASSERT(arraysize(case_values) == arraysize(case_labels));
   Switch(data_type, &check_is_interpreter_data, case_values, case_labels,
          arraysize(case_labels));
@@ -13513,6 +13516,12 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
              Word32Equal(data_type, Int32Constant(INTERPRETER_DATA_TYPE)));
   sfi_code = CAST(LoadObjectField(
       CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
+  Goto(&done);
+
+  // IsWasmCapiFunctionData: Use the wrapper code.
+  BIND(&check_is_wasm_capi_function_data);
+  sfi_code = CAST(LoadObjectField(CAST(sfi_data),
+                                  WasmCapiFunctionData::kWrapperCodeOffset));
   Goto(&done);
 
   BIND(&done);

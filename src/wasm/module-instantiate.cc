@@ -798,6 +798,24 @@ bool InstanceBuilder::ProcessImportedFunction(
       entry.SetWasmToWasm(*imported_instance, imported_target);
       break;
     }
+    case compiler::WasmImportCallKind::kWasmToCapi: {
+      NativeModule* native_module = instance->module_object()->native_module();
+      Address host_address =
+          WasmCapiFunction::cast(*value)->GetHostCallTarget();
+      WasmCodeRefScope code_ref_scope;
+      WasmCode* wasm_code = compiler::CompileWasmCapiCallWrapper(
+          isolate_->wasm_engine(), native_module, expected_sig, host_address);
+      isolate_->counters()->wasm_generated_code_size()->Increment(
+          wasm_code->instructions().length());
+      isolate_->counters()->wasm_reloc_size()->Increment(
+          wasm_code->reloc_info().length());
+
+      ImportedFunctionEntry entry(instance, func_index);
+      // We re-use the SetWasmToJs infrastructure because it passes the
+      // callable to the wrapper, which we need to get the function data.
+      entry.SetWasmToJs(isolate_, js_receiver, wasm_code);
+      break;
+    }
     default: {
       // The imported function is a callable.
       NativeModule* native_module = instance->module_object()->native_module();

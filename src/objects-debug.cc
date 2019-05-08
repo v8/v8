@@ -1114,7 +1114,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
   CHECK(HasWasmExportedFunctionData() || IsApiFunction() ||
         HasBytecodeArray() || HasAsmWasmData() || HasBuiltinId() ||
         HasUncompiledDataWithPreparseData() ||
-        HasUncompiledDataWithoutPreparseData());
+        HasUncompiledDataWithoutPreparseData() || HasWasmCapiFunctionData());
 
   CHECK(script_or_debug_info()->IsUndefined(isolate) ||
         script_or_debug_info()->IsScript() || HasDebugInfo());
@@ -2095,6 +2095,12 @@ void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
   VerifyPointer(isolate, indexed_property_handler());
   VerifyPointer(isolate, instance_template());
   VerifyPointer(isolate, access_check_info());
+}
+
+void WasmCapiFunctionData::WasmCapiFunctionDataVerify(Isolate* isolate) {
+  CHECK(IsWasmCapiFunctionData());
+  VerifyPointer(isolate, wrapper_code());
+  VerifyPointer(isolate, serialized_signature());
 }
 
 void ObjectTemplateInfo::ObjectTemplateInfoVerify(Isolate* isolate) {

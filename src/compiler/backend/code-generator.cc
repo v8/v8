@@ -88,6 +88,7 @@ CodeGenerator::CodeGenerator(
   tasm_.set_jump_optimization_info(jump_opt);
   Code::Kind code_kind = info->code_kind();
   if (code_kind == Code::WASM_FUNCTION ||
+      code_kind == Code::WASM_TO_CAPI_FUNCTION ||
       code_kind == Code::WASM_TO_JS_FUNCTION ||
       code_kind == Code::WASM_INTERPRETER_ENTRY ||
       (Builtins::IsBuiltinId(builtin_index) &&
@@ -765,6 +766,7 @@ bool CodeGenerator::GetSlotAboveSPBeforeTailCall(Instruction* instr,
 StubCallMode CodeGenerator::DetermineStubCallMode() const {
   Code::Kind code_kind = info()->code_kind();
   return (code_kind == Code::WASM_FUNCTION ||
+          code_kind == Code::WASM_TO_CAPI_FUNCTION ||
           code_kind == Code::WASM_TO_JS_FUNCTION)
              ? StubCallMode::kCallWasmRuntimeStub
              : StubCallMode::kCallCodeObject;
