@@ -447,6 +447,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // it never gets flushed, so the following check should always hold true.
   CHECK(is_compiled_scope.is_compiled());
 
+  if (!FLAG_concurrent_inlining && info_->is_source_positions_enabled()) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared_info);
+  }
+
   TRACE("Inlining %s into %s%s\n", shared_info->DebugName()->ToCString().get(),
         info_->shared_info()->DebugName()->ToCString().get(),
         (exception_target != nullptr) ? " (inside try-block)" : "");
