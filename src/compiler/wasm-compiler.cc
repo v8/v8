@@ -4807,20 +4807,23 @@ Node* WasmGraphBuilder::TableGrow(uint32_t table_index, Node* value,
 }
 
 Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
-  Node* tables = LOAD_INSTANCE_FIELD(Tables, MachineType::TaggedPointer());
+  Node* tables =
+      LOAD_INSTANCE_FIELD(Tables, MachineType::TypeCompressedTaggedPointer());
   Node* table = LOAD_FIXED_ARRAY_SLOT_ANY(tables, table_index);
 
   int storage_field_size = WasmTableObject::kElementsOffsetEnd -
                            WasmTableObject::kElementsOffset + 1;
   Node* storage = LOAD_RAW(
       table, wasm::ObjectAccess::ToTagged(WasmTableObject::kEntriesOffset),
-      assert_size(storage_field_size, MachineType::TaggedPointer()));
+      assert_size(storage_field_size,
+                  MachineType::TypeCompressedTaggedPointer()));
 
   int length_field_size =
       FixedArray::kLengthOffsetEnd - FixedArray::kLengthOffset + 1;
   Node* table_size =
       LOAD_RAW(storage, wasm::ObjectAccess::ToTagged(FixedArray::kLengthOffset),
-               assert_size(length_field_size, MachineType::TaggedSigned()));
+               assert_size(length_field_size,
+                           MachineType::TypeCompressedTaggedSigned()));
 
   return BuildChangeSmiToInt32(table_size);
 }
