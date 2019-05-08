@@ -88,7 +88,7 @@ class SafepointTableBuilder;
 
 // Class Operand represents a shifter operand in data processing instructions
 // defining immediate numbers and masks
-class Operand {
+class V8_EXPORT_PRIVATE Operand {
  public:
   // immediate
   V8_INLINE explicit Operand(intptr_t immediate,
@@ -167,7 +167,7 @@ typedef int32_t Disp;
 //   1) a base register + 16 bit unsigned displacement
 //   2) a base register + index register + 16 bit unsigned displacement
 //   3) a base register + index register + 20 bit signed displacement
-class MemOperand {
+class V8_EXPORT_PRIVATE MemOperand {
  public:
   explicit MemOperand(Register rx, Disp offset = 0);
   explicit MemOperand(Register rx, Register rb, Disp offset = 0);

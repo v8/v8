@@ -61,7 +61,7 @@ class SafepointTableBuilder;
 // Machine instruction Operands
 
 // Class Operand represents a shifter operand in data processing instructions
-class Operand {
+class V8_EXPORT_PRIVATE Operand {
  public:
   // immediate
   V8_INLINE explicit Operand(intptr_t immediate,
@@ -126,11 +126,10 @@ class Operand {
   friend class MacroAssembler;
 };
 
-
 // Class MemOperand represents a memory operand in load and store instructions
 // On PowerPC we have base register + 16bit signed value
 // Alternatively we can have a 16bit signed value immediate
-class MemOperand {
+class V8_EXPORT_PRIVATE MemOperand {
  public:
   explicit MemOperand(Register rn, int32_t offset = 0);
 
@@ -156,7 +155,6 @@ class MemOperand {
 
   friend class Assembler;
 };
-
 
 class DeferredRelocInfo {
  public:
