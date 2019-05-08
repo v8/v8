@@ -533,20 +533,20 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9051
   'language/statements/async-generator/yield-star-return-then-getter-ticks': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9152
-  'built-ins/Promise/all/capability-executor-called-twice': [FAIL],
-  'built-ins/Promise/all/capability-resolve-throws-no-close': [FAIL],
-  'built-ins/Promise/all/capability-resolve-throws-reject': [FAIL],
-  'built-ins/Promise/all/invoke-resolve-get-error-close': [FAIL],
-  'built-ins/Promise/all/species-get-error': [FAIL],
-  'built-ins/Promise/allSettled/capability-executor-called-twice': [FAIL],
-  'built-ins/Promise/allSettled/capability-resolve-throws-no-close': [FAIL],
-  'built-ins/Promise/allSettled/capability-resolve-throws-reject': [FAIL],
-  'built-ins/Promise/allSettled/invoke-resolve-get-error-close': [FAIL],
-  'built-ins/Promise/allSettled/species-get-error': [FAIL],
-  'built-ins/Promise/race/capability-executor-called-twice': [FAIL],
-  'built-ins/Promise/race/invoke-resolve-get-error-close': [FAIL],
-  'built-ins/Promise/race/species-get-error': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9228
+  'built-ins/Proxy/defineProperty/targetdesc-not-configurable-writable-desc-not-writable': [FAIL],
+  'built-ins/Proxy/deleteProperty/targetdesc-is-configurable-target-is-not-extensible': [FAIL],
+  'built-ins/Proxy/getOwnPropertyDescriptor/resultdesc-is-not-configurable-not-writable-targetdesc-is-writable': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9229
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage': [FAIL],
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage': [FAIL],
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-function-expression': [FAIL],
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-function-expression': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
