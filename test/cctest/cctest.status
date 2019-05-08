@@ -214,6 +214,7 @@
 ['is_full_debug', {
   # Tests too slow in non-optimized debug mode.
   'test-api/InternalFieldsSubclassing': [SKIP],
+  'test-cpu-profiler/Inlining2': [SKIP],
   'test-heap/TestInternalWeakLists': [SKIP],
 }],  # 'is_full_debug'
 
