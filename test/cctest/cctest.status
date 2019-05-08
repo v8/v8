@@ -567,7 +567,9 @@
   # allocation. Fix logging to work without feedback vectors and enable these
   # tests in lite_mode.
   'test-log/ExternalCodeEventListenerWithInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStack': [SKIP]
+  'test-log/LogInterpretedFramesNativeStack': [SKIP],
+  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP]
 }], # lite_mode
 
 ##############################################################################
@@ -606,6 +608,8 @@
   # --interpreted-frames-native-stack tests
   'test-log/ExternalCodeEventListenerWithInterpretedFramesNativeStack': [SKIP],
   'test-log/LogInterpretedFramesNativeStack': [SKIP],
+  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP],
 
   # Crashes on native arm.
   'test-macro-assembler-arm/ExtractLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
