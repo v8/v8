@@ -18,16 +18,6 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
   explicit ProxiesCodeStubAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  // ES6 section 9.5.8 [[Get]] ( P, Receiver )
-  // name should not be an index.
-  Node* ProxyGetProperty(Node* context, Node* proxy, Node* name,
-                         Node* receiver);
-
-  // ES6 section 9.5.9 [[Set]] ( P, V, Receiver )
-  // name should not be an index.
-  Node* ProxySetProperty(Node* context, Node* proxy, Node* name, Node* value,
-                         Node* receiver);
-
   Node* AllocateProxy(Node* target, Node* handler, Node* context);
   Node* AllocateProxyRevokeFunction(Node* proxy, Node* context);
 

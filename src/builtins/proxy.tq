@@ -20,12 +20,20 @@ namespace proxy {
     return false;
   }
 
+  extern transitioning macro ProxiesCodeStubAssembler::CheckGetSetTrapResult(
+      implicit context:
+          Context)(Object, JSProxy, Name, Object, constexpr int31): Object;
+
   const kProxyNonObject: constexpr MessageTemplate
   generates 'MessageTemplate::kProxyNonObject';
   const kProxyHandlerOrTargetRevoked: constexpr MessageTemplate
   generates 'MessageTemplate::kProxyHandlerOrTargetRevoked';
   const kProxyRevoked: constexpr MessageTemplate
   generates 'MessageTemplate::kProxyRevoked';
+  const kProxyTrapReturnedFalsishFor: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyTrapReturnedFalsishFor';
+  const kProxyPrivate: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyPrivate';
 
   const kProxyGet: constexpr int31
   generates 'JSProxy::AccessKind::kGet';

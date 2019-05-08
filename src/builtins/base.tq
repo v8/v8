@@ -1208,6 +1208,17 @@ extern macro ThrowTypeError(implicit context: Context)(
     constexpr MessageTemplate, Object, Object): never;
 extern macro ThrowTypeError(implicit context: Context)(
     constexpr MessageTemplate, Object, Object, Object): never;
+extern transitioning runtime ThrowTypeErrorIfStrict(implicit context: Context)(
+    constexpr MessageTemplate, Object, Object): void;
+transitioning macro ThrowTypeErrorIfStrictRT(implicit context: Context)(
+    message: constexpr MessageTemplate): void {
+  ThrowTypeErrorIfStrict(message, Null, Null);
+}
+transitioning macro ThrowTypeErrorIfStrictRT(implicit context: Context)(
+    message: constexpr MessageTemplate, arg1: constexpr string,
+    arg2: Object): void {
+  ThrowTypeErrorIfStrict(message, arg1, arg2);
+}
 extern macro ArraySpeciesCreate(Context, Object, Number): JSReceiver;
 extern macro ArrayCreate(implicit context: Context)(Number): JSArray;
 extern macro BuildAppendJSArray(
