@@ -3462,7 +3462,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
   TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
       TRACE_DISABLED_BY_DEFAULT("v8.compile"), "SharedFunctionInfo",
       TRACE_ID_WITH_SCOPE(SharedFunctionInfo::kTraceScope, shared->TraceID()),
-      shared->ToTracedValue());
+      shared->ToTracedValue(literal));
   return shared;
 }
 

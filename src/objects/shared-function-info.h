@@ -601,7 +601,8 @@ class SharedFunctionInfo : public HeapObject {
 #endif
 
   // Returns the SharedFunctionInfo in a format tracing can support.
-  std::unique_ptr<v8::tracing::TracedValue> ToTracedValue();
+  std::unique_ptr<v8::tracing::TracedValue> ToTracedValue(
+      FunctionLiteral* literal);
 
   // The tracing scope for SharedFunctionInfo objects.
   static const char* kTraceScope;

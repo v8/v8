@@ -4905,7 +4905,8 @@ uint32_t SharedFunctionInfo::Hash() {
   return static_cast<uint32_t>(base::hash_combine(start_pos, script_id));
 }
 
-std::unique_ptr<v8::tracing::TracedValue> SharedFunctionInfo::ToTracedValue() {
+std::unique_ptr<v8::tracing::TracedValue> SharedFunctionInfo::ToTracedValue(
+    FunctionLiteral* literal) {
   auto value = v8::tracing::TracedValue::Create();
   if (HasSharedName()) {
     value->SetString("name", Name()->ToCString());
@@ -4923,8 +4924,12 @@ std::unique_ptr<v8::tracing::TracedValue> SharedFunctionInfo::ToTracedValue() {
     value->SetValue("script", Script::cast(script())->TraceIDRef());
     value->BeginDictionary("sourcePosition");
     Script::PositionInfo info;
-    if (Script::cast(script())->GetPositionInfo(StartPosition(), &info,
-                                                Script::WITH_OFFSET)) {
+    // We get the start position from the {literal} here, because the
+    // SharedFunctionInfo itself might not have a way to get to the
+    // start position early on (currently that's the case when it's
+    // marked for eager compilation).
+    if (Script::cast(script())->GetPositionInfo(literal->start_position(),
+                                                &info, Script::WITH_OFFSET)) {
       value->SetInteger("line", info.line + 1);
       value->SetInteger("column", info.column + 1);
     }
