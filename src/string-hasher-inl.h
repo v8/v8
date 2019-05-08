@@ -15,18 +15,6 @@
 namespace v8 {
 namespace internal {
 
-StringHasher::StringHasher(int length, uint64_t seed)
-    : length_(length),
-      raw_running_hash_(static_cast<uint32_t>(seed)),
-      array_index_(0),
-      is_array_index_(IsInRange(length, 1, String::kMaxArrayIndexSize)) {
-  DCHECK(FLAG_randomize_hashes || raw_running_hash_ == 0);
-}
-
-bool StringHasher::has_trivial_hash() {
-  return length_ > String::kMaxHashCalcLength;
-}
-
 uint32_t StringHasher::AddCharacterCore(uint32_t running_hash, uint16_t c) {
   running_hash += c;
   running_hash += (running_hash << 10);
@@ -43,60 +31,15 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
   return running_hash | (kZeroHash & mask);
 }
 
-template <typename Char>
-uint32_t StringHasher::ComputeRunningHash(uint32_t running_hash,
-                                          const Char* chars, int length) {
-  DCHECK_LE(0, length);
-  DCHECK_IMPLIES(0 < length, chars != nullptr);
-  const Char* end = &chars[length];
-  while (chars != end) {
-    running_hash = AddCharacterCore(running_hash, *chars++);
-  }
-  return running_hash;
-}
-
-void StringHasher::AddCharacter(uint16_t c) {
-  // Use the Jenkins one-at-a-time hash function to update the hash
-  // for the given character.
-  raw_running_hash_ = AddCharacterCore(raw_running_hash_, c);
-}
-
-bool StringHasher::UpdateIndex(uint16_t c) {
-  DCHECK(is_array_index_);
-  if (!TryAddIndexChar(&array_index_, c)) {
-    is_array_index_ = false;
-    return false;
-  }
-  is_array_index_ = array_index_ != 0 || length_ == 1;
-  return is_array_index_;
-}
-
-template <typename Char>
-inline void StringHasher::AddCharacters(const Char* chars, int length) {
-  DCHECK(sizeof(Char) == 1 || sizeof(Char) == 2);
-  int i = 0;
-  if (is_array_index_) {
-    for (; i < length; i++) {
-      AddCharacter(chars[i]);
-      if (!UpdateIndex(chars[i])) {
-        i++;
-        break;
-      }
-    }
-  }
-  raw_running_hash_ =
-      ComputeRunningHash(raw_running_hash_, &chars[i], length - i);
+uint32_t StringHasher::GetTrivialHash(int length) {
+  DCHECK_GT(length, String::kMaxHashCalcLength);
+  // String hash of a large string is simply the length.
+  return (length << String::kHashShift) | String::kIsNotArrayIndexMask;
 }
 
 template <typename schar>
 uint32_t StringHasher::HashSequentialString(const schar* chars, int length,
                                             uint64_t seed) {
-#ifdef DEBUG
-  StringHasher hasher(length, seed);
-  if (!hasher.has_trivial_hash()) hasher.AddCharacters(chars, length);
-  uint32_t expected = hasher.GetHashField();
-#endif
-
   // Check whether the string is a valid array index. In that case, compute the
   // array index hash. It'll fall through to compute a regular string hash from
   // the start if it turns out that the string isn't a valid array index.
@@ -106,51 +49,25 @@ uint32_t StringHasher::HashSequentialString(const schar* chars, int length,
       int i = 1;
       do {
         if (i == length) {
-          uint32_t result = MakeArrayIndexHash(index, length);
-          DCHECK_EQ(expected, result);
-          return result;
+          return MakeArrayIndexHash(index, length);
         }
       } while (TryAddIndexChar(&index, chars[i++]));
     }
   } else if (length > String::kMaxHashCalcLength) {
-    // String hash of a large string is simply the length.
-    uint32_t result =
-        (length << String::kHashShift) | String::kIsNotArrayIndexMask;
-    DCHECK_EQ(result, expected);
-    return result;
+    return GetTrivialHash(length);
   }
 
   // Non-array-index hash.
-  uint32_t hash =
-      ComputeRunningHash(static_cast<uint32_t>(seed), chars, length);
+  DCHECK_LE(0, length);
+  DCHECK_IMPLIES(0 < length, chars != nullptr);
+  uint32_t running_hash = static_cast<uint32_t>(seed);
+  const schar* end = &chars[length];
+  while (chars != end) {
+    running_hash = AddCharacterCore(running_hash, *chars++);
+  }
 
-  uint32_t result =
-      (GetHashCore(hash) << String::kHashShift) | String::kIsNotArrayIndexMask;
-  DCHECK_EQ(result, expected);
-  return result;
-}
-
-IteratingStringHasher::IteratingStringHasher(int len, uint64_t seed)
-    : StringHasher(len, seed) {}
-
-uint32_t IteratingStringHasher::Hash(String string, uint64_t seed) {
-  IteratingStringHasher hasher(string->length(), seed);
-  // Nothing to do.
-  if (hasher.has_trivial_hash()) return hasher.GetHashField();
-  ConsString cons_string = String::VisitFlat(&hasher, string);
-  if (cons_string.is_null()) return hasher.GetHashField();
-  hasher.VisitConsString(cons_string);
-  return hasher.GetHashField();
-}
-
-void IteratingStringHasher::VisitOneByteString(const uint8_t* chars,
-                                               int length) {
-  AddCharacters(chars, length);
-}
-
-void IteratingStringHasher::VisitTwoByteString(const uint16_t* chars,
-                                               int length) {
-  AddCharacters(chars, length);
+  return (GetHashCore(running_hash) << String::kHashShift) |
+         String::kIsNotArrayIndexMask;
 }
 
 std::size_t SeededStringHasher::operator()(const char* name) const {

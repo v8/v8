@@ -4547,46 +4547,6 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
 }
 
 
-uint32_t StringHasher::GetHashField() {
-  if (length_ <= String::kMaxHashCalcLength) {
-    if (is_array_index_) {
-      return MakeArrayIndexHash(array_index_, length_);
-    }
-    return (GetHashCore(raw_running_hash_) << String::kHashShift) |
-           String::kIsNotArrayIndexMask;
-  } else {
-    return (length_ << String::kHashShift) | String::kIsNotArrayIndexMask;
-  }
-}
-
-void IteratingStringHasher::VisitConsString(ConsString cons_string) {
-  // Run small ConsStrings through ConsStringIterator.
-  if (cons_string->length() < 64) {
-    ConsStringIterator iter(cons_string);
-    int offset;
-    for (String string = iter.Next(&offset); !string.is_null();
-         string = iter.Next(&offset)) {
-      DCHECK_EQ(0, offset);
-      String::VisitFlat(this, string, 0);
-    }
-    return;
-  }
-  // Slow case.
-  const int max_length = String::kMaxHashCalcLength;
-  int length = std::min(cons_string->length(), max_length);
-  if (cons_string->IsOneByteRepresentation()) {
-    uint8_t* buffer = new uint8_t[length];
-    String::WriteToFlat(cons_string, buffer, 0, length);
-    AddCharacters(buffer, length);
-    delete[] buffer;
-  } else {
-    uint16_t* buffer = new uint16_t[length];
-    String::WriteToFlat(cons_string, buffer, 0, length);
-    AddCharacters(buffer, length);
-    delete[] buffer;
-  }
-}
-
 Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
                                        Handle<Map> initial_map) {
   // Replace all of the cached initial array maps in the native context with

@@ -1287,14 +1287,61 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
   return CompareChars(content.ToUC16Vector().begin(), str.begin(), slen) == 0;
 }
 
+namespace {
+
+template <typename Char>
+uint32_t HashString(String string, size_t start, int length, uint64_t seed) {
+  DisallowHeapAllocation no_gc;
+
+  if (length > String::kMaxHashCalcLength) {
+    return StringHasher::GetTrivialHash(length);
+  }
+
+  std::unique_ptr<Char[]> buffer;
+  const Char* chars;
+
+  if (string.IsConsString()) {
+    DCHECK_EQ(0, start);
+    DCHECK(!string.IsFlat());
+    buffer.reset(new Char[length]);
+    String::WriteToFlat(string, buffer.get(), 0, length);
+    chars = buffer.get();
+  } else {
+    chars = string.GetChars<Char>(no_gc) + start;
+  }
+
+  return StringHasher::HashSequentialString<Char>(chars, length, seed);
+}
+
+}  // namespace
+
 uint32_t String::ComputeAndSetHash() {
   DisallowHeapAllocation no_gc;
   // Should only be called if hash code has not yet been computed.
   DCHECK(!HasHashCode());
 
   // Store the hash code in the object.
-  uint32_t field =
-      IteratingStringHasher::Hash(*this, HashSeed(GetReadOnlyRoots()));
+  uint64_t seed = HashSeed(GetReadOnlyRoots());
+  size_t start = 0;
+  String string = *this;
+  if (string.IsSlicedString()) {
+    SlicedString sliced = SlicedString::cast(string);
+    start = sliced.offset();
+    string = sliced.parent();
+  }
+  if (string.IsConsString() && string.IsFlat()) {
+    string = ConsString::cast(string).first();
+  }
+  if (string.IsThinString()) {
+    string = ThinString::cast(string).actual();
+    if (start == 0) {
+      set_hash_field(string.hash_field());
+      return hash_field() >> kHashShift;
+    }
+  }
+  uint32_t field = string.IsOneByteRepresentation()
+                       ? HashString<uint8_t>(string, start, length(), seed)
+                       : HashString<uint16_t>(string, start, length(), seed);
   set_hash_field(field);
 
   // Check the hash code is there.
