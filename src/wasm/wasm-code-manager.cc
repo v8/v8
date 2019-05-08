@@ -1369,18 +1369,8 @@ void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
     Address discard_end = std::min(RoundDown(merged_region.end(), page_size),
                                    RoundUp(region.end(), page_size));
     if (discard_start >= discard_end) continue;
-#ifdef ENABLE_SLOW_DCHECKS
-    auto vmem_contains = [discard_start, discard_end](VirtualMemory& vmem) {
-      return vmem.InVM(discard_start, discard_end - discard_start);
-    };
-    DCHECK_EQ(1, std::count_if(owned_code_space_.begin(),
-                               owned_code_space_.end(), vmem_contains));
-#endif
-    // {SetPermissions} with {kNoAccess} also discards the pages in a platform
-    // specific way.
-    CHECK(allocator->SetPermissions(reinterpret_cast<void*>(discard_start),
-                                    discard_end - discard_start,
-                                    PageAllocator::kNoAccess));
+    allocator->DiscardSystemPages(reinterpret_cast<void*>(discard_start),
+                                  discard_end - discard_start);
   }
 }
 
