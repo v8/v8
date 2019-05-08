@@ -11004,6 +11004,7 @@ THREADED_TEST(ShadowObjectAndDataProperty) {
   // efficient access and good feedback for optimization.
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
+  i::FLAG_allow_natives_syntax = true;
 
   Local<ObjectTemplate> global_template = v8::ObjectTemplate::New(isolate);
   LocalContext context(nullptr, global_template);
@@ -11022,6 +11023,7 @@ THREADED_TEST(ShadowObjectAndDataProperty) {
 
   CompileRun(
       "function foo(x) { i = x; }"
+      "%EnsureFeedbackVectorForFunction(foo);"
       "foo(0)");
 
   i::Handle<i::JSFunction> foo(i::Handle<i::JSFunction>::cast(

@@ -115,6 +115,7 @@ class BytecodeGraphTester {
             .ToLocalChecked());
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
+    JSFunction::EnsureFeedbackVector(function);
     CHECK(function->shared()->HasBytecodeArray());
 
     Zone zone(isolate_->allocator(), ZONE_NAME);

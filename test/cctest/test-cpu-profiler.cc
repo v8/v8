@@ -2320,6 +2320,8 @@ TEST(DeoptAtSecondLevelInlinedSource) {
       "\n"
       "startProfiling();\n"
       "\n"
+      "%EnsureFeedbackVectorForFunction(opt_function);\n"
+      "%EnsureFeedbackVectorForFunction(test2);\n"
       "%PrepareFunctionForOptimization(test1);\n"
       "\n"
       "test1(10, 10);\n"
@@ -2394,6 +2396,7 @@ TEST(DeoptUntrackedFunction) {
   const char* source =
       "function test(left, right) { return opt_function(left, right); }\n"
       "\n"
+      "%EnsureFeedbackVectorForFunction(opt_function);"
       "%PrepareFunctionForOptimization(test);\n"
       "\n"
       "test(10, 10);\n"
@@ -3071,6 +3074,7 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
       return x;
     }
 
+    %EnsureFeedbackVectorForFunction(bar);
     %PrepareFunctionForOptimization(foo);
     foo(5);
     %OptimizeFunctionOnNextCall(foo);

@@ -4379,6 +4379,7 @@ TEST(WeakFunctionInConstructor) {
   if (FLAG_always_opt) return;
   FLAG_stress_compaction = false;
   FLAG_stress_incremental_marking = false;
+  FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
@@ -4399,6 +4400,8 @@ TEST(WeakFunctionInConstructor) {
     const char* source =
         " (function() {"
         "   function hat() { this.x = 5; }"
+        "   %EnsureFeedbackVectorForFunction(hat);"
+        "   %EnsureFeedbackVectorForFunction(createObj);"
         "   createObj(hat);"
         "   createObj(hat);"
         "   return hat;"
