@@ -6860,7 +6860,8 @@ Handle<StringTable> StringTable::CautiousShrink(Isolate* isolate,
 namespace {
 
 template <typename Char>
-Address LookupString(Isolate* isolate, String string) {
+Address LookupString(Isolate* isolate, String string, String source,
+                     size_t start) {
   DisallowHeapAllocation no_gc;
   StringTable table = isolate->heap()->string_table();
   uint64_t seed = HashSeed(isolate);
@@ -6870,19 +6871,12 @@ Address LookupString(Isolate* isolate, String string) {
   std::unique_ptr<Char[]> buffer;
   const Char* chars;
 
-  if (string.IsConsString()) {
+  if (source.IsConsString()) {
+    DCHECK(!source.IsFlat());
     buffer.reset(new Char[length]);
-    String::WriteToFlat(string, buffer.get(), 0, length);
+    String::WriteToFlat(source, buffer.get(), 0, length);
     chars = buffer.get();
   } else {
-    String source = string;
-    size_t start = 0;
-    if (source.IsSlicedString()) {
-      SlicedString sliced = SlicedString::cast(source);
-      start = sliced.offset();
-      source = sliced.parent();
-    }
-    if (source.IsThinString()) source = ThinString::cast(source).actual();
     chars = source.GetChars<Char>(no_gc) + start;
   }
   // TODO(verwaest): Internalize to one-byte when possible.
@@ -6929,10 +6923,23 @@ Address StringTable::LookupStringIfExists_NoAllocate(Isolate* isolate,
   STATIC_ASSERT(
       !String::ArrayIndexValueBits::is_valid(ResultSentinel::kNotFound));
 
-  if (string.IsOneByteRepresentation()) {
-    return i::LookupString<uint8_t>(isolate, string);
+  size_t start = 0;
+  String source = string;
+  if (source.IsSlicedString()) {
+    SlicedString sliced = SlicedString::cast(source);
+    start = sliced.offset();
+    source = sliced.parent();
+  } else if (source.IsConsString() && source.IsFlat()) {
+    source = ConsString::cast(source).first();
   }
-  return i::LookupString<uint16_t>(isolate, string);
+  if (source.IsThinString()) {
+    source = ThinString::cast(source).actual();
+    if (start == 0) return source.ptr();
+  }
+  if (source.IsOneByteRepresentation()) {
+    return i::LookupString<uint8_t>(isolate, string, source, start);
+  }
+  return i::LookupString<uint16_t>(isolate, string, source, start);
 }
 
 Handle<StringSet> StringSet::New(Isolate* isolate) {
