@@ -556,17 +556,16 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             return BUILTIN;
           case Code::OPTIMIZED_FUNCTION:
             return OPTIMIZED;
-          case Code::WASM_FUNCTION:
-          case Code::WASM_TO_CAPI_FUNCTION:
-            return WASM_COMPILED;
-          case Code::WASM_TO_JS_FUNCTION:
-            return WASM_TO_JS;
           case Code::JS_TO_WASM_FUNCTION:
             return JS_TO_WASM;
-          case Code::WASM_INTERPRETER_ENTRY:
-            return WASM_INTERPRETER_ENTRY;
           case Code::C_WASM_ENTRY:
             return C_WASM_ENTRY;
+          case Code::WASM_FUNCTION:
+          case Code::WASM_TO_CAPI_FUNCTION:
+          case Code::WASM_TO_JS_FUNCTION:
+          case Code::WASM_INTERPRETER_ENTRY:
+            // Never appear as on-heap {Code} objects.
+            UNREACHABLE();
           default:
             // All other types should have an explicit marker
             break;
