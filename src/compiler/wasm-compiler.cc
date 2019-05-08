@@ -2254,13 +2254,16 @@ Node* WasmGraphBuilder::BuildDecodeException64BitValue(Node* values_array,
 
 Node* WasmGraphBuilder::Rethrow(Node* except_obj) {
   needs_stack_check_ = true;
+  // TODO(v8:8091): Currently the message of the original exception is not being
+  // preserved when rethrown to the console. The pending message will need to be
+  // saved when caught and restored here while being rethrown.
   WasmThrowDescriptor interface_descriptor;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       mcgraph()->zone(), interface_descriptor,
       interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
       Operator::kNoProperties, StubCallMode::kCallWasmRuntimeStub);
   Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-      wasm::WasmCode::kWasmThrow, RelocInfo::WASM_STUB_CALL);
+      wasm::WasmCode::kWasmRethrow, RelocInfo::WASM_STUB_CALL);
   return SetEffect(SetControl(
       graph()->NewNode(mcgraph()->common()->Call(call_descriptor), call_target,
                        except_obj, Effect(), Control())));
