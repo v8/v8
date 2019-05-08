@@ -2938,6 +2938,13 @@ class AstNodeFactory final {
   }
 
   class ThisExpression* ThisExpression() {
+    // Clear any previously set "parenthesized" flag on this_expression_ so this
+    // particular token does not inherit the it. The flag is used to check
+    // during arrow function head parsing whether we came from parenthesized
+    // exprssion parsing, since additional arrow function verification was done
+    // there. It does not matter whether a flag is unset after arrow head
+    // verification, so clearing at this point is fine.
+    this_expression_->clear_parenthesized();
     return this_expression_;
   }
 
