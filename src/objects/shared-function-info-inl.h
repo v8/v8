@@ -128,6 +128,9 @@ ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
 ACCESSORS(SharedFunctionInfo, script_or_debug_info, Object,
           kScriptOrDebugInfoOffset)
 
+#if V8_SFI_HAS_UNIQUE_ID
+INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
+#endif
 UINT16_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
                  kFormalParameterCountOffset)
@@ -623,10 +626,6 @@ void SharedFunctionInfo::ClearPreparseData() {
   // Ensure that the clear was successful.
   DCHECK(HasUncompiledDataWithoutPreparseData());
 }
-
-OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfoWithID, SharedFunctionInfo)
-CAST_ACCESSOR(SharedFunctionInfoWithID)
-INT_ACCESSORS(SharedFunctionInfoWithID, unique_id, kUniqueIdOffset)
 
 // static
 void UncompiledData::Initialize(

@@ -315,6 +315,12 @@ class SharedFunctionInfo : public HeapObject {
   // function. The value is only reliable when the function has been compiled.
   DECL_UINT16_ACCESSORS(expected_nof_properties)
 
+#if V8_SFI_HAS_UNIQUE_ID
+  // [unique_id] - For --trace-maps purposes, an identifier that's persistent
+  // even if the GC moves this SharedFunctionInfo.
+  DECL_INT_ACCESSORS(unique_id)
+#endif
+
   // [function data]: This field holds some additional data for function.
   // Currently it has one of:
   //  - a FunctionTemplateInfo to make benefit the API [IsApiFunction()].
@@ -706,14 +712,6 @@ class SharedFunctionInfo : public HeapObject {
   // This is needed to set up the [[HomeObject]] on the function instance.
   inline bool needs_home_object() const;
 
-  V8_INLINE bool IsSharedFunctionInfoWithID() const {
-#if V8_SFI_HAS_UNIQUE_ID
-    return true;
-#else
-    return false;
-#endif
-  }
-
  private:
   // [name_or_scope_info]: Function name string, kNoSharedNameSentinel or
   // ScopeInfo.
@@ -746,23 +744,6 @@ class SharedFunctionInfo : public HeapObject {
   int FindIndexInScript(Isolate* isolate) const;
 
   OBJECT_CONSTRUCTORS(SharedFunctionInfo, HeapObject);
-};
-
-class SharedFunctionInfoWithID : public SharedFunctionInfo {
- public:
-  // [unique_id] - For --trace-maps purposes, an identifier that's persistent
-  // even if the GC moves this SharedFunctionInfo.
-  DECL_INT_ACCESSORS(unique_id)
-
-  DECL_CAST(SharedFunctionInfoWithID)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      SharedFunctionInfo::kSize,
-      TORQUE_GENERATED_SHARED_FUNCTION_INFO_WITH_ID_FIELDS)
-
-  static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
-
-  OBJECT_CONSTRUCTORS(SharedFunctionInfoWithID, SharedFunctionInfo);
 };
 
 // Printing support.

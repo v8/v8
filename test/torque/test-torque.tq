@@ -784,6 +784,15 @@ namespace test {
     i: uintptr;
   }
 
+  // This class should throw alignment errors if @ifdef decorators aren't
+  // working.
+  extern class PreprocessingTest extends JSObject {
+    @ifdef(FALSE_FOR_TESTING) a: int8;
+    @ifdef(TRUE_FOR_TESTING) a: int16;
+    b: int16;
+    d: int32;
+  }
+
   macro TestClassWithAllTypesLoadsAndStores(
       t: TestClassWithAllTypes, r: RawPtr, v1: int8, v2: uint8, v3: int16,
       v4: uint16) {

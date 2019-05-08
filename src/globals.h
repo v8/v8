@@ -85,6 +85,8 @@ constexpr int kStackSpaceRequiredForCompilation = 40;
 // Some types of tracing require the SFI to store a unique ID.
 #if defined(V8_TRACE_MAPS) || defined(V8_TRACE_IGNITION)
 #define V8_SFI_HAS_UNIQUE_ID true
+#else
+#define V8_SFI_HAS_UNIQUE_ID false
 #endif
 
 #if defined(V8_OS_WIN) && defined(V8_TARGET_ARCH_X64)

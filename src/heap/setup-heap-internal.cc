@@ -509,13 +509,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
                  UncompiledDataWithPreparseData::kSize,
                  uncompiled_data_with_preparse_data)
-#if V8_SFI_HAS_UNIQUE_ID
-    ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE,
-                 SharedFunctionInfoWithID::kAlignedSize, shared_function_info)
-#else
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kAlignedSize,
                  shared_function_info)
-#endif
 
     ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
                  code_data_container)

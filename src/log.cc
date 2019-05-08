@@ -1671,7 +1671,7 @@ void Logger::MapEvent(const char* type, Map from, Map to, const char* reason,
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(name_or_sfi);
       msg << sfi->DebugName();
 #if V8_SFI_HAS_UNIQUE_ID
-      msg << " " << SharedFunctionInfoWithID::cast(sfi)->unique_id();
+      msg << " " << sfi->unique_id();
 #endif  // V8_SFI_HAS_UNIQUE_ID
     }
   }
