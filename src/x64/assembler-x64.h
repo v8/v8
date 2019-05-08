@@ -365,10 +365,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  // Return the code target address at a call site from the return address
-  // of that call in the instruction stream.
-  static inline Address target_address_from_return_address(Address pc);
-
   // This sets the branch destination (which is in the instruction on x64).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
@@ -389,9 +385,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Number of bytes taken up by the branch target in the code.
   static constexpr int kSpecialTargetSize = 4;  // 32-bit displacement.
-  // Distance between the address of the code target in the call instruction
-  // and the return address pushed on the stack.
-  static constexpr int kCallTargetAddressOffset = 4;  // 32-bit displacement.
 
   // One byte opcode for test eax,0xXXXXXXXX.
   static constexpr byte kTestEaxByte = 0xA9;

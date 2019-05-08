@@ -38,7 +38,6 @@ class IC {
   virtual ~IC() = default;
 
   State state() const { return state_; }
-  inline Address address() const;
 
   // Compute the current IC state based on the target stub, receiver and name.
   void UpdateState(Handle<Object> receiver, Handle<Object> name);
@@ -80,9 +79,7 @@ class IC {
   // Get the caller function object.
   JSFunction GetHostFunction() const;
 
-  inline bool AddressIsDeoptimizedCode() const;
-  inline static bool AddressIsDeoptimizedCode(Isolate* isolate,
-                                              Address address);
+  inline bool HostIsDeoptimizedCode() const;
 
   bool is_vector_set() { return vector_set_; }
   inline bool vector_needs_update();

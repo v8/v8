@@ -348,10 +348,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // before it is moved into the code space.
   inline Address runtime_entry_at(Address pc);
 
-  // Return the code target address at a call site from the return address of
-  // that call in the instruction stream.
-  inline static Address target_address_from_return_address(Address pc);
-
   // This sets the branch destination. 'location' here can be either the pc of
   // an immediate branch or the address of an entry in the constant pool.
   // This is for calls and branches within generated code.

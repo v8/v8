@@ -262,10 +262,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, uint32_t target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  // Return the code target address at a call site from the return address
-  // of that call in the instruction stream.
-  inline static Address target_address_from_return_address(Address pc);
-
   // This sets the branch destination (which gets loaded at the call address).
   // This is for calls and branches within generated code.  The serializer
   // has already deserialized the lui/ori instructions etc.
@@ -317,14 +313,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // serializer address of the instruction that follows LUI/ORI instruction
   // pair.
   static constexpr int kInstructionsFor32BitConstant = 2;
-
-  // Distance between the instruction referring to the address of the call
-  // target and the return address.
-#ifdef _MIPS_ARCH_MIPS32R6
-  static constexpr int kCallTargetAddressOffset = 2 * kInstrSize;
-#else
-  static constexpr int kCallTargetAddressOffset = 4 * kInstrSize;
-#endif
 
   // Max offset for instructions with 16-bit offset field
   static constexpr int kMaxBranchOffset = (1 << (18 - 1)) - 1;

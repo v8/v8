@@ -16,13 +16,6 @@
 namespace v8 {
 namespace internal {
 
-
-Address IC::address() const {
-  // Get the address of the call.
-  return Assembler::target_address_from_return_address(pc());
-}
-
-
 Address IC::constant_pool() const {
   if (FLAG_enable_embedded_constant_pool) {
     return raw_constant_pool();
@@ -57,14 +50,9 @@ bool IC::IsHandler(MaybeObject object) {
           (heap_object->IsDataHandler() || heap_object->IsCode()));
 }
 
-bool IC::AddressIsDeoptimizedCode() const {
-  return AddressIsDeoptimizedCode(isolate(), address());
-}
-
-// static
-bool IC::AddressIsDeoptimizedCode(Isolate* isolate, Address address) {
+bool IC::HostIsDeoptimizedCode() const {
   Code host =
-      isolate->inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
+      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(pc())->code;
   return (host->kind() == Code::OPTIMIZED_FUNCTION &&
           host->marked_for_deoptimization());
 }

@@ -402,10 +402,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  // Return the code target address at a call site from the return address
-  // of that call in the instruction stream.
-  inline static Address target_address_from_return_address(Address pc);
-
   // This sets the branch destination (which is in the instruction on x86).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
@@ -421,10 +417,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   static constexpr int kSpecialTargetSize = kSystemPointerSize;
-
-  // Distance between the address of the code target in the call instruction
-  // and the return address
-  static constexpr int kCallTargetAddressOffset = kSystemPointerSize;
 
   // One byte opcode for test al, 0xXX.
   static constexpr byte kTestAlByte = 0xA8;

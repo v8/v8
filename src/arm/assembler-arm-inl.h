@@ -215,69 +215,6 @@ void Assembler::emit(Instr x) {
   pc_ += kInstrSize;
 }
 
-
-Address Assembler::target_address_from_return_address(Address pc) {
-  // Returns the address of the call target from the return address that will
-  // be returned to after a call.
-  // Call sequence on V7 or later is:
-  //  movw  ip, #... @ call address low 16
-  //  movt  ip, #... @ call address high 16
-  //  blx   ip
-  //                      @ return address
-  // For V6 when the constant pool is unavailable, it is:
-  //  mov  ip, #...     @ call address low 8
-  //  orr  ip, ip, #... @ call address 2nd 8
-  //  orr  ip, ip, #... @ call address 3rd 8
-  //  orr  ip, ip, #... @ call address high 8
-  //  blx   ip
-  //                      @ return address
-  // In cases that need frequent patching, the address is in the
-  // constant pool.  It could be a small constant pool load:
-  //  ldr   ip, [pc, #...] @ call address
-  //  blx   ip
-  //                      @ return address
-  Address candidate = pc - 2 * kInstrSize;
-  Instr candidate_instr(Memory<int32_t>(candidate));
-  if (IsLdrPcImmediateOffset(candidate_instr)) {
-    return candidate;
-  } else {
-    if (CpuFeatures::IsSupported(ARMv7)) {
-      candidate -= 1 * kInstrSize;
-      DCHECK(IsMovW(Memory<int32_t>(candidate)) &&
-             IsMovT(Memory<int32_t>(candidate + kInstrSize)));
-    } else {
-      candidate -= 3 * kInstrSize;
-      DCHECK(IsMovImmed(Memory<int32_t>(candidate)) &&
-             IsOrrImmed(Memory<int32_t>(candidate + kInstrSize)) &&
-             IsOrrImmed(Memory<int32_t>(candidate + 2 * kInstrSize)) &&
-             IsOrrImmed(Memory<int32_t>(candidate + 3 * kInstrSize)));
-    }
-    return candidate;
-  }
-}
-
-
-Address Assembler::return_address_from_call_start(Address pc) {
-  if (IsLdrPcImmediateOffset(Memory<int32_t>(pc))) {
-    // Load from constant pool, small section.
-    return pc + kInstrSize * 2;
-  } else {
-    if (CpuFeatures::IsSupported(ARMv7)) {
-      DCHECK(IsMovW(Memory<int32_t>(pc)));
-      DCHECK(IsMovT(Memory<int32_t>(pc + kInstrSize)));
-      // A movw / movt load immediate.
-      return pc + kInstrSize * 3;
-    } else {
-      DCHECK(IsMovImmed(Memory<int32_t>(pc)));
-      DCHECK(IsOrrImmed(Memory<int32_t>(pc + kInstrSize)));
-      DCHECK(IsOrrImmed(Memory<int32_t>(pc + 2 * kInstrSize)));
-      DCHECK(IsOrrImmed(Memory<int32_t>(pc + 3 * kInstrSize)));
-      // A mov / orr load immediate.
-      return pc + kInstrSize * 5;
-    }
-  }
-}
-
 void Assembler::deserialization_set_special_target_at(
     Address constant_pool_entry, Code code, Address target) {
   DCHECK(!Builtins::IsIsolateIndependentBuiltin(code));

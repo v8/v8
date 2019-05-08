@@ -261,10 +261,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, uint64_t target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  // Return the code target address at a call site from the return address
-  // of that call in the instruction stream.
-  inline static Address target_address_from_return_address(Address pc);
-
   static void JumpLabelToJumpRegister(Address pc);
 
   // This sets the branch destination (which gets loaded at the call address).
@@ -310,14 +306,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // LUI/ORI instruction pair.
   static constexpr int kInstructionsFor32BitConstant = 2;
   static constexpr int kInstructionsFor64BitConstant = 4;
-
-  // Distance between the instruction referring to the address of the call
-  // target and the return address.
-#ifdef _MIPS_ARCH_MIPS64R6
-  static constexpr int kCallTargetAddressOffset = 5 * kInstrSize;
-#else
-  static constexpr int kCallTargetAddressOffset = 6 * kInstrSize;
-#endif
 
   // Difference between address of current opcode and value read from pc
   // register.

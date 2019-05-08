@@ -118,20 +118,6 @@ Address RelocInfo::constant_pool_entry_address() {
 
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
-Address Assembler::target_address_from_return_address(Address pc) {
-  // Returns the address of the call target from the return address that will
-  // be returned to after a call.
-  // Sequence is:
-  //    BRASL r14, RI
-  return pc - kCallTargetAddressOffset;
-}
-
-Address Assembler::return_address_from_call_start(Address pc) {
-  // Sequence is:
-  //    BRASL r14, RI
-  return pc + kCallTargetAddressOffset;
-}
-
 Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
   SixByteInstr instr =
       Instruction::InstructionBits(reinterpret_cast<const byte*>(pc));

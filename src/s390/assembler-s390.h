@@ -285,14 +285,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  // Return the code target address at a call site from the return address
-  // of that call in the instruction stream.
-  inline static Address target_address_from_return_address(Address pc);
-
-  // Given the address of the beginning of a call, return the address
-  // in the instruction stream that the call will return to.
-  V8_INLINE static Address return_address_from_call_start(Address pc);
-
   inline Handle<Object> code_target_object_handle_at(Address pc);
   // This sets the branch destination.
   // This is for calls and branches within generated code.
@@ -322,14 +314,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #else
   static constexpr int kBytesForPtrConstant = 6;  // IILF
 #endif
-
-  // Distance between the instruction referring to the address of the call
-  // target and the return address.
-
-  // Offset between call target address and return address
-  // for BRASL calls
-  // Patch will be appiled to other FIXED_SEQUENCE call
-  static constexpr int kCallTargetAddressOffset = 6;
 
   // ---------------------------------------------------------------------------
   // Code generation

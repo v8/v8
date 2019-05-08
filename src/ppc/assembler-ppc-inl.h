@@ -127,38 +127,6 @@ Address RelocInfo::constant_pool_entry_address() {
 
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
-Address Assembler::target_address_from_return_address(Address pc) {
-// Returns the address of the call target from the return address that will
-// be returned to after a call.
-// Call sequence is :
-//  mov   ip, @ call address
-//  mtlr  ip
-//  blrl
-//                      @ return address
-  int len;
-  ConstantPoolEntry::Access access;
-  if (FLAG_enable_embedded_constant_pool &&
-      IsConstantPoolLoadEnd(pc - 3 * kInstrSize, &access)) {
-    len = (access == ConstantPoolEntry::OVERFLOWED) ? 2 : 1;
-  } else {
-    len = kMovInstructionsNoConstantPool;
-  }
-  return pc - (len + 2) * kInstrSize;
-}
-
-
-Address Assembler::return_address_from_call_start(Address pc) {
-  int len;
-  ConstantPoolEntry::Access access;
-  if (FLAG_enable_embedded_constant_pool &&
-      IsConstantPoolLoadStart(pc, &access)) {
-    len = (access == ConstantPoolEntry::OVERFLOWED) ? 2 : 1;
-  } else {
-    len = kMovInstructionsNoConstantPool;
-  }
-  return pc + (len + 2) * kInstrSize;
-}
-
 HeapObject RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == FULL_EMBEDDED_OBJECT);
   return HeapObject::cast(

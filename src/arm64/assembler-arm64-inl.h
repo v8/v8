@@ -570,19 +570,6 @@ Address Assembler::runtime_entry_at(Address pc) {
   }
 }
 
-Address Assembler::target_address_from_return_address(Address pc) {
-  // Returns the address of the call target from the return address that will
-  // be returned to after a call.
-  // Call sequence on ARM64 is:
-  //  ldr ip0, #... @ load from literal pool
-  //  blr ip0
-  Address candidate = pc - 2 * kInstrSize;
-  Instruction* instr = reinterpret_cast<Instruction*>(candidate);
-  USE(instr);
-  DCHECK(instr->IsLdrLiteralX());
-  return candidate;
-}
-
 int Assembler::deserialization_special_target_size(Address location) {
   Instruction* instr = reinterpret_cast<Instruction*>(location);
   if (instr->IsBranchAndLink() || instr->IsUnconditionalBranch()) {

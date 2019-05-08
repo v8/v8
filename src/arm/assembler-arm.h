@@ -358,14 +358,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  // Return the code target address at a call site from the return address
-  // of that call in the instruction stream.
-  V8_INLINE static Address target_address_from_return_address(Address pc);
-
-  // Given the address of the beginning of a call, return the address
-  // in the instruction stream that the call will return from.
-  V8_INLINE static Address return_address_from_call_start(Address pc);
-
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(

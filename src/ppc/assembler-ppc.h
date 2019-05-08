@@ -266,14 +266,6 @@ class Assembler : public AssemblerBase {
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  // Return the code target address at a call site from the return address
-  // of that call in the instruction stream.
-  inline static Address target_address_from_return_address(Address pc);
-
-  // Given the address of the beginning of a call, return the address
-  // in the instruction stream that the call will return to.
-  V8_INLINE static Address return_address_from_call_start(Address pc);
-
   // This sets the branch destination.
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
@@ -313,17 +305,6 @@ class Assembler : public AssemblerBase {
   static constexpr int kMovInstructions = FLAG_enable_embedded_constant_pool
                                               ? kMovInstructionsConstantPool
                                               : kMovInstructionsNoConstantPool;
-
-  // Distance between the instruction referring to the address of the call
-  // target and the return address.
-
-  // Call sequence is a FIXED_SEQUENCE:
-  // mov     r8, @ call address
-  // mtlr    r8
-  // blrl
-  //                      @ return address
-  static constexpr int kCallTargetAddressOffset =
-      (kMovInstructions + 2) * kInstrSize;
 
   static inline int encode_crbit(const CRegister& cr, enum CRBit crbit) {
     return ((cr.code() * CRWIDTH) + crbit);
