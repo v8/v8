@@ -4969,10 +4969,19 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
 
 // static
 void JSFunction::InitializeFeedbackCell(Handle<JSFunction> function) {
-  if (FLAG_lazy_feedback_allocation) {
-    EnsureClosureFeedbackCellArray(function);
-  } else {
+  Isolate* const isolate = function->GetIsolate();
+  bool needs_feedback_vector = !FLAG_lazy_feedback_allocation;
+  // We need feedback vector for certain log events, collecting type profile
+  // and more precise code coverage.
+  if (FLAG_log_function_events) needs_feedback_vector = true;
+  if (!isolate->is_best_effort_code_coverage()) needs_feedback_vector = true;
+  if (isolate->is_collecting_type_profile()) needs_feedback_vector = true;
+  if (FLAG_always_opt) needs_feedback_vector = true;
+
+  if (needs_feedback_vector) {
     EnsureFeedbackVector(function);
+  } else {
+    EnsureClosureFeedbackCellArray(function);
   }
 }
 

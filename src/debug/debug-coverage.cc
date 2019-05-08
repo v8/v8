@@ -495,12 +495,34 @@ std::unique_ptr<Coverage> Coverage::Collect(
       HeapIterator heap_iterator(isolate->heap());
       for (HeapObject current_obj = heap_iterator.next();
            !current_obj.is_null(); current_obj = heap_iterator.next()) {
-        if (!current_obj->IsFeedbackVector()) continue;
-        FeedbackVector vector = FeedbackVector::cast(current_obj);
-        SharedFunctionInfo shared = vector->shared_function_info();
+        if (!current_obj->IsJSFunction()) continue;
+        JSFunction func = JSFunction::cast(current_obj);
+        SharedFunctionInfo shared = func->shared();
         if (!shared->IsSubjectToDebugging()) continue;
-        uint32_t count = static_cast<uint32_t>(vector->invocation_count());
+        if (!(func->has_feedback_vector() ||
+              func->has_closure_feedback_cell_array()))
+          continue;
+        uint32_t count = 0;
+        if (func->has_feedback_vector()) {
+          count = static_cast<uint32_t>(
+              func->feedback_vector()->invocation_count());
+        } else if (func->raw_feedback_cell()->interrupt_budget() <
+                   FLAG_budget_for_feedback_vector_allocation) {
+          // We haven't allocated feedback vector, but executed the function
+          // atleast once. We don't have precise invocation count here.
+          count = 1;
+        }
         counter_map.Add(shared, count);
+      }
+
+      // Also check functions on the stack to collect the count map. With lazy
+      // feedback allocation we may miss counting functions if the feedback
+      // vector wasn't allocated yet and the function's interrupt budget wasn't
+      // updated (i.e. it didn't execute return / jump).
+      for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+        SharedFunctionInfo shared = it.frame()->function()->shared();
+        if (counter_map.Get(shared) != 0) continue;
+        counter_map.Add(shared, 1);
       }
       break;
     }
@@ -607,23 +629,36 @@ void Coverage::SelectMode(Isolate* isolate, debug::CoverageMode mode) {
       // increment invocation count.
       Deoptimizer::DeoptimizeAll(isolate);
 
-      // Root all feedback vectors to avoid early collection.
-      isolate->MaybeInitializeVectorListFromHeap();
-
-      HeapIterator heap_iterator(isolate->heap());
-      for (HeapObject o = heap_iterator.next(); !o.is_null();
-           o = heap_iterator.next()) {
-        if (IsBinaryMode(mode) && o->IsSharedFunctionInfo()) {
-          // If collecting binary coverage, reset
-          // SFI::has_reported_binary_coverage to avoid optimizing / inlining
-          // functions before they have reported coverage.
-          SharedFunctionInfo shared = SharedFunctionInfo::cast(o);
-          shared->set_has_reported_binary_coverage(false);
-        } else if (o->IsFeedbackVector()) {
-          // In any case, clear any collected invocation counts.
-          FeedbackVector::cast(o)->clear_invocation_count();
+      std::vector<Handle<JSFunction>> funcs_needing_feedback_vector;
+      {
+        HeapIterator heap_iterator(isolate->heap());
+        for (HeapObject o = heap_iterator.next(); !o.is_null();
+             o = heap_iterator.next()) {
+          if (o->IsJSFunction()) {
+            JSFunction func = JSFunction::cast(o);
+            if (func->has_closure_feedback_cell_array()) {
+              funcs_needing_feedback_vector.push_back(
+                  Handle<JSFunction>(func, isolate));
+            }
+          } else if (IsBinaryMode(mode) && o->IsSharedFunctionInfo()) {
+            // If collecting binary coverage, reset
+            // SFI::has_reported_binary_coverage to avoid optimizing / inlining
+            // functions before they have reported coverage.
+            SharedFunctionInfo shared = SharedFunctionInfo::cast(o);
+            shared->set_has_reported_binary_coverage(false);
+          } else if (o->IsFeedbackVector()) {
+            // In any case, clear any collected invocation counts.
+            FeedbackVector::cast(o)->clear_invocation_count();
+          }
         }
       }
+
+      for (Handle<JSFunction> func : funcs_needing_feedback_vector) {
+        JSFunction::EnsureFeedbackVector(func);
+      }
+
+      // Root all feedback vectors to avoid early collection.
+      isolate->MaybeInitializeVectorListFromHeap();
 
       break;
     }
