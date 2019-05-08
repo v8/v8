@@ -34,7 +34,8 @@ struct LintError {
 };
 DECLARE_CONTEXTUAL_VARIABLE(LintErrors, std::vector<LintError>);
 
-void ReportLintError(const std::string& error);
+void ReportLintError(const std::string& error,
+                     SourcePosition pos = CurrentSourcePosition::Get());
 
 // Prints a LintError with the format "{type} '{name}' doesn't follow
 // '{convention}' naming convention".

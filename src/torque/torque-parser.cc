@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <cctype>
+#include <set>
 
 #include "src/torque/constants.h"
 #include "src/torque/earley-parser.h"
@@ -604,9 +605,35 @@ base::Optional<ParseResult> MakeMethodDeclaration(
   return ParseResult{result};
 }
 
+class AnnotationSet {
+ public:
+  AnnotationSet(ParseResultIterator* iter,
+                const std::set<std::string>& allowed) {
+    auto list = iter->NextAs<std::vector<Identifier*>>();
+    for (const Identifier* i : list) {
+      if (allowed.find(i->value) == allowed.end()) {
+        std::stringstream s;
+        s << "Annotation " << i->value << " is not allowed here";
+        ReportLintError(s.str(), i->pos);
+      }
+      if (!set_.insert(i->value).second) {
+        std::stringstream s;
+        s << "Duplicate annotation " << i->value;
+        ReportLintError(s.str(), i->pos);
+      }
+    }
+  }
+
+  bool Contains(const std::string& s) { return set_.find(s) != set_.end(); }
+
+ private:
+  std::set<std::string> set_;
+};
+
 base::Optional<ParseResult> MakeClassDeclaration(
     ParseResultIterator* child_results) {
-  auto generate_print = child_results->NextAs<bool>();
+  AnnotationSet annotations(child_results, {"@generatePrint"});
+  bool generate_print = annotations.Contains("@generatePrint");
   auto is_extern = child_results->NextAs<bool>();
   auto transient = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
@@ -1242,12 +1269,18 @@ struct TorqueGrammar : Grammar {
     return true;
   }
 
+  static bool MatchAnnotation(InputPosition* pos) {
+    InputPosition current = *pos;
+    if (!MatchString("@", &current)) return false;
+    if (!MatchIdentifier(&current)) return false;
+    *pos = current;
+    return true;
+  }
+
   static bool MatchIntrinsicName(InputPosition* pos) {
     InputPosition current = *pos;
     if (!MatchString("%", &current)) return false;
-    if (!MatchChar(std::isalpha, &current)) return false;
-    while (MatchChar(std::isalnum, &current) || MatchString("_", pos)) {
-    }
+    if (!MatchIdentifier(&current)) return false;
     *pos = current;
     return true;
   }
@@ -1317,6 +1350,13 @@ struct TorqueGrammar : Grammar {
 
   // Result: Identifier*
   Symbol name = {Rule({&identifier}, MakeIdentifier)};
+
+  // Result: Identifier*
+  Symbol annotation = {
+      Rule({Pattern(MatchAnnotation)}, MakeIdentifierFromMatchedInput)};
+
+  // Result: std::vector<Identifier*>
+  Symbol* annotations = List<Identifier*>(&annotation);
 
   // Result: std::string
   Symbol intrinsicName = {
@@ -1696,8 +1736,8 @@ struct TorqueGrammar : Grammar {
       Rule({Token("const"), &name, Token(":"), &type, Token("generates"),
             &externalString, Token(";")},
            AsSingletonVector<Declaration*, MakeExternConstDeclaration>()),
-      Rule({CheckIf(Token("@generatePrint")), CheckIf(Token("extern")),
-            CheckIf(Token("transient")), Token("class"), &name,
+      Rule({annotations, CheckIf(Token("extern")), CheckIf(Token("transient")),
+            Token("class"), &name,
             Optional<TypeExpression*>(Sequence({Token("extends"), &type})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),

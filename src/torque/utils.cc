@@ -131,8 +131,8 @@ std::string CurrentPositionAsString() {
   throw error;
 }
 
-void ReportLintError(const std::string& error) {
-  LintErrors::Get().push_back({error, CurrentSourcePosition::Get()});
+void ReportLintError(const std::string& error, SourcePosition pos) {
+  LintErrors::Get().push_back({error, pos});
 }
 
 void NamingConventionError(const std::string& type, const std::string& name,

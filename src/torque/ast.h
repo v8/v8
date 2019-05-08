@@ -208,6 +208,12 @@ struct Identifier : AstNode {
   std::string value;
 };
 
+struct IdentifierPtrValueEq {
+  bool operator()(const Identifier* a, const Identifier* b) {
+    return a->value < b->value;
+  }
+};
+
 struct IdentifierExpression : LocationExpression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(IdentifierExpression)
   IdentifierExpression(SourcePosition pos,
