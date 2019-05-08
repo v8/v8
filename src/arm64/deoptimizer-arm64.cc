@@ -117,11 +117,14 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   DCHECK_EQ(saved_float_registers.Count() % 4, 0);
   __ PushCPURegList(saved_float_registers);
 
-  // We save all the registers except sp, lr and the masm scratches.
+  // We save all the registers except sp, lr, platform register (x18) and the
+  // masm scratches.
   CPURegList saved_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 28);
   saved_registers.Remove(ip0);
   saved_registers.Remove(ip1);
+  saved_registers.Remove(x18);
   saved_registers.Combine(fp);
+  saved_registers.Align();
   DCHECK_EQ(saved_registers.Count() % 2, 0);
   __ PushCPURegList(saved_registers);
 
