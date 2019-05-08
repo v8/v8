@@ -33,7 +33,7 @@ class SwitchInfo {
              BasicBlock* default_branch)
       : cases_(cases),
         min_value_(min_value),
-        max_value_(min_value),
+        max_value_(max_value),
         default_branch_(default_branch) {
     if (cases.size() != 0) {
       DCHECK_LE(min_value, max_value);
