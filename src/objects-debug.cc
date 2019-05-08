@@ -12,6 +12,7 @@
 #include "src/disassembler.h"
 #include "src/elements.h"
 #include "src/field-type.h"
+#include "src/heap/combined-heap.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/layout-descriptor.h"
@@ -475,8 +476,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 // static
 void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
   CHECK(p->IsHeapObject());
-  HeapObject ho = HeapObject::cast(p);
-  CHECK(isolate->heap()->Contains(ho));
+  CHECK(IsValidHeapObject(isolate->heap(), HeapObject::cast(p)));
 }
 
 void Symbol::SymbolVerify(Isolate* isolate) {
