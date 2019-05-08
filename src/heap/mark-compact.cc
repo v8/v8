@@ -1277,6 +1277,9 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
         local_allocator_->Allocate(target_space, size, alignment);
     if (allocation.To(target_object)) {
       MigrateObject(*target_object, object, size, target_space);
+      if (target_space == CODE_SPACE)
+        MemoryChunk::FromHeapObject(*target_object)
+            ->RegisterCodeObject(*target_object);
       return true;
     }
     return false;
@@ -3188,11 +3191,6 @@ void MarkCompactCollector::Evacuate() {
     new_space_evacuation_pages_.clear();
 
     for (Page* p : old_space_evacuation_pages_) {
-      // Important: skip list should be cleared only after roots were updated
-      // because root iteration traverses the stack and might have to find
-      // code objects from non-updated pc pointing into evacuation candidate.
-      SkipList* list = p->skip_list();
-      if (list != nullptr) list->Clear();
       if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
         sweeper()->AddPage(p->owner()->identity(), p, Sweeper::REGULAR);
         p->ClearFlag(Page::COMPACTION_WAS_ABORTED);

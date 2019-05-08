@@ -615,6 +615,7 @@ void MemoryChunk::SetReadAndWritable() {
 }
 
 void MemoryChunk::RegisterCodeObject(HeapObject code) {
+  DCHECK(Contains(code->address()));
   DCHECK(MemoryChunk::FromHeapObject(code)->owner()->identity() == CODE_SPACE);
   code_object_registry_->insert(code->address());
 }
@@ -641,6 +642,14 @@ void MemoryChunk::SwapCodeRegistries() {
 bool MemoryChunk::CodeObjectRegistryContains(HeapObject object) {
   return code_object_registry_->find(object->address()) !=
          code_object_registry_->end();
+}
+
+HeapObject MemoryChunk::GetCodeObjectFromInnerAddress(Address address) {
+  DCHECK(Contains(address));
+  DCHECK(!code_object_registry_->empty());
+  auto it = code_object_registry_->upper_bound(address);
+  HeapObject obj = HeapObject::FromAddress(*(--it));
+  return obj;
 }
 
 namespace {
@@ -676,7 +685,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   base::AsAtomicPointer::Release_Store(&chunk->typed_slot_set_[OLD_TO_OLD],
                                        nullptr);
   chunk->invalidated_slots_ = nullptr;
-  chunk->skip_list_ = nullptr;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_ = static_cast<intptr_t>(area_start - base);
   chunk->set_concurrent_sweeping_state(kSweepingDone);
@@ -1340,10 +1348,6 @@ bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,
 // MemoryChunk implementation
 
 void MemoryChunk::ReleaseAllocatedMemory() {
-  if (skip_list_ != nullptr) {
-    delete skip_list_;
-    skip_list_ = nullptr;
-  }
   if (mutex_ != nullptr) {
     delete mutex_;
     mutex_ = nullptr;

@@ -44,7 +44,9 @@ Address DeserializerAllocator::AllocateRaw(AllocationSpace space, int size) {
     int chunk_index = current_chunk_[space];
     DCHECK_LE(high_water_[space], reservation[chunk_index].end);
 #endif
-    if (space == CODE_SPACE) SkipList::Update(address, size);
+    if (space == CODE_SPACE)
+      MemoryChunk::FromAddress(address)->RegisterCodeObject(
+          HeapObject::FromAddress(address));
     return address;
   }
 }

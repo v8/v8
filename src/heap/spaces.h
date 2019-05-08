@@ -52,7 +52,6 @@ class MemoryChunkLayout;
 class Page;
 class PagedSpace;
 class SemiSpace;
-class SkipList;
 class SlotsBuffer;
 class SlotSet;
 class TypedSlotSet;
@@ -387,7 +386,6 @@ class MemoryChunk {
       + kSystemPointerSize *
             NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
       + kSystemPointerSize  // InvalidatedSlots* invalidated_slots_
-      + kSystemPointerSize  // SkipList* skip_list_
       + kSystemPointerSize  // std::atomic<intptr_t> high_water_mark_
       + kSystemPointerSize  // base::Mutex* mutex_
       + kSystemPointerSize  // std::atomic<ConcurrentSweepingState>
@@ -485,10 +483,6 @@ class MemoryChunk {
   }
 
   Heap* synchronized_heap();
-
-  inline SkipList* skip_list() { return skip_list_; }
-
-  inline void set_skip_list(SkipList* skip_list) { skip_list_ = skip_list; }
 
   template <RememberedSetType type>
   bool ContainsSlots() {
@@ -685,6 +679,7 @@ class MemoryChunk {
   V8_EXPORT_PRIVATE void CreateSwapCodeObjectRegistry();
   V8_EXPORT_PRIVATE void SwapCodeRegistries();
   V8_EXPORT_PRIVATE bool CodeObjectRegistryContains(HeapObject code);
+  V8_EXPORT_PRIVATE HeapObject GetCodeObjectFromInnerAddress(Address address);
 
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
@@ -748,8 +743,6 @@ class MemoryChunk {
   SlotSet* slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
   TypedSlotSet* typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
   InvalidatedSlots* invalidated_slots_;
-
-  SkipList* skip_list_;
 
   // Assuming the initial allocation on a page is sequential,
   // count highest number of bytes ever allocated on the page.
@@ -1162,59 +1155,6 @@ class CodeRangeAddressHint {
   // which should be also O(1).
   std::unordered_map<size_t, std::vector<Address>> recently_freed_;
 };
-
-class SkipList {
- public:
-  SkipList() { Clear(); }
-
-  void Clear() {
-    for (int idx = 0; idx < kSize; idx++) {
-      starts_[idx] = static_cast<Address>(-1);
-    }
-  }
-
-  Address StartFor(Address addr) { return starts_[RegionNumber(addr)]; }
-
-  void AddObject(Address addr, int size) {
-    int start_region = RegionNumber(addr);
-    int end_region = RegionNumber(addr + size - kTaggedSize);
-    for (int idx = start_region; idx <= end_region; idx++) {
-      if (starts_[idx] > addr) {
-        starts_[idx] = addr;
-      } else {
-        // In the first region, there may already be an object closer to the
-        // start of the region. Do not change the start in that case. If this
-        // is not the first region, you probably added overlapping objects.
-        DCHECK_EQ(start_region, idx);
-      }
-    }
-  }
-
-  static inline int RegionNumber(Address addr) {
-    return (addr & kPageAlignmentMask) >> kRegionSizeLog2;
-  }
-
-  static void Update(Address addr, int size) {
-    Page* page = Page::FromAddress(addr);
-    SkipList* list = page->skip_list();
-    if (list == nullptr) {
-      list = new SkipList();
-      page->set_skip_list(list);
-    }
-
-    list->AddObject(addr, size);
-  }
-
- private:
-  static const int kRegionSizeLog2 = 13;
-  static const int kRegionSize = 1 << kRegionSizeLog2;
-  static const int kSize = Page::kPageSize / kRegionSize;
-
-  STATIC_ASSERT(Page::kPageSize % kRegionSize == 0);
-
-  Address starts_[kSize];
-};
-
 
 // ----------------------------------------------------------------------------
 // A space acquires chunks of memory from the operating system. The memory
@@ -2194,13 +2134,10 @@ class V8_EXPORT_PRIVATE PagedSpace
   // due to being too small to use for allocation.
   virtual size_t Waste() { return free_list_.wasted_bytes(); }
 
-  enum UpdateSkipList { UPDATE_SKIP_LIST, IGNORE_SKIP_LIST };
-
   // Allocate the requested number of bytes in the space if possible, return a
-  // failure object if not. Only use IGNORE_SKIP_LIST if the skip list is going
-  // to be manually updated later.
+  // failure object if not.
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawUnaligned(
-      int size_in_bytes, UpdateSkipList update_skip_list = UPDATE_SKIP_LIST);
+      int size_in_bytes);
 
   // Allocate the requested number of bytes in the space double aligned if
   // possible, return a failure object if not.

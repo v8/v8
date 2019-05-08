@@ -266,22 +266,11 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
 
   Address free_start = p->area_start();
 
-  // If we use the skip list for code space pages, we have to lock the skip
-  // list because it could be accessed concurrently by the runtime or the
-  // deoptimizer.
-  const bool rebuild_skip_list =
-      space->identity() == CODE_SPACE && p->skip_list() != nullptr;
-  SkipList* skip_list = p->skip_list();
-  if (rebuild_skip_list) {
-    skip_list->Clear();
-  }
-
   if (is_code_page) p->CreateSwapCodeObjectRegistry();
 
   intptr_t live_bytes = 0;
   intptr_t freed_bytes = 0;
   intptr_t max_freed_bytes = 0;
-  int curr_region = -1;
 
   // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
   // counter. The free operations below will decrease allocated_bytes_ to actual
@@ -323,15 +312,6 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
     Map map = object->synchronized_map();
     int size = object->SizeFromMap(map);
     live_bytes += size;
-    if (rebuild_skip_list) {
-      int new_region_start = SkipList::RegionNumber(free_end);
-      int new_region_end =
-          SkipList::RegionNumber(free_end + size - kTaggedSize);
-      if (new_region_start != curr_region || new_region_end != curr_region) {
-        skip_list->AddObject(free_end, size);
-        curr_region = new_region_end;
-      }
-    }
     free_start = free_end + size;
   }
 

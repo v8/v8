@@ -1638,9 +1638,8 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
         DCHECK_EQ(0, reserved_size % Map::kSize);
         int num_maps = reserved_size / Map::kSize;
         for (int i = 0; i < num_maps; i++) {
-          // The deserializer will update the skip list.
-          AllocationResult allocation = map_space()->AllocateRawUnaligned(
-              Map::kSize, PagedSpace::IGNORE_SKIP_LIST);
+          AllocationResult allocation =
+              map_space()->AllocateRawUnaligned(Map::kSize);
           HeapObject free_space;
           if (allocation.To(&free_space)) {
             // Mark with a free list node, in case we have a GC before
@@ -1671,8 +1670,7 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
             allocation = new_space()->AllocateRawUnaligned(size);
           } else {
             // The deserializer will update the skip list.
-            allocation = paged_space(space)->AllocateRawUnaligned(
-                size, PagedSpace::IGNORE_SKIP_LIST);
+            allocation = paged_space(space)->AllocateRawUnaligned(size);
           }
           HeapObject free_space;
           if (allocation.To(&free_space)) {
@@ -5772,10 +5770,6 @@ Map GcSafeMapOfCodeSpaceObject(HeapObject object) {
                                         : map_word.ToMap();
 }
 
-int GcSafeSizeOfCodeSpaceObject(HeapObject object) {
-  return object->SizeFromMap(GcSafeMapOfCodeSpaceObject(object));
-}
-
 Code GcSafeCastToCode(Heap* heap, HeapObject object, Address inner_pointer) {
   Code code = Code::unchecked_cast(object);
   DCHECK(!code.is_null());
@@ -5809,27 +5803,9 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   // Iterate through the page until we reach the end or find an object starting
   // after the inner pointer.
   Page* page = Page::FromAddress(inner_pointer);
-  DCHECK_EQ(page->owner(), code_space());
-  mark_compact_collector()->sweeper()->EnsurePageIsIterable(page);
 
-  Address addr = page->skip_list()->StartFor(inner_pointer);
-  Address top = code_space()->top();
-  Address limit = code_space()->limit();
-
-  while (true) {
-    if (addr == top && addr != limit) {
-      addr = limit;
-      continue;
-    }
-
-    HeapObject obj = HeapObject::FromAddress(addr);
-    int obj_size = GcSafeSizeOfCodeSpaceObject(obj);
-    Address next_addr = addr + obj_size;
-    if (next_addr > inner_pointer) {
-      return GcSafeCastToCode(this, obj, inner_pointer);
-    }
-    addr = next_addr;
-  }
+  HeapObject object = page->GetCodeObjectFromInnerAddress(inner_pointer);
+  return GcSafeCastToCode(this, object, inner_pointer);
 }
 
 void Heap::WriteBarrierForCodeSlow(Code code) {
