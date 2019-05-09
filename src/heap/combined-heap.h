@@ -30,10 +30,6 @@ class V8_EXPORT_PRIVATE CombinedHeapIterator final {
   ReadOnlyHeapIterator ro_heap_iterator_;
 };
 
-inline bool IsValidHeapObject(Heap* heap, HeapObject object) {
-  return ReadOnlyHeap::Contains(object) || heap->Contains(object);
-}
-
 }  // namespace internal
 }  // namespace v8
 

@@ -24,7 +24,6 @@
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/barrier.h"
 #include "src/heap/code-stats.h"
-#include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-idle-time-handler.h"
@@ -3600,6 +3599,13 @@ const char* Heap::GarbageCollectionReasonToString(
 }
 
 bool Heap::Contains(HeapObject value) {
+  // Check RO_SPACE first because IsOutsideAllocatedSpace cannot account for a
+  // shared RO_SPACE.
+  // TODO(v8:7464): Exclude read-only space. Use ReadOnlyHeap::Contains where
+  // appropriate.
+  if (read_only_space_ != nullptr && read_only_space_->Contains(value)) {
+    return true;
+  }
   if (memory_allocator()->IsOutsideAllocatedSpace(value->address())) {
     return false;
   }
@@ -5661,7 +5667,7 @@ void VerifyPointersVisitor::VisitRootPointers(Root root,
 }
 
 void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject heap_object) {
-  CHECK(IsValidHeapObject(heap_, heap_object));
+  CHECK(heap_->Contains(heap_object));
   CHECK(heap_object->map()->IsMap());
 }
 
