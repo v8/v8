@@ -885,7 +885,8 @@ class V8_EXPORT_PRIVATE Factory {
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(
       MessageTemplate message, Handle<Object> argument, int start_position,
-      int end_position, Handle<Script> script, Handle<Object> stack_frames);
+      int end_position, Handle<SharedFunctionInfo> shared_info,
+      int bytecode_offset, Handle<Script> script, Handle<Object> stack_frames);
 
   Handle<ClassPositions> NewClassPositions(int start, int end);
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
