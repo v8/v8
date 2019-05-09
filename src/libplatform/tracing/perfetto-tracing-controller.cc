@@ -7,7 +7,7 @@
 #include "perfetto/tracing/core/trace_config.h"
 #include "perfetto/tracing/core/trace_writer.h"
 #include "perfetto/tracing/core/tracing_service.h"
-#include "src/libplatform/tracing/perfetto-consumer.h"
+#include "src/libplatform/tracing/perfetto-json-consumer.h"
 #include "src/libplatform/tracing/perfetto-producer.h"
 #include "src/libplatform/tracing/perfetto-shared-memory.h"
 #include "src/libplatform/tracing/perfetto-tasks.h"
@@ -18,22 +18,28 @@ namespace tracing {
 
 PerfettoTracingController::PerfettoTracingController()
     : writer_key_(base::Thread::CreateThreadLocalKey()),
-      producer_ready_semaphore_(0) {}
+      producer_ready_semaphore_(0),
+      consumer_finished_semaphore_(0) {}
 
-void PerfettoTracingController::StartTracingToFile(
-    int fd, const ::perfetto::TraceConfig& trace_config) {
+void PerfettoTracingController::StartTracing(
+    const ::perfetto::TraceConfig& trace_config) {
+  DCHECK(!trace_file_.is_open());
+  trace_file_.open("v8_perfetto_trace.json");
+  CHECK(trace_file_.good());
+
   DCHECK(!task_runner_);
   task_runner_ = base::make_unique<PerfettoTaskRunner>();
   // The Perfetto service expects calls on the task runner thread which is why
   // the setup below occurs in posted tasks.
-  task_runner_->PostTask([fd, &trace_config, this] {
+  task_runner_->PostTask([&trace_config, this] {
     std::unique_ptr<::perfetto::SharedMemory::Factory> shmem_factory =
         base::make_unique<PerfettoSharedMemoryFactory>();
 
     service_ = ::perfetto::TracingService::CreateInstance(
         std::move(shmem_factory), task_runner_.get());
     producer_ = base::make_unique<PerfettoProducer>(this);
-    consumer_ = base::make_unique<PerfettoConsumer>();
+    consumer_ = base::make_unique<PerfettoJSONConsumer>(
+        &trace_file_, &consumer_finished_semaphore_);
 
     producer_->set_service_endpoint(service_->ConnectProducer(
         producer_.get(), 0, "v8.perfetto-producer", 0, true));
@@ -43,9 +49,7 @@ void PerfettoTracingController::StartTracingToFile(
 
     // We need to wait for the OnConnected() callbacks of the producer and
     // consumer to be called.
-    ::perfetto::base::ScopedFile scoped_file(fd);
-    consumer_->service_endpoint()->EnableTracing(trace_config,
-                                                 std::move(scoped_file));
+    consumer_->service_endpoint()->EnableTracing(trace_config);
   });
 
   producer_ready_semaphore_.Wait();
@@ -66,6 +70,16 @@ void PerfettoTracingController::StopTracing() {
     // all tracing threads here or use TLS destructors like Chrome.
     writers_to_finalize_.clear();
 
+    // Trigger the consumer to finish. This can trigger multiple calls to
+    // PerfettoJSONConsumer::OnTraceData(), with the final call passing has_more
+    // as false.
+    consumer_->service_endpoint()->ReadBuffers();
+  });
+
+  // Wait until the final OnTraceData() call with has_more=false has completed.
+  consumer_finished_semaphore_.Wait();
+
+  task_runner_->PostTask([this] {
     consumer_.reset();
     producer_.reset();
     service_.reset();
@@ -74,6 +88,9 @@ void PerfettoTracingController::StopTracing() {
   // Finish the above task, and any callbacks that were triggered.
   task_runner_->FinishImmediateTasks();
   task_runner_.reset();
+
+  DCHECK(trace_file_.is_open());
+  trace_file_.close();
 }
 
 PerfettoTracingController::~PerfettoTracingController() {

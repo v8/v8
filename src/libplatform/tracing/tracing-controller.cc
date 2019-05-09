@@ -13,8 +13,6 @@
 #include "src/base/platform/time.h"
 
 #ifdef V8_USE_PERFETTO
-#include <fcntl.h>
-
 #include "base/trace_event/common/trace_event_common.h"
 #include "perfetto/trace/chrome/chrome_trace_event.pbzero.h"
 #include "perfetto/trace/trace_packet.pbzero.h"
@@ -272,18 +270,13 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
   perfetto_tracing_controller_ = base::make_unique<PerfettoTracingController>();
 
   ::perfetto::TraceConfig perfetto_trace_config;
-  // Enable long tracing mode with continuous draining into file.
-  perfetto_trace_config.set_write_into_file(true);
-  perfetto_trace_config.set_file_write_period_ms(1000);
 
   perfetto_trace_config.add_buffers()->set_size_kb(4096);
   auto* ds_config = perfetto_trace_config.add_data_sources()->mutable_config();
   ds_config->set_name("v8.trace_events");
 
-  // TODO(petermarshall): Set all the params from |trace_config| and don't
-  // write to a file by default.
-  int fd = open("v8_trace.proto", O_RDWR | O_CREAT | O_TRUNC, 0644);
-  perfetto_tracing_controller_->StartTracingToFile(fd, perfetto_trace_config);
+  // TODO(petermarshall): Set all the params from |perfetto_trace_config|.
+  perfetto_tracing_controller_->StartTracing(perfetto_trace_config);
   perfetto_recording_.store(true);
 #endif  // V8_USE_PERFETTO
 

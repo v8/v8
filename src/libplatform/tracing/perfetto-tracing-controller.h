@@ -6,11 +6,13 @@
 #define V8_LIBPLATFORM_TRACING_PERFETTO_TRACING_CONTROLLER_H_
 
 #include <atomic>
+#include <fstream>
 #include <memory>
 #include <vector>
 
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/semaphore.h"
 
 namespace perfetto {
 class TraceConfig;
@@ -22,12 +24,12 @@ namespace v8 {
 namespace platform {
 namespace tracing {
 
-class PerfettoConsumer;
+class PerfettoJSONConsumer;
 class PerfettoProducer;
 class PerfettoTaskRunner;
 
 // This is the top-level interface for performing tracing with perfetto. The
-// user of this class should call StartTracingToFile() to start tracing, and
+// user of this class should call StartTracing() to start tracing, and
 // StopTracing() to stop it. To write trace events, the user can obtain a
 // thread-local TraceWriter object using GetOrCreateThreadLocalWriter().
 class PerfettoTracingController {
@@ -37,7 +39,7 @@ class PerfettoTracingController {
   // Blocks and sets up all required data structures for tracing. It is safe to
   // call GetOrCreateThreadLocalWriter() to obtain thread-local TraceWriters for
   // writing trace events once this call returns.
-  void StartTracingToFile(int fd, const ::perfetto::TraceConfig& trace_config);
+  void StartTracing(const ::perfetto::TraceConfig& trace_config);
 
   // Blocks and finishes all existing AddTraceEvent tasks. Stops the tracing
   // thread.
@@ -58,15 +60,19 @@ class PerfettoTracingController {
 
   std::unique_ptr<::perfetto::TracingService> service_;
   std::unique_ptr<PerfettoProducer> producer_;
-  std::unique_ptr<PerfettoConsumer> consumer_;
+  std::unique_ptr<PerfettoJSONConsumer> consumer_;
   std::unique_ptr<PerfettoTaskRunner> task_runner_;
   base::Thread::LocalStorageKey writer_key_;
   base::Mutex writers_mutex_;
   std::vector<std::unique_ptr<::perfetto::TraceWriter>> writers_to_finalize_;
-  // A semaphore that is signalled when StartRecording is called.
-  // StartTracingToFile waits on this semaphore to be notified when the tracing
-  // service is ready to receive trace events.
+  // A semaphore that is signalled when StartRecording is called. StartTracing
+  // waits on this semaphore to be notified when the tracing service is ready to
+  // receive trace events.
   base::Semaphore producer_ready_semaphore_;
+  base::Semaphore consumer_finished_semaphore_;
+
+  // TODO(petermarshall): pass this in instead.
+  std::ofstream trace_file_;
 
   DISALLOW_COPY_AND_ASSIGN(PerfettoTracingController);
 };

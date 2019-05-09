@@ -3630,7 +3630,8 @@ v8_component("v8_libplatform") {
   ]
   if (v8_use_perfetto) {
     sources += [
-      "src/libplatform/tracing/perfetto-consumer.h",
+      "src/libplatform/tracing/perfetto-json-consumer.cc",
+      "src/libplatform/tracing/perfetto-json-consumer.h",
       "src/libplatform/tracing/perfetto-producer.cc",
       "src/libplatform/tracing/perfetto-producer.h",
       "src/libplatform/tracing/perfetto-shared-memory.cc",
@@ -3640,7 +3641,10 @@ v8_component("v8_libplatform") {
       "src/libplatform/tracing/perfetto-tracing-controller.cc",
       "src/libplatform/tracing/perfetto-tracing-controller.h",
     ]
-    deps += [ "third_party/perfetto:libperfetto" ]
+    deps += [
+      "third_party/perfetto:libperfetto",
+      "third_party/perfetto/protos/perfetto/trace:lite",
+    ]
   }
 }
 
