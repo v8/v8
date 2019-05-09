@@ -10,7 +10,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/memcopy.h"
 #include "src/objects.h"
-#include "src/objects/heap-object-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/maybe-object.h"
 #include "src/ptr-compr-inl.h"
 

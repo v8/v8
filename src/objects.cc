@@ -1804,22 +1804,6 @@ std::ostream& operator<<(std::ostream& os, const Object& obj) {
   return os;
 }
 
-void MaybeObject::ShortPrint(FILE* out) {
-  OFStream os(out);
-  os << Brief(*this);
-}
-
-void MaybeObject::ShortPrint(StringStream* accumulator) {
-  std::ostringstream os;
-  os << Brief(*this);
-  accumulator->Add(os.str().c_str());
-}
-
-void MaybeObject::ShortPrint(std::ostream& os) { os << Brief(*this); }
-
-Brief::Brief(const Object v) : value(v->ptr()) {}
-Brief::Brief(const MaybeObject v) : value(v.ptr()) {}
-
 std::ostream& operator<<(std::ostream& os, const Brief& v) {
   MaybeObject maybe_object(v.value);
   Smi smi;

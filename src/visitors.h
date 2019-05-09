@@ -15,8 +15,6 @@ namespace v8 {
 namespace internal {
 
 class CodeDataContainer;
-class MaybeObject;
-class Object;
 
 #define ROOT_ID_LIST(V)                                \
   V(kStringTable, "(Internalized strings)")            \

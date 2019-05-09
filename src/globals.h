@@ -548,6 +548,11 @@ static const intptr_t kPageAlignmentMask = (intptr_t{1} << kPageSizeBits) - 1;
 // If looking only at the top 32 bits, the QNaN mask is bits 19 to 30.
 constexpr uint32_t kQuietNaNHighBitsMask = 0xfff << (51 - 32);
 
+enum class HeapObjectReferenceType {
+  WEAK,
+  STRONG,
+};
+
 // -----------------------------------------------------------------------------
 // Forward declarations for frequently used classes
 
@@ -600,6 +605,8 @@ class NewSpace;
 class NewLargeObjectSpace;
 class NumberDictionary;
 class Object;
+template <HeapObjectReferenceType kRefType, typename StorageType>
+class TaggedImpl;
 class CompressedObjectSlot;
 class CompressedMaybeObjectSlot;
 class CompressedMapWordSlot;
@@ -619,6 +626,7 @@ class Smi;
 template <typename Config, class Allocator = FreeStoreAllocationPolicy>
 class SplayTree;
 class String;
+class StringStream;
 class Struct;
 class Symbol;
 class Variable;
@@ -1451,11 +1459,6 @@ enum IsolateAddressId {
   FOR_EACH_ISOLATE_ADDRESS_NAME(DECLARE_ENUM)
 #undef DECLARE_ENUM
       kIsolateAddressCount
-};
-
-enum class HeapObjectReferenceType {
-  WEAK,
-  STRONG,
 };
 
 enum class PoisoningMitigationLevel {

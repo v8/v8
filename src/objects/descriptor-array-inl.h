@@ -14,7 +14,7 @@
 #include "src/lookup-cache-inl.h"
 #include "src/maybe-handles-inl.h"
 #include "src/objects/heap-object-inl.h"
-#include "src/objects/maybe-object.h"
+#include "src/objects/maybe-object-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/property.h"
 

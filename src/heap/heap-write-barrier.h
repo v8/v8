@@ -14,9 +14,6 @@ namespace internal {
 class Code;
 class FixedArray;
 class Heap;
-class HeapObject;
-class MaybeObject;
-class Object;
 class RelocInfo;
 class EphemeronHashTable;
 

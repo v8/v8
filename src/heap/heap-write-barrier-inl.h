@@ -19,7 +19,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/maybe-object-inl.h"
-#include "src/objects/slots.h"
+#include "src/objects/slots-inl.h"
 
 namespace v8 {
 namespace internal {
