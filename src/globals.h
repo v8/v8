@@ -162,7 +162,6 @@ constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
 constexpr int kSystemPointerSizeLog2 = 3;
 constexpr intptr_t kIntptrSignBit =
     static_cast<intptr_t>(uintptr_t{0x8000000000000000});
-constexpr uintptr_t kUintptrAllBitsSet = uintptr_t{0xFFFFFFFFFFFFFFFF};
 constexpr bool kRequiresCodeRange = true;
 #if V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
 constexpr size_t kMaximalCodeRangeSize = 512 * MB;
@@ -184,7 +183,6 @@ constexpr size_t kReservedCodeRangePages = 0;
 #else
 constexpr int kSystemPointerSizeLog2 = 2;
 constexpr intptr_t kIntptrSignBit = 0x80000000;
-constexpr uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
 #if V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
 constexpr bool kRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 0 * MB;
