@@ -1920,117 +1920,12 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
   }
 }
 
-TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
-    SloppyTNode<Context> context, SloppyTNode<Object> value,
-    SloppyTNode<Smi> limit) {
-  Label out(this);
-  TVARIABLE(Smi, var_result);
-
-  TNode<Number> const value_int =
-      ToInteger_Inline(context, value, CodeStubAssembler::kTruncateMinusZero);
-
-  Label if_issmi(this), if_isnotsmi(this, Label::kDeferred);
-  Branch(TaggedIsSmi(value_int), &if_issmi, &if_isnotsmi);
-
-  BIND(&if_issmi);
-  {
-    TNode<Smi> value_smi = CAST(value_int);
-    Label if_isinbounds(this), if_isoutofbounds(this, Label::kDeferred);
-    Branch(SmiAbove(value_smi, limit), &if_isoutofbounds, &if_isinbounds);
-
-    BIND(&if_isinbounds);
-    {
-      var_result = CAST(value_int);
-      Goto(&out);
-    }
-
-    BIND(&if_isoutofbounds);
-    {
-      TNode<Smi> const zero = SmiConstant(0);
-      var_result =
-          SelectConstant<Smi>(SmiLessThan(value_smi, zero), zero, limit);
-      Goto(&out);
-    }
-  }
-
-  BIND(&if_isnotsmi);
-  {
-    // {value} is a heap number - in this case, it is definitely out of bounds.
-    TNode<HeapNumber> value_int_hn = CAST(value_int);
-
-    TNode<Float64T> const float_zero = Float64Constant(0.);
-    TNode<Smi> const smi_zero = SmiConstant(0);
-    TNode<Float64T> const value_float = LoadHeapNumberValue(value_int_hn);
-    var_result = SelectConstant<Smi>(Float64LessThan(value_float, float_zero),
-                                     smi_zero, limit);
-    Goto(&out);
-  }
-
-  BIND(&out);
-  return var_result.value();
-}
-
 TF_BUILTIN(StringSubstring, CodeStubAssembler) {
   TNode<String> string = CAST(Parameter(Descriptor::kString));
   TNode<IntPtrT> from = UncheckedCast<IntPtrT>(Parameter(Descriptor::kFrom));
   TNode<IntPtrT> to = UncheckedCast<IntPtrT>(Parameter(Descriptor::kTo));
 
   Return(SubString(string, from, to));
-}
-
-// ES6 #sec-string.prototype.substring
-TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
-  const int kStartArg = 0;
-  const int kEndArg = 1;
-
-  Node* const argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
-  CodeStubArguments args(this, argc);
-
-  TNode<Object> receiver = args.GetReceiver();
-  TNode<Object> start = args.GetOptionalArgumentValue(kStartArg);
-  TNode<Object> end = args.GetOptionalArgumentValue(kEndArg);
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  Label out(this);
-
-  TVARIABLE(Smi, var_start);
-  TVARIABLE(Smi, var_end);
-
-  // Check that {receiver} is coercible to Object and convert it to a String.
-  TNode<String> const string =
-      ToThisString(context, receiver, "String.prototype.substring");
-
-  TNode<Smi> const length = LoadStringLengthAsSmi(string);
-
-  // Conversion and bounds-checks for {start}.
-  var_start = ToSmiBetweenZeroAnd(context, start, length);
-
-  // Conversion and bounds-checks for {end}.
-  {
-    var_end = length;
-    GotoIf(IsUndefined(end), &out);
-
-    var_end = ToSmiBetweenZeroAnd(context, end, length);
-
-    Label if_endislessthanstart(this);
-    Branch(SmiLessThan(var_end.value(), var_start.value()),
-           &if_endislessthanstart, &out);
-
-    BIND(&if_endislessthanstart);
-    {
-      TNode<Smi> const tmp = var_end.value();
-      var_end = var_start.value();
-      var_start = tmp;
-      Goto(&out);
-    }
-  }
-
-  BIND(&out);
-  {
-    args.PopAndReturn(SubString(string, SmiUntag(var_start.value()),
-                                SmiUntag(var_end.value())));
-  }
 }
 
 // ES6 #sec-string.prototype.trim

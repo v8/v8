@@ -64,10 +64,6 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void GenerateStringRelationalComparison(Node* context, Node* left,
                                           Node* right, Operation op);
 
-  TNode<Smi> ToSmiBetweenZeroAnd(SloppyTNode<Context> context,
-                                 SloppyTNode<Object> value,
-                                 SloppyTNode<Smi> limit);
-
   typedef std::function<TNode<Object>(
       TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>
       StringAtAccessor;
