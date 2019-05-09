@@ -5048,6 +5048,81 @@ TEST(MessageHandler5) {
   isolate->RemoveMessageListeners(check_message_5b);
 }
 
+namespace {
+
+// Verifies that after throwing an exception the message object is set up in
+// some particular way by calling the supplied |tester| function. The tests that
+// use this purposely test only a single getter as the getter updates the cached
+// state of the object which could affect the results of other functions.
+void CheckMessageAttributes(std::function<void(v8::Local<v8::Context> context,
+                                               v8::Local<v8::Message> message)>
+                                tester) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  TryCatch try_catch(context->GetIsolate());
+  CompileRun(
+      R"javascript(
+      (function() {
+        throw new Error();
+      })();
+      )javascript");
+  CHECK(try_catch.HasCaught());
+
+  v8::Local<v8::Value> error = try_catch.Exception();
+  v8::Local<v8::Message> message =
+      v8::Exception::CreateMessage(context->GetIsolate(), error);
+  CHECK(!message.IsEmpty());
+
+  tester(context.local(), message);
+}
+
+}  // namespace
+
+TEST(MessageGetLineNumber) {
+  CheckMessageAttributes(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
+        CHECK_EQ(3, message->GetLineNumber(context).FromJust());
+      });
+}
+
+TEST(MessageGetStartColumn) {
+  CheckMessageAttributes(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
+        CHECK_EQ(14, message->GetStartColumn(context).FromJust());
+      });
+}
+
+TEST(MessageGetEndColumn) {
+  CheckMessageAttributes(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
+        CHECK_EQ(15, message->GetEndColumn(context).FromJust());
+      });
+}
+
+TEST(MessageGetStartPosition) {
+  CheckMessageAttributes(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
+        CHECK_EQ(35, message->GetStartPosition());
+      });
+}
+
+TEST(MessageGetEndPosition) {
+  CheckMessageAttributes(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
+        CHECK_EQ(36, message->GetEndPosition());
+      });
+}
+
+TEST(MessageGetSourceLine) {
+  CheckMessageAttributes(
+      [](v8::Local<v8::Context> context, v8::Local<v8::Message> message) {
+        std::string result(*v8::String::Utf8Value(
+            context->GetIsolate(),
+            message->GetSourceLine(context).ToLocalChecked()));
+        CHECK_EQ("        throw new Error();", result);
+      });
+}
 
 THREADED_TEST(GetSetProperty) {
   LocalContext context;

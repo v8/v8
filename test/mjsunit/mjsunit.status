@@ -401,12 +401,6 @@
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
-['lite_mode', {
-  # TODO(v8:8510): Tests that currently fail with lazy source positions.
-  'stack-traces-overflow': [SKIP],
-}], # lite_mode
-
-##############################################################################
 ['is_full_debug', {
   # Tests too slow in non-optimized debug mode.
   'compiler/regress-9017': [SKIP],

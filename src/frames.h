@@ -483,6 +483,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
                            FixedArray parameters);
 
     void EnsureSourcePositionsAvailable();
+    bool AreSourcePositionsAvailable() const;
 
     Handle<Object> receiver() const { return receiver_; }
     Handle<JSFunction> function() const { return function_; }
@@ -572,6 +573,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
   static FrameSummary Get(const StandardFrame* frame, int index);
 
   void EnsureSourcePositionsAvailable();
+  bool AreSourcePositionsAvailable() const;
 
   // Dispatched accessors.
   Handle<Object> receiver() const;

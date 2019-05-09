@@ -1342,23 +1342,30 @@ class JSMessageObject : public JSObject {
   // [stack_frames]: an array of stack frames for this error object.
   DECL_ACCESSORS(stack_frames, Object)
 
-  // [start_position]: the start position in the script for the error message.
-  inline int start_position() const;
-  inline void set_start_position(int value);
+  // Initializes the source positions in the object if possible. Does nothing if
+  // called more than once. If called when stack space is exhausted, then the
+  // source positions will be not be set and calling it again when there is more
+  // stack space will not have any effect.
+  static void EnsureSourcePositionsAvailable(Isolate* isolate,
+                                             Handle<JSMessageObject> message);
 
-  // [end_position]: the end position in the script for the error message.
-  inline int end_position() const;
-  inline void set_end_position(int value);
+  // Gets the start and end positions for the message.
+  // EnsureSourcePositionsAvailable must have been called before calling these.
+  inline int GetStartPosition() const;
+  inline int GetEndPosition() const;
 
   // Returns the line number for the error message (1-based), or
   // Message::kNoLineNumberInfo if the line cannot be determined.
+  // EnsureSourcePositionsAvailable must have been called before calling this.
   V8_EXPORT_PRIVATE int GetLineNumber() const;
 
   // Returns the offset of the given position within the containing line.
+  // EnsureSourcePositionsAvailable must have been called before calling this.
   V8_EXPORT_PRIVATE int GetColumnNumber() const;
 
   // Returns the source code line containing the given source
   // position, or the empty string if the position is invalid.
+  // EnsureSourcePositionsAvailable must have been called before calling this.
   Handle<String> GetSourceLine() const;
 
   inline int error_level() const;
@@ -1379,6 +1386,27 @@ class JSMessageObject : public JSObject {
                                              kPointerFieldsEndOffset, kSize>;
 
   OBJECT_CONSTRUCTORS(JSMessageObject, JSObject);
+
+ private:
+  friend class Factory;
+
+  inline bool DidEnsureSourcePositionsAvailable() const;
+
+  // [shared]: optional SharedFunctionInfo that can be used to reconstruct the
+  // source position if not available when the message was generated.
+  DECL_ACCESSORS(shared_info, HeapObject)
+
+  // [bytecode_offset]: optional offset using along with |shared| to generation
+  // source positions.
+  DECL_ACCESSORS(bytecode_offset, Smi)
+
+  // [start_position]: the start position in the script for the error message.
+  inline int start_position() const;
+  inline void set_start_position(int value);
+
+  // [end_position]: the end position in the script for the error message.
+  inline int end_position() const;
+  inline void set_end_position(int value);
 };
 
 // The [Async-from-Sync Iterator] object
