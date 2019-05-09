@@ -12,7 +12,6 @@
 #include "src/base/template-utils.h"
 #include "src/counters.h"
 #include "src/heap/array-buffer-tracker.h"
-#include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
@@ -3735,7 +3734,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
         Object element = array->get(j);
         if (element->IsHeapObject()) {
           HeapObject element_object = HeapObject::cast(element);
-          CHECK(IsValidHeapObject(heap(), element_object));
+          CHECK(heap()->Contains(element_object));
           CHECK(element_object->map()->IsMap());
         }
       }

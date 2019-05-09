@@ -51,6 +51,7 @@ Object CreateWritableObject() {
 }
 }  // namespace
 
+// TODO(v8:7464): Add more CHECKs once Contains doesn't include read-only space.
 TEST(ReadOnlyHeapIterator) {
   CcTest::InitializeVM();
   HandleScope handle_scope(CcTest::i_isolate());
@@ -60,7 +61,6 @@ TEST(ReadOnlyHeapIterator) {
   for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     CHECK(ReadOnlyHeap::Contains(obj));
-    CHECK(!CcTest::heap()->Contains(obj));
     CHECK_NE(sample_object, obj);
   }
 }
@@ -75,7 +75,6 @@ TEST(HeapIterator) {
   for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     CHECK(!ReadOnlyHeap::Contains(obj));
-    CHECK(CcTest::heap()->Contains(obj));
     if (sample_object == obj) seen_sample_object = true;
   }
   CHECK(seen_sample_object);
@@ -90,7 +89,7 @@ TEST(CombinedHeapIterator) {
 
   for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
-    CHECK(IsValidHeapObject(CcTest::heap(), obj));
+    CHECK(CcTest::heap()->Contains(obj));
     if (sample_object == obj) seen_sample_object = true;
   }
   CHECK(seen_sample_object);

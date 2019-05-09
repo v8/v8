@@ -8,7 +8,6 @@
 #include "src/conversions.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"  // For LooksValid implementation.
-#include "src/heap/read-only-heap.h"
 #include "src/objects/map.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string-comparator.h"
@@ -397,7 +396,7 @@ bool String::LooksValid() {
   // basically the same logic as the way we access the heap in the first place.
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*this);
   // RO_SPACE objects should always be valid.
-  if (ReadOnlyHeap::Contains(*this)) return true;
+  if (chunk->owner()->identity() == RO_SPACE) return true;
   if (chunk->heap() == nullptr) return false;
   return chunk->heap()->Contains(*this);
 }
