@@ -1105,9 +1105,8 @@ def Main(argv):
                 break
 
               attempts_left -= 1
-              if not attempts_left:  # ignore failures until last attempt
-                have_failed_tests = True
-              else:
+              have_failed_tests = True
+              if attempts_left:
                 logging.info('>>> Retrying suite: %s', runnable_name)
 
           if runnable.has_timeouts:
