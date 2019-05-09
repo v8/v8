@@ -100,7 +100,7 @@ void SetUnhandledExceptionCallback(
 // part of the registration of unwinding info. It is referenced by
 // RegisterNonABICompliantCodeRange(), below, and by the unwinding info for
 // builtins declared in the embedded blob.
-extern "C" int CRASH_HANDLER_FUNCTION_NAME(
+extern "C" __declspec(dllexport) int CRASH_HANDLER_FUNCTION_NAME(
     PEXCEPTION_RECORD ExceptionRecord, ULONG64 EstablisherFrame,
     PCONTEXT ContextRecord, PDISPATCHER_CONTEXT DispatcherContext) {
   if (unhandled_exception_callback_g != nullptr) {
