@@ -824,9 +824,6 @@ namespace internal {
   /* V8 Extras: v8.resolvePromise(promise, resolution) */                      \
   TFJ(PromiseInternalResolve, 2, kReceiver, kPromise, kResolution)             \
                                                                                \
-  /* Proxy */                                                                  \
-  TFS(ProxyHasProperty, kProxy, kName)                                         \
-                                                                               \
   /* Reflect */                                                                \
   ASM(ReflectApply, Dummy)                                                     \
   ASM(ReflectConstruct, Dummy)                                                 \

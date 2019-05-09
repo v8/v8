@@ -1190,7 +1190,7 @@ extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
 extern transitioning builtin DeleteProperty(implicit context: Context)(
     Object, Object, LanguageMode);
 extern transitioning builtin HasProperty(implicit context: Context)(
-    JSReceiver, Object): Boolean;
+    Object, Object): Boolean;
 extern transitioning macro HasProperty_Inline(implicit context: Context)(
     JSReceiver, Object): Boolean;
 
@@ -2442,6 +2442,7 @@ macro NewFastJSArrayWitness(array: FastJSArray): FastJSArrayWitness {
 extern macro TransitionElementsKind(
     JSObject, Map, constexpr ElementsKind,
     constexpr ElementsKind): void labels Bailout;
+extern macro PerformStackCheck(implicit context: Context)(): void;
 
 extern macro IsCallable(HeapObject): bool;
 extern macro IsConstructor(HeapObject): bool;
