@@ -939,8 +939,18 @@ void Heap::CreateInitialObjects() {
 
   set_noscript_shared_function_infos(roots.empty_weak_array_list());
 
+  /* Canonical off-heap trampoline data */
   set_off_heap_trampoline_relocation_info(
       *Builtins::GenerateOffHeapTrampolineRelocInfo(isolate_));
+
+  set_trampoline_trivial_code_data_container(
+      *isolate()->factory()->NewCodeDataContainer(0,
+                                                  AllocationType::kReadOnly));
+
+  set_trampoline_promise_rejection_code_data_container(
+      *isolate()->factory()->NewCodeDataContainer(
+          Code::IsPromiseRejectionField::encode(true),
+          AllocationType::kReadOnly));
 
   // Evaluate the hash values which will then be cached in the strings.
   isolate()->factory()->zero_string()->Hash();
