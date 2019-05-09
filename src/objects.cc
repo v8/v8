@@ -2571,7 +2571,7 @@ Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
       (GetShouldThrow(it->isolate(), should_throw) ==
        ShouldThrow::kThrowOnError)) {
     it->isolate()->Throw(*it->isolate()->factory()->NewReferenceError(
-        MessageTemplate::kNotDefined, it->name()));
+        MessageTemplate::kNotDefined, it->GetName()));
     return Nothing<bool>();
   }
 
