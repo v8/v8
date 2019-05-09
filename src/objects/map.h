@@ -727,8 +727,6 @@ class Map : public HeapObject {
       Handle<Symbol> transition_marker, const char* reason,
       bool support_holey_frozen_or_sealed_elements_kind = true);
 
-  static Handle<Map> FixProxy(Handle<Map> map, InstanceType type, int size);
-
   // Maximal number of fast properties. Used to restrict the number of map
   // transitions to avoid an explosion in the number of maps for objects used as
   // dictionaries.
