@@ -178,20 +178,11 @@ class ResultTracker(object):
       ...
     ],
     "errors": [<list of strings describing errors>],
-    # These two fields are deprecated and will soon be removed.
-    "timeouts": [<list of traces which have timed out at least once>],
-    "near_timeouts": [<list of traces which have at least once run for longer
-                      than 90% of the configured timeout>],
   }
   """
   def __init__(self):
     self.traces = {}
     self.errors = []
-    # TODO(sergiyb): Deprecate self.timeouts/near_timeouts and compute them in
-    # the recipe based on self.runnable_durations. Also cleanup RunnableConfig
-    # by removing has_timeouts/has_near_timeouts there.
-    self.timeouts = []
-    self.near_timeouts = []  # > 90% of the max runtime
     self.runnables = {}
 
   def AddTraceResult(self, trace, result, stddev):
@@ -234,8 +225,6 @@ class ResultTracker(object):
     return {
         'traces': self.traces.values(),
         'errors': self.errors,
-        'timeouts': self.timeouts,
-        'near_timeouts': self.near_timeouts,
         'runnables': self.runnables.values(),
     }
 
@@ -454,8 +443,6 @@ class RunnableConfig(GraphConfig):
   """
   def __init__(self, suite, parent, arch):
     super(RunnableConfig, self).__init__(suite, parent, arch)
-    self.has_timeouts = False
-    self.has_near_timeouts = False
     self.arch = arch
 
   @property
@@ -619,15 +606,11 @@ class Platform(object):
     except OSError:
       logging.exception(title % 'OSError')
       raise
-    if output.duration > 0.9 * runnable.timeout:
-      runnable.has_near_timeouts = True
     if output.stdout:
       logging.info(title % 'Stdout' + '\n%s', output.stdout)
     if output.stderr:  # pragma: no cover
       # Print stderr for debugging.
       logging.info(title % 'Stderr' + '\n%s', output.stderr)
-    if output.timed_out:
-      runnable.has_timeouts = True
       logging.warning('>>> Test timed out after %ss.', runnable.timeout)
     if output.exit_code != 0:
       logging.warning('>>> Test crashed with exit code %d.', output.exit_code)
@@ -1108,11 +1091,6 @@ def Main(argv):
               have_failed_tests = True
               if attempts_left:
                 logging.info('>>> Retrying suite: %s', runnable_name)
-
-          if runnable.has_timeouts:
-            result_tracker.timeouts.append(runnable_name)
-          if runnable.has_near_timeouts:
-            result_tracker.near_timeouts.append(runnable_name)
       except MaxTotalDurationReachedError:
         have_failed_tests = True
 
