@@ -10107,16 +10107,23 @@ void CpuProfiler::CollectSample() {
   reinterpret_cast<i::CpuProfiler*>(this)->CollectSample();
 }
 
-void CpuProfiler::StartProfiling(Local<String> title, bool record_samples) {
+void CpuProfiler::StartProfiling(Local<String> title,
+                                 CpuProfilingOptions options) {
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
-      *Utils::OpenHandle(*title), record_samples, kLeafNodeLineNumbers,
-      kNoSampleLimit);
+      *Utils::OpenHandle(*title), options);
+}
+
+void CpuProfiler::StartProfiling(Local<String> title, bool record_samples) {
+  CpuProfilingOptions options(kLeafNodeLineNumbers, record_samples);
+  reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
+      *Utils::OpenHandle(*title), options);
 }
 
 void CpuProfiler::StartProfiling(Local<String> title, CpuProfilingMode mode,
                                  bool record_samples, unsigned max_samples) {
+  CpuProfilingOptions options(mode, record_samples, max_samples);
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
-      *Utils::OpenHandle(*title), record_samples, mode, max_samples);
+      *Utils::OpenHandle(*title), options);
 }
 
 CpuProfile* CpuProfiler::StopProfiling(Local<String> title) {

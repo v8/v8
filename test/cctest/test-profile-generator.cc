@@ -380,7 +380,7 @@ TEST(RecordTickSample) {
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
-  profiles.StartProfiling("", false);
+  profiles.StartProfiling("");
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
@@ -448,7 +448,7 @@ TEST(SampleIds) {
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
-  profiles.StartProfiling("", true);
+  profiles.StartProfiling("", {CpuProfilingMode::kLeafNodeLineNumbers, true});
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
@@ -502,7 +502,7 @@ TEST(NoSamples) {
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
-  profiles.StartProfiling("", false);
+  profiles.StartProfiling("");
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
@@ -590,10 +590,10 @@ TEST(Issue51919) {
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
     i::Vector<char> title = i::Vector<char>::New(16);
     i::SNPrintF(title, "%d", i);
-    CHECK(collection.StartProfiling(title.begin(), false));
+    CHECK(collection.StartProfiling(title.begin()));
     titles[i] = title.begin();
   }
-  CHECK(!collection.StartProfiling("maximum", false));
+  CHECK(!collection.StartProfiling("maximum"));
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i)
     i::DeleteArray(titles[i]);
 }

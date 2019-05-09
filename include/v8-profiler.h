@@ -308,14 +308,43 @@ enum CpuProfilingNamingMode {
 };
 
 /**
+ * Optional profiling attributes.
+ */
+class V8_EXPORT CpuProfilingOptions {
+ public:
+  // Indicates that the sample buffer size should not be explicitly limited.
+  static const unsigned kNoSampleLimit = UINT_MAX;
+
+  /**
+   * \param mode Type of computation of stack frame line numbers.
+   * \param record_samples Whether samples should be logged in the profile.
+   * \param max_samples The maximum number of samples that should be recorded by
+   *                    the profiler. Samples obtained after this limit will be
+   *                    discarded.
+   */
+  CpuProfilingOptions(CpuProfilingMode mode = kLeafNodeLineNumbers,
+                      bool record_samples = false,
+                      unsigned max_samples = kNoSampleLimit)
+      : mode_(mode),
+        record_samples_(record_samples),
+        max_samples_(max_samples) {}
+
+  CpuProfilingMode mode() const { return mode_; }
+  bool record_samples() const { return record_samples_; }
+  unsigned max_samples() const { return max_samples_; }
+
+ private:
+  CpuProfilingMode mode_;
+  bool record_samples_;
+  unsigned max_samples_;
+};
+
+/**
  * Interface for controlling CPU profiling. Instance of the
  * profiler can be created using v8::CpuProfiler::New method.
  */
 class V8_EXPORT CpuProfiler {
  public:
-  // Indicates that the sample buffer size should not be explicitly limited.
-  static const unsigned kNoSampleLimit = UINT_MAX;
-
   /**
    * Creates a new CPU profiler for the |isolate|. The isolate must be
    * initialized. The profiler object must be disposed after use by calling
@@ -353,12 +382,15 @@ class V8_EXPORT CpuProfiler {
   void SetUsePreciseSampling(bool);
 
   /**
-   * Starts collecting CPU profile. Title may be an empty string. It
-   * is allowed to have several profiles being collected at
-   * once. Attempts to start collecting several profiles with the same
-   * title are silently ignored. While collecting a profile, functions
-   * from all security contexts are included in it. The token-based
-   * filtering is only performed when querying for a profile.
+   * Starts collecting a CPU profile. Title may be an empty string. Several
+   * profiles may be collected at once. Attempts to start collecting several
+   * profiles with the same title are silently ignored.
+   */
+  void StartProfiling(Local<String> title, CpuProfilingOptions options);
+
+  /**
+   * Starts profiling with the same semantics as above, except with expanded
+   * parameters.
    *
    * |record_samples| parameter controls whether individual samples should
    * be recorded in addition to the aggregated tree.
@@ -367,9 +399,9 @@ class V8_EXPORT CpuProfiler {
    * recorded by the profiler. Samples obtained after this limit will be
    * discarded.
    */
-  void StartProfiling(Local<String> title, CpuProfilingMode mode,
-                      bool record_samples = false,
-                      unsigned max_samples = kNoSampleLimit);
+  void StartProfiling(
+      Local<String> title, CpuProfilingMode mode, bool record_samples = false,
+      unsigned max_samples = CpuProfilingOptions::kNoSampleLimit);
   /**
    * The same as StartProfiling above, but the CpuProfilingMode defaults to
    * kLeafNodeLineNumbers mode, which was the previous default behavior of the
@@ -409,7 +441,6 @@ class V8_EXPORT CpuProfiler {
   CpuProfiler(const CpuProfiler&);
   CpuProfiler& operator=(const CpuProfiler&);
 };
-
 
 /**
  * HeapSnapshotEdge represents a directed connection between heap

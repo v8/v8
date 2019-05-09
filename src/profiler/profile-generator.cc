@@ -474,12 +474,9 @@ using v8::tracing::TracedValue;
 std::atomic<uint32_t> CpuProfile::last_id_;
 
 CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
-                       bool record_samples, ProfilingMode mode,
-                       unsigned max_samples)
+                       CpuProfilingOptions options)
     : title_(title),
-      record_samples_(record_samples),
-      mode_(mode),
-      max_samples_(max_samples),
+      options_(options),
       start_time_(base::TimeTicks::HighResolutionNow()),
       top_down_(profiler->isolate()),
       profiler_(profiler),
@@ -496,12 +493,12 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
                          const ProfileStackTrace& path, int src_line,
                          bool update_stats) {
   ProfileNode* top_frame_node =
-      top_down_.AddPathFromEnd(path, src_line, update_stats, mode_);
+      top_down_.AddPathFromEnd(path, src_line, update_stats, options_.mode());
 
   bool should_record_sample =
-      record_samples_ && !timestamp.IsNull() &&
-      (max_samples_ == v8::CpuProfiler::kNoSampleLimit ||
-       samples_.size() < max_samples_);
+      options_.record_samples() && !timestamp.IsNull() &&
+      (options_.max_samples() == CpuProfilingOptions::kNoSampleLimit ||
+       samples_.size() < options_.max_samples());
 
   if (should_record_sample)
     samples_.push_back({top_frame_node, timestamp, src_line});
@@ -703,9 +700,7 @@ CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
     : profiler_(nullptr), current_profiles_semaphore_(1) {}
 
 bool CpuProfilesCollection::StartProfiling(const char* title,
-                                           bool record_samples,
-                                           ProfilingMode mode,
-                                           unsigned max_samples) {
+                                           CpuProfilingOptions options) {
   current_profiles_semaphore_.Wait();
   if (static_cast<int>(current_profiles_.size()) >= kMaxSimultaneousProfiles) {
     current_profiles_semaphore_.Signal();
@@ -719,8 +714,7 @@ bool CpuProfilesCollection::StartProfiling(const char* title,
       return true;
     }
   }
-  current_profiles_.emplace_back(
-      new CpuProfile(profiler_, title, record_samples, mode, max_samples));
+  current_profiles_.emplace_back(new CpuProfile(profiler_, title, options));
   current_profiles_semaphore_.Signal();
   return true;
 }

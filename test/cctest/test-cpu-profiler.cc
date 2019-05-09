@@ -227,7 +227,7 @@ TEST(TickEvents) {
       CcTest::i_isolate(), generator,
       v8::base::TimeDelta::FromMicroseconds(100), true);
   CpuProfiler profiler(isolate, kDebugNaming, profiles, generator, processor);
-  profiles->StartProfiling("", false);
+  profiles->StartProfiling("");
   processor->Start();
   ProfilerListener profiler_listener(isolate, processor);
   isolate->logger()->AddCodeEventListener(&profiler_listener);
@@ -296,7 +296,7 @@ TEST(Issue1398) {
       CcTest::i_isolate(), generator,
       v8::base::TimeDelta::FromMicroseconds(100), true);
   CpuProfiler profiler(isolate, kDebugNaming, profiles, generator, processor);
-  profiles->StartProfiling("", false);
+  profiles->StartProfiling("");
   processor->Start();
   ProfilerListener profiler_listener(isolate, processor);
 
@@ -436,13 +436,12 @@ class ProfilerHelper {
 
   typedef v8::CpuProfilingMode ProfilingMode;
 
-  v8::CpuProfile* Run(v8::Local<v8::Function> function,
-                      v8::Local<v8::Value> argv[], int argc,
-                      unsigned min_js_samples = 0,
-                      unsigned min_external_samples = 0,
-                      bool collect_samples = false,
-                      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers,
-                      unsigned max_samples = v8::CpuProfiler::kNoSampleLimit);
+  v8::CpuProfile* Run(
+      v8::Local<v8::Function> function, v8::Local<v8::Value> argv[], int argc,
+      unsigned min_js_samples = 0, unsigned min_external_samples = 0,
+      bool collect_samples = false,
+      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers,
+      unsigned max_samples = CpuProfilingOptions::kNoSampleLimit);
 
   v8::CpuProfiler* profiler() { return profiler_; }
 
@@ -460,7 +459,7 @@ v8::CpuProfile* ProfilerHelper::Run(v8::Local<v8::Function> function,
   v8::Local<v8::String> profile_name = v8_str("my_profile");
 
   profiler_->SetSamplingInterval(100);
-  profiler_->StartProfiling(profile_name, mode, collect_samples, max_samples);
+  profiler_->StartProfiling(profile_name, {mode, collect_samples, max_samples});
 
   v8::internal::CpuProfiler* iprofiler =
       reinterpret_cast<v8::internal::CpuProfiler*>(profiler_);
@@ -1162,7 +1161,7 @@ static void TickLines(bool optimize) {
       CcTest::i_isolate(), generator,
       v8::base::TimeDelta::FromMicroseconds(100), true);
   CpuProfiler profiler(isolate, kDebugNaming, profiles, generator, processor);
-  profiles->StartProfiling("", false);
+  profiles->StartProfiling("");
   // TODO(delphick): Stop using the CpuProfiler internals here: This forces
   // LogCompiledFunctions so that source positions are collected everywhere.
   // This would normally happen automatically with CpuProfiler::StartProfiling
@@ -1805,8 +1804,9 @@ TEST(Inlining2) {
 
   v8::CpuProfiler* profiler = v8::CpuProfiler::New(CcTest::isolate());
   v8::Local<v8::String> profile_name = v8_str("inlining");
-  profiler->StartProfiling(profile_name,
-                           v8::CpuProfilingMode::kCallerLineNumbers);
+  profiler->StartProfiling(
+      profile_name,
+      CpuProfilingOptions{v8::CpuProfilingMode::kCallerLineNumbers});
 
   v8::Local<v8::Value> args[] = {
       v8::Integer::New(env->GetIsolate(), 50000 * load_factor)};
@@ -2778,7 +2778,7 @@ TEST(MultipleProfilersSampleIndependently) {
   std::unique_ptr<CpuProfiler> slow_profiler(
       new CpuProfiler(CcTest::i_isolate()));
   slow_profiler->set_sampling_interval(base::TimeDelta::FromSeconds(1));
-  slow_profiler->StartProfiling("1", true);
+  slow_profiler->StartProfiling("1", {kLeafNodeLineNumbers, true});
 
   CompileRun(R"(
     function start() {
@@ -2857,7 +2857,7 @@ TEST(FastStopProfiling) {
 
   std::unique_ptr<CpuProfiler> profiler(new CpuProfiler(CcTest::i_isolate()));
   profiler->set_sampling_interval(kLongInterval);
-  profiler->StartProfiling("", true);
+  profiler->StartProfiling("", {kLeafNodeLineNumbers, true});
 
   v8::Platform* platform = v8::internal::V8::GetCurrentPlatform();
   double start = platform->CurrentClockTimeMillis();

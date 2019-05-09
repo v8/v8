@@ -358,16 +358,14 @@ class CpuProfiler;
 
 class CpuProfile {
  public:
-  typedef v8::CpuProfilingMode ProfilingMode;
-
   struct SampleInfo {
     ProfileNode* node;
     base::TimeTicks timestamp;
     int line;
   };
 
-  CpuProfile(CpuProfiler* profiler, const char* title, bool record_samples,
-             ProfilingMode mode, unsigned max_samples);
+  CpuProfile(CpuProfiler* profiler, const char* title,
+             CpuProfilingOptions options);
 
   // Add pc -> ... -> main() call path to the profile.
   void AddPath(base::TimeTicks timestamp, const ProfileStackTrace& path,
@@ -392,9 +390,7 @@ class CpuProfile {
   void StreamPendingTraceEvents();
 
   const char* title_;
-  bool record_samples_;
-  ProfilingMode mode_;
-  const unsigned max_samples_;
+  const CpuProfilingOptions options_;
   base::TimeTicks start_time_;
   base::TimeTicks end_time_;
   std::deque<SampleInfo> samples_;
@@ -448,12 +444,8 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
  public:
   explicit CpuProfilesCollection(Isolate* isolate);
 
-  typedef v8::CpuProfilingMode ProfilingMode;
-
   void set_cpu_profiler(CpuProfiler* profiler) { profiler_ = profiler; }
-  bool StartProfiling(const char* title, bool record_samples,
-                      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers,
-                      unsigned max_samples = v8::CpuProfiler::kNoSampleLimit);
+  bool StartProfiling(const char* title, CpuProfilingOptions options = {});
   CpuProfile* StopProfiling(const char* title);
   std::vector<std::unique_ptr<CpuProfile>>* profiles() {
     return &finished_profiles_;
