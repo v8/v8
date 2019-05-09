@@ -43,4 +43,9 @@ IPEStatus ConvertJSONToCBOR(span<uint8_t> json, std::vector<uint8_t>* cbor) {
   return ConvertJSONToCBOR(platform, json, cbor);
 }
 
+IPEStatus ConvertJSONToCBOR(span<uint16_t> json, std::vector<uint8_t>* cbor) {
+  Platform platform;
+  return ConvertJSONToCBOR(platform, json, cbor);
+}
+
 }  // namespace v8_inspector

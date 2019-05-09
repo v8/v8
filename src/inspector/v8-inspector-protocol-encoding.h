@@ -17,6 +17,10 @@ namespace v8_inspector {
     ::v8_inspector_protocol_encoding::span<uint8_t> json,
     std::vector<uint8_t>* cbor);
 
+::v8_inspector_protocol_encoding::Status ConvertJSONToCBOR(
+    ::v8_inspector_protocol_encoding::span<uint16_t> json,
+    std::vector<uint8_t>* cbor);
+
 }  // namespace v8_inspector
 
 #endif  // V8_INSPECTOR_V8_INSPECTOR_PROTOCOL_ENCODING_H_
