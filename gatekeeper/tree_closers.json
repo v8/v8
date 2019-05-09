@@ -5,7 +5,7 @@
     "https://build.chromium.org/p/client.v8": [
       {
         "excluded_builders" : [
-          "V8 ios-simulator",
+          "V8 iOS - sim",
           "V8 Fuzzer",
           "V8 Linux64 - arm64 - sim - pointer compression - builder",
           "V8 Linux64 - arm64 - sim - pointer compression",
