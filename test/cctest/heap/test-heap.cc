@@ -3869,21 +3869,98 @@ TEST(AllocationSiteCreation) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  i::FLAG_enable_one_shot_optimization = true;
+  i::FLAG_allow_natives_syntax = true;
 
   // Array literals.
-  CheckNumberOfAllocations(heap, "function f1() { return []; }; f1()", 1, 0);
-  CheckNumberOfAllocations(heap, "function f2() { return [1, 2]; }; f2()", 1,
-                           0);
-  CheckNumberOfAllocations(heap, "function f3() { return [[1], [2]]; }; f3()",
+  CheckNumberOfAllocations(heap,
+                           "function f1() {"
+                           "  return []; "
+                           "};"
+                           "%EnsureFeedbackVectorForFunction(f1); f1();",
+                           1, 0);
+  CheckNumberOfAllocations(heap,
+                           "function f2() {"
+                           "  return [1, 2];"
+                           "};"
+                           "%EnsureFeedbackVectorForFunction(f2); f2();",
+                           1, 0);
+  CheckNumberOfAllocations(heap,
+                           "function f3() {"
+                           "  return [[1], [2]];"
+                           "};"
+                           "%EnsureFeedbackVectorForFunction(f3); f3();",
                            1, 2);
-
   CheckNumberOfAllocations(heap,
                            "function f4() { "
                            "return [0, [1, 1.1, 1.2, "
                            "], 1.5, [2.1, 2.2], 3];"
-                           "}; f4();",
+                           "};"
+                           "%EnsureFeedbackVectorForFunction(f4); f4();",
                            1, 2);
+
+  // Object literals have lazy AllocationSites
+  CheckNumberOfAllocations(heap,
+                           "function f5() {"
+                           " return {};"
+                           "};"
+                           "%EnsureFeedbackVectorForFunction(f5); f5();",
+                           0, 0);
+
+  // No AllocationSites are created for the empty object literal.
+  for (int i = 0; i < 5; i++) {
+    CheckNumberOfAllocations(heap, "f5(); ", 0, 0);
+  }
+
+  CheckNumberOfAllocations(heap,
+                           "function f6() {"
+                           "  return {a:1};"
+                           "};"
+                           "%EnsureFeedbackVectorForFunction(f6); f6();",
+                           0, 0);
+
+  CheckNumberOfAllocations(heap, "f6(); ", 1, 0);
+
+  CheckNumberOfAllocations(heap,
+                           "function f7() {"
+                           "  return {a:1, b:2};"
+                           "};"
+                           "%EnsureFeedbackVectorForFunction(f7); f7(); ",
+                           0, 0);
+  CheckNumberOfAllocations(heap, "f7(); ", 1, 0);
+
+  // No Allocation sites are created for object subliterals
+  CheckNumberOfAllocations(heap,
+                           "function f8() {"
+                           "return {a:{}, b:{ a:2, c:{ d:{f:{}}} } }; "
+                           "};"
+                           "%EnsureFeedbackVectorForFunction(f8); f8();",
+                           0, 0);
+  CheckNumberOfAllocations(heap, "f8(); ", 1, 0);
+
+  // We currently eagerly create allocation sites if there are sub-arrays.
+  // Allocation sites are created only for array subliterals
+  CheckNumberOfAllocations(heap,
+                           "function f9() {"
+                           "return {a:[1, 2, 3], b:{ a:2, c:{ d:{f:[]} } }}; "
+                           "};"
+                           "%EnsureFeedbackVectorForFunction(f9); f9(); ",
+                           1, 2);
+
+  // No new AllocationSites created on the second invocation.
+  CheckNumberOfAllocations(heap, "f9(); ", 0, 0);
+}
+
+TEST(AllocationSiteCreationForIIFE) {
+  // No feedback vectors and hence no allocation sites.
+  // TODO(mythria): Once lazy feedback allocation is enabled by default
+  // re-evaluate if we need any of these tests.
+  if (FLAG_lite_mode || FLAG_lazy_feedback_allocation) return;
+  FLAG_always_opt = false;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+  i::FLAG_enable_one_shot_optimization = true;
 
   // No allocation sites within IIFE/top-level
   CheckNumberOfAllocations(heap,
@@ -3913,42 +3990,6 @@ TEST(AllocationSiteCreation) {
                             })();
                             )",
                            0, 0);
-
-  // Object literals have lazy AllocationSites
-  CheckNumberOfAllocations(heap, "function f5() { return {}; }; f5(); ", 0, 0);
-
-  // No AllocationSites are created for the empty object literal.
-  for (int i = 0; i < 5; i++) {
-    CheckNumberOfAllocations(heap, "f5(); ", 0, 0);
-  }
-
-  CheckNumberOfAllocations(heap, "function f6() { return {a:1}; }; f6(); ", 0,
-                           0);
-
-  CheckNumberOfAllocations(heap, "f6(); ", 1, 0);
-
-  CheckNumberOfAllocations(heap, "function f7() { return {a:1, b:2}; }; f7(); ",
-                           0, 0);
-  CheckNumberOfAllocations(heap, "f7(); ", 1, 0);
-
-  // No Allocation sites are created for object subliterals
-  CheckNumberOfAllocations(heap,
-                           "function f8() {"
-                           "return {a:{}, b:{ a:2, c:{ d:{f:{}}} } }; "
-                           "}; f8(); ",
-                           0, 0);
-  CheckNumberOfAllocations(heap, "f8(); ", 1, 0);
-
-  // We currently eagerly create allocation sites if there are sub-arrays.
-  // Allocation sites are created only for array subliterals
-  CheckNumberOfAllocations(heap,
-                           "function f9() {"
-                           "return {a:[1, 2, 3], b:{ a:2, c:{ d:{f:[]} } }}; "
-                           "}; f9(); ",
-                           1, 2);
-
-  // No new AllocationSites created on the second invocation.
-  CheckNumberOfAllocations(heap, "f9(); ", 0, 0);
 
   // No allocation sites for literals in an iife/top level code even if it has
   // array subliterals
