@@ -2093,7 +2093,7 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
     DCHECK_EQ(availablefp_->type(), CPURegister::kVRegister);
   }
 
-  V8_EXPORT_PRIVATE ~UseScratchRegisterScope();
+  ~UseScratchRegisterScope();
 
   // Take a register from the appropriate temps list. It will be returned
   // automatically when the scope ends.
@@ -2110,7 +2110,7 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
   VRegister AcquireSameSizeAs(const VRegister& reg);
 
  private:
-  V8_EXPORT_PRIVATE static CPURegister AcquireNextAvailable(
+  static CPURegister AcquireNextAvailable(
       CPURegList* available);
 
   // Available scratch registers.

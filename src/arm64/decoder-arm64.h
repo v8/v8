@@ -120,7 +120,7 @@ class V8_EXPORT_PRIVATE DispatchingDecoderVisitor : public DecoderVisitor {
   //
   // will call in order visitor methods in V3, V2, V1, V4.
   void AppendVisitor(DecoderVisitor* visitor);
-  V8_EXPORT_PRIVATE void PrependVisitor(DecoderVisitor* visitor);
+  void PrependVisitor(DecoderVisitor* visitor);
   void InsertVisitorBefore(DecoderVisitor* new_visitor,
                            DecoderVisitor* registered_visitor);
   void InsertVisitorAfter(DecoderVisitor* new_visitor,
