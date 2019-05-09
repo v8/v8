@@ -7,9 +7,7 @@
 from __future__ import print_function
 
 from collections import namedtuple
-import coverage
 import json
-import mock
 import os
 import platform
 import shutil
@@ -17,6 +15,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+
+import coverage
+import mock
 
 # Requires python-coverage and python-mock. Native python coverage
 # version >= 3.7.1 should be installed to get the best speed.
@@ -208,8 +209,8 @@ class PerfTest(unittest.TestCase):
     self._MockCommand(['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'])
     self.assertEqual(0, self._CallMain())
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
-      {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
+      {'name': 'Richards', 'results': [1.234], 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [10657567.0], 'stddev': ''},
     ])
     self._VerifyRunnableDurations(1, 60)
     self._VerifyErrors([])
@@ -223,8 +224,8 @@ class PerfTest(unittest.TestCase):
     self._MockCommand(['.'], ['Richards: 1.234\nDeltaBlue: 10657567'])
     self.assertEqual(0, self._CallMain())
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
-      {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
+      {'name': 'Richards', 'results': [1.234], 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [10657567.0], 'stddev': ''},
     ])
     self._VerifyErrors([])
     self._VerifyMock(os.path.join(
@@ -241,8 +242,8 @@ class PerfTest(unittest.TestCase):
                        'Richards: 50\nDeltaBlue: 300\n'])
     self.assertEqual(0, self._CallMain())
     self._VerifyResults('v8', 'ms', [
-      {'name': 'Richards', 'results': ['50.0', '100.0'], 'stddev': ''},
-      {'name': 'DeltaBlue', 'results': ['300.0', '200.0'], 'stddev': ''},
+      {'name': 'Richards', 'results': [50.0, 100.0], 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [300.0, 200.0], 'stddev': ''},
     ])
     self._VerifyErrors([])
     self._VerifyMock(os.path.join(
@@ -260,8 +261,57 @@ class PerfTest(unittest.TestCase):
                        'Richards: 50\nDeltaBlue: 300\n'])
     self.assertEqual(0, self._CallMain())
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': ['50.0', '100.0'], 'stddev': ''},
-      {'name': 'DeltaBlue', 'results': ['300.0', '200.0'], 'stddev': ''},
+      {'name': 'Richards', 'results': [50.0, 100.0], 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [300.0, 200.0], 'stddev': ''},
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(os.path.join(
+      'out', 'x64.release', 'd7'), '--flag', 'run.js')
+
+  def testPerfectConfidenceRuns(self):
+    self._WriteTestInput(V8_JSON)
+    self._MockCommand(
+        ['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'] * 10)
+    self.assertEqual(0, self._CallMain('--confidence-level', '1'))
+    self._VerifyResults('test', 'score', [
+      {'name': 'Richards', 'results': [1.234] * 10, 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [10657567.0] * 10, 'stddev': ''},
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(os.path.join(
+      'out', 'x64.release', 'd7'), '--flag', 'run.js')
+
+  def testNoisyConfidenceRuns(self):
+    self._WriteTestInput(V8_JSON)
+    self._MockCommand(
+        ['.'],
+        reversed([
+          # First 10 runs are mandatory. DeltaBlue is slightly noisy.
+          'x\nRichards: 1.234\nDeltaBlue: 10757567\ny\n',
+          'x\nRichards: 1.234\nDeltaBlue: 10557567\ny\n',
+          'x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n',
+          'x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n',
+          'x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n',
+          'x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n',
+          'x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n',
+          'x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n',
+          'x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n',
+          'x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n',
+          # Need 4 more runs for confidence in DeltaBlue results.
+          'x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n',
+          'x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n',
+          'x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n',
+          'x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n',
+        ]),
+    )
+    self.assertEqual(0, self._CallMain('--confidence-level', '1'))
+    self._VerifyResults('test', 'score', [
+      {'name': 'Richards', 'results': [1.234] * 14, 'stddev': ''},
+      {
+        'name': 'DeltaBlue',
+        'results': [10757567.0, 10557567.0] + [10657567.0] * 12,
+        'stddev': '',
+      },
     ])
     self._VerifyErrors([])
     self._VerifyMock(os.path.join(
@@ -280,15 +330,15 @@ class PerfTest(unittest.TestCase):
     self.assertListEqual(sorted([
       {'units': 'score',
        'graphs': ['test', 'Richards'],
-       'results': ['50.0', '100.0'],
+       'results': [50.0, 100.0],
        'stddev': ''},
       {'units': 'ms',
        'graphs': ['test', 'Sub', 'Leaf'],
-       'results': ['3.0', '2.0', '1.0'],
+       'results': [3.0, 2.0, 1.0],
        'stddev': ''},
       {'units': 'score',
        'graphs': ['test', 'DeltaBlue'],
-       'results': ['200.0'],
+       'results': [200.0],
        'stddev': ''},
       ]), sorted(self._LoadResults()['traces']))
     self._VerifyErrors([])
@@ -309,8 +359,8 @@ class PerfTest(unittest.TestCase):
                               'DeltaBlue: 10657567\nDeltaBlue-stddev: 106\n'])
     self.assertEqual(0, self._CallMain())
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': ['1.234'], 'stddev': '0.23'},
-      {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': '106'},
+      {'name': 'Richards', 'results': [1.234], 'stddev': '0.23'},
+      {'name': 'DeltaBlue', 'results': [10657567.0], 'stddev': '106'},
     ])
     self._VerifyErrors([])
     self._VerifyMock(
@@ -327,8 +377,8 @@ class PerfTest(unittest.TestCase):
                               'DeltaBlue: 5\nDeltaBlue-stddev: 0.8\n'])
     self.assertEqual(1, self._CallMain())
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': ['2.0', '3.0'], 'stddev': '0.7'},
-      {'name': 'DeltaBlue', 'results': ['5.0', '6.0'], 'stddev': '0.8'},
+      {'name': 'Richards', 'results': [2.0, 3.0], 'stddev': '0.7'},
+      {'name': 'DeltaBlue', 'results': [5.0, 6.0], 'stddev': '0.8'},
     ])
     self._VerifyErrors(
         ['Test test/Richards should only run once since a stddev is provided '
@@ -348,8 +398,8 @@ class PerfTest(unittest.TestCase):
         mock.MagicMock(return_value={'is_android': False})).start()
     self.assertEqual(0, self._CallMain('--buildbot'))
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
-      {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
+      {'name': 'Richards', 'results': [1.234], 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [10657567.0], 'stddev': ''},
     ])
     self._VerifyErrors([])
     self._VerifyMock(os.path.join('out', 'Release', 'd7'), '--flag', 'run.js')
@@ -364,9 +414,9 @@ class PerfTest(unittest.TestCase):
         mock.MagicMock(return_value={'is_android': False})).start()
     self.assertEqual(0, self._CallMain('--buildbot'))
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
-      {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
-      {'name': 'Total', 'results': ['3626.49109719'], 'stddev': ''},
+      {'name': 'Richards', 'results': [1.234], 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [10657567.0], 'stddev': ''},
+      {'name': 'Total', 'results': [3626.491097190233], 'stddev': ''},
     ])
     self._VerifyErrors([])
     self._VerifyMock(os.path.join('out', 'Release', 'd7'), '--flag', 'run.js')
@@ -381,7 +431,7 @@ class PerfTest(unittest.TestCase):
         mock.MagicMock(return_value={'is_android': False})).start()
     self.assertEqual(1, self._CallMain('--buildbot'))
     self._VerifyResults('test', 'score', [
-      {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [10657567.0], 'stddev': ''},
     ])
     self._VerifyErrors(
         ['Regexp "^Richards: (.+)$" '
@@ -395,7 +445,7 @@ class PerfTest(unittest.TestCase):
     self._MockCommand(['.'], ['x\nRichaards: 1.234\nDeltaBlue: 10657567\ny\n'])
     self.assertEqual(1, self._CallMain())
     self._VerifyResults('test', 'score', [
-      {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [10657567.0], 'stddev': ''},
     ])
     self._VerifyErrors(
         ['Regexp "^Richards: (.+)$" did not match for test test/Richards.'])
@@ -442,8 +492,8 @@ class PerfTest(unittest.TestCase):
         return_value={'is_android': True}).start()
     self.assertEqual(0, self._CallMain('--arch', 'arm'))
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
-      {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
+      {'name': 'Richards', 'results': [1.234], 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [10657567.0], 'stddev': ''},
     ])
 
   def testTwoRuns_Trybot(self):
@@ -462,12 +512,12 @@ class PerfTest(unittest.TestCase):
         '--json-test-results-secondary', test_output_secondary,
     ))
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': ['100.0', '200.0'], 'stddev': ''},
-      {'name': 'DeltaBlue', 'results': ['20.0', '20.0'], 'stddev': ''},
+      {'name': 'Richards', 'results': [100.0, 200.0], 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [20.0, 20.0], 'stddev': ''},
     ])
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': ['50.0', '100.0'], 'stddev': ''},
-      {'name': 'DeltaBlue', 'results': ['200.0', '200.0'], 'stddev': ''},
+      {'name': 'Richards', 'results': [50.0, 100.0], 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [200.0, 200.0], 'stddev': ''},
     ], test_output_secondary)
     self._VerifyRunnableDurations(2, 60, test_output_secondary)
     self._VerifyErrors([])
@@ -486,8 +536,8 @@ class PerfTest(unittest.TestCase):
     self._MockCommand(['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'])
     self.assertEqual(0, self._CallMain('--extra-flags=--prof'))
     self._VerifyResults('test', 'score', [
-      {'name': 'Richards', 'results': ['1.234'], 'stddev': ''},
-      {'name': 'DeltaBlue', 'results': ['10657567.0'], 'stddev': ''},
+      {'name': 'Richards', 'results': [1.234], 'stddev': ''},
+      {'name': 'DeltaBlue', 'results': [10657567.0], 'stddev': ''},
     ])
     self._VerifyErrors([])
     self._VerifyMock(os.path.join('out', 'x64.release', 'd7'),
@@ -514,13 +564,13 @@ class PerfTest(unittest.TestCase):
       {
         'units': 'score',
         'graphs': ['test1', 'Richards'],
-        'results': [u'1.2', u'1.2'],
+        'results': [1.2, 1.2],
         'stddev': '',
       },
       {
         'units': 'score',
         'graphs': ['test1', 'DeltaBlue'],
-        'results': [u'2.1', u'2.1'],
+        'results': [2.1, 2.1],
         'stddev': '',
       },
     ]), sorted(results['traces']))
@@ -532,13 +582,13 @@ class PerfTest(unittest.TestCase):
       {
         'units': 'score',
         'graphs': ['test2', 'Richards'],
-        'results': [u'1.2', u'1.2'],
+        'results': [1.2, 1.2],
         'stddev': '',
       },
       {
         'units': 'score',
         'graphs': ['test2', 'DeltaBlue'],
-        'results': [u'2.1', u'2.1'],
+        'results': [2.1, 2.1],
         'stddev': '',
       },
     ], results['traces'])
@@ -550,13 +600,13 @@ class PerfTest(unittest.TestCase):
       {
         'units': 'score',
         'graphs': ['test3', 'Octane', 'Richards'],
-        'results': [u'1.2'],
+        'results': [1.2],
         'stddev': '',
       },
       {
         'units': 'score',
         'graphs': ['test3', 'Octane', 'DeltaBlue'],
-        'results': [u'2.1'],
+        'results': [2.1],
         'stddev': '',
       },
     ], results['traces'])

@@ -44,6 +44,7 @@ group("v8_perf") {
   testonly = true
 
   data_deps = [
+    "..:v8_python_base",
     "cctest:cctest",
     "..:d8",
     "../tools:v8_android_test_runner_deps",

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright 2014 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -120,6 +119,8 @@ import sys
 import time
 import traceback
 
+import numpy
+
 from testrunner.local import android
 from testrunner.local import command
 from testrunner.local import utils
@@ -142,6 +143,7 @@ RESULT_STDDEV_RE = re.compile(r'^\{([^\}]+)\}$')
 RESULT_LIST_RE = re.compile(r'^\[([^\]]+)\]$')
 TOOLS_BASE = os.path.abspath(os.path.dirname(__file__))
 INFRA_FAILURE_RETCODE = 87
+MIN_RUNS_FOR_CONFIDENCE = 10
 
 
 def GeometricMean(values):
@@ -150,7 +152,7 @@ def GeometricMean(values):
   The mean is calculated using log to avoid overflow.
   """
   values = map(float, values)
-  return str(math.exp(sum(map(math.log, values)) / len(values)))
+  return math.exp(sum(map(math.log, values)) / len(values))
 
 
 class ResultTracker(object):
@@ -240,6 +242,42 @@ class ResultTracker(object):
   def WriteToFile(self, file_name):
     with open(file_name, 'w') as f:
       f.write(json.dumps(self.ToDict()))
+
+  def HasEnoughRuns(self, graph_config, confidence_level):
+    """Checks if the mean of the results for a given trace config is within
+    0.1% of the true value with the specified confidence level.
+
+    This assumes Gaussian distribution of the noise and based on
+    https://en.wikipedia.org/wiki/68%E2%80%9395%E2%80%9399.7_rule.
+
+    Args:
+      graph_config: An instance of GraphConfig.
+      confidence_level: Number of standard deviations from the mean that all
+          values must lie within. Typical values are 1, 2 and 3 and correspond
+          to 68%, 95% and 99.7% probability that the measured value is within
+          0.1% of the true value.
+
+    Returns:
+      True if specified confidence level have been achieved.
+    """
+    if not isinstance(graph_config, TraceConfig):
+      return all(self.HasEnoughRuns(child, confidence_level)
+                 for child in graph_config.children)
+
+    trace = self.traces.get(graph_config.name, {})
+    results = trace.get('results', [])
+    logging.debug('HasEnoughRuns for %s', graph_config.name)
+
+    if len(results) < MIN_RUNS_FOR_CONFIDENCE:
+      logging.debug('  Ran %d times, need at least %d',
+                    len(results), MIN_RUNS_FOR_CONFIDENCE)
+      return False
+
+    logging.debug('  Results: %d entries', len(results))
+    mean = numpy.mean(results)
+    mean_stderr = numpy.std(results) / numpy.sqrt(len(results))
+    logging.debug('  Mean: %.2f, mean_stderr: %.2f', mean, mean_stderr)
+    return confidence_level * mean_stderr < mean / 1000.0
 
   def __str__(self):  # pragma: no cover
     return json.dumps(self.ToDict(), indent=2, separators=(',', ': '))
@@ -383,8 +421,8 @@ class TraceConfig(GraphConfig):
     stddev = None
 
     try:
-      result = str(float(
-        re.search(self.results_regexp, output.stdout, re.M).group(1)))
+      result = float(
+        re.search(self.results_regexp, output.stdout, re.M).group(1))
     except ValueError:
       result_tracker.AddError(
           'Regexp "%s" returned a non-numeric for test %s.' %
@@ -740,6 +778,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
     output.duration = time.time() - start
     return output
 
+
 class CustomMachineConfiguration:
   def __init__(self, disable_aslr = False, governor = None):
     self.aslr_backup = None
@@ -844,6 +883,12 @@ class CustomMachineConfiguration:
       raise Exception('Could not set CPU governor. Present value is %s'
                       % cur_value )
 
+
+class MaxTotalDurationReachedError(Exception):
+  """Exception used to stop running tests when max total duration is reached."""
+  pass
+
+
 def Main(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument('--arch',
@@ -900,12 +945,28 @@ def Main(argv):
                       '--filter=JSTests/TypedArrays/ will run only TypedArray '
                       'benchmarks from the JSTests suite.',
                       default='')
+  parser.add_argument('--confidence-level', type=int,
+                      help='Repeatedly runs each benchmark until specified '
+                      'confidence level is reached. The value is interpreted '
+                      'as the number of standard deviations from the mean that '
+                      'all values must lie within. Typical values are 1, 2 and '
+                      '3 and correspond to 68%, 95% and 99.7% probability that '
+                      'the measured value is within 0.1% of the true value. '
+                      'Larger values result in more retries and thus longer '
+                      'runtime, but also provide more reliable results. Also '
+                      'see --max-total-duration flag.')
+  parser.add_argument('--max-total-duration', type=int, default=7140,  # 1h 59m
+                      help='Max total duration in seconds allowed for retries '
+                      'across all tests. This is especially useful in '
+                      'combination with the --confidence-level flag.')
   parser.add_argument('--dump-logcats-to',
                       help='Writes logcat output from each test into specified '
                       'directory. Only supported for android targets.')
-  parser.add_argument("--run-count", type=int, default=0,
-                      help="Override the run count specified by the test "
-                           "suite. The default 0 uses the suite's config.")
+  parser.add_argument('--run-count', type=int, default=0,
+                      help='Override the run count specified by the test '
+                      'suite. The default 0 uses the suite\'s config.')
+  parser.add_argument('-v', '--verbose', default=False, action='store_true',
+                      help='Be verbose and print debug output.')
   parser.add_argument('suite', nargs='+', help='Path to the suite config file.')
 
   try:
@@ -914,7 +975,8 @@ def Main(argv):
     return INFRA_FAILURE_RETCODE
 
   logging.basicConfig(
-      level=logging.INFO, format='%(asctime)s %(levelname)-8s  %(message)s')
+      level=logging.DEBUG if args.verbose else logging.INFO,
+      format='%(asctime)s %(levelname)-8s  %(message)s')
 
   if args.arch == 'auto':  # pragma: no cover
     args.arch = utils.DefaultArch()
@@ -973,8 +1035,7 @@ def Main(argv):
 
   result_tracker = ResultTracker()
   result_tracker_secondary = ResultTracker()
-  # We use list here to allow modification in nested function below.
-  have_failed_tests = [False]
+  have_failed_tests = False
   with CustomMachineConfiguration(governor = args.cpu_governor,
                                   disable_aslr = args.noaslr) as conf:
     for path in args.suite:
@@ -1000,39 +1061,61 @@ def Main(argv):
         platform.PreTests(node, path)
 
       # Traverse graph/trace tree and iterate over all runnables.
-      for runnable in FlattenRunnables(root, NodeCB):
-        runnable_name = '/'.join(runnable.graphs)
-        if (not runnable_name.startswith(args.filter) and
-            runnable_name + '/' != args.filter):
-          continue
-        logging.info('>>> Running suite: %s', runnable_name)
+      start = time.time()
+      try:
+        for runnable in FlattenRunnables(root, NodeCB):
+          runnable_name = '/'.join(runnable.graphs)
+          if (not runnable_name.startswith(args.filter) and
+              runnable_name + '/' != args.filter):
+            continue
+          logging.info('>>> Running suite: %s', runnable_name)
 
-        for i in range(0, max(1, args.run_count or runnable.run_count)):
-          attempts_left = runnable.retry_count + 1
-          while attempts_left:
-            output, output_secondary = platform.Run(
-                runnable, i, secondary=args.shell_dir_secondary)
-            result_tracker.AddRunnableDuration(runnable, output.duration)
-            result_tracker_secondary.AddRunnableDuration(
-                runnable, output_secondary.duration)
-
-            if output.IsSuccess() and output_secondary.IsSuccess():
-              runnable.ProcessOutput(output, result_tracker, i)
-              if output_secondary is not NULL_OUTPUT:
-                runnable.ProcessOutput(
-                    output_secondary, result_tracker_secondary, i)
-              break
-
-            attempts_left -= 1
-            if not attempts_left:  # ignore failures until last attempt
-              have_failed_tests[0] = True
+          def RunGenerator(runnable):
+            if args.confidence_level:
+              counter = 0
+              while not result_tracker.HasEnoughRuns(
+                  runnable, args.confidence_level):
+                yield counter
+                counter += 1
             else:
-              logging.info('>>> Retrying suite: %s', runnable_name)
+              for i in range(0, max(1, args.run_count or runnable.run_count)):
+                yield i
 
-        if runnable.has_timeouts:
-          result_tracker.timeouts.append(runnable_name)
-        if runnable.has_near_timeouts:
-          result_tracker.near_timeouts.append(runnable_name)
+          for i in RunGenerator(runnable):
+            attempts_left = runnable.retry_count + 1
+            while attempts_left:
+              total_duration = time.time() - start
+              if total_duration > args.max_total_duration:
+                logging.info(
+                    '>>> Stopping now since running for too long (%ds > %ds)',
+                    total_duration, args.max_total_duration)
+                raise MaxTotalDurationReachedError()
+
+              output, output_secondary = platform.Run(
+                  runnable, i, secondary=args.shell_dir_secondary)
+              result_tracker.AddRunnableDuration(runnable, output.duration)
+              result_tracker_secondary.AddRunnableDuration(
+                  runnable, output_secondary.duration)
+
+              if output.IsSuccess() and output_secondary.IsSuccess():
+                runnable.ProcessOutput(output, result_tracker, i)
+                if output_secondary is not NULL_OUTPUT:
+                  runnable.ProcessOutput(
+                      output_secondary, result_tracker_secondary, i)
+                break
+
+              attempts_left -= 1
+              if not attempts_left:  # ignore failures until last attempt
+                have_failed_tests = True
+              else:
+                logging.info('>>> Retrying suite: %s', runnable_name)
+
+          if runnable.has_timeouts:
+            result_tracker.timeouts.append(runnable_name)
+          if runnable.has_near_timeouts:
+            result_tracker.near_timeouts.append(runnable_name)
+      except MaxTotalDurationReachedError:
+        have_failed_tests = True
 
       platform.PostExecution()
 
@@ -1048,7 +1131,7 @@ def Main(argv):
       print('Secondary results:', result_tracker_secondary)
 
   if (result_tracker.errors or result_tracker_secondary.errors or
-      have_failed_tests[0]):
+      have_failed_tests):
     return 1
 
   return 0

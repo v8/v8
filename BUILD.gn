@@ -3875,6 +3875,12 @@ group("gn_all") {
   }
 }
 
+group("v8_python_base") {
+  data = [
+    ".vpython",
+  ]
+}
+
 group("v8_clusterfuzz") {
   testonly = true
 
