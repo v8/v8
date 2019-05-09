@@ -793,8 +793,7 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<JSObject> NewExternal(void* value);
 
   // Creates a new CodeDataContainer for a Code object.
-  Handle<CodeDataContainer> NewCodeDataContainer(int flags,
-                                                 AllocationType allocation);
+  Handle<CodeDataContainer> NewCodeDataContainer(int flags);
 
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.
@@ -958,44 +957,29 @@ class V8_EXPORT_PRIVATE Factory {
       self_reference_ = self_reference;
       return *this;
     }
-
     CodeBuilder& set_builtin_index(int32_t builtin_index) {
       builtin_index_ = builtin_index;
       return *this;
     }
-
     CodeBuilder& set_source_position_table(Handle<ByteArray> table) {
       DCHECK(!table.is_null());
       source_position_table_ = table;
       return *this;
     }
-
     CodeBuilder& set_deoptimization_data(
         Handle<DeoptimizationData> deopt_data) {
       DCHECK(!deopt_data.is_null());
       deoptimization_data_ = deopt_data;
       return *this;
     }
-
     CodeBuilder& set_immovable() {
       is_movable_ = false;
       return *this;
     }
-
     CodeBuilder& set_is_turbofanned() {
       is_turbofanned_ = true;
       return *this;
     }
-
-    // Indicates the CodeDataContainer should be allocated in read-only space.
-    // As an optimization, if the kind-specific flags match that of a canonical
-    // container, it will be used instead.
-    CodeBuilder& set_read_only_data_container(int32_t flags) {
-      read_only_data_container_ = true;
-      kind_specific_flags_ = flags;
-      return *this;
-    }
-
     CodeBuilder& set_stack_slots(int stack_slots) {
       stack_slots_ = stack_slots;
       return *this;
@@ -1010,11 +994,9 @@ class V8_EXPORT_PRIVATE Factory {
 
     MaybeHandle<Object> self_reference_;
     int32_t builtin_index_ = Builtins::kNoBuiltinId;
-    int32_t kind_specific_flags_ = 0;
     Handle<ByteArray> source_position_table_;
     Handle<DeoptimizationData> deoptimization_data_ =
         DeoptimizationData::Empty(isolate_);
-    bool read_only_data_container_ = false;
     bool is_movable_ = true;
     bool is_turbofanned_ = false;
     int stack_slots_ = 0;
