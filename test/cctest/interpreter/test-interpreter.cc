@@ -5131,7 +5131,9 @@ TEST(InterpreterCollectSourcePositions_StackOverflow) {
   CHECK_GT(source_position_table->length(), 0);
 }
 
-TEST(InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
+// TODO(v8:8510): When an exception is thrown, the top frame still has its
+// source positions collected. Re-enable this test when that is fixed.
+DISABLED_TEST(InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
   FLAG_enable_lazy_source_positions = true;
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();

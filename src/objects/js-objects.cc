@@ -5777,27 +5777,7 @@ void JSDate::SetCachedFields(int64_t local_time_ms, DateCache* date_cache) {
   set_sec(Smi::FromInt(sec), SKIP_WRITE_BARRIER);
 }
 
-// static
-void JSMessageObject::EnsureSourcePositionsAvailable(
-    Isolate* isolate, Handle<JSMessageObject> message) {
-  if (!message->DidEnsureSourcePositionsAvailable()) {
-    DCHECK_EQ(message->start_position(), -1);
-    DCHECK_GE(message->bytecode_offset()->value(), 0);
-    Handle<SharedFunctionInfo> shared_info(
-        SharedFunctionInfo::cast(message->shared_info()), isolate);
-    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
-    DCHECK(shared_info->HasBytecodeArray());
-    int position = shared_info->abstract_code()->SourcePosition(
-        message->bytecode_offset()->value());
-    DCHECK_GE(position, 0);
-    message->set_start_position(position);
-    message->set_end_position(position + 1);
-    message->set_shared_info(ReadOnlyRoots(isolate).undefined_value());
-  }
-}
-
 int JSMessageObject::GetLineNumber() const {
-  DCHECK(DidEnsureSourcePositionsAvailable());
   if (start_position() == -1) return Message::kNoLineNumberInfo;
 
   Handle<Script> the_script(script(), GetIsolate());
@@ -5813,7 +5793,6 @@ int JSMessageObject::GetLineNumber() const {
 }
 
 int JSMessageObject::GetColumnNumber() const {
-  DCHECK(DidEnsureSourcePositionsAvailable());
   if (start_position() == -1) return -1;
 
   Handle<Script> the_script(script(), GetIsolate());
@@ -5838,7 +5817,6 @@ Handle<String> JSMessageObject::GetSourceLine() const {
 
   Script::PositionInfo info;
   const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
-  DCHECK(DidEnsureSourcePositionsAvailable());
   if (!Script::GetPositionInfo(the_script, start_position(), &info,
                                offset_flag)) {
     return isolate->factory()->empty_string();

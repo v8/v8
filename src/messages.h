@@ -33,29 +33,20 @@ class WasmInstanceObject;
 
 class V8_EXPORT_PRIVATE MessageLocation {
  public:
-  // Constructors for when source positions are already known.
-  // TODO(delphick): Collapse to a single constructor with a default parameter
-  // when we stop using the GCC that requires this separation.
   MessageLocation(Handle<Script> script, int start_pos, int end_pos);
   MessageLocation(Handle<Script> script, int start_pos, int end_pos,
                   Handle<SharedFunctionInfo> shared);
-  // Constructor for when source positions were not collected but which can be
-  // reconstructed from the SharedFuncitonInfo and bytecode offset.
-  MessageLocation(Handle<Script> script, Handle<SharedFunctionInfo> shared,
-                  int bytecode_offset);
   MessageLocation();
 
   Handle<Script> script() const { return script_; }
   int start_pos() const { return start_pos_; }
   int end_pos() const { return end_pos_; }
-  int bytecode_offset() const { return bytecode_offset_; }
   Handle<SharedFunctionInfo> shared() const { return shared_; }
 
  private:
   Handle<Script> script_;
   int start_pos_;
   int end_pos_;
-  int bytecode_offset_;
   Handle<SharedFunctionInfo> shared_;
 };
 

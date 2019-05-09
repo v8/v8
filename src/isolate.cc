@@ -2069,6 +2069,8 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   wasm::WasmCodeRefScope code_ref_scope;
   frame->Summarize(&frames);
   FrameSummary& summary = frames.back();
+  summary.EnsureSourcePositionsAvailable();
+  int pos = summary.SourcePosition();
   Handle<SharedFunctionInfo> shared;
   Handle<Object> script = summary.script();
   if (!script->IsScript() ||
@@ -2079,14 +2081,7 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   if (summary.IsJavaScript()) {
     shared = handle(summary.AsJavaScript().function()->shared(), this);
   }
-  if (summary.AreSourcePositionsAvailable()) {
-    int pos = summary.SourcePosition();
-    *target =
-        MessageLocation(Handle<Script>::cast(script), pos, pos + 1, shared);
-  } else {
-    *target = MessageLocation(Handle<Script>::cast(script), shared,
-                              summary.code_offset());
-  }
+  *target = MessageLocation(Handle<Script>::cast(script), pos, pos + 1, shared);
   return true;
 }
 
@@ -2161,18 +2156,13 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
     if (script->IsScript() &&
         !(Script::cast(script)->source()->IsUndefined(this))) {
       Handle<SharedFunctionInfo> shared = handle(fun->shared(), this);
-
+      SharedFunctionInfo::EnsureSourcePositionsAvailable(this, shared);
       AbstractCode abstract_code = elements->Code(i);
       const int code_offset = elements->Offset(i)->value();
-      Handle<Script> casted_script(Script::cast(script), this);
-      if (shared->HasBytecodeArray() &&
-          shared->GetBytecodeArray()->HasSourcePositionTable()) {
-        int pos = abstract_code->SourcePosition(code_offset);
-        *target = MessageLocation(casted_script, pos, pos + 1, shared);
-      } else {
-        *target = MessageLocation(casted_script, shared, code_offset);
-      }
+      const int pos = abstract_code->SourcePosition(code_offset);
 
+      Handle<Script> casted_script(Script::cast(script), this);
+      *target = MessageLocation(casted_script, pos, pos + 1);
       return true;
     }
   }
@@ -2288,13 +2278,8 @@ void Isolate::ReportPendingMessagesImpl(bool report_externally) {
     HandleScope scope(this);
     Handle<JSMessageObject> message(JSMessageObject::cast(message_obj), this);
     Handle<Script> script(message->script(), this);
-    // Clear the exception and restore it afterwards, otherwise
-    // CollectSourcePositions will abort.
-    clear_pending_exception();
-    JSMessageObject::EnsureSourcePositionsAvailable(this, message);
-    set_pending_exception(exception);
-    int start_pos = message->GetStartPosition();
-    int end_pos = message->GetEndPosition();
+    int start_pos = message->start_position();
+    int end_pos = message->end_position();
     MessageLocation location(script, start_pos, end_pos);
     MessageHandler::ReportMessage(this, &location, message);
   }
