@@ -1703,15 +1703,13 @@ void InstructionSelector::EmitPrepareArguments(
   int claim_count = static_cast<int>(arguments->size());
   int slot = claim_count - 1;
   claim_count = RoundUp(claim_count, 2);
-  // Bump the stack pointer(s).
+  // Bump the stack pointer.
   if (claim_count > 0) {
     // TODO(titzer): claim and poke probably take small immediates.
     // TODO(titzer): it would be better to bump the sp here only
     //               and emit paired stores with increment for non c frames.
     Emit(kArm64Claim, g.NoOutput(), g.TempImmediate(claim_count));
-  }
 
-  if (claim_count > 0) {
     // Store padding, which might be overwritten.
     Emit(kArm64Poke, g.NoOutput(), g.UseImmediate(0),
          g.TempImmediate(claim_count - 1));
@@ -1719,18 +1717,23 @@ void InstructionSelector::EmitPrepareArguments(
 
   // Poke the arguments into the stack.
   while (slot >= 0) {
-    Node* input_node = (*arguments)[slot].node;
-    // Skip any alignment holes in pushed nodes.
-    if (input_node != nullptr) {
-      Emit(kArm64Poke, g.NoOutput(), g.UseRegister(input_node),
+    PushParameter input0 = (*arguments)[slot];
+    PushParameter input1 = slot > 0 ? (*arguments)[slot - 1] : PushParameter();
+    // Emit a poke-pair if consecutive parameters have the same type.
+    // TODO(arm): Support consecutive Simd128 parameters.
+    if (input0.node != nullptr && input1.node != nullptr &&
+        input0.location.GetType() == input1.location.GetType()) {
+      Emit(kArm64PokePair, g.NoOutput(), g.UseRegister(input0.node),
+           g.UseRegister(input1.node), g.TempImmediate(slot));
+      slot -= 2;
+    } else if (input0.node != nullptr) {
+      Emit(kArm64Poke, g.NoOutput(), g.UseRegister(input0.node),
            g.TempImmediate(slot));
+      slot--;
+    } else {
+      // Skip any alignment holes in pushed nodes.
+      slot--;
     }
-    slot--;
-    // TODO(ahaas): Poke arguments in pairs if two subsequent arguments have the
-    //              same type.
-    // Emit(kArm64PokePair, g.NoOutput(), g.UseRegister((*arguments)[slot]),
-    //      g.UseRegister((*arguments)[slot - 1]), g.TempImmediate(slot));
-    // slot -= 2;
   }
 }
 

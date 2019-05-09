@@ -4620,6 +4620,206 @@ TEST_F(InstructionSelectorTest, ExternalReferenceLoad2) {
   EXPECT_NE(kMode_Root, s[0]->addressing_mode());
 }
 
+namespace {
+// Builds a call with the specified signature and nodes as arguments.
+// Then checks that the correct number of kArm64Poke and kArm64PokePair were
+// generated.
+void TestPokePair(InstructionSelectorTest::StreamBuilder& m, Zone* zone,
+                  MachineSignature::Builder& builder, Node* nodes[],
+                  int num_nodes, int expected_poke_pair, int expected_poke) {
+  auto call_descriptor =
+      InstructionSelectorTest::StreamBuilder::MakeSimpleCallDescriptor(
+          zone, builder.Build());
+
+  m.CallN(call_descriptor, num_nodes, nodes);
+  m.Return(m.UndefinedConstant());
+
+  auto s = m.Build();
+  int num_poke_pair = 0;
+  int num_poke = 0;
+  for (size_t i = 0; i < s.size(); ++i) {
+    if (s[i]->arch_opcode() == kArm64PokePair) {
+      num_poke_pair++;
+    }
+
+    if (s[i]->arch_opcode() == kArm64Poke) {
+      num_poke++;
+    }
+  }
+
+  EXPECT_EQ(expected_poke_pair, num_poke_pair);
+  // Note: The `+ 1` here comes from the padding Poke in
+  // EmitPrepareArguments.
+  EXPECT_EQ(expected_poke + 1, num_poke);
+}
+}  // namespace
+
+TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsInt32) {
+  {
+    MachineSignature::Builder builder(zone(), 0, 3);
+    builder.AddParam(MachineType::Int32());
+    builder.AddParam(MachineType::Int32());
+    builder.AddParam(MachineType::Int32());
+
+    StreamBuilder m(this, MachineType::AnyTagged());
+    Node* nodes[] = {
+        m.UndefinedConstant(),
+        m.Int32Constant(0),
+        m.Int32Constant(0),
+        m.Int32Constant(0),
+    };
+
+    const int expected_poke_pair = 1;
+    const int expected_poke = 1;
+
+    TestPokePair(m, zone(), builder, nodes, arraysize(nodes),
+                 expected_poke_pair, expected_poke);
+  }
+
+  {
+    MachineSignature::Builder builder(zone(), 0, 4);
+    builder.AddParam(MachineType::Int32());
+    builder.AddParam(MachineType::Int32());
+    builder.AddParam(MachineType::Int32());
+    builder.AddParam(MachineType::Int32());
+
+    StreamBuilder m(this, MachineType::AnyTagged());
+    Node* nodes[] = {
+        m.UndefinedConstant(), m.Int32Constant(0), m.Int32Constant(0),
+        m.Int32Constant(0),    m.Int32Constant(0),
+    };
+
+    const int expected_poke_pair = 2;
+    const int expected_poke = 0;
+
+    TestPokePair(m, zone(), builder, nodes, arraysize(nodes),
+                 expected_poke_pair, expected_poke);
+  }
+}
+
+TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsInt64) {
+  MachineSignature::Builder builder(zone(), 0, 4);
+  builder.AddParam(MachineType::Int64());
+  builder.AddParam(MachineType::Int64());
+  builder.AddParam(MachineType::Int64());
+  builder.AddParam(MachineType::Int64());
+
+  StreamBuilder m(this, MachineType::AnyTagged());
+  Node* nodes[] = {
+      m.UndefinedConstant(), m.Int64Constant(0), m.Int64Constant(0),
+      m.Int64Constant(0),    m.Int64Constant(0),
+  };
+
+  const int expected_poke_pair = 2;
+  const int expected_poke = 0;
+
+  TestPokePair(m, zone(), builder, nodes, arraysize(nodes), expected_poke_pair,
+               expected_poke);
+}
+
+TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsFloat32) {
+  MachineSignature::Builder builder(zone(), 0, 4);
+  builder.AddParam(MachineType::Float32());
+  builder.AddParam(MachineType::Float32());
+  builder.AddParam(MachineType::Float32());
+  builder.AddParam(MachineType::Float32());
+
+  StreamBuilder m(this, MachineType::AnyTagged());
+  Node* nodes[] = {
+      m.UndefinedConstant(),   m.Float32Constant(0.0f), m.Float32Constant(0.0f),
+      m.Float32Constant(0.0f), m.Float32Constant(0.0f),
+  };
+
+  const int expected_poke_pair = 2;
+  const int expected_poke = 0;
+
+  TestPokePair(m, zone(), builder, nodes, arraysize(nodes), expected_poke_pair,
+               expected_poke);
+}
+
+TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsFloat64) {
+  MachineSignature::Builder builder(zone(), 0, 4);
+  builder.AddParam(MachineType::Float64());
+  builder.AddParam(MachineType::Float64());
+  builder.AddParam(MachineType::Float64());
+  builder.AddParam(MachineType::Float64());
+
+  StreamBuilder m(this, MachineType::AnyTagged());
+  Node* nodes[] = {
+      m.UndefinedConstant(),   m.Float64Constant(0.0f), m.Float64Constant(0.0f),
+      m.Float64Constant(0.0f), m.Float64Constant(0.0f),
+  };
+
+  const int expected_poke_pair = 2;
+  const int expected_poke = 0;
+
+  TestPokePair(m, zone(), builder, nodes, arraysize(nodes), expected_poke_pair,
+               expected_poke);
+}
+
+TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsIntFloatMixed) {
+  {
+    MachineSignature::Builder builder(zone(), 0, 4);
+    builder.AddParam(MachineType::Int32());
+    builder.AddParam(MachineType::Float32());
+    builder.AddParam(MachineType::Int32());
+    builder.AddParam(MachineType::Float32());
+
+    StreamBuilder m(this, MachineType::AnyTagged());
+    Node* nodes[] = {
+        m.UndefinedConstant(), m.Int32Constant(0),      m.Float32Constant(0.0f),
+        m.Int32Constant(0),    m.Float32Constant(0.0f),
+    };
+
+    const int expected_poke_pair = 0;
+    const int expected_poke = 4;
+
+    TestPokePair(m, zone(), builder, nodes, arraysize(nodes),
+                 expected_poke_pair, expected_poke);
+  }
+
+  {
+    MachineSignature::Builder builder(zone(), 0, 7);
+    builder.AddParam(MachineType::Float32());
+    builder.AddParam(MachineType::Int32());
+    builder.AddParam(MachineType::Int32());
+    builder.AddParam(MachineType::Float64());
+    builder.AddParam(MachineType::Int64());
+    builder.AddParam(MachineType::Float64());
+    builder.AddParam(MachineType::Float64());
+
+    StreamBuilder m(this, MachineType::AnyTagged());
+    Node* nodes[] = {m.UndefinedConstant(),   m.Float32Constant(0.0f),
+                     m.Int32Constant(0),      m.Int32Constant(0),
+                     m.Float64Constant(0.0f), m.Int64Constant(0),
+                     m.Float64Constant(0.0f), m.Float64Constant(0.0f)};
+
+    const int expected_poke_pair = 2;
+    const int expected_poke = 3;
+
+    TestPokePair(m, zone(), builder, nodes, arraysize(nodes),
+                 expected_poke_pair, expected_poke);
+  }
+}
+
+TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsSimd128) {
+  MachineSignature::Builder builder(zone(), 0, 2);
+  builder.AddParam(MachineType::Simd128());
+  builder.AddParam(MachineType::Simd128());
+
+  StreamBuilder m(this, MachineType::AnyTagged());
+  Node* nodes[] = {m.UndefinedConstant(),
+                   m.AddNode(m.machine()->I32x4Splat(), m.Int32Constant(0)),
+                   m.AddNode(m.machine()->I32x4Splat(), m.Int32Constant(0))};
+
+  const int expected_poke_pair = 0;
+  const int expected_poke = 2;
+
+  // Using kArm64PokePair is not currently supported for Simd128.
+  TestPokePair(m, zone(), builder, nodes, arraysize(nodes), expected_poke_pair,
+               expected_poke);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
