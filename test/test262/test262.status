@@ -530,9 +530,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9050
   'language/statements/async-generator/return-undefined-implicit-and-explicit': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9051
-  'language/statements/async-generator/yield-star-return-then-getter-ticks': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9228
   'built-ins/Proxy/defineProperty/targetdesc-not-configurable-writable-desc-not-writable': [FAIL],
   'built-ins/Proxy/deleteProperty/targetdesc-is-configurable-target-is-not-extensible': [FAIL],

@@ -2756,7 +2756,8 @@ ParserBase<Impl>::ParseYieldExpression() {
     impl()->RecordSuspendSourceRange(yieldstar, PositionAfterSemicolon());
     function_state_->AddSuspend();
     if (IsAsyncGeneratorFunction(function_state_->kind())) {
-      // iterator_close and delegated_iterator_output suspend ids.
+      // return, iterator_close and delegated_iterator_output suspend ids.
+      function_state_->AddSuspend();
       function_state_->AddSuspend();
       function_state_->AddSuspend();
     }
