@@ -49,7 +49,7 @@ class VectorSegment {
   const typename Container::size_type begin_;
 };
 
-constexpr JsonToken GetOneCharToken(uint8_t c) {
+constexpr JsonToken GetOneCharJsonToken(uint8_t c) {
   // clang-format off
   return
      c == '"' ? JsonToken::STRING :
@@ -73,11 +73,11 @@ constexpr JsonToken GetOneCharToken(uint8_t c) {
 }
 
 // Table of one-character tokens, by character (0x00..0xFF only).
-static const constexpr JsonToken one_char_tokens[256] = {
-#define CALL_GET_SCAN_FLAGS(N) GetOneCharToken(N),
+static const constexpr JsonToken one_char_json_tokens[256] = {
+#define CALL_GET_SCAN_FLAGS(N) GetOneCharJsonToken(N),
     INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
 #undef CALL_GET_SCAN_FLAGS
-#define CALL_GET_SCAN_FLAGS(N) GetOneCharToken(128 + N),
+#define CALL_GET_SCAN_FLAGS(N) GetOneCharJsonToken(128 + N),
         INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
 #undef CALL_GET_SCAN_FLAGS
 };
@@ -97,7 +97,7 @@ using EscapeKindField = BitField8<EscapeKind, 0, 3>;
 using MayTerminateStringField = BitField8<bool, EscapeKindField::kNext, 1>;
 using NumberPartField = BitField8<bool, MayTerminateStringField::kNext, 1>;
 
-constexpr bool MayTerminateString(uint8_t flags) {
+constexpr bool MayTerminateJsonString(uint8_t flags) {
   return MayTerminateStringField::decode(flags);
 }
 
@@ -109,7 +109,7 @@ constexpr bool IsNumberPart(uint8_t flags) {
   return NumberPartField::decode(flags);
 }
 
-constexpr uint8_t GetScanFlags(uint8_t c) {
+constexpr uint8_t GetJsonScanFlags(uint8_t c) {
   // clang-format off
   return (c == 'b' ? EscapeKindField::encode(EscapeKind::kBackspace)
           : c == 't' ? EscapeKindField::encode(EscapeKind::kTab)
@@ -135,11 +135,11 @@ constexpr uint8_t GetScanFlags(uint8_t c) {
 }
 
 // Table of one-character scan flags, by character (0x00..0xFF only).
-static const constexpr uint8_t character_scan_flags[256] = {
-#define CALL_GET_SCAN_FLAGS(N) GetScanFlags(N),
+static const constexpr uint8_t character_json_scan_flags[256] = {
+#define CALL_GET_SCAN_FLAGS(N) GetJsonScanFlags(N),
     INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
 #undef CALL_GET_SCAN_FLAGS
-#define CALL_GET_SCAN_FLAGS(N) GetScanFlags(128 + N),
+#define CALL_GET_SCAN_FLAGS(N) GetJsonScanFlags(128 + N),
         INT_0_TO_127_LIST(CALL_GET_SCAN_FLAGS)
 #undef CALL_GET_SCAN_FLAGS
 };
@@ -314,7 +314,7 @@ void JsonParser<Char>::ReportUnexpectedCharacter(uc32 c) {
   if (c == kEndOfString) {
     token = JsonToken::EOS;
   } else if (c <= unibrow::Latin1::kMaxChar) {
-    token = one_char_tokens[c];
+    token = one_char_json_tokens[c];
   }
   return ReportUnexpectedToken(token);
 }
@@ -350,7 +350,7 @@ void JsonParser<Char>::SkipWhitespace() {
 
   cursor_ = std::find_if(cursor_, end_, [this](Char c) {
     JsonToken current = V8_LIKELY(c <= unibrow::Latin1::kMaxChar)
-                            ? one_char_tokens[c]
+                            ? one_char_json_tokens[c]
                             : JsonToken::ILLEGAL;
     bool result = current != JsonToken::WHITESPACE;
     if (result) next_ = current;
@@ -677,7 +677,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber(int sign, const Char* start) {
       // a decimal point or exponent.
       uc32 c = NextCharacter();
       if (IsInRange(c, 0, static_cast<int32_t>(unibrow::Latin1::kMaxChar)) &&
-          IsNumberPart(character_scan_flags[c])) {
+          IsNumberPart(character_json_scan_flags[c])) {
         if (V8_UNLIKELY(IsDecimalDigit(c))) {
           AllowHeapAllocation allow_before_exception;
           ReportUnexpectedToken(JsonToken::NUMBER);
@@ -700,7 +700,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber(int sign, const Char* start) {
       const int kMaxSmiLength = 9;
       if ((cursor_ - smi_start) <= kMaxSmiLength &&
           (!IsInRange(c, 0, static_cast<int32_t>(unibrow::Latin1::kMaxChar)) ||
-           !IsNumberPart(character_scan_flags[c]))) {
+           !IsNumberPart(character_json_scan_flags[c]))) {
         // Smi.
         int32_t i = 0;
         for (; smi_start != cursor_; smi_start++) {
@@ -828,7 +828,7 @@ Handle<String> JsonParser<Char>::ParseJsonString(bool requires_internalization,
 
     while (true) {
       cursor_ = std::find_if(cursor_, end_, [](Char c) {
-        return MayTerminateString(character_scan_flags[c]);
+        return MayTerminateJsonString(character_json_scan_flags[c]);
       });
 
       if (V8_UNLIKELY(is_at_end())) break;
@@ -874,7 +874,7 @@ Handle<String> JsonParser<Char>::ParseJsonString(bool requires_internalization,
         AddLiteralChar(c);
         return false;
       }
-      if (MayTerminateString(character_scan_flags[c])) {
+      if (MayTerminateJsonString(character_json_scan_flags[c])) {
         return true;
       }
       AddLiteralChar(c);
@@ -910,7 +910,7 @@ Handle<String> JsonParser<Char>::ParseJsonString(bool requires_internalization,
 
       uc32 value;
 
-      switch (GetEscapeKind(character_scan_flags[c])) {
+      switch (GetEscapeKind(character_json_scan_flags[c])) {
         case EscapeKind::kSelf:
           value = c;
           break;
