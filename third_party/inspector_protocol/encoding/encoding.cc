@@ -2106,10 +2106,8 @@ Status ConvertCBORToJSON(const Platform& platform,
   return ConvertCBORToJSONTmpl(platform, cbor, json);
 }
 
-template <typename C>
-Status ConvertJSONToCBORTmpl(const Platform& platform,
-                             span<uint8_t> json,
-                             C* cbor) {
+template <typename T, typename C>
+Status ConvertJSONToCBORTmpl(const Platform& platform, span<T> json, C* cbor) {
   Status status;
   std::unique_ptr<StreamingParserHandler> encoder =
       cbor::NewCBOREncoder(cbor, &status);
@@ -2122,7 +2120,17 @@ Status ConvertJSONToCBOR(const Platform& platform,
   return ConvertJSONToCBORTmpl(platform, json, cbor);
 }
 Status ConvertJSONToCBOR(const Platform& platform,
+                         span<uint16_t> json,
+                         std::string* cbor) {
+  return ConvertJSONToCBORTmpl(platform, json, cbor);
+}
+Status ConvertJSONToCBOR(const Platform& platform,
                          span<uint8_t> json,
+                         std::vector<uint8_t>* cbor) {
+  return ConvertJSONToCBORTmpl(platform, json, cbor);
+}
+Status ConvertJSONToCBOR(const Platform& platform,
+                         span<uint16_t> json,
                          std::vector<uint8_t>* cbor) {
   return ConvertJSONToCBORTmpl(platform, json, cbor);
 }

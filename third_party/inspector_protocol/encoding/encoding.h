@@ -497,7 +497,13 @@ Status ConvertJSONToCBOR(const Platform& platform,
                          span<uint8_t> json,
                          std::vector<uint8_t>* cbor);
 Status ConvertJSONToCBOR(const Platform& platform,
+                         span<uint16_t> json,
+                         std::vector<uint8_t>* cbor);
+Status ConvertJSONToCBOR(const Platform& platform,
                          span<uint8_t> json,
+                         std::string* cbor);
+Status ConvertJSONToCBOR(const Platform& platform,
+                         span<uint16_t> json,
                          std::string* cbor);
 }  // namespace json
 }  // namespace v8_inspector_protocol_encoding
