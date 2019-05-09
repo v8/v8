@@ -1107,6 +1107,22 @@ class DescriptorArrayData : public HeapObjectData {
   ZoneVector<PropertyDescriptor> contents_;
 };
 
+class FeedbackCellData : public HeapObjectData {
+ public:
+  FeedbackCellData(JSHeapBroker* broker, ObjectData** storage,
+                   Handle<FeedbackCell> object);
+
+  HeapObjectData* value() const { return value_; }
+
+ private:
+  HeapObjectData* const value_;
+};
+
+FeedbackCellData::FeedbackCellData(JSHeapBroker* broker, ObjectData** storage,
+                                   Handle<FeedbackCell> object)
+    : HeapObjectData(broker, storage, object),
+      value_(broker->GetOrCreateData(object->value())->AsHeapObject()) {}
+
 class FeedbackVectorData : public HeapObjectData {
  public:
   const ZoneVector<ObjectData*>& feedback() { return feedback_; }
@@ -2662,6 +2678,8 @@ BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 #undef DEF_SFI_ACCESSOR
 
 BIMODAL_ACCESSOR_C(String, int, length)
+
+BIMODAL_ACCESSOR(FeedbackCell, HeapObject, value)
 
 void* JSTypedArrayRef::elements_external_pointer() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {

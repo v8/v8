@@ -65,14 +65,19 @@ bool MapInference::AllOfInstanceTypes(std::function<bool(InstanceType)> f) {
 
 bool MapInference::AllOfInstanceTypesUnsafe(
     std::function<bool(InstanceType)> f) const {
+  // TODO(neis): Brokerize the MapInference.
+  AllowHandleDereference allow_handle_deref;
   CHECK(HaveMaps());
+
   return std::all_of(maps_.begin(), maps_.end(),
                      [f](Handle<Map> map) { return f(map->instance_type()); });
 }
 
 bool MapInference::AnyOfInstanceTypesUnsafe(
     std::function<bool(InstanceType)> f) const {
+  AllowHandleDereference allow_handle_deref;
   CHECK(HaveMaps());
+
   return std::any_of(maps_.begin(), maps_.end(),
                      [f](Handle<Map> map) { return f(map->instance_type()); });
 }

@@ -438,7 +438,9 @@ void SerializerForBackgroundCompilation::VisitCreateClosure(
   Handle<FeedbackCell> feedback_cell =
       environment()->function().feedback_vector->GetClosureFeedbackCell(
           iterator->GetIndexOperand(1));
+  FeedbackCellRef feedback_cell_ref(broker(), feedback_cell);
   Handle<Object> cell_value(feedback_cell->value(), broker()->isolate());
+  ObjectRef cell_value_ref(broker(), cell_value);
 
   environment()->accumulator_hints().Clear();
   if (cell_value->IsFeedbackVector()) {

@@ -901,7 +901,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
   SharedFunctionInfoRef shared(broker(), p.shared_info());
-  HeapObjectRef feedback_cell(broker(), p.feedback_cell());
+  FeedbackCellRef feedback_cell(broker(), p.feedback_cell());
   HeapObjectRef code(broker(), p.code());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);

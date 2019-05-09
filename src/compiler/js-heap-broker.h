@@ -78,6 +78,7 @@ enum class OddballType : uint8_t {
   V(Cell)                          \
   V(Code)                          \
   V(DescriptorArray)               \
+  V(FeedbackCell)                  \
   V(FeedbackVector)                \
   V(FixedArrayBase)                \
   V(FunctionTemplateInfo)          \
@@ -405,6 +406,14 @@ class DescriptorArrayRef : public HeapObjectRef {
   Handle<DescriptorArray> object() const;
 };
 
+class FeedbackCellRef : public HeapObjectRef {
+ public:
+  using HeapObjectRef::HeapObjectRef;
+  Handle<FeedbackCell> object() const;
+
+  HeapObjectRef value() const;
+};
+
 class FeedbackVectorRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
@@ -595,7 +604,8 @@ class ScopeInfoRef : public HeapObjectRef {
   V(bool, construct_as_builtin)              \
   V(bool, HasBytecodeArray)                  \
   V(bool, is_safe_to_skip_arguments_adaptor) \
-  V(bool, IsInlineable)
+  V(bool, IsInlineable)                      \
+  V(bool, is_compiled)
 
 class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
  public:
