@@ -282,7 +282,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_OBJECT(F, I)                         \
   F(AddDictionaryProperty, 3, 1)                                \
   F(AddPrivateField, 3, 1)                                      \
-  F(AddPrivateBrand, 2, 1)                                      \
   F(AllocateHeapNumber, 0, 1)                                   \
   F(ClassOf, 1, 1)                                              \
   F(CollectTypeProfile, 3, 1)                                   \

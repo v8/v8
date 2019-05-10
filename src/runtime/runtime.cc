@@ -106,7 +106,6 @@ bool Runtime::NeedsExactContext(FunctionId id) {
       // try-catch in async function.
       return false;
     case Runtime::kAddPrivateField:
-    case Runtime::kAddPrivateBrand:
     case Runtime::kCopyDataProperties:
     case Runtime::kCreateDataProperty:
     case Runtime::kCreatePrivateNameSymbol:

@@ -1113,31 +1113,6 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptor) {
   return *desc.ToPropertyDescriptorObject(isolate);
 }
 
-RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Symbol, brand, 1);
-  DCHECK(brand->is_private_name());
-
-  LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, receiver, brand, LookupIterator::OWN);
-
-  if (it.IsFound()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kVarRedeclaration, brand));
-  }
-
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-  // TODO(joyee): we could use this slot to store something useful. For now,
-  // store the brand itself.
-  CHECK(Object::AddDataProperty(&it, brand, attributes, Just(kDontThrow),
-                                StoreOrigin::kMaybeKeyed)
-            .FromJust());
-  return *receiver;
-}
-
 RUNTIME_FUNCTION(Runtime_AddPrivateField) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());

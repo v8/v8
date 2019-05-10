@@ -69,9 +69,6 @@ class ScopeInfo : public FixedArray {
   // or context-allocated?
   bool HasAllocatedReceiver() const;
 
-  // Does this scope has class brand (for private methods)?
-  bool HasClassBrand() const;
-
   // Does this scope declare a "new.target" binding?
   bool HasNewTarget() const;
 
@@ -231,10 +228,8 @@ class ScopeInfo : public FixedArray {
   class ReceiverVariableField
       : public BitField<VariableAllocationInfo, DeclarationScopeField::kNext,
                         2> {};
-  class HasClassBrandField
-      : public BitField<bool, ReceiverVariableField::kNext, 1> {};
   class HasNewTargetField
-      : public BitField<bool, HasClassBrandField::kNext, 1> {};
+      : public BitField<bool, ReceiverVariableField::kNext, 1> {};
   class FunctionVariableField
       : public BitField<VariableAllocationInfo, HasNewTargetField::kNext, 2> {};
   // TODO(cbruni): Combine with function variable field when only storing the
