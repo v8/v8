@@ -1495,7 +1495,9 @@ bool Intl::IsValidCalendar(const icu::Locale& locale,
   return IsValidExtension<icu::Calendar>(locale, "calendar", value);
 }
 
-bool Intl::IsValidNumberingSystem(const std::string& value) {
+namespace {
+
+bool IsValidNumberingSystem(const std::string& value) {
   std::set<std::string> invalid_values = {"native", "traditio", "finance"};
   if (invalid_values.find(value) != invalid_values.end()) return false;
   UErrorCode status = U_ZERO_ERROR;
@@ -1503,8 +1505,6 @@ bool Intl::IsValidNumberingSystem(const std::string& value) {
       icu::NumberingSystem::createInstanceByName(value.c_str(), status));
   return U_SUCCESS(status) && numbering_system.get() != nullptr;
 }
-
-namespace {
 
 std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
     icu::Locale* icu_locale, const std::set<std::string>& relevant_keys) {
@@ -1567,7 +1567,7 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
         std::set<std::string> valid_values = {"upper", "lower", "false"};
         is_valid_value = valid_values.find(bcp47_value) != valid_values.end();
       } else if (strcmp("nu", bcp47_key) == 0) {
-        is_valid_value = Intl::IsValidNumberingSystem(bcp47_value);
+        is_valid_value = IsValidNumberingSystem(bcp47_value);
       }
       if (is_valid_value) {
         extensions.insert(
@@ -1877,6 +1877,29 @@ Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,
       isolate, options, "localeMatcher", method, {"best fit", "lookup"},
       {Intl::MatcherOption::kLookup, Intl::MatcherOption::kBestFit},
       Intl::MatcherOption::kLookup);
+}
+
+Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
+                                     Handle<JSReceiver> options,
+                                     const char* method,
+                                     std::unique_ptr<char[]>* result) {
+  const std::vector<const char*> empty_values = {};
+  Maybe<bool> maybe = Intl::GetStringOption(isolate, options, "numberingSystem",
+                                            empty_values, method, result);
+  MAYBE_RETURN(maybe, Nothing<bool>());
+  if (maybe.FromJust() && *result != nullptr) {
+    if (!IsValidNumberingSystem(result->get())) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewRangeError(
+              MessageTemplate::kInvalid,
+              isolate->factory()->numberingSystem_string(),
+              isolate->factory()->NewStringFromAsciiChecked(result->get())),
+          Nothing<bool>());
+    }
+    return Just(true);
+  }
+  return Just(false);
 }
 
 Intl::HourCycle Intl::ToHourCycle(const std::string& hc) {

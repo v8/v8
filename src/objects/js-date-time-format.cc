@@ -1184,7 +1184,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   std::unique_ptr<char[]> numbering_system_str = nullptr;
   if (FLAG_harmony_intl_add_calendar_numbering_system) {
     const std::vector<const char*> empty_values = {};
-    // 6. Let numberingSystem be ? GetOption(options, "calendar",
+    // 6. Let calendar be ? GetOption(options, "calendar",
     //    "string", undefined, undefined).
     Maybe<bool> maybe_calendar =
         Intl::GetStringOption(isolate, options, "calendar", empty_values,
@@ -1196,8 +1196,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
         THROW_NEW_ERROR(
             isolate,
             NewRangeError(
-                MessageTemplate::kInvalid,
-                factory->NewStringFromStaticChars("calendar"),
+                MessageTemplate::kInvalid, factory->calendar_string(),
                 factory->NewStringFromAsciiChecked(calendar_str.get())),
             JSDateTimeFormat);
       }
@@ -1205,21 +1204,9 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
 
     // 8. Let numberingSystem be ? GetOption(options, "numberingSystem",
     //    "string", undefined, undefined).
-    Maybe<bool> maybe_numberingSystem =
-        Intl::GetStringOption(isolate, options, "numberingSystem", empty_values,
-                              "Intl.NumberFormat", &numbering_system_str);
+    Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
+        isolate, options, "Intl.NumberFormat", &numbering_system_str);
     MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSDateTimeFormat>());
-    if (maybe_numberingSystem.FromJust() && numbering_system_str != nullptr) {
-      if (!Intl::IsValidNumberingSystem(numbering_system_str.get())) {
-        THROW_NEW_ERROR(
-            isolate,
-            NewRangeError(
-                MessageTemplate::kInvalid,
-                factory->NewStringFromStaticChars("numberingSystem"),
-                factory->NewStringFromAsciiChecked(numbering_system_str.get())),
-            JSDateTimeFormat);
-      }
-    }
   }
 
   Maybe<Intl::MatcherOption> maybe_locale_matcher =

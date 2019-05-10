@@ -254,24 +254,15 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
 
   std::unique_ptr<char[]> numbering_system_str = nullptr;
   if (FLAG_harmony_intl_add_calendar_numbering_system) {
-    // 7. Let numberingSystem be ? GetOption(options, "numberingSystem",
-    //    "string", undefined, undefined).
-    const std::vector<const char*> empty_values = {};
-    Maybe<bool> maybe_numberingSystem =
-        Intl::GetStringOption(isolate, options, "numberingSystem", empty_values,
-                              "Intl.NumberFormat", &numbering_system_str);
+    // 7. Let _numberingSystem_ be ? GetOption(_options_, `"numberingSystem"`,
+    //    `"string"`, *undefined*, *undefined*).
+    Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
+        isolate, options, "Intl.RelativeTimeFormat", &numbering_system_str);
+    // 8. If _numberingSystem_ is not *undefined*, then
+    // a. If _numberingSystem_ does not match the
+    //    `(3*8alphanum) *("-" (3*8alphanum))` sequence, throw a *RangeError*
+    //     exception.
     MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSNumberFormat>());
-    if (maybe_numberingSystem.FromJust() && numbering_system_str != nullptr) {
-      if (!Intl::IsValidNumberingSystem(numbering_system_str.get())) {
-        THROW_NEW_ERROR(
-            isolate,
-            NewRangeError(
-                MessageTemplate::kInvalid,
-                factory->NewStringFromStaticChars("numberingSystem"),
-                factory->NewStringFromAsciiChecked(numbering_system_str.get())),
-            JSNumberFormat);
-      }
-    }
   }
 
   // 7. Let localeData be %NumberFormat%.[[LocaleData]].
