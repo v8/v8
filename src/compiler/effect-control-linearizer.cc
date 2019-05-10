@@ -3639,27 +3639,38 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
         receiver_instance_type, __ Int32Constant(kStringRepresentationMask));
 
     // Dispatch on the current {receiver}s string representation.
+    auto if_lessthanoreq_cons = __ MakeLabel();
+    auto if_greaterthan_cons = __ MakeLabel();
     auto if_seqstring = __ MakeLabel();
     auto if_consstring = __ MakeLabel();
     auto if_thinstring = __ MakeLabel();
     auto if_externalstring = __ MakeLabel();
     auto if_slicedstring = __ MakeLabel();
     auto if_runtime = __ MakeDeferredLabel();
-    __ GotoIf(__ Word32Equal(receiver_representation,
-                             __ Int32Constant(kSeqStringTag)),
-              &if_seqstring);
-    __ GotoIf(__ Word32Equal(receiver_representation,
-                             __ Int32Constant(kConsStringTag)),
-              &if_consstring);
-    __ GotoIf(__ Word32Equal(receiver_representation,
-                             __ Int32Constant(kThinStringTag)),
-              &if_thinstring);
-    __ GotoIf(__ Word32Equal(receiver_representation,
-                             __ Int32Constant(kExternalStringTag)),
-              &if_externalstring);
-    __ Branch(__ Word32Equal(receiver_representation,
-                             __ Int32Constant(kSlicedStringTag)),
-              &if_slicedstring, &if_runtime);
+
+    __ Branch(__ Int32LessThanOrEqual(receiver_representation,
+                                      __ Int32Constant(kConsStringTag)),
+              &if_lessthanoreq_cons, &if_greaterthan_cons);
+
+    __ Bind(&if_lessthanoreq_cons);
+    {
+      __ Branch(__ Word32Equal(receiver_representation,
+                               __ Int32Constant(kConsStringTag)),
+                &if_consstring, &if_seqstring);
+    }
+
+    __ Bind(&if_greaterthan_cons);
+    {
+      __ GotoIf(__ Word32Equal(receiver_representation,
+                               __ Int32Constant(kThinStringTag)),
+                &if_thinstring);
+      __ GotoIf(__ Word32Equal(receiver_representation,
+                               __ Int32Constant(kExternalStringTag)),
+                &if_externalstring);
+      __ Branch(__ Word32Equal(receiver_representation,
+                               __ Int32Constant(kSlicedStringTag)),
+                &if_slicedstring, &if_runtime);
+    }
 
     __ Bind(&if_seqstring);
     {
@@ -3672,13 +3683,6 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
       __ Goto(&loop_done, result);
     }
 
-    __ Bind(&if_thinstring);
-    {
-      Node* receiver_actual =
-          __ LoadField(AccessBuilder::ForThinStringActual(), receiver);
-      __ Goto(&loop_next, receiver_actual, position);
-    }
-
     __ Bind(&if_consstring);
     {
       Node* receiver_second =
@@ -3688,6 +3692,13 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
       Node* receiver_first =
           __ LoadField(AccessBuilder::ForConsStringFirst(), receiver);
       __ Goto(&loop_next, receiver_first, position);
+    }
+
+    __ Bind(&if_thinstring);
+    {
+      Node* receiver_actual =
+          __ LoadField(AccessBuilder::ForThinStringActual(), receiver);
+      __ Goto(&loop_next, receiver_actual, position);
     }
 
     __ Bind(&if_externalstring);
