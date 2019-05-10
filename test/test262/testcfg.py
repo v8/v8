@@ -47,7 +47,6 @@ FEATURE_FLAGS = {
   'numeric-separator-literal': '--harmony-numeric-separator',
   'Intl.DateTimeFormat-datetimestyle': '--harmony-intl-datetime-style',
   'Intl.DateTimeFormat-formatRange': '--harmony-intl-date-format-range',
-  'Intl.Locale': '--harmony-locale',
   'Intl.Segmenter': '--harmony-intl-segmenter',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'globalThis': '--harmony-global',

@@ -3060,6 +3060,52 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                             Builtins::kListFormatPrototypeFormatToParts, 1,
                             false);
     }
+
+    {  // -- L o c a l e
+      Handle<JSFunction> locale_fun = InstallFunction(
+          isolate(), intl, "Locale", JS_INTL_LOCALE_TYPE, JSLocale::kSize, 0,
+          factory->the_hole_value(), Builtins::kLocaleConstructor);
+      InstallWithIntrinsicDefaultProto(isolate(), locale_fun,
+                                       Context::INTL_LOCALE_FUNCTION_INDEX);
+      locale_fun->shared()->set_length(1);
+      locale_fun->shared()->DontAdaptArguments();
+
+      // Setup %LocalePrototype%.
+      Handle<JSObject> prototype(
+          JSObject::cast(locale_fun->instance_prototype()), isolate());
+
+      InstallToStringTag(isolate(), prototype, "Intl.Locale");
+
+      SimpleInstallFunction(isolate(), prototype, "toString",
+                            Builtins::kLocalePrototypeToString, 0, false);
+      SimpleInstallFunction(isolate(), prototype, "maximize",
+                            Builtins::kLocalePrototypeMaximize, 0, false);
+      SimpleInstallFunction(isolate(), prototype, "minimize",
+                            Builtins::kLocalePrototypeMinimize, 0, false);
+      // Base locale getters.
+      SimpleInstallGetter(isolate(), prototype, factory->language_string(),
+                          Builtins::kLocalePrototypeLanguage, true);
+      SimpleInstallGetter(isolate(), prototype, factory->script_string(),
+                          Builtins::kLocalePrototypeScript, true);
+      SimpleInstallGetter(isolate(), prototype, factory->region_string(),
+                          Builtins::kLocalePrototypeRegion, true);
+      SimpleInstallGetter(isolate(), prototype, factory->baseName_string(),
+                          Builtins::kLocalePrototypeBaseName, true);
+      // Unicode extension getters.
+      SimpleInstallGetter(isolate(), prototype, factory->calendar_string(),
+                          Builtins::kLocalePrototypeCalendar, true);
+      SimpleInstallGetter(isolate(), prototype, factory->caseFirst_string(),
+                          Builtins::kLocalePrototypeCaseFirst, true);
+      SimpleInstallGetter(isolate(), prototype, factory->collation_string(),
+                          Builtins::kLocalePrototypeCollation, true);
+      SimpleInstallGetter(isolate(), prototype, factory->hourCycle_string(),
+                          Builtins::kLocalePrototypeHourCycle, true);
+      SimpleInstallGetter(isolate(), prototype, factory->numeric_string(),
+                          Builtins::kLocalePrototypeNumeric, true);
+      SimpleInstallGetter(isolate(), prototype,
+                          factory->numberingSystem_string(),
+                          Builtins::kLocalePrototypeNumberingSystem, true);
+    }
   }
 #endif  // V8_INTL_SUPPORT
 
@@ -4378,60 +4424,6 @@ void Genesis::InitializeGlobal_harmony_intl_date_format_range() {
   SimpleInstallFunction(isolate_, prototype, "formatRangeToParts",
                         Builtins::kDateTimeFormatPrototypeFormatRangeToParts, 2,
                         false);
-}
-
-void Genesis::InitializeGlobal_harmony_locale() {
-  if (!FLAG_harmony_locale) return;
-
-  Handle<JSObject> intl = Handle<JSObject>::cast(
-      JSReceiver::GetProperty(
-          isolate(),
-          Handle<JSReceiver>(native_context()->global_object(), isolate()),
-          factory()->InternalizeUtf8String("Intl"))
-          .ToHandleChecked());
-
-  Handle<JSFunction> locale_fun = InstallFunction(
-      isolate(), intl, "Locale", JS_INTL_LOCALE_TYPE, JSLocale::kSize, 0,
-      factory()->the_hole_value(), Builtins::kLocaleConstructor);
-  InstallWithIntrinsicDefaultProto(isolate(), locale_fun,
-                                   Context::INTL_LOCALE_FUNCTION_INDEX);
-  locale_fun->shared()->set_length(1);
-  locale_fun->shared()->DontAdaptArguments();
-
-  // Setup %LocalePrototype%.
-  Handle<JSObject> prototype(JSObject::cast(locale_fun->instance_prototype()),
-                             isolate());
-
-  InstallToStringTag(isolate(), prototype, "Intl.Locale");
-
-  SimpleInstallFunction(isolate(), prototype, "toString",
-                        Builtins::kLocalePrototypeToString, 0, false);
-  SimpleInstallFunction(isolate(), prototype, "maximize",
-                        Builtins::kLocalePrototypeMaximize, 0, false);
-  SimpleInstallFunction(isolate(), prototype, "minimize",
-                        Builtins::kLocalePrototypeMinimize, 0, false);
-  // Base locale getters.
-  SimpleInstallGetter(isolate(), prototype, factory()->language_string(),
-                      Builtins::kLocalePrototypeLanguage, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->script_string(),
-                      Builtins::kLocalePrototypeScript, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->region_string(),
-                      Builtins::kLocalePrototypeRegion, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->baseName_string(),
-                      Builtins::kLocalePrototypeBaseName, true);
-  // Unicode extension getters.
-  SimpleInstallGetter(isolate(), prototype, factory()->calendar_string(),
-                      Builtins::kLocalePrototypeCalendar, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->caseFirst_string(),
-                      Builtins::kLocalePrototypeCaseFirst, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->collation_string(),
-                      Builtins::kLocalePrototypeCollation, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->hourCycle_string(),
-                      Builtins::kLocalePrototypeHourCycle, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->numeric_string(),
-                      Builtins::kLocalePrototypeNumeric, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->numberingSystem_string(),
-                      Builtins::kLocalePrototypeNumberingSystem, true);
 }
 
 void Genesis::InitializeGlobal_harmony_intl_segmenter() {
