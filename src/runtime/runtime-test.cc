@@ -1284,5 +1284,41 @@ RUNTIME_FUNCTION(Runtime_StaticAssert) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
+  // The {NoopListener} currently does nothing on any callback, but reports
+  // {true} on {is_listening_to_code_events()}. Feel free to add assertions to
+  // any method to further test the code logging callbacks.
+  class NoopListener final : public CodeEventListener {
+    void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
+                         const char* comment) final {}
+    void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
+                         Name name) final {}
+    void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
+                         SharedFunctionInfo shared, Name source) final {}
+    void CodeCreateEvent(LogEventsAndTags tag, AbstractCode code,
+                         SharedFunctionInfo shared, Name source, int line,
+                         int column) final {}
+    void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
+                         wasm::WasmName name) final {}
+    void CallbackEvent(Name name, Address entry_point) final {}
+    void GetterCallbackEvent(Name name, Address entry_point) final {}
+    void SetterCallbackEvent(Name name, Address entry_point) final {}
+    void RegExpCodeCreateEvent(AbstractCode code, String source) final {}
+    void CodeMoveEvent(AbstractCode from, AbstractCode to) final {}
+    void SharedFunctionInfoMoveEvent(Address from, Address to) final {}
+    void CodeMovingGCEvent() final {}
+    void CodeDisableOptEvent(AbstractCode code,
+                             SharedFunctionInfo shared) final {}
+    void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
+                        int fp_to_sp_delta) final {}
+
+    bool is_listening_to_code_events() final { return true; }
+  };
+  static base::LeakyObject<NoopListener> noop_listener;
+  isolate->wasm_engine()->EnableCodeLogging(isolate);
+  isolate->code_event_dispatcher()->AddListener(noop_listener.get());
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

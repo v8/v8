@@ -149,7 +149,7 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
   // The return value is cached in {WasmEngine::IsolateData::log_codes}. Ensure
   // to call {WasmEngine::EnableCodeLogging} if this return value would change
   // for any isolate. Otherwise we might lose code events.
-  return isolate->logger()->is_listening_to_code_events() ||
+  return isolate->code_event_dispatcher()->IsListeningToCodeEvents() ||
          isolate->is_profiling();
 }
 
@@ -832,7 +832,7 @@ WasmCode* NativeModule::GetCode(uint32_t index) const {
   DCHECK_LT(index, num_functions());
   DCHECK_LE(module_->num_imported_functions, index);
   WasmCode* code = code_table_[index - module_->num_imported_functions];
-  WasmCodeRefScope::AddRef(code);
+  if (code) WasmCodeRefScope::AddRef(code);
   return code;
 }
 
