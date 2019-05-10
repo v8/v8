@@ -151,6 +151,10 @@ namespace internal {
      10000000, MICROSECOND)                                                    \
   HT(turbofan_optimize_total_time, V8.TurboFanOptimizeTotalTime, 10000000,     \
      MICROSECOND)                                                              \
+  HT(turbofan_optimize_non_concurrent_total_time,                              \
+     V8.TurboFanOptimizeNonConcurrentTotalTime, 10000000, MICROSECOND)         \
+  HT(turbofan_optimize_concurrent_total_time,                                  \
+     V8.TurboFanOptimizeConcurrentTotalTime, 10000000, MICROSECOND)            \
   HT(turbofan_osr_prepare, V8.TurboFanOptimizeForOnStackReplacementPrepare,    \
      1000000, MICROSECOND)                                                     \
   HT(turbofan_osr_execute, V8.TurboFanOptimizeForOnStackReplacementExecute,    \

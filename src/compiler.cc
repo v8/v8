@@ -305,8 +305,12 @@ void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
       switch (mode) {
         case OptimizedCompilationJob::kConcurrent:
           time_background += time_taken_to_execute_;
+          counters->turbofan_optimize_concurrent_total_time()->AddSample(
+              static_cast<int>(ElapsedTime().InMicroseconds()));
           break;
         case OptimizedCompilationJob::kSynchronous:
+          counters->turbofan_optimize_non_concurrent_total_time()->AddSample(
+              static_cast<int>(ElapsedTime().InMicroseconds()));
           time_foreground += time_taken_to_execute_;
           break;
       }
