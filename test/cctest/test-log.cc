@@ -181,9 +181,8 @@ class ScopedLoggerInitializer {
             printf("%s\n", log_.at(i).c_str());
           }
           printf("%zu\n", current);
-          V8_Fatal(__FILE__, __LINE__, "%s, ... %p apperead twice:\n    %s",
-                   search_term.c_str(), reinterpret_cast<void*>(address),
-                   current_line.c_str());
+          FATAL("%s, ... %p apperead twice:\n    %s", search_term.c_str(),
+                reinterpret_cast<void*>(address), current_line.c_str());
         }
       }
       map.insert({address, current_line});
@@ -941,22 +940,22 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
     if (map_create_addresses.find(address) == map_create_addresses.end()) {
       // logger->PrintLog();
       i::Map::cast(obj)->Print();
-      V8_Fatal(__FILE__, __LINE__,
-               "Map (%p, #%zu) creation not logged during startup with "
-               "--trace-maps!"
-               "\n# Expected Log Line: map-create, ... %p",
-               reinterpret_cast<void*>(obj->ptr()), i,
-               reinterpret_cast<void*>(obj->ptr()));
+      FATAL(
+          "Map (%p, #%zu) creation not logged during startup with "
+          "--trace-maps!"
+          "\n# Expected Log Line: map-create, ... %p",
+          reinterpret_cast<void*>(obj->ptr()), i,
+          reinterpret_cast<void*>(obj->ptr()));
     } else if (map_details_addresses.find(address) ==
                map_details_addresses.end()) {
       // logger->PrintLog();
       i::Map::cast(obj)->Print();
-      V8_Fatal(__FILE__, __LINE__,
-               "Map (%p, #%zu) details not logged during startup with "
-               "--trace-maps!"
-               "\n# Expected Log Line: map-details, ... %p",
-               reinterpret_cast<void*>(obj->ptr()), i,
-               reinterpret_cast<void*>(obj->ptr()));
+      FATAL(
+          "Map (%p, #%zu) details not logged during startup with "
+          "--trace-maps!"
+          "\n# Expected Log Line: map-details, ... %p",
+          reinterpret_cast<void*>(obj->ptr()), i,
+          reinterpret_cast<void*>(obj->ptr()));
     }
   }
 }

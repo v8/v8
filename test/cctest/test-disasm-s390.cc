@@ -88,9 +88,9 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 
 // Verify that all invocations of the COMPARE macro passed successfully.
 // Exit with a failure if at least one of the tests failed.
-#define VERIFY_RUN()                                                   \
-  if (failure) {                                                       \
-    V8_Fatal(__FILE__, __LINE__, "S390 Disassembler tests failed.\n"); \
+#define VERIFY_RUN()                            \
+  if (failure) {                                \
+    FATAL("S390 Disassembler tests failed.\n"); \
   }
 
 TEST(TwoBytes) {

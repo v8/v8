@@ -20,16 +20,15 @@ using v8::Utils;
 
 namespace {
 
-#define CHECK_CSTREQ(exp, found)                                           \
-  do {                                                                     \
-    const char* exp_ = (exp);                                              \
-    const char* found_ = (found);                                          \
-    DCHECK_NOT_NULL(exp);                                                  \
-    if (V8_UNLIKELY(found_ == nullptr || strcmp(exp_, found_) != 0)) {     \
-      V8_Fatal(__FILE__, __LINE__,                                         \
-               "Check failed: (%s) != (%s) ('%s' vs '%s').", #exp, #found, \
-               exp_, found_ ? found_ : "<null>");                          \
-    }                                                                      \
+#define CHECK_CSTREQ(exp, found)                                              \
+  do {                                                                        \
+    const char* exp_ = (exp);                                                 \
+    const char* found_ = (found);                                             \
+    DCHECK_NOT_NULL(exp);                                                     \
+    if (V8_UNLIKELY(found_ == nullptr || strcmp(exp_, found_) != 0)) {        \
+      FATAL("Check failed: (%s) != (%s) ('%s' vs '%s').", #exp, #found, exp_, \
+            found_ ? found_ : "<null>");                                      \
+    }                                                                         \
   } while (false)
 
 void PrintStackTrace(v8::Isolate* isolate, v8::Local<v8::StackTrace> stack) {

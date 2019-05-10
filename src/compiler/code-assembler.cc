@@ -1917,10 +1917,10 @@ Address CheckObjectType(Address raw_value, Address raw_type,
   }
   std::stringstream value_description;
   value->Print(value_description);
-  V8_Fatal(__FILE__, __LINE__,
-           "Type cast failed in %s\n"
-           "  Expected %s but found %s",
-           location->ToAsciiArray(), expected, value_description.str().c_str());
+  FATAL(
+      "Type cast failed in %s\n"
+      "  Expected %s but found %s",
+      location->ToAsciiArray(), expected, value_description.str().c_str());
 #else
   UNREACHABLE();
 #endif

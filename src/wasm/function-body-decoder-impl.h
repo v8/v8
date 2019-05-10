@@ -1452,8 +1452,8 @@ class WasmDecoder : public Decoder {
         V8_FALLTHROUGH;
       }
       default:
-        V8_Fatal(__FILE__, __LINE__, "unimplemented opcode: %x (%s)", opcode,
-                 WasmOpcodes::OpcodeName(opcode));
+        FATAL("unimplemented opcode: %x (%s)", opcode,
+              WasmOpcodes::OpcodeName(opcode));
         return {0, 0};
     }
 #undef DECLARE_OPCODE_CASE

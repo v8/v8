@@ -140,9 +140,9 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
 
 // Verify that all invocations of the COMPARE macro passed successfully.
 // Exit with a failure if at least one of the tests failed.
-#define VERIFY_RUN() \
-if (failure) { \
-    V8_Fatal(__FILE__, __LINE__, "ARM Disassembler tests failed.\n"); \
+#define VERIFY_RUN()                           \
+  if (failure) {                               \
+    FATAL("ARM Disassembler tests failed.\n"); \
   }
 
 // clang-format off

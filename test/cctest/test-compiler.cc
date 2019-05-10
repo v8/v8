@@ -670,17 +670,16 @@ TEST(CompileFunctionInContextScriptOrigin) {
 }
 
 void TestCompileFunctionInContextToStringImpl() {
-#define CHECK_NOT_CAUGHT(__local_context__, try_catch, __op__)                \
-  do {                                                                        \
-    const char* op = (__op__);                                                \
-    v8::Local<v8::Context> context = (__local_context__);                     \
-    if (try_catch.HasCaught()) {                                              \
-      v8::String::Utf8Value error(                                            \
-          CcTest::isolate(),                                                  \
-          try_catch.Exception()->ToString(context).ToLocalChecked());         \
-      V8_Fatal(__FILE__, __LINE__,                                            \
-               "Unexpected exception thrown during %s:\n\t%s\n", op, *error); \
-    }                                                                         \
+#define CHECK_NOT_CAUGHT(__local_context__, try_catch, __op__)             \
+  do {                                                                     \
+    const char* op = (__op__);                                             \
+    v8::Local<v8::Context> context = (__local_context__);                  \
+    if (try_catch.HasCaught()) {                                           \
+      v8::String::Utf8Value error(                                         \
+          CcTest::isolate(),                                               \
+          try_catch.Exception()->ToString(context).ToLocalChecked());      \
+      FATAL("Unexpected exception thrown during %s:\n\t%s\n", op, *error); \
+    }                                                                      \
   } while (false)
 
   {  // NOLINT

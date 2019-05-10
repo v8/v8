@@ -796,8 +796,8 @@ class TestEnvironment : public HandleAndZoneScope {
                         layout_[i]);
         std::ostringstream actual_str;
         PrintStateValue(actual_str, main_isolate(), actual_value, layout_[i]);
-        V8_Fatal(__FILE__, __LINE__, "Expected: '%s' but got '%s'",
-                 expected_str.str().c_str(), actual_str.str().c_str());
+        FATAL("Expected: '%s' but got '%s'", expected_str.str().c_str(),
+              actual_str.str().c_str());
       }
     }
   }
