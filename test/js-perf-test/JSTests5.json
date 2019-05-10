@@ -571,7 +571,9 @@
       "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
       "tests": [
         {"name": "TaggedTemplate"},
-        {"name": "TaggedTemplateLoose"}
+        {"name": "TaggedTemplateLoose"},
+        {"name": "ArrayIndexOf"},
+        {"name": "ArrayIncludes"}
       ]
     },
     {
