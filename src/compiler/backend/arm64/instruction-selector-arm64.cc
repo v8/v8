@@ -2451,7 +2451,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
     size_t table_time_cost = 3;
     size_t lookup_space_cost = 3 + 2 * sw.case_count();
     size_t lookup_time_cost = sw.case_count();
-    if (sw.case_count() > 0 &&
+    if (sw.case_count() > 4 &&
         table_space_cost + 3 * table_time_cost <=
             lookup_space_cost + 3 * lookup_time_cost &&
         sw.min_value() > std::numeric_limits<int32_t>::min() &&
