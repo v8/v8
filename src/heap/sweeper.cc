@@ -393,10 +393,9 @@ int Sweeper::ParallelSweepSpace(AllocationSpace identity,
   Page* page = nullptr;
   while ((page = GetSweepingPageSafe(identity)) != nullptr) {
     int freed = ParallelSweepPage(page, identity);
-    if (!page->NeverEvacuate()) {
-      // Pages are marked as never-evacuate after deserialization. They have
-      // no free space. Do not account them towards the |max_pages| limit.
-      pages_freed += 1;
+    if (page->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
+      // Free list of a never-allocate page will be dropped later on.
+      continue;
     }
     DCHECK_GE(freed, 0);
     max_freed = Max(max_freed, freed);
