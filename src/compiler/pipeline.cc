@@ -1414,20 +1414,19 @@ struct EffectControlLinearizationPhase {
       TraceSchedule(data->info(), data, schedule,
                     "effect linearization schedule");
 
-      EffectControlLinearizer::MaskArrayIndexEnable mask_array_index =
+      MaskArrayIndexEnable mask_array_index =
           (data->info()->GetPoisoningMitigationLevel() !=
            PoisoningMitigationLevel::kDontPoison)
-              ? EffectControlLinearizer::kMaskArrayIndex
-              : EffectControlLinearizer::kDoNotMaskArrayIndex;
+              ? MaskArrayIndexEnable::kMaskArrayIndex
+              : MaskArrayIndexEnable::kDoNotMaskArrayIndex;
       // Post-pass for wiring the control/effects
       // - connect allocating representation changes into the control&effect
       //   chains and lower them,
       // - get rid of the region markers,
       // - introduce effect phis and rewire effects to get SSA again.
-      EffectControlLinearizer linearizer(
-          data->jsgraph(), schedule, temp_zone, data->source_positions(),
-          data->node_origins(), mask_array_index, data->embedded_maps());
-      linearizer.Run();
+      LinearizeEffectControl(data->jsgraph(), schedule, temp_zone,
+                             data->source_positions(), data->node_origins(),
+                             mask_array_index, data->embedded_maps());
     }
     {
       // The {EffectControlLinearizer} might leave {Dead} nodes behind, so we

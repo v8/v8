@@ -87,10 +87,9 @@ TEST_F(EffectControlLinearizerTest, SimpleLoad) {
   schedule.AddReturn(start, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(
-      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
-      EffectControlLinearizer::kDoNotMaskArrayIndex, maps());
-  introducer.Run();
+  LinearizeEffectControl(jsgraph(), &schedule, zone(), source_positions(),
+                         node_origins(),
+                         MaskArrayIndexEnable::kDoNotMaskArrayIndex, maps());
 
   EXPECT_THAT(load,
               IsLoadField(AccessBuilder::ForHeapNumberValue(), heap_number,
@@ -150,10 +149,9 @@ TEST_F(EffectControlLinearizerTest, DiamondLoad) {
   schedule.AddReturn(mblock, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(
-      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
-      EffectControlLinearizer::kDoNotMaskArrayIndex, maps());
-  introducer.Run();
+  LinearizeEffectControl(jsgraph(), &schedule, zone(), source_positions(),
+                         node_origins(),
+                         MaskArrayIndexEnable::kDoNotMaskArrayIndex, maps());
 
   // The effect input to the return should be an effect phi with the
   // newly introduced effectful change operators.
@@ -218,10 +216,9 @@ TEST_F(EffectControlLinearizerTest, LoopLoad) {
   schedule.AddReturn(rblock, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(
-      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
-      EffectControlLinearizer::kDoNotMaskArrayIndex, maps());
-  introducer.Run();
+  LinearizeEffectControl(jsgraph(), &schedule, zone(), source_positions(),
+                         node_origins(),
+                         MaskArrayIndexEnable::kDoNotMaskArrayIndex, maps());
 
   ASSERT_THAT(ret, IsReturn(load, load, if_true));
   EXPECT_THAT(load, IsLoadField(AccessBuilder::ForHeapNumberValue(),
@@ -282,10 +279,9 @@ TEST_F(EffectControlLinearizerTest, CloneBranch) {
   schedule.AddNode(mblock, merge);
   schedule.AddNode(mblock, graph()->end());
 
-  EffectControlLinearizer introducer(
-      jsgraph(), &schedule, zone(), source_positions(), node_origins(),
-      EffectControlLinearizer::kDoNotMaskArrayIndex, maps());
-  introducer.Run();
+  LinearizeEffectControl(jsgraph(), &schedule, zone(), source_positions(),
+                         node_origins(),
+                         MaskArrayIndexEnable::kDoNotMaskArrayIndex, maps());
 
   Capture<Node *> branch1_capture, branch2_capture;
   EXPECT_THAT(

@@ -7,6 +7,7 @@
 #include "src/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
@@ -19,7 +20,6 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"
-
 #include "src/ptr-compr-inl.h"
 
 namespace v8 {
@@ -28,34 +28,243 @@ namespace compiler {
 
 namespace {
 bool UsingCompressedPointers() { return false; }
-
 }  // namespace
 
-EffectControlLinearizer::EffectControlLinearizer(
-    JSGraph* js_graph, Schedule* schedule, Zone* temp_zone,
-    SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-    MaskArrayIndexEnable mask_array_index,
-    std::vector<Handle<Map>>* embedded_maps)
-    : js_graph_(js_graph),
-      schedule_(schedule),
-      temp_zone_(temp_zone),
-      mask_array_index_(mask_array_index),
-      source_positions_(source_positions),
-      node_origins_(node_origins),
-      graph_assembler_(js_graph, nullptr, nullptr, temp_zone),
-      frame_state_zapper_(nullptr),
-      embedded_maps_(embedded_maps) {}
+class EffectControlLinearizer {
+ public:
+  EffectControlLinearizer(JSGraph* js_graph, Schedule* schedule,
+                          Zone* temp_zone,
+                          SourcePositionTable* source_positions,
+                          NodeOriginTable* node_origins,
+                          MaskArrayIndexEnable mask_array_index,
+                          std::vector<Handle<Map>>* embedded_maps)
+      : js_graph_(js_graph),
+        schedule_(schedule),
+        temp_zone_(temp_zone),
+        mask_array_index_(mask_array_index),
+        source_positions_(source_positions),
+        node_origins_(node_origins),
+        graph_assembler_(js_graph, nullptr, nullptr, temp_zone),
+        frame_state_zapper_(nullptr),
+        embedded_maps_(embedded_maps) {}
 
-Graph* EffectControlLinearizer::graph() const { return js_graph_->graph(); }
-CommonOperatorBuilder* EffectControlLinearizer::common() const {
-  return js_graph_->common();
-}
-SimplifiedOperatorBuilder* EffectControlLinearizer::simplified() const {
-  return js_graph_->simplified();
-}
-MachineOperatorBuilder* EffectControlLinearizer::machine() const {
-  return js_graph_->machine();
-}
+  void Run();
+
+ private:
+  void ProcessNode(Node* node, Node** frame_state, Node** effect,
+                   Node** control);
+
+  bool TryWireInStateEffect(Node* node, Node* frame_state, Node** effect,
+                            Node** control);
+  Node* LowerChangeBitToTagged(Node* node);
+  Node* LowerChangeInt31ToTaggedSigned(Node* node);
+  Node* LowerChangeInt32ToTagged(Node* node);
+  Node* LowerChangeInt64ToTagged(Node* node);
+  Node* LowerChangeUint32ToTagged(Node* node);
+  Node* LowerChangeUint64ToTagged(Node* node);
+  Node* LowerChangeFloat64ToTagged(Node* node);
+  Node* LowerChangeFloat64ToTaggedPointer(Node* node);
+  Node* LowerChangeTaggedSignedToInt32(Node* node);
+  Node* LowerChangeTaggedSignedToInt64(Node* node);
+  Node* LowerChangeTaggedToBit(Node* node);
+  Node* LowerChangeTaggedToInt32(Node* node);
+  Node* LowerChangeTaggedToUint32(Node* node);
+  Node* LowerChangeTaggedToInt64(Node* node);
+  Node* LowerChangeTaggedToTaggedSigned(Node* node);
+  Node* LowerChangeCompressedToTaggedSigned(Node* node);
+  Node* LowerChangeTaggedToCompressedSigned(Node* node);
+  Node* LowerPoisonIndex(Node* node);
+  Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
+  void LowerCheckMaps(Node* node, Node* frame_state);
+  Node* LowerCompareMaps(Node* node);
+  Node* LowerCheckNumber(Node* node, Node* frame_state);
+  Node* LowerCheckReceiver(Node* node, Node* frame_state);
+  Node* LowerCheckReceiverOrNullOrUndefined(Node* node, Node* frame_state);
+  Node* LowerCheckString(Node* node, Node* frame_state);
+  Node* LowerCheckSymbol(Node* node, Node* frame_state);
+  void LowerCheckIf(Node* node, Node* frame_state);
+  Node* LowerCheckedInt32Add(Node* node, Node* frame_state);
+  Node* LowerCheckedInt32Sub(Node* node, Node* frame_state);
+  Node* LowerCheckedInt32Div(Node* node, Node* frame_state);
+  Node* LowerCheckedInt32Mod(Node* node, Node* frame_state);
+  Node* LowerCheckedUint32Div(Node* node, Node* frame_state);
+  Node* LowerCheckedUint32Mod(Node* node, Node* frame_state);
+  Node* LowerCheckedInt32Mul(Node* node, Node* frame_state);
+  Node* LowerCheckedInt32ToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64ToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedUint32Bounds(Node* node, Node* frame_state);
+  Node* LowerCheckedUint32ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedUint32ToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedUint64Bounds(Node* node, Node* frame_state);
+  Node* LowerCheckedUint64ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedUint64ToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedFloat64ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedFloat64ToInt64(Node* node, Node* frame_state);
+  Node* LowerCheckedTaggedSignedToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedTaggedToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedTaggedToInt64(Node* node, Node* frame_state);
+  Node* LowerCheckedTaggedToFloat64(Node* node, Node* frame_state);
+  Node* LowerCheckedTaggedToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedTaggedToTaggedPointer(Node* node, Node* frame_state);
+  Node* LowerCheckedCompressedToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedCompressedToTaggedPointer(Node* node, Node* frame_state);
+  Node* LowerCheckedTaggedToCompressedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedTaggedToCompressedPointer(Node* node, Node* frame_state);
+  Node* LowerChangeTaggedToFloat64(Node* node);
+  void TruncateTaggedPointerToBit(Node* node, GraphAssemblerLabel<1>* done);
+  Node* LowerTruncateTaggedToBit(Node* node);
+  Node* LowerTruncateTaggedPointerToBit(Node* node);
+  Node* LowerTruncateTaggedToFloat64(Node* node);
+  Node* LowerTruncateTaggedToWord32(Node* node);
+  Node* LowerCheckedTruncateTaggedToWord32(Node* node, Node* frame_state);
+  Node* LowerAllocate(Node* node);
+  Node* LowerNumberToString(Node* node);
+  Node* LowerObjectIsArrayBufferView(Node* node);
+  Node* LowerObjectIsBigInt(Node* node);
+  Node* LowerObjectIsCallable(Node* node);
+  Node* LowerObjectIsConstructor(Node* node);
+  Node* LowerObjectIsDetectableCallable(Node* node);
+  Node* LowerObjectIsMinusZero(Node* node);
+  Node* LowerNumberIsMinusZero(Node* node);
+  Node* LowerObjectIsNaN(Node* node);
+  Node* LowerNumberIsNaN(Node* node);
+  Node* LowerObjectIsNonCallable(Node* node);
+  Node* LowerObjectIsNumber(Node* node);
+  Node* LowerObjectIsReceiver(Node* node);
+  Node* LowerObjectIsSmi(Node* node);
+  Node* LowerObjectIsString(Node* node);
+  Node* LowerObjectIsSymbol(Node* node);
+  Node* LowerObjectIsUndetectable(Node* node);
+  Node* LowerNumberIsFloat64Hole(Node* node);
+  Node* LowerNumberIsFinite(Node* node);
+  Node* LowerObjectIsFiniteNumber(Node* node);
+  Node* LowerNumberIsInteger(Node* node);
+  Node* LowerObjectIsInteger(Node* node);
+  Node* LowerNumberIsSafeInteger(Node* node);
+  Node* LowerObjectIsSafeInteger(Node* node);
+  Node* LowerArgumentsFrame(Node* node);
+  Node* LowerArgumentsLength(Node* node);
+  Node* LowerNewDoubleElements(Node* node);
+  Node* LowerNewSmiOrObjectElements(Node* node);
+  Node* LowerNewArgumentsElements(Node* node);
+  Node* LowerNewConsString(Node* node);
+  Node* LowerSameValue(Node* node);
+  Node* LowerSameValueNumbersOnly(Node* node);
+  Node* LowerNumberSameValue(Node* node);
+  Node* LowerDeadValue(Node* node);
+  Node* LowerStringConcat(Node* node);
+  Node* LowerStringToNumber(Node* node);
+  Node* LowerStringCharCodeAt(Node* node);
+  Node* LowerStringCodePointAt(Node* node, UnicodeEncoding encoding);
+  Node* LowerStringToLowerCaseIntl(Node* node);
+  Node* LowerStringToUpperCaseIntl(Node* node);
+  Node* LowerStringFromSingleCharCode(Node* node);
+  Node* LowerStringFromSingleCodePoint(Node* node);
+  Node* LowerStringIndexOf(Node* node);
+  Node* LowerStringSubstring(Node* node);
+  Node* LowerStringLength(Node* node);
+  Node* LowerStringEqual(Node* node);
+  Node* LowerStringLessThan(Node* node);
+  Node* LowerStringLessThanOrEqual(Node* node);
+  Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
+  Node* LowerCheckNotTaggedHole(Node* node, Node* frame_state);
+  Node* LowerConvertTaggedHoleToUndefined(Node* node);
+  void LowerCheckEqualsInternalizedString(Node* node, Node* frame_state);
+  void LowerCheckEqualsSymbol(Node* node, Node* frame_state);
+  Node* LowerTypeOf(Node* node);
+  Node* LowerToBoolean(Node* node);
+  Node* LowerPlainPrimitiveToNumber(Node* node);
+  Node* LowerPlainPrimitiveToWord32(Node* node);
+  Node* LowerPlainPrimitiveToFloat64(Node* node);
+  Node* LowerEnsureWritableFastElements(Node* node);
+  Node* LowerMaybeGrowFastElements(Node* node, Node* frame_state);
+  void LowerTransitionElementsKind(Node* node);
+  Node* LowerLoadFieldByIndex(Node* node);
+  Node* LowerLoadTypedElement(Node* node);
+  Node* LowerLoadDataViewElement(Node* node);
+  void LowerStoreTypedElement(Node* node);
+  void LowerStoreDataViewElement(Node* node);
+  void LowerStoreSignedSmallElement(Node* node);
+  Node* LowerFindOrderedHashMapEntry(Node* node);
+  Node* LowerFindOrderedHashMapEntryForInt32Key(Node* node);
+  void LowerTransitionAndStoreElement(Node* node);
+  void LowerTransitionAndStoreNumberElement(Node* node);
+  void LowerTransitionAndStoreNonNumberElement(Node* node);
+  void LowerRuntimeAbort(Node* node);
+  Node* LowerConvertReceiver(Node* node);
+  Node* LowerDateNow(Node* node);
+
+  // Lowering of optional operators.
+  Maybe<Node*> LowerFloat64RoundUp(Node* node);
+  Maybe<Node*> LowerFloat64RoundDown(Node* node);
+  Maybe<Node*> LowerFloat64RoundTiesEven(Node* node);
+  Maybe<Node*> LowerFloat64RoundTruncate(Node* node);
+
+  Node* AllocateHeapNumberWithValue(Node* node);
+  Node* BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode,
+                                   const VectorSlotPair& feedback, Node* value,
+                                   Node* frame_state);
+  Node* BuildCheckedFloat64ToInt64(CheckForMinusZeroMode mode,
+                                   const VectorSlotPair& feedback, Node* value,
+                                   Node* frame_state);
+  Node* BuildCheckedHeapNumberOrOddballToFloat64(CheckTaggedInputMode mode,
+                                                 const VectorSlotPair& feedback,
+                                                 Node* value,
+                                                 Node* frame_state);
+  Node* BuildReverseBytes(ExternalArrayType type, Node* value);
+  Node* BuildFloat64RoundDown(Node* value);
+  Node* BuildFloat64RoundTruncate(Node* input);
+  Node* BuildUint32Mod(Node* lhs, Node* rhs);
+  Node* ComputeUnseededHash(Node* value);
+  Node* LowerStringComparison(Callable const& callable, Node* node);
+  Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
+
+  Node* ChangeInt32ToSmi(Node* value);
+  Node* ChangeInt32ToIntPtr(Node* value);
+  Node* ChangeInt64ToSmi(Node* value);
+  Node* ChangeIntPtrToInt32(Node* value);
+  Node* ChangeIntPtrToSmi(Node* value);
+  Node* ChangeUint32ToUintPtr(Node* value);
+  Node* ChangeUint32ToSmi(Node* value);
+  Node* ChangeSmiToIntPtr(Node* value);
+  Node* ChangeSmiToInt32(Node* value);
+  Node* ChangeSmiToInt64(Node* value);
+  Node* ObjectIsSmi(Node* value);
+  Node* LoadFromSeqString(Node* receiver, Node* position, Node* is_one_byte);
+
+  Node* SmiMaxValueConstant();
+  Node* SmiShiftBitsConstant();
+  void TransitionElementsTo(Node* node, Node* array, ElementsKind from,
+                            ElementsKind to);
+
+  Factory* factory() const { return isolate()->factory(); }
+  Isolate* isolate() const { return jsgraph()->isolate(); }
+  JSGraph* jsgraph() const { return js_graph_; }
+  Graph* graph() const { return js_graph_->graph(); }
+  Schedule* schedule() const { return schedule_; }
+  Zone* temp_zone() const { return temp_zone_; }
+  CommonOperatorBuilder* common() const { return js_graph_->common(); }
+  SimplifiedOperatorBuilder* simplified() const {
+    return js_graph_->simplified();
+  }
+  MachineOperatorBuilder* machine() const { return js_graph_->machine(); }
+  std::vector<Handle<Map>>* embedded_maps() { return embedded_maps_; }
+  GraphAssembler* gasm() { return &graph_assembler_; }
+
+  JSGraph* js_graph_;
+  Schedule* schedule_;
+  Zone* temp_zone_;
+  MaskArrayIndexEnable mask_array_index_;
+  RegionObservability region_observability_ = RegionObservability::kObservable;
+  SourcePositionTable* source_positions_;
+  NodeOriginTable* node_origins_;
+  GraphAssembler graph_assembler_;
+  Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
+  // {embedded_maps_} keeps track of maps we've embedded as Uint32 constants.
+  // We do this in order to notify the garbage collector at code-gen time.
+  std::vector<Handle<Map>>* embedded_maps_;
+};
 
 namespace {
 
@@ -1517,7 +1726,7 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node) {
 
 Node* EffectControlLinearizer::LowerPoisonIndex(Node* node) {
   Node* index = node->InputAt(0);
-  if (mask_array_index_ == kMaskArrayIndex) {
+  if (mask_array_index_ == MaskArrayIndexEnable::kMaskArrayIndex) {
     index = __ Word32PoisonOnSpeculation(index);
   }
   return index;
@@ -5521,12 +5730,15 @@ Node* EffectControlLinearizer::LowerDateNow(Node* node) {
 
 #undef __
 
-Factory* EffectControlLinearizer::factory() const {
-  return isolate()->factory();
-}
-
-Isolate* EffectControlLinearizer::isolate() const {
-  return jsgraph()->isolate();
+void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
+                            SourcePositionTable* source_positions,
+                            NodeOriginTable* node_origins,
+                            MaskArrayIndexEnable mask_array_index,
+                            std::vector<Handle<Map>>* embedded_maps) {
+  EffectControlLinearizer linearizer(graph, schedule, temp_zone,
+                                     source_positions, node_origins,
+                                     mask_array_index, embedded_maps);
+  linearizer.Run();
 }
 
 }  // namespace compiler
