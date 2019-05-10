@@ -60,6 +60,8 @@ Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
       return isolate->factory()->NewNumber(value.to<float>());
     case kWasmF64:
       return isolate->factory()->NewNumber(value.to<double>());
+    case kWasmAnyRef:
+      return value.to_anyref();
     default:
       UNIMPLEMENTED();
       return isolate->factory()->undefined_value();
@@ -359,7 +361,6 @@ class InterpreterHandle {
     Isolate* isolate = isolate_;
     Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
 
-    // TODO(clemensh): Add globals to the global scope.
     Handle<JSObject> global_scope_object =
         isolate_->factory()->NewJSObjectWithNullProto();
     if (instance->has_memory_object()) {
@@ -373,6 +374,32 @@ class InterpreterHandle {
                                                uint8_array, NONE)
           .Assert();
     }
+
+    DCHECK_EQ(1, interpreter()->GetThreadCount());
+    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
+
+    uint32_t global_count = thread->GetGlobalCount();
+    if (global_count > 0) {
+      Handle<JSObject> globals_obj =
+          isolate_->factory()->NewJSObjectWithNullProto();
+      Handle<String> globals_name =
+          isolate_->factory()->InternalizeOneByteString(
+              StaticCharVector("globals"));
+      JSObject::SetOwnPropertyIgnoreAttributes(global_scope_object,
+                                               globals_name, globals_obj, NONE)
+          .Assert();
+
+      for (uint32_t i = 0; i < global_count; ++i) {
+        const char* label = "global#%d";
+        Handle<String> name = PrintFToOneByteString<true>(isolate_, label, i);
+        WasmValue value = thread->GetGlobalValue(i);
+        Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
+        JSObject::SetOwnPropertyIgnoreAttributes(globals_obj, name, value_obj,
+                                                 NONE)
+            .Assert();
+      }
+    }
+
     return global_scope_object;
   }
 

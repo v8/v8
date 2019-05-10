@@ -1262,6 +1262,37 @@ class ThreadImpl {
     return WasmInterpreter::Thread::HANDLED;
   }
 
+  uint32_t GetGlobalCount() {
+    return static_cast<uint32_t>(module()->globals.size());
+  }
+
+  WasmValue GetGlobalValue(uint32_t index) {
+    const WasmGlobal* global = &module()->globals[index];
+    switch (global->type) {
+#define CASE_TYPE(wasm, ctype)                                         \
+  case kWasm##wasm: {                                                  \
+    byte* ptr = GetGlobalPtr(global);                                  \
+    return WasmValue(                                                  \
+        ReadLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr))); \
+    break;                                                             \
+  }
+      WASM_CTYPES(CASE_TYPE)
+#undef CASE_TYPE
+      case kWasmAnyRef:
+      case kWasmAnyFunc:
+      case kWasmExceptRef: {
+        HandleScope handle_scope(isolate_);  // Avoid leaking handles.
+        Handle<FixedArray> global_buffer;    // The buffer of the global.
+        uint32_t global_index = 0;           // The index into the buffer.
+        GetGlobalBufferAndIndex(global, &global_buffer, &global_index);
+        Handle<Object> value(global_buffer->get(global_index), isolate_);
+        return WasmValue(handle_scope.CloseAndEscape(value));
+      }
+      default:
+        UNREACHABLE();
+    }
+  }
+
  private:
   // Handle a thrown exception. Returns whether the exception was handled inside
   // the current activation. Unwinds the interpreted stack accordingly.
@@ -3055,31 +3086,8 @@ class ThreadImpl {
         case kExprGetGlobal: {
           GlobalIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
-          const WasmGlobal* global = &module()->globals[imm.index];
-          switch (global->type) {
-#define CASE_TYPE(wasm, ctype)                                          \
-  case kWasm##wasm: {                                                   \
-    byte* ptr = GetGlobalPtr(global);                                   \
-    Push(WasmValue(                                                     \
-        ReadLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr)))); \
-    break;                                                              \
-  }
-            WASM_CTYPES(CASE_TYPE)
-#undef CASE_TYPE
-            case kWasmAnyRef:
-            case kWasmAnyFunc:
-            case kWasmExceptRef: {
-              HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-              Handle<FixedArray> global_buffer;    // The buffer of the global.
-              uint32_t global_index = 0;           // The index into the buffer.
-              GetGlobalBufferAndIndex(global, &global_buffer, &global_index);
-              Handle<Object> value(global_buffer->get(global_index), isolate_);
-              Push(WasmValue(value));
-              break;
-            }
-            default:
-              UNREACHABLE();
-          }
+          HandleScope handle_scope(isolate_);
+          Push(GetGlobalValue(imm.index));
           len = 1 + imm.length;
           break;
         }
@@ -3820,6 +3828,12 @@ WasmValue WasmInterpreter::Thread::GetReturnValue(int index) {
 }
 TrapReason WasmInterpreter::Thread::GetTrapReason() {
   return ToImpl(this)->GetTrapReason();
+}
+uint32_t WasmInterpreter::Thread::GetGlobalCount() {
+  return ToImpl(this)->GetGlobalCount();
+}
+WasmValue WasmInterpreter::Thread::GetGlobalValue(uint32_t index) {
+  return ToImpl(this)->GetGlobalValue(index);
 }
 bool WasmInterpreter::Thread::PossibleNondeterminism() {
   return ToImpl(this)->PossibleNondeterminism();

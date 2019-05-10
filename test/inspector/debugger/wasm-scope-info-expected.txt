@@ -17,7 +17,7 @@ Paused:
 Scope:
 at func (2:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 4 (number), "local#1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
    stack: 
@@ -33,7 +33,7 @@ Paused:
 Scope:
 at func (3:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 4 (number), "local#1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
    stack: "0": 11 (number)
@@ -49,7 +49,7 @@ Paused:
 Scope:
 at func (4:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
    stack: 
@@ -65,7 +65,7 @@ Paused:
 Scope:
 at func (5:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
    stack: "0": 47 (number)
@@ -81,7 +81,7 @@ Paused:
 Scope:
 at func (6:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
    stack: 
@@ -97,7 +97,7 @@ Paused:
 Scope:
 at func (7:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
    stack: "0": 9223372036854775807 (string)
@@ -113,7 +113,7 @@ Paused:
 Scope:
 at func (8:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": 9223372036854775807 (string), "unicode☼f64": 0 (number)
    stack: 
@@ -129,7 +129,7 @@ Paused:
 Scope:
 at func (9:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": 9223372036854775807 (string), "unicode☼f64": 0 (number)
    stack: "0": -9223372036854775808 (string)
@@ -145,7 +145,7 @@ Paused:
 Scope:
 at func (10:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: 
@@ -161,7 +161,7 @@ Paused:
 Scope:
 at func (11:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: "0": 1 (number)
@@ -177,7 +177,7 @@ Paused:
 Scope:
 at func (12:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: "0": 1 (number)
@@ -193,7 +193,7 @@ Paused:
 Scope:
 at func (13:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: "0": 1 (number), "1": 7 (number)
@@ -209,7 +209,7 @@ Paused:
 Scope:
 at func (14:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: "0": 1 (number), "1": 7 (number)
@@ -220,12 +220,12 @@ at (anonymous) (0:17):
 Paused:
   f64.div
   #set_local 3
-end
+  i32.const 15
 
 Scope:
 at func (15:2):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
    stack: "0": 0.14285714285714285 (number)
@@ -235,13 +235,45 @@ at (anonymous) (0:17):
 
 Paused:
   set_local 3
+  #i32.const 15
+  set_global 0
+
+Scope:
+at func (16:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
+   stack: 
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  i32.const 15
+  #set_global 0
+end
+
+Scope:
+at func (17:2):
+ - scope (global):
+   globals: "global#0": 0 (number)
+ - scope (local):
+   locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
+   stack: "0": 15 (number)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+  set_global 0
 #end
 
 
 Scope:
-at func (16:0):
+at func (18:0):
  - scope (global):
-   -- skipped globals
+   globals: "global#0": 15 (number)
  - scope (local):
    locals: "i32Arg": 11 (number), "local#1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
    stack: 
