@@ -178,8 +178,8 @@ Heap::Heap()
     : isolate_(isolate()),
       initial_max_old_generation_size_(max_old_generation_size_),
       initial_max_old_generation_size_threshold_(0),
-      initial_old_generation_size_(max_old_generation_size_ /
-                                   kInitalOldGenerationLimitFactor),
+      initial_old_generation_size_(
+          Min(max_old_generation_size_, kMaxInitialOldGenerationSize)),
       memory_pressure_level_(MemoryPressureLevel::kNone),
       old_generation_allocation_limit_(initial_old_generation_size_),
       global_pretenuring_feedback_(kInitialFeedbackCapacity),
@@ -4241,7 +4241,7 @@ void Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
     initial_old_generation_size_ = FLAG_initial_old_space_size * MB;
   } else {
     initial_old_generation_size_ =
-        max_old_generation_size_ / kInitalOldGenerationLimitFactor;
+        Min(max_old_generation_size_, kMaxInitialOldGenerationSize);
   }
   old_generation_allocation_limit_ = initial_old_generation_size_;
 

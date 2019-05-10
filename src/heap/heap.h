@@ -235,8 +235,6 @@ class Heap {
   };
   using Reservation = std::vector<Chunk>;
 
-  static const int kInitalOldGenerationLimitFactor = 2;
-
 #if V8_OS_ANDROID
   // Don't apply pointer multiplier on Android since it has no swap space and
   // should instead adapt it's heap size based on available physical memory.
@@ -245,6 +243,9 @@ class Heap {
   // TODO(ishell): kSystePointerMultiplier?
   static const int kPointerMultiplier = i::kSystemPointerSize / 4;
 #endif
+
+  static const size_t kMaxInitialOldGenerationSize =
+      256 * MB * kPointerMultiplier;
 
   // Semi-space size needs to be a multiple of page size.
   static const size_t kMinSemiSpaceSizeInKB = 512 * kPointerMultiplier;
