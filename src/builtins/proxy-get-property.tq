@@ -10,6 +10,10 @@ namespace proxy {
   GetPropertyWithReceiver(implicit context: Context)(Object, Name, Object, Smi):
       Object;
 
+  extern transitioning macro ProxiesCodeStubAssembler::CheckGetSetTrapResult(
+      implicit context:
+          Context)(Object, JSProxy, Name, Object, constexpr int31): Object;
+
   // ES #sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
   // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
   transitioning builtin

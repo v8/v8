@@ -826,6 +826,7 @@ namespace internal {
                                                                                \
   /* Proxy */                                                                  \
   TFS(ProxyHasProperty, kProxy, kName)                                         \
+  TFS(ProxySetProperty, kProxy, kName, kValue, kReceiverValue)                 \
                                                                                \
   /* Reflect */                                                                \
   ASM(ReflectApply, Dummy)                                                     \

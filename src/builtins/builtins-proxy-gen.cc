@@ -338,6 +338,93 @@ TF_BUILTIN(ProxyHasProperty, ProxiesCodeStubAssembler) {
                  StringConstant("has"), proxy);
 }
 
+TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* proxy = Parameter(Descriptor::kProxy);
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* receiver = Parameter(Descriptor::kReceiverValue);
+
+  CSA_ASSERT(this, IsJSProxy(proxy));
+
+  // 1. Assert: IsPropertyKey(P) is true.
+  CSA_ASSERT(this, TaggedIsNotSmi(name));
+  CSA_ASSERT(this, IsName(name));
+
+  Label throw_proxy_handler_revoked(this, Label::kDeferred),
+      trap_undefined(this), failure(this, Label::kDeferred),
+      continue_checks(this), success(this),
+      private_symbol(this, Label::kDeferred);
+
+  GotoIf(IsPrivateSymbol(name), &private_symbol);
+
+  // 2. Let handler be O.[[ProxyHandler]].
+  Node* handler = LoadObjectField(proxy, JSProxy::kHandlerOffset);
+
+  // 3. If handler is null, throw a TypeError exception.
+  GotoIfNot(IsJSReceiver(handler), &throw_proxy_handler_revoked);
+
+  // 4. Assert: Type(handler) is Object.
+  CSA_ASSERT(this, IsJSReceiver(handler));
+
+  // 5. Let target be O.[[ProxyTarget]].
+  Node* target = LoadObjectField(proxy, JSProxy::kTargetOffset);
+
+  // 6. Let trap be ? GetMethod(handler, "set").
+  // 7. If trap is undefined, then (see 7.a below).
+  Handle<Name> set_string = factory()->set_string();
+  Node* trap = GetMethod(context, handler, set_string, &trap_undefined);
+
+  // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler,
+  // « target, P, V, Receiver »)).
+  // 9. If booleanTrapResult is false, return false.
+  BranchIfToBooleanIsTrue(
+      CallJS(CodeFactory::Call(isolate(),
+                               ConvertReceiverMode::kNotNullOrUndefined),
+             context, trap, handler, target, name, value, receiver),
+      &continue_checks, &failure);
+
+  BIND(&continue_checks);
+  {
+    // 9. Let targetDesc be ? target.[[GetOwnProperty]](P).
+    Label return_result(this);
+    Return(CheckGetSetTrapResult(context, target, proxy, name, value,
+                                 JSProxy::kSet));
+  }
+
+  BIND(&failure);
+  {
+    CallRuntime(Runtime::kThrowTypeErrorIfStrict, context,
+                SmiConstant(MessageTemplate::kProxyTrapReturnedFalsishFor),
+                HeapConstant(set_string), name);
+    Goto(&success);
+  }
+
+  // 12. Return true.
+  BIND(&success);
+  Return(value);
+
+  BIND(&private_symbol);
+  {
+    Label failure(this);
+
+    CallRuntime(Runtime::kThrowTypeErrorIfStrict, context,
+                SmiConstant(MessageTemplate::kProxyPrivate));
+    Return(UndefinedConstant());
+  }
+
+  BIND(&trap_undefined);
+  {
+    // 7.a. Return ? target.[[Set]](P, V, Receiver).
+    CallRuntime(Runtime::kSetPropertyWithReceiver, context, target, name, value,
+                receiver);
+    Return(value);
+  }
+
+  BIND(&throw_proxy_handler_revoked);
+  ThrowTypeError(context, MessageTemplate::kProxyRevoked, "set");
+}
+
 Node* ProxiesCodeStubAssembler::CheckGetSetTrapResult(
     Node* context, Node* target, Node* proxy, Node* name, Node* trap_result,
     JSProxy::AccessKind access_kind) {
