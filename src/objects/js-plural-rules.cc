@@ -164,9 +164,24 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
   CHECK_NOT_NULL(icu_decimal_format.get());
 
   // 9. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3).
-  Maybe<bool> done = Intl::SetNumberFormatDigitOptions(
-      isolate, icu_decimal_format.get(), options, 0, 3);
-  MAYBE_RETURN(done, MaybeHandle<JSPluralRules>());
+  Maybe<Intl::NumberFormatDigitOptions> maybe_digit_options =
+      Intl::SetNumberFormatDigitOptions(isolate, options, 0, 3);
+  MAYBE_RETURN(maybe_digit_options, MaybeHandle<JSPluralRules>());
+  Intl::NumberFormatDigitOptions digit_options = maybe_digit_options.FromJust();
+
+  icu_decimal_format->setRoundingMode(icu::DecimalFormat::kRoundHalfUp);
+  icu_decimal_format->setMinimumIntegerDigits(
+      digit_options.minimum_integer_digits);
+  icu_decimal_format->setMinimumFractionDigits(
+      digit_options.minimum_fraction_digits);
+  icu_decimal_format->setMaximumFractionDigits(
+      digit_options.maximum_fraction_digits);
+  if (digit_options.minimum_significant_digits > 0) {
+    icu_decimal_format->setMinimumSignificantDigits(
+        digit_options.minimum_significant_digits);
+    icu_decimal_format->setMaximumSignificantDigits(
+        digit_options.maximum_significant_digits);
+  }
 
   Handle<Managed<icu::PluralRules>> managed_plural_rules =
       Managed<icu::PluralRules>::FromUniquePtr(isolate, 0,

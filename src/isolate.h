@@ -38,7 +38,7 @@
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uversion.h"  // Define U_ICU_NAMESPACE.
 namespace U_ICU_NAMESPACE {
-class UObject;
+class UMemory;
 }  // namespace U_ICU_NAMESPACE
 #endif  // V8_INTL_SUPPORT
 
@@ -1143,9 +1143,9 @@ class Isolate final : private HiddenFactory {
       kDefaultCollator, kDefaultNumberFormat, kDefaultSimpleDateFormat,
       kDefaultSimpleDateFormatForTime, kDefaultSimpleDateFormatForDate};
 
-  icu::UObject* get_cached_icu_object(ICUObjectCacheType cache_type);
+  icu::UMemory* get_cached_icu_object(ICUObjectCacheType cache_type);
   void set_icu_object_in_cache(ICUObjectCacheType cache_type,
-                               std::shared_ptr<icu::UObject> obj);
+                               std::shared_ptr<icu::UMemory> obj);
   void clear_cached_icu_object(ICUObjectCacheType cache_type);
 
 #endif  // V8_INTL_SUPPORT
@@ -1709,7 +1709,7 @@ class Isolate final : private HiddenFactory {
       return static_cast<std::size_t>(a);
     }
   };
-  std::unordered_map<ICUObjectCacheType, std::shared_ptr<icu::UObject>,
+  std::unordered_map<ICUObjectCacheType, std::shared_ptr<icu::UMemory>,
                      ICUObjectCacheTypeHash>
       icu_object_cache_;
 

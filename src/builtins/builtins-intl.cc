@@ -482,13 +482,14 @@ BUILTIN(NumberFormatInternalFormatNumber) {
                                        Object::ToNumber(isolate, value));
   }
 
-  icu::NumberFormat* icu_number_format =
-      number_format->icu_number_format()->raw();
-  CHECK_NOT_NULL(icu_number_format);
+  icu::number::LocalizedNumberFormatter* icu_localized_number_formatter =
+      number_format->icu_number_formatter()->raw();
+  CHECK_NOT_NULL(icu_localized_number_formatter);
 
+  // Return FormatNumber(nf, x).
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      JSNumberFormat::FormatNumeric(isolate, *icu_number_format, numeric_obj));
+      isolate, JSNumberFormat::FormatNumeric(
+                   isolate, *icu_localized_number_formatter, numeric_obj));
 }
 
 BUILTIN(DateTimeFormatConstructor) {

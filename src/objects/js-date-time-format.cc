@@ -658,7 +658,7 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
 
   if (can_cache) {
     isolate->set_icu_object_in_cache(
-        cache_type, std::static_pointer_cast<icu::UObject>(
+        cache_type, std::static_pointer_cast<icu::UMemory>(
                         date_time_format->icu_simple_date_format()->get()));
   }
   // 5. Return FormatDateTime(dateFormat, x).

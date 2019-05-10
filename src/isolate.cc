@@ -4626,12 +4626,12 @@ void Isolate::SetIdle(bool is_idle) {
 }
 
 #ifdef V8_INTL_SUPPORT
-icu::UObject* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type) {
+icu::UMemory* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type) {
   return icu_object_cache_[cache_type].get();
 }
 
 void Isolate::set_icu_object_in_cache(ICUObjectCacheType cache_type,
-                                      std::shared_ptr<icu::UObject> obj) {
+                                      std::shared_ptr<icu::UMemory> obj) {
   icu_object_cache_[cache_type] = obj;
 }
 

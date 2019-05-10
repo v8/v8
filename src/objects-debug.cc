@@ -2268,7 +2268,7 @@ void JSNumberFormat::JSNumberFormatVerify(Isolate* isolate) {
   CHECK(IsJSNumberFormat());
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
-  VerifyObjectField(isolate, kIcuNumberFormatOffset);
+  VerifyObjectField(isolate, kIcuNumberFormatterOffset);
   VerifyObjectField(isolate, kBoundFormatOffset);
   CHECK(bound_format()->IsUndefined(isolate) || bound_format()->IsJSFunction());
   VerifySmiField(kFlagsOffset);

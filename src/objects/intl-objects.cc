@@ -977,7 +977,7 @@ MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultCollator,
-        std::static_pointer_cast<icu::UObject>(
+        std::static_pointer_cast<icu::UMemory>(
             collator->icu_collator()->get()));
   }
   icu::Collator* icu_collator = collator->icu_collator()->raw();
@@ -1039,9 +1039,10 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   bool can_cache =
       locales->IsUndefined(isolate) && options->IsUndefined(isolate);
   if (can_cache) {
-    icu::NumberFormat* cached_number_format =
-        static_cast<icu::NumberFormat*>(isolate->get_cached_icu_object(
-            Isolate::ICUObjectCacheType::kDefaultNumberFormat));
+    icu::number::LocalizedNumberFormatter* cached_number_format =
+        static_cast<icu::number::LocalizedNumberFormatter*>(
+            isolate->get_cached_icu_object(
+                Isolate::ICUObjectCacheType::kDefaultNumberFormat));
     // We may use the cached icu::NumberFormat for a fast path.
     if (cached_number_format != nullptr) {
       return JSNumberFormat::FormatNumeric(isolate, *cached_number_format,
@@ -1062,13 +1063,13 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultNumberFormat,
-        std::static_pointer_cast<icu::UObject>(
-            number_format->icu_number_format()->get()));
+        std::static_pointer_cast<icu::UMemory>(
+            number_format->icu_number_formatter()->get()));
   }
 
   // Return FormatNumber(numberFormat, x).
-  icu::NumberFormat* icu_number_format =
-      number_format->icu_number_format()->raw();
+  icu::number::LocalizedNumberFormatter* icu_number_format =
+      number_format->icu_number_formatter()->raw();
   return JSNumberFormat::FormatNumeric(isolate, *icu_number_format,
                                        numeric_obj);
 }
@@ -1130,19 +1131,17 @@ Maybe<int> GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
 
 }  // namespace
 
-Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
-                                              icu::DecimalFormat* number_format,
-                                              Handle<JSReceiver> options,
-                                              int mnfd_default,
-                                              int mxfd_default) {
-  CHECK_NOT_NULL(number_format);
+Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
+    Isolate* isolate, Handle<JSReceiver> options, int mnfd_default,
+    int mxfd_default) {
+  Intl::NumberFormatDigitOptions digit_options;
 
   // 5. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21,
   // 1).
   int mnid;
   if (!GetNumberOption(isolate, options, "minimumIntegerDigits", 1, 21, 1)
            .To(&mnid)) {
-    return Nothing<bool>();
+    return Nothing<NumberFormatDigitOptions>();
   }
 
   // 6. Let mnfd be ? GetNumberOption(options, "minimumFractionDigits", 0, 20,
@@ -1151,7 +1150,7 @@ Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
   if (!GetNumberOption(isolate, options, "minimumFractionDigits", 0, 20,
                        mnfd_default)
            .To(&mnfd)) {
-    return Nothing<bool>();
+    return Nothing<NumberFormatDigitOptions>();
   }
 
   // 7. Let mxfdActualDefault be max( mnfd, mxfdDefault ).
@@ -1163,7 +1162,7 @@ Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
   if (!GetNumberOption(isolate, options, "maximumFractionDigits", mnfd, 20,
                        mxfd_actual_default)
            .To(&mxfd)) {
-    return Nothing<bool>();
+    return Nothing<NumberFormatDigitOptions>();
   }
 
   // 9.  Let mnsd be ? Get(options, "minimumSignificantDigits").
@@ -1172,7 +1171,7 @@ Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
       isolate->factory()->minimumSignificantDigits_string();
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mnsd_obj, JSReceiver::GetProperty(isolate, options, mnsd_str),
-      Nothing<bool>());
+      Nothing<NumberFormatDigitOptions>());
 
   // 10. Let mxsd be ? Get(options, "maximumSignificantDigits").
   Handle<Object> mxsd_obj;
@@ -1180,45 +1179,43 @@ Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
       isolate->factory()->maximumSignificantDigits_string();
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mxsd_obj, JSReceiver::GetProperty(isolate, options, mxsd_str),
-      Nothing<bool>());
+      Nothing<NumberFormatDigitOptions>());
 
   // 11. Set intlObj.[[MinimumIntegerDigits]] to mnid.
-  number_format->setMinimumIntegerDigits(mnid);
+  digit_options.minimum_integer_digits = mnid;
 
   // 12. Set intlObj.[[MinimumFractionDigits]] to mnfd.
-  number_format->setMinimumFractionDigits(mnfd);
+  digit_options.minimum_fraction_digits = mnfd;
 
   // 13. Set intlObj.[[MaximumFractionDigits]] to mxfd.
-  number_format->setMaximumFractionDigits(mxfd);
+  digit_options.maximum_fraction_digits = mxfd;
 
-  bool significant_digits_used = false;
   // 14. If mnsd is not undefined or mxsd is not undefined, then
   if (!mnsd_obj->IsUndefined(isolate) || !mxsd_obj->IsUndefined(isolate)) {
     // 14. a. Let mnsd be ? DefaultNumberOption(mnsd, 1, 21, 1).
     int mnsd;
     if (!DefaultNumberOption(isolate, mnsd_obj, 1, 21, 1, mnsd_str).To(&mnsd)) {
-      return Nothing<bool>();
+      return Nothing<NumberFormatDigitOptions>();
     }
 
     // 14. b. Let mxsd be ? DefaultNumberOption(mxsd, mnsd, 21, 21).
     int mxsd;
     if (!DefaultNumberOption(isolate, mxsd_obj, mnsd, 21, 21, mxsd_str)
              .To(&mxsd)) {
-      return Nothing<bool>();
+      return Nothing<NumberFormatDigitOptions>();
     }
 
-    significant_digits_used = true;
-
     // 14. c. Set intlObj.[[MinimumSignificantDigits]] to mnsd.
-    number_format->setMinimumSignificantDigits(mnsd);
+    digit_options.minimum_significant_digits = mnsd;
 
     // 14. d. Set intlObj.[[MaximumSignificantDigits]] to mxsd.
-    number_format->setMaximumSignificantDigits(mxsd);
+    digit_options.maximum_significant_digits = mxsd;
+  } else {
+    digit_options.minimum_significant_digits = 0;
+    digit_options.maximum_significant_digits = 0;
   }
 
-  number_format->setSignificantDigitsUsed(significant_digits_used);
-  number_format->setRoundingMode(icu::DecimalFormat::kRoundHalfUp);
-  return Just(true);
+  return Just(digit_options);
 }
 
 namespace {
@@ -1971,6 +1968,11 @@ Handle<String> Intl::NumberFieldToType(Isolate* isolate,
       // that would be possible with the ICU API.
       UNREACHABLE();
       return Handle<String>();
+
+    case UNUM_COMPACT_FIELD:
+      return isolate->factory()->compact_string();
+    case UNUM_MEASURE_UNIT_FIELD:
+      return isolate->factory()->unit_string();
 
     default:
       UNREACHABLE();

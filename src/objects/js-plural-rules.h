@@ -22,6 +22,7 @@
 #include "src/objects/object-macros.h"
 
 namespace U_ICU_NAMESPACE {
+class DecimalFormat;
 class PluralRules;
 }  //  namespace U_ICU_NAMESPACE
 

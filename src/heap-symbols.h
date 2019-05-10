@@ -9,20 +9,30 @@
 #define INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)               \
   V(_, adoptText_string, "adoptText")                               \
   V(_, baseName_string, "baseName")                                 \
+  V(_, accounting_string, "accounting")                             \
   V(_, breakType_string, "breakType")                               \
   V(_, calendar_string, "calendar")                                 \
   V(_, cardinal_string, "cardinal")                                 \
   V(_, caseFirst_string, "caseFirst")                               \
   V(_, compare_string, "compare")                                   \
   V(_, current_string, "current")                                   \
+  V(_, collation_string, "collation")                               \
+  V(_, compact_string, "compact")                                   \
+  V(_, currency_string, "currency")                                 \
+  V(_, currencyDisplay_string, "currencyDisplay")                   \
   V(_, dateStyle_string, "dateStyle")                               \
   V(_, day_string, "day")                                           \
   V(_, dayPeriod_string, "dayPeriod")                               \
   V(_, decimal_string, "decimal")                                   \
   V(_, endRange_string, "endRange")                                 \
+  V(_, engineering_string, "engineering")                           \
   V(_, era_string, "era")                                           \
   V(_, first_string, "first")                                       \
   V(_, format_string, "format")                                     \
+  V(_, except_zero_string, "except-zero")                           \
+  V(_, exponentInteger_string, "exponentInteger")                   \
+  V(_, exponentMinusSign_string, "exponentMinusSign")               \
+  V(_, exponentSeparator_string, "exponentSeparator")               \
   V(_, fraction_string, "fraction")                                 \
   V(_, full_string, "full")                                         \
   V(_, granularity_string, "granularity")                           \
@@ -35,9 +45,6 @@
   V(_, hour_string, "hour")                                         \
   V(_, hour12_string, "hour12")                                     \
   V(_, hourCycle_string, "hourCycle")                               \
-  V(_, collation_string, "collation")                               \
-  V(_, currency_string, "currency")                                 \
-  V(_, currencyDisplay_string, "currencyDisplay")                   \
   V(_, ideo_string, "ideo")                                         \
   V(_, ignorePunctuation_string, "ignorePunctuation")               \
   V(_, Invalid_Date_string, "Invalid Date")                         \
@@ -59,6 +66,8 @@
   V(_, minute_string, "minute")                                     \
   V(_, month_string, "month")                                       \
   V(_, nan_string, "nan")                                           \
+  V(_, narrow_symbol_string, "narrow-symbol")                       \
+  V(_, never_string, "never")                                       \
   V(_, none_string, "none")                                         \
   V(_, normal_string, "normal")                                     \
   V(_, numberingSystem_string, "numberingSystem")                   \
@@ -68,12 +77,14 @@
   V(_, plusSign_string, "plusSign")                                 \
   V(_, quarter_string, "quarter")                                   \
   V(_, region_string, "region")                                     \
+  V(_, scientific_string, "scientific")                             \
   V(_, second_string, "second")                                     \
   V(_, segment_string, "segment")                                   \
   V(_, SegmentIterator_string, "Segment Iterator")                  \
   V(_, sensitivity_string, "sensitivity")                           \
   V(_, sep_string, "sep")                                           \
   V(_, shared_string, "shared")                                     \
+  V(_, standard_string, "standard")                                 \
   V(_, startRange_string, "startRange")                             \
   V(_, strict_string, "strict")                                     \
   V(_, style_string, "style")                                       \

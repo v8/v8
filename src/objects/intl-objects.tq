@@ -28,7 +28,8 @@ extern class JSListFormat extends JSObject {
 
 extern class JSNumberFormat extends JSObject {
   locale: String;
-  icu_number_format: Foreign;  // Managed<icu::NumberFormat>
+  icu_number_formatter:
+      Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
   bound_format: JSFunction | Undefined;
   flags: Smi;
 }

@@ -2164,10 +2164,8 @@ void JSLocale::JSLocalePrint(std::ostream& os) {  // NOLINT
 void JSNumberFormat::JSNumberFormatPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSNumberFormat");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - icu_number_format: " << Brief(icu_number_format());
+  os << "\n - icu_number_formatter: " << Brief(icu_number_formatter());
   os << "\n - bound_format: " << Brief(bound_format());
-  os << "\n - style: " << StyleAsString();
-  os << "\n - currency_display: " << CurrencyDisplayAsString();
   JSObjectPrintBody(os, *this);
 }
 
