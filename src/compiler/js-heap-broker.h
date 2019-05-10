@@ -37,6 +37,10 @@ class VectorSlotPair;
 
 namespace compiler {
 
+// Whether we are loading a property or storing to a property.
+// For a store during literal creation, do not walk up the prototype chain.
+enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas };
+
 enum class OddballType : uint8_t {
   kNone,     // Not an Oddball.
   kBoolean,  // True or False.
@@ -97,6 +101,7 @@ class CompilationDependencies;
 class JSHeapBroker;
 class ObjectData;
 class PerIsolateCompilerCache;
+class PropertyAccessInfo;
 #define FORWARD_DECL(Name) class Name##Ref;
 HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
@@ -704,7 +709,7 @@ class InternalizedStringRef : public StringRef {
 
 class ProcessedFeedback : public ZoneObject {
  public:
-  enum Kind { kElementAccess, kGlobalAccess };
+  enum Kind { kInsufficient, kGlobalAccess, kNamedAccess, kElementAccess };
   Kind kind() const { return kind_; }
 
  protected:
@@ -712,6 +717,11 @@ class ProcessedFeedback : public ZoneObject {
 
  private:
   Kind const kind_;
+};
+
+class InsufficientFeedback final : public ProcessedFeedback {
+ public:
+  InsufficientFeedback();
 };
 
 class GlobalAccessFeedback : public ProcessedFeedback {
@@ -763,6 +773,21 @@ class ElementAccessFeedback : public ProcessedFeedback {
 
   // Iterator over all maps: first {receiver_maps}, then transition sources.
   MapIterator all_maps(JSHeapBroker* broker) const;
+};
+
+class NamedAccessFeedback : public ProcessedFeedback {
+ public:
+  NamedAccessFeedback(NameRef const& name,
+                      ZoneVector<PropertyAccessInfo> const& access_infos);
+
+  NameRef const& name() const { return name_; }
+  ZoneVector<PropertyAccessInfo> const& access_infos() const {
+    return access_infos_;
+  }
+
+ private:
+  NameRef const name_;
+  ZoneVector<PropertyAccessInfo> const access_infos_;
 };
 
 struct FeedbackSource {

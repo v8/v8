@@ -41,7 +41,7 @@ namespace compiler {
 
 namespace {
 
-bool HasNumberMaps(JSHeapBroker* broker, MapHandles const& maps) {
+bool HasNumberMaps(JSHeapBroker* broker, ZoneVector<Handle<Map>> const& maps) {
   for (auto map : maps) {
     MapRef map_ref(broker, map);
     if (map_ref.IsHeapNumberMap()) return true;
@@ -49,12 +49,24 @@ bool HasNumberMaps(JSHeapBroker* broker, MapHandles const& maps) {
   return false;
 }
 
-bool HasOnlyJSArrayMaps(JSHeapBroker* broker, MapHandles const& maps) {
+bool HasOnlyJSArrayMaps(JSHeapBroker* broker,
+                        ZoneVector<Handle<Map>> const& maps) {
   for (auto map : maps) {
     MapRef map_ref(broker, map);
     if (!map_ref.IsJSArrayMap()) return false;
   }
   return true;
+}
+
+void TryUpdateThenDropDeprecated(Isolate* isolate, MapHandles* maps) {
+  for (auto it = maps->begin(); it != maps->end();) {
+    if (Map::TryUpdate(isolate, *it).ToHandle(&*it)) {
+      DCHECK(!(*it)->is_deprecated());
+      ++it;
+    } else {
+      it = maps->erase(it);
+    }
+  }
 }
 
 }  // namespace
@@ -703,17 +715,15 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   MapHandles const& resolution_maps = inference.GetMaps();
 
   // Compute property access info for "then" on {resolution}.
-  PropertyAccessInfo access_info;
-  {
-    ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
-    AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                          graph()->zone());
-    access_info_factory.ComputePropertyAccessInfos(
-        resolution_maps, factory()->then_string(), AccessMode::kLoad,
-        &access_infos);
-    access_info = access_info_factory.FinalizePropertyAccessInfosAsOne(
-        access_infos, AccessMode::kLoad);
-  }
+  ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
+  AccessInfoFactory access_info_factory(broker(), dependencies(),
+                                        graph()->zone());
+  access_info_factory.ComputePropertyAccessInfos(
+      resolution_maps, factory()->then_string(), AccessMode::kLoad,
+      &access_infos);
+  PropertyAccessInfo access_info =
+      access_info_factory.FinalizePropertyAccessInfosAsOne(access_infos,
+                                                           AccessMode::kLoad);
   if (access_info.IsInvalid()) return inference.NoChange();
 
   // Only optimize when {resolution} definitely doesn't have a "then" property.
@@ -1049,8 +1059,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
-    Node* node, Node* value, MapHandles const& receiver_maps,
-    NameRef const& name, AccessMode access_mode, Node* key) {
+    Node* node, Node* value, NamedAccessFeedback const& feedback,
+    AccessMode access_mode, Node* key) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -1063,31 +1073,27 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Check if we have an access o.x or o.x=v where o is the current
-  // native contexts' global proxy, and turn that into a direct access
-  // to the current native contexts' global object instead.
-  if (receiver_maps.size() == 1) {
-    MapRef receiver_map(broker(), receiver_maps.front());
-    if (receiver_map.IsMapOfCurrentGlobalProxy()) {
-      return ReduceGlobalAccess(node, receiver, value, name, access_mode, key);
-    }
-  }
-
-  // Compute property access infos for the receiver maps.
-  AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                        graph()->zone());
-  ZoneVector<PropertyAccessInfo> raw_access_infos(zone());
-  access_info_factory.ComputePropertyAccessInfos(
-      receiver_maps, name.object(), access_mode, &raw_access_infos);
   ZoneVector<PropertyAccessInfo> access_infos(zone());
+  AccessInfoFactory access_info_factory(broker(), dependencies(), zone());
   if (!access_info_factory.FinalizePropertyAccessInfos(
-          raw_access_infos, access_mode, &access_infos)) {
+          feedback.access_infos(), access_mode, &access_infos)) {
     return NoChange();
   }
 
-  // Ensure that {key} matches the specified {name} (if {key} is given).
+  // Check if we have an access o.x or o.x=v where o is the current
+  // native contexts' global proxy, and turn that into a direct access
+  // to the current native context's global object instead.
+  if (access_infos.size() == 1 && access_infos[0].receiver_maps().size() == 1) {
+    MapRef receiver_map(broker(), access_infos[0].receiver_maps()[0]);
+    if (receiver_map.IsMapOfCurrentGlobalProxy()) {
+      return ReduceGlobalAccess(node, receiver, value, feedback.name(),
+                                access_mode, key);
+    }
+  }
+
+  // Ensure that {key} matches the specified name (if {key} is given).
   if (key != nullptr) {
-    effect = BuildCheckEqualsName(name, key, effect, control);
+    effect = BuildCheckEqualsName(feedback.name(), key, effect, control);
   }
 
   // Collect call nodes to rewire exception edges.
@@ -1141,7 +1147,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
     // Generate the actual property access.
     ValueEffectControl continuation = BuildPropertyAccess(
-        receiver, value, context, frame_state, effect, control, name,
+        receiver, value, context, frame_state, effect, control, feedback.name(),
         if_exceptions, access_info, access_mode);
     value = continuation.value();
     effect = continuation.effect();
@@ -1186,7 +1192,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       Node* this_control = fallthrough_control;
 
       // Perform map check on {receiver}.
-      MapHandles const& receiver_maps = access_info.receiver_maps();
+      ZoneVector<Handle<Map>> const& receiver_maps =
+          access_info.receiver_maps();
       {
         // Whether to insert a dedicated MapGuard node into the
         // effect to be able to learn from the control flow.
@@ -1257,9 +1264,10 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       }
 
       // Generate the actual property access.
-      ValueEffectControl continuation = BuildPropertyAccess(
-          this_receiver, this_value, context, frame_state, this_effect,
-          this_control, name, if_exceptions, access_info, access_mode);
+      ValueEffectControl continuation =
+          BuildPropertyAccess(this_receiver, this_value, context, frame_state,
+                              this_effect, this_control, feedback.name(),
+                              if_exceptions, access_info, access_mode);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -1326,18 +1334,38 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
     return ReduceGlobalAccess(node, nullptr, value, name, access_mode);
   }
 
-  // Extract receiver maps from the IC using the {nexus}.
-  MapHandles receiver_maps;
-  if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
-    return NoChange();
-  } else if (receiver_maps.empty()) {
+  ProcessedFeedback const* processed = nullptr;
+  if (FLAG_concurrent_inlining) {
+    processed = broker()->GetFeedback(FeedbackSource(nexus));
+    // TODO(neis): Infer maps from the graph and consolidate with feedback/hints
+    // and filter impossible candidates based on inferred root map.
+  } else {
+    if (nexus.ic_state() == UNINITIALIZED) {
+      processed = new (zone()) InsufficientFeedback();
+    } else {
+      MapHandles receiver_maps;
+      if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
+        processed = new (zone()) InsufficientFeedback();
+      } else if (!receiver_maps.empty()) {
+        ZoneVector<PropertyAccessInfo> access_infos(zone());
+        AccessInfoFactory access_info_factory(broker(), dependencies(), zone());
+        access_info_factory.ComputePropertyAccessInfos(
+            receiver_maps, name.object(), access_mode, &access_infos);
+        processed = new (zone()) NamedAccessFeedback(name, access_infos);
+      }
+    }
+  }
+
+  if (processed == nullptr) return NoChange();
+  if (processed->kind() == ProcessedFeedback::kInsufficient) {
     return ReduceSoftDeoptimize(
         node, DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
   }
-  DCHECK(!nexus.IsUninitialized());
 
-  // Try to lower the named access based on the {receiver_maps}.
-  return ReduceNamedAccess(node, value, receiver_maps, name, access_mode);
+  CHECK_EQ(processed->kind(), ProcessedFeedback::kNamedAccess);
+  return ReduceNamedAccess(node, value,
+                           *static_cast<NamedAccessFeedback const*>(processed),
+                           access_mode);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
@@ -1475,7 +1503,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   Node* frame_state =
       NodeProperties::FindFrameStateBefore(node, jsgraph()->Dead());
 
-  if (HasOnlyStringMaps(broker(), receiver_maps)) {
+  ZoneVector<Handle<Map>> maps(receiver_maps.begin(), receiver_maps.end(),
+                               zone());
+  if (HasOnlyStringMaps(broker(), maps)) {
     return ReduceElementAccessOnString(node, index, value, access_mode,
                                        load_mode);
   }
@@ -1624,7 +1654,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       }
 
       // Perform map check(s) on {receiver}.
-      MapHandles const& receiver_maps = access_info.receiver_maps();
+      ZoneVector<Handle<Map>> const& receiver_maps =
+          access_info.receiver_maps();
       if (j == access_infos.size() - 1) {
         // Last map check on the fallthrough control path, do a
         // conditional eager deoptimization exit here.
@@ -1790,15 +1821,13 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
     if (reduction.Changed()) return reduction;
   }
 
-  // Extract receiver maps from the {nexus}.
   MapHandles receiver_maps;
   if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
-    return NoChange();
-  } else if (receiver_maps.empty()) {
     return ReduceSoftDeoptimize(
         node, DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+  } else if (receiver_maps.empty()) {
+    return NoChange();
   }
-  DCHECK(!nexus.IsUninitialized());
 
   // Check if we have feedback for a named access.
   base::Optional<NameRef> name = GetNameFeedback(broker(), nexus);
@@ -1817,6 +1846,268 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   }
 
   return NoChange();
+}
+
+Reduction JSNativeContextSpecialization::ReduceNamedAccess(
+    Node* node, Node* value, MapHandles const& receiver_maps,
+    NameRef const& name, AccessMode access_mode, Node* key) {
+  DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
+         node->opcode() == IrOpcode::kJSStoreNamed ||
+         node->opcode() == IrOpcode::kJSLoadProperty ||
+         node->opcode() == IrOpcode::kJSStoreProperty ||
+         node->opcode() == IrOpcode::kJSStoreNamedOwn ||
+         node->opcode() == IrOpcode::kJSHasProperty);
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Check if we have an access o.x or o.x=v where o is the current
+  // native contexts' global proxy, and turn that into a direct access
+  // to the current native contexts' global object instead.
+  if (receiver_maps.size() == 1) {
+    MapRef receiver_map(broker(), receiver_maps.front());
+    if (receiver_map.IsMapOfCurrentGlobalProxy()) {
+      return ReduceGlobalAccess(node, receiver, value, name, access_mode, key);
+    }
+  }
+
+  // Compute property access infos for the receiver maps.
+  AccessInfoFactory access_info_factory(broker(), dependencies(),
+                                        graph()->zone());
+  ZoneVector<PropertyAccessInfo> raw_access_infos(zone());
+  access_info_factory.ComputePropertyAccessInfos(
+      receiver_maps, name.object(), access_mode, &raw_access_infos);
+  ZoneVector<PropertyAccessInfo> access_infos(zone());
+  if (!access_info_factory.FinalizePropertyAccessInfos(
+          raw_access_infos, access_mode, &access_infos)) {
+    return NoChange();
+  }
+
+  // Ensure that {key} matches the specified {name} (if {key} is given).
+  if (key != nullptr) {
+    effect = BuildCheckEqualsName(name, key, effect, control);
+  }
+
+  // Collect call nodes to rewire exception edges.
+  ZoneVector<Node*> if_exception_nodes(zone());
+  ZoneVector<Node*>* if_exceptions = nullptr;
+  Node* if_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &if_exception)) {
+    if_exceptions = &if_exception_nodes;
+  }
+
+  PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
+
+  // Check for the monomorphic cases.
+  if (access_infos.size() == 1) {
+    PropertyAccessInfo access_info = access_infos.front();
+    // Try to build string check or number check if possible.
+    // Otherwise build a map check.
+    if (!access_builder.TryBuildStringCheck(broker(),
+                                            access_info.receiver_maps(),
+                                            &receiver, &effect, control) &&
+        !access_builder.TryBuildNumberCheck(broker(),
+                                            access_info.receiver_maps(),
+                                            &receiver, &effect, control)) {
+      if (HasNumberMaps(broker(), access_info.receiver_maps())) {
+        // We need to also let Smi {receiver}s through in this case, so
+        // we construct a diamond, guarded by the Sminess of the {receiver}
+        // and if {receiver} is not a Smi just emit a sequence of map checks.
+        Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+        Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+        Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+        Node* etrue = effect;
+
+        Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+        Node* efalse = effect;
+        {
+          access_builder.BuildCheckMaps(receiver, &efalse, if_false,
+                                        access_info.receiver_maps());
+        }
+
+        control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+        effect =
+            graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+      } else {
+        receiver =
+            access_builder.BuildCheckHeapObject(receiver, &effect, control);
+        access_builder.BuildCheckMaps(receiver, &effect, control,
+                                      access_info.receiver_maps());
+      }
+    }
+
+    // Generate the actual property access.
+    ValueEffectControl continuation = BuildPropertyAccess(
+        receiver, value, context, frame_state, effect, control, name,
+        if_exceptions, access_info, access_mode);
+    value = continuation.value();
+    effect = continuation.effect();
+    control = continuation.control();
+  } else {
+    // The final states for every polymorphic branch. We join them with
+    // Merge+Phi+EffectPhi at the bottom.
+    ZoneVector<Node*> values(zone());
+    ZoneVector<Node*> effects(zone());
+    ZoneVector<Node*> controls(zone());
+
+    // Check if {receiver} may be a number.
+    bool receiverissmi_possible = false;
+    for (PropertyAccessInfo const& access_info : access_infos) {
+      if (HasNumberMaps(broker(), access_info.receiver_maps())) {
+        receiverissmi_possible = true;
+        break;
+      }
+    }
+
+    // Ensure that {receiver} is a heap object.
+    Node* receiverissmi_control = nullptr;
+    Node* receiverissmi_effect = effect;
+    if (receiverissmi_possible) {
+      Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+      Node* branch = graph()->NewNode(common()->Branch(), check, control);
+      control = graph()->NewNode(common()->IfFalse(), branch);
+      receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
+      receiverissmi_effect = effect;
+    } else {
+      receiver =
+          access_builder.BuildCheckHeapObject(receiver, &effect, control);
+    }
+
+    // Generate code for the various different property access patterns.
+    Node* fallthrough_control = control;
+    for (size_t j = 0; j < access_infos.size(); ++j) {
+      PropertyAccessInfo const& access_info = access_infos[j];
+      Node* this_value = value;
+      Node* this_receiver = receiver;
+      Node* this_effect = effect;
+      Node* this_control = fallthrough_control;
+
+      // Perform map check on {receiver}.
+      ZoneVector<Handle<Map>> const& receiver_maps =
+          access_info.receiver_maps();
+      {
+        // Whether to insert a dedicated MapGuard node into the
+        // effect to be able to learn from the control flow.
+        bool insert_map_guard = true;
+
+        // Check maps for the {receiver}s.
+        if (j == access_infos.size() - 1) {
+          // Last map check on the fallthrough control path, do a
+          // conditional eager deoptimization exit here.
+          access_builder.BuildCheckMaps(receiver, &this_effect, this_control,
+                                        receiver_maps);
+          fallthrough_control = nullptr;
+
+          // Don't insert a MapGuard in this case, as the CheckMaps
+          // node already gives you all the information you need
+          // along the effect chain.
+          insert_map_guard = false;
+        } else {
+          // Explicitly branch on the {receiver_maps}.
+          ZoneHandleSet<Map> maps;
+          for (Handle<Map> map : receiver_maps) {
+            maps.insert(map, graph()->zone());
+          }
+          Node* check = this_effect =
+              graph()->NewNode(simplified()->CompareMaps(maps), receiver,
+                               this_effect, this_control);
+          Node* branch =
+              graph()->NewNode(common()->Branch(), check, this_control);
+          fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+          this_control = graph()->NewNode(common()->IfTrue(), branch);
+        }
+
+        // The Number case requires special treatment to also deal with Smis.
+        if (HasNumberMaps(broker(), receiver_maps)) {
+          // Join this check with the "receiver is smi" check above.
+          DCHECK_NOT_NULL(receiverissmi_effect);
+          DCHECK_NOT_NULL(receiverissmi_control);
+          this_control = graph()->NewNode(common()->Merge(2), this_control,
+                                          receiverissmi_control);
+          this_effect = graph()->NewNode(common()->EffectPhi(2), this_effect,
+                                         receiverissmi_effect, this_control);
+          receiverissmi_effect = receiverissmi_control = nullptr;
+
+          // The {receiver} can also be a Smi in this case, so
+          // a MapGuard doesn't make sense for this at all.
+          insert_map_guard = false;
+        }
+
+        // Introduce a MapGuard to learn from this on the effect chain.
+        if (insert_map_guard) {
+          ZoneHandleSet<Map> maps;
+          for (auto receiver_map : receiver_maps) {
+            maps.insert(receiver_map, graph()->zone());
+          }
+          this_effect = graph()->NewNode(simplified()->MapGuard(maps), receiver,
+                                         this_effect, this_control);
+        }
+
+        // If all {receiver_maps} are Strings we also need to rename the
+        // {receiver} here to make sure that TurboFan knows that along this
+        // path the {this_receiver} is a String. This is because we want
+        // strict checking of types, for example for StringLength operators.
+        if (HasOnlyStringMaps(broker(), receiver_maps)) {
+          this_receiver = this_effect =
+              graph()->NewNode(common()->TypeGuard(Type::String()), receiver,
+                               this_effect, this_control);
+        }
+      }
+
+      // Generate the actual property access.
+      ValueEffectControl continuation = BuildPropertyAccess(
+          this_receiver, this_value, context, frame_state, this_effect,
+          this_control, name, if_exceptions, access_info, access_mode);
+      values.push_back(continuation.value());
+      effects.push_back(continuation.effect());
+      controls.push_back(continuation.control());
+    }
+
+    DCHECK_NULL(fallthrough_control);
+
+    // Generate the final merge point for all (polymorphic) branches.
+    int const control_count = static_cast<int>(controls.size());
+    if (control_count == 0) {
+      value = effect = control = jsgraph()->Dead();
+    } else if (control_count == 1) {
+      value = values.front();
+      effect = effects.front();
+      control = controls.front();
+    } else {
+      control = graph()->NewNode(common()->Merge(control_count), control_count,
+                                 &controls.front());
+      values.push_back(control);
+      value = graph()->NewNode(
+          common()->Phi(MachineRepresentation::kTagged, control_count),
+          control_count + 1, &values.front());
+      effects.push_back(control);
+      effect = graph()->NewNode(common()->EffectPhi(control_count),
+                                control_count + 1, &effects.front());
+    }
+  }
+
+  // Properly rewire IfException edges if {node} is inside a try-block.
+  if (!if_exception_nodes.empty()) {
+    DCHECK_NOT_NULL(if_exception);
+    DCHECK_EQ(if_exceptions, &if_exception_nodes);
+    int const if_exception_count = static_cast<int>(if_exceptions->size());
+    Node* merge = graph()->NewNode(common()->Merge(if_exception_count),
+                                   if_exception_count, &if_exceptions->front());
+    if_exceptions->push_back(merge);
+    Node* ephi =
+        graph()->NewNode(common()->EffectPhi(if_exception_count),
+                         if_exception_count + 1, &if_exceptions->front());
+    Node* phi = graph()->NewNode(
+        common()->Phi(MachineRepresentation::kTagged, if_exception_count),
+        if_exception_count + 1, &if_exceptions->front());
+    ReplaceWithValue(if_exception, phi, ephi, merge);
+  }
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
@@ -2490,18 +2781,15 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreInArrayLiteral(
   // Extract the keyed access store mode from the keyed store IC.
   KeyedAccessStoreMode store_mode = nexus.GetKeyedAccessStoreMode();
 
-  // Extract receiver maps from the {nexus}.
   MapHandles receiver_maps;
   if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
-    return NoChange();
-  } else if (receiver_maps.empty()) {
     return ReduceSoftDeoptimize(
         node, DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+  } else if (receiver_maps.empty()) {
+    return NoChange();
   }
-  DCHECK(!nexus.IsUninitialized());
   DCHECK_EQ(ELEMENT, nexus.GetKeyType());
-
-  if (nexus.ic_state() == MEGAMORPHIC) return NoChange();
+  DCHECK_NE(MEGAMORPHIC, nexus.ic_state());
 
   // Try to lower the element access based on the {receiver_maps}.
   return ReduceElementAccess(node, index, value, nexus, receiver_maps,
@@ -2548,7 +2836,7 @@ JSNativeContextSpecialization::BuildElementAccess(
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
   ElementsKind elements_kind = access_info.elements_kind();
-  MapHandles const& receiver_maps = access_info.receiver_maps();
+  ZoneVector<Handle<Map>> const& receiver_maps = access_info.receiver_maps();
 
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
     Node* buffer;
@@ -3226,7 +3514,7 @@ Node* JSNativeContextSpecialization::BuildCheckEqualsName(NameRef const& name,
 }
 
 bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
-    MapHandles const& receiver_maps) {
+    ZoneVector<Handle<Map>> const& receiver_maps) {
   // Check if all {receiver_maps} have one of the initial Array.prototype
   // or Object.prototype objects as their prototype (in any of the current
   // native contexts, as the global Array protector works isolate-wide).
@@ -3244,24 +3532,12 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   return dependencies()->DependOnNoElementsProtector();
 }
 
-namespace {
-void TryUpdateThenDropDeprecated(Isolate* isolate, MapHandles* maps) {
-  for (auto it = maps->begin(); it != maps->end();) {
-    if (Map::TryUpdate(isolate, *it).ToHandle(&*it)) {
-      DCHECK(!(*it)->is_deprecated());
-      ++it;
-    } else {
-      it = maps->erase(it);
-    }
-  }
-}
-}  // namespace
-
+// Returns false iff we have insufficient feedback (uninitialized or obsolete).
 bool JSNativeContextSpecialization::ExtractReceiverMaps(
     Node* receiver, Node* effect, FeedbackNexus const& nexus,
     MapHandles* receiver_maps) {
   DCHECK(receiver_maps->empty());
-  if (nexus.IsUninitialized()) return true;
+  if (nexus.IsUninitialized()) return false;
 
   // See if we can infer a concrete type for the {receiver}. Solely relying on
   // the inference is not safe for keyed stores, because we would potentially
@@ -3276,26 +3552,23 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     }
   }
 
-  // Try to extract some maps from the {nexus}.
-  if (nexus.ExtractMaps(receiver_maps) != 0) {
-    // Try to filter impossible candidates based on inferred root map.
-    Handle<Map> root_map;
-    if (InferReceiverRootMap(receiver).ToHandle(&root_map)) {
-      DCHECK(!root_map->is_abandoned_prototype_map());
-      Isolate* isolate = this->isolate();
-      receiver_maps->erase(
-          std::remove_if(receiver_maps->begin(), receiver_maps->end(),
-                         [root_map, isolate](Handle<Map> map) {
-                           return map->is_abandoned_prototype_map() ||
-                                  map->FindRootMap(isolate) != *root_map;
-                         }),
-          receiver_maps->end());
-    }
-    TryUpdateThenDropDeprecated(isolate(), receiver_maps);
-    return true;
-  }
+  if (nexus.ExtractMaps(receiver_maps) == 0) return true;
 
-  return false;
+  // Try to filter impossible candidates based on inferred root map.
+  Handle<Map> root_map;
+  if (InferReceiverRootMap(receiver).ToHandle(&root_map)) {
+    DCHECK(!root_map->is_abandoned_prototype_map());
+    Isolate* isolate = this->isolate();
+    receiver_maps->erase(
+        std::remove_if(receiver_maps->begin(), receiver_maps->end(),
+                       [root_map, isolate](Handle<Map> map) {
+                         return map->is_abandoned_prototype_map() ||
+                                map->FindRootMap(isolate) != *root_map;
+                       }),
+        receiver_maps->end());
+  }
+  TryUpdateThenDropDeprecated(isolate(), receiver_maps);
+  return !receiver_maps->empty();
 }
 
 bool JSNativeContextSpecialization::InferReceiverMaps(

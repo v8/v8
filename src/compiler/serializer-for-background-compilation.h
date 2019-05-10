@@ -189,6 +189,7 @@ namespace compiler {
   V(StaGlobal)                       \
   V(StaInArrayLiteral)               \
   V(StaKeyedProperty)                \
+  V(StaNamedOwnProperty)             \
   V(StaNamedProperty)                \
   V(Star)                            \
   V(TestIn)                          \
@@ -270,16 +271,18 @@ using HintsVector = ZoneVector<Hints>;
 // optimizations in the compiler, is copied to the heap broker.
 class SerializerForBackgroundCompilation {
  public:
-  SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
-                                     Handle<JSFunction> closure,
+  SerializerForBackgroundCompilation(JSHeapBroker* broker,
+                                     CompilationDependencies* dependencies,
+                                     Zone* zone, Handle<JSFunction> closure,
                                      bool collect_source_positions);
   Hints Run();  // NOTE: Returns empty for an already-serialized function.
 
   class Environment;
 
  private:
-  SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
-                                     CompilationSubject function,
+  SerializerForBackgroundCompilation(JSHeapBroker* broker,
+                                     CompilationDependencies* dependencies,
+                                     Zone* zone, CompilationSubject function,
                                      base::Optional<Hints> new_target,
                                      const HintsVector& arguments,
                                      bool collect_source_positions);
@@ -311,8 +314,11 @@ class SerializerForBackgroundCompilation {
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
   void ProcessFeedbackForKeyedPropertyAccess(FeedbackSlot slot,
                                              AccessMode mode);
+  ElementAccessFeedback const* ProcessFeedbackMapsForElementAccess(
+      const MapHandles& maps, AccessMode mode);
   void ProcessFeedbackForNamedPropertyAccess(FeedbackSlot slot,
-                                             NameRef const& name);
+                                             NameRef const& name,
+                                             AccessMode mode);
   void ProcessMapForNamedPropertyAccess(MapRef const& map, NameRef const& name);
 
   Hints RunChildSerializer(CompilationSubject function,
@@ -320,6 +326,7 @@ class SerializerForBackgroundCompilation {
                            const HintsVector& arguments, bool with_spread);
 
   JSHeapBroker* broker() const { return broker_; }
+  CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
   // The following flag is initialized from OptimizedCompilationInfo's
   // {is_source_positions_enabled}.
@@ -327,6 +334,7 @@ class SerializerForBackgroundCompilation {
   Environment* environment() const { return environment_; }
 
   JSHeapBroker* const broker_;
+  CompilationDependencies* const dependencies_;
   Zone* const zone_;
   bool const collect_source_positions_;
   Environment* const environment_;

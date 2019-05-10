@@ -13,6 +13,7 @@
 #include "src/bootstrapper.h"
 #include "src/boxed-float.h"
 #include "src/code-factory.h"
+#include "src/compiler/access-info.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/per-isolate-compiler-cache.h"
 #include "src/objects-inl.h"
@@ -3256,6 +3257,9 @@ bool CanInlineElementAccess(MapRef const& map) {
   return false;
 }
 
+InsufficientFeedback::InsufficientFeedback()
+    : ProcessedFeedback(kInsufficient) {}
+
 GlobalAccessFeedback::GlobalAccessFeedback(PropertyCellRef cell)
     : ProcessedFeedback(kGlobalAccess),
       cell_or_context_(cell),
@@ -3336,6 +3340,14 @@ ElementAccessFeedback::MapIterator ElementAccessFeedback::all_maps(
   return MapIterator(*this, broker);
 }
 
+NamedAccessFeedback::NamedAccessFeedback(
+    NameRef const& name, ZoneVector<PropertyAccessInfo> const& access_infos)
+    : ProcessedFeedback(kNamedAccess),
+      name_(name),
+      access_infos_(access_infos) {
+  CHECK(!access_infos.empty());
+}
+
 FeedbackSource::FeedbackSource(FeedbackNexus const& nexus)
     : vector(nexus.vector_handle()), slot(nexus.slot()) {}
 
@@ -3377,6 +3389,8 @@ GlobalAccessFeedback const* JSHeapBroker::GetGlobalAccessFeedback(
 
 ElementAccessFeedback const* JSHeapBroker::ProcessFeedbackMapsForElementAccess(
     MapHandles const& maps) {
+  DCHECK(!maps.empty());
+
   // Collect possible transition targets.
   MapHandles possible_transition_targets;
   possible_transition_targets.reserve(maps.size());
@@ -3387,8 +3401,6 @@ ElementAccessFeedback const* JSHeapBroker::ProcessFeedbackMapsForElementAccess(
       possible_transition_targets.push_back(map);
     }
   }
-
-  if (maps.empty()) return nullptr;
 
   ElementAccessFeedback* result = new (zone()) ElementAccessFeedback(zone());
 

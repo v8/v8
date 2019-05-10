@@ -599,7 +599,7 @@ void CompilationDependencies::DependOnStablePrototypeChains(
   }
 }
 template void CompilationDependencies::DependOnStablePrototypeChains(
-    MapHandles const& receiver_maps, WhereToStart start,
+    ZoneVector<Handle<Map>> const& receiver_maps, WhereToStart start,
     base::Optional<JSObjectRef> last_prototype);
 template void CompilationDependencies::DependOnStablePrototypeChains(
     ZoneHandleSet<Map> const& receiver_maps, WhereToStart start,

@@ -32,7 +32,8 @@ SimplifiedOperatorBuilder* PropertyAccessBuilder::simplified() const {
   return jsgraph()->simplified();
 }
 
-bool HasOnlyStringMaps(JSHeapBroker* broker, MapHandles const& maps) {
+bool HasOnlyStringMaps(JSHeapBroker* broker,
+                       ZoneVector<Handle<Map>> const& maps) {
   for (auto map : maps) {
     MapRef map_ref(broker, map);
     if (!map_ref.IsStringMap()) return false;
@@ -42,7 +43,8 @@ bool HasOnlyStringMaps(JSHeapBroker* broker, MapHandles const& maps) {
 
 namespace {
 
-bool HasOnlyNumberMaps(JSHeapBroker* broker, MapHandles const& maps) {
+bool HasOnlyNumberMaps(JSHeapBroker* broker,
+                       ZoneVector<Handle<Map>> const& maps) {
   for (auto map : maps) {
     MapRef map_ref(broker, map);
     if (map_ref.instance_type() != HEAP_NUMBER_TYPE) return false;
@@ -52,10 +54,9 @@ bool HasOnlyNumberMaps(JSHeapBroker* broker, MapHandles const& maps) {
 
 }  // namespace
 
-bool PropertyAccessBuilder::TryBuildStringCheck(JSHeapBroker* broker,
-                                                MapHandles const& maps,
-                                                Node** receiver, Node** effect,
-                                                Node* control) {
+bool PropertyAccessBuilder::TryBuildStringCheck(
+    JSHeapBroker* broker, ZoneVector<Handle<Map>> const& maps, Node** receiver,
+    Node** effect, Node* control) {
   if (HasOnlyStringMaps(broker, maps)) {
     // Monormorphic string access (ignoring the fact that there are multiple
     // String maps).
@@ -67,10 +68,9 @@ bool PropertyAccessBuilder::TryBuildStringCheck(JSHeapBroker* broker,
   return false;
 }
 
-bool PropertyAccessBuilder::TryBuildNumberCheck(JSHeapBroker* broker,
-                                                MapHandles const& maps,
-                                                Node** receiver, Node** effect,
-                                                Node* control) {
+bool PropertyAccessBuilder::TryBuildNumberCheck(
+    JSHeapBroker* broker, ZoneVector<Handle<Map>> const& maps, Node** receiver,
+    Node** effect, Node* control) {
   if (HasOnlyNumberMaps(broker, maps)) {
     // Monomorphic number access (we also deal with Smis here).
     *receiver = *effect =
@@ -143,9 +143,9 @@ Node* PropertyAccessBuilder::BuildCheckHeapObject(Node* receiver, Node** effect,
   return receiver;
 }
 
-void PropertyAccessBuilder::BuildCheckMaps(Node* receiver, Node** effect,
-                                           Node* control,
-                                           MapHandles const& receiver_maps) {
+void PropertyAccessBuilder::BuildCheckMaps(
+    Node* receiver, Node** effect, Node* control,
+    ZoneVector<Handle<Map>> const& receiver_maps) {
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
     MapRef receiver_map = m.Ref(broker()).map();

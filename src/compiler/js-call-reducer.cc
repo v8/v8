@@ -6749,17 +6749,15 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   MapHandles const& regexp_maps = inference.GetMaps();
 
   // Compute property access info for "exec" on {resolution}.
-  PropertyAccessInfo ai_exec;
-  {
-    ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
-    AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                          graph()->zone());
-    access_info_factory.ComputePropertyAccessInfos(
-        MapHandles(regexp_maps.begin(), regexp_maps.end()),
-        factory()->exec_string(), AccessMode::kLoad, &access_infos);
-    ai_exec = access_info_factory.FinalizePropertyAccessInfosAsOne(
-        access_infos, AccessMode::kLoad);
-  }
+  ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
+  AccessInfoFactory access_info_factory(broker(), dependencies(),
+                                        graph()->zone());
+  access_info_factory.ComputePropertyAccessInfos(
+      MapHandles(regexp_maps.begin(), regexp_maps.end()),
+      factory()->exec_string(), AccessMode::kLoad, &access_infos);
+  PropertyAccessInfo ai_exec =
+      access_info_factory.FinalizePropertyAccessInfosAsOne(access_infos,
+                                                           AccessMode::kLoad);
   if (ai_exec.IsInvalid()) return inference.NoChange();
 
   // If "exec" has been modified on {regexp}, we can't do anything.

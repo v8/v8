@@ -247,9 +247,10 @@ int SerializerForBackgroundCompilation::Environment::RegisterToLocalIndex(
 }
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
-    JSHeapBroker* broker, Zone* zone, Handle<JSFunction> closure,
-    bool collect_source_positions)
+    JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
+    Handle<JSFunction> closure, bool collect_source_positions)
     : broker_(broker),
+      dependencies_(dependencies),
       zone_(zone),
       collect_source_positions_(collect_source_positions),
       environment_(new (zone) Environment(zone, {closure, broker_->isolate()})),
@@ -258,10 +259,11 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
 }
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
-    JSHeapBroker* broker, Zone* zone, CompilationSubject function,
-    base::Optional<Hints> new_target, const HintsVector& arguments,
-    bool collect_source_positions)
+    JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
+    CompilationSubject function, base::Optional<Hints> new_target,
+    const HintsVector& arguments, bool collect_source_positions)
     : broker_(broker),
+      dependencies_(dependencies),
       zone_(zone),
       collect_source_positions_(collect_source_positions),
       environment_(new (zone) Environment(zone, broker_->isolate(), function,
@@ -580,7 +582,7 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
                              << *environment());
 
   SerializerForBackgroundCompilation child_serializer(
-      broker(), zone(), function, new_target, arguments,
+      broker(), dependencies(), zone(), function, new_target, arguments,
       collect_source_positions());
   return child_serializer.Run();
 }
@@ -790,32 +792,12 @@ MapHandles GetRelevantReceiverMaps(Isolate* isolate, MapContainer const& maps) {
 }
 }  // namespace
 
-// Note: We never use the same feedback slot for multiple access modes.
-void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
-    FeedbackSlot slot, AccessMode mode) {
-  if (slot.IsInvalid()) return;
-  if (environment()->function().feedback_vector.is_null()) return;
-
-  FeedbackNexus nexus(environment()->function().feedback_vector, slot);
-  FeedbackSource source(nexus);
-  if (broker()->HasFeedback(source)) return;
-
-  if (nexus.GetKeyType() == PROPERTY) {
-    CHECK_NE(mode, AccessMode::kStoreInLiteral);
-    return;  // TODO(neis): Support named access.
-  }
-  DCHECK_EQ(nexus.GetKeyType(), ELEMENT);
-  CHECK(nexus.GetName().is_null());
-
-  MapHandles maps;
-  nexus.ExtractMaps(&maps);
-  ElementAccessFeedback const* processed =
-      broker()->ProcessFeedbackMapsForElementAccess(
-          GetRelevantReceiverMaps(broker()->isolate(), maps));
-  broker()->SetFeedback(source, processed);
-  if (processed == nullptr) return;
-
-  for (ElementAccessFeedback::MapIterator it = processed->all_maps(broker());
+ElementAccessFeedback const*
+SerializerForBackgroundCompilation::ProcessFeedbackMapsForElementAccess(
+    const MapHandles& maps, AccessMode mode) {
+  ElementAccessFeedback const* result =
+      broker()->ProcessFeedbackMapsForElementAccess(maps);
+  for (ElementAccessFeedback::MapIterator it = result->all_maps(broker());
        !it.done(); it.advance()) {
     switch (mode) {
       case AccessMode::kHas:
@@ -830,6 +812,41 @@ void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
         break;
     }
   }
+  return result;
+}
+
+// Note: We never use the same feedback slot for multiple access modes.
+void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
+    FeedbackSlot slot, AccessMode mode) {
+  if (slot.IsInvalid()) return;
+  if (environment()->function().feedback_vector.is_null()) return;
+
+  FeedbackNexus nexus(environment()->function().feedback_vector, slot);
+  FeedbackSource source(nexus);
+  if (broker()->HasFeedback(source)) return;
+
+  ProcessedFeedback const* processed = nullptr;
+  if (nexus.ic_state() == UNINITIALIZED) {
+    processed = new (broker()->zone()) InsufficientFeedback();
+  } else {
+    if (nexus.GetKeyType() == PROPERTY) {
+      CHECK_NE(mode, AccessMode::kStoreInLiteral);
+      // TODO(neis): Support named access.
+    } else {
+      DCHECK_EQ(nexus.GetKeyType(), ELEMENT);
+      DCHECK(nexus.GetName().is_null());
+      MapHandles maps;
+      if (nexus.ExtractMaps(&maps) != 0) {
+        maps = GetRelevantReceiverMaps(broker()->isolate(), maps);
+        if (maps.empty()) {
+          processed = new (broker()->zone()) InsufficientFeedback();
+        } else {
+          processed = ProcessFeedbackMapsForElementAccess(maps, mode);
+        }
+      }
+    }
+  }
+  broker()->SetFeedback(source, processed);
 }
 
 void SerializerForBackgroundCompilation::ProcessKeyedPropertyAccess(
@@ -878,7 +895,7 @@ void SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
 
 // Note: We never use the same feedback slot for multiple names.
 void SerializerForBackgroundCompilation::ProcessFeedbackForNamedPropertyAccess(
-    FeedbackSlot slot, NameRef const& name) {
+    FeedbackSlot slot, NameRef const& name, AccessMode mode) {
   if (slot.IsInvalid()) return;
   if (environment()->function().feedback_vector.is_null()) return;
 
@@ -886,15 +903,31 @@ void SerializerForBackgroundCompilation::ProcessFeedbackForNamedPropertyAccess(
   FeedbackSource source(nexus);
   if (broker()->HasFeedback(source)) return;
 
-  MapHandles maps;
-  nexus.ExtractMaps(&maps);
-  for (Handle<Map> map : GetRelevantReceiverMaps(broker()->isolate(), maps)) {
-    ProcessMapForNamedPropertyAccess(MapRef(broker(), map), name);
+  ProcessedFeedback const* processed = nullptr;
+  if (nexus.ic_state() == UNINITIALIZED) {
+    processed = new (broker()->zone()) InsufficientFeedback();
+  } else {
+    MapHandles maps;
+    if (nexus.ExtractMaps(&maps) != 0) {
+      ZoneVector<PropertyAccessInfo> access_infos(broker()->zone());
+      for (Handle<Map> map :
+           GetRelevantReceiverMaps(broker()->isolate(), maps)) {
+        MapRef map_ref(broker(), map);
+        ProcessMapForNamedPropertyAccess(map_ref, name);
+        AccessInfoFactory access_info_factory(broker(), dependencies(),
+                                              broker()->zone());
+        access_infos.push_back(access_info_factory.ComputePropertyAccessInfo(
+            map, name.object(), mode));
+      }
+      if (access_infos.empty()) {
+        processed = new (broker()->zone()) InsufficientFeedback();
+      } else {
+        processed =
+            new (broker()->zone()) NamedAccessFeedback(name, access_infos);
+      }
+    }
   }
-
-  // NamedProperty support is still WIP. For now we don't have any actual data
-  // to store, so use nullptr to at least record that we processed the feedback.
-  broker()->SetFeedback(source, nullptr);
+  broker()->SetFeedback(source, processed);
 }
 
 void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(
@@ -909,7 +942,7 @@ void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(
 void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
     Hints const& receiver, NameRef const& name, FeedbackSlot slot,
     AccessMode mode) {
-  if (!slot.IsInvalid()) ProcessFeedbackForNamedPropertyAccess(slot, name);
+  ProcessFeedbackForNamedPropertyAccess(slot, name, mode);
 
   for (Handle<Map> map :
        GetRelevantReceiverMaps(broker()->isolate(), receiver.maps())) {
@@ -954,6 +987,11 @@ void SerializerForBackgroundCompilation::VisitLdaNamedProperty(
 void SerializerForBackgroundCompilation::VisitStaNamedProperty(
     BytecodeArrayIterator* iterator) {
   ProcessNamedPropertyAccess(iterator, AccessMode::kStore);
+}
+
+void SerializerForBackgroundCompilation::VisitStaNamedOwnProperty(
+    BytecodeArrayIterator* iterator) {
+  ProcessNamedPropertyAccess(iterator, AccessMode::kStoreInLiteral);
 }
 
 void SerializerForBackgroundCompilation::VisitTestIn(

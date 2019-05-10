@@ -1248,8 +1248,8 @@ struct SerializationPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     SerializerForBackgroundCompilation serializer(
-        data->broker(), temp_zone, data->info()->closure(),
-        data->info()->is_source_positions_enabled());
+        data->broker(), data->dependencies(), temp_zone,
+        data->info()->closure(), data->info()->is_source_positions_enabled());
     serializer.Run();
   }
 };

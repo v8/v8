@@ -108,9 +108,14 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                        NameRef const& name,
                                        AccessMode access_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
+                              NamedAccessFeedback const& processed,
+                              AccessMode access_mode, Node* key = nullptr);
+  // TODO(neis): This second version of ReduceNamedAccess is here only
+  // temporarily while keyed access is not fully brokerized yet.
+  Reduction ReduceNamedAccess(Node* node, Node* value,
                               MapHandles const& receiver_maps,
                               NameRef const& name, AccessMode access_mode,
-                              Node* key = nullptr);
+                              Node* key);
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
                                NameRef const& name, AccessMode access_mode,
                                Node* key = nullptr);
@@ -214,7 +219,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
   // code dependencies and might use the array protector cell.
-  bool CanTreatHoleAsUndefined(MapHandles const& receiver_maps);
+  bool CanTreatHoleAsUndefined(ZoneVector<Handle<Map>> const& receiver_maps);
 
   // Extract receiver maps from {nexus} and filter based on {receiver} if
   // possible.
