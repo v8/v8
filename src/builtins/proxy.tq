@@ -24,9 +24,6 @@ namespace proxy {
       implicit context:
           Context)(Object, JSProxy, Name, Object, constexpr int31): Object;
 
-  extern transitioning macro ProxiesCodeStubAssembler::CheckHasTrapResult(
-      implicit context: Context)(Object, JSProxy, Name): Object;
-
   const kProxyNonObject: constexpr MessageTemplate
   generates 'MessageTemplate::kProxyNonObject';
   const kProxyHandlerOrTargetRevoked: constexpr MessageTemplate

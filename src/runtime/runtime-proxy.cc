@@ -98,7 +98,7 @@ RUNTIME_FUNCTION(Runtime_CheckProxyGetSetTrapResult) {
                                         JSProxy::AccessKind(access_kind)));
 }
 
-RUNTIME_FUNCTION(Runtime_CheckProxyHasTrapResult) {
+RUNTIME_FUNCTION(Runtime_CheckProxyHasTrap) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(2, args.length());
