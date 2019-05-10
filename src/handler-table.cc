@@ -38,7 +38,8 @@ HandlerTable::HandlerTable(Address handler_table, int handler_table_size)
       mode_(kReturnAddressBasedEncoding),
 #endif
       raw_encoded_data_(handler_table) {
-  DCHECK_EQ(0, handler_table_size % (kReturnEntrySize * sizeof(int32_t)));
+  static_assert(4 < kReturnEntrySize * sizeof(int32_t), "allowed padding");
+  DCHECK_GE(4, handler_table_size % (kReturnEntrySize * sizeof(int32_t)));
 }
 
 int HandlerTable::GetRangeStart(int index) const {
