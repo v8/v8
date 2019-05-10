@@ -522,7 +522,6 @@ Response V8DebuggerAgentImpl::setBreakpointByUrl(
       break;
     default:
       UNREACHABLE();
-      break;
   }
   if (breakpoints->get(breakpointId)) {
     return Response::Error("Breakpoint at specified location already exists.");

@@ -116,7 +116,6 @@ UseInfo CheckedUseInfoAsFloat64FromHint(
     case NumberOperationHint::kSigned32:
       // Not used currently.
       UNREACHABLE();
-      break;
     case NumberOperationHint::kNumber:
       return UseInfo::CheckedNumberAsFloat64(identify_zeros, feedback);
     case NumberOperationHint::kNumberOrOddball:

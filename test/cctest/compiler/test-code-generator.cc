@@ -272,7 +272,6 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
     }
     default:
       UNREACHABLE();
-      break;
   }
   os << " (" << operand.representation() << " ";
   if (operand.location_kind() == AllocatedOperand::REGISTER) {

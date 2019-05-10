@@ -2598,7 +2598,6 @@ class FastSmiOrObjectElementsAccessor
       // This function is currently only used for JSArrays with non-zero
       // length.
       UNREACHABLE();
-      break;
       case NO_ELEMENTS:
         break;  // Nothing to do.
     }
@@ -2971,7 +2970,6 @@ class FastDoubleElementsAccessor
       // This function is currently only used for JSArrays with non-zero
       // length.
       UNREACHABLE();
-      break;
     }
   }
 
@@ -4680,7 +4678,6 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
     }
     default:
       UNREACHABLE();
-      break;
   }
 
   array->set_elements(*elms);

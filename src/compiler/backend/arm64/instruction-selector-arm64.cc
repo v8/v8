@@ -1871,7 +1871,6 @@ void MaybeReplaceCmpZeroWithFlagSettingBinop(InstructionSelector* selector,
       break;
     default:
       UNREACHABLE();
-      return;
   }
   if (selector->CanCover(*node, binop)) {
     // The comparison is the only user of the add or and, so we can generate
@@ -2768,7 +2767,6 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   VisitAtomicLoad(this, node, opcode);
 }
@@ -2791,7 +2789,6 @@ void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   VisitAtomicLoad(this, node, opcode);
 }
@@ -2811,7 +2808,6 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   VisitAtomicStore(this, node, opcode);
 }
@@ -2834,7 +2830,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   VisitAtomicStore(this, node, opcode);
 }

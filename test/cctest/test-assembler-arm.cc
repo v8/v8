@@ -452,7 +452,6 @@ static void TestRoundingMode(VCVTTypes types,
 
     default:
       UNREACHABLE();
-      break;
   }
   // Check for vfp exceptions
   __ vmrs(r2);

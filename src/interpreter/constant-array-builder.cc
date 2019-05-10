@@ -284,7 +284,6 @@ ConstantArrayBuilder::OperandSizeToSlice(OperandSize operand_size) const {
   switch (operand_size) {
     case OperandSize::kNone:
       UNREACHABLE();
-      break;
     case OperandSize::kByte:
       slice = idx_slice_[0];
       break;

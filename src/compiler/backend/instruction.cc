@@ -56,7 +56,6 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
     case kPositiveOrZero:
     case kNegative:
       UNREACHABLE();
-      break;
     case kEqual:
     case kNotEqual:
     case kOverflow:

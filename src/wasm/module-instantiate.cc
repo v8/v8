@@ -641,7 +641,6 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
       // only be initialized with BigInts. See:
       // https://github.com/WebAssembly/JS-BigInt-integration/issues/12
       UNREACHABLE();
-      break;
     case kWasmF32:
       WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global),
                                     DoubleToFloat32(num));

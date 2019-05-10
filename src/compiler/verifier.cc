@@ -490,7 +490,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kInductionVariablePhi: {
       // This is only a temporary node for the typer.
       UNREACHABLE();
-      break;
     }
     case IrOpcode::kEffectPhi: {
       // EffectPhi input count matches parent control node.

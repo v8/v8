@@ -673,7 +673,6 @@ int DisassemblerX64::PrintOperands(const char* mnem,
     }
     default:
       UNREACHABLE();
-      break;
   }
   return advance;
 }

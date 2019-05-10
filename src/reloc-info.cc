@@ -539,7 +539,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
-      break;
   }
 }
 #endif  // VERIFY_HEAP

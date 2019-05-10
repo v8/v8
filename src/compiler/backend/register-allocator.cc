@@ -2093,7 +2093,6 @@ int LiveRangeBuilder::FixedFPLiveRangeID(int index, MachineRepresentation rep) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return result;
 }

@@ -1223,7 +1223,6 @@ Node* WasmGraphBuilder::BuildChangeEndiannessStore(
       break;
     default:
       UNREACHABLE();
-      break;
   }
 
   if (mem_rep == MachineRepresentation::kWord8) {
@@ -1377,7 +1376,6 @@ Node* WasmGraphBuilder::BuildChangeEndiannessLoad(Node* node,
       break;
     default:
       UNREACHABLE();
-      break;
   }
 
   int i;
@@ -6142,7 +6140,6 @@ wasm::WasmCode* CompileWasmMathIntrinsic(wasm::WasmEngine* wasm_engine,
       break;
     default:
       UNREACHABLE();
-      break;
   }
 
   builder.Return(node);

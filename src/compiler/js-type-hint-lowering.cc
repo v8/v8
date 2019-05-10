@@ -268,7 +268,6 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceUnaryOperation(
     }
     default:
       UNREACHABLE();
-      break;
   }
 
   if (node != nullptr) {
@@ -354,7 +353,6 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
     }
     default:
       UNREACHABLE();
-      break;
   }
   return LoweringResult::NoChange();
 }

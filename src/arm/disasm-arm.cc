@@ -264,7 +264,6 @@ void Decoder::PrintPU(Instruction* instr) {
     }
     default: {
       UNREACHABLE();
-      break;
     }
   }
 }
@@ -700,7 +699,6 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     default: {
       UNREACHABLE();
-      break;
     }
   }
   UNREACHABLE();
@@ -1083,7 +1081,6 @@ void Decoder::DecodeType2(Instruction* instr) {
     default: {
       // The PU field is a 2-bit field.
       UNREACHABLE();
-      break;
     }
   }
 }
@@ -1373,7 +1370,6 @@ void Decoder::DecodeType3(Instruction* instr) {
     default: {
       // The PU field is a 2-bit field.
       UNREACHABLE();
-      break;
     }
   }
 }
@@ -2648,7 +2644,6 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
     default: {
       // The type field is 3-bits in the ARM encoding.
       UNREACHABLE();
-      break;
     }
   }
   return kInstrSize;

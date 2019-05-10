@@ -830,7 +830,6 @@ static void InitializeGenerationData(
       break;
     default:
       UNREACHABLE();
-      break;
   }
   // Must remove the influence of the above decision.
   test_case /= kBalances;
@@ -854,7 +853,6 @@ static void InitializeGenerationData(
       break;
     default:
       UNREACHABLE();
-      break;
   }
   // Must remove the influence of the above decision.
   test_case /= kTreeLengths;

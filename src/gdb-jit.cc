@@ -2140,7 +2140,6 @@ void EventHandler(const v8::JitCodeEvent* event) {
     case v8::JitCodeEvent::CODE_MOVED:
       // Enabling the GDB JIT interface should disable code compaction.
       UNREACHABLE();
-      break;
     case v8::JitCodeEvent::CODE_REMOVED:
       // Do nothing.  Instead, adding code causes eviction of any entry whose
       // address range intersects the address range of the added code.

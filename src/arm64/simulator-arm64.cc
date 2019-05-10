@@ -467,7 +467,6 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
     default:
       TraceSim("Type: Unknown.\n");
       UNREACHABLE();
-      break;
 
     case ExternalReference::BUILTIN_CALL:
 #if defined(V8_OS_WIN)
@@ -772,7 +771,6 @@ void LogicVRegister::ReadUintFromMem(VectorFormat vform, int index,
       break;
     default:
       UNREACHABLE();
-      return;
   }
 }
 
@@ -795,7 +793,6 @@ void LogicVRegister::WriteUintToMem(VectorFormat vform, int index,
       break;
     default:
       UNREACHABLE();
-      return;
   }
 }
 
@@ -1487,7 +1484,6 @@ void Simulator::VisitPCRelAddressing(Instruction* instr) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
 }
 

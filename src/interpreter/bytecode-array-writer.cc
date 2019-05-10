@@ -445,7 +445,6 @@ void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
   switch (reserved_operand_size) {
     case OperandSize::kNone:
       UNREACHABLE();
-      break;
     case OperandSize::kByte:
       node->update_operand0(k8BitJumpPlaceholder);
       break;

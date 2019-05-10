@@ -450,7 +450,6 @@ void NeonMemOperand::SetAlignment(int align) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
 }
 
@@ -3952,7 +3951,6 @@ static int EncodeScalar(NeonDataType dt, int index) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return (opc1_opc2 >> 2) * B21 | (opc1_opc2 & 0x3) * B5;
 }
@@ -4003,7 +4001,6 @@ void Assembler::vdup(NeonSize size, QwNeonRegister dst, Register src) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   int vd, d;
   dst.split_code(&vd, &d);
@@ -4137,7 +4134,6 @@ static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   int vd, d;
   NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
@@ -4231,7 +4227,6 @@ static Instr EncodeNeonBinaryBitwiseOp(BinaryBitwiseOp op, NeonRegType reg_type,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   int vd, d;
   NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);
@@ -4338,7 +4333,6 @@ static Instr EncodeNeonBinOp(FPBinOp op, QwNeonRegister dst,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   int vd, d;
   dst.split_code(&vd, &d);
@@ -4404,7 +4398,6 @@ static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   int vd, d;
   dst.split_code(&vd, &d);
@@ -4560,7 +4553,6 @@ static Instr EncodeNeonShiftOp(NeonShiftOp op, NeonSize size, bool is_unsigned,
     }
     default:
       UNREACHABLE();
-      break;
   }
 
   int vd, d;
@@ -4667,7 +4659,6 @@ static Instr EncodeNeonPairwiseOp(NeonPairwiseOp op, NeonDataType dt,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   int vd, d;
   dst.split_code(&vd, &d);
@@ -4819,7 +4810,6 @@ static Instr EncodeNeonSizedOp(NeonSizedOp op, NeonRegType reg_type,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   int vd, d;
   NeonSplitCode(reg_type, dst_code, &vd, &d, &op_encoding);

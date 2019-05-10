@@ -305,7 +305,6 @@ void ProgramOptions::UpdateFromHeader(std::istream& stream) {
       continue;
     } else {
       UNREACHABLE();
-      return;
     }
   }
 }

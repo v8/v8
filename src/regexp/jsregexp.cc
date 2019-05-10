@@ -1725,7 +1725,6 @@ static inline bool EmitAtomLetter(Isolate* isolate,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return true;
 }

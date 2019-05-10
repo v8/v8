@@ -2740,7 +2740,6 @@ int TranslatedFrame::GetValueCount() {
 
     case kInvalid:
       UNREACHABLE();
-      break;
   }
   UNREACHABLE();
 }

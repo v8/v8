@@ -3636,7 +3636,6 @@ void Simulator::DecodeTypeRegisterCOP1() {
     case BC1EQZ:
     case BC1NEZ:
       UNREACHABLE();
-      break;
     case CFC1:
       // At the moment only FCSR is supported.
       DCHECK_EQ(fs_reg(), kFCSRRegister);

@@ -1501,7 +1501,6 @@ int32_t Simulator::ProcessPU(Instruction* instr,
     }
     default: {
       UNREACHABLE();
-      break;
     }
   }
   return rn_val;
@@ -2610,7 +2609,6 @@ void Simulator::DecodeType2(Instruction* instr) {
     }
     default: {
       UNREACHABLE();
-      break;
     }
   }
   if (instr->HasB()) {
@@ -3032,7 +3030,6 @@ void Simulator::DecodeType3(Instruction* instr) {
     }
     default: {
       UNREACHABLE();
-      break;
     }
   }
   if (instr->HasB()) {

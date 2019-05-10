@@ -3105,7 +3105,6 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
       return;
     default:
       UNREACHABLE();
-      break;
   }
 }
 

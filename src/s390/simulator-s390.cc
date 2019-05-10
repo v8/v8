@@ -3114,7 +3114,6 @@ EVALUATE(VSUM) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }
@@ -3135,7 +3134,6 @@ EVALUATE(VSUMG) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }
@@ -3184,7 +3182,6 @@ EVALUATE(VPK) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }
@@ -3211,7 +3208,6 @@ EVALUATE(VPKS) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }
@@ -3238,7 +3234,6 @@ EVALUATE(VPKLS) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }
@@ -3272,7 +3267,6 @@ EVALUATE(VUPH) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }
@@ -3297,7 +3291,6 @@ EVALUATE(VUPLH) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }
@@ -3331,7 +3324,6 @@ EVALUATE(VUPL) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }
@@ -3356,7 +3348,6 @@ EVALUATE(VUPLL) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }
@@ -3542,7 +3533,6 @@ EVALUATE(VLC) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }
@@ -3897,7 +3887,6 @@ void VectorSignOp(void* dst, void* src, int m4, int m5) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
 }
 
@@ -3919,7 +3908,6 @@ EVALUATE(VFPSO) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }
@@ -3958,7 +3946,6 @@ EVALUATE(VFSQ) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }
@@ -3985,7 +3972,6 @@ EVALUATE(VFI) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return length;
 }

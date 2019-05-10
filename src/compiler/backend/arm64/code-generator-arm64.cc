@@ -714,7 +714,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // by an unknown value, and it is safe to continue accessing the frame
       // via the stack pointer.
       UNREACHABLE();
-      break;
     case kArchSaveCallerRegisters: {
       fp_mode_ =
           static_cast<SaveFPRegsMode>(MiscField::decode(instr->opcode()));
@@ -2843,7 +2842,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     }
     default:
       UNREACHABLE();
-      break;
   }
 }
 

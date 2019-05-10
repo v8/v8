@@ -4350,7 +4350,6 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     }
     case Call::SUPER_CALL:
       UNREACHABLE();
-      break;
   }
 
   // Evaluate all arguments to the function call and store in sequential args

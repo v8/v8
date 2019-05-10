@@ -1950,7 +1950,6 @@ static void PrintNonErrorsMessageCallback(Local<Message> message,
 
     default: {
       UNREACHABLE();
-      break;
     }
   }
   // Converts a V8 value to a C string.

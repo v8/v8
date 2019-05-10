@@ -1233,7 +1233,6 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
     case MachineRepresentation::kBit:
     case MachineRepresentation::kSimd128:
       UNREACHABLE();
-      break;
     case MachineRepresentation::kWord32:
       if (kInt32Size != kTaggedSize) {
         return -1;  // We currently only track tagged pointer size fields.

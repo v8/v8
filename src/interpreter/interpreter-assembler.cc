@@ -389,7 +389,6 @@ Node* InterpreterAssembler::BytecodeOperandReadUnaligned(
       break;
     default:
       UNREACHABLE();
-      break;
   }
   MachineType msb_type =
       result_type.IsSigned() ? MachineType::Int8() : MachineType::Uint8();

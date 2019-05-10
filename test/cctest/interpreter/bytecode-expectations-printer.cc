@@ -167,7 +167,6 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
       break;
     default:
       UNREACHABLE();
-      return;
   }
 
   if (Bytecodes::IsRegisterOperandType(op_type)) {

@@ -556,7 +556,6 @@ void Decoder::PrintFormat(Instruction* instr) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   PrintChar(formatLetter);
 }
@@ -2052,7 +2051,6 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
     default:
       printf("a 0x%x \n", instr->OpcodeFieldRaw());
       UNREACHABLE();
-      break;
   }
 }
 

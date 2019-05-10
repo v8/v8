@@ -456,7 +456,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       // TODO(all): Handle these types too.
       os << "UNKNOWN TYPE " << map()->instance_type();
       UNREACHABLE();
-      break;
   }
 }
 
@@ -1190,7 +1189,6 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
     case FeedbackSlotKind::kInvalid:
     case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
-      break;
   }
 }
 

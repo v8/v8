@@ -107,7 +107,6 @@ void PendingCompilationErrorHandler::ThrowPendingError(Isolate* isolate,
       break;
     default:
       UNREACHABLE();
-      break;
   }
 
   if (!error->IsJSObject()) {

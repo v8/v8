@@ -134,7 +134,6 @@ void Scheduler::UpdatePlacement(Node* node, Placement placement) {
     case IrOpcode::kParameter:
       // Parameters are fixed once and for all.
       UNREACHABLE();
-      break;
     case IrOpcode::kPhi:
     case IrOpcode::kEffectPhi: {
       // Phis and effect phis are coupled to their respective blocks.

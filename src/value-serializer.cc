@@ -416,7 +416,6 @@ void ValueSerializer::WriteOddball(Oddball oddball) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   WriteTag(tag);
 }

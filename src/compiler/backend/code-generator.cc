@@ -344,7 +344,6 @@ void CodeGenerator::TryInsertBranchPoisoning(const InstructionBlock* block) {
     }
     case kFlags_deoptimize_and_poison: {
       UNREACHABLE();
-      break;
     }
     default:
       break;

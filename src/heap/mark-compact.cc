@@ -4829,7 +4829,6 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
       break;
     case kObjectsOldToOld:
       UNREACHABLE();
-      break;
   }
 }
 

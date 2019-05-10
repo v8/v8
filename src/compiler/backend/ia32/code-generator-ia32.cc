@@ -1188,7 +1188,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchWordPoisonOnSpeculation:
       // TODO(860429): Remove remaining poisoning infrastructure on ia32.
       UNREACHABLE();
-      break;
     case kLFence:
       __ lfence();
       break;
@@ -3898,7 +3897,6 @@ static Condition FlagsConditionToCondition(FlagsCondition condition) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
 }
 
@@ -4592,7 +4590,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     }
     default:
       UNREACHABLE();
-      break;
   }
 }
 

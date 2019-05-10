@@ -294,7 +294,6 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     default: {
       UNREACHABLE();
-      break;
     }
   }
 

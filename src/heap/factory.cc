@@ -3910,7 +3910,6 @@ Handle<LoadHandler> Factory::NewLoadHandler(int data_count) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return handle(LoadHandler::cast(New(map, AllocationType::kOld)), isolate());
 }
@@ -3932,7 +3931,6 @@ Handle<StoreHandler> Factory::NewStoreHandler(int data_count) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return handle(StoreHandler::cast(New(map, AllocationType::kOld)), isolate());
 }

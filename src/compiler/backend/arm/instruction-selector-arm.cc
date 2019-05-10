@@ -482,7 +482,6 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
-      return;
   }
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
@@ -645,7 +644,6 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
     default:
       // All other cases should support unaligned accesses.
       UNREACHABLE();
-      return;
   }
 }
 
@@ -736,7 +734,6 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
     default:
       // All other cases should support unaligned accesses.
       UNREACHABLE();
-      return;
   }
 }
 
@@ -1659,7 +1656,6 @@ void MaybeReplaceCmpZeroWithFlagSettingBinop(InstructionSelector* selector,
       break;
     default:
       UNREACHABLE();
-      return;
   }
   if (selector->CanCover(*node, binop)) {
     // The comparison is the only user of {node}.
@@ -2044,7 +2040,6 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   Emit(opcode | AddressingModeField::encode(kMode_Offset_RR),
        g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
@@ -2069,7 +2064,6 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
 
   AddressingMode addressing_mode = kMode_Offset_RR;

@@ -1183,7 +1183,6 @@ void RegExpMacroAssemblerARM64::ReadCurrentPositionFromRegister(int reg) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
 }
 
@@ -1515,7 +1514,6 @@ Register RegExpMacroAssemblerARM64::GetRegister(int register_index,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   DCHECK(result.Is32Bits());
   return result;
@@ -1549,7 +1547,6 @@ void RegExpMacroAssemblerARM64::StoreRegister(int register_index,
     }
     default:
       UNREACHABLE();
-      break;
   }
 }
 

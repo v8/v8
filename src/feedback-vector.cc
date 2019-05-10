@@ -521,7 +521,6 @@ bool FeedbackNexus::Clear() {
     case FeedbackSlotKind::kInvalid:
     case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
-      break;
   }
   return feedback_updated;
 }
@@ -740,7 +739,6 @@ InlineCacheState FeedbackNexus::ic_state() const {
     case FeedbackSlotKind::kInvalid:
     case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
-      break;
   }
   return UNINITIALIZED;
 }

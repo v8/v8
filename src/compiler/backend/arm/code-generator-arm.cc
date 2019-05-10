@@ -554,7 +554,6 @@ void FlushPendingPushRegisters(TurboAssembler* tasm,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   frame_access_state->IncreaseSPDelta(pending_pushes->size());
   pending_pushes->clear();
@@ -3434,7 +3433,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     }
     default:
       UNREACHABLE();
-      break;
   }
 }
 

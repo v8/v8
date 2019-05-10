@@ -704,7 +704,6 @@ void IC::PatchCache(Handle<Name> name, const MaybeObjectHandle& handler) {
       break;
     case GENERIC:
       UNREACHABLE();
-      break;
   }
 }
 

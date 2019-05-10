@@ -200,7 +200,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
       UNREACHABLE();
-      break;
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
@@ -208,7 +207,6 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 #undef TYPED_ARRAY_CASE
       // Typed elements cannot be created using an object literal.
       UNREACHABLE();
-      break;
 
     case PACKED_SMI_ELEMENTS:
     case HOLEY_SMI_ELEMENTS:

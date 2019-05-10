@@ -1473,7 +1473,6 @@ CellData* ModuleData::GetCell(int cell_index) const {
       break;
     case ModuleDescriptor::kInvalid:
       UNREACHABLE();
-      break;
   }
   CHECK_NOT_NULL(cell);
   return cell;

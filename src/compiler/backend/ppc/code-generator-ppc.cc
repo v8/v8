@@ -729,7 +729,6 @@ void FlushPendingPushRegisters(TurboAssembler* tasm,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   frame_access_state->IncreaseSPDelta(pending_pushes->size());
   pending_pushes->clear();
@@ -1959,7 +1958,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_AtomicStoreWord32:
     case kPPC_AtomicStoreWord64:
       UNREACHABLE();
-      break;
     case kWord32AtomicExchangeInt8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
       __ extsb(i.OutputRegister(0), i.OutputRegister(0));
@@ -2060,7 +2058,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif  // V8_TARGET_ARCH_PPC64
     default:
       UNREACHABLE();
-      break;
   }
   return kSuccess;
 }  // NOLINT(readability/fn_size)

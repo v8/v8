@@ -2354,7 +2354,6 @@ void HeapObject::RehashBasedOnMap(ReadOnlyRoots roots) {
   switch (map()->instance_type()) {
     case HASH_TABLE_TYPE:
       UNREACHABLE();
-      break;
     case NAME_DICTIONARY_TYPE:
       NameDictionary::cast(*this)->Rehash(roots);
       break;

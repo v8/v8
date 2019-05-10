@@ -541,7 +541,6 @@ int DisassemblerIA32::PrintOperands(const char* mnem,
     }
     default:
       UNREACHABLE();
-      break;
   }
   return advance;
 }

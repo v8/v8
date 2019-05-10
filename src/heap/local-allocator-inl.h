@@ -26,7 +26,6 @@ AllocationResult LocalAllocator::Allocate(AllocationSpace space,
           ->AllocateRaw(object_size, alignment);
     default:
       UNREACHABLE();
-      break;
   }
 }
 
@@ -42,7 +41,6 @@ void LocalAllocator::FreeLast(AllocationSpace space, HeapObject object,
     default:
       // Only new and old space supported.
       UNREACHABLE();
-      break;
   }
 }
 

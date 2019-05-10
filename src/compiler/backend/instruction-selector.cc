@@ -485,7 +485,6 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
     case IrOpcode::kObjectState:
     case IrOpcode::kTypedObjectState:
       UNREACHABLE();
-      break;
     default:
       switch (kind) {
         case FrameStateInputKind::kStackSlot:
@@ -1227,7 +1226,6 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     default:
       UNREACHABLE();
-      break;
   }
   if (trace_turbo_ == kEnableTraceTurboJson && input) {
     int instruction_start = static_cast<int>(instructions_.size());

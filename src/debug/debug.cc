@@ -1023,7 +1023,6 @@ void Debug::PrepareStep(StepAction step_action) {
   switch (step_action) {
     case StepNone:
       UNREACHABLE();
-      break;
     case StepOut: {
       // Clear last position info. For stepping out it does not matter.
       thread_local_.last_statement_position_ = kNoSourcePosition;

@@ -215,7 +215,6 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
-      return;
   }
 
   if (node->opcode() == IrOpcode::kPoisonedLoad &&

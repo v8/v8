@@ -4188,7 +4188,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     }
     default:
       UNREACHABLE();
-      break;
   }
 }
 

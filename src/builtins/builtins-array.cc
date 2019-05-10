@@ -1173,7 +1173,6 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     case SLOW_STRING_WRAPPER_ELEMENTS:
       // |array| is guaranteed to be an array or typed array.
       UNREACHABLE();
-      break;
   }
   visitor->increase_index_offset(length);
   return true;

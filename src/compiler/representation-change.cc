@@ -477,7 +477,6 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
     case IrOpcode::kFloat64Constant:
     case IrOpcode::kFloat32Constant:
       UNREACHABLE();
-      break;
     default:
       break;
   }
@@ -735,7 +734,6 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
     case IrOpcode::kFloat64Constant:
     case IrOpcode::kFloat32Constant:
       UNREACHABLE();
-      break;
     default:
       break;
   }
@@ -938,7 +936,6 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     case IrOpcode::kFloat32Constant:
     case IrOpcode::kFloat64Constant:
       UNREACHABLE();
-      break;
     case IrOpcode::kNumberConstant: {
       double const fv = OpParameter<double>(node->op());
       if (use_info.type_check() == TypeCheckKind::kNone ||
@@ -1231,7 +1228,6 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     case IrOpcode::kFloat32Constant:
     case IrOpcode::kFloat64Constant:
       UNREACHABLE();
-      break;
     case IrOpcode::kNumberConstant: {
       double const fv = OpParameter<double>(node->op());
       using limits = std::numeric_limits<int64_t>;

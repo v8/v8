@@ -813,7 +813,6 @@ TEST_P(SlotConstraintTest, SlotConstraint) {
       break;
     default:
       UNREACHABLE();
-      break;
   }
   EndBlock(Last());
 

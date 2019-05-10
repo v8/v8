@@ -91,7 +91,6 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kInvalid:
     case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
-      break;
   }
   return 1;
 }

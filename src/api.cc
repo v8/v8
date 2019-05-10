@@ -8232,7 +8232,6 @@ Isolate::DisallowJavascriptExecutionScope::DisallowJavascriptExecutionScope(
       break;
     default:
       UNREACHABLE();
-      break;
   }
 }
 
@@ -8250,7 +8249,6 @@ Isolate::DisallowJavascriptExecutionScope::~DisallowJavascriptExecutionScope() {
       break;
     default:
       UNREACHABLE();
-      break;
   }
 }
 

@@ -954,7 +954,6 @@ ElementAccess AccessBuilder::ForFixedArrayElement(
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return access;
 }

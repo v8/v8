@@ -57,7 +57,6 @@ TNode<MaybeObject> AccessorAssembler::LoadHandlerDataField(
       break;
     default:
       UNREACHABLE();
-      break;
   }
   USE(minimum_size);
   CSA_ASSERT(this, UintPtrGreaterThanOrEqual(

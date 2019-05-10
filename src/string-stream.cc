@@ -170,7 +170,6 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
     }
     default:
       UNREACHABLE();
-      break;
     }
   }
 

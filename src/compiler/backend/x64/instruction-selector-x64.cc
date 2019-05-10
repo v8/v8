@@ -2373,7 +2373,6 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   VisitAtomicExchange(this, node, opcode);
 }
@@ -2396,7 +2395,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   VisitAtomicExchange(this, node, opcode);
 }

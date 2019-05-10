@@ -1218,7 +1218,6 @@ void FlushPendingPushRegisters(TurboAssembler* tasm,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   frame_access_state->IncreaseSPDelta(pending_pushes->size());
   pending_pushes->clear();
@@ -2803,7 +2802,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return kSuccess;
 }  // NOLINT(readability/fn_size)
