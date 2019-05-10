@@ -2873,6 +2873,7 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
 
   Node* receiver = p->receiver;
   GotoIf(TaggedIsSmi(receiver), &if_runtime);
+  GotoIf(IsNullOrUndefined(receiver), &if_runtime);
 
   TryToName(p->name, &if_index, &var_index, &if_unique_name, &var_unique,
             &if_other, &if_notunique);
