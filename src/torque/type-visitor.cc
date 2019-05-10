@@ -116,7 +116,8 @@ const StructType* TypeVisitor::ComputeType(StructDeclaration* decl) {
                                 {field.name_and_type.name->value, field_type},
                                 offset,
                                 false,
-                                field.const_qualified});
+                                field.const_qualified,
+                                false});
     offset += LoweredSlotCount(field_type);
   }
   DeclareMethods(struct_type, decl->methods);
@@ -151,7 +152,7 @@ const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
 
     new_class = TypeOracle::GetClassType(
         super_type, decl->name->value, decl->is_extern, decl->generate_print,
-        decl->transient, generates, decl, alias);
+        decl->generate_verify, decl->transient, generates, decl, alias);
   } else {
     if (decl->super) {
       ReportError("Only extern classes can inherit.");
@@ -161,7 +162,8 @@ const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
     }
     new_class = TypeOracle::GetClassType(
         TypeOracle::GetTaggedType(), decl->name->value, decl->is_extern,
-        decl->generate_print, decl->transient, "FixedArray", decl, alias);
+        decl->generate_print, decl->generate_verify, decl->transient,
+        "FixedArray", decl, alias);
   }
   GlobalContext::RegisterClass(decl->name->value, new_class);
   return new_class;
@@ -248,7 +250,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
            {field_expression.name_and_type.name->value, field_type},
            class_offset,
            field_expression.weak,
-           field_expression.const_qualified});
+           field_expression.const_qualified,
+           field_expression.generate_verify});
     } else {
       if (seen_indexed_field) {
         ReportError("cannot declare non-indexable field \"",
@@ -263,7 +266,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
            {field_expression.name_and_type.name->value, field_type},
            class_offset,
            field_expression.weak,
-           field_expression.const_qualified});
+           field_expression.const_qualified,
+           field_expression.generate_verify});
       size_t field_size;
       std::string size_string;
       std::string machine_type;

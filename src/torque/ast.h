@@ -721,6 +721,7 @@ struct ClassFieldExpression {
   base::Optional<std::string> conditional;
   bool weak;
   bool const_qualified;
+  bool generate_verify;
 };
 
 struct LabelAndTypes {
@@ -924,7 +925,7 @@ struct StructDeclaration : TypeDeclaration {
 struct ClassDeclaration : TypeDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ClassDeclaration)
   ClassDeclaration(SourcePosition pos, Identifier* name, bool is_extern,
-                   bool generate_print, bool transient,
+                   bool generate_print, bool generate_verify, bool transient,
                    base::Optional<TypeExpression*> super,
                    base::Optional<std::string> generates,
                    std::vector<Declaration*> methods,
@@ -932,6 +933,7 @@ struct ClassDeclaration : TypeDeclaration {
       : TypeDeclaration(kKind, pos, name),
         is_extern(is_extern),
         generate_print(generate_print),
+        generate_verify(generate_verify),
         transient(transient),
         super(super),
         generates(std::move(generates)),
@@ -939,6 +941,7 @@ struct ClassDeclaration : TypeDeclaration {
         fields(std::move(fields)) {}
   bool is_extern;
   bool generate_print;
+  bool generate_verify;
   bool transient;
   base::Optional<TypeExpression*> super;
   base::Optional<std::string> generates;

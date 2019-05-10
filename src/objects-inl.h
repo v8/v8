@@ -121,6 +121,12 @@ bool Object::IsNullOrUndefined() const {
   return IsHeapObject() && HeapObject::cast(*this)->IsNullOrUndefined();
 }
 
+bool Object::IsZero() const { return *this == Smi::zero(); }
+
+bool Object::IsNoSharedNameSentinel() const {
+  return *this == SharedFunctionInfo::kNoSharedNameSentinel;
+}
+
 bool HeapObject::IsNullOrUndefined(Isolate* isolate) const {
   return Object::IsNullOrUndefined(isolate);
 }

@@ -278,6 +278,7 @@ class ImplementationVisitor {
   void GenerateBuiltinDefinitions(std::string& file_name);
   void GenerateClassDefinitions(std::string& file_name);
   void GeneratePrintDefinitions(std::string& file_name);
+  void GenerateClassVerifiers(const std::string& output_directory);
 
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);

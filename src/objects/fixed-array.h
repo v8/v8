@@ -201,6 +201,8 @@ class FixedArray : public FixedArrayBase {
 
   using BodyDescriptor = FlexibleBodyDescriptor<kHeaderSize>;
 
+  static constexpr int kObjectsOffset = kHeaderSize;
+
  protected:
   // Set operation on FixedArray without using write barriers. Can
   // only be used for storing old space objects or smis.

@@ -2965,6 +2965,179 @@ void ImplementationVisitor::GeneratePrintDefinitions(std::string& file_name) {
   ReplaceFileContentsIfDifferent(file_name, new_contents);
 }
 
+namespace {
+
+void GenerateClassFieldVerifier(const std::string& class_name,
+                                const ClassType& class_type, const Field& f,
+                                std::ostream& h_contents,
+                                std::ostream& cc_contents) {
+  if (!f.generate_verify) return;
+  const Type* field_type = f.name_and_type.type;
+
+  // We only verify tagged types, not raw numbers or pointers.
+  if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) return;
+
+  if (f.index) {
+    if ((*f.index)->name_and_type.type != TypeOracle::GetSmiType()) {
+      ReportError("Non-SMI values are not (yet) supported as indexes.");
+    }
+    // We already verified the index field because it was listed earlier, so we
+    // can assume it's safe to read here.
+    cc_contents << "  for (int i = 0; i < Smi::ToInt(READ_FIELD(o, "
+                << class_name << "::k"
+                << CamelifyString((*f.index)->name_and_type.name)
+                << "Offset)); ++i) {\n";
+  } else {
+    cc_contents << "  {\n";
+  }
+
+  const char* object_type = f.is_weak ? "MaybeObject" : "Object";
+  const char* read_fn = f.is_weak ? "READ_WEAK_FIELD" : "READ_FIELD";
+  const char* verify_fn =
+      f.is_weak ? "VerifyMaybeObjectPointer" : "VerifyPointer";
+  const char* index_offset = f.index ? " + i * kTaggedSize" : "";
+  // Name the local var based on the field name for nicer CHECK output.
+  const std::string value = f.name_and_type.name + "_value";
+
+  // Read the field.
+  cc_contents << "    " << object_type << " " << value << " = " << read_fn
+              << "(o, " << class_name << "::k"
+              << CamelifyString(f.name_and_type.name) << "Offset"
+              << index_offset << ");\n";
+
+  // Call VerifyPointer or VerifyMaybeObjectPointer on it.
+  cc_contents << "    " << object_type << "::" << verify_fn << "(isolate, "
+              << value << ");\n";
+
+  // Check that the value is of an appropriate type. We can skip this part for
+  // the Object type because it would not check anything beyond what we already
+  // checked with VerifyPointer.
+  if (f.name_and_type.type != TypeOracle::GetObjectType()) {
+    std::string type_check = f.is_weak ? value + ".IsWeakOrCleared()" : "";
+    std::string strong_value =
+        value + (f.is_weak ? ".GetHeapObjectOrSmi()" : "");
+    for (const std::string& runtime_type : field_type->GetRuntimeTypes()) {
+      if (!type_check.empty()) type_check += " || ";
+      type_check += strong_value + ".Is" + runtime_type + "()";
+    }
+    // Many subtypes of JSObject can be verified in partially-initialized states
+    // where their fields are all undefined. We explicitly allow that here. For
+    // any such fields that should never be undefined, we can include extra code
+    // in the custom verifier functions for them.
+    // TODO(1240798): If Factory::InitializeJSObjectFromMap is updated to use
+    // correct initial values based on the type of the field, then make this
+    // check stricter too.
+    if (class_type.IsSubtypeOf(TypeOracle::GetJSObjectType())) {
+      type_check += " || " + strong_value + ".IsUndefined(isolate)";
+    }
+    cc_contents << "    CHECK(" << type_check << ");\n";
+  }
+  cc_contents << "  }\n";
+}
+
+}  // namespace
+
+void ImplementationVisitor::GenerateClassVerifiers(
+    const std::string& output_directory) {
+  const char* file_name = "class-verifiers-from-dsl";
+  std::stringstream h_contents;
+  std::stringstream cc_contents;
+  h_contents << "#ifndef V8_CLASS_VERIFIERS_FROM_DSL_H_\n"
+                "#define V8_CLASS_VERIFIERS_FROM_DSL_H_\n"
+                "\n";
+
+  const char* enabled_check = "\n#ifdef VERIFY_HEAP\n";
+  h_contents << enabled_check;
+  cc_contents << enabled_check;
+
+  h_contents << "\n#include \"src/objects.h\"\n";
+
+  for (const std::string& include_path : GlobalContext::CppIncludes()) {
+    cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
+  }
+  cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
+  cc_contents
+      << "\n// Has to be the last include (doesn't have include guards):\n"
+         "#include \"src/objects/object-macros.h\"\n";
+
+  const char* namespaces =
+      "\nnamespace v8 {\n"
+      "namespace internal {\n"
+      "\n";
+  h_contents << namespaces;
+  cc_contents << namespaces;
+
+  const char* verifier_class = "ClassVerifiersFromDSL";
+
+  h_contents << "class " << verifier_class << "{\n";
+  h_contents << " public:\n";
+
+  for (auto i : GlobalContext::GetClasses()) {
+    ClassType* type = i.second;
+    if (!type->IsExtern() || !type->ShouldGenerateVerify()) continue;
+
+    std::string method_name = i.first + "Verify";
+
+    h_contents << "  static void " << method_name << "(" << i.first
+               << " o, Isolate* isolate);\n";
+
+    cc_contents << "void " << verifier_class << "::" << method_name << "("
+                << i.first << " o, Isolate* isolate) {\n";
+
+    // First, do any verification for the super class. Not all classes have
+    // verifiers, so skip to the nearest super class that has one.
+    const ClassType* super_type = type->GetSuperClass();
+    while (super_type && !super_type->ShouldGenerateVerify()) {
+      super_type = super_type->GetSuperClass();
+    }
+    if (super_type) {
+      std::string super_name = super_type->name();
+      if (super_name == "HeapObject") {
+        // Special case: HeapObjectVerify checks the Map type and dispatches to
+        // more specific types, so calling it here would cause infinite
+        // recursion. We could consider moving that behavior into a different
+        // method to make the contract of *Verify methods more consistent, but
+        // for now we'll just avoid the bad case.
+        cc_contents << "  " << super_name << "Verify(o, isolate);\n";
+      } else {
+        cc_contents << "  o->" << super_name << "Verify(isolate);\n";
+      }
+    }
+
+    // Second, verify that this object is what it claims to be.
+    cc_contents << "  CHECK(o.Is" << i.first << "());\n";
+
+    // Third, verify its properties.
+    for (auto f : type->fields()) {
+      GenerateClassFieldVerifier(i.first, *i.second, f, h_contents,
+                                 cc_contents);
+    }
+
+    cc_contents << "}\n";
+  }
+
+  h_contents << "};\n";
+
+  const char* end_namespaces =
+      "\n}  // namespace internal\n"
+      "}  // namespace v8\n";
+  h_contents << end_namespaces;
+  cc_contents << end_namespaces;
+
+  cc_contents << "\n#include \"src/objects/object-macros-undef.h\"\n";
+
+  const char* end_enabled_check = "\n#endif  // VERIFY_HEAP\n";
+  h_contents << end_enabled_check;
+  cc_contents << end_enabled_check;
+
+  h_contents << "\n#endif  // V8_CLASS_VERIFIERS_FROM_DSL_H_\n";
+
+  ReplaceFileContentsIfDifferent(output_directory + "/" + file_name + ".h",
+                                 h_contents.str());
+  ReplaceFileContentsIfDifferent(output_directory + "/" + file_name + ".cc",
+                                 cc_contents.str());
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

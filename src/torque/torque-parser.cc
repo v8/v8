@@ -656,8 +656,9 @@ class AnnotationSet {
 
 base::Optional<ParseResult> MakeClassDeclaration(
     ParseResultIterator* child_results) {
-  AnnotationSet annotations(child_results, {"@generatePrint"});
+  AnnotationSet annotations(child_results, {"@generatePrint", "@noVerifier"});
   bool generate_print = annotations.Contains("@generatePrint");
+  bool generate_verify = !annotations.Contains("@noVerifier");
   auto is_extern = child_results->NextAs<bool>();
   auto transient = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
@@ -681,8 +682,8 @@ base::Optional<ParseResult> MakeClassDeclaration(
                });
 
   Declaration* result = MakeNode<ClassDeclaration>(
-      name, is_extern, generate_print, transient, std::move(extends),
-      std::move(generates), std::move(methods), fields);
+      name, is_extern, generate_print, generate_verify, transient,
+      std::move(extends), std::move(generates), std::move(methods), fields);
   return ParseResult{result};
 }
 
@@ -1258,13 +1259,19 @@ base::Optional<ParseResult> MakeNameAndExpressionFromExpression(
 
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   auto conditional = child_results->NextAs<base::Optional<std::string>>();
+  AnnotationSet annotations(child_results, {"@noVerifier"});
+  bool generate_verify = !annotations.Contains("@noVerifier");
   auto weak = child_results->NextAs<bool>();
   auto const_qualified = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
   auto index = child_results->NextAs<base::Optional<std::string>>();
   auto type = child_results->NextAs<TypeExpression*>();
-  return ParseResult{ClassFieldExpression{
-      {name, type}, index, conditional, weak, const_qualified}};
+  return ParseResult{ClassFieldExpression{{name, type},
+                                          index,
+                                          conditional,
+                                          weak,
+                                          const_qualified,
+                                          generate_verify}};
 }
 
 base::Optional<ParseResult> MakeStructField(
@@ -1484,7 +1491,7 @@ struct TorqueGrammar : Grammar {
   Symbol classField = {Rule(
       {Optional<std::string>(
            Sequence({Token("@ifdef"), Token("("), &identifier, Token(")")})),
-       CheckIf(Token("weak")), CheckIf(Token("const")), &name,
+       annotations, CheckIf(Token("weak")), CheckIf(Token("const")), &name,
        optionalArraySpecifier, Token(":"), &type, Token(";")},
       MakeClassField)};
 

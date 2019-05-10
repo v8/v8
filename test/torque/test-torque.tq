@@ -770,6 +770,7 @@ namespace test {
     assert(a.b.GetX() == 2);
   }
 
+  @noVerifier
   extern class TestClassWithAllTypes extends JSObject {
     a: int8;
     b: uint8;
@@ -786,6 +787,7 @@ namespace test {
 
   // This class should throw alignment errors if @ifdef decorators aren't
   // working.
+  @noVerifier
   extern class PreprocessingTest extends JSObject {
     @ifdef(FALSE_FOR_TESTING) a: int8;
     @ifdef(TRUE_FOR_TESTING) a: int16;
@@ -894,8 +896,12 @@ namespace test {
 
   type Baztype = Foo | FooType;
 
-  extern class Foo extends JSObject { fooField: FooType; }
+  @noVerifier
+  extern class Foo extends JSObject {
+    fooField: FooType;
+  }
 
+  @noVerifier
   extern class Bar extends Foo {
     barField: Bartype;
     bazfield: Baztype;

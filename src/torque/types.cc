@@ -285,20 +285,19 @@ std::vector<Method*> AggregateType::Methods(const std::string& name) const {
 
 std::string StructType::ToExplicitString() const {
   std::stringstream result;
-  result << "struct " << name() << "{";
-  PrintCommaSeparatedList(result, fields());
-  result << "}";
+  result << "struct " << name();
   return result.str();
 }
 
 ClassType::ClassType(const Type* parent, Namespace* nspace,
                      const std::string& name, bool is_extern,
-                     bool generate_print, bool transient,
+                     bool generate_print, bool generate_verify, bool transient,
                      const std::string& generates, const ClassDeclaration* decl,
                      const TypeAlias* alias)
     : AggregateType(Kind::kClassType, parent, nspace, name),
       is_extern_(is_extern),
       generate_print_(generate_print),
+      generate_verify_(generate_verify),
       transient_(transient),
       size_(0),
       has_indexed_field_(false),
@@ -326,9 +325,7 @@ std::string ClassType::GetGeneratedTypeNameImpl() const {
 
 std::string ClassType::ToExplicitString() const {
   std::stringstream result;
-  result << "class " << name() << "{";
-  PrintCommaSeparatedList(result, fields());
-  result << "}";
+  result << "class " << name();
   return result.str();
 }
 

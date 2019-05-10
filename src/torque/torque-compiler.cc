@@ -88,6 +88,8 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
         output_directory + "/objects-printer-from-dsl.cc";
     implementation_visitor.GeneratePrintDefinitions(output_source_path);
 
+    implementation_visitor.GenerateClassVerifiers(output_directory);
+
     for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
       implementation_visitor.EndNamespaceFile(n);
       implementation_visitor.GenerateImplementation(output_directory, n);

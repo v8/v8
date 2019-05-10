@@ -78,7 +78,10 @@ type Number = Smi | HeapNumber;
 type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
 
-extern class Name extends HeapObject { hash_field: int32; }
+@noVerifier
+extern class Name extends HeapObject {
+  hash_field: int32;
+}
 
 extern class Symbol extends Name {
   flags: int32;
@@ -93,6 +96,7 @@ extern class ConsString extends String {
   second: String;
 }
 
+@noVerifier
 extern class ExternalString extends String {
   resource: RawPtr;
   resource_data: RawPtr;
@@ -104,7 +108,9 @@ extern class ExternalTwoByteString extends ExternalString {}
 extern class InternalizedString extends String {}
 
 // TODO(v8:8983): Add declaration for variable-sized region.
-extern class SeqString extends String {}
+@noVerifier
+extern class SeqString extends String {
+}
 extern class SeqOneByteString extends SeqString {}
 extern class SeqTwoByteString extends SeqString {}
 
@@ -118,7 +124,9 @@ extern class ThinString extends String { actual: String; }
 // The HeapNumber value NaN
 type NaN extends HeapNumber;
 
-extern class Struct extends HeapObject {}
+@noVerifier
+extern class Struct extends HeapObject {
+}
 
 @generatePrint
 extern class Tuple2 extends Struct {
@@ -139,7 +147,10 @@ type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 
 type Map extends HeapObject generates 'TNode<Map>';
 
-extern class FixedArrayBase extends HeapObject { length: Smi; }
+@noVerifier
+extern class FixedArrayBase extends HeapObject {
+  length: Smi;
+}
 
 extern class FixedArray extends FixedArrayBase { objects[length]: Object; }
 
@@ -180,13 +191,16 @@ intrinsic %GetAllocationBaseSize<Class: type>(map: Map): intptr;
 intrinsic %Allocate<Class: type>(size: intptr): Class;
 intrinsic %AllocateInternalClass<Class: type>(slotCount: constexpr intptr): Class;
 
+@noVerifier
 extern class JSReceiver extends HeapObject {
   properties_or_hash: FixedArrayBase | Smi;
 }
 
 type Constructor extends JSReceiver;
 
-extern class JSObject extends JSReceiver { elements: FixedArrayBase; }
+extern class JSObject extends JSReceiver {
+  @noVerifier elements: FixedArrayBase;
+}
 
 macro NewJSObject(
     map: Map, properties: FixedArrayBase | Smi,
@@ -207,9 +221,9 @@ macro NewJSObject(implicit context: Context)(): JSObject {
 extern class JSFunction extends JSObject {
   shared_function_info: SharedFunctionInfo;
   context: Context;
-  feedback_cell: Smi;
+  feedback_cell: FeedbackCell;
   weak code: Code;
-  weak prototype_or_initial_map: JSReceiver | Map;
+  @noVerifier weak prototype_or_initial_map: JSReceiver | Map;
 }
 
 extern class JSProxy extends JSReceiver {
@@ -217,6 +231,7 @@ extern class JSProxy extends JSReceiver {
   handler: Object;
 }
 
+@noVerifier
 extern class JSProxyRevocableResult extends JSObject {
   proxy: Object;
   revoke: Object;
@@ -238,6 +253,7 @@ extern class JSGlobalProxy extends JSObject { native_context: Object; }
 extern class JSValue extends JSObject { value: Object; }
 
 extern class JSArgumentsObject extends JSObject {}
+@noVerifier
 extern class JSArgumentsObjectWithLength extends JSArgumentsObject {
   length: Object;
 }
@@ -306,10 +322,14 @@ type NoSharedNameSentinel extends Smi;
 type JSModuleNamespace extends JSObject;
 type WeakArrayList extends HeapObject;
 
-extern class JSWeakCollection extends JSObject { table: Object; }
+@noVerifier
+extern class JSWeakCollection extends JSObject {
+  table: Object;
+}
 extern class JSWeakSet extends JSWeakCollection {}
 extern class JSWeakMap extends JSWeakCollection {}
 
+@noVerifier
 extern class JSCollectionIterator extends JSObject {
   table: Object;
   index: Object;
@@ -336,7 +356,7 @@ extern class PrototypeInfo extends Struct {
   prototype_users: WeakArrayList | Zero;
   registry_slot: Smi;
   validity_cell: Object;
-  object_create_map: Smi | WeakArrayList;
+  @noVerifier object_create_map: Smi | WeakArrayList;
   bit_field: Smi;
 }
 
@@ -377,7 +397,7 @@ extern class SharedFunctionInfo extends HeapObject {
   weak function_data: Object;
   name_or_scope_info: String | NoSharedNameSentinel | ScopeInfo;
   outer_scope_info_or_feedback_metadata: HeapObject;
-  script_or_debug_info: Script | DebugInfo;
+  script_or_debug_info: Script | DebugInfo | Undefined;
   length: int16;
   formal_parameter_count: uint16;
   // Currently set to uint16, can be set to uint8 to save space.
@@ -412,7 +432,7 @@ type NumberDictionary extends HeapObject
 
 extern class FreeSpace extends HeapObject {
   size: Smi;
-  next: FreeSpace;
+  @noVerifier next: FreeSpace;
 }
 
 // %RawDownCast should *never* be used anywhere in Torque code except for
@@ -504,6 +524,7 @@ extern class JSTypedArray extends JSArrayBufferView {
   length: Smi;
 }
 
+@noVerifier
 extern class JSAccessorPropertyDescriptor extends JSObject {
   get: Object;
   set: Object;
@@ -511,7 +532,10 @@ extern class JSAccessorPropertyDescriptor extends JSObject {
   configurable: Object;
 }
 
-extern class JSCollection extends JSObject { table: Object; }
+@noVerifier
+extern class JSCollection extends JSObject {
+  table: Object;
+}
 extern class JSSet extends JSCollection {}
 extern class JSMap extends JSCollection {}
 
@@ -542,6 +566,7 @@ extern class JSStringIterator extends JSObject {
   next_index: Smi;
 }
 
+@noVerifier
 extern class JSDataPropertyDescriptor extends JSObject {
   value: Object;
   writable: Object;
@@ -575,7 +600,7 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   function_template_rare_data: Object;
   shared_function_info: Object;
   flag: Smi;
-  length: Smi;
+  @noVerifier length: Smi;
   cached_property_name: Object;
 }
 
@@ -621,13 +646,13 @@ const UTF16:
 extern class Foreign extends HeapObject { foreign_address: RawPtr; }
 
 extern class InterceptorInfo extends Struct {
-  getter: Foreign | Zero;
-  setter: Foreign | Zero;
-  query: Foreign | Zero;
-  descriptor: Foreign | Zero;
-  deleter: Foreign | Zero;
-  enumerator: Foreign | Zero;
-  definer: Foreign | Zero;
+  @noVerifier getter: Foreign | Zero;
+  @noVerifier setter: Foreign | Zero;
+  @noVerifier query: Foreign | Zero;
+  @noVerifier descriptor: Foreign | Zero;
+  @noVerifier deleter: Foreign | Zero;
+  @noVerifier enumerator: Foreign | Zero;
+  @noVerifier definer: Foreign | Zero;
   data: Object;
   flags: Smi;
 }
@@ -651,9 +676,9 @@ extern class Cell extends HeapObject { value: Object; }
 extern class DataHandler extends Struct {
   smi_handler: Smi | Code;
   validity_cell: Smi | Cell;
-  weak data_1: Object;
-  weak data_2: Object;
-  weak data_3: Object;
+  @noVerifier weak data_1: Object;
+  @noVerifier weak data_2: Object;
+  @noVerifier weak data_3: Object;
 }
 
 extern class JSGeneratorObject extends JSObject {
@@ -733,9 +758,9 @@ extern class WasmCapiFunctionData extends Struct {
 extern class WasmDebugInfo extends Struct {
   instance: WasmInstanceObject;
   interpreter_handle: Foreign | Undefined;
-  locals_names: FixedArray;
-  c_wasm_entries: FixedArray;
-  c_wasm_entry_map: Foreign;  // Managed<wasm::SignatureMap>
+  locals_names: FixedArray | Undefined;
+  c_wasm_entries: FixedArray | Undefined;
+  c_wasm_entry_map: Foreign | Undefined;  // Managed<wasm::SignatureMap>
 }
 
 extern class WasmExceptionTag extends Struct { index: Smi; }
@@ -976,7 +1001,7 @@ extern class PromiseReaction extends Struct {
 extern class PromiseReactionJobTask extends Microtask {
   argument: Object;
   context: Context;
-  handler: Callable | Undefined;
+  @noVerifier handler: Callable | Undefined;
   promise_or_capability: JSPromise | PromiseCapability | Undefined;
 }
 
@@ -997,6 +1022,7 @@ extern class JSRegExp extends JSObject {
   flags: Smi | Undefined;
 }
 
+@noVerifier
 extern class JSIteratorResult extends JSObject {
   value: Object;
   done: Boolean;
@@ -1069,9 +1095,9 @@ extern class AccessorInfo extends Struct {
   name: Object;
   flags: Smi;
   expected_receiver_type: Object;
-  setter: Foreign | Zero;
-  getter: Foreign | Zero;
-  js_getter: Foreign | Zero;
+  @noVerifier setter: Foreign | Zero;
+  @noVerifier getter: Foreign | Zero;
+  @noVerifier js_getter: Foreign | Zero;
   data: Object;
 }
 
@@ -1085,7 +1111,7 @@ extern class BreakPointInfo extends Tuple2 {}
 extern class CoverageInfo extends FixedArray {}
 
 extern class DebugInfo extends Struct {
-  shared_function_info: HeapObject;
+  shared_function_info: SharedFunctionInfo;
   debugger_hints: Smi;
   script: Undefined | Script;
   original_bytecode_array: Undefined | BytecodeArray;
@@ -1098,7 +1124,7 @@ extern class DebugInfo extends Struct {
 extern class FeedbackVector extends HeapObject {
   shared_function_info: SharedFunctionInfo;
   // TODO(v8:9108): currently no support for MaybeObject in Torque
-  optimized_code_weak_or_smi: Object;
+  @noVerifier optimized_code_weak_or_smi: Object;
   closure_feedback_cell_array: FixedArray;
   length: int32;
   invocation_count: int32;
@@ -1113,7 +1139,7 @@ extern class FeedbackCell extends Struct {
 
 type AllocationSite extends Struct;
 extern class AllocationMemento extends Struct {
-  allocation_site: AllocationSite;
+  @noVerifier allocation_site: AllocationSite;
 }
 
 extern class WasmModuleObject extends JSObject {
@@ -1121,8 +1147,8 @@ extern class WasmModuleObject extends JSObject {
   export_wrappers: FixedArray;
   script: Script;
   weak_instance_list: WeakArrayList;
-  asm_js_offset_table: ByteArray;
-  break_point_infos: FixedArray;
+  asm_js_offset_table: ByteArray | Undefined;
+  break_point_infos: FixedArray | Undefined;
 }
 
 extern class WasmTableObject extends JSObject {
@@ -1135,7 +1161,7 @@ extern class WasmTableObject extends JSObject {
 extern class WasmMemoryObject extends JSObject {
   array_buffer: JSArrayBuffer;
   maximum_pages: Smi;
-  instances: WeakArrayList;
+  instances: WeakArrayList | Undefined;
 }
 
 extern class WasmGlobalObject extends JSObject {
@@ -1150,9 +1176,13 @@ extern class WasmExceptionObject extends JSObject {
   exception_tag: HeapObject;
 }
 
-extern class WasmExceptionPackage extends JSReceiver {}
+@noVerifier
+extern class WasmExceptionPackage extends JSReceiver {
+}
 
-extern class WasmExportedFunction extends JSFunction {}
+@noVerifier
+extern class WasmExportedFunction extends JSFunction {
+}
 
 extern class AsmWasmData extends Struct {
   managed_native_module: Foreign;  // Managed<wasm::NativeModule>

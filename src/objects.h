@@ -306,6 +306,9 @@ class Object {
   V8_INLINE bool IsNullOrUndefined(ReadOnlyRoots roots) const;
   V8_INLINE bool IsNullOrUndefined() const;
 
+  V8_INLINE bool IsZero() const;
+  V8_INLINE bool IsNoSharedNameSentinel() const;
+
   enum class Conversion { kToNumber, kToNumeric };
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) V8_INLINE bool Is##Name() const;

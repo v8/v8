@@ -1053,6 +1053,8 @@ action("run_torque") {
   outputs = [
     "$target_gen_dir/torque-generated/builtin-definitions-from-dsl.h",
     "$target_gen_dir/torque-generated/class-definitions-from-dsl.h",
+    "$target_gen_dir/torque-generated/class-verifiers-from-dsl.cc",
+    "$target_gen_dir/torque-generated/class-verifiers-from-dsl.h",
     "$target_gen_dir/torque-generated/objects-printer-from-dsl.cc",
   ]
   foreach(namespace, torque_namespaces) {
@@ -1119,6 +1121,8 @@ v8_source_set("torque_generated_definitions") {
   ]
 
   sources = [
+    "$target_gen_dir/torque-generated/class-verifiers-from-dsl.cc",
+    "$target_gen_dir/torque-generated/class-verifiers-from-dsl.h",
     "$target_gen_dir/torque-generated/objects-printer-from-dsl.cc",
   ]
 

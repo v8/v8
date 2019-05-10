@@ -103,6 +103,7 @@ class Type : public TypeBase {
   virtual bool IsTransient() const { return false; }
   virtual const Type* NonConstexprVersion() const { return this; }
   base::Optional<const ClassType*> ClassSupertype() const;
+  virtual std::vector<std::string> GetRuntimeTypes() const { return {}; }
   static const Type* CommonSupertype(const Type* a, const Type* b);
   void AddAlias(std::string alias) const { aliases_.insert(std::move(alias)); }
 
@@ -154,6 +155,7 @@ struct Field {
   size_t offset;
   bool is_weak;
   bool const_qualified;
+  bool generate_verify;
 };
 
 std::ostream& operator<<(std::ostream& os, const Field& name_and_type);
@@ -210,6 +212,7 @@ class AbstractType final : public Type {
     if (non_constexpr_version_) return non_constexpr_version_;
     return this;
   }
+  std::vector<std::string> GetRuntimeTypes() const override { return {name()}; }
 
  private:
   friend class TypeOracle;
@@ -397,6 +400,15 @@ class UnionType final : public Type {
     return union_type ? UnionType(*union_type) : UnionType(t);
   }
 
+  std::vector<std::string> GetRuntimeTypes() const override {
+    std::vector<std::string> result;
+    for (const Type* member : types_) {
+      std::vector<std::string> sub_result = member->GetRuntimeTypes();
+      result.insert(result.end(), sub_result.begin(), sub_result.end());
+    }
+    return result;
+  }
+
  private:
   explicit UnionType(const Type* t) : Type(Kind::kUnionType, t), types_({t}) {}
   void RecomputeParent();
@@ -444,6 +456,7 @@ class AggregateType : public Type {
   std::vector<Method*> Methods(const std::string& name) const;
 
   std::vector<const AggregateType*> GetHierarchy() const;
+  std::vector<std::string> GetRuntimeTypes() const override { return {name_}; }
 
  protected:
   AggregateType(Kind kind, const Type* parent, Namespace* nspace,
@@ -496,6 +509,7 @@ class ClassType final : public AggregateType {
   std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsExtern() const { return is_extern_; }
   bool ShouldGeneratePrint() const { return generate_print_; }
+  bool ShouldGenerateVerify() const { return generate_verify_; }
   bool IsTransient() const override { return transient_; }
   bool HasIndexedField() const override;
   size_t size() const { return size_; }
@@ -518,12 +532,13 @@ class ClassType final : public AggregateType {
   friend class TypeOracle;
   friend class TypeVisitor;
   ClassType(const Type* parent, Namespace* nspace, const std::string& name,
-            bool is_extern, bool generate_print, bool transient,
-            const std::string& generates, const ClassDeclaration* decl,
-            const TypeAlias* alias);
+            bool is_extern, bool generate_print, bool generate_verify,
+            bool transient, const std::string& generates,
+            const ClassDeclaration* decl, const TypeAlias* alias);
 
   bool is_extern_;
   bool generate_print_;
+  bool generate_verify_;
   bool transient_;
   size_t size_;
   mutable bool has_indexed_field_;
