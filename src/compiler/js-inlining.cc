@@ -285,7 +285,11 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
   //  - JSConstruct(target:constant, args..., new.target)
   if (match.HasValue() && match.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = match.Ref(broker()).AsJSFunction();
-    CHECK(function.has_feedback_vector());
+
+    // The function might have not been called yet.
+    if (!function.has_feedback_vector()) {
+      return base::nullopt;
+    }
 
     // Disallow cross native-context inlining for now. This means that all parts
     // of the resulting code will operate on the same global object. This also
@@ -332,6 +336,7 @@ FeedbackVectorRef JSInliner::DetermineCallContext(Node* node,
 
   if (match.HasValue() && match.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = match.Ref(broker()).AsJSFunction();
+    // This was already ensured by DetermineCallTarget
     CHECK(function.has_feedback_vector());
 
     // The inlinee specializes to the context from the JSFunction object.
