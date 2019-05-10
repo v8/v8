@@ -804,11 +804,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Load value from current parent frame by given offset in bytes.
   Node* LoadFromParentFrame(int offset,
-                            MachineType rep = MachineType::AnyTagged());
+                            MachineType type = MachineType::AnyTagged());
 
   // Load an object pointer from a buffer that isn't in the heap.
   Node* LoadBufferObject(Node* buffer, int offset,
-                         MachineType rep = MachineType::AnyTagged());
+                         MachineType type = MachineType::AnyTagged());
   TNode<RawPtrT> LoadBufferPointer(TNode<RawPtrT> buffer, int offset) {
     return UncheckedCast<RawPtrT>(
         LoadBufferObject(buffer, offset, MachineType::Pointer()));
@@ -818,7 +818,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
   // Load a field from an object on the heap.
   Node* LoadObjectField(SloppyTNode<HeapObject> object, int offset,
-                        MachineType rep);
+                        MachineType type);
   template <class T, typename std::enable_if<
                          std::is_convertible<TNode<T>, TNode<Object>>::value,
                          int>::type = 0>
@@ -837,7 +837,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         LoadObjectField(object, offset, MachineType::AnyTagged()));
   }
   Node* LoadObjectField(SloppyTNode<HeapObject> object,
-                        SloppyTNode<IntPtrT> offset, MachineType rep);
+                        SloppyTNode<IntPtrT> offset, MachineType type);
   TNode<Object> LoadObjectField(SloppyTNode<HeapObject> object,
                                 SloppyTNode<IntPtrT> offset) {
     return UncheckedCast<Object>(

@@ -941,14 +941,14 @@ Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
 CODE_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_ASSEMBLER_UNARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_UNARY_OP
 
-Node* CodeAssembler::Load(MachineType rep, Node* base,
+Node* CodeAssembler::Load(MachineType type, Node* base,
                           LoadSensitivity needs_poisoning) {
-  return raw_assembler()->Load(rep, base, needs_poisoning);
+  return raw_assembler()->Load(type, base, needs_poisoning);
 }
 
-Node* CodeAssembler::Load(MachineType rep, Node* base, Node* offset,
+Node* CodeAssembler::Load(MachineType type, Node* base, Node* offset,
                           LoadSensitivity needs_poisoning) {
-  return raw_assembler()->Load(rep, base, offset, needs_poisoning);
+  return raw_assembler()->Load(type, base, offset, needs_poisoning);
 }
 
 Node* CodeAssembler::LoadFullTagged(Node* base,
@@ -963,8 +963,8 @@ Node* CodeAssembler::LoadFullTagged(Node* base, Node* offset,
       Load(MachineType::Pointer(), base, offset, needs_poisoning));
 }
 
-Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* offset) {
-  return raw_assembler()->AtomicLoad(rep, base, offset);
+Node* CodeAssembler::AtomicLoad(MachineType type, Node* base, Node* offset) {
+  return raw_assembler()->AtomicLoad(type, base, offset);
 }
 
 TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {

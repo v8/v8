@@ -127,37 +127,37 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // Memory Operations.
-  Node* Load(MachineType rep, Node* base,
+  Node* Load(MachineType type, Node* base,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
-    return Load(rep, base, IntPtrConstant(0), needs_poisoning);
+    return Load(type, base, IntPtrConstant(0), needs_poisoning);
   }
-  Node* Load(MachineType rep, Node* base, Node* index,
+  Node* Load(MachineType type, Node* base, Node* index,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     // change_op is used below to change to the correct Tagged representation
     const Operator* change_op = nullptr;
     if (COMPRESS_POINTERS_BOOL) {
-      switch (rep.representation()) {
+      switch (type.representation()) {
         case MachineRepresentation::kTaggedPointer:
-          rep = MachineType::CompressedPointer();
+          type = MachineType::CompressedPointer();
           change_op = machine()->ChangeCompressedPointerToTaggedPointer();
           break;
         case MachineRepresentation::kTaggedSigned:
-          rep = MachineType::CompressedSigned();
+          type = MachineType::CompressedSigned();
           change_op = machine()->ChangeCompressedSignedToTaggedSigned();
           break;
         case MachineRepresentation::kTagged:
-          rep = MachineType::AnyCompressed();
+          type = MachineType::AnyCompressed();
           change_op = machine()->ChangeCompressedToTagged();
           break;
         default:
           break;
       }
     }
-    const Operator* op = machine()->Load(rep);
+    const Operator* op = machine()->Load(type);
     CHECK_NE(PoisoningMitigationLevel::kPoisonAll, poisoning_level_);
     if (needs_poisoning == LoadSensitivity::kCritical &&
         poisoning_level_ == PoisoningMitigationLevel::kPoisonCriticalOnly) {
-      op = machine()->PoisonedLoad(rep);
+      op = machine()->PoisonedLoad(type);
     }
 
     Node* load = AddNode(op, base, index);
@@ -286,21 +286,21 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     DCHECK_NULL(value_high);
     return AddNode(machine()->Word32AtomicStore(rep), base, index, value);
   }
-#define ATOMIC_FUNCTION(name)                                               \
-  Node* Atomic##name(MachineType rep, Node* base, Node* index, Node* value, \
-                     Node* value_high) {                                    \
-    if (rep.representation() == MachineRepresentation::kWord64) {           \
-      if (machine()->Is64()) {                                              \
-        DCHECK_NULL(value_high);                                            \
-        return AddNode(machine()->Word64Atomic##name(rep), base, index,     \
-                       value);                                              \
-      } else {                                                              \
-        return AddNode(machine()->Word32AtomicPair##name(), base, index,    \
-                       VALUE_HALVES);                                       \
-      }                                                                     \
-    }                                                                       \
-    DCHECK_NULL(value_high);                                                \
-    return AddNode(machine()->Word32Atomic##name(rep), base, index, value); \
+#define ATOMIC_FUNCTION(name)                                                \
+  Node* Atomic##name(MachineType type, Node* base, Node* index, Node* value, \
+                     Node* value_high) {                                     \
+    if (type.representation() == MachineRepresentation::kWord64) {           \
+      if (machine()->Is64()) {                                               \
+        DCHECK_NULL(value_high);                                             \
+        return AddNode(machine()->Word64Atomic##name(type), base, index,     \
+                       value);                                               \
+      } else {                                                               \
+        return AddNode(machine()->Word32AtomicPair##name(), base, index,     \
+                       VALUE_HALVES);                                        \
+      }                                                                      \
+    }                                                                        \
+    DCHECK_NULL(value_high);                                                 \
+    return AddNode(machine()->Word32Atomic##name(type), base, index, value); \
   }
   ATOMIC_FUNCTION(Exchange)
   ATOMIC_FUNCTION(Add)
@@ -311,15 +311,15 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 #undef ATOMIC_FUNCTION
 #undef VALUE_HALVES
 
-  Node* AtomicCompareExchange(MachineType rep, Node* base, Node* index,
+  Node* AtomicCompareExchange(MachineType type, Node* base, Node* index,
                               Node* old_value, Node* old_value_high,
                               Node* new_value, Node* new_value_high) {
-    if (rep.representation() == MachineRepresentation::kWord64) {
+    if (type.representation() == MachineRepresentation::kWord64) {
       if (machine()->Is64()) {
         DCHECK_NULL(old_value_high);
         DCHECK_NULL(new_value_high);
-        return AddNode(machine()->Word64AtomicCompareExchange(rep), base, index,
-                       old_value, new_value);
+        return AddNode(machine()->Word64AtomicCompareExchange(type), base,
+                       index, old_value, new_value);
       } else {
         return AddNode(machine()->Word32AtomicPairCompareExchange(), base,
                        index, old_value, old_value_high, new_value,
@@ -328,7 +328,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     }
     DCHECK_NULL(old_value_high);
     DCHECK_NULL(new_value_high);
-    return AddNode(machine()->Word32AtomicCompareExchange(rep), base, index,
+    return AddNode(machine()->Word32AtomicCompareExchange(type), base, index,
                    old_value, new_value);
   }
 
@@ -889,15 +889,15 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Parameter(size_t index);
 
   // Pointer utilities.
-  Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
-    return Load(rep, PointerConstant(address), Int32Constant(offset));
+  Node* LoadFromPointer(void* address, MachineType type, int32_t offset = 0) {
+    return Load(type, PointerConstant(address), Int32Constant(offset));
   }
   Node* StoreToPointer(void* address, MachineRepresentation rep, Node* node) {
     return Store(rep, PointerConstant(address), node, kNoWriteBarrier);
   }
-  Node* UnalignedLoadFromPointer(void* address, MachineType rep,
+  Node* UnalignedLoadFromPointer(void* address, MachineType type,
                                  int32_t offset = 0) {
-    return UnalignedLoad(rep, PointerConstant(address), Int32Constant(offset));
+    return UnalignedLoad(type, PointerConstant(address), Int32Constant(offset));
   }
   Node* UnalignedStoreToPointer(void* address, MachineRepresentation rep,
                                 Node* node) {

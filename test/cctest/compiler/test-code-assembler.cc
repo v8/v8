@@ -41,8 +41,8 @@ Node* SmiFromInt32(CodeAssembler& m, Node* value) {
 }
 
 Node* LoadObjectField(CodeAssembler& m, Node* object, int offset,
-                      MachineType rep = MachineType::AnyTagged()) {
-  return m.Load(rep, object, m.IntPtrConstant(offset - kHeapObjectTag));
+                      MachineType type = MachineType::AnyTagged()) {
+  return m.Load(type, object, m.IntPtrConstant(offset - kHeapObjectTag));
 }
 
 Node* LoadMap(CodeAssembler& m, Node* object) {

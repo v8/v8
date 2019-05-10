@@ -936,17 +936,17 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<WordT> WordPoisonOnSpeculation(SloppyTNode<WordT> value);
 
   // Load raw memory location.
-  Node* Load(MachineType rep, Node* base,
+  Node* Load(MachineType type, Node* base,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
   template <class Type>
-  TNode<Type> Load(MachineType rep, TNode<RawPtr<Type>> base) {
+  TNode<Type> Load(MachineType type, TNode<RawPtr<Type>> base) {
     DCHECK(
-        IsSubtype(rep.representation(), MachineRepresentationOf<Type>::value));
-    return UncheckedCast<Type>(Load(rep, static_cast<Node*>(base)));
+        IsSubtype(type.representation(), MachineRepresentationOf<Type>::value));
+    return UncheckedCast<Type>(Load(type, static_cast<Node*>(base)));
   }
-  Node* Load(MachineType rep, Node* base, Node* offset,
+  Node* Load(MachineType type, Node* base, Node* offset,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
-  Node* AtomicLoad(MachineType rep, Node* base, Node* offset);
+  Node* AtomicLoad(MachineType type, Node* base, Node* offset);
   // Load uncompressed tagged value from (most likely off JS heap) memory
   // location.
   Node* LoadFullTagged(

@@ -1362,27 +1362,27 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
   }
 }
 
-Node* CodeStubAssembler::LoadFromParentFrame(int offset, MachineType rep) {
+Node* CodeStubAssembler::LoadFromParentFrame(int offset, MachineType type) {
   Node* frame_pointer = LoadParentFramePointer();
-  return Load(rep, frame_pointer, IntPtrConstant(offset));
+  return Load(type, frame_pointer, IntPtrConstant(offset));
 }
 
 Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,
-                                          MachineType rep) {
-  return Load(rep, buffer, IntPtrConstant(offset));
+                                          MachineType type) {
+  return Load(type, buffer, IntPtrConstant(offset));
 }
 
 Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,
-                                         int offset, MachineType rep) {
+                                         int offset, MachineType type) {
   CSA_ASSERT(this, IsStrong(object));
-  return Load(rep, object, IntPtrConstant(offset - kHeapObjectTag));
+  return Load(type, object, IntPtrConstant(offset - kHeapObjectTag));
 }
 
 Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,
                                          SloppyTNode<IntPtrT> offset,
-                                         MachineType rep) {
+                                         MachineType type) {
   CSA_ASSERT(this, IsStrong(object));
-  return Load(rep, object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)));
+  return Load(type, object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)));
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
