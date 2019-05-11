@@ -503,14 +503,20 @@ class TypeAlias;
 
 class ClassType final : public AggregateType {
  public:
+  static constexpr ClassFlags kInternalFlags = ClassFlag::kHasIndexedField;
+
   DECLARE_TYPE_BOILERPLATE(ClassType)
   std::string ToExplicitString() const override;
   std::string GetGeneratedTypeNameImpl() const override;
   std::string GetGeneratedTNodeTypeNameImpl() const override;
-  bool IsExtern() const { return is_extern_; }
-  bool ShouldGeneratePrint() const { return generate_print_; }
-  bool ShouldGenerateVerify() const { return generate_verify_; }
-  bool IsTransient() const override { return transient_; }
+  bool IsExtern() const { return flags_ & ClassFlag::kExtern; }
+  bool ShouldGeneratePrint() const {
+    return flags_ & ClassFlag::kGeneratePrint;
+  }
+  bool ShouldGenerateVerify() const {
+    return flags_ & ClassFlag::kGenerateVerify;
+  }
+  bool IsTransient() const override { return flags_ & ClassFlag::kTransient; }
   bool HasIndexedField() const override;
   size_t size() const { return size_; }
   const ClassType* GetSuperClass() const {
@@ -522,7 +528,7 @@ class ClassType final : public AggregateType {
   bool AllowInstantiation() const;
   const Field& RegisterField(Field field) override {
     if (field.index) {
-      has_indexed_field_ = true;
+      flags_ |= ClassFlag::kHasIndexedField;
     }
     return AggregateType::RegisterField(field);
   }
@@ -532,16 +538,11 @@ class ClassType final : public AggregateType {
   friend class TypeOracle;
   friend class TypeVisitor;
   ClassType(const Type* parent, Namespace* nspace, const std::string& name,
-            bool is_extern, bool generate_print, bool generate_verify,
-            bool transient, const std::string& generates,
+            ClassFlags flags, const std::string& generates,
             const ClassDeclaration* decl, const TypeAlias* alias);
 
-  bool is_extern_;
-  bool generate_print_;
-  bool generate_verify_;
-  bool transient_;
   size_t size_;
-  mutable bool has_indexed_field_;
+  mutable ClassFlags flags_;
   const std::string generates_;
   const ClassDeclaration* decl_;
   const TypeAlias* alias_;

@@ -290,24 +290,21 @@ std::string StructType::ToExplicitString() const {
 }
 
 ClassType::ClassType(const Type* parent, Namespace* nspace,
-                     const std::string& name, bool is_extern,
-                     bool generate_print, bool generate_verify, bool transient,
+                     const std::string& name, ClassFlags flags,
                      const std::string& generates, const ClassDeclaration* decl,
                      const TypeAlias* alias)
     : AggregateType(Kind::kClassType, parent, nspace, name),
-      is_extern_(is_extern),
-      generate_print_(generate_print),
-      generate_verify_(generate_verify),
-      transient_(transient),
       size_(0),
-      has_indexed_field_(false),
+      flags_(flags & ~(kInternalFlags)),
       generates_(generates),
       decl_(decl),
-      alias_(alias) {}
+      alias_(alias) {
+  DCHECK_EQ(flags & kInternalFlags, 0);
+}
 
 bool ClassType::HasIndexedField() const {
   if (!is_finalized_) Finalize();
-  return has_indexed_field_;
+  return flags_ & ClassFlag::kHasIndexedField;
 }
 
 std::string ClassType::GetGeneratedTNodeTypeNameImpl() const {
@@ -339,7 +336,7 @@ void ClassType::Finalize() const {
   CurrentSourcePosition::Scope position_activator(decl_->pos);
   if (parent()) {
     if (const ClassType* super_class = ClassType::DynamicCast(parent())) {
-      has_indexed_field_ = super_class->HasIndexedField();
+      if (super_class->HasIndexedField()) flags_ |= ClassFlag::kHasIndexedField;
     }
   }
   TypeVisitor::VisitClassFieldsAndMethods(const_cast<ClassType*>(this),
