@@ -87,7 +87,6 @@ class V8_EXPORT V8ContextInfo {
 
   static int executionContextId(v8::Local<v8::Context> context);
 
- private:
   // Disallow copying and allocating this one.
   enum NotNullTagEnum { NotNullLiteral };
   void* operator new(size_t) = delete;

@@ -792,7 +792,6 @@ class V8_EXPORT EmbedderGraph {
      */
     virtual const char* NamePrefix() { return nullptr; }
 
-   private:
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;
   };
