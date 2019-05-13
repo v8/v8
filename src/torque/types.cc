@@ -289,6 +289,8 @@ std::string StructType::ToExplicitString() const {
   return result.str();
 }
 
+constexpr ClassFlags ClassType::kInternalFlags;
+
 ClassType::ClassType(const Type* parent, Namespace* nspace,
                      const std::string& name, ClassFlags flags,
                      const std::string& generates, const ClassDeclaration* decl,
