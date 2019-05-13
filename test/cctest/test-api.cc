@@ -4420,14 +4420,44 @@ class TwoPassCallbackData;
 void FirstPassCallback(const v8::WeakCallbackInfo<TwoPassCallbackData>& data);
 void SecondPassCallback(const v8::WeakCallbackInfo<TwoPassCallbackData>& data);
 
+struct GCCallbackMetadata {
+  int instance_counter = 0;
+  int depth = 0;
+  v8::Persistent<v8::Context> context;
+
+  GCCallbackMetadata() {
+    auto isolate = CcTest::isolate();
+    v8::HandleScope handle_scope(isolate);
+    context.Reset(isolate, CcTest::NewContext());
+  }
+
+  ~GCCallbackMetadata() {
+    CHECK_EQ(0, instance_counter);
+    CHECK_EQ(0, depth);
+  }
+
+  struct DepthCheck {
+    explicit DepthCheck(GCCallbackMetadata* counters) : counters(counters) {
+      CHECK_EQ(counters->depth, 0);
+      counters->depth++;
+    }
+
+    ~DepthCheck() {
+      counters->depth--;
+      CHECK_EQ(counters->depth, 0);
+    }
+
+    GCCallbackMetadata* counters;
+  };
+};
 
 class TwoPassCallbackData {
  public:
-  TwoPassCallbackData(v8::Isolate* isolate, int* instance_counter)
+  TwoPassCallbackData(v8::Isolate* isolate, GCCallbackMetadata* metadata)
       : first_pass_called_(false),
         second_pass_called_(false),
         trigger_gc_(false),
-        instance_counter_(instance_counter) {
+        metadata_(metadata) {
     HandleScope scope(isolate);
     i::ScopedVector<char> buffer(40);
     i::SNPrintF(buffer, "%p", static_cast<void*>(this));
@@ -4435,14 +4465,14 @@ class TwoPassCallbackData {
                                           v8::NewStringType::kNormal)
                       .ToLocalChecked();
     cell_.Reset(isolate, string);
-    (*instance_counter_)++;
+    metadata_->instance_counter++;
   }
 
   ~TwoPassCallbackData() {
     CHECK(first_pass_called_);
     CHECK(second_pass_called_);
     CHECK(cell_.IsEmpty());
-    (*instance_counter_)--;
+    metadata_->instance_counter--;
   }
 
   void FirstPass() {
@@ -4453,12 +4483,32 @@ class TwoPassCallbackData {
     first_pass_called_ = true;
   }
 
-  void SecondPass() {
+  void SecondPass(v8::Isolate* isolate) {
+    ApiTestFuzzer::Fuzz();
+
+    GCCallbackMetadata::DepthCheck depth_check(metadata_);
     CHECK(first_pass_called_);
     CHECK(!second_pass_called_);
     CHECK(cell_.IsEmpty());
     second_pass_called_ = true;
+
+    GCCallbackMetadata* metadata = metadata_;
+    bool trigger_gc = trigger_gc_;
     delete this;
+
+    {
+      // Make sure that running JS works inside the second pass callback.
+      v8::HandleScope handle_scope(isolate);
+      v8::Context::Scope context_scope(metadata->context.Get(isolate));
+      v8::Local<v8::Value> value = CompileRun("(function() { return 42 })()");
+      CHECK(value->IsInt32());
+      CHECK_EQ(value.As<v8::Int32>()->Value(), 42);
+    }
+
+    if (!trigger_gc) return;
+    auto data_2 = new TwoPassCallbackData(isolate, metadata);
+    data_2->SetWeak();
+    CcTest::CollectAllGarbage();
   }
 
   void SetWeak() {
@@ -4466,28 +4516,18 @@ class TwoPassCallbackData {
   }
 
   void MarkTriggerGc() { trigger_gc_ = true; }
-  bool trigger_gc() { return trigger_gc_; }
-
-  int* instance_counter() { return instance_counter_; }
 
  private:
   bool first_pass_called_;
   bool second_pass_called_;
   bool trigger_gc_;
   v8::Global<v8::String> cell_;
-  int* instance_counter_;
+  GCCallbackMetadata* metadata_;
 };
 
 
 void SecondPassCallback(const v8::WeakCallbackInfo<TwoPassCallbackData>& data) {
-  ApiTestFuzzer::Fuzz();
-  bool trigger_gc = data.GetParameter()->trigger_gc();
-  int* instance_counter = data.GetParameter()->instance_counter();
-  data.GetParameter()->SecondPass();
-  if (!trigger_gc) return;
-  auto data_2 = new TwoPassCallbackData(data.GetIsolate(), instance_counter);
-  data_2->SetWeak();
-  CcTest::CollectAllGarbage();
+  data.GetParameter()->SecondPass(data.GetIsolate());
 }
 
 
@@ -4501,37 +4541,55 @@ void FirstPassCallback(const v8::WeakCallbackInfo<TwoPassCallbackData>& data) {
 
 TEST(TwoPassPhantomCallbacks) {
   auto isolate = CcTest::isolate();
+  GCCallbackMetadata metadata;
   const size_t kLength = 20;
-  int instance_counter = 0;
   for (size_t i = 0; i < kLength; ++i) {
-    auto data = new TwoPassCallbackData(isolate, &instance_counter);
+    auto data = new TwoPassCallbackData(isolate, &metadata);
     data->SetWeak();
   }
-  CHECK_EQ(static_cast<int>(kLength), instance_counter);
+  CHECK_EQ(static_cast<int>(kLength), metadata.instance_counter);
   CcTest::CollectAllGarbage();
   EmptyMessageQueues(isolate);
-  CHECK_EQ(0, instance_counter);
 }
 
 
 TEST(TwoPassPhantomCallbacksNestedGc) {
   auto isolate = CcTest::isolate();
+  GCCallbackMetadata metadata;
   const size_t kLength = 20;
   TwoPassCallbackData* array[kLength];
-  int instance_counter = 0;
   for (size_t i = 0; i < kLength; ++i) {
-    array[i] = new TwoPassCallbackData(isolate, &instance_counter);
+    array[i] = new TwoPassCallbackData(isolate, &metadata);
     array[i]->SetWeak();
   }
   array[5]->MarkTriggerGc();
   array[10]->MarkTriggerGc();
   array[15]->MarkTriggerGc();
-  CHECK_EQ(static_cast<int>(kLength), instance_counter);
+  CHECK_EQ(static_cast<int>(kLength), metadata.instance_counter);
   CcTest::CollectAllGarbage();
   EmptyMessageQueues(isolate);
-  CHECK_EQ(0, instance_counter);
 }
 
+// The string creation API methods forbid executing JS code while they are
+// on the stack. Make sure that when such a string creation triggers GC,
+// the second pass callback can still execute JS as per its API contract.
+TEST(TwoPassPhantomCallbacksTriggeredByStringAlloc) {
+  auto isolate = CcTest::isolate();
+  GCCallbackMetadata metadata;
+  auto data = new TwoPassCallbackData(isolate, &metadata);
+  data->SetWeak();
+  CHECK_EQ(metadata.instance_counter, 1);
+
+  i::ScopedVector<uint8_t> source(200000);
+  v8::HandleScope handle_scope(isolate);
+  // Creating a few large strings suffices to trigger GC.
+  while (metadata.instance_counter == 1) {
+    USE(v8::String::NewFromOneByte(isolate, source.begin(),
+                                   v8::NewStringType::kNormal,
+                                   static_cast<int>(source.size())));
+  }
+  EmptyMessageQueues(isolate);
+}
 
 namespace {
 

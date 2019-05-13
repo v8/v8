@@ -962,11 +962,20 @@ void GlobalHandles::InvokeSecondPassPhantomCallbacksFromTask() {
 }
 
 void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
+  // The callbacks may execute JS, which in turn may lead to another GC run.
+  // If we are already processing the callbacks, we do not want to start over
+  // from within the inner GC. Newly added callbacks will always be run by the
+  // outermost GC run only.
+  if (running_second_pass_callbacks_) return;
+  running_second_pass_callbacks_ = true;
+
+  AllowJavascriptExecution allow_js(isolate());
   while (!second_pass_callbacks_.empty()) {
     auto callback = second_pass_callbacks_.back();
     second_pass_callbacks_.pop_back();
     callback.Invoke(isolate(), PendingPhantomCallback::kSecondPass);
   }
+  running_second_pass_callbacks_ = false;
 }
 
 size_t GlobalHandles::PostScavengeProcessing(unsigned post_processing_count) {

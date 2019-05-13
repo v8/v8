@@ -231,6 +231,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
       traced_pending_phantom_callbacks_;
   std::vector<PendingPhantomCallback> second_pass_callbacks_;
   bool second_pass_callbacks_task_posted_ = false;
+  bool running_second_pass_callbacks_ = false;
 
   // Counter for recursive garbage collections during callback processing.
   unsigned post_gc_processing_count_ = 0;
