@@ -8,6 +8,8 @@
 #include <cstring>
 #include <string>
 
+#include "src/base/flags.h"
+
 namespace v8 {
 namespace internal {
 namespace torque {
@@ -58,6 +60,16 @@ inline std::string GetConstexprName(const std::string& name) {
   if (IsConstexprName(name)) return name;
   return CONSTEXPR_TYPE_PREFIX + name;
 }
+
+enum class ClassFlag {
+  kNone = 0,
+  kExtern = 1 << 0,
+  kGeneratePrint = 1 << 1,
+  kGenerateVerify = 1 << 2,
+  kTransient = 1 << 3,
+  kHasIndexedField = 1 << 4
+};
+using ClassFlags = base::Flags<ClassFlag>;
 
 }  // namespace torque
 }  // namespace internal
