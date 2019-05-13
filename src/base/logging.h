@@ -30,8 +30,7 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
 // passing in "", 0 for them.
 [[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
     void V8_Fatal(const char* format, ...);
-#define FATAL V8_Fatal
-
+#define FATAL(...) V8_Fatal(__VA_ARGS__)
 #else
 // In official builds, include only messages that contain parameters because
 // single-message errors can always be derived from stack traces.
