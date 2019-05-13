@@ -1590,7 +1590,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   //
   // Unlike the other Push and Pop macros, PushPopQueue can handle mixed sets of
   // register sizes and types.
-  class PushPopQueue {
+  class V8_EXPORT_PRIVATE PushPopQueue {
    public:
     explicit PushPopQueue(MacroAssembler* masm) : masm_(masm), size_(0) {}
 
