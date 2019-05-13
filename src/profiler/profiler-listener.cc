@@ -123,20 +123,23 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
     for (SourcePositionTableIterator it(abstract_code->source_position_table());
          !it.done(); it.Advance()) {
       int position = it.source_position().ScriptOffset();
-      int line_number = script->GetLineNumber(position) + 1;
       int inlining_id = it.source_position().InliningId();
 
-      // TODO(953309): Fix this.
-      if (line_number == 0) continue;
-
-      line_table->SetPosition(it.code_offset(), line_number, inlining_id);
-
-      if (inlining_id != SourcePosition::kNotInlined) {
+      if (inlining_id == SourcePosition::kNotInlined) {
+        int line_number = script->GetLineNumber(position) + 1;
+        line_table->SetPosition(it.code_offset(), line_number, inlining_id);
+      } else {
         DCHECK(abstract_code->IsCode());
         Code code = abstract_code->GetCode();
         std::vector<SourcePositionInfo> stack =
             it.source_position().InliningStack(handle(code, isolate_));
         DCHECK(!stack.empty());
+
+        // When we have an inlining id and we are doing cross-script inlining,
+        // then the script of the inlined frames may be different to the script
+        // of |shared|.
+        int line_number = stack.front().line + 1;
+        line_table->SetPosition(it.code_offset(), line_number, inlining_id);
 
         std::vector<CodeEntryAndLineNumber> inline_stack;
         for (SourcePositionInfo& pos_info : stack) {

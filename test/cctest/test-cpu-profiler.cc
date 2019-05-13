@@ -1853,6 +1853,190 @@ TEST(Inlining2) {
   profiler->Dispose();
 }
 
+static const char* cross_script_source_a = R"(
+
+
+
+
+
+    %NeverOptimizeFunction(action);
+    function action(n) {
+      var s = 0;
+      for (var i = 0; i < n; ++i) s += i*i*i;
+      return s;
+    }
+    function level1() {
+      const a = action(1);
+      const b = action(200);
+      const c = action(1);
+      return a + b + c;
+    }
+  )";
+
+static const char* cross_script_source_b = R"(
+    %PrepareFunctionForOptimization(start);
+    %PrepareFunctionForOptimization(level1);
+    start(1);
+    start(1);
+    %OptimizeFunctionOnNextCall(start);
+    %OptimizeFunctionOnNextCall(level1);
+    start(1);
+    function start(n) {
+      while (--n)
+        level1();
+    };
+  )";
+
+TEST(CrossScriptInliningCallerLineNumbers) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+
+  v8::Local<v8::Script> script_a =
+      CompileWithOrigin(cross_script_source_a, "script_a", false);
+  v8::Local<v8::Script> script_b =
+      CompileWithOrigin(cross_script_source_b, "script_b", false);
+
+  script_a->Run(env).ToLocalChecked();
+  script_b->Run(env).ToLocalChecked();
+
+  v8::Local<v8::Function> function = GetFunction(env, "start");
+
+  v8::CpuProfiler* profiler = v8::CpuProfiler::New(CcTest::isolate());
+  v8::Local<v8::String> profile_name = v8_str("inlining");
+  profiler->StartProfiling(profile_name,
+                           v8::CpuProfilingMode::kCallerLineNumbers);
+
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env->GetIsolate(), 20000 * load_factor)};
+  function->Call(env, env->Global(), arraysize(args), args).ToLocalChecked();
+  v8::CpuProfile* profile = profiler->StopProfiling(profile_name);
+  CHECK(profile);
+
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(profile)->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* start_node = GetChild(env, root, "start");
+  CHECK_EQ(0, strcmp("script_b", start_node->GetScriptResourceNameStr()));
+
+  NameLinePair l19_a10[] = {{"level1", 11}, {"action", 15}};
+  CheckBranch(start_node, l19_a10, arraysize(l19_a10));
+
+  const v8::CpuProfileNode* level1_node = GetChild(env, start_node, "level1");
+  CHECK_EQ(0, strcmp("script_a", level1_node->GetScriptResourceNameStr()));
+
+  const v8::CpuProfileNode* action_node = GetChild(env, level1_node, "action");
+  CHECK_EQ(0, strcmp("script_a", action_node->GetScriptResourceNameStr()));
+
+  profile->Delete();
+  profiler->Dispose();
+}
+
+static const char* cross_script_source_c = R"(
+    function level3() {
+      const a = action(1);
+      const b = action(100);
+      const c = action(1);
+      return a + b + c;
+    }
+    %NeverOptimizeFunction(action);
+    function action(n) {
+      var s = 0;
+      for (var i = 0; i < n; ++i) s += i*i*i;
+      return s;
+    }
+  )";
+
+static const char* cross_script_source_d = R"(
+    function level2() {
+      const p = level3();
+      const q = level3();
+      return p + q;
+    }
+  )";
+
+static const char* cross_script_source_e = R"(
+    function level1() {
+      return level2() + 1000;
+    }
+  )";
+
+static const char* cross_script_source_f = R"(
+    %PrepareFunctionForOptimization(start);
+    %PrepareFunctionForOptimization(level1);
+    %PrepareFunctionForOptimization(level2);
+    %PrepareFunctionForOptimization(level3);
+    start(1);
+    start(1);
+    %OptimizeFunctionOnNextCall(start);
+    %OptimizeFunctionOnNextCall(level1);
+    %OptimizeFunctionOnNextCall(level2);
+    %OptimizeFunctionOnNextCall(level3);
+    start(1);
+    function start(n) {
+      while (--n)
+        level1();
+    };
+  )";
+
+TEST(CrossScriptInliningCallerLineNumbers2) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+
+  v8::Local<v8::Script> script_c =
+      CompileWithOrigin(cross_script_source_c, "script_c", false);
+  v8::Local<v8::Script> script_d =
+      CompileWithOrigin(cross_script_source_d, "script_d", false);
+  v8::Local<v8::Script> script_e =
+      CompileWithOrigin(cross_script_source_e, "script_e", false);
+  v8::Local<v8::Script> script_f =
+      CompileWithOrigin(cross_script_source_f, "script_f", false);
+
+  script_c->Run(env).ToLocalChecked();
+  script_d->Run(env).ToLocalChecked();
+  script_e->Run(env).ToLocalChecked();
+  script_f->Run(env).ToLocalChecked();
+
+  v8::Local<v8::Function> function = GetFunction(env, "start");
+
+  v8::CpuProfiler* profiler = v8::CpuProfiler::New(CcTest::isolate());
+  v8::Local<v8::String> profile_name = v8_str("inlining");
+  profiler->StartProfiling(profile_name,
+                           v8::CpuProfilingMode::kCallerLineNumbers);
+
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env->GetIsolate(), 20000 * load_factor)};
+  function->Call(env, env->Global(), arraysize(args), args).ToLocalChecked();
+  v8::CpuProfile* profile = profiler->StopProfiling(profile_name);
+  CHECK(profile);
+
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(profile)->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* start_node = GetChild(env, root, "start");
+  CHECK_EQ(0, strcmp("script_f", start_node->GetScriptResourceNameStr()));
+
+  const v8::CpuProfileNode* level1_node = GetChild(env, start_node, "level1");
+  CHECK_EQ(0, strcmp("script_e", level1_node->GetScriptResourceNameStr()));
+
+  const v8::CpuProfileNode* level2_node = GetChild(env, level1_node, "level2");
+  CHECK_EQ(0, strcmp("script_d", level2_node->GetScriptResourceNameStr()));
+
+  const v8::CpuProfileNode* level3_node = GetChild(env, level2_node, "level3");
+  CHECK_EQ(0, strcmp("script_c", level3_node->GetScriptResourceNameStr()));
+
+  const v8::CpuProfileNode* action_node = GetChild(env, level3_node, "action");
+  CHECK_EQ(0, strcmp("script_c", action_node->GetScriptResourceNameStr()));
+
+  profile->Delete();
+  profiler->Dispose();
+}
+
 // [Top down]:
 //     0   (root) #0 1
 //     2    (program) #0 2
