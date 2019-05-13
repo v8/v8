@@ -13356,10 +13356,9 @@ TNode<BoolT> CodeStubAssembler::IsElementsKindLessThanOrEqual(
 TNode<BoolT> CodeStubAssembler::IsElementsKindInRange(
     TNode<Int32T> target_kind, ElementsKind lower_reference_kind,
     ElementsKind higher_reference_kind) {
-  return Int32LessThanOrEqual(
+  return Uint32LessThanOrEqual(
       Int32Sub(target_kind, Int32Constant(lower_reference_kind)),
-      Int32Sub(Int32Constant(higher_reference_kind),
-               Int32Constant(lower_reference_kind)));
+      Int32Constant(higher_reference_kind - lower_reference_kind));
 }
 
 Node* CodeStubAssembler::IsDebugActive() {

@@ -936,7 +936,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
 
   // Take slow path if not a JSArray, if retrieving elements requires
   // traversing prototype, or if access checks are required.
-  BranchIfFastJSArray(receiver, context, &init_index, &call_runtime);
+  BranchIfFastJSArrayForRead(receiver, context, &init_index, &call_runtime);
 
   BIND(&init_index);
   VARIABLE(index_var, MachineType::PointerRepresentation(), intptr_zero);
@@ -994,12 +994,16 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
   STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
   STATIC_ASSERT(PACKED_ELEMENTS == 2);
   STATIC_ASSERT(HOLEY_ELEMENTS == 3);
-  GotoIf(Uint32LessThanOrEqual(elements_kind, Int32Constant(HOLEY_ELEMENTS)),
+  GotoIf(IsElementsKindLessThanOrEqual(elements_kind, HOLEY_ELEMENTS),
          &if_smiorobjects);
-  GotoIf(Word32Equal(elements_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
-         &if_packed_doubles);
-  GotoIf(Word32Equal(elements_kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
+  GotoIf(
+      ElementsKindEqual(elements_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
+      &if_packed_doubles);
+  GotoIf(ElementsKindEqual(elements_kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
          &if_holey_doubles);
+  GotoIf(
+      IsElementsKindLessThanOrEqual(elements_kind, LAST_FROZEN_ELEMENTS_KIND),
+      &if_smiorobjects);
   Goto(&return_not_found);
 
   BIND(&if_smiorobjects);

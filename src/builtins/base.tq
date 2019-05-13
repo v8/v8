@@ -311,6 +311,11 @@ macro NewJSArray(implicit context: Context)(map: Map, length: Smi): JSArray {
 // holey elements when the global NoElementsProtector is not invalidated.
 transient type FastJSArray extends JSArray;
 
+// A HeapObject with a JSArray map, and either fast packed elements, or fast
+// holey elements or frozen, sealed elements when the global NoElementsProtector
+// is not invalidated.
+transient type FastJSArrayForRead extends JSArray;
+
 // A FastJSArray when the global ArraySpeciesProtector is not invalidated.
 transient type FastJSArrayForCopy extends FastJSArray;
 
@@ -781,6 +786,8 @@ const PACKED_DOUBLE_ELEMENTS:
     constexpr ElementsKind generates 'PACKED_DOUBLE_ELEMENTS';
 const HOLEY_DOUBLE_ELEMENTS:
     constexpr ElementsKind generates 'HOLEY_DOUBLE_ELEMENTS';
+const LAST_FROZEN_ELEMENTS_KIND:
+    constexpr ElementsKind generates 'LAST_FROZEN_ELEMENTS_KIND';
 const DICTIONARY_ELEMENTS:
     constexpr ElementsKind generates 'DICTIONARY_ELEMENTS';
 
@@ -1749,6 +1756,24 @@ Cast<FastJSArray>(implicit context: Context)(o: HeapObject): FastJSArray
   return %RawDownCast<FastJSArray>(o);
 }
 
+Cast<FastJSArrayForRead>(implicit context: Context)(o: HeapObject):
+    FastJSArrayForRead
+    labels CastError {
+  const map: Map = o.map;
+  if (!IsJSArrayMap(map)) goto CastError;
+
+  // Bailout if receiver has slow elements.
+  const elementsKind: ElementsKind = LoadMapElementsKind(map);
+  if (!IsElementsKindLessThanOrEqual(elementsKind, LAST_FROZEN_ELEMENTS_KIND))
+    goto CastError;
+
+  // Verify that our prototype is the initial array prototype.
+  if (!IsPrototypeInitialArrayPrototype(map)) goto CastError;
+
+  if (IsNoElementsProtectorCellInvalid()) goto CastError;
+  return %RawDownCast<FastJSArrayForRead>(o);
+}
+
 Cast<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
     FastJSArrayForCopy
     labels CastError {
@@ -2602,6 +2627,14 @@ macro BranchIfFastJSArray(o: Object, context: Context): never
   // since it fundamentally breaks the type system.
   GotoIfForceSlowPath() otherwise False;
   BranchIf<FastJSArray>(o) otherwise True, False;
+}
+
+macro BranchIfFastJSArrayForRead(o: Object, context: Context): never
+    labels True, False {
+  // Long-term, it's likely not a good idea to have this slow-path test here,
+  // since it fundamentally breaks the type system.
+  GotoIfForceSlowPath() otherwise False;
+  BranchIf<FastJSArrayForRead>(o) otherwise True, False;
 }
 
 macro BranchIfNotFastJSArray(o: Object, context: Context): never
