@@ -728,7 +728,9 @@ Maybe<icu::UnicodeString> IcuFormatNumber(
     double number = numeric_obj->Number();
     formatted = number_format.formatDouble(number, status);
   }
-  formatted.getAllFieldPositions(*fp_iter, status);
+  if (fp_iter) {
+    formatted.getAllFieldPositions(*fp_iter, status);
+  }
   icu::UnicodeString result = formatted.toString(status);
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
