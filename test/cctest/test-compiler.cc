@@ -370,9 +370,9 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
 
   CompileRun("morphing_call();");
 
-  // Now a feedback vector is allocated.
+  // Now a feedback vector / closure feedback cell array is allocated.
   CHECK(f->shared()->is_compiled());
-  CHECK(!f->feedback_vector()->is_empty());
+  CHECK(f->has_feedback_vector() || f->has_closure_feedback_cell_array());
 }
 
 // Test that optimized code for different closures is actually shared.
