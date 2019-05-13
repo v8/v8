@@ -98,6 +98,11 @@ class WasmGCForegroundTask : public Task {
     WasmEngine* engine = isolate_->wasm_engine();
     // If the foreground task is executing, there is no wasm code active. Just
     // report an empty set of live wasm code.
+#ifdef ENABLE_SLOW_DCHECKS
+    for (StackFrameIterator it(isolate_); !it.done(); it.Advance()) {
+      DCHECK_NE(StackFrame::WASM_COMPILED, it.frame()->type());
+    }
+#endif
     engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
   }
 
