@@ -86,7 +86,29 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   // Allocate objects needed for code initialization.
   Handle<ByteArray> reloc_info =
       factory->NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
-  Handle<CodeDataContainer> data_container = factory->NewCodeDataContainer(0);
+  Handle<CodeDataContainer> data_container;
+
+  // Use a canonical off-heap trampoline CodeDataContainer if possible.
+  const int32_t promise_rejection_flag =
+      Code::IsPromiseRejectionField::encode(true);
+  if (read_only_data_container_ &&
+      (kind_specific_flags_ == 0 ||
+       kind_specific_flags_ == promise_rejection_flag)) {
+    const ReadOnlyRoots roots(isolate_);
+    const auto canonical_code_data_container =
+        kind_specific_flags_ == 0
+            ? roots.trampoline_trivial_code_data_container_handle()
+            : roots.trampoline_promise_rejection_code_data_container_handle();
+    DCHECK_EQ(canonical_code_data_container->kind_specific_flags(),
+              kind_specific_flags_);
+    data_container = canonical_code_data_container;
+  } else {
+    data_container = factory->NewCodeDataContainer(
+        0, read_only_data_container_ ? AllocationType::kReadOnly
+                                     : AllocationType::kOld);
+    data_container->set_kind_specific_flags(kind_specific_flags_);
+  }
+
   Handle<Code> code;
   {
     int object_size = ComputeCodeObjectSize(code_desc_);
@@ -2684,10 +2706,10 @@ Handle<JSObject> Factory::NewExternal(void* value) {
   return external;
 }
 
-Handle<CodeDataContainer> Factory::NewCodeDataContainer(int flags) {
+Handle<CodeDataContainer> Factory::NewCodeDataContainer(
+    int flags, AllocationType allocation) {
   Handle<CodeDataContainer> data_container(
-      CodeDataContainer::cast(
-          New(code_data_container_map(), AllocationType::kOld)),
+      CodeDataContainer::cast(New(code_data_container_map(), allocation)),
       isolate());
   data_container->set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
   data_container->set_kind_specific_flags(flags);
@@ -2701,12 +2723,14 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   CHECK_NE(0, isolate()->embedded_blob_size());
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
-  Handle<Code> result =
-      Builtins::GenerateOffHeapTrampolineFor(isolate(), off_heap_entry);
+  Handle<Code> result = Builtins::GenerateOffHeapTrampolineFor(
+      isolate(), off_heap_entry,
+      code->code_data_container()->kind_specific_flags());
+  // The CodeDataContainer should not be modified beyond this point since it's
+  // now possibly canonicalized.
 
   // The trampoline code object must inherit specific flags from the original
   // builtin (e.g. the safepoint-table offset). We set them manually here.
-
   {
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(*result);
     CodePageMemoryModificationScope code_allocation(chunk);
@@ -2714,8 +2738,6 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
     const bool set_is_off_heap_trampoline = true;
     const int stack_slots =
         code->has_safepoint_info() ? code->stack_slots() : 0;
-    result->code_data_container()->set_kind_specific_flags(
-        code->code_data_container()->kind_specific_flags());
     result->initialize_flags(code->kind(), code->has_unwinding_info(),
                              code->is_turbofanned(), stack_slots,
                              set_is_off_heap_trampoline);
@@ -2745,8 +2767,8 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
 }
 
 Handle<Code> Factory::CopyCode(Handle<Code> code) {
-  Handle<CodeDataContainer> data_container =
-      NewCodeDataContainer(code->code_data_container()->kind_specific_flags());
+  Handle<CodeDataContainer> data_container = NewCodeDataContainer(
+      code->code_data_container()->kind_specific_flags(), AllocationType::kOld);
 
   Heap* heap = isolate()->heap();
   Handle<Code> new_code;

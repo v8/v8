@@ -216,9 +216,13 @@ class Symbol;
   V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
   /* Marker for self-references during code-generation */                      \
   V(HeapObject, self_reference_marker, SelfReferenceMarker)                    \
-  /* Canonical trampoline RelocInfo */                                         \
+  /* Canonical off-heap trampoline data */                                     \
   V(ByteArray, off_heap_trampoline_relocation_info,                            \
     OffHeapTrampolineRelocationInfo)                                           \
+  V(CodeDataContainer, trampoline_trivial_code_data_container,                 \
+    TrampolineTrivialCodeDataContainer)                                        \
+  V(CodeDataContainer, trampoline_promise_rejection_code_data_container,       \
+    TrampolinePromiseRejectionCodeDataContainer)                               \
   /* Hash seed */                                                              \
   V(ByteArray, hash_seed, HashSeed)
 

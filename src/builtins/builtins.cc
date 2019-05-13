@@ -291,8 +291,8 @@ constexpr int OffHeapTrampolineGenerator::kBufferSize;
 }  // namespace
 
 // static
-Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
-                                                    Address off_heap_entry) {
+Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
+    Isolate* isolate, Address off_heap_entry, int32_t kind_specfic_flags) {
   DCHECK_NOT_NULL(isolate->embedded_blob());
   DCHECK_NE(0, isolate->embedded_blob_size());
 
@@ -301,6 +301,7 @@ Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
 
   return Factory::CodeBuilder(isolate, desc, Code::BUILTIN)
       .set_self_reference(generator.CodeObject())
+      .set_read_only_data_container(kind_specfic_flags)
       .Build();
 }
 
