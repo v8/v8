@@ -145,9 +145,16 @@ ClassScope::ClassScope(Zone* zone, Scope* outer_scope)
   set_language_mode(LanguageMode::kStrict);
 }
 
-ClassScope::ClassScope(Zone* zone, Handle<ScopeInfo> scope_info)
+ClassScope::ClassScope(Zone* zone, AstValueFactory* ast_value_factory,
+                       Handle<ScopeInfo> scope_info)
     : Scope(zone, CLASS_SCOPE, scope_info) {
   set_language_mode(LanguageMode::kStrict);
+  if (scope_info->HasClassBrand()) {
+    Variable* brand =
+        LookupInScopeInfo(ast_value_factory->dot_brand_string(), this);
+    DCHECK_NOT_NULL(brand);
+    EnsureRareData()->brand = brand;
+  }
 }
 
 Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
@@ -333,7 +340,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       outer_scope = new (zone)
           DeclarationScope(zone, EVAL_SCOPE, handle(scope_info, isolate));
     } else if (scope_info->scope_type() == CLASS_SCOPE) {
-      outer_scope = new (zone) ClassScope(zone, handle(scope_info, isolate));
+      outer_scope = new (zone)
+          ClassScope(zone, ast_value_factory, handle(scope_info, isolate));
     } else if (scope_info->scope_type() == BLOCK_SCOPE) {
       if (scope_info->is_declaration_scope()) {
         outer_scope = new (zone)
@@ -1710,6 +1718,11 @@ void Scope::Print(int n) {
     if (class_scope->rare_data_ != nullptr) {
       PrintMap(n1, "// private name vars:\n",
                &(class_scope->rare_data_->private_name_map), true, function);
+      Variable* brand = class_scope->brand();
+      if (brand != nullptr) {
+        Indent(n1, "// brand var:\n");
+        PrintVar(n1, brand);
+      }
     }
   }
 
@@ -2510,6 +2523,22 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
 
   DCHECK(unresolved.is_empty());
   return nullptr;
+}
+
+Variable* ClassScope::DeclareBrandVariable(AstValueFactory* ast_value_factory,
+                                           int class_token_pos) {
+  DCHECK_IMPLIES(rare_data_ != nullptr, rare_data_->brand == nullptr);
+  bool was_added;
+  Variable* brand = Declare(zone(), ast_value_factory->dot_brand_string(),
+                            VariableMode::kConst, NORMAL_VARIABLE,
+                            InitializationFlag::kNeedsInitialization,
+                            MaybeAssignedFlag::kMaybeAssigned, &was_added);
+  DCHECK(was_added);
+  brand->ForceContextAllocation();
+  brand->set_is_used();
+  EnsureRareData()->brand = brand;
+  brand->set_initializer_position(class_token_pos);
+  return brand;
 }
 
 }  // namespace internal

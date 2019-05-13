@@ -201,6 +201,7 @@ class AstBigInt {
   F(bigint, "bigint")                           \
   F(boolean, "boolean")                         \
   F(computed, "<computed>")                     \
+  F(dot_brand, ".brand")                        \
   F(constructor, "constructor")                 \
   F(default, "default")                         \
   F(done, "done")                               \

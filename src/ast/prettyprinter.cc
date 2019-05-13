@@ -1054,12 +1054,19 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
   if (node->extends() != nullptr) {
     PrintIndentedVisit("EXTENDS", node->extends());
   }
+  Scope* outer = node->constructor()->scope()->outer_scope();
+  if (outer->is_class_scope()) {
+    Variable* brand = outer->AsClassScope()->brand();
+    if (brand != nullptr) {
+      PrintLiteralWithModeIndented("BRAND", brand, brand->raw_name());
+    }
+  }
   if (node->static_fields_initializer() != nullptr) {
     PrintIndentedVisit("STATIC FIELDS INITIALIZER",
                        node->static_fields_initializer());
   }
   if (node->instance_members_initializer_function() != nullptr) {
-    PrintIndentedVisit("INSTANCE ELEMENTS INITIALIZER",
+    PrintIndentedVisit("INSTANCE MEMBERS INITIALIZER",
                        node->instance_members_initializer_function());
   }
   PrintClassProperties(node->properties());
@@ -1067,7 +1074,7 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
 
 void AstPrinter::VisitInitializeClassMembersStatement(
     InitializeClassMembersStatement* node) {
-  IndentedScope indent(this, "INITIALIZE CLASS ELEMENTS", node->position());
+  IndentedScope indent(this, "INITIALIZE CLASS MEMBERS", node->position());
   PrintClassProperties(node->fields());
 }
 
