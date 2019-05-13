@@ -615,6 +615,7 @@ struct WasmInitExpr {
     kF32Const,
     kF64Const,
     kRefNullConst,
+    kRefFuncConst,
   } kind;
 
   union {
@@ -623,6 +624,7 @@ struct WasmInitExpr {
     float f32_const;
     double f64_const;
     uint32_t global_index;
+    uint32_t function_index;
   } val;
 
   WasmInitExpr() : kind(kNone) {}
@@ -630,8 +632,15 @@ struct WasmInitExpr {
   explicit WasmInitExpr(int64_t v) : kind(kI64Const) { val.i64_const = v; }
   explicit WasmInitExpr(float v) : kind(kF32Const) { val.f32_const = v; }
   explicit WasmInitExpr(double v) : kind(kF64Const) { val.f64_const = v; }
-  WasmInitExpr(WasmInitKind kind, uint32_t global_index) : kind(kGlobalIndex) {
-    val.global_index = global_index;
+  WasmInitExpr(WasmInitKind kind, uint32_t index) : kind(kind) {
+    if (kind == kGlobalIndex) {
+      val.global_index = index;
+    } else if (kind == kRefFuncConst) {
+      val.function_index = index;
+    } else {
+      // For the other types, the other initializers should be used.
+      UNREACHABLE();
+    }
   }
 };
 

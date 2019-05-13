@@ -122,6 +122,8 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
       return kWasmF64;
     case WasmInitExpr::kRefNullConst:
       return kWasmNullRef;
+    case WasmInitExpr::kRefFuncConst:
+      return kWasmAnyFunc;
     default:
       UNREACHABLE();
   }
@@ -1535,6 +1537,16 @@ class ModuleDecoderImpl : public Decoder {
         if (enabled_features_.anyref || enabled_features_.eh) {
           expr.kind = WasmInitExpr::kRefNullConst;
           len = 0;
+          break;
+        }
+        V8_FALLTHROUGH;
+      }
+      case kExprRefFunc: {
+        if (enabled_features_.anyref) {
+          FunctionIndexImmediate<Decoder::kValidate> imm(this, pc() - 1);
+          expr.kind = WasmInitExpr::kRefFuncConst;
+          expr.val.function_index = imm.index;
+          len = imm.length;
           break;
         }
         V8_FALLTHROUGH;

@@ -179,7 +179,7 @@ class InstanceBuilder {
   T* GetRawGlobalPtr(const WasmGlobal& global);
 
   // Process initialization of globals.
-  void InitGlobals();
+  void InitGlobals(Handle<WasmInstanceObject> instance);
 
   // Allocate memory for a module instance as a new JSArrayBuffer.
   Handle<JSArrayBuffer> AllocateMemory(uint32_t initial_pages,
@@ -376,7 +376,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Process the initialization for the module's globals.
   //--------------------------------------------------------------------------
-  InitGlobals();
+  InitGlobals(instance);
 
   //--------------------------------------------------------------------------
   // Initialize the indirect tables.
@@ -795,6 +795,10 @@ bool InstanceBuilder::ProcessImportedFunction(
       Address imported_target = imported_function->GetWasmCallTarget();
       ImportedFunctionEntry entry(instance, func_index);
       entry.SetWasmToWasm(*imported_instance, imported_target);
+      // Also store the {WasmExportedFunction} in the instance to preserve its
+      // identity.
+      WasmInstanceObject::SetWasmExportedFunction(
+          isolate_, instance, func_index, imported_function);
       break;
     }
     case compiler::WasmImportCallKind::kWasmToCapi: {
@@ -1211,7 +1215,7 @@ T* InstanceBuilder::GetRawGlobalPtr(const WasmGlobal& global) {
 }
 
 // Process initialization of globals.
-void InstanceBuilder::InitGlobals() {
+void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
   for (auto global : module_->globals) {
     if (global.mutability && global.imported) {
       continue;
@@ -1242,6 +1246,13 @@ void InstanceBuilder::InitGlobals() {
                              ReadOnlyRoots(isolate_).null_value(),
                              SKIP_WRITE_BARRIER);
         break;
+      case WasmInitExpr::kRefFuncConst: {
+        DCHECK(enabled_.anyref);
+        auto function = WasmInstanceObject::GetOrCreateWasmExportedFunction(
+            isolate_, instance, global.init.val.function_index);
+        tagged_globals_->set(global.offset, *function);
+        break;
+      }
       case WasmInitExpr::kGlobalIndex: {
         // Initialize with another global.
         uint32_t new_offset = global.offset;
@@ -1374,6 +1385,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         MaybeHandle<WasmExportedFunction> wasm_exported_function =
             WasmInstanceObject::GetOrCreateWasmExportedFunction(
                 isolate_, instance, exp.index);
+
         desc.set_value(wasm_exported_function.ToHandleChecked());
         export_index++;
         break;

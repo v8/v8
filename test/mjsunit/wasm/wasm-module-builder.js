@@ -1089,8 +1089,15 @@ class WasmModuleBuilder {
               f64_view[0] = global.init;
               section.emit_bytes(f64_bytes_view);
               break;
-            case kWasmAnyRef:
             case kWasmAnyFunc:
+            case kWasmAnyRef:
+              if (global.function_index !== undefined) {
+                section.emit_u8(kExprRefFunc);
+                section.emit_u32v(global.function_index);
+              } else {
+                section.emit_u8(kExprRefNull);
+              }
+              break;
             case kWasmExceptRef:
               section.emit_u8(kExprRefNull);
               break;
