@@ -1517,10 +1517,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   if (!access_info_factory.ComputeElementAccessInfos(
           nexus, receiver_maps, access_mode, &access_infos)) {
     return NoChange();
-  }
-
-  // Nothing to do if we have no non-deprecated maps.
-  if (access_infos.empty()) {
+  } else if (access_infos.empty()) {
     return ReduceSoftDeoptimize(
         node, DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
   }
