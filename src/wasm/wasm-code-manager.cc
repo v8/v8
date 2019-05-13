@@ -447,9 +447,9 @@ Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
     code_space = free_code_space_.Allocate(size);
     DCHECK(!code_space.is_empty());
   }
-  const Address page_size = page_allocator->AllocatePageSize();
-  Address commit_start = RoundUp(code_space.begin(), page_size);
-  Address commit_end = RoundUp(code_space.end(), page_size);
+  const Address commit_page_size = page_allocator->CommitPageSize();
+  Address commit_start = RoundUp(code_space.begin(), commit_page_size);
+  Address commit_end = RoundUp(code_space.end(), commit_page_size);
   // {commit_start} will be either code_space.start or the start of the next
   // page. {commit_end} will be the start of the page after the one in which
   // the allocation ends.
@@ -531,11 +531,11 @@ bool WasmCodeAllocator::SetExecutable(bool executable) {
       return true;
     }
 #endif
+    size_t commit_page_size = page_allocator->CommitPageSize();
     for (auto& region : allocated_code_space_.regions()) {
       // allocated_code_space_ is fine-grained, so we need to
       // page-align it.
-      size_t region_size =
-          RoundUp(region.size(), page_allocator->AllocatePageSize());
+      size_t region_size = RoundUp(region.size(), commit_page_size);
       if (!SetPermissions(page_allocator, region.begin(), region_size,
                           permission)) {
         return false;
@@ -566,13 +566,15 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
   // Merge {freed_regions} into {freed_code_space_} and discard full pages.
   base::MutexGuard guard(&mutex_);
   PageAllocator* allocator = GetPlatformPageAllocator();
-  size_t page_size = allocator->AllocatePageSize();
+  size_t commit_page_size = allocator->CommitPageSize();
   for (auto region : freed_regions.regions()) {
     auto merged_region = freed_code_space_.Merge(region);
-    Address discard_start = std::max(RoundUp(merged_region.begin(), page_size),
-                                     RoundDown(region.begin(), page_size));
-    Address discard_end = std::min(RoundDown(merged_region.end(), page_size),
-                                   RoundUp(region.end(), page_size));
+    Address discard_start =
+        std::max(RoundUp(merged_region.begin(), commit_page_size),
+                 RoundDown(region.begin(), commit_page_size));
+    Address discard_end =
+        std::min(RoundDown(merged_region.end(), commit_page_size),
+                 RoundUp(region.end(), commit_page_size));
     if (discard_start >= discard_end) continue;
     // TODO(clemensh): Reenable after fixing https://crbug.com/960707.
     // allocator->DiscardSystemPages(reinterpret_cast<void*>(discard_start),
@@ -1153,8 +1155,8 @@ bool WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange() const {
 bool WasmCodeManager::Commit(Address start, size_t size) {
   // TODO(v8:8462) Remove eager commit once perf supports remapping.
   if (FLAG_perf_prof) return true;
-  DCHECK(IsAligned(start, AllocatePageSize()));
-  DCHECK(IsAligned(size, AllocatePageSize()));
+  DCHECK(IsAligned(start, CommitPageSize()));
+  DCHECK(IsAligned(size, CommitPageSize()));
   // Reserve the size. Use CAS loop to avoid overflow on
   // {total_committed_code_space_}.
   size_t old_value = total_committed_code_space_.load();
@@ -1193,12 +1195,12 @@ void WasmCodeManager::AssignRanges(Address start, Address end,
 VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   DCHECK_GT(size, 0);
-  size = RoundUp(size, page_allocator->AllocatePageSize());
+  size_t allocate_page_size = page_allocator->AllocatePageSize();
+  size = RoundUp(size, allocate_page_size);
   if (!memory_tracker_->ReserveAddressSpace(size)) return {};
   if (hint == nullptr) hint = page_allocator->GetRandomMmapAddr();
 
-  VirtualMemory mem(page_allocator, size, hint,
-                    page_allocator->AllocatePageSize());
+  VirtualMemory mem(page_allocator, size, hint, allocate_page_size);
   if (!mem.IsReserved()) {
     memory_tracker_->ReleaseReservation(size);
     return {};
@@ -1429,7 +1431,7 @@ void WasmCodeManager::FreeNativeModule(Vector<VirtualMemory> owned_code_space,
     DCHECK(!code_space.IsReserved());
   }
 
-  DCHECK(IsAligned(committed_size, AllocatePageSize()));
+  DCHECK(IsAligned(committed_size, CommitPageSize()));
   size_t old_committed = total_committed_code_space_.fetch_sub(committed_size);
   DCHECK_LE(committed_size, old_committed);
   USE(old_committed);
