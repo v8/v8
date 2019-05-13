@@ -1277,6 +1277,14 @@ class Heap {
   // Mostly useful for debugging.
   bool GcSafeCodeContains(Code code, Address addr);
 
+  // Casts a heap object to a code object and checks if the inner_pointer is
+  // within the object.
+  Code GcSafeCastToCode(HeapObject object, Address inner_pointer);
+
+  // Returns the map of an object. Can be used during garbage collection, i.e.
+  // it supports a forwarded map. Fails if the map is not the code map.
+  Map GcSafeMapOfCodeSpaceObject(HeapObject object);
+
 // =============================================================================
 #ifdef VERIFY_HEAP
   // Verify the heap is in its normal state before or after a GC.

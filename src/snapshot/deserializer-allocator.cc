@@ -45,7 +45,7 @@ Address DeserializerAllocator::AllocateRaw(AllocationSpace space, int size) {
     DCHECK_LE(high_water_[space], reservation[chunk_index].end);
 #endif
     if (space == CODE_SPACE)
-      MemoryChunk::FromAddress(address)->RegisterCodeObject(
+      MemoryChunk::FromAddress(address)->RegisterNewlyAllocatedCodeObject(
           HeapObject::FromAddress(address));
     return address;
   }

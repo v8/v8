@@ -1279,7 +1279,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       MigrateObject(*target_object, object, size, target_space);
       if (target_space == CODE_SPACE)
         MemoryChunk::FromHeapObject(*target_object)
-            ->RegisterCodeObject(*target_object);
+            ->RegisterNewlyAllocatedCodeObject(*target_object);
       return true;
     }
     return false;

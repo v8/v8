@@ -266,8 +266,6 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
 
   Address free_start = p->area_start();
 
-  if (is_code_page) p->CreateSwapCodeObjectRegistry();
-
   intptr_t live_bytes = 0;
   intptr_t freed_bytes = 0;
   intptr_t max_freed_bytes = 0;
@@ -277,10 +275,12 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   // live bytes and keep track of wasted_memory_.
   p->ResetAllocationStatistics();
 
+  if (is_code_page) p->ClearCodeObjectRegistries();
+
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(p, marking_state_->bitmap(p))) {
     HeapObject const object = object_and_size.first;
-    if (is_code_page) p->RegisterCodeObjectInSwapRegistry(object);
+    if (is_code_page) p->RegisterAlreadyExistingCodeObject(object);
     DCHECK(marking_state_->IsBlack(object));
     Address free_end = object->address();
     if (free_end != free_start) {
@@ -367,6 +367,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
     DCHECK_EQ(live_bytes, p->allocated_bytes());
   }
   p->set_concurrent_sweeping_state(Page::kSweepingDone);
+  if (is_code_page) p->FinalizeCodeObjectRegistries();
   if (free_list_mode == IGNORE_FREE_LIST) return 0;
   return static_cast<int>(FreeList::GuaranteedAllocatable(max_freed_bytes));
 }

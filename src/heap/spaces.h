@@ -401,9 +401,10 @@ class MemoryChunk {
       // FreeListCategory categories_[kNumberOfCategories]
       + kSystemPointerSize  // LocalArrayBufferTracker* local_tracker_
       + kIntptrSize  // std::atomic<intptr_t> young_generation_live_byte_count_
-      + kSystemPointerSize   // Bitmap* young_generation_bitmap_
-      + kSystemPointerSize   // std:set code_object_registry_
-      + kSystemPointerSize;  // std:set code_object_registry_swap_
+      + kSystemPointerSize  // Bitmap* young_generation_bitmap_
+      +
+      kSystemPointerSize  // std::vector code_object_registry_already_existing_
+      + kSystemPointerSize;  // std::set code_object_registry_newly_allocated_
 
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
@@ -674,12 +675,12 @@ class MemoryChunk {
 
   base::ListNode<MemoryChunk>& list_node() { return list_node_; }
 
-  V8_EXPORT_PRIVATE void RegisterCodeObject(HeapObject code);
-  V8_EXPORT_PRIVATE void RegisterCodeObjectInSwapRegistry(HeapObject code);
-  V8_EXPORT_PRIVATE void CreateSwapCodeObjectRegistry();
-  V8_EXPORT_PRIVATE void SwapCodeRegistries();
+  V8_EXPORT_PRIVATE void RegisterNewlyAllocatedCodeObject(HeapObject code);
+  V8_EXPORT_PRIVATE void RegisterAlreadyExistingCodeObject(HeapObject code);
+  V8_EXPORT_PRIVATE void ClearCodeObjectRegistries();
+  V8_EXPORT_PRIVATE void FinalizeCodeObjectRegistries();
   V8_EXPORT_PRIVATE bool CodeObjectRegistryContains(HeapObject code);
-  V8_EXPORT_PRIVATE HeapObject GetCodeObjectFromInnerAddress(Address address);
+  V8_EXPORT_PRIVATE Code GetCodeObjectFromInnerAddress(Address address);
 
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
@@ -787,8 +788,8 @@ class MemoryChunk {
   std::atomic<intptr_t> young_generation_live_byte_count_;
   Bitmap* young_generation_bitmap_;
 
-  std::set<Address>* code_object_registry_;
-  std::set<Address>* code_object_registry_swap_;
+  std::vector<Address>* code_object_registry_already_existing_;
+  std::set<Address>* code_object_registry_newly_allocated_;
 
  private:
   void InitializeReservedMemory() { reservation_.Reset(); }

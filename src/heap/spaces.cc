@@ -25,7 +25,6 @@
 #include "src/objects-inl.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/ostreams.h"
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"
@@ -613,42 +612,63 @@ void MemoryChunk::SetReadAndWritable() {
   }
 }
 
-void MemoryChunk::RegisterCodeObject(HeapObject code) {
+void MemoryChunk::RegisterNewlyAllocatedCodeObject(HeapObject code) {
   DCHECK(Contains(code->address()));
   DCHECK(MemoryChunk::FromHeapObject(code)->owner()->identity() == CODE_SPACE);
-  code_object_registry_->insert(code->address());
+  auto result = code_object_registry_newly_allocated_->insert(code->address());
+  USE(result);
+  DCHECK(result.second);
 }
 
-void MemoryChunk::RegisterCodeObjectInSwapRegistry(HeapObject code) {
+void MemoryChunk::RegisterAlreadyExistingCodeObject(HeapObject code) {
   DCHECK(MemoryChunk::FromHeapObject(code)->owner()->identity() == CODE_SPACE);
-  code_object_registry_swap_->insert(code->address());
+  code_object_registry_already_existing_->push_back(code->address());
 }
 
-void MemoryChunk::CreateSwapCodeObjectRegistry() {
-  DCHECK(!code_object_registry_swap_);
-  DCHECK(code_object_registry_);
-  code_object_registry_swap_ = new std::set<Address>();
+void MemoryChunk::ClearCodeObjectRegistries() {
+  DCHECK(code_object_registry_already_existing_);
+  DCHECK(code_object_registry_newly_allocated_);
+  code_object_registry_already_existing_->clear();
+  code_object_registry_newly_allocated_->clear();
 }
 
-void MemoryChunk::SwapCodeRegistries() {
-  DCHECK(code_object_registry_swap_);
-  DCHECK(code_object_registry_);
-  std::swap(code_object_registry_swap_, code_object_registry_);
-  delete code_object_registry_swap_;
-  code_object_registry_swap_ = nullptr;
+void MemoryChunk::FinalizeCodeObjectRegistries() {
+  DCHECK(code_object_registry_already_existing_);
+  DCHECK(code_object_registry_newly_allocated_);
+  code_object_registry_already_existing_->shrink_to_fit();
 }
 
 bool MemoryChunk::CodeObjectRegistryContains(HeapObject object) {
-  return code_object_registry_->find(object->address()) !=
-         code_object_registry_->end();
+  return (code_object_registry_newly_allocated_->find(object->address()) !=
+          code_object_registry_newly_allocated_->end()) ||
+         (std::binary_search(code_object_registry_already_existing_->begin(),
+                             code_object_registry_already_existing_->end(),
+                             object->address()));
 }
 
-HeapObject MemoryChunk::GetCodeObjectFromInnerAddress(Address address) {
+Code MemoryChunk::GetCodeObjectFromInnerAddress(Address address) {
   DCHECK(Contains(address));
-  DCHECK(!code_object_registry_->empty());
-  auto it = code_object_registry_->upper_bound(address);
+
+  // Let's first try the std::vector which holds object that already existed
+  // since the last GC cycle.
+  if (!code_object_registry_already_existing_->empty()) {
+    auto it = std::upper_bound(code_object_registry_already_existing_->begin(),
+                               code_object_registry_already_existing_->end(),
+                               address);
+    if (it != code_object_registry_already_existing_->begin()) {
+      Code code = Code::unchecked_cast(HeapObject::FromAddress(*(--it)));
+      if (heap_->GcSafeCodeContains(code, address)) {
+        return code;
+      }
+    }
+  }
+
+  // If the address was not found, it has to be in the newly allocated code
+  // objects registry.
+  DCHECK(!code_object_registry_newly_allocated_->empty());
+  auto it = code_object_registry_newly_allocated_->upper_bound(address);
   HeapObject obj = HeapObject::FromAddress(*(--it));
-  return obj;
+  return heap_->GcSafeCastToCode(obj, address);
 }
 
 namespace {
@@ -737,11 +757,12 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->reservation_ = std::move(reservation);
 
   if (owner->identity() == CODE_SPACE) {
-    chunk->code_object_registry_ = new std::set<Address>();
+    chunk->code_object_registry_newly_allocated_ = new std::set<Address>();
+    chunk->code_object_registry_already_existing_ = new std::vector<Address>();
   } else {
-    chunk->code_object_registry_ = nullptr;
+    chunk->code_object_registry_newly_allocated_ = nullptr;
+    chunk->code_object_registry_already_existing_ = nullptr;
   }
-  chunk->code_object_registry_swap_ = nullptr;
 
   return chunk;
 }
@@ -1363,8 +1384,10 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   if (local_tracker_ != nullptr) ReleaseLocalTracker();
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
   if (marking_bitmap_ != nullptr) ReleaseMarkingBitmap();
-  if (code_object_registry_ != nullptr) delete code_object_registry_;
-  DCHECK(!code_object_registry_swap_);
+  if (code_object_registry_newly_allocated_ != nullptr)
+    delete code_object_registry_newly_allocated_;
+  if (code_object_registry_already_existing_ != nullptr)
+    delete code_object_registry_already_existing_;
 
   if (!IsLargePage()) {
     Page* page = static_cast<Page*>(this);
@@ -1621,7 +1644,6 @@ void PagedSpace::RefillFreeList() {
         added += RelinkFreeListCategories(p);
       }
       added += p->wasted_memory();
-      if (identity() == CODE_SPACE) p->SwapCodeRegistries();
       if (is_local() && (added > kCompactionMemoryWanted)) break;
     }
   }

@@ -5768,22 +5768,18 @@ void AllocationObserver::AllocationStep(int bytes_allocated,
   DCHECK_GE(bytes_to_next_step_, 0);
 }
 
-namespace {
-
-Map GcSafeMapOfCodeSpaceObject(HeapObject object) {
+Map Heap::GcSafeMapOfCodeSpaceObject(HeapObject object) {
   MapWord map_word = object->map_word();
   return map_word.IsForwardingAddress() ? map_word.ToForwardingAddress()->map()
                                         : map_word.ToMap();
 }
 
-Code GcSafeCastToCode(Heap* heap, HeapObject object, Address inner_pointer) {
+Code Heap::GcSafeCastToCode(HeapObject object, Address inner_pointer) {
   Code code = Code::unchecked_cast(object);
   DCHECK(!code.is_null());
-  DCHECK(heap->GcSafeCodeContains(code, inner_pointer));
+  DCHECK(GcSafeCodeContains(code, inner_pointer));
   return code;
 }
-
-}  // namespace
 
 bool Heap::GcSafeCodeContains(Code code, Address addr) {
   Map map = GcSafeMapOfCodeSpaceObject(code);
@@ -5801,7 +5797,7 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = code_lo_space()->FindPage(inner_pointer);
   if (large_page != nullptr) {
-    return GcSafeCastToCode(this, large_page->GetObject(), inner_pointer);
+    return GcSafeCastToCode(large_page->GetObject(), inner_pointer);
   }
 
   DCHECK(code_space()->Contains(inner_pointer));
@@ -5811,7 +5807,7 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   Page* page = Page::FromAddress(inner_pointer);
 
   HeapObject object = page->GetCodeObjectFromInnerAddress(inner_pointer);
-  return GcSafeCastToCode(this, object, inner_pointer);
+  return GcSafeCastToCode(object, inner_pointer);
 }
 
 void Heap::WriteBarrierForCodeSlow(Code code) {
