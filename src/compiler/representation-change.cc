@@ -863,8 +863,17 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       op = machine()->ChangeInt32ToFloat64();
     } else if (output_type.Is(Type::Number())) {
       op = simplified()->ChangeTaggedToFloat64();
-    } else if (output_type.Is(Type::NumberOrOddball())) {
-      // TODO(jarin) Here we should check that truncation is Number.
+    } else if ((output_type.Is(Type::NumberOrOddball()) &&
+                use_info.truncation().IsUsedAsFloat64()) ||
+               output_type.Is(Type::NumberOrHole())) {
+      // JavaScript 'null' is an Oddball that results in +0 when truncated to
+      // Number. In a context like -0 == null, which must evaluate to false,
+      // this truncation must not happen. For this reason we restrict this case
+      // to when either the user explicitly requested a float (and thus wants
+      // +0 if null is the input) or we know from the types that the input can
+      // only be Number | Hole. The latter is necessary to handle the operator
+      // CheckFloat64Hole. We did not put in the type (Number | Oddball \ Null)
+      // to discover more bugs related to this conversion via crashes.
       op = simplified()->TruncateTaggedToFloat64();
     } else if (use_info.type_check() == TypeCheckKind::kNumber ||
                (use_info.type_check() == TypeCheckKind::kNumberOrOddball &&

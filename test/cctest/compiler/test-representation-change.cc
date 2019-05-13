@@ -544,7 +544,7 @@ TEST(SingleChanges) {
               Type::Number(), MachineRepresentation::kFloat64);
   CheckChange(IrOpcode::kTruncateTaggedToFloat64,
               MachineRepresentation::kTagged, Type::NumberOrUndefined(),
-              MachineRepresentation::kFloat64);
+              UseInfo(MachineRepresentation::kFloat64, Truncation::Float64()));
   CheckChange(IrOpcode::kChangeTaggedToFloat64, MachineRepresentation::kTagged,
               Type::Signed31(), MachineRepresentation::kFloat64);
 
