@@ -237,6 +237,7 @@ TEST(SerializeConditionalJump) {
       "function g(callee) { callee(); };"
       "function h() {};"
       "function i() {};"
+      "%EnsureFeedbackVectorForFunction(g);"
       "let a = true;"
       "g(h); g(i);"
       "function f() {"
