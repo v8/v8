@@ -102,6 +102,7 @@ v8_source_set("unittests_sources") {
     "compiler/control-equivalence-unittest.cc",
     "compiler/control-flow-optimizer-unittest.cc",
     "compiler/dead-code-elimination-unittest.cc",
+    "compiler/decompression-elimination-unittest.cc",
     "compiler/diamond-unittest.cc",
     "compiler/effect-control-linearizer-unittest.cc",
     "compiler/graph-reducer-unittest.cc",

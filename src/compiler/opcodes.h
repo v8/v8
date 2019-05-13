@@ -933,6 +933,18 @@ class V8_EXPORT_PRIVATE IrOpcode {
            (kWord32Equal <= value && value <= kFloat64LessThanOrEqual);
   }
 
+  // Returns true if opcode for decompress operator.
+  static bool IsDecompressOpcode(Value value) {
+    return kChangeCompressedToTagged <= value &&
+           value <= kChangeCompressedSignedToTaggedSigned;
+  }
+
+  // Returns true if opcode for compress operator.
+  static bool IsCompressOpcode(Value value) {
+    return kChangeTaggedToCompressed <= value &&
+           value <= kChangeTaggedSignedToCompressedSigned;
+  }
+
   static bool IsContextChainExtendingOpcode(Value value) {
     return kJSCreateFunctionContext <= value && value <= kJSCreateBlockContext;
   }
