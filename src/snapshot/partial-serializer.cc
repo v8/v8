@@ -6,6 +6,7 @@
 #include "src/snapshot/startup-serializer.h"
 
 #include "src/api-inl.h"
+#include "src/heap/combined-heap.h"
 #include "src/math-random.h"
 #include "src/microtask-queue.h"
 #include "src/objects-inl.h"
@@ -171,7 +172,7 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(Object obj) {
     original_embedder_values.emplace_back(embedder_data_slot.load_raw(no_gc));
     Object object = embedder_data_slot.load_tagged();
     if (object->IsHeapObject()) {
-      DCHECK(isolate()->heap()->Contains(HeapObject::cast(object)));
+      DCHECK(IsValidHeapObject(isolate()->heap(), HeapObject::cast(object)));
       serialized_data.push_back({nullptr, 0});
     } else {
       // If no serializer is provided and the field was empty, we serialize it

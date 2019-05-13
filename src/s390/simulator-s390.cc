@@ -15,6 +15,7 @@
 #include "src/base/bits.h"
 #include "src/base/once.h"
 #include "src/disasm.h"
+#include "src/heap/combined-heap.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
@@ -424,7 +425,7 @@ void S390Debugger::Debug() {
           Heap* current_heap = sim_->isolate_->heap();
           if (obj.IsSmi()) {
             PrintF(" (smi %d)", Smi::ToInt(obj));
-          } else if (current_heap->Contains(HeapObject::cast(obj))) {
+          } else if (IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
             PrintF(" (");
             obj->ShortPrint();
             PrintF(")");

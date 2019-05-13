@@ -38,6 +38,7 @@
 #include "src/field-type.h"
 #include "src/global-handles.h"
 #include "src/hash-seed-inl.h"
+#include "src/heap/combined-heap.h"
 #include "src/heap/factory.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
@@ -74,9 +75,7 @@ static const int kPretenureCreationCount =
 
 static void CheckMap(Map map, int type, int instance_size) {
   CHECK(map->IsHeapObject());
-#ifdef DEBUG
-  CHECK(CcTest::heap()->Contains(map));
-#endif
+  DCHECK(IsValidHeapObject(CcTest::heap(), map));
   CHECK_EQ(ReadOnlyRoots(CcTest::heap()).meta_map(), map->map());
   CHECK_EQ(type, map->instance_type());
   CHECK_EQ(instance_size, map->instance_size());

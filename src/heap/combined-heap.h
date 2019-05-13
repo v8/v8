@@ -30,6 +30,11 @@ class V8_EXPORT_PRIVATE CombinedHeapIterator final {
   ReadOnlyHeapIterator ro_heap_iterator_;
 };
 
+V8_WARN_UNUSED_RESULT inline bool IsValidHeapObject(Heap* heap,
+                                                    HeapObject object) {
+  return ReadOnlyHeap::Contains(object) || heap->Contains(object);
+}
+
 }  // namespace internal
 }  // namespace v8
 

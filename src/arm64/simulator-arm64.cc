@@ -15,6 +15,7 @@
 #include "src/assembler-inl.h"
 #include "src/base/lazy-instance.h"
 #include "src/disasm.h"
+#include "src/heap/combined-heap.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
@@ -3289,7 +3290,8 @@ void Simulator::Debug() {
                  reinterpret_cast<uint64_t>(cur), *cur, *cur);
           Object obj(*cur);
           Heap* current_heap = isolate_->heap();
-          if (obj.IsSmi() || current_heap->Contains(HeapObject::cast(obj))) {
+          if (obj.IsSmi() ||
+              IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
             PrintF(" (");
             if (obj.IsSmi()) {
               PrintF("smi %" PRId32, Smi::ToInt(obj));
