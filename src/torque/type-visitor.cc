@@ -130,7 +130,7 @@ const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
   const TypeAlias* alias =
       Declarations::LookupTypeAlias(QualifiedName(decl->name->value));
   DCHECK_EQ(*alias->delayed_, decl);
-  if (decl->flags & ClassFlag::kExtern) {
+  if (decl->is_extern) {
     if (!decl->super) {
       ReportError("Extern class must extend another type.");
     }
@@ -150,8 +150,9 @@ const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
       generates = ComputeGeneratesType(decl->generates, enforce_tnode_type);
     }
 
-    new_class = TypeOracle::GetClassType(super_type, decl->name->value,
-                                         decl->flags, generates, decl, alias);
+    new_class = TypeOracle::GetClassType(
+        super_type, decl->name->value, decl->is_extern, decl->generate_print,
+        decl->generate_verify, decl->transient, generates, decl, alias);
   } else {
     if (decl->super) {
       ReportError("Only extern classes can inherit.");
@@ -159,9 +160,10 @@ const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
     if (decl->generates) {
       ReportError("Only extern classes can specify a generated type.");
     }
-    new_class =
-        TypeOracle::GetClassType(TypeOracle::GetTaggedType(), decl->name->value,
-                                 decl->flags, "FixedArray", decl, alias);
+    new_class = TypeOracle::GetClassType(
+        TypeOracle::GetTaggedType(), decl->name->value, decl->is_extern,
+        decl->generate_print, decl->generate_verify, decl->transient,
+        "FixedArray", decl, alias);
   }
   GlobalContext::RegisterClass(decl->name->value, new_class);
   return new_class;
@@ -224,7 +226,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
     CurrentSourcePosition::Scope position_activator(
         field_expression.name_and_type.type->pos);
     const Type* field_type = ComputeType(field_expression.name_and_type.type);
-    if (!(class_declaration->flags & ClassFlag::kExtern)) {
+    if (!class_declaration->is_extern) {
       if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
         ReportError("non-extern classes do not support untagged fields");
       }

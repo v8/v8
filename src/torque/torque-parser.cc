@@ -656,17 +656,11 @@ class AnnotationSet {
 
 base::Optional<ParseResult> MakeClassDeclaration(
     ParseResultIterator* child_results) {
-  AnnotationSet annotations(child_results,
-                            {"@generatePrint", "@noVerifier"});
-  ClassFlags flags = ClassFlag::kNone;
+  AnnotationSet annotations(child_results, {"@generatePrint", "@noVerifier"});
   bool generate_print = annotations.Contains("@generatePrint");
-  if (generate_print) flags |= ClassFlag::kGeneratePrint;
   bool generate_verify = !annotations.Contains("@noVerifier");
-  if (generate_verify) flags |= ClassFlag::kGenerateVerify;
   auto is_extern = child_results->NextAs<bool>();
-  if (is_extern) flags |= ClassFlag::kExtern;
   auto transient = child_results->NextAs<bool>();
-  if (transient) flags |= ClassFlag::kTransient;
   auto name = child_results->NextAs<Identifier*>();
   if (!IsValidTypeName(name->value)) {
     NamingConventionError("Type", name->value, "UpperCamelCase");
@@ -688,8 +682,8 @@ base::Optional<ParseResult> MakeClassDeclaration(
                });
 
   Declaration* result = MakeNode<ClassDeclaration>(
-      name, flags, std::move(extends), std::move(generates), std::move(methods),
-      fields);
+      name, is_extern, generate_print, generate_verify, transient,
+      std::move(extends), std::move(generates), std::move(methods), fields);
   return ParseResult{result};
 }
 
