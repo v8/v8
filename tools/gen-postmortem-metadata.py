@@ -402,7 +402,11 @@ def load_objects_from_file(objfilename, checktypes):
                         klass = match.group(1).strip();
                         pklass = match.group(2);
                         if (pklass):
-                                pklass = pklass.strip();
+                                # Strip potential template arguments from parent
+                                # class.
+                                match = re.match(r'(\w+)(<.*>)?', pklass.strip());
+                                pklass = match.group(1).strip();
+
                         klasses[klass] = { 'parent': pklass };
 
         #

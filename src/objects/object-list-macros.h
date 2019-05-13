@@ -66,9 +66,7 @@ template <typename T>
 class ZoneForwardList;
 
 #define OBJECT_TYPE_LIST(V) \
-  V(Smi)                    \
   V(LayoutDescriptor)       \
-  V(HeapObject)             \
   V(Primitive)              \
   V(Number)                 \
   V(Numeric)

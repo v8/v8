@@ -1909,6 +1909,8 @@ Address CheckObjectType(Address raw_value, Address raw_type,
     break;
 
     TYPE_CASE(Object)
+    TYPE_CASE(Smi)
+    TYPE_CASE(HeapObject)
     OBJECT_TYPE_LIST(TYPE_CASE)
     HEAP_OBJECT_TYPE_LIST(TYPE_CASE)
     STRUCT_LIST(TYPE_STRUCT_CASE)

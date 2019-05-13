@@ -265,28 +265,14 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw);
 // There must only be a single data member in Object: the Address ptr,
 // containing the tagged heap pointer that this Object instance refers to.
 // For a design overview, see https://goo.gl/Ph4CGz.
-class Object {
+class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
  public:
-  constexpr Object() : ptr_(kNullAddress) {}
-  explicit constexpr Object(Address ptr) : ptr_(ptr) {}
-
-  // Make clang on Linux catch what MSVC complains about on Windows:
-  operator bool() const = delete;
-
-  bool operator==(const Object that) const { return this->ptr() == that.ptr(); }
-  bool operator!=(const Object that) const { return this->ptr() != that.ptr(); }
-  // Usage in std::set requires operator<.
-  bool operator<(const Object that) const { return this->ptr() < that.ptr(); }
-
-  // Returns the tagged "(heap) object pointer" representation of this object.
-  constexpr Address ptr() const { return ptr_; }
+  constexpr Object() : TaggedImpl(kNullAddress) {}
+  explicit constexpr Object(Address ptr) : TaggedImpl(ptr) {}
 
   // These operator->() overloads are required for handlified code.
   Object* operator->() { return this; }
   const Object* operator->() const { return this; }
-
-  // Type testing.
-  bool IsObject() const { return true; }
 
 #define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
@@ -588,34 +574,6 @@ class Object {
   // and length.
   bool IterationHasObservableEffects();
 
-  //
-  // The following GetHeapObjectXX methods mimic corresponding functionality
-  // in MaybeObject. Having them here allows us to unify code that processes
-  // ObjectSlots and MaybeObjectSlots.
-  //
-
-  // If this Object is a strong pointer to a HeapObject, returns true and
-  // sets *result. Otherwise returns false.
-  inline bool GetHeapObjectIfStrong(HeapObject* result) const;
-
-  // If this Object is a strong pointer to a HeapObject (weak pointers are not
-  // expected), returns true and sets *result. Otherwise returns false.
-  inline bool GetHeapObject(HeapObject* result) const;
-
-  // DCHECKs that this Object is a strong pointer to a HeapObject and returns
-  // the HeapObject.
-  inline HeapObject GetHeapObject() const;
-
-  // Always returns false because Object is not expected to be a weak pointer
-  // to a HeapObject.
-  inline bool GetHeapObjectIfWeak(HeapObject* result) const {
-    DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(ptr_));
-    return false;
-  }
-  // Always returns false because Object is not expected to be a weak pointer
-  // to a HeapObject.
-  inline bool IsCleared() const { return false; }
-
   EXPORT_DECL_VERIFIER(Object)
 
 #ifdef VERIFY_HEAP
@@ -706,18 +664,9 @@ class Object {
       Isolate* isolate, Handle<Object> input);
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToIndex(
       Isolate* isolate, Handle<Object> input, MessageTemplate error_index);
-
-  Address ptr_;
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Object& obj);
-
-// In objects.h to be usable without objects-inl.h inclusion.
-bool Object::IsSmi() const { return HAS_SMI_TAG(ptr()); }
-bool Object::IsHeapObject() const {
-  DCHECK_EQ(!IsSmi(), Internals::HasHeapObjectTag(ptr()));
-  return !IsSmi();
-}
 
 struct Brief {
   template <typename TObject>

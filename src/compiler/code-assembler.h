@@ -66,14 +66,12 @@ class JSFinalizationGroupCleanupIterator;
 class JSWeakMap;
 class JSWeakRef;
 class JSWeakSet;
-class MaybeObject;
 class PromiseCapability;
 class PromiseFulfillReactionJobTask;
 class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
 class WasmDebugInfo;
-class WeakCell;
 class Zone;
 
 template <typename T>
@@ -280,9 +278,12 @@ class int31_t {
 #define ENUM_ELEMENT(Name) k##Name,
 #define ENUM_STRUCT_ELEMENT(NAME, Name, name) k##Name,
 enum class ObjectType {
-  kObject,
-  OBJECT_TYPE_LIST(ENUM_ELEMENT) HEAP_OBJECT_TYPE_LIST(ENUM_ELEMENT)
-      STRUCT_LIST(ENUM_STRUCT_ELEMENT)
+  ENUM_ELEMENT(Object)                 //
+  ENUM_ELEMENT(Smi)                    //
+  ENUM_ELEMENT(HeapObject)             //
+  OBJECT_TYPE_LIST(ENUM_ELEMENT)       //
+  HEAP_OBJECT_TYPE_LIST(ENUM_ELEMENT)  //
+  STRUCT_LIST(ENUM_STRUCT_ELEMENT)     //
 };
 #undef ENUM_ELEMENT
 #undef ENUM_STRUCT_ELEMENT
@@ -349,6 +350,8 @@ struct ObjectTypeOf {};
     static const ObjectType value = ObjectType::k##Name; \
   };
 OBJECT_TYPE_CASE(Object)
+OBJECT_TYPE_CASE(Smi)
+OBJECT_TYPE_CASE(HeapObject)
 OBJECT_TYPE_LIST(OBJECT_TYPE_CASE)
 HEAP_OBJECT_ORDINARY_TYPE_LIST(OBJECT_TYPE_CASE)
 STRUCT_LIST(OBJECT_TYPE_STRUCT_CASE)
