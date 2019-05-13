@@ -983,7 +983,7 @@ void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
                            uint32_t start, Handle<Object> entry,
                            uint32_t count) {
   // Bounds checks must be done by the caller.
-  DCHECK_LT(start, table->entries()->length());
+  DCHECK_LE(start, table->entries()->length());
   DCHECK_LE(count, table->entries()->length());
   DCHECK_LE(start + count, table->entries()->length());
 

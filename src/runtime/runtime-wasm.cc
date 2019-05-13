@@ -658,7 +658,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
 
   uint32_t table_size = static_cast<uint32_t>(table->entries()->length());
 
-  if (start >= table_size) {
+  if (start > table_size) {
     return ThrowTableOutOfBounds(isolate, instance);
   }
 

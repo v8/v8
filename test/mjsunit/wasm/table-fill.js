@@ -193,4 +193,8 @@ function checkAnyFuncTable(call, start, count, value) {
   assertTraps(
       kTrapTableOutOfBounds,
       () => instance.exports[`fill${internal_func}`](start, null, 0));
+
+  // Check that table.fill at position `size` is still valid.
+  instance.exports[`fill${import_func}`](size, null, 0);
+  instance.exports[`fill${internal_func}`](size, null, 0);
 })();
