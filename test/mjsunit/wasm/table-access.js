@@ -127,3 +127,29 @@ const dummy_func = exports.set_table_func1;
   assertEquals(value3, instance.exports.get_t2(offset2)());
   assertEquals(value1, instance.exports.get_t2(offset2 + 1)());
 })();
+
+(function testRefFuncInTableIsCallable() {
+  print(arguments.callee.name);
+  const expected = 54;
+  const index = 3;
+  const builder = new WasmModuleBuilder();
+  const table_index = builder.addTable(kWasmAnyFunc, 15, 15).index;
+  const sig_index = builder.addType(kSig_i_v);
+  const function_index = builder.addFunction('hidden', sig_index)
+                             .addBody([kExprI32Const, expected])
+                             .index;
+
+  builder.addFunction('main', kSig_i_v)
+      .addBody([
+        kExprI32Const, index,                      // entry index
+        kExprRefFunc, function_index,              // function reference
+        kExprSetTable, table_index,                // --
+        kExprI32Const, index,                      // entry index
+        kExprCallIndirect, sig_index, table_index  // --
+
+      ])
+      .exportFunc();
+
+  const instance = builder.instantiate();
+  assertEquals(expected, instance.exports.main());
+})();

@@ -304,6 +304,16 @@ TEST_F(FunctionBodyDecoderTest, RefNull) {
   ExpectValidates(sigs.r_v(), {kExprRefNull});
 }
 
+TEST_F(FunctionBodyDecoderTest, RefFunc) {
+  WASM_FEATURE_SCOPE(anyref);
+  TestModuleBuilder builder;
+  module = builder.module();
+
+  builder.AddFunction(sigs.v_ii());
+  builder.AddFunction(sigs.ii_v());
+  ExpectValidates(sigs.a_v(), {kExprRefFunc, 1});
+}
+
 TEST_F(FunctionBodyDecoderTest, EmptyFunction) {
   ExpectValidates(sigs.v_v(), {});
   ExpectFailure(sigs.i_i(), {});
@@ -984,6 +994,7 @@ TEST_F(FunctionBodyDecoderTest, ReturnVoid3) {
   ExpectFailure(sigs.v_v(), {kExprF32Const, 0, 0, 0, 0});
   ExpectFailure(sigs.v_v(), {kExprF64Const, 0, 0, 0, 0, 0, 0, 0, 0});
   ExpectFailure(sigs.v_v(), {kExprRefNull});
+  ExpectFailure(sigs.v_v(), {kExprRefFunc, 0});
 
   ExpectFailure(sigs.v_i(), {kExprGetLocal, 0});
 }
@@ -3397,6 +3408,12 @@ TEST_F(WasmOpcodeLengthTest, VariableLength) {
   ExpectLength(4, kExprGetGlobal, U32V_3(44));
   ExpectLength(5, kExprGetGlobal, U32V_4(66));
   ExpectLength(6, kExprGetGlobal, U32V_5(77));
+
+  ExpectLength(2, kExprRefFunc, U32V_1(1));
+  ExpectLength(3, kExprRefFunc, U32V_2(33));
+  ExpectLength(4, kExprRefFunc, U32V_3(44));
+  ExpectLength(5, kExprRefFunc, U32V_4(66));
+  ExpectLength(6, kExprRefFunc, U32V_5(77));
 }
 
 TEST_F(WasmOpcodeLengthTest, LoadsAndStores) {

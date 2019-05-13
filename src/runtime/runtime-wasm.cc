@@ -415,6 +415,24 @@ Object ThrowTableOutOfBounds(Isolate* isolate,
 }
 }  // namespace
 
+RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
+  // This runtime function is always being called from wasm code.
+  ClearThreadInWasmScope flag_scope;
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  auto instance =
+      Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
+  DCHECK(isolate->context().is_null());
+  isolate->set_context(instance->native_context());
+  CONVERT_UINT32_ARG_CHECKED(function_index, 0);
+
+  Handle<WasmExportedFunction> function =
+      WasmInstanceObject::GetOrCreateWasmExportedFunction(isolate, instance,
+                                                          function_index);
+
+  return *function;
+}
+
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
   // This runtime function is always being called from wasm code.
   ClearThreadInWasmScope flag_scope;

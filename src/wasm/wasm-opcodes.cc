@@ -370,6 +370,7 @@ bool WasmOpcodes::IsAnyRefOpcode(WasmOpcode opcode) {
   switch (opcode) {
     case kExprRefNull:
     case kExprRefIsNull:
+    case kExprRefFunc:
       return true;
     default:
       return false;

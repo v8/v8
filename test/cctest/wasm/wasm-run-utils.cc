@@ -144,9 +144,8 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
       compiler::CompileJSToWasmWrapper(isolate_, sig, false);
   Handle<Code> ret_code = maybe_ret_code.ToHandleChecked();
   Handle<JSFunction> ret = WasmExportedFunction::New(
-      isolate_, instance_object(), MaybeHandle<String>(),
-      static_cast<int>(index), static_cast<int>(sig->parameter_count()),
-      ret_code);
+      isolate_, instance_object(), static_cast<int>(index),
+      static_cast<int>(sig->parameter_count()), ret_code);
 
   // Add reference to the exported wrapper code.
   Handle<WasmModuleObject> module_object(instance_object()->module_object(),

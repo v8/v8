@@ -280,6 +280,14 @@ Node* WasmGraphBuilder::RefNull() {
                              MachineType::TypeCompressedTaggedPointer());
 }
 
+Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
+  Node* args[] = {
+      graph()->NewNode(mcgraph()->common()->NumberConstant(function_index))};
+  Node* result =
+      BuildCallToRuntime(Runtime::kWasmRefFunc, args, arraysize(args));
+  return result;
+}
+
 Node* WasmGraphBuilder::NoContextConstant() {
   // TODO(titzer): avoiding a dependency on JSGraph here. Refactor.
   return mcgraph()->IntPtrConstant(0);

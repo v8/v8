@@ -492,7 +492,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // TODO(clemensh): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
-        isolate_, instance, MaybeHandle<String>(), start_index,
+        isolate_, instance, start_index,
         static_cast<int>(function.sig->parameter_count()), wrapper_code);
   }
 
@@ -1371,31 +1371,9 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       case kExternalFunction: {
         // Wrap and export the code as a JSFunction.
         // TODO(wasm): reduce duplication with LoadElemSegment() further below
-        const WasmFunction& function = module_->functions[exp.index];
         MaybeHandle<WasmExportedFunction> wasm_exported_function =
-            WasmInstanceObject::GetWasmExportedFunction(isolate_, instance,
-                                                        exp.index);
-        if (wasm_exported_function.is_null()) {
-          // Wrap the exported code as a JSFunction.
-          Handle<Code> export_code =
-              export_wrappers->GetValueChecked<Code>(isolate_, export_index);
-          MaybeHandle<String> func_name;
-          if (is_asm_js) {
-            // For modules arising from asm.js, honor the names section.
-            WireBytesRef func_name_ref = module_->LookupFunctionName(
-                ModuleWireBytes(module_object_->native_module()->wire_bytes()),
-                function.func_index);
-            func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-                            isolate_, module_object_, func_name_ref)
-                            .ToHandleChecked();
-          }
-          wasm_exported_function = WasmExportedFunction::New(
-              isolate_, instance, func_name, function.func_index,
-              static_cast<int>(function.sig->parameter_count()), export_code);
-          WasmInstanceObject::SetWasmExportedFunction(
-              isolate_, instance, exp.index,
-              wasm_exported_function.ToHandleChecked());
-        }
+            WasmInstanceObject::GetOrCreateWasmExportedFunction(
+                isolate_, instance, exp.index);
         desc.set_value(wasm_exported_function.ToHandleChecked());
         export_index++;
         break;

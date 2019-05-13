@@ -199,6 +199,7 @@ class WasmGraphBuilder {
   Node* CreateOrMergeIntoEffectPhi(Node* merge, Node* tnode, Node* fnode);
   Node* EffectPhi(unsigned count, Node** effects, Node* control);
   Node* RefNull();
+  Node* RefFunc(uint32_t function_index);
   Node* Uint32Constant(uint32_t value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);

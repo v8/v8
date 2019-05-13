@@ -342,6 +342,15 @@ struct CallFunctionImmediate {
 };
 
 template <Decoder::ValidateFlag validate>
+struct FunctionIndexImmediate {
+  uint32_t index = 0;
+  uint32_t length = 1;
+  inline FunctionIndexImmediate(Decoder* decoder, const byte* pc) {
+    index = decoder->read_u32v<validate>(pc + 1, &length, "function index");
+  }
+};
+
+template <Decoder::ValidateFlag validate>
 struct MemoryIndexImmediate {
   uint32_t index = 0;
   uint32_t length = 1;
@@ -675,6 +684,7 @@ struct ControlBase {
   F(F32Const, Value* result, float value)                                     \
   F(F64Const, Value* result, double value)                                    \
   F(RefNull, Value* result)                                                   \
+  F(RefFunc, uint32_t function_index, Value* result)                          \
   F(Drop, const Value& value)                                                 \
   F(DoReturn, Vector<Value> values)                                           \
   F(GetLocal, Value* result, const LocalIndexImmediate<validate>& imm)        \
@@ -1103,6 +1113,15 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
+  inline bool Validate(const byte* pc, FunctionIndexImmediate<validate>& imm) {
+    if (!VALIDATE(module_ != nullptr &&
+                  imm.index < module_->functions.size())) {
+      errorf(pc, "invalid function index: %u", imm.index);
+      return false;
+    }
+    return true;
+  }
+
   inline bool Validate(const byte* pc, MemoryIndexImmediate<validate>& imm) {
     if (!VALIDATE(module_ != nullptr && module_->has_memory)) {
       errorf(pc + 1, "memory instruction with no memory");
@@ -1249,6 +1268,10 @@ class WasmDecoder : public Decoder {
       }
       case kExprRefNull: {
         return 1;
+      }
+      case kExprRefFunc: {
+        FunctionIndexImmediate<validate> imm(decoder, pc);
+        return 1 + imm.length;
       }
       case kExprMemoryGrow:
       case kExprMemorySize: {
@@ -1398,6 +1421,7 @@ class WasmDecoder : public Decoder {
       case kExprF32Const:
       case kExprF64Const:
       case kExprRefNull:
+      case kExprRefFunc:
       case kExprMemorySize:
         return {0, 1};
       case kExprCallFunction: {
@@ -2009,6 +2033,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           auto* value = Push(kWasmNullRef);
           CALL_INTERFACE_IF_REACHABLE(RefNull, value);
           len = 1;
+          break;
+        }
+        case kExprRefFunc: {
+          CHECK_PROTOTYPE_OPCODE(anyref);
+          FunctionIndexImmediate<validate> imm(this, this->pc_);
+          if (!this->Validate(this->pc_, imm)) break;
+          auto* value = Push(kWasmAnyFunc);
+          CALL_INTERFACE_IF_REACHABLE(RefFunc, imm.index, value);
+          len = 1 + imm.length;
           break;
         }
         case kExprGetLocal: {

@@ -2902,6 +2902,18 @@ class ThreadImpl {
           Push(WasmValue(isolate_->factory()->null_value()));
           break;
         }
+        case kExprRefFunc: {
+          FunctionIndexImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                           code->at(pc));
+          HandleScope handle_scope(isolate_);  // Avoid leaking handles.
+
+          Handle<WasmExportedFunction> function =
+              WasmInstanceObject::GetOrCreateWasmExportedFunction(
+                  isolate_, instance_object_, imm.index);
+          Push(WasmValue(function));
+          len = 1 + imm.length;
+          break;
+        }
         case kExprGetLocal: {
           LocalIndexImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.

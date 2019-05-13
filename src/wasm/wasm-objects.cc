@@ -973,32 +973,10 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
 
   // Check if we already compiled a wrapper for the function but did not store
   // it in the table slot yet.
-  MaybeHandle<Object> maybe_entry = WasmInstanceObject::GetWasmExportedFunction(
-      isolate, instance, function_index);
-  if (maybe_entry.ToHandle(&entry)) {
-    entries->set(entry_index, *entry);
-    return entry;
-  }
-
-  const WasmModule* module = instance->module_object()->module();
-  const WasmFunction& function = module->functions[function_index];
-  // Exported functions got their wrapper compiled during instantiation.
-  CHECK(!function.exported);
-  Handle<Code> wrapper_code =
-      compiler::CompileJSToWasmWrapper(isolate, function.sig, function.imported)
-          .ToHandleChecked();
-
-  MaybeHandle<String> function_name = WasmModuleObject::GetFunctionNameOrNull(
-      isolate, handle(instance->module_object(), isolate), function_index);
-
-  Handle<WasmExportedFunction> result = WasmExportedFunction::New(
-      isolate, instance, function_name, function_index,
-      static_cast<int>(function.sig->parameter_count()), wrapper_code);
-
-  entries->set(entry_index, *result);
-  WasmInstanceObject::SetWasmExportedFunction(isolate, instance, function_index,
-                                              result);
-  return result;
+  entry = WasmInstanceObject::GetOrCreateWasmExportedFunction(isolate, instance,
+                                                              function_index);
+  entries->set(entry_index, *entry);
+  return entry;
 }
 
 void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
@@ -1824,6 +1802,33 @@ MaybeHandle<WasmExportedFunction> WasmInstanceObject::GetWasmExportedFunction(
   return result;
 }
 
+Handle<WasmExportedFunction>
+WasmInstanceObject::GetOrCreateWasmExportedFunction(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, int function_index) {
+  MaybeHandle<WasmExportedFunction> maybe_result =
+      WasmInstanceObject::GetWasmExportedFunction(isolate, instance,
+                                                  function_index);
+
+  Handle<WasmExportedFunction> result;
+  if (maybe_result.ToHandle(&result)) {
+    return result;
+  }
+
+  const WasmModule* module = instance->module_object()->module();
+  const WasmFunction& function = module->functions[function_index];
+  Handle<Code> wrapper_code =
+      compiler::CompileJSToWasmWrapper(isolate, function.sig, function.imported)
+          .ToHandleChecked();
+
+  result = WasmExportedFunction::New(
+      isolate, instance, function_index,
+      static_cast<int>(function.sig->parameter_count()), wrapper_code);
+
+  WasmInstanceObject::SetWasmExportedFunction(isolate, instance, function_index,
+                                              result);
+  return result;
+}
+
 void WasmInstanceObject::SetWasmExportedFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int index,
     Handle<WasmExportedFunction> val) {
@@ -2054,9 +2059,8 @@ int WasmExportedFunction::function_index() {
 }
 
 Handle<WasmExportedFunction> WasmExportedFunction::New(
-    Isolate* isolate, Handle<WasmInstanceObject> instance,
-    MaybeHandle<String> maybe_name, int func_index, int arity,
-    Handle<Code> export_wrapper) {
+    Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
+    int arity, Handle<Code> export_wrapper) {
   DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
   int num_imported_functions = instance->module()->num_imported_functions;
   int jump_table_offset = -1;
@@ -2074,6 +2078,14 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   function_data->set_instance(*instance);
   function_data->set_jump_table_offset(jump_table_offset);
   function_data->set_function_index(func_index);
+
+  MaybeHandle<String> maybe_name;
+  if (instance->module()->origin == wasm::kAsmJsOrigin) {
+    // We can use the function name only for asm.js. For WebAssembly, the
+    // function name is specified as the function_index.toString().
+    maybe_name = WasmModuleObject::GetFunctionNameOrNull(
+        isolate, handle(instance->module_object(), isolate), func_index);
+  }
   Handle<String> name;
   if (!maybe_name.ToHandle(&name)) {
     EmbeddedVector<char, 16> buffer;

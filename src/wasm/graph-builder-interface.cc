@@ -251,6 +251,10 @@ class WasmGraphBuildingInterface {
     result->node = builder_->RefNull();
   }
 
+  void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
+    result->node = BUILD(RefFunc, function_index);
+  }
+
   void Drop(FullDecoder* decoder, const Value& value) {}
 
   void DoReturn(FullDecoder* decoder, Vector<Value> values) {
