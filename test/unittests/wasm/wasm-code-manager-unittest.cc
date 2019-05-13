@@ -213,7 +213,7 @@ TEST_P(WasmCodeManagerTest, EmptyCase) {
   CHECK_EQ(0, manager()->committed_code_space());
 
   ASSERT_DEATH_IF_SUPPORTED(AllocModule(page_size, GetParam()),
-                            "OOM in NativeModule::AllocateForCode commit");
+                            "OOM in wasm code commit");
 }
 
 TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
@@ -244,7 +244,7 @@ TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
   // WasmCodeManager). Hence don't check for that part of the OOM message.
   ASSERT_DEATH_IF_SUPPORTED(
       AddCode(native_module.get(), index++, 1 * kCodeAlignment),
-      "OOM in NativeModule::AllocateForCode");
+      "OOM in wasm code");
 }
 
 TEST_P(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
@@ -260,7 +260,7 @@ TEST_P(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
   CHECK_NOT_NULL(code);
   ASSERT_DEATH_IF_SUPPORTED(
       AddCode(nm2.get(), 0, 2 * page_size - kJumpTableSize),
-      "OOM in NativeModule::AllocateForCode commit");
+      "OOM in wasm code commit");
 }
 
 TEST_P(WasmCodeManagerTest, GrowingVsFixedModule) {
@@ -275,7 +275,7 @@ TEST_P(WasmCodeManagerTest, GrowingVsFixedModule) {
     // grow.
     ASSERT_DEATH_IF_SUPPORTED(
         AddCode(nm.get(), 0, remaining_space_in_module + kCodeAlignment),
-        "OOM in NativeModule::AllocateForCode");
+        "OOM in wasm code reservation");
   } else {
     // The module grows by one page. One page remains uncommitted.
     WasmCodeRefScope code_ref_scope;

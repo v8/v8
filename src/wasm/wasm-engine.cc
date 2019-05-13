@@ -614,50 +614,46 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 }
 
 void WasmEngine::FreeNativeModule(NativeModule* native_module) {
-  {
-    base::MutexGuard guard(&mutex_);
-    auto it = native_modules_.find(native_module);
-    DCHECK_NE(native_modules_.end(), it);
-    for (Isolate* isolate : it->second->isolates) {
-      DCHECK_EQ(1, isolates_.count(isolate));
-      IsolateInfo* info = isolates_[isolate].get();
-      DCHECK_EQ(1, info->native_modules.count(native_module));
-      info->native_modules.erase(native_module);
-      // If there are {WasmCode} objects of the deleted {NativeModule}
-      // outstanding to be logged in this isolate, remove them. Decrementing the
-      // ref count is not needed, since the {NativeModule} dies anyway.
-      size_t remaining = info->code_to_log.size();
-      if (remaining > 0) {
-        for (size_t i = 0; i < remaining; ++i) {
-          while (i < remaining &&
-                 info->code_to_log[i]->native_module() == native_module) {
-            // Move the last remaining item to this slot (this can be the same
-            // as {i}, which is OK).
-            info->code_to_log[i] = info->code_to_log[--remaining];
-          }
-        }
-        info->code_to_log.resize(remaining);
-      }
-    }
-    // If there is a GC running which has references to code contained in the
-    // deleted {NativeModule}, remove those references.
-    if (current_gc_info_) {
-      for (auto it = current_gc_info_->dead_code.begin(),
-                end = current_gc_info_->dead_code.end();
-           it != end;) {
-        if ((*it)->native_module() == native_module) {
-          it = current_gc_info_->dead_code.erase(it);
-        } else {
-          ++it;
+  base::MutexGuard guard(&mutex_);
+  auto it = native_modules_.find(native_module);
+  DCHECK_NE(native_modules_.end(), it);
+  for (Isolate* isolate : it->second->isolates) {
+    DCHECK_EQ(1, isolates_.count(isolate));
+    IsolateInfo* info = isolates_[isolate].get();
+    DCHECK_EQ(1, info->native_modules.count(native_module));
+    info->native_modules.erase(native_module);
+    // If there are {WasmCode} objects of the deleted {NativeModule}
+    // outstanding to be logged in this isolate, remove them. Decrementing the
+    // ref count is not needed, since the {NativeModule} dies anyway.
+    size_t remaining = info->code_to_log.size();
+    if (remaining > 0) {
+      for (size_t i = 0; i < remaining; ++i) {
+        while (i < remaining &&
+               info->code_to_log[i]->native_module() == native_module) {
+          // Move the last remaining item to this slot (this can be the same
+          // as {i}, which is OK).
+          info->code_to_log[i] = info->code_to_log[--remaining];
         }
       }
-      TRACE_CODE_GC(
-          "Native module %p died, reducing dead code objects to %zu.\n",
-          native_module, current_gc_info_->dead_code.size());
+      info->code_to_log.resize(remaining);
     }
-    native_modules_.erase(it);
   }
-  code_manager_.FreeNativeModule(native_module);
+  // If there is a GC running which has references to code contained in the
+  // deleted {NativeModule}, remove those references.
+  if (current_gc_info_) {
+    for (auto it = current_gc_info_->dead_code.begin(),
+              end = current_gc_info_->dead_code.end();
+         it != end;) {
+      if ((*it)->native_module() == native_module) {
+        it = current_gc_info_->dead_code.erase(it);
+      } else {
+        ++it;
+      }
+    }
+    TRACE_CODE_GC("Native module %p died, reducing dead code objects to %zu.\n",
+                  native_module, current_gc_info_->dead_code.size());
+  }
+  native_modules_.erase(it);
 }
 
 namespace {

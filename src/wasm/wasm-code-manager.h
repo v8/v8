@@ -272,6 +272,64 @@ class V8_EXPORT_PRIVATE WasmCode final {
 // Return a textual description of the kind.
 const char* GetWasmCodeKindAsString(WasmCode::Kind);
 
+// Manages the code reservations and allocations of a single {NativeModule}.
+class WasmCodeAllocator {
+ public:
+  WasmCodeAllocator(WasmCodeManager*, VirtualMemory code_space,
+                    bool can_request_more);
+  ~WasmCodeAllocator();
+
+  size_t committed_code_space() const {
+    return committed_code_space_.load(std::memory_order_acquire);
+  }
+  size_t generated_code_size() const {
+    return generated_code_size_.load(std::memory_order_acquire);
+  }
+  size_t freed_code_size() const {
+    return freed_code_size_.load(std::memory_order_acquire);
+  }
+
+  // Allocate code space. Returns a valid buffer or fails with OOM (crash).
+  Vector<byte> AllocateForCode(NativeModule*, size_t size);
+
+  // Sets permissions of all owned code space to executable, or read-write (if
+  // {executable} is false). Returns true on success.
+  V8_EXPORT_PRIVATE bool SetExecutable(bool executable);
+
+  // Free memory pages of all given code objects. Used for wasm code GC.
+  void FreeCode(Vector<WasmCode* const>);
+
+ private:
+  // The engine-wide wasm code manager.
+  WasmCodeManager* const code_manager_;
+
+  mutable base::Mutex mutex_;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Protected by {mutex_}:
+
+  // Code space that was reserved and is available for allocations (subset of
+  // {owned_code_space_}).
+  DisjointAllocationPool free_code_space_;
+  // Code space that was allocated for code (subset of {owned_code_space_}).
+  DisjointAllocationPool allocated_code_space_;
+  // Code space that was allocated before but is dead now. Full pages within
+  // this region are discarded. It's still a subset of {owned_code_space_}).
+  DisjointAllocationPool freed_code_space_;
+  std::vector<VirtualMemory> owned_code_space_;
+
+  // End of fields protected by {mutex_}.
+  //////////////////////////////////////////////////////////////////////////////
+
+  std::atomic<size_t> committed_code_space_{0};
+  std::atomic<size_t> generated_code_size_{0};
+  std::atomic<size_t> freed_code_size_{0};
+
+  bool is_executable_ = false;
+
+  const bool can_request_more_memory_;
+};
+
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64
@@ -357,7 +415,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // above {GetCallTargetForFunction} returns) to a function index.
   uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
 
-  bool SetExecutable(bool executable);
+  bool SetExecutable(bool executable) {
+    return code_allocator_.SetExecutable(executable);
+  }
 
   // For cctests, where we build both WasmModule and the runtime objects
   // on the fly, and bypass the instance builder pipeline.
@@ -384,7 +444,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   Vector<const uint8_t> wire_bytes() const { return wire_bytes_->as_vector(); }
   const WasmModule* module() const { return module_.get(); }
   std::shared_ptr<const WasmModule> shared_module() const { return module_; }
-  size_t committed_code_space() const { return committed_code_space_.load(); }
+  size_t committed_code_space() const {
+    return code_allocator_.committed_code_space();
+  }
   WasmEngine* engine() const { return engine_; }
 
   void SetWireBytes(OwnedVector<const uint8_t> wire_bytes);
@@ -442,8 +504,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Add and publish anonymous code.
   WasmCode* AddAndPublishAnonymousCode(Handle<Code>, WasmCode::Kind kind,
                                        const char* name = nullptr);
-  // Allocate code space. Returns a valid buffer or fails with OOM (crash).
-  Vector<byte> AllocateForCode(size_t size);
 
   WasmCode* CreateEmptyJumpTable(uint32_t jump_table_size);
 
@@ -470,6 +530,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
     uint8_t& byte = interpreter_redirections_[bitset_idx / kBitsPerByte];
     byte |= 1 << (bitset_idx % kBitsPerByte);
   }
+
+  // {WasmCodeAllocator} manages all code reservations and allocations for this
+  // {NativeModule}.
+  WasmCodeAllocator code_allocator_;
 
   // Features enabled for this module. We keep a copy of the features that
   // were enabled at the time of the creation of this native module,
@@ -517,27 +581,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // this module marking those functions that have been redirected.
   std::unique_ptr<uint8_t[]> interpreter_redirections_;
 
-  // Code space that was reserved and is available for allocations (subset of
-  // {owned_code_space_}).
-  DisjointAllocationPool free_code_space_;
-  // Code space that was allocated for code (subset of {owned_code_space_}).
-  DisjointAllocationPool allocated_code_space_;
-  // Code space that was allocated before but is dead now. Full pages within
-  // this region are discarded. It's still a subset of {owned_code_space_}).
-  DisjointAllocationPool freed_code_space_;
-  std::vector<VirtualMemory> owned_code_space_;
-
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
   WasmEngine* const engine_;
-  std::atomic<size_t> committed_code_space_{0};
-  std::atomic<size_t> generated_code_size_{0};
-  std::atomic<size_t> freed_code_size_{0};
   int modification_scope_depth_ = 0;
-  bool can_request_more_memory_;
   UseTrapHandler use_trap_handler_ = kNoTrapHandler;
-  bool is_executable_ = false;
   bool lazy_compile_frozen_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(NativeModule);
@@ -577,7 +626,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   static size_t EstimateNativeModuleNonCodeSize(const WasmModule* module);
 
  private:
-  friend class NativeModule;
+  friend class WasmCodeAllocator;
   friend class WasmEngine;
 
   std::shared_ptr<NativeModule> NewNativeModule(
@@ -592,7 +641,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // for the freed memory size. We do that in FreeNativeModule.
   // There's no separate Uncommit.
 
-  void FreeNativeModule(NativeModule*);
+  void FreeNativeModule(Vector<VirtualMemory> owned_code,
+                        size_t committed_size);
 
   void AssignRanges(Address start, Address end, NativeModule*);
 

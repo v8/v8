@@ -400,18 +400,198 @@ void WasmCode::DecrementRefCount(Vector<WasmCode* const> code_vec) {
   if (engine) engine->FreeDeadCode(dead_code);
 }
 
+WasmCodeAllocator::WasmCodeAllocator(WasmCodeManager* code_manager,
+                                     VirtualMemory code_space,
+                                     bool can_request_more)
+    : code_manager_(code_manager),
+      free_code_space_(code_space.region()),
+      can_request_more_memory_(can_request_more) {
+  owned_code_space_.reserve(can_request_more ? 4 : 1);
+  owned_code_space_.emplace_back(std::move(code_space));
+}
+
+WasmCodeAllocator::~WasmCodeAllocator() {
+  code_manager_->FreeNativeModule(VectorOf(owned_code_space_),
+                                  committed_code_space());
+}
+
+Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
+                                                size_t size) {
+  base::MutexGuard lock(&mutex_);
+  DCHECK_EQ(code_manager_, native_module->engine()->code_manager());
+  DCHECK_LT(0, size);
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+  // This happens under a lock assumed by the caller.
+  size = RoundUp<kCodeAlignment>(size);
+  base::AddressRegion code_space = free_code_space_.Allocate(size);
+  if (code_space.is_empty()) {
+    if (!can_request_more_memory_) {
+      V8::FatalProcessOutOfMemory(nullptr, "wasm code reservation");
+      UNREACHABLE();
+    }
+
+    Address hint = owned_code_space_.empty() ? kNullAddress
+                                             : owned_code_space_.back().end();
+
+    VirtualMemory new_mem =
+        code_manager_->TryAllocate(size, reinterpret_cast<void*>(hint));
+    if (!new_mem.IsReserved()) {
+      V8::FatalProcessOutOfMemory(nullptr, "wasm code reservation");
+      UNREACHABLE();
+    }
+    code_manager_->AssignRanges(new_mem.address(), new_mem.end(),
+                                native_module);
+
+    free_code_space_.Merge(new_mem.region());
+    owned_code_space_.emplace_back(std::move(new_mem));
+    code_space = free_code_space_.Allocate(size);
+    DCHECK(!code_space.is_empty());
+  }
+  const Address page_size = page_allocator->AllocatePageSize();
+  Address commit_start = RoundUp(code_space.begin(), page_size);
+  Address commit_end = RoundUp(code_space.end(), page_size);
+  // {commit_start} will be either code_space.start or the start of the next
+  // page. {commit_end} will be the start of the page after the one in which
+  // the allocation ends.
+  // We start from an aligned start, and we know we allocated vmem in
+  // page multiples.
+  // We just need to commit what's not committed. The page in which we
+  // start is already committed (or we start at the beginning of a page).
+  // The end needs to be committed all through the end of the page.
+  if (commit_start < commit_end) {
+    committed_code_space_.fetch_add(commit_end - commit_start);
+    // Committed code cannot grow bigger than maximum code space size.
+    DCHECK_LE(committed_code_space_.load(), kMaxWasmCodeMemory);
+#if V8_OS_WIN
+    // On Windows, we cannot commit a region that straddles different
+    // reservations of virtual memory. Because we bump-allocate, and because, if
+    // we need more memory, we append that memory at the end of the
+    // owned_code_space_ list, we traverse that list in reverse order to find
+    // the reservation(s) that guide how to chunk the region to commit.
+    for (auto& vmem : base::Reversed(owned_code_space_)) {
+      if (commit_end <= vmem.address() || vmem.end() <= commit_start) continue;
+      Address start = std::max(commit_start, vmem.address());
+      Address end = std::min(commit_end, vmem.end());
+      size_t commit_size = static_cast<size_t>(end - start);
+      if (!code_manager_->Commit(start, commit_size)) {
+        V8::FatalProcessOutOfMemory(nullptr, "wasm code commit");
+        UNREACHABLE();
+      }
+      // Opportunistically reduce the commit range. This might terminate the
+      // loop early.
+      if (commit_start == start) commit_start = end;
+      if (commit_end == end) commit_end = start;
+      if (commit_start >= commit_end) break;
+    }
+#else
+    if (!code_manager_->Commit(commit_start, commit_end - commit_start)) {
+      V8::FatalProcessOutOfMemory(nullptr, "wasm code commit");
+      UNREACHABLE();
+    }
+#endif
+  }
+  DCHECK(IsAligned(code_space.begin(), kCodeAlignment));
+  allocated_code_space_.Merge(code_space);
+  generated_code_size_.fetch_add(code_space.size(), std::memory_order_relaxed);
+
+  TRACE_HEAP("Code alloc for %p: %" PRIxPTR ",+%zu\n", this, code_space.begin(),
+             size);
+  return {reinterpret_cast<byte*>(code_space.begin()), code_space.size()};
+}
+
+bool WasmCodeAllocator::SetExecutable(bool executable) {
+  base::MutexGuard lock(&mutex_);
+  if (is_executable_ == executable) return true;
+  TRACE_HEAP("Setting module %p as executable: %d.\n", this, executable);
+
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+
+  if (FLAG_wasm_write_protect_code_memory) {
+    PageAllocator::Permission permission =
+        executable ? PageAllocator::kReadExecute : PageAllocator::kReadWrite;
+#if V8_OS_WIN
+    // On windows, we need to switch permissions per separate virtual memory
+    // reservation. This is really just a problem when the NativeModule is
+    // growable (meaning can_request_more_memory_). That's 32-bit in production,
+    // or unittests.
+    // For now, in that case, we commit at reserved memory granularity.
+    // Technically, that may be a waste, because we may reserve more than we
+    // use. On 32-bit though, the scarce resource is the address space -
+    // committed or not.
+    if (can_request_more_memory_) {
+      for (auto& vmem : owned_code_space_) {
+        if (!SetPermissions(page_allocator, vmem.address(), vmem.size(),
+                            permission)) {
+          return false;
+        }
+        TRACE_HEAP("Set %p:%p to executable:%d\n", vmem.address(), vmem.end(),
+                   executable);
+      }
+      is_executable_ = executable;
+      return true;
+    }
+#endif
+    for (auto& region : allocated_code_space_.regions()) {
+      // allocated_code_space_ is fine-grained, so we need to
+      // page-align it.
+      size_t region_size =
+          RoundUp(region.size(), page_allocator->AllocatePageSize());
+      if (!SetPermissions(page_allocator, region.begin(), region_size,
+                          permission)) {
+        return false;
+      }
+      TRACE_HEAP("Set %p:%p to executable:%d\n",
+                 reinterpret_cast<void*>(region.begin()),
+                 reinterpret_cast<void*>(region.end()), executable);
+    }
+  }
+  is_executable_ = executable;
+  return true;
+}
+
+void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
+  // Zap code area and collect freed code regions.
+  DisjointAllocationPool freed_regions;
+  size_t code_size = 0;
+  for (WasmCode* code : codes) {
+    ZapCode(code->instruction_start(), code->instructions().size());
+    FlushInstructionCache(code->instruction_start(),
+                          code->instructions().size());
+    code_size += code->instructions().size();
+    freed_regions.Merge(base::AddressRegion{code->instruction_start(),
+                                            code->instructions().size()});
+  }
+  freed_code_size_.fetch_add(code_size);
+
+  // Merge {freed_regions} into {freed_code_space_} and discard full pages.
+  base::MutexGuard guard(&mutex_);
+  PageAllocator* allocator = GetPlatformPageAllocator();
+  size_t page_size = allocator->AllocatePageSize();
+  for (auto region : freed_regions.regions()) {
+    auto merged_region = freed_code_space_.Merge(region);
+    Address discard_start = std::max(RoundUp(merged_region.begin(), page_size),
+                                     RoundDown(region.begin(), page_size));
+    Address discard_end = std::min(RoundDown(merged_region.end(), page_size),
+                                   RoundUp(region.end(), page_size));
+    if (discard_start >= discard_end) continue;
+    // TODO(clemensh): Reenable after fixing https://crbug.com/960707.
+    // allocator->DiscardSystemPages(reinterpret_cast<void*>(discard_start),
+    //                               discard_end - discard_start);
+  }
+}
+
 NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
                            bool can_request_more, VirtualMemory code_space,
                            std::shared_ptr<const WasmModule> module,
                            std::shared_ptr<Counters> async_counters,
                            std::shared_ptr<NativeModule>* shared_this)
-    : enabled_features_(enabled),
+    : code_allocator_(engine->code_manager(), std::move(code_space),
+                      can_request_more),
+      enabled_features_(enabled),
       module_(std::move(module)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
           new WasmImportWrapperCache(this))),
-      free_code_space_(code_space.region()),
       engine_(engine),
-      can_request_more_memory_(can_request_more),
       use_trap_handler_(trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                                              : kNoTrapHandler) {
   // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
@@ -422,8 +602,6 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   compilation_state_ =
       CompilationState::New(*shared_this, std::move(async_counters));
   DCHECK_NOT_NULL(module_);
-  owned_code_space_.reserve(can_request_more ? 4 : 1);
-  owned_code_space_.emplace_back(std::move(code_space));
 
 #if defined(V8_OS_WIN_X64)
   // On some platforms, specifically Win64, we need to reserve some pages at
@@ -433,7 +611,7 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   // for details.
   if (engine_->code_manager()
           ->CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
-    AllocateForCode(Heap::GetCodeRangeReservedAreaSize());
+    code_allocator_.AllocateForCode(this, Heap::GetCodeRangeReservedAreaSize());
   }
 #endif
 
@@ -584,7 +762,8 @@ WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
   const size_t code_comments_offset =
       static_cast<size_t>(code->code_comments_offset());
 
-  Vector<uint8_t> dst_code_bytes = AllocateForCode(instructions.size());
+  Vector<uint8_t> dst_code_bytes =
+      code_allocator_.AllocateForCode(this, instructions.size());
   memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
   // Apply the relocation delta by iterating over the RelocInfo.
@@ -642,10 +821,10 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier) {
-  return AddCodeWithCodeSpace(index, desc, stack_slots, tagged_parameter_slots,
-                              std::move(protected_instructions),
-                              std::move(source_position_table), kind, tier,
-                              AllocateForCode(desc.instr_size));
+  return AddCodeWithCodeSpace(
+      index, desc, stack_slots, tagged_parameter_slots,
+      std::move(protected_instructions), std::move(source_position_table), kind,
+      tier, code_allocator_.AllocateForCode(this, desc.instr_size));
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
@@ -802,7 +981,8 @@ WasmCode* NativeModule::AddDeserializedCode(
     OwnedVector<const byte> reloc_info,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier) {
-  Vector<uint8_t> dst_code_bytes = AllocateForCode(instructions.size());
+  Vector<uint8_t> dst_code_bytes =
+      code_allocator_.AllocateForCode(this, instructions.size());
   memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
   std::unique_ptr<WasmCode> code{new WasmCode{
@@ -846,7 +1026,8 @@ bool NativeModule::HasCode(uint32_t index) const {
 WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {
   // Only call this if we really need a jump table.
   DCHECK_LT(0, jump_table_size);
-  Vector<uint8_t> code_space = AllocateForCode(jump_table_size);
+  Vector<uint8_t> code_space =
+      code_allocator_.AllocateForCode(this, jump_table_size);
   ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
   std::unique_ptr<WasmCode> code{new WasmCode{
       this,                                     // native_module
@@ -865,93 +1046,6 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {
       WasmCode::kJumpTable,                     // kind
       ExecutionTier::kNone}};                   // tier
   return PublishCode(std::move(code));
-}
-
-Vector<byte> NativeModule::AllocateForCode(size_t size) {
-  base::MutexGuard lock(&allocation_mutex_);
-  DCHECK_LT(0, size);
-  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
-  // This happens under a lock assumed by the caller.
-  size = RoundUp<kCodeAlignment>(size);
-  base::AddressRegion code_space = free_code_space_.Allocate(size);
-  if (code_space.is_empty()) {
-    if (!can_request_more_memory_) {
-      V8::FatalProcessOutOfMemory(nullptr,
-                                  "NativeModule::AllocateForCode reservation");
-      UNREACHABLE();
-    }
-
-    Address hint = owned_code_space_.empty() ? kNullAddress
-                                             : owned_code_space_.back().end();
-
-    VirtualMemory new_mem = engine_->code_manager()->TryAllocate(
-        size, reinterpret_cast<void*>(hint));
-    if (!new_mem.IsReserved()) {
-      V8::FatalProcessOutOfMemory(nullptr,
-                                  "NativeModule::AllocateForCode reservation");
-      UNREACHABLE();
-    }
-    engine_->code_manager()->AssignRanges(new_mem.address(), new_mem.end(),
-                                          this);
-
-    free_code_space_.Merge(new_mem.region());
-    owned_code_space_.emplace_back(std::move(new_mem));
-    code_space = free_code_space_.Allocate(size);
-    DCHECK(!code_space.is_empty());
-  }
-  const Address page_size = page_allocator->AllocatePageSize();
-  Address commit_start = RoundUp(code_space.begin(), page_size);
-  Address commit_end = RoundUp(code_space.end(), page_size);
-  // {commit_start} will be either code_space.start or the start of the next
-  // page. {commit_end} will be the start of the page after the one in which
-  // the allocation ends.
-  // We start from an aligned start, and we know we allocated vmem in
-  // page multiples.
-  // We just need to commit what's not committed. The page in which we
-  // start is already committed (or we start at the beginning of a page).
-  // The end needs to be committed all through the end of the page.
-  if (commit_start < commit_end) {
-    committed_code_space_.fetch_add(commit_end - commit_start);
-    // Committed code cannot grow bigger than maximum code space size.
-    DCHECK_LE(committed_code_space_.load(), kMaxWasmCodeMemory);
-#if V8_OS_WIN
-    // On Windows, we cannot commit a region that straddles different
-    // reservations of virtual memory. Because we bump-allocate, and because, if
-    // we need more memory, we append that memory at the end of the
-    // owned_code_space_ list, we traverse that list in reverse order to find
-    // the reservation(s) that guide how to chunk the region to commit.
-    for (auto& vmem : base::Reversed(owned_code_space_)) {
-      if (commit_end <= vmem.address() || vmem.end() <= commit_start) continue;
-      Address start = std::max(commit_start, vmem.address());
-      Address end = std::min(commit_end, vmem.end());
-      size_t commit_size = static_cast<size_t>(end - start);
-      if (!engine_->code_manager()->Commit(start, commit_size)) {
-        V8::FatalProcessOutOfMemory(nullptr,
-                                    "NativeModule::AllocateForCode commit");
-        UNREACHABLE();
-      }
-      // Opportunistically reduce the commit range. This might terminate the
-      // loop early.
-      if (commit_start == start) commit_start = end;
-      if (commit_end == end) commit_end = start;
-      if (commit_start >= commit_end) break;
-    }
-#else
-    if (!engine_->code_manager()->Commit(commit_start,
-                                         commit_end - commit_start)) {
-      V8::FatalProcessOutOfMemory(nullptr,
-                                  "NativeModule::AllocateForCode commit");
-      UNREACHABLE();
-    }
-#endif
-  }
-  DCHECK(IsAligned(code_space.begin(), kCodeAlignment));
-  allocated_code_space_.Merge(code_space);
-  generated_code_size_.fetch_add(code_space.size(), std::memory_order_relaxed);
-
-  TRACE_HEAP("Code alloc for %p: %" PRIxPTR ",+%zu\n", this, code_space.begin(),
-             size);
-  return {reinterpret_cast<byte*>(code_space.begin()), code_space.size()};
 }
 
 namespace {
@@ -1025,7 +1119,7 @@ const char* NativeModule::GetRuntimeStubName(Address runtime_stub_entry) const {
 }
 
 NativeModule::~NativeModule() {
-  TRACE_HEAP("Deleting native module: %p\n", reinterpret_cast<void*>(this));
+  TRACE_HEAP("Deleting native module: %p\n", this);
   // Cancel all background compilation before resetting any field of the
   // NativeModule or freeing anything.
   compilation_state_->AbortCompilation();
@@ -1189,7 +1283,7 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     code_space = TryAllocate(code_vmem_size);
     if (code_space.IsReserved()) break;
     if (retries == kAllocationRetries) {
-      V8::FatalProcessOutOfMemory(isolate, "WasmCodeManager::NewNativeModule");
+      V8::FatalProcessOutOfMemory(isolate, "NewNativeModule");
       UNREACHABLE();
     }
     // Run one GC, then try the allocation again.
@@ -1220,60 +1314,11 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   return ret;
 }
 
-bool NativeModule::SetExecutable(bool executable) {
-  if (is_executable_ == executable) return true;
-  TRACE_HEAP("Setting module %p as executable: %d.\n", this, executable);
-
-  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
-
-  if (FLAG_wasm_write_protect_code_memory) {
-    PageAllocator::Permission permission =
-        executable ? PageAllocator::kReadExecute : PageAllocator::kReadWrite;
-#if V8_OS_WIN
-    // On windows, we need to switch permissions per separate virtual memory
-    // reservation. This is really just a problem when the NativeModule is
-    // growable (meaning can_request_more_memory_). That's 32-bit in production,
-    // or unittests.
-    // For now, in that case, we commit at reserved memory granularity.
-    // Technically, that may be a waste, because we may reserve more than we
-    // use. On 32-bit though, the scarce resource is the address space -
-    // committed or not.
-    if (can_request_more_memory_) {
-      for (auto& vmem : owned_code_space_) {
-        if (!SetPermissions(page_allocator, vmem.address(), vmem.size(),
-                            permission)) {
-          return false;
-        }
-        TRACE_HEAP("Set %p:%p to executable:%d\n", vmem.address(), vmem.end(),
-                   executable);
-      }
-      is_executable_ = executable;
-      return true;
-    }
-#endif
-    for (auto& region : allocated_code_space_.regions()) {
-      // allocated_code_space_ is fine-grained, so we need to
-      // page-align it.
-      size_t region_size =
-          RoundUp(region.size(), page_allocator->AllocatePageSize());
-      if (!SetPermissions(page_allocator, region.begin(), region_size,
-                          permission)) {
-        return false;
-      }
-      TRACE_HEAP("Set %p:%p to executable:%d\n",
-                 reinterpret_cast<void*>(region.begin()),
-                 reinterpret_cast<void*>(region.end()), executable);
-    }
-  }
-  is_executable_ = executable;
-  return true;
-}
-
 void NativeModule::SampleCodeSize(
     Counters* counters, NativeModule::CodeSamplingTime sampling_time) const {
   size_t code_size = sampling_time == kSampling
-                         ? committed_code_space()
-                         : generated_code_size_.load(std::memory_order_relaxed);
+                         ? code_allocator_.committed_code_space()
+                         : code_allocator_.generated_code_size();
   int code_size_mb = static_cast<int>(code_size / MB);
   Histogram* histogram = nullptr;
   switch (sampling_time) {
@@ -1286,12 +1331,12 @@ void NativeModule::SampleCodeSize(
     case kSampling: {
       histogram = counters->wasm_module_code_size_mb();
       // Also, add a sample of freed code size, absolute and relative.
-      size_t freed_size = freed_code_size_.load(std::memory_order_relaxed);
-      DCHECK_LE(freed_size, generated_code_size_);
+      size_t freed_size = code_allocator_.freed_code_size();
+      size_t generated_size = code_allocator_.generated_code_size();
+      DCHECK_LE(freed_size, generated_size);
       int total_freed_mb = static_cast<int>(freed_size / MB);
       counters->wasm_module_freed_code_size_mb()->AddSample(total_freed_mb);
-      int freed_percent =
-          static_cast<int>(100 * freed_code_size_ / generated_code_size_);
+      int freed_percent = static_cast<int>(100 * freed_size / generated_size);
       counters->wasm_module_freed_code_size_percent()->AddSample(freed_percent);
       break;
     }
@@ -1312,7 +1357,8 @@ std::vector<WasmCode*> NativeModule::AddCompiledCode(
     DCHECK(result.succeeded());
     total_code_space += RoundUp<kCodeAlignment>(result.code_desc.instr_size);
   }
-  Vector<byte> code_space = AllocateForCode(total_code_space);
+  Vector<byte> code_space =
+      code_allocator_.AllocateForCode(this, total_code_space);
 
   std::vector<std::unique_ptr<WasmCode>> generated_code;
   generated_code.reserve(results.size());
@@ -1351,18 +1397,8 @@ bool NativeModule::IsRedirectedToInterpreter(uint32_t func_index) {
 }
 
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
-  // Zap code area and collect freed code regions.
-  DisjointAllocationPool freed_regions;
-  size_t code_size = 0;
-  for (WasmCode* code : codes) {
-    ZapCode(code->instruction_start(), code->instructions().size());
-    FlushInstructionCache(code->instruction_start(),
-                          code->instructions().size());
-    code_size += code->instructions().size();
-    freed_regions.Merge(base::AddressRegion{code->instruction_start(),
-                                            code->instructions().size()});
-  }
-  freed_code_size_.fetch_add(code_size);
+  // Free the code space.
+  code_allocator_.FreeCode(codes);
 
   // Free the {WasmCode} objects. This will also unregister trap handler data.
   base::MutexGuard guard(&allocation_mutex_);
@@ -1370,27 +1406,12 @@ void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
     DCHECK_EQ(1, owned_code_.count(code->instruction_start()));
     owned_code_.erase(code->instruction_start());
   }
-
-  // Merge {freed_regions} into {freed_code_space_} and discard full pages.
-  PageAllocator* allocator = GetPlatformPageAllocator();
-  size_t page_size = allocator->AllocatePageSize();
-  for (auto region : freed_regions.regions()) {
-    auto merged_region = freed_code_space_.Merge(region);
-    Address discard_start = std::max(RoundUp(merged_region.begin(), page_size),
-                                     RoundDown(region.begin(), page_size));
-    Address discard_end = std::min(RoundDown(merged_region.end(), page_size),
-                                   RoundUp(region.end(), page_size));
-    if (discard_start >= discard_end) continue;
-    // TODO(clemensh): Reenable after fixing https://crbug.com/960707.
-    // allocator->DiscardSystemPages(reinterpret_cast<void*>(discard_start),
-    //                               discard_end - discard_start);
-  }
 }
 
-void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
+void WasmCodeManager::FreeNativeModule(Vector<VirtualMemory> owned_code_space,
+                                       size_t committed_size) {
   base::MutexGuard lock(&native_modules_mutex_);
-  TRACE_HEAP("Freeing NativeModule %p\n", native_module);
-  for (auto& code_space : native_module->owned_code_space_) {
+  for (auto& code_space : owned_code_space) {
     DCHECK(code_space.IsReserved());
     TRACE_HEAP("VMem Release: %" PRIxPTR ":%" PRIxPTR " (%zu)\n",
                code_space.address(), code_space.end(), code_space.size());
@@ -1407,12 +1428,10 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
     code_space.Free();
     DCHECK(!code_space.IsReserved());
   }
-  native_module->owned_code_space_.clear();
 
-  size_t code_size = native_module->committed_code_space_.load();
-  DCHECK(IsAligned(code_size, AllocatePageSize()));
-  size_t old_committed = total_committed_code_space_.fetch_sub(code_size);
-  DCHECK_LE(code_size, old_committed);
+  DCHECK(IsAligned(committed_size, AllocatePageSize()));
+  size_t old_committed = total_committed_code_space_.fetch_sub(committed_size);
+  DCHECK_LE(committed_size, old_committed);
   USE(old_committed);
 }
 
