@@ -292,10 +292,12 @@ namespace internal {
 
 void TickSample::Init(Isolate* isolate, const v8::RegisterState& state,
                       RecordCEntryFrame record_c_entry_frame, bool update_stats,
-                      bool use_simulator_reg_state) {
+                      bool use_simulator_reg_state,
+                      base::TimeDelta sampling_interval) {
   v8::TickSample::Init(reinterpret_cast<v8::Isolate*>(isolate), state,
                        record_c_entry_frame, update_stats,
                        use_simulator_reg_state);
+  this->sampling_interval = sampling_interval;
   if (pc == nullptr) return;
   timestamp = base::TimeTicks::HighResolutionNow();
 }
@@ -312,6 +314,8 @@ void TickSample::print() const {
   PrintF(" - %s: %p\n",
          has_external_callback ? "external_callback_entry" : "tos", tos);
   PrintF(" - update_stats: %d\n", update_stats);
+  PrintF(" - sampling_interval: %" PRId64 "\n",
+         sampling_interval.InMicroseconds());
   PrintF("\n");
 }
 

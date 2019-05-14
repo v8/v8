@@ -4,6 +4,8 @@
 
 #include "src/profiler/profile-generator.h"
 
+#include <algorithm>
+
 #include "src/objects/shared-function-info-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
@@ -488,9 +490,28 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
                               "Profile", id_, "data", std::move(value));
 }
 
+bool CpuProfile::CheckSubsample(base::TimeDelta source_sampling_interval) {
+  DCHECK_GE(source_sampling_interval, base::TimeDelta());
+
+  // If the sampling source's sampling interval is 0, record as many samples
+  // are possible irrespective of the profile's sampling interval. Manually
+  // taken samples (via CollectSample) fall into this case as well.
+  if (source_sampling_interval.IsZero()) return true;
+
+  next_sample_delta_ -= source_sampling_interval;
+  if (next_sample_delta_ <= base::TimeDelta()) {
+    next_sample_delta_ =
+        base::TimeDelta::FromMicroseconds(options_.sampling_interval_us());
+    return true;
+  }
+  return false;
+}
+
 void CpuProfile::AddPath(base::TimeTicks timestamp,
                          const ProfileStackTrace& path, int src_line,
-                         bool update_stats) {
+                         bool update_stats, base::TimeDelta sampling_interval) {
+  if (!CheckSubsample(sampling_interval)) return;
+
   ProfileNode* top_frame_node =
       top_down_.AddPathFromEnd(path, src_line, update_stats, options_.mode());
 
@@ -760,15 +781,46 @@ void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
   finished_profiles_.erase(pos);
 }
 
+namespace {
+
+int64_t GreatestCommonDivisor(int64_t a, int64_t b) {
+  return b ? GreatestCommonDivisor(b, a % b) : a;
+}
+
+}  // namespace
+
+base::TimeDelta CpuProfilesCollection::GetCommonSamplingInterval() const {
+  DCHECK(profiler_);
+
+  int64_t base_sampling_interval_us =
+      profiler_->sampling_interval().InMicroseconds();
+  if (base_sampling_interval_us == 0) return base::TimeDelta();
+
+  int64_t interval_us = 0;
+  for (const auto& profile : current_profiles_) {
+    // Snap the profile's requested sampling interval to the next multiple of
+    // the base sampling interval.
+    int64_t profile_interval_us =
+        std::max<int64_t>(
+            (profile->sampling_interval_us() + base_sampling_interval_us - 1) /
+                base_sampling_interval_us,
+            1) *
+        base_sampling_interval_us;
+    interval_us = GreatestCommonDivisor(interval_us, profile_interval_us);
+  }
+  return base::TimeDelta::FromMicroseconds(interval_us);
+}
+
 void CpuProfilesCollection::AddPathToCurrentProfiles(
     base::TimeTicks timestamp, const ProfileStackTrace& path, int src_line,
-    bool update_stats) {
+    bool update_stats, base::TimeDelta sampling_interval) {
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
   current_profiles_semaphore_.Wait();
   for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
-    profile->AddPath(timestamp, path, src_line, update_stats);
+    profile->AddPath(timestamp, path, src_line, update_stats,
+                     sampling_interval);
   }
   current_profiles_semaphore_.Signal();
 }
@@ -902,7 +954,8 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   }
 
   profiles_->AddPathToCurrentProfiles(sample.timestamp, stack_trace, src_line,
-                                      sample.update_stats);
+                                      sample.update_stats,
+                                      sample.sampling_interval);
 }
 
 CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {

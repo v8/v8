@@ -3171,6 +3171,171 @@ TEST(SampleLimit) {
   CHECK_EQ(profile->GetSamplesCount(), 50);
 }
 
+// Tests that a CpuProfile instance subsamples from a stream of tick samples
+// appropriately.
+TEST(ProflilerSubsampling) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
+  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      isolate, generator, v8::base::TimeDelta::FromMicroseconds(1),
+      /* use_precise_sampling */ true);
+  CpuProfiler profiler(isolate, kDebugNaming, profiles, generator, processor);
+
+  // Create a new CpuProfile that wants samples at 8us.
+  CpuProfile profile(&profiler, "",
+                     {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
+                      v8::CpuProfilingOptions::kNoSampleLimit, 8});
+  // Verify that the first sample is always included.
+  CHECK(profile.CheckSubsample(base::TimeDelta::FromMicroseconds(10)));
+
+  // 4 2us samples should result in one 8us sample.
+  CHECK(!profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+  CHECK(!profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+  CHECK(!profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+  CHECK(profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+
+  // Profiles should expect the source sample interval to change, in which case
+  // they should still take the first sample elapsed after their interval.
+  CHECK(!profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+  CHECK(!profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+  CHECK(!profile.CheckSubsample(base::TimeDelta::FromMicroseconds(2)));
+  CHECK(profile.CheckSubsample(base::TimeDelta::FromMicroseconds(4)));
+
+  // Aligned samples (at 8us) are always included.
+  CHECK(profile.CheckSubsample(base::TimeDelta::FromMicroseconds(8)));
+
+  // Samples with a rate of 0 should always be included.
+  CHECK(profile.CheckSubsample(base::TimeDelta::FromMicroseconds(0)));
+}
+
+// Tests that the base sampling rate of a CpuProfilesCollection is dynamically
+// chosen based on the GCD of its child profiles.
+TEST(DynamicResampling) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
+  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      isolate, generator, v8::base::TimeDelta::FromMicroseconds(1),
+      /* use_precise_sampling */ true);
+  CpuProfiler profiler(isolate, kDebugNaming, profiles, generator, processor);
+
+  // Set a 1us base sampling rate, dividing all possible intervals.
+  profiler.set_sampling_interval(base::TimeDelta::FromMicroseconds(1));
+
+  // Verify that the sampling interval with no started profilers is unset.
+  CHECK_EQ(profiles->GetCommonSamplingInterval(), base::TimeDelta());
+
+  // Add a 10us profiler, verify that the base sampling interval is as high as
+  // possible (10us).
+  profiles->StartProfiling("10us",
+                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
+                            v8::CpuProfilingOptions::kNoSampleLimit, 10});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(10));
+
+  // Add a 5us profiler, verify that the base sampling interval is as high as
+  // possible given a 10us and 5us profiler (5us).
+  profiles->StartProfiling("5us",
+                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
+                            v8::CpuProfilingOptions::kNoSampleLimit, 5});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(5));
+
+  // Add a 3us profiler, verify that the base sampling interval is 1us (due to
+  // coprime intervals).
+  profiles->StartProfiling("3us",
+                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
+                            v8::CpuProfilingOptions::kNoSampleLimit, 3});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(1));
+
+  // Remove the 5us profiler, verify that the sample interval stays at 1us.
+  profiles->StopProfiling("5us");
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(1));
+
+  // Remove the 10us profiler, verify that the sample interval becomes 3us.
+  profiles->StopProfiling("10us");
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(3));
+
+  // Remove the 3us profiler, verify that the sample interval becomes unset.
+  profiles->StopProfiling("3us");
+  CHECK_EQ(profiles->GetCommonSamplingInterval(), base::TimeDelta());
+}
+
+// Ensures that when a non-unit base sampling interval is set on the profiler,
+// that the sampling rate gets snapped to the nearest multiple prior to GCD
+// computation.
+TEST(DynamicResamplingWithBaseInterval) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
+  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      isolate, generator, v8::base::TimeDelta::FromMicroseconds(1),
+      /* use_precise_sampling */ true);
+  CpuProfiler profiler(isolate, kDebugNaming, profiles, generator, processor);
+
+  profiler.set_sampling_interval(base::TimeDelta::FromMicroseconds(7));
+
+  // Verify that the sampling interval with no started profilers is unset.
+  CHECK_EQ(profiles->GetCommonSamplingInterval(), base::TimeDelta());
+
+  // Add a profiler with an unset sampling interval, verify that the common
+  // sampling interval is equal to the base.
+  profiles->StartProfiling("unset",
+                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
+                            v8::CpuProfilingOptions::kNoSampleLimit});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(7));
+  profiles->StopProfiling("unset");
+
+  // Adding a 8us sampling interval rounds to a 14us base interval.
+  profiles->StartProfiling("8us",
+                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
+                            v8::CpuProfilingOptions::kNoSampleLimit, 8});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(14));
+
+  // Adding a 4us sampling interval should cause a lowering to a 7us interval.
+  profiles->StartProfiling("4us",
+                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
+                            v8::CpuProfilingOptions::kNoSampleLimit, 4});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(7));
+
+  // Removing the 4us sampling interval should restore the 14us sampling
+  // interval.
+  profiles->StopProfiling("4us");
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(14));
+
+  // Removing the 8us sampling interval should unset the common sampling
+  // interval.
+  profiles->StopProfiling("8us");
+  CHECK_EQ(profiles->GetCommonSamplingInterval(), base::TimeDelta());
+
+  // A sampling interval of 0us should enforce all profiles to have a sampling
+  // interval of 0us (the only multiple of 0).
+  profiler.set_sampling_interval(base::TimeDelta::FromMicroseconds(0));
+  profiles->StartProfiling("5us",
+                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
+                            v8::CpuProfilingOptions::kNoSampleLimit, 5});
+  CHECK_EQ(profiles->GetCommonSamplingInterval(),
+           base::TimeDelta::FromMicroseconds(0));
+  profiles->StopProfiling("5us");
+}
+
 enum class EntryCountMode { kAll, kOnlyInlined };
 
 // Count the number of unique source positions.

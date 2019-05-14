@@ -32,7 +32,9 @@ class CpuSampler : public sampler::Sampler {
     TickSample* sample = processor_->StartTickSample();
     if (sample == nullptr) return;
     Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
-    sample->Init(isolate, regs, TickSample::kIncludeCEntryFrame, true);
+    sample->Init(isolate, regs, TickSample::kIncludeCEntryFrame,
+                 /* update_stats */ true,
+                 /* use_simulator_reg_state */ true, processor_->period());
     if (is_counting_samples_ && !sample->timestamp.IsNull()) {
       if (sample->state == JS) ++js_sample_count_;
       if (sample->state == EXTERNAL) ++external_sample_count_;
@@ -243,6 +245,16 @@ void SamplingEventsProcessor::Run() {
   } while (ProcessCodeEvent());
 }
 
+void SamplingEventsProcessor::SetSamplingInterval(base::TimeDelta period) {
+  if (period_ == period) return;
+  StopSynchronously();
+
+  period_ = period;
+  base::Relaxed_Store(&running_, 1);
+
+  StartSynchronously();
+}
+
 void* SamplingEventsProcessor::operator new(size_t size) {
   return AlignedAlloc(size, alignof(SamplingEventsProcessor));
 }
@@ -321,7 +333,7 @@ CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilingNamingMode naming_mode,
                          ProfilerEventsProcessor* test_processor)
     : isolate_(isolate),
       naming_mode_(naming_mode),
-      sampling_interval_(base::TimeDelta::FromMicroseconds(
+      base_sampling_interval_(base::TimeDelta::FromMicroseconds(
           FLAG_cpu_profiler_sampling_interval)),
       profiles_(test_profiles),
       generator_(test_generator),
@@ -338,7 +350,7 @@ CpuProfiler::~CpuProfiler() {
 
 void CpuProfiler::set_sampling_interval(base::TimeDelta value) {
   DCHECK(!is_profiling_);
-  sampling_interval_ = value;
+  base_sampling_interval_ = value;
 }
 
 void CpuProfiler::set_use_precise_sampling(bool value) {
@@ -365,6 +377,17 @@ void CpuProfiler::CreateEntriesForRuntimeCallStats() {
   }
 }
 
+base::TimeDelta CpuProfiler::ComputeSamplingInterval() const {
+  return profiles_->GetCommonSamplingInterval();
+}
+
+void CpuProfiler::AdjustSamplingInterval() {
+  if (!processor_) return;
+
+  base::TimeDelta base_interval = ComputeSamplingInterval();
+  processor_->SetSamplingInterval(base_interval);
+}
+
 // static
 void CpuProfiler::CollectSample(Isolate* isolate) {
   GetProfilersManager()->CallCollectSample(isolate);
@@ -380,6 +403,7 @@ void CpuProfiler::StartProfiling(const char* title,
                                  CpuProfilingOptions options) {
   if (profiles_->StartProfiling(title, options)) {
     TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
+    AdjustSamplingInterval();
     StartProcessorIfNotStarted();
   }
 }
@@ -402,8 +426,9 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     codemap_needs_initialization = true;
     CreateEntriesForRuntimeCallStats();
   }
+  base::TimeDelta sampling_interval = ComputeSamplingInterval();
   processor_.reset(new SamplingEventsProcessor(
-      isolate_, generator_.get(), sampling_interval_, use_precise_sampling_));
+      isolate_, generator_.get(), sampling_interval, use_precise_sampling_));
   if (profiler_listener_) {
     profiler_listener_->set_observer(processor_.get());
   } else {
@@ -430,7 +455,9 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
   if (!is_profiling_) return nullptr;
   StopProcessorIfLastProfile(title);
-  return profiles_->StopProfiling(title);
+  CpuProfile* result = profiles_->StopProfiling(title);
+  AdjustSamplingInterval();
+  return result;
 }
 
 CpuProfile* CpuProfiler::StopProfiling(String title) {

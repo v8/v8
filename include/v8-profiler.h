@@ -321,22 +321,33 @@ class V8_EXPORT CpuProfilingOptions {
    * \param max_samples The maximum number of samples that should be recorded by
    *                    the profiler. Samples obtained after this limit will be
    *                    discarded.
+   * \param sampling_interval_us controls the profile-specific target
+   *                             sampling interval. The provided sampling
+   *                             interval will be snapped to the next lowest
+   *                             non-zero multiple of the profiler's sampling
+   *                             interval, set via SetSamplingInterval(). If
+   *                             zero, the sampling interval will be equal to
+   *                             the profiler's sampling interval.
    */
   CpuProfilingOptions(CpuProfilingMode mode = kLeafNodeLineNumbers,
                       bool record_samples = false,
-                      unsigned max_samples = kNoSampleLimit)
+                      unsigned max_samples = kNoSampleLimit,
+                      int sampling_interval_us = 0)
       : mode_(mode),
         record_samples_(record_samples),
-        max_samples_(max_samples) {}
+        max_samples_(max_samples),
+        sampling_interval_us_(sampling_interval_us) {}
 
   CpuProfilingMode mode() const { return mode_; }
   bool record_samples() const { return record_samples_; }
   unsigned max_samples() const { return max_samples_; }
+  int sampling_interval_us() const { return sampling_interval_us_; }
 
  private:
   CpuProfilingMode mode_;
   bool record_samples_;
   unsigned max_samples_;
+  int sampling_interval_us_;
 };
 
 /**
