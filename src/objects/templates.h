@@ -169,7 +169,7 @@ class FunctionTemplateInfo : public TemplateInfo {
 
   static const int kInvalidSerialNumber = 0;
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kSize,
+  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kHeaderSize,
                                 TORQUE_GENERATED_FUNCTION_TEMPLATE_INFO_FIELDS)
 
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
@@ -221,7 +221,7 @@ class ObjectTemplateInfo : public TemplateInfo {
   DECL_VERIFIER(ObjectTemplateInfo)
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kSize,
+  DEFINE_FIELD_OFFSET_CONSTANTS(TemplateInfo::kHeaderSize,
                                 TORQUE_GENERATED_OBJECT_TEMPLATE_INFO_FIELDS)
 
   // Starting from given object template's constructor walk up the inheritance

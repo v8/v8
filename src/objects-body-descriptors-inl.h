@@ -553,7 +553,7 @@ class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
 
 class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
  public:
-  STATIC_ASSERT(kTableOffset + kTaggedSize == kSize);
+  STATIC_ASSERT(kTableOffset + kTaggedSize == kSizeOfAllWeakCollections);
 
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     return IsValidJSObjectSlotImpl(map, obj, offset);

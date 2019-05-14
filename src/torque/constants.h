@@ -67,7 +67,10 @@ enum class ClassFlag {
   kGeneratePrint = 1 << 1,
   kGenerateVerify = 1 << 2,
   kTransient = 1 << 3,
-  kHasIndexedField = 1 << 4
+  kAbstract = 1 << 4,
+  kInstantiatedAbstractClass = 1 << 5,
+  kHasSameInstanceTypeAsParent = 1 << 6,
+  kHasIndexedField = 1 << 7
 };
 using ClassFlags = base::Flags<ClassFlag>;
 

@@ -164,13 +164,15 @@ void ImplementationVisitor::Visit(TypeAlias* alias) {
     // TODO(danno): This is a pretty cheesy hack for now. There should be a more
     // robust mechanism for this, e.g. declaring classes 'extern' or something.
     if (class_type->nspace()->IsTestNamespace()) {
-      std::string class_name{
-          class_type->GetSuperClass()->GetGeneratedTNodeTypeName()};
+      const ClassType* super = class_type->GetSuperClass();
+      std::string class_name{super->GetGeneratedTNodeTypeName()};
       header_out() << "  class " << class_type->name() << " : public "
                    << class_name << " {\n";
       header_out() << "   public:\n";
       header_out() << "    DEFINE_FIELD_OFFSET_CONSTANTS(" << class_name
-                   << "::kSize, TORQUE_GENERATED_"
+                   << "::";
+      header_out() << (super->IsAbstract() ? "kHeaderSize" : "kSize");
+      header_out() << ", TORQUE_GENERATED_"
                    << CapifyStringWithUnderscores(class_type->name())
                    << "_FIELDS)\n";
       header_out() << "  };\n";
@@ -2954,7 +2956,6 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
         new_contents_stream << "V(k" << CamelifyString(f.name_and_type.name)
                             << "Offset, " << size_string << ") \\\n";
       }
-
       ProcessFieldInSection(&section, &completed_sections,
                             FieldSectionType::kNoSection, &new_contents_stream);
       CompleteFieldSection(&section, &completed_sections,
@@ -2964,7 +2965,12 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
                            FieldSectionType::kStrongSection,
                            &new_contents_stream);
 
-      new_contents_stream << "V(kSize, 0) \\\n";
+      if (type->IsAbstract()) {
+        new_contents_stream << "V(kHeaderSize, 0) \\\n";
+      }
+      if (!type->IsAbstract() || type->IsInstantiatedAbstractClass()) {
+        new_contents_stream << "V(kSize, 0) \\\n";
+      }
       new_contents_stream << "\n";
     }
   }

@@ -30,7 +30,10 @@ type PositiveSmi extends Smi;
 // The Smi value zero, which is often used as null for HeapObject types.
 type Zero extends PositiveSmi;
 
-extern class HeapObject extends Tagged { map: Map; }
+@abstract
+extern class HeapObject extends Tagged {
+  map: Map;
+}
 
 type Object = Smi | HeapObject;
 type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
@@ -78,6 +81,7 @@ type Number = Smi | HeapNumber;
 type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
 
+@abstract
 @noVerifier
 extern class Name extends HeapObject {
   hash_field: int32;
@@ -88,14 +92,17 @@ extern class Symbol extends Name {
   name: Object;
 }
 
-// abstract
-extern class String extends Name { length: uint32; }
+@abstract
+extern class String extends Name {
+  length: uint32;
+}
 
 extern class ConsString extends String {
   first: String;
   second: String;
 }
 
+@abstract
 @noVerifier
 extern class ExternalString extends String {
   resource: RawPtr;
@@ -108,6 +115,7 @@ extern class ExternalTwoByteString extends ExternalString {}
 extern class InternalizedString extends String {}
 
 // TODO(v8:8983): Add declaration for variable-sized region.
+@abstract
 @noVerifier
 extern class SeqString extends String {
 }
@@ -124,16 +132,21 @@ extern class ThinString extends String { actual: String; }
 // The HeapNumber value NaN
 type NaN extends HeapNumber;
 
+@abstract
 @noVerifier
 extern class Struct extends HeapObject {
 }
 
+@abstract
+@dirtyInstantiatedAbstractClass
 @generatePrint
 extern class Tuple2 extends Struct {
   value1: Object;
   value2: Object;
 }
 
+@abstract
+@dirtyInstantiatedAbstractClass
 @generatePrint
 extern class Tuple3 extends Tuple2 {
   value3: Object;
@@ -147,6 +160,7 @@ type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 
 type Map extends HeapObject generates 'TNode<Map>';
 
+@abstract
 @noVerifier
 extern class FixedArrayBase extends HeapObject {
   length: Smi;
@@ -191,6 +205,7 @@ intrinsic %GetAllocationBaseSize<Class: type>(map: Map): intptr;
 intrinsic %Allocate<Class: type>(size: intptr): Class;
 intrinsic %AllocateInternalClass<Class: type>(slotCount: constexpr intptr): Class;
 
+@abstract
 @noVerifier
 extern class JSReceiver extends HeapObject {
   properties_or_hash: FixedArrayBase | Smi;
@@ -198,6 +213,8 @@ extern class JSReceiver extends HeapObject {
 
 type Constructor extends JSReceiver;
 
+@abstract
+@dirtyInstantiatedAbstractClass
 extern class JSObject extends JSReceiver {
   @noVerifier elements: FixedArrayBase;
 }
@@ -254,9 +271,11 @@ extern class JSValue extends JSObject { value: Object; }
 
 extern class JSArgumentsObject extends JSObject {}
 @noVerifier
+@hasSameInstanceTypeAsParent
 extern class JSArgumentsObjectWithLength extends JSArgumentsObject {
   length: Object;
 }
+@hasSameInstanceTypeAsParent
 extern class JSSloppyArgumentsObject extends JSArgumentsObjectWithLength {
   callee: Object;
 }
@@ -327,6 +346,7 @@ type NoSharedNameSentinel extends Smi;
 type JSModuleNamespace extends JSObject;
 type WeakArrayList extends HeapObject;
 
+@abstract
 @noVerifier
 extern class JSWeakCollection extends JSObject {
   table: Object;
@@ -431,7 +451,7 @@ extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
 type FixedTypedArray extends FixedTypedArrayBase
     generates 'TNode<FixedTypedArray>';
 
-extern class SloppyArgumentsElements extends FixedArray {}
+type SloppyArgumentsElements extends FixedArray;
 type NumberDictionary extends HeapObject
     generates 'TNode<NumberDictionary>';
 
@@ -491,6 +511,7 @@ extern class JSArrayBuffer extends JSObject {
   backing_store: RawPtr;
 }
 
+@abstract
 extern class JSArrayBufferView extends JSObject {
   buffer: JSArrayBuffer;
   byte_offset: uintptr;
@@ -537,6 +558,7 @@ extern class JSAccessorPropertyDescriptor extends JSObject {
   configurable: Object;
 }
 
+@abstract
 @noVerifier
 extern class JSCollection extends JSObject {
   table: Object;
@@ -579,6 +601,7 @@ extern class JSDataPropertyDescriptor extends JSObject {
   configurable: Object;
 }
 
+@abstract
 extern class TemplateInfo extends Struct {
   tag: Object;
   serial_number: Object;
@@ -616,7 +639,7 @@ extern class ObjectTemplateInfo extends TemplateInfo {
 
 extern class PropertyArray extends HeapObject { length_and_hash: Smi; }
 
-extern class DependentCode extends WeakFixedArray {}
+type DependentCode extends WeakFixedArray;
 
 extern class PropertyCell extends HeapObject {
   name: Name;
@@ -686,6 +709,8 @@ extern class DataHandler extends Struct {
   @noVerifier weak data_3: Object;
 }
 
+@abstract
+@dirtyInstantiatedAbstractClass
 extern class JSGeneratorObject extends JSObject {
   function: JSFunction;
   context: Context;
@@ -710,7 +735,9 @@ extern class JSPromise extends JSObject {
   flags: Smi;
 }
 
-extern class Microtask extends Struct {}
+@abstract
+extern class Microtask extends Struct {
+}
 
 extern class CallbackTask extends Microtask {
   callback: Foreign;
@@ -1005,6 +1032,7 @@ extern class PromiseReaction extends Struct {
   promise_or_capability: JSPromise | PromiseCapability | Undefined;
 }
 
+@abstract
 extern class PromiseReactionJobTask extends Microtask {
   argument: Object;
   context: Context;
@@ -1061,6 +1089,7 @@ RegExpBuiltinsAssembler::FastLoadLastIndex(FastJSRegExp): Smi;
 extern operator '.lastIndex=' macro
 RegExpBuiltinsAssembler::FastStoreLastIndex(FastJSRegExp, Smi): void;
 
+@hasSameInstanceTypeAsParent
 extern class JSRegExpResult extends JSArray {
   index: Object;
   input: Object;
@@ -1082,6 +1111,7 @@ macro GetStartOfCaptureIndex(captureIndex: constexpr int31): constexpr int31 {
   return kRegExpMatchInfoFirstCaptureIndex + (captureIndex * 2);
 }
 
+@hasSameInstanceTypeAsParent
 extern class RegExpMatchInfo extends FixedArray {
   GetStartOfCapture(implicit context: Context)(captureIndex: constexpr int31):
       Smi {
@@ -1115,7 +1145,7 @@ extern class AccessorPair extends Struct {
 
 extern class BreakPoint extends Tuple2 {}
 extern class BreakPointInfo extends Tuple2 {}
-extern class CoverageInfo extends FixedArray {}
+type CoverageInfo extends FixedArray;
 
 extern class DebugInfo extends Struct {
   shared_function_info: SharedFunctionInfo;
@@ -1187,9 +1217,7 @@ extern class WasmExceptionObject extends JSObject {
 extern class WasmExceptionPackage extends JSReceiver {
 }
 
-@noVerifier
-extern class WasmExportedFunction extends JSFunction {
-}
+type WasmExportedFunction extends JSFunction;
 
 extern class AsmWasmData extends Struct {
   managed_native_module: Foreign;  // Managed<wasm::NativeModule>

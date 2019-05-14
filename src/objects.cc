@@ -6122,8 +6122,10 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
     }
     if (handler_context.is_null()) handler_context = isolate->native_context();
 
-    STATIC_ASSERT(static_cast<int>(PromiseReaction::kSize) ==
-                  static_cast<int>(PromiseReactionJobTask::kSize));
+    STATIC_ASSERT(
+        static_cast<int>(PromiseReaction::kSize) ==
+        static_cast<int>(
+            PromiseReactionJobTask::kSizeOfAllPromiseReactionJobTasks));
     if (type == PromiseReaction::kFulfill) {
       task->synchronized_set_map(
           ReadOnlyRoots(isolate).promise_fulfill_reaction_job_task_map());

@@ -100,8 +100,6 @@ class FixedArrayBase : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_FIXED_ARRAY_BASE_FIELDS)
 
-  static const int kHeaderSize = kSize;
-
  protected:
   // Special-purpose constructor for subclasses that have fast paths where
   // their ptr() is a Smi.

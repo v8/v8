@@ -866,7 +866,7 @@ void JSArgumentsObject::JSArgumentsObjectVerify(Isolate* isolate) {
 
 void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate,
                                                             JSObject holder) {
-  TorqueGeneratedClassVerifiers::SloppyArgumentsElementsVerify(*this, isolate);
+  FixedArrayVerify(isolate);
   // Abort verification if only partially initialized (can't use arguments()
   // getter because it does FixedArray::cast()).
   if (get(kArgumentsIndex)->IsUndefined(isolate)) return;

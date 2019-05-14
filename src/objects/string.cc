@@ -164,7 +164,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // strings in generated code, we need to bailout to runtime.
   Map new_map;
   ReadOnlyRoots roots(heap);
-  if (size < ExternalString::kSize) {
+  if (size < ExternalString::kSizeOfAllExternalStrings) {
     if (is_internalized) {
       new_map = roots.uncached_external_internalized_string_map();
     } else {
@@ -238,7 +238,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   // strings in generated code, we need to bailout to runtime.
   Map new_map;
   ReadOnlyRoots roots(heap);
-  if (size < ExternalString::kSize) {
+  if (size < ExternalString::kSizeOfAllExternalStrings) {
     new_map = is_internalized
                   ? roots.uncached_external_one_byte_internalized_string_map()
                   : roots.uncached_external_one_byte_string_map();

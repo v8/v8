@@ -341,8 +341,6 @@ class String : public Name {
   DEFINE_FIELD_OFFSET_CONSTANTS(Name::kHeaderSize,
                                 TORQUE_GENERATED_STRING_FIELDS)
 
-  static const int kHeaderSize = kSize;
-
   // Max char codes.
   static const int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
   static const uint32_t kMaxOneByteCharCodeU = unibrow::Latin1::kMaxChar;
@@ -698,6 +696,7 @@ class ExternalString : public String {
   inline void DisposeResource();
 
   STATIC_ASSERT(kResourceOffset == Internals::kStringResourceOffset);
+  static const int kSizeOfAllExternalStrings = kHeaderSize;
 
   OBJECT_CONSTRUCTORS(ExternalString, String);
 };
@@ -733,6 +732,12 @@ class ExternalOneByteString : public ExternalString {
   DECL_CAST(ExternalOneByteString)
 
   class BodyDescriptor;
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      ExternalString::kHeaderSize,
+      TORQUE_GENERATED_EXTERNAL_ONE_BYTE_STRING_FIELDS)
+
+  STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
 
   OBJECT_CONSTRUCTORS(ExternalOneByteString, ExternalString);
 };
@@ -771,6 +776,12 @@ class ExternalTwoByteString : public ExternalString {
   DECL_CAST(ExternalTwoByteString)
 
   class BodyDescriptor;
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      ExternalString::kHeaderSize,
+      TORQUE_GENERATED_EXTERNAL_TWO_BYTE_STRING_FIELDS)
+
+  STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
 
   OBJECT_CONSTRUCTORS(ExternalTwoByteString, ExternalString);
 };

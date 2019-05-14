@@ -266,8 +266,6 @@ class JSReceiver : public HeapObject {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_JSRECEIVER_FIELDS)
-  static const int kHeaderSize = kSize;
-
   bool HasProxyInPrototype(Isolate* isolate);
 
   bool HasComplexElements();

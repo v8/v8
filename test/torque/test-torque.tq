@@ -896,6 +896,7 @@ namespace test {
 
   type Baztype = Foo | FooType;
 
+  @abstract
   @noVerifier
   extern class Foo extends JSObject {
     fooField: FooType;
