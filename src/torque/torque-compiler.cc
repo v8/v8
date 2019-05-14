@@ -76,16 +76,9 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
 
   std::string output_directory = options.output_directory;
   if (output_directory.length() != 0) {
-    std::string output_header_path = output_directory;
-    output_header_path += "/builtin-definitions-tq.h";
-    implementation_visitor.GenerateBuiltinDefinitions(output_header_path);
-
+    implementation_visitor.GenerateBuiltinDefinitions(output_directory);
     implementation_visitor.GenerateClassFieldOffsets(output_directory);
-
-    std::string output_source_path =
-        output_directory + "/objects-printer-tq.cc";
-    implementation_visitor.GeneratePrintDefinitions(output_source_path);
-
+    implementation_visitor.GeneratePrintDefinitions(output_directory);
     implementation_visitor.GenerateClassVerifiers(output_directory);
 
     for (Namespace* n : GlobalContext::Get().GetNamespaces()) {

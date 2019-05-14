@@ -2706,72 +2706,131 @@ void ImplementationVisitor::Visit(Declarable* declarable) {
   }
 }
 
-void ImplementationVisitor::GenerateBuiltinDefinitions(std::string& file_name) {
+namespace {
+class IfDefScope {
+ public:
+  IfDefScope(std::ostream& os, std::string d) : os_(os), d_(std::move(d)) {
+    os_ << "#ifdef " << d_ << "\n";
+  }
+  ~IfDefScope() { os_ << "#endif  // " << d_ << "\n"; }
+
+ private:
+  std::ostream& os_;
+  std::string d_;
+};
+
+class NamespaceScope {
+ public:
+  NamespaceScope(std::ostream& os, std::string namespace_name)
+      : os_(os), d_(std::move(namespace_name)) {
+    os_ << "namespace " << d_ << " {\n";
+  }
+  ~NamespaceScope() { os_ << "}  // namespace " << d_ << "\n"; }
+
+ private:
+  std::ostream& os_;
+  std::string d_;
+};
+
+class IncludeGuardScope {
+ public:
+  IncludeGuardScope(std::ostream& os, std::string file_name)
+      : os_(os),
+        d_("V8_GEN_TORQUE_GENERATED_" + CapifyStringWithUnderscores(file_name) +
+           "_") {
+    os_ << "#ifndef " << d_ << "\n";
+    os_ << "#define " << d_ << "\n\n";
+  }
+  ~IncludeGuardScope() { os_ << "#endif  // " << d_ << "\n"; }
+
+ private:
+  std::ostream& os_;
+  std::string d_;
+};
+
+class IncludeObjectMacros {
+ public:
+  explicit IncludeObjectMacros(std::ostream& os) : os_(os) {
+    os_ << "\n// Has to be the last include (doesn't have include guards):\n"
+           "#include \"src/objects/object-macros.h\"\n";
+  }
+  ~IncludeObjectMacros() {
+    os_ << "\n#include \"src/objects/object-macros-undef.h\"\n";
+  }
+
+ private:
+  std::ostream& os_;
+};
+}  // namespace
+
+void ImplementationVisitor::GenerateBuiltinDefinitions(
+    const std::string& output_directory) {
   std::stringstream new_contents_stream;
-  new_contents_stream
-      << "#ifndef V8_GEN_TORQUE_GENERATED_BUILTIN_DEFINITIONS_TQ_H_\n"
-         "#define V8_GEN_TORQUE_GENERATED_BUILTIN_DEFINITIONS_TQ_H_\n"
-         "\n"
-         "#define BUILTIN_LIST_FROM_TORQUE(CPP, API, TFJ, TFC, TFS, TFH, ASM) "
-         "\\\n";
-  for (auto& declarable : GlobalContext::AllDeclarables()) {
-    Builtin* builtin = Builtin::DynamicCast(declarable.get());
-    if (!builtin || builtin->IsExternal()) continue;
-    int firstParameterIndex = 1;
-    bool declareParameters = true;
-    if (builtin->IsStub()) {
-      new_contents_stream << "TFS(" << builtin->ExternalName();
-    } else {
-      new_contents_stream << "TFJ(" << builtin->ExternalName();
-      if (builtin->IsVarArgsJavaScript()) {
-        new_contents_stream
-            << ", SharedFunctionInfo::kDontAdaptArgumentsSentinel";
-        declareParameters = false;
+  std::string file_name = "builtin-definitions-tq.h";
+  {
+    IncludeGuardScope include_guard(new_contents_stream, file_name);
+    new_contents_stream
+        << "\n"
+           "#define BUILTIN_LIST_FROM_TORQUE(CPP, API, TFJ, TFC, TFS, TFH, "
+           "ASM) "
+           "\\\n";
+    for (auto& declarable : GlobalContext::AllDeclarables()) {
+      Builtin* builtin = Builtin::DynamicCast(declarable.get());
+      if (!builtin || builtin->IsExternal()) continue;
+      int firstParameterIndex = 1;
+      bool declareParameters = true;
+      if (builtin->IsStub()) {
+        new_contents_stream << "TFS(" << builtin->ExternalName();
       } else {
-        assert(builtin->IsFixedArgsJavaScript());
-        // FixedArg javascript builtins need to offer the parameter
-        // count.
-        int size = static_cast<int>(builtin->parameter_names().size());
-        assert(size >= 1);
-        new_contents_stream << ", " << (std::max(size - 2, 0));
-        // And the receiver is explicitly declared.
-        new_contents_stream << ", kReceiver";
-        firstParameterIndex = 2;
-      }
-    }
-    if (declareParameters) {
-      int index = 0;
-      for (const auto& parameter : builtin->parameter_names()) {
-        if (index >= firstParameterIndex) {
-          new_contents_stream << ", k" << CamelifyString(parameter->value);
+        new_contents_stream << "TFJ(" << builtin->ExternalName();
+        if (builtin->IsVarArgsJavaScript()) {
+          new_contents_stream
+              << ", SharedFunctionInfo::kDontAdaptArgumentsSentinel";
+          declareParameters = false;
+        } else {
+          assert(builtin->IsFixedArgsJavaScript());
+          // FixedArg javascript builtins need to offer the parameter
+          // count.
+          int size = static_cast<int>(builtin->parameter_names().size());
+          assert(size >= 1);
+          new_contents_stream << ", " << (std::max(size - 2, 0));
+          // And the receiver is explicitly declared.
+          new_contents_stream << ", kReceiver";
+          firstParameterIndex = 2;
         }
-        index++;
       }
+      if (declareParameters) {
+        int index = 0;
+        for (const auto& parameter : builtin->parameter_names()) {
+          if (index >= firstParameterIndex) {
+            new_contents_stream << ", k" << CamelifyString(parameter->value);
+          }
+          index++;
+        }
+      }
+      new_contents_stream << ") \\\n";
     }
-    new_contents_stream << ") \\\n";
-  }
-  new_contents_stream << "\n";
+    new_contents_stream << "\n";
 
-  new_contents_stream
-      << "#define TORQUE_FUNCTION_POINTER_TYPE_TO_BUILTIN_MAP(V) \\\n";
-  for (const BuiltinPointerType* type : TypeOracle::AllBuiltinPointerTypes()) {
-    Builtin* example_builtin =
-        Declarations::FindSomeInternalBuiltinWithType(type);
-    if (!example_builtin) {
-      CurrentSourcePosition::Scope current_source_position(
-          SourcePosition{CurrentSourceFile::Get(), {-1, -1}, {-1, -1}});
-      ReportError("unable to find any builtin with type \"", *type, "\"");
+    new_contents_stream
+        << "#define TORQUE_FUNCTION_POINTER_TYPE_TO_BUILTIN_MAP(V) \\\n";
+    for (const BuiltinPointerType* type :
+         TypeOracle::AllBuiltinPointerTypes()) {
+      Builtin* example_builtin =
+          Declarations::FindSomeInternalBuiltinWithType(type);
+      if (!example_builtin) {
+        CurrentSourcePosition::Scope current_source_position(
+            SourcePosition{CurrentSourceFile::Get(), {-1, -1}, {-1, -1}});
+        ReportError("unable to find any builtin with type \"", *type, "\"");
+      }
+      new_contents_stream << "  V(" << type->function_pointer_type_id() << ","
+                          << example_builtin->ExternalName() << ")\\\n";
     }
-    new_contents_stream << "  V(" << type->function_pointer_type_id() << ","
-                        << example_builtin->ExternalName() << ")\\\n";
+    new_contents_stream << "\n";
   }
-  new_contents_stream << "\n";
-
-  new_contents_stream
-      << "#endif  // V8_GEN_TORQUE_GENERATED_BUILTIN_DEFINITIONS_TQ_H_\n";
-
   std::string new_contents(new_contents_stream.str());
-  ReplaceFileContentsIfDifferent(file_name, new_contents);
+  ReplaceFileContentsIfDifferent(output_directory + "/" + file_name,
+                                 new_contents);
 }
 
 namespace {
@@ -2850,113 +2909,109 @@ void CompleteFieldSection(FieldSectionType* section,
 void ImplementationVisitor::GenerateClassFieldOffsets(
     const std::string& output_directory) {
   std::stringstream new_contents_stream;
-  new_contents_stream << "#ifndef V8_GEN_TORQUE_GENERATED_FIELD_OFFSETS_TQ_H_\n"
-                         "#define V8_GEN_TORQUE_GENERATED_FIELD_OFFSETS_TQ_H_\n"
-                         "\n\n";
+  std::string file_name = "field-offsets-tq.h";
+  {
+    IncludeGuardScope include_guard(new_contents_stream, file_name);
 
-  for (auto i : GlobalContext::GetClasses()) {
-    ClassType* type = i.second;
-    if (!type->IsExtern()) continue;
+    for (auto i : GlobalContext::GetClasses()) {
+      ClassType* type = i.second;
+      if (!type->IsExtern()) continue;
 
-    // TODO(danno): Ideally (and we've got several core V8 dev's feedback
-    // supporting this), Torque should generate the constants for the offsets
-    // directly and not go through the existing layer of macros, which actually
-    // currently just serves to additionally obfuscate where these values come
-    // from.
-    new_contents_stream << "#define ";
-    new_contents_stream << "TORQUE_GENERATED_"
-                        << CapifyStringWithUnderscores(i.first)
-                        << "_FIELDS(V) \\\n";
-    std::vector<Field> fields = type->fields();
-    FieldSectionType section = FieldSectionType::kNoSection;
-    std::set<FieldSectionType> completed_sections;
-    for (auto f : fields) {
-      CurrentSourcePosition::Scope scope(f.pos);
-      if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-        if (f.is_weak) {
-          ProcessFieldInSection(&section, &completed_sections,
-                                FieldSectionType::kWeakSection,
-                                &new_contents_stream);
+      // TODO(danno): Ideally (and we've got several core V8 dev's feedback
+      // supporting this), Torque should generate the constants for the offsets
+      // directly and not go through the existing layer of macros, which
+      // actually currently just serves to additionally obfuscate where these
+      // values come from.
+      new_contents_stream << "#define ";
+      new_contents_stream << "TORQUE_GENERATED_"
+                          << CapifyStringWithUnderscores(i.first)
+                          << "_FIELDS(V) \\\n";
+      std::vector<Field> fields = type->fields();
+      FieldSectionType section = FieldSectionType::kNoSection;
+      std::set<FieldSectionType> completed_sections;
+      for (auto f : fields) {
+        CurrentSourcePosition::Scope scope(f.pos);
+        if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+          if (f.is_weak) {
+            ProcessFieldInSection(&section, &completed_sections,
+                                  FieldSectionType::kWeakSection,
+                                  &new_contents_stream);
+          } else {
+            ProcessFieldInSection(&section, &completed_sections,
+                                  FieldSectionType::kStrongSection,
+                                  &new_contents_stream);
+          }
         } else {
           ProcessFieldInSection(&section, &completed_sections,
-                                FieldSectionType::kStrongSection,
+                                FieldSectionType::kScalarSection,
                                 &new_contents_stream);
         }
-      } else {
-        ProcessFieldInSection(&section, &completed_sections,
-                              FieldSectionType::kScalarSection,
-                              &new_contents_stream);
+        size_t field_size;
+        std::string size_string;
+        std::string machine_type;
+        std::tie(field_size, size_string, machine_type) =
+            f.GetFieldSizeInformation();
+        new_contents_stream << "V(k" << CamelifyString(f.name_and_type.name)
+                            << "Offset, " << size_string << ") \\\n";
       }
-      size_t field_size;
-      std::string size_string;
-      std::string machine_type;
-      std::tie(field_size, size_string, machine_type) =
-          f.GetFieldSizeInformation();
-      new_contents_stream << "V(k" << CamelifyString(f.name_and_type.name)
-                          << "Offset, " << size_string << ") \\\n";
+
+      ProcessFieldInSection(&section, &completed_sections,
+                            FieldSectionType::kNoSection, &new_contents_stream);
+      CompleteFieldSection(&section, &completed_sections,
+                           FieldSectionType::kWeakSection,
+                           &new_contents_stream);
+      CompleteFieldSection(&section, &completed_sections,
+                           FieldSectionType::kStrongSection,
+                           &new_contents_stream);
+
+      new_contents_stream << "V(kSize, 0) \\\n";
+      new_contents_stream << "\n";
     }
-
-    ProcessFieldInSection(&section, &completed_sections,
-                          FieldSectionType::kNoSection, &new_contents_stream);
-    CompleteFieldSection(&section, &completed_sections,
-                         FieldSectionType::kWeakSection, &new_contents_stream);
-    CompleteFieldSection(&section, &completed_sections,
-                         FieldSectionType::kStrongSection,
-                         &new_contents_stream);
-
-    new_contents_stream << "V(kSize, 0) \\\n";
-    new_contents_stream << "\n";
   }
-
-  new_contents_stream
-      << "\n#endif  // V8_GEN_TORQUE_GENERATED_FIELD_OFFSETS_TQ_H_\n";
-
-  const std::string output_header_path =
-      output_directory + "/field-offsets-tq.h";
+  const std::string output_header_path = output_directory + "/" + file_name;
   std::string new_contents(new_contents_stream.str());
   ReplaceFileContentsIfDifferent(output_header_path, new_contents);
 }
 
-void ImplementationVisitor::GeneratePrintDefinitions(std::string& file_name) {
+void ImplementationVisitor::GeneratePrintDefinitions(
+    const std::string& output_directory) {
   std::stringstream new_contents_stream;
+  std::string file_name = "objects-printer-tq.cc";
+  {
+    IfDefScope object_print(new_contents_stream, "OBJECT_PRINT");
 
-  new_contents_stream << "#ifdef OBJECT_PRINT\n\n";
+    new_contents_stream << "#include \"src/objects.h\"\n\n";
+    new_contents_stream << "#include <iosfwd>\n\n";
+    new_contents_stream << "#include \"src/objects/struct-inl.h\"\n\n";
 
-  new_contents_stream << "#include \"src/objects.h\"\n\n";
-  new_contents_stream << "#include <iosfwd>\n\n";
-  new_contents_stream << "#include \"src/objects/struct-inl.h\"\n\n";
+    NamespaceScope namespace_v8(new_contents_stream, "v8");
+    NamespaceScope namespace_internal(new_contents_stream, "internal");
 
-  new_contents_stream << "namespace v8 {\n";
-  new_contents_stream << "namespace internal {\n\n";
+    for (auto i : GlobalContext::GetClasses()) {
+      ClassType* type = i.second;
+      if (!type->ShouldGeneratePrint()) continue;
 
-  for (auto i : GlobalContext::GetClasses()) {
-    ClassType* type = i.second;
-    if (!type->ShouldGeneratePrint()) continue;
-
-    new_contents_stream << "void " << type->name() << "::" << type->name()
-                        << "Print(std::ostream& os) {\n";
-    new_contents_stream << "  PrintHeader(os, \"" << type->name() << "\");\n";
-    auto hierarchy = type->GetHierarchy();
-    std::map<std::string, const AggregateType*> field_names;
-    for (const AggregateType* aggregate_type : hierarchy) {
-      for (const Field& f : aggregate_type->fields()) {
-        if (f.name_and_type.name == "map") continue;
-        new_contents_stream << "  os << \"\\n - " << f.name_and_type.name
-                            << ": \" << "
-                            << "Brief(" << f.name_and_type.name << "());\n";
+      new_contents_stream << "void " << type->name() << "::" << type->name()
+                          << "Print(std::ostream& os) {\n";
+      new_contents_stream << "  PrintHeader(os, \"" << type->name() << "\");\n";
+      auto hierarchy = type->GetHierarchy();
+      std::map<std::string, const AggregateType*> field_names;
+      for (const AggregateType* aggregate_type : hierarchy) {
+        for (const Field& f : aggregate_type->fields()) {
+          if (f.name_and_type.name == "map") continue;
+          new_contents_stream << "  os << \"\\n - " << f.name_and_type.name
+                              << ": \" << "
+                              << "Brief(" << f.name_and_type.name << "());\n";
+        }
       }
+      new_contents_stream << "  os << \"\\n\";\n";
+      new_contents_stream << "}\n\n";
     }
-    new_contents_stream << "  os << \"\\n\";\n";
-    new_contents_stream << "}\n\n";
   }
 
-  new_contents_stream << "}  // namespace internal\"\n";
-  new_contents_stream << "}  // namespace v8\"\n";
-
-  new_contents_stream << "\n#endif  // OBJECT_PRINT\n\n";
-
   std::string new_contents(new_contents_stream.str());
-  ReplaceFileContentsIfDifferent(file_name, new_contents);
+  ReplaceFileContentsIfDifferent(output_directory + "/" + file_name,
+                                 new_contents);
 }
 
 namespace {
@@ -3033,107 +3088,88 @@ void GenerateClassFieldVerifier(const std::string& class_name,
 
 void ImplementationVisitor::GenerateClassVerifiers(
     const std::string& output_directory) {
-  const char* file_name = "class-verifiers-tq";
+  std::string file_name = "class-verifiers-tq";
   std::stringstream h_contents;
   std::stringstream cc_contents;
-  h_contents << "#ifndef V8_GEN_TORQUE_GENERATED_CLASS_VERIFIERS_TQ_H_\n"
-                "#define V8_GEN_TORQUE_GENERATED_CLASS_VERIFIERS_TQ_H_\n"
-                "\n";
+  {
+    IncludeGuardScope include_guard(h_contents, file_name + ".h");
+    IfDefScope verify_heap_h(h_contents, "VERIFY_HEAP");
+    IfDefScope verify_heap_cc(cc_contents, "VERIFY_HEAP");
 
-  const char* enabled_check = "\n#ifdef VERIFY_HEAP\n";
-  h_contents << enabled_check;
-  cc_contents << enabled_check;
+    cc_contents << "\n#include \"src/objects.h\"\n";
 
-  cc_contents << "\n#include \"src/objects.h\"\n";
-
-  for (const std::string& include_path : GlobalContext::CppIncludes()) {
-    cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
-  }
-  cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
-  cc_contents
-      << "\n// Has to be the last include (doesn't have include guards):\n"
-         "#include \"src/objects/object-macros.h\"\n";
-
-  const char* namespaces =
-      "\nnamespace v8 {\n"
-      "namespace internal {\n"
-      "\n";
-  h_contents << namespaces;
-  cc_contents << namespaces;
-
-  // Generate forward declarations to avoid including any headers.
-  h_contents << "class Isolate;\n";
-  for (auto i : GlobalContext::GetClasses()) {
-    ClassType* type = i.second;
-    if (!type->IsExtern() || !type->ShouldGenerateVerify()) continue;
-    h_contents << "class " << type->name() << ";\n";
-  }
-
-  const char* verifier_class = "TorqueGeneratedClassVerifiers";
-
-  h_contents << "class " << verifier_class << " {\n";
-  h_contents << " public:\n";
-
-  for (auto i : GlobalContext::GetClasses()) {
-    ClassType* type = i.second;
-    if (!type->IsExtern() || !type->ShouldGenerateVerify()) continue;
-
-    std::string method_name = i.first + "Verify";
-
-    h_contents << "  static void " << method_name << "(" << i.first
-               << " o, Isolate* isolate);\n";
-
-    cc_contents << "void " << verifier_class << "::" << method_name << "("
-                << i.first << " o, Isolate* isolate) {\n";
-
-    // First, do any verification for the super class. Not all classes have
-    // verifiers, so skip to the nearest super class that has one.
-    const ClassType* super_type = type->GetSuperClass();
-    while (super_type && !super_type->ShouldGenerateVerify()) {
-      super_type = super_type->GetSuperClass();
+    for (const std::string& include_path : GlobalContext::CppIncludes()) {
+      cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
     }
-    if (super_type) {
-      std::string super_name = super_type->name();
-      if (super_name == "HeapObject") {
-        // Special case: HeapObjectVerify checks the Map type and dispatches to
-        // more specific types, so calling it here would cause infinite
-        // recursion. We could consider moving that behavior into a different
-        // method to make the contract of *Verify methods more consistent, but
-        // for now we'll just avoid the bad case.
-        cc_contents << "  " << super_name << "Verify(o, isolate);\n";
-      } else {
-        cc_contents << "  o->" << super_name << "Verify(isolate);\n";
+    cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
+
+    IncludeObjectMacros object_macros(cc_contents);
+
+    NamespaceScope namespace_v8_h(h_contents, "v8");
+    NamespaceScope namespace_internal_h(h_contents, "internal");
+
+    NamespaceScope namespace_v8_cc(cc_contents, "v8");
+    NamespaceScope namespace_internal_cc(cc_contents, "internal");
+
+    // Generate forward declarations to avoid including any headers.
+    h_contents << "class Isolate;\n";
+    for (auto i : GlobalContext::GetClasses()) {
+      ClassType* type = i.second;
+      if (!type->IsExtern() || !type->ShouldGenerateVerify()) continue;
+      h_contents << "class " << type->name() << ";\n";
+    }
+
+    const char* verifier_class = "TorqueGeneratedClassVerifiers";
+
+    h_contents << "class " << verifier_class << "{\n";
+    h_contents << " public:\n";
+
+    for (auto i : GlobalContext::GetClasses()) {
+      ClassType* type = i.second;
+      if (!type->IsExtern() || !type->ShouldGenerateVerify()) continue;
+
+      std::string method_name = i.first + "Verify";
+
+      h_contents << "  static void " << method_name << "(" << i.first
+                 << " o, Isolate* isolate);\n";
+
+      cc_contents << "void " << verifier_class << "::" << method_name << "("
+                  << i.first << " o, Isolate* isolate) {\n";
+
+      // First, do any verification for the super class. Not all classes have
+      // verifiers, so skip to the nearest super class that has one.
+      const ClassType* super_type = type->GetSuperClass();
+      while (super_type && !super_type->ShouldGenerateVerify()) {
+        super_type = super_type->GetSuperClass();
       }
+      if (super_type) {
+        std::string super_name = super_type->name();
+        if (super_name == "HeapObject") {
+          // Special case: HeapObjectVerify checks the Map type and dispatches
+          // to more specific types, so calling it here would cause infinite
+          // recursion. We could consider moving that behavior into a
+          // different method to make the contract of *Verify methods more
+          // consistent, but for now we'll just avoid the bad case.
+          cc_contents << "  " << super_name << "Verify(o, isolate);\n";
+        } else {
+          cc_contents << "  o->" << super_name << "Verify(isolate);\n";
+        }
+      }
+
+      // Second, verify that this object is what it claims to be.
+      cc_contents << "  CHECK(o.Is" << i.first << "());\n";
+
+      // Third, verify its properties.
+      for (auto f : type->fields()) {
+        GenerateClassFieldVerifier(i.first, *i.second, f, h_contents,
+                                   cc_contents);
+      }
+
+      cc_contents << "}\n";
     }
 
-    // Second, verify that this object is what it claims to be.
-    cc_contents << "  CHECK(o.Is" << i.first << "());\n";
-
-    // Third, verify its properties.
-    for (auto f : type->fields()) {
-      GenerateClassFieldVerifier(i.first, *i.second, f, h_contents,
-                                 cc_contents);
-    }
-
-    cc_contents << "}\n";
+    h_contents << "};\n";
   }
-
-  h_contents << "};\n";
-
-  const char* end_namespaces =
-      "\n}  // namespace internal\n"
-      "}  // namespace v8\n";
-  h_contents << end_namespaces;
-  cc_contents << end_namespaces;
-
-  cc_contents << "\n#include \"src/objects/object-macros-undef.h\"\n";
-
-  const char* end_enabled_check = "\n#endif  // VERIFY_HEAP\n";
-  h_contents << end_enabled_check;
-  cc_contents << end_enabled_check;
-
-  h_contents << "\n#endif  // V8_GEN_TORQUE_GENERATED_CLASS_VERIFIERS_TQ_H_\n";
-
   ReplaceFileContentsIfDifferent(output_directory + "/" + file_name + ".h",
                                  h_contents.str());
   ReplaceFileContentsIfDifferent(output_directory + "/" + file_name + ".cc",

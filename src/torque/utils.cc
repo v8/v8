@@ -217,6 +217,11 @@ std::string CapifyStringWithUnderscores(const std::string& camellified_string) {
     if (previousWasLower && isupper(current)) {
       result += "_";
     }
+    if (current == '.' || current == '-') {
+      result += "_";
+      previousWasLower = false;
+      continue;
+    }
     result += toupper(current);
     previousWasLower = (islower(current));
   }
