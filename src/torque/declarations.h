@@ -57,7 +57,6 @@ class Declarations {
   static const TypeAlias* LookupTypeAlias(const QualifiedName& name);
   static const Type* LookupType(const QualifiedName& name);
   static const Type* LookupType(const Identifier* identifier);
-  static const Type* LookupType(std::string name);
   static const Type* LookupGlobalType(const std::string& name);
 
   static Builtin* FindSomeInternalBuiltinWithType(

@@ -184,12 +184,20 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(FLOAT64_TYPE_STRING);
   }
 
+  static const Type* GetConstFloat64Type() {
+    return Get().GetBuiltinType(CONST_FLOAT64_TYPE_STRING);
+  }
+
   static const Type* GetNeverType() {
     return Get().GetBuiltinType(NEVER_TYPE_STRING);
   }
 
   static const Type* GetConstInt31Type() {
     return Get().GetBuiltinType(CONST_INT31_TYPE_STRING);
+  }
+
+  static const Type* GetConstInt32Type() {
+    return Get().GetBuiltinType(CONST_INT32_TYPE_STRING);
   }
 
   static bool IsImplicitlyConvertableFrom(const Type* to, const Type* from) {

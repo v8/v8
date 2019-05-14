@@ -762,12 +762,12 @@ VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
   // TODO(tebbi): Do not silently loose precision; support 64bit literals.
   double d = std::stod(expr->number.c_str());
   int32_t i = static_cast<int32_t>(d);
-  const Type* result_type = Declarations::LookupType(CONST_FLOAT64_TYPE_STRING);
+  const Type* result_type = TypeOracle::GetConstFloat64Type();
   if (i == d) {
     if ((i >> 30) == (i >> 31)) {
-      result_type = Declarations::LookupType(CONST_INT31_TYPE_STRING);
+      result_type = TypeOracle::GetConstInt31Type();
     } else {
-      result_type = Declarations::LookupType(CONST_INT32_TYPE_STRING);
+      result_type = TypeOracle::GetConstInt32Type();
     }
   }
   return VisitResult{result_type, expr->number};
