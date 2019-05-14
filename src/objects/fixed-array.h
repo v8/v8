@@ -296,6 +296,9 @@ class WeakFixedArray : public HeapObject {
 
   inline MaybeObjectSlot RawFieldOfElementAt(int index);
 
+  inline void CopyElements(Isolate* isolate, int dst_index, WeakFixedArray src,
+                           int src_index, int len, WriteBarrierMode mode);
+
   DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)
 
@@ -353,6 +356,9 @@ class WeakArrayList : public HeapObject {
 
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot data_start();
+
+  inline void CopyElements(Isolate* isolate, int dst_index, WeakArrayList src,
+                           int src_index, int len, WriteBarrierMode mode);
 
   V8_EXPORT_PRIVATE bool IsFull();
 

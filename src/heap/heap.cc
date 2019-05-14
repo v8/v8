@@ -1542,13 +1542,23 @@ void Heap::MoveRange(HeapObject dst_object, const ObjectSlot dst_slot,
   WriteBarrierForRange(dst_object, dst_slot, dst_end);
 }
 
-void Heap::CopyRange(HeapObject dst_object, const ObjectSlot dst_slot,
-                     const ObjectSlot src_slot, int len,
-                     WriteBarrierMode mode) {
+// Instantiate Heap::CopyRange() for ObjectSlot and MaybeObjectSlot.
+template void Heap::CopyRange<ObjectSlot>(HeapObject dst_object,
+                                          ObjectSlot dst_slot,
+                                          ObjectSlot src_slot, int len,
+                                          WriteBarrierMode mode);
+template void Heap::CopyRange<MaybeObjectSlot>(HeapObject dst_object,
+                                               MaybeObjectSlot dst_slot,
+                                               MaybeObjectSlot src_slot,
+                                               int len, WriteBarrierMode mode);
+
+template <typename TSlot>
+void Heap::CopyRange(HeapObject dst_object, const TSlot dst_slot,
+                     const TSlot src_slot, int len, WriteBarrierMode mode) {
   DCHECK_NE(len, 0);
 
   DCHECK_NE(dst_object->map(), ReadOnlyRoots(this).fixed_cow_array_map());
-  const ObjectSlot dst_end(dst_slot + len);
+  const TSlot dst_end(dst_slot + len);
   // Ensure ranges do not overlap.
   DCHECK(dst_end <= src_slot || (src_slot + len) <= dst_slot);
 
@@ -5844,10 +5854,9 @@ enum RangeWriteBarrierMode {
   kDoEvacuationSlotRecording = 1 << 2,
 };
 
-template <int kModeMask>
+template <int kModeMask, typename TSlot>
 void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
-                                    ObjectSlot start_slot,
-                                    ObjectSlot end_slot) {
+                                    TSlot start_slot, TSlot end_slot) {
   // At least one of generational or marking write barrier should be requested.
   STATIC_ASSERT(kModeMask & (kDoGenerational | kDoMarking));
   // kDoEvacuationSlotRecording implies kDoMarking.
@@ -5858,8 +5867,8 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
   IncrementalMarking* incremental_marking = this->incremental_marking();
   MarkCompactCollector* collector = this->mark_compact_collector();
 
-  for (ObjectSlot slot = start_slot; slot < end_slot; ++slot) {
-    Object value = *slot;
+  for (TSlot slot = start_slot; slot < end_slot; ++slot) {
+    typename TSlot::TObject value = *slot;
     HeapObject value_heap_object;
     if (!value.GetHeapObject(&value_heap_object)) continue;
 
@@ -5878,8 +5887,16 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
   }
 }
 
-void Heap::WriteBarrierForRange(HeapObject object, ObjectSlot start_slot,
-                                ObjectSlot end_slot) {
+// Instantiate Heap::WriteBarrierForRange() for ObjectSlot and MaybeObjectSlot.
+template void Heap::WriteBarrierForRange<ObjectSlot>(HeapObject object,
+                                                     ObjectSlot start_slot,
+                                                     ObjectSlot end_slot);
+template void Heap::WriteBarrierForRange<MaybeObjectSlot>(
+    HeapObject object, MaybeObjectSlot start_slot, MaybeObjectSlot end_slot);
+
+template <typename TSlot>
+void Heap::WriteBarrierForRange(HeapObject object, TSlot start_slot,
+                                TSlot end_slot) {
   MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
   base::Flags<RangeWriteBarrierMode> mode;
 

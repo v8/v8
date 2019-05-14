@@ -2114,18 +2114,11 @@ Handle<T> Factory::CopyArrayWithMap(Handle<T> src, Handle<Map> map) {
   obj->set_map_after_allocation(*map, SKIP_WRITE_BARRIER);
 
   Handle<T> result(T::cast(obj), isolate());
+  initialize_length(result, len);
+
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-
-  if (mode == SKIP_WRITE_BARRIER) {
-    // Eliminate the write barrier if possible.
-    Heap::CopyBlock(obj->address() + kTaggedSize, src->address() + kTaggedSize,
-                    T::SizeFor(len) - kTaggedSize);
-  } else {
-    // Slow case: Just copy the content one-by-one.
-    initialize_length(result, len);
-    for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
-  }
+  result->CopyElements(isolate(), 0, *src, 0, len, mode);
   return result;
 }
 
@@ -2145,8 +2138,9 @@ Handle<T> Factory::CopyArrayAndGrow(Handle<T> src, int grow_by,
   // Copy the content.
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = obj->GetWriteBarrierMode(no_gc);
-  for (int i = 0; i < old_len; i++) result->set(i, src->get(i), mode);
-  MemsetTagged(result->data_start() + old_len, *undefined_value(), grow_by);
+  result->CopyElements(isolate(), 0, *src, 0, old_len, mode);
+  MemsetTagged(ObjectSlot(result->data_start() + old_len),
+               ReadOnlyRoots(isolate()).undefined_value(), grow_by);
   return result;
 }
 
@@ -2163,25 +2157,8 @@ Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
 
 Handle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
     Handle<WeakFixedArray> src, int grow_by, AllocationType allocation) {
-  DCHECK(
-      !src->IsTransitionArray());  // Compacted by GC, this code doesn't work.
-  int old_len = src->length();
-  int new_len = old_len + grow_by;
-  DCHECK_GE(new_len, old_len);
-  HeapObject obj = AllocateRawFixedArray(new_len, allocation);
-  DCHECK_EQ(old_len, src->length());
-  obj->set_map_after_allocation(src->map(), SKIP_WRITE_BARRIER);
-
-  WeakFixedArray result = WeakFixedArray::cast(obj);
-  result->set_length(new_len);
-
-  // Copy the content.
-  DisallowHeapAllocation no_gc;
-  WriteBarrierMode mode = obj->GetWriteBarrierMode(no_gc);
-  for (int i = 0; i < old_len; i++) result->Set(i, src->Get(i), mode);
-  MemsetTagged(ObjectSlot(result->RawFieldOfElementAt(old_len)),
-               ReadOnlyRoots(isolate()).undefined_value(), grow_by);
-  return Handle<WeakFixedArray>(result, isolate());
+  DCHECK(!src->IsTransitionArray());  // Compacted by GC, this code doesn't work
+  return CopyArrayAndGrow(src, grow_by, allocation);
 }
 
 Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
@@ -2193,15 +2170,17 @@ Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
   obj->set_map_after_allocation(src->map(), SKIP_WRITE_BARRIER);
 
   WeakArrayList result = WeakArrayList::cast(obj);
-  result->set_length(src->length());
+  int old_len = src->length();
+  result->set_length(old_len);
   result->set_capacity(new_capacity);
 
   // Copy the content.
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = obj->GetWriteBarrierMode(no_gc);
-  for (int i = 0; i < old_capacity; i++) result->Set(i, src->Get(i), mode);
-  MemsetTagged(ObjectSlot(result->data_start() + old_capacity),
-               ReadOnlyRoots(isolate()).undefined_value(), grow_by);
+  result->CopyElements(isolate(), 0, *src, 0, old_len, mode);
+  MemsetTagged(ObjectSlot(result->data_start() + old_len),
+               ReadOnlyRoots(isolate()).undefined_value(),
+               new_capacity - old_len);
   return Handle<WeakArrayList>(result, isolate());
 }
 
@@ -2225,7 +2204,7 @@ Handle<FixedArray> Factory::CopyFixedArrayUpTo(Handle<FixedArray> array,
   // Copy the content.
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-  for (int i = 0; i < new_len; i++) result->set(i, array->get(i), mode);
+  result->CopyElements(isolate(), 0, *array, 0, new_len, mode);
   return result;
 }
 
@@ -2257,34 +2236,6 @@ Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
       result->address() + FixedDoubleArray::kLengthOffset,
       array->address() + FixedDoubleArray::kLengthOffset,
       FixedDoubleArray::SizeFor(len) - FixedDoubleArray::kLengthOffset);
-  return result;
-}
-
-Handle<FeedbackVector> Factory::CopyFeedbackVector(
-    Handle<FeedbackVector> array) {
-  int len = array->length();
-  HeapObject obj = AllocateRawWithImmortalMap(FeedbackVector::SizeFor(len),
-                                              AllocationType::kYoung,
-                                              *feedback_vector_map());
-  Handle<FeedbackVector> result(FeedbackVector::cast(obj), isolate());
-
-  DisallowHeapAllocation no_gc;
-  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-
-  // Eliminate the write barrier if possible.
-  if (mode == SKIP_WRITE_BARRIER) {
-    Heap::CopyBlock(result->address() + kTaggedSize,
-                    result->address() + kTaggedSize,
-                    FeedbackVector::SizeFor(len) - kTaggedSize);
-  } else {
-    // Slow case: Just copy the content one-by-one.
-    result->set_shared_function_info(array->shared_function_info());
-    result->set_optimized_code_weak_or_smi(array->optimized_code_weak_or_smi());
-    result->set_invocation_count(array->invocation_count());
-    result->set_profiler_ticks(array->profiler_ticks());
-    result->set_deopt_count(array->deopt_count());
-    for (int i = 0; i < len; i++) result->set(i, array->get(i), mode);
-  }
   return result;
 }
 

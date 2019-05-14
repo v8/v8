@@ -77,6 +77,17 @@ void PropertyArray::SetHash(int hash) {
   WRITE_FIELD(*this, kLengthAndHashOffset, Smi::FromInt(value));
 }
 
+void PropertyArray::CopyElements(Isolate* isolate, int dst_index,
+                                 PropertyArray src, int src_index, int len,
+                                 WriteBarrierMode mode) {
+  if (len == 0) return;
+  DisallowHeapAllocation no_gc;
+
+  ObjectSlot dst_slot(data_start() + dst_index);
+  ObjectSlot src_slot(src->data_start() + src_index);
+  isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
+}
+
 }  // namespace internal
 }  // namespace v8
 

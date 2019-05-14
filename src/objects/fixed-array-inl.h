@@ -226,6 +226,8 @@ ObjectSlot FixedArray::RawFieldOfElementAt(int index) {
 void FixedArray::MoveElements(Isolate* isolate, int dst_index, int src_index,
                               int len, WriteBarrierMode mode) {
   if (len == 0) return;
+  DCHECK_LE(dst_index + len, length());
+  DCHECK_LE(src_index + len, length());
   DisallowHeapAllocation no_gc;
   ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
   ObjectSlot src_slot(RawFieldOfElementAt(src_index));
@@ -235,6 +237,8 @@ void FixedArray::MoveElements(Isolate* isolate, int dst_index, int src_index,
 void FixedArray::CopyElements(Isolate* isolate, int dst_index, FixedArray src,
                               int src_index, int len, WriteBarrierMode mode) {
   if (len == 0) return;
+  DCHECK_LE(dst_index + len, length());
+  DCHECK_LE(src_index + len, src.length());
   DisallowHeapAllocation no_gc;
 
   ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
@@ -443,6 +447,19 @@ MaybeObjectSlot WeakFixedArray::RawFieldOfElementAt(int index) {
   return RawMaybeWeakField(OffsetOfElementAt(index));
 }
 
+void WeakFixedArray::CopyElements(Isolate* isolate, int dst_index,
+                                  WeakFixedArray src, int src_index, int len,
+                                  WriteBarrierMode mode) {
+  if (len == 0) return;
+  DCHECK_LE(dst_index + len, length());
+  DCHECK_LE(src_index + len, src.length());
+  DisallowHeapAllocation no_gc;
+
+  MaybeObjectSlot dst_slot(data_start() + dst_index);
+  MaybeObjectSlot src_slot(src->data_start() + src_index);
+  isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
+}
+
 MaybeObject WeakArrayList::Get(int index) const {
   DCHECK(index >= 0 && index < this->capacity());
   return RELAXED_READ_WEAK_FIELD(*this, OffsetOfElementAt(index));
@@ -458,6 +475,19 @@ void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {
 
 MaybeObjectSlot WeakArrayList::data_start() {
   return RawMaybeWeakField(kHeaderSize);
+}
+
+void WeakArrayList::CopyElements(Isolate* isolate, int dst_index,
+                                 WeakArrayList src, int src_index, int len,
+                                 WriteBarrierMode mode) {
+  if (len == 0) return;
+  DCHECK_LE(dst_index + len, capacity());
+  DCHECK_LE(src_index + len, src.capacity());
+  DisallowHeapAllocation no_gc;
+
+  MaybeObjectSlot dst_slot(data_start() + dst_index);
+  MaybeObjectSlot src_slot(src->data_start() + src_index);
+  isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 
 HeapObject WeakArrayList::Iterator::Next() {

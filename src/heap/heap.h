@@ -353,8 +353,9 @@ class Heap {
 
   // Executes generational and/or marking write barrier for a [start, end) range
   // of non-weak slots inside |object|.
-  V8_EXPORT_PRIVATE void WriteBarrierForRange(HeapObject object,
-                                              ObjectSlot start, ObjectSlot end);
+  template <typename TSlot>
+  V8_EXPORT_PRIVATE void WriteBarrierForRange(HeapObject object, TSlot start,
+                                              TSlot end);
 
   V8_EXPORT_PRIVATE static void WriteBarrierForCodeSlow(Code host);
   V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject object,
@@ -397,8 +398,9 @@ class Heap {
 
   // Copy len non-weak tagged elements from src_slot to dst_slot of dst_object.
   // The source and destination memory ranges must not overlap.
-  void CopyRange(HeapObject dst_object, ObjectSlot dst_slot,
-                 ObjectSlot src_slot, int len, WriteBarrierMode mode);
+  template <typename TSlot>
+  void CopyRange(HeapObject dst_object, TSlot dst_slot, TSlot src_slot, int len,
+                 WriteBarrierMode mode);
 
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages. If slots could have been recorded in
@@ -1504,11 +1506,10 @@ class Heap {
                                        int size_in_bytes);
 
   // Range write barrier implementation.
-  template <int kModeMask>
+  template <int kModeMask, typename TSlot>
   V8_INLINE void WriteBarrierForRangeImpl(MemoryChunk* source_page,
-                                          HeapObject object,
-                                          ObjectSlot start_slot,
-                                          ObjectSlot end_slot);
+                                          HeapObject object, TSlot start_slot,
+                                          TSlot end_slot);
 
   // Deopts all code that contains allocation instruction which are tenured or
   // not tenured. Moreover it clears the pretenuring allocation site statistics.
