@@ -3556,12 +3556,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     share->set_raw_function_token_offset(0);
     // All flags default to false or 0.
     share->set_flags(0);
-    // For lite mode disable optimization.
-    if (FLAG_lite_mode) {
-      share->set_flags(
-          SharedFunctionInfo::DisabledOptimizationReasonBits::encode(
-              BailoutReason::kNeverOptimize));
-    }
     share->CalculateConstructAsBuiltin();
     share->set_kind(kind);
 
