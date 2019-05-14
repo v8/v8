@@ -121,7 +121,7 @@ TEST(LanguageServerMessage, CompilationErrorSendsDiagnostics) {
   result.error = TorqueError("compilation failed somehow");
   result.source_file_map = SourceFileMap::Get();
 
-  CompilationFinished(result, [](JsonValue& raw_response) {
+  CompilationFinished(std::move(result), [](JsonValue& raw_response) {
     PublishDiagnosticsNotification notification(raw_response);
 
     EXPECT_EQ(notification.method(), "textDocument/publishDiagnostics");
@@ -150,7 +150,7 @@ TEST(LanguageServerMessage, LintErrorSendsDiagnostics) {
   result.lint_errors.push_back({"lint error 2", pos2});
   result.source_file_map = SourceFileMap::Get();
 
-  CompilationFinished(result, [](JsonValue& raw_response) {
+  CompilationFinished(std::move(result), [](JsonValue& raw_response) {
     PublishDiagnosticsNotification notification(raw_response);
 
     EXPECT_EQ(notification.method(), "textDocument/publishDiagnostics");
@@ -175,17 +175,19 @@ TEST(LanguageServerMessage, CleanCompileSendsNoDiagnostics) {
   TorqueCompilerResult result;
   result.source_file_map = SourceFileMap::Get();
 
-  CompilationFinished(result, [](JsonValue& raw_response) {
+  CompilationFinished(std::move(result), [](JsonValue& raw_response) {
     FAIL() << "Sending unexpected response!";
   });
 }
 
 TEST(LanguageServerMessage, NoSymbolsSendsEmptyResponse) {
   LanguageServerData::Scope server_data_scope;
+  SourceFileMap::Scope sourc_file_map_scope;
 
   DocumentSymbolRequest request;
   request.set_id(42);
   request.set_method("textDocument/documentSymbol");
+  request.params().textDocument().set_uri("test.tq");
 
   HandleMessage(request.GetJsonValue(), [](JsonValue& raw_response) {
     DocumentSymbolResponse response(raw_response);

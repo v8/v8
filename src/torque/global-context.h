@@ -17,6 +17,8 @@ namespace torque {
 
 class GlobalContext : public ContextualClass<GlobalContext> {
  public:
+  GlobalContext(GlobalContext&&) V8_NOEXCEPT = default;
+  GlobalContext& operator=(GlobalContext&&) V8_NOEXCEPT = default;
   explicit GlobalContext(Ast ast)
       : verbose_(false),
         collect_language_server_data_(false),
@@ -90,6 +92,8 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   std::vector<std::unique_ptr<Declarable>> declarables_;
   std::vector<std::string> cpp_includes_;
   std::map<std::string, ClassType*> classes_;
+
+  friend class LanguageServerData;
 };
 
 template <class T>

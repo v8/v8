@@ -165,7 +165,7 @@ void SendCompilationDiagnostics(const TorqueCompilerResult& result,
 }  // namespace
 
 void CompilationFinished(TorqueCompilerResult result, MessageWriter writer) {
-  LanguageServerData::Get() = result.language_server_data;
+  LanguageServerData::Get() = std::move(result.language_server_data);
   SourceFileMap::Get() = result.source_file_map;
 
   SendCompilationDiagnostics(result, writer);
@@ -186,7 +186,7 @@ void RecompileTorque(MessageWriter writer) {
 
   Logger::Log("[info] Finished compilation run ...\n");
 
-  CompilationFinished(result, writer);
+  CompilationFinished(std::move(result), writer);
 }
 
 void RecompileTorqueWithDiagnostics(MessageWriter writer) {

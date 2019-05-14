@@ -4,6 +4,9 @@
 
 #include "src/torque/server-data.h"
 
+#include "src/torque/declarable.h"
+#include "src/torque/implementation-visitor.h"
+
 namespace v8 {
 namespace internal {
 namespace torque {
@@ -28,6 +31,23 @@ base::Optional<SourcePosition> LanguageServerData::FindDefinition(
   }
 
   return base::nullopt;
+}
+
+void LanguageServerData::PrepareAllDeclarableSymbols() {
+  const std::vector<std::unique_ptr<Declarable>>& all_declarables =
+      global_context_->declarables_;
+
+  for (const auto& declarable : all_declarables) {
+    // Auto-generated macros to access class fields should not show up in
+    // search results.
+    if (declarable->IsMacro() &&
+        !Macro::cast(declarable.get())->is_user_defined()) {
+      continue;
+    }
+
+    SourceId source = declarable->Position().source;
+    symbols_map_[source].push_back(declarable.get());
+  }
 }
 
 }  // namespace torque

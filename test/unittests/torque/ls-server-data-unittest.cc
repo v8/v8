@@ -23,9 +23,9 @@ struct TestCompiler {
     options.collect_language_server_data = true;
     options.force_assert_statements = true;
 
-    const TorqueCompilerResult result = CompileTorque(source, options);
+    TorqueCompilerResult result = CompileTorque(source, options);
     SourceFileMap::Get() = result.source_file_map;
-    LanguageServerData::Get() = result.language_server_data;
+    LanguageServerData::Get() = std::move(result.language_server_data);
   }
 };
 
@@ -197,6 +197,27 @@ TEST(LanguageServer, GotoLabelDefinitionGotoInOtherwise) {
   auto maybe_position = LanguageServerData::FindDefinition(id, {6, 30});
   ASSERT_TRUE(maybe_position.has_value());
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {7, 8}, {7, 15}}));
+}
+
+TEST(LanguageServer, SymbolsArePopulated) {
+  // Small test to ensure that the GlobalContext is correctly set in
+  // the LanguageServerData class and declarables are sorted into the
+  // SymbolsMap.
+  const std::string source = R"(
+      type void;
+      type never;
+
+      macro Foo(): never labels Fail {
+        goto Fail;
+      }
+  )";
+
+  TestCompiler compiler;
+  compiler.Compile(source);
+
+  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  const auto& symbols = LanguageServerData::SymbolsForSourceId(id);
+  ASSERT_FALSE(symbols.empty());
 }
 
 }  // namespace torque
