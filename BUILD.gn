@@ -186,7 +186,8 @@ declare_args() {
   v8_check_header_includes = false
 
   # Enable sharing read-only space across isolates.
-  v8_enable_shared_ro_heap = false
+  # Sets -DV8_SHARED_RO_HEAP.
+  v8_enable_shared_ro_heap = ""
 }
 
 # We reuse the snapshot toolchain for building torque and other generators to
@@ -224,6 +225,9 @@ if (v8_check_microtasks_scopes_consistency == "") {
 if (v8_enable_snapshot_native_code_counters == "") {
   v8_enable_snapshot_native_code_counters = v8_enable_debugging_features
 }
+if (v8_enable_shared_ro_heap == "") {
+  v8_enable_shared_ro_heap = v8_enable_lite_mode
+}
 
 assert(v8_current_cpu != "x86" || !v8_untrusted_code_mitigations,
        "Untrusted code mitigations are unsupported on ia32")
@@ -232,9 +236,6 @@ assert(!v8_enable_lite_mode || v8_enable_embedded_builtins,
        "Lite mode requires embedded builtins")
 assert(!v8_enable_lite_mode || v8_use_snapshot,
        "Lite mode requires a snapshot build")
-
-assert(v8_use_snapshot || !v8_enable_shared_ro_heap,
-       "Nosnapshot builds are not supported with shared read-only heap enabled")
 
 assert(
     !v8_enable_pointer_compression || !v8_enable_shared_ro_heap,
