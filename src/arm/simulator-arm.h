@@ -96,7 +96,7 @@ class Simulator : public SimulatorBase {
   // architecture specification and is off by a 8 from the currently executing
   // instruction.
   void set_register(int reg, int32_t value);
-  int32_t get_register(int reg) const;
+  V8_EXPORT_PRIVATE int32_t get_register(int reg) const;
   double get_double_from_register_pair(int reg);
   void set_register_pair_from_double(int reg, double* value);
   void set_dw_register(int dreg, const int* dbl);
@@ -147,7 +147,7 @@ class Simulator : public SimulatorBase {
 
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int32_t value);
-  int32_t get_pc() const;
+  V8_EXPORT_PRIVATE int32_t get_pc() const;
 
   Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
