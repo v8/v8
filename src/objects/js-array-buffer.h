@@ -177,6 +177,9 @@ class JSArrayBufferView : public JSObject {
 
 class JSTypedArray : public JSArrayBufferView {
  public:
+  // TODO(v8:4153): This should become JSArrayBuffer::kMaxByteLength eventually.
+  static constexpr size_t kMaxLength = kSmiMaxValue;
+
   // [length]: length of typed array in elements.
   DECL_PRIMITIVE_ACCESSORS(length, size_t)
 
@@ -206,7 +209,7 @@ class JSTypedArray : public JSArrayBufferView {
 // Layout description.
 #define JS_TYPED_ARRAY_FIELDS(V) \
   /* Raw data fields. */         \
-  V(kLengthOffset, kTaggedSize)  \
+  V(kLengthOffset, kUIntptrSize) \
   /* Header size. */             \
   V(kHeaderSize, 0)
 
@@ -223,8 +226,6 @@ class JSTypedArray : public JSArrayBufferView {
  private:
   static Handle<JSArrayBuffer> MaterializeArrayBuffer(
       Handle<JSTypedArray> typed_array);
-
-  DECL_ACCESSORS(raw_length, Object)
 
   OBJECT_CONSTRUCTORS(JSTypedArray, JSArrayBufferView);
 };

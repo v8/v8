@@ -51,11 +51,11 @@ TNode<Map> TypedArrayBuiltinsAssembler::LoadMapForType(
 //  - Set the byte_length.
 //  - Set EmbedderFields to 0.
 void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
-                                                  TNode<Smi> length,
+                                                  TNode<UintPtrT> length,
                                                   TNode<UintPtrT> byte_offset,
                                                   TNode<UintPtrT> byte_length) {
-  CSA_ASSERT(this, TaggedIsPositiveSmi(length));
-  StoreObjectField(holder, JSTypedArray::kLengthOffset, length);
+  StoreObjectFieldNoWriteBarrier(holder, JSTypedArray::kLengthOffset, length,
+                                 MachineType::PointerRepresentation());
   StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kByteOffsetOffset,
                                  byte_offset,
                                  MachineType::PointerRepresentation());
@@ -238,10 +238,10 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
   // Default to zero if the {receiver}s buffer was detached.
   TNode<JSArrayBuffer> receiver_buffer =
       LoadJSArrayBufferViewBuffer(CAST(receiver));
-  TNode<Smi> length = Select<Smi>(
-      IsDetachedBuffer(receiver_buffer), [=] { return SmiConstant(0); },
+  TNode<UintPtrT> length = Select<UintPtrT>(
+      IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
       [=] { return LoadJSTypedArrayLength(CAST(receiver)); });
-  Return(length);
+  Return(ChangeUintPtrToTagged(length));
 }
 
 TNode<Word32T> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
@@ -328,8 +328,9 @@ void TypedArrayBuiltinsAssembler::ThrowIfLengthLessThan(
     TNode<Smi> min_length) {
   // If typed_array.[[ArrayLength]] < min_length, throw a TypeError exception.
   Label if_length_is_not_short(this);
-  TNode<Smi> new_length = LoadJSTypedArrayLength(typed_array);
-  GotoIfNot(SmiLessThan(new_length, min_length), &if_length_is_not_short);
+  TNode<UintPtrT> new_length = LoadJSTypedArrayLength(typed_array);
+  GotoIfNot(UintPtrLessThan(new_length, SmiUntag(min_length)),
+            &if_length_is_not_short);
   ThrowTypeError(context, MessageTemplate::kTypedArrayTooShort);
 
   BIND(&if_length_is_not_short);
@@ -383,8 +384,8 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
 
   // Check for possible range errors.
 
-  TNode<IntPtrT> source_length = SmiUntag(LoadJSTypedArrayLength(source));
-  TNode<IntPtrT> target_length = SmiUntag(LoadJSTypedArrayLength(target));
+  TNode<IntPtrT> source_length = Signed(LoadJSTypedArrayLength(source));
+  TNode<IntPtrT> target_length = Signed(LoadJSTypedArrayLength(target));
   TNode<IntPtrT> required_target_length = IntPtrAdd(source_length, offset);
 
   GotoIf(IntPtrGreaterThan(required_target_length, target_length),
@@ -434,7 +435,7 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
                           IsBigInt64ElementsKind(target_el_kind)),
            &exception);
 
-    TNode<IntPtrT> source_length = SmiUntag(LoadJSTypedArrayLength(source));
+    TNode<IntPtrT> source_length = Signed(LoadJSTypedArrayLength(source));
     CallCCopyTypedArrayElementsToTypedArray(source, target, source_length,
                                             offset);
     Goto(&out);
@@ -455,7 +456,7 @@ void TypedArrayBuiltinsAssembler::SetJSArraySource(
              IntPtrLessThanOrEqual(offset, IntPtrConstant(Smi::kMaxValue)));
 
   TNode<IntPtrT> source_length = SmiUntag(LoadFastJSArrayLength(source));
-  TNode<IntPtrT> target_length = SmiUntag(LoadJSTypedArrayLength(target));
+  TNode<IntPtrT> target_length = Signed(LoadJSTypedArrayLength(target));
 
   // Maybe out of bounds?
   GotoIf(IntPtrGreaterThan(IntPtrAdd(source_length, offset), target_length),
@@ -956,7 +957,8 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
     // Source is a TypedArray with unmodified iterator behavior. Use the
     // source object directly, taking advantage of the special-case code in
     // TypedArrayCopyElements
-    final_length = LoadJSTypedArrayLength(CAST(source));
+    // TODO(v8:4153): This needs to be handle to huge TypedArrays.
+    final_length = SmiTag(Signed(LoadJSTypedArrayLength(CAST(source))));
     final_source = source;
     Goto(&create_typed_array);
   }

@@ -29,7 +29,7 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                                   const char* method_name,
                                                   IterationKind iteration_kind);
 
-  void SetupTypedArray(TNode<JSTypedArray> holder, TNode<Smi> length,
+  void SetupTypedArray(TNode<JSTypedArray> holder, TNode<UintPtrT> length,
                        TNode<UintPtrT> byte_offset,
                        TNode<UintPtrT> byte_length);
   void AttachBuffer(TNode<JSTypedArray> holder, TNode<JSArrayBuffer> buffer,

@@ -19,7 +19,7 @@ namespace typed_array_createtypedarray {
   extern macro TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(JSArrayBuffer):
       bool;
   extern macro TypedArrayBuiltinsAssembler::SetupTypedArray(
-      JSTypedArray, Smi, uintptr, uintptr): void;
+      JSTypedArray, uintptr, uintptr, uintptr): void;
 
   extern runtime ThrowInvalidTypedArrayAlignment(implicit context: Context)(
       Map, String): never;
@@ -77,7 +77,8 @@ namespace typed_array_createtypedarray {
     }
 
     const byteOffset: uintptr = 0;
-    SetupTypedArray(typedArray, length, byteOffset, byteLength);
+    SetupTypedArray(
+        typedArray, Convert<uintptr>(length), byteOffset, byteLength);
 
     return byteLength;
   }
@@ -156,7 +157,9 @@ namespace typed_array_createtypedarray {
     let bufferConstructor: JSReceiver = GetArrayBufferFunction();
     const srcBuffer: JSArrayBuffer = srcTypedArray.buffer;
     // TODO(petermarshall): Throw on detached typedArray.
-    let length: Smi = IsDetachedBuffer(srcBuffer) ? 0 : srcTypedArray.length;
+    // TODO(v8:4156): Update this to support huge TypedArrays.
+    let length =
+        IsDetachedBuffer(srcBuffer) ? 0 : Convert<Number>(srcTypedArray.length);
 
     // The spec requires that constructing a typed array using a SAB-backed
     // typed array use the ArrayBuffer constructor, not the species constructor.
@@ -235,7 +238,8 @@ namespace typed_array_createtypedarray {
           goto IfInvalidLength;
       }
 
-      SetupTypedArray(typedArray, newLength, offset, newByteLength);
+      SetupTypedArray(
+          typedArray, Convert<uintptr>(newLength), offset, newByteLength);
       typedArray.AttachOffHeapBuffer(buffer, elementsInfo.map, offset);
     }
     label IfInvalidAlignment(problemString: String) deferred {
@@ -291,6 +295,7 @@ namespace typed_array_createtypedarray {
     // the object even though that doesn't make any sense for these fields.
     array.byte_offset = 0;
     array.byte_length = 0;
+    array.length = 0;
 
     // 5. Let elementSize be the Number value of the Element Size value in Table
     // 56 for constructorName.
@@ -372,12 +377,11 @@ namespace typed_array_createtypedarray {
   transitioning macro TypedArraySpeciesCreateByLength(implicit context:
                                                           Context)(
       methodName: constexpr string, exemplar: JSTypedArray,
-      length: Smi): JSTypedArray {
-    assert(Is<PositiveSmi>(length));
+      length: PositiveSmi): JSTypedArray {
     const numArgs: constexpr int31 = 1;
     const typedArray: JSTypedArray = TypedArraySpeciesCreate(
         methodName, numArgs, exemplar, length, Undefined, Undefined);
-    if (typedArray.length < length) deferred {
+    if (typedArray.length < Convert<uintptr>(length)) deferred {
         ThrowTypeError(kTypedArrayTooShort);
       }
 

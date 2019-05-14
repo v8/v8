@@ -624,7 +624,7 @@ namespace array_join {
     // the algorithm.
     const typedArray: JSTypedArray = typed_array::ValidateTypedArray(
         context, receiver, '%TypedArray%.prototype.join');
-    const length: Smi = typedArray.length;
+    const length = Convert<Number>(typedArray.length);
 
     return CycleProtectedArrayJoin<JSTypedArray>(
         false, typedArray, length, separator, Undefined, Undefined);
@@ -640,7 +640,7 @@ namespace array_join {
     // the algorithm.
     const typedArray: JSTypedArray = typed_array::ValidateTypedArray(
         context, receiver, '%TypedArray%.prototype.toLocaleString');
-    const length: Smi = typedArray.length;
+    const length = Convert<Number>(typedArray.length);
 
     return CycleProtectedArrayJoin<JSTypedArray>(
         true, typedArray, length, ',', locales, options);

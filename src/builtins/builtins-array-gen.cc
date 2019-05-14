@@ -42,7 +42,8 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
         context(), method_name, original_array, length);
     // In the Spec and our current implementation, the length check is already
     // performed in TypedArraySpeciesCreate.
-    CSA_ASSERT(this, SmiLessThanOrEqual(CAST(len_), LoadJSTypedArrayLength(a)));
+    CSA_ASSERT(this, UintPtrLessThanOrEqual(SmiUntag(CAST(len_)),
+                                            LoadJSTypedArrayLength(a)));
     fast_typed_array_target_ =
         Word32Equal(LoadInstanceType(LoadElements(original_array)),
                     LoadInstanceType(LoadElements(a)));
@@ -159,7 +160,7 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
         LoadJSArrayBufferViewBuffer(typed_array);
     ThrowIfArrayBufferIsDetached(context_, array_buffer, name_);
 
-    len_ = LoadJSTypedArrayLength(typed_array);
+    len_ = ChangeUintPtrToTagged(LoadJSTypedArrayLength(typed_array));
 
     Label throw_not_callable(this, Label::kDeferred);
     Label distinguish_types(this);
@@ -1641,6 +1642,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   BIND(&if_typedarray);
   {
     // If {array} is a JSTypedArray, the {index} must always be a Smi.
+    // TODO(v8:4153): Update this and the relevant TurboFan code.
     CSA_ASSERT(this, TaggedIsSmi(index));
 
     // Check that the {array}s buffer wasn't detached.
@@ -1650,8 +1652,9 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     // [[ArrayIteratorNextIndex]] anymore, since a JSTypedArray's
     // length cannot change anymore, so this {iterator} will never
     // produce values again anyways.
-    TNode<Smi> length = LoadJSTypedArrayLength(CAST(array));
-    GotoIfNot(SmiBelow(CAST(index), length), &allocate_iterator_result);
+    TNode<UintPtrT> length = LoadJSTypedArrayLength(CAST(array));
+    GotoIfNot(UintPtrLessThan(SmiUntag(CAST(index)), length),
+              &allocate_iterator_result);
     StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
                                    SmiInc(CAST(index)));
 

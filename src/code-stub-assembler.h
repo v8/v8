@@ -3238,7 +3238,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       const char* method_name);
 
   // JSTypedArray helpers
-  TNode<Smi> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
+  TNode<UintPtrT> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
 
   TNode<IntPtrT> ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                         ParameterMode mode, int base_size = 0);

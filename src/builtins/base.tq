@@ -526,7 +526,7 @@ extern class JSTypedArray extends JSArrayBufferView {
     };
   }
 
-  length: Smi;
+  length: uintptr;
 }
 
 @noVerifier

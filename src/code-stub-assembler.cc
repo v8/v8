@@ -9658,7 +9658,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
     Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
     GotoIf(IsDetachedBuffer(buffer), if_absent);
 
-    Node* length = SmiUntag(LoadJSTypedArrayLength(CAST(object)));
+    TNode<UintPtrT> length = LoadJSTypedArrayLength(CAST(object));
     Branch(UintPtrLessThan(intptr_index, length), if_found, if_absent);
   }
   BIND(&if_oob);
@@ -10553,8 +10553,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     GotoIf(IsDetachedBuffer(buffer), bailout);
 
     // Bounds check.
-    Node* length =
-        TaggedToParameter(LoadJSTypedArrayLength(CAST(object)), parameter_mode);
+    TNode<UintPtrT> length = LoadJSTypedArrayLength(CAST(object));
 
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
       // Skip the store if we write beyond the length or
@@ -13165,9 +13164,9 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferViewByteOffset(
                                    JSArrayBufferView::kByteOffsetOffset);
 }
 
-TNode<Smi> CodeStubAssembler::LoadJSTypedArrayLength(
+TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLength(
     TNode<JSTypedArray> typed_array) {
-  return LoadObjectField<Smi>(typed_array, JSTypedArray::kLengthOffset);
+  return LoadObjectField<UintPtrT>(typed_array, JSTypedArray::kLengthOffset);
 }
 
 CodeStubArguments::CodeStubArguments(

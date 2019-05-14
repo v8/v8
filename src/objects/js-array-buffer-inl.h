@@ -133,16 +133,11 @@ bool JSArrayBufferView::WasDetached() const {
 }
 
 size_t JSTypedArray::length() const {
-  // TODO(bmeurer, v8:4153): Change this to size_t later.
-  int length = Smi::cast(raw_length())->value();
-  DCHECK_LE(0, length);
-  return length;
+  return READ_UINTPTR_FIELD(*this, kLengthOffset);
 }
 
 void JSTypedArray::set_length(size_t value) {
-  // TODO(bmeurer, v8:4153): Change this to size_t later.
-  CHECK_LE(value, Smi::kMaxValue);
-  set_raw_length(Smi::FromInt(static_cast<int>(value)), SKIP_WRITE_BARRIER);
+  WRITE_UINTPTR_FIELD(*this, kLengthOffset, value);
 }
 
 bool JSTypedArray::is_on_heap() const {
@@ -174,8 +169,6 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
   // implementations, and it's much useful to return array for now.
   return array;
 }
-
-ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
 
 void* JSDataView::data_pointer() const {
   intptr_t ptr = READ_INTPTR_FIELD(*this, kDataPointerOffset);

@@ -1546,7 +1546,7 @@ void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
 
 void JSTypedArray::JSTypedArrayVerify(Isolate* isolate) {
   ClassVerifiersFromDSL::JSTypedArrayVerify(*this, isolate);
-  VerifyPointer(isolate, elements());
+  CHECK_LE(length(), JSTypedArray::kMaxLength);
 }
 
 void JSDataView::JSDataViewVerify(Isolate* isolate) {

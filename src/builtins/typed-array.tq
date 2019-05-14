@@ -298,7 +298,8 @@ namespace typed_array {
     }
 
     // 4. Let len be obj.[[ArrayLength]].
-    const len: Smi = array.length;
+    // TODO(v8:4153): Support huge TypedArrays here.
+    const len = Cast<Smi>(Convert<Number>(array.length)) otherwise unreachable;
 
     // Arrays of length 1 or less are considered sorted.
     if (len < 2) return array;

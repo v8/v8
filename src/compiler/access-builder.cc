@@ -422,7 +422,7 @@ FieldAccess AccessBuilder::ForJSTypedArrayLength() {
                         MaybeHandle<Name>(),
                         MaybeHandle<Map>(),
                         TypeCache::Get()->kJSTypedArrayLengthType,
-                        MachineType::TypeCompressedTaggedSigned(),
+                        MachineType::UintPtr(),
                         kNoWriteBarrier};
   return access;
 }
