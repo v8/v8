@@ -2905,12 +2905,11 @@ class RepresentationSelector {
       case IrOpcode::kLoadDataViewElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
-        ProcessInput(node, 0, UseInfo::AnyTagged());  // buffer
-        ProcessInput(node, 1, UseInfo::Word());       // external pointer
-        ProcessInput(node, 2, UseInfo::Word());       // byte offset
-        ProcessInput(node, 3, UseInfo::Word());       // index
-        ProcessInput(node, 4, UseInfo::Bool());       // little-endian
-        ProcessRemainingInputs(node, 5);
+        ProcessInput(node, 0, UseInfo::AnyTagged());  // object
+        ProcessInput(node, 1, UseInfo::Word());       // base
+        ProcessInput(node, 2, UseInfo::Word());       // index
+        ProcessInput(node, 3, UseInfo::Bool());       // little-endian
+        ProcessRemainingInputs(node, 4);
         SetOutput(node, rep);
         return;
       }
@@ -2930,14 +2929,13 @@ class RepresentationSelector {
       case IrOpcode::kStoreDataViewElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
-        ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
-        ProcessInput(node, 1, UseInfo::Word());              // external pointer
-        ProcessInput(node, 2, UseInfo::Word());              // byte offset
-        ProcessInput(node, 3, UseInfo::Word());              // index
-        ProcessInput(node, 4,
+        ProcessInput(node, 0, UseInfo::AnyTagged());  // object
+        ProcessInput(node, 1, UseInfo::Word());       // base
+        ProcessInput(node, 2, UseInfo::Word());       // index
+        ProcessInput(node, 3,
                      TruncatingUseInfoFromRepresentation(rep));  // value
-        ProcessInput(node, 5, UseInfo::Bool());  // little-endian
-        ProcessRemainingInputs(node, 6);
+        ProcessInput(node, 4, UseInfo::Bool());  // little-endian
+        ProcessRemainingInputs(node, 5);
         SetOutput(node, MachineRepresentation::kNone);
         return;
       }

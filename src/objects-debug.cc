@@ -1549,7 +1549,15 @@ void JSTypedArray::JSTypedArrayVerify(Isolate* isolate) {
   VerifyPointer(isolate, elements());
 }
 
-USE_TORQUE_VERIFIER(JSDataView)
+void JSDataView::JSDataViewVerify(Isolate* isolate) {
+  ClassVerifiersFromDSL::JSDataViewVerify(*this, isolate);
+  if (!WasDetached()) {
+    CHECK_EQ(reinterpret_cast<uint8_t*>(
+                 JSArrayBuffer::cast(buffer()).backing_store()) +
+                 byte_offset(),
+             data_pointer());
+  }
+}
 
 USE_TORQUE_VERIFIER(Foreign)
 

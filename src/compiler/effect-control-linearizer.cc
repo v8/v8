@@ -4701,23 +4701,20 @@ Node* EffectControlLinearizer::BuildReverseBytes(ExternalArrayType type,
 
 Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
   ExternalArrayType element_type = ExternalArrayTypeOf(node->op());
-  Node* buffer = node->InputAt(0);
+  Node* object = node->InputAt(0);
   Node* storage = node->InputAt(1);
-  Node* byte_offset = node->InputAt(2);
-  Node* index = node->InputAt(3);
-  Node* is_little_endian = node->InputAt(4);
+  Node* index = node->InputAt(2);
+  Node* is_little_endian = node->InputAt(3);
 
-  // We need to keep the {buffer} alive so that the GC will not release the
-  // ArrayBuffer (if there's any) as long as we are still operating on it.
-  __ Retain(buffer);
-
-  // Compute the effective offset.
-  Node* offset = __ IntAdd(byte_offset, index);
+  // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
+  // alive so that the GC will not release the JSArrayBuffer (if there's any)
+  // as long as we are still operating on it.
+  __ Retain(object);
 
   MachineType const machine_type =
       AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
 
-  Node* value = __ LoadUnaligned(machine_type, storage, offset);
+  Node* value = __ LoadUnaligned(machine_type, storage, index);
   auto big_endian = __ MakeLabel();
   auto done = __ MakeLabel(machine_type.representation());
 
@@ -4746,19 +4743,16 @@ Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
 
 void EffectControlLinearizer::LowerStoreDataViewElement(Node* node) {
   ExternalArrayType element_type = ExternalArrayTypeOf(node->op());
-  Node* buffer = node->InputAt(0);
+  Node* object = node->InputAt(0);
   Node* storage = node->InputAt(1);
-  Node* byte_offset = node->InputAt(2);
-  Node* index = node->InputAt(3);
-  Node* value = node->InputAt(4);
-  Node* is_little_endian = node->InputAt(5);
+  Node* index = node->InputAt(2);
+  Node* value = node->InputAt(3);
+  Node* is_little_endian = node->InputAt(4);
 
-  // We need to keep the {buffer} alive so that the GC will not release the
-  // ArrayBuffer (if there's any) as long as we are still operating on it.
-  __ Retain(buffer);
-
-  // Compute the effective offset.
-  Node* offset = __ IntAdd(byte_offset, index);
+  // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
+  // alive so that the GC will not release the JSArrayBuffer (if there's any)
+  // as long as we are still operating on it.
+  __ Retain(object);
 
   MachineType const machine_type =
       AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
@@ -4785,7 +4779,7 @@ void EffectControlLinearizer::LowerStoreDataViewElement(Node* node) {
   }
 
   __ Bind(&done);
-  __ StoreUnaligned(machine_type.representation(), storage, offset,
+  __ StoreUnaligned(machine_type.representation(), storage, index,
                     done.PhiAt(0));
 }
 

@@ -177,6 +177,16 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
 
 ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
 
+void* JSDataView::data_pointer() const {
+  intptr_t ptr = READ_INTPTR_FIELD(*this, kDataPointerOffset);
+  return reinterpret_cast<void*>(ptr);
+}
+
+void JSDataView::set_data_pointer(void* value) {
+  intptr_t ptr = reinterpret_cast<intptr_t>(value);
+  WRITE_INTPTR_FIELD(*this, kDataPointerOffset, ptr);
+}
+
 }  // namespace internal
 }  // namespace v8
 

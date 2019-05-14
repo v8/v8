@@ -281,6 +281,12 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj, int space) {
                                              string->ExternalPayloadSize());
     }
     isolate_->heap()->RegisterExternalString(String::cast(obj));
+  } else if (obj->IsJSDataView()) {
+    JSDataView data_view = JSDataView::cast(obj);
+    JSArrayBuffer buffer = JSArrayBuffer::cast(data_view.buffer());
+    data_view.set_data_pointer(
+        reinterpret_cast<uint8_t*>(buffer.backing_store()) +
+        data_view.byte_offset());
   } else if (obj->IsJSTypedArray()) {
     JSTypedArray typed_array = JSTypedArray::cast(obj);
     CHECK_LE(typed_array->byte_offset(), Smi::kMaxValue);

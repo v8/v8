@@ -428,6 +428,15 @@ FieldAccess AccessBuilder::ForJSTypedArrayLength() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSDataViewDataPointer() {
+  FieldAccess access = {kTaggedBase,           JSDataView::kDataPointerOffset,
+                        MaybeHandle<Name>(),   MaybeHandle<Map>(),
+                        Type::OtherInternal(), MachineType::Pointer(),
+                        kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSDateValue() {
   FieldAccess access = {kTaggedBase,
                         JSDate::kValueOffset,

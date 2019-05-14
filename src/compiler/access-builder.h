@@ -139,6 +139,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSTypedArray::length() field.
   static FieldAccess ForJSTypedArrayLength();
 
+  // Provides access to JSDataView::data_pointer() field.
+  static FieldAccess ForJSDataViewDataPointer();
+
   // Provides access to JSDate::value() field.
   static FieldAccess ForJSDateValue();
 

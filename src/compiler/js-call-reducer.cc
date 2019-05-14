@@ -6513,8 +6513,6 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     return NoChange();
   }
 
-  Node* byte_offset;
-
   // Check that the {offset} is within range for the {receiver}.
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
@@ -6528,9 +6526,6 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
         jsgraph()->Constant(dataview.byte_length() - (element_size - 1));
     offset = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
                                        offset, byte_length, effect, control);
-
-    // Load the [[ByteOffset]] from the {dataview}.
-    byte_offset = jsgraph()->Constant(dataview.byte_offset());
   } else {
     // We only deal with DataViews here that have Smi [[ByteLength]]s.
     Node* byte_length = effect =
@@ -6554,12 +6549,6 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     // Check that the {offset} is within range of the {byte_length}.
     offset = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
                                        offset, byte_length, effect, control);
-
-    // Also load the [[ByteOffset]] from the {receiver}.
-    byte_offset = effect =
-        graph()->NewNode(simplified()->LoadField(
-                             AccessBuilder::ForJSArrayBufferViewByteOffset()),
-                         receiver, effect, control);
   }
 
   // Coerce {is_little_endian} to boolean.
@@ -6574,12 +6563,18 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
         value, effect, control);
   }
 
-  // Get the underlying buffer and check that it has not been detached.
-  Node* buffer = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
-      receiver, effect, control);
+  // We need to retain either the {receiver} itself or it's backing
+  // JSArrayBuffer to make sure that the GC doesn't collect the raw
+  // memory. We default to {receiver} here, and only use the buffer
+  // if we anyways have to load it (to reduce register pressure).
+  Node* buffer_or_receiver = receiver;
 
   if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // Get the underlying buffer and check that it has not been detached.
+    Node* buffer = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+        receiver, effect, control);
+
     // Bail out if the {buffer} was detached.
     Node* buffer_bit_field = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
@@ -6594,27 +6589,29 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
         simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached,
                               p.feedback()),
         check, effect, control);
+
+    // We can reduce register pressure by holding on to the {buffer}
+    // now to retain the backing store memory.
+    buffer_or_receiver = buffer;
   }
 
-  // Get the buffer's backing store.
-  Node* backing_store = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayBufferBackingStore()),
-      buffer, effect, control);
+  // Load the {receiver}s data pointer.
+  Node* data_pointer = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSDataViewDataPointer()),
+      receiver, effect, control);
 
   switch (access) {
     case DataViewAccess::kGet:
       // Perform the load.
-      value = effect =
-          graph()->NewNode(simplified()->LoadDataViewElement(element_type),
-                           buffer, backing_store, byte_offset, offset,
-                           is_little_endian, effect, control);
+      value = effect = graph()->NewNode(
+          simplified()->LoadDataViewElement(element_type), buffer_or_receiver,
+          data_pointer, offset, is_little_endian, effect, control);
       break;
     case DataViewAccess::kSet:
       // Perform the store.
-      effect =
-          graph()->NewNode(simplified()->StoreDataViewElement(element_type),
-                           buffer, backing_store, byte_offset, offset, value,
-                           is_little_endian, effect, control);
+      effect = graph()->NewNode(
+          simplified()->StoreDataViewElement(element_type), buffer_or_receiver,
+          data_pointer, offset, value, is_little_endian, effect, control);
       value = jsgraph()->UndefinedConstant();
       break;
   }

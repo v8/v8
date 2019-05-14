@@ -828,13 +828,13 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);
 
-  // load-data-view-element buffer, [base + byte_offset + index]
+  // load-data-view-element object, [base + index]
   const Operator* LoadDataViewElement(ExternalArrayType const&);
 
   // store-typed-element buffer, [base + external + index], value
   const Operator* StoreTypedElement(ExternalArrayType const&);
 
-  // store-data-view-element buffer, [base + byte_offset + index], value
+  // store-data-view-element object, [base + index], value
   const Operator* StoreDataViewElement(ExternalArrayType const&);
 
   // Abort (for terminating execution on internal error).

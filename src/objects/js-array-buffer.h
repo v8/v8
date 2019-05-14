@@ -172,8 +172,6 @@ class JSArrayBufferView : public JSObject {
                                 JS_ARRAY_BUFFER_VIEW_FIELDS)
 #undef JS_ARRAY_BUFFER_VIEW_FIELDS
 
-  class BodyDescriptor;
-
   OBJECT_CONSTRUCTORS(JSArrayBufferView, JSObject);
 };
 
@@ -220,6 +218,8 @@ class JSTypedArray : public JSArrayBufferView {
       kHeaderSize +
       v8::ArrayBufferView::kEmbedderFieldCount * kEmbedderDataSlotSize;
 
+  class BodyDescriptor;
+
  private:
   static Handle<JSArrayBuffer> MaterializeArrayBuffer(
       Handle<JSTypedArray> typed_array);
@@ -231,6 +231,9 @@ class JSTypedArray : public JSArrayBufferView {
 
 class JSDataView : public JSArrayBufferView {
  public:
+  // [data_pointer]: pointer to the actual data.
+  DECL_PRIMITIVE_ACCESSORS(data_pointer, void*)
+
   DECL_CAST(JSDataView)
 
   // Dispatched behavior.
@@ -238,9 +241,21 @@ class JSDataView : public JSArrayBufferView {
   DECL_VERIFIER(JSDataView)
 
   // Layout description.
+#define JS_DATA_VIEW_FIELDS(V)       \
+  /* Raw data fields. */             \
+  V(kDataPointerOffset, kIntptrSize) \
+  /* Header size. */                 \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSArrayBufferView::kHeaderSize,
+                                JS_DATA_VIEW_FIELDS)
+#undef JS_DATA_VIEW_FIELDS
+
   static const int kSizeWithEmbedderFields =
       kHeaderSize +
       v8::ArrayBufferView::kEmbedderFieldCount * kEmbedderDataSlotSize;
+
+  class BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(JSDataView, JSArrayBufferView);
 };
