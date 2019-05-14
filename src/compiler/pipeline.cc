@@ -1071,11 +1071,12 @@ struct GraphBuilderPhase {
     if (data->info()->is_bailout_on_uninitialized()) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
+    CallFrequency frequency(1.0f);
     BuildGraphFromBytecode(
         data->broker(), temp_zone, data->info()->bytecode_array(),
         data->info()->shared_info(),
         handle(data->info()->closure()->feedback_vector(), data->isolate()),
-        data->info()->osr_offset(), data->jsgraph(), CallFrequency(1.0f),
+        data->info()->osr_offset(), data->jsgraph(), frequency,
         data->source_positions(), data->native_context(),
         SourcePosition::kNotInlined, flags);
   }

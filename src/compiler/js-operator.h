@@ -106,7 +106,7 @@ class ConstructParameters final {
       : arity_(arity), frequency_(frequency), feedback_(feedback) {}
 
   uint32_t arity() const { return arity_; }
-  CallFrequency frequency() const { return frequency_; }
+  CallFrequency const& frequency() const { return frequency_; }
   VectorSlotPair const& feedback() const { return feedback_; }
 
  private:

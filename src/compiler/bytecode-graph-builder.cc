@@ -36,7 +36,7 @@ class BytecodeGraphBuilder {
                        Handle<SharedFunctionInfo> shared,
                        Handle<FeedbackVector> feedback_vector,
                        BailoutId osr_offset, JSGraph* jsgraph,
-                       CallFrequency invocation_frequency,
+                       CallFrequency const& invocation_frequency,
                        SourcePositionTable* source_positions,
                        Handle<Context> native_context, int inlining_id,
                        BytecodeGraphBuilderFlags flags);
@@ -942,7 +942,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     Handle<BytecodeArray> bytecode_array,
     Handle<SharedFunctionInfo> shared_info,
     Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
-    JSGraph* jsgraph, CallFrequency invocation_frequency,
+    JSGraph* jsgraph, CallFrequency const& invocation_frequency,
     SourcePositionTable* source_positions, Handle<Context> native_context,
     int inlining_id, BytecodeGraphBuilderFlags flags)
     : broker_(broker),
@@ -4037,7 +4037,7 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             Handle<SharedFunctionInfo> shared,
                             Handle<FeedbackVector> feedback_vector,
                             BailoutId osr_offset, JSGraph* jsgraph,
-                            CallFrequency invocation_frequency,
+                            CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
                             Handle<Context> native_context, int inlining_id,
                             BytecodeGraphBuilderFlags flags) {
