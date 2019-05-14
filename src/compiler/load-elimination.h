@@ -182,11 +182,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   class AbstractState final : public ZoneObject {
    public:
-    AbstractState() {
-      for (size_t i = 0; i < arraysize(fields_); ++i) {
-        fields_[i] = nullptr;
-      }
-    }
+    AbstractState() {}
 
     bool Equals(AbstractState const* that) const;
     void Merge(AbstractState const* that, Zone* zone);
@@ -199,7 +195,9 @@ class V8_EXPORT_PRIVATE LoadElimination final
     bool LookupMaps(Node* object, ZoneHandleSet<Map>* object_maps) const;
 
     AbstractState const* AddField(Node* object, size_t index, Node* value,
-                                  MaybeHandle<Name> name, Zone* zone) const;
+                                  MaybeHandle<Name> name,
+                                  PropertyConstness constness,
+                                  Zone* zone) const;
     AbstractState const* KillField(const AliasStateInfo& alias_info,
                                    size_t index, MaybeHandle<Name> name,
                                    Zone* zone) const;
@@ -207,7 +205,9 @@ class V8_EXPORT_PRIVATE LoadElimination final
                                    MaybeHandle<Name> name, Zone* zone) const;
     AbstractState const* KillFields(Node* object, MaybeHandle<Name> name,
                                     Zone* zone) const;
-    Node* LookupField(Node* object, size_t index) const;
+    AbstractState const* KillAll(Zone* zone) const;
+    Node* LookupField(Node* object, size_t index,
+                      PropertyConstness constness) const;
 
     AbstractState const* AddElement(Node* object, Node* index, Node* value,
                                     MachineRepresentation representation,
@@ -219,9 +219,21 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
     void Print() const;
 
+    static AbstractState const* empty_state() { return &empty_state_; }
+
    private:
+    static AbstractState const empty_state_;
+
+    using AbstractFields = std::array<AbstractField const*, kMaxTrackedFields>;
+
+    bool FieldsEquals(AbstractFields const& this_fields,
+                      AbstractFields const& that_fields) const;
+    void FieldsMerge(AbstractFields& this_fields,
+                     AbstractFields const& that_fields, Zone* zone);
+
     AbstractElements const* elements_ = nullptr;
-    AbstractField const* fields_[kMaxTrackedFields];
+    AbstractFields fields_{};
+    AbstractFields const_fields_{};
     AbstractMaps const* maps_ = nullptr;
   };
 
@@ -266,15 +278,17 @@ class V8_EXPORT_PRIVATE LoadElimination final
   static int FieldIndexOf(int offset);
   static int FieldIndexOf(FieldAccess const& access);
 
+  static AbstractState const* empty_state() {
+    return AbstractState::empty_state();
+  }
+
   CommonOperatorBuilder* common() const;
-  AbstractState const* empty_state() const { return &empty_state_; }
   Isolate* isolate() const;
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* zone() const { return node_states_.zone(); }
 
-  AbstractState const empty_state_;
   AbstractStateForEffectNodes node_states_;
   JSGraph* const jsgraph_;
 

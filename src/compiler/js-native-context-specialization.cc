@@ -459,20 +459,6 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
       return NoChange();
     }
 
-    // Install dependency on constness. Unfortunately, access_info does not
-    // track descriptor index, so we have to search for it.
-    MapRef holder_map(broker(), handle(holder->map(), isolate()));
-    Handle<DescriptorArray> descriptors(
-        holder_map.object()->instance_descriptors(), isolate());
-    int descriptor_index = descriptors->Search(
-        *(factory()->has_instance_symbol()), *(holder_map.object()));
-    CHECK_NE(descriptor_index, DescriptorArray::kNotFound);
-    holder_map.SerializeOwnDescriptors();
-    if (dependencies()->DependOnFieldConstness(holder_map, descriptor_index) !=
-        PropertyConstness::kConst) {
-      return NoChange();
-    }
-
     if (found_on_proto) {
       dependencies()->DependOnStablePrototypeChains(
           access_info.receiver_maps(), kStartAtPrototype,

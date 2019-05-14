@@ -145,6 +145,9 @@ bool IsCompatible(MachineRepresentation r1, MachineRepresentation r2) {
 
 }  // namespace
 
+LoadElimination::AbstractState const
+    LoadElimination::AbstractState::empty_state_;
+
 Node* LoadElimination::AbstractElements::Lookup(
     Node* object, Node* index, MachineRepresentation representation) const {
   for (Element const element : elements_) {
@@ -376,6 +379,21 @@ void LoadElimination::AbstractMaps::Print() const {
   }
 }
 
+bool LoadElimination::AbstractState::FieldsEquals(
+    AbstractFields const& this_fields,
+    AbstractFields const& that_fields) const {
+  for (size_t i = 0u; i < this_fields.size(); ++i) {
+    AbstractField const* this_field = this_fields[i];
+    AbstractField const* that_field = that_fields[i];
+    if (this_field) {
+      if (!that_field || !that_field->Equals(this_field)) return false;
+    } else if (that_field) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool LoadElimination::AbstractState::Equals(AbstractState const* that) const {
   if (this->elements_) {
     if (!that->elements_ || !that->elements_->Equals(this->elements_)) {
@@ -384,14 +402,9 @@ bool LoadElimination::AbstractState::Equals(AbstractState const* that) const {
   } else if (that->elements_) {
     return false;
   }
-  for (size_t i = 0u; i < arraysize(fields_); ++i) {
-    AbstractField const* this_field = this->fields_[i];
-    AbstractField const* that_field = that->fields_[i];
-    if (this_field) {
-      if (!that_field || !that_field->Equals(this_field)) return false;
-    } else if (that_field) {
-      return false;
-    }
+  if (!FieldsEquals(this->fields_, that->fields_) ||
+      !FieldsEquals(this->const_fields_, that->const_fields_)) {
+    return false;
   }
   if (this->maps_) {
     if (!that->maps_ || !that->maps_->Equals(this->maps_)) {
@@ -401,6 +414,20 @@ bool LoadElimination::AbstractState::Equals(AbstractState const* that) const {
     return false;
   }
   return true;
+}
+
+void LoadElimination::AbstractState::FieldsMerge(
+    AbstractFields& this_fields, AbstractFields const& that_fields,
+    Zone* zone) {
+  for (size_t i = 0; i < this_fields.size(); ++i) {
+    if (this_fields[i]) {
+      if (that_fields[i]) {
+        this_fields[i] = this_fields[i]->Merge(that_fields[i], zone);
+      } else {
+        this_fields[i] = nullptr;
+      }
+    }
+  }
 }
 
 void LoadElimination::AbstractState::Merge(AbstractState const* that,
@@ -413,15 +440,8 @@ void LoadElimination::AbstractState::Merge(AbstractState const* that,
   }
 
   // Merge the information we have about the fields.
-  for (size_t i = 0; i < arraysize(fields_); ++i) {
-    if (this->fields_[i]) {
-      if (that->fields_[i]) {
-        this->fields_[i] = this->fields_[i]->Merge(that->fields_[i], zone);
-      } else {
-        this->fields_[i] = nullptr;
-      }
-    }
-  }
+  FieldsMerge(this->fields_, that->fields_, zone);
+  FieldsMerge(this->const_fields_, that->const_fields_, zone);
 
   // Merge the information we have about the maps.
   if (this->maps_) {
@@ -505,13 +525,15 @@ LoadElimination::AbstractState::KillElement(Node* object, Node* index,
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::AddField(
     Node* object, size_t index, Node* value, MaybeHandle<Name> name,
-    Zone* zone) const {
+    PropertyConstness constness, Zone* zone) const {
   AbstractState* that = new (zone) AbstractState(*this);
-  if (that->fields_[index]) {
-    that->fields_[index] =
-        that->fields_[index]->Extend(object, value, name, zone);
+  AbstractFields& fields = constness == PropertyConstness::kConst
+                               ? that->const_fields_
+                               : that->fields_;
+  if (fields[index]) {
+    fields[index] = fields[index]->Extend(object, value, name, zone);
   } else {
-    that->fields_[index] = new (zone) AbstractField(object, value, name, zone);
+    fields[index] = new (zone) AbstractField(object, value, name, zone);
   }
   return that;
 }
@@ -541,14 +563,14 @@ LoadElimination::AbstractState::KillFields(Node* object, MaybeHandle<Name> name,
                                            Zone* zone) const {
   AliasStateInfo alias_info(this, object);
   for (size_t i = 0;; ++i) {
-    if (i == arraysize(fields_)) return this;
+    if (i == fields_.size()) return this;
     if (AbstractField const* this_field = this->fields_[i]) {
       AbstractField const* that_field =
           this_field->Kill(alias_info, name, zone);
       if (that_field != this_field) {
         AbstractState* that = new (zone) AbstractState(*this);
         that->fields_[i] = that_field;
-        while (++i < arraysize(fields_)) {
+        while (++i < fields_.size()) {
           if (this->fields_[i] != nullptr) {
             that->fields_[i] = this->fields_[i]->Kill(alias_info, name, zone);
           }
@@ -559,10 +581,28 @@ LoadElimination::AbstractState::KillFields(Node* object, MaybeHandle<Name> name,
   }
 }
 
-Node* LoadElimination::AbstractState::LookupField(Node* object,
-                                                  size_t index) const {
-  if (AbstractField const* this_field = this->fields_[index]) {
+LoadElimination::AbstractState const* LoadElimination::AbstractState::KillAll(
+    Zone* zone) const {
+  // Kill everything except for const fields
+  for (size_t i = 0; i < const_fields_.size(); ++i) {
+    if (const_fields_[i]) {
+      AbstractState* that = new (zone) AbstractState();
+      that->const_fields_ = const_fields_;
+      return that;
+    }
+  }
+  return LoadElimination::empty_state();
+}
+
+Node* LoadElimination::AbstractState::LookupField(
+    Node* object, size_t index, PropertyConstness constness) const {
+  AbstractFields const& fields =
+      constness == PropertyConstness::kConst ? const_fields_ : fields_;
+  if (AbstractField const* this_field = fields[index]) {
     return this_field->Lookup(object);
+  }
+  if (constness == PropertyConstness::kConst) {
+    return LookupField(object, index, PropertyConstness::kMutable);
   }
   return nullptr;
 }
@@ -600,10 +640,16 @@ void LoadElimination::AbstractState::Print() const {
     PrintF("   elements:\n");
     elements_->Print();
   }
-  for (size_t i = 0; i < arraysize(fields_); ++i) {
+  for (size_t i = 0; i < fields_.size(); ++i) {
     if (AbstractField const* const field = fields_[i]) {
       PrintF("   field %zu:\n", i);
       field->Print();
+    }
+  }
+  for (size_t i = 0; i < const_fields_.size(); ++i) {
+    if (AbstractField const* const const_field = const_fields_[i]) {
+      PrintF("   const field %zu:\n", i);
+      const_field->Print();
     }
   }
 }
@@ -690,8 +736,9 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
   state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
                            MaybeHandle<Name>(), zone());
   // Add the new elements on {object}.
-  state = state->AddField(object, FieldIndexOf(JSObject::kElementsOffset), node,
-                          MaybeHandle<Name>(), zone());
+  state =
+      state->AddField(object, FieldIndexOf(JSObject::kElementsOffset), node,
+                      MaybeHandle<Name>(), PropertyConstness::kMutable, zone());
   return UpdateState(node, state);
 }
 
@@ -716,8 +763,9 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
   state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
                            MaybeHandle<Name>(), zone());
   // Add the new elements on {object}.
-  state = state->AddField(object, FieldIndexOf(JSObject::kElementsOffset), node,
-                          MaybeHandle<Name>(), zone());
+  state =
+      state->AddField(object, FieldIndexOf(JSObject::kElementsOffset), node,
+                      MaybeHandle<Name>(), PropertyConstness::kMutable, zone());
   return UpdateState(node, state);
 }
 
@@ -805,7 +853,8 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
   } else {
     int field_index = FieldIndexOf(access);
     if (field_index >= 0) {
-      if (Node* replacement = state->LookupField(object, field_index)) {
+      if (Node* replacement =
+              state->LookupField(object, field_index, access.constness)) {
         // Make sure we don't resurrect dead {replacement} nodes.
         if (!replacement->IsDead()) {
           // Introduce a TypeGuard if the type of the {replacement} node is not
@@ -824,7 +873,8 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
           return Replace(replacement);
         }
       }
-      state = state->AddField(object, field_index, node, access.name, zone());
+      state = state->AddField(object, field_index, node, access.name,
+                              access.constness, zone());
     }
   }
   Handle<Map> field_map;
@@ -857,15 +907,16 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
   } else {
     int field_index = FieldIndexOf(access);
     if (field_index >= 0) {
-      Node* const old_value = state->LookupField(object, field_index);
+      Node* const old_value =
+          state->LookupField(object, field_index, access.constness);
       if (old_value == new_value) {
         // This store is fully redundant.
         return Replace(effect);
       }
       // Kill all potentially aliasing fields and record the new value.
       state = state->KillField(object, field_index, access.name, zone());
-      state =
-          state->AddField(object, field_index, new_value, access.name, zone());
+      state = state->AddField(object, field_index, new_value, access.name,
+                              access.constness, zone());
     } else {
       // Unsupported StoreField operator.
       state = state->KillFields(object, access.name, zone());
@@ -1047,7 +1098,7 @@ Reduction LoadElimination::ReduceOtherNode(Node* node) {
       if (state == nullptr) return NoChange();
       // Check if this {node} has some uncontrolled side effects.
       if (!node->op()->HasProperty(Operator::kNoWrite)) {
-        state = empty_state();
+        state = state->KillAll(zone());
       }
       return UpdateState(node, state);
     } else {
@@ -1163,7 +1214,7 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             break;
           }
           default:
-            return empty_state();
+            return state->KillAll(zone());
         }
       }
       for (int i = 0; i < current->op()->EffectInputCount(); ++i) {

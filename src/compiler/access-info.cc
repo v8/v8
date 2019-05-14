@@ -326,11 +326,11 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
 
 PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     Handle<Map> receiver_map, Handle<Map> map, MaybeHandle<JSObject> holder,
-    int number, AccessMode access_mode) const {
-  DCHECK_NE(number, DescriptorArray::kNotFound);
+    int descriptor, AccessMode access_mode) const {
+  DCHECK_NE(descriptor, DescriptorArray::kNotFound);
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
-  PropertyDetails const details = descriptors->GetDetails(number);
-  int index = descriptors->GetFieldIndex(number);
+  PropertyDetails const details = descriptors->GetDetails(descriptor);
+  int index = descriptors->GetFieldIndex(descriptor);
   Representation details_representation = details.representation();
   if (details_representation.IsNone()) {
     // The ICs collect feedback in PREMONOMORPHIC state already,
@@ -347,6 +347,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       MachineType::RepCompressedTagged();
   MaybeHandle<Map> field_map;
   MapRef map_ref(broker(), map);
+  map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
   ZoneVector<CompilationDependencies::Dependency const*>
       unrecorded_dependencies(zone());
   if (details_representation.IsSmi()) {
@@ -355,7 +356,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
-                                                                  number));
+                                                                  descriptor));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
     field_representation = MachineRepresentation::kFloat64;
@@ -363,8 +364,8 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
     field_representation = MachineType::RepCompressedTaggedPointer();
-    Handle<FieldType> descriptors_field_type(descriptors->GetFieldType(number),
-                                             isolate());
+    Handle<FieldType> descriptors_field_type(
+        descriptors->GetFieldType(descriptor), isolate());
     if (descriptors_field_type->IsNone()) {
       // Store is not safe if the field type was cleared.
       if (access_mode == AccessMode::kStore) {
@@ -377,17 +378,20 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
-                                                                  number));
+                                                                  descriptor));
     if (descriptors_field_type->IsClass()) {
       unrecorded_dependencies.push_back(
-          dependencies()->FieldTypeDependencyOffTheRecord(map_ref, number));
+          dependencies()->FieldTypeDependencyOffTheRecord(map_ref, descriptor));
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map(descriptors_field_type->AsClass(), isolate());
       field_type = Type::For(MapRef(broker(), map));
       field_map = MaybeHandle<Map>(map);
     }
   }
-  switch (details.constness()) {
+  map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
+  PropertyConstness constness =
+      dependencies()->DependOnFieldConstness(map_ref, descriptor);
+  switch (constness) {
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
@@ -402,10 +406,11 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
 
 PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     Handle<Map> receiver_map, Handle<Name> name, Handle<Map> map,
-    MaybeHandle<JSObject> holder, int number, AccessMode access_mode) const {
-  DCHECK_NE(number, DescriptorArray::kNotFound);
+    MaybeHandle<JSObject> holder, int descriptor,
+    AccessMode access_mode) const {
+  DCHECK_NE(descriptor, DescriptorArray::kNotFound);
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
-  SLOW_DCHECK(number == descriptors->Search(*name, *map));
+  SLOW_DCHECK(descriptor == descriptors->Search(*name, *map));
   if (map->instance_type() == JS_MODULE_NAMESPACE_TYPE) {
     DCHECK(map->is_prototype_map());
     Handle<PrototypeInfo> proto_info(PrototypeInfo::cast(map->prototype_info()),
@@ -427,7 +432,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     return PropertyAccessInfo::AccessorConstant(zone(), receiver_map,
                                                 Handle<Object>(), holder);
   }
-  Handle<Object> accessors(descriptors->GetStrongValue(number), isolate());
+  Handle<Object> accessors(descriptors->GetStrongValue(descriptor), isolate());
   if (!accessors->IsAccessorPair()) {
     return PropertyAccessInfo::Invalid(zone());
   }

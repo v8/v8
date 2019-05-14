@@ -56,6 +56,7 @@ struct FieldAccess {
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
   LoadSensitivity load_sensitivity;     // load safety for poisoning.
+  PropertyConstness constness;  // whether the field is assigned only once
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -63,12 +64,14 @@ struct FieldAccess {
         type(Type::None()),
         machine_type(MachineType::None()),
         write_barrier_kind(kFullWriteBarrier),
-        load_sensitivity(LoadSensitivity::kUnsafe) {}
+        load_sensitivity(LoadSensitivity::kUnsafe),
+        constness(PropertyConstness::kMutable) {}
 
   FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
               MaybeHandle<Map> map, Type type, MachineType machine_type,
               WriteBarrierKind write_barrier_kind,
-              LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe)
+              LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe,
+              PropertyConstness constness = PropertyConstness::kMutable)
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -76,7 +79,8 @@ struct FieldAccess {
         type(type),
         machine_type(machine_type),
         write_barrier_kind(write_barrier_kind),
-        load_sensitivity(load_sensitivity) {}
+        load_sensitivity(load_sensitivity),
+        constness(constness) {}
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };

@@ -228,17 +228,7 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     if (it.IsReadOnly() && !it.IsConfigurable()) {
       return jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
     } else if (access_info.IsDataConstant()) {
-      // It's necessary to add dependency on the map that introduced
-      // the field.
-      DCHECK(access_info.IsDataConstant());
       DCHECK(!it.is_dictionary_holder());
-      MapRef map(broker(),
-                 handle(it.GetHolder<HeapObject>()->map(), isolate()));
-      map.SerializeOwnDescriptors();  // TODO(neis): Remove later.
-      if (dependencies()->DependOnFieldConstness(
-              map, it.GetFieldDescriptorIndex()) != PropertyConstness::kConst) {
-        return nullptr;
-      }
       return jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
     }
   }
@@ -264,6 +254,9 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
         simplified()->LoadField(AccessBuilder::ForJSObjectPropertiesOrHash()),
         storage, *effect, *control);
   }
+  PropertyConstness constness = access_info.IsDataConstant()
+                                    ? PropertyConstness::kConst
+                                    : PropertyConstness::kMutable;
   FieldAccess field_access = {
       kTaggedBase,
       field_index.offset(),
@@ -272,15 +265,21 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       field_type,
       MachineType::TypeForRepresentation(field_representation),
       kFullWriteBarrier,
-      LoadSensitivity::kCritical};
+      LoadSensitivity::kCritical,
+      constness};
   if (field_representation == MachineRepresentation::kFloat64) {
     if (!field_index.is_inobject() || field_index.is_hidden_field() ||
         !FLAG_unbox_double_fields) {
       FieldAccess const storage_access = {
-          kTaggedBase,           field_index.offset(),
-          name.object(),         MaybeHandle<Map>(),
-          Type::OtherInternal(), MachineType::TypeCompressedTaggedPointer(),
-          kPointerWriteBarrier,  LoadSensitivity::kCritical};
+          kTaggedBase,
+          field_index.offset(),
+          name.object(),
+          MaybeHandle<Map>(),
+          Type::OtherInternal(),
+          MachineType::TypeCompressedTaggedPointer(),
+          kPointerWriteBarrier,
+          LoadSensitivity::kCritical,
+          constness};
       storage = *effect = graph()->NewNode(
           simplified()->LoadField(storage_access), storage, *effect, *control);
       field_access.offset = HeapNumber::kValueOffset;
