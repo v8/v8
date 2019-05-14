@@ -573,7 +573,10 @@
         {"name": "TaggedTemplate"},
         {"name": "TaggedTemplateLoose"},
         {"name": "ArrayIndexOf"},
-        {"name": "ArrayIncludes"}
+        {"name": "ArrayIncludes"},
+        {"name": "ApplySpreadLiteral"},
+        {"name": "SpreadCall"},
+        {"name": "SpreadCallSpreadLiteral"}
       ]
     },
     {
