@@ -3861,8 +3861,6 @@ void CheckNumberOfAllocations(Heap* heap, const char* source,
 }
 
 TEST(AllocationSiteCreation) {
-  // No feedback vectors and hence no allocation sites.
-  if (FLAG_lite_mode) return;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4374,7 +4372,6 @@ static void ClearWeakIC(
 
 
 TEST(WeakFunctionInConstructor) {
-  if (FLAG_lite_mode) return;
   if (FLAG_always_opt) return;
   FLAG_stress_compaction = false;
   FLAG_stress_incremental_marking = false;

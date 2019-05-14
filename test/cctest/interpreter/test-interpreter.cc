@@ -628,8 +628,6 @@ TEST(InterpreterParameter8) {
 }
 
 TEST(InterpreterBinaryOpTypeFeedback) {
-  if (FLAG_lite_mode) return;
-
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -762,8 +760,6 @@ TEST(InterpreterBinaryOpTypeFeedback) {
 }
 
 TEST(InterpreterBinaryOpSmiTypeFeedback) {
-  if (FLAG_lite_mode) return;
-
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -870,8 +866,6 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
 }
 
 TEST(InterpreterUnaryOpFeedback) {
-  if (FLAG_lite_mode) return;
-
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -958,8 +952,6 @@ TEST(InterpreterUnaryOpFeedback) {
 }
 
 TEST(InterpreterBitwiseTypeFeedback) {
-  if (FLAG_lite_mode) return;
-
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();

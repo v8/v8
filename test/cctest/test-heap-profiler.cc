@@ -2447,8 +2447,6 @@ TEST(ManyLocalsInSharedContext) {
 
 
 TEST(AllocationSitesAreVisible) {
-  if (i::FLAG_lite_mode) return;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
