@@ -1155,9 +1155,9 @@ auto val_to_v8(StoreImpl* store, const Val& v) -> v8::Local<v8::Value> {
   }
 }
 
-auto v8_to_val(i::Isolate* isolate, i::Handle<i::Object> value,
-               const ValType* t) -> own<Val> {
-  switch (t->kind()) {
+own<Val> v8_to_val(i::Isolate* isolate, i::Handle<i::Object> value,
+                   ValKind kind) {
+  switch (kind) {
     case I32:
       do {
         if (value->IsSmi()) return Val(i::Smi::ToInt(*value));
@@ -1760,15 +1760,32 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap*> {
   auto i_isolate = store->i_isolate();
   v8::HandleScope handle_scope(isolate);
 
-  auto type = this->type();
-  auto& param_types = type->params();
-  auto& result_types = type->results();
-
+  int num_params;
+  int num_results;
+  ValKind result_kind;
+  i::Handle<i::JSFunction> v8_func = func->v8_object();
+  if (i::WasmExportedFunction::IsWasmExportedFunction(*v8_func)) {
+    i::WasmExportedFunction wef = i::WasmExportedFunction::cast(*v8_func);
+    i::wasm::FunctionSig* sig =
+        wef->instance()->module()->functions[wef->function_index()].sig;
+    num_params = static_cast<int>(sig->parameter_count());
+    num_results = static_cast<int>(sig->return_count());
+    if (num_results > 0) {
+      result_kind = v8::wasm::v8_valtype_to_wasm(sig->GetReturn(0));
+    }
+#if DEBUG
+    for (int i = 0; i < num_params; i++) {
+      DCHECK_EQ(args[i].kind(), v8::wasm::v8_valtype_to_wasm(sig->GetParam(i)));
+    }
+#endif
+  } else {
+    DCHECK(i::WasmCapiFunction::IsWasmCapiFunction(*v8_func));
+    UNIMPLEMENTED();
+  }
   // TODO(rossberg): cache v8_args array per thread.
   auto v8_args = std::unique_ptr<i::Handle<i::Object>[]>(
-      new (std::nothrow) i::Handle<i::Object>[param_types.size()]);
-  for (size_t i = 0; i < param_types.size(); ++i) {
-    assert(args[i].kind() == param_types[i]->kind());
+      new (std::nothrow) i::Handle<i::Object>[num_params]);
+  for (int i = 0; i < num_params; ++i) {
     v8_args[i] = v8::Utils::OpenHandle(*val_to_v8(store, args[i]));
   }
 
@@ -1776,7 +1793,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap*> {
   v8::TryCatch handler(isolate);
   i::MaybeHandle<i::Object> maybe_val = i::Execution::Call(
       i_isolate, func->v8_object(), i_isolate->factory()->undefined_value(),
-      static_cast<int>(param_types.size()), v8_args.get());
+      num_params, v8_args.get());
 
   if (handler.HasCaught()) {
     i_isolate->OptionalRescheduleException(true);
@@ -1796,11 +1813,11 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap*> {
   }
 
   auto val = maybe_val.ToHandleChecked();
-  if (result_types.size() == 0) {
+  if (num_results == 0) {
     assert(val->IsUndefined(i_isolate));
-  } else if (result_types.size() == 1) {
+  } else if (num_results == 1) {
     assert(!val->IsUndefined(i_isolate));
-    new (&results[0]) Val(v8_to_val(i_isolate, val, result_types[0]));
+    new (&results[0]) Val(v8_to_val(i_isolate, val, result_kind));
   } else {
     WASM_UNIMPLEMENTED("multiple results");
   }
