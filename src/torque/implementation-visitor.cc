@@ -3050,7 +3050,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
   h_contents << enabled_check;
   cc_contents << enabled_check;
 
-  h_contents << "\n#include \"src/objects.h\"\n";
+  cc_contents << "\n#include \"src/objects.h\"\n";
 
   for (const std::string& include_path : GlobalContext::CppIncludes()) {
     cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
@@ -3067,9 +3067,17 @@ void ImplementationVisitor::GenerateClassVerifiers(
   h_contents << namespaces;
   cc_contents << namespaces;
 
+  // Generate forward declarations to avoid including any headers.
+  h_contents << "class Isolate;\n";
+  for (auto i : GlobalContext::GetClasses()) {
+    ClassType* type = i.second;
+    if (!type->IsExtern() || !type->ShouldGenerateVerify()) continue;
+    h_contents << "class " << type->name() << ";\n";
+  }
+
   const char* verifier_class = "ClassVerifiersFromDSL";
 
-  h_contents << "class " << verifier_class << "{\n";
+  h_contents << "class " << verifier_class << " {\n";
   h_contents << " public:\n";
 
   for (auto i : GlobalContext::GetClasses()) {
