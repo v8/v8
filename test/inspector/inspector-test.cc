@@ -56,8 +56,22 @@ std::vector<uint16_t> ToVector(v8::Isolate* isolate,
   return buffer;
 }
 
+std::vector<uint8_t> ToBytes(v8::Isolate* isolate, v8::Local<v8::String> str) {
+  std::vector<uint8_t> buffer(str->Length());
+  str->WriteOneByte(isolate, buffer.data(), 0, str->Length());
+  return buffer;
+}
+
 v8::Local<v8::String> ToV8String(v8::Isolate* isolate, const char* str) {
   return v8::String::NewFromUtf8(isolate, str, v8::NewStringType::kNormal)
+      .ToLocalChecked();
+}
+
+v8::Local<v8::String> ToV8String(v8::Isolate* isolate,
+                                 const std::vector<uint8_t>& bytes) {
+  return v8::String::NewFromOneByte(isolate, bytes.data(),
+                                    v8::NewStringType::kNormal,
+                                    static_cast<int>(bytes.size()))
       .ToLocalChecked();
 }
 
@@ -564,8 +578,8 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
         IsolateData::FromContext(context)->GetContextGroupId(context),
         args.GetIsolate(), args[2].As<v8::Function>());
 
-    std::vector<uint16_t> state =
-        ToVector(args.GetIsolate(), args[1].As<v8::String>());
+    std::vector<uint8_t> state =
+        ToBytes(args.GetIsolate(), args[1].As<v8::String>());
     int context_group_id = args[0].As<v8::Int32>()->Value();
     int session_id = 0;
     RunSyncTask(backend_runner_, [&context_group_id, &session_id, &channel,
@@ -587,9 +601,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       Exit();
     }
     int session_id = args[0].As<v8::Int32>()->Value();
-    std::vector<uint16_t> state;
+    std::vector<uint8_t> state;
     RunSyncTask(backend_runner_, [&session_id, &state](IsolateData* data) {
-      state = ToVector(data->DisconnectSession(session_id)->string());
+      state = data->DisconnectSession(session_id);
     });
     channels_.erase(session_id);
     args.GetReturnValue().Set(ToV8String(args.GetIsolate(), state));

@@ -46,7 +46,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   int ConnectSession(int context_group_id,
                      const v8_inspector::StringView& state,
                      v8_inspector::V8Inspector::Channel* channel);
-  std::unique_ptr<v8_inspector::StringBuffer> DisconnectSession(int session_id);
+  std::vector<uint8_t> DisconnectSession(int session_id);
   void SendMessage(int session_id, const v8_inspector::StringView& message);
   void BreakProgram(int context_group_id,
                     const v8_inspector::StringView& reason,

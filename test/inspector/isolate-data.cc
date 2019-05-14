@@ -157,13 +157,12 @@ int IsolateData::ConnectSession(int context_group_id,
   return session_id;
 }
 
-std::unique_ptr<v8_inspector::StringBuffer> IsolateData::DisconnectSession(
-    int session_id) {
+std::vector<uint8_t> IsolateData::DisconnectSession(int session_id) {
   v8::SealHandleScope seal_handle_scope(isolate());
   auto it = sessions_.find(session_id);
   CHECK(it != sessions_.end());
   context_group_by_session_.erase(it->second.get());
-  std::unique_ptr<v8_inspector::StringBuffer> result = it->second->stateJSON();
+  std::vector<uint8_t> result = it->second->state();
   sessions_.erase(it);
   return result;
 }
