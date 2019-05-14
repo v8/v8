@@ -10,6 +10,7 @@ function foo() {
   return a[0];
 }
 
+%EnsureFeedbackVectorForFunction(foo);
 Object.setPrototypeOf(Array.prototype, new Int8Array());
 assertEquals(undefined, foo());
 assertEquals(undefined, foo());
