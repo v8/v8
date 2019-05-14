@@ -878,19 +878,19 @@ struct GenericDeclaration : Declaration {
 
 struct SpecializationDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(SpecializationDeclaration)
-  SpecializationDeclaration(SourcePosition pos, std::string name,
+  SpecializationDeclaration(SourcePosition pos, Identifier* name,
                             std::vector<TypeExpression*> generic_parameters,
                             ParameterList parameters,
                             TypeExpression* return_type,
                             LabelAndTypesVector labels, Statement* b)
       : Declaration(kKind, pos),
-        name(std::move(name)),
+        name(name),
         external(false),
         generic_parameters(std::move(generic_parameters)),
         signature(new CallableNodeSignature{std::move(parameters), return_type,
                                             std::move(labels)}),
         body(b) {}
-  std::string name;
+  Identifier* name;
   bool external;
   std::vector<TypeExpression*> generic_parameters;
   std::unique_ptr<CallableNodeSignature> signature;

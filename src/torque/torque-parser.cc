@@ -707,7 +707,7 @@ base::Optional<ParseResult> MakeNamespaceDeclaration(
 
 base::Optional<ParseResult> MakeSpecializationDeclaration(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto generic_parameters =
       child_results->NextAs<std::vector<TypeExpression*>>();
   auto parameters = child_results->NextAs<ParameterList>();
@@ -1841,9 +1841,8 @@ struct TorqueGrammar : Grammar {
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListAllowVararg, &optionalReturnType, &optionalBody},
            AsSingletonVector<Declaration*, MakeTorqueBuiltinDeclaration>()),
-      Rule({&identifier, &genericSpecializationTypeList,
-            &parameterListAllowVararg, &optionalReturnType, optionalLabelList,
-            &block},
+      Rule({&name, &genericSpecializationTypeList, &parameterListAllowVararg,
+            &optionalReturnType, optionalLabelList, &block},
            AsSingletonVector<Declaration*, MakeSpecializationDeclaration>()),
       Rule({Token("#include"), &externalString},
            AsSingletonVector<Declaration*, MakeCppIncludeDeclaration>())};

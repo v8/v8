@@ -100,7 +100,7 @@ class DeclarationVisitor {
   static Callable* Specialize(
       const SpecializationKey& key, CallableNode* declaration,
       base::Optional<const CallableNodeSignature*> signature,
-      base::Optional<Statement*> body);
+      base::Optional<Statement*> body, SourcePosition position);
 
  private:
   static void DeclareSpecializedTypes(const SpecializationKey& key);

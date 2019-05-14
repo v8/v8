@@ -90,6 +90,11 @@ class Declarable {
     identifier_position_ = position;
   }
 
+  bool IsUserDefined() const { return is_user_defined_; }
+  void SetIsUserDefined(bool is_user_defined) {
+    is_user_defined_ = is_user_defined;
+  }
+
  protected:
   explicit Declarable(Kind kind) : kind_(kind) {}
 
@@ -98,6 +103,7 @@ class Declarable {
   Scope* const parent_scope_ = CurrentScope::Get();
   SourcePosition position_ = CurrentSourcePosition::Get();
   SourcePosition identifier_position_ = SourcePosition::Invalid();
+  bool is_user_defined_ = true;
 };
 
 #define DECLARE_DECLARABLE_BOILERPLATE(x, y)                  \
@@ -312,8 +318,6 @@ class Macro : public Callable {
     return external_assembler_name_;
   }
 
-  bool is_user_defined() const { return is_user_defined_; }
-
  protected:
   Macro(Declarable::Kind kind, std::string external_name,
         std::string readable_name, std::string external_assembler_name,
@@ -321,8 +325,8 @@ class Macro : public Callable {
         base::Optional<Statement*> body, bool is_user_defined)
       : Callable(kind, std::move(external_name), std::move(readable_name),
                  signature, transitioning, body),
-        external_assembler_name_(std::move(external_assembler_name)),
-        is_user_defined_(is_user_defined) {
+        external_assembler_name_(std::move(external_assembler_name)) {
+    SetIsUserDefined(is_user_defined);
     if (signature.parameter_types.var_args) {
       ReportError("Varargs are not supported for macros.");
     }
@@ -339,7 +343,6 @@ class Macro : public Callable {
               transitioning, body, is_user_defined) {}
 
   std::string external_assembler_name_;
-  bool is_user_defined_;
 };
 
 class Method : public Macro {

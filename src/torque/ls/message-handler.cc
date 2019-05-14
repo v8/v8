@@ -269,15 +269,7 @@ void HandleGotoDefinitionRequest(GotoDefinitionRequest request,
 
   if (auto maybe_definition = LanguageServerData::FindDefinition(id, pos)) {
     SourcePosition definition = *maybe_definition;
-
-    std::string definition_file = SourceFileMap::GetSource(definition.source);
-    response.result().set_uri(definition_file);
-
-    Range range = response.result().range();
-    range.start().set_line(definition.start.line);
-    range.start().set_character(definition.start.column);
-    range.end().set_line(definition.end.line);
-    range.end().set_character(definition.end.column);
+    response.result().SetTo(definition);
   } else {
     response.SetNull("result");
   }
@@ -297,8 +289,31 @@ void HandleDocumentSymbolRequest(DocumentSymbolRequest request,
   DocumentSymbolResponse response;
   response.set_id(request.id());
 
-  // TODO(szuend): Convert declarables and other symbols into SymbolInformation
-  //               objects here.
+  SourceId id =
+      SourceFileMap::GetSourceId(request.params().textDocument().uri());
+
+  for (const auto& symbol : LanguageServerData::SymbolsForSourceId(id)) {
+    DCHECK(symbol->IsUserDefined());
+    if (symbol->IsMacro()) {
+      Macro* macro = Macro::cast(symbol);
+      SymbolInformation symbol = response.add_result();
+      symbol.set_name(macro->ReadableName());
+      symbol.set_kind(SymbolKind::kFunction);
+      symbol.location().SetTo(macro->Position());
+    } else if (symbol->IsBuiltin()) {
+      Builtin* builtin = Builtin::cast(symbol);
+      SymbolInformation symbol = response.add_result();
+      symbol.set_name(builtin->ReadableName());
+      symbol.set_kind(SymbolKind::kFunction);
+      symbol.location().SetTo(builtin->Position());
+    } else if (symbol->IsGeneric()) {
+      Generic* generic = Generic::cast(symbol);
+      SymbolInformation symbol = response.add_result();
+      symbol.set_name(generic->name());
+      symbol.set_kind(SymbolKind::kFunction);
+      symbol.location().SetTo(generic->Position());
+    }
+  }
 
   // Trigger empty array creation in case no symbols were found.
   USE(response.result_size());

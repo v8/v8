@@ -8,6 +8,7 @@
 #include "src/base/logging.h"
 #include "src/torque/ls/json.h"
 #include "src/torque/ls/message-macros.h"
+#include "src/torque/source-positions.h"
 
 namespace v8 {
 namespace internal {
@@ -238,6 +239,14 @@ class Location : public NestedJsonAccessor {
 
   JSON_STRING_ACCESSORS(uri)
   JSON_OBJECT_ACCESSORS(Range, range)
+
+  void SetTo(SourcePosition position) {
+    set_uri(SourceFileMap::GetSource(position.source));
+    range().start().set_line(position.start.line);
+    range().start().set_character(position.start.column);
+    range().end().set_line(position.end.line);
+    range().end().set_character(position.end.column);
+  }
 };
 
 class TextDocumentIdentifier : public NestedJsonAccessor {

@@ -38,12 +38,9 @@ void LanguageServerData::PrepareAllDeclarableSymbols() {
       global_context_->declarables_;
 
   for (const auto& declarable : all_declarables) {
-    // Auto-generated macros to access class fields should not show up in
-    // search results.
-    if (declarable->IsMacro() &&
-        !Macro::cast(declarable.get())->is_user_defined()) {
-      continue;
-    }
+    // Class field accessors and implicit specializations are
+    // auto-generated and should not show up.
+    if (!declarable->IsUserDefined()) continue;
 
     SourceId source = declarable->Position().source;
     symbols_map_[source].push_back(declarable.get());

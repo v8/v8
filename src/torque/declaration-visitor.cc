@@ -210,7 +210,8 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
     ReportError(stream.str());
   }
 
-  std::vector<Generic*> generic_list = Declarations::LookupGeneric(decl->name);
+  std::vector<Generic*> generic_list =
+      Declarations::LookupGeneric(decl->name->value);
   // Find the matching generic specialization based on the concrete parameter
   // list.
   Generic* matching_generic = nullptr;
@@ -253,10 +254,15 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
     ReportError(stream.str());
   }
 
+  if (GlobalContext::collect_language_server_data()) {
+    LanguageServerData::AddDefinition(decl->name->pos,
+                                      matching_generic->IdentifierPosition());
+  }
+
   Specialize(SpecializationKey{matching_generic, TypeVisitor::ComputeTypeVector(
                                                      decl->generic_parameters)},
              matching_generic->declaration()->callable, decl->signature.get(),
-             decl->body);
+             decl->body, decl->pos);
 }
 
 void DeclarationVisitor::Visit(ExternConstDeclaration* decl) {
@@ -315,9 +321,10 @@ Callable* DeclarationVisitor::SpecializeImplicit(const SpecializationKey& key) {
                 key.generic->Position());
   }
   CurrentScope::Scope generic_scope(key.generic->ParentScope());
-  Callable* result =
-      Specialize(key, key.generic->declaration()->callable, base::nullopt,
-                 key.generic->declaration()->body);
+  Callable* result = Specialize(key, key.generic->declaration()->callable,
+                                base::nullopt, key.generic->declaration()->body,
+                                CurrentSourcePosition::Get());
+  result->SetIsUserDefined(false);
   CurrentScope::Scope callable_scope(result);
   DeclareSpecializedTypes(key);
   return result;
@@ -326,10 +333,8 @@ Callable* DeclarationVisitor::SpecializeImplicit(const SpecializationKey& key) {
 Callable* DeclarationVisitor::Specialize(
     const SpecializationKey& key, CallableNode* declaration,
     base::Optional<const CallableNodeSignature*> signature,
-    base::Optional<Statement*> body) {
-  // TODO(tebbi): The error should point to the source position where the
-  // instantiation was requested.
-  CurrentSourcePosition::Scope pos_scope(key.generic->declaration()->pos);
+    base::Optional<Statement*> body, SourcePosition position) {
+  CurrentSourcePosition::Scope pos_scope(position);
   size_t generic_parameter_count =
       key.generic->declaration()->generic_parameters.size();
   if (generic_parameter_count != key.specialized_types.size()) {
