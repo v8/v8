@@ -2034,13 +2034,29 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
   }
 }
 
-static KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
-                                         uint32_t index, Handle<Object> value) {
+namespace {
+
+bool MayHaveTypedArrayInPrototypeChain(Handle<JSObject> object) {
+  for (PrototypeIterator iter(object->GetIsolate(), *object); !iter.IsAtEnd();
+       iter.Advance()) {
+    // Be conservative, don't walk into proxies.
+    if (iter.GetCurrent()->IsJSProxy()) return true;
+    if (iter.GetCurrent()->IsJSTypedArray()) return true;
+  }
+  return false;
+}
+
+KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver, uint32_t index,
+                                  Handle<Object> value) {
   bool oob_access = IsOutOfBoundsAccess(receiver, index);
   // Don't consider this a growing store if the store would send the receiver to
-  // dictionary mode.
+  // dictionary mode. Also make sure we don't consider this a growing store if
+  // there's any JSTypedArray in the {receiver}'s prototype chain, since that
+  // prototype is going to swallow all stores that are out-of-bounds for said
+  // prototype, and we just let the runtime deal with the complexity of this.
   bool allow_growth = receiver->IsJSArray() && oob_access &&
-                      !receiver->WouldConvertToSlowElements(index);
+                      !receiver->WouldConvertToSlowElements(index) &&
+                      !MayHaveTypedArrayInPrototypeChain(receiver);
   if (allow_growth) {
     // Handle growing array in stub if necessary.
     if (receiver->HasSmiElements()) {
@@ -2077,6 +2093,8 @@ static KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
                                               : STANDARD_STORE;
   }
 }
+
+}  // namespace
 
 MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
                                         Handle<Object> key,
