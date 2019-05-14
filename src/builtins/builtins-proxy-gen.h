@@ -29,6 +29,9 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
                               Node* name, Node* trap_result,
                               JSProxy::AccessKind access_kind);
 
+  Node* CheckHasTrapResult(Node* context, Node* target, Node* proxy,
+                           Node* name);
+
  protected:
   enum ProxyRevokeFunctionContextSlot {
     kProxySlot = Context::MIN_CONTEXT_SLOTS,
@@ -38,8 +41,6 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
   Node* AllocateJSArrayForCodeStubArguments(Node* context,
                                             CodeStubArguments& args, Node* argc,
                                             ParameterMode mode);
-  void CheckHasTrapResult(Node* context, Node* target, Node* proxy, Node* name,
-                          Label* check_passed, Label* if_bailout);
 
  private:
   Node* CreateProxyRevokeFunctionContext(Node* proxy, Node* native_context);

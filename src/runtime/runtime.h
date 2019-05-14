@@ -361,7 +361,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_PROXY(F, I) \
   F(CheckProxyGetSetTrapResult, 2, 1)  \
-  F(CheckProxyHasTrap, 2, 1)           \
+  F(CheckProxyHasTrapResult, 2, 1)     \
   F(GetPropertyWithReceiver, 3, 1)     \
   F(IsJSProxy, 1, 1)                   \
   F(JSProxyGetHandler, 1, 1)           \
