@@ -19,10 +19,9 @@
 namespace v8 {
 namespace internal {
 
-// The inlining of this seems to trigger an LTO bug that clobbers a register on
-// arm, see https://crbug.com/952759#c6.
-__attribute__((noinline)) void CpuFeatures::FlushICache(void* start,
-                                                        size_t size) {
+// The inlining of this seems to trigger an LTO bug that clobbers a register,
+// see https://crbug.com/952759 and https://bugs.llvm.org/show_bug.cgi?id=41575.
+V8_NOINLINE void CpuFeatures::FlushICache(void* start, size_t size) {
 #if !defined(USE_SIMULATOR)
 #if V8_OS_QNX
   msync(start, size, MS_SYNC | MS_INVALIDATE_ICACHE);
