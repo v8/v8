@@ -6310,8 +6310,8 @@ UNINITIALIZED_TEST(ReinitializeStringHashSeed) {
       CHECK(!context.IsEmpty());
       v8::Context::Scope context_scope(context);
     }
-    ReadOnlyHeap::ClearSharedHeapForTest();
     isolate->Dispose();
+    ReadOnlyHeap::ClearSharedHeapForTest();
   }
 }
 
