@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-string-gen.h'
+
 namespace string {
   // ES6 #sec-string.prototype.tostring
   transitioning javascript builtin
@@ -13,5 +15,39 @@ namespace string {
   transitioning javascript builtin
   StringPrototypeValueOf(implicit context: Context)(receiver: Object): Object {
     return ToThisValue(receiver, kString, 'String.prototype.valueOf');
+  }
+
+  extern macro StringBuiltinsAssembler::LoadSurrogatePairAt(
+      String, intptr, intptr, constexpr UnicodeEncoding): int32;
+  extern macro StringFromSingleCodePoint(int32, constexpr UnicodeEncoding):
+      String;
+
+  // This function assumes StringPrimitiveWithNoCustomIteration is true.
+  transitioning builtin StringToList(implicit context: Context)(string: String):
+      JSArray {
+    const kind = PACKED_ELEMENTS;
+    const stringLength: intptr = string.length_intptr;
+
+    const map: Map = LoadJSArrayElementsMap(kind, LoadNativeContext(context));
+    const array: JSArray = AllocateJSArray(
+        kind, map, stringLength, SmiTag(stringLength),
+        kAllowLargeObjectAllocation);
+    const elements = UnsafeCast<FixedArray>(array.elements);
+    const encoding = UTF16;
+    let arrayLength: Smi = 0;
+    let i: intptr = 0;
+    while (i < stringLength) {
+      const ch: int32 = LoadSurrogatePairAt(string, stringLength, i, encoding);
+      const value: String = StringFromSingleCodePoint(ch, encoding);
+      elements[arrayLength] = value;
+      // Increment and continue the loop.
+      i = i + value.length_intptr;
+      arrayLength++;
+    }
+    assert(arrayLength >= 0);
+    assert(SmiTag(stringLength) >= arrayLength);
+    array.length = arrayLength;
+
+    return array;
   }
 }

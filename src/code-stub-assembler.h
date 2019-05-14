@@ -1612,9 +1612,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
-                                 TNode<IntPtrT> capacity, TNode<Smi> length) {
+                                 TNode<IntPtrT> capacity, TNode<Smi> length,
+                                 AllocationFlags allocation_flags = kNone) {
     return AllocateJSArray(kind, array_map, capacity, length, nullptr,
-                           INTPTR_PARAMETERS);
+                           INTPTR_PARAMETERS, allocation_flags);
   }
 
   // Allocate a JSArray and initialize the header fields.

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include 'src/builtins/builtins-string-gen.h'
-
 namespace string_iterator {
 
   macro NewJSStringIterator(implicit context: Context)(
@@ -26,11 +24,6 @@ namespace string_iterator {
     return NewJSStringIterator(name, index);
   }
 
-  extern macro StringBuiltinsAssembler::LoadSurrogatePairAt(
-      String, intptr, intptr, constexpr UnicodeEncoding): int32;
-  extern macro StringFromSingleCodePoint(int32, constexpr UnicodeEncoding):
-      String;
-
   // ES6 #sec-%stringiteratorprototype%.next
   transitioning javascript builtin StringIteratorPrototypeNext(
       implicit context: Context)(receiver: Object): JSIteratorResult {
@@ -45,8 +38,8 @@ namespace string_iterator {
     }
     // Move to next codepoint.
     const encoding = UTF16;
-    const ch = LoadSurrogatePairAt(string, length, position, encoding);
-    const value: String = StringFromSingleCodePoint(ch, encoding);
+    const ch = string::LoadSurrogatePairAt(string, length, position, encoding);
+    const value: String = string::StringFromSingleCodePoint(ch, encoding);
     iterator.next_index = SmiTag(position + value.length_intptr);
     return NewJSIteratorResult(value, False);
   }

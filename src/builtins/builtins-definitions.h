@@ -991,8 +991,6 @@ namespace internal {
   /* ES6 #sec-string.raw */                                                    \
   CPP(StringRaw)                                                               \
                                                                                \
-  TFS(StringToList, kSource)                                                   \
-                                                                               \
   /* Symbol */                                                                 \
   /* ES #sec-symbol-constructor */                                             \
   CPP(SymbolConstructor)                                                       \
