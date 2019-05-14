@@ -1503,6 +1503,13 @@ class Heap {
   V8_EXPORT_PRIVATE void ZapCodeObject(Address start_address,
                                        int size_in_bytes);
 
+  // Range write barrier implementation.
+  template <int kModeMask>
+  V8_INLINE void WriteBarrierForRangeImpl(MemoryChunk* source_page,
+                                          HeapObject object,
+                                          ObjectSlot start_slot,
+                                          ObjectSlot end_slot);
+
   // Deopts all code that contains allocation instruction which are tenured or
   // not tenured. Moreover it clears the pretenuring allocation site statistics.
   void ResetAllAllocationSitesDependentCode(AllocationType allocation);

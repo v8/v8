@@ -70,29 +70,11 @@ IncrementalMarking::IncrementalMarking(
   SetState(STOPPED);
 }
 
-bool IncrementalMarking::BaseRecordWrite(HeapObject obj, HeapObject value) {
-  DCHECK(!marking_state()->IsImpossible(value));
-  DCHECK(!marking_state()->IsImpossible(obj));
-#ifdef V8_CONCURRENT_MARKING
-  // The write barrier stub generated with V8_CONCURRENT_MARKING does not
-  // check the color of the source object.
-  const bool need_recording = true;
-#else
-  const bool need_recording = marking_state()->IsBlack(obj);
-#endif
-
-  if (need_recording && WhiteToGreyAndPush(value)) {
-    RestartIfNotMarking();
-  }
-  return is_compacting_ && need_recording;
-}
-
 void IncrementalMarking::RecordWriteSlow(HeapObject obj, HeapObjectSlot slot,
                                          HeapObject value) {
   if (BaseRecordWrite(obj, value) && slot.address() != kNullAddress) {
     // Object is not going to be rescanned we need to record the slot.
-    heap_->mark_compact_collector()->RecordSlot(obj, slot,
-                                                HeapObject::cast(value));
+    heap_->mark_compact_collector()->RecordSlot(obj, slot, value);
   }
 }
 
@@ -101,8 +83,7 @@ int IncrementalMarking::RecordWriteFromCode(Address raw_obj,
                                             Isolate* isolate) {
   HeapObject obj = HeapObject::cast(Object(raw_obj));
   MaybeObjectSlot slot(slot_address);
-  isolate->heap()->incremental_marking()->RecordMaybeWeakWrite(obj, slot,
-                                                               *slot);
+  isolate->heap()->incremental_marking()->RecordWrite(obj, slot, *slot);
   // Called by RecordWriteCodeStubAssembler, which doesnt accept void type
   return 0;
 }
@@ -114,39 +95,6 @@ void IncrementalMarking::RecordWriteIntoCode(Code host, RelocInfo* rinfo,
     // Object is not going to be rescanned.  We need to record the slot.
     heap_->mark_compact_collector()->RecordRelocSlot(host, rinfo, value);
   }
-}
-
-void IncrementalMarking::RecordWrites(HeapObject object, ObjectSlot start_slot,
-                                      ObjectSlot end_slot) {
-  MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
-  if (source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
-    for (ObjectSlot slot = start_slot; slot < end_slot; ++slot) {
-      Object value = *slot;
-      HeapObject value_heap_object;
-      if (value.GetHeapObject(&value_heap_object)) {
-        BaseRecordWrite(object, value_heap_object);
-      }
-    }
-  } else {
-    MarkCompactCollector* collector = heap_->mark_compact_collector();
-    for (ObjectSlot slot = start_slot; slot < end_slot; ++slot) {
-      Object value = *slot;
-      HeapObject value_heap_object;
-      if (value.GetHeapObject(&value_heap_object) &&
-          BaseRecordWrite(object, value_heap_object)) {
-        collector->RecordSlot(source_page, HeapObjectSlot(slot),
-                              value_heap_object);
-      }
-    }
-  }
-}
-
-bool IncrementalMarking::WhiteToGreyAndPush(HeapObject obj) {
-  if (marking_state()->WhiteToGrey(obj)) {
-    marking_worklist()->Push(obj);
-    return true;
-  }
-  return false;
 }
 
 void IncrementalMarking::MarkBlackAndVisitObjectDueToLayoutChange(

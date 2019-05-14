@@ -184,7 +184,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   bool ShouldDoEmbedderStep();
   StepResult EmbedderStep(double duration);
 
-  inline void RestartIfNotMarking();
+  V8_INLINE void RestartIfNotMarking();
 
   // {raw_obj} and {slot_address} are raw Address values instead of a
   // HeapObject and a MaybeObjectSlot because this is called from
@@ -199,11 +199,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   // cannot be interpreted correctly if the underlying object does not survive
   // the incremental cycle (stays white).
   V8_INLINE bool BaseRecordWrite(HeapObject obj, HeapObject value);
-  V8_INLINE void RecordWrite(HeapObject obj, ObjectSlot slot, Object value);
-  V8_INLINE void RecordMaybeWeakWrite(HeapObject obj, MaybeObjectSlot slot,
-                                      MaybeObject value);
-  void RecordWrites(HeapObject object, ObjectSlot start_slot,
-                    ObjectSlot end_slot);
+  template <typename TSlot>
+  V8_INLINE void RecordWrite(HeapObject obj, TSlot slot,
+                             typename TSlot::TObject value);
   void RevisitObject(HeapObject obj);
   // Ensures that all descriptors int range [0, number_of_own_descripts)
   // are visited.
@@ -215,7 +213,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.
-  bool WhiteToGreyAndPush(HeapObject obj);
+  V8_INLINE bool WhiteToGreyAndPush(HeapObject obj);
 
   // This function is used to color the object black before it undergoes an
   // unsafe layout change. This is a part of synchronization protocol with

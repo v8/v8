@@ -11,6 +11,7 @@
 #include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
+#include "src/base/flags.h"
 #include "src/base/once.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
@@ -5839,23 +5840,97 @@ void Heap::EphemeronKeyWriteBarrierFromCode(Address raw_object,
   if (!ObjectInYoungGeneration(table) && ObjectInYoungGeneration(key)) {
     isolate->heap()->RecordEphemeronKeyWrite(table, key_slot_address);
   }
-  isolate->heap()->incremental_marking()->RecordMaybeWeakWrite(table, key_slot,
-                                                               maybe_key);
+  isolate->heap()->incremental_marking()->RecordWrite(table, key_slot,
+                                                      maybe_key);
+}
+
+enum RangeWriteBarrierMode {
+  kDoGenerational = 1 << 0,
+  kDoMarking = 1 << 1,
+  kDoEvacuationSlotRecording = 1 << 2,
+};
+
+template <int kModeMask>
+void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
+                                    ObjectSlot start_slot,
+                                    ObjectSlot end_slot) {
+  // At least one of generational or marking write barrier should be requested.
+  STATIC_ASSERT(kModeMask & (kDoGenerational | kDoMarking));
+  // kDoEvacuationSlotRecording implies kDoMarking.
+  STATIC_ASSERT(!(kModeMask & kDoEvacuationSlotRecording) ||
+                (kModeMask & kDoMarking));
+
+  StoreBuffer* store_buffer = this->store_buffer();
+  IncrementalMarking* incremental_marking = this->incremental_marking();
+  MarkCompactCollector* collector = this->mark_compact_collector();
+
+  for (ObjectSlot slot = start_slot; slot < end_slot; ++slot) {
+    Object value = *slot;
+    HeapObject value_heap_object;
+    if (!value.GetHeapObject(&value_heap_object)) continue;
+
+    if ((kModeMask & kDoGenerational) &&
+        Heap::InYoungGeneration(value_heap_object)) {
+      store_buffer->InsertEntry(slot.address());
+    }
+
+    if ((kModeMask & kDoMarking) &&
+        incremental_marking->BaseRecordWrite(object, value_heap_object)) {
+      if (kModeMask & kDoEvacuationSlotRecording) {
+        collector->RecordSlot(source_page, HeapObjectSlot(slot),
+                              value_heap_object);
+      }
+    }
+  }
 }
 
 void Heap::WriteBarrierForRange(HeapObject object, ObjectSlot start_slot,
                                 ObjectSlot end_slot) {
-  // TODO(ishell): iterate values only once and avoid generic decompression.
-  if (!InYoungGeneration(object)) {
-    for (ObjectSlot slot = start_slot; slot < end_slot; ++slot) {
-      Object value = *slot;
-      if (InYoungGeneration(value)) {
-        store_buffer()->InsertEntry(slot.address());
-      }
+  MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
+  base::Flags<RangeWriteBarrierMode> mode;
+
+  if (!source_page->InYoungGeneration()) {
+    mode |= kDoGenerational;
+  }
+
+  if (incremental_marking()->IsMarking()) {
+    mode |= kDoMarking;
+    if (!source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
+      mode |= kDoEvacuationSlotRecording;
     }
   }
-  if (incremental_marking()->IsMarking()) {
-    incremental_marking()->RecordWrites(object, start_slot, end_slot);
+
+  switch (mode) {
+    // Nothing to be done.
+    case 0:
+      return;
+
+    // Generational only.
+    case kDoGenerational:
+      return WriteBarrierForRangeImpl<kDoGenerational>(source_page, object,
+                                                       start_slot, end_slot);
+    // Marking, no evacuation slot recording.
+    case kDoMarking:
+      return WriteBarrierForRangeImpl<kDoMarking>(source_page, object,
+                                                  start_slot, end_slot);
+    // Marking with evacuation slot recording.
+    case kDoMarking | kDoEvacuationSlotRecording:
+      return WriteBarrierForRangeImpl<kDoMarking | kDoEvacuationSlotRecording>(
+          source_page, object, start_slot, end_slot);
+
+    // Generational and marking, no evacuation slot recording.
+    case kDoGenerational | kDoMarking:
+      return WriteBarrierForRangeImpl<kDoGenerational | kDoMarking>(
+          source_page, object, start_slot, end_slot);
+
+    // Generational and marking with evacuation slot recording.
+    case kDoGenerational | kDoMarking | kDoEvacuationSlotRecording:
+      return WriteBarrierForRangeImpl<kDoGenerational | kDoMarking |
+                                      kDoEvacuationSlotRecording>(
+          source_page, object, start_slot, end_slot);
+
+    default:
+      UNREACHABLE();
   }
 }
 
