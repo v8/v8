@@ -10,7 +10,7 @@
 #include "src/builtins/growable-fixed-array-gen.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory-inl.h"
-#include "torque-generated/builtins-typed-array-createtypedarray-from-dsl-gen.h"
+#include "torque-generated/builtins-typed-array-createtypedarray-gen-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -269,7 +269,7 @@ TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
   return element_size.value();
 }
 
-TypedArrayBuiltinsFromDSLAssembler::TypedArrayElementsInfo
+TorqueGeneratedTypedArrayBuiltinsAssembler::TypedArrayElementsInfo
 TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
     TNode<JSTypedArray> typed_array) {
   TNode<Int32T> elements_kind = LoadElementsKind(typed_array);
@@ -287,7 +287,7 @@ TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
         var_map = HeapConstant(map);
       });
 
-  return TypedArrayBuiltinsFromDSLAssembler::TypedArrayElementsInfo{
+  return TorqueGeneratedTypedArrayBuiltinsAssembler::TypedArrayElementsInfo{
       var_size_log2.value(), var_map.value(), elements_kind};
 }
 

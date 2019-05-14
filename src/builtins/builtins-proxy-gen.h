@@ -7,7 +7,7 @@
 
 #include "src/code-stub-assembler.h"
 #include "src/objects/js-proxy.h"
-#include "torque-generated/builtins-proxy-from-dsl-gen.h"
+#include "torque-generated/builtins-proxy-gen-tq.h"
 
 namespace v8 {
 namespace internal {

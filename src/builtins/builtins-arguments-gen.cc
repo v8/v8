@@ -112,7 +112,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
   ParameterMode mode = OptimalParameterMode();
   Node* zero = IntPtrOrSmiConstant(0, mode);
 
-  ArgumentsBuiltinsFromDSLAssembler::ArgumentsInfo info =
+  TorqueGeneratedArgumentsBuiltinsAssembler::ArgumentsInfo info =
       GetArgumentsFrameAndCount(CAST(context),
                                 UncheckedCast<JSFunction>(function));
 
@@ -167,7 +167,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
   ParameterMode mode = OptimalParameterMode();
   Node* zero = IntPtrOrSmiConstant(0, mode);
 
-  ArgumentsBuiltinsFromDSLAssembler::ArgumentsInfo info =
+  TorqueGeneratedArgumentsBuiltinsAssembler::ArgumentsInfo info =
       GetArgumentsFrameAndCount(CAST(context),
                                 UncheckedCast<JSFunction>(function));
 
@@ -216,7 +216,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   Label done(this, &result), empty(this), no_parameters(this),
       runtime(this, Label::kDeferred);
 
-  ArgumentsBuiltinsFromDSLAssembler::ArgumentsInfo info =
+  TorqueGeneratedArgumentsBuiltinsAssembler::ArgumentsInfo info =
       GetArgumentsFrameAndCount(CAST(context),
                                 UncheckedCast<JSFunction>(function));
 

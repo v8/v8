@@ -15,7 +15,7 @@
 #include "src/isolate.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
-#include "torque-generated/class-definitions-from-dsl.h"
+#include "torque-generated/field-offsets-tq.h"
 #include "unicode/uversion.h"
 
 // Has to be the last include (doesn't have include guards):

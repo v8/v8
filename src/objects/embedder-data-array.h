@@ -8,7 +8,7 @@
 #include "src/globals.h"
 #include "src/maybe-handles.h"
 #include "src/objects/heap-object.h"
-#include "torque-generated/class-definitions-from-dsl.h"
+#include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

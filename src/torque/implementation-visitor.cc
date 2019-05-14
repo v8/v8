@@ -58,7 +58,7 @@ void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
 
   for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
     source << "#include \"torque-generated/builtins-" +
-                  DashifyString(n->name()) + "-from-dsl-gen.h\"\n";
+                  DashifyString(n->name()) + "-gen-tq.h\"\n";
   }
   source << "\n";
 
@@ -70,7 +70,7 @@ void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
   transform(upper_name.begin(), upper_name.end(), upper_name.begin(),
             ::toupper);
   std::string headerDefine =
-      std::string("V8_TORQUE_") + upper_name + "_FROM_DSL_BASE_H__";
+      "V8_GEN_TORQUE_GENERATED_" + upper_name + "_NAMESPACE_TQ_H_";
   header << "#ifndef " << headerDefine << "\n";
   header << "#define " << headerDefine << "\n\n";
   header << "#include \"src/compiler/code-assembler.h\"\n";
@@ -78,7 +78,7 @@ void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
     header << "#include \"src/code-stub-assembler.h\"\n";
   }
   header << "#include \"src/utils.h\"\n";
-  header << "#include \"torque-generated/class-definitions-from-dsl.h\"\n";
+  header << "#include \"torque-generated/field-offsets-tq.h\"\n";
   header << "\n";
 
   header << "namespace v8 {\n"
@@ -103,7 +103,7 @@ void ImplementationVisitor::EndNamespaceFile(Namespace* nspace) {
   transform(upper_name.begin(), upper_name.end(), upper_name.begin(),
             ::toupper);
   std::string headerDefine =
-      std::string("V8_TORQUE_") + upper_name + "_FROM_DSL_BASE_H__";
+      "V8_GEN_TORQUE_GENERATED_" + upper_name + "_NAMESPACE_V8_H_";
 
   source << "}  // namespace internal\n"
          << "}  // namespace v8\n"
@@ -499,7 +499,7 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
         << "  TNode<IntPtrT> arguments_length(ChangeInt32ToIntPtr(argc));\n";
     source_out() << "  TNode<RawPtrT> arguments_frame = "
                     "UncheckedCast<RawPtrT>(LoadFramePointer());\n";
-    source_out() << "  BaseBuiltinsFromDSLAssembler::Arguments "
+    source_out() << "  TorqueGeneratedBaseBuiltinsAssembler::Arguments "
                     "torque_arguments(GetFrameArguments(arguments_frame, "
                     "arguments_length));\n";
     source_out() << "  CodeStubArguments arguments(this, torque_arguments);\n";
@@ -1579,7 +1579,7 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir,
                                                    Namespace* nspace) {
   std::string new_source(nspace->source());
   std::string base_file_name =
-      "builtins-" + DashifyString(nspace->name()) + "-from-dsl-gen";
+      "builtins-" + DashifyString(nspace->name()) + "-gen-tq";
 
   std::string source_file_name = dir + "/" + base_file_name + ".cc";
   ReplaceFileContentsIfDifferent(source_file_name, new_source);
@@ -2709,10 +2709,10 @@ void ImplementationVisitor::Visit(Declarable* declarable) {
 void ImplementationVisitor::GenerateBuiltinDefinitions(std::string& file_name) {
   std::stringstream new_contents_stream;
   new_contents_stream
-      << "#ifndef V8_BUILTINS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n"
-         "#define V8_BUILTINS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n"
+      << "#ifndef V8_GEN_TORQUE_GENERATED_BUILTIN_DEFINITIONS_TQ_H_\n"
+         "#define V8_GEN_TORQUE_GENERATED_BUILTIN_DEFINITIONS_TQ_H_\n"
          "\n"
-         "#define BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM) "
+         "#define BUILTIN_LIST_FROM_TORQUE(CPP, API, TFJ, TFC, TFS, TFH, ASM) "
          "\\\n";
   for (auto& declarable : GlobalContext::AllDeclarables()) {
     Builtin* builtin = Builtin::DynamicCast(declarable.get());
@@ -2768,7 +2768,7 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(std::string& file_name) {
   new_contents_stream << "\n";
 
   new_contents_stream
-      << "#endif  // V8_BUILTINS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n";
+      << "#endif  // V8_GEN_TORQUE_GENERATED_BUILTIN_DEFINITIONS_TQ_H_\n";
 
   std::string new_contents(new_contents_stream.str());
   ReplaceFileContentsIfDifferent(file_name, new_contents);
@@ -2847,10 +2847,11 @@ void CompleteFieldSection(FieldSectionType* section,
 
 }  // namespace
 
-void ImplementationVisitor::GenerateClassDefinitions(std::string& file_name) {
+void ImplementationVisitor::GenerateClassFieldOffsets(
+    const std::string& output_directory) {
   std::stringstream new_contents_stream;
-  new_contents_stream << "#ifndef V8_CLASS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n"
-                         "#define V8_CLASS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n"
+  new_contents_stream << "#ifndef V8_GEN_TORQUE_GENERATED_FIELD_OFFSETS_TQ_H_\n"
+                         "#define V8_GEN_TORQUE_GENERATED_FIELD_OFFSETS_TQ_H_\n"
                          "\n\n";
 
   for (auto i : GlobalContext::GetClasses()) {
@@ -2908,10 +2909,12 @@ void ImplementationVisitor::GenerateClassDefinitions(std::string& file_name) {
   }
 
   new_contents_stream
-      << "\n#endif  // V8_CLASS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n";
+      << "\n#endif  // V8_GEN_TORQUE_GENERATED_FIELD_OFFSETS_TQ_H_\n";
 
+  const std::string output_header_path =
+      output_directory + "/field-offsets-tq.h";
   std::string new_contents(new_contents_stream.str());
-  ReplaceFileContentsIfDifferent(file_name, new_contents);
+  ReplaceFileContentsIfDifferent(output_header_path, new_contents);
 }
 
 void ImplementationVisitor::GeneratePrintDefinitions(std::string& file_name) {
@@ -3030,11 +3033,11 @@ void GenerateClassFieldVerifier(const std::string& class_name,
 
 void ImplementationVisitor::GenerateClassVerifiers(
     const std::string& output_directory) {
-  const char* file_name = "class-verifiers-from-dsl";
+  const char* file_name = "class-verifiers-tq";
   std::stringstream h_contents;
   std::stringstream cc_contents;
-  h_contents << "#ifndef V8_CLASS_VERIFIERS_FROM_DSL_H_\n"
-                "#define V8_CLASS_VERIFIERS_FROM_DSL_H_\n"
+  h_contents << "#ifndef V8_GEN_TORQUE_GENERATED_CLASS_VERIFIERS_TQ_H_\n"
+                "#define V8_GEN_TORQUE_GENERATED_CLASS_VERIFIERS_TQ_H_\n"
                 "\n";
 
   const char* enabled_check = "\n#ifdef VERIFY_HEAP\n";
@@ -3066,7 +3069,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
     h_contents << "class " << type->name() << ";\n";
   }
 
-  const char* verifier_class = "ClassVerifiersFromDSL";
+  const char* verifier_class = "TorqueGeneratedClassVerifiers";
 
   h_contents << "class " << verifier_class << " {\n";
   h_contents << " public:\n";
@@ -3129,7 +3132,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
   h_contents << end_enabled_check;
   cc_contents << end_enabled_check;
 
-  h_contents << "\n#endif  // V8_CLASS_VERIFIERS_FROM_DSL_H_\n";
+  h_contents << "\n#endif  // V8_GEN_TORQUE_GENERATED_CLASS_VERIFIERS_TQ_H_\n";
 
   ReplaceFileContentsIfDifferent(output_directory + "/" + file_name + ".h",
                                  h_contents.str());

@@ -1046,16 +1046,16 @@ action("run_torque") {
   sources = torque_files
 
   outputs = [
-    "$target_gen_dir/torque-generated/builtin-definitions-from-dsl.h",
-    "$target_gen_dir/torque-generated/class-definitions-from-dsl.h",
-    "$target_gen_dir/torque-generated/class-verifiers-from-dsl.cc",
-    "$target_gen_dir/torque-generated/class-verifiers-from-dsl.h",
-    "$target_gen_dir/torque-generated/objects-printer-from-dsl.cc",
+    "$target_gen_dir/torque-generated/builtin-definitions-tq.h",
+    "$target_gen_dir/torque-generated/field-offsets-tq.h",
+    "$target_gen_dir/torque-generated/class-verifiers-tq.cc",
+    "$target_gen_dir/torque-generated/class-verifiers-tq.h",
+    "$target_gen_dir/torque-generated/objects-printer-tq.cc",
   ]
   foreach(namespace, torque_namespaces) {
     outputs += [
-      "$target_gen_dir/torque-generated/builtins-$namespace-from-dsl-gen.cc",
-      "$target_gen_dir/torque-generated/builtins-$namespace-from-dsl-gen.h",
+      "$target_gen_dir/torque-generated/builtins-$namespace-gen-tq.cc",
+      "$target_gen_dir/torque-generated/builtins-$namespace-gen-tq.h",
     ]
   }
 
@@ -1095,8 +1095,8 @@ v8_source_set("torque_generated_initializers") {
   sources = []
   foreach(namespace, torque_namespaces) {
     sources += [
-      "$target_gen_dir/torque-generated/builtins-$namespace-from-dsl-gen.cc",
-      "$target_gen_dir/torque-generated/builtins-$namespace-from-dsl-gen.h",
+      "$target_gen_dir/torque-generated/builtins-$namespace-gen-tq.cc",
+      "$target_gen_dir/torque-generated/builtins-$namespace-gen-tq.h",
     ]
   }
 
@@ -1116,9 +1116,9 @@ v8_source_set("torque_generated_definitions") {
   ]
 
   sources = [
-    "$target_gen_dir/torque-generated/class-verifiers-from-dsl.cc",
-    "$target_gen_dir/torque-generated/class-verifiers-from-dsl.h",
-    "$target_gen_dir/torque-generated/objects-printer-from-dsl.cc",
+    "$target_gen_dir/torque-generated/class-verifiers-tq.cc",
+    "$target_gen_dir/torque-generated/class-verifiers-tq.h",
+    "$target_gen_dir/torque-generated/objects-printer-tq.cc",
   ]
 
   configs = [ ":internal_config" ]

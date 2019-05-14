@@ -179,7 +179,7 @@ class Namespace : public Scope {
       : Scope(Declarable::kNamespace), name_(name) {}
   const std::string& name() const { return name_; }
   std::string ExternalName() const {
-    return CamelifyString(name()) + "BuiltinsFromDSLAssembler";
+    return "TorqueGenerated" + CamelifyString(name()) + "BuiltinsAssembler";
   }
   bool IsDefaultNamespace() const;
   bool IsTestNamespace() const;

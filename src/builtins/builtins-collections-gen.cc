@@ -13,8 +13,8 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/ordered-hash-table.h"
-#include "torque-generated/builtins-base-from-dsl-gen.h"
-#include "torque-generated/builtins-collections-from-dsl-gen.h"
+#include "torque-generated/builtins-base-gen-tq.h"
+#include "torque-generated/builtins-collections-gen-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -25,11 +25,13 @@ using TNode = compiler::TNode<T>;
 template <class T>
 using TVariable = compiler::TypedCodeAssemblerVariable<T>;
 
-class BaseCollectionsAssembler : public CodeStubAssembler,
-                                 public CollectionsBuiltinsFromDSLAssembler {
+class BaseCollectionsAssembler
+    : public CodeStubAssembler,
+      public TorqueGeneratedCollectionsBuiltinsAssembler {
  public:
   explicit BaseCollectionsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state), CollectionsBuiltinsFromDSLAssembler(state) {}
+      : CodeStubAssembler(state),
+        TorqueGeneratedCollectionsBuiltinsAssembler(state) {}
 
   virtual ~BaseCollectionsAssembler() = default;
 
@@ -158,7 +160,7 @@ void BaseCollectionsAssembler::AddConstructorEntry(
                                                         var_exception);
   CSA_ASSERT(this, Word32BinaryNot(IsTheHole(key_value)));
   if (variant == kMap || variant == kWeakMap) {
-    BaseBuiltinsFromDSLAssembler::KeyValuePair pair =
+    TorqueGeneratedBaseBuiltinsAssembler::KeyValuePair pair =
         if_may_have_side_effects != nullptr
             ? LoadKeyValuePairNoSideEffects(context, key_value,
                                             if_may_have_side_effects)

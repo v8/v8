@@ -29,7 +29,8 @@ template <class T>
 using SloppyTNode = compiler::SloppyTNode<T>;
 
 CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
-    : compiler::CodeAssembler(state), BaseBuiltinsFromDSLAssembler(state) {
+    : compiler::CodeAssembler(state),
+      TorqueGeneratedBaseBuiltinsAssembler(state) {
   if (DEBUG_BOOL && FLAG_csa_trap_on_node != nullptr) {
     HandleBreakOnNode();
   }
@@ -13645,12 +13646,14 @@ Node* CodeStubAssembler::CheckEnumCache(Node* receiver, Label* if_empty,
 }
 
 TNode<Object> CodeStubAssembler::GetArgumentValue(
-    BaseBuiltinsFromDSLAssembler::Arguments args, TNode<IntPtrT> index) {
+    TorqueGeneratedBaseBuiltinsAssembler::Arguments args,
+    TNode<IntPtrT> index) {
   return CodeStubArguments(this, args).GetOptionalArgumentValue(index);
 }
 
-BaseBuiltinsFromDSLAssembler::Arguments CodeStubAssembler::GetFrameArguments(
-    TNode<RawPtrT> frame, TNode<IntPtrT> argc) {
+TorqueGeneratedBaseBuiltinsAssembler::Arguments
+CodeStubAssembler::GetFrameArguments(TNode<RawPtrT> frame,
+                                     TNode<IntPtrT> argc) {
   return CodeStubArguments(this, argc, frame, INTPTR_PARAMETERS)
       .GetTorqueArguments();
 }

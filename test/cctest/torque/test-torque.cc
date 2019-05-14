@@ -19,7 +19,7 @@
 #include "src/objects/promise-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
-#include "torque-generated/builtins-test-from-dsl-gen.h"
+#include "torque-generated/builtins-test-gen-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -31,10 +31,10 @@ typedef CodeAssemblerLabel Label;
 typedef CodeAssemblerVariable Variable;
 
 class TestTorqueAssembler : public CodeStubAssembler,
-                            public TestBuiltinsFromDSLAssembler {
+                            public TorqueGeneratedTestBuiltinsAssembler {
  public:
   explicit TestTorqueAssembler(CodeAssemblerState* state)
-      : CodeStubAssembler(state), TestBuiltinsFromDSLAssembler(state) {}
+      : CodeStubAssembler(state), TorqueGeneratedTestBuiltinsAssembler(state) {}
 };
 
 }  // namespace

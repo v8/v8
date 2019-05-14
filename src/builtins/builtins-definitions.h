@@ -8,7 +8,7 @@
 #include "builtins-generated/bytecodes-builtins-list.h"
 
 // include generated header
-#include "torque-generated/builtin-definitions-from-dsl.h"
+#include "torque-generated/builtin-definitions-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -1339,10 +1339,10 @@ namespace internal {
   CPP(StringPrototypeToUpperCase)
 #endif  // V8_INTL_SUPPORT
 
-#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, BCH, ASM) \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)       \
-  BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM)   \
-  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                           \
+#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, BCH, ASM)  \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)        \
+  BUILTIN_LIST_FROM_TORQUE(CPP, API, TFJ, TFC, TFS, TFH, ASM) \
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                            \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
 
 // The exception thrown in the following builtins are caught
