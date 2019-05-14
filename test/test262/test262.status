@@ -521,9 +521,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9047
   'annexB/built-ins/Function/createdynfn-no-line-terminator-html-close-comment-body': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9048
-  'built-ins/JSON/stringify/bigint-tojson-receiver': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
 

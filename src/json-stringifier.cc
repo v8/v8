@@ -322,21 +322,13 @@ MaybeHandle<Object> JsonStringifier::ApplyToJsonFunction(Handle<Object> object,
                                                          Handle<Object> key) {
   HandleScope scope(isolate_);
 
-  Handle<Object> object_for_lookup = object;
-  if (object->IsBigInt()) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate_, object_for_lookup,
-                               Object::ToObject(isolate_, object), Object);
-  }
-  DCHECK(object_for_lookup->IsJSReceiver());
-
-  // Retrieve toJSON function.
+  // Retrieve toJSON function. The LookupIterator automatically handles
+  // the ToObject() equivalent ("GetRoot") if {object} is a BigInt.
   Handle<Object> fun;
-  {
-    LookupIterator it(isolate_, object_for_lookup, tojson_string_,
-                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-    ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it), Object);
-    if (!fun->IsCallable()) return object;
-  }
+  LookupIterator it(isolate_, object, tojson_string_,
+                    LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it), Object);
+  if (!fun->IsCallable()) return object;
 
   // Call toJSON function.
   if (key->IsSmi()) key = factory()->NumberToString(key);
