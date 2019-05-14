@@ -47,7 +47,6 @@ void ReadAndParseTorqueFile(const std::string& path) {
 
 void CompileCurrentAst(TorqueCompilerOptions options) {
   GlobalContext::Scope global_context(std::move(CurrentAst::Get()));
-  if (options.verbose) GlobalContext::SetVerbose();
   if (options.collect_language_server_data) {
     GlobalContext::SetCollectLanguageServerData();
   }

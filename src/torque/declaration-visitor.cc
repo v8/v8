@@ -132,27 +132,28 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
 void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl,
                                const Signature& signature,
                                base::Optional<Statement*> body) {
-  if (GlobalContext::verbose()) {
-    std::cout << "found declaration of external runtime " << decl->name
-              << " with signature ";
-  }
-
   if (signature.parameter_types.types.size() == 0 ||
       !(signature.parameter_types.types[0] ==
         Declarations::LookupGlobalType(CONTEXT_TYPE_STRING))) {
-    std::stringstream stream;
-    stream << "first parameter to runtime " << decl->name
-           << " is not a context but should be";
-    ReportError(stream.str());
+    ReportError(
+        "first parameter to runtime functions has to be the context and have "
+        "type Context, but found type ",
+        signature.parameter_types.types[0]);
   }
-
-  if (signature.return_type->IsStructType()) {
-    std::stringstream stream;
-    stream << "runtime functions (in this case" << decl->name
-           << ") cannot return structs (in this case "
-           << static_cast<const StructType*>(signature.return_type)->name()
-           << ")";
-    ReportError(stream.str());
+  if (!(signature.return_type->IsSubtypeOf(TypeOracle::GetObjectType()) ||
+        signature.return_type == TypeOracle::GetVoidType() ||
+        signature.return_type == TypeOracle::GetNeverType())) {
+    ReportError(
+        "runtime functions can only return tagged values, but found type ",
+        signature.return_type);
+  }
+  for (const Type* parameter_type : signature.parameter_types.types) {
+    if (!parameter_type->IsSubtypeOf(TypeOracle::GetObjectType())) {
+      ReportError(
+          "runtime functions can only take tagged values as parameters, but "
+          "found type ",
+          *parameter_type);
+    }
   }
 
   Declarations::DeclareRuntimeFunction(decl->name, signature,
@@ -162,11 +163,6 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl,
 void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl,
                                const Signature& signature,
                                base::Optional<Statement*> body) {
-  if (GlobalContext::verbose()) {
-    std::cout << "found declaration of external macro " << decl->name
-              << " with signature ";
-  }
-
   Declarations::DeclareMacro(decl->name, decl->external_assembler_name,
                              signature, decl->transitioning, body, decl->op);
 }

@@ -20,8 +20,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   GlobalContext(GlobalContext&&) V8_NOEXCEPT = default;
   GlobalContext& operator=(GlobalContext&&) V8_NOEXCEPT = default;
   explicit GlobalContext(Ast ast)
-      : verbose_(false),
-        collect_language_server_data_(false),
+      : collect_language_server_data_(false),
         force_assert_statements_(false),
         ast_(std::move(ast)) {
     CurrentScope::Scope current_scope(nullptr);
@@ -67,8 +66,6 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     return Get().cpp_includes_;
   }
 
-  static void SetVerbose() { Get().verbose_ = true; }
-  static bool verbose() { return Get().verbose_; }
   static void SetCollectLanguageServerData() {
     Get().collect_language_server_data_ = true;
   }
@@ -84,7 +81,6 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   static Ast* ast() { return &Get().ast_; }
 
  private:
-  bool verbose_;
   bool collect_language_server_data_;
   bool force_assert_statements_;
   Namespace* default_namespace_;

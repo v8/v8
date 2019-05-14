@@ -11,17 +11,12 @@ namespace torque {
 
 int WrappedMain(int argc, const char** argv) {
   std::string output_directory;
-  bool verbose = false;
   std::vector<std::string> files;
 
   for (int i = 1; i < argc; ++i) {
     // Check for options
     if (!strcmp("-o", argv[i])) {
       output_directory = argv[++i];
-      continue;
-    }
-    if (!strcmp("-v", argv[i])) {
-      verbose = true;
       continue;
     }
 
@@ -31,7 +26,6 @@ int WrappedMain(int argc, const char** argv) {
 
   TorqueCompilerOptions options;
   options.output_directory = output_directory;
-  options.verbose = verbose;
   options.collect_language_server_data = false;
   options.force_assert_statements = false;
 

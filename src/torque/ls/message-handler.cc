@@ -178,7 +178,6 @@ void RecompileTorque(MessageWriter writer) {
 
   TorqueCompilerOptions options;
   options.output_directory = "";
-  options.verbose = false;
   options.collect_language_server_data = true;
   options.force_assert_statements = true;
 

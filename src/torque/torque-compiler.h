@@ -17,7 +17,6 @@ namespace torque {
 
 struct TorqueCompilerOptions {
   std::string output_directory = "";
-  bool verbose = false;
   bool collect_language_server_data = false;
 
   // assert(...) are only generated for debug builds. The provide

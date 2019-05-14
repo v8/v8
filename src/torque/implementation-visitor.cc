@@ -1597,10 +1597,6 @@ void ImplementationVisitor::GenerateMacroFunctionDeclaration(
 void ImplementationVisitor::GenerateFunctionDeclaration(
     std::ostream& o, const std::string& macro_prefix, const std::string& name,
     const Signature& signature, const NameVector& parameter_names) {
-  if (GlobalContext::verbose()) {
-    std::cout << "generating source for declaration " << name << "\n";
-  }
-
   if (signature.return_type->IsVoidOrNever()) {
     o << "void";
   } else {
@@ -2233,11 +2229,6 @@ VisitResult ImplementationVisitor::GenerateCall(
                               : callable->signature().types()[current++];
     AddCallParameter(callable, arg, to_type, &converted_arguments,
                      &argument_range, &constexpr_arguments);
-  }
-
-  if (GlobalContext::verbose()) {
-    std::cout << "generating code for call to " << callable->ReadableName()
-              << "\n";
   }
 
   size_t label_count = callable->signature().labels.size();

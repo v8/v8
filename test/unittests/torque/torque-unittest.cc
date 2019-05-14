@@ -16,7 +16,6 @@ namespace {
 TorqueCompilerResult TestCompileTorque(const std::string& source) {
   TorqueCompilerOptions options;
   options.output_directory = "";
-  options.verbose = false;
   options.collect_language_server_data = false;
   options.force_assert_statements = false;
 
