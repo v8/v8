@@ -54,6 +54,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/runtime-profiler.h"
@@ -105,15 +106,6 @@ void Heap_GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
 void Heap_MarkingBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                     HeapObject object) {
   Heap::MarkingBarrierForCodeSlow(host, rinfo, object);
-}
-
-void Heap_GenerationalBarrierForElementsSlow(Heap* heap, FixedArray array,
-                                             int offset, int length) {
-  Heap::GenerationalBarrierForElementsSlow(heap, array, offset, length);
-}
-
-void Heap_MarkingBarrierForElementsSlow(Heap* heap, FixedArray array) {
-  Heap::MarkingBarrierForElementsSlow(heap, array);
 }
 
 void Heap_MarkingBarrierForDescriptorArraySlow(Heap* heap, HeapObject host,
@@ -1507,70 +1499,73 @@ void Heap::StartIdleIncrementalMarking(
                           gc_callback_flags);
 }
 
-void Heap::MoveElements(FixedArray array, int dst_index, int src_index, int len,
-                        WriteBarrierMode mode) {
-  if (len == 0) return;
+void Heap::MoveRange(HeapObject dst_object, const ObjectSlot dst_slot,
+                     const ObjectSlot src_slot, int len,
+                     WriteBarrierMode mode) {
+  DCHECK_NE(len, 0);
+  DCHECK_NE(dst_object->map(), ReadOnlyRoots(this).fixed_cow_array_map());
+  const ObjectSlot dst_end(dst_slot + len);
+  // Ensure no range overflow.
+  DCHECK(dst_slot < dst_end);
+  DCHECK(src_slot < src_slot + len);
 
-  DCHECK_NE(array->map(), ReadOnlyRoots(this).fixed_cow_array_map());
-  ObjectSlot dst = array->RawFieldOfElementAt(dst_index);
-  ObjectSlot src = array->RawFieldOfElementAt(src_index);
   if (FLAG_concurrent_marking && incremental_marking()->IsMarking()) {
-    if (dst < src) {
-      for (int i = 0; i < len; i++) {
-        dst.Relaxed_Store(src.Relaxed_Load());
+    if (dst_slot < src_slot) {
+      // Copy tagged values forward using relaxed load/stores that do not
+      // involve value decompression.
+      const AtomicSlot atomic_dst_end(dst_end);
+      AtomicSlot dst(dst_slot);
+      AtomicSlot src(src_slot);
+      while (dst < atomic_dst_end) {
+        *dst = *src;
         ++dst;
         ++src;
       }
     } else {
-      // Copy backwards.
-      dst += len - 1;
-      src += len - 1;
-      for (int i = 0; i < len; i++) {
-        dst.Relaxed_Store(src.Relaxed_Load());
+      // Copy tagged values backwards using relaxed load/stores that do not
+      // involve value decompression.
+      const AtomicSlot atomic_dst_begin(dst_slot);
+      AtomicSlot dst(dst_slot + len - 1);
+      AtomicSlot src(src_slot + len - 1);
+      while (dst >= atomic_dst_begin) {
+        *dst = *src;
         --dst;
         --src;
       }
     }
   } else {
-    MemMove(dst.ToVoidPtr(), src.ToVoidPtr(), len * kTaggedSize);
+    MemMove(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
   }
   if (mode == SKIP_WRITE_BARRIER) return;
-  FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(this, array, dst_index, len);
+  WriteBarrierForRange(dst_object, dst_slot, dst_end);
 }
 
-void Heap::CopyElements(FixedArray dst_array, FixedArray src_array,
-                        int dst_index, int src_index, int len,
-                        WriteBarrierMode mode) {
-  DCHECK_NE(dst_array, src_array);
-  if (len == 0) return;
+void Heap::CopyRange(HeapObject dst_object, const ObjectSlot dst_slot,
+                     const ObjectSlot src_slot, int len,
+                     WriteBarrierMode mode) {
+  DCHECK_NE(len, 0);
 
-  DCHECK_NE(dst_array->map(), ReadOnlyRoots(this).fixed_cow_array_map());
-  ObjectSlot dst = dst_array->RawFieldOfElementAt(dst_index);
-  ObjectSlot src = src_array->RawFieldOfElementAt(src_index);
+  DCHECK_NE(dst_object->map(), ReadOnlyRoots(this).fixed_cow_array_map());
+  const ObjectSlot dst_end(dst_slot + len);
   // Ensure ranges do not overlap.
-  DCHECK(dst + len <= src || src + len <= dst);
+  DCHECK(dst_end <= src_slot || (src_slot + len) <= dst_slot);
+
   if (FLAG_concurrent_marking && incremental_marking()->IsMarking()) {
-    if (dst < src) {
-      for (int i = 0; i < len; i++) {
-        dst.Relaxed_Store(src.Relaxed_Load());
-        ++dst;
-        ++src;
-      }
-    } else {
-      // Copy backwards.
-      dst += len - 1;
-      src += len - 1;
-      for (int i = 0; i < len; i++) {
-        dst.Relaxed_Store(src.Relaxed_Load());
-        --dst;
-        --src;
-      }
+    // Copy tagged values using relaxed load/stores that do not involve value
+    // decompression.
+    const AtomicSlot atomic_dst_end(dst_end);
+    AtomicSlot dst(dst_slot);
+    AtomicSlot src(src_slot);
+    while (dst < atomic_dst_end) {
+      *dst = *src;
+      ++dst;
+      ++src;
     }
   } else {
-    MemCopy(dst.ToVoidPtr(), src.ToVoidPtr(), len * kTaggedSize);
+    MemCopy(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
   }
   if (mode == SKIP_WRITE_BARRIER) return;
-  FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(this, dst_array, dst_index, len);
+  WriteBarrierForRange(dst_object, dst_slot, dst_end);
 }
 
 #ifdef VERIFY_HEAP
@@ -5848,12 +5843,19 @@ void Heap::EphemeronKeyWriteBarrierFromCode(Address raw_object,
                                                                maybe_key);
 }
 
-void Heap::GenerationalBarrierForElementsSlow(Heap* heap, FixedArray array,
-                                              int offset, int length) {
-  for (int i = 0; i < length; i++) {
-    if (!InYoungGeneration(array->get(offset + i))) continue;
-    heap->store_buffer()->InsertEntry(
-        array->RawFieldOfElementAt(offset + i).address());
+void Heap::WriteBarrierForRange(HeapObject object, ObjectSlot start_slot,
+                                ObjectSlot end_slot) {
+  // TODO(ishell): iterate values only once and avoid generic decompression.
+  if (!InYoungGeneration(object)) {
+    for (ObjectSlot slot = start_slot; slot < end_slot; ++slot) {
+      Object value = *slot;
+      if (InYoungGeneration(value)) {
+        store_buffer()->InsertEntry(slot.address());
+      }
+    }
+  }
+  if (incremental_marking()->IsMarking()) {
+    incremental_marking()->RecordWrites(object, start_slot, end_slot);
   }
 }
 
@@ -5887,10 +5889,6 @@ void Heap::MarkingBarrierSlow(HeapObject object, Address slot,
   Heap* heap = Heap::FromWritableHeapObject(object);
   heap->incremental_marking()->RecordWriteSlow(object, HeapObjectSlot(slot),
                                                value);
-}
-
-void Heap::MarkingBarrierForElementsSlow(Heap* heap, FixedArray array) {
-  heap->incremental_marking()->RecordWrites(array);
 }
 
 void Heap::MarkingBarrierForCodeSlow(Code host, RelocInfo* rinfo,

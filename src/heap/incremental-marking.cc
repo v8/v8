@@ -70,9 +70,8 @@ IncrementalMarking::IncrementalMarking(
   SetState(STOPPED);
 }
 
-bool IncrementalMarking::BaseRecordWrite(HeapObject obj, Object value) {
-  HeapObject value_heap_obj = HeapObject::cast(value);
-  DCHECK(!marking_state()->IsImpossible(value_heap_obj));
+bool IncrementalMarking::BaseRecordWrite(HeapObject obj, HeapObject value) {
+  DCHECK(!marking_state()->IsImpossible(value));
   DCHECK(!marking_state()->IsImpossible(obj));
 #ifdef V8_CONCURRENT_MARKING
   // The write barrier stub generated with V8_CONCURRENT_MARKING does not
@@ -82,14 +81,14 @@ bool IncrementalMarking::BaseRecordWrite(HeapObject obj, Object value) {
   const bool need_recording = marking_state()->IsBlack(obj);
 #endif
 
-  if (need_recording && WhiteToGreyAndPush(value_heap_obj)) {
+  if (need_recording && WhiteToGreyAndPush(value)) {
     RestartIfNotMarking();
   }
   return is_compacting_ && need_recording;
 }
 
 void IncrementalMarking::RecordWriteSlow(HeapObject obj, HeapObjectSlot slot,
-                                         Object value) {
+                                         HeapObject value) {
   if (BaseRecordWrite(obj, value) && slot.address() != kNullAddress) {
     // Object is not going to be rescanned we need to record the slot.
     heap_->mark_compact_collector()->RecordSlot(obj, slot,
@@ -117,25 +116,26 @@ void IncrementalMarking::RecordWriteIntoCode(Code host, RelocInfo* rinfo,
   }
 }
 
-void IncrementalMarking::RecordWrites(FixedArray array) {
-  int length = array->length();
-  MarkCompactCollector* collector = heap_->mark_compact_collector();
-  MemoryChunk* source_page = MemoryChunk::FromHeapObject(array);
+void IncrementalMarking::RecordWrites(HeapObject object, ObjectSlot start_slot,
+                                      ObjectSlot end_slot) {
+  MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
   if (source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
-    for (int i = 0; i < length; i++) {
-      Object value = array->get(i);
-      if (value->IsHeapObject()) {
-        BaseRecordWrite(array, HeapObject::cast(value));
+    for (ObjectSlot slot = start_slot; slot < end_slot; ++slot) {
+      Object value = *slot;
+      HeapObject value_heap_object;
+      if (value.GetHeapObject(&value_heap_object)) {
+        BaseRecordWrite(object, value_heap_object);
       }
     }
   } else {
-    for (int i = 0; i < length; i++) {
-      Object value = array->get(i);
-      if (value->IsHeapObject() &&
-          BaseRecordWrite(array, HeapObject::cast(value))) {
-        collector->RecordSlot(source_page,
-                              HeapObjectSlot(array->RawFieldOfElementAt(i)),
-                              HeapObject::cast(value));
+    MarkCompactCollector* collector = heap_->mark_compact_collector();
+    for (ObjectSlot slot = start_slot; slot < end_slot; ++slot) {
+      Object value = *slot;
+      HeapObject value_heap_object;
+      if (value.GetHeapObject(&value_heap_object) &&
+          BaseRecordWrite(object, value_heap_object)) {
+        collector->RecordSlot(source_page, HeapObjectSlot(slot),
+                              value_heap_object);
       }
     }
   }

@@ -178,7 +178,7 @@ void CopyObjectToObjectElements(Isolate* isolate, FixedArrayBase from_base,
       (IsObjectElementsKind(from_kind) && IsObjectElementsKind(to_kind))
           ? UPDATE_WRITE_BARRIER
           : SKIP_WRITE_BARRIER;
-  to->CopyElements(isolate->heap(), to_start, from, from_start, copy_size,
+  to->CopyElements(isolate, to_start, from, from_start, copy_size,
                    write_barrier_mode);
 }
 
@@ -470,32 +470,30 @@ static void TraceTopFrame(Isolate* isolate) {
   JavaScriptFrame::PrintTop(isolate, stdout, false, true);
 }
 
-static void SortIndices(
-    Isolate* isolate, Handle<FixedArray> indices, uint32_t sort_size,
-    WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER) {
+static void SortIndices(Isolate* isolate, Handle<FixedArray> indices,
+                        uint32_t sort_size) {
   // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
   AtomicSlot start(indices->GetFirstElementAddress());
-  std::sort(start, start + sort_size,
-            [isolate](Tagged_t elementA, Tagged_t elementB) {
+  AtomicSlot end(start + sort_size);
+  std::sort(start, end, [isolate](Tagged_t elementA, Tagged_t elementB) {
 #ifdef V8_COMPRESS_POINTERS
-              Object a(DecompressTaggedAny(isolate->isolate_root(), elementA));
-              Object b(DecompressTaggedAny(isolate->isolate_root(), elementB));
+    Object a(DecompressTaggedAny(isolate->isolate_root(), elementA));
+    Object b(DecompressTaggedAny(isolate->isolate_root(), elementB));
 #else
-              Object a(elementA);
-              Object b(elementB);
+    Object a(elementA);
+    Object b(elementB);
 #endif
-              if (a->IsSmi() || !a->IsUndefined(isolate)) {
-                if (!b->IsSmi() && b->IsUndefined(isolate)) {
-                  return true;
-                }
-                return a->Number() < b->Number();
-              }
-              return !b->IsSmi() && b->IsUndefined(isolate);
-            });
-  if (write_barrier_mode != SKIP_WRITE_BARRIER) {
-    FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(isolate->heap(), *indices, 0, sort_size);
-  }
+    if (a->IsSmi() || !a->IsUndefined(isolate)) {
+      if (!b->IsSmi() && b->IsUndefined(isolate)) {
+        return true;
+      }
+      return a->Number() < b->Number();
+    }
+    return !b->IsSmi() && b->IsUndefined(isolate);
+  });
+  isolate->heap()->WriteBarrierForRange(*indices, ObjectSlot(start),
+                                        ObjectSlot(end));
 }
 
 static Maybe<bool> IncludesValueSlowPath(Isolate* isolate,
@@ -2239,13 +2237,13 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                            Handle<FixedArrayBase> backing_store, int dst_index,
                            int src_index, int len, int hole_start,
                            int hole_end) {
-    Heap* heap = isolate->heap();
     Handle<BackingStore> dst_elms = Handle<BackingStore>::cast(backing_store);
     if (len > JSArray::kMaxCopyElements && dst_index == 0 &&
-        heap->CanMoveObjectStart(*dst_elms)) {
+        isolate->heap()->CanMoveObjectStart(*dst_elms)) {
       // Update all the copies of this backing_store handle.
       *dst_elms.location() =
-          BackingStore::cast(heap->LeftTrimFixedArray(*dst_elms, src_index))
+          BackingStore::cast(
+              isolate->heap()->LeftTrimFixedArray(*dst_elms, src_index))
               ->ptr();
       receiver->set_elements(*dst_elms);
       // Adjust the hole offset as the array has been shrunk.
@@ -2254,7 +2252,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       DCHECK_LE(hole_end, backing_store->length());
     } else if (len != 0) {
       WriteBarrierMode mode = GetWriteBarrierMode(KindTraits::Kind);
-      dst_elms->MoveElements(heap, dst_index, src_index, len, mode);
+      dst_elms->MoveElements(isolate, dst_index, src_index, len, mode);
     }
     if (hole_start != hole_end) {
       dst_elms->FillWithHoles(hole_start, hole_end);

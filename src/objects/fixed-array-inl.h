@@ -223,16 +223,23 @@ ObjectSlot FixedArray::RawFieldOfElementAt(int index) {
   return RawField(OffsetOfElementAt(index));
 }
 
-void FixedArray::MoveElements(Heap* heap, int dst_index, int src_index, int len,
-                              WriteBarrierMode mode) {
+void FixedArray::MoveElements(Isolate* isolate, int dst_index, int src_index,
+                              int len, WriteBarrierMode mode) {
+  if (len == 0) return;
   DisallowHeapAllocation no_gc;
-  heap->MoveElements(*this, dst_index, src_index, len, mode);
+  ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
+  ObjectSlot src_slot(RawFieldOfElementAt(src_index));
+  isolate->heap()->MoveRange(*this, dst_slot, src_slot, len, mode);
 }
 
-void FixedArray::CopyElements(Heap* heap, int dst_index, FixedArray src,
+void FixedArray::CopyElements(Isolate* isolate, int dst_index, FixedArray src,
                               int src_index, int len, WriteBarrierMode mode) {
+  if (len == 0) return;
   DisallowHeapAllocation no_gc;
-  heap->CopyElements(*this, src, dst_index, src_index, len, mode);
+
+  ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
+  ObjectSlot src_slot(src->RawFieldOfElementAt(src_index));
+  isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 
 // Perform a binary search in a fixed array.
@@ -392,8 +399,9 @@ bool FixedDoubleArray::is_the_hole(int index) {
   return get_representation(index) == kHoleNanInt64;
 }
 
-void FixedDoubleArray::MoveElements(Heap* heap, int dst_index, int src_index,
-                                    int len, WriteBarrierMode mode) {
+void FixedDoubleArray::MoveElements(Isolate* isolate, int dst_index,
+                                    int src_index, int len,
+                                    WriteBarrierMode mode) {
   DCHECK_EQ(SKIP_WRITE_BARRIER, mode);
   double* data_start =
       reinterpret_cast<double*>(FIELD_ADDR(*this, kHeaderSize));

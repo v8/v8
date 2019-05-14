@@ -153,10 +153,10 @@ class FixedArray : public FixedArrayBase {
   // Gives access to raw memory which stores the array's data.
   inline ObjectSlot data_start();
 
-  inline void MoveElements(Heap* heap, int dst_index, int src_index, int len,
-                           WriteBarrierMode mode);
+  inline void MoveElements(Isolate* isolate, int dst_index, int src_index,
+                           int len, WriteBarrierMode mode);
 
-  inline void CopyElements(Heap* heap, int dst_index, FixedArray src,
+  inline void CopyElements(Isolate* isolate, int dst_index, FixedArray src,
                            int src_index, int len, WriteBarrierMode mode);
 
   inline void FillWithHoles(int from, int to);
@@ -245,8 +245,8 @@ class FixedDoubleArray : public FixedArrayBase {
     return kHeaderSize + length * kDoubleSize;
   }
 
-  inline void MoveElements(Heap* heap, int dst_index, int src_index, int len,
-                           WriteBarrierMode mode);
+  inline void MoveElements(Isolate* isolate, int dst_index, int src_index,
+                           int len, WriteBarrierMode mode);
 
   inline void FillWithHoles(int from, int to);
 

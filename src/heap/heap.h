@@ -351,6 +351,11 @@ class Heap {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
 
+  // Executes generational and/or marking write barrier for a [start, end) range
+  // of non-weak slots inside |object|.
+  V8_EXPORT_PRIVATE void WriteBarrierForRange(HeapObject object,
+                                              ObjectSlot start, ObjectSlot end);
+
   V8_EXPORT_PRIVATE static void WriteBarrierForCodeSlow(Code host);
   V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject object,
                                                         Address slot,
@@ -359,15 +364,11 @@ class Heap {
                                                  Address key_slot);
   V8_EXPORT_PRIVATE static void EphemeronKeyWriteBarrierFromCode(
       Address raw_object, Address address, Isolate* isolate);
-  V8_EXPORT_PRIVATE static void GenerationalBarrierForElementsSlow(
-      Heap* heap, FixedArray array, int offset, int length);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
       Code host, RelocInfo* rinfo, HeapObject value);
   V8_EXPORT_PRIVATE static void MarkingBarrierSlow(HeapObject object,
                                                    Address slot,
                                                    HeapObject value);
-  V8_EXPORT_PRIVATE static void MarkingBarrierForElementsSlow(Heap* heap,
-                                                              FixedArray array);
   V8_EXPORT_PRIVATE static void MarkingBarrierForCodeSlow(Code host,
                                                           RelocInfo* rinfo,
                                                           HeapObject value);
@@ -389,14 +390,15 @@ class Heap {
   inline Address* OldSpaceAllocationTopAddress();
   inline Address* OldSpaceAllocationLimitAddress();
 
-  // Move len elements within a given array from src_index index to dst_index
-  // index.
-  void MoveElements(FixedArray array, int dst_index, int src_index, int len,
-                    WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  // Move len non-weak tagged elements from src_slot to dst_slot of dst_object.
+  // The source and destination memory ranges can overlap.
+  void MoveRange(HeapObject dst_object, ObjectSlot dst_slot,
+                 ObjectSlot src_slot, int len, WriteBarrierMode mode);
 
-  // Copy len elements from src_index of src array to dst_index of dst array.
-  void CopyElements(FixedArray dst, FixedArray src, int dst_index,
-                    int src_index, int len, WriteBarrierMode mode);
+  // Copy len non-weak tagged elements from src_slot to dst_slot of dst_object.
+  // The source and destination memory ranges must not overlap.
+  void CopyRange(HeapObject dst_object, ObjectSlot dst_slot,
+                 ObjectSlot src_slot, int len, WriteBarrierMode mode);
 
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages. If slots could have been recorded in

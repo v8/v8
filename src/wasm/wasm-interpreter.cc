@@ -1605,7 +1605,8 @@ class ThreadImpl {
       int dst = static_cast<int>(StackHeight() - (sp_ - dest));
       int src = static_cast<int>(StackHeight() - arity);
       int len = static_cast<int>(arity);
-      isolate_->heap()->MoveElements(reference_stack(), dst, src, len);
+      reference_stack().MoveElements(isolate_, dst, src, len,
+                                     UPDATE_WRITE_BARRIER);
     }
     sp_ = dest + arity;
   }

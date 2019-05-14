@@ -38,12 +38,6 @@ V8_EXPORT_PRIVATE void Heap_GenerationalBarrierForCodeSlow(Code host,
 V8_EXPORT_PRIVATE void Heap_MarkingBarrierForCodeSlow(Code host,
                                                       RelocInfo* rinfo,
                                                       HeapObject object);
-V8_EXPORT_PRIVATE void Heap_GenerationalBarrierForElementsSlow(Heap* heap,
-                                                               FixedArray array,
-                                                               int offset,
-                                                               int length);
-V8_EXPORT_PRIVATE void Heap_MarkingBarrierForElementsSlow(Heap* heap,
-                                                          FixedArray object);
 V8_EXPORT_PRIVATE void Heap_MarkingBarrierForDescriptorArraySlow(
     Heap* heap, HeapObject host, HeapObject descriptor_array,
     int number_of_own_descriptors);
@@ -183,15 +177,6 @@ inline void GenerationalBarrier(HeapObject object, MaybeObjectSlot slot,
                                               value_heap_object);
 }
 
-inline void GenerationalBarrierForElements(Heap* heap, FixedArray array,
-                                           int offset, int length) {
-  heap_internals::MemoryChunk* array_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(array);
-  if (array_chunk->InYoungGeneration()) return;
-
-  Heap_GenerationalBarrierForElementsSlow(heap, array, offset, length);
-}
-
 inline void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
                                        HeapObject object) {
   heap_internals::MemoryChunk* object_chunk =
@@ -214,14 +199,6 @@ inline void MarkingBarrier(HeapObject object, MaybeObjectSlot slot,
   if (!value->GetHeapObject(&value_heap_object)) return;
   heap_internals::MarkingBarrierInternal(object, slot.address(),
                                          value_heap_object);
-}
-
-inline void MarkingBarrierForElements(Heap* heap, FixedArray array) {
-  heap_internals::MemoryChunk* object_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(array);
-  if (!object_chunk->IsMarking()) return;
-
-  Heap_MarkingBarrierForElementsSlow(heap, array);
 }
 
 inline void MarkingBarrierForCode(Code host, RelocInfo* rinfo,
