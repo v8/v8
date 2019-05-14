@@ -113,6 +113,26 @@ base::Optional<MapRef> GetStableMapFromObjectType(JSHeapBroker* broker,
   return {};
 }
 
+Node* ResolveRenames(Node* node) {
+  while (true) {
+    switch (node->opcode()) {
+      case IrOpcode::kCheckHeapObject:
+      case IrOpcode::kCheckNumber:
+      case IrOpcode::kCheckSmi:
+      case IrOpcode::kFinishRegion:
+      case IrOpcode::kTypeGuard:
+        if (node->IsDead()) {
+          return node;
+        } else {
+          node = node->InputAt(0);
+          continue;
+        }
+      default:
+        return node;
+    }
+  }
+}
+
 }  // namespace
 
 Reduction TypedOptimization::ReduceConvertReceiver(Node* node) {
@@ -507,7 +527,10 @@ Reduction TypedOptimization::ReduceSameValue(Node* node) {
   Node* const rhs = NodeProperties::GetValueInput(node, 1);
   Type const lhs_type = NodeProperties::GetType(lhs);
   Type const rhs_type = NodeProperties::GetType(rhs);
-  if (lhs == rhs) {
+  if (ResolveRenames(lhs) == ResolveRenames(rhs)) {
+    if (NodeProperties::GetType(node).IsNone()) {
+      return NoChange();
+    }
     // SameValue(x,x) => #true
     return Replace(jsgraph()->TrueConstant());
   } else if (lhs_type.Is(Type::Unique()) && rhs_type.Is(Type::Unique())) {

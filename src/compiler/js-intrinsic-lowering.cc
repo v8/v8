@@ -28,7 +28,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kJSCallRuntime) return NoChange();
   const Runtime::Function* const f =
       Runtime::FunctionForId(CallRuntimeParametersOf(node->op()).id());
-  if (f->function_id == Runtime::kStaticAssert) return ReduceStaticAssert(node);
+  if (f->function_id == Runtime::kTurbofanStaticAssert)
+    return ReduceTurbofanStaticAssert(node);
   if (f->intrinsic_type != Runtime::IntrinsicType::INLINE) return NoChange();
   switch (f->function_id) {
     case Runtime::kInlineCopyDataProperties:
@@ -269,7 +270,7 @@ Reduction JSIntrinsicLowering::ReduceIsSmi(Node* node) {
   return Change(node, simplified()->ObjectIsSmi());
 }
 
-Reduction JSIntrinsicLowering::ReduceStaticAssert(Node* node) {
+Reduction JSIntrinsicLowering::ReduceTurbofanStaticAssert(Node* node) {
   if (FLAG_always_opt) {
     // Ignore static asserts, as we most likely won't have enough information
     RelaxEffectsAndControls(node);

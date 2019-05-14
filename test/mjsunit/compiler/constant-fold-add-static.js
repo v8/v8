@@ -7,7 +7,7 @@
 // Check that constant-folding of arithmetic results in identical nodes.
 (function() {
   function foo(x) {
-    %StaticAssert(1 * x == x + 0);
+    %TurbofanStaticAssert(1 * x == x + 0);
   }
   foo(121);
   foo(122);
