@@ -504,7 +504,9 @@
         {"name": "NewIntlNumberFormat"},
         {"name": "NewIntlPluralRules"},
         {"name": "NewIntlListFormat"},
-        {"name": "NewIntlRelativeTimeFormat"}
+        {"name": "NewIntlRelativeTimeFormat"},
+        {"name": "NewIntlLocale"},
+        {"name": "NewIntlLocaleWithOptions"}
       ]
     },
     {
