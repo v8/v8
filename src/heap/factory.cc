@@ -3901,11 +3901,6 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<NativeContext> context,
     return handle(context->object_function()->initial_map(), isolate());
   }
 
-  // We do not cache maps for too many properties or when running builtin code.
-  if (isolate()->bootstrapper()->IsActive()) {
-    return Map::Create(isolate(), number_of_properties);
-  }
-
   // Use initial slow object proto map for too many properties.
   const int kMapCacheSize = 128;
   if (number_of_properties > kMapCacheSize) {

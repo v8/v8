@@ -1700,16 +1700,6 @@ void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
                  child->may_have_interesting_symbols());
   DCHECK_IMPLIES(parent->may_have_interesting_symbols(),
                  child->may_have_interesting_symbols());
-  // Do not track transitions during bootstrap except for element transitions.
-  if (isolate->bootstrapper()->IsActive() &&
-      !name.is_identical_to(isolate->factory()->elements_transition_symbol())) {
-    if (FLAG_trace_maps) {
-      LOG(isolate,
-          MapEvent("Transition", *parent, *child,
-                   child->is_prototype_map() ? "prototype" : "", *name));
-    }
-    return;
-  }
   if (!parent->GetBackPointer()->IsUndefined(isolate)) {
     parent->set_owns_descriptors(false);
   } else {
@@ -2015,9 +2005,12 @@ Handle<Map> Map::CopyForPreventExtensions(
       attrs_to_add);
   Handle<LayoutDescriptor> new_layout_descriptor(map->GetLayoutDescriptor(),
                                                  isolate);
+  // Do not track transitions during bootstrapping.
+  TransitionFlag flag =
+      isolate->bootstrapper()->IsActive() ? OMIT_TRANSITION : INSERT_TRANSITION;
   Handle<Map> new_map = CopyReplaceDescriptors(
-      isolate, map, new_desc, new_layout_descriptor, INSERT_TRANSITION,
-      transition_marker, reason, SPECIAL_TRANSITION);
+      isolate, map, new_desc, new_layout_descriptor, flag, transition_marker,
+      reason, SPECIAL_TRANSITION);
   new_map->set_is_extensible(false);
   if (!IsFixedTypedArrayElementsKind(map->elements_kind())) {
     ElementsKind new_kind = IsStringWrapperElementsKind(map->elements_kind())
@@ -2153,7 +2146,9 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                                     value);
   }
 
-  TransitionFlag flag = INSERT_TRANSITION;
+  // Do not track transitions during bootstrapping.
+  TransitionFlag flag =
+      isolate->bootstrapper()->IsActive() ? OMIT_TRANSITION : INSERT_TRANSITION;
   MaybeHandle<Map> maybe_map;
   if (!map->TooManyFastProperties(store_origin)) {
     Representation representation = value->OptimalRepresentation();
@@ -2335,7 +2330,9 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
 
   pair->SetComponents(*getter, *setter);
 
-  TransitionFlag flag = INSERT_TRANSITION;
+  // Do not track transitions during bootstrapping.
+  TransitionFlag flag =
+      isolate->bootstrapper()->IsActive() ? OMIT_TRANSITION : INSERT_TRANSITION;
   Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
   return Map::CopyInsertDescriptor(isolate, map, &d, flag);
 }

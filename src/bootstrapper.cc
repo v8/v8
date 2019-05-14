@@ -3510,26 +3510,32 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- I t e r a t o r R e s u l t
-    Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSIteratorResult::kSize,
-                                      TERMINAL_FAST_ELEMENTS_KIND, 2);
-    Map::SetPrototype(isolate(), map, isolate_->initial_object_prototype());
-    Map::EnsureDescriptorSlack(isolate_, map, 2);
+    // Setup the map for IterResultObjects created from builtins in such a
+    // way that it's exactly the same map as the one produced by object
+    // literals in the form `{value, done}`. This way we have better sharing
+    // of maps (i.e. less polymorphism) and also make it possible to hit the
+    // fast-paths in various builtins (i.e. promises and collections) with
+    // user defined iterators.
+    Handle<Map> map = factory->ObjectLiteralMapFromCache(native_context(), 2);
 
-    {  // value
-      Descriptor d = Descriptor::DataField(isolate(), factory->value_string(),
-                                           JSIteratorResult::kValueIndex, NONE,
-                                           Representation::Tagged());
-      map->AppendDescriptor(isolate(), &d);
-    }
+    // value
+    map = Map::CopyWithField(isolate(), map, factory->value_string(),
+                             FieldType::Any(isolate()), NONE,
+                             PropertyConstness::kConst,
+                             Representation::Tagged(), INSERT_TRANSITION)
+              .ToHandleChecked();
 
-    {  // done
-      Descriptor d = Descriptor::DataField(isolate(), factory->done_string(),
-                                           JSIteratorResult::kDoneIndex, NONE,
-                                           Representation::Tagged());
-      map->AppendDescriptor(isolate(), &d);
-    }
+    // done
+    // TODO(bmeurer): Once FLAG_modify_field_representation_inplace is always
+    // on, we can say Representation::HeapObject() here and have the inplace
+    // update logic take care of the case where someone ever stores a Smi into
+    // the done field.
+    map = Map::CopyWithField(isolate(), map, factory->done_string(),
+                             FieldType::Any(isolate()), NONE,
+                             PropertyConstness::kConst,
+                             Representation::Tagged(), INSERT_TRANSITION)
+              .ToHandleChecked();
 
-    map->SetConstructor(native_context()->object_function());
     native_context()->set_iterator_result_map(*map);
   }
 
