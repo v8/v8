@@ -1330,14 +1330,19 @@ void NativeModule::SampleCodeSize(
       break;
     case kSampling: {
       histogram = counters->wasm_module_code_size_mb();
-      // Also, add a sample of freed code size, absolute and relative.
-      size_t freed_size = code_allocator_.freed_code_size();
+      // If this is a wasm module of >= 2MB, also sample the freed code size,
+      // absolute and relative. Code GC does not happen on asm.js modules, and
+      // small modules will never trigger GC anyway.
       size_t generated_size = code_allocator_.generated_code_size();
-      DCHECK_LE(freed_size, generated_size);
-      int total_freed_mb = static_cast<int>(freed_size / MB);
-      counters->wasm_module_freed_code_size_mb()->AddSample(total_freed_mb);
-      int freed_percent = static_cast<int>(100 * freed_size / generated_size);
-      counters->wasm_module_freed_code_size_percent()->AddSample(freed_percent);
+      if (generated_size >= 2 * MB && module()->origin == kWasmOrigin) {
+        size_t freed_size = code_allocator_.freed_code_size();
+        DCHECK_LE(freed_size, generated_size);
+        int total_freed_mb = static_cast<int>(freed_size / MB);
+        counters->wasm_module_freed_code_size_mb()->AddSample(total_freed_mb);
+        int freed_percent = static_cast<int>(100 * freed_size / generated_size);
+        counters->wasm_module_freed_code_size_percent()->AddSample(
+            freed_percent);
+      }
       break;
     }
   }
