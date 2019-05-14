@@ -948,6 +948,7 @@ torque_files = [
   "src/builtins/object-fromentries.tq",
   "src/builtins/proxy-constructor.tq",
   "src/builtins/proxy-get-property.tq",
+  "src/builtins/proxy-set-property.tq",
   "src/builtins/proxy-revocable.tq",
   "src/builtins/proxy-revoke.tq",
   "src/builtins/proxy.tq",

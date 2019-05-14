@@ -1276,6 +1276,9 @@ extern macro ThrowTypeError(implicit context: Context)(
     constexpr MessageTemplate, Object, Object): never;
 extern macro ThrowTypeError(implicit context: Context)(
     constexpr MessageTemplate, Object, Object, Object): never;
+extern transitioning runtime ThrowTypeErrorIfStrict(implicit context: Context)(
+    Smi, Object, Object): void;
+
 extern macro ArraySpeciesCreate(Context, Object, Number): JSReceiver;
 extern macro ArrayCreate(implicit context: Context)(Number): JSArray;
 extern macro BuildAppendJSArray(
@@ -1894,6 +1897,7 @@ extern macro Float64Constant(constexpr int31): float64;
 extern macro Float64Constant(constexpr float64): float64;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro SmiConstant(constexpr Smi): Smi;
+extern macro SmiConstant(constexpr MessageTemplate): Smi;
 extern macro BoolConstant(constexpr bool): bool;
 extern macro StringConstant(constexpr string): String;
 extern macro LanguageModeConstant(constexpr LanguageMode): LanguageMode;
