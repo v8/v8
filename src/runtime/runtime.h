@@ -296,6 +296,7 @@ namespace internal {
   F(DefineGetterPropertyUnchecked, 4, 1)                        \
   F(DefineSetterPropertyUnchecked, 4, 1)                        \
   F(DeleteProperty, 3, 1)                                       \
+  F(GetDerivedMap, 2, 1)                                        \
   F(GetFunctionName, 1, 1)                                      \
   F(GetOwnPropertyDescriptor, 2, 1)                             \
   F(GetOwnPropertyKeys, 2, 1)                                   \

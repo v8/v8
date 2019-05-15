@@ -58,6 +58,8 @@ type bool generates 'TNode<BoolT>' constexpr 'bool';
 type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
 
+type NameDictionary extends FixedArray;
+
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
 type Code extends HeapObject generates 'TNode<Code>';
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
@@ -233,6 +235,23 @@ macro NewJSObject(implicit context: Context)(): JSObject {
     properties_or_hash: kEmptyFixedArray,
     elements: kEmptyFixedArray
   };
+}
+
+macro GetDerivedMap(implicit context: Context)(
+    target: JSFunction, newTarget: JSReceiver): Map {
+  try {
+    const constructor = Cast<JSFunction>(newTarget) otherwise SlowPath;
+    const map =
+        Cast<Map>(constructor.prototype_or_initial_map) otherwise SlowPath;
+    if (LoadConstructorOrBackPointer(map) != target) {
+      goto SlowPath;
+    }
+
+    return map;
+  }
+  label SlowPath {
+    return runtime::GetDerivedMap(context, target, newTarget);
+  }
 }
 
 extern class JSFunction extends JSObject {
@@ -666,6 +685,7 @@ type PrimitiveType constexpr 'PrimitiveType';
 type ToIntegerTruncationMode
 constexpr 'CodeStubAssembler::ToIntegerTruncationMode';
 type AllocationFlags constexpr 'AllocationFlags';
+type SlackTrackingMode constexpr 'SlackTrackingMode';
 
 type UnicodeEncoding constexpr 'UnicodeEncoding';
 const UTF16:
@@ -845,6 +865,11 @@ const kPretenured:
     constexpr AllocationFlags generates 'CodeStubAssembler::kPretenured';
 const kAllowLargeObjectAllocation: constexpr AllocationFlags
     generates 'CodeStubAssembler::kAllowLargeObjectAllocation';
+
+const kWithSlackTracking: constexpr SlackTrackingMode
+    generates 'SlackTrackingMode::kWithSlackTracking';
+const kNoSlackTracking: constexpr SlackTrackingMode
+    generates 'SlackTrackingMode::kNoSlackTracking';
 
 type FixedUint8Array extends FixedTypedArray;
 type FixedInt8Array extends FixedTypedArray;
@@ -1751,6 +1776,12 @@ Cast<Map>(implicit context: Context)(o: HeapObject): Map
   goto CastError;
 }
 
+Cast<JSValue>(o: HeapObject): JSValue
+    labels CastError {
+  if (IsJSValue(o)) return %RawDownCast<JSValue>(o);
+  goto CastError;
+}
+
 Cast<JSArgumentsObjectWithLength>(implicit context: Context)(o: HeapObject):
     JSArgumentsObjectWithLength
     labels CastError {
@@ -2224,6 +2255,8 @@ extern macro GetNumberDictionaryNumberOfElements(NumberDictionary): Smi;
 extern macro GetIteratorMethod(implicit context: Context)(HeapObject): Object
     labels IfIteratorUndefined;
 
+extern macro LoadConstructorOrBackPointer(Map): Object;
+
 extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr): Object
     labels NotData, IfHole;
 extern macro BasicStoreNumberDictionaryElement(NumberDictionary, intptr, Object)
@@ -2290,6 +2323,9 @@ extern macro AllocateJSArray(constexpr ElementsKind, Map, intptr, Smi): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 extern macro AllocateJSArray(Map, FixedArrayBase, Smi): JSArray;
 extern macro AllocateJSObjectFromMap(Map): JSObject;
+extern macro AllocateJSObjectFromMap(
+    Map, FixedArray, FixedArray, constexpr AllocationFlags,
+    constexpr SlackTrackingMode): JSObject;
 
 extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
     labels IfHole;
@@ -2560,6 +2596,7 @@ extern macro IsOddball(HeapObject): bool;
 extern macro IsSymbol(HeapObject): bool;
 extern macro IsJSArrayMap(Map): bool;
 extern macro IsExtensibleMap(Map): bool;
+extern macro IsJSValue(HeapObject): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 extern macro IsFastJSArrayWithNoCustomIteration(implicit context: Context)(
     Object): bool;
@@ -2701,6 +2738,11 @@ macro IsFastJSArrayWithNoCustomIteration(context: Context, o: Object): bool {
 
 extern transitioning runtime
 CreateDataProperty(implicit context: Context)(JSReceiver, Object, Object);
+
+namespace runtime {
+  extern runtime
+  GetDerivedMap(Context, JSFunction, JSReceiver): Map;
+}
 
 transitioning builtin FastCreateDataProperty(implicit context: Context)(
     receiver: JSReceiver, key: Object, value: Object): Object {

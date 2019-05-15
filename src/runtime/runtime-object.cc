@@ -737,6 +737,15 @@ RUNTIME_FUNCTION(Runtime_NewObject) {
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
 }
 
+RUNTIME_FUNCTION(Runtime_GetDerivedMap) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, 1);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSFunction::GetDerivedMap(isolate, target, new_target));
+}
+
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
   DisallowHeapAllocation no_gc;
   HandleScope scope(isolate);

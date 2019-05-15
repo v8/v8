@@ -1404,7 +1404,8 @@ struct TorqueGrammar : Grammar {
   TorqueGrammar() : Grammar(&file) { SetWhitespace(MatchWhitespace); }
 
   // Result: std::string
-  Symbol identifier = {Rule({Pattern(MatchIdentifier)}, YieldMatchedInput)};
+  Symbol identifier = {Rule({Pattern(MatchIdentifier)}, YieldMatchedInput),
+                       Rule({Token("runtime")}, YieldMatchedInput)};
 
   // Result: Identifier*
   Symbol name = {Rule({&identifier}, MakeIdentifier)};
