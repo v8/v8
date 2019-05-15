@@ -147,6 +147,7 @@ v8_source_set("unittests_sources") {
     "compiler/zone-stats-unittest.cc",
     "conversions-unittest.cc",
     "counters-unittest.cc",
+    "date-cache-unittest.cc",
     "detachable-vector-unittest.cc",
     "eh-frame-iterator-unittest.cc",
     "eh-frame-writer-unittest.cc",
