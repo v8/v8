@@ -10,6 +10,7 @@
 #include "src/base/adapters.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/base/small-vector.h"
 #include "src/counters.h"
 #include "src/disassembler.h"
 #include "src/globals.h"
@@ -415,6 +416,48 @@ WasmCodeAllocator::~WasmCodeAllocator() {
                                   committed_code_space());
 }
 
+namespace {
+// On Windows, we cannot commit a region that straddles different reservations
+// of virtual memory. Because we bump-allocate, and because, if we need more
+// memory, we append that memory at the end of the owned_code_space_ list, we
+// traverse that list in reverse order to find the reservation(s) that guide how
+// to chunk the region to commit.
+#if V8_OS_WIN
+constexpr bool kNeedsToSplitRangeByReservations = true;
+#else
+constexpr bool kNeedsToSplitRangeByReservations = false;
+#endif
+
+base::SmallVector<base::AddressRegion, 1> SplitRangeByReservationsIfNeeded(
+    base::AddressRegion range,
+    const std::vector<VirtualMemory>& owned_code_space) {
+  if (!kNeedsToSplitRangeByReservations) return {range};
+
+  base::SmallVector<base::AddressRegion, 1> split_ranges;
+  for (auto& vmem : base::Reversed(owned_code_space)) {
+    Address overlap_start = std::max(range.begin(), vmem.address());
+    Address overlap_end = std::min(range.end(), vmem.end());
+    if (overlap_start >= overlap_end) continue;
+    split_ranges.emplace_back(overlap_start, overlap_end - overlap_start);
+    // Opportunistically reduce the commit range. This might terminate the
+    // loop early.
+    if (range.begin() == overlap_start) {
+      range = {overlap_end, range.end() - overlap_end};
+      if (range.is_empty()) break;
+    } else if (range.end() == overlap_end) {
+      range = {range.begin(), overlap_start - range.begin()};
+    }
+  }
+#ifdef ENABLE_SLOW_DCHECKS
+  // The returned vector should cover the full range.
+  size_t total_split_size = 0;
+  for (auto split : split_ranges) total_split_size += split.size();
+  DCHECK_EQ(range.size(), total_split_size);
+#endif
+  return split_ranges;
+}
+}  // namespace
+
 Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
                                                 size_t size) {
   base::MutexGuard lock(&mutex_);
@@ -462,33 +505,13 @@ Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
     committed_code_space_.fetch_add(commit_end - commit_start);
     // Committed code cannot grow bigger than maximum code space size.
     DCHECK_LE(committed_code_space_.load(), kMaxWasmCodeMemory);
-#if V8_OS_WIN
-    // On Windows, we cannot commit a region that straddles different
-    // reservations of virtual memory. Because we bump-allocate, and because, if
-    // we need more memory, we append that memory at the end of the
-    // owned_code_space_ list, we traverse that list in reverse order to find
-    // the reservation(s) that guide how to chunk the region to commit.
-    for (auto& vmem : base::Reversed(owned_code_space_)) {
-      if (commit_end <= vmem.address() || vmem.end() <= commit_start) continue;
-      Address start = std::max(commit_start, vmem.address());
-      Address end = std::min(commit_end, vmem.end());
-      size_t commit_size = static_cast<size_t>(end - start);
-      if (!code_manager_->Commit(start, commit_size)) {
+    for (base::AddressRegion split_range : SplitRangeByReservationsIfNeeded(
+             {commit_start, commit_end - commit_start}, owned_code_space_)) {
+      if (!code_manager_->Commit(split_range.begin(), split_range.size())) {
         V8::FatalProcessOutOfMemory(nullptr, "wasm code commit");
         UNREACHABLE();
       }
-      // Opportunistically reduce the commit range. This might terminate the
-      // loop early.
-      if (commit_start == start) commit_start = end;
-      if (commit_end == end) commit_end = start;
-      if (commit_start >= commit_end) break;
     }
-#else
-    if (!code_manager_->Commit(commit_start, commit_end - commit_start)) {
-      V8::FatalProcessOutOfMemory(nullptr, "wasm code commit");
-      UNREACHABLE();
-    }
-#endif
   }
   DCHECK(IsAligned(code_space.begin(), kCodeAlignment));
   allocated_code_space_.Merge(code_space);
