@@ -1471,8 +1471,13 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
       ReportError(
           "external classes initializers must have a map as first parameter");
     }
-    VisitResult object_map =
-        initializer_results.field_value_map[map_field.name_and_type.name];
+    NameValueMap initializer_fields = initializer_results.field_value_map;
+    if (initializer_fields.find(map_field.name_and_type.name) ==
+        initializer_fields.end()) {
+      ReportError("Constructor for ", class_type->name(),
+                  " needs Map argument!");
+    }
+    VisitResult object_map = initializer_fields[map_field.name_and_type.name];
     Arguments size_arguments;
     size_arguments.parameters.push_back(object_map);
     VisitResult object_size = GenerateCall("%GetAllocationBaseSize",
