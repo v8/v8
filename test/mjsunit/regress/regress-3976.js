@@ -72,7 +72,7 @@ function generate(n) {
 
 print("generating");
 
-var str = generate(30000);
+var str = generate(10000);
 
 print("parsing "  + str.length);
 JSON.parse(str);

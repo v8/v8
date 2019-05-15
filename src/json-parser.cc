@@ -524,49 +524,82 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     descriptor++;
   }
 
+  // Fast path: Write all transitioned named properties.
+  if (i == length && descriptor < feedback_descriptors) {
+    map = ParentOfDescriptorOwner(isolate_, map, map, descriptor);
+  }
+
+  // Preallocate all mutable heap numbers so we don't need to allocate while
+  // setting up the object. Otherwise verification of that object may fail.
+  Handle<FixedArray> mutable_doubles;
+  if (!FLAG_unbox_double_fields && descriptor != 0) {
+    descriptor = 0;
+    int new_mutable_double = 0;
+    for (int j = 0; j < i; j++) {
+      const JsonProperty& property = property_stack[start + j];
+      if (property.string.is_index()) continue;
+      PropertyDetails details =
+          map->instance_descriptors()->GetDetails(descriptor++);
+
+      if (details.representation().IsDouble() && property.value->IsSmi()) {
+        new_mutable_double++;
+      }
+    }
+    if (new_mutable_double > 0) {
+      mutable_doubles = factory()->NewFixedArray(new_mutable_double);
+      for (int i = 0; i < new_mutable_double; i++) {
+        Handle<MutableHeapNumber> number =
+            factory()->NewMutableHeapNumberWithHoleNaN();
+        mutable_doubles->set(i, *number);
+      }
+    }
+  }
+
   Handle<JSObject> object = initial_map->is_dictionary_map()
                                 ? factory()->NewSlowJSObjectFromMap(map)
                                 : factory()->NewJSObjectFromMap(map);
   object->set_elements(*elements);
 
-  // Fast path: Write all transitioned named properties.
-  if (i == length && descriptor < feedback_descriptors) {
-    map = ParentOfDescriptorOwner(isolate_, map, map, descriptor);
-  }
-  descriptor = 0;
-  for (int j = 0; j < i; j++) {
-    const JsonProperty& property = property_stack[start + j];
-    if (property.string.is_index()) continue;
-    PropertyDetails details =
-        map->instance_descriptors()->GetDetails(descriptor);
-    Handle<Object> value = property.value;
-    FieldIndex index = FieldIndex::ForDescriptor(*map, descriptor);
-    descriptor++;
+  int mutable_double = 0;
+  {
+    descriptor = 0;
+    DisallowHeapAllocation no_gc;
+    WriteBarrierMode mode = object->GetWriteBarrierMode(no_gc);
+    for (int j = 0; j < i; j++) {
+      const JsonProperty& property = property_stack[start + j];
+      if (property.string.is_index()) continue;
+      PropertyDetails details =
+          map->instance_descriptors()->GetDetails(descriptor);
+      Object value = *property.value;
+      FieldIndex index = FieldIndex::ForDescriptor(*map, descriptor);
+      descriptor++;
 
-    if (details.representation().IsDouble()) {
-      if (object->IsUnboxedDoubleField(index)) {
-        uint64_t bits;
-        if (value->IsSmi()) {
-          bits = bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(*value)));
-        } else {
-          DCHECK(value->IsHeapNumber());
-          bits = HeapNumber::cast(*value)->value_as_bits();
+      if (details.representation().IsDouble()) {
+        if (object->IsUnboxedDoubleField(index)) {
+          uint64_t bits;
+          if (value.IsSmi()) {
+            bits = bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
+          } else {
+            DCHECK(value.IsHeapNumber());
+            bits = HeapNumber::cast(value).value_as_bits();
+          }
+          object->RawFastDoublePropertyAsBitsAtPut(index, bits);
+          continue;
         }
-        object->RawFastDoublePropertyAsBitsAtPut(index, bits);
-        continue;
-      }
 
-      if (value->IsSmi()) {
-        uint64_t bits =
-            bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(*value)));
-        value = factory()->NewMutableHeapNumberFromBits(bits);
-      } else {
-        DCHECK(value->IsHeapNumber());
-        HeapObject::cast(*value)->synchronized_set_map(
-            *factory()->mutable_heap_number_map());
+        if (value.IsSmi()) {
+          uint64_t bits =
+              bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
+          value = mutable_doubles->get(mutable_double++);
+          MutableHeapNumber::cast(value).set_value_as_bits(bits);
+        } else {
+          DCHECK(value.IsHeapNumber());
+          HeapObject::cast(value)->synchronized_set_map(
+              *factory()->mutable_heap_number_map());
+        }
       }
+      object->RawFastPropertyAtPut(index, value, mode);
     }
-    object->RawFastPropertyAtPut(index, *value);
   }
 
   // Slow path: define remaining named properties.
