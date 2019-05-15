@@ -447,6 +447,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     function->ShortPrint();
     PrintF(" for non-concurrent optimization]\n");
   }
+  JSFunction::EnsureFeedbackVector(function);
   function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
 
   // Make the profiler arm all back edges in unoptimized code.
