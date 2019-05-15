@@ -85,6 +85,9 @@ declare_args() {
   # Enable fast mksnapshot runs.
   v8_enable_fast_mksnapshot = false
 
+  # Optimize code for Torque executable, even during a debug build.
+  v8_enable_fast_torque = ""
+
   # Enable embedded builtins.
   v8_enable_embedded_builtins = true
 
@@ -227,6 +230,9 @@ if (v8_enable_snapshot_native_code_counters == "") {
 }
 if (v8_enable_shared_ro_heap == "") {
   v8_enable_shared_ro_heap = v8_enable_lite_mode
+}
+if (v8_enable_fast_torque == "") {
+  v8_enable_fast_torque = v8_enable_fast_mksnapshot
 }
 
 assert(v8_current_cpu != "x86" || !v8_untrusted_code_mitigations,
@@ -3370,6 +3376,12 @@ v8_source_set("torque_base") {
 
   if (is_win && is_asan) {
     remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
+  }
+
+  if (is_debug && !v8_optimized_debug && v8_enable_fast_torque) {
+    # The :no_optimize config is added to v8_add_configs in v8.gni.
+    remove_configs += [ "//build/config/compiler:no_optimize" ]
+    configs += [ ":always_optimize" ]
   }
 }
 
