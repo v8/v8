@@ -1717,7 +1717,7 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
   // try {
   //   InitialYield;
   //   ...body...;
-  //   return undefined; // See comment below
+  //   // fall through to the implicit return after the try-finally
   // } catch (.catch) {
   //   %AsyncGeneratorReject(generator, .catch);
   // } finally {
@@ -1744,12 +1744,6 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
 
     // Don't create iterator result for async generators, as the resume methods
     // will create it.
-    // TODO(leszeks): This will create another suspend point, which is
-    // unnecessary if there is already an unconditional return in the body.
-    Statement* final_return = BuildReturnStatement(
-        factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition);
-    statements.Add(final_return);
-
     try_block = factory()->NewBlock(false, statements);
   }
 
