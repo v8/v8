@@ -4,6 +4,8 @@
 
 #include "src/profiler/tick-sample.h"
 
+#include <cinttypes>
+
 #include "include/v8-profiler.h"
 #include "src/asan.h"
 #include "src/counters.h"
