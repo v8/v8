@@ -3281,14 +3281,21 @@ class RepresentationSelector {
       case IrOpcode::kMapGuard:
         // Eliminate MapGuard nodes here.
         return VisitUnused(node);
-      case IrOpcode::kCheckMaps:
+      case IrOpcode::kCheckMaps: {
+        CheckMapsParameters const& p = CheckMapsParametersOf(node->op());
+        return VisitUnop(
+            node, UseInfo::CheckedHeapObjectAsTaggedPointer(p.feedback()),
+            MachineRepresentation::kNone);
+      }
       case IrOpcode::kTransitionElementsKind: {
-        VisitInputs(node);
-        return SetOutput(node, MachineRepresentation::kNone);
+        return VisitUnop(
+            node, UseInfo::CheckedHeapObjectAsTaggedPointer(VectorSlotPair()),
+            MachineRepresentation::kNone);
       }
       case IrOpcode::kCompareMaps:
-        return VisitUnop(node, UseInfo::AnyTagged(),
-                         MachineRepresentation::kBit);
+        return VisitUnop(
+            node, UseInfo::CheckedHeapObjectAsTaggedPointer(VectorSlotPair()),
+            MachineRepresentation::kBit);
       case IrOpcode::kEnsureWritableFastElements:
         return VisitBinop(node, UseInfo::AnyTagged(),
                           MachineRepresentation::kTaggedPointer);

@@ -1377,7 +1377,7 @@ const Operator* SimplifiedOperatorBuilder::CompareMaps(
   DCHECK_LT(0, maps.size());
   return new (zone()) Operator1<ZoneHandleSet<Map>>(  // --
       IrOpcode::kCompareMaps,                         // opcode
-      Operator::kEliminatable,                        // flags
+      Operator::kNoThrow | Operator::kNoWrite,        // flags
       "CompareMaps",                                  // name
       1, 1, 1, 1, 1, 0,                               // counts
       maps);                                          // parameter
@@ -1462,7 +1462,7 @@ const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(
     ElementsTransition transition) {
   return new (zone()) Operator1<ElementsTransition>(  // --
       IrOpcode::kTransitionElementsKind,              // opcode
-      Operator::kNoDeopt | Operator::kNoThrow,        // flags
+      Operator::kNoThrow,                             // flags
       "TransitionElementsKind",                       // name
       1, 1, 1, 0, 1, 0,                               // counts
       transition);                                    // parameter

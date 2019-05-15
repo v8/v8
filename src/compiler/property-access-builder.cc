@@ -81,60 +81,6 @@ bool PropertyAccessBuilder::TryBuildNumberCheck(
   return false;
 }
 
-namespace {
-
-bool NeedsCheckHeapObject(Node* receiver) {
-  switch (receiver->opcode()) {
-    case IrOpcode::kConvertReceiver:
-    case IrOpcode::kHeapConstant:
-    case IrOpcode::kJSCloneObject:
-    case IrOpcode::kJSConstruct:
-    case IrOpcode::kJSConstructForwardVarargs:
-    case IrOpcode::kJSConstructWithArrayLike:
-    case IrOpcode::kJSConstructWithSpread:
-    case IrOpcode::kJSCreate:
-    case IrOpcode::kJSCreateArguments:
-    case IrOpcode::kJSCreateArray:
-    case IrOpcode::kJSCreateArrayFromIterable:
-    case IrOpcode::kJSCreateArrayIterator:
-    case IrOpcode::kJSCreateAsyncFunctionObject:
-    case IrOpcode::kJSCreateBoundFunction:
-    case IrOpcode::kJSCreateClosure:
-    case IrOpcode::kJSCreateCollectionIterator:
-    case IrOpcode::kJSCreateEmptyLiteralArray:
-    case IrOpcode::kJSCreateEmptyLiteralObject:
-    case IrOpcode::kJSCreateGeneratorObject:
-    case IrOpcode::kJSCreateIterResultObject:
-    case IrOpcode::kJSCreateKeyValueArray:
-    case IrOpcode::kJSCreateLiteralArray:
-    case IrOpcode::kJSCreateLiteralObject:
-    case IrOpcode::kJSCreateLiteralRegExp:
-    case IrOpcode::kJSCreateObject:
-    case IrOpcode::kJSCreatePromise:
-    case IrOpcode::kJSCreateStringIterator:
-    case IrOpcode::kJSCreateTypedArray:
-    case IrOpcode::kJSGetSuperConstructor:
-    case IrOpcode::kJSToName:
-    case IrOpcode::kJSToObject:
-    case IrOpcode::kJSToString:
-    case IrOpcode::kTypeOf:
-      return false;
-    default:
-      return true;
-  }
-}
-
-}  // namespace
-
-Node* PropertyAccessBuilder::BuildCheckHeapObject(Node* receiver, Node** effect,
-                                                  Node* control) {
-  if (NeedsCheckHeapObject(receiver)) {
-    receiver = *effect = graph()->NewNode(simplified()->CheckHeapObject(),
-                                          receiver, *effect, control);
-  }
-  return receiver;
-}
-
 void PropertyAccessBuilder::BuildCheckMaps(
     Node* receiver, Node** effect, Node* control,
     ZoneVector<Handle<Map>> const& receiver_maps) {

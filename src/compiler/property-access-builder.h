@@ -41,7 +41,6 @@ class PropertyAccessBuilder {
                            ZoneVector<Handle<Map>> const& maps, Node** receiver,
                            Node** effect, Node* control);
 
-  Node* BuildCheckHeapObject(Node* receiver, Node** effect, Node* control);
   void BuildCheckMaps(Node* receiver, Node** effect, Node* control,
                       ZoneVector<Handle<Map>> const& receiver_maps);
   Node* BuildCheckValue(Node* receiver, Node** effect, Node* control,
