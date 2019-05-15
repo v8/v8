@@ -1008,6 +1008,17 @@ ACCESSORS(JSAsyncFromSyncIterator, next, Object, kNextOffset)
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
 
+// If the fast-case backing storage takes up much more memory than a dictionary
+// backing storage would, the object should have slow elements.
+// static
+static inline bool ShouldConvertToSlowElements(uint32_t used_elements,
+                                               uint32_t new_capacity) {
+  uint32_t size_threshold = NumberDictionary::kPreferFastElementsSizeFactor *
+                            NumberDictionary::ComputeCapacity(used_elements) *
+                            NumberDictionary::kEntrySize;
+  return size_threshold <= new_capacity;
+}
+
 static inline bool ShouldConvertToSlowElements(JSObject object,
                                                uint32_t capacity,
                                                uint32_t index,
@@ -1027,13 +1038,8 @@ static inline bool ShouldConvertToSlowElements(JSObject object,
        ObjectInYoungGeneration(object))) {
     return false;
   }
-  // If the fast-case backing storage takes up much more memory than a
-  // dictionary backing storage would, the object should have slow elements.
-  int used_elements = object->GetFastElementsUsage();
-  uint32_t size_threshold = NumberDictionary::kPreferFastElementsSizeFactor *
-                            NumberDictionary::ComputeCapacity(used_elements) *
-                            NumberDictionary::kEntrySize;
-  return size_threshold <= *new_capacity;
+  return ShouldConvertToSlowElements(object->GetFastElementsUsage(),
+                                     *new_capacity);
 }
 
 }  // namespace internal

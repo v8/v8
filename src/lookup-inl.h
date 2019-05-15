@@ -63,7 +63,7 @@ LookupIterator LookupIterator::PropertyOrElement(
     it.name_ = name;
     return it;
   }
-  return LookupIterator(receiver, name, holder, configuration);
+  return LookupIterator(isolate, receiver, name, holder, configuration);
 }
 
 LookupIterator LookupIterator::PropertyOrElement(

@@ -187,8 +187,11 @@ inline std::ostream& operator<<(std::ostream& os, Handle<T> handle);
 class HandleScope {
  public:
   explicit inline HandleScope(Isolate* isolate);
+  inline HandleScope(HandleScope&& other) V8_NOEXCEPT;
 
   inline ~HandleScope();
+
+  inline HandleScope& operator=(HandleScope&& other) V8_NOEXCEPT;
 
   // Counts the number of allocated handles.
   V8_EXPORT_PRIVATE static int NumberOfHandles(Isolate* isolate);

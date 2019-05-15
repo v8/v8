@@ -8,13 +8,94 @@
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
-#include "src/parsing/literal-buffer.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
 enum ParseElementResult { kElementFound, kElementNotFound };
+
+class JsonString final {
+ public:
+  JsonString()
+      : start_(0),
+        length_(0),
+        needs_conversion_(false),
+        internalize_(false),
+        has_escape_(false),
+        is_index_(false) {}
+
+  explicit JsonString(uint32_t index)
+      : index_(index),
+        length_(0),
+        needs_conversion_(false),
+        internalize_(false),
+        has_escape_(false),
+        is_index_(true) {}
+
+  JsonString(int start, int length, bool needs_conversion,
+             bool needs_internalization, bool has_escape)
+      : start_(start),
+        length_(length),
+        needs_conversion_(needs_conversion),
+        internalize_(needs_internalization ||
+                     length_ <= kMaxInternalizedStringValueLength),
+        has_escape_(has_escape),
+        is_index_(false) {}
+
+  bool internalize() const {
+    DCHECK(!is_index_);
+    return internalize_;
+  }
+
+  bool needs_conversion() const {
+    DCHECK(!is_index_);
+    return needs_conversion_;
+  }
+
+  bool has_escape() const {
+    DCHECK(!is_index_);
+    return has_escape_;
+  }
+
+  int start() const {
+    DCHECK(!is_index_);
+    return start_;
+  }
+
+  int length() const {
+    DCHECK(!is_index_);
+    return length_;
+  }
+
+  uint32_t index() const {
+    DCHECK(is_index_);
+    return index_;
+  }
+
+  bool is_index() const { return is_index_; }
+
+ private:
+  static const int kMaxInternalizedStringValueLength = 25;
+
+  union {
+    const int start_;
+    const uint32_t index_;
+  };
+  const int length_;
+  const bool needs_conversion_ : 1;
+  const bool internalize_ : 1;
+  const bool has_escape_ : 1;
+  const bool is_index_ : 1;
+};
+
+struct JsonProperty {
+  JsonProperty() { UNREACHABLE(); }
+  explicit JsonProperty(const JsonString& string) : string(string) {}
+
+  JsonString string;
+  Handle<Object> value;
+};
 
 class JsonParseInternalizer {
  public:
@@ -37,7 +118,6 @@ class JsonParseInternalizer {
 
 enum class JsonToken : uint8_t {
   NUMBER,
-  NEGATIVE_NUMBER,
   STRING,
   LBRACE,
   RBRACE,
@@ -74,12 +154,25 @@ class JsonParser final {
   static const int kEndOfString = -1;
 
  private:
-  template <typename LiteralChar>
-  Handle<String> MakeString(bool requires_internalization,
-                            const Vector<const LiteralChar>& chars);
+  struct JsonContinuation {
+    enum Type : uint8_t { kReturn, kObjectProperty, kArrayElement };
+    JsonContinuation(Isolate* isolate, Type type, size_t index)
+        : scope(isolate),
+          type_(type),
+          index(static_cast<uint32_t>(index)),
+          max_index(0),
+          elements(0) {}
 
-  Handle<String> MakeString(bool requires_internalization, int offset,
-                            int length);
+    Type type() const { return static_cast<Type>(type_); }
+    void set_type(Type type) { type_ = static_cast<uint8_t>(type); }
+
+    HandleScope scope;
+    // Unfortunately GCC doesn't like packing Type in two bits.
+    uint32_t type_ : 2;
+    uint32_t index : 30;
+    uint32_t max_index;
+    uint32_t elements;
+  };
 
   JsonParser(Isolate* isolate, Handle<String> source);
   ~JsonParser();
@@ -164,9 +257,20 @@ class JsonParser final {
   // literals. The string must only be double-quoted (not single-quoted), and
   // the only allowed backslash-escapes are ", /, \, b, f, n, r, t and
   // four-digit hex escapes (uXXXX). Any other use of backslashes is invalid.
-  Handle<String> ParseJsonString(bool requires_internalization,
-                                 Handle<String> expected = Handle<String>());
+  JsonString ScanJsonString(bool needs_internalization);
+  JsonString ScanJsonPropertyKey(JsonContinuation* cont);
+  uc32 ScanUnicodeCharacter();
+  Handle<String> MakeString(const JsonString& string,
+                            Handle<String> hint = Handle<String>());
 
+  template <typename SinkChar>
+  void DecodeString(SinkChar* sink, int start, int length);
+
+  template <typename SinkChar>
+  Handle<String> DecodeString(
+      const JsonString& string,
+      Handle<typename CharTraits<SinkChar>::String> intermediate,
+      Handle<String> hint);
 
   // A JSON number (production JSONNumber) is a subset of the valid JavaScript
   // decimal number literals.
@@ -174,32 +278,19 @@ class JsonParser final {
   // digit before and after a decimal point, may not have prefixed zeros (unless
   // the integer part is zero), and may include an exponent part (e.g., "e-10").
   // Hexadecimal and octal numbers are not allowed.
-  Handle<Object> ParseJsonNumber(int sign, const Char* start);
+  Handle<Object> ParseJsonNumber();
 
   // Parse a single JSON value from input (grammar production JSONValue).
   // A JSON value is either a (double-quoted) string literal, a number literal,
   // one of "true", "false", or "null", or an object or array literal.
-  Handle<Object> ParseJsonValue();
+  MaybeHandle<Object> ParseJsonValue();
 
-  // Parse a JSON object literal (grammar production JSONObject).
-  // An object literal is a squiggly-braced and comma separated sequence
-  // (possibly empty) of key/value pairs, where the key is a JSON string
-  // literal, the value is a JSON value, and the two are separated by a colon.
-  // A JSON array doesn't allow numbers and identifiers as keys, like a
-  // JavaScript array.
-  Handle<Object> ParseJsonObject();
-
-  // Helper for ParseJsonObject. Parses the form "123": obj, which is recorded
-  // as an element, not a property. Returns false if we should retry parsing the
-  // key as a non-element. (Returns true if it's an index or hits EOS).
-  bool ParseElement(Handle<JSObject> json_object);
-
-  // Parses a JSON array literal (grammar production JSONArray). An array
-  // literal is a square-bracketed and comma separated sequence (possibly empty)
-  // of JSON values.
-  // A JSON array doesn't allow leaving out values from the sequence, nor does
-  // it allow a terminal comma, like a JavaScript array does.
-  Handle<Object> ParseJsonArray();
+  Handle<Object> BuildJsonObject(
+      const JsonContinuation& cont,
+      const std::vector<JsonProperty>& property_stack);
+  Handle<Object> BuildJsonArray(
+      const JsonContinuation& cont,
+      const std::vector<Handle<Object>>& element_stack);
 
   // Mark that a parsing error has happened at the current character.
   void ReportUnexpectedCharacter(uc32 c);
@@ -231,14 +322,6 @@ class JsonParser final {
 
  private:
   static const bool kIsOneByte = sizeof(Char) == 1;
-  static const int kMaxInternalizedStringValueLength = 25;
-
-  // Casts |c| to uc32 avoiding LiteralBuffer::AddChar(char) in one-byte-strings
-  // with escapes that can result in two-byte strings.
-  void AddLiteralChar(uc32 c) { literal_buffer_.AddChar(c); }
-
-  void CommitStateToJsonObject(Handle<JSObject> json_object, Handle<Map> map,
-                               const Vector<const Handle<Object>>& properties);
 
   bool is_at_end() const {
     DCHECK_LE(cursor_, end_);
@@ -248,7 +331,6 @@ class JsonParser final {
   int position() const { return static_cast<int>(cursor_ - chars_); }
 
   Isolate* isolate_;
-  Zone zone_;
   const uint64_t hash_seed_;
   JsonToken next_;
   // Indicates whether the bytes underneath source_ can relocate during GC.
@@ -265,11 +347,6 @@ class JsonParser final {
   const Char* cursor_;
   const Char* end_;
   const Char* chars_;
-
-  LiteralBuffer literal_buffer_;
-
-  // Property handles are stored here inside ParseJsonObject.
-  ZoneVector<Handle<Object>> properties_;
 };
 
 // Explicit instantiation declarations.
