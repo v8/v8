@@ -76,7 +76,7 @@ class JsonString final {
   bool is_index() const { return is_index_; }
 
  private:
-  static const int kMaxInternalizedStringValueLength = 25;
+  static const int kMaxInternalizedStringValueLength = 10;
 
   union {
     const int start_;
