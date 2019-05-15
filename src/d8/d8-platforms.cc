@@ -13,7 +13,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/d8-platforms.h"
+#include "src/d8/d8-platforms.h"
 
 namespace v8 {
 

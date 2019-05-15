@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/d8.h"
+#include "src/d8/d8.h"
 
 const char* v8::Shell::stringify_source_ = R"D8(
 (function() {

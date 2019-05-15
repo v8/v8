@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/async-hooks-wrapper.h"
-#include "src/d8.h"
+#include "src/d8/async-hooks-wrapper.h"
+#include "src/d8/d8.h"
 #include "src/isolate-inl.h"
 
 namespace v8 {

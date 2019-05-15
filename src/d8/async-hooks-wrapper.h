@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_ASYNC_HOOKS_WRAPPER_H_
-#define V8_ASYNC_HOOKS_WRAPPER_H_
+#ifndef V8_D8_ASYNC_HOOKS_WRAPPER_H_
+#define V8_D8_ASYNC_HOOKS_WRAPPER_H_
 
 #include <stack>
 
@@ -93,4 +93,4 @@ class AsyncHooks {
 
 }  // namespace v8
 
-#endif  // V8_ASYNC_HOOKS_WRAPPER_H_
+#endif  // V8_D8_ASYNC_HOOKS_WRAPPER_H_

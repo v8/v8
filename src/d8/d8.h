@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_D8_H_
-#define V8_D8_H_
+#ifndef V8_D8_D8_H_
+#define V8_D8_D8_H_
 
 #include <iterator>
 #include <map>
@@ -14,16 +14,13 @@
 #include <vector>
 
 #include "src/allocation.h"
-#include "src/async-hooks-wrapper.h"
+#include "src/base/once.h"
 #include "src/base/platform/time.h"
+#include "src/d8/async-hooks-wrapper.h"
 #include "src/string-hasher.h"
 #include "src/utils.h"
 
-#include "src/base/once.h"
-
-
 namespace v8 {
-
 
 // A single counter in a counter collection.
 class Counter {
@@ -35,13 +32,13 @@ class Counter {
   int32_t sample_total() { return sample_total_; }
   bool is_histogram() { return is_histogram_; }
   void AddSample(int32_t sample);
+
  private:
   int32_t count_;
   int32_t sample_total_;
   bool is_histogram_;
   uint8_t name_[kMaxNameSize];
 };
-
 
 // A set of counters and associated information.  An instance of this
 // class is stored directly in the memory-mapped counters file if
@@ -50,6 +47,7 @@ class CounterCollection {
  public:
   CounterCollection();
   Counter* GetNextCounter();
+
  private:
   static const unsigned kMaxCounters = 512;
   uint32_t magic_number_;
@@ -195,7 +193,6 @@ class SerializationData {
   DISALLOW_COPY_AND_ASSIGN(SerializationData);
 };
 
-
 class SerializationDataQueue {
  public:
   void Enqueue(std::unique_ptr<SerializationData> data);
@@ -207,7 +204,6 @@ class SerializationDataQueue {
   base::Mutex mutex_;
   std::vector<std::unique_ptr<SerializationData>> data_;
 };
-
 
 class Worker {
  public:
@@ -339,9 +335,7 @@ class ShellOptions {
         disable_in_process_stack_traces(false),
         read_from_tcp_port(-1) {}
 
-  ~ShellOptions() {
-    delete[] isolate_sources;
-  }
+  ~ShellOptions() { delete[] isolate_sources; }
 
   bool send_idle_notification;
   bool invoke_weak_callbacks;
@@ -412,9 +406,7 @@ class Shell : public i::AllStatic {
       Isolate* isolate, std::unique_ptr<SerializationData> data);
   static void CleanupWorkers();
   static int* LookupCounter(const char* name);
-  static void* CreateHistogram(const char* name,
-                               int min,
-                               int max,
+  static void* CreateHistogram(const char* name, int min, int max,
                                size_t buckets);
   static void AddHistogramSample(void* histogram, int sample);
   static void MapCounters(v8::Isolate* isolate, const char* name);
@@ -434,10 +426,9 @@ class Shell : public i::AllStatic {
   static void RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmSharedGet(Local<String> property,
-                             const  PropertyCallbackInfo<Value>& info);
-  static void RealmSharedSet(Local<String> property,
-                             Local<Value> value,
-                             const  PropertyCallbackInfo<void>& info);
+                             const PropertyCallbackInfo<Value>& info);
+  static void RealmSharedSet(Local<String> property, Local<Value> value,
+                             const PropertyCallbackInfo<void>& info);
 
   static void AsyncHooksCreateHook(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -580,8 +571,6 @@ class Shell : public i::AllStatic {
       cached_code_map_;
 };
 
-
 }  // namespace v8
 
-
-#endif  // V8_D8_H_
+#endif  // V8_D8_D8_H_

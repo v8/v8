@@ -49,7 +49,7 @@ _v8_flag() {
     | sed -ne 's/^DEFINE-[^(]*(\([^,]*\).*/--\1/p'; \
     echo "$defines" \
     | sed -ne 's/^DEFINE-BOOL(\([^,]*\).*/--no\1/p'; \
-    cat $v8_source/src/d8.cc \
+    cat $v8_source/src/d8/d8.cc \
     | grep "strcmp(argv\[i\]" \
     | sed -ne 's/^[^"]*"--\([^"]*\)".*/--\1/p')
   COMPREPLY=($(compgen -W "$targets" -- "$cur"))

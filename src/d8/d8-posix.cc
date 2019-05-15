@@ -16,10 +16,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "src/d8.h"
+#include "src/d8/d8.h"
 
 namespace v8 {
-
 
 // If the buffer ends in the middle of a UTF-8 sequence then we return
 // the length of the string up to but not including the incomplete UTF-8
@@ -75,12 +74,9 @@ static int LengthWithoutIncompleteUtf8(char* buffer, int len) {
   return 0;
 }
 
-
 // Suspends the thread until there is data available from the child process.
 // Returns false on timeout, true on data ready.
-static bool WaitOnFD(int fd,
-                     int read_timeout,
-                     int total_timeout,
+static bool WaitOnFD(int fd, int read_timeout, int total_timeout,
                      const struct timeval& start_time) {
   fd_set readfds, writefds, exceptfds;
   struct timeval timeout;
@@ -109,7 +105,6 @@ static bool WaitOnFD(int fd,
   return number_of_fds_ready == 1;
 }
 
-
 // Checks whether we ran out of time on the timeout.  Returns true if we ran out
 // of time, false if we still have time.
 static bool TimeIsOut(const struct timeval& start_time, const int& total_time) {
@@ -129,31 +124,30 @@ static bool TimeIsOut(const struct timeval& start_time, const int& total_time) {
   return false;
 }
 
-
 // A utility class that does a non-hanging waitpid on the child process if we
 // bail out of the System() function early.  If you don't ever do a waitpid on
 // a subprocess then it turns into one of those annoying 'zombie processes'.
 class ZombieProtector {
  public:
-  explicit ZombieProtector(int pid): pid_(pid) { }
+  explicit ZombieProtector(int pid) : pid_(pid) {}
   ~ZombieProtector() {
     if (pid_ != 0) waitpid(pid_, nullptr, 0);
   }
   void ChildIsDeadNow() { pid_ = 0; }
+
  private:
   int pid_;
 };
 
-
 // A utility class that closes a file descriptor when it goes out of scope.
 class OpenFDCloser {
  public:
-  explicit OpenFDCloser(int fd): fd_(fd) { }
+  explicit OpenFDCloser(int fd) : fd_(fd) {}
   ~OpenFDCloser() { close(fd_); }
+
  private:
   int fd_;
 };
-
 
 // A utility class that takes the array of command arguments and puts then in an
 // array of new[]ed UTF-8 C strings.  Deallocates them again when it goes out of
@@ -178,8 +172,9 @@ class ExecArgs {
     int i = 1;
     for (unsigned j = 0; j < command_args->Length(); i++, j++) {
       Local<Value> arg(
-          command_args->Get(isolate->GetCurrentContext(),
-                            Integer::New(isolate, j)).ToLocalChecked());
+          command_args
+              ->Get(isolate->GetCurrentContext(), Integer::New(isolate, j))
+              .ToLocalChecked());
       String::Utf8Value utf8_arg(isolate, arg);
       if (*utf8_arg == nullptr) {
         exec_args_[i] = nullptr;  // Consistent state for destructor.
@@ -203,7 +198,7 @@ class ExecArgs {
       if (exec_args_[i] == nullptr) {
         return;
       }
-      delete [] exec_args_[i];
+      delete[] exec_args_[i];
       exec_args_[i] = nullptr;
     }
   }
@@ -215,11 +210,9 @@ class ExecArgs {
   char* exec_args_[kMaxArgs + 1];
 };
 
-
 // Gets the optional timeouts from the arguments to the system() call.
 static bool GetTimeouts(const v8::FunctionCallbackInfo<v8::Value>& args,
-                        int* read_timeout,
-                        int* total_timeout) {
+                        int* read_timeout, int* total_timeout) {
   if (args.Length() > 3) {
     if (args[3]->IsNumber()) {
       *total_timeout = args[3]
@@ -229,7 +222,8 @@ static bool GetTimeouts(const v8::FunctionCallbackInfo<v8::Value>& args,
       args.GetIsolate()->ThrowException(
           String::NewFromUtf8(args.GetIsolate(),
                               "system: Argument 4 must be a number",
-                              NewStringType::kNormal).ToLocalChecked());
+                              NewStringType::kNormal)
+              .ToLocalChecked());
       return false;
     }
   }
@@ -242,23 +236,21 @@ static bool GetTimeouts(const v8::FunctionCallbackInfo<v8::Value>& args,
       args.GetIsolate()->ThrowException(
           String::NewFromUtf8(args.GetIsolate(),
                               "system: Argument 3 must be a number",
-                              NewStringType::kNormal).ToLocalChecked());
+                              NewStringType::kNormal)
+              .ToLocalChecked());
       return false;
     }
   }
   return true;
 }
 
-
 static const int kReadFD = 0;
 static const int kWriteFD = 1;
-
 
 // This is run in the child process after fork() but before exec().  It normally
 // ends with the child process being replaced with the desired child program.
 // It only returns if an error occurred.
-static void ExecSubprocess(int* exec_error_fds,
-                           int* stdout_fds,
+static void ExecSubprocess(int* exec_error_fds, int* stdout_fds,
                            const ExecArgs& exec_args) {
   close(exec_error_fds[kReadFD]);  // Don't need this in the child.
   close(stdout_fds[kReadFD]);      // Don't need this in the child.
@@ -277,7 +269,6 @@ static void ExecSubprocess(int* exec_error_fds,
   // Return (and exit child process).
 }
 
-
 // Runs in the parent process.  Checks that the child was able to exec (closing
 // the file desriptor), or reports an error if it failed.
 static bool ChildLaunchedOK(Isolate* isolate, int* exec_error_fds) {
@@ -294,7 +285,6 @@ static bool ChildLaunchedOK(Isolate* isolate, int* exec_error_fds) {
   }
   return true;
 }
-
 
 // Accumulates the output from the child in a string handle.  Returns true if it
 // succeeded or false if an exception was thrown.
@@ -319,14 +309,12 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
         read(child_fd, buffer + fullness, kStdoutReadBufferSize - fullness));
     if (bytes_read == -1) {
       if (errno == EAGAIN) {
-        if (!WaitOnFD(child_fd,
-                      read_timeout,
-                      total_timeout,
-                      start_time) ||
+        if (!WaitOnFD(child_fd, read_timeout, total_timeout, start_time) ||
             (TimeIsOut(start_time, total_timeout))) {
           return isolate->ThrowException(
               String::NewFromUtf8(isolate, "Timed out waiting for output",
-                                  NewStringType::kNormal).ToLocalChecked());
+                                  NewStringType::kNormal)
+                  .ToLocalChecked());
         }
         continue;
       } else if (errno == EINTR) {
@@ -336,9 +324,9 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
       }
     }
     if (bytes_read + fullness > 0) {
-      int length = bytes_read == 0 ?
-                   bytes_read + fullness :
-                   LengthWithoutIncompleteUtf8(buffer, bytes_read + fullness);
+      int length = bytes_read == 0 ? bytes_read + fullness
+                                   : LengthWithoutIncompleteUtf8(
+                                         buffer, bytes_read + fullness);
       Local<String> addition =
           String::NewFromUtf8(isolate, buffer, NewStringType::kNormal, length)
               .ToLocalChecked();
@@ -349,7 +337,6 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
   } while (bytes_read != 0);
   return accumulator;
 }
-
 
 // Modern Linux has the waitid call, which is like waitpid, but more useful
 // if you want a timeout.  If we don't have waitid we can't limit the time
@@ -368,13 +355,10 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
 #endif
 #endif
 
-
 // Get exit status of child.
-static bool WaitForChild(Isolate* isolate,
-                         int pid,
+static bool WaitForChild(Isolate* isolate, int pid,
                          ZombieProtector& child_waiter,  // NOLINT
-                         const struct timeval& start_time,
-                         int read_timeout,
+                         const struct timeval& start_time, int read_timeout,
                          int total_timeout) {
 #ifdef HAS_WAITID
 
@@ -391,16 +375,15 @@ static bool WaitForChild(Isolate* isolate,
       isolate->ThrowException(
           String::NewFromUtf8(isolate,
                               "Timed out waiting for process to terminate",
-                              NewStringType::kNormal).ToLocalChecked());
+                              NewStringType::kNormal)
+              .ToLocalChecked());
       kill(pid, SIGINT);
       return false;
     }
   }
   if (child_info.si_code == CLD_KILLED) {
     char message[999];
-    snprintf(message,
-             sizeof(message),
-             "Child killed by signal %d",
+    snprintf(message, sizeof(message), "Child killed by signal %d",
              child_info.si_status);
     isolate->ThrowException(
         String::NewFromUtf8(isolate, message, NewStringType::kNormal)
@@ -409,9 +392,7 @@ static bool WaitForChild(Isolate* isolate,
   }
   if (child_info.si_code == CLD_EXITED && child_info.si_status != 0) {
     char message[999];
-    snprintf(message,
-             sizeof(message),
-             "Child exited with status %d",
+    snprintf(message, sizeof(message), "Child exited with status %d",
              child_info.si_status);
     isolate->ThrowException(
         String::NewFromUtf8(isolate, message, NewStringType::kNormal)
@@ -426,9 +407,7 @@ static bool WaitForChild(Isolate* isolate,
   child_waiter.ChildIsDeadNow();
   if (WIFSIGNALED(child_status)) {
     char message[999];
-    snprintf(message,
-             sizeof(message),
-             "Child killed by signal %d",
+    snprintf(message, sizeof(message), "Child killed by signal %d",
              WTERMSIG(child_status));
     isolate->ThrowException(
         String::NewFromUtf8(isolate, message, NewStringType::kNormal)
@@ -438,9 +417,7 @@ static bool WaitForChild(Isolate* isolate,
   if (WEXITSTATUS(child_status) != 0) {
     char message[999];
     int exit_status = WEXITSTATUS(child_status);
-    snprintf(message,
-             sizeof(message),
-             "Child exited with status %d",
+    snprintf(message, sizeof(message), "Child exited with status %d",
              exit_status);
     isolate->ThrowException(
         String::NewFromUtf8(isolate, message, NewStringType::kNormal)
@@ -453,6 +430,7 @@ static bool WaitForChild(Isolate* isolate,
   return true;
 }
 
+#undef HAS_WAITID
 
 // Implementation of the system() function (see d8.h for details).
 void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -466,7 +444,8 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
       args.GetIsolate()->ThrowException(
           String::NewFromUtf8(args.GetIsolate(),
                               "system: Argument 2 must be an array",
-                              NewStringType::kNormal).ToLocalChecked());
+                              NewStringType::kNormal)
+              .ToLocalChecked());
       return;
     }
     command_args = Local<Array>::Cast(args[1]);
@@ -476,13 +455,15 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (command_args->Length() > ExecArgs::kMaxArgs) {
     args.GetIsolate()->ThrowException(
         String::NewFromUtf8(args.GetIsolate(), "Too many arguments to system()",
-                            NewStringType::kNormal).ToLocalChecked());
+                            NewStringType::kNormal)
+            .ToLocalChecked());
     return;
   }
   if (args.Length() < 1) {
     args.GetIsolate()->ThrowException(
         String::NewFromUtf8(args.GetIsolate(), "Too few arguments to system()",
-                            NewStringType::kNormal).ToLocalChecked());
+                            NewStringType::kNormal)
+            .ToLocalChecked());
     return;
   }
 
@@ -499,13 +480,15 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (pipe(exec_error_fds) != 0) {
     args.GetIsolate()->ThrowException(
         String::NewFromUtf8(args.GetIsolate(), "pipe syscall failed.",
-                            NewStringType::kNormal).ToLocalChecked());
+                            NewStringType::kNormal)
+            .ToLocalChecked());
     return;
   }
   if (pipe(stdout_fds) != 0) {
     args.GetIsolate()->ThrowException(
         String::NewFromUtf8(args.GetIsolate(), "pipe syscall failed.",
-                            NewStringType::kNormal).ToLocalChecked());
+                            NewStringType::kNormal)
+            .ToLocalChecked());
     return;
   }
 
@@ -541,7 +524,6 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(accumulator);
 }
 
-
 void Shell::ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
     const char* message = "chdir() takes one argument";
@@ -561,11 +543,11 @@ void Shell::ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (chdir(*directory) != 0) {
     args.GetIsolate()->ThrowException(
         String::NewFromUtf8(args.GetIsolate(), strerror(errno),
-                            NewStringType::kNormal).ToLocalChecked());
+                            NewStringType::kNormal)
+            .ToLocalChecked());
     return;
   }
 }
-
 
 void Shell::SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
@@ -589,7 +571,6 @@ void Shell::SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
-
 static bool CheckItsADirectory(Isolate* isolate, char* directory) {
   struct stat stat_buf;
   int stat_result = stat(directory, &stat_buf);
@@ -605,7 +586,6 @@ static bool CheckItsADirectory(Isolate* isolate, char* directory) {
           .ToLocalChecked());
   return false;
 }
-
 
 // Returns true for success.  Creates intermediate directories as needed.  No
 // error if the directory exists already.
@@ -642,7 +622,6 @@ static bool mkdirp(Isolate* isolate, char* directory, mode_t mask) {
   }
 }
 
-
 void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   mode_t mask = 0777;
   if (args.Length() == 2) {
@@ -654,7 +633,8 @@ void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
       const char* message = "mkdirp() second argument must be numeric";
       args.GetIsolate()->ThrowException(
           String::NewFromUtf8(args.GetIsolate(), message,
-                              NewStringType::kNormal).ToLocalChecked());
+                              NewStringType::kNormal)
+              .ToLocalChecked());
       return;
     }
   } else if (args.Length() != 1) {
@@ -675,7 +655,6 @@ void Shell::MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   mkdirp(args.GetIsolate(), *directory, mask);
 }
 
-
 void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
     const char* message = "rmdir() takes one or two arguments";
@@ -694,7 +673,6 @@ void Shell::RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   rmdir(*directory);
 }
-
 
 void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 2) {
@@ -724,7 +702,6 @@ void Shell::SetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   setenv(*var, *value, 1);
 }
-
 
 void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {

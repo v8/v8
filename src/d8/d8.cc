@@ -28,9 +28,9 @@
 #include "src/base/platform/time.h"
 #include "src/base/sys-info.h"
 #include "src/basic-block-profiler.h"
-#include "src/d8-console.h"
-#include "src/d8-platforms.h"
-#include "src/d8.h"
+#include "src/d8/d8-console.h"
+#include "src/d8/d8-platforms.h"
+#include "src/d8/d8.h"
 #include "src/debug/debug-interface.h"
 #include "src/interpreter/interpreter.h"
 #include "src/msan.h"
@@ -51,7 +51,7 @@
 #include <unistd.h>  // NOLINT
 #else
 #include <windows.h>  // NOLINT
-#endif               // !defined(_WIN32) && !defined(_WIN64)
+#endif                // !defined(_WIN32) && !defined(_WIN64)
 
 #ifndef DCHECK
 #define DCHECK(condition) assert(condition)
@@ -341,7 +341,6 @@ static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
 }
 
 }  // namespace tracing
-
 
 class ExternalOwningOneByteStringResource
     : public String::ExternalOneByteStringResource {
@@ -680,10 +679,7 @@ class ModuleEmbedderData {
       module_to_specifier_map;
 };
 
-enum {
-  kModuleEmbedderDataIndex,
-  kInspectorClientIndex
-};
+enum { kModuleEmbedderDataIndex, kInspectorClientIndex };
 
 void InitializeModuleEmbedderData(Local<Context> context) {
   context->SetAlignedPointerInEmbedderData(
@@ -956,7 +952,6 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
                           data_->isolate_->GetEnteredOrMicrotaskContext());
 }
 
-
 PerIsolateData::RealmScope::~RealmScope() {
   // Drop realms to avoid keeping them alive. We don't dispose the
   // module embedder data for the first realm here, but instead do
@@ -970,7 +965,6 @@ PerIsolateData::RealmScope::~RealmScope() {
   delete[] data_->realms_;
 }
 
-
 int PerIsolateData::RealmFind(Local<Context> context) {
   for (int i = 0; i < realm_count_; ++i) {
     if (realms_[i] == context) return i;
@@ -978,10 +972,8 @@ int PerIsolateData::RealmFind(Local<Context> context) {
   return -1;
 }
 
-
 int PerIsolateData::RealmIndexOrThrow(
-    const v8::FunctionCallbackInfo<v8::Value>& args,
-    int arg_offset) {
+    const v8::FunctionCallbackInfo<v8::Value>& args, int arg_offset) {
   if (args.Length() < arg_offset || !args[arg_offset]->IsNumber()) {
     Throw(args.GetIsolate(), "Invalid argument");
     return -1;
@@ -996,7 +988,6 @@ int PerIsolateData::RealmIndexOrThrow(
   return index;
 }
 
-
 // performance.now() returns a time stamp as double, measured in milliseconds.
 // When FLAG_verify_predictable mode is enabled it returns result of
 // v8::Platform::MonotonicallyIncreasingTime().
@@ -1010,7 +1001,6 @@ void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
-
 // Realm.current() returns the index of the currently active realm.
 void Shell::RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -1019,7 +1009,6 @@ void Shell::RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (index == -1) return;
   args.GetReturnValue().Set(index);
 }
-
 
 // Realm.owner(o) returns the index of the realm that created o.
 void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1036,7 +1025,6 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (index == -1) return;
   args.GetReturnValue().Set(index);
 }
-
 
 // Realm.global(i) returns the global object of realm i.
 // (Note that properties of global objects cannot be read/written cross-realm.)
@@ -1155,14 +1143,13 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
   PerIsolateData* data = PerIsolateData::Get(isolate);
   int index = data->RealmIndexOrThrow(args, 0);
   if (index == -1) return;
-  if (index == 0 ||
-      index == data->realm_current_ || index == data->realm_switch_) {
+  if (index == 0 || index == data->realm_current_ ||
+      index == data->realm_switch_) {
     Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
   DisposeRealm(args, index);
 }
-
 
 // Realm.switch(i) switches to the realm i for consecutive interactive inputs.
 void Shell::RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1172,7 +1159,6 @@ void Shell::RealmSwitch(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (index == -1) return;
   data->realm_switch_ = index;
 }
-
 
 // Realm.eval(i, s) evaluates s in realm i and returns the result.
 void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1206,7 +1192,6 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-
 // Realm.shared is an accessor for a single shared value across realms.
 void Shell::RealmSharedGet(Local<String> property,
                            const PropertyCallbackInfo<Value>& info) {
@@ -1216,8 +1201,7 @@ void Shell::RealmSharedGet(Local<String> property,
   info.GetReturnValue().Set(data->realm_shared_);
 }
 
-void Shell::RealmSharedSet(Local<String> property,
-                           Local<Value> value,
+void Shell::RealmSharedSet(Local<String> property, Local<Value> value,
                            const PropertyCallbackInfo<void>& info) {
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
@@ -1323,7 +1307,6 @@ void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(source);
 }
 
-
 Local<String> Shell::ReadFromStdin(Isolate* isolate) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
@@ -1340,13 +1323,13 @@ Local<String> Shell::ReadFromStdin(Isolate* isolate) {
     length = static_cast<int>(strlen(buffer));
     if (length == 0) {
       return accumulator;
-    } else if (buffer[length-1] != '\n') {
+    } else if (buffer[length - 1] != '\n') {
       accumulator = String::Concat(
           isolate, accumulator,
           String::NewFromUtf8(isolate, buffer, NewStringType::kNormal, length)
               .ToLocalChecked());
-    } else if (length > 1 && buffer[length-2] == '\\') {
-      buffer[length-2] = '\n';
+    } else if (length > 1 && buffer[length - 2] == '\\') {
+      buffer[length - 2] = '\n';
       accumulator =
           String::Concat(isolate, accumulator,
                          String::NewFromUtf8(isolate, buffer,
@@ -1361,7 +1344,6 @@ Local<String> Shell::ReadFromStdin(Isolate* isolate) {
     }
   }
 }
-
 
 void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < args.Length(); i++) {
@@ -1472,7 +1454,6 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
-
 void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
@@ -1497,7 +1478,6 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
-
 void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
@@ -1515,7 +1495,6 @@ void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
-
 void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
@@ -1527,7 +1506,6 @@ void Shell::WorkerTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   worker->Terminate();
 }
 
-
 void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
   int exit_code = (*args)[0]
                       ->Int32Value(args->GetIsolate()->GetCurrentContext())
@@ -1537,7 +1515,6 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
   OnExit(args->GetIsolate());
   base::OS::ExitProcess(exit_code);
 }
-
 
 void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
   base::CallOnce(&quit_once_, &QuitOnce,
@@ -1553,11 +1530,11 @@ void Shell::NotifyDone(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().Set(
-      String::NewFromUtf8(args.GetIsolate(), V8::GetVersion(),
-                          NewStringType::kNormal).ToLocalChecked());
+  args.GetReturnValue().Set(String::NewFromUtf8(args.GetIsolate(),
+                                                V8::GetVersion(),
+                                                NewStringType::kNormal)
+                                .ToLocalChecked());
 }
-
 
 void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
   HandleScope handle_scope(isolate);
@@ -1621,7 +1598,6 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
   if (enter_context) context->Exit();
 }
 
-
 int32_t* Counter::Bind(const char* name, bool is_histogram) {
   int i;
   for (i = 0; i < kMaxNameSize - 1 && name[i]; i++)
@@ -1631,12 +1607,10 @@ int32_t* Counter::Bind(const char* name, bool is_histogram) {
   return ptr();
 }
 
-
 void Counter::AddSample(int32_t sample) {
   count_++;
   sample_total_ += sample;
 }
-
 
 CounterCollection::CounterCollection() {
   magic_number_ = 0xDEADFACE;
@@ -1645,12 +1619,10 @@ CounterCollection::CounterCollection() {
   counters_in_use_ = 0;
 }
 
-
 Counter* CounterCollection::GetNextCounter() {
   if (counters_in_use_ == kMaxCounters) return nullptr;
   return &counters_[counters_in_use_++];
 }
-
 
 void Shell::MapCounters(v8::Isolate* isolate, const char* name) {
   counters_file_ = base::OS::MemoryMappedFile::create(
@@ -1684,7 +1656,6 @@ Counter* Shell::GetCounter(const char* name, bool is_histogram) {
   return counter;
 }
 
-
 int* Shell::LookupCounter(const char* name) {
   Counter* counter = GetCounter(name, false);
 
@@ -1695,14 +1666,10 @@ int* Shell::LookupCounter(const char* name) {
   }
 }
 
-
-void* Shell::CreateHistogram(const char* name,
-                             int min,
-                             int max,
+void* Shell::CreateHistogram(const char* name, int min, int max,
                              size_t buckets) {
   return GetCounter(name, true);
 }
-
 
 void Shell::AddHistogramSample(void* histogram, int sample) {
   Counter* counter = reinterpret_cast<Counter*>(histogram);
@@ -1733,7 +1700,6 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
   if (result.IsEmpty()) return String::Empty(isolate);
   return result.ToLocalChecked().As<String>();
 }
-
 
 Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
@@ -1981,7 +1947,6 @@ void Shell::Initialize(Isolate* isolate) {
           v8::Isolate::kMessageLog);
 }
 
-
 Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   // This needs to be a critical section since this is not thread-safe
   base::MutexGuard lock_guard(context_mutex_.Pointer());
@@ -2176,7 +2141,6 @@ void Shell::OnExit(v8::Isolate* isolate) {
   delete counter_map_;
 }
 
-
 static FILE* FOpen(const char* path, const char* mode) {
 #if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
   FILE* result;
@@ -2224,13 +2188,11 @@ static char* ReadChars(const char* name, int* size_out) {
   return chars;
 }
 
-
 struct DataAndPersistent {
   uint8_t* data;
   int byte_length;
   Global<ArrayBuffer> handle;
 };
-
 
 static void ReadBufferWeakCallback(
     const v8::WeakCallbackInfo<DataAndPersistent>& data) {
@@ -2242,7 +2204,6 @@ static void ReadBufferWeakCallback(
   data.GetParameter()->handle.Reset();
   delete data.GetParameter();
 }
-
 
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   static_assert(sizeof(char) == sizeof(uint8_t),
@@ -2292,7 +2253,6 @@ Local<String> Shell::ReadFile(Isolate* isolate, const char* name) {
   }
   return result;
 }
-
 
 void Shell::RunShell(Isolate* isolate) {
   HandleScope outer_scope(isolate);
@@ -2576,7 +2536,6 @@ void SourceGroup::ExecuteInThread() {
   isolate->Dispose();
 }
 
-
 void SourceGroup::StartExecuteInThread() {
   if (thread_ == nullptr) {
     thread_ = new IsolateThread(this);
@@ -2585,12 +2544,10 @@ void SourceGroup::StartExecuteInThread() {
   next_semaphore_.Signal();
 }
 
-
 void SourceGroup::WaitForThread() {
   if (thread_ == nullptr) return;
   done_semaphore_.Wait();
 }
-
 
 void SourceGroup::JoinThread() {
   if (thread_ == nullptr) return;
@@ -2618,12 +2575,10 @@ bool SerializationDataQueue::Dequeue(
   return true;
 }
 
-
 bool SerializationDataQueue::IsEmpty() {
   base::MutexGuard lock_guard(&mutex_);
   return data_.empty();
 }
-
 
 void SerializationDataQueue::Clear() {
   base::MutexGuard lock_guard(&mutex_);
@@ -2645,7 +2600,6 @@ Worker::~Worker() {
   in_queue_.Clear();
   out_queue_.Clear();
 }
-
 
 void Worker::StartExecuteInThread(const char* script) {
   running_ = true;
@@ -2670,7 +2624,6 @@ std::unique_ptr<SerializationData> Worker::GetMessage() {
   return result;
 }
 
-
 void Worker::Terminate() {
   base::Relaxed_Store(&running_, false);
   // Post nullptr to wake the Worker thread message loop, and tell it to stop
@@ -2678,12 +2631,10 @@ void Worker::Terminate() {
   PostMessage(nullptr);
 }
 
-
 void Worker::WaitForThread() {
   Terminate();
   thread_->Join();
 }
-
 
 void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
@@ -2711,12 +2662,15 @@ void Worker::ExecuteInThread() {
             FunctionTemplate::New(isolate, PostMessageOut, this_value);
 
         Local<Function> postmessage_fun;
-        if (postmessage_fun_template->GetFunction(context)
-                .ToLocal(&postmessage_fun)) {
-          global->Set(context, String::NewFromUtf8(isolate, "postMessage",
-                                                   NewStringType::kNormal)
-                                   .ToLocalChecked(),
-                      postmessage_fun).FromJust();
+        if (postmessage_fun_template->GetFunction(context).ToLocal(
+                &postmessage_fun)) {
+          global
+              ->Set(context,
+                    String::NewFromUtf8(isolate, "postMessage",
+                                        NewStringType::kNormal)
+                        .ToLocalChecked(),
+                    postmessage_fun)
+              .FromJust();
         }
 
         // First run the script
@@ -2731,9 +2685,11 @@ void Worker::ExecuteInThread() {
                 Shell::kReportExceptions, Shell::kProcessMessageQueue)) {
           // Get the message handler
           Local<Value> onmessage =
-              global->Get(context, String::NewFromUtf8(isolate, "onmessage",
-                                                       NewStringType::kNormal)
-                                       .ToLocalChecked()).ToLocalChecked();
+              global
+                  ->Get(context, String::NewFromUtf8(isolate, "onmessage",
+                                                     NewStringType::kNormal)
+                                     .ToLocalChecked())
+                  .ToLocalChecked();
           if (onmessage->IsFunction()) {
             Local<Function> onmessage_fun = Local<Function>::Cast(onmessage);
             // Now wait for messages
@@ -2770,7 +2726,6 @@ void Worker::ExecuteInThread() {
   out_queue_.Enqueue(nullptr);
   out_semaphore_.Signal();
 }
-
 
 void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -3017,7 +2972,6 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
   // In order to finish successfully, success must be != expected_to_throw.
   return success == Shell::options.expected_to_throw ? 1 : 0;
 }
-
 
 void Shell::CollectGarbage(Isolate* isolate) {
   if (options.send_idle_notification) {
@@ -3345,7 +3299,6 @@ MaybeLocal<Value> Shell::DeserializeValue(
   return deserializer.ReadValue(context);
 }
 
-
 void Shell::CleanupWorkers() {
   // Make a copy of workers_, because we don't want to call Worker::Terminate
   // while holding the workers_mutex_ lock. Otherwise, if a worker is about to
@@ -3492,9 +3445,8 @@ int Shell::Main(int argc, char* argv[]) {
     }
 
     if (options.stress_opt || options.stress_deopt) {
-      Testing::SetStressRunType(options.stress_opt
-                                ? Testing::kStressTypeOpt
-                                : Testing::kStressTypeDeopt);
+      Testing::SetStressRunType(options.stress_opt ? Testing::kStressTypeOpt
+                                                   : Testing::kStressTypeDeopt);
       options.stress_runs = Testing::GetStressRuns();
       for (int i = 0; i < options.stress_runs && result == 0; i++) {
         printf("============ Stress %d/%d ============\n", i + 1,
@@ -3582,11 +3534,8 @@ int Shell::Main(int argc, char* argv[]) {
 
 }  // namespace v8
 
-
 #ifndef GOOGLE3
-int main(int argc, char* argv[]) {
-  return v8::Shell::Main(argc, argv);
-}
+int main(int argc, char* argv[]) { return v8::Shell::Main(argc, argv); }
 #endif
 
 #undef CHECK

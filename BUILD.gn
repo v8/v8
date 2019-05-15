@@ -4027,15 +4027,15 @@ if (is_component_build) {
 
 v8_executable("d8") {
   sources = [
-    "src/async-hooks-wrapper.cc",
-    "src/async-hooks-wrapper.h",
-    "src/d8-console.cc",
-    "src/d8-console.h",
-    "src/d8-js.cc",
-    "src/d8-platforms.cc",
-    "src/d8-platforms.h",
-    "src/d8.cc",
-    "src/d8.h",
+    "src/d8/async-hooks-wrapper.cc",
+    "src/d8/async-hooks-wrapper.h",
+    "src/d8/d8-console.cc",
+    "src/d8/d8-console.h",
+    "src/d8/d8-js.cc",
+    "src/d8/d8-platforms.cc",
+    "src/d8/d8-platforms.h",
+    "src/d8/d8.cc",
+    "src/d8/d8.h",
   ]
 
   configs = [
@@ -4053,9 +4053,9 @@ v8_executable("d8") {
   ]
 
   if (is_posix || is_fuchsia) {
-    sources += [ "src/d8-posix.cc" ]
+    sources += [ "src/d8/d8-posix.cc" ]
   } else if (is_win) {
-    sources += [ "src/d8-windows.cc" ]
+    sources += [ "src/d8/d8-windows.cc" ]
   }
 
   if (v8_correctness_fuzzer) {
