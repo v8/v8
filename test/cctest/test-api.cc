@@ -27881,6 +27881,7 @@ UNINITIALIZED_TEST(NestedIsolates) {
   // call into the other isolate. Recurse a few times, trigger GC along the way,
   // and finally capture a stack trace. Check that the stack trace only includes
   // frames from its own isolate.
+  i::FLAG_stack_trace_limit = 20;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   isolate_1 = v8::Isolate::New(create_params);
@@ -27937,18 +27938,23 @@ UNINITIALIZED_TEST(NestedIsolates) {
         CompileRun("f2(); result //# sourceURL=isolate2c")
             ->ToString(context)
             .ToLocalChecked();
-    v8::Local<v8::String> expectation = v8_str(isolate_2,
-                                               "Error\n"
-                                               "    at f2 (isolate2a:1:104)\n"
-                                               "    at isolate2b:1:1\n"
-                                               "    at f2 (isolate2a:1:71)\n"
-                                               "    at isolate2b:1:1\n"
-                                               "    at f2 (isolate2a:1:71)\n"
-                                               "    at isolate2b:1:1\n"
-                                               "    at f2 (isolate2a:1:71)\n"
-                                               "    at isolate2b:1:1\n"
-                                               "    at f2 (isolate2a:1:71)\n"
-                                               "    at isolate2c:1:1");
+    v8::Local<v8::String> expectation =
+        v8_str(isolate_2,
+               "Error\n"
+               "    at f2 (isolate2a:1:104)\n"
+               "    at isolate2b:1:1\n"
+               "    at call_isolate_1 (<anonymous>)\n"
+               "    at f2 (isolate2a:1:71)\n"
+               "    at isolate2b:1:1\n"
+               "    at call_isolate_1 (<anonymous>)\n"
+               "    at f2 (isolate2a:1:71)\n"
+               "    at isolate2b:1:1\n"
+               "    at call_isolate_1 (<anonymous>)\n"
+               "    at f2 (isolate2a:1:71)\n"
+               "    at isolate2b:1:1\n"
+               "    at call_isolate_1 (<anonymous>)\n"
+               "    at f2 (isolate2a:1:71)\n"
+               "    at isolate2c:1:1");
     CHECK(result->StrictEquals(expectation));
   }
 
