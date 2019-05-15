@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DIY_FP_H_
-#define V8_DIY_FP_H_
+#ifndef V8_NUMBERS_DIY_FP_H_
+#define V8_NUMBERS_DIY_FP_H_
 
 #include <stdint.h>
 
@@ -43,7 +43,6 @@ class DiyFp {
     result.Subtract(b);
     return result;
   }
-
 
   // this = this * other.
   V8_EXPORT_PRIVATE void Multiply(const DiyFp& other);
@@ -97,4 +96,4 @@ class DiyFp {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_DIY_FP_H_
+#endif  // V8_NUMBERS_DIY_FP_H_

@@ -19,11 +19,11 @@
 
 #include "src/objects/bigint.h"
 
-#include "src/conversions.h"
-#include "src/double.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/isolate-inl.h"
+#include "src/numbers/conversions.h"
+#include "src/numbers/double.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/instance-type-inl.h"

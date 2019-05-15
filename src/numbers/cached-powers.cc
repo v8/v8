@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/cached-powers.h"
+#include "src/numbers/cached-powers.h"
 
 #include <limits.h>
 #include <stdarg.h>
@@ -123,17 +123,13 @@ const int PowersOfTenCache::kMinDecimalExponent = -348;
 const int PowersOfTenCache::kMaxDecimalExponent = 340;
 
 void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
-    int min_exponent,
-    int max_exponent,
-    DiyFp* power,
-    int* decimal_exponent) {
+    int min_exponent, int max_exponent, DiyFp* power, int* decimal_exponent) {
   int kQ = DiyFp::kSignificandSize;
   // Some platforms return incorrect sign on 0 result. We can ignore that here,
   // which means we can avoid depending on platform.h.
   double k = std::ceil((min_exponent + kQ - 1) * kD_1_LOG2_10);
   int foo = kCachedPowersOffset;
-  int index =
-      (foo + static_cast<int>(k) - 1) / kDecimalExponentDistance + 1;
+  int index = (foo + static_cast<int>(k) - 1) / kDecimalExponentDistance + 1;
   DCHECK(0 <= index && index < kCachedPowersLength);
   CachedPower cached_power = kCachedPowers[index];
   DCHECK(min_exponent <= cached_power.binary_exponent);
@@ -141,7 +137,6 @@ void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
   *decimal_exponent = cached_power.decimal_exponent;
   *power = DiyFp(cached_power.significand, cached_power.binary_exponent);
 }
-
 
 void PowersOfTenCache::GetCachedPowerForDecimalExponent(int requested_exponent,
                                                         DiyFp* power,

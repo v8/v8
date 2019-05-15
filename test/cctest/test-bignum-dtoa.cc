@@ -29,10 +29,10 @@
 
 #include "src/v8.h"
 
-#include "src/bignum-dtoa.h"
+#include "src/numbers/bignum-dtoa.h"
 
 #include "src/base/platform/platform.h"
-#include "src/double.h"
+#include "src/numbers/double.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/gay-fixed.h"
 #include "test/cctest/gay-precision.h"

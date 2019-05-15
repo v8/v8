@@ -5,10 +5,10 @@
 #include "src/objects/string.h"
 
 #include "src/char-predicates.h"
-#include "src/conversions.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"  // For LooksValid implementation.
 #include "src/heap/read-only-heap.h"
+#include "src/numbers/conversions.h"
 #include "src/objects/map.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string-comparator.h"

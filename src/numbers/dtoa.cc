@@ -7,26 +7,28 @@
 #include "src/base/logging.h"
 #include "src/utils.h"
 
-#include "src/dtoa.h"
+#include "src/numbers/dtoa.h"
 
-#include "src/bignum-dtoa.h"
-#include "src/double.h"
-#include "src/fast-dtoa.h"
-#include "src/fixed-dtoa.h"
+#include "src/numbers/bignum-dtoa.h"
+#include "src/numbers/double.h"
+#include "src/numbers/fast-dtoa.h"
+#include "src/numbers/fixed-dtoa.h"
 
 namespace v8 {
 namespace internal {
 
 static BignumDtoaMode DtoaToBignumDtoaMode(DtoaMode dtoa_mode) {
   switch (dtoa_mode) {
-    case DTOA_SHORTEST:  return BIGNUM_DTOA_SHORTEST;
-    case DTOA_FIXED:     return BIGNUM_DTOA_FIXED;
-    case DTOA_PRECISION: return BIGNUM_DTOA_PRECISION;
+    case DTOA_SHORTEST:
+      return BIGNUM_DTOA_SHORTEST;
+    case DTOA_FIXED:
+      return BIGNUM_DTOA_FIXED;
+    case DTOA_PRECISION:
+      return BIGNUM_DTOA_PRECISION;
     default:
       UNREACHABLE();
   }
 }
-
 
 void DoubleToAscii(double v, DtoaMode mode, int requested_digits,
                    Vector<char> buffer, int* sign, int* length, int* point) {
@@ -63,8 +65,8 @@ void DoubleToAscii(double v, DtoaMode mode, int requested_digits,
       fast_worked = FastFixedDtoa(v, requested_digits, buffer, length, point);
       break;
     case DTOA_PRECISION:
-      fast_worked = FastDtoa(v, FAST_DTOA_PRECISION, requested_digits,
-                             buffer, length, point);
+      fast_worked = FastDtoa(v, FAST_DTOA_PRECISION, requested_digits, buffer,
+                             length, point);
       break;
     default:
       UNREACHABLE();

@@ -30,10 +30,10 @@
 #include "src/v8.h"
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/bignum.h"
-#include "src/diy-fp.h"
-#include "src/double.h"
-#include "src/strtod.h"
+#include "src/numbers/bignum.h"
+#include "src/numbers/diy-fp.h"
+#include "src/numbers/double.h"
+#include "src/numbers/strtod.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

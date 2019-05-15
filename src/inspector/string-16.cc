@@ -13,8 +13,8 @@
 #include <string>
 
 #include "src/base/platform/platform.h"
-#include "src/conversions.h"
 #include "src/inspector/v8-string-conversions.h"
+#include "src/numbers/conversions.h"
 
 namespace v8_inspector {
 

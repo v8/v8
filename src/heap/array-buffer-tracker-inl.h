@@ -5,10 +5,10 @@
 #ifndef V8_HEAP_ARRAY_BUFFER_TRACKER_INL_H_
 #define V8_HEAP_ARRAY_BUFFER_TRACKER_INL_H_
 
-#include "src/conversions-inl.h"
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces-inl.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects.h"
 #include "src/objects/js-array-buffer-inl.h"
 

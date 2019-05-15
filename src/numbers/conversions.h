@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CONVERSIONS_H_
-#define V8_CONVERSIONS_H_
+#ifndef V8_NUMBERS_CONVERSIONS_H_
+#define V8_NUMBERS_CONVERSIONS_H_
 
 #include "src/base/logging.h"
 #include "src/globals.h"
@@ -42,14 +42,12 @@ inline int FastD2I(double x) {
 
 inline unsigned int FastD2UI(double x);
 
-
 inline double FastI2D(int x) {
   // There is no rounding involved in converting an integer to a
   // double, so this code should compile to a few instructions without
   // any FPU pipeline stalls.
   return static_cast<double>(x);
 }
-
 
 inline double FastUI2D(unsigned x) {
   // There is no rounding involved in converting an unsigned integer to a
@@ -58,22 +56,17 @@ inline double FastUI2D(unsigned x) {
   return static_cast<double>(x);
 }
 
-
 // This function should match the exact semantics of ECMA-262 20.2.2.17.
 inline float DoubleToFloat32(double x);
-
 
 // This function should match the exact semantics of ECMA-262 9.4.
 inline double DoubleToInteger(double x);
 
-
 // This function should match the exact semantics of ECMA-262 9.5.
 inline int32_t DoubleToInt32(double x);
 
-
 // This function should match the exact semantics of ECMA-262 9.6.
 inline uint32_t DoubleToUint32(double x);
-
 
 // Enumeration for allowing octals and ignoring junk when converting
 // strings to numbers.
@@ -85,7 +78,6 @@ enum ConversionFlags {
   ALLOW_BINARY = 8,
   ALLOW_TRAILING_JUNK = 16
 };
-
 
 // Converts a string into a double value according to ECMA-262 9.3.1
 double StringToDouble(Vector<const uint8_t> str, int flags,
@@ -177,4 +169,4 @@ V8_EXPORT_PRIVATE bool IsSpecialIndex(String string);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CONVERSIONS_H_
+#endif  // V8_NUMBERS_CONVERSIONS_H_

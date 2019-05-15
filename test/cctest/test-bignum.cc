@@ -30,7 +30,7 @@
 #include "src/v8.h"
 
 #include "src/base/platform/platform.h"
-#include "src/bignum.h"
+#include "src/numbers/bignum.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

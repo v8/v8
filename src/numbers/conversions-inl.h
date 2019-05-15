@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CONVERSIONS_INL_H_
-#define V8_CONVERSIONS_INL_H_
+#ifndef V8_NUMBERS_CONVERSIONS_INL_H_
+#define V8_NUMBERS_CONVERSIONS_INL_H_
 
-#include <float.h>         // Required for DBL_MAX and on Win32 for finite()
-#include <limits.h>        // Required for INT_MAX etc.
+#include <float.h>   // Required for DBL_MAX and on Win32 for finite()
+#include <limits.h>  // Required for INT_MAX etc.
 #include <stdarg.h>
 #include <cmath>
-#include "src/globals.h"       // Required for V8_INFINITY
+#include "src/globals.h"  // Required for V8_INFINITY
 
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.
 
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
-#include "src/conversions.h"
-#include "src/double.h"
+#include "src/numbers/conversions.h"
+#include "src/numbers/double.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number-inl.h"
 
@@ -57,7 +57,6 @@ inline unsigned int FastD2UI(double x) {
   return 0x80000000u;  // Return integer indefinite.
 }
 
-
 inline float DoubleToFloat32(double x) {
   using limits = std::numeric_limits<float>;
   if (x > limits::max()) {
@@ -79,7 +78,6 @@ inline float DoubleToFloat32(double x) {
   }
   return static_cast<float>(x);
 }
-
 
 inline double DoubleToInteger(double x) {
   if (std::isnan(x)) return 0;
@@ -121,12 +119,10 @@ bool IsSmiDouble(double value) {
          !IsMinusZero(value) && value == FastI2D(FastD2I(value));
 }
 
-
 bool IsInt32Double(double value) {
   return value >= kMinInt && value <= kMaxInt && !IsMinusZero(value) &&
          value == FastI2D(FastD2I(value));
 }
-
 
 bool IsUint32Double(double value) {
   return !IsMinusZero(value) && value >= 0 && value <= kMaxUInt32 &&
@@ -259,4 +255,4 @@ uint32_t DoubleToUint32(double x) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CONVERSIONS_INL_H_
+#endif  // V8_NUMBERS_CONVERSIONS_INL_H_

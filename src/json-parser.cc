@@ -5,11 +5,11 @@
 #include "src/json-parser.h"
 
 #include "src/char-predicates-inl.h"
-#include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/field-type.h"
 #include "src/hash-seed-inl.h"
 #include "src/message-template.h"
+#include "src/numbers/conversions.h"
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/property-descriptor.h"

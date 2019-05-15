@@ -45,9 +45,9 @@
 
 #include "src/assembler.h"
 #include "src/constant-pool.h"
-#include "src/double.h"
 #include "src/external-reference.h"
 #include "src/label.h"
+#include "src/numbers/double.h"
 #include "src/objects/smi.h"
 #include "src/ppc/constants-ppc.h"
 #include "src/ppc/register-ppc.h"

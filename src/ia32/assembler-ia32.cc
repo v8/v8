@@ -50,10 +50,10 @@
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
-#include "src/conversions-inl.h"
 #include "src/deoptimizer.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/string-constants.h"
 #include "src/v8.h"
 

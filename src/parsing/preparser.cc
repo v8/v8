@@ -6,9 +6,9 @@
 
 #include "src/allocation.h"
 #include "src/base/logging.h"
-#include "src/conversions-inl.h"
-#include "src/conversions.h"
 #include "src/globals.h"
+#include "src/numbers/conversions-inl.h"
+#include "src/numbers/conversions.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"

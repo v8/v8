@@ -9,7 +9,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/typer.h"
-#include "src/conversions-inl.h"
+#include "src/numbers/conversions-inl.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"

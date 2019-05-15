@@ -7,9 +7,9 @@
 
 #include <map>
 
-#include "src/double.h"
 #include "src/globals.h"
 #include "src/label.h"
+#include "src/numbers/double.h"
 #include "src/reloc-info.h"
 
 namespace v8 {

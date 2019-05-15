@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/bignum.h"
+#include "src/numbers/bignum.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -15,12 +15,10 @@ Bignum::Bignum()
   }
 }
 
-
-template<typename S>
+template <typename S>
 static int BitSize(S value) {
   return 8 * sizeof(value);
 }
-
 
 // Guaranteed to lie in one Bigit.
 void Bignum::AssignUInt16(uint16_t value) {
@@ -32,7 +30,6 @@ void Bignum::AssignUInt16(uint16_t value) {
   bigits_[0] = value;
   used_digits_ = 1;
 }
-
 
 void Bignum::AssignUInt64(uint64_t value) {
   const int kUInt64Size = 64;
@@ -50,7 +47,6 @@ void Bignum::AssignUInt64(uint64_t value) {
   Clamp();
 }
 
-
 void Bignum::AssignBignum(const Bignum& other) {
   exponent_ = other.exponent_;
   for (int i = 0; i < other.used_digits_; ++i) {
@@ -63,9 +59,7 @@ void Bignum::AssignBignum(const Bignum& other) {
   used_digits_ = other.used_digits_;
 }
 
-
-static uint64_t ReadUInt64(Vector<const char> buffer,
-                           int from,
+static uint64_t ReadUInt64(Vector<const char> buffer, int from,
                            int digits_to_read) {
   uint64_t result = 0;
   int to = from + digits_to_read;
@@ -77,7 +71,6 @@ static uint64_t ReadUInt64(Vector<const char> buffer,
   }
   return result;
 }
-
 
 void Bignum::AssignDecimalString(Vector<const char> value) {
   // 2^64 = 18446744073709551616 > 10^19
@@ -99,14 +92,12 @@ void Bignum::AssignDecimalString(Vector<const char> value) {
   Clamp();
 }
 
-
 static int HexCharValue(char c) {
   if ('0' <= c && c <= '9') return c - '0';
   if ('a' <= c && c <= 'f') return 10 + c - 'a';
   if ('A' <= c && c <= 'F') return 10 + c - 'A';
   UNREACHABLE();
 }
-
 
 void Bignum::AssignHexString(Vector<const char> value) {
   Zero();
@@ -137,14 +128,12 @@ void Bignum::AssignHexString(Vector<const char> value) {
   Clamp();
 }
 
-
 void Bignum::AddUInt64(uint64_t operand) {
   if (operand == 0) return;
   Bignum other;
   other.AssignUInt64(operand);
   AddBignum(other);
 }
-
 
 void Bignum::AddBignum(const Bignum& other) {
   DCHECK(IsClamped());
@@ -187,7 +176,6 @@ void Bignum::AddBignum(const Bignum& other) {
   DCHECK(IsClamped());
 }
 
-
 void Bignum::SubtractBignum(const Bignum& other) {
   DCHECK(IsClamped());
   DCHECK(other.IsClamped());
@@ -214,7 +202,6 @@ void Bignum::SubtractBignum(const Bignum& other) {
   Clamp();
 }
 
-
 void Bignum::ShiftLeft(int shift_amount) {
   if (used_digits_ == 0) return;
   exponent_ += shift_amount / kBigitSize;
@@ -222,7 +209,6 @@ void Bignum::ShiftLeft(int shift_amount) {
   EnsureCapacity(used_digits_ + 1);
   BigitsShiftLeft(local_shift);
 }
-
 
 void Bignum::MultiplyByUInt32(uint32_t factor) {
   if (factor == 1) return;
@@ -249,7 +235,6 @@ void Bignum::MultiplyByUInt32(uint32_t factor) {
   }
 }
 
-
 void Bignum::MultiplyByUInt64(uint64_t factor) {
   if (factor == 1) return;
   if (factor == 0) {
@@ -266,7 +251,7 @@ void Bignum::MultiplyByUInt64(uint64_t factor) {
     uint64_t tmp = (carry & kBigitMask) + product_low;
     bigits_[i] = static_cast<Chunk>(tmp & kBigitMask);
     carry = (carry >> kBigitSize) + (tmp >> kBigitSize) +
-        (product_high << (32 - kBigitSize));
+            (product_high << (32 - kBigitSize));
   }
   while (carry != 0) {
     EnsureCapacity(used_digits_ + 1);
@@ -275,7 +260,6 @@ void Bignum::MultiplyByUInt64(uint64_t factor) {
     carry >>= kBigitSize;
   }
 }
-
 
 void Bignum::MultiplyByPowerOfTen(int exponent) {
   const uint64_t kFive27 = V8_2PART_UINT64_C(0x6765C793, fa10079d);
@@ -292,9 +276,9 @@ void Bignum::MultiplyByPowerOfTen(int exponent) {
   const uint32_t kFive11 = kFive10 * 5;
   const uint32_t kFive12 = kFive11 * 5;
   const uint32_t kFive13 = kFive12 * 5;
-  const uint32_t kFive1_to_12[] =
-      { kFive1, kFive2, kFive3, kFive4, kFive5, kFive6,
-        kFive7, kFive8, kFive9, kFive10, kFive11, kFive12 };
+  const uint32_t kFive1_to_12[] = {kFive1, kFive2,  kFive3,  kFive4,
+                                   kFive5, kFive6,  kFive7,  kFive8,
+                                   kFive9, kFive10, kFive11, kFive12};
 
   DCHECK_GE(exponent, 0);
   if (exponent == 0) return;
@@ -315,7 +299,6 @@ void Bignum::MultiplyByPowerOfTen(int exponent) {
   }
   ShiftLeft(exponent);
 }
-
 
 void Bignum::Square() {
   DCHECK(IsClamped());
@@ -387,7 +370,6 @@ void Bignum::Square() {
   exponent_ *= 2;
   Clamp();
 }
-
 
 void Bignum::AssignPowerUInt16(uint16_t base, int power_exponent) {
   DCHECK_NE(base, 0);
@@ -461,7 +443,6 @@ void Bignum::AssignPowerUInt16(uint16_t base, int power_exponent) {
   ShiftLeft(shifts * power_exponent);
 }
 
-
 // Precondition: this/other < 16bit.
 uint16_t Bignum::DivideModuloIntBignum(const Bignum& other) {
   DCHECK(IsClamped());
@@ -525,8 +506,7 @@ uint16_t Bignum::DivideModuloIntBignum(const Bignum& other) {
   return result;
 }
 
-
-template<typename S>
+template <typename S>
 static int SizeInHexChars(S number) {
   DCHECK_GT(number, 0);
   int result = 0;
@@ -536,7 +516,6 @@ static int SizeInHexChars(S number) {
   }
   return result;
 }
-
 
 bool Bignum::ToHexString(char* buffer, int buffer_size) const {
   DCHECK(IsClamped());
@@ -552,7 +531,7 @@ bool Bignum::ToHexString(char* buffer, int buffer_size) const {
   }
   // We add 1 for the terminating '\0' character.
   int needed_chars = (BigitLength() - 1) * kHexCharsPerBigit +
-      SizeInHexChars(bigits_[used_digits_ - 1]) + 1;
+                     SizeInHexChars(bigits_[used_digits_ - 1]) + 1;
   if (needed_chars > buffer_size) return false;
   int string_index = needed_chars - 1;
   buffer[string_index--] = '\0';
@@ -577,13 +556,11 @@ bool Bignum::ToHexString(char* buffer, int buffer_size) const {
   return true;
 }
 
-
 Bignum::Chunk Bignum::BigitAt(int index) const {
   if (index >= BigitLength()) return 0;
   if (index < exponent_) return 0;
   return bigits_[index - exponent_];
 }
-
 
 int Bignum::Compare(const Bignum& a, const Bignum& b) {
   DCHECK(a.IsClamped());
@@ -601,7 +578,6 @@ int Bignum::Compare(const Bignum& a, const Bignum& b) {
   }
   return 0;
 }
-
 
 int Bignum::PlusCompare(const Bignum& a, const Bignum& b, const Bignum& c) {
   DCHECK(a.IsClamped());
@@ -639,7 +615,6 @@ int Bignum::PlusCompare(const Bignum& a, const Bignum& b, const Bignum& c) {
   return -1;
 }
 
-
 void Bignum::Clamp() {
   while (used_digits_ > 0 && bigits_[used_digits_ - 1] == 0) {
     used_digits_--;
@@ -650,11 +625,9 @@ void Bignum::Clamp() {
   }
 }
 
-
 bool Bignum::IsClamped() const {
   return used_digits_ == 0 || bigits_[used_digits_ - 1] != 0;
 }
-
 
 void Bignum::Zero() {
   for (int i = 0; i < used_digits_; ++i) {
@@ -663,7 +636,6 @@ void Bignum::Zero() {
   used_digits_ = 0;
   exponent_ = 0;
 }
-
 
 void Bignum::Align(const Bignum& other) {
   if (exponent_ > other.exponent_) {
@@ -688,7 +660,6 @@ void Bignum::Align(const Bignum& other) {
   }
 }
 
-
 void Bignum::BigitsShiftLeft(int shift_amount) {
   DCHECK_LT(shift_amount, kBigitSize);
   DCHECK_GE(shift_amount, 0);
@@ -703,7 +674,6 @@ void Bignum::BigitsShiftLeft(int shift_amount) {
     used_digits_++;
   }
 }
-
 
 void Bignum::SubtractTimes(const Bignum& other, int factor) {
 #ifdef DEBUG
@@ -740,7 +710,6 @@ void Bignum::SubtractTimes(const Bignum& other, int factor) {
   Clamp();
   DCHECK(Bignum::Equal(a, *this));
 }
-
 
 }  // namespace internal
 }  // namespace v8

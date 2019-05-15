@@ -48,7 +48,7 @@
 #include "src/assembler.h"
 #include "src/boxed-float.h"
 #include "src/constant-pool.h"
-#include "src/double.h"
+#include "src/numbers/double.h"
 
 namespace v8 {
 namespace internal {

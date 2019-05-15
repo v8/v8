@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CACHED_POWERS_H_
-#define V8_CACHED_POWERS_H_
+#ifndef V8_NUMBERS_CACHED_POWERS_H_
+#define V8_NUMBERS_CACHED_POWERS_H_
 
 #include "src/base/logging.h"
-#include "src/diy-fp.h"
+#include "src/numbers/diy-fp.h"
 
 namespace v8 {
 namespace internal {
@@ -40,4 +40,4 @@ class PowersOfTenCache {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CACHED_POWERS_H_
+#endif  // V8_NUMBERS_CACHED_POWERS_H_

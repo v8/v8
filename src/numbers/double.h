@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DOUBLE_H_
-#define V8_DOUBLE_H_
+#ifndef V8_NUMBERS_DOUBLE_H_
+#define V8_NUMBERS_DOUBLE_H_
 
 #include "src/base/macros.h"
-#include "src/diy-fp.h"
+#include "src/numbers/diy-fp.h"
 
 namespace v8 {
 namespace internal {
@@ -32,8 +32,7 @@ class Double {
   Double() : d64_(0) {}
   explicit Double(double d) : d64_(double_to_uint64(d)) {}
   explicit Double(uint64_t d64) : d64_(d64) {}
-  explicit Double(DiyFp diy_fp)
-    : d64_(DiyFpToUint64(diy_fp)) {}
+  explicit Double(DiyFp diy_fp) : d64_(DiyFpToUint64(diy_fp)) {}
 
   // The value encoded by this Double must be greater or equal to +0.0.
   // It must not be special (infinity, or NaN).
@@ -61,9 +60,7 @@ class Double {
   }
 
   // Returns the double's bit as uint64.
-  uint64_t AsUint64() const {
-    return d64_;
-  }
+  uint64_t AsUint64() const { return d64_; }
 
   // Returns the next greater double. Returns +infinity on input +infinity.
   double NextDouble() const {
@@ -114,12 +111,12 @@ class Double {
   bool IsInfinite() const {
     uint64_t d64 = AsUint64();
     return ((d64 & kExponentMask) == kExponentMask) &&
-        ((d64 & kSignificandMask) == 0);
+           ((d64 & kSignificandMask) == 0);
   }
 
   int Sign() const {
     uint64_t d64 = AsUint64();
-    return (d64 & kSignMask) == 0? 1: -1;
+    return (d64 & kSignMask) == 0 ? 1 : -1;
   }
 
   // Precondition: the value encoded by this Double must be greater or equal
@@ -206,11 +203,11 @@ class Double {
       biased_exponent = static_cast<uint64_t>(exponent + kExponentBias);
     }
     return (significand & kSignificandMask) |
-        (biased_exponent << kPhysicalSignificandSize);
+           (biased_exponent << kPhysicalSignificandSize);
   }
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_DOUBLE_H_
+#endif  // V8_NUMBERS_DOUBLE_H_

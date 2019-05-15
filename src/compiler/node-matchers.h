@@ -10,9 +10,9 @@
 #include "src/base/compiler-specific.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
-#include "src/double.h"
 #include "src/external-reference.h"
 #include "src/globals.h"
+#include "src/numbers/double.h"
 #include "src/objects/heap-object.h"
 
 namespace v8 {

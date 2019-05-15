@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/arguments-inl.h"
-#include "src/conversions-inl.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/elements.h"
@@ -12,6 +11,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/hash-table-inl.h"

@@ -7,9 +7,9 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/conversions.h"
 #include "src/globals.h"
 #include "src/handles.h"
+#include "src/numbers/conversions.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
 

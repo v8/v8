@@ -5,7 +5,6 @@
 #include "src/elements.h"
 
 #include "src/arguments.h"
-#include "src/conversions.h"
 #include "src/frames.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For MaxNumberToStringCacheSize.
@@ -13,6 +12,7 @@
 #include "src/isolate-inl.h"
 #include "src/keys.h"
 #include "src/message-template.h"
+#include "src/numbers/conversions.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/hash-table-inl.h"

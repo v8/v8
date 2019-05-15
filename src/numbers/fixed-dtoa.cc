@@ -9,8 +9,8 @@
 #include "src/base/logging.h"
 #include "src/utils.h"
 
-#include "src/double.h"
-#include "src/fixed-dtoa.h"
+#include "src/numbers/double.h"
+#include "src/numbers/fixed-dtoa.h"
 
 namespace v8 {
 namespace internal {
@@ -19,8 +19,8 @@ namespace internal {
 // platforms that support 128bit integers.
 class UInt128 {
  public:
-  UInt128() : high_bits_(0), low_bits_(0) { }
-  UInt128(uint64_t high, uint64_t low) : high_bits_(high), low_bits_(low) { }
+  UInt128() : high_bits_(0), low_bits_(0) {}
+  UInt128(uint64_t high, uint64_t low) : high_bits_(high), low_bits_(low) {}
 
   void Multiply(uint32_t multiplicand) {
     uint64_t accumulator;
@@ -77,9 +77,7 @@ class UInt128 {
     }
   }
 
-  bool IsZero() const {
-    return high_bits_ == 0 && low_bits_ == 0;
-  }
+  bool IsZero() const { return high_bits_ == 0 && low_bits_ == 0; }
 
   int BitAt(int position) {
     if (position >= 64) {
@@ -96,9 +94,7 @@ class UInt128 {
   uint64_t low_bits_;
 };
 
-
 static const int kDoubleSignificandSize = 53;  // Includes the hidden bit.
-
 
 static void FillDigits32FixedLength(uint32_t number, int requested_length,
                                     Vector<char> buffer, int* length) {
@@ -108,7 +104,6 @@ static void FillDigits32FixedLength(uint32_t number, int requested_length,
   }
   *length += requested_length;
 }
-
 
 static void FillDigits32(uint32_t number, Vector<char> buffer, int* length) {
   int number_length = 0;
@@ -132,7 +127,6 @@ static void FillDigits32(uint32_t number, Vector<char> buffer, int* length) {
   *length += number_length;
 }
 
-
 static void FillDigits64FixedLength(uint64_t number, int requested_length,
                                     Vector<char> buffer, int* length) {
   const uint32_t kTen7 = 10000000;
@@ -146,7 +140,6 @@ static void FillDigits64FixedLength(uint64_t number, int requested_length,
   FillDigits32FixedLength(part1, 7, buffer, length);
   FillDigits32FixedLength(part2, 7, buffer, length);
 }
-
 
 static void FillDigits64(uint64_t number, Vector<char> buffer, int* length) {
   const uint32_t kTen7 = 10000000;
@@ -196,7 +189,6 @@ static void DtoaRoundUp(Vector<char> buffer, int* length, int* decimal_point) {
     (*decimal_point)++;
   }
 }
-
 
 // The given fractionals number represents a fixed-point number with binary
 // point at bit (-exponent).
@@ -265,7 +257,6 @@ static void FillFractionals(uint64_t fractionals, int exponent,
   }
 }
 
-
 // Removes leading and trailing zeros.
 // If leading zeros are removed then the decimal point position is adjusted.
 static void TrimZeros(Vector<char> buffer, int* length, int* decimal_point) {
@@ -285,12 +276,8 @@ static void TrimZeros(Vector<char> buffer, int* length, int* decimal_point) {
   }
 }
 
-
-bool FastFixedDtoa(double v,
-                   int fractional_count,
-                   Vector<char> buffer,
-                   int* length,
-                   int* decimal_point) {
+bool FastFixedDtoa(double v, int fractional_count, Vector<char> buffer,
+                   int* length, int* decimal_point) {
   const uint32_t kMaxUInt32 = 0xFFFFFFFF;
   uint64_t significand = Double(v).Significand();
   int exponent = Double(v).Exponent();
@@ -357,8 +344,8 @@ bool FastFixedDtoa(double v,
       FillDigits32(static_cast<uint32_t>(integrals), buffer, length);
     }
     *decimal_point = *length;
-    FillFractionals(fractionals, exponent, fractional_count,
-                    buffer, length, decimal_point);
+    FillFractionals(fractionals, exponent, fractional_count, buffer, length,
+                    decimal_point);
   } else if (exponent < -128) {
     // This configuration (with at most 20 digits) means that all digits must be
     // 0.
@@ -368,8 +355,8 @@ bool FastFixedDtoa(double v,
     *decimal_point = -fractional_count;
   } else {
     *decimal_point = 0;
-    FillFractionals(significand, exponent, fractional_count,
-                    buffer, length, decimal_point);
+    FillFractionals(significand, exponent, fractional_count, buffer, length,
+                    decimal_point);
   }
   TrimZeros(buffer, length, decimal_point);
   buffer[*length] = '\0';

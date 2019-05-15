@@ -5,7 +5,7 @@
 #include "src/tracing/traced-value.h"
 
 #include "src/base/platform/platform.h"
-#include "src/conversions.h"
+#include "src/numbers/conversions.h"
 #include "src/vector.h"
 
 namespace v8 {

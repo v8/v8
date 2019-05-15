@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MATH_RANDOM_H_
-#define V8_MATH_RANDOM_H_
+#ifndef V8_NUMBERS_MATH_RANDOM_H_
+#define V8_NUMBERS_MATH_RANDOM_H_
 
 #include "src/contexts.h"
 #include "src/globals.h"
@@ -32,4 +32,4 @@ class MathRandom : public AllStatic {
 
 }  // namespace internal
 }  // namespace v8
-#endif  // V8_MATH_RANDOM_H_
+#endif  // V8_NUMBERS_MATH_RANDOM_H_

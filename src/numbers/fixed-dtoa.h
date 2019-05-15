@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_FIXED_DTOA_H_
-#define V8_FIXED_DTOA_H_
+#ifndef V8_NUMBERS_FIXED_DTOA_H_
+#define V8_NUMBERS_FIXED_DTOA_H_
 
 #include "src/vector.h"
 
@@ -33,4 +33,4 @@ V8_EXPORT_PRIVATE bool FastFixedDtoa(double v, int fractional_count,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_FIXED_DTOA_H_
+#endif  // V8_NUMBERS_FIXED_DTOA_H_

@@ -31,10 +31,10 @@
 #include <forward_list>
 
 #include "src/base/hashmap.h"
-#include "src/conversions.h"
 #include "src/globals.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
+#include "src/numbers/conversions.h"
 
 // Ast(Raw|Cons)String and AstValueFactory are for storing strings and
 // values independent of the V8 heap and internalizing them later. During

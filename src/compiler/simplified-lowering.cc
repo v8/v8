@@ -22,7 +22,7 @@
 #include "src/compiler/representation-change.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
-#include "src/conversions-inl.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects.h"
 
 namespace v8 {

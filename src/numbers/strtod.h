@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_STRTOD_H_
-#define V8_STRTOD_H_
+#ifndef V8_NUMBERS_STRTOD_H_
+#define V8_NUMBERS_STRTOD_H_
 
 #include "src/vector.h"
 
@@ -17,4 +17,4 @@ V8_EXPORT_PRIVATE double Strtod(Vector<const char> buffer, int exponent);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_STRTOD_H_
+#endif  // V8_NUMBERS_STRTOD_H_

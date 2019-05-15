@@ -4,9 +4,9 @@
 
 #include "src/json-stringifier.h"
 
-#include "src/conversions.h"
 #include "src/lookup.h"
 #include "src/message-template.h"
+#include "src/numbers/conversions.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"

@@ -4,12 +4,12 @@
 
 #include "src/arguments-inl.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/conversions.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/frame-constants.h"
 #include "src/heap/factory.h"
 #include "src/message-template.h"
+#include "src/numbers/conversions.h"
 #include "src/objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/runtime/runtime-utils.h"

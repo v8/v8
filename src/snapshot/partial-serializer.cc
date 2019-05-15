@@ -7,8 +7,8 @@
 
 #include "src/api-inl.h"
 #include "src/heap/combined-heap.h"
-#include "src/math-random.h"
 #include "src/microtask-queue.h"
+#include "src/numbers/math-random.h"
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"
 

@@ -8,9 +8,9 @@
 #include "src/objects/fixed-array.h"
 
 #include "src/base/tsan.h"
-#include "src/conversions.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/numbers/conversions.h"
 #include "src/objects-inl.h"
 #include "src/objects/bigint.h"
 #include "src/objects/compressed-slots.h"

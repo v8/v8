@@ -11,8 +11,8 @@
 
 #include "src/bailout-reason.h"
 #include "src/contexts.h"
-#include "src/double.h"
 #include "src/globals.h"
+#include "src/numbers/double.h"
 #include "src/ppc/assembler-ppc.h"
 
 namespace v8 {

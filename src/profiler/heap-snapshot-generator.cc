@@ -8,11 +8,11 @@
 
 #include "src/api-inl.h"
 #include "src/assembler-inl.h"
-#include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/global-handles.h"
 #include "src/heap/combined-heap.h"
 #include "src/layout-descriptor.h"
+#include "src/numbers/conversions.h"
 #include "src/objects-body-descriptors.h"
 #include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"

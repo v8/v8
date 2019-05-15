@@ -5,7 +5,7 @@
 #include "src/string-constants.h"
 
 #include "src/base/functional.h"
-#include "src/dtoa.h"
+#include "src/numbers/dtoa.h"
 #include "src/objects.h"
 #include "src/objects/string-inl.h"
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/conversions.h"
+#include "src/numbers/conversions.h"
 
 #include <limits.h>
 #include <stdarg.h>
@@ -11,12 +11,12 @@
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/char-predicates-inl.h"
-#include "src/dtoa.h"
 #include "src/handles.h"
 #include "src/heap/factory.h"
+#include "src/numbers/dtoa.h"
+#include "src/numbers/strtod.h"
 #include "src/objects-inl.h"
 #include "src/objects/bigint.h"
-#include "src/strtod.h"
 #include "src/utils.h"
 
 #if defined(_STLP_VENDOR_CSTD)
@@ -928,9 +928,12 @@ MaybeHandle<BigInt> BigIntLiteral(Isolate* isolate, const char* string) {
 
 const char* DoubleToCString(double v, Vector<char> buffer) {
   switch (FPCLASSIFY_NAMESPACE::fpclassify(v)) {
-    case FP_NAN: return "NaN";
-    case FP_INFINITE: return (v < 0.0 ? "-Infinity" : "Infinity");
-    case FP_ZERO: return "0";
+    case FP_NAN:
+      return "NaN";
+    case FP_INFINITE:
+      return (v < 0.0 ? "-Infinity" : "Infinity");
+    case FP_ZERO:
+      return "0";
     default: {
       if (IsInt32Double(v)) {
         // This will trigger if v is -0 and -0.0 is stringified to "0".
@@ -945,8 +948,8 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
       int length;
 
       DoubleToAscii(v, DTOA_SHORTEST, 0,
-                    Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
-                    &sign, &length, &decimal_point);
+                    Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
+                    &length, &decimal_point);
 
       if (sign) builder.AddCharacter('-');
 
@@ -985,7 +988,6 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
   }
 }
 
-
 const char* IntToCString(int n, Vector<char> buffer) {
   bool negative = true;
   if (n >= 0) {
@@ -1003,7 +1005,6 @@ const char* IntToCString(int n, Vector<char> buffer) {
   if (negative) buffer[--i] = '-';
   return buffer.begin() + i;
 }
-
 
 char* DoubleToFixedCString(double value, int f) {
   const int kMaxDigitsBeforePoint = 21;
@@ -1035,8 +1036,8 @@ char* DoubleToFixedCString(double value, int f) {
   char decimal_rep[kDecimalRepCapacity];
   int decimal_rep_length;
   DoubleToAscii(value, DTOA_FIXED, f,
-                Vector<char>(decimal_rep, kDecimalRepCapacity),
-                &sign, &decimal_rep_length, &decimal_point);
+                Vector<char>(decimal_rep, kDecimalRepCapacity), &sign,
+                &decimal_rep_length, &decimal_point);
 
   // Create a representation that is padded with zeros if needed.
   int zero_prefix_length = 0;
@@ -1048,8 +1049,8 @@ char* DoubleToFixedCString(double value, int f) {
   }
 
   if (zero_prefix_length + decimal_rep_length < decimal_point + f) {
-    zero_postfix_length = decimal_point + f - decimal_rep_length -
-                          zero_prefix_length;
+    zero_postfix_length =
+        decimal_point + f - decimal_rep_length - zero_prefix_length;
   }
 
   unsigned rep_length =
@@ -1074,9 +1075,7 @@ char* DoubleToFixedCString(double value, int f) {
   return builder.Finalize();
 }
 
-
-static char* CreateExponentialRepresentation(char* decimal_rep,
-                                             int exponent,
+static char* CreateExponentialRepresentation(char* decimal_rep, int exponent,
                                              bool negative,
                                              int significant_digits) {
   bool negative_exponent = false;
@@ -1107,7 +1106,6 @@ static char* CreateExponentialRepresentation(char* decimal_rep,
   return builder.Finalize();
 }
 
-
 char* DoubleToExponentialCString(double value, int f) {
   // f might be -1 to signal that f was undefined in JavaScript.
   DCHECK(f >= -1 && f <= kMaxFractionDigits);
@@ -1133,24 +1131,23 @@ char* DoubleToExponentialCString(double value, int f) {
 
   if (f == -1) {
     DoubleToAscii(value, DTOA_SHORTEST, 0,
-                  Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
-                  &sign, &decimal_rep_length, &decimal_point);
+                  Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
+                  &decimal_rep_length, &decimal_point);
     f = decimal_rep_length - 1;
   } else {
     DoubleToAscii(value, DTOA_PRECISION, f + 1,
-                  Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
-                  &sign, &decimal_rep_length, &decimal_point);
+                  Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
+                  &decimal_rep_length, &decimal_point);
   }
   DCHECK_GT(decimal_rep_length, 0);
   DCHECK(decimal_rep_length <= f + 1);
 
   int exponent = decimal_point - 1;
   char* result =
-      CreateExponentialRepresentation(decimal_rep, exponent, negative, f+1);
+      CreateExponentialRepresentation(decimal_rep, exponent, negative, f + 1);
 
   return result;
 }
-
 
 char* DoubleToPrecisionCString(double value, int p) {
   const int kMinimalDigits = 1;
@@ -1172,8 +1169,8 @@ char* DoubleToPrecisionCString(double value, int p) {
   int decimal_rep_length;
 
   DoubleToAscii(value, DTOA_PRECISION, p,
-                Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
-                &sign, &decimal_rep_length, &decimal_point);
+                Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
+                &decimal_rep_length, &decimal_point);
   DCHECK(decimal_rep_length <= p);
 
   int exponent = decimal_point - 1;
@@ -1189,9 +1186,8 @@ char* DoubleToPrecisionCString(double value, int p) {
     // Leave room in the result for appending a minus, a period and in
     // the case where decimal_point is not positive for a zero in
     // front of the period.
-    unsigned result_size = (decimal_point <= 0)
-        ? -decimal_point + p + 3
-        : p + 2;
+    unsigned result_size =
+        (decimal_point <= 0) ? -decimal_point + p + 3 : p + 2;
     SimpleStringBuilder builder(result_size + 1);
     if (negative) builder.AddCharacter('-');
     if (decimal_point <= 0) {
@@ -1309,7 +1305,6 @@ char* DoubleToRadixCString(double value, int radix) {
   return result;
 }
 
-
 // ES6 18.2.4 parseFloat(string)
 double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
                       double empty_string_val) {
@@ -1385,3 +1380,5 @@ bool IsSpecialIndex(String string) {
 }
 }  // namespace internal
 }  // namespace v8
+
+#undef FPCLASSIFY_NAMESPACE
