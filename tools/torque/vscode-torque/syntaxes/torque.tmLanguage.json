@@ -110,7 +110,7 @@
           "match": "\\b(=|\\*=)\\b"
         },
         {
-          "match": "\\b(class)\\s+([A-Za-z0-9]+)",
+          "match": "\\b(class|new)\\s+([A-Za-z0-9]+)",
           "captures": {
             "1": {
               "name": "keyword.other.torque"
