@@ -364,95 +364,76 @@ void Heap::SetGCState(HeapState state) {
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
   PrintIsolate(isolate_,
-               "Memory allocator,       used: %6" PRIuS
-               " KB,"
-               " available: %6" PRIuS " KB\n",
+               "Memory allocator,       used: %6zu KB,"
+               " available: %6zu KB\n",
                memory_allocator()->Size() / KB,
                memory_allocator()->Available() / KB);
   PrintIsolate(isolate_,
-               "Read-only space,        used: %6" PRIuS
-               " KB"
-               ", available: %6" PRIuS
-               " KB"
-               ", committed: %6" PRIuS " KB\n",
+               "Read-only space,        used: %6zu KB"
+               ", available: %6zu KB"
+               ", committed: %6zu KB\n",
                read_only_space_->Size() / KB,
                read_only_space_->Available() / KB,
                read_only_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "New space,              used: %6" PRIuS
-               " KB"
-               ", available: %6" PRIuS
-               " KB"
-               ", committed: %6" PRIuS " KB\n",
+               "New space,              used: %6zu KB"
+               ", available: %6zu KB"
+               ", committed: %6zu KB\n",
                new_space_->Size() / KB, new_space_->Available() / KB,
                new_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "New large object space, used: %6" PRIuS
-               " KB"
-               ", available: %6" PRIuS
-               " KB"
-               ", committed: %6" PRIuS " KB\n",
+               "New large object space, used: %6zu KB"
+               ", available: %6zu KB"
+               ", committed: %6zu KB\n",
                new_lo_space_->SizeOfObjects() / KB,
                new_lo_space_->Available() / KB,
                new_lo_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "Old space,              used: %6" PRIuS
-               " KB"
-               ", available: %6" PRIuS
-               " KB"
-               ", committed: %6" PRIuS " KB\n",
+               "Old space,              used: %6zu KB"
+               ", available: %6zu KB"
+               ", committed: %6zu KB\n",
                old_space_->SizeOfObjects() / KB, old_space_->Available() / KB,
                old_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "Code space,             used: %6" PRIuS
-               " KB"
-               ", available: %6" PRIuS
-               " KB"
-               ", committed: %6" PRIuS "KB\n",
+               "Code space,             used: %6zu KB"
+               ", available: %6zu KB"
+               ", committed: %6zu KB\n",
                code_space_->SizeOfObjects() / KB, code_space_->Available() / KB,
                code_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "Map space,              used: %6" PRIuS
-               " KB"
-               ", available: %6" PRIuS
-               " KB"
-               ", committed: %6" PRIuS " KB\n",
+               "Map space,              used: %6zu KB"
+               ", available: %6zu KB"
+               ", committed: %6zu KB\n",
                map_space_->SizeOfObjects() / KB, map_space_->Available() / KB,
                map_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "Large object space,     used: %6" PRIuS
-               " KB"
-               ", available: %6" PRIuS
-               " KB"
-               ", committed: %6" PRIuS " KB\n",
+               "Large object space,     used: %6zu KB"
+               ", available: %6zu KB"
+               ", committed: %6zu KB\n",
                lo_space_->SizeOfObjects() / KB, lo_space_->Available() / KB,
                lo_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "Code large object space,     used: %6" PRIuS
-               " KB"
-               ", available: %6" PRIuS
-               " KB"
-               ", committed: %6" PRIuS " KB\n",
+               "Code large object space,     used: %6zu KB"
+               ", available: %6zu KB"
+               ", committed: %6zu KB\n",
                code_lo_space_->SizeOfObjects() / KB,
                code_lo_space_->Available() / KB,
                code_lo_space_->CommittedMemory() / KB);
   ReadOnlySpace* const ro_space = read_only_space_;
   PrintIsolate(isolate_,
-               "All spaces,             used: %6" PRIuS
-               " KB"
-               ", available: %6" PRIuS
-               " KB"
-               ", committed: %6" PRIuS "KB\n",
+               "All spaces,             used: %6zu KB"
+               ", available: %6zu KB"
+               ", committed: %6zu KB\n",
                (this->SizeOfObjects() + ro_space->SizeOfObjects()) / KB,
                (this->Available() + ro_space->Available()) / KB,
                (this->CommittedMemory() + ro_space->CommittedMemory()) / KB);
   PrintIsolate(isolate_,
-               "Unmapper buffering %zu chunks of committed: %6" PRIuS " KB\n",
+               "Unmapper buffering %zu chunks of committed: %6zu KB\n",
                memory_allocator()->unmapper()->NumberOfCommittedChunks(),
                CommittedMemoryOfUnmapper() / KB);
   PrintIsolate(isolate_, "External memory reported: %6" PRId64 " KB\n",
                isolate()->isolate_data()->external_memory_ / KB);
-  PrintIsolate(isolate_, "Backing store memory: %6" PRIuS " KB\n",
+  PrintIsolate(isolate_, "Backing store memory: %6zu KB\n",
                backing_store_bytes_ / KB);
   PrintIsolate(isolate_, "External memory global %zu KB\n",
                external_memory_callback_() / KB);
@@ -2159,9 +2140,9 @@ void Heap::ComputeFastPromotionMode() {
       !ShouldReduceMemory() && new_space_->IsAtMaximumCapacity() &&
       survived_in_new_space >= kMinPromotedPercentForFastPromotionMode;
   if (FLAG_trace_gc_verbose && !FLAG_trace_gc_ignore_scavenger) {
-    PrintIsolate(
-        isolate(), "Fast promotion mode: %s survival rate: %" PRIuS "%%\n",
-        fast_promotion_mode_ ? "true" : "false", survived_in_new_space);
+    PrintIsolate(isolate(), "Fast promotion mode: %s survival rate: %zu%%\n",
+                 fast_promotion_mode_ ? "true" : "false",
+                 survived_in_new_space);
   }
 }
 
@@ -4215,7 +4196,7 @@ void Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
       if (FLAG_trace_gc) {
         PrintIsolate(isolate_,
                      "Min semi-space size cannot be more than the maximum "
-                     "semi-space size of %" PRIuS " MB\n",
+                     "semi-space size of %zu MB\n",
                      max_semi_space_size_ / MB);
       }
     } else {

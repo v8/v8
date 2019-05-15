@@ -137,7 +137,7 @@ void ReportCompilationSuccess(Handle<Script> script, int position,
   if (FLAG_suppress_asm_messages || !FLAG_trace_asm_time) return;
   EmbeddedVector<char, 100> text;
   int length = SNPrintF(
-      text, "success, asm->wasm: %0.3f ms, compile: %0.3f ms, %" PRIuS " bytes",
+      text, "success, asm->wasm: %0.3f ms, compile: %0.3f ms, %zu bytes",
       translate_time, compile_time, module_size);
   CHECK_NE(-1, length);
   text.Truncate(length);
@@ -264,7 +264,7 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
   if (FLAG_trace_asm_parser) {
     PrintF(
         "[asm.js translation successful: time=%0.3fms, "
-        "translate_zone=%" PRIuS "KB, compile_zone+=%" PRIuS "KB]\n",
+        "translate_zone=%zuKB, compile_zone+=%zuKB]\n",
         translate_time_, translate_zone_size_ / KB, compile_zone_size / KB);
   }
   return SUCCEEDED;

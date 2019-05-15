@@ -20,7 +20,7 @@ const size_t GCIdleTimeHandler::kMinTimeForOverApproximatingWeakClosureInMs = 1;
 void GCIdleTimeHeapState::Print() {
   PrintF("contexts_disposed=%d ", contexts_disposed);
   PrintF("contexts_disposal_rate=%f ", contexts_disposal_rate);
-  PrintF("size_of_objects=%" PRIuS " ", size_of_objects);
+  PrintF("size_of_objects=%zu ", size_of_objects);
   PrintF("incremental_marking_stopped=%d ", incremental_marking_stopped);
 }
 

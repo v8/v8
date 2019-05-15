@@ -325,13 +325,12 @@ void ProfileNode::Print(int indent) {
   base::OS::Print("\n");
   for (size_t i = 0; i < deopt_infos_.size(); ++i) {
     CpuProfileDeoptInfo& info = deopt_infos_[i];
-    base::OS::Print("%*s;;; deopted at script_id: %d position: %" PRIuS
-                    " with reason '%s'.\n",
-                    indent + 10, "", info.stack[0].script_id,
-                    info.stack[0].position, info.deopt_reason);
+    base::OS::Print(
+        "%*s;;; deopted at script_id: %d position: %zu with reason '%s'.\n",
+        indent + 10, "", info.stack[0].script_id, info.stack[0].position,
+        info.deopt_reason);
     for (size_t index = 1; index < info.stack.size(); ++index) {
-      base::OS::Print("%*s;;;     Inline point: script_id %d position: %" PRIuS
-                      ".\n",
+      base::OS::Print("%*s;;;     Inline point: script_id %d position: %zu.\n",
                       indent + 10, "", info.stack[index].script_id,
                       info.stack[index].position);
     }

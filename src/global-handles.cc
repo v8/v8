@@ -1278,7 +1278,7 @@ void GlobalHandles::PrintStats() {
   }
 
   PrintF("Global Handle Statistics:\n");
-  PrintF("  allocated memory = %" PRIuS "B\n", total * sizeof(Node));
+  PrintF("  allocated memory = %zuB\n", total * sizeof(Node));
   PrintF("  # weak       = %d\n", weak);
   PrintF("  # pending    = %d\n", pending);
   PrintF("  # near_death = %d\n", near_death);

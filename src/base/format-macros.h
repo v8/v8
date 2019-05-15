@@ -15,11 +15,6 @@
 // For wide strings, prepend "Wide" to the macro:
 //   int64_t value;
 //   StringPrintf(L"xyz: %" WidePRId64, value);
-//
-// To print a size_t value in a portable way:
-//   size_t size;
-//   printf("xyz: %" PRIuS, size);
-// The "u" in the macro corresponds to %u, and S is for "size".
 
 #include <stddef.h>
 #include <stdint.h>
@@ -45,10 +40,6 @@
 #define WidePRId64 PRId64
 #define WidePRIu64 PRIu64
 #define WidePRIx64 PRIx64
-
-#if !defined(PRIuS)
-#define PRIuS "zu"
-#endif
 
 // The size of NSInteger and NSUInteger varies between 32-bit and 64-bit
 // architectures and Apple does not provides standard format macros and
@@ -87,10 +78,6 @@
 #define WidePRId64 L"I64d"
 #define WidePRIu64 L"I64u"
 #define WidePRIx64 L"I64x"
-
-#if !defined(PRIuS)
-#define PRIuS "Iu"
-#endif
 
 #endif
 

@@ -926,8 +926,8 @@ void IncrementalMarking::ScheduleBytesToMarkBasedOnTime(double time_ms) {
 
   if (FLAG_trace_incremental_marking) {
     heap_->isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Scheduled %" PRIuS
-        "KB to mark based on time delta %.1fms\n",
+        "[IncrementalMarking] Scheduled %zuKB to mark based on time delta "
+        "%.1fms\n",
         bytes_to_mark / KB, delta_ms);
   }
 }
@@ -1028,9 +1028,8 @@ void IncrementalMarking::ScheduleBytesToMarkBasedOnAllocation() {
 
   if (FLAG_trace_incremental_marking) {
     heap_->isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Scheduled %" PRIuS
-        "KB to mark based on allocation (progress="
-        "%" PRIuS "KB, allocation=%" PRIuS "KB)\n",
+        "[IncrementalMarking] Scheduled %zuKB to mark based on allocation "
+        "(progress=%zuKB, allocation=%zuKB)\n",
         bytes_to_mark / KB, progress_bytes / KB, allocation_bytes / KB);
   }
 }
@@ -1048,7 +1047,7 @@ void IncrementalMarking::FetchBytesMarkedConcurrently() {
     }
     if (FLAG_trace_incremental_marking) {
       heap_->isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Marked %" PRIuS "KB on background threads\n",
+          "[IncrementalMarking] Marked %zuKB on background threads\n",
           heap_->concurrent_marking()->TotalMarkedBytes() / KB);
     }
   }
@@ -1059,11 +1058,11 @@ size_t IncrementalMarking::ComputeStepSizeInBytes(StepOrigin step_origin) {
   if (FLAG_trace_incremental_marking) {
     if (scheduled_bytes_to_mark_ > bytes_marked_) {
       heap_->isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Marker is %" PRIuS "KB behind schedule\n",
+          "[IncrementalMarking] Marker is %zuKB behind schedule\n",
           (scheduled_bytes_to_mark_ - bytes_marked_) / KB);
     } else {
       heap_->isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Marker is %" PRIuS "KB ahead of schedule\n",
+          "[IncrementalMarking] Marker is %zuKB ahead of schedule\n",
           (bytes_marked_ - scheduled_bytes_to_mark_) / KB);
     }
   }
@@ -1171,7 +1170,7 @@ StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
   heap_->tracer()->AddIncrementalMarkingStep(duration, bytes_processed);
   if (FLAG_trace_incremental_marking) {
     heap_->isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Step %s %" PRIuS "KB (%" PRIuS "KB) in %.1f\n",
+        "[IncrementalMarking] Step %s %zuKB (%zuKB) in %.1f\n",
         step_origin == StepOrigin::kV8 ? "in v8" : "in task",
         bytes_processed / KB, bytes_to_process / KB, duration);
   }

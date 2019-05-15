@@ -136,7 +136,7 @@ void AddressToTraceMap::Clear() {
 
 
 void AddressToTraceMap::Print() {
-  PrintF("[AddressToTraceMap (%" PRIuS "): \n", ranges_.size());
+  PrintF("[AddressToTraceMap (%zu): \n", ranges_.size());
   for (RangeMap::iterator it = ranges_.begin(); it != ranges_.end(); ++it) {
     PrintF("[%p - %p] => %u\n", reinterpret_cast<void*>(it->second.start),
            reinterpret_cast<void*>(it->first), it->second.trace_node_id);

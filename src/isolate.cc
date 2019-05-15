@@ -2790,8 +2790,7 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"time\": %f, "
         "\"ptr\": \"%p\", "
         "\"name\": \"%s\", "
-        "\"size\": %" PRIuS
-        ","
+        "\"size\": %zu,"
         "\"nesting\": %zu}\n",
         type, reinterpret_cast<void*>(heap_->isolate()),
         heap_->isolate()->time_millis_since_init(),
@@ -2808,7 +2807,7 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"type\": \"zone\", "
         "\"isolate\": \"%p\", "
         "\"time\": %f, "
-        "\"allocated\": %" PRIuS "}\n",
+        "\"allocated\": %zu}\n",
         reinterpret_cast<void*>(heap_->isolate()), time, malloced);
   }
 

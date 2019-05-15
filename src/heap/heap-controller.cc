@@ -107,7 +107,7 @@ size_t MemoryController::CalculateAllocationLimit(
 
   if (FLAG_trace_gc_verbose) {
     Isolate::FromHeap(heap_)->PrintWithTimestamp(
-        "%s Limit: old size: %" PRIuS " KB, new limit: %" PRIuS " KB (%.1f)\n",
+        "%s Limit: old size: %zu KB, new limit: %zu KB (%.1f)\n",
         ControllerName(), curr_size / KB, result / KB, factor);
   }
 

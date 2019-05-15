@@ -311,9 +311,9 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
                  it->rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
         // raw pointer embedded in code stream, e.g., jump table
         byte* ptr = *reinterpret_cast<byte**>(pc);
-        SNPrintF(
-            decode_buffer, "%08" V8PRIxPTR "      jump table entry %4" PRIuS,
-            reinterpret_cast<intptr_t>(ptr), static_cast<size_t>(ptr - begin));
+        SNPrintF(decode_buffer, "%08" V8PRIxPTR "      jump table entry %4zu",
+                 reinterpret_cast<intptr_t>(ptr),
+                 static_cast<size_t>(ptr - begin));
         pc += sizeof(ptr);
       } else {
         decode_buffer[0] = '\0';

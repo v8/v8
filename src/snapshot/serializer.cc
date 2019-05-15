@@ -75,8 +75,7 @@ void Serializer::OutputStatistics(const char* name) {
 #define PRINT_INSTANCE_TYPE(Name)                                             \
   for (int space = 0; space < LAST_SPACE; ++space) {                          \
     if (instance_type_count_[space][Name]) {                                  \
-      PrintF("%10d %10" PRIuS "  %-10s %s\n",                                 \
-             instance_type_count_[space][Name],                               \
+      PrintF("%10d %10zu  %-10s %s\n", instance_type_count_[space][Name],     \
              instance_type_size_[space][Name],                                \
              Heap::GetSpaceName(static_cast<AllocationSpace>(space)), #Name); \
     }                                                                         \
