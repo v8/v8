@@ -1172,7 +1172,7 @@ class ThreadImpl {
 
   void Reset() {
     TRACE("----- RESET -----\n");
-    sp_ = stack_.get();
+    ResetStack(0);
     frames_.clear();
     state_ = WasmInterpreter::STOPPED;
     trap_reason_ = kTrapCount;
@@ -1241,7 +1241,7 @@ class ThreadImpl {
     // first).
     DCHECK_EQ(activations_.back().fp, frames_.size());
     DCHECK_LE(activations_.back().sp, StackHeight());
-    sp_ = stack_.get() + activations_.back().sp;
+    ResetStack(activations_.back().sp);
     activations_.pop_back();
   }
 
@@ -1315,7 +1315,7 @@ class ThreadImpl {
       }
       TRACE("  => drop frame #%zu (#%u @%zu)\n", frames_.size() - 1,
             code->function->func_index, frame.pc);
-      sp_ = stack_.get() + frame.sp;
+      ResetStack(frame.sp);
       frames_.pop_back();
     }
     TRACE("----- UNWIND -----\n");
@@ -1342,8 +1342,6 @@ class ThreadImpl {
   // kept in a separate on-heap reference stack to make the GC trace them.
   // TODO(mstarzinger): Optimize simple stack operations (like "get_local",
   // "set_local", and "tee_local") so that they don't require a handle scope.
-  // TODO(mstarzinger): Ensure unused slots on the reference stack are cleared
-  // so that they don't keep alive old/stale references unnecessarily long.
   // TODO(mstarzinger): Consider optimizing activations that use no reference
   // values to avoid allocating the reference stack entirely.
   class StackValue {
@@ -1363,10 +1361,29 @@ class ThreadImpl {
       int ref_index = static_cast<int>(index);
       Isolate* isolate = thread->isolate_;
       Handle<Object> ref(thread->reference_stack()->get(ref_index), isolate);
+      DCHECK(!ref->IsTheHole(isolate));
       return WasmValue(ref);
     }
 
     bool IsReferenceValue() const { return value_.type() == kWasmAnyRef; }
+
+    void ClearValue(ThreadImpl* thread, sp_t index) {
+      if (!IsReferenceValue()) return;
+      int ref_index = static_cast<int>(index);
+      Isolate* isolate = thread->isolate_;
+      thread->reference_stack()->set_the_hole(isolate, ref_index);
+    }
+
+    static void ClearValues(ThreadImpl* thread, sp_t index, int count) {
+      int ref_index = static_cast<int>(index);
+      thread->reference_stack()->FillWithHoles(ref_index, ref_index + count);
+    }
+
+    static bool IsClearedValue(ThreadImpl* thread, sp_t index) {
+      int ref_index = static_cast<int>(index);
+      Isolate* isolate = thread->isolate_;
+      return thread->reference_stack()->is_the_hole(isolate, ref_index);
+    }
 
    private:
     WasmValue value_;
@@ -1608,7 +1625,9 @@ class ThreadImpl {
       reference_stack().MoveElements(isolate_, dst, src, len,
                                      UPDATE_WRITE_BARRIER);
     }
-    sp_ = dest + arity;
+    // TODO(mstarzinger): Refactor the interface so that we don't have to
+    // recompute values here which are already known at the call-site.
+    ResetStack(StackHeight() - (sp_ - dest) + arity);
   }
 
   inline Address EffectiveAddress(uint32_t index) {
@@ -3373,7 +3392,9 @@ class ThreadImpl {
     StackValue stack_value = *--sp_;
     // Note that {StackHeight} depends on the current {sp} value, hence this
     // operation is split into two statements to ensure proper evaluation order.
-    return stack_value.ExtractValue(this, StackHeight());
+    WasmValue val = stack_value.ExtractValue(this, StackHeight());
+    stack_value.ClearValue(this, StackHeight());
+    return val;
   }
 
   void Drop(int n = 1) {
@@ -3381,6 +3402,7 @@ class ThreadImpl {
     DCHECK_GT(frames_.size(), 0);
     // Check that we don't pop into locals.
     DCHECK_GE(StackHeight() - n, frames_.back().llimit());
+    StackValue::ClearValues(this, StackHeight() - n, n);
     sp_ -= n;
   }
 
@@ -3393,6 +3415,7 @@ class ThreadImpl {
   void Push(WasmValue val) {
     DCHECK_NE(kWasmStmt, val.type());
     DCHECK_LE(1, stack_limit_ - sp_);
+    DCHECK(StackValue::IsClearedValue(this, StackHeight()));
     StackValue stack_value(val, this, StackHeight());
     // Note that {StackHeight} depends on the current {sp} value, hence this
     // operation is split into two statements to ensure proper evaluation order.
@@ -3405,6 +3428,13 @@ class ThreadImpl {
       DCHECK_NE(kWasmStmt, val->type());
       Push(*val);
     }
+  }
+
+  void ResetStack(sp_t new_height) {
+    DCHECK_LE(new_height, StackHeight());  // Only allowed to shrink.
+    int count = static_cast<int>(StackHeight() - new_height);
+    StackValue::ClearValues(this, new_height, count);
+    sp_ = stack_.get() + new_height;
   }
 
   void EnsureStackSpace(size_t size) {
@@ -3426,6 +3456,8 @@ class ThreadImpl {
     Handle<FixedArray> old_ref_stack(reference_stack(), isolate_);
     Handle<FixedArray> new_ref_stack =
         isolate_->factory()->CopyFixedArrayAndGrow(old_ref_stack, grow_by);
+    new_ref_stack->FillWithHoles(static_cast<int>(old_size),
+                                 static_cast<int>(new_size));
     reference_stack_cell_->set_value(*new_ref_stack);
   }
 
@@ -3505,7 +3537,7 @@ class ThreadImpl {
 
     if (code->kind() == WasmCode::kWasmToJsWrapper &&
         !IsJSCompatibleSignature(sig, enabled_features.bigint)) {
-      sp_ -= num_args;  // Pop arguments before throwing.
+      Drop(num_args);  // Pop arguments before throwing.
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kWasmTrapTypeError));
       return TryHandleException(isolate);
@@ -3588,7 +3620,7 @@ class ThreadImpl {
           maybe_retval.is_null() ? " with exception" : "");
 
     // Pop arguments off the stack.
-    sp_ -= num_args;
+    Drop(num_args);
 
     if (maybe_retval.is_null()) {
       // JSEntry may throw a stack overflow before we actually get to wasm code
