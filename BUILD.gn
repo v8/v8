@@ -15,8 +15,8 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
+import("gni/snapshot_toolchain.gni")
 import("gni/v8.gni")
-import("snapshot_toolchain.gni")
 
 # Specifies if the target build is a simulator build. Comparing target cpu
 # with v8 target cpu to not affect simulator builds for making cross-compile
