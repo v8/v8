@@ -16,6 +16,7 @@ namespace compiler {
 // Write barrier kinds supported by compiler.
 enum WriteBarrierKind : uint8_t {
   kNoWriteBarrier,
+  kAssertNoWriteBarrier,
   kMapWriteBarrier,
   kPointerWriteBarrier,
   kEphemeronKeyWriteBarrier,
@@ -30,6 +31,8 @@ inline std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
   switch (kind) {
     case kNoWriteBarrier:
       return os << "NoWriteBarrier";
+    case kAssertNoWriteBarrier:
+      return os << "AssertNoWriteBarrier";
     case kMapWriteBarrier:
       return os << "MapWriteBarrier";
     case kPointerWriteBarrier:

@@ -965,6 +965,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);
+  Node* UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
+                                  Node* value);
+  Node* UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
+                                  Node* offset, Node* value);
+
   // Stores uncompressed tagged value to (most likely off JS heap) memory
   // location without write barrier.
   Node* StoreFullTaggedNoWriteBarrier(Node* base, Node* tagged_value);
@@ -977,9 +982,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                       AllowLargeObjects allow_large_objects);
   void OptimizedStoreField(MachineRepresentation rep, TNode<HeapObject> object,
                            int offset, Node* value);
-  void OptimizedStoreFieldNoWriteBarrier(MachineRepresentation rep,
-                                         TNode<HeapObject> object, int offset,
-                                         Node* value);
+  void OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentation rep,
+                                               TNode<HeapObject> object,
+                                               int offset, Node* value);
+  void OptimizedStoreFieldUnsafeNoWriteBarrier(MachineRepresentation rep,
+                                               TNode<HeapObject> object,
+                                               int offset, Node* value);
   void OptimizedStoreMap(TNode<HeapObject> object, TNode<Map>);
   // {value_high} is used for 64-bit stores on 32-bit platforms, must be
   // nullptr in other cases.

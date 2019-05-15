@@ -1839,7 +1839,8 @@ void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
     StoreObjectFieldNoWriteBarrier(property_storage, offset, value,
                                    MachineRepresentation::kFloat64);
   } else if (representation.IsSmi()) {
-    StoreObjectFieldNoWriteBarrier(property_storage, offset, value);
+    TNode<Smi> value_smi = CAST(value);
+    StoreObjectFieldNoWriteBarrier(property_storage, offset, value_smi);
   } else {
     StoreObjectField(property_storage, offset, value);
   }

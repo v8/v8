@@ -2738,12 +2738,24 @@ void CodeStubAssembler::StoreObjectField(Node* object, Node* offset,
 
 void CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
     Node* object, int offset, Node* value, MachineRepresentation rep) {
-  OptimizedStoreFieldNoWriteBarrier(rep, UncheckedCast<HeapObject>(object),
-                                    offset, value);
+  if (CanBeTaggedPointer(rep)) {
+    OptimizedStoreFieldAssertNoWriteBarrier(
+        rep, UncheckedCast<HeapObject>(object), offset, value);
+  } else {
+    OptimizedStoreFieldUnsafeNoWriteBarrier(
+        rep, UncheckedCast<HeapObject>(object), offset, value);
+  }
+}
+
+void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
+    TNode<HeapObject> object, int offset, TNode<Object> value) {
+  OptimizedStoreFieldUnsafeNoWriteBarrier(MachineRepresentation::kTagged,
+                                          object, offset, value);
 }
 
 void CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
-    Node* object, Node* offset, Node* value, MachineRepresentation rep) {
+    Node* object, SloppyTNode<IntPtrT> offset, Node* value,
+    MachineRepresentation rep) {
   int const_offset;
   if (ToInt32Constant(offset, const_offset)) {
     return StoreObjectFieldNoWriteBarrier(object, const_offset, value, rep);
@@ -2763,9 +2775,9 @@ void CodeStubAssembler::StoreMapNoWriteBarrier(Node* object,
 
 void CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  OptimizedStoreFieldNoWriteBarrier(MachineRepresentation::kTaggedPointer,
-                                    UncheckedCast<HeapObject>(object),
-                                    HeapObject::kMapOffset, map);
+  OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentation::kTaggedPointer,
+                                          UncheckedCast<HeapObject>(object),
+                                          HeapObject::kMapOffset, map);
 }
 
 void CodeStubAssembler::StoreObjectFieldRoot(Node* object, int offset,
@@ -2794,6 +2806,7 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
       this, Word32Or(IsFixedArraySubclass(object), IsPropertyArray(object)));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
+         barrier_mode == UNSAFE_SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER ||
          barrier_mode == UPDATE_EPHEMERON_KEY_WRITE_BARRIER);
   DCHECK(IsAligned(additional_offset, kTaggedSize));
@@ -2828,6 +2841,9 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
           FixedArray::kHeaderSize));
   if (barrier_mode == SKIP_WRITE_BARRIER) {
     StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset, value);
+  } else if (barrier_mode == UNSAFE_SKIP_WRITE_BARRIER) {
+    UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
+                              value);
   } else if (barrier_mode == UPDATE_EPHEMERON_KEY_WRITE_BARRIER) {
     StoreEphemeronKey(object, offset, value);
   } else {
@@ -2862,6 +2878,7 @@ void CodeStubAssembler::StoreFeedbackVectorSlot(Node* object,
   CSA_SLOW_ASSERT(this, MatchesParameterMode(slot_index_node, parameter_mode));
   DCHECK(IsAligned(additional_offset, kTaggedSize));
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
+         barrier_mode == UNSAFE_SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
   int header_size =
       FeedbackVector::kFeedbackSlotsOffset + additional_offset - kHeapObjectTag;
@@ -2873,6 +2890,9 @@ void CodeStubAssembler::StoreFeedbackVectorSlot(Node* object,
                               FeedbackVector::kHeaderSize));
   if (barrier_mode == SKIP_WRITE_BARRIER) {
     StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset, value);
+  } else if (barrier_mode == UNSAFE_SKIP_WRITE_BARRIER) {
+    UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
+                              value);
   } else {
     Store(object, offset, value);
   }
@@ -3808,7 +3828,8 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(Node* start_address,
   BuildFastLoop(
       start_address, end_address,
       [this, value](Node* current) {
-        StoreNoWriteBarrier(MachineRepresentation::kTagged, current, value);
+        UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, current,
+                                  value);
       },
       kTaggedSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 }
@@ -3850,23 +3871,28 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   TVARIABLE(JSArray, array);
   TVARIABLE(FixedArrayBase, elements);
 
-  if (IsIntPtrOrSmiConstantZero(capacity, capacity_mode)) {
-    TNode<FixedArrayBase> empty_array = EmptyFixedArrayConstant();
-    array = AllocateJSArray(array_map, empty_array, length, allocation_site);
-    return {array.value(), empty_array};
-  }
-
   Label out(this), empty(this), nonempty(this);
 
-  Branch(SmiEqual(ParameterToTagged(capacity, capacity_mode), SmiConstant(0)),
-         &empty, &nonempty);
+  int capacity_int;
+  if (TryGetIntPtrOrSmiConstantValue(capacity, &capacity_int, capacity_mode)) {
+    if (capacity_int == 0) {
+      TNode<FixedArrayBase> empty_array = EmptyFixedArrayConstant();
+      array = AllocateJSArray(array_map, empty_array, length, allocation_site);
+      return {array.value(), empty_array};
+    } else {
+      Goto(&nonempty);
+    }
+  } else {
+    Branch(SmiEqual(ParameterToTagged(capacity, capacity_mode), SmiConstant(0)),
+           &empty, &nonempty);
 
-  BIND(&empty);
-  {
-    TNode<FixedArrayBase> empty_array = EmptyFixedArrayConstant();
-    array = AllocateJSArray(array_map, empty_array, length, allocation_site);
-    elements = empty_array;
-    Goto(&out);
+    BIND(&empty);
+    {
+      TNode<FixedArrayBase> empty_array = EmptyFixedArrayConstant();
+      array = AllocateJSArray(array_map, empty_array, length, allocation_site);
+      elements = empty_array;
+      Goto(&out);
+    }
   }
 
   BIND(&nonempty);
@@ -4961,8 +4987,8 @@ void CodeStubAssembler::CopyFixedArrayElements(
       StoreNoWriteBarrier(MachineRepresentation::kFloat64, to_array_adjusted,
                           to_offset, value);
     } else {
-      StoreNoWriteBarrier(MachineRepresentation::kTagged, to_array_adjusted,
-                          to_offset, value);
+      UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged,
+                                to_array_adjusted, to_offset, value);
     }
     Goto(&next_iter);
 
@@ -10314,8 +10340,9 @@ void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
     TNode<Float64T> value_float64 = UncheckedCast<Float64T>(value);
     StoreFixedDoubleArrayElement(CAST(elements), index, value_float64, mode);
   } else {
-    WriteBarrierMode barrier_mode =
-        IsSmiElementsKind(kind) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
+    WriteBarrierMode barrier_mode = IsSmiElementsKind(kind)
+                                        ? UNSAFE_SKIP_WRITE_BARRIER
+                                        : UPDATE_WRITE_BARRIER;
     StoreFixedArrayElement(CAST(elements), index, value, barrier_mode, 0, mode);
   }
 }

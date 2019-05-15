@@ -999,9 +999,16 @@ void CodeAssembler::OptimizedStoreField(MachineRepresentation rep,
                                        WriteBarrierKind::kFullWriteBarrier);
 }
 
-void CodeAssembler::OptimizedStoreFieldNoWriteBarrier(MachineRepresentation rep,
-                                                      TNode<HeapObject> object,
-                                                      int offset, Node* value) {
+void CodeAssembler::OptimizedStoreFieldAssertNoWriteBarrier(
+    MachineRepresentation rep, TNode<HeapObject> object, int offset,
+    Node* value) {
+  raw_assembler()->OptimizedStoreField(rep, object, offset, value,
+                                       WriteBarrierKind::kAssertNoWriteBarrier);
+}
+
+void CodeAssembler::OptimizedStoreFieldUnsafeNoWriteBarrier(
+    MachineRepresentation rep, TNode<HeapObject> object, int offset,
+    Node* value) {
   raw_assembler()->OptimizedStoreField(rep, object, offset, value,
                                        WriteBarrierKind::kNoWriteBarrier);
 }
@@ -1023,11 +1030,26 @@ Node* CodeAssembler::StoreEphemeronKey(Node* base, Node* offset, Node* value) {
 
 Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
                                          Node* value) {
-  return raw_assembler()->Store(rep, base, value, kNoWriteBarrier);
+  return raw_assembler()->Store(
+      rep, base, value,
+      CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
 }
 
 Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
                                          Node* offset, Node* value) {
+  return raw_assembler()->Store(
+      rep, base, offset, value,
+      CanBeTaggedPointer(rep) ? kAssertNoWriteBarrier : kNoWriteBarrier);
+}
+
+Node* CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
+                                               Node* base, Node* value) {
+  return raw_assembler()->Store(rep, base, value, kNoWriteBarrier);
+}
+
+Node* CodeAssembler::UnsafeStoreNoWriteBarrier(MachineRepresentation rep,
+                                               Node* base, Node* offset,
+                                               Node* value) {
   return raw_assembler()->Store(rep, base, offset, value, kNoWriteBarrier);
 }
 
@@ -1194,7 +1216,8 @@ TNode<Object> CodeAssembler::CallRuntimeWithCEntryImpl(
   int argc = static_cast<int>(args.size());
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       zone(), function, argc, Operator::kNoProperties,
-      CallDescriptor::kNoFlags);
+      Runtime::MayAllocate(function) ? CallDescriptor::kNoFlags
+                                     : CallDescriptor::kNoAllocate);
 
   Node* ref = ExternalConstant(ExternalReference::Create(function));
   Node* arity = Int32Constant(argc);
