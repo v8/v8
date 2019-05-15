@@ -454,9 +454,9 @@ TEST(EmbeddedObj) {
   StdoutStream os;
   code->Print(os);
 #endif
-  typedef Object(myF0)();
+  typedef Address(myF0)();
   auto f = GeneratedCode<myF0>::FromAddress(isolate, code->entry());
-  Object result = f.Call();
+  Object result = Object(f.Call());
   CHECK_EQ(old_array->ptr(), result.ptr());
 
   // Collect garbage to ensure reloc info can be walked by the heap.
