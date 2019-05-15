@@ -1503,14 +1503,14 @@ class ThreadImpl {
 
   int JumpToHandlerDelta(InterpreterCode* code, pc_t pc) {
     ControlTransferEntry& control_transfer_entry = code->side_table->Lookup(pc);
-    DoStackTransfer(sp_ - (control_transfer_entry.sp_diff + kCatchInArity),
+    DoStackTransfer(control_transfer_entry.sp_diff + kCatchInArity,
                     control_transfer_entry.target_arity);
     return control_transfer_entry.pc_diff;
   }
 
   int DoBreak(InterpreterCode* code, pc_t pc, size_t depth) {
     ControlTransferEntry& control_transfer_entry = code->side_table->Lookup(pc);
-    DoStackTransfer(sp_ - control_transfer_entry.sp_diff,
+    DoStackTransfer(control_transfer_entry.sp_diff,
                     control_transfer_entry.target_arity);
     return control_transfer_entry.pc_diff;
   }
@@ -1534,12 +1534,12 @@ class ThreadImpl {
   bool DoReturn(Decoder* decoder, InterpreterCode** code, pc_t* pc, pc_t* limit,
                 size_t arity) {
     DCHECK_GT(frames_.size(), 0);
-    StackValue* sp_dest = stack_.get() + frames_.back().sp;
+    spdiff_t sp_diff = static_cast<spdiff_t>(StackHeight() - frames_.back().sp);
     frames_.pop_back();
     if (frames_.size() == current_activation().fp) {
       // A return from the last frame terminates the execution.
       state_ = WasmInterpreter::FINISHED;
-      DoStackTransfer(sp_dest, arity);
+      DoStackTransfer(sp_diff, arity);
       TRACE("  => finish\n");
       return false;
     } else {
@@ -1551,7 +1551,7 @@ class ThreadImpl {
       *limit = top->code->end - top->code->start;
       TRACE("  => Return to #%zu (#%u @%zu)\n", frames_.size() - 1,
             (*code)->function->func_index, *pc);
-      DoStackTransfer(sp_dest, arity);
+      DoStackTransfer(sp_diff, arity);
       return true;
     }
   }
@@ -1582,10 +1582,10 @@ class ThreadImpl {
     Frame* top = &frames_.back();
 
     // Drop everything except current parameters.
-    StackValue* sp_dest = stack_.get() + top->sp;
+    spdiff_t sp_diff = static_cast<spdiff_t>(StackHeight() - top->sp);
     size_t arity = target->function->sig->parameter_count();
 
-    DoStackTransfer(sp_dest, arity);
+    DoStackTransfer(sp_diff, arity);
 
     *limit = target->end - target->start;
     decoder->Reset(target->start, target->end);
@@ -1604,30 +1604,29 @@ class ThreadImpl {
     return true;
   }
 
-  // Copies {arity} values on the top of the stack down the stack to {dest},
-  // dropping the values in-between.
-  void DoStackTransfer(StackValue* dest, size_t arity) {
+  // Copies {arity} values on the top of the stack down the stack while also
+  // dropping {sp_diff} many stack values in total from the stack.
+  void DoStackTransfer(spdiff_t sp_diff, size_t arity) {
     // before: |---------------| pop_count | arity |
-    //         ^ 0             ^ dest              ^ sp_
+    //         ^ 0             ^ dest      ^ src   ^ StackHeight()
+    //                         ^----< sp_diff >----^
     //
     // after:  |---------------| arity |
-    //         ^ 0                     ^ sp_
-    DCHECK_LE(dest, sp_);
-    DCHECK_LE(dest + arity, sp_);
-    if (arity && (dest != sp_ - arity)) {
-      memmove(dest, sp_ - arity, arity * sizeof(*sp_));
+    //         ^ 0                     ^ StackHeight()
+    sp_t stack_height = StackHeight();
+    sp_t dest = stack_height - sp_diff;
+    sp_t src = stack_height - arity;
+    DCHECK_LE(dest, stack_height);
+    DCHECK_LE(dest, src);
+    if (arity && (dest != src)) {
+      StackValue* stack = stack_.get();
+      memmove(stack + dest, stack + src, arity * sizeof(StackValue));
       // Also move elements on the reference stack accordingly.
-      // TODO(mstarzinger): Refactor the interface so that we don't have to
-      // recompute values here which are already known at the call-site.
-      int dst = static_cast<int>(StackHeight() - (sp_ - dest));
-      int src = static_cast<int>(StackHeight() - arity);
-      int len = static_cast<int>(arity);
-      reference_stack().MoveElements(isolate_, dst, src, len,
-                                     UPDATE_WRITE_BARRIER);
+      reference_stack().MoveElements(
+          isolate_, static_cast<int>(dest), static_cast<int>(src),
+          static_cast<int>(arity), UPDATE_WRITE_BARRIER);
     }
-    // TODO(mstarzinger): Refactor the interface so that we don't have to
-    // recompute values here which are already known at the call-site.
-    ResetStack(StackHeight() - (sp_ - dest) + arity);
+    ResetStack(dest + arity);
   }
 
   inline Address EffectiveAddress(uint32_t index) {
