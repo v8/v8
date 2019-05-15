@@ -387,10 +387,21 @@ JsonString JsonParser<Char>::ScanJsonPropertyKey(JsonContinuation* cont) {
   return ScanJsonString(true);
 }
 
+namespace {
+Handle<Map> ParentOfDescriptorOwner(Isolate* isolate, Handle<Map> maybe_root,
+                                    Handle<Map> source, int descriptor) {
+  if (descriptor == 0) {
+    DCHECK_EQ(0, maybe_root->NumberOfOwnDescriptors());
+    return maybe_root;
+  }
+  return handle(source->FindFieldOwner(isolate, descriptor - 1), isolate);
+}
+}  // namespace
+
 template <typename Char>
 Handle<Object> JsonParser<Char>::BuildJsonObject(
     const JsonContinuation& cont,
-    const std::vector<JsonProperty>& property_stack) {
+    const std::vector<JsonProperty>& property_stack, Handle<Map> feedback) {
   size_t start = cont.index;
   int length = static_cast<int>(property_stack.size() - start);
   int named_length = length - cont.elements;
@@ -435,6 +446,13 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     }
   }
 
+  int feedback_descriptors =
+      (feedback.is_null() ||
+       feedback->elements_kind() != map->elements_kind() ||
+       feedback->instance_size() != map->instance_size())
+          ? 0
+          : feedback->NumberOfOwnDescriptors();
+
   int i;
   int descriptor = 0;
   for (i = 0; i < length; i++) {
@@ -442,7 +460,11 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     if (property.string.is_index()) continue;
     Handle<String> expected;
     Handle<Map> target;
-    {
+    if (descriptor < feedback_descriptors) {
+      expected = handle(
+          String::cast(feedback->instance_descriptors().GetKey(descriptor)),
+          isolate_);
+    } else {
       DisallowHeapAllocation no_gc;
       TransitionsAccessor transitions(isolate(), *map, &no_gc);
       expected = transitions.ExpectedTransitionKey();
@@ -455,10 +477,18 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     }
 
     Handle<String> key = MakeString(property.string, expected);
-    if (!key.is_identical_to(expected) && !TransitionsAccessor(isolate(), map)
-                                               .FindTransitionToField(key)
-                                               .ToHandle(&target)) {
-      break;
+    if (key.is_identical_to(expected)) {
+      if (descriptor < feedback_descriptors) target = feedback;
+    } else {
+      if (descriptor < feedback_descriptors) {
+        map = ParentOfDescriptorOwner(isolate_, map, feedback, descriptor);
+        feedback_descriptors = 0;
+      }
+      if (!TransitionsAccessor(isolate(), map)
+               .FindTransitionToField(key)
+               .ToHandle(&target)) {
+        break;
+      }
     }
 
     Handle<Object> value = property.value;
@@ -469,7 +499,10 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     if (!value->FitsRepresentation(expected_representation)) {
       Representation representation = value->OptimalRepresentation();
       representation = representation.generalize(expected_representation);
-      if (!expected_representation.CanBeInPlaceChangedTo(representation)) break;
+      if (!expected_representation.CanBeInPlaceChangedTo(representation)) {
+        map = ParentOfDescriptorOwner(isolate_, map, target, descriptor);
+        break;
+      }
       Handle<FieldType> value_type =
           value->OptimalType(isolate(), representation);
       Map::GeneralizeField(isolate(), target, descriptor, details.constness(),
@@ -497,6 +530,9 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
   object->set_elements(*elements);
 
   // Fast path: Write all transitioned named properties.
+  if (i == length && descriptor < feedback_descriptors) {
+    map = ParentOfDescriptorOwner(isolate_, map, map, descriptor);
+  }
   descriptor = 0;
   for (int j = 0; j < i; j++) {
     const JsonProperty& property = property_stack[start + j];
@@ -726,7 +762,15 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             break;
           }
 
-          value = BuildJsonObject(cont, property_stack);
+          Handle<Map> feedback;
+          if (cont_stack.size() > 0 &&
+              cont_stack.back().type() == JsonContinuation::kArrayElement &&
+              cont_stack.back().index < element_stack.size() &&
+              element_stack.back()->IsJSObject()) {
+            feedback =
+                handle(JSObject::cast(*element_stack.back())->map(), isolate_);
+          }
+          value = BuildJsonObject(cont, property_stack, feedback);
           property_stack.resize(cont.index);
           Expect(JsonToken::RBRACE);
 

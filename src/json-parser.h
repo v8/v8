@@ -287,7 +287,7 @@ class JsonParser final {
 
   Handle<Object> BuildJsonObject(
       const JsonContinuation& cont,
-      const std::vector<JsonProperty>& property_stack);
+      const std::vector<JsonProperty>& property_stack, Handle<Map> feedback);
   Handle<Object> BuildJsonArray(
       const JsonContinuation& cont,
       const std::vector<Handle<Object>>& element_stack);
