@@ -1593,57 +1593,6 @@ TF_BUILTIN(StringPrototypeSearch, StringMatchSearchAssembler) {
   Generate(kSearch, "String.prototype.search", receiver, maybe_regexp, context);
 }
 
-// ES6 section 21.1.3.18 String.prototype.slice ( start, end )
-TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
-  Label out(this);
-  TVARIABLE(IntPtrT, var_start);
-  TVARIABLE(IntPtrT, var_end);
-
-  const int kStart = 0;
-  const int kEnd = 1;
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* const receiver = args.GetReceiver();
-  TNode<Object> start = args.GetOptionalArgumentValue(kStart);
-  TNode<Object> end = args.GetOptionalArgumentValue(kEnd);
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  // 1. Let O be ? RequireObjectCoercible(this value).
-  RequireObjectCoercible(context, receiver, "String.prototype.slice");
-
-  // 2. Let S be ? ToString(O).
-  TNode<String> const subject_string =
-      CAST(CallBuiltin(Builtins::kToString, context, receiver));
-
-  // 3. Let len be the number of elements in S.
-  TNode<IntPtrT> const length = LoadStringLengthAsWord(subject_string);
-
-  // Convert {start} to a relative index.
-  var_start = ConvertToRelativeIndex(context, start, length);
-
-  // 5. If end is undefined, let intEnd be len;
-  var_end = length;
-  GotoIf(IsUndefined(end), &out);
-
-  // Convert {end} to a relative index.
-  var_end = ConvertToRelativeIndex(context, end, length);
-  Goto(&out);
-
-  Label return_emptystring(this);
-  BIND(&out);
-  {
-    GotoIf(IntPtrLessThanOrEqual(var_end.value(), var_start.value()),
-           &return_emptystring);
-    TNode<String> const result =
-        SubString(subject_string, var_start.value(), var_end.value());
-    args.PopAndReturn(result);
-  }
-
-  BIND(&return_emptystring);
-  args.PopAndReturn(EmptyStringConstant());
-}
-
 TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<Context> context, TNode<String> subject_string,
     TNode<Smi> subject_length, TNode<Number> limit_number) {
