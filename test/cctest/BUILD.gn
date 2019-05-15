@@ -165,6 +165,7 @@ v8_source_set("cctest_sources") {
     "test-allocation.cc",
     "test-api-accessors.cc",
     "test-api-interceptors.cc",
+    "test-api-stack-traces.cc",
     "test-api.cc",
     "test-api.h",
     "test-array-list.cc",
