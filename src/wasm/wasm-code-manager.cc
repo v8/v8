@@ -434,19 +434,18 @@ base::SmallVector<base::AddressRegion, 1> SplitRangeByReservationsIfNeeded(
   if (!kNeedsToSplitRangeByReservations) return {range};
 
   base::SmallVector<base::AddressRegion, 1> split_ranges;
+  size_t missing_begin = range.begin();
+  size_t missing_end = range.end();
   for (auto& vmem : base::Reversed(owned_code_space)) {
-    Address overlap_start = std::max(range.begin(), vmem.address());
-    Address overlap_end = std::min(range.end(), vmem.end());
-    if (overlap_start >= overlap_end) continue;
-    split_ranges.emplace_back(overlap_start, overlap_end - overlap_start);
-    // Opportunistically reduce the commit range. This might terminate the
-    // loop early.
-    if (range.begin() == overlap_start) {
-      range = {overlap_end, range.end() - overlap_end};
-      if (range.is_empty()) break;
-    } else if (range.end() == overlap_end) {
-      range = {range.begin(), overlap_start - range.begin()};
-    }
+    Address overlap_begin = std::max(missing_begin, vmem.address());
+    Address overlap_end = std::min(missing_end, vmem.end());
+    if (overlap_begin >= overlap_end) continue;
+    split_ranges.emplace_back(overlap_begin, overlap_end - overlap_begin);
+    // Opportunistically reduce the missing range. This might terminate the loop
+    // early.
+    if (missing_begin == overlap_begin) missing_begin = overlap_end;
+    if (missing_end == overlap_end) missing_end = overlap_begin;
+    if (missing_begin >= missing_end) break;
   }
 #ifdef ENABLE_SLOW_DCHECKS
   // The returned vector should cover the full range.
@@ -599,9 +598,12 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
         std::min(RoundDown(merged_region.end(), commit_page_size),
                  RoundUp(region.end(), commit_page_size));
     if (discard_start >= discard_end) continue;
-    // TODO(clemensh): Reenable after fixing https://crbug.com/960707.
-    // allocator->DiscardSystemPages(reinterpret_cast<void*>(discard_start),
-    //                               discard_end - discard_start);
+    // TODO(clemensh): Update committed_code_space_ counter.
+    for (base::AddressRegion split_range : SplitRangeByReservationsIfNeeded(
+             {discard_start, discard_end - discard_start}, owned_code_space_)) {
+      allocator->DiscardSystemPages(
+          reinterpret_cast<void*>(split_range.begin()), split_range.size());
+    }
   }
 }
 
