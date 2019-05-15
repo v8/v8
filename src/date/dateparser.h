@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DATEPARSER_H_
-#define V8_DATEPARSER_H_
+#ifndef V8_DATE_DATEPARSER_H_
+#define V8_DATE_DATEPARSER_H_
 
 #include "src/allocation.h"
 #include "src/char-predicates.h"
@@ -28,7 +28,15 @@ class DateParser : public AllStatic {
   static bool Parse(Isolate* isolate, Vector<Char> str, FixedArray output);
 
   enum {
-    YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, MILLISECOND, UTC_OFFSET, OUTPUT_SIZE
+    YEAR,
+    MONTH,
+    DAY,
+    HOUR,
+    MINUTE,
+    SECOND,
+    MILLISECOND,
+    UTC_OFFSET,
+    OUTPUT_SIZE
   };
 
  private:
@@ -113,7 +121,11 @@ class DateParser : public AllStatic {
   };
 
   enum KeywordType {
-      INVALID, MONTH_NAME, TIME_ZONE_NAME, TIME_SEPARATOR, AM_PM
+    INVALID,
+    MONTH_NAME,
+    TIME_ZONE_NAME,
+    TIME_SEPARATOR,
+    AM_PM
   };
 
   struct DateToken {
@@ -147,9 +159,7 @@ class DateParser : public AllStatic {
     bool IsSymbol(char symbol) {
       return IsSymbol() && this->symbol() == symbol;
     }
-    bool IsKeywordType(KeywordType tag) {
-      return tag_ == tag;
-    }
+    bool IsKeywordType(KeywordType tag) { return tag_ == tag; }
     bool IsFixedLengthNumber(int length) {
       return IsNumber() && length_ == length;
     }
@@ -163,9 +173,7 @@ class DateParser : public AllStatic {
     bool IsKeywordZ() {
       return IsKeywordType(TIME_ZONE_NAME) && length_ == 1 && value_ == 0;
     }
-    bool IsUnknown(int character) {
-      return IsUnknown() && value_ == character;
-    }
+    bool IsUnknown(int character) { return IsUnknown() && value_ == character; }
     // Factory functions.
     static DateToken Keyword(KeywordType tag, int value, int length) {
       return DateToken(tag, length, value);
@@ -176,18 +184,12 @@ class DateParser : public AllStatic {
     static DateToken Symbol(char symbol) {
       return DateToken(kSymbolTag, 1, symbol);
     }
-    static DateToken EndOfInput() {
-      return DateToken(kEndOfInputTag, 0, -1);
-    }
+    static DateToken EndOfInput() { return DateToken(kEndOfInputTag, 0, -1); }
     static DateToken WhiteSpace(int length) {
       return DateToken(kWhiteSpaceTag, length, -1);
     }
-    static DateToken Unknown() {
-      return DateToken(kUnknownTokenTag, 1, -1);
-    }
-    static DateToken Invalid() {
-      return DateToken(kInvalidTokenTag, 0, -1);
-    }
+    static DateToken Unknown() { return DateToken(kUnknownTokenTag, 1, -1); }
+    static DateToken Invalid() { return DateToken(kInvalidTokenTag, 0, -1); }
 
    private:
     enum TagType {
@@ -200,9 +202,7 @@ class DateParser : public AllStatic {
       kKeywordTagStart = 0
     };
     DateToken(int tag, int length, int value)
-        : tag_(tag),
-          length_(length),
-          value_(value) { }
+        : tag_(tag), length_(length), value_(value) {}
 
     int tag_;
     int length_;  // Number of characters.
@@ -213,16 +213,14 @@ class DateParser : public AllStatic {
   class DateStringTokenizer {
    public:
     explicit DateStringTokenizer(InputReader<Char>* in)
-        : in_(in), next_(Scan()) { }
+        : in_(in), next_(Scan()) {}
     DateToken Next() {
       DateToken result = next_;
       next_ = Scan();
       return result;
     }
 
-    DateToken Peek() {
-      return next_;
-    }
+    DateToken Peek() { return next_; }
     bool SkipSymbol(char symbol) {
       if (next_.IsSymbol(symbol)) {
         next_ = Scan();
@@ -278,6 +276,7 @@ class DateParser : public AllStatic {
     bool IsUTC() const { return hour_ == 0 && minute_ == 0; }
     bool Write(FixedArray output);
     bool IsEmpty() { return hour_ == kNone; }
+
    private:
     int sign_;
     int hour_;
@@ -289,8 +288,7 @@ class DateParser : public AllStatic {
     TimeComposer() : index_(0), hour_offset_(kNone) {}
     bool IsEmpty() const { return index_ == 0; }
     bool IsExpecting(int n) const {
-      return (index_ == 1 && IsMinute(n)) ||
-             (index_ == 2 && IsSecond(n)) ||
+      return (index_ == 1 && IsMinute(n)) || (index_ == 2 && IsSecond(n)) ||
              (index_ == 3 && IsMillisecond(n));
     }
     bool Add(int n) {
@@ -356,8 +354,7 @@ class DateParser : public AllStatic {
       TimeZoneComposer* tz);
 };
 
-
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_DATEPARSER_H_
+#endif  // V8_DATE_DATEPARSER_H_

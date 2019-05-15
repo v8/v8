@@ -7,8 +7,8 @@
 #include "src/code-factory.h"
 #include "src/conversions.h"
 #include "src/counters.h"
-#include "src/date.h"
-#include "src/dateparser-inl.h"
+#include "src/date/date.h"
+#include "src/date/dateparser-inl.h"
 #include "src/objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"

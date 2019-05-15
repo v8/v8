@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/dateparser.h"
+#include "src/date/dateparser.h"
 
 #include "src/char-predicates-inl.h"
 #include "src/objects-inl.h"
@@ -50,8 +50,10 @@ bool DateParser::DayComposer::Write(FixedArray output) {
   }
 
   if (!is_iso_date_) {
-    if (Between(year, 0, 49)) year += 2000;
-    else if (Between(year, 50, 99)) year += 1900;
+    if (Between(year, 0, 49))
+      year += 2000;
+    else if (Between(year, 50, 99))
+      year += 1900;
   }
 
   if (!Smi::IsValid(year) || !IsMonth(month) || !IsDay(day)) return false;
@@ -79,8 +81,8 @@ bool DateParser::TimeComposer::Write(FixedArray output) {
     hour += hour_offset_;
   }
 
-  if (!IsHour(hour) || !IsMinute(minute) ||
-      !IsSecond(second) || !IsMillisecond(millisecond)) {
+  if (!IsHour(hour) || !IsMinute(minute) || !IsSecond(second) ||
+      !IsMillisecond(millisecond)) {
     // A 24th hour is allowed if minutes, seconds, and milliseconds are 0
     if (hour != 24 || minute != 0 || second != 0 || millisecond != 0) {
       return false;
@@ -114,46 +116,44 @@ bool DateParser::TimeZoneComposer::Write(FixedArray output) {
   return true;
 }
 
-const int8_t DateParser::KeywordTable::
-    array[][DateParser::KeywordTable::kEntrySize] = {
-  {'j', 'a', 'n', DateParser::MONTH_NAME, 1},
-  {'f', 'e', 'b', DateParser::MONTH_NAME, 2},
-  {'m', 'a', 'r', DateParser::MONTH_NAME, 3},
-  {'a', 'p', 'r', DateParser::MONTH_NAME, 4},
-  {'m', 'a', 'y', DateParser::MONTH_NAME, 5},
-  {'j', 'u', 'n', DateParser::MONTH_NAME, 6},
-  {'j', 'u', 'l', DateParser::MONTH_NAME, 7},
-  {'a', 'u', 'g', DateParser::MONTH_NAME, 8},
-  {'s', 'e', 'p', DateParser::MONTH_NAME, 9},
-  {'o', 'c', 't', DateParser::MONTH_NAME, 10},
-  {'n', 'o', 'v', DateParser::MONTH_NAME, 11},
-  {'d', 'e', 'c', DateParser::MONTH_NAME, 12},
-  {'a', 'm', '\0', DateParser::AM_PM, 0},
-  {'p', 'm', '\0', DateParser::AM_PM, 12},
-  {'u', 't', '\0', DateParser::TIME_ZONE_NAME, 0},
-  {'u', 't', 'c', DateParser::TIME_ZONE_NAME, 0},
-  {'z', '\0', '\0', DateParser::TIME_ZONE_NAME, 0},
-  {'g', 'm', 't', DateParser::TIME_ZONE_NAME, 0},
-  {'c', 'd', 't', DateParser::TIME_ZONE_NAME, -5},
-  {'c', 's', 't', DateParser::TIME_ZONE_NAME, -6},
-  {'e', 'd', 't', DateParser::TIME_ZONE_NAME, -4},
-  {'e', 's', 't', DateParser::TIME_ZONE_NAME, -5},
-  {'m', 'd', 't', DateParser::TIME_ZONE_NAME, -6},
-  {'m', 's', 't', DateParser::TIME_ZONE_NAME, -7},
-  {'p', 'd', 't', DateParser::TIME_ZONE_NAME, -7},
-  {'p', 's', 't', DateParser::TIME_ZONE_NAME, -8},
-  {'t', '\0', '\0', DateParser::TIME_SEPARATOR, 0},
-  {'\0', '\0', '\0', DateParser::INVALID, 0},
+const int8_t
+    DateParser::KeywordTable::array[][DateParser::KeywordTable::kEntrySize] = {
+        {'j', 'a', 'n', DateParser::MONTH_NAME, 1},
+        {'f', 'e', 'b', DateParser::MONTH_NAME, 2},
+        {'m', 'a', 'r', DateParser::MONTH_NAME, 3},
+        {'a', 'p', 'r', DateParser::MONTH_NAME, 4},
+        {'m', 'a', 'y', DateParser::MONTH_NAME, 5},
+        {'j', 'u', 'n', DateParser::MONTH_NAME, 6},
+        {'j', 'u', 'l', DateParser::MONTH_NAME, 7},
+        {'a', 'u', 'g', DateParser::MONTH_NAME, 8},
+        {'s', 'e', 'p', DateParser::MONTH_NAME, 9},
+        {'o', 'c', 't', DateParser::MONTH_NAME, 10},
+        {'n', 'o', 'v', DateParser::MONTH_NAME, 11},
+        {'d', 'e', 'c', DateParser::MONTH_NAME, 12},
+        {'a', 'm', '\0', DateParser::AM_PM, 0},
+        {'p', 'm', '\0', DateParser::AM_PM, 12},
+        {'u', 't', '\0', DateParser::TIME_ZONE_NAME, 0},
+        {'u', 't', 'c', DateParser::TIME_ZONE_NAME, 0},
+        {'z', '\0', '\0', DateParser::TIME_ZONE_NAME, 0},
+        {'g', 'm', 't', DateParser::TIME_ZONE_NAME, 0},
+        {'c', 'd', 't', DateParser::TIME_ZONE_NAME, -5},
+        {'c', 's', 't', DateParser::TIME_ZONE_NAME, -6},
+        {'e', 'd', 't', DateParser::TIME_ZONE_NAME, -4},
+        {'e', 's', 't', DateParser::TIME_ZONE_NAME, -5},
+        {'m', 'd', 't', DateParser::TIME_ZONE_NAME, -6},
+        {'m', 's', 't', DateParser::TIME_ZONE_NAME, -7},
+        {'p', 'd', 't', DateParser::TIME_ZONE_NAME, -7},
+        {'p', 's', 't', DateParser::TIME_ZONE_NAME, -8},
+        {'t', '\0', '\0', DateParser::TIME_SEPARATOR, 0},
+        {'\0', '\0', '\0', DateParser::INVALID, 0},
 };
-
 
 // We could use perfect hashing here, but this is not a bottleneck.
 int DateParser::KeywordTable::Lookup(const uint32_t* pre, int len) {
   int i;
   for (i = 0; array[i][kTypeOffset] != INVALID; i++) {
     int j = 0;
-    while (j < kPrefixLength &&
-           pre[j] == static_cast<uint32_t>(array[i][j])) {
+    while (j < kPrefixLength && pre[j] == static_cast<uint32_t>(array[i][j])) {
       j++;
     }
     // Check if we have a match and the length is legal.
@@ -165,7 +165,6 @@ int DateParser::KeywordTable::Lookup(const uint32_t* pre, int len) {
   }
   return i;
 }
-
 
 int DateParser::ReadMilliseconds(DateToken token) {
   // Read first three significant digits of the original numeral,
@@ -196,7 +195,6 @@ int DateParser::ReadMilliseconds(DateToken token) {
   }
   return number;
 }
-
 
 }  // namespace internal
 }  // namespace v8

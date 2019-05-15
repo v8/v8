@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DATEPARSER_INL_H_
-#define V8_DATEPARSER_INL_H_
+#ifndef V8_DATE_DATEPARSER_INL_H_
+#define V8_DATE_DATEPARSER_INL_H_
 
 #include "src/char-predicates-inl.h"
-#include "src/dateparser.h"
+#include "src/date/dateparser.h"
 #include "src/isolate.h"
 
 namespace v8 {
@@ -75,8 +75,7 @@ bool DateParser::Parse(Isolate* isolate, Vector<Char> str, FixedArray out) {
   bool has_read_number = !day.IsEmpty();
   // If there's anything left, continue with the legacy parser.
   bool legacy_parser = false;
-  for (DateToken token = next_unhandled_token;
-       !token.IsEndOfInput();
+  for (DateToken token = next_unhandled_token; !token.IsEndOfInput();
        token = scanner.Next()) {
     if (token.IsNumber()) {
       legacy_parser = true;
@@ -106,10 +105,9 @@ bool DateParser::Parse(Isolate* isolate, Vector<Char> str, FixedArray out) {
         // Require end, white space, "Z", "+" or "-" immediately after
         // finalizing time.
         DateToken peek = scanner.Peek();
-        if (!peek.IsEndOfInput() &&
-            !peek.IsWhiteSpace() &&
-            !peek.IsKeywordZ() &&
-            !peek.IsAsciiSign()) return false;
+        if (!peek.IsEndOfInput() && !peek.IsWhiteSpace() &&
+            !peek.IsKeywordZ() && !peek.IsAsciiSign())
+          return false;
       } else {
         if (!day.Add(n)) return false;
         scanner.SkipSymbol('-');
@@ -181,7 +179,7 @@ bool DateParser::Parse(Isolate* isolate, Vector<Char> str, FixedArray out) {
   return success;
 }
 
-template<typename CharType>
+template <typename CharType>
 DateParser::DateToken DateParser::DateStringTokenizer<CharType>::Scan() {
   int pre_pos = in_->position();
   if (in_->IsEnd()) return DateToken::EndOfInput();
@@ -201,8 +199,7 @@ DateParser::DateToken DateParser::DateStringTokenizer<CharType>::Scan() {
     int length = in_->ReadWord(buffer, 3);
     int index = KeywordTable::Lookup(buffer, length);
     return DateToken::Keyword(KeywordTable::GetType(index),
-                              KeywordTable::GetValue(index),
-                              length);
+                              KeywordTable::GetValue(index), length);
   }
   if (in_->SkipWhiteSpace()) {
     return DateToken::WhiteSpace(in_->position() - pre_pos);
@@ -214,7 +211,6 @@ DateParser::DateToken DateParser::DateStringTokenizer<CharType>::Scan() {
   return DateToken::Unknown();
 }
 
-
 template <typename Char>
 bool DateParser::InputReader<Char>::SkipWhiteSpace() {
   if (IsWhiteSpaceOrLineTerminator(ch_)) {
@@ -224,19 +220,19 @@ bool DateParser::InputReader<Char>::SkipWhiteSpace() {
   return false;
 }
 
-
 template <typename Char>
 bool DateParser::InputReader<Char>::SkipParentheses() {
   if (ch_ != '(') return false;
   int balance = 0;
   do {
-    if (ch_ == ')') --balance;
-    else if (ch_ == '(') ++balance;
+    if (ch_ == ')')
+      --balance;
+    else if (ch_ == '(')
+      ++balance;
     Next();
   } while (balance > 0 && ch_);
   return true;
 }
-
 
 template <typename Char>
 DateParser::DateToken DateParser::ParseES5DateTime(
@@ -263,11 +259,13 @@ DateParser::DateToken DateParser::ParseES5DateTime(
   }
   if (scanner->SkipSymbol('-')) {
     if (!scanner->Peek().IsFixedLengthNumber(2) ||
-        !DayComposer::IsMonth(scanner->Peek().number())) return scanner->Next();
+        !DayComposer::IsMonth(scanner->Peek().number()))
+      return scanner->Next();
     day->Add(scanner->Next().number());
     if (scanner->SkipSymbol('-')) {
       if (!scanner->Peek().IsFixedLengthNumber(2) ||
-          !DayComposer::IsDay(scanner->Peek().number())) return scanner->Next();
+          !DayComposer::IsDay(scanner->Peek().number()))
+        return scanner->Next();
       day->Add(scanner->Next().number());
     }
   }
@@ -311,8 +309,7 @@ DateParser::DateToken DateParser::ParseES5DateTime(
     if (scanner->Peek().IsKeywordZ()) {
       scanner->Next();
       tz->Set(0);
-    } else if (scanner->Peek().IsSymbol('+') ||
-               scanner->Peek().IsSymbol('-')) {
+    } else if (scanner->Peek().IsSymbol('+') || scanner->Peek().IsSymbol('-')) {
       tz->SetSign(scanner->Next().symbol() == '+' ? 1 : -1);
       if (scanner->Peek().IsFixedLengthNumber(4)) {
         // hhmm extension syntax.
@@ -352,8 +349,7 @@ DateParser::DateToken DateParser::ParseES5DateTime(
   return DateToken::EndOfInput();
 }
 
-
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_DATEPARSER_INL_H_
+#endif  // V8_DATE_DATEPARSER_INL_H_

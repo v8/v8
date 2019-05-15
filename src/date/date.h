@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DATE_H_
-#define V8_DATE_H_
+#ifndef V8_DATE_DATE_H_
+#define V8_DATE_DATE_H_
 
 #include "src/base/timezone-cache.h"
 #include "src/globals.h"
@@ -21,8 +21,7 @@ class V8_EXPORT_PRIVATE DateCache {
 
   // The largest time that can be passed to OS date-time library functions.
   static const int kMaxEpochTimeInSec = kMaxInt;
-  static const int64_t kMaxEpochTimeInMs =
-      static_cast<int64_t>(kMaxInt) * 1000;
+  static const int64_t kMaxEpochTimeInMs = static_cast<int64_t>(kMaxInt) * 1000;
 
   // The largest time that can be stored in JSDate.
   static const int64_t kMaxTimeInMs =
@@ -55,7 +54,6 @@ class V8_EXPORT_PRIVATE DateCache {
     return static_cast<int>(time_ms / kMsPerDay);
   }
 
-
   // Computes modulo(time_ms, kMsPerDay) given that
   // days = floor(time_ms / kMsPerDay).
   static int TimeInDay(int64_t time_ms, int days) {
@@ -72,7 +70,6 @@ class V8_EXPORT_PRIVATE DateCache {
     return result >= 0 ? result : result + 7;
   }
 
-
   bool IsLeap(int year) {
     return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
   }
@@ -81,7 +78,6 @@ class V8_EXPORT_PRIVATE DateCache {
   int LocalOffsetInMs(int64_t time, bool is_utc) {
     return GetLocalOffsetFromOS(time, is_utc);
   }
-
 
   const char* LocalTimezone(int64_t time_ms) {
     if (time_ms < 0 || time_ms > kMaxEpochTimeInMs) {
@@ -112,7 +108,6 @@ class V8_EXPORT_PRIVATE DateCache {
   int64_t ToUTC(int64_t time_ms) {
     return time_ms - LocalOffsetInMs(time_ms, false);
   }
-
 
   // Computes a time equivalent to the given time according
   // to ECMA 262 - 15.9.1.9.
@@ -244,4 +239,4 @@ class V8_EXPORT_PRIVATE DateCache {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_DATE_H_
+#endif  // V8_DATE_DATE_H_

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/date.h"
+#include "src/date/date.h"
 
 #include "src/base/overflowing-math.h"
 #include "src/conversions.h"
@@ -14,16 +14,15 @@
 namespace v8 {
 namespace internal {
 
-
 static const int kDaysIn4Years = 4 * 365 + 1;
 static const int kDaysIn100Years = 25 * kDaysIn4Years - 1;
 static const int kDaysIn400Years = 4 * kDaysIn100Years + 1;
 static const int kDays1970to2000 = 30 * 365 + 7;
-static const int kDaysOffset = 1000 * kDaysIn400Years + 5 * kDaysIn400Years -
-                               kDays1970to2000;
+static const int kDaysOffset =
+    1000 * kDaysIn400Years + 5 * kDaysIn400Years - kDays1970to2000;
 static const int kYearsOffset = 400000;
-static const char kDaysInMonths[] =
-    {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+static const char kDaysInMonths[] = {31, 28, 31, 30, 31, 30,
+                                     31, 31, 30, 31, 30, 31};
 
 DateCache::DateCache()
     : stamp_(kNullAddress),
@@ -33,7 +32,7 @@ DateCache::DateCache()
 #else
           base::OS::CreateTimezoneCache()
 #endif
-              ) {
+      ) {
   ResetDateCache(base::TimezoneCache::TimeZoneDetection::kSkip);
 }
 
@@ -79,9 +78,8 @@ void DateCache::ClearSegment(DST* segment) {
   segment->last_used = 0;
 }
 
-
-void DateCache::YearMonthDayFromDays(
-    int days, int* year, int* month, int* day) {
+void DateCache::YearMonthDayFromDays(int days, int* year, int* month,
+                                     int* day) {
   if (ymd_valid_) {
     // Check conservatively if the given 'days' has
     // the same year and month as the cached 'days'.
@@ -117,7 +115,6 @@ void DateCache::YearMonthDayFromDays(
   int yd3 = days / 365;
   days %= 365;
   *year += yd3;
-
 
   bool is_leap = (!yd1 || yd2) && !yd3;
 
@@ -160,11 +157,10 @@ void DateCache::YearMonthDayFromDays(
   ymd_days_ = save_days;
 }
 
-
 int DateCache::DaysFromYearMonth(int year, int month) {
-  static const int day_from_month[] = {0, 31, 59, 90, 120, 151,
+  static const int day_from_month[] = {0,   31,  59,  90,  120, 151,
                                        181, 212, 243, 273, 304, 334};
-  static const int day_from_month_leap[] = {0, 31, 60, 91, 121, 152,
+  static const int day_from_month_leap[] = {0,   31,  60,  91,  121, 152,
                                             182, 213, 244, 274, 305, 335};
 
   year += month / 12;
@@ -186,24 +182,19 @@ int DateCache::DaysFromYearMonth(int year, int month) {
   // c) there shouldn't be an overflow for 32-bit integers in the following
   //    operations.
   static const int year_delta = 399999;
-  static const int base_day = 365 * (1970 + year_delta) +
-                              (1970 + year_delta) / 4 -
-                              (1970 + year_delta) / 100 +
-                              (1970 + year_delta) / 400;
+  static const int base_day =
+      365 * (1970 + year_delta) + (1970 + year_delta) / 4 -
+      (1970 + year_delta) / 100 + (1970 + year_delta) / 400;
 
   int year1 = year + year_delta;
-  int day_from_year = 365 * year1 +
-                      year1 / 4 -
-                      year1 / 100 +
-                      year1 / 400 -
-                      base_day;
+  int day_from_year =
+      365 * year1 + year1 / 4 - year1 / 100 + year1 / 400 - base_day;
 
   if ((year % 4 != 0) || (year % 100 == 0 && year % 400 != 0)) {
     return day_from_year + day_from_month[month];
   }
   return day_from_year + day_from_month_leap[month];
 }
-
 
 void DateCache::BreakDownTime(int64_t time_ms, int* year, int* month, int* day,
                               int* weekday, int* hour, int* min, int* sec,
@@ -302,11 +293,10 @@ void DateCache::ExtendTheAfterSegment(int time_sec, int offset_ms) {
   }
 }
 
-
 int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
   int time_sec = (time_ms >= 0 && time_ms <= kMaxEpochTimeInMs)
-      ? static_cast<int>(time_ms / 1000)
-      : static_cast<int>(EquivalentTime(time_ms) / 1000);
+                     ? static_cast<int>(time_ms / 1000)
+                     : static_cast<int>(EquivalentTime(time_ms) / 1000);
 
   // Invalidate cache if the usage counter is close to overflow.
   // Note that dst_usage_counter is incremented less than ten times
@@ -319,8 +309,7 @@ int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
   }
 
   // Optimistic fast check.
-  if (before_->start_sec <= time_sec &&
-      time_sec <= before_->end_sec) {
+  if (before_->start_sec <= time_sec && time_sec <= before_->end_sec) {
     // Cache hit.
     before_->last_used = ++dst_usage_counter_;
     return before_->offset_ms;
@@ -414,7 +403,6 @@ int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
   return 0;
 }
 
-
 void DateCache::ProbeDST(int time_sec) {
   DST* before = nullptr;
   DST* after = nullptr;
@@ -439,7 +427,8 @@ void DateCache::ProbeDST(int time_sec) {
   }
   if (after == nullptr) {
     after = InvalidSegment(after_) && before != after_
-            ? after_ : LeastRecentlyUsedDST(before);
+                ? after_
+                : LeastRecentlyUsedDST(before);
   }
 
   DCHECK_NOT_NULL(before);
@@ -453,7 +442,6 @@ void DateCache::ProbeDST(int time_sec) {
   before_ = before;
   after_ = after;
 }
-
 
 DateCache::DST* DateCache::LeastRecentlyUsedDST(DST* skip) {
   DST* result = nullptr;
