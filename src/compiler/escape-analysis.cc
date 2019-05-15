@@ -622,6 +622,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           OffsetOfElementsAccess(op, index).To(&offset) &&
           vobject->FieldAt(offset).To(&var) && current->Get(var).To(&value)) {
         current->SetReplacement(value);
+        break;
       } else if (vobject && !vobject->HasEscaped()) {
         // Compute the known length (aka the number of elements) of {object}
         // based on the virtual object information.
