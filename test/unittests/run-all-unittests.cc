@@ -42,6 +42,5 @@ int main(int argc, char** argv) {
   testing::AddGlobalTestEnvironment(new DefaultPlatformEnvironment);
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
-  v8::V8::InitializeICUDefaultLocation(argv[0]);
   return RUN_ALL_TESTS();
 }
