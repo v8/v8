@@ -454,7 +454,10 @@
       'release_bot', 'x64', 'minimal_symbols'],
     'release_x64_pointer_compression': [
       'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks',
-      'v8_enable_pointer_compression'],
+      # TODO(v8:v7703): Make pointer compression bots testing non pointer
+      # compression mode while pointer compression is temporarily enabled
+      # on x64
+      'v8_disable_pointer_compression'],
     'release_x64_trybot': [
       'release_trybot', 'x64'],
     'release_x64_test_features_trybot': [
@@ -808,6 +811,10 @@
 
     'v8_enable_pointer_compression': {
       'gn_args': 'v8_enable_pointer_compression=true',
+    },
+
+    'v8_disable_pointer_compression': {
+      'gn_args': 'v8_enable_pointer_compression=false',
     },
 
     'v8_enable_test_features': {
