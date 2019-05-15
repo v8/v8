@@ -599,9 +599,12 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
         std::min(RoundDown(merged_region.end(), commit_page_size),
                  RoundUp(region.end(), commit_page_size));
     if (discard_start >= discard_end) continue;
-    // TODO(clemensh): Reenable after fixing https://crbug.com/960707.
-    // allocator->DiscardSystemPages(reinterpret_cast<void*>(discard_start),
-    //                               discard_end - discard_start);
+    // TODO(clemensh): Update committed_code_space_ counter.
+    for (base::AddressRegion split_range : SplitRangeByReservationsIfNeeded(
+             {discard_start, discard_end - discard_start}, owned_code_space_)) {
+      allocator->DiscardSystemPages(
+          reinterpret_cast<void*>(split_range.begin()), split_range.size());
+    }
   }
 }
 
