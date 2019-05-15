@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/ostreams.h"
+
+#include <cinttypes>
+
 #include "src/objects.h"
 #include "src/objects/string.h"
 

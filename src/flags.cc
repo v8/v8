@@ -6,6 +6,7 @@
 
 #include <cctype>
 #include <cerrno>
+#include <cinttypes>
 #include <cstdlib>
 #include <sstream>
 

@@ -5,6 +5,7 @@
 #ifndef V8_WASM_DECODER_H_
 #define V8_WASM_DECODER_H_
 
+#include <cinttypes>
 #include <cstdarg>
 #include <memory>
 

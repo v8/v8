@@ -4,6 +4,7 @@
 
 #include "src/heap/spaces.h"
 
+#include <cinttypes>
 #include <utility>
 
 #include "src/base/bits.h"

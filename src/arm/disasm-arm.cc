@@ -22,11 +22,11 @@
 // of code into a FILE*, meaning that the above functionality could also be
 // achieved by just calling Disassembler::Disassemble(stdout, begin, end);
 
-
-#include <assert.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
+#include <cassert>
+#include <cinttypes>
+#include <cstdarg>
+#include <cstdio>
+#include <cstring>
 
 #if V8_TARGET_ARCH_ARM
 

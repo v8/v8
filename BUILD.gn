@@ -3433,7 +3433,6 @@ v8_component("v8_libbase") {
     "src/base/file-utils.cc",
     "src/base/file-utils.h",
     "src/base/flags.h",
-    "src/base/format-macros.h",
     "src/base/free_deleter.h",
     "src/base/functional.cc",
     "src/base/functional.h",

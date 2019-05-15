@@ -4,6 +4,7 @@
 
 #include "src/heap/heap.h"
 
+#include <cinttypes>
 #include <unordered_map>
 #include <unordered_set>
 

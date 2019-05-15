@@ -4,6 +4,7 @@
 
 #include "src/inspector/string-util.h"
 
+#include <cinttypes>
 #include <cmath>
 
 #include "src/base/platform/platform.h"

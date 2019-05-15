@@ -5,6 +5,7 @@
 #ifndef V8_SNAPSHOT_EMBEDDED_FILE_WRITER_H_
 #define V8_SNAPSHOT_EMBEDDED_FILE_WRITER_H_
 
+#include <cinttypes>
 #include <cstdio>
 #include <cstring>
 

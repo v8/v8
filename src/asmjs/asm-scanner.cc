@@ -4,6 +4,8 @@
 
 #include "src/asmjs/asm-scanner.h"
 
+#include <cinttypes>
+
 #include "src/char-predicates-inl.h"
 #include "src/conversions.h"
 #include "src/flags.h"

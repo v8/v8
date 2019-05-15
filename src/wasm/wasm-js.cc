@@ -4,7 +4,8 @@
 
 #include "src/wasm/wasm-js.h"
 
-#include <string>
+#include <cinttypes>
+#include <cstring>
 
 #include "src/api-inl.h"
 #include "src/api-natives.h"

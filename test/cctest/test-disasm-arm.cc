@@ -26,7 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <stdlib.h>
+#include <cinttypes>
+#include <cstdlib>
 
 // The C++ style guide recommends using <re2> instead of <regex>. However, the
 // former isn't available in V8.
