@@ -72,7 +72,7 @@ class Declarations {
   static Generic* LookupUniqueGeneric(const QualifiedName& name);
 
   static Namespace* DeclareNamespace(const std::string& name);
-  static void DeclareType(const Identifier* name, const Type* type);
+  static TypeAlias* DeclareType(const Identifier* name, const Type* type);
 
   static const TypeAlias* PredeclareTypeAlias(const Identifier* name,
                                               TypeDeclaration* type,

@@ -81,7 +81,7 @@ class TypeBase {
     return static_cast<const x*>(declarable);               \
   }
 
-class Type : public TypeBase {
+class V8_EXPORT_PRIVATE Type : public TypeBase {
  public:
   virtual bool IsSubtypeOf(const Type* supertype) const;
 
@@ -239,7 +239,7 @@ class AbstractType final : public Type {
 };
 
 // For now, builtin pointers are restricted to Torque-defined builtins.
-class BuiltinPointerType final : public Type {
+class V8_EXPORT_PRIVATE BuiltinPointerType final : public Type {
  public:
   DECLARE_TYPE_BOILERPLATE(BuiltinPointerType)
   std::string ToExplicitString() const override;
@@ -325,7 +325,7 @@ struct TypeLess {
   }
 };
 
-class UnionType final : public Type {
+class V8_EXPORT_PRIVATE UnionType final : public Type {
  public:
   DECLARE_TYPE_BOILERPLATE(UnionType)
   std::string ToExplicitString() const override;

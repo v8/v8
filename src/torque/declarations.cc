@@ -137,10 +137,10 @@ Namespace* Declarations::DeclareNamespace(const std::string& name) {
   return Declare(name, std::unique_ptr<Namespace>(new Namespace(name)));
 }
 
-void Declarations::DeclareType(const Identifier* name, const Type* type) {
+TypeAlias* Declarations::DeclareType(const Identifier* name, const Type* type) {
   CheckAlreadyDeclared<TypeAlias>(name->value, "type");
-  Declare(name->value,
-          std::unique_ptr<TypeAlias>(new TypeAlias(type, true, name->pos)));
+  return Declare(name->value, std::unique_ptr<TypeAlias>(
+                                  new TypeAlias(type, true, name->pos)));
 }
 
 const TypeAlias* Declarations::PredeclareTypeAlias(const Identifier* name,

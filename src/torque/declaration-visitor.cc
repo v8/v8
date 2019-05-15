@@ -296,7 +296,8 @@ void DeclarationVisitor::DeclareSpecializedTypes(const SpecializationKey& key) {
   for (auto type : key.specialized_types) {
     Identifier* generic_type_name =
         key.generic->declaration()->generic_parameters[i++];
-    Declarations::DeclareType(generic_type_name, type);
+    TypeAlias* alias = Declarations::DeclareType(generic_type_name, type);
+    alias->SetIsUserDefined(false);
   }
 }
 

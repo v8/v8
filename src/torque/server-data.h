@@ -50,6 +50,10 @@ class LanguageServerData : public ContextualClass<LanguageServerData> {
     Get().PrepareAllDeclarableSymbols();
   }
 
+  static void SetTypeOracle(TypeOracle type_oracle) {
+    Get().type_oracle_ = base::make_unique<TypeOracle>(std::move(type_oracle));
+  }
+
   static const Symbols& SymbolsForSourceId(SourceId id) {
     return Get().symbols_map_[id];
   }
@@ -61,6 +65,7 @@ class LanguageServerData : public ContextualClass<LanguageServerData> {
   DefinitionsMap definitions_map_;
   SymbolsMap symbols_map_;
   std::unique_ptr<GlobalContext> global_context_;
+  std::unique_ptr<TypeOracle> type_oracle_;
 };
 
 }  // namespace torque

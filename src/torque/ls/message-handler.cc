@@ -312,6 +312,15 @@ void HandleDocumentSymbolRequest(DocumentSymbolRequest request,
       symbol.set_name(generic->name());
       symbol.set_kind(SymbolKind::kFunction);
       symbol.location().SetTo(generic->Position());
+    } else if (symbol->IsTypeAlias()) {
+      const Type* type = TypeAlias::cast(symbol)->type();
+      SymbolKind kind =
+          type->IsClassType() ? SymbolKind::kClass : SymbolKind::kStruct;
+
+      SymbolInformation sym = response.add_result();
+      sym.set_name(type->ToString());
+      sym.set_kind(kind);
+      sym.location().SetTo(symbol->Position());
     }
   }
 

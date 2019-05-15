@@ -89,6 +89,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
 
   if (GlobalContext::collect_language_server_data()) {
     LanguageServerData::SetGlobalContext(std::move(GlobalContext::Get()));
+    LanguageServerData::SetTypeOracle(std::move(TypeOracle::Get()));
   }
 }
 
