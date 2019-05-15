@@ -32,6 +32,11 @@
 
   # forcing weak callback in asan build change break order
   'debug/debug-stepin-builtin-callback': [['asan == True or msan == True', SKIP]],
+
+  # Bug: v8:9257
+  'debug/debug-evaluate-locals-optimized-double': [SKIP],
+  'debug/side-effect/debug-evaluate-no-side-effect-builtins': [SKIP],
+
 }],  # ALWAYS
 
 ##############################################################################
