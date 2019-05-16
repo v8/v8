@@ -455,6 +455,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 
   int i;
   int descriptor = 0;
+  int new_mutable_double = 0;
   for (i = 0; i < length; i++) {
     const JsonProperty& property = property_stack[start + i];
     if (property.string.is_index()) continue;
@@ -516,6 +517,9 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           value->OptimalType(isolate(), expected_representation);
       Map::GeneralizeField(isolate(), target, descriptor, details.constness(),
                            expected_representation, value_type);
+    } else if (!FLAG_unbox_double_fields &&
+               expected_representation.IsDouble() && value->IsSmi()) {
+      new_mutable_double++;
     }
 
     DCHECK(target->instance_descriptors()
@@ -532,28 +536,13 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 
   // Preallocate all mutable heap numbers so we don't need to allocate while
   // setting up the object. Otherwise verification of that object may fail.
-  Handle<FixedArray> mutable_doubles;
-  if (!FLAG_unbox_double_fields && descriptor != 0) {
-    descriptor = 0;
-    int new_mutable_double = 0;
-    for (int j = 0; j < i; j++) {
-      const JsonProperty& property = property_stack[start + j];
-      if (property.string.is_index()) continue;
-      PropertyDetails details =
-          map->instance_descriptors()->GetDetails(descriptor++);
-
-      if (details.representation().IsDouble() && property.value->IsSmi()) {
-        new_mutable_double++;
-      }
-    }
-    if (new_mutable_double > 0) {
-      mutable_doubles = factory()->NewFixedArray(new_mutable_double);
-      for (int i = 0; i < new_mutable_double; i++) {
-        Handle<MutableHeapNumber> number =
-            factory()->NewMutableHeapNumberWithHoleNaN();
-        mutable_doubles->set(i, *number);
-      }
-    }
+  Handle<ByteArray> mutable_double_buffer;
+  // Allocate enough space so we can double-align the payload.
+  const int kMutableDoubleSize = sizeof(double) * 2;
+  STATIC_ASSERT(MutableHeapNumber::kSize <= kMutableDoubleSize);
+  if (new_mutable_double > 0) {
+    mutable_double_buffer =
+        factory()->NewByteArray(kMutableDoubleSize * new_mutable_double);
   }
 
   Handle<JSObject> object = initial_map->is_dictionary_map()
@@ -561,11 +550,21 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
                                 : factory()->NewJSObjectFromMap(map);
   object->set_elements(*elements);
 
-  int mutable_double = 0;
   {
     descriptor = 0;
     DisallowHeapAllocation no_gc;
     WriteBarrierMode mode = object->GetWriteBarrierMode(no_gc);
+    Address mutable_double_address =
+        mutable_double_buffer.is_null()
+            ? 0
+            : reinterpret_cast<Address>(
+                  mutable_double_buffer->GetDataStartAddress());
+    Address filler_address = mutable_double_address;
+    if (IsAligned(mutable_double_address, kDoubleAlignment)) {
+      mutable_double_address += kTaggedSize;
+    } else {
+      filler_address += MutableHeapNumber::kSize;
+    }
     for (int j = 0; j < i; j++) {
       const JsonProperty& property = property_stack[start + j];
       if (property.string.is_index()) continue;
@@ -589,10 +588,24 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
         }
 
         if (value.IsSmi()) {
+          if (kTaggedSize != kDoubleSize) {
+            // Write alignment filler.
+            HeapObject filler = HeapObject::FromAddress(filler_address);
+            filler.set_map_after_allocation(
+                *factory()->one_pointer_filler_map());
+            filler_address += kMutableDoubleSize;
+          }
+
           uint64_t bits =
               bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
-          value = mutable_doubles->get(mutable_double++);
-          MutableHeapNumber::cast(value).set_value_as_bits(bits);
+          // Allocate simple heapnumber with immortal map, with non-pointer
+          // payload, so we can skip notifying object layout change.
+
+          HeapObject hn = HeapObject::FromAddress(mutable_double_address);
+          hn.set_map_after_allocation(*factory()->mutable_heap_number_map());
+          MutableHeapNumber::cast(hn).set_value_as_bits(bits);
+          value = hn;
+          mutable_double_address += kMutableDoubleSize;
         } else {
           DCHECK(value.IsHeapNumber());
           HeapObject::cast(value)->synchronized_set_map(
@@ -600,6 +613,17 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
         }
       }
       object->RawFastPropertyAtPut(index, value, mode);
+    }
+    // Make all MutableHeapNumbers alive.
+    if (!mutable_double_buffer.is_null()) {
+#ifdef DEBUG
+      Address end =
+          reinterpret_cast<Address>(mutable_double_buffer->GetDataEndAddress());
+      DCHECK_EQ(Min(filler_address, mutable_double_address), end);
+      DCHECK_GE(filler_address, end);
+      DCHECK_GE(mutable_double_address, end);
+#endif
+      mutable_double_buffer->set_length(0);
     }
   }
 
