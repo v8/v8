@@ -4,6 +4,7 @@
 
 #include "src/debug/debug-coverage.h"
 
+#include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/base/hashmap.h"
 #include "src/debug/debug.h"
@@ -103,11 +104,7 @@ std::vector<CoverageBlock> GetSortedBlockData(SharedFunctionInfo shared) {
 class CoverageBlockIterator final {
  public:
   explicit CoverageBlockIterator(CoverageFunction* function)
-      : function_(function),
-        ended_(false),
-        delete_current_(false),
-        read_index_(-1),
-        write_index_(-1) {
+      : function_(function) {
     DCHECK(std::is_sorted(function_->blocks.begin(), function_->blocks.end(),
                           CompareCoverageBlock));
   }
@@ -223,10 +220,10 @@ class CoverageBlockIterator final {
 
   CoverageFunction* function_;
   std::vector<CoverageBlock> nesting_stack_;
-  bool ended_;
-  bool delete_current_;
-  int read_index_;
-  int write_index_;
+  bool ended_ = false;
+  bool delete_current_ = false;
+  int read_index_ = -1;
+  int write_index_ = -1;
 };
 
 bool HaveSameSourceRange(const CoverageBlock& lhs, const CoverageBlock& rhs) {
@@ -307,6 +304,30 @@ void MergeNestedRanges(CoverageFunction* function) {
     if (parent.count == block.count) {
       // Transformation may not be valid if sibling blocks exist with a
       // differing count.
+      iter.DeleteBlock();
+    }
+  }
+}
+
+void RewriteFunctionScopeCounter(CoverageFunction* function) {
+  // Every function must have at least the top-level function counter.
+  DCHECK(!function->blocks.empty());
+
+  CoverageBlockIterator iter(function);
+  if (iter.Next()) {
+    DCHECK(iter.IsTopLevel());
+
+    CoverageBlock& block = iter.GetBlock();
+    if (block.start == SourceRange::kFunctionLiteralSourcePosition &&
+        block.end == SourceRange::kFunctionLiteralSourcePosition) {
+      // If a function-scope block exists, overwrite the function count. It has
+      // a more reliable count than what we get from the FeedbackVector (which
+      // is imprecise e.g. for generator functions and optimized code).
+      function->count = block.count;
+
+      // Then delete it; for compatibility with non-block coverage modes, the
+      // function-scope block is expected in CoverageFunction, not as a
+      // CoverageBlock.
       iter.DeleteBlock();
     }
   }
@@ -395,15 +416,31 @@ bool IsBinaryMode(debug::CoverageMode mode) {
   }
 }
 
-void CollectBlockCoverage(CoverageFunction* function, SharedFunctionInfo info,
-                          debug::CoverageMode mode) {
+void CollectBlockCoverageInternal(CoverageFunction* function,
+                                  SharedFunctionInfo info,
+                                  debug::CoverageMode mode) {
   DCHECK(IsBlockMode(mode));
+
+  // Functions with empty source ranges are not interesting to report. This can
+  // happen e.g. for internally-generated functions like class constructors.
+  if (!function->HasNonEmptySourceRange()) return;
 
   function->has_block_coverage = true;
   function->blocks = GetSortedBlockData(info);
 
   // If in binary mode, only report counts of 0/1.
   if (mode == debug::CoverageMode::kBlockBinary) ClampToBinary(function);
+
+  // To stay compatible with non-block coverage modes, the function-scope count
+  // is expected to be in the CoverageFunction, not as part of its blocks.
+  // This finds the function-scope counter, overwrites CoverageFunction::count,
+  // and removes it from the block list.
+  //
+  // Important: Must be called before other transformation passes.
+  RewriteFunctionScopeCounter(function);
+
+  // Functions without blocks don't need to be processed further.
+  if (!function->HasBlocks()) return;
 
   // Remove singleton ranges with the same start position as a full range and
   // throw away their counts.
@@ -435,6 +472,11 @@ void CollectBlockCoverage(CoverageFunction* function, SharedFunctionInfo info,
 
   // Filter out ranges of zero length.
   FilterEmptyRanges(function);
+}
+
+void CollectBlockCoverage(CoverageFunction* function, SharedFunctionInfo info,
+                          debug::CoverageMode mode) {
+  CollectBlockCoverageInternal(function, info, mode);
 
   // Reset all counters on the DebugInfo to zero.
   ResetAllBlockCounts(info);
@@ -589,12 +631,17 @@ std::unique_ptr<Coverage> Coverage::Collect(
       }
 
       // Only include a function range if itself or its parent function is
-      // covered, or if it contains non-trivial block coverage.
+      // covered, or if it contains non-trivial block coverage. It must also
+      // have a non-empty source range (otherwise it is not interesting to
+      // report).
       bool is_covered = (count != 0);
       bool parent_is_covered =
           (!nesting.empty() && functions->at(nesting.back()).count != 0);
       bool has_block_coverage = !function.blocks.empty();
-      if (is_covered || parent_is_covered || has_block_coverage) {
+      bool function_is_relevant =
+          (is_covered || parent_is_covered || has_block_coverage);
+
+      if (function.HasNonEmptySourceRange() && function_is_relevant) {
         nesting.push_back(functions->size());
         functions->emplace_back(function);
       }

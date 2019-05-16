@@ -933,6 +933,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
         new (zone()) ConditionalSourceRanges(then_range, else_range));
   }
 
+  V8_INLINE void RecordFunctionLiteralSourceRange(FunctionLiteral* node) {
+    if (source_range_map_ == nullptr) return;
+    source_range_map_->Insert(node, new (zone()) FunctionLiteralSourceRanges);
+  }
+
   V8_INLINE void RecordBinaryOperationSourceRange(
       Expression* node, const SourceRange& right_range) {
     if (source_range_map_ == nullptr) return;

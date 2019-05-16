@@ -1128,7 +1128,8 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 
   // Create a generator object if necessary and initialize the
   // {.generator_object} variable.
-  if (IsResumableFunction(info()->literal()->kind())) {
+  FunctionLiteral* literal = info()->literal();
+  if (IsResumableFunction(literal->kind())) {
     BuildGeneratorObjectVariableInitialization();
   }
 
@@ -1146,6 +1147,9 @@ void BytecodeGenerator::GenerateBytecodeBody() {
     }
   }
 
+  // Increment the function-scope block coverage counter.
+  BuildIncrementBlockCoverageCounterIfEnabled(literal, SourceRangeKind::kBody);
+
   // Visit declarations within the function scope.
   VisitDeclarations(closure_scope()->declarations());
 
@@ -1153,22 +1157,22 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   VisitModuleNamespaceImports();
 
   // Perform a stack-check before the body.
-  builder()->StackCheck(info()->literal()->start_position());
+  builder()->StackCheck(literal->start_position());
 
   // The derived constructor case is handled in VisitCallSuper.
   if (IsBaseConstructor(function_kind())) {
-    if (info()->literal()->requires_brand_initialization()) {
+    if (literal->requires_brand_initialization()) {
       BuildPrivateBrandInitialization(builder()->Receiver());
     }
 
-    if (info()->literal()->requires_instance_members_initializer()) {
+    if (literal->requires_instance_members_initializer()) {
       BuildInstanceMemberInitialization(Register::function_closure(),
                                         builder()->Receiver());
     }
   }
 
   // Visit statements in the function body.
-  VisitStatements(info()->literal()->body());
+  VisitStatements(literal->body());
 
   // Emit an implicit return instruction in case control flow can fall off the
   // end of the function without an explicit return being present on all paths.

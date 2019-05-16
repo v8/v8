@@ -638,6 +638,9 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   DCHECK_NULL(target_stack_);
 
   if (has_error()) return nullptr;
+
+  RecordFunctionLiteralSourceRange(result);
+
   return result;
 }
 
@@ -2450,6 +2453,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   function_literal->set_function_token_position(function_token_pos);
   function_literal->set_suspend_count(suspend_count);
 
+  RecordFunctionLiteralSourceRange(function_literal);
+
   if (should_post_parallel_task) {
     // Start a parallel parse / compile task on the compiler dispatcher.
     info()->parallel_tasks()->Enqueue(info(), function_name, function_literal);
@@ -2884,12 +2889,16 @@ FunctionLiteral* Parser::CreateInitializerFunction(
   InitializeClassMembersStatement* stmt =
       factory()->NewInitializeClassMembersStatement(fields, kNoSourcePosition);
   statements.Add(stmt);
-  return factory()->NewFunctionLiteral(
+  FunctionLiteral* result = factory()->NewFunctionLiteral(
       ast_value_factory()->GetOneByteString(name), scope, statements, 0, 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
       FunctionLiteral::kShouldEagerCompile, scope->start_position(), false,
       GetNextFunctionLiteralId());
+
+  RecordFunctionLiteralSourceRange(result);
+
+  return result;
 }
 
 // This method generates a ClassLiteral AST node.

@@ -4177,6 +4177,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   function_literal->set_function_token_position(
       formal_parameters.scope->start_position());
 
+  impl()->RecordFunctionLiteralSourceRange(function_literal);
   impl()->AddFunctionForNameInference(function_literal);
 
   if (V8_UNLIKELY((FLAG_log_function_events))) {
