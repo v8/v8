@@ -6,7 +6,7 @@
 // former isn't available in V8.
 #include <regex>  // NOLINT(build/c++11)
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/disassembler.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"

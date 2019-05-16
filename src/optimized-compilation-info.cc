@@ -4,7 +4,7 @@
 
 #include "src/optimized-compilation-info.h"
 
-#include "src/api/api.h"
+#include "src/api.h"
 #include "src/debug/debug.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"

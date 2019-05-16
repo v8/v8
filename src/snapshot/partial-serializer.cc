@@ -5,7 +5,7 @@
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/startup-serializer.h"
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/heap/combined-heap.h"
 #include "src/microtask-queue.h"
 #include "src/numbers/math-random.h"

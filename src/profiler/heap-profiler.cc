@@ -4,7 +4,7 @@
 
 #include "src/profiler/heap-profiler.h"
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"

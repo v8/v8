@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_API_API_ARGUMENTS_H_
-#define V8_API_API_ARGUMENTS_H_
+#ifndef V8_API_ARGUMENTS_H_
+#define V8_API_ARGUMENTS_H_
 
-#include "src/api/api.h"
+#include "src/api.h"
 #include "src/debug/debug.h"
 #include "src/isolate.h"
 #include "src/objects/slots.h"
@@ -186,4 +186,4 @@ class FunctionCallbackArguments
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_API_API_ARGUMENTS_H_
+#endif  // V8_API_ARGUMENTS_H_

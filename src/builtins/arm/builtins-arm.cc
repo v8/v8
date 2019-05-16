@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_ARM
 
-#include "src/api/api-arguments.h"
+#include "src/api-arguments.h"
 #include "src/code-factory.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"

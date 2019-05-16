@@ -4,7 +4,7 @@
 
 #include "src/global-handles.h"
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/base/compiler-specific.h"
 #include "src/cancelable-task.h"
 #include "src/heap/embedder-tracing.h"

@@ -4,7 +4,7 @@
 
 #include "test/cctest/test-api.h"
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 
 using ::v8::Array;
 using ::v8::Context;

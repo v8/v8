@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"

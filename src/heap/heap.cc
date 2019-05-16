@@ -9,7 +9,7 @@
 #include <unordered_set>
 
 #include "src/accessors.h"
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/flags.h"

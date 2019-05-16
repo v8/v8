@@ -7,7 +7,7 @@
 #include <sstream>
 
 #include "include/v8-platform.h"
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"

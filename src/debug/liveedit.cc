@@ -4,7 +4,7 @@
 
 #include "src/debug/liveedit.h"
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"

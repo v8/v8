@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"

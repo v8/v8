@@ -34,7 +34,7 @@
 
 #include "src/v8.h"
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"

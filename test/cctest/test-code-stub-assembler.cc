@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-promise.h"

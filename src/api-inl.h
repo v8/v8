@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_API_API_INL_H_
-#define V8_API_API_INL_H_
+#ifndef V8_API_INL_H_
+#define V8_API_INL_H_
 
-#include "src/api/api.h"
+#include "src/api.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/foreign-inl.h"
@@ -151,4 +151,4 @@ Handle<Context> HandleScopeImplementer::LastEnteredOrMicrotaskContext() {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_API_API_INL_H_
+#endif  // V8_API_INL_H_

@@ -7,8 +7,8 @@
 #include <cinttypes>
 #include <cstring>
 
-#include "src/api/api-inl.h"
-#include "src/api/api-natives.h"
+#include "src/api-inl.h"
+#include "src/api-natives.h"
 #include "src/assert-scope.h"
 #include "src/ast/ast.h"
 #include "src/base/overflowing-math.h"

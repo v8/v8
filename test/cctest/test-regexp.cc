@@ -30,7 +30,7 @@
 #include <sstream>
 
 #include "include/v8.h"
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/assembler-arch.h"
 #include "src/ast/ast.h"
 #include "src/char-predicates-inl.h"

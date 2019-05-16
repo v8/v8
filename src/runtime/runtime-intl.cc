@@ -9,8 +9,8 @@
 #include <cmath>
 #include <memory>
 
-#include "src/api/api-inl.h"
-#include "src/api/api-natives.h"
+#include "src/api-inl.h"
+#include "src/api-natives.h"
 #include "src/arguments-inl.h"
 #include "src/counters.h"
 #include "src/date/date.h"

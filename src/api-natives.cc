@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api/api-natives.h"
+#include "src/api-natives.h"
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/isolate-inl.h"
 #include "src/lookup.h"
 #include "src/message-template.h"
@@ -15,6 +15,7 @@
 
 namespace v8 {
 namespace internal {
+
 
 namespace {
 
@@ -95,6 +96,7 @@ MaybeHandle<Object> DefineAccessorProperty(
   return object;
 }
 
+
 MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
                                        Handle<JSObject> object,
                                        Handle<Name> name,
@@ -124,6 +126,7 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
   return value;
 }
 
+
 void DisableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   Handle<Map> old_map(object->map(), isolate);
   // Copy map so it won't interfere constructor's initial map.
@@ -131,6 +134,7 @@ void DisableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   new_map->set_is_access_check_needed(false);
   JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
 }
+
 
 void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   Handle<Map> old_map(object->map(), isolate);
@@ -140,6 +144,7 @@ void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   new_map->set_may_have_interesting_symbols(true);
   JSObject::MigrateToMap(object, new_map);
 }
+
 
 class AccessCheckDisableScope {
  public:
@@ -239,17 +244,15 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
 
       if (kind == kData) {
         auto prop_data = handle(properties->get(i++), isolate);
-        RETURN_ON_EXCEPTION(
-            isolate,
-            DefineDataProperty(isolate, obj, name, prop_data, attributes),
-            JSObject);
+        RETURN_ON_EXCEPTION(isolate, DefineDataProperty(isolate, obj, name,
+                                                        prop_data, attributes),
+                            JSObject);
       } else {
         auto getter = handle(properties->get(i++), isolate);
         auto setter = handle(properties->get(i++), isolate);
         RETURN_ON_EXCEPTION(
-            isolate,
-            DefineAccessorProperty(isolate, obj, name, getter, setter,
-                                   attributes, is_hidden_prototype),
+            isolate, DefineAccessorProperty(isolate, obj, name, getter, setter,
+                                            attributes, is_hidden_prototype),
             JSObject);
       }
     } else {
@@ -263,10 +266,9 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
           static_cast<v8::Intrinsic>(Smi::ToInt(properties->get(i++)));
       auto prop_data = handle(GetIntrinsic(isolate, intrinsic), isolate);
 
-      RETURN_ON_EXCEPTION(
-          isolate,
-          DefineDataProperty(isolate, obj, name, prop_data, attributes),
-          JSObject);
+      RETURN_ON_EXCEPTION(isolate, DefineDataProperty(isolate, obj, name,
+                                                      prop_data, attributes),
+                          JSObject);
     }
   }
   return obj;
@@ -527,6 +529,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
   return function;
 }
 
+
 void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
                                int length, Handle<Object>* data) {
   Object maybe_list = templ->property_list();
@@ -595,6 +598,7 @@ void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
   AddPropertyToPropertyList(isolate, info, arraysize(data), data);
 }
 
+
 void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
                                  Handle<Name> name, v8::Intrinsic intrinsic,
                                  PropertyAttributes attributes) {
@@ -605,6 +609,7 @@ void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
   Handle<Object> data[] = {name, intrinsic_marker, details_handle, value};
   AddPropertyToPropertyList(isolate, info, arraysize(data), data);
 }
+
 
 void ApiNatives::AddAccessorProperty(Isolate* isolate,
                                      Handle<TemplateInfo> info,
@@ -617,6 +622,7 @@ void ApiNatives::AddAccessorProperty(Isolate* isolate,
   Handle<Object> data[] = {name, details_handle, getter, setter};
   AddPropertyToPropertyList(isolate, info, arraysize(data), data);
 }
+
 
 void ApiNatives::AddNativeDataProperty(Isolate* isolate,
                                        Handle<TemplateInfo> info,

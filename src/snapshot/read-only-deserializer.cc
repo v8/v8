@@ -4,7 +4,7 @@
 
 #include "src/snapshot/read-only-deserializer.h"
 
-#include "src/api/api.h"
+#include "src/api.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/heap/read-only-heap.h"
 #include "src/objects/slots.h"

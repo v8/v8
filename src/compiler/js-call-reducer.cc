@@ -6,7 +6,7 @@
 
 #include <functional>
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/code-factory.h"

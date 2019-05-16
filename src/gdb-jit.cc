@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/frames-inl.h"

@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins.h"
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/callable.h"

@@ -6,7 +6,7 @@
 
 #include <utility>
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/global-handles.h"

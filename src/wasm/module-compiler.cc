@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-#include "src/api/api.h"
+#include "src/api.h"
 #include "src/asmjs/asm-js.h"
 #include "src/base/enum-set.h"
 #include "src/base/optional.h"

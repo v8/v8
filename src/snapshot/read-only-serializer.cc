@@ -4,7 +4,7 @@
 
 #include "src/snapshot/read-only-serializer.h"
 
-#include "src/api/api.h"
+#include "src/api.h"
 #include "src/code-tracer.h"
 #include "src/global-handles.h"
 #include "src/heap/read-only-heap.h"

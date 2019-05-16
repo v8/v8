@@ -7,7 +7,7 @@
 
 #include "src/objects/js-weak-refs.h"
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/smi-inl.h"

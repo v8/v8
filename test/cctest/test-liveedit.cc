@@ -29,7 +29,7 @@
 
 #include "src/v8.h"
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/debug/liveedit.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"

@@ -8,7 +8,7 @@
 #include "src/v8.h"
 
 #include "src/accessors.h"
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/base/overflowing-math.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"

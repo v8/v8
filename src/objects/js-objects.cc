@@ -4,7 +4,7 @@
 
 #include "src/objects/js-objects.h"
 
-#include "src/api/api-arguments-inl.h"
+#include "src/api-arguments-inl.h"
 #include "src/arguments.h"
 #include "src/compiler.h"
 #include "src/counters.h"

@@ -27,7 +27,7 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-constants.h"

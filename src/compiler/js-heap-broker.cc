@@ -8,7 +8,7 @@
 #include <algorithm>
 #endif
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/boxed-float.h"
 #include "src/code-factory.h"

@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <memory>
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
 #include "src/ast/prettyprinter.h"

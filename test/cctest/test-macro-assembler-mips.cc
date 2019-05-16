@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <iostream>  // NOLINT(readability/streams)
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"

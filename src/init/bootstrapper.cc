@@ -5,8 +5,8 @@
 #include "src/init/bootstrapper.h"
 
 #include "src/accessors.h"
-#include "src/api/api-inl.h"
-#include "src/api/api-natives.h"
+#include "src/api-inl.h"
+#include "src/api-natives.h"
 #include "src/base/ieee754.h"
 #include "src/compiler.h"
 #include "src/counters.h"

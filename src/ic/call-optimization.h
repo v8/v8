@@ -5,7 +5,7 @@
 #ifndef V8_IC_CALL_OPTIMIZATION_H_
 #define V8_IC_CALL_OPTIMIZATION_H_
 
-#include "src/api/api-arguments.h"
+#include "src/api-arguments.h"
 #include "src/objects.h"
 
 namespace v8 {

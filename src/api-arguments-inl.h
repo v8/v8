@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_API_API_ARGUMENTS_INL_H_
-#define V8_API_API_ARGUMENTS_INL_H_
+#ifndef V8_API_ARGUMENTS_INL_H_
+#define V8_API_ARGUMENTS_INL_H_
 
-#include "src/api/api-arguments.h"
+#include "src/api-arguments.h"
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/slots-inl.h"
@@ -367,4 +367,4 @@ Handle<Object> PropertyCallbackArguments::CallAccessorSetter(
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_API_API_ARGUMENTS_INL_H_
+#endif  // V8_API_ARGUMENTS_INL_H_

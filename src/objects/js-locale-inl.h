@@ -9,7 +9,7 @@
 #ifndef V8_OBJECTS_JS_LOCALE_INL_H_
 #define V8_OBJECTS_JS_LOCALE_INL_H_
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-locale.h"
 

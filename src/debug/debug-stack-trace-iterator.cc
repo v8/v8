@@ -4,7 +4,7 @@
 
 #include "src/debug/debug-stack-trace-iterator.h"
 
-#include "src/api/api-inl.h"
+#include "src/api-inl.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-scope-iterator.h"
 #include "src/debug/debug.h"
