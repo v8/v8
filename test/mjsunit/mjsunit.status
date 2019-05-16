@@ -238,6 +238,9 @@
 
   # Test is only enabled on ASAN. Takes too long on many other bots.
   'regress/regress-crbug-9161': [SKIP],
+
+  # BUG(v8:9260)
+  'tools/profviz': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
