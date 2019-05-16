@@ -470,6 +470,9 @@
 
   # BUG(v8:7247).
   'regress/regress-779407': [PASS, SLOW, NO_VARIANTS],
+
+  # BUG(v8:9256). Slow with pointer compression.
+  'regress/regress-708247': [PASS, ['pointer_compression', SLOW]],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and mode == debug and simulator_run', {
