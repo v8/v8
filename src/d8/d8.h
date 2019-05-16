@@ -307,63 +307,36 @@ class ShellOptions {
     kProduceCacheAfterExecute
   };
 
-  ShellOptions()
-      : send_idle_notification(false),
-        invoke_weak_callbacks(false),
-        omit_quit(false),
-        wait_for_wasm(true),
-        stress_opt(false),
-        stress_deopt(false),
-        stress_runs(1),
-        interactive_shell(false),
-        test_shell(false),
-        expected_to_throw(false),
-        mock_arraybuffer_allocator(false),
-        enable_inspector(false),
-        num_isolates(1),
-        compile_options(v8::ScriptCompiler::kNoCompileOptions),
-        stress_background_compile(false),
-        code_cache_options(CodeCacheOptions::kNoProduceCache),
-        isolate_sources(nullptr),
-        icu_data_file(nullptr),
-        natives_blob(nullptr),
-        snapshot_blob(nullptr),
-        trace_enabled(false),
-        trace_path(nullptr),
-        trace_config(nullptr),
-        lcov_file(nullptr),
-        disable_in_process_stack_traces(false),
-        read_from_tcp_port(-1) {}
-
   ~ShellOptions() { delete[] isolate_sources; }
 
-  bool send_idle_notification;
-  bool invoke_weak_callbacks;
-  bool omit_quit;
-  bool wait_for_wasm;
-  bool stress_opt;
-  bool stress_deopt;
-  int stress_runs;
-  bool interactive_shell;
-  bool test_shell;
-  bool expected_to_throw;
-  bool mock_arraybuffer_allocator;
+  bool send_idle_notification = false;
+  bool invoke_weak_callbacks = false;
+  bool omit_quit = false;
+  bool wait_for_wasm = true;
+  bool stress_opt = false;
+  bool stress_deopt = false;
+  int stress_runs = 1;
+  bool interactive_shell = false;
+  bool test_shell = false;
+  bool expected_to_throw = false;
+  bool mock_arraybuffer_allocator = false;
   size_t mock_arraybuffer_allocator_limit = 0;
-  bool enable_inspector;
-  int num_isolates;
-  v8::ScriptCompiler::CompileOptions compile_options;
-  bool stress_background_compile;
-  CodeCacheOptions code_cache_options;
-  SourceGroup* isolate_sources;
-  const char* icu_data_file;
-  const char* natives_blob;
-  const char* snapshot_blob;
-  bool trace_enabled;
-  const char* trace_path;
-  const char* trace_config;
-  const char* lcov_file;
-  bool disable_in_process_stack_traces;
-  int read_from_tcp_port;
+  bool enable_inspector = false;
+  int num_isolates = 1;
+  v8::ScriptCompiler::CompileOptions compile_options =
+      v8::ScriptCompiler::kNoCompileOptions;
+  bool stress_background_compile = false;
+  CodeCacheOptions code_cache_options = CodeCacheOptions::kNoProduceCache;
+  SourceGroup* isolate_sources = nullptr;
+  const char* icu_data_file = nullptr;
+  const char* natives_blob = nullptr;
+  const char* snapshot_blob = nullptr;
+  bool trace_enabled = false;
+  const char* trace_path = nullptr;
+  const char* trace_config = nullptr;
+  const char* lcov_file = nullptr;
+  bool disable_in_process_stack_traces = false;
+  int read_from_tcp_port = -1;
   bool enable_os_system = false;
   bool quiet_load = false;
   int thread_pool_size = 0;
