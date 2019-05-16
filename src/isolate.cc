@@ -3696,7 +3696,7 @@ CodeTracer* Isolate::GetCodeTracer() {
 
 bool Isolate::use_optimizer() {
   return FLAG_opt && !serializer_enabled_ && CpuFeatures::SupportsOptimizer() &&
-         !is_count_code_coverage();
+         !is_precise_count_code_coverage();
 }
 
 bool Isolate::NeedsDetailedOptimizedCodeLineInfo() const {

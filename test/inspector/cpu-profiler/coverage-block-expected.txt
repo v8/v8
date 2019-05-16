@@ -221,7 +221,7 @@ Running test: testPreciseCountCoverageIncremental
     result : {
         result : {
             type : string
-            value : unoptimized
+            value : optimized
         }
     }
 }
@@ -262,9 +262,14 @@ Running test: testPreciseCountCoverageIncremental
                                 startOffset : 74
                             }
                             [1] : {
-                                count : 0
+                                count : 1
                                 endOffset : 156
                                 startOffset : 143
+                            }
+                            [2] : {
+                                count : 1
+                                endOffset : 172
+                                startOffset : 157
                             }
                         ]
                     }
