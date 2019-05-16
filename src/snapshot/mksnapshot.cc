@@ -144,100 +144,37 @@ char* GetExtraCode(char* filename, const char* description) {
   return chars;
 }
 
-bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
-                  const char* utf8_source, const char* name) {
+v8::StartupData CreateSnapshotDataBlob(v8::Isolate* isolate,
+                                       const char* embedded_source) {
   v8::base::ElapsedTimer timer;
   timer.Start();
-  v8::Context::Scope context_scope(context);
-  v8::TryCatch try_catch(isolate);
-  v8::Local<v8::String> source_string;
-  if (!v8::String::NewFromUtf8(isolate, utf8_source, v8::NewStringType::kNormal)
-           .ToLocal(&source_string)) {
-    return false;
-  }
-  v8::Local<v8::String> resource_name =
-      v8::String::NewFromUtf8(isolate, name, v8::NewStringType::kNormal)
-          .ToLocalChecked();
-  v8::ScriptOrigin origin(resource_name);
-  v8::ScriptCompiler::Source source(source_string, origin);
-  v8::Local<v8::Script> script;
-  if (!v8::ScriptCompiler::Compile(context, &source).ToLocal(&script))
-    return false;
-  if (script->Run(context).IsEmpty()) return false;
-  if (i::FLAG_profile_deserialization) {
-    i::PrintF("Executing custom snapshot script %s took %0.3f ms\n", name,
-              timer.Elapsed().InMillisecondsF());
-  }
-  timer.Stop();
-  CHECK(!try_catch.HasCaught());
-  return true;
-}
 
-v8::StartupData CreateSnapshotDataBlob(v8::SnapshotCreator* snapshot_creator,
-                                       const char* script_source = nullptr) {
-  // Create a new isolate and a new context from scratch, optionally run
-  // a script to embed, and serialize to create a snapshot blob.
-  v8::StartupData result = {nullptr, 0};
-  v8::base::ElapsedTimer timer;
-  timer.Start();
-  {
-    v8::Isolate* isolate = snapshot_creator->GetIsolate();
-    {
-      v8::HandleScope scope(isolate);
-      v8::Local<v8::Context> context = v8::Context::New(isolate);
-      if (script_source != nullptr &&
-          !RunExtraCode(isolate, context, script_source, "<embedded>")) {
-        return result;
-      }
-      snapshot_creator->SetDefaultContext(context);
-    }
-    result = snapshot_creator->CreateBlob(
-        v8::SnapshotCreator::FunctionCodeHandling::kClear);
-  }
+  v8::StartupData result = i::CreateSnapshotDataBlobInternal(
+      v8::SnapshotCreator::FunctionCodeHandling::kClear, embedded_source,
+      isolate);
 
   if (i::FLAG_profile_deserialization) {
     i::PrintF("Creating snapshot took %0.3f ms\n",
               timer.Elapsed().InMillisecondsF());
   }
+
   timer.Stop();
   return result;
 }
 
-v8::StartupData WarmUpSnapshotDataBlob(v8::SnapshotCreator* snapshot_creator,
+v8::StartupData WarmUpSnapshotDataBlob(v8::StartupData cold_snapshot_blob,
                                        const char* warmup_source) {
-  CHECK_NOT_NULL(warmup_source);
-  // Use following steps to create a warmed up snapshot blob from a cold one:
-  //  - Create a new isolate from the cold snapshot.
-  //  - Create a new context to run the warmup script. This will trigger
-  //    compilation of executed functions.
-  //  - Create a new context. This context will be unpolluted.
-  //  - Serialize the isolate and the second context into a new snapshot blob.
-  v8::StartupData result = {nullptr, 0};
   v8::base::ElapsedTimer timer;
   timer.Start();
-  {
-    v8::Isolate* isolate = snapshot_creator->GetIsolate();
-    {
-      v8::HandleScope scope(isolate);
-      v8::Local<v8::Context> context = v8::Context::New(isolate);
-      if (!RunExtraCode(isolate, context, warmup_source, "<warm-up>")) {
-        return result;
-      }
-    }
-    {
-      v8::HandleScope handle_scope(isolate);
-      isolate->ContextDisposedNotification(false);
-      v8::Local<v8::Context> context = v8::Context::New(isolate);
-      snapshot_creator->SetDefaultContext(context);
-    }
-    result = snapshot_creator->CreateBlob(
-        v8::SnapshotCreator::FunctionCodeHandling::kKeep);
-  }
+
+  v8::StartupData result =
+      i::WarmUpSnapshotDataBlobInternal(cold_snapshot_blob, warmup_source);
 
   if (i::FLAG_profile_deserialization) {
     i::PrintF("Warming up snapshot took %0.3f ms\n",
               timer.Elapsed().InMillisecondsF());
   }
+
   timer.Stop();
   return result;
 }
@@ -332,18 +269,18 @@ int main(int argc, char** argv) {
         // to be written out if builtins are embedded.
         i_isolate->RegisterEmbeddedFileWriter(&embedded_writer);
       }
-      v8::SnapshotCreator snapshot_creator(isolate);
+      blob = CreateSnapshotDataBlob(isolate, embed_script.get());
       if (i::FLAG_embedded_builtins) {
+        // At this point, the Isolate has been torn down but the embedded blob
+        // is still alive (we called DisableEmbeddedBlobRefcounting above).
+        // That's fine as far as the embedded file writer is concerned.
         WriteEmbeddedFile(&embedded_writer);
       }
-      blob = CreateSnapshotDataBlob(&snapshot_creator, embed_script.get());
     }
 
     if (warmup_script) {
-      CHECK(blob.raw_size > 0 && blob.data != nullptr);
       v8::StartupData cold = blob;
-      v8::SnapshotCreator snapshot_creator(nullptr, &cold);
-      blob = WarmUpSnapshotDataBlob(&snapshot_creator, warmup_script.get());
+      blob = WarmUpSnapshotDataBlob(cold, warmup_script.get());
       delete[] cold.data;
     }
 
