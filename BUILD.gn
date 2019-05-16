@@ -2122,7 +2122,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/code-reference.cc",
     "src/code-reference.h",
     "src/code-tracer.h",
-    "src/collector.h",
     "src/compilation-cache.cc",
     "src/compilation-cache.h",
     "src/compilation-statistics.cc",

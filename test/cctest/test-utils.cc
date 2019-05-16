@@ -33,9 +33,9 @@
 
 #include "src/api-inl.h"
 #include "src/base/platform/platform.h"
-#include "src/collector.h"
 #include "src/numbers/conversions.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/collector.h"
 
 namespace v8 {
 namespace internal {

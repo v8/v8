@@ -62,6 +62,7 @@ v8_source_set("cctest_sources") {
     "../common/wasm/flag-utils.h",
     "../common/wasm/test-signatures.h",
     "../common/wasm/wasm-macro-gen.h",
+    "collector.h",
     "compiler/c-signature.h",
     "compiler/call-tester.h",
     "compiler/code-assembler-tester.h",

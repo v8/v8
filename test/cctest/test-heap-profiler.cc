@@ -38,7 +38,6 @@
 #include "src/assembler-inl.h"
 #include "src/base/hashmap.h"
 #include "src/base/optional.h"
-#include "src/collector.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
@@ -46,6 +45,7 @@
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/collector.h"
 
 using i::AllocationTraceNode;
 using i::AllocationTraceTree;
