@@ -38,6 +38,8 @@ class BuildFlags : public ContextualClass<BuildFlags> {
  public:
   BuildFlags() {
     build_flags_["V8_SFI_HAS_UNIQUE_ID"] = V8_SFI_HAS_UNIQUE_ID;
+    build_flags_["TAGGED_SIZE_8_BYTES"] = TAGGED_SIZE_8_BYTES;
+    build_flags_["V8_DOUBLE_FIELDS_UNBOXING"] = V8_DOUBLE_FIELDS_UNBOXING;
     build_flags_["TRUE_FOR_TESTING"] = true;
     build_flags_["FALSE_FOR_TESTING"] = false;
   }
@@ -104,6 +106,14 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<NameAndExpression>::id =
         ParseResultTypeId::kNameAndExpression;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<ConditionalAnnotation>::id =
+        ParseResultTypeId::kConditionalAnnotation;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<base::Optional<ConditionalAnnotation>>::id =
+        ParseResultTypeId::kOptionalConditionalAnnotation;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<ClassFieldExpression>::id =
@@ -704,8 +714,12 @@ base::Optional<ParseResult> MakeClassDeclaration(
   std::vector<ClassFieldExpression> fields;
   std::copy_if(fields_raw.begin(), fields_raw.end(), std::back_inserter(fields),
                [](const ClassFieldExpression& exp) {
-                 return !exp.conditional.has_value() ||
-                        BuildFlags::GetFlag(*exp.conditional, "@ifdef");
+                 if (!exp.conditional.has_value()) return true;
+                 const ConditionalAnnotation& conditional = *exp.conditional;
+                 return conditional.type == ConditionalAnnotationType::kPositive
+                            ? BuildFlags::GetFlag(conditional.condition, "@if")
+                            : !BuildFlags::GetFlag(conditional.condition,
+                                                   "@ifnot");
                });
 
   Declaration* result = MakeNode<ClassDeclaration>(
@@ -1284,8 +1298,20 @@ base::Optional<ParseResult> MakeNameAndExpressionFromExpression(
   ReportError("Constructor parameters need to be named.");
 }
 
+base::Optional<ParseResult> MakeConditionalAnnotation(
+    ParseResultIterator* child_results) {
+  auto type_str = child_results->NextAs<Identifier*>()->value;
+  DCHECK(type_str == "@if" || type_str == "@ifnot");
+  ConditionalAnnotationType type = type_str == "@if"
+                                       ? ConditionalAnnotationType::kPositive
+                                       : ConditionalAnnotationType::kNegative;
+  auto condition = child_results->NextAs<std::string>();
+  return ParseResult{ConditionalAnnotation{condition, type}};
+}
+
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
-  auto conditional = child_results->NextAs<base::Optional<std::string>>();
+  auto conditional =
+      child_results->NextAs<base::Optional<ConditionalAnnotation>>();
   AnnotationSet annotations(child_results, {"@noVerifier"});
   bool generate_verify = !annotations.Contains("@noVerifier");
   auto weak = child_results->NextAs<bool>();
@@ -1516,12 +1542,16 @@ struct TorqueGrammar : Grammar {
   Symbol* optionalArraySpecifier =
       Optional<std::string>(Sequence({Token("["), &identifier, Token("]")}));
 
-  Symbol classField = {Rule(
-      {Optional<std::string>(
-           Sequence({Token("@ifdef"), Token("("), &identifier, Token(")")})),
-       annotations, CheckIf(Token("weak")), CheckIf(Token("const")), &name,
-       optionalArraySpecifier, Token(":"), &type, Token(";")},
-      MakeClassField)};
+  // Result: ConditionalAnnotation
+  Symbol conditionalAnnotation = {
+      Rule({OneOf({"@if", "@ifnot"}), Token("("), &identifier, Token(")")},
+           MakeConditionalAnnotation)};
+
+  Symbol classField = {
+      Rule({Optional<ConditionalAnnotation>(&conditionalAnnotation),
+            annotations, CheckIf(Token("weak")), CheckIf(Token("const")), &name,
+            optionalArraySpecifier, Token(":"), &type, Token(";")},
+           MakeClassField)};
 
   Symbol structField = {
       Rule({CheckIf(Token("const")), &name, Token(":"), &type, Token(";")},

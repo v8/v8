@@ -1607,7 +1607,7 @@ TNode<Int32T> CodeStubAssembler::LoadElementsKind(
 TNode<DescriptorArray> CodeStubAssembler::LoadMapDescriptors(
     SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  return CAST(LoadObjectField(map, Map::kDescriptorsOffset));
+  return CAST(LoadObjectField(map, Map::kInstanceDescriptorsOffset));
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadMapPrototype(SloppyTNode<Map> map) {

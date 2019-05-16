@@ -269,11 +269,10 @@ void TypeVisitor::VisitClassFieldsAndMethods(
       size_t field_size;
       std::string size_string;
       std::string machine_type;
-      std::tie(field_size, size_string, machine_type) =
-          field.GetFieldSizeInformation();
+      std::tie(field_size, size_string) = field.GetFieldSizeInformation();
       // Our allocations don't support alignments beyond kTaggedSize.
       size_t alignment = std::min(size_t{kTaggedSize}, field_size);
-      if (class_offset % alignment != 0) {
+      if (alignment > 0 && class_offset % alignment != 0) {
         ReportError("field ", field_expression.name_and_type.name,
                     " at offset ", class_offset, " is not ", alignment,
                     "-byte aligned.");

@@ -715,10 +715,20 @@ struct StructFieldExpression {
   bool const_qualified;
 };
 
+enum class ConditionalAnnotationType {
+  kPositive,
+  kNegative,
+};
+
+struct ConditionalAnnotation {
+  std::string condition;
+  ConditionalAnnotationType type;
+};
+
 struct ClassFieldExpression {
   NameAndTypeExpression name_and_type;
   base::Optional<std::string> index;
-  base::Optional<std::string> conditional;
+  base::Optional<ConditionalAnnotation> conditional;
   bool weak;
   bool const_qualified;
   bool generate_verify;

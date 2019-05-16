@@ -9,6 +9,7 @@
 #include "src/objects.h"
 #include "src/objects/code.h"
 #include "src/objects/heap-object.h"
+#include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -166,11 +167,6 @@ using MapHandles = std::vector<Handle<Map>>;
 // +---------------+---------------------------------------------+
 // | TaggedPointer | [constructor_or_backpointer]                |
 // +---------------+---------------------------------------------+
-// | TaggedPointer | If Map is a prototype map:                  |
-// |               |   [prototype_info]                          |
-// |               | Else:                                       |
-// |               |   [raw_transitions]                         |
-// +---------------+---------------------------------------------+
 // | TaggedPointer | [instance_descriptors]                      |
 // +*************************************************************+
 // ! TaggedPointer ! [layout_descriptors]                        !
@@ -179,6 +175,13 @@ using MapHandles = std::vector<Handle<Map>>;
 // !               ! (basically on 64 bit architectures)         !
 // +*************************************************************+
 // | TaggedPointer | [dependent_code]                            |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | [prototype_validity_cell]                   |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | If Map is a prototype map:                  |
+// |               |   [prototype_info]                          |
+// |               | Else:                                       |
+// |               |   [raw_transitions]                         |
 // +---------------+---------------------------------------------+
 
 class Map : public HeapObject {
@@ -828,34 +831,8 @@ class Map : public HeapObject {
 
   static const int kMaxPreAllocatedPropertyFields = 255;
 
-  // Layout description.
-#define MAP_FIELDS(V)                                                       \
-  /* Raw data fields. */                                                    \
-  V(kInstanceSizeInWordsOffset, kUInt8Size)                                 \
-  V(kInObjectPropertiesStartOrConstructorFunctionIndexOffset, kUInt8Size)   \
-  V(kUsedOrUnusedInstanceSizeInWordsOffset, kUInt8Size)                     \
-  V(kVisitorIdOffset, kUInt8Size)                                           \
-  V(kInstanceTypeOffset, kUInt16Size)                                       \
-  V(kBitFieldOffset, kUInt8Size)                                            \
-  V(kBitField2Offset, kUInt8Size)                                           \
-  V(kBitField3Offset, kUInt32Size)                                          \
-  /* Adds padding to make tagged fields kTaggedSize-aligned. */             \
-  V(kOptionalPaddingOffset, OBJECT_POINTER_PADDING(kOptionalPaddingOffset)) \
-  /* Pointer fields. */                                                     \
-  V(kPointerFieldsBeginOffset, 0)                                           \
-  V(kPrototypeOffset, kTaggedSize)                                          \
-  V(kConstructorOrBackPointerOffset, kTaggedSize)                           \
-  V(kTransitionsOrPrototypeInfoOffset, kTaggedSize)                         \
-  V(kDescriptorsOffset, kTaggedSize)                                        \
-  V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kTaggedSize : 0)    \
-  V(kDependentCodeOffset, kTaggedSize)                                      \
-  V(kPrototypeValidityCellOffset, kTaggedSize)                              \
-  V(kPointerFieldsEndOffset, 0)                                             \
-  /* Total size. */                                                         \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)
-#undef MAP_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_MAP_FIELDS)
 
   STATIC_ASSERT(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 

@@ -3097,7 +3097,7 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
                                   FieldSectionType::kStrongSection,
                                   &new_contents_stream);
           }
-        } else {
+        } else if (f.name_and_type.type != TypeOracle::GetVoidType()) {
           ProcessFieldInSection(&section, &completed_sections,
                                 FieldSectionType::kScalarSection,
                                 &new_contents_stream);
@@ -3105,8 +3105,7 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
         size_t field_size;
         std::string size_string;
         std::string machine_type;
-        std::tie(field_size, size_string, machine_type) =
-            f.GetFieldSizeInformation();
+        std::tie(field_size, size_string) = f.GetFieldSizeInformation();
         new_contents_stream << "V(k" << CamelifyString(f.name_and_type.name)
                             << "Offset, " << size_string << ") \\\n";
       }

@@ -714,18 +714,16 @@ class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
 class Map::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    return offset >= Map::kPointerFieldsBeginOffset &&
-           offset < Map::kPointerFieldsEndOffset;
+    return offset >= Map::kStartOfPointerFieldsOffset &&
+           offset < Map::kEndOfTaggedFieldsOffset;
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, Map::kPointerFieldsBeginOffset,
-                    Map::kTransitionsOrPrototypeInfoOffset, v);
+    IteratePointers(obj, Map::kStartOfStrongFieldsOffset,
+                    Map::kEndOfStrongFieldsOffset, v);
     IterateMaybeWeakPointer(obj, kTransitionsOrPrototypeInfoOffset, v);
-    IteratePointers(obj, Map::kTransitionsOrPrototypeInfoOffset + kTaggedSize,
-                    Map::kPointerFieldsEndOffset, v);
   }
 
   static inline int SizeOf(Map map, HeapObject obj) { return Map::kSize; }

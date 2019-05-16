@@ -659,6 +659,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
 }
 
 void Map::MapVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::MapVerify(*this, isolate);
   Heap* heap = isolate->heap();
   CHECK(!ObjectInYoungGeneration(*this));
   CHECK(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
@@ -667,8 +668,6 @@ void Map::MapVerify(Isolate* isolate) {
          static_cast<size_t>(instance_size()) < heap->Capacity()));
   CHECK(GetBackPointer()->IsUndefined(isolate) ||
         !Map::cast(GetBackPointer())->is_stable());
-  HeapObject::VerifyHeapPointer(isolate, prototype());
-  HeapObject::VerifyHeapPointer(isolate, instance_descriptors());
   SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates());
   DisallowHeapAllocation no_gc;
   SLOW_DCHECK(
@@ -698,8 +697,6 @@ void Map::MapVerify(Isolate* isolate) {
     DCHECK(prototype_info() == Smi::kZero ||
            prototype_info()->IsPrototypeInfo());
   }
-  CHECK(prototype_validity_cell()->IsSmi() ||
-        prototype_validity_cell()->IsCell());
 }
 
 void Map::DictionaryMapVerify(Isolate* isolate) {

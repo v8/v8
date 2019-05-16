@@ -54,6 +54,8 @@ enum class ParseResultHolderBase::TypeId {
   kOptionalLabelBlockPtr,
   kNameAndTypeExpression,
   kNameAndExpression,
+  kConditionalAnnotation,
+  kOptionalConditionalAnnotation,
   kClassFieldExpression,
   kStructFieldExpression,
   kStdVectorOfNameAndTypeExpression,

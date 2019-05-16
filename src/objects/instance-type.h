@@ -387,6 +387,10 @@ STATIC_ASSERT(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
 STATIC_ASSERT(ODDBALL_TYPE == Internals::kOddballType);
 STATIC_ASSERT(FOREIGN_TYPE == Internals::kForeignType);
 
+// Make sure it doesn't matter whether we sign-extend or zero-extend these
+// values, because Torque treats InstanceType as signed.
+STATIC_ASSERT(LAST_TYPE < 1 << 15);
+
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            InstanceType instance_type);
 

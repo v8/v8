@@ -1025,7 +1025,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
   DescriptorArray descriptors = map->instance_descriptors();
   TagObject(descriptors, "(map descriptors)");
   SetInternalReference(entry, "descriptors", descriptors,
-                       Map::kDescriptorsOffset);
+                       Map::kInstanceDescriptorsOffset);
   SetInternalReference(entry, "prototype", map->prototype(),
                        Map::kPrototypeOffset);
   if (FLAG_unbox_double_fields) {

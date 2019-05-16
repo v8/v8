@@ -1497,26 +1497,20 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       // applied to the shared map, dependent code and weak cell cache.
       Handle<Map> fresh = Map::CopyNormalized(isolate, fast_map, mode);
 
-      if (new_map->is_prototype_map()) {
-        // For prototype maps, the PrototypeInfo is not copied.
-        DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address()),
-                            reinterpret_cast<void*>(new_map->address()),
-                            kTransitionsOrPrototypeInfoOffset));
-        DCHECK_EQ(fresh->raw_transitions(),
-                  MaybeObject::FromObject(Smi::kZero));
-        STATIC_ASSERT(kDescriptorsOffset ==
-                      kTransitionsOrPrototypeInfoOffset + kTaggedSize);
-        DCHECK_EQ(0, memcmp(fresh->RawField(kDescriptorsOffset).ToVoidPtr(),
-                            new_map->RawField(kDescriptorsOffset).ToVoidPtr(),
-                            kDependentCodeOffset - kDescriptorsOffset));
-      } else {
-        DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address()),
-                            reinterpret_cast<void*>(new_map->address()),
-                            Map::kDependentCodeOffset));
-      }
       STATIC_ASSERT(Map::kPrototypeValidityCellOffset ==
                     Map::kDependentCodeOffset + kTaggedSize);
+      DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address()),
+                          reinterpret_cast<void*>(new_map->address()),
+                          Map::kDependentCodeOffset));
       int offset = Map::kPrototypeValidityCellOffset + kTaggedSize;
+      if (new_map->is_prototype_map()) {
+        // For prototype maps, the PrototypeInfo is not copied.
+        STATIC_ASSERT(Map::kTransitionsOrPrototypeInfoOffset ==
+                      Map::kPrototypeValidityCellOffset + kTaggedSize);
+        offset = kTransitionsOrPrototypeInfoOffset + kTaggedSize;
+        DCHECK_EQ(fresh->raw_transitions(),
+                  MaybeObject::FromObject(Smi::kZero));
+      }
       DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address() + offset),
                           reinterpret_cast<void*>(new_map->address() + offset),
                           Map::kSize - offset));

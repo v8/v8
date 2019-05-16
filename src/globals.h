@@ -82,6 +82,14 @@ constexpr int kStackSpaceRequiredForCompilation = 40;
 #define V8_DOUBLE_FIELDS_UNBOXING false
 #endif
 
+// Determine whether tagged pointers are 8 bytes (used in Torque layouts for
+// choosing where to insert padding).
+#if V8_TARGET_ARCH_64_BIT && !defined(V8_COMPRESS_POINTERS)
+#define TAGGED_SIZE_8_BYTES true
+#else
+#define TAGGED_SIZE_8_BYTES false
+#endif
+
 // Some types of tracing require the SFI to store a unique ID.
 #if defined(V8_TRACE_MAPS) || defined(V8_TRACE_IGNITION)
 #define V8_SFI_HAS_UNIQUE_ID true
@@ -234,6 +242,7 @@ using AtomicTagged_t = base::AtomicWord;
 constexpr bool kUseBranchlessPtrDecompression = true;
 
 STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
+STATIC_ASSERT((kTaggedSize == 8) == TAGGED_SIZE_8_BYTES);
 
 using AsAtomicTagged = base::AsAtomicPointerImpl<AtomicTagged_t>;
 STATIC_ASSERT(sizeof(Tagged_t) == kTaggedSize);
