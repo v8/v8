@@ -303,6 +303,51 @@ TEST_F(DecompressionEliminationTest, TwoDecompressionComparison) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Word64Equal comparison of two decompressions, where lhs == rhs
+
+TEST_F(DecompressionEliminationTest, TwoDecompressionWord64EqualSameInput) {
+  // Skip test if pointer compression is not enabled
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+
+  // Define variables
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+
+  const Operator* DecompressionOps[] = {
+      machine()->ChangeCompressedToTagged(),
+      machine()->ChangeCompressedSignedToTaggedSigned(),
+      machine()->ChangeCompressedPointerToTaggedPointer()};
+
+  const ElementAccess ElementAccesses[] = {
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::AnyTagged(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::TaggedSigned(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::TaggedPointer(),
+       kNoWriteBarrier}};
+
+  ASSERT_EQ(arraysize(DecompressionOps), arraysize(ElementAccesses));
+
+  // For every decompression (same for lhs and rhs)
+  for (size_t j = 0; j < arraysize(DecompressionOps); ++j) {
+    // Create the graph
+    Node* load = graph()->NewNode(simplified()->LoadElement(ElementAccesses[j]),
+                                  object, index, effect, control);
+    Node* changeToTagged = graph()->NewNode(DecompressionOps[j], load);
+    Node* comparison = graph()->NewNode(machine()->Word64Equal(),
+                                        changeToTagged, changeToTagged);
+    // Reduce
+    Reduction r = Reduce(comparison);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(r.replacement()->opcode(), IrOpcode::kWord32Equal);
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
