@@ -598,11 +598,13 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
         std::min(RoundDown(merged_region.end(), commit_page_size),
                  RoundUp(region.end(), commit_page_size));
     if (discard_start >= discard_end) continue;
-    // TODO(clemensh): Update committed_code_space_ counter.
+    size_t old_committed =
+        committed_code_space_.fetch_sub(discard_end - discard_start);
+    DCHECK_GE(old_committed, discard_end - discard_start);
+    USE(old_committed);
     for (base::AddressRegion split_range : SplitRangeByReservationsIfNeeded(
              {discard_start, discard_end - discard_start}, owned_code_space_)) {
-      allocator->DiscardSystemPages(
-          reinterpret_cast<void*>(split_range.begin()), split_range.size());
+      code_manager_->Decommit(split_range.begin(), split_range.size());
     }
   }
 }
@@ -1176,7 +1178,7 @@ bool WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange() const {
 #endif
 
 bool WasmCodeManager::Commit(Address start, size_t size) {
-  // TODO(v8:8462) Remove eager commit once perf supports remapping.
+  // TODO(v8:8462): Remove eager commit once perf supports remapping.
   if (FLAG_perf_prof) return true;
   DCHECK(IsAligned(start, CommitPageSize()));
   DCHECK(IsAligned(size, CommitPageSize()));
@@ -1209,6 +1211,20 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
   return true;
 }
 
+void WasmCodeManager::Decommit(Address start, size_t size) {
+  // TODO(v8:8462): Remove this once perf supports remapping.
+  if (FLAG_perf_prof) return;
+  PageAllocator* allocator = GetPlatformPageAllocator();
+  DCHECK(IsAligned(start, allocator->CommitPageSize()));
+  DCHECK(IsAligned(size, allocator->CommitPageSize()));
+  size_t old_committed = total_committed_code_space_.fetch_sub(size);
+  DCHECK_LE(size, old_committed);
+  USE(old_committed);
+  TRACE_HEAP("Discarding system pages %p:%p\n", reinterpret_cast<void*>(start),
+             reinterpret_cast<void*>(start + size));
+  CHECK(allocator->DiscardSystemPages(reinterpret_cast<void*>(start), size));
+}
+
 void WasmCodeManager::AssignRanges(Address start, Address end,
                                    NativeModule* native_module) {
   base::MutexGuard lock(&native_modules_mutex_);
@@ -1232,7 +1248,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
              reinterpret_cast<void*>(mem.address()),
              reinterpret_cast<void*>(mem.end()), mem.size());
 
-  // TODO(v8:8462) Remove eager commit once perf supports remapping.
+  // TODO(v8:8462): Remove eager commit once perf supports remapping.
   if (FLAG_perf_prof) {
     SetPermissions(GetPlatformPageAllocator(), mem.address(), mem.size(),
                    PageAllocator::kReadWriteExecute);
