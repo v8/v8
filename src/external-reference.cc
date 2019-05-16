@@ -4,7 +4,7 @@
 
 #include "src/external-reference.h"
 
-#include "src/api.h"
+#include "src/api/api.h"
 #include "src/base/ieee754.h"
 #include "src/compiler/code-assembler.h"
 #include "src/counters.h"

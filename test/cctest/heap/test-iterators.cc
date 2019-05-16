@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/v8.h"
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"

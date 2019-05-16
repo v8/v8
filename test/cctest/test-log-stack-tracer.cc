@@ -30,7 +30,7 @@
 #include <stdlib.h>
 
 #include "include/v8-profiler.h"
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/disassembler.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"

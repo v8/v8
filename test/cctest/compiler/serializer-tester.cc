@@ -8,7 +8,7 @@
 
 #include "test/cctest/compiler/serializer-tester.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/compiler/serializer-for-background-compilation.h"
 #include "src/compiler/zone-stats.h"
 #include "src/optimized-compilation-info.h"

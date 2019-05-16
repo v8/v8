@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 #include "include/v8.h"
-#include "src/api.h"
+#include "src/api/api.h"
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/objects-inl.h"

@@ -4,7 +4,7 @@
 
 #include "src/snapshot/startup-serializer.h"
 
-#include "src/api.h"
+#include "src/api/api.h"
 #include "src/code-tracer.h"
 #include "src/contexts.h"
 #include "src/deoptimizer.h"

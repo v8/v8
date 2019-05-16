@@ -4,7 +4,7 @@
 
 #include <memory>
 
-#include "src/api.h"
+#include "src/api/api.h"
 #include "src/arguments-inl.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/prettyprinter.h"

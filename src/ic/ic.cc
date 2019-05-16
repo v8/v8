@@ -5,8 +5,8 @@
 #include "src/ic/ic.h"
 
 #include "src/accessors.h"
-#include "src/api-arguments-inl.h"
-#include "src/api.h"
+#include "src/api/api-arguments-inl.h"
+#include "src/api/api.h"
 #include "src/arguments-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/bits.h"

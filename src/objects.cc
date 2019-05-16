@@ -14,9 +14,9 @@
 
 #include "src/accessors.h"
 #include "src/allocation-site-scopes.h"
-#include "src/api-arguments-inl.h"
-#include "src/api-natives.h"
-#include "src/api.h"
+#include "src/api/api-arguments-inl.h"
+#include "src/api/api-natives.h"
+#include "src/api/api.h"
 #include "src/arguments.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"

@@ -7,7 +7,7 @@
 #include <type_traits>
 
 #include "include/v8-value-serializer-version.h"
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/flags.h"
 #include "src/handles-inl.h"

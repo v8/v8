@@ -8,7 +8,7 @@
 #include <memory>
 #include <sstream>
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
 #include "src/counters.h"

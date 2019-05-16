@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "test/cctest/cctest.h"

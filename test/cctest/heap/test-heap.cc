@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <utility>
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"

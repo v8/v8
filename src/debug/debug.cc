@@ -7,8 +7,8 @@
 #include <memory>
 #include <unordered_set>
 
-#include "src/api-inl.h"
-#include "src/api-natives.h"
+#include "src/api/api-inl.h"
+#include "src/api/api-natives.h"
 #include "src/arguments.h"
 #include "src/assembler-inl.h"
 #include "src/base/platform/mutex.h"

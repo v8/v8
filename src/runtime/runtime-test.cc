@@ -7,7 +7,7 @@
 #include <memory>
 #include <sstream>
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/arguments-inl.h"
 #include "src/assembler-inl.h"
 #include "src/base/platform/mutex.h"

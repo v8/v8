@@ -31,7 +31,7 @@
 
 #include "src/v8.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/collector.h"
 #include "src/numbers/conversions.h"

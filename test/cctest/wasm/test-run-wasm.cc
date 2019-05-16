@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/elapsed-timer.h"

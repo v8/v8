@@ -4,7 +4,7 @@
 
 #include "src/interpreter/bytecode-generator.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/scopes.h"
 #include "src/builtins/builtins-constructor.h"

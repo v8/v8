@@ -7,7 +7,7 @@
 #include "test/cctest/test-api.h"
 
 #include "include/v8-util.h"
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/arguments.h"
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"

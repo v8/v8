@@ -21,7 +21,7 @@
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
 #include "include/v8-inspector.h"
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"

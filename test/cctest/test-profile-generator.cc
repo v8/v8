@@ -28,7 +28,7 @@
 // Tests of profiles generator and utilities.
 
 #include "include/v8-profiler.h"
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/log.h"
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
