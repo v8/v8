@@ -493,7 +493,8 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 
     Handle<Object> value = property.value;
 
-    PropertyDetails details = target->instance_descriptors()->GetDetails(i);
+    PropertyDetails details =
+        target->instance_descriptors()->GetDetails(descriptor);
     Representation expected_representation = details.representation();
 
     if (!value->FitsRepresentation(expected_representation)) {
