@@ -205,7 +205,7 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
 
   v8::PageAllocator* page_allocator() { return page_allocator_; }
 
-  const base::AddressRegion& region() const { return region_; }
+  base::AddressRegion region() const { return region_; }
 
   // Returns the start address of the reserved memory.
   // If the memory was reserved with an alignment, this address is not

@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "src/base/address-region.h"
 #include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/builtins/builtins-definitions.h"
@@ -636,13 +637,13 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   V8_WARN_UNUSED_RESULT VirtualMemory TryAllocate(size_t size,
                                                   void* hint = nullptr);
-  bool Commit(Address, size_t);
-  void Decommit(Address, size_t);
+  bool Commit(base::AddressRegion);
+  void Decommit(base::AddressRegion);
 
   void FreeNativeModule(Vector<VirtualMemory> owned_code,
                         size_t committed_size);
 
-  void AssignRanges(Address start, Address end, NativeModule*);
+  void AssignRange(base::AddressRegion, NativeModule*);
 
   WasmMemoryTracker* const memory_tracker_;
 

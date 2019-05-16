@@ -481,8 +481,7 @@ Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
       V8::FatalProcessOutOfMemory(nullptr, "wasm code reservation");
       UNREACHABLE();
     }
-    code_manager_->AssignRanges(new_mem.address(), new_mem.end(),
-                                native_module);
+    code_manager_->AssignRange(new_mem.region(), native_module);
 
     free_code_space_.Merge(new_mem.region());
     owned_code_space_.emplace_back(std::move(new_mem));
@@ -506,7 +505,7 @@ Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
     DCHECK_LE(committed_code_space_.load(), kMaxWasmCodeMemory);
     for (base::AddressRegion split_range : SplitRangeByReservationsIfNeeded(
              {commit_start, commit_end - commit_start}, owned_code_space_)) {
-      if (!code_manager_->Commit(split_range.begin(), split_range.size())) {
+      if (!code_manager_->Commit(split_range)) {
         V8::FatalProcessOutOfMemory(nullptr, "wasm code commit");
         UNREACHABLE();
       }
@@ -598,13 +597,13 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
         std::min(RoundDown(merged_region.end(), commit_page_size),
                  RoundUp(region.end(), commit_page_size));
     if (discard_start >= discard_end) continue;
-    size_t old_committed =
-        committed_code_space_.fetch_sub(discard_end - discard_start);
-    DCHECK_GE(old_committed, discard_end - discard_start);
+    size_t discard_size = discard_end - discard_start;
+    size_t old_committed = committed_code_space_.fetch_sub(discard_size);
+    DCHECK_GE(old_committed, discard_size);
     USE(old_committed);
     for (base::AddressRegion split_range : SplitRangeByReservationsIfNeeded(
-             {discard_start, discard_end - discard_start}, owned_code_space_)) {
-      code_manager_->Decommit(split_range.begin(), split_range.size());
+             {discard_start, discard_size}, owned_code_space_)) {
+      code_manager_->Decommit(split_range);
     }
   }
 }
@@ -1177,19 +1176,19 @@ bool WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange() const {
 }
 #endif
 
-bool WasmCodeManager::Commit(Address start, size_t size) {
+bool WasmCodeManager::Commit(base::AddressRegion region) {
   // TODO(v8:8462): Remove eager commit once perf supports remapping.
   if (FLAG_perf_prof) return true;
-  DCHECK(IsAligned(start, CommitPageSize()));
-  DCHECK(IsAligned(size, CommitPageSize()));
+  DCHECK(IsAligned(region.begin(), CommitPageSize()));
+  DCHECK(IsAligned(region.size(), CommitPageSize()));
   // Reserve the size. Use CAS loop to avoid overflow on
   // {total_committed_code_space_}.
   size_t old_value = total_committed_code_space_.load();
   while (true) {
     DCHECK_GE(max_committed_code_space_, old_value);
-    if (size > max_committed_code_space_ - old_value) return false;
-    if (total_committed_code_space_.compare_exchange_weak(old_value,
-                                                          old_value + size)) {
+    if (region.size() > max_committed_code_space_ - old_value) return false;
+    if (total_committed_code_space_.compare_exchange_weak(
+            old_value, old_value + region.size())) {
       break;
     }
   }
@@ -1197,38 +1196,41 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
                                              ? PageAllocator::kReadWrite
                                              : PageAllocator::kReadWriteExecute;
 
-  bool ret =
-      SetPermissions(GetPlatformPageAllocator(), start, size, permission);
+  bool ret = SetPermissions(GetPlatformPageAllocator(), region.begin(),
+                            region.size(), permission);
   TRACE_HEAP("Setting rw permissions for %p:%p\n",
-             reinterpret_cast<void*>(start),
-             reinterpret_cast<void*>(start + size));
+             reinterpret_cast<void*>(region.begin()),
+             reinterpret_cast<void*>(region.end()));
 
   if (!ret) {
     // Highly unlikely.
-    total_committed_code_space_.fetch_sub(size);
+    total_committed_code_space_.fetch_sub(region.size());
     return false;
   }
   return true;
 }
 
-void WasmCodeManager::Decommit(Address start, size_t size) {
+void WasmCodeManager::Decommit(base::AddressRegion region) {
   // TODO(v8:8462): Remove this once perf supports remapping.
   if (FLAG_perf_prof) return;
   PageAllocator* allocator = GetPlatformPageAllocator();
-  DCHECK(IsAligned(start, allocator->CommitPageSize()));
-  DCHECK(IsAligned(size, allocator->CommitPageSize()));
-  size_t old_committed = total_committed_code_space_.fetch_sub(size);
-  DCHECK_LE(size, old_committed);
+  DCHECK(IsAligned(region.begin(), allocator->CommitPageSize()));
+  DCHECK(IsAligned(region.size(), allocator->CommitPageSize()));
+  size_t old_committed = total_committed_code_space_.fetch_sub(region.size());
+  DCHECK_LE(region.size(), old_committed);
   USE(old_committed);
-  TRACE_HEAP("Discarding system pages %p:%p\n", reinterpret_cast<void*>(start),
-             reinterpret_cast<void*>(start + size));
-  CHECK(allocator->DiscardSystemPages(reinterpret_cast<void*>(start), size));
+  TRACE_HEAP("Discarding system pages %p:%p\n",
+             reinterpret_cast<void*>(region.begin()),
+             reinterpret_cast<void*>(region.end()));
+  CHECK(allocator->DiscardSystemPages(reinterpret_cast<void*>(region.begin()),
+                                      region.size()));
 }
 
-void WasmCodeManager::AssignRanges(Address start, Address end,
-                                   NativeModule* native_module) {
+void WasmCodeManager::AssignRange(base::AddressRegion region,
+                                  NativeModule* native_module) {
   base::MutexGuard lock(&native_modules_mutex_);
-  lookup_map_.insert(std::make_pair(start, std::make_pair(end, native_module)));
+  lookup_map_.insert(std::make_pair(
+      region.begin(), std::make_pair(region.end(), native_module)));
 }
 
 VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
