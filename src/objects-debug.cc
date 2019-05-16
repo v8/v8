@@ -5,7 +5,6 @@
 #include "src/objects.h"
 
 #include "src/assembler-inl.h"
-#include "src/bootstrapper.h"
 #include "src/counters.h"
 #include "src/date/date.h"
 #include "src/disasm.h"
@@ -15,6 +14,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/ic/handler-configuration-inl.h"
+#include "src/init/bootstrapper.h"
 #include "src/layout-descriptor.h"
 #include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"

@@ -12,7 +12,6 @@
 #include "src/arguments.h"
 #include "src/assembler-inl.h"
 #include "src/base/platform/mutex.h"
-#include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
@@ -25,6 +24,7 @@
 #include "src/global-handles.h"
 #include "src/globals.h"
 #include "src/heap/heap-inl.h"  // For NextDebuggingId.
+#include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecode-array-accessor.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/interpreter.h"

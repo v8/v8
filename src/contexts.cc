@@ -5,8 +5,8 @@
 #include "src/contexts.h"
 
 #include "src/ast/modules.h"
-#include "src/bootstrapper.h"
 #include "src/debug/debug.h"
+#include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
 #include "src/objects/module-inl.h"
 

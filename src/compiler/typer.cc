@@ -7,7 +7,6 @@
 #include <iomanip>
 
 #include "src/base/flags.h"
-#include "src/bootstrapper.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
@@ -18,6 +17,7 @@
 #include "src/compiler/operation-typer.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
+#include "src/init/bootstrapper.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

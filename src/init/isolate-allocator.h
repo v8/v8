@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_ISOLATE_ALLOCATOR_H_
-#define V8_ISOLATE_ALLOCATOR_H_
+#ifndef V8_INIT_ISOLATE_ALLOCATOR_H_
+#define V8_INIT_ISOLATE_ALLOCATOR_H_
 
 #include "src/allocation.h"
 #include "src/base/bounded-page-allocator.h"
@@ -60,4 +60,4 @@ class V8_EXPORT_PRIVATE IsolateAllocator final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ISOLATE_ALLOCATOR_H_
+#endif  // V8_INIT_ISOLATE_ALLOCATOR_H_

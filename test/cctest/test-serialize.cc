@@ -33,7 +33,6 @@
 
 #include "src/api-inl.h"
 #include "src/assembler-inl.h"
-#include "src/bootstrapper.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
@@ -41,6 +40,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/spaces.h"
+#include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"

@@ -4,12 +4,12 @@
 
 #include "src/objects/map.h"
 
-#include "src/bootstrapper.h"
 #include "src/counters-inl.h"
 #include "src/field-type.h"
 #include "src/frames.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/init/bootstrapper.h"
 #include "src/isolate.h"
 #include "src/layout-descriptor.h"
 #include "src/log.h"

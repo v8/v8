@@ -10,12 +10,12 @@
 
 #include "src/api-inl.h"
 #include "src/ast/modules.h"
-#include "src/bootstrapper.h"
 #include "src/boxed-float.h"
 #include "src/code-factory.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/per-isolate-compiler-cache.h"
+#include "src/init/bootstrapper.h"
 #include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"

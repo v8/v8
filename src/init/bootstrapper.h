@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BOOTSTRAPPER_H_
-#define V8_BOOTSTRAPPER_H_
+#ifndef V8_INIT_BOOTSTRAPPER_H_
+#define V8_INIT_BOOTSTRAPPER_H_
 
 #include "src/heap/factory.h"
 #include "src/objects/fixed-array.h"
@@ -38,7 +38,6 @@ class SourceCodeCache final {
   FixedArray cache_;
   DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
-
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
@@ -118,9 +117,7 @@ class BootstrapperActive final {
     ++bootstrapper_->nesting_;
   }
 
-  ~BootstrapperActive() {
-    --bootstrapper_->nesting_;
-  }
+  ~BootstrapperActive() { --bootstrapper_->nesting_; }
 
  private:
   Bootstrapper* bootstrapper_;
@@ -131,4 +128,4 @@ class BootstrapperActive final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_BOOTSTRAPPER_H_
+#endif  // V8_INIT_BOOTSTRAPPER_H_

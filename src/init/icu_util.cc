@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/icu_util.h"
+#include "src/init/icu_util.h"
 
 #if defined(_WIN32)
 #include "src/base/win32-headers.h"
@@ -18,7 +18,7 @@
 #include "src/base/build_config.h"
 #include "src/base/file-utils.h"
 
-#define ICU_UTIL_DATA_FILE   0
+#define ICU_UTIL_DATA_FILE 0
 #define ICU_UTIL_DATA_STATIC 1
 
 #endif
@@ -31,9 +31,7 @@ namespace internal {
 namespace {
 char* g_icu_data_ptr = nullptr;
 
-void free_icu_data_ptr() {
-  delete[] g_icu_data_ptr;
-}
+void free_icu_data_ptr() { delete[] g_icu_data_ptr; }
 
 }  // namespace
 #endif

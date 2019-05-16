@@ -6,12 +6,12 @@
 
 #include "src/assembler.h"
 #include "src/base/platform/platform.h"
-#include "src/bootstrapper.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
+#include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/tracing/trace-event.h"
 

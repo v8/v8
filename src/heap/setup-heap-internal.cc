@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/setup-isolate.h"
+#include "src/init/setup-isolate.h"
 
 #include "src/accessors.h"
 #include "src/compilation-cache.h"

@@ -4,9 +4,9 @@
 
 #include "src/property-descriptor.h"
 
-#include "src/bootstrapper.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
+#include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
 #include "src/lookup.h"
 #include "src/objects-inl.h"

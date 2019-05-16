@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/startup-data-util.h"
+#include "src/init/startup-data-util.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -12,7 +12,6 @@
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
 #include "src/utils.h"
-
 
 namespace v8 {
 namespace internal {
@@ -24,24 +23,20 @@ namespace {
 v8::StartupData g_natives;
 v8::StartupData g_snapshot;
 
-
 void ClearStartupData(v8::StartupData* data) {
   data->data = nullptr;
   data->raw_size = 0;
 }
-
 
 void DeleteStartupData(v8::StartupData* data) {
   delete[] data->data;
   ClearStartupData(data);
 }
 
-
 void FreeStartupData() {
   DeleteStartupData(&g_natives);
   DeleteStartupData(&g_snapshot);
 }
-
 
 void Load(const char* blob_file, v8::StartupData* startup_data,
           void (*setter_fn)(v8::StartupData*)) {
@@ -71,7 +66,6 @@ void Load(const char* blob_file, v8::StartupData* startup_data,
   }
 }
 
-
 void LoadFromFiles(const char* natives_blob, const char* snapshot_blob) {
   Load(natives_blob, &g_natives, v8::V8::SetNativesDataBlob);
   Load(snapshot_blob, &g_snapshot, v8::V8::SetSnapshotDataBlob);
@@ -81,7 +75,6 @@ void LoadFromFiles(const char* natives_blob, const char* snapshot_blob) {
 
 }  // namespace
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
-
 
 void InitializeExternalStartupData(const char* directory_path) {
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
@@ -100,7 +93,6 @@ void InitializeExternalStartupData(const char* directory_path) {
   free(snapshot);
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
 }
-
 
 void InitializeExternalStartupData(const char* natives_blob,
                                    const char* snapshot_blob) {

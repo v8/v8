@@ -6,7 +6,6 @@
 
 #include "src/api-arguments-inl.h"
 #include "src/arguments.h"
-#include "src/bootstrapper.h"
 #include "src/compiler.h"
 #include "src/counters.h"
 #include "src/date/date.h"
@@ -15,6 +14,7 @@
 #include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
+#include "src/init/bootstrapper.h"
 #include "src/isolate.h"
 #include "src/layout-descriptor.h"
 #include "src/log.h"

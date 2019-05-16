@@ -5,9 +5,9 @@
 #include "src/execution.h"
 
 #include "src/api-inl.h"
-#include "src/bootstrapper.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug.h"
+#include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
 #include "src/runtime-profiler.h"
 #include "src/vm-state-inl.h"

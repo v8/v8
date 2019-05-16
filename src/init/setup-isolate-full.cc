@@ -2,25 +2,35 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/setup-isolate.h"
+#include "src/init/setup-isolate.h"
 
 #include "src/base/logging.h"
+#include "src/debug/debug-evaluate.h"
+#include "src/heap/heap-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
-#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
 
 void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate) {
-  CHECK(!create_heap_objects_);
-  // No actual work to be done; builtins will be deserialized from the snapshot.
+  if (create_heap_objects_) {
+    SetupBuiltinsInternal(isolate);
+#ifdef DEBUG
+    DebugEvaluate::VerifyTransitiveBuiltins(isolate);
+#endif  // DEBUG
+  } else {
+    CHECK(isolate->snapshot_available());
+  }
 }
 
 bool SetupIsolateDelegate::SetupHeap(Heap* heap) {
-  CHECK(!create_heap_objects_);
-  // No actual work to be done; heap will be deserialized from the snapshot.
-  return true;
+  if (create_heap_objects_) {
+    return SetupHeapInternal(heap);
+  } else {
+    CHECK(heap->isolate()->snapshot_available());
+    return true;
+  }
 }
 
 }  // namespace internal

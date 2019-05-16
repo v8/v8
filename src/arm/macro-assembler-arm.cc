@@ -10,7 +10,6 @@
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
 #include "src/counters.h"
@@ -18,6 +17,7 @@
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"  // For MemoryChunk.
+#include "src/init/bootstrapper.h"
 #include "src/macro-assembler.h"
 #include "src/numbers/double.h"
 #include "src/objects-inl.h"

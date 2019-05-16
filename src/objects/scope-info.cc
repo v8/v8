@@ -8,7 +8,7 @@
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
-#include "src/bootstrapper.h"
+#include "src/init/bootstrapper.h"
 
 #include "src/objects-inl.h"
 #include "src/objects/module-inl.h"

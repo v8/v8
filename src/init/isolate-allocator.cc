@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/isolate-allocator.h"
+#include "src/init/isolate-allocator.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/isolate.h"
 #include "src/ptr-compr.h"

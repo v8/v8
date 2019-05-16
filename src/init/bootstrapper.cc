@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/bootstrapper.h"
+#include "src/init/bootstrapper.h"
 
 #include "src/accessors.h"
 #include "src/api-inl.h"
@@ -117,7 +117,6 @@ void Bootstrapper::Initialize(bool create_heap_objects) {
   extensions_cache_.Initialize(isolate_, create_heap_objects);
 }
 
-
 static const char* GCFunctionName() {
   bool flag_given =
       FLAG_expose_gc_as != nullptr && strlen(FLAG_expose_gc_as) != 0;
@@ -209,8 +208,7 @@ class Genesis {
   // Depending on the situation, expose and/or get rid of the utils object.
   void ConfigureUtilsObject();
 
-#define DECLARE_FEATURE_INITIALIZATION(id, descr) \
-  void InitializeGlobal_##id();
+#define DECLARE_FEATURE_INITIALIZATION(id, descr) void InitializeGlobal_##id();
 
   HARMONY_INPROGRESS(DECLARE_FEATURE_INITIALIZATION)
   HARMONY_STAGED(DECLARE_FEATURE_INITIALIZATION)
@@ -233,9 +231,7 @@ class Genesis {
   bool InstallExtraNatives();
   void InitializeNormalizedMapCaches();
 
-  enum ExtensionTraversalState {
-    UNVISITED, VISITED, INSTALLED
-  };
+  enum ExtensionTraversalState { UNVISITED, VISITED, INSTALLED };
 
   class ExtensionStates {
    public:
@@ -243,6 +239,7 @@ class Genesis {
     ExtensionTraversalState get_state(RegisteredExtension* extension);
     void set_state(RegisteredExtension* extension,
                    ExtensionTraversalState state);
+
    private:
     base::HashMap map_;
     DISALLOW_COPY_AND_ASSIGN(ExtensionStates);
@@ -258,8 +255,7 @@ class Genesis {
   static bool InstallRequestedExtensions(Isolate* isolate,
                                          v8::ExtensionConfiguration* extensions,
                                          ExtensionStates* extension_states);
-  static bool InstallExtension(Isolate* isolate,
-                               const char* name,
+  static bool InstallExtension(Isolate* isolate, const char* name,
                                ExtensionStates* extension_states);
   static bool InstallExtension(Isolate* isolate,
                                v8::RegisteredExtension* current,
@@ -1114,7 +1110,7 @@ static void AddToWeakNativeContextList(Isolate* isolate, Context context) {
   DCHECK(context->IsNativeContext());
   Heap* heap = isolate->heap();
 #ifdef DEBUG
-  { // NOLINT
+  {  // NOLINT
     DCHECK(context->next_context_link()->IsUndefined(isolate));
     // Check that context is not in the list yet.
     for (Object current = heap->native_contexts_list();
@@ -1128,7 +1124,6 @@ static void AddToWeakNativeContextList(Isolate* isolate, Context context) {
                UPDATE_WEAK_WRITE_BARRIER);
   heap->set_native_contexts_list(context);
 }
-
 
 void Genesis::CreateRoots() {
   // Allocate the native context FixedArray first and then patch the
@@ -1146,7 +1141,6 @@ void Genesis::CreateRoots() {
   }
 }
 
-
 void Genesis::InstallGlobalThisBinding() {
   Handle<ScriptContextTable> script_contexts(
       native_context()->script_context_table(), isolate());
@@ -1163,7 +1157,6 @@ void Genesis::InstallGlobalThisBinding() {
       ScriptContextTable::Extend(script_contexts, context);
   native_context()->set_script_context_table(*new_script_contexts);
 }
-
 
 Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     v8::Local<v8::ObjectTemplate> global_proxy_template,
@@ -1629,8 +1622,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     DCHECK(initial_map->elements_kind() == GetInitialFastElementsKind());
     Map::EnsureDescriptorSlack(isolate_, initial_map, 1);
 
-    PropertyAttributes attribs = static_cast<PropertyAttributes>(
-        DONT_ENUM | DONT_DELETE);
+    PropertyAttributes attribs =
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
 
     STATIC_ASSERT(JSArray::kLengthDescriptorIndex == 0);
     {  // Add length.
@@ -1914,8 +1907,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     string_map->set_elements_kind(FAST_STRING_WRAPPER_ELEMENTS);
     Map::EnsureDescriptorSlack(isolate_, string_map, 1);
 
-    PropertyAttributes attribs = static_cast<PropertyAttributes>(
-        DONT_ENUM | DONT_DELETE | READ_ONLY);
+    PropertyAttributes attribs =
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
     {  // Add length.
       Descriptor d = Descriptor::AccessorConstant(
@@ -3262,7 +3255,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           array_prototype_to_string_fun, DONT_ENUM);
   }
 
-  {  // -- T y p e d A r r a y s
+  {// -- T y p e d A r r a y s
 #define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype)                   \
   {                                                                    \
     Handle<JSFunction> fun =                                           \
@@ -3270,7 +3263,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallWithIntrinsicDefaultProto(isolate_, fun,                    \
                                      Context::TYPE##_ARRAY_FUN_INDEX); \
   }
-    TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
+  TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
   }
 
@@ -3768,7 +3761,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // --- strict mode arguments map
     const PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
     // Create the ThrowTypeError function.
     Handle<AccessorPair> callee = factory->NewAccessorPair();
@@ -3876,7 +3869,6 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
   return result;
 }
 
-
 void Genesis::InitializeExperimentalGlobal() {
 #define FEATURE_INITIALIZE_GLOBAL(id, descr) InitializeGlobal_##id();
 
@@ -3898,7 +3890,6 @@ bool Bootstrapper::CompileExtraBuiltin(Isolate* isolate, int index) {
   return Bootstrapper::CompileNative(isolate, name, source_code,
                                      arraysize(args), args, EXTENSION_CODE);
 }
-
 
 bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
                                  Handle<String> source, int argc,
@@ -3938,7 +3929,6 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
                              Execution::MessageHandling::kKeepPending, nullptr)
               .is_null();
 }
-
 
 bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
   Factory* factory = isolate->factory();
@@ -4601,8 +4591,8 @@ void Genesis::InstallInternalPackedArray(Handle<JSObject> target,
   // Make "length" magic on instances.
   Map::EnsureDescriptorSlack(isolate(), initial_map, 1);
 
-  PropertyAttributes attribs = static_cast<PropertyAttributes>(
-      DONT_ENUM | DONT_DELETE);
+  PropertyAttributes attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
 
   {  // Add length.
     Descriptor d = Descriptor::AccessorConstant(
@@ -5022,7 +5012,6 @@ void Genesis::InitializeNormalizedMapCaches() {
   native_context()->set_normalized_map_cache(*cache);
 }
 
-
 bool Bootstrapper::InstallExtensions(Handle<Context> native_context,
                                      v8::ExtensionConfiguration* extensions) {
   // Don't install extensions into the snapshot.
@@ -5054,7 +5043,6 @@ bool Genesis::InstallSpecialObjects(Isolate* isolate,
 
   return true;
 }
-
 
 static uint32_t Hash(RegisteredExtension* extension) {
   return v8::internal::ComputePointerHash(extension);
@@ -5099,7 +5087,6 @@ bool Genesis::InstallExtensions(Isolate* isolate,
          InstallRequestedExtensions(isolate, extensions, &extension_states);
 }
 
-
 bool Genesis::InstallAutoExtensions(Isolate* isolate,
                                     ExtensionStates* extension_states) {
   for (v8::RegisteredExtension* it = v8::RegisteredExtension::first_extension();
@@ -5112,7 +5099,6 @@ bool Genesis::InstallAutoExtensions(Isolate* isolate,
   return true;
 }
 
-
 bool Genesis::InstallRequestedExtensions(Isolate* isolate,
                                          v8::ExtensionConfiguration* extensions,
                                          ExtensionStates* extension_states) {
@@ -5122,11 +5108,9 @@ bool Genesis::InstallRequestedExtensions(Isolate* isolate,
   return true;
 }
 
-
 // Installs a named extension.  This methods is unoptimized and does
 // not scale well if we want to support a large number of extensions.
-bool Genesis::InstallExtension(Isolate* isolate,
-                               const char* name,
+bool Genesis::InstallExtension(Isolate* isolate, const char* name,
                                ExtensionStates* extension_states) {
   for (v8::RegisteredExtension* it = v8::RegisteredExtension::first_extension();
        it != nullptr; it = it->next()) {
@@ -5134,11 +5118,9 @@ bool Genesis::InstallExtension(Isolate* isolate,
       return InstallExtension(isolate, it, extension_states);
     }
   }
-  return Utils::ApiCheck(false,
-                         "v8::Context::New()",
+  return Utils::ApiCheck(false, "v8::Context::New()",
                          "Cannot find required extension");
 }
-
 
 bool Genesis::InstallExtension(Isolate* isolate,
                                v8::RegisteredExtension* current,
@@ -5149,8 +5131,7 @@ bool Genesis::InstallExtension(Isolate* isolate,
   // The current node has already been visited so there must be a
   // cycle in the dependency graph; fail.
   if (!Utils::ApiCheck(extension_states->get_state(current) != VISITED,
-                       "v8::Context::New()",
-                       "Circular extension dependency")) {
+                       "v8::Context::New()", "Circular extension dependency")) {
     return false;
   }
   DCHECK(extension_states->get_state(current) == UNVISITED);
@@ -5158,8 +5139,7 @@ bool Genesis::InstallExtension(Isolate* isolate,
   v8::Extension* extension = current->extension();
   // Install the extension's dependencies
   for (int i = 0; i < extension->dependency_count(); i++) {
-    if (!InstallExtension(isolate,
-                          extension->dependencies()[i],
+    if (!InstallExtension(isolate, extension->dependencies()[i],
                           extension_states)) {
       return false;
     }
@@ -5179,7 +5159,6 @@ bool Genesis::InstallExtension(Isolate* isolate,
   extension_states->set_state(current, INSTALLED);
   return result;
 }
-
 
 bool Genesis::ConfigureGlobalObjects(
     v8::Local<v8::ObjectTemplate> global_proxy_template) {
@@ -5228,12 +5207,11 @@ bool Genesis::ConfigureGlobalObjects(
   return true;
 }
 
-
 bool Genesis::ConfigureApiObject(Handle<JSObject> object,
                                  Handle<ObjectTemplateInfo> object_template) {
   DCHECK(!object_template.is_null());
   DCHECK(FunctionTemplateInfo::cast(object_template->constructor())
-             ->IsTemplateFor(object->map()));;
+             ->IsTemplateFor(object->map()));
 
   MaybeHandle<JSObject> maybe_obj =
       ApiNatives::InstantiateObject(object->GetIsolate(), object_template);
@@ -5343,7 +5321,6 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
   }
 }
 
-
 void Genesis::TransferIndexedProperties(Handle<JSObject> from,
                                         Handle<JSObject> to) {
   // Cloning the elements array is sufficient.
@@ -5352,7 +5329,6 @@ void Genesis::TransferIndexedProperties(Handle<JSObject> from,
   Handle<FixedArray> to_elements = factory()->CopyFixedArray(from_elements);
   to->set_elements(*to_elements);
 }
-
 
 void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
   HandleScope outer(isolate());
@@ -5476,19 +5452,19 @@ Genesis::Genesis(
   // Install experimental natives. Do not include them into the
   // snapshot as we should be able to turn them off at runtime. Re-installing
   // them after they have already been deserialized would also fail.
-    if (!isolate->serializer_enabled()) {
-      InitializeExperimentalGlobal();
+  if (!isolate->serializer_enabled()) {
+    InitializeExperimentalGlobal();
 
-      // Store String.prototype's map again in case it has been changed by
-      // experimental natives.
-      Handle<JSFunction> string_function(native_context()->string_function(),
-                                         isolate);
-      JSObject string_function_prototype =
-          JSObject::cast(string_function->initial_map()->prototype());
-      DCHECK(string_function_prototype->HasFastProperties());
-      native_context()->set_string_function_prototype_map(
-          string_function_prototype->map());
-    }
+    // Store String.prototype's map again in case it has been changed by
+    // experimental natives.
+    Handle<JSFunction> string_function(native_context()->string_function(),
+                                       isolate);
+    JSObject string_function_prototype =
+        JSObject::cast(string_function->initial_map()->prototype());
+    DCHECK(string_function_prototype->HasFastProperties());
+    native_context()->set_string_function_prototype_map(
+        string_function_prototype->map());
+  }
 
   if (FLAG_disallow_code_generation_from_strings) {
     native_context()->set_allow_code_gen_from_strings(
@@ -5535,8 +5511,8 @@ Genesis::Genesis(Isolate* isolate,
       ObjectTemplateInfo::cast(global_constructor->GetPrototypeTemplate()),
       isolate);
   Handle<JSObject> global_object =
-      ApiNatives::InstantiateRemoteObject(
-          global_object_template).ToHandleChecked();
+      ApiNatives::InstantiateRemoteObject(global_object_template)
+          .ToHandleChecked();
 
   // (Re)initialize the global proxy object.
   DCHECK_EQ(global_proxy_data->embedder_field_count(),
@@ -5563,10 +5539,7 @@ Genesis::Genesis(Isolate* isolate,
 // Support for thread preemption.
 
 // Reserve space for statics needing saving and restoring.
-int Bootstrapper::ArchiveSpacePerThread() {
-  return sizeof(NestingCounterType);
-}
-
+int Bootstrapper::ArchiveSpacePerThread() { return sizeof(NestingCounterType); }
 
 // Archive statics that are thread-local.
 char* Bootstrapper::ArchiveState(char* to) {
@@ -5575,18 +5548,14 @@ char* Bootstrapper::ArchiveState(char* to) {
   return to + sizeof(NestingCounterType);
 }
 
-
 // Restore statics that are thread-local.
 char* Bootstrapper::RestoreState(char* from) {
   nesting_ = *reinterpret_cast<NestingCounterType*>(from);
   return from + sizeof(NestingCounterType);
 }
 
-
 // Called when the top-level V8 mutex is destroyed.
-void Bootstrapper::FreeThreadResources() {
-  DCHECK(!IsActive());
-}
+void Bootstrapper::FreeThreadResources() { DCHECK(!IsActive()); }
 
 }  // namespace internal
 }  // namespace v8

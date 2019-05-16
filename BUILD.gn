@@ -1425,7 +1425,7 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
     sources = [
       "$target_gen_dir/extras-libraries.cc",
       "$target_gen_dir/snapshot.cc",
-      "src/setup-isolate-deserialize.cc",
+      "src/init/setup-isolate-deserialize.cc",
     ]
 
     if (v8_enable_embedded_builtins && emit_builtins_as_inline_asm) {
@@ -1459,7 +1459,7 @@ if (v8_use_snapshot && v8_use_external_startup_data) {
     }
 
     sources = [
-      "src/setup-isolate-deserialize.cc",
+      "src/init/setup-isolate-deserialize.cc",
       "src/snapshot/natives-external.cc",
       "src/snapshot/snapshot-external.cc",
     ]
@@ -1649,7 +1649,7 @@ v8_source_set("v8_init") {
 
   sources = [
     ### gcmole(all) ###
-    "src/setup-isolate-full.cc",
+    "src/init/setup-isolate-full.cc",
   ]
 
   public_deps = [
@@ -2065,8 +2065,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/basic-block-profiler.h",
     "src/bit-vector.cc",
     "src/bit-vector.h",
-    "src/bootstrapper.cc",
-    "src/bootstrapper.h",
     "src/boxed-float.h",
     "src/builtins/builtins-api.cc",
     "src/builtins/builtins-array.cc",
@@ -2324,10 +2322,17 @@ v8_source_set("v8_base_without_compiler") {
     "src/ic/ic.h",
     "src/ic/stub-cache.cc",
     "src/ic/stub-cache.h",
-    "src/icu_util.cc",
-    "src/icu_util.h",
     "src/identity-map.cc",
     "src/identity-map.h",
+    "src/init/bootstrapper.cc",
+    "src/init/bootstrapper.h",
+    "src/init/icu_util.cc",
+    "src/init/icu_util.h",
+    "src/init/isolate-allocator.cc",
+    "src/init/isolate-allocator.h",
+    "src/init/setup-isolate.h",
+    "src/init/startup-data-util.cc",
+    "src/init/startup-data-util.h",
     "src/interface-descriptors.cc",
     "src/interface-descriptors.h",
     "src/interpreter/block-coverage-builder.h",
@@ -2375,8 +2380,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/interpreter/interpreter-intrinsics.h",
     "src/interpreter/interpreter.cc",
     "src/interpreter/interpreter.h",
-    "src/isolate-allocator.cc",
-    "src/isolate-allocator.h",
     "src/isolate-data.h",
     "src/isolate-inl.h",
     "src/isolate.cc",
@@ -2753,7 +2756,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime.h",
     "src/safepoint-table.cc",
     "src/safepoint-table.h",
-    "src/setup-isolate.h",
     "src/signature.h",
     "src/simulator-base.cc",
     "src/simulator-base.h",
@@ -2801,8 +2803,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/source-position.h",
     "src/splay-tree-inl.h",
     "src/splay-tree.h",
-    "src/startup-data-util.cc",
-    "src/startup-data-util.h",
     "src/string-builder-inl.h",
     "src/string-builder.cc",
     "src/string-case.cc",

@@ -5,9 +5,9 @@
 #include "src/v8threads.h"
 
 #include "src/api.h"
-#include "src/bootstrapper.h"
 #include "src/debug/debug.h"
 #include "src/execution.h"
+#include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/visitors.h"
