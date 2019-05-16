@@ -10,7 +10,6 @@
 #include <memory>
 #include <vector>
 
-#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 
@@ -63,8 +62,6 @@ class PerfettoTracingController {
   std::unique_ptr<PerfettoJSONConsumer> consumer_;
   std::unique_ptr<PerfettoTaskRunner> task_runner_;
   base::Thread::LocalStorageKey writer_key_;
-  base::Mutex writers_mutex_;
-  std::vector<std::unique_ptr<::perfetto::TraceWriter>> writers_to_finalize_;
   // A semaphore that is signalled when StartRecording is called. StartTracing
   // waits on this semaphore to be notified when the tracing service is ready to
   // receive trace events.

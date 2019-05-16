@@ -37,6 +37,13 @@ void PerfettoTracingController::StartTracing(
 
     service_ = ::perfetto::TracingService::CreateInstance(
         std::move(shmem_factory), task_runner_.get());
+    // This allows Perfetto to recover trace events that were written by
+    // TraceWriters which have not yet been deleted. This allows us to keep
+    // TraceWriters alive past the end of tracing, rather than having to delete
+    // them all when tracing stops which would require synchronization on every
+    // trace event. Eventually we will delete TraceWriters when threads die, but
+    // for now we just leak all TraceWriters.
+    service_->SetSMBScrapingEnabled(true);
     producer_ = base::make_unique<PerfettoProducer>(this);
     consumer_ = base::make_unique<PerfettoJSONConsumer>(
         &trace_file_, &consumer_finished_semaphore_);
@@ -62,14 +69,9 @@ void PerfettoTracingController::StopTracing() {
   task_runner_->FinishImmediateTasks();
 
   task_runner_->PostTask([this] {
-    // Causes each thread-local writer to be deleted which will trigger a
-    // final Flush() on each writer as well.
-    // TODO(petermarshall): There as a race here where the writer is still being
-    // used by a thread writing trace events (the thread read the value of
-    // perfetto_recording_ before it was changed). We either need to synchronize
-    // all tracing threads here or use TLS destructors like Chrome.
-    writers_to_finalize_.clear();
-
+    // Trigger shared memory buffer scraping which will get all pending trace
+    // events that have been written by still-living TraceWriters.
+    consumer_->service_endpoint()->DisableTracing();
     // Trigger the consumer to finish. This can trigger multiple calls to
     // PerfettoJSONConsumer::OnTraceData(), with the final call passing has_more
     // as false.
@@ -99,22 +101,18 @@ PerfettoTracingController::~PerfettoTracingController() {
 
 ::perfetto::TraceWriter*
 PerfettoTracingController::GetOrCreateThreadLocalWriter() {
+  // TODO(petermarshall): Use some form of thread-local destructor so that
+  // repeatedly created threads don't cause excessive leaking of TraceWriters.
   if (base::Thread::HasThreadLocal(writer_key_)) {
     return static_cast<::perfetto::TraceWriter*>(
         base::Thread::GetExistingThreadLocal(writer_key_));
   }
 
+  // We leak the TraceWriter objects created for each thread. Perfetto has a
+  // way of getting events from leaked TraceWriters and we can avoid needing a
+  // lock on every trace event this way.
   std::unique_ptr<::perfetto::TraceWriter> tw = producer_->CreateTraceWriter();
-
-  ::perfetto::TraceWriter* writer = tw.get();
-  // We don't have thread-local storage destructors but we need to delete each
-  // thread local TraceWriter, so that they can release the trace buffer chunks
-  // they are holding on to. To do this, we keep a vector of all writers that we
-  // create so they can be deleted when tracing is stopped.
-  {
-    base::MutexGuard guard(&writers_mutex_);
-    writers_to_finalize_.push_back(std::move(tw));
-  }
+  ::perfetto::TraceWriter* writer = tw.release();
 
   base::Thread::SetThreadLocal(writer_key_, writer);
   return writer;
