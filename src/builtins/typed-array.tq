@@ -19,7 +19,7 @@ namespace typed_array {
     // Calculates the maximum number of elements supported by a specified number
     // of bytes.
     CalculateLength(byteLength: uintptr): PositiveSmi labels IfInvalid {
-      return TryUintPtrToPositiveSmi(byteLength >>> this.sizeLog2)
+      return Convert<PositiveSmi>(byteLength >>> this.sizeLog2)
           otherwise IfInvalid;
     }
 

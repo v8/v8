@@ -1340,65 +1340,17 @@ size_t ImplementationVisitor::InitializeAggregateHelper(
 void ImplementationVisitor::InitializeFieldFromSpread(
     VisitResult object, const Field& field,
     const InitializerResults& initializer_results) {
-  StackScope stack_scope(this);
+  NameAndType index = (*field.index)->name_and_type;
+  VisitResult iterator =
+      initializer_results.field_value_map.at(field.name_and_type.name);
+  VisitResult length = initializer_results.field_value_map.at(index.name);
 
-  VisitResult zero(TypeOracle::GetConstInt31Type(), "0");
-  const Type* index_type = (*field.index)->name_and_type.type;
-  VisitResult index = GenerateImplicitConvert(index_type, zero);
-  Block* post_exit_block = assembler().NewBlock(assembler().CurrentStack());
-  Block* exit_block = assembler().NewBlock(assembler().CurrentStack());
-  Block* body_block = assembler().NewBlock(assembler().CurrentStack());
-  Block* fail_block = assembler().NewBlock(assembler().CurrentStack(), true);
-  Block* header_block = assembler().NewBlock(assembler().CurrentStack());
-
-  assembler().Goto(header_block);
-
-  assembler().Bind(header_block);
-  Arguments compare_arguments;
-  compare_arguments.parameters.push_back(index);
-  compare_arguments.parameters.push_back(initializer_results.field_value_map.at(
-      (*field.index)->name_and_type.name));
-  GenerateExpressionBranch(
-      [&]() { return GenerateCall("<", compare_arguments); }, body_block,
-      exit_block);
-
-  assembler().Bind(body_block);
-  {
-    VisitResult spreadee =
-        initializer_results.field_value_map.at(field.name_and_type.name);
-    LocationReference target = LocationReference::VariableAccess(spreadee);
-    Binding<LocalLabel> no_more{&LabelBindingsManager::Get(), "_Done",
-                                LocalLabel{fail_block}};
-
-    // Call the Next() method of the iterator
-    Arguments next_arguments;
-    next_arguments.labels.push_back(&no_more);
-    Callable* callable = LookupMethod("Next", target, next_arguments, {});
-    VisitResult next_result =
-        GenerateCall(callable, target, next_arguments, {}, false);
-    Arguments assign_arguments;
-    assign_arguments.parameters.push_back(object);
-    assign_arguments.parameters.push_back(index);
-    assign_arguments.parameters.push_back(next_result);
-    GenerateCall("[]=", assign_arguments);
-
-    // Increment the indexed field index.
-    LocationReference index_ref = LocationReference::VariableAccess(index);
-    Arguments increment_arguments;
-    VisitResult one = {TypeOracle::GetConstInt31Type(), "1"};
-    increment_arguments.parameters = {index, one};
-    VisitResult assignment_value = GenerateCall("+", increment_arguments);
-    GenerateAssignToLocation(index_ref, assignment_value);
-  }
-  assembler().Goto(header_block);
-
-  assembler().Bind(fail_block);
-  assembler().Emit(AbortInstruction(AbortInstruction::Kind::kUnreachable));
-
-  assembler().Bind(exit_block);
-  assembler().Goto(post_exit_block);
-
-  assembler().Bind(post_exit_block);
+  Arguments assign_arguments;
+  assign_arguments.parameters.push_back(object);
+  assign_arguments.parameters.push_back(length);
+  assign_arguments.parameters.push_back(iterator);
+  GenerateCall("%InitializeFieldsFromIterator", assign_arguments,
+               {field.aggregate, index.type, iterator.type()});
 }
 
 void ImplementationVisitor::InitializeAggregate(
@@ -1429,13 +1381,13 @@ VisitResult ImplementationVisitor::AddVariableObjectSize(
             VisitResult(TypeOracle::GetConstInt31Type(), "kTaggedSize");
         VisitResult initializer_value = initializer_results.field_value_map.at(
             (*current_field->index)->name_and_type.name);
-        VisitResult index_intptr_size =
-            GenerateCall("Convert", {{initializer_value}, {}},
-                         {TypeOracle::GetIntPtrType()}, false);
-        VisitResult variable_size = GenerateCall(
-            "*", {{index_intptr_size, index_field_size}, {}}, {}, false);
+        Arguments args;
+        args.parameters.push_back(object_size);
+        args.parameters.push_back(initializer_value);
+        args.parameters.push_back(index_field_size);
         object_size =
-            GenerateCall("+", {{object_size, variable_size}, {}}, {}, false);
+            GenerateCall("%AddIndexedFieldSizeToObjectSize", args,
+                         {(*current_field->index)->name_and_type.type}, false);
       }
       ++current_field;
     }

@@ -476,13 +476,20 @@ base::Optional<ParseResult> MakeIntrinsicDeclaration(
 
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
-  IntrinsicDeclaration* macro =
-      MakeNode<IntrinsicDeclaration>(name, args, return_type);
+  auto body = child_results->NextAs<base::Optional<Statement*>>();
+  LabelAndTypesVector labels;
+  CallableNode* callable = nullptr;
+  if (body) {
+    callable = MakeNode<TorqueMacroDeclaration>(
+        false, name, base::Optional<std::string>{}, args, return_type, labels);
+  } else {
+    callable = MakeNode<IntrinsicDeclaration>(name, args, return_type);
+  }
   Declaration* result;
   if (generic_parameters.empty()) {
-    result = MakeNode<StandardDeclaration>(macro, base::nullopt);
+    result = MakeNode<StandardDeclaration>(callable, body);
   } else {
-    result = MakeNode<GenericDeclaration>(macro, generic_parameters);
+    result = MakeNode<GenericDeclaration>(callable, generic_parameters, body);
   }
   return ParseResult{result};
 }
@@ -1823,7 +1830,7 @@ struct TorqueGrammar : Grammar {
            AsSingletonVector<Declaration*, MakeTypeAliasDeclaration>()),
       Rule({Token("intrinsic"), &intrinsicName,
             TryOrDefault<GenericParameters>(&genericParameters),
-            &parameterListNoVararg, &optionalReturnType, Token(";")},
+            &parameterListNoVararg, &optionalReturnType, &optionalBody},
            AsSingletonVector<Declaration*, MakeIntrinsicDeclaration>()),
       Rule({Token("extern"), CheckIf(Token("transitioning")),
             Optional<std::string>(

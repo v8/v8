@@ -311,6 +311,9 @@ class Macro : public Callable {
         if (type->IsStructType()) return true;
       }
     }
+    // Intrinsics that are used internally in Torque and implemented as torque
+    // code should be inlined and not generate C++ definitions.
+    if (ReadableName()[0] == '%') return true;
     return Callable::ShouldBeInlined();
   }
 

@@ -640,6 +640,23 @@ TNode<IntPtrT> CodeStubAssembler::TryIntPtrAdd(TNode<IntPtrT> a,
   return Projection<0>(pair);
 }
 
+TNode<IntPtrT> CodeStubAssembler::TryIntPtrSub(TNode<IntPtrT> a,
+                                               TNode<IntPtrT> b,
+                                               Label* if_overflow) {
+  TNode<PairT<IntPtrT, BoolT>> pair = IntPtrSubWithOverflow(a, b);
+  TNode<BoolT> overflow = Projection<1>(pair);
+  GotoIf(overflow, if_overflow);
+  return Projection<0>(pair);
+}
+
+TNode<Int32T> CodeStubAssembler::TryInt32Mul(TNode<Int32T> a, TNode<Int32T> b,
+                                             Label* if_overflow) {
+  TNode<PairT<Int32T, BoolT>> pair = Int32MulWithOverflow(a, b);
+  TNode<BoolT> overflow = Projection<1>(pair);
+  GotoIf(overflow, if_overflow);
+  return Projection<0>(pair);
+}
+
 TNode<Smi> CodeStubAssembler::TrySmiAdd(TNode<Smi> lhs, TNode<Smi> rhs,
                                         Label* if_overflow) {
   if (SmiValuesAre32Bits()) {

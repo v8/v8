@@ -211,7 +211,36 @@ extern class DescriptorArray extends HeapObject {
 // than building the definition from C++.
 intrinsic %GetAllocationBaseSize<Class: type>(map: Map): intptr;
 intrinsic %Allocate<Class: type>(size: intptr): Class;
-intrinsic %AllocateInternalClass<Class: type>(slotCount: constexpr intptr): Class;
+intrinsic %AllocateInternalClass<Class: type>(slotCount: constexpr intptr):
+    Class;
+
+intrinsic %AddIndexedFieldSizeToObjectSize<T: type>(
+    baseSize: intptr, indexSize: T, fieldSize: int32): intptr {
+  const convertedIndexSize = Convert<int32>(indexSize);
+  const variableSize: int32 =
+      TryInt32Mul(convertedIndexSize, fieldSize) otherwise unreachable;
+  const convertedVariableSize = Convert<intptr>(variableSize);
+  return TryIntPtrAdd(baseSize, convertedVariableSize) otherwise unreachable;
+}
+
+intrinsic
+%InitializeFieldsFromIterator<Container: type, Index: type, Iterator: type>(
+    c: Container, length: Index, i: Iterator) {
+  try {
+    let mutableIterator = i;
+    let current: Index = 0;
+    while (current < length) {
+      // TODO(danno): The indexed accessor on the container requires that the
+      // '[]=' operator be defined explicitly for the Container
+      // (e.g. FixedArray). We should change this to use slice references
+      // once they are implemented.
+      c[current++] = mutableIterator.Next() otherwise NoMore;
+    }
+  }
+  label NoMore deferred {
+    unreachable;
+  }
+}
 
 @abstract
 @noVerifier
@@ -1540,6 +1569,10 @@ macro Max(x: Number, y: Number): Number {
   return NumberMax(x, y);
 }
 
+extern macro TryIntPtrAdd(intptr, intptr): intptr labels Overflow;
+extern macro TryIntPtrSub(intptr, intptr): intptr labels Overflow;
+extern macro TryInt32Mul(int32, int32): int32 labels Overflow;
+
 extern operator '<<' macro ConstexprUintPtrShl(
     constexpr uintptr, constexpr int31): constexpr uintptr;
 extern operator '>>>' macro ConstexprUintPtrShr(
@@ -1919,11 +1952,6 @@ extern macro LoadJSArrayElementsMap(constexpr ElementsKind, Context): Map;
 extern macro LoadJSArrayElementsMap(ElementsKind, Context): Map;
 extern macro ChangeNonnegativeNumberToUintPtr(Number): uintptr;
 extern macro TryNumberToUintPtr(Number): uintptr labels IfNegative;
-macro TryUintPtrToPositiveSmi(ui: uintptr): PositiveSmi labels IfOverflow {
-  if (ui > kSmiMaxValue) goto IfOverflow;
-  return %RawDownCast<PositiveSmi>(SmiTag(Signed(ui)));
-}
-
 extern macro NumberConstant(constexpr float64): Number;
 extern macro NumberConstant(constexpr int32): Number;
 extern macro NumberConstant(constexpr uint32): Number;
@@ -2041,6 +2069,10 @@ macro Convert<To: type, From: type>(i: From): To {
   return i;
 }
 
+macro Convert<To: type, From: type>(i: From): To labels Overflow {
+  return i;
+}
+
 extern macro ConvertElementsKindToInt(ElementsKind): int32;
 Convert<int32, ElementsKind>(elementsKind: ElementsKind): int32 {
   return ConvertElementsKindToInt(elementsKind);
@@ -2095,6 +2127,20 @@ Convert<intptr, uintptr>(ui: uintptr): intptr {
 Convert<PositiveSmi, intptr>(i: intptr): PositiveSmi {
   assert(IsValidPositiveSmi(i));
   return %RawDownCast<PositiveSmi>(SmiTag(i));
+}
+Convert<PositiveSmi, uintptr>(ui: uintptr): PositiveSmi labels IfOverflow {
+  if (ui > kSmiMaxValue) deferred {
+      goto IfOverflow;
+    }
+  return %RawDownCast<PositiveSmi>(SmiTag(Signed(ui)));
+}
+Convert<PositiveSmi, intptr>(i: intptr): PositiveSmi labels IfOverflow {
+  if (IsValidPositiveSmi(i)) {
+    return %RawDownCast<PositiveSmi>(SmiTag(i));
+  } else
+    deferred {
+      goto IfOverflow;
+    }
 }
 Convert<int32, Smi>(s: Smi): int32 {
   return SmiToInt32(s);
@@ -2374,7 +2420,7 @@ macro GetReflectApply(implicit context: Context)(): Callable {
 }
 macro GetRegExpLastMatchInfo(implicit context: Context)(): RegExpMatchInfo {
   return %RawDownCast<RegExpMatchInfo>(
-             LoadNativeContext(context)[REGEXP_LAST_MATCH_INFO_INDEX]);
+      LoadNativeContext(context)[REGEXP_LAST_MATCH_INFO_INDEX]);
 }
 
 extern transitioning macro Call(Context, Callable, Object): Object;
@@ -2681,8 +2727,6 @@ extern macro AllocateSeqOneByteString(implicit context: Context)(uint32):
     String;
 extern macro AllocateSeqTwoByteString(implicit context: Context)(uint32):
     String;
-extern macro TryIntPtrAdd(intptr, intptr): intptr
-    labels IfOverflow;
 extern macro ConvertToRelativeIndex(implicit context: Context)(
     Object, intptr): intptr;
 
