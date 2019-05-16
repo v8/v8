@@ -154,6 +154,7 @@ v8_source_set("unittests_sources") {
     "heap/barrier-unittest.cc",
     "heap/bitmap-test-utils.h",
     "heap/bitmap-unittest.cc",
+    "heap/code-object-registry-unittest.cc",
     "heap/embedder-tracing-unittest.cc",
     "heap/gc-idle-time-handler-unittest.cc",
     "heap/gc-tracer-unittest.cc",

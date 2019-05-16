@@ -230,6 +230,24 @@ class FreeListCategory {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeListCategory);
 };
 
+// The CodeObjectRegistry holds all start addresses of code objects of a given
+// MemoryChunk. Each MemoryChunk owns a separate CodeObjectRegistry. The
+// CodeObjectRegistry allows fast lookup from an inner pointer of a code object
+// to the actual code object.
+class V8_EXPORT_PRIVATE CodeObjectRegistry {
+ public:
+  void RegisterNewlyAllocatedCodeObject(Address code);
+  void RegisterAlreadyExistingCodeObject(Address code);
+  void Clear();
+  void Finalize();
+  bool Contains(Address code) const;
+  Address GetCodeObjectStartFromInnerAddress(Address address) const;
+
+ private:
+  std::vector<Address> code_object_registry_already_existing_;
+  std::set<Address> code_object_registry_newly_allocated_;
+};
+
 class V8_EXPORT_PRIVATE MemoryChunkLayout {
  public:
   static size_t CodePageGuardStartOffset();
@@ -401,10 +419,8 @@ class MemoryChunk {
       // FreeListCategory categories_[kNumberOfCategories]
       + kSystemPointerSize  // LocalArrayBufferTracker* local_tracker_
       + kIntptrSize  // std::atomic<intptr_t> young_generation_live_byte_count_
-      + kSystemPointerSize  // Bitmap* young_generation_bitmap_
-      +
-      kSystemPointerSize  // std::vector code_object_registry_already_existing_
-      + kSystemPointerSize;  // std::set code_object_registry_newly_allocated_
+      + kSystemPointerSize   // Bitmap* young_generation_bitmap_
+      + kSystemPointerSize;  // CodeObjectRegistry* code_object_registry_
 
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
@@ -675,12 +691,7 @@ class MemoryChunk {
 
   base::ListNode<MemoryChunk>& list_node() { return list_node_; }
 
-  V8_EXPORT_PRIVATE void RegisterNewlyAllocatedCodeObject(HeapObject code);
-  V8_EXPORT_PRIVATE void RegisterAlreadyExistingCodeObject(HeapObject code);
-  V8_EXPORT_PRIVATE void ClearCodeObjectRegistries();
-  V8_EXPORT_PRIVATE void FinalizeCodeObjectRegistries();
-  V8_EXPORT_PRIVATE bool CodeObjectRegistryContains(HeapObject code);
-  V8_EXPORT_PRIVATE Code GetCodeObjectFromInnerAddress(Address address);
+  CodeObjectRegistry* GetCodeObjectRegistry() { return code_object_registry_; }
 
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
@@ -788,8 +799,7 @@ class MemoryChunk {
   std::atomic<intptr_t> young_generation_live_byte_count_;
   Bitmap* young_generation_bitmap_;
 
-  std::vector<Address>* code_object_registry_already_existing_;
-  std::set<Address>* code_object_registry_newly_allocated_;
+  CodeObjectRegistry* code_object_registry_;
 
  private:
   void InitializeReservedMemory() { reservation_.Reset(); }

@@ -614,63 +614,64 @@ void MemoryChunk::SetReadAndWritable() {
   }
 }
 
-void MemoryChunk::RegisterNewlyAllocatedCodeObject(HeapObject code) {
-  DCHECK(Contains(code->address()));
-  DCHECK(MemoryChunk::FromHeapObject(code)->owner()->identity() == CODE_SPACE);
-  auto result = code_object_registry_newly_allocated_->insert(code->address());
+void CodeObjectRegistry::RegisterNewlyAllocatedCodeObject(Address code) {
+  auto result = code_object_registry_newly_allocated_.insert(code);
   USE(result);
   DCHECK(result.second);
 }
 
-void MemoryChunk::RegisterAlreadyExistingCodeObject(HeapObject code) {
-  DCHECK(MemoryChunk::FromHeapObject(code)->owner()->identity() == CODE_SPACE);
-  code_object_registry_already_existing_->push_back(code->address());
+void CodeObjectRegistry::RegisterAlreadyExistingCodeObject(Address code) {
+  code_object_registry_already_existing_.push_back(code);
 }
 
-void MemoryChunk::ClearCodeObjectRegistries() {
-  DCHECK(code_object_registry_already_existing_);
-  DCHECK(code_object_registry_newly_allocated_);
-  code_object_registry_already_existing_->clear();
-  code_object_registry_newly_allocated_->clear();
+void CodeObjectRegistry::Clear() {
+  code_object_registry_already_existing_.clear();
+  code_object_registry_newly_allocated_.clear();
 }
 
-void MemoryChunk::FinalizeCodeObjectRegistries() {
-  DCHECK(code_object_registry_already_existing_);
-  DCHECK(code_object_registry_newly_allocated_);
-  code_object_registry_already_existing_->shrink_to_fit();
+void CodeObjectRegistry::Finalize() {
+  code_object_registry_already_existing_.shrink_to_fit();
 }
 
-bool MemoryChunk::CodeObjectRegistryContains(HeapObject object) {
-  return (code_object_registry_newly_allocated_->find(object->address()) !=
-          code_object_registry_newly_allocated_->end()) ||
-         (std::binary_search(code_object_registry_already_existing_->begin(),
-                             code_object_registry_already_existing_->end(),
-                             object->address()));
+bool CodeObjectRegistry::Contains(Address object) const {
+  return (code_object_registry_newly_allocated_.find(object) !=
+          code_object_registry_newly_allocated_.end()) ||
+         (std::binary_search(code_object_registry_already_existing_.begin(),
+                             code_object_registry_already_existing_.end(),
+                             object));
 }
 
-Code MemoryChunk::GetCodeObjectFromInnerAddress(Address address) {
-  DCHECK(Contains(address));
-
-  // Let's first try the std::vector which holds object that already existed
-  // since the last GC cycle.
-  if (!code_object_registry_already_existing_->empty()) {
-    auto it = std::upper_bound(code_object_registry_already_existing_->begin(),
-                               code_object_registry_already_existing_->end(),
-                               address);
-    if (it != code_object_registry_already_existing_->begin()) {
-      Code code = Code::unchecked_cast(HeapObject::FromAddress(*(--it)));
-      if (heap_->GcSafeCodeContains(code, address)) {
-        return code;
-      }
+Address CodeObjectRegistry::GetCodeObjectStartFromInnerAddress(
+    Address address) const {
+  // Let's first find the object which comes right before address in the vector
+  // of already existing code objects.
+  Address already_existing_set_ = 0;
+  Address newly_allocated_set_ = 0;
+  if (!code_object_registry_already_existing_.empty()) {
+    auto it =
+        std::upper_bound(code_object_registry_already_existing_.begin(),
+                         code_object_registry_already_existing_.end(), address);
+    if (it != code_object_registry_already_existing_.begin()) {
+      already_existing_set_ = *(--it);
     }
   }
 
-  // If the address was not found, it has to be in the newly allocated code
-  // objects registry.
-  DCHECK(!code_object_registry_newly_allocated_->empty());
-  auto it = code_object_registry_newly_allocated_->upper_bound(address);
-  HeapObject obj = HeapObject::FromAddress(*(--it));
-  return heap_->GcSafeCastToCode(obj, address);
+  // Next, let's find the object which comes right before address in the set
+  // of newly allocated code objects.
+  if (!code_object_registry_newly_allocated_.empty()) {
+    auto it = code_object_registry_newly_allocated_.upper_bound(address);
+    if (it != code_object_registry_newly_allocated_.begin()) {
+      newly_allocated_set_ = *(--it);
+    }
+  }
+
+  // The code objects which contains address has to be in one of the two
+  // data structures.
+  DCHECK(already_existing_set_ != 0 || newly_allocated_set_ != 0);
+
+  // The address which is closest to the given address is the code object.
+  return already_existing_set_ > newly_allocated_set_ ? already_existing_set_
+                                                      : newly_allocated_set_;
 }
 
 namespace {
@@ -759,11 +760,9 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->reservation_ = std::move(reservation);
 
   if (owner->identity() == CODE_SPACE) {
-    chunk->code_object_registry_newly_allocated_ = new std::set<Address>();
-    chunk->code_object_registry_already_existing_ = new std::vector<Address>();
+    chunk->code_object_registry_ = new CodeObjectRegistry();
   } else {
-    chunk->code_object_registry_newly_allocated_ = nullptr;
-    chunk->code_object_registry_already_existing_ = nullptr;
+    chunk->code_object_registry_ = nullptr;
   }
 
   return chunk;
@@ -1386,10 +1385,7 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   if (local_tracker_ != nullptr) ReleaseLocalTracker();
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
   if (marking_bitmap_ != nullptr) ReleaseMarkingBitmap();
-  if (code_object_registry_newly_allocated_ != nullptr)
-    delete code_object_registry_newly_allocated_;
-  if (code_object_registry_already_existing_ != nullptr)
-    delete code_object_registry_already_existing_;
+  if (code_object_registry_ != nullptr) delete code_object_registry_;
 
   if (!IsLargePage()) {
     Page* page = static_cast<Page*>(this);

@@ -5788,8 +5788,10 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   // after the inner pointer.
   Page* page = Page::FromAddress(inner_pointer);
 
-  HeapObject object = page->GetCodeObjectFromInnerAddress(inner_pointer);
-  return GcSafeCastToCode(object, inner_pointer);
+  Address start =
+      page->GetCodeObjectRegistry()->GetCodeObjectStartFromInnerAddress(
+          inner_pointer);
+  return GcSafeCastToCode(HeapObject::FromAddress(start), inner_pointer);
 }
 
 void Heap::WriteBarrierForCodeSlow(Code code) {

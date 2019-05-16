@@ -6678,17 +6678,12 @@ TEST(CodeObjectRegistry) {
     // objects are on the same page.
     CHECK_EQ(MemoryChunk::FromHeapObject(*code1),
              MemoryChunk::FromHeapObject(*code2));
-    CHECK(MemoryChunk::FromHeapObject(*code1)->CodeObjectRegistryContains(
-        *code1));
-    CHECK(MemoryChunk::FromHeapObject(*code2)->CodeObjectRegistryContains(
-        *code2));
+    CHECK(MemoryChunk::FromHeapObject(*code1)->Contains(code1->address()));
+    CHECK(MemoryChunk::FromHeapObject(*code2)->Contains(code2->address()));
   }
   CcTest::CollectAllAvailableGarbage();
-  CHECK(
-      MemoryChunk::FromHeapObject(*code1)->CodeObjectRegistryContains(*code1));
-  CHECK(
-      MemoryChunk::FromAddress(code2_address)
-          ->CodeObjectRegistryContains(HeapObject::FromAddress(code2_address)));
+  CHECK(MemoryChunk::FromHeapObject(*code1)->Contains(code1->address()));
+  CHECK(MemoryChunk::FromAddress(code2_address)->Contains(code2_address));
 }
 
 }  // namespace heap
