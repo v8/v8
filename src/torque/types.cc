@@ -353,6 +353,20 @@ void ClassType::Finalize() const {
   TypeVisitor::VisitClassFieldsAndMethods(const_cast<ClassType*>(this),
                                           this->decl_);
   is_finalized_ = true;
+  if (GenerateCppClassDefinitions()) {
+    for (const Field& f : fields()) {
+      const Type* field_type = f.name_and_type.type;
+      if (!field_type->IsSubtypeOf(TypeOracle::GetObjectType()) ||
+          field_type->IsSubtypeOf(TypeOracle::GetSmiType()) ||
+          field_type->IsSubtypeOf(TypeOracle::GetNumberType())) {
+        std::stringstream s;
+        s << "Generation of C++ class for Torque class " << name()
+          << " is not supported yet, because the type of field "
+          << f.name_and_type.name << " cannot be handled yet";
+        ReportLintError(s.str(), f.pos);
+      }
+    }
+  }
   CheckForDuplicateFields();
 }
 

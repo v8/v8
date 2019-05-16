@@ -657,9 +657,9 @@ class AnnotationSet {
 base::Optional<ParseResult> MakeClassDeclaration(
     ParseResultIterator* child_results) {
   AnnotationSet annotations(
-      child_results,
-      {"@generatePrint", "@noVerifier", "@abstract",
-       "@dirtyInstantiatedAbstractClass", "@hasSameInstanceTypeAsParent"});
+      child_results, {"@generatePrint", "@noVerifier", "@abstract",
+                      "@dirtyInstantiatedAbstractClass",
+                      "@hasSameInstanceTypeAsParent", "@generateCppClass"});
   ClassFlags flags = ClassFlag::kNone;
   bool generate_print = annotations.Contains("@generatePrint");
   if (generate_print) flags |= ClassFlag::kGeneratePrint;
@@ -673,6 +673,9 @@ base::Optional<ParseResult> MakeClassDeclaration(
   }
   if (annotations.Contains("@hasSameInstanceTypeAsParent")) {
     flags |= ClassFlag::kHasSameInstanceTypeAsParent;
+  }
+  if (annotations.Contains("@generateCppClass")) {
+    flags |= ClassFlag::kGenerateCppClassDefinitions;
   }
   auto is_extern = child_results->NextAs<bool>();
   if (is_extern) flags |= ClassFlag::kExtern;

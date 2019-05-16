@@ -1069,6 +1069,9 @@ action("run_torque") {
     "$target_gen_dir/torque-generated/class-verifiers-tq.cc",
     "$target_gen_dir/torque-generated/class-verifiers-tq.h",
     "$target_gen_dir/torque-generated/objects-printer-tq.cc",
+    "$target_gen_dir/torque-generated/class-definitions-tq.cc",
+    "$target_gen_dir/torque-generated/class-definitions-tq-inl.h",
+    "$target_gen_dir/torque-generated/class-definitions-tq.h",
   ]
   foreach(namespace, torque_namespaces) {
     outputs += [
@@ -1134,6 +1137,7 @@ v8_source_set("torque_generated_definitions") {
   ]
 
   sources = [
+    "$target_gen_dir/torque-generated/class-definitions-tq.cc",
     "$target_gen_dir/torque-generated/class-verifiers-tq.cc",
     "$target_gen_dir/torque-generated/class-verifiers-tq.h",
     "$target_gen_dir/torque-generated/objects-printer-tq.cc",

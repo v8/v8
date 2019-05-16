@@ -70,7 +70,8 @@ enum class ClassFlag {
   kAbstract = 1 << 4,
   kInstantiatedAbstractClass = 1 << 5,
   kHasSameInstanceTypeAsParent = 1 << 6,
-  kHasIndexedField = 1 << 7
+  kGenerateCppClassDefinitions = 1 << 7,
+  kHasIndexedField = 1 << 8
 };
 using ClassFlags = base::Flags<ClassFlag>;
 

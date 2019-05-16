@@ -40,6 +40,7 @@
 #include "src/property-details.h"
 #include "src/property.h"
 #include "src/v8memory.h"
+#include "torque-generated/class-definitions-tq-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

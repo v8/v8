@@ -521,3 +521,15 @@
   void DeoptimizationData::Set##name(int i, type value) {       \
     set(IndexForEntry(i) + k##name##Offset, value);             \
   }
+
+#define TQ_OBJECT_CONSTRUCTORS(Type) \
+ public:                             \
+  constexpr Type() = default;        \
+                                     \
+ protected:                          \
+  inline explicit Type(Address ptr); \
+  friend class TorqueGenerated##Type<Type, Super>;
+
+#define TQ_OBJECT_CONSTRUCTORS_IMPL(Type) \
+  inline Type::Type(Address ptr)          \
+      : TorqueGenerated##Type<Type, Type::Super>(ptr) {}

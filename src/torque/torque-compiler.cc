@@ -79,6 +79,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
     implementation_visitor.GenerateBuiltinDefinitions(output_directory);
     implementation_visitor.GenerateClassFieldOffsets(output_directory);
     implementation_visitor.GeneratePrintDefinitions(output_directory);
+    implementation_visitor.GenerateClassDefinitions(output_directory);
     implementation_visitor.GenerateClassVerifiers(output_directory);
 
     for (Namespace* n : GlobalContext::Get().GetNamespaces()) {

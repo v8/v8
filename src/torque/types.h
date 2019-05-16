@@ -524,6 +524,9 @@ class ClassType final : public AggregateType {
   bool HasSameInstanceTypeAsParent() const {
     return flags_ & ClassFlag::kHasSameInstanceTypeAsParent;
   }
+  bool GenerateCppClassDefinitions() const {
+    return flags_ & ClassFlag::kGenerateCppClassDefinitions;
+  }
   bool HasIndexedField() const override;
   size_t size() const { return size_; }
   const ClassType* GetSuperClass() const {

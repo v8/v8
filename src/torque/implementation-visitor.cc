@@ -2728,15 +2728,22 @@ class IfDefScope {
 
 class NamespaceScope {
  public:
-  NamespaceScope(std::ostream& os, std::string namespace_name)
-      : os_(os), d_(std::move(namespace_name)) {
-    os_ << "namespace " << d_ << " {\n";
+  NamespaceScope(std::ostream& os,
+                 std::initializer_list<std::string> namespaces)
+      : os_(os), d_(std::move(namespaces)) {
+    for (const std::string& s : d_) {
+      os_ << "namespace " << s << " {\n";
+    }
   }
-  ~NamespaceScope() { os_ << "}  // namespace " << d_ << "\n"; }
+  ~NamespaceScope() {
+    for (auto i = d_.rbegin(); i != d_.rend(); ++i) {
+      os_ << "}  // namespace " << *i << "\n";
+    }
+  }
 
  private:
   std::ostream& os_;
-  std::string d_;
+  std::vector<std::string> d_;
 };
 
 class IncludeGuardScope {
@@ -2755,13 +2762,13 @@ class IncludeGuardScope {
   std::string d_;
 };
 
-class IncludeObjectMacros {
+class IncludeObjectMacrosScope {
  public:
-  explicit IncludeObjectMacros(std::ostream& os) : os_(os) {
+  explicit IncludeObjectMacrosScope(std::ostream& os) : os_(os) {
     os_ << "\n// Has to be the last include (doesn't have include guards):\n"
            "#include \"src/objects/object-macros.h\"\n";
   }
-  ~IncludeObjectMacros() {
+  ~IncludeObjectMacrosScope() {
     os_ << "\n#include \"src/objects/object-macros-undef.h\"\n";
   }
 
@@ -2911,7 +2918,197 @@ void CompleteFieldSection(FieldSectionType* section,
   }
 }
 
+class CppClassGenerator {
+ public:
+  CppClassGenerator(const ClassType* type, std::ostream& header,
+                    std::ostream& inl_header, std::ostream& impl)
+      : type_(type),
+        super_(type->GetSuperClass()),
+        name_(type->name()),
+        gen_name_("TorqueGenerated" + name_),
+        gen_name_T_(gen_name_ + "<D, P>"),
+        gen_name_I_(gen_name_ + "<" + name_ + ", " + super_->name() + ">"),
+        hdr_(header),
+        inl_(inl_header),
+        impl_(impl) {}
+  const std::string template_decl() const {
+    return "template <class D, class P>";
+  }
+
+  void GenerateClass();
+
+ private:
+  void GenerateClassConstructors();
+  void GenerateClassFieldAccessor(const Field& f);
+  void GenerateClassCasts();
+
+  const ClassType* type_;
+  const ClassType* super_;
+  const std::string name_;
+  const std::string gen_name_;
+  const std::string gen_name_T_;
+  const std::string gen_name_I_;
+  std::ostream& hdr_;
+  std::ostream& inl_;
+  std::ostream& impl_;
+};
+
+void CppClassGenerator::GenerateClass() {
+  hdr_ << "class " << name_ << ";\n\n";
+
+  hdr_ << template_decl() << "\n";
+  hdr_ << "class " << gen_name_ << " : public P {\n";
+  hdr_ << "  static_assert(std::is_same<" << name_ << ", D>::value,\n"
+       << "    \"Use this class as direct base for " << name_ << ".\");\n";
+  hdr_ << "  static_assert(std::is_same<" << super_->name() << ", P>::value,\n"
+       << "    \"Pass in " << super_->name()
+       << " as second template parameter for " << gen_name_ << ".\");\n";
+  hdr_ << "public: \n";
+  hdr_ << "  using Super = P;\n";
+  for (const Field& f : type_->fields()) {
+    GenerateClassFieldAccessor(f);
+  }
+
+  GenerateClassCasts();
+
+  if (type_->ShouldGeneratePrint()) {
+    hdr_ << "\n  DECL_PRINTER(" << name_ << ")\n";
+  }
+
+  if (type_->ShouldGenerateVerify()) {
+    IfDefScope hdr_scope(hdr_, "VERIFY_HEAP");
+    hdr_ << "  V8_EXPORT_PRIVATE void " << name_
+         << "Verify(Isolate* isolate);\n";
+
+    IfDefScope impl_scope(impl_, "VERIFY_HEAP");
+    impl_ << "\ntemplate <>\n";
+    impl_ << "void " << gen_name_I_ << "::" << name_
+          << "Verify(Isolate* isolate) {\n";
+    impl_ << "  TorqueGeneratedClassVerifiers::" << name_ << "Verify(" << name_
+          << "::cast(*this), "
+             "isolate);\n";
+    impl_ << "}\n";
+  }
+
+  hdr_ << "\n  DEFINE_FIELD_OFFSET_CONSTANTS(P::kHeaderSize,\n    "
+       << "TORQUE_GENERATED_" << CapifyStringWithUnderscores(name_)
+       << "_FIELDS)\n";
+
+  GenerateClassConstructors();
+
+  hdr_ << "};\n\n";
+}
+
+void CppClassGenerator::GenerateClassCasts() {
+  hdr_ << "  V8_INLINE static D cast(Object object) {\n";
+  hdr_ << "    return D(object.ptr());\n";
+  hdr_ << "  }\n";
+
+  hdr_ << "  V8_INLINE static D unchecked_cast(Object object) {\n";
+  hdr_ << "    return bit_cast<D>(object);\n";
+  hdr_ << "  }\n";
+}
+
+void CppClassGenerator::GenerateClassConstructors() {
+  hdr_ << "public:\n";
+  hdr_ << "  template <class DAlias = D>\n";
+  hdr_ << "  constexpr " << gen_name_ << "() : P() {\n";
+  hdr_ << "    static_assert(std::is_base_of<" << gen_name_ << ", \n";
+  hdr_ << "      DAlias>::value,\n";
+  hdr_ << "      \"class " << gen_name_ << " should be used as direct base for "
+       << name_ << ".\");\n";
+  hdr_ << "  }\n";
+  hdr_ << "  D* operator->() { return static_cast<D*>(this); }\n";
+  hdr_ << "  const D* operator->() const { return static_cast<const D*>(this); "
+          "}\n";
+
+  hdr_ << "protected:\n";
+  hdr_ << "  inline explicit " << gen_name_ << "(Address ptr);\n";
+
+  inl_ << "template<class D, class P>\n";
+  inl_ << "inline " << gen_name_T_ << "::" << gen_name_ << "(Address ptr)\n";
+  inl_ << "  : P(ptr) {\n";
+  if (type_->IsInstantiatedAbstractClass()) {
+    // This is a hack to prevent wrong instance type checks.
+    inl_ << "  // Instance check omitted because class is annotated with "
+            "@dirtyInstantiatedAbstractClass.\n";
+  } else {
+    inl_ << "  SLOW_DCHECK(this->Is" << name_ << "());\n";
+  }
+  inl_ << "}\n";
+}
+
+// TODO(sigurds): Keep in sync with DECL_ACCESSORS and ACCESSORS macro.
+void CppClassGenerator::GenerateClassFieldAccessor(const Field& f) {
+  const std::string& name = f.name_and_type.name;
+  const std::string& type = f.name_and_type.type->GetGeneratedTNodeTypeName();
+  DCHECK(!f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType()));
+
+  hdr_ << "  inline " << type << " " << name << "() const;\n";
+  hdr_ << "  inline void set_" << name << "(" << type << " value,\n";
+  hdr_ << "    WriteBarrierMode mode = UPDATE_WRITE_BARRIER);\n\n";
+
+  const std::string offset =
+      "k" + CamelifyString(f.name_and_type.name) + "Offset";
+  inl_ << "template <class D, class P>\n";
+  inl_ << "  " << type << " " << gen_name_ << "<D, P>::" << name
+       << "() const {\n";
+  inl_ << "  " << type << " value = " << type << "::cast(READ_FIELD(*this, "
+       << offset << "));\n";
+  inl_ << "  return value;\n";
+  inl_ << "}\n";
+  inl_ << "template <class D, class P>\n";
+  inl_ << "void " << gen_name_ << "<D, P>::set_" << name << "(" << type
+       << " value, WriteBarrierMode mode) {\n";
+  inl_ << "  WRITE_FIELD(*this, " << offset << ", value);\n";
+  inl_ << "  CONDITIONAL_WRITE_BARRIER(*this, " << offset
+       << ", value, mode);\n";
+  inl_ << "}\n\n";
+}
+
 }  // namespace
+
+void ImplementationVisitor::GenerateClassDefinitions(
+    const std::string& output_directory) {
+  std::stringstream header;
+  std::stringstream inline_header;
+  std::stringstream implementation;
+  std::string basename = "class-definitions-tq";
+  std::string file_basename = output_directory + "/" + basename;
+
+  {
+    IncludeGuardScope header_guard(header, basename + ".h");
+    header << "#include \"src/objects.h\"\n";
+    header << "#include \"src/objects/heap-number.h\"\n";
+    header << "#include \"torque-generated/field-offsets-tq.h\"\n";
+    header << "#include <type_traits>\n\n";
+    IncludeObjectMacrosScope header_macros(header);
+    NamespaceScope header_namespaces(header, {"v8", "internal"});
+    header << "using BuiltinPtr = Smi;\n\n";
+
+    IncludeGuardScope inline_header_guard(inline_header, basename + "-inl.h");
+    inline_header << "#include \"torque-generated/class-definitions-tq.h\"\n\n";
+    IncludeObjectMacrosScope inline_header_macros(inline_header);
+    NamespaceScope inline_header_namespaces(inline_header, {"v8", "internal"});
+
+    implementation
+        << "#include \"torque-generated/class-definitions-tq.h\"\n\n";
+    implementation << "#include \"torque-generated/class-verifiers-tq.h\"\n\n";
+    implementation << "#include \"src/objects/struct-inl.h\"\n\n";
+    NamespaceScope implementation_namespaces(implementation,
+                                             {"v8", "internal"});
+
+    for (auto i : GlobalContext::GetClasses()) {
+      ClassType* type = i.second;
+      if (!type->GenerateCppClassDefinitions()) continue;
+      CppClassGenerator g(type, header, inline_header, implementation);
+      g.GenerateClass();
+    }
+  }
+  ReplaceFileContentsIfDifferent(file_basename + ".h", header.str());
+  ReplaceFileContentsIfDifferent(file_basename + "-inl.h", inline_header.str());
+  ReplaceFileContentsIfDifferent(file_basename + ".cc", implementation.str());
+}
 
 void ImplementationVisitor::GenerateClassFieldOffsets(
     const std::string& output_directory) {
@@ -2984,43 +3181,62 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
   ReplaceFileContentsIfDifferent(output_header_path, new_contents);
 }
 
+namespace {
+void GeneratePrintDefinitionsForClass(std::ostream& impl, const ClassType* type,
+                                      const std::string& gen_name,
+                                      const std::string& gen_name_T,
+                                      const std::string template_params) {
+  impl << template_params << "\n";
+  impl << "void " << gen_name_T << "::" << type->name()
+       << "Print(std::ostream& os) {\n";
+  impl << "  this->PrintHeader(os, \"" << gen_name << "\");\n";
+  auto hierarchy = type->GetHierarchy();
+  std::map<std::string, const AggregateType*> field_names;
+  for (const AggregateType* aggregate_type : hierarchy) {
+    for (const Field& f : aggregate_type->fields()) {
+      if (f.name_and_type.name == "map") continue;
+      impl << "  os << \"\\n - " << f.name_and_type.name << ": \" << "
+           << "Brief(this->" << f.name_and_type.name << "());\n";
+    }
+  }
+  impl << "  os << \"\\n\";\n";
+  impl << "}\n\n";
+}
+}  // namespace
+
 void ImplementationVisitor::GeneratePrintDefinitions(
     const std::string& output_directory) {
-  std::stringstream new_contents_stream;
+  std::stringstream impl;
   std::string file_name = "objects-printer-tq.cc";
   {
-    IfDefScope object_print(new_contents_stream, "OBJECT_PRINT");
+    IfDefScope object_print(impl, "OBJECT_PRINT");
 
-    new_contents_stream << "#include \"src/objects.h\"\n\n";
-    new_contents_stream << "#include <iosfwd>\n\n";
-    new_contents_stream << "#include \"src/objects/struct-inl.h\"\n\n";
+    impl << "#include \"src/objects.h\"\n\n";
+    impl << "#include <iosfwd>\n\n";
+    impl << "#include \"src/objects/struct-inl.h\"\n\n";
 
-    NamespaceScope namespace_v8(new_contents_stream, "v8");
-    NamespaceScope namespace_internal(new_contents_stream, "internal");
+    NamespaceScope impl_namespaces(impl, {"v8", "internal"});
 
     for (auto i : GlobalContext::GetClasses()) {
       ClassType* type = i.second;
       if (!type->ShouldGeneratePrint()) continue;
 
-      new_contents_stream << "void " << type->name() << "::" << type->name()
-                          << "Print(std::ostream& os) {\n";
-      new_contents_stream << "  PrintHeader(os, \"" << type->name() << "\");\n";
-      auto hierarchy = type->GetHierarchy();
-      std::map<std::string, const AggregateType*> field_names;
-      for (const AggregateType* aggregate_type : hierarchy) {
-        for (const Field& f : aggregate_type->fields()) {
-          if (f.name_and_type.name == "map") continue;
-          new_contents_stream << "  os << \"\\n - " << f.name_and_type.name
-                              << ": \" << "
-                              << "Brief(" << f.name_and_type.name << "());\n";
-        }
+      if (type->IsExtern() && type->GenerateCppClassDefinitions()) {
+        const ClassType* super = type->GetSuperClass();
+        std::string gen_name = "TorqueGenerated" + type->name();
+        std::string gen_name_T =
+            gen_name + "<" + type->name() + ", " + super->name() + ">";
+        std::string template_decl = "template <>";
+        GeneratePrintDefinitionsForClass(impl, type, gen_name, gen_name_T,
+                                         template_decl);
+      } else {
+        GeneratePrintDefinitionsForClass(impl, type, type->name(), type->name(),
+                                         "");
       }
-      new_contents_stream << "  os << \"\\n\";\n";
-      new_contents_stream << "}\n\n";
     }
   }
 
-  std::string new_contents(new_contents_stream.str());
+  std::string new_contents(impl.str());
   ReplaceFileContentsIfDifferent(output_directory + "/" + file_name,
                                  new_contents);
 }
@@ -3114,13 +3330,10 @@ void ImplementationVisitor::GenerateClassVerifiers(
     }
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
 
-    IncludeObjectMacros object_macros(cc_contents);
+    IncludeObjectMacrosScope object_macros(cc_contents);
 
-    NamespaceScope namespace_v8_h(h_contents, "v8");
-    NamespaceScope namespace_internal_h(h_contents, "internal");
-
-    NamespaceScope namespace_v8_cc(cc_contents, "v8");
-    NamespaceScope namespace_internal_cc(cc_contents, "internal");
+    NamespaceScope h_namespaces(h_contents, {"v8", "internal"});
+    NamespaceScope cc_namespaces(cc_contents, {"v8", "internal"});
 
     // Generate forward declarations to avoid including any headers.
     h_contents << "class Isolate;\n";
@@ -3168,7 +3381,12 @@ void ImplementationVisitor::GenerateClassVerifiers(
       }
 
       // Second, verify that this object is what it claims to be.
-      cc_contents << "  CHECK(o.Is" << i.first << "());\n";
+      if (type->IsInstantiatedAbstractClass()) {
+        cc_contents << "  // Instance type check skipped because\n";
+        cc_contents << "  // it is an instantiated abstract class.\n";
+      } else {
+        cc_contents << "  CHECK(o.Is" << i.first << "());\n";
+      }
 
       // Third, verify its properties.
       for (auto f : type->fields()) {

@@ -71,6 +71,7 @@ extern class Context extends HeapObject {
   native_context: Object;
 }
 type NativeContext extends Context;
+
 extern class Oddball extends HeapObject {
   to_number_raw: float64;
   to_string: String;
@@ -78,6 +79,7 @@ extern class Oddball extends HeapObject {
   type_of: String;
   kind: Smi;
 }
+
 extern class HeapNumber extends HeapObject { value: float64; }
 type Number = Smi | HeapNumber;
 type BigInt extends HeapObject generates 'TNode<BigInt>';
@@ -136,12 +138,15 @@ type NaN extends HeapNumber;
 
 @abstract
 @noVerifier
+@generatePrint
+@generateCppClass
 extern class Struct extends HeapObject {
 }
 
 @abstract
 @dirtyInstantiatedAbstractClass
 @generatePrint
+@generateCppClass
 extern class Tuple2 extends Struct {
   value1: Object;
   value2: Object;
@@ -150,6 +155,7 @@ extern class Tuple2 extends Struct {
 @abstract
 @dirtyInstantiatedAbstractClass
 @generatePrint
+@generateCppClass
 extern class Tuple3 extends Tuple2 {
   value3: Object;
 }
@@ -448,7 +454,6 @@ extern class SharedFunctionInfo extends HeapObject {
   expected_nof_properties: uint16;
   function_token_offset: int16;
   flags: int32;
-
   @ifdef(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
 }
 

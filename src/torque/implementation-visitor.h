@@ -278,6 +278,7 @@ class ImplementationVisitor {
   void GenerateBuiltinDefinitions(const std::string& output_directory);
   void GenerateClassFieldOffsets(const std::string& output_directory);
   void GeneratePrintDefinitions(const std::string& output_directory);
+  void GenerateClassDefinitions(const std::string& output_directory);
   void GenerateClassVerifiers(const std::string& output_directory);
 
   VisitResult Visit(Expression* expr);

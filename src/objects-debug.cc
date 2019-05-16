@@ -1661,8 +1661,6 @@ void PrototypeUsers::Verify(WeakArrayList array) {
   CHECK_EQ(weak_maps_count + empty_slots_count + 1, array->length());
 }
 
-USE_TORQUE_VERIFIER(Tuple2)
-
 void EnumCache::EnumCacheVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::EnumCacheVerify(*this, isolate);
   Heap* heap = isolate->heap();
@@ -1673,15 +1671,6 @@ void EnumCache::EnumCacheVerify(Isolate* isolate) {
 }
 
 USE_TORQUE_VERIFIER(SourcePositionTableWithFrameCache)
-
-void Tuple3::Tuple3Verify(Isolate* isolate) {
-  // Not using the Torque-generated verifier because IsTuple2 incorrectly
-  // returns false for instances of Tuple3.
-  CHECK(IsTuple3());
-  VerifyObjectField(isolate, kValue1Offset);
-  VerifyObjectField(isolate, kValue2Offset);
-  VerifyObjectField(isolate, kValue3Offset);
-}
 
 USE_TORQUE_VERIFIER(ClassPositions)
 
