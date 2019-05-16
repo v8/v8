@@ -10,6 +10,7 @@
 
 #include "perfetto/tracing/core/producer.h"
 #include "perfetto/tracing/core/tracing_service.h"
+#include "src/base/logging.h"
 
 namespace v8 {
 namespace platform {
@@ -50,6 +51,12 @@ class PerfettoProducer final : public ::perfetto::Producer {
   // efficient.
   void Flush(::perfetto::FlushRequestID,
              const ::perfetto::DataSourceInstanceID*, size_t) override {}
+
+  void ClearIncrementalState(
+      const ::perfetto::DataSourceInstanceID* data_source_ids,
+      size_t num_data_sources) override {
+    UNREACHABLE();
+  }
 
   std::unique_ptr<ServiceEndpoint> service_endpoint_;
   uint32_t target_buffer_ = 0;
