@@ -854,11 +854,11 @@ class MapData : public HeapObjectData {
     return elements_kind_generalizations_;
   }
 
-  // Serialize the own part of the descriptor array and, recursively, that of
-  // any field owner.
+  // Serialize a single (or all) own slot(s) of the descriptor array and recurse
+  // on field owner(s).
+  void SerializeOwnDescriptor(JSHeapBroker* broker, int descriptor_index);
   void SerializeOwnDescriptors(JSHeapBroker* broker);
   DescriptorArrayData* instance_descriptors() const {
-    CHECK(serialized_own_descriptors_);
     return instance_descriptors_;
   }
 
@@ -1102,10 +1102,10 @@ class DescriptorArrayData : public HeapObjectData {
                       Handle<DescriptorArray> object)
       : HeapObjectData(broker, storage, object), contents_(broker->zone()) {}
 
-  ZoneVector<PropertyDescriptor>& contents() { return contents_; }
+  ZoneMap<int, PropertyDescriptor>& contents() { return contents_; }
 
  private:
-  ZoneVector<PropertyDescriptor> contents_;
+  ZoneMap<int, PropertyDescriptor> contents_;
 };
 
 class FeedbackCellData : public HeapObjectData {
@@ -1683,52 +1683,55 @@ void MapData::SerializeOwnDescriptors(JSHeapBroker* broker) {
   TraceScope tracer(broker, this, "MapData::SerializeOwnDescriptors");
   Handle<Map> map = Handle<Map>::cast(object());
 
-  DCHECK_NULL(instance_descriptors_);
-  instance_descriptors_ =
-      broker->GetOrCreateData(map->instance_descriptors())->AsDescriptorArray();
-
   int const number_of_own = map->NumberOfOwnDescriptors();
-  ZoneVector<PropertyDescriptor>& contents = instance_descriptors_->contents();
-  int const current_size = static_cast<int>(contents.size());
-  if (number_of_own <= current_size) return;
+  for (int i = 0; i < number_of_own; ++i) {
+    SerializeOwnDescriptor(broker, i);
+  }
+}
+
+void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
+                                     int descriptor_index) {
+  TraceScope tracer(broker, this, "MapData::SerializeOwnDescriptor");
+  Handle<Map> map = Handle<Map>::cast(object());
+
+  if (instance_descriptors_ == nullptr) {
+    instance_descriptors_ = broker->GetOrCreateData(map->instance_descriptors())
+                                ->AsDescriptorArray();
+  }
+
+  ZoneMap<int, PropertyDescriptor>& contents =
+      instance_descriptors_->contents();
+  CHECK_LT(descriptor_index, map->NumberOfOwnDescriptors());
+  if (contents.find(descriptor_index) != contents.end()) return;
 
   Isolate* const isolate = broker->isolate();
   auto descriptors =
       Handle<DescriptorArray>::cast(instance_descriptors_->object());
   CHECK_EQ(*descriptors, map->instance_descriptors());
-  contents.reserve(number_of_own);
 
-  // Copy the new descriptors.
-  for (int i = current_size; i < number_of_own; ++i) {
-    PropertyDescriptor d;
-    d.key = broker->GetOrCreateData(descriptors->GetKey(i))->AsName();
-    d.details = descriptors->GetDetails(i);
-    if (d.details.location() == kField) {
-      d.field_index = FieldIndex::ForDescriptor(*map, i);
-      d.field_owner =
-          broker->GetOrCreateData(map->FindFieldOwner(isolate, i))->AsMap();
-      d.field_type = broker->GetOrCreateData(descriptors->GetFieldType(i));
-      d.is_unboxed_double_field = map->IsUnboxedDoubleField(d.field_index);
-      // Recurse.
-    }
-    contents.push_back(d);
+  PropertyDescriptor d;
+  d.key =
+      broker->GetOrCreateData(descriptors->GetKey(descriptor_index))->AsName();
+  d.details = descriptors->GetDetails(descriptor_index);
+  if (d.details.location() == kField) {
+    d.field_index = FieldIndex::ForDescriptor(*map, descriptor_index);
+    d.field_owner =
+        broker->GetOrCreateData(map->FindFieldOwner(isolate, descriptor_index))
+            ->AsMap();
+    d.field_type =
+        broker->GetOrCreateData(descriptors->GetFieldType(descriptor_index));
+    d.is_unboxed_double_field = map->IsUnboxedDoubleField(d.field_index);
   }
-  CHECK_EQ(number_of_own, contents.size());
+  contents[descriptor_index] = d;
 
-  // Recurse on the new owner maps.
-  for (int i = current_size; i < number_of_own; ++i) {
-    const PropertyDescriptor& d = contents[i];
-    if (d.details.location() == kField) {
-      CHECK_LE(
-          Handle<Map>::cast(d.field_owner->object())->NumberOfOwnDescriptors(),
-          number_of_own);
-      d.field_owner->SerializeOwnDescriptors(broker);
-    }
+  if (d.details.location() == kField) {
+    // Recurse on the owner map.
+    d.field_owner->SerializeOwnDescriptor(broker, descriptor_index);
   }
 
-  TRACE(broker, "Copied " << number_of_own - current_size
-                          << " descriptors into " << instance_descriptors_
-                          << " (" << number_of_own << " total)");
+  TRACE(broker, "Copied descriptor " << descriptor_index << " into "
+                                     << instance_descriptors_ << " ("
+                                     << contents.size() << " total)");
 }
 
 void JSObjectData::SerializeRecursive(JSHeapBroker* broker, int depth) {
@@ -3159,6 +3162,12 @@ void MapRef::SerializeOwnDescriptors() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeOwnDescriptors(broker());
+}
+
+void MapRef::SerializeOwnDescriptor(int descriptor_index) {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsMap()->SerializeOwnDescriptor(broker(), descriptor_index);
 }
 
 void MapRef::SerializeBackPointer() {

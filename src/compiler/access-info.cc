@@ -347,13 +347,12 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       MachineType::RepCompressedTagged();
   MaybeHandle<Map> field_map;
   MapRef map_ref(broker(), map);
-  map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
   ZoneVector<CompilationDependencies::Dependency const*>
       unrecorded_dependencies(zone());
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
     field_representation = MachineType::RepCompressedTaggedSigned();
-    map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
+    map_ref.SerializeOwnDescriptor(descriptor);
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
                                                                   descriptor));
@@ -375,7 +374,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       // The field type was cleared by the GC, so we don't know anything
       // about the contents now.
     }
-    map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
+    map_ref.SerializeOwnDescriptor(descriptor);
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
                                                                   descriptor));
@@ -388,7 +387,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       field_map = MaybeHandle<Map>(map);
     }
   }
-  map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
+  map_ref.SerializeOwnDescriptor(descriptor);
   PropertyConstness constness =
       dependencies()->DependOnFieldConstness(map_ref, descriptor);
   switch (constness) {
@@ -779,7 +778,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
     field_representation = MachineType::RepCompressedTaggedSigned();
-    transition_map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
+    transition_map_ref.SerializeOwnDescriptor(number);
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
             transition_map_ref, number));
@@ -797,7 +796,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
       // Store is not safe if the field type was cleared.
       return PropertyAccessInfo::Invalid(zone());
     }
-    transition_map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
+    transition_map_ref.SerializeOwnDescriptor(number);
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
             transition_map_ref, number));

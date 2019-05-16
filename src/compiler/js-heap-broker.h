@@ -528,6 +528,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 
   // Concerning the underlying instance_descriptors:
   void SerializeOwnDescriptors();
+  void SerializeOwnDescriptor(int descriptor_index);
   MapRef FindFieldOwner(int descriptor_index) const;
   PropertyDetails GetPropertyDetails(int descriptor_index) const;
   NameRef GetPropertyKey(int descriptor_index) const;
