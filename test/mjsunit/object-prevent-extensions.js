@@ -420,3 +420,24 @@ arr.length = 3;
 assertEquals(arr.length, 3);
 arr.length = 0;
 assertEquals(arr.length, 0);
+
+// Spread with array
+var arr = ['a', 'b', 'c'];
+Object.preventExtensions(arr);
+var arrSpread = [...arr];
+assertEquals(arrSpread.length, arr.length);
+assertEquals(arrSpread[0], 'a');
+assertEquals(arrSpread[1], 'b');
+assertEquals(arrSpread[2], 'c');
+
+// Spread with array-like
+function returnArgs() {
+  return Object.preventExtensions(arguments);
+}
+var arrLike = returnArgs('a', 'b', 'c');
+assertFalse(Object.isExtensible(arrLike));
+var arrSpread = [...arrLike];
+assertEquals(arrSpread.length, arrLike.length);
+assertEquals(arrSpread[0], 'a');
+assertEquals(arrSpread[1], 'b');
+assertEquals(arrSpread[2], 'c');

@@ -728,3 +728,24 @@ arr.length = 3;
 assertEquals(arr.length, 3);
 arr.length = 0;
 assertEquals(arr.length, 1);
+
+// Spread with array
+var arr = ['a', 'b', 'c'];
+Object.seal(arr);
+var arrSpread = [...arr];
+assertEquals(arrSpread.length, arr.length);
+assertEquals(arrSpread[0], 'a');
+assertEquals(arrSpread[1], 'b');
+assertEquals(arrSpread[2], 'c');
+
+// Spread with array-like
+function returnArgs() {
+  return Object.seal(arguments);
+}
+var arrLike = returnArgs('a', 'b', 'c');
+assertTrue(Object.isSealed(arrLike));
+var arrSpread = [...arrLike];
+assertEquals(arrSpread.length, arrLike.length);
+assertEquals(arrSpread[0], 'a');
+assertEquals(arrSpread[1], 'b');
+assertEquals(arrSpread[2], 'c');
