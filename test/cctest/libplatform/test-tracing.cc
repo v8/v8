@@ -286,43 +286,45 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
     trace_config->AddIncludedCategory("v8");
     tracing_controller->StartTracing(trace_config);
 
-    TRACE_EVENT1("v8", "v8.Test.aa", "aa", aa);
-    TRACE_EVENT1("v8", "v8.Test.bb", "bb", bb);
-    TRACE_EVENT1("v8", "v8.Test.cc", "cc", cc);
-    TRACE_EVENT1("v8", "v8.Test.dd", "dd", dd);
-    TRACE_EVENT1("v8", "v8.Test.ee", "ee", ee);
-    TRACE_EVENT1("v8", "v8.Test.ff", "ff", ff);
-    TRACE_EVENT1("v8", "v8.Test.gg", "gg", gg);
-    TRACE_EVENT1("v8", "v8.Test.hh", "hh", hh);
-    TRACE_EVENT1("v8", "v8.Test.ii", "ii1", ii1);
-    TRACE_EVENT1("v8", "v8.Test.ii", "ii2", ii2);
-    TRACE_EVENT1("v8", "v8.Test.jj1", "jj1", jj1);
-    TRACE_EVENT1("v8", "v8.Test.jj2", "jj2", jj2);
-    TRACE_EVENT1("v8", "v8.Test.jj3", "jj3", jj3);
-    TRACE_EVENT1("v8", "v8.Test.jj4", "jj4", jj4);
-    TRACE_EVENT1("v8", "v8.Test.jj5", "jj5", jj5);
-    TRACE_EVENT1("v8", "v8.Test.kk", "kk", kk);
-    TRACE_EVENT1("v8", "v8.Test.ll", "ll", ll);
-    TRACE_EVENT1("v8", "v8.Test.mm", "mm", TRACE_STR_COPY(mmm.c_str()));
+    {
+      TRACE_EVENT1("v8", "v8.Test.aa", "aa", aa);
+      TRACE_EVENT1("v8", "v8.Test.bb", "bb", bb);
+      TRACE_EVENT1("v8", "v8.Test.cc", "cc", cc);
+      TRACE_EVENT1("v8", "v8.Test.dd", "dd", dd);
+      TRACE_EVENT1("v8", "v8.Test.ee", "ee", ee);
+      TRACE_EVENT1("v8", "v8.Test.ff", "ff", ff);
+      TRACE_EVENT1("v8", "v8.Test.gg", "gg", gg);
+      TRACE_EVENT1("v8", "v8.Test.hh", "hh", hh);
+      TRACE_EVENT1("v8", "v8.Test.ii", "ii1", ii1);
+      TRACE_EVENT1("v8", "v8.Test.ii", "ii2", ii2);
+      TRACE_EVENT1("v8", "v8.Test.jj1", "jj1", jj1);
+      TRACE_EVENT1("v8", "v8.Test.jj2", "jj2", jj2);
+      TRACE_EVENT1("v8", "v8.Test.jj3", "jj3", jj3);
+      TRACE_EVENT1("v8", "v8.Test.jj4", "jj4", jj4);
+      TRACE_EVENT1("v8", "v8.Test.jj5", "jj5", jj5);
+      TRACE_EVENT1("v8", "v8.Test.kk", "kk", kk);
+      TRACE_EVENT1("v8", "v8.Test.ll", "ll", ll);
+      TRACE_EVENT1("v8", "v8.Test.mm", "mm", TRACE_STR_COPY(mmm.c_str()));
 
-    TRACE_EVENT2("v8", "v8.Test2.1", "aa", aa, "ll", ll);
-    TRACE_EVENT2("v8", "v8.Test2.2", "mm1", TRACE_STR_COPY(mm.c_str()), "mm2",
-                 TRACE_STR_COPY(mmm.c_str()));
+      TRACE_EVENT2("v8", "v8.Test2.1", "aa", aa, "ll", ll);
+      TRACE_EVENT2("v8", "v8.Test2.2", "mm1", TRACE_STR_COPY(mm.c_str()), "mm2",
+                   TRACE_STR_COPY(mmm.c_str()));
 
-    // Check copies are correct.
-    TRACE_EVENT_COPY_INSTANT0("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD);
-    TRACE_EVENT_COPY_INSTANT2("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD, "mm1",
-                              mm.c_str(), "mm2", mmm.c_str());
-    mm = "CHANGED";
-    mmm = "CHANGED";
+      // Check copies are correct.
+      TRACE_EVENT_COPY_INSTANT0("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD);
+      TRACE_EVENT_COPY_INSTANT2("v8", mm.c_str(), TRACE_EVENT_SCOPE_THREAD,
+                                "mm1", mm.c_str(), "mm2", mmm.c_str());
+      mm = "CHANGED";
+      mmm = "CHANGED";
 
-    TRACE_EVENT_INSTANT1("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
-                         new ConvertableToTraceFormatMock(42));
-    std::unique_ptr<ConvertableToTraceFormatMock> trace_event_arg(
-        new ConvertableToTraceFormatMock(42));
-    TRACE_EVENT_INSTANT2("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
-                         std::move(trace_event_arg), "a2",
-                         new ConvertableToTraceFormatMock(123));
+      TRACE_EVENT_INSTANT1("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
+                           new ConvertableToTraceFormatMock(42));
+      std::unique_ptr<ConvertableToTraceFormatMock> trace_event_arg(
+          new ConvertableToTraceFormatMock(42));
+      TRACE_EVENT_INSTANT2("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
+                           std::move(trace_event_arg), "a2",
+                           new ConvertableToTraceFormatMock(123));
+    }
 
     tracing_controller->StopTracing();
 

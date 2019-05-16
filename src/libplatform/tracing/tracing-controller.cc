@@ -158,6 +158,10 @@ uint64_t TracingController::AddTraceEventWithTimestamp(
 
 #ifdef V8_USE_PERFETTO
   if (perfetto_recording_.load()) {
+    // Don't use COMPLETE events with perfetto - instead transform them into
+    // BEGIN/END pairs. This avoids the need for a thread-local stack of pending
+    // trace events as perfetto does not support handles into the trace buffer.
+    if (phase == TRACE_EVENT_PHASE_COMPLETE) phase = TRACE_EVENT_PHASE_BEGIN;
     ::perfetto::TraceWriter* writer =
         perfetto_tracing_controller_->GetOrCreateThreadLocalWriter();
     // TODO(petermarshall): We shouldn't start one packet for each event.
@@ -168,9 +172,6 @@ uint64_t TracingController::AddTraceEventWithTimestamp(
 
     trace_event->set_name(name);
     trace_event->set_timestamp(timestamp);
-    // TODO(petermarshall): Deal with instant (X) vs B/E events. Need to return
-    // a handle that can be used to edit the event in
-    // UpdateTraceEventDuration().
     trace_event->set_phase(phase);
     trace_event->set_thread_id(base::OS::GetCurrentThreadId());
     trace_event->set_duration(0);
@@ -222,25 +223,20 @@ void TracingController::UpdateTraceEventDuration(
   if (perfetto_recording_.load()) {
     // TODO(petermarshall): We shouldn't start one packet for each event. We
     // should try to bundle them together in one bundle.
-    auto* writer = perfetto_tracing_controller_->GetOrCreateThreadLocalWriter();
+    ::perfetto::TraceWriter* writer =
+        perfetto_tracing_controller_->GetOrCreateThreadLocalWriter();
 
     auto packet = writer->NewTracePacket();
     auto* trace_event_bundle = packet->set_chrome_events();
     auto* trace_event = trace_event_bundle->add_trace_events();
 
-    // TODO(petermarshall): Properly deal with begin/end events by using a
-    // thread-local stack of pending events like
-    // chrome_bundle_thread_local_event_sink.cc does.
-    trace_event->set_phase('E');
-    if (category_enabled_flag) {
-      const char* category_group_name =
-          GetCategoryGroupName(category_enabled_flag);
-      DCHECK_NOT_NULL(category_group_name);
-      trace_event->set_category_group_name(category_group_name);
-    }
-    trace_event->set_name(name);
+    trace_event->set_phase(TRACE_EVENT_PHASE_END);
+    trace_event->set_thread_id(base::OS::GetCurrentThreadId());
     trace_event->set_timestamp(now_us);
+    trace_event->set_process_id(base::OS::GetCurrentProcessId());
     trace_event->set_thread_timestamp(cpu_now_us);
+
+    packet->Finalize();
   }
 #endif  // V8_USE_PERFETTO
 
