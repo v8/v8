@@ -519,6 +519,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->pc = reinterpret_cast<void*>(mcontext.jmp_context.iar);
   state->sp = reinterpret_cast<void*>(mcontext.jmp_context.gpr[1]);
   state->fp = reinterpret_cast<void*>(mcontext.jmp_context.gpr[31]);
+  state->lr = reinterpret_cast<void*>(mcontext.jmp_context.lr);
 #endif  // V8_OS_AIX
 }
 
