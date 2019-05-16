@@ -3098,8 +3098,8 @@ void ImplementationVisitor::GenerateClassDefinitions(
     NamespaceScope implementation_namespaces(implementation,
                                              {"v8", "internal"});
 
-    for (auto i : GlobalContext::GetClasses()) {
-      ClassType* type = i.second;
+    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
+      const ClassType* type = ClassType::DynamicCast(alias->type());
       if (!type->GenerateCppClassDefinitions()) continue;
       CppClassGenerator g(type, header, inline_header, implementation);
       g.GenerateClass();
@@ -3117,8 +3117,8 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
   {
     IncludeGuardScope include_guard(new_contents_stream, file_name);
 
-    for (auto i : GlobalContext::GetClasses()) {
-      ClassType* type = i.second;
+    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
+      const ClassType* type = ClassType::DynamicCast(alias->type());
       if (!type->IsExtern()) continue;
 
       // TODO(danno): Ideally (and we've got several core V8 dev's feedback
@@ -3128,7 +3128,7 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
       // values come from.
       new_contents_stream << "#define ";
       new_contents_stream << "TORQUE_GENERATED_"
-                          << CapifyStringWithUnderscores(i.first)
+                          << CapifyStringWithUnderscores(type->name())
                           << "_FIELDS(V) \\\n";
       std::vector<Field> fields = type->fields();
       FieldSectionType section = FieldSectionType::kNoSection;
@@ -3217,8 +3217,8 @@ void ImplementationVisitor::GeneratePrintDefinitions(
 
     NamespaceScope impl_namespaces(impl, {"v8", "internal"});
 
-    for (auto i : GlobalContext::GetClasses()) {
-      ClassType* type = i.second;
+    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
+      const ClassType* type = ClassType::DynamicCast(alias->type());
       if (!type->ShouldGeneratePrint()) continue;
 
       if (type->IsExtern() && type->GenerateCppClassDefinitions()) {
@@ -3337,8 +3337,8 @@ void ImplementationVisitor::GenerateClassVerifiers(
 
     // Generate forward declarations to avoid including any headers.
     h_contents << "class Isolate;\n";
-    for (auto i : GlobalContext::GetClasses()) {
-      ClassType* type = i.second;
+    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
+      const ClassType* type = ClassType::DynamicCast(alias->type());
       if (!type->IsExtern() || !type->ShouldGenerateVerify()) continue;
       h_contents << "class " << type->name() << ";\n";
     }
@@ -3348,17 +3348,18 @@ void ImplementationVisitor::GenerateClassVerifiers(
     h_contents << "class " << verifier_class << "{\n";
     h_contents << " public:\n";
 
-    for (auto i : GlobalContext::GetClasses()) {
-      ClassType* type = i.second;
+    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
+      const ClassType* type = ClassType::DynamicCast(alias->type());
+      std::string name = type->name();
       if (!type->IsExtern() || !type->ShouldGenerateVerify()) continue;
 
-      std::string method_name = i.first + "Verify";
+      std::string method_name = name + "Verify";
 
-      h_contents << "  static void " << method_name << "(" << i.first
+      h_contents << "  static void " << method_name << "(" << name
                  << " o, Isolate* isolate);\n";
 
       cc_contents << "void " << verifier_class << "::" << method_name << "("
-                  << i.first << " o, Isolate* isolate) {\n";
+                  << name << " o, Isolate* isolate) {\n";
 
       // First, do any verification for the super class. Not all classes have
       // verifiers, so skip to the nearest super class that has one.
@@ -3385,13 +3386,12 @@ void ImplementationVisitor::GenerateClassVerifiers(
         cc_contents << "  // Instance type check skipped because\n";
         cc_contents << "  // it is an instantiated abstract class.\n";
       } else {
-        cc_contents << "  CHECK(o.Is" << i.first << "());\n";
+        cc_contents << "  CHECK(o.Is" << name << "());\n";
       }
 
       // Third, verify its properties.
       for (auto f : type->fields()) {
-        GenerateClassFieldVerifier(i.first, *i.second, f, h_contents,
-                                   cc_contents);
+        GenerateClassFieldVerifier(name, *type, f, h_contents, cc_contents);
       }
 
       cc_contents << "}\n";

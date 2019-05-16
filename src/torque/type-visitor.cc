@@ -129,6 +129,7 @@ const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
   // TODO(sigurds): Remove this hack by introducing a declarable for classes.
   const TypeAlias* alias =
       Declarations::LookupTypeAlias(QualifiedName(decl->name->value));
+  GlobalContext::RegisterClass(alias);
   DCHECK_EQ(*alias->delayed_, decl);
   if (decl->flags & ClassFlag::kExtern) {
     if (!decl->super) {
@@ -163,7 +164,6 @@ const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
         TypeOracle::GetClassType(TypeOracle::GetTaggedType(), decl->name->value,
                                  decl->flags, "FixedArray", decl, alias);
   }
-  GlobalContext::RegisterClass(decl->name->value, new_class);
   return new_class;
 }
 
