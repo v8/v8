@@ -113,7 +113,7 @@ base::Optional<MapRef> GetStableMapFromObjectType(JSHeapBroker* broker,
   return {};
 }
 
-Node* ResolveRenames(Node* node) {
+Node* ResolveSameValueRenames(Node* node) {
   while (true) {
     switch (node->opcode()) {
       case IrOpcode::kCheckHeapObject:
@@ -527,7 +527,7 @@ Reduction TypedOptimization::ReduceSameValue(Node* node) {
   Node* const rhs = NodeProperties::GetValueInput(node, 1);
   Type const lhs_type = NodeProperties::GetType(lhs);
   Type const rhs_type = NodeProperties::GetType(rhs);
-  if (ResolveRenames(lhs) == ResolveRenames(rhs)) {
+  if (ResolveSameValueRenames(lhs) == ResolveSameValueRenames(rhs)) {
     if (NodeProperties::GetType(node).IsNone()) {
       return NoChange();
     }
