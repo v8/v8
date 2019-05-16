@@ -3380,14 +3380,6 @@ ProcessedFeedback const* JSHeapBroker::GetFeedback(
   return it->second;
 }
 
-ElementAccessFeedback const* JSHeapBroker::GetElementAccessFeedback(
-    FeedbackSource const& source) const {
-  ProcessedFeedback const* feedback = GetFeedback(source);
-  if (feedback == nullptr) return nullptr;
-  CHECK_EQ(feedback->kind(), ProcessedFeedback::kElementAccess);
-  return static_cast<ElementAccessFeedback const*>(feedback);
-}
-
 GlobalAccessFeedback const* JSHeapBroker::GetGlobalAccessFeedback(
     FeedbackSource const& source) const {
   ProcessedFeedback const* feedback = GetFeedback(source);
@@ -3494,6 +3486,23 @@ GlobalAccessFeedback const* JSHeapBroker::ProcessFeedbackForGlobalAccess(
 
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
   return os << ref.data();
+}
+
+base::Optional<NameRef> JSHeapBroker::GetNameFeedback(
+    FeedbackNexus const& nexus) {
+  Name raw_name = nexus.GetName();
+  if (raw_name.is_null()) return base::nullopt;
+  return NameRef(this, handle(raw_name, isolate()));
+}
+
+ElementAccessFeedback const* ProcessedFeedback::AsElementAccess() const {
+  CHECK_EQ(kElementAccess, kind());
+  return static_cast<ElementAccessFeedback const*>(this);
+}
+
+NamedAccessFeedback const* ProcessedFeedback::AsNamedAccess() const {
+  CHECK_EQ(kNamedAccess, kind());
+  return static_cast<NamedAccessFeedback const*>(this);
 }
 
 #undef BIMODAL_ACCESSOR

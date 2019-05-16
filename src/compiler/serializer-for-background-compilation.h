@@ -312,13 +312,12 @@ class SerializerForBackgroundCompilation {
                                   FeedbackSlot slot, AccessMode mode);
 
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
-  void ProcessFeedbackForKeyedPropertyAccess(FeedbackSlot slot,
-                                             AccessMode mode);
+  NamedAccessFeedback const* ProcessFeedbackMapsForNamedAccess(
+      const MapHandles& maps, AccessMode mode, NameRef const& name);
   ElementAccessFeedback const* ProcessFeedbackMapsForElementAccess(
       const MapHandles& maps, AccessMode mode);
-  void ProcessFeedbackForNamedPropertyAccess(FeedbackSlot slot,
-                                             NameRef const& name,
-                                             AccessMode mode);
+  void ProcessFeedbackForPropertyAccess(FeedbackSlot slot, AccessMode mode,
+                                        base::Optional<NameRef> static_name);
   void ProcessMapForNamedPropertyAccess(MapRef const& map, NameRef const& name);
 
   Hints RunChildSerializer(CompilationSubject function,

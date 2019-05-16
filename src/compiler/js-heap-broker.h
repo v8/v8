@@ -708,10 +708,16 @@ class InternalizedStringRef : public StringRef {
   Handle<InternalizedString> object() const;
 };
 
+class ElementAccessFeedback;
+class NamedAccessFeedback;
+
 class ProcessedFeedback : public ZoneObject {
  public:
   enum Kind { kInsufficient, kGlobalAccess, kNamedAccess, kElementAccess };
   Kind kind() const { return kind_; }
+
+  ElementAccessFeedback const* AsElementAccess() const;
+  NamedAccessFeedback const* AsNamedAccess() const;
 
  protected:
   explicit ProcessedFeedback(Kind kind) : kind_(kind) {}
@@ -852,8 +858,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ProcessedFeedback const* GetFeedback(FeedbackSource const& source) const;
 
   // Convenience wrappers around GetFeedback.
-  ElementAccessFeedback const* GetElementAccessFeedback(
-      FeedbackSource const& source) const;
   GlobalAccessFeedback const* GetGlobalAccessFeedback(
       FeedbackSource const& source) const;
 
@@ -862,6 +866,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       MapHandles const& maps);
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(
       FeedbackSource const& source);
+
+  base::Optional<NameRef> GetNameFeedback(FeedbackNexus const& nexus);
 
   std::ostream& Trace();
   void IncrementTracingIndentation();

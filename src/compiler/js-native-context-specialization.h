@@ -93,11 +93,17 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSToObject(Node* node);
 
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
-                                FeedbackNexus const& nexus,
-                                MapHandles const& receiver_maps,
+                                ElementAccessFeedback const& processed,
                                 AccessMode access_mode,
                                 KeyedAccessLoadMode load_mode,
                                 KeyedAccessStoreMode store_mode);
+  // In the case of non-keyed (named) accesses, pass the name as {static_name}
+  // and use {nullptr} for {key} (load/store modes are irrelevant).
+  Reduction ReducePropertyAccessUsingProcessedFeedback(
+      Node* node, Node* key, base::Optional<NameRef> static_name, Node* value,
+      FeedbackNexus const& nexus, AccessMode access_mode,
+      KeyedAccessLoadMode load_mode = STANDARD_LOAD,
+      KeyedAccessStoreMode store_mode = STANDARD_STORE);
   Reduction ReduceKeyedAccess(Node* node, Node* key, Node* value,
                               FeedbackNexus const& nexus,
                               AccessMode access_mode,
@@ -110,12 +116,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               NamedAccessFeedback const& processed,
                               AccessMode access_mode, Node* key = nullptr);
-  // TODO(neis): This second version of ReduceNamedAccess is here only
-  // temporarily while keyed access is not fully brokerized yet.
-  Reduction ReduceNamedAccess(Node* node, Node* value,
-                              MapHandles const& receiver_maps,
-                              NameRef const& name, AccessMode access_mode,
-                              Node* key);
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
                                NameRef const& name, AccessMode access_mode,
                                Node* key = nullptr);

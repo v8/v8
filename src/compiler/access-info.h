@@ -168,7 +168,7 @@ class AccessInfoFactory final {
   base::Optional<ElementAccessInfo> ComputeElementAccessInfo(
       Handle<Map> map, AccessMode access_mode) const;
   bool ComputeElementAccessInfos(
-      FeedbackNexus nexus, MapHandles const& maps, AccessMode access_mode,
+      ElementAccessFeedback const& processed, AccessMode access_mode,
       ZoneVector<ElementAccessInfo>* access_infos) const;
 
   PropertyAccessInfo ComputePropertyAccessInfo(Handle<Map> map,

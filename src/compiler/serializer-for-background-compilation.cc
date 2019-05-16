@@ -815,9 +815,24 @@ SerializerForBackgroundCompilation::ProcessFeedbackMapsForElementAccess(
   return result;
 }
 
-// Note: We never use the same feedback slot for multiple access modes.
-void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
-    FeedbackSlot slot, AccessMode mode) {
+NamedAccessFeedback const*
+SerializerForBackgroundCompilation::ProcessFeedbackMapsForNamedAccess(
+    const MapHandles& maps, AccessMode mode, NameRef const& name) {
+  ZoneVector<PropertyAccessInfo> access_infos(broker()->zone());
+  for (Handle<Map> map : maps) {
+    MapRef map_ref(broker(), map);
+    ProcessMapForNamedPropertyAccess(map_ref, name);
+    AccessInfoFactory access_info_factory(broker(), dependencies(),
+                                          broker()->zone());
+    access_infos.push_back(access_info_factory.ComputePropertyAccessInfo(
+        map, name.object(), mode));
+  }
+  DCHECK(!access_infos.empty());
+  return new (broker()->zone()) NamedAccessFeedback(name, access_infos);
+}
+
+void SerializerForBackgroundCompilation::ProcessFeedbackForPropertyAccess(
+    FeedbackSlot slot, AccessMode mode, base::Optional<NameRef> static_name) {
   if (slot.IsInvalid()) return;
   if (environment()->function().feedback_vector.is_null()) return;
 
@@ -825,26 +840,32 @@ void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
   FeedbackSource source(nexus);
   if (broker()->HasFeedback(source)) return;
 
-  ProcessedFeedback const* processed = nullptr;
   if (nexus.ic_state() == UNINITIALIZED) {
-    processed = new (broker()->zone()) InsufficientFeedback();
-  } else {
-    if (nexus.GetKeyType() == PROPERTY) {
-      CHECK_NE(mode, AccessMode::kStoreInLiteral);
-      // TODO(neis): Support named access.
-    } else {
-      DCHECK_EQ(nexus.GetKeyType(), ELEMENT);
-      DCHECK(nexus.GetName().is_null());
-      MapHandles maps;
-      if (nexus.ExtractMaps(&maps) != 0) {
-        maps = GetRelevantReceiverMaps(broker()->isolate(), maps);
-        if (maps.empty()) {
-          processed = new (broker()->zone()) InsufficientFeedback();
-        } else {
-          processed = ProcessFeedbackMapsForElementAccess(maps, mode);
-        }
-      }
-    }
+    broker()->SetFeedback(source,
+                          new (broker()->zone()) InsufficientFeedback());
+    return;
+  }
+
+  MapHandles maps;
+  if (nexus.ExtractMaps(&maps) == 0) {  // Megamorphic.
+    broker()->SetFeedback(source, nullptr);
+    return;
+  }
+
+  maps = GetRelevantReceiverMaps(broker()->isolate(), maps);
+  if (maps.empty()) {
+    broker()->SetFeedback(source,
+                          new (broker()->zone()) InsufficientFeedback());
+    return;
+  }
+
+  ProcessedFeedback const* processed = nullptr;
+  base::Optional<NameRef> name =
+      static_name.has_value() ? static_name : broker()->GetNameFeedback(nexus);
+  if (name.has_value()) {
+    processed = ProcessFeedbackMapsForNamedAccess(maps, mode, *name);
+  } else if (nexus.GetKeyType() == ELEMENT && nexus.ic_state() != MEGAMORPHIC) {
+    processed = ProcessFeedbackMapsForElementAccess(maps, mode);
   }
   broker()->SetFeedback(source, processed);
 }
@@ -852,7 +873,7 @@ void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
 void SerializerForBackgroundCompilation::ProcessKeyedPropertyAccess(
     Hints const& receiver, Hints const& key, FeedbackSlot slot,
     AccessMode mode) {
-  ProcessFeedbackForKeyedPropertyAccess(slot, mode);
+  ProcessFeedbackForPropertyAccess(slot, mode, base::nullopt);
 
   for (Handle<Object> hint : receiver.constants()) {
     ObjectRef receiver_ref(broker(), hint);
@@ -893,43 +914,6 @@ void SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
   }
 }
 
-// Note: We never use the same feedback slot for multiple names.
-void SerializerForBackgroundCompilation::ProcessFeedbackForNamedPropertyAccess(
-    FeedbackSlot slot, NameRef const& name, AccessMode mode) {
-  if (slot.IsInvalid()) return;
-  if (environment()->function().feedback_vector.is_null()) return;
-
-  FeedbackNexus nexus(environment()->function().feedback_vector, slot);
-  FeedbackSource source(nexus);
-  if (broker()->HasFeedback(source)) return;
-
-  ProcessedFeedback const* processed = nullptr;
-  if (nexus.ic_state() == UNINITIALIZED) {
-    processed = new (broker()->zone()) InsufficientFeedback();
-  } else {
-    MapHandles maps;
-    if (nexus.ExtractMaps(&maps) != 0) {
-      ZoneVector<PropertyAccessInfo> access_infos(broker()->zone());
-      for (Handle<Map> map :
-           GetRelevantReceiverMaps(broker()->isolate(), maps)) {
-        MapRef map_ref(broker(), map);
-        ProcessMapForNamedPropertyAccess(map_ref, name);
-        AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                              broker()->zone());
-        access_infos.push_back(access_info_factory.ComputePropertyAccessInfo(
-            map, name.object(), mode));
-      }
-      if (access_infos.empty()) {
-        processed = new (broker()->zone()) InsufficientFeedback();
-      } else {
-        processed =
-            new (broker()->zone()) NamedAccessFeedback(name, access_infos);
-      }
-    }
-  }
-  broker()->SetFeedback(source, processed);
-}
-
 void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(
     BytecodeArrayIterator* iterator) {
   Hints const& key = environment()->accumulator_hints();
@@ -942,7 +926,7 @@ void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(
 void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
     Hints const& receiver, NameRef const& name, FeedbackSlot slot,
     AccessMode mode) {
-  ProcessFeedbackForNamedPropertyAccess(slot, name, mode);
+  ProcessFeedbackForPropertyAccess(slot, mode, name);
 
   for (Handle<Map> map :
        GetRelevantReceiverMaps(broker()->isolate(), receiver.maps())) {

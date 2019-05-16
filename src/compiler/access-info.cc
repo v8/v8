@@ -279,40 +279,29 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
 }
 
 bool AccessInfoFactory::ComputeElementAccessInfos(
-    FeedbackNexus nexus, MapHandles const& maps, AccessMode access_mode,
+    ElementAccessFeedback const& processed, AccessMode access_mode,
     ZoneVector<ElementAccessInfo>* access_infos) const {
-  DCHECK(access_infos->empty());
-  ProcessedFeedback const* processed =
-      FLAG_concurrent_inlining
-          ? broker()->GetFeedback(FeedbackSource(nexus))
-          : broker()->ProcessFeedbackMapsForElementAccess(maps);
-  if (processed == nullptr) return false;
-  if (processed->kind() == ProcessedFeedback::kInsufficient) return true;
-  CHECK_EQ(processed->kind(), ProcessedFeedback::kElementAccess);
-  ElementAccessFeedback const* feedback =
-      static_cast<ElementAccessFeedback const*>(processed);
-
   if (access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) {
     // For polymorphic loads of similar elements kinds (i.e. all tagged or all
     // double), always use the "worst case" code without a transition.  This is
     // much faster than transitioning the elements to the worst case, trading a
     // TransitionElementsKind for a CheckMaps, avoiding mutation of the array.
     base::Optional<ElementAccessInfo> access_info =
-        ConsolidateElementLoad(*feedback);
+        ConsolidateElementLoad(processed);
     if (access_info.has_value()) {
       access_infos->push_back(*access_info);
       return true;
     }
   }
 
-  for (Handle<Map> receiver_map : feedback->receiver_maps) {
+  for (Handle<Map> receiver_map : processed.receiver_maps) {
     // Compute the element access information.
     base::Optional<ElementAccessInfo> access_info =
         ComputeElementAccessInfo(receiver_map, access_mode);
     if (!access_info.has_value()) return false;
 
     // Collect the possible transitions for the {receiver_map}.
-    for (auto transition : feedback->transitions) {
+    for (auto transition : processed.transitions) {
       if (transition.second.equals(receiver_map)) {
         access_info->AddTransitionSource(transition.first);
       }
