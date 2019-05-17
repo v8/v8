@@ -2436,8 +2436,7 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
         (*map == *isolate()->sloppy_function_without_prototype_map()) ||
         (*map == *isolate()->sloppy_function_with_readonly_prototype_map()) ||
         (*map == *isolate()->strict_function_map()) ||
-        (*map == *isolate()->strict_function_without_prototype_map()) ||
-        (*map == *isolate()->native_function_map()));
+        (*map == *isolate()->strict_function_without_prototype_map()));
   }
 #endif
 
