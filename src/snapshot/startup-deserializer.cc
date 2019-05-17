@@ -4,7 +4,7 @@
 
 #include "src/snapshot/startup-deserializer.h"
 
-#include "src/api.h"
+#include "src/api/api.h"
 #include "src/assembler-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/snapshot/snapshot.h"

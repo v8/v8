@@ -5,7 +5,7 @@
 #include "src/handles.h"
 
 #include "src/address-map.h"
-#include "src/api.h"
+#include "src/api/api.h"
 #include "src/base/logging.h"
 #include "src/identity-map.h"
 #include "src/maybe-handles.h"

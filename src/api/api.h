@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_API_H_
-#define V8_API_H_
+#ifndef V8_API_API_H_
+#define V8_API_API_H_
 
 #include "include/v8-testing.h"
 #include "src/contexts.h"
@@ -39,10 +39,7 @@ class WeakMap;
 // visible file.
 class Consts {
  public:
-  enum TemplateType {
-    FUNCTION_TEMPLATE = 0,
-    OBJECT_TEMPLATE = 1
-  };
+  enum TemplateType { FUNCTION_TEMPLATE = 0, OBJECT_TEMPLATE = 1 };
 };
 
 template <typename T>
@@ -61,13 +58,12 @@ inline v8::internal::Handle<v8::internal::Object> FromCData(
 
 class ApiFunction {
  public:
-  explicit ApiFunction(v8::internal::Address addr) : addr_(addr) { }
+  explicit ApiFunction(v8::internal::Address addr) : addr_(addr) {}
   v8::internal::Address address() { return addr_; }
+
  private:
   v8::internal::Address addr_;
 };
-
-
 
 class RegisteredExtension {
  public:
@@ -76,6 +72,7 @@ class RegisteredExtension {
   Extension* extension() const { return extension_.get(); }
   RegisteredExtension* next() const { return next_; }
   static RegisteredExtension* first_extension() { return first_extension_; }
+
  private:
   explicit RegisteredExtension(Extension*);
   explicit RegisteredExtension(std::unique_ptr<Extension>);
@@ -135,8 +132,7 @@ class RegisteredExtension {
 
 class Utils {
  public:
-  static inline bool ApiCheck(bool condition,
-                              const char* location,
+  static inline bool ApiCheck(bool condition, const char* location,
                               const char* message) {
     if (!condition) Utils::ReportApiFailure(location, message);
     return condition;
@@ -290,7 +286,6 @@ inline v8::Local<T> ToApiHandle(
   return Utils::Convert<v8::internal::Object, T>(obj);
 }
 
-
 template <class T>
 inline bool ToLocal(v8::internal::MaybeHandle<v8::internal::Object> maybe,
                     Local<T>* local) {
@@ -329,7 +324,6 @@ class V8_EXPORT_PRIVATE DeferredHandles {
   friend class Isolate;
 };
 
-
 // This class is here in order to be able to declare it a friend of
 // HandleScope.  Moving these methods to be members of HandleScope would be
 // neat in some ways, but it would expose internal implementation details in
@@ -361,12 +355,9 @@ class HandleScopeImplementer {
       : isolate_(isolate),
         spare_(nullptr),
         call_depth_(0),
-        last_handle_before_deferred_block_(nullptr) {
-  }
+        last_handle_before_deferred_block_(nullptr) {}
 
-  ~HandleScopeImplementer() {
-    DeleteArray(spare_);
-  }
+  ~HandleScopeImplementer() { DeleteArray(spare_); }
 
   // Threading support for handle data.
   static int ArchiveSpacePerThread();
@@ -383,8 +374,8 @@ class HandleScopeImplementer {
   inline void DeleteExtensions(internal::Address* prev_limit);
 
   // Call depth represents nested v8 api calls.
-  inline void IncrementCallDepth() {call_depth_++;}
-  inline void DecrementCallDepth() {call_depth_--;}
+  inline void IncrementCallDepth() { call_depth_++; }
+  inline void DecrementCallDepth() { call_depth_--; }
   inline bool CallDepthIsZero() { return call_depth_ == 0; }
 
   inline void EnterContext(Context context);
@@ -489,7 +480,6 @@ Context HandleScopeImplementer::RestoreContext() {
   return last_context;
 }
 
-
 bool HandleScopeImplementer::HasSavedContexts() {
   return !saved_contexts_.empty();
 }
@@ -581,4 +571,4 @@ class Testing {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_API_H_
+#endif  // V8_API_API_H_

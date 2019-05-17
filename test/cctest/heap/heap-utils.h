@@ -5,7 +5,7 @@
 #ifndef HEAP_HEAP_UTILS_H_
 #define HEAP_HEAP_UTILS_H_
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/heap/heap.h"
 
 namespace v8 {

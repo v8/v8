@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_PPC
 
-#include "src/api-arguments-inl.h"
+#include "src/api/api-arguments-inl.h"
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/code-stubs.h"

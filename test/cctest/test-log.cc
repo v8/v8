@@ -29,7 +29,7 @@
 
 #include <unordered_set>
 #include <vector>
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/compilation-cache.h"
 #include "src/log-utils.h"
