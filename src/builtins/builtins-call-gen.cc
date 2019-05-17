@@ -500,7 +500,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
 
   // For API callbacks the receiver is always a JSReceiver (since
   // they are treated like sloppy mode functions). We might need
-  // to perform access checks int the current {context}, depending
+  // to perform access checks in the current {context}, depending
   // on whether the "needs access check" bit is set on the receiver
   // _and_ the {function_template_info} doesn't have the "accepts
   // any receiver" bit set.
