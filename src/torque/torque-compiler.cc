@@ -67,25 +67,26 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   // mutually refer to each others.
   TypeOracle::FinalizeClassTypes();
 
+  std::string output_directory = options.output_directory;
+
   ImplementationVisitor implementation_visitor;
+  implementation_visitor.SetDryRun(output_directory.length() == 0);
+
   for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
     implementation_visitor.BeginNamespaceFile(n);
   }
 
   implementation_visitor.VisitAllDeclarables();
 
-  std::string output_directory = options.output_directory;
-  if (output_directory.length() != 0) {
-    implementation_visitor.GenerateBuiltinDefinitions(output_directory);
-    implementation_visitor.GenerateClassFieldOffsets(output_directory);
-    implementation_visitor.GeneratePrintDefinitions(output_directory);
-    implementation_visitor.GenerateClassDefinitions(output_directory);
-    implementation_visitor.GenerateClassVerifiers(output_directory);
+  implementation_visitor.GenerateBuiltinDefinitions(output_directory);
+  implementation_visitor.GenerateClassFieldOffsets(output_directory);
+  implementation_visitor.GeneratePrintDefinitions(output_directory);
+  implementation_visitor.GenerateClassDefinitions(output_directory);
+  implementation_visitor.GenerateClassVerifiers(output_directory);
 
-    for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
-      implementation_visitor.EndNamespaceFile(n);
-      implementation_visitor.GenerateImplementation(output_directory, n);
-    }
+  for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
+    implementation_visitor.EndNamespaceFile(n);
+    implementation_visitor.GenerateImplementation(output_directory, n);
   }
 
   if (GlobalContext::collect_language_server_data()) {

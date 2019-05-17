@@ -388,6 +388,8 @@ class ImplementationVisitor {
     LabelBindingsManager::Scope label_bindings_manager;
   };
 
+  void SetDryRun(bool is_dry_run) { is_dry_run_ = is_dry_run; }
+
  private:
   base::Optional<Block*> GetCatchBlock();
   void GenerateCatchBlock(base::Optional<Block*> catch_block);
@@ -593,8 +595,14 @@ class ImplementationVisitor {
     return return_value;
   }
 
+  void WriteFile(const std::string& file, const std::string& content) {
+    if (is_dry_run_) return;
+    ReplaceFileContentsIfDifferent(file, content);
+  }
+
   base::Optional<CfgAssembler> assembler_;
   NullOStream null_stream_;
+  bool is_dry_run_;
 };
 
 }  // namespace torque

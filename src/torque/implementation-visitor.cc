@@ -1541,10 +1541,10 @@ void ImplementationVisitor::GenerateImplementation(const std::string& dir,
       "builtins-" + DashifyString(nspace->name()) + "-gen-tq";
 
   std::string source_file_name = dir + "/" + base_file_name + ".cc";
-  ReplaceFileContentsIfDifferent(source_file_name, new_source);
+  WriteFile(source_file_name, new_source);
   std::string new_header(nspace->header());
   std::string header_file_name = dir + "/" + base_file_name + ".h";
-  ReplaceFileContentsIfDifferent(header_file_name, new_header);
+  WriteFile(header_file_name, new_header);
 }
 
 void ImplementationVisitor::GenerateMacroFunctionDeclaration(
@@ -2795,8 +2795,7 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(
     new_contents_stream << "\n";
   }
   std::string new_contents(new_contents_stream.str());
-  ReplaceFileContentsIfDifferent(output_directory + "/" + file_name,
-                                 new_contents);
+  WriteFile(output_directory + "/" + file_name, new_contents);
 }
 
 namespace {
@@ -3057,9 +3056,9 @@ void ImplementationVisitor::GenerateClassDefinitions(
       g.GenerateClass();
     }
   }
-  ReplaceFileContentsIfDifferent(file_basename + ".h", header.str());
-  ReplaceFileContentsIfDifferent(file_basename + "-inl.h", inline_header.str());
-  ReplaceFileContentsIfDifferent(file_basename + ".cc", implementation.str());
+  WriteFile(file_basename + ".h", header.str());
+  WriteFile(file_basename + "-inl.h", inline_header.str());
+  WriteFile(file_basename + ".cc", implementation.str());
 }
 
 void ImplementationVisitor::GenerateClassFieldOffsets(
@@ -3129,7 +3128,7 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
   }
   const std::string output_header_path = output_directory + "/" + file_name;
   std::string new_contents(new_contents_stream.str());
-  ReplaceFileContentsIfDifferent(output_header_path, new_contents);
+  WriteFile(output_header_path, new_contents);
 }
 
 namespace {
@@ -3188,8 +3187,7 @@ void ImplementationVisitor::GeneratePrintDefinitions(
   }
 
   std::string new_contents(impl.str());
-  ReplaceFileContentsIfDifferent(output_directory + "/" + file_name,
-                                 new_contents);
+  WriteFile(output_directory + "/" + file_name, new_contents);
 }
 
 namespace {
@@ -3350,10 +3348,8 @@ void ImplementationVisitor::GenerateClassVerifiers(
 
     h_contents << "};\n";
   }
-  ReplaceFileContentsIfDifferent(output_directory + "/" + file_name + ".h",
-                                 h_contents.str());
-  ReplaceFileContentsIfDifferent(output_directory + "/" + file_name + ".cc",
-                                 cc_contents.str());
+  WriteFile(output_directory + "/" + file_name + ".h", h_contents.str());
+  WriteFile(output_directory + "/" + file_name + ".cc", cc_contents.str());
 }
 
 }  // namespace torque
