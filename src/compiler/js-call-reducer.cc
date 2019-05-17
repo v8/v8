@@ -2737,10 +2737,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(
     Node* node, const SharedFunctionInfoRef& shared) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
-  }
-
   int const argc = static_cast<int>(p.arity()) - 2;
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* global_proxy =
@@ -2805,6 +2801,12 @@ Reduction JSCallReducer::ReduceCallApiFunction(
           receiver_maps[i], &lookupi);
       if (lookup != lookupi) return inference.NoChange();
       if (!api_holder.is_identical_to(holderi)) return inference.NoChange();
+    }
+
+    // We may need to check {receiver_maps} again below, so better
+    // make sure we are allowed to speculate in this case.
+    if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+      return inference.NoChange();
     }
 
     // TODO(neis): The maps were used in a way that does not actually require
