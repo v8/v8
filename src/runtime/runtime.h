@@ -43,7 +43,6 @@ namespace internal {
   F(ArrayIsArray, 1, 1)                   \
   F(ArraySpeciesConstructor, 1, 1)        \
   F(EstimateNumberOfElements, 1, 1)       \
-  F(GetArrayKeys, 2, 1)                   \
   F(GrowArrayElements, 2, 1)              \
   F(HasComplexElements, 1, 1)             \
   I(IsArray, 1, 1)                        \

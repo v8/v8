@@ -460,58 +460,6 @@ RUNTIME_FUNCTION(Runtime_EstimateNumberOfElements) {
   }
 }
 
-
-// Returns an array that tells you where in the [0, length) interval an array
-// might have elements.  Can either return an array of keys (positive integers
-// or undefined) or a number representing the positive length of an interval
-// starting at index 0.
-// Intervals can span over some keys that are not in the object.
-RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
-  CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
-  ElementsKind kind = array->GetElementsKind();
-
-  if (IsFastElementsKind(kind) || IsFixedTypedArrayElementsKind(kind)) {
-    uint32_t actual_length = static_cast<uint32_t>(array->elements()->length());
-    return *isolate->factory()->NewNumberFromUint(Min(actual_length, length));
-  }
-
-  if (kind == FAST_STRING_WRAPPER_ELEMENTS) {
-    int string_length =
-        String::cast(Handle<JSValue>::cast(array)->value())->length();
-    int backing_store_length = array->elements()->length();
-    return *isolate->factory()->NewNumberFromUint(
-        Min(length,
-            static_cast<uint32_t>(Max(string_length, backing_store_length))));
-  }
-
-  KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
-                             ALL_PROPERTIES);
-  for (PrototypeIterator iter(isolate, array, kStartAtReceiver);
-       !iter.IsAtEnd(); iter.Advance()) {
-    Handle<JSReceiver> current(PrototypeIterator::GetCurrent<JSReceiver>(iter));
-    if (current->HasComplexElements()) {
-      return *isolate->factory()->NewNumberFromUint(length);
-    }
-    accumulator.CollectOwnElementIndices(array,
-                                         Handle<JSObject>::cast(current));
-  }
-  // Erase any keys >= length.
-  Handle<FixedArray> keys =
-      accumulator.GetKeys(GetKeysConversion::kKeepNumbers);
-  int j = 0;
-  for (int i = 0; i < keys->length(); i++) {
-    if (NumberToUint32(keys->get(i)) >= length) continue;
-    if (i != j) keys->set(j, keys->get(i));
-    j++;
-  }
-
-  keys = FixedArray::ShrinkOrEmpty(isolate, keys, j);
-  return *isolate->factory()->NewJSArrayWithElements(keys);
-}
-
 RUNTIME_FUNCTION(Runtime_TrySliceSimpleNonFastElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
