@@ -915,7 +915,8 @@
 
   # Too slow for TSAN in stress mode.
   # Goes OOM on ODROID devices: https://crbug.com/v8/9026
-  'es6/classes': [PASS, SLOW, ['tsan or (arch == arm and not simulator_run)', SKIP]],
+  # Too slow on PPC: https://crbug.com/v8/9246
+  'es6/classes': [PASS, SLOW, ['tsan or (arch == arm and not simulator_run) or arch == ppc', SKIP]],
   'regress/regress-1122': [PASS, ['tsan', SKIP]],
 
   # Too slow with gc_stress on arm64.
