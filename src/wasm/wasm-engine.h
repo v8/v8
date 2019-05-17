@@ -223,7 +223,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Handle<Context> context, const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver);
 
-  void TriggerGC();
+  void TriggerGC(int8_t gc_sequence_index);
 
   // Remove an isolate from the outstanding isolates of the current GC. Returns
   // true if the isolate was still outstanding, false otherwise. Hold {mutex_}

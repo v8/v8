@@ -115,6 +115,11 @@ class WasmGCForegroundTask : public Task {
 }  // namespace
 
 struct WasmEngine::CurrentGCInfo {
+  explicit CurrentGCInfo(int8_t gc_sequence_index)
+      : gc_sequence_index(gc_sequence_index) {
+    DCHECK_NE(0, gc_sequence_index);
+  }
+
   // Set of isolates that did not scan their stack yet for used WasmCode, and
   // their scheduled foreground task.
   std::unordered_map<Isolate*, WasmGCForegroundTask*> outstanding_isolates;
@@ -123,10 +128,17 @@ struct WasmEngine::CurrentGCInfo {
   // Code that is still in-use is removed by the individual isolates.
   std::unordered_set<WasmCode*> dead_code;
 
+  // The number of GCs triggered in the native module that triggered this GC.
+  // This is stored in the histogram for each participating isolate during
+  // execution of that isolate's foreground task.
+  const int8_t gc_sequence_index;
+
   // If during this GC, another GC was requested, we skipped that other GC (we
   // only run one GC at a time). Remember though to trigger another one once
-  // this one finishes.
-  bool run_another_gc = false;
+  // this one finishes. {next_gc_sequence_index} is 0 if no next GC is needed,
+  // and >0 otherwise. It stores the {num_code_gcs_triggered} of the native
+  // module which triggered the next GC.
+  int8_t next_gc_sequence_index = 0;
 };
 
 struct WasmEngine::IsolateInfo {
@@ -175,6 +187,10 @@ struct WasmEngine::NativeModuleInfo {
   // Code that is not being executed in any isolate any more, but the ref count
   // did not drop to zero yet.
   std::unordered_set<WasmCode*> dead_code;
+
+  // Number of code GCs triggered because code in this native module became
+  // potentially dead.
+  int8_t num_code_gcs_triggered = 0;
 };
 
 WasmEngine::WasmEngine()
@@ -704,6 +720,8 @@ void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
   // a foreground task). In that case, ignore it.
   if (current_gc_info_ == nullptr) return;
   if (!RemoveIsolateFromCurrentGC(isolate)) return;
+  isolate->counters()->wasm_module_num_triggered_code_gcs()->AddSample(
+      current_gc_info_->gc_sequence_index);
   for (WasmCode* code : live_code) current_gc_info_->dead_code.erase(code);
   PotentiallyFinishCurrentGC();
 }
@@ -725,8 +743,9 @@ bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
   base::MutexGuard guard(&mutex_);
   auto it = native_modules_.find(code->native_module());
   DCHECK_NE(native_modules_.end(), it);
-  if (it->second->dead_code.count(code)) return false;  // Code is already dead.
-  auto added = it->second->potentially_dead_code.insert(code);
+  NativeModuleInfo* info = it->second.get();
+  if (info->dead_code.count(code)) return false;  // Code is already dead.
+  auto added = info->potentially_dead_code.insert(code);
   if (!added.second) return false;  // An entry already existed.
   new_potentially_dead_code_size_ += code->instructions().size();
   if (FLAG_wasm_code_gc) {
@@ -736,17 +755,22 @@ bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
             ? 0
             : 1 * MB + code_manager_.committed_code_space() / 10;
     if (new_potentially_dead_code_size_ > dead_code_limit) {
+      bool inc_gc_count =
+          info->num_code_gcs_triggered < std::numeric_limits<int8_t>::max();
       if (current_gc_info_ == nullptr) {
+        if (inc_gc_count) ++info->num_code_gcs_triggered;
         TRACE_CODE_GC(
             "Triggering GC (potentially dead: %zu bytes; limit: %zu bytes).\n",
             new_potentially_dead_code_size_, dead_code_limit);
-        TriggerGC();
-      } else if (!current_gc_info_->run_another_gc) {
+        TriggerGC(info->num_code_gcs_triggered);
+      } else if (current_gc_info_->next_gc_sequence_index == 0) {
+        if (inc_gc_count) ++info->num_code_gcs_triggered;
         TRACE_CODE_GC(
             "Scheduling another GC after the current one (potentially dead: "
             "%zu bytes; limit: %zu bytes).\n",
             new_potentially_dead_code_size_, dead_code_limit);
-        current_gc_info_->run_another_gc = true;
+        current_gc_info_->next_gc_sequence_index = info->num_code_gcs_triggered;
+        DCHECK_NE(0, current_gc_info_->next_gc_sequence_index);
       }
     }
   }
@@ -775,10 +799,10 @@ void WasmEngine::FreeDeadCodeLocked(const DeadCodeMap& dead_code) {
   }
 }
 
-void WasmEngine::TriggerGC() {
+void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
   DCHECK_NULL(current_gc_info_);
   DCHECK(FLAG_wasm_code_gc);
-  current_gc_info_.reset(new CurrentGCInfo());
+  current_gc_info_.reset(new CurrentGCInfo(gc_sequence_index));
   // Add all potentially dead code to this GC, and trigger a GC task in each
   // isolate.
   for (auto& entry : native_modules_) {
@@ -841,9 +865,9 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
       dead_code[code->native_module()].push_back(code);
     }
   }
-  bool run_another_gc = current_gc_info_->run_another_gc;
+  int8_t next_gc_sequence_index = current_gc_info_->next_gc_sequence_index;
   current_gc_info_.reset();
-  if (run_another_gc) TriggerGC();
+  if (next_gc_sequence_index != 0) TriggerGC(next_gc_sequence_index);
 
   FreeDeadCodeLocked(dead_code);
 }

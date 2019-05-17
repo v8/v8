@@ -86,7 +86,10 @@ namespace internal {
   HR(wasm_module_freed_code_size_mb, V8.WasmModuleCodeSizeFreed, 0, 1024, 64)  \
   /* percent of freed code size per module, collected on GC */                 \
   HR(wasm_module_freed_code_size_percent, V8.WasmModuleCodeSizePercentFreed,   \
-     0, 100, 32)
+     0, 100, 32)                                                               \
+  /* number of code GCs triggered per native module, collected on code GC */   \
+  HR(wasm_module_num_triggered_code_gcs,                                       \
+     V8.WasmModuleNumberOfCodeGCsTriggered, 1, 128, 20)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Timer histograms, not thread safe: HT(name, caption, max, unit) */        \
