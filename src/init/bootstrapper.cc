@@ -4402,14 +4402,10 @@ void Genesis::InitializeGlobal_harmony_intl_date_format_range() {
           factory()->InternalizeUtf8String("Intl"))
           .ToHandleChecked());
 
-  Handle<JSObject> date_time_format_object = Handle<JSObject>::cast(
+  Handle<JSFunction> date_time_format_constructor = Handle<JSFunction>::cast(
       JSReceiver::GetProperty(
-          isolate(), Handle<JSReceiver>(JSReceiver::cast(*intl), isolate()),
-          factory()->InternalizeUtf8String("DateTimeFormat"))
+          isolate(), intl, factory()->InternalizeUtf8String("DateTimeFormat"))
           .ToHandleChecked());
-
-  Handle<JSFunction> date_time_format_constructor =
-      Handle<JSFunction>(JSFunction::cast(*date_time_format_object), isolate());
 
   Handle<JSObject> prototype(
       JSObject::cast(date_time_format_constructor->prototype()), isolate_);
