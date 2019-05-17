@@ -4648,9 +4648,7 @@ void TestPokePair(InstructionSelectorTest::StreamBuilder& m, Zone* zone,
   }
 
   EXPECT_EQ(expected_poke_pair, num_poke_pair);
-  // Note: The `+ 1` here comes from the padding Poke in
-  // EmitPrepareArguments.
-  EXPECT_EQ(expected_poke + 1, num_poke);
+  EXPECT_EQ(expected_poke, num_poke);
 }
 }  // namespace
 
@@ -4670,7 +4668,9 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsInt32) {
     };
 
     const int expected_poke_pair = 1;
-    const int expected_poke = 1;
+    // Note: The `+ 1` here comes from the padding Poke in
+    // EmitPrepareArguments.
+    const int expected_poke = 1 + 1;
 
     TestPokePair(m, zone(), builder, nodes, arraysize(nodes),
                  expected_poke_pair, expected_poke);
@@ -4795,7 +4795,10 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsIntFloatMixed) {
                      m.Float64Constant(0.0f), m.Float64Constant(0.0f)};
 
     const int expected_poke_pair = 2;
-    const int expected_poke = 3;
+
+    // Note: The `+ 1` here comes from the padding Poke in
+    // EmitPrepareArguments.
+    const int expected_poke = 3 + 1;
 
     TestPokePair(m, zone(), builder, nodes, arraysize(nodes),
                  expected_poke_pair, expected_poke);

@@ -1701,6 +1701,7 @@ void InstructionSelector::EmitPrepareArguments(
   // `arguments` includes alignment "holes". This means that slots bigger than
   // kSystemPointerSize, e.g. Simd128, will span across multiple arguments.
   int claim_count = static_cast<int>(arguments->size());
+  bool needs_padding = claim_count % 2 != 0;
   int slot = claim_count - 1;
   claim_count = RoundUp(claim_count, 2);
   // Bump the stack pointer.
@@ -1710,9 +1711,10 @@ void InstructionSelector::EmitPrepareArguments(
     //               and emit paired stores with increment for non c frames.
     Emit(kArm64Claim, g.NoOutput(), g.TempImmediate(claim_count));
 
-    // Store padding, which might be overwritten.
-    Emit(kArm64Poke, g.NoOutput(), g.UseImmediate(0),
-         g.TempImmediate(claim_count - 1));
+    if (needs_padding) {
+      Emit(kArm64Poke, g.NoOutput(), g.UseImmediate(0),
+           g.TempImmediate(claim_count - 1));
+    }
   }
 
   // Poke the arguments into the stack.
