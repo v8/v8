@@ -227,7 +227,6 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                                         \
   HARMONY_STAGED_BASE(V)                                          \
-  V(harmony_intl_date_format_range, "DateTimeFormat formatRange") \
   V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -248,9 +247,10 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   V(harmony_promise_all_settled, "harmony Promise.allSettled")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V)                                 \
-  HARMONY_SHIPPING_BASE(V)                                  \
-  V(harmony_intl_bigint, "BigInt.prototype.toLocaleString") \
+#define HARMONY_SHIPPING(V)                                       \
+  HARMONY_SHIPPING_BASE(V)                                        \
+  V(harmony_intl_bigint, "BigInt.prototype.toLocaleString")       \
+  V(harmony_intl_date_format_range, "DateTimeFormat formatRange") \
   V(harmony_intl_datetime_style, "dateStyle timeStyle for DateTimeFormat")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
