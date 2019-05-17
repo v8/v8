@@ -1735,6 +1735,11 @@ Node* EffectControlLinearizer::LowerPoisonIndex(Node* node) {
 void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
   CheckMapsParameters const& p = CheckMapsParametersOf(node->op());
   Node* value = node->InputAt(0);
+  // TODO(v8:8982): Eliminate this decompression when the lightweight map and
+  // equality checks of compressed values are in place
+  if (COMPRESS_POINTERS_BOOL) {
+    value = graph()->NewNode(machine()->ChangeCompressedToTagged(), value);
+  }
 
   ZoneHandleSet<Map> const& maps = p.maps();
   size_t const map_count = maps.size();
@@ -1844,6 +1849,11 @@ Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
   ZoneHandleSet<Map> const& maps = CompareMapsParametersOf(node->op());
   size_t const map_count = maps.size();
   Node* value = node->InputAt(0);
+  // TODO(v8:8982): Eliminate this decompression when the lightweight map and
+  // equality checks of compressed values are in place
+  if (COMPRESS_POINTERS_BOOL) {
+    value = graph()->NewNode(machine()->ChangeCompressedToTagged(), value);
+  }
 
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
