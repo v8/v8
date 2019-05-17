@@ -157,3 +157,33 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals('anyfunc', type.element);
   assertEquals(3, Object.getOwnPropertyNames(type).length);
 })();
+
+(function TestFunctionConstructor() {
+  let desc = Object.getOwnPropertyDescriptor(WebAssembly, 'Function');
+  assertEquals(typeof desc.value, 'function');
+  assertTrue(desc.writable);
+  assertFalse(desc.enumerable);
+  assertTrue(desc.configurable);
+  // TODO(7742): The length should probably be 2 instead.
+  assertEquals(WebAssembly.Function.length, 1);
+  assertEquals(WebAssembly.Function.name, 'Function');
+  assertThrows(
+      () => WebAssembly.Function(), TypeError, /must be invoked with 'new'/);
+  // TODO(7742): Add tests for missing/bogus arguments.
+})();
+
+(function TestFunctionExportedFunctions() {
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("fun", kSig_v_v).addBody([]).exportFunc();
+  let instance = builder.instantiate();
+  let fun = instance.exports.fun;
+  assertTrue(fun instanceof WebAssembly.Function);
+  assertTrue(fun instanceof Function);
+  assertTrue(fun instanceof Object);
+  assertSame(fun.__proto__, WebAssembly.Function.prototype);
+  assertSame(fun.__proto__.__proto__, Function.prototype);
+  assertSame(fun.__proto__.__proto__.__proto__, Object.prototype);
+  assertSame(fun.constructor, WebAssembly.Function);
+  assertEquals(typeof fun, 'function');
+  assertDoesNotThrow(() => fun());
+})();

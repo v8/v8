@@ -2096,9 +2096,9 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
                .ToHandleChecked();
   }
   bool is_asm_js_module = instance->module_object()->is_asm_js();
-  Handle<Map> function_map =
-      is_asm_js_module ? isolate->sloppy_function_map()
-                       : isolate->sloppy_function_without_prototype_map();
+  Handle<Map> function_map = is_asm_js_module
+                                 ? isolate->sloppy_function_map()
+                                 : isolate->wasm_exported_function_map();
   NewFunctionArgs args =
       NewFunctionArgs::ForWasm(name, function_data, function_map);
   Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);
