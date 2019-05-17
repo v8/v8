@@ -189,6 +189,7 @@ namespace internal {
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
   HT(wasm_instantiate_asm_module_time,                                         \
      V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
+  HT(wasm_code_gc_time, V8.WasmCodeGCTime, 1000000, MICROSECOND)               \
   /* Total compilation time incl. caching/parsing for various cache states. */ \
   HT(compile_script_with_produce_cache,                                        \
      V8.CompileScriptMicroSeconds.ProduceCache, 1000000, MICROSECOND)          \

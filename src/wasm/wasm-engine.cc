@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-engine.h"
 
+#include "src/base/platform/time.h"
 #include "src/code-tracer.h"
 #include "src/compilation-statistics.h"
 #include "src/counters.h"
@@ -139,11 +140,16 @@ struct WasmEngine::CurrentGCInfo {
   // and >0 otherwise. It stores the {num_code_gcs_triggered} of the native
   // module which triggered the next GC.
   int8_t next_gc_sequence_index = 0;
+
+  // The start time of this GC; used for tracing and sampled via {Counters}.
+  // Can be null ({TimeTicks::IsNull()}) if timer is not high resolution.
+  base::TimeTicks start_time;
 };
 
 struct WasmEngine::IsolateInfo {
   explicit IsolateInfo(Isolate* isolate)
-      : log_codes(WasmCode::ShouldBeLogged(isolate)) {
+      : log_codes(WasmCode::ShouldBeLogged(isolate)),
+        async_counters(isolate->async_counters()) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Platform* platform = V8::GetCurrentPlatform();
     foreground_task_runner = platform->GetForegroundTaskRunner(v8_isolate);
@@ -172,6 +178,8 @@ struct WasmEngine::IsolateInfo {
 
   // The foreground task runner of the isolate (can be called from background).
   std::shared_ptr<v8::TaskRunner> foreground_task_runner;
+
+  const std::shared_ptr<Counters> async_counters;
 };
 
 struct WasmEngine::NativeModuleInfo {
@@ -522,6 +530,15 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
   }
 }
 
+namespace {
+int GetGCTimeMicros(base::TimeTicks start) {
+  DCHECK(!start.IsNull());
+  int64_t duration_us = (base::TimeTicks::Now() - start).InMicroseconds();
+  return static_cast<int>(
+      std::min(std::max(int64_t{0}, duration_us), int64_t{kMaxInt}));
+}
+}  // namespace
+
 void WasmEngine::AddIsolate(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
   DCHECK_EQ(0, isolates_.count(isolate));
@@ -540,6 +557,13 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
     DCHECK_EQ(1, engine->isolates_.count(isolate));
     for (auto* native_module : engine->isolates_[isolate]->native_modules) {
       native_module->SampleCodeSize(counters, NativeModule::kSampling);
+    }
+    // If there is an ongoing code GC, sample its time here. This will record
+    // samples for very long-running or never ending GCs.
+    if (engine->current_gc_info_ &&
+        !engine->current_gc_info_->start_time.IsNull()) {
+      isolate->counters()->wasm_code_gc_time()->AddSample(
+          GetGCTimeMicros(engine->current_gc_info_->start_time));
     }
   };
   isolate->heap()->AddGCEpilogueCallback(callback, v8::kGCTypeMarkSweepCompact,
@@ -803,6 +827,9 @@ void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
   DCHECK_NULL(current_gc_info_);
   DCHECK(FLAG_wasm_code_gc);
   current_gc_info_.reset(new CurrentGCInfo(gc_sequence_index));
+  if (base::TimeTicks::IsHighResolution()) {
+    current_gc_info_->start_time = base::TimeTicks::Now();
+  }
   // Add all potentially dead code to this GC, and trigger a GC task in each
   // isolate.
   for (auto& entry : native_modules_) {
@@ -851,8 +878,7 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
   // All remaining code in {current_gc_info->dead_code} is really dead.
   // Move it from the set of potentially dead code to the set of dead code,
   // and decrement its ref count.
-  TRACE_CODE_GC("Decrementing ref count on %zu code objects.\n",
-                current_gc_info_->dead_code.size());
+  size_t num_freed = 0;
   DeadCodeMap dead_code;
   for (WasmCode* code : current_gc_info_->dead_code) {
     DCHECK_EQ(1, native_modules_.count(code->native_module()));
@@ -863,13 +889,27 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
     native_module_info->dead_code.insert(code);
     if (code->DecRefOnDeadCode()) {
       dead_code[code->native_module()].push_back(code);
+      ++num_freed;
     }
   }
+
+  FreeDeadCodeLocked(dead_code);
+
+  int duration_us = 0;
+  if (!current_gc_info_->start_time.IsNull()) {
+    duration_us = GetGCTimeMicros(current_gc_info_->start_time);
+    for (auto& entry : isolates_) {
+      entry.second->async_counters->wasm_code_gc_time()->AddSample(duration_us);
+    }
+  }
+
+  TRACE_CODE_GC("Took %d us; found %zu dead code objects, freed %zu.\n",
+                duration_us, current_gc_info_->dead_code.size(), num_freed);
+  USE(num_freed);
+
   int8_t next_gc_sequence_index = current_gc_info_->next_gc_sequence_index;
   current_gc_info_.reset();
   if (next_gc_sequence_index != 0) TriggerGC(next_gc_sequence_index);
-
-  FreeDeadCodeLocked(dead_code);
 }
 
 namespace {
