@@ -2803,9 +2803,10 @@ Reduction JSCallReducer::ReduceCallApiFunction(
       if (!api_holder.is_identical_to(holderi)) return inference.NoChange();
     }
 
-    // We may need to check {receiver_maps} again below, so better
-    // make sure we are allowed to speculate in this case.
-    if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation &&
+        !inference.RelyOnMapsViaStability(dependencies())) {
+      // We were not able to make the receiver maps reliable without map checks
+      // but doing map checks would lead to deopt loops, so give up.
       return inference.NoChange();
     }
 
