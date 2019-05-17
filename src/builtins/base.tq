@@ -2571,6 +2571,18 @@ struct FastJSArrayWitness {
     }
   }
 
+  StoreHole(k: Smi) {
+    if (this.hasDoubles) {
+      const elements = Cast<FixedDoubleArray>(this.unstable.elements)
+          otherwise unreachable;
+      StoreFixedDoubleArrayHoleSmi(elements, k);
+    } else {
+      const elements = Cast<FixedArray>(this.unstable.elements)
+          otherwise unreachable;
+      StoreFixedArrayElement(elements, k, Hole);
+    }
+  }
+
   LoadElementOrUndefined(implicit context: Context)(k: Smi): Object {
     try {
       return this.LoadElementNoHole(k) otherwise FoundHole;
