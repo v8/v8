@@ -100,6 +100,13 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // (3) The property to be deleted must be deletable.
   PropertyDetails details = descriptors->GetDetails(descriptor);
   if (!details.IsConfigurable()) return false;
+  // TODO(bmeurer): This optimization is unsound if the property is currently
+  // marked as constant, as there's no way that we can learn that it is not
+  // constant when we later follow the same transition again with a different
+  // value on the same object. As a quick-fix we just disable the optimization
+  // in case of constant fields. We might want to restructure the code here to
+  // update the {map} instead and deoptimize all code that depends on it.
+  if (details.constness() == PropertyConstness::kConst) return false;
   // (4) The map must have a back pointer.
   Object backpointer = map->GetBackPointer();
   if (!backpointer->IsMap()) return false;
