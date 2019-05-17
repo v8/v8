@@ -54,18 +54,6 @@ FieldAccess AccessBuilder::ForMap() {
 }
 
 // static
-FieldAccess AccessBuilder::ForCompressedMap() {
-  FieldAccess access = {kTaggedBase, HeapObject::kMapOffset,
-                        MaybeHandle<Name>(), MaybeHandle<Map>(),
-                        // We use MachineType::Uint32() for the compressed
-                        // pointer load, because we want to examine it
-                        // as a compressed pointer in map checks.
-                        Type::OtherInternal(), MachineType::Uint32(),
-                        kMapWriteBarrier, LoadSensitivity::kUnsafe};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForHeapNumberValue() {
   FieldAccess access = {
       kTaggedBase,        HeapNumber::kValueOffset,   MaybeHandle<Name>(),

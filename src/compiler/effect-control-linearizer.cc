@@ -1808,10 +1808,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
     auto done = __ MakeLabel();
 
     // Load the current map of the {value}.
-    Node* value_map =
-        UsingCompressedPointers()
-            ? __ LoadField(AccessBuilder::ForCompressedMap(), value)
-            : __ LoadField(AccessBuilder::ForMap(), value);
+    Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
 
     for (size_t i = 0; i < map_count; ++i) {
       Node* check;
@@ -1851,9 +1848,7 @@ Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   // Load the current map of the {value}.
-  Node* value_map = UsingCompressedPointers()
-                        ? __ LoadField(AccessBuilder::ForCompressedMap(), value)
-                        : __ LoadField(AccessBuilder::ForMap(), value);
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
 
   for (size_t i = 0; i < map_count; ++i) {
     Node* check;

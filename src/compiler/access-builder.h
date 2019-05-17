@@ -36,8 +36,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to HeapObject::map() field.
   static FieldAccess ForMap();
 
-  static FieldAccess ForCompressedMap();
-
   // Provides access to HeapNumber::value() field.
   static FieldAccess ForHeapNumberValue();
 
