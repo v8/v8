@@ -25,10 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_PERF_JIT_H_
-#define V8_PERF_JIT_H_
+#ifndef V8_DIAGNOSTICS_PERF_JIT_H_
+#define V8_DIAGNOSTICS_PERF_JIT_H_
 
-#include "src/log.h"
+#include "src/logging/log.h"
 
 namespace v8 {
 namespace internal {
@@ -144,4 +144,4 @@ class PerfJitLogger : public CodeEventLogger {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_PERF_JIT_H_
+#endif  // V8_DIAGNOSTICS_PERF_JIT_H_

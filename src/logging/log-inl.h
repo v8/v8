@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LOG_INL_H_
-#define V8_LOG_INL_H_
+#ifndef V8_LOGGING_LOG_INL_H_
+#define V8_LOGGING_LOG_INL_H_
 
-#include "src/log.h"
 #include "src/isolate.h"
+#include "src/logging/log.h"
 #include "src/objects-inl.h"
 #include "src/tracing/trace-event.h"
 
@@ -48,4 +48,4 @@ void TimerEventScope<TimerEvent>::LogTimerEvent(Logger::StartEnd se) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_LOG_INL_H_
+#endif  // V8_LOGGING_LOG_INL_H_

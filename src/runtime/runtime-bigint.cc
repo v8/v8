@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/arguments-inl.h"
-#include "src/counters.h"
+#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/bigint.h"
 #include "src/runtime/runtime-utils.h"

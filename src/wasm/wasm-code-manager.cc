@@ -11,10 +11,10 @@
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
-#include "src/counters.h"
-#include "src/disassembler.h"
+#include "src/diagnostics/disassembler.h"
 #include "src/globals.h"
-#include "src/log.h"
+#include "src/logging/counters.h"
+#include "src/logging/log.h"
 #include "src/macro-assembler-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
@@ -30,7 +30,7 @@
 #include "src/wasm/wasm-objects.h"
 
 #if defined(V8_OS_WIN_X64)
-#include "src/unwinding-info-win64.h"
+#include "src/diagnostics/unwinding-info-win64.h"
 #endif
 
 #define TRACE_HEAP(...)                                   \

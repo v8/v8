@@ -49,7 +49,7 @@
 #include "src/heap/sweeper.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
-#include "src/log.h"
+#include "src/logging/log.h"
 #include "src/microtask-queue.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/data-handler.h"

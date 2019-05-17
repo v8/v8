@@ -11,8 +11,8 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
-#include "src/counters.h"
 #include "src/interface-descriptors.h"
+#include "src/logging/counters.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 

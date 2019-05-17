@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/arm64/assembler-arm64-inl.h"
-#include "src/eh-frame.h"
+#include "src/diagnostics/eh-frame.h"
 
 namespace v8 {
 namespace internal {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/basic-block-profiler.h"
+#include "src/diagnostics/basic-block-profiler.h"
 
 #include <algorithm>
 #include <numeric>
@@ -51,7 +51,6 @@ intptr_t BasicBlockProfiler::Data::GetCounterAddress(size_t offset) {
   return reinterpret_cast<intptr_t>(&(counts_[offset]));
 }
 
-
 void BasicBlockProfiler::Data::ResetCounts() {
   for (size_t i = 0; i < n_blocks_; ++i) {
     counts_[i] = 0;
@@ -65,20 +64,17 @@ BasicBlockProfiler::Data* BasicBlockProfiler::NewData(size_t n_blocks) {
   return data;
 }
 
-
 BasicBlockProfiler::~BasicBlockProfiler() {
   for (DataList::iterator i = data_list_.begin(); i != data_list_.end(); ++i) {
     delete (*i);
   }
 }
 
-
 void BasicBlockProfiler::ResetCounts() {
   for (DataList::iterator i = data_list_.begin(); i != data_list_.end(); ++i) {
     (*i)->ResetCounts();
   }
 }
-
 
 std::ostream& operator<<(std::ostream& os, const BasicBlockProfiler& p) {
   os << "---- Start Profiling Data ----" << std::endl;
@@ -89,7 +85,6 @@ std::ostream& operator<<(std::ostream& os, const BasicBlockProfiler& p) {
   os << "---- End Profiling Data ----" << std::endl;
   return os;
 }
-
 
 std::ostream& operator<<(std::ostream& os, const BasicBlockProfiler::Data& d) {
   int block_count_sum = std::accumulate(d.counts_.begin(), d.counts_.end(), 0);
@@ -112,8 +107,7 @@ std::ostream& operator<<(std::ostream& os, const BasicBlockProfiler::Data& d) {
   std::sort(pairs.begin(), pairs.end(),
             [=](std::pair<int32_t, uint32_t> left,
                 std::pair<int32_t, uint32_t> right) {
-              if (right.second == left.second)
-                return left.first < right.first;
+              if (right.second == left.second) return left.first < right.first;
               return right.second < left.second;
             });
   for (auto it : pairs) {

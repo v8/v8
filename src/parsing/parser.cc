@@ -17,7 +17,7 @@
 #include "src/base/platform/platform.h"
 #include "src/char-predicates-inl.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
-#include "src/log.h"
+#include "src/logging/log.h"
 #include "src/message-template.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/scope-info.h"

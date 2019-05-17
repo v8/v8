@@ -15,9 +15,9 @@
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/counters.h"
 #include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
 #include "src/identity-map.h"
+#include "src/logging/counters.h"
 #include "src/property-descriptor.h"
 #include "src/task-utils.h"
 #include "src/tracing/trace-event.h"

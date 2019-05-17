@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/counters.h"
+#include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
 #include "src/objects-inl.h"
 #ifdef V8_INTL_SUPPORT

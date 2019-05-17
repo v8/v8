@@ -8,10 +8,10 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/platform/platform.h"
 #include "src/base/ring-buffer.h"
-#include "src/counters.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/heap/heap.h"
+#include "src/logging/counters.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {

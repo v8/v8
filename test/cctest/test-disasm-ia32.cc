@@ -31,8 +31,8 @@
 
 #include "src/code-factory.h"
 #include "src/debug/debug.h"
-#include "src/disasm.h"
-#include "src/disassembler.h"
+#include "src/diagnostics/disasm.h"
+#include "src/diagnostics/disassembler.h"
 #include "src/frames-inl.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"

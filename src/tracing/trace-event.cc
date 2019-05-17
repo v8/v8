@@ -6,8 +6,8 @@
 
 #include <string.h>
 
-#include "src/counters.h"
 #include "src/isolate.h"
+#include "src/logging/counters.h"
 #include "src/tracing/traced-value.h"
 #include "src/v8.h"
 

@@ -14,7 +14,7 @@
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
-#include "src/log.h"
+#include "src/logging/log.h"
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"

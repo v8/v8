@@ -12,7 +12,7 @@
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/locked-queue-inl.h"
-#include "src/log.h"
+#include "src/logging/log.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-engine.h"

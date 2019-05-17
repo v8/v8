@@ -30,7 +30,7 @@
 #if V8_TARGET_ARCH_S390
 
 #include "src/base/platform/platform.h"
-#include "src/disasm.h"
+#include "src/diagnostics/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 #include "src/s390/constants-s390.h"

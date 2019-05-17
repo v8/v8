@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LOG_UTILS_H_
-#define V8_LOG_UTILS_H_
+#ifndef V8_LOGGING_LOG_UTILS_H_
+#define V8_LOGGING_LOG_UTILS_H_
 
 #include <stdio.h>
 
@@ -152,4 +152,4 @@ Log::MessageBuilder& Log::MessageBuilder::operator<<<Name>(Name name);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_LOG_UTILS_H_
+#endif  // V8_LOGGING_LOG_UTILS_H_

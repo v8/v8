@@ -13,7 +13,7 @@
 #include "src/arm64/disasm-arm64.h"
 #include "src/arm64/utils-arm64.h"
 #include "src/base/platform/platform.h"
-#include "src/disasm.h"
+#include "src/diagnostics/disasm.h"
 
 namespace v8 {
 namespace internal {

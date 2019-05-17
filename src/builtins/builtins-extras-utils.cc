@@ -6,7 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/elements.h"
 
-#include "src/counters.h"
+#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

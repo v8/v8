@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_BACKEND_ARM_UNWINDING_INFO_WRITER_ARM_H_
 #define V8_COMPILER_BACKEND_ARM_UNWINDING_INFO_WRITER_ARM_H_
 
-#include "src/eh-frame.h"
+#include "src/diagnostics/eh-frame.h"
 #include "src/flags.h"
 
 namespace v8 {

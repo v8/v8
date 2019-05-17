@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COUNTERS_DEFINITIONS_H_
-#define V8_COUNTERS_DEFINITIONS_H_
+#ifndef V8_LOGGING_COUNTERS_DEFINITIONS_H_
+#define V8_LOGGING_COUNTERS_DEFINITIONS_H_
 
 namespace v8 {
 namespace internal {
@@ -234,42 +234,42 @@ namespace internal {
 // lines) rather than one macro (of length about 80 lines) to work around
 // this problem.  Please avoid using recursive macros of this length when
 // possible.
-#define STATS_COUNTER_LIST_1(SC)                                    \
-  /* Global Handle Count*/                                          \
-  SC(global_handles, V8.GlobalHandles)                              \
-  /* OS Memory allocated */                                         \
-  SC(memory_allocated, V8.OsMemoryAllocated)                        \
-  SC(maps_normalized, V8.MapsNormalized)                            \
-  SC(maps_created, V8.MapsCreated)                                  \
-  SC(elements_transitions, V8.ObjectElementsTransitions)            \
-  SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)          \
-  SC(elements_to_dictionary, V8.ObjectElementsToDictionary)         \
-  SC(alive_after_last_gc, V8.AliveAfterLastGC)                      \
-  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                  \
-  SC(objs_since_last_full, V8.ObjsSinceLastFull)                    \
-  SC(string_table_capacity, V8.StringTableCapacity)                 \
-  SC(number_of_symbols, V8.NumberOfSymbols)                         \
-  SC(inlined_copied_elements, V8.InlinedCopiedElements)             \
-  SC(compilation_cache_hits, V8.CompilationCacheHits)               \
-  SC(compilation_cache_misses, V8.CompilationCacheMisses)           \
-  /* Amount of evaled source code. */                               \
-  SC(total_eval_size, V8.TotalEvalSize)                             \
-  /* Amount of loaded source code. */                               \
-  SC(total_load_size, V8.TotalLoadSize)                             \
-  /* Amount of parsed source code. */                               \
-  SC(total_parse_size, V8.TotalParseSize)                           \
-  /* Amount of source code skipped over using preparsing. */        \
-  SC(total_preparse_skipped, V8.TotalPreparseSkipped)               \
-  /* Amount of compiled source code. */                             \
-  SC(total_compile_size, V8.TotalCompileSize)                       \
-  /* Number of contexts created from scratch. */                    \
-  SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)  \
-  /* Number of contexts created by partial snapshot. */             \
-  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)    \
-  /* Number of code objects found from pc. */                       \
-  SC(pc_to_code, V8.PcToCode)                                       \
-  SC(pc_to_code_cached, V8.PcToCodeCached)                          \
-  /* The store-buffer implementation of the write barrier. */       \
+#define STATS_COUNTER_LIST_1(SC)                                   \
+  /* Global Handle Count*/                                         \
+  SC(global_handles, V8.GlobalHandles)                             \
+  /* OS Memory allocated */                                        \
+  SC(memory_allocated, V8.OsMemoryAllocated)                       \
+  SC(maps_normalized, V8.MapsNormalized)                           \
+  SC(maps_created, V8.MapsCreated)                                 \
+  SC(elements_transitions, V8.ObjectElementsTransitions)           \
+  SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)         \
+  SC(elements_to_dictionary, V8.ObjectElementsToDictionary)        \
+  SC(alive_after_last_gc, V8.AliveAfterLastGC)                     \
+  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                 \
+  SC(objs_since_last_full, V8.ObjsSinceLastFull)                   \
+  SC(string_table_capacity, V8.StringTableCapacity)                \
+  SC(number_of_symbols, V8.NumberOfSymbols)                        \
+  SC(inlined_copied_elements, V8.InlinedCopiedElements)            \
+  SC(compilation_cache_hits, V8.CompilationCacheHits)              \
+  SC(compilation_cache_misses, V8.CompilationCacheMisses)          \
+  /* Amount of evaled source code. */                              \
+  SC(total_eval_size, V8.TotalEvalSize)                            \
+  /* Amount of loaded source code. */                              \
+  SC(total_load_size, V8.TotalLoadSize)                            \
+  /* Amount of parsed source code. */                              \
+  SC(total_parse_size, V8.TotalParseSize)                          \
+  /* Amount of source code skipped over using preparsing. */       \
+  SC(total_preparse_skipped, V8.TotalPreparseSkipped)              \
+  /* Amount of compiled source code. */                            \
+  SC(total_compile_size, V8.TotalCompileSize)                      \
+  /* Number of contexts created from scratch. */                   \
+  SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch) \
+  /* Number of contexts created by partial snapshot. */            \
+  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)   \
+  /* Number of code objects found from pc. */                      \
+  SC(pc_to_code, V8.PcToCode)                                      \
+  SC(pc_to_code_cached, V8.PcToCodeCached)                         \
+  /* The store-buffer implementation of the write barrier. */      \
   SC(store_buffer_overflows, V8.StoreBufferOverflows)
 
 #define STATS_COUNTER_LIST_2(SC)                                               \
@@ -338,4 +338,4 @@ namespace internal {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COUNTERS_DEFINITIONS_H_
+#endif  // V8_LOGGING_COUNTERS_DEFINITIONS_H_

@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/counters.h"
+#include "src/logging/counters.h"
 
 #include <iomanip>
 
 #include "src/base/platform/platform.h"
 #include "src/builtins/builtins-definitions.h"
-#include "src/counters-inl.h"
 #include "src/isolate.h"
-#include "src/log-inl.h"
-#include "src/log.h"
+#include "src/logging/counters-inl.h"
+#include "src/logging/log-inl.h"
+#include "src/logging/log.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -295,23 +295,23 @@ void Counters::ResetCreateHistogramFunction(CreateHistogramCallback f) {
 #undef HR
 
 #define HT(name, caption, max, res) name##_.Reset();
-    HISTOGRAM_TIMER_LIST(HT)
+  HISTOGRAM_TIMER_LIST(HT)
 #undef HT
 
 #define HT(name, caption, max, res) name##_.Reset();
-    TIMED_HISTOGRAM_LIST(HT)
+  TIMED_HISTOGRAM_LIST(HT)
 #undef HT
 
 #define AHT(name, caption) name##_.Reset();
-    AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+  AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
 #undef AHT
 
 #define HP(name, caption) name##_.Reset();
-    HISTOGRAM_PERCENTAGE_LIST(HP)
+  HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
 
 #define HM(name, caption) name##_.Reset();
-    HISTOGRAM_LEGACY_MEMORY_LIST(HM)
+  HISTOGRAM_LEGACY_MEMORY_LIST(HM)
 #undef HM
 }
 
