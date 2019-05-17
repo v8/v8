@@ -262,7 +262,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(GetProperty)                              \
   /* Arrays */                                \
   V(ArraySpeciesConstructor)                  \
-  V(EstimateNumberOfElements)                 \
   V(HasComplexElements)                       \
   V(HasFastPackedElements)                    \
   V(NewArray)                                 \

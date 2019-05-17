@@ -422,44 +422,6 @@ RUNTIME_FUNCTION(Runtime_PrepareElementsForSort) {
   return RemoveArrayHoles(isolate, object, length);
 }
 
-// How many elements does this object/array have?
-RUNTIME_FUNCTION(Runtime_EstimateNumberOfElements) {
-  DisallowHeapAllocation no_gc;
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSArray, array, 0);
-  FixedArrayBase elements = array->elements();
-  SealHandleScope shs(isolate);
-  if (elements->IsNumberDictionary()) {
-    int result = NumberDictionary::cast(elements)->NumberOfElements();
-    return Smi::FromInt(result);
-  } else {
-    DCHECK(array->length()->IsSmi());
-    // For packed elements, we know the exact number of elements
-    int length = elements->length();
-    ElementsKind kind = array->GetElementsKind();
-    if (IsFastPackedElementsKind(kind)) {
-      return Smi::FromInt(length);
-    }
-    // For holey elements, take samples from the buffer checking for holes
-    // to generate the estimate.
-    const int kNumberOfHoleCheckSamples = 97;
-    int increment = (length < kNumberOfHoleCheckSamples)
-                        ? 1
-                        : static_cast<int>(length / kNumberOfHoleCheckSamples);
-    ElementsAccessor* accessor = array->GetElementsAccessor();
-    int holes = 0;
-    for (int i = 0; i < length; i += increment) {
-      if (!accessor->HasElement(array, i, elements)) {
-        ++holes;
-      }
-    }
-    int estimate = static_cast<int>((kNumberOfHoleCheckSamples - holes) /
-                                    kNumberOfHoleCheckSamples * length);
-    return Smi::FromInt(estimate);
-  }
-}
-
 RUNTIME_FUNCTION(Runtime_TrySliceSimpleNonFastElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
