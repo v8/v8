@@ -81,50 +81,66 @@ namespace {
 
 bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
                               Handle<Object> raw_key) {
-  DisallowHeapAllocation no_allocation;
   // This implements a special case for fast property deletion: when the
   // last property in an object is deleted, then instead of normalizing
   // the properties, we can undo the last map transition, with a few
   // prerequisites:
   // (1) The receiver must be a regular object and the key a unique name.
-  Map map = receiver->map();
-  if (map->IsSpecialReceiverMap()) return false;
+  Handle<Map> receiver_map(receiver->map(), isolate);
+  if (receiver_map->IsSpecialReceiverMap()) return false;
   if (!raw_key->IsUniqueName()) return false;
   Handle<Name> key = Handle<Name>::cast(raw_key);
   // (2) The property to be deleted must be the last property.
-  int nof = map->NumberOfOwnDescriptors();
+  int nof = receiver_map->NumberOfOwnDescriptors();
   if (nof == 0) return false;
   int descriptor = nof - 1;
-  DescriptorArray descriptors = map->instance_descriptors();
+  Handle<DescriptorArray> descriptors(receiver_map->instance_descriptors(),
+                                      isolate);
   if (descriptors->GetKey(descriptor) != *key) return false;
   // (3) The property to be deleted must be deletable.
   PropertyDetails details = descriptors->GetDetails(descriptor);
   if (!details.IsConfigurable()) return false;
-  // TODO(bmeurer): This optimization is unsound if the property is currently
-  // marked as constant, as there's no way that we can learn that it is not
-  // constant when we later follow the same transition again with a different
-  // value on the same object. As a quick-fix we just disable the optimization
-  // in case of constant fields. We might want to restructure the code here to
-  // update the {map} instead and deoptimize all code that depends on it.
-  if (details.constness() == PropertyConstness::kConst) return false;
   // (4) The map must have a back pointer.
-  Object backpointer = map->GetBackPointer();
+  Handle<Object> backpointer(receiver_map->GetBackPointer(), isolate);
   if (!backpointer->IsMap()) return false;
+  Handle<Map> parent_map = Handle<Map>::cast(backpointer);
   // (5) The last transition must have been caused by adding a property
   // (and not any kind of special transition).
-  if (Map::cast(backpointer)->NumberOfOwnDescriptors() != nof - 1) return false;
+  if (parent_map->NumberOfOwnDescriptors() != nof - 1) return false;
 
   // Preconditions successful. No more bailouts after this point.
+
+  // If the {descriptor} was "const" so far, we need to update the
+  // {receiver_map} here, otherwise we could get the constants wrong, i.e.
+  //
+  //   o.x = 1;
+  //   delete o.x;
+  //   o.x = 2;
+  //
+  // could trick V8 into thinking that `o.x` is still 1 even after the second
+  // assignment.
+  if (details.constness() == PropertyConstness::kConst &&
+      details.location() == kField) {
+    Handle<FieldType> field_type(descriptors->GetFieldType(descriptor),
+                                 isolate);
+    Map::GeneralizeField(isolate, receiver_map, descriptor,
+                         PropertyConstness::kMutable, details.representation(),
+                         field_type);
+    DCHECK_EQ(PropertyConstness::kMutable,
+              descriptors->GetDetails(descriptor).constness());
+  }
 
   // Zap the property to avoid keeping objects alive. Zapping is not necessary
   // for properties stored in the descriptor array.
   if (details.location() == kField) {
-    isolate->heap()->NotifyObjectLayoutChange(*receiver, map->instance_size(),
-                                              no_allocation);
-    FieldIndex index = FieldIndex::ForPropertyIndex(map, details.field_index());
+    DisallowHeapAllocation no_allocation;
+    isolate->heap()->NotifyObjectLayoutChange(
+        *receiver, receiver_map->instance_size(), no_allocation);
+    FieldIndex index =
+        FieldIndex::ForPropertyIndex(*receiver_map, details.field_index());
     // Special case deleting the last out-of object property.
     if (!index.is_inobject() && index.outobject_array_index() == 0) {
-      DCHECK(!Map::cast(backpointer)->HasOutOfObjectProperties());
+      DCHECK(!parent_map->HasOutOfObjectProperties());
       // Clear out the properties backing store.
       receiver->SetProperties(ReadOnlyRoots(isolate).empty_fixed_array());
     } else {
@@ -134,19 +150,19 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
       // subsequent object modifications might put a raw double there.
       // Slot clearing is the reason why this entire function cannot currently
       // be implemented in the DeleteProperty stub.
-      if (index.is_inobject() && !map->IsUnboxedDoubleField(index)) {
+      if (index.is_inobject() && !receiver_map->IsUnboxedDoubleField(index)) {
         isolate->heap()->ClearRecordedSlot(*receiver,
                                            receiver->RawField(index.offset()));
       }
     }
   }
-  // If the map was marked stable before, then there could be optimized code
-  // that depends on the assumption that no object that reached this map
-  // transitions away from it without triggering the "deoptimize dependent
-  // code" mechanism.
-  map->NotifyLeafMapLayoutChange(isolate);
+  // If the {receiver_map} was marked stable before, then there could be
+  // optimized code that depends on the assumption that no object that
+  // reached this {receiver_map} transitions away from it without triggering
+  // the "deoptimize dependent code" mechanism.
+  receiver_map->NotifyLeafMapLayoutChange(isolate);
   // Finally, perform the map rollback.
-  receiver->synchronized_set_map(Map::cast(backpointer));
+  receiver->synchronized_set_map(*parent_map);
 #if VERIFY_HEAP
   receiver->HeapObjectVerify(isolate);
   receiver->property_array()->PropertyArrayVerify(isolate);
