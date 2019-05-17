@@ -4,10 +4,10 @@
 
 #include "src/arguments-inl.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/frame-constants.h"
 #include "src/heap/factory.h"
-#include "src/logging/counters.h"
 #include "src/message-template.h"
 #include "src/numbers/conversions.h"
 #include "src/objects-inl.h"

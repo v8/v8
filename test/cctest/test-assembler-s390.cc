@@ -27,7 +27,7 @@
 
 #include "src/v8.h"
 
-#include "src/diagnostics/disassembler.h"
+#include "src/disassembler.h"
 #include "src/heap/factory.h"
 #include "src/macro-assembler.h"
 #include "src/s390/assembler-s390-inl.h"

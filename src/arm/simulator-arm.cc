@@ -14,7 +14,7 @@
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
-#include "src/diagnostics/disasm.h"
+#include "src/disasm.h"
 #include "src/heap/combined-heap.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"

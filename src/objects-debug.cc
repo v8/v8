@@ -5,9 +5,10 @@
 #include "src/objects.h"
 
 #include "src/assembler-inl.h"
+#include "src/counters.h"
 #include "src/date/date.h"
-#include "src/diagnostics/disasm.h"
-#include "src/diagnostics/disassembler.h"
+#include "src/disasm.h"
+#include "src/disassembler.h"
 #include "src/elements.h"
 #include "src/field-type.h"
 #include "src/heap/combined-heap.h"
@@ -15,7 +16,6 @@
 #include "src/ic/handler-configuration-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/layout-descriptor.h"
-#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
@@ -1947,7 +1947,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
   // Named properties
   if (HasFastProperties()) {
     info->number_of_objects_with_fast_properties_++;
-    info->number_of_fast_used_fields_ += map()->NextFreePropertyIndex();
+    info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
     info->number_of_fast_unused_fields_ += map()->UnusedPropertyFields();
   } else if (IsJSGlobalObject()) {
     GlobalDictionary dict = JSGlobalObject::cast(*this)->global_dictionary();
@@ -1980,7 +1980,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
       for (int i = 0; i < len; i++) {
         if (e->get(i)->IsTheHole(isolate)) holes++;
       }
-      info->number_of_fast_used_elements_ += len - holes;
+      info->number_of_fast_used_elements_   += len - holes;
       info->number_of_fast_unused_elements_ += holes;
       break;
     }
@@ -2010,6 +2010,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
   }
 }
 
+
 void JSObject::SpillInformation::Clear() {
   number_of_objects_ = 0;
   number_of_objects_with_fast_properties_ = 0;
@@ -2024,20 +2025,21 @@ void JSObject::SpillInformation::Clear() {
   number_of_slow_unused_elements_ = 0;
 }
 
+
 void JSObject::SpillInformation::Print() {
   PrintF("\n  JSObject Spill Statistics (#%d):\n", number_of_objects_);
 
   PrintF("    - fast properties (#%d): %d (used) %d (unused)\n",
-         number_of_objects_with_fast_properties_, number_of_fast_used_fields_,
-         number_of_fast_unused_fields_);
+         number_of_objects_with_fast_properties_,
+         number_of_fast_used_fields_, number_of_fast_unused_fields_);
 
   PrintF("    - slow properties (#%d): %d (used) %d (unused)\n",
          number_of_objects_ - number_of_objects_with_fast_properties_,
          number_of_slow_used_properties_, number_of_slow_unused_properties_);
 
   PrintF("    - fast elements (#%d): %d (used) %d (unused)\n",
-         number_of_objects_with_fast_elements_, number_of_fast_used_elements_,
-         number_of_fast_unused_elements_);
+         number_of_objects_with_fast_elements_,
+         number_of_fast_used_elements_, number_of_fast_unused_elements_);
 
   PrintF("    - slow elements (#%d): %d (used) %d (unused)\n",
          number_of_objects_ - number_of_objects_with_fast_elements_,

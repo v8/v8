@@ -9,8 +9,8 @@
 
 #include "src/accessors.h"
 #include "src/builtins/builtins.h"
+#include "src/counters-definitions.h"
 #include "src/external-reference.h"
-#include "src/logging/counters-definitions.h"
 
 namespace v8 {
 namespace internal {

@@ -6,7 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/compiler.h"
-#include "src/logging/counters.h"
+#include "src/counters.h"
 #include "src/lookup.h"
 #include "src/numbers/conversions.h"
 #include "src/objects-inl.h"

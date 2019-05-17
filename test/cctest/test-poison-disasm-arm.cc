@@ -7,7 +7,7 @@
 #include <regex>  // NOLINT(build/c++11)
 
 #include "src/api-inl.h"
-#include "src/diagnostics/disassembler.h"
+#include "src/disassembler.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 

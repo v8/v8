@@ -7,7 +7,7 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/base/platform/platform.h"
-#include "src/logging/counters.h"
+#include "src/counters.h"
 #include "src/memcopy.h"
 #include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/read-only-deserializer.h"

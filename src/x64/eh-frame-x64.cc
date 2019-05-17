@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/diagnostics/eh-frame.h"
+#include "src/eh-frame.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

@@ -76,7 +76,7 @@
 #include "src/compiler/verifier.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/zone-stats.h"
-#include "src/diagnostics/disassembler.h"
+#include "src/disassembler.h"
 #include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
 #include "src/objects/shared-function-info.h"

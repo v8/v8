@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/logging/log.h"
+#include "src/log.h"
 
 #include <cstdarg>
 #include <memory>
@@ -11,20 +11,20 @@
 #include "src/api-inl.h"
 #include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
+#include "src/counters.h"
 #include "src/deoptimizer.h"
-#include "src/diagnostics/perf-jit.h"
 #include "src/global-handles.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
 #include "src/libsampler/sampler.h"
-#include "src/logging/counters.h"
-#include "src/logging/log-inl.h"
-#include "src/logging/log-utils.h"
+#include "src/log-inl.h"
+#include "src/log-utils.h"
 #include "src/macro-assembler.h"
 #include "src/memcopy.h"
 #include "src/objects/api-callbacks.h"
+#include "src/perf-jit.h"
 #include "src/profiler/tick-sample.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/embedded-data.h"
@@ -98,7 +98,9 @@ class CodeEventLogger::NameBuffer {
  public:
   NameBuffer() { Reset(); }
 
-  void Reset() { utf8_pos_ = 0; }
+  void Reset() {
+    utf8_pos_ = 0;
+  }
 
   void Init(CodeEventListener::LogEventsAndTags tag) {
     Reset();
@@ -289,14 +291,17 @@ PerfBasicLogger::PerfBasicLogger(Isolate* isolate)
   // Open the perf JIT dump file.
   int bufferSize = sizeof(kFilenameFormatString) + kFilenameBufferPadding;
   ScopedVector<char> perf_dump_name(bufferSize);
-  int size = SNPrintF(perf_dump_name, kFilenameFormatString,
-                      base::OS::GetCurrentProcessId());
+  int size = SNPrintF(
+      perf_dump_name,
+      kFilenameFormatString,
+      base::OS::GetCurrentProcessId());
   CHECK_NE(size, -1);
   perf_output_handle_ =
       base::OS::FOpen(perf_dump_name.begin(), base::OS::LogFileOpenMode);
   CHECK_NOT_NULL(perf_output_handle_);
   setvbuf(perf_output_handle_, nullptr, _IOLBF, 0);
 }
+
 
 PerfBasicLogger::~PerfBasicLogger() {
   fclose(perf_output_handle_);
@@ -504,6 +509,7 @@ class LowLevelLogger : public CodeEventLogger {
     int32_t code_size;
   };
 
+
   struct CodeMoveStruct {
     static const char kTag = 'M';
 
@@ -511,7 +517,9 @@ class LowLevelLogger : public CodeEventLogger {
     Address to_address;
   };
 
+
   static const char kCodeMovingGCTag = 'G';
+
 
   // Extension added to V8 log file name to get the low-level log name.
   static const char kLogExt[];
@@ -545,10 +553,12 @@ LowLevelLogger::LowLevelLogger(Isolate* isolate, const char* name)
   LogCodeInfo();
 }
 
+
 LowLevelLogger::~LowLevelLogger() {
   fclose(ll_output_handle_);
   ll_output_handle_ = nullptr;
 }
+
 
 void LowLevelLogger::LogCodeInfo() {
 #if V8_TARGET_ARCH_IA32
@@ -607,6 +617,7 @@ void LowLevelLogger::LogWriteBytes(const char* bytes, int size) {
   DCHECK(static_cast<size_t>(size) == rv);
   USE(rv);
 }
+
 
 void LowLevelLogger::CodeMovingGCEvent() {
   const char tag = kCodeMovingGCTag;
@@ -692,7 +703,9 @@ void JitLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
 }
 
 void JitLogger::AddCodeLinePosInfoEvent(
-    void* jit_handler_data, int pc_offset, int position,
+    void* jit_handler_data,
+    int pc_offset,
+    int position,
     JitCodeEvent::PositionType position_type) {
   JitCodeEvent event;
   memset(static_cast<void*>(&event), 0, sizeof(event));
@@ -705,6 +718,7 @@ void JitLogger::AddCodeLinePosInfoEvent(
 
   code_event_handler_(&event);
 }
+
 
 void* JitLogger::StartCodePosInfoEvent() {
   JitCodeEvent event;
@@ -727,6 +741,7 @@ void JitLogger::EndCodePosInfoEvent(Address start_address,
 
   code_event_handler_(&event);
 }
+
 
 // TODO(lpy): Keeping sampling thread inside V8 is a workaround currently,
 // the reason is to reduce code duplication during migration to sampler library,
@@ -753,12 +768,13 @@ class SamplingThread : public base::Thread {
   const int interval_microseconds_;
 };
 
+
 // The Profiler samples pc and sp values for the main thread.
 // Each sample is appended to a circular buffer.
 // An independent thread removes data and writes it to the log.
 // This design minimizes the time spent in the sampler.
 //
-class Profiler : public base::Thread {
+class Profiler: public base::Thread {
  public:
   explicit Profiler(Isolate* isolate);
   void Engage();
@@ -797,8 +813,8 @@ class Profiler : public base::Thread {
   // between the signal handler and the worker thread.
   static const int kBufferSize = 128;
   v8::TickSample buffer_[kBufferSize];  // Buffer storage.
-  int head_;                            // Index to the buffer head.
-  base::Atomic32 tail_;                 // Index to the buffer tail.
+  int head_;  // Index to the buffer head.
+  base::Atomic32 tail_;             // Index to the buffer tail.
   bool overflow_;  // Tell whether a buffer overflow has occurred.
   // Semaphore used for buffer synchronization.
   base::Semaphore buffer_semaphore_;
@@ -807,11 +823,12 @@ class Profiler : public base::Thread {
   base::Atomic32 running_;
 };
 
+
 //
 // Ticker used to provide ticks to the profiler and the sliding state
 // window.
 //
-class Ticker : public sampler::Sampler {
+class Ticker: public sampler::Sampler {
  public:
   Ticker(Isolate* isolate, int interval_microseconds)
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
@@ -880,6 +897,7 @@ void Profiler::Engage() {
   logger->ProfilerBeginEvent();
 }
 
+
 void Profiler::Disengage() {
   // Stop receiving ticks.
   isolate_->logger()->ticker_->ClearProfiler();
@@ -895,6 +913,7 @@ void Profiler::Disengage() {
   LOG(isolate_, UncheckedStringEvent("profiler", "end"));
 }
 
+
 void Profiler::Run() {
   v8::TickSample sample;
   bool overflow = Remove(&sample);
@@ -903,6 +922,7 @@ void Profiler::Run() {
     overflow = Remove(&sample);
   }
 }
+
 
 //
 // Logger class implementation.
@@ -916,7 +936,9 @@ Logger::Logger(Isolate* isolate)
       is_initialized_(false),
       existing_code_logger_(isolate) {}
 
-Logger::~Logger() { delete log_; }
+Logger::~Logger() {
+  delete log_;
+}
 
 const LogSeparator Logger::kNext = LogSeparator::kSeparator;
 
@@ -936,9 +958,11 @@ void Logger::ProfilerBeginEvent() {
   msg.WriteToLogFile();
 }
 
+
 void Logger::StringEvent(const char* name, const char* value) {
   if (FLAG_log) UncheckedStringEvent(name, value);
 }
+
 
 void Logger::UncheckedStringEvent(const char* name, const char* value) {
   if (!log_->IsEnabled()) return;
@@ -947,9 +971,11 @@ void Logger::UncheckedStringEvent(const char* name, const char* value) {
   msg.WriteToLogFile();
 }
 
+
 void Logger::IntPtrTEvent(const char* name, intptr_t value) {
   if (FLAG_log) UncheckedIntPtrTEvent(name, value);
 }
+
 
 void Logger::UncheckedIntPtrTEvent(const char* name, intptr_t value) {
   if (!log_->IsEnabled()) return;
@@ -965,6 +991,7 @@ void Logger::HandleEvent(const char* name, Address* location) {
   msg << name << kNext << reinterpret_cast<void*>(location);
   msg.WriteToLogFile();
 }
+
 
 void Logger::ApiSecurityCheck() {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
@@ -1011,6 +1038,7 @@ void Logger::CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
   msg.WriteToLogFile();
 }
 
+
 void Logger::CurrentTimeEvent() {
   if (!log_->IsEnabled()) return;
   DCHECK(FLAG_log_internal_timer_events);
@@ -1018,6 +1046,7 @@ void Logger::CurrentTimeEvent() {
   msg << "current-time" << kNext << timer_.Elapsed().InMicroseconds();
   msg.WriteToLogFile();
 }
+
 
 void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
   if (!log_->IsEnabled()) return;
@@ -1098,6 +1127,7 @@ void Logger::ApiEntryCall(const char* name) {
   msg.WriteToLogFile();
 }
 
+
 void Logger::NewEvent(const char* name, void* object, size_t size) {
   if (!log_->IsEnabled() || !FLAG_log) return;
   Log::MessageBuilder msg(log_);
@@ -1105,6 +1135,7 @@ void Logger::NewEvent(const char* name, void* object, size_t size) {
       << static_cast<unsigned int>(size);
   msg.WriteToLogFile();
 }
+
 
 void Logger::DeleteEvent(const char* name, void* object) {
   if (!log_->IsEnabled() || !FLAG_log) return;
@@ -1393,6 +1424,7 @@ void Logger::CodeNameEvent(Address addr, int pos, const char* code_name) {
   msg.WriteToLogFile();
 }
 
+
 void Logger::SharedFunctionInfoMoveEvent(Address from, Address to) {
   if (!is_listening_to_code_events()) return;
   MoveEventInternal(CodeEventListener::SHARED_FUNC_MOVE_EVENT, from, to);
@@ -1406,6 +1438,7 @@ void Logger::MoveEventInternal(CodeEventListener::LogEventsAndTags event,
       << kNext << reinterpret_cast<void*>(to);
   msg.WriteToLogFile();
 }
+
 
 void Logger::ResourceEvent(const char* name, const char* tag) {
   if (!log_->IsEnabled() || !FLAG_log) return;
@@ -1849,6 +1882,7 @@ static void PrepareLogFileName(std::ostream& os,  // NOLINT
   }
 }
 
+
 bool Logger::SetUp(Isolate* isolate) {
   // Tests and EnsureInitialize() can call this twice in a row. It's harmless.
   if (is_initialized_) return true;
@@ -1894,6 +1928,7 @@ bool Logger::SetUp(Isolate* isolate) {
 
   return true;
 }
+
 
 void Logger::SetCodeEventHandler(uint32_t options,
                                  JitCodeEventHandler event_handler) {

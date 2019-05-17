@@ -4,12 +4,12 @@
 
 #include "src/lookup.h"
 
+#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/field-type.h"
 #include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
-#include "src/logging/counters.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/struct-inl.h"

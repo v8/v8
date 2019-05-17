@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LOGGING_COUNTERS_H_
-#define V8_LOGGING_COUNTERS_H_
+#ifndef V8_COUNTERS_H_
+#define V8_COUNTERS_H_
 
 #include "include/v8.h"
 #include "src/allocation.h"
@@ -11,10 +11,10 @@
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
+#include "src/counters-definitions.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/isolate.h"
-#include "src/logging/counters-definitions.h"
 #include "src/objects.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
@@ -88,7 +88,10 @@ class StatsTable {
   // function. min and max define the expected minimum and maximum
   // sample values. buckets is the maximum number of buckets
   // that the samples will be grouped into.
-  void* CreateHistogram(const char* name, int min, int max, size_t buckets) {
+  void* CreateHistogram(const char* name,
+                        int min,
+                        int max,
+                        size_t buckets) {
     if (!create_histogram_function_) return nullptr;
     return create_histogram_function_(name, min, max, buckets);
   }
@@ -421,7 +424,9 @@ class HistogramTimer : public TimedHistogram {
   inline void Stop();
 
   // Returns true if the timer is running.
-  bool Running() { return Enabled() && timer_.IsStarted(); }
+  bool Running() {
+    return Enabled() && timer_.IsStarted();
+  }
 
   // TODO(bmeurer): Remove this when HistogramTimerScope is fixed.
 #ifdef DEBUG
@@ -544,6 +549,7 @@ class AggregatedHistogramTimerScope {
   AggregatableHistogramTimer* histogram_;
 };
 
+
 // AggretatedMemoryHistogram collects (time, value) sample pairs and turns
 // them into time-uniform samples for the backing historgram, such that the
 // backing histogram receives one sample every T ms, where the T is controlled
@@ -592,6 +598,7 @@ class AggregatedMemoryHistogram {
   double last_value_;
   Histogram* backing_histogram_;
 };
+
 
 template <typename Histogram>
 void AggregatedMemoryHistogram<Histogram>::AddSample(double current_ms,
@@ -649,6 +656,7 @@ void AggregatedMemoryHistogram<Histogram>::AddSample(double current_ms,
     }
   }
 }
+
 
 template <typename Histogram>
 double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
@@ -1331,19 +1339,23 @@ class Counters : public std::enable_shared_from_this<Counters> {
   TIMED_HISTOGRAM_LIST(HT)
 #undef HT
 
-#define AHT(name, caption) AggregatableHistogramTimer name##_;
+#define AHT(name, caption) \
+  AggregatableHistogramTimer name##_;
   AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
 #undef AHT
 
-#define HP(name, caption) Histogram name##_;
+#define HP(name, caption) \
+  Histogram name##_;
   HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
 
-#define HM(name, caption) Histogram name##_;
+#define HM(name, caption) \
+  Histogram name##_;
   HISTOGRAM_LEGACY_MEMORY_LIST(HM)
 #undef HM
 
-#define SC(name, caption) StatsCounter name##_;
+#define SC(name, caption) \
+  StatsCounter name##_;
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
   STATS_COUNTER_NATIVE_CODE_LIST(SC)
@@ -1353,19 +1365,19 @@ class Counters : public std::enable_shared_from_this<Counters> {
   STATS_COUNTER_TS_LIST(SC)
 #undef SC
 
-#define SC(name)                  \
+#define SC(name) \
   StatsCounter size_of_##name##_; \
   StatsCounter count_of_##name##_;
   INSTANCE_TYPE_LIST(SC)
 #undef SC
 
-#define SC(name)                            \
+#define SC(name) \
   StatsCounter size_of_CODE_TYPE_##name##_; \
   StatsCounter count_of_CODE_TYPE_##name##_;
   CODE_KIND_LIST(SC)
 #undef SC
 
-#define SC(name)                              \
+#define SC(name) \
   StatsCounter size_of_FIXED_ARRAY_##name##_; \
   StatsCounter count_of_FIXED_ARRAY_##name##_;
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
@@ -1395,4 +1407,4 @@ RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_LOGGING_COUNTERS_H_
+#endif  // V8_COUNTERS_H_

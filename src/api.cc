@@ -28,6 +28,7 @@
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/compiler.h"
 #include "src/contexts.h"
+#include "src/counters.h"
 #include "src/cpu-features.h"
 #include "src/date/date.h"
 #include "src/debug/debug-coverage.h"
@@ -37,9 +38,9 @@
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer.h"
 #include "src/detachable-vector.h"
-#include "src/diagnostics/gdb-jit.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
+#include "src/gdb-jit.h"
 #include "src/global-handles.h"
 #include "src/globals.h"
 #include "src/heap/heap-inl.h"
@@ -49,7 +50,6 @@
 #include "src/isolate-inl.h"
 #include "src/json-parser.h"
 #include "src/json-stringifier.h"
-#include "src/logging/counters.h"
 #include "src/messages.h"
 #include "src/microtask-queue.h"
 #include "src/numbers/conversions-inl.h"
@@ -121,7 +121,7 @@
 #include "include/v8-wasm-trap-handler-win.h"
 #include "src/trap-handler/handler-inside-win.h"
 #if V8_TARGET_ARCH_X64
-#include "src/diagnostics/unwinding-info-win64.h"
+#include "src/unwinding-info-win64.h"
 #endif  // V8_TARGET_ARCH_X64
 #endif  // V8_OS_WIN
 

@@ -33,7 +33,7 @@
 #include "src/api-inl.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
-#include "src/diagnostics/disasm.h"
+#include "src/disasm.h"
 #include "src/heap/factory.h"
 #include "src/heap/spaces.h"
 #include "src/interpreter/interpreter.h"

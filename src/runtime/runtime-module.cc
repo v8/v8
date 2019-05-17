@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/arguments-inl.h"
-#include "src/logging/counters.h"
+#include "src/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/module.h"

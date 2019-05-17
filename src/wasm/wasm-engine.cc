@@ -6,8 +6,8 @@
 
 #include "src/code-tracer.h"
 #include "src/compilation-statistics.h"
+#include "src/counters.h"
 #include "src/frames.h"
-#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-promise.h"

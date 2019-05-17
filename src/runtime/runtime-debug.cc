@@ -6,6 +6,7 @@
 
 #include "src/arguments-inl.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"
@@ -19,7 +20,6 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
-#include "src/logging/counters.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/js-collection-inl.h"

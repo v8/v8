@@ -21,9 +21,9 @@
 
 #ifdef ENABLE_DISASSEMBLER
 #include "src/code-comments.h"
-#include "src/diagnostics/disasm.h"
-#include "src/diagnostics/disassembler.h"
-#include "src/diagnostics/eh-frame.h"
+#include "src/disasm.h"
+#include "src/disassembler.h"
+#include "src/eh-frame.h"
 #endif
 
 namespace v8 {

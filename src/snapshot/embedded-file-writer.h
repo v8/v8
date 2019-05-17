@@ -14,7 +14,7 @@
 #include "src/source-position-table.h"
 
 #if defined(V8_OS_WIN_X64)
-#include "src/diagnostics/unwinding-info-win64.h"
+#include "src/unwinding-info-win64.h"
 #endif
 
 namespace v8 {

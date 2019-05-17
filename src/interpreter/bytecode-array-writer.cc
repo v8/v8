@@ -12,7 +12,7 @@
 #include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
-#include "src/logging/log.h"
+#include "src/log.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

@@ -10,7 +10,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
-#include "src/logging/log.h"
+#include "src/log.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell-inl.h"

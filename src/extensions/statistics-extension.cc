@@ -4,9 +4,9 @@
 
 #include "src/extensions/statistics-extension.h"
 
+#include "src/counters.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/isolate.h"
-#include "src/logging/counters.h"
 
 namespace v8 {
 namespace internal {

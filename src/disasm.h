@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DIAGNOSTICS_DISASM_H_
-#define V8_DIAGNOSTICS_DISASM_H_
+#ifndef V8_DISASM_H_
+#define V8_DISASM_H_
 
 #include "src/vector.h"
 
@@ -78,4 +78,4 @@ class Disassembler {
 
 }  // namespace disasm
 
-#endif  // V8_DIAGNOSTICS_DISASM_H_
+#endif  // V8_DISASM_H_

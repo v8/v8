@@ -6,7 +6,7 @@
 #define V8_VM_STATE_H_
 
 #include "src/allocation.h"
-#include "src/logging/counters.h"
+#include "src/counters.h"
 
 namespace v8 {
 namespace internal {

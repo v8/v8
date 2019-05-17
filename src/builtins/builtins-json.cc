@@ -4,9 +4,9 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/counters.h"
 #include "src/json-parser.h"
 #include "src/json-stringifier.h"
-#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

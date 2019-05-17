@@ -7,12 +7,12 @@
 #include "src/accessors.h"
 #include "src/arguments-inl.h"
 #include "src/ast/scopes.h"
+#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
-#include "src/logging/counters.h"
 #include "src/message-template.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/module-inl.h"

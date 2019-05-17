@@ -9,10 +9,10 @@
 #include "src/base/bits.h"
 #include "src/base/macros.h"
 #include "src/base/template-utils.h"
+#include "src/counters.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/store-buffer-inl.h"
 #include "src/isolate.h"
-#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"
 

@@ -25,7 +25,7 @@
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
-#include "src/logging/log-inl.h"
+#include "src/log-inl.h"
 #include "src/message-template.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/map.h"

@@ -9,6 +9,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frame-constants.h"
@@ -16,7 +17,6 @@
 #include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/ia32/assembler-ia32-inl.h"
 #include "src/init/bootstrapper.h"
-#include "src/logging/counters.h"
 #include "src/macro-assembler.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded-data.h"

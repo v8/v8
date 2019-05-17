@@ -5,7 +5,7 @@
 #include "src/tracing/tracing-category-observer.h"
 
 #include "src/base/atomic-utils.h"
-#include "src/logging/counters.h"
+#include "src/counters.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 

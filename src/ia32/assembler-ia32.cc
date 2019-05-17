@@ -51,7 +51,7 @@
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/deoptimizer.h"
-#include "src/diagnostics/disassembler.h"
+#include "src/disassembler.h"
 #include "src/macro-assembler.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/string-constants.h"

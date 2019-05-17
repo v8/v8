@@ -31,7 +31,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/api-inl.h"
-#include "src/diagnostics/disassembler.h"
+#include "src/disassembler.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"

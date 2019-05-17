@@ -6,10 +6,10 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
-#include "src/logging/counters.h"
 #include "src/macro-assembler.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/shared-function-info.h"

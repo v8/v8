@@ -4,7 +4,7 @@
 
 #include "src/ic/ic-stats.h"
 
-#include "src/logging/counters.h"
+#include "src/counters.h"
 #include "src/objects-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"

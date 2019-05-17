@@ -5,9 +5,9 @@
 #include "src/api-inl.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/counters.h"
 #include "src/debug/interface-types.h"
-#include "src/logging/counters.h"
-#include "src/logging/log.h"
+#include "src/log.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

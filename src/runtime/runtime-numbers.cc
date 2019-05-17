@@ -4,10 +4,10 @@
 
 #include "src/arguments-inl.h"
 #include "src/base/bits.h"
+#include "src/counters.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
-#include "src/logging/counters.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {

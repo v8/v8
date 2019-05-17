@@ -5,10 +5,10 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/counters.h"
 #include "src/date/date.h"
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
-#include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 
 namespace v8 {

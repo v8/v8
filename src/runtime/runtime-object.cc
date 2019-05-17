@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/arguments-inl.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
-#include "src/logging/counters.h"
 #include "src/message-template.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"

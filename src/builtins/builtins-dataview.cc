@@ -4,9 +4,9 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
+#include "src/counters.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
-#include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-buffer-inl.h"

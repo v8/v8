@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/diagnostics/eh-frame.h"
+#include "src/eh-frame.h"
 
 #include <iomanip>
 #include <ostream>
@@ -493,9 +493,8 @@ void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,  // NOLINT
     if (((bytecode >> EhFrameConstants::kSavedRegisterMaskSize) & 0xFF) ==
         EhFrameConstants::kSavedRegisterTag) {
       int32_t decoded_offset = eh_frame_iterator.GetNextULeb128();
-      stream << "| "
-             << DwarfRegisterCodeToString(bytecode &
-                                          EhFrameConstants::kLocationMask)
+      stream << "| " << DwarfRegisterCodeToString(
+                            bytecode & EhFrameConstants::kLocationMask)
              << " saved at base" << std::showpos
              << decoded_offset * EhFrameConstants::kDataAlignmentFactor
              << std::noshowpos << '\n';
@@ -504,9 +503,8 @@ void EhFrameDisassembler::DumpDwarfDirectives(std::ostream& stream,  // NOLINT
 
     if (((bytecode >> EhFrameConstants::kFollowInitialRuleMaskSize) & 0xFF) ==
         EhFrameConstants::kFollowInitialRuleTag) {
-      stream << "| "
-             << DwarfRegisterCodeToString(bytecode &
-                                          EhFrameConstants::kLocationMask)
+      stream << "| " << DwarfRegisterCodeToString(
+                            bytecode & EhFrameConstants::kLocationMask)
              << " follows rule in CIE\n";
       continue;
     }

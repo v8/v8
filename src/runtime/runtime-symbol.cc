@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/arguments-inl.h"
+#include "src/counters.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/isolate-inl.h"
-#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/string-builder-inl.h"

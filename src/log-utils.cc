@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/logging/log-utils.h"
+#include "src/log-utils.h"
 
 #include "src/assert-scope.h"
 #include "src/base/platform/platform.h"
@@ -14,6 +14,7 @@
 
 namespace v8 {
 namespace internal {
+
 
 const char* const Log::kLogToTemporaryFile = "&";
 const char* const Log::kLogToConsole = "-";

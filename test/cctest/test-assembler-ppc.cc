@@ -27,7 +27,7 @@
 
 #include "src/v8.h"
 
-#include "src/diagnostics/disassembler.h"
+#include "src/disassembler.h"
 #include "src/heap/factory.h"
 #include "src/ppc/assembler-ppc-inl.h"
 #include "src/simulator.h"

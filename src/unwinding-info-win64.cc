@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/diagnostics/unwinding-info-win64.h"
+#include "src/unwinding-info-win64.h"
 
 #if defined(V8_OS_WIN_X64)
 

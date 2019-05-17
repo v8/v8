@@ -5,10 +5,10 @@
 #ifndef V8_VM_STATE_INL_H_
 #define V8_VM_STATE_INL_H_
 
-#include "src/logging/log.h"
+#include "src/vm-state.h"
+#include "src/log.h"
 #include "src/simulator.h"
 #include "src/tracing/trace-event.h"
-#include "src/vm-state.h"
 
 namespace v8 {
 namespace internal {

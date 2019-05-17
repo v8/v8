@@ -4,10 +4,10 @@
 
 #include "src/snapshot/code-serializer.h"
 
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
-#include "src/logging/counters.h"
-#include "src/logging/log.h"
+#include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"

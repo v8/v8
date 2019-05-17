@@ -5,9 +5,9 @@
 #include "src/external-reference-table.h"
 
 #include "src/accessors.h"
+#include "src/counters.h"
 #include "src/external-reference.h"
 #include "src/ic/stub-cache.h"
-#include "src/logging/counters.h"
 
 #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
 #define SYMBOLIZE_FUNCTION

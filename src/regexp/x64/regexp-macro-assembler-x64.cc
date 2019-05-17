@@ -7,7 +7,7 @@
 #include "src/regexp/x64/regexp-macro-assembler-x64.h"
 
 #include "src/heap/factory.h"
-#include "src/logging/log.h"
+#include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"

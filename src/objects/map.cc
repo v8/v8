@@ -4,6 +4,7 @@
 
 #include "src/objects/map.h"
 
+#include "src/counters-inl.h"
 #include "src/field-type.h"
 #include "src/frames.h"
 #include "src/handles-inl.h"
@@ -11,8 +12,7 @@
 #include "src/init/bootstrapper.h"
 #include "src/isolate.h"
 #include "src/layout-descriptor.h"
-#include "src/logging/counters-inl.h"
-#include "src/logging/log.h"
+#include "src/log.h"
 #include "src/map-updater.h"
 #include "src/maybe-handles.h"
 #include "src/objects/descriptor-array.h"

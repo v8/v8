@@ -31,7 +31,7 @@
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/base/platform/platform.h"
-#include "src/diagnostics/disasm.h"
+#include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/mips64/constants-mips64.h"
 

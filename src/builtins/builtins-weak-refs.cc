@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-utils-inl.h"
-#include "src/logging/counters.h"
+#include "src/counters.h"
 #include "src/objects/js-weak-refs-inl.h"
 
 namespace v8 {
