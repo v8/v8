@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,13 +27,11 @@ namespace {{namespace}} {
 // span - sequence of bytes
 // =============================================================================
 
-// This template is similar to std::span, which will be included in C++20.  Like
-// std::span it uses ptrdiff_t, which is signed (and thus a bit annoying
-// sometimes when comparing with size_t), but other than this it's much simpler.
+// This template is similar to std::span, which will be included in C++20.
 template <typename T>
 class span {
  public:
-  using index_type = std::ptrdiff_t;
+  using index_type = size_t;
 
   span() : data_(nullptr), size_(0) {}
   span(const T* data, index_type size) : data_(data), size_(size) {}
@@ -124,13 +123,13 @@ enum class Error {
 // A status value with position that can be copied. The default status
 // is OK. Usually, error status values should come with a valid position.
 struct Status {
-  static constexpr std::ptrdiff_t npos() { return -1; }
+  static constexpr size_t npos() { return std::numeric_limits<size_t>::max(); }
 
   bool ok() const { return error == Error::OK; }
 
   Error error = Error::OK;
-  std::ptrdiff_t pos = npos();
-  Status(Error error, std::ptrdiff_t pos) : error(error), pos(pos) {}
+  size_t pos = npos();
+  Status(Error error, size_t pos) : error(error), pos(pos) {}
   Status() = default;
 
   // Returns a 7 bit US-ASCII string, either "OK" or an error message
@@ -276,7 +275,7 @@ class EnvelopeEncoder {
   bool EncodeStop(std::string* out);
 
  private:
-  std::size_t byte_size_pos_ = 0;
+  size_t byte_size_pos_ = 0;
 };
 
 // =============================================================================
@@ -400,13 +399,13 @@ class CBORTokenizer {
 
  private:
   void ReadNextToken(bool enter_envelope);
-  void SetToken(CBORTokenTag token, std::ptrdiff_t token_byte_length);
+  void SetToken(CBORTokenTag token, size_t token_byte_length);
   void SetError(Error error);
 
   span<uint8_t> bytes_;
   CBORTokenTag token_tag_;
   struct Status status_;
-  std::ptrdiff_t token_byte_length_;
+  size_t token_byte_length_;
   MajorType token_start_type_;
   uint64_t token_start_internal_value_;
 };

@@ -137,7 +137,7 @@ std::unique_ptr<Value> parseValue(
     }
     case cbor::CBORTokenTag::STRING16: {
       span<uint8_t> wire = tokenizer->GetString16WireRep();
-      DCHECK_EQ(wire.size() & 1, 0);
+      DCHECK_EQ(wire.size() & 1, 0u);
       std::unique_ptr<Value> value = StringValue::create(StringUtil::fromUTF16(
           reinterpret_cast<const uint16_t*>(wire.data()), wire.size() / 2));
       tokenizer->Next();
