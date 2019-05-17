@@ -40,13 +40,6 @@ RUNTIME_FUNCTION(Runtime_AccessCheck) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  CHECK(isolate->bootstrapper()->IsActive());
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_FatalProcessOutOfMemoryInAllocateRaw) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
@@ -290,13 +283,6 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
     SealHandleScope shs(isolate);
     return isolate->stack_guard()->HandleInterrupts();
   }
-}
-
-RUNTIME_FUNCTION(Runtime_Interrupt) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  TRACE_EVENT0("v8.execute", "V8.Interrupt");
-  return isolate->stack_guard()->HandleInterrupts();
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {

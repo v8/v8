@@ -210,7 +210,6 @@ namespace internal {
   F(AllocateSeqOneByteString, 1, 1)                  \
   F(AllocateSeqTwoByteString, 1, 1)                  \
   F(AllowDynamicFunction, 1, 1)                      \
-  F(CheckIsBootstrapping, 0, 1)                      \
   I(CreateAsyncFromSyncIterator, 1, 1)               \
   F(CreateListFromArrayLike, 1, 1)                   \
   F(FatalProcessOutOfMemoryInAllocateRaw, 0, 1)      \
@@ -218,7 +217,6 @@ namespace internal {
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)   \
   F(GetTemplateObject, 3, 1)                         \
   F(IncrementUseCounter, 1, 1)                       \
-  F(Interrupt, 0, 1)                                 \
   F(BytecodeBudgetInterrupt, 1, 1)                   \
   F(NewReferenceError, 2, 1)                         \
   F(NewSyntaxError, 2, 1)                            \
