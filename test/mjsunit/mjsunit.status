@@ -561,7 +561,14 @@
   'es6/typedarray': [PASS, NO_VARIANTS],
   'regress/regress-752764': [PASS, SLOW, NO_VARIANTS],
 
+  # BUG(v8:9242). Uses a lot of memory.
+  'regress/regress-599414-array-concat-fast-path': [PASS, SLOW],
+
+  # BUG(v8:9026). Flaky timeouts.
+  'es6/classes': [SKIP],
+
   # Slow tests.
+  'compiler/regress-9017': [PASS, SLOW],
   'es6/block-conflicts-sloppy': [PASS, SLOW],
   'math-floor-part1': [PASS, SLOW],
   'regress/regress-500980': [PASS, SLOW],
