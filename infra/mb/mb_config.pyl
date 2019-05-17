@@ -153,6 +153,7 @@
       # Arm64.
       'V8 Android Arm64 - builder': 'release_android_arm64',
       'V8 Android Arm64 - debug builder': 'debug_android_arm64',
+      'V8 Arm64 - builder': 'release_arm64',
       'V8 Linux - arm64 - sim': 'release_simulate_arm64',
       'V8 Linux - arm64 - sim - debug': 'debug_simulate_arm64',
       'V8 Linux - arm64 - sim - nosnap - debug':
@@ -395,6 +396,8 @@
     # Release configs for arm.
     'release_arm': [
       'release_bot', 'arm', 'hard_float'],
+    'release_arm64': [
+      'release_bot', 'arm64', 'hard_float'],
     'release_android_arm': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
       'android_strip_outputs'],
