@@ -2061,6 +2061,7 @@ class Heap {
   friend class ConcurrentMarking;
   friend class GCCallbacksScope;
   friend class GCTracer;
+  friend class HeapController;
   friend class MemoryController;
   friend class HeapIterator;
   friend class IdleScavengeObserver;

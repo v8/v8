@@ -49,17 +49,17 @@ namespace internal {
 //   F * (1 - MU / (R * (1 - MU))) = 1
 //   F * (R * (1 - MU) - MU) / (R * (1 - MU)) = 1
 //   F = R * (1 - MU) / (R * (1 - MU) - MU)
-double MemoryController::GrowingFactor(double gc_speed, double mutator_speed,
-                                       double max_factor) {
+double HeapController::GrowingFactor(double gc_speed, double mutator_speed,
+                                     double max_factor) {
   DCHECK_LE(min_growing_factor_, max_factor);
   DCHECK_GE(max_growing_factor_, max_factor);
   if (gc_speed == 0 || mutator_speed == 0) return max_factor;
 
   const double speed_ratio = gc_speed / mutator_speed;
 
-  const double a = speed_ratio * (1 - target_mutator_utilization_);
-  const double b = speed_ratio * (1 - target_mutator_utilization_) -
-                   target_mutator_utilization_;
+  const double a = speed_ratio * (1 - kTargetMutatorUtilization);
+  const double b =
+      speed_ratio * (1 - kTargetMutatorUtilization) - kTargetMutatorUtilization;
 
   // The factor is a / b, but we need to check for small b first.
   double factor = (a < b * max_factor) ? a / b : max_factor;
@@ -68,27 +68,19 @@ double MemoryController::GrowingFactor(double gc_speed, double mutator_speed,
   return factor;
 }
 
-size_t MemoryController::CalculateAllocationLimit(
-    size_t curr_size, size_t max_size, double max_factor, double gc_speed,
-    double mutator_speed, size_t new_space_capacity,
+size_t MemoryController::CalculateAllocationLimitBase(
+    size_t curr_size, size_t max_size, double factor, size_t additional_bytes,
     Heap::HeapGrowingMode growing_mode) {
-  double factor = GrowingFactor(gc_speed, mutator_speed, max_factor);
-
-  if (FLAG_trace_gc_verbose) {
-    Isolate::FromHeap(heap_)->PrintWithTimestamp(
-        "%s factor %.1f based on mu=%.3f, speed_ratio=%.f "
-        "(gc=%.f, mutator=%.f)\n",
-        ControllerName(), factor, target_mutator_utilization_,
-        gc_speed / mutator_speed, gc_speed, mutator_speed);
-  }
-
-  if (growing_mode == Heap::HeapGrowingMode::kConservative ||
-      growing_mode == Heap::HeapGrowingMode::kSlow) {
-    factor = Min(factor, conservative_growing_factor_);
-  }
-
-  if (growing_mode == Heap::HeapGrowingMode::kMinimal) {
-    factor = min_growing_factor_;
+  switch (growing_mode) {
+    case Heap::HeapGrowingMode::kConservative:
+    case Heap::HeapGrowingMode::kSlow:
+      factor = Min(factor, conservative_growing_factor_);
+      break;
+    case Heap::HeapGrowingMode::kMinimal:
+      factor = min_growing_factor_;
+      break;
+    case Heap::HeapGrowingMode::kDefault:
+      break;
   }
 
   if (FLAG_heap_growing_percent > 0) {
@@ -97,20 +89,19 @@ size_t MemoryController::CalculateAllocationLimit(
 
   CHECK_LT(1.0, factor);
   CHECK_LT(0, curr_size);
-  uint64_t limit = static_cast<uint64_t>(curr_size * factor);
-  limit = Max(limit, static_cast<uint64_t>(curr_size) +
-                         MinimumAllocationLimitGrowingStep(growing_mode));
-  limit += new_space_capacity;
-  uint64_t halfway_to_the_max =
+  const uint64_t limit =
+      Max(static_cast<uint64_t>(curr_size * factor),
+          static_cast<uint64_t>(curr_size) +
+              MinimumAllocationLimitGrowingStep(growing_mode)) +
+      additional_bytes;
+  const uint64_t halfway_to_the_max =
       (static_cast<uint64_t>(curr_size) + max_size) / 2;
-  size_t result = static_cast<size_t>(Min(limit, halfway_to_the_max));
-
+  const size_t result = static_cast<size_t>(Min(limit, halfway_to_the_max));
   if (FLAG_trace_gc_verbose) {
     Isolate::FromHeap(heap_)->PrintWithTimestamp(
-        "%s Limit: old size: %zu KB, new limit: %zu KB (%.1f)\n",
+        "[%s] Limit: old size: %zu KB, new limit: %zu KB (%.1f)\n",
         ControllerName(), curr_size / KB, result / KB, factor);
   }
-
   return result;
 }
 
@@ -125,9 +116,9 @@ size_t MemoryController::MinimumAllocationLimitGrowingStep(
 }
 
 double HeapController::MaxGrowingFactor(size_t curr_max_size) {
-  const double min_small_factor = 1.3;
-  const double max_small_factor = 2.0;
-  const double high_factor = 4.0;
+  constexpr double kMinSmallFactor = 1.3;
+  constexpr double kMaxSmallFactor = 2.0;
+  constexpr double kHighFactor = 4.0;
 
   size_t max_size_in_mb = curr_max_size / MB;
   max_size_in_mb = Max(max_size_in_mb, kMinSize);
@@ -135,7 +126,7 @@ double HeapController::MaxGrowingFactor(size_t curr_max_size) {
   // If we are on a device with lots of memory, we allow a high heap
   // growing factor.
   if (max_size_in_mb >= kMaxSize) {
-    return high_factor;
+    return kHighFactor;
   }
 
   DCHECK_GE(max_size_in_mb, kMinSize);
@@ -143,10 +134,28 @@ double HeapController::MaxGrowingFactor(size_t curr_max_size) {
 
   // On smaller devices we linearly scale the factor: (X-A)/(B-A)*(D-C)+C
   double factor = (max_size_in_mb - kMinSize) *
-                      (max_small_factor - min_small_factor) /
+                      (kMaxSmallFactor - kMinSmallFactor) /
                       (kMaxSize - kMinSize) +
-                  min_small_factor;
+                  kMinSmallFactor;
   return factor;
+}
+
+size_t HeapController::CalculateAllocationLimit(
+    size_t curr_size, size_t max_size, double gc_speed, double mutator_speed,
+    size_t new_space_capacity, Heap::HeapGrowingMode growing_mode) {
+  const double max_factor = MaxGrowingFactor(max_size);
+  const double factor = GrowingFactor(gc_speed, mutator_speed, max_factor);
+
+  if (FLAG_trace_gc_verbose) {
+    Isolate::FromHeap(heap_)->PrintWithTimestamp(
+        "[%s] factor %.1f based on mu=%.3f, speed_ratio=%.f "
+        "(gc=%.f, mutator=%.f)\n",
+        ControllerName(), factor, kTargetMutatorUtilization,
+        gc_speed / mutator_speed, gc_speed, mutator_speed);
+  }
+
+  return CalculateAllocationLimitBase(curr_size, max_size, factor,
+                                      new_space_capacity, growing_mode);
 }
 
 }  // namespace internal

@@ -1880,22 +1880,18 @@ bool Heap::PerformGarbageCollection(
         isolate()->isolate_data()->external_memory_ +
         kExternalAllocationSoftLimit;
 
-    double max_factor =
-        heap_controller()->MaxGrowingFactor(max_old_generation_size_);
-    size_t new_limit = heap_controller()->CalculateAllocationLimit(
-        old_gen_size, max_old_generation_size_, max_factor, gc_speed,
-        mutator_speed, new_space()->Capacity(), CurrentHeapGrowingMode());
-    old_generation_allocation_limit_ = new_limit;
+    old_generation_allocation_limit_ =
+        heap_controller()->CalculateAllocationLimit(
+            old_gen_size, max_old_generation_size_, gc_speed, mutator_speed,
+            new_space()->Capacity(), CurrentHeapGrowingMode());
 
     CheckIneffectiveMarkCompact(
         old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
   } else if (HasLowYoungGenerationAllocationRate() &&
              old_generation_size_configured_) {
-    double max_factor =
-        heap_controller()->MaxGrowingFactor(max_old_generation_size_);
     size_t new_limit = heap_controller()->CalculateAllocationLimit(
-        old_gen_size, max_old_generation_size_, max_factor, gc_speed,
-        mutator_speed, new_space()->Capacity(), CurrentHeapGrowingMode());
+        old_gen_size, max_old_generation_size_, gc_speed, mutator_speed,
+        new_space()->Capacity(), CurrentHeapGrowingMode());
     if (new_limit < old_generation_allocation_limit_) {
       old_generation_allocation_limit_ = new_limit;
     }
