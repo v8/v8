@@ -88,8 +88,8 @@ def postprocess(output):
 
   while True:
     old = output
-    output = re.sub(r'(\w+)\s{0,1}\|(\n{0,1}\s*)/\*\*/(\s*\w+)',
-        r'\1 |\2\3', output)
+    output = re.sub(r'(\w+)\s{0,1}\|\s{0,1}/\*\*/(\s*\w+)',
+        r'\1 |\2', output)
     if old == output:
       break;
 

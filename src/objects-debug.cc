@@ -1571,7 +1571,10 @@ void BigInt::BigIntVerify(Isolate* isolate) {
   CHECK_IMPLIES(is_zero(), !sign());  // There is no -0n.
 }
 
-USE_TORQUE_VERIFIER(JSModuleNamespace)
+void JSModuleNamespace::JSModuleNamespaceVerify(Isolate* isolate) {
+  CHECK(IsJSModuleNamespace());
+  VerifyPointer(isolate, module());
+}
 
 void ModuleInfoEntry::ModuleInfoEntryVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ModuleInfoEntryVerify(*this, isolate);
@@ -1581,7 +1584,17 @@ void ModuleInfoEntry::ModuleInfoEntryVerify(Isolate* isolate) {
 }
 
 void Module::ModuleVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ModuleVerify(*this, isolate);
+  CHECK(IsModule());
+
+  VerifyPointer(isolate, code());
+  VerifyPointer(isolate, exports());
+  VerifyPointer(isolate, module_namespace());
+  VerifyPointer(isolate, requested_modules());
+  VerifyPointer(isolate, script());
+  VerifyPointer(isolate, import_meta());
+  VerifyPointer(isolate, exception());
+  VerifySmiField(kHashOffset);
+  VerifySmiField(kStatusOffset);
 
   CHECK((status() >= kEvaluating && code()->IsModuleInfo()) ||
         (status() == kInstantiated && code()->IsJSGeneratorObject()) ||
@@ -1865,10 +1878,25 @@ void UncompiledDataWithoutPreparseData::UncompiledDataWithoutPreparseDataVerify(
 USE_TORQUE_VERIFIER(InterpreterData)
 
 #ifdef V8_INTL_SUPPORT
+void JSV8BreakIterator::JSV8BreakIteratorVerify(Isolate* isolate) {
+  JSObjectVerify(isolate);
+  VerifyObjectField(isolate, kLocaleOffset);
+  VerifyObjectField(isolate, kTypeOffset);
+  VerifyObjectField(isolate, kBreakIteratorOffset);
+  VerifyObjectField(isolate, kUnicodeStringOffset);
+  VerifyObjectField(isolate, kBoundAdoptTextOffset);
+  VerifyObjectField(isolate, kBoundFirstOffset);
+  VerifyObjectField(isolate, kBoundNextOffset);
+  VerifyObjectField(isolate, kBoundCurrentOffset);
+  VerifyObjectField(isolate, kBoundBreakTypeOffset);
+}
 
-USE_TORQUE_VERIFIER(JSV8BreakIterator)
-
-USE_TORQUE_VERIFIER(JSCollator)
+void JSCollator::JSCollatorVerify(Isolate* isolate) {
+  CHECK(IsJSCollator());
+  JSObjectVerify(isolate);
+  VerifyObjectField(isolate, kICUCollatorOffset);
+  VerifyObjectField(isolate, kBoundCompareOffset);
+}
 
 void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSDateTimeFormatVerify(*this, isolate);
