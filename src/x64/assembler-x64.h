@@ -48,7 +48,7 @@
 #include "src/x64/register-x64.h"
 #include "src/x64/sse-instr.h"
 #if defined(V8_OS_WIN_X64)
-#include "src/unwinding-info-win64.h"
+#include "src/diagnostics/unwinding-info-win64.h"
 #endif
 
 namespace v8 {

@@ -6,9 +6,9 @@
 
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
-#include "src/counters.h"
 #include "src/heap/heap-inl.h"  // For InYoungGeneration().
 #include "src/ic/ic-inl.h"
+#include "src/logging/counters.h"
 
 namespace v8 {
 namespace internal {

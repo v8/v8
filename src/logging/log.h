@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LOG_H_
-#define V8_LOG_H_
+#ifndef V8_LOGGING_LOG_H_
+#define V8_LOGGING_LOG_H_
 
 #include <set>
 #include <string>
@@ -122,8 +122,7 @@ class Logger : public CodeEventListener {
   bool SetUp(Isolate* isolate);
 
   // Sets the current code event handler.
-  void SetCodeEventHandler(uint32_t options,
-                           JitCodeEventHandler event_handler);
+  void SetCodeEventHandler(uint32_t options, JitCodeEventHandler event_handler);
 
   sampler::Sampler* sampler();
 
@@ -322,7 +321,8 @@ class Logger : public CodeEventListener {
   friend class Isolate;
   friend class TimeLog;
   friend class Profiler;
-  template <StateTag Tag> friend class VMState;
+  template <StateTag Tag>
+  friend class VMState;
   friend class LoggerTestHelper;
 
   bool is_logging_;
@@ -364,7 +364,6 @@ class Logger : public CodeEventListener {
   };
 TIMER_EVENTS_LIST(V)
 #undef V
-
 
 template <class TimerEvent>
 class TimerEventScope {
@@ -477,5 +476,4 @@ class ExternalCodeEventListener : public CodeEventListener {
 }  // namespace internal
 }  // namespace v8
 
-
-#endif  // V8_LOG_H_
+#endif  // V8_LOGGING_LOG_H_

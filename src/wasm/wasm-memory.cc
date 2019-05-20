@@ -4,8 +4,8 @@
 
 #include <limits>
 
-#include "src/counters.h"
 #include "src/heap/heap-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/wasm/wasm-engine.h"

@@ -4,10 +4,10 @@
 
 #include "src/compilation-cache.h"
 
-#include "src/counters.h"
 #include "src/globals.h"
 #include "src/heap/factory.h"
-#include "src/log.h"
+#include "src/logging/counters.h"
+#include "src/logging/log.h"
 #include "src/objects-inl.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/objects/slots.h"

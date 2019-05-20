@@ -4,8 +4,8 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/counters.h"
 #include "src/keys.h"
+#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/property-descriptor.h"

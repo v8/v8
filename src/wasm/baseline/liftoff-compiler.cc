@@ -9,9 +9,9 @@
 // TODO(clemensh): Remove dependences on compiler stuff.
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/counters.h"
 #include "src/interface-descriptors.h"
-#include "src/log.h"
+#include "src/logging/counters.h"
+#include "src/logging/log.h"
 #include "src/macro-assembler-inl.h"
 #include "src/objects/smi.h"
 #include "src/ostreams.h"

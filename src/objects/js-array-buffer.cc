@@ -5,7 +5,7 @@
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-buffer-inl.h"
 
-#include "src/counters.h"
+#include "src/logging/counters.h"
 #include "src/objects/property-descriptor.h"
 
 namespace v8 {

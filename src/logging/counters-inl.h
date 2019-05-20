@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COUNTERS_INL_H_
-#define V8_COUNTERS_INL_H_
+#ifndef V8_LOGGING_COUNTERS_INL_H_
+#define V8_LOGGING_COUNTERS_INL_H_
 
-#include "src/counters.h"
+#include "src/logging/counters.h"
 
 namespace v8 {
 namespace internal {
@@ -65,4 +65,4 @@ RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COUNTERS_INL_H_
+#endif  // V8_LOGGING_COUNTERS_INL_H_

@@ -5,7 +5,7 @@
 #include "src/wasm/module-instantiate.h"
 
 #include "src/asmjs/asm-js.h"
-#include "src/counters.h"
+#include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/tracing/trace-event.h"

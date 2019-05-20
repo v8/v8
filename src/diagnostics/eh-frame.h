@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_EH_FRAME_H_
-#define V8_EH_FRAME_H_
+#ifndef V8_DIAGNOSTICS_EH_FRAME_H_
+#define V8_DIAGNOSTICS_EH_FRAME_H_
 
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
@@ -305,4 +305,4 @@ class EhFrameDisassembler final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_EH_FRAME_H_
+#endif  // V8_DIAGNOSTICS_EH_FRAME_H_

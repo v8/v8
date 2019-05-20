@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/disassembler.h"
+#include "src/diagnostics/disassembler.h"
 
 #include <memory>
 #include <unordered_map>
@@ -13,7 +13,7 @@
 #include "src/code-reference.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
-#include "src/disasm.h"
+#include "src/diagnostics/disasm.h"
 #include "src/ic/ic.h"
 #include "src/isolate-data.h"
 #include "src/macro-assembler.h"
@@ -30,7 +30,7 @@ namespace internal {
 
 #ifdef ENABLE_DISASSEMBLER
 
-class V8NameConverter: public disasm::NameConverter {
+class V8NameConverter : public disasm::NameConverter {
  public:
   explicit V8NameConverter(Isolate* isolate, CodeReference code = {})
       : isolate_(isolate), code_(code) {}
@@ -107,7 +107,6 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
 
   return disasm::NameConverter::NameOfAddress(pc);
 }
-
 
 const char* V8NameConverter::NameInCode(byte* addr) const {
   // The V8NameConverter is used for well known code, so we can "safely"
@@ -187,7 +186,6 @@ static void DumpBuffer(std::ostream* os, StringBuilder* out) {
   (*os) << out->Finalize() << std::endl;
   out->Reset();
 }
-
 
 static const int kOutBufferSize = 2048 + String::kMaxShortPrintLength;
 static const int kRelocInfoPosition = 57;
@@ -293,8 +291,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // First decode instruction so that we know its length.
     byte* prev_pc = pc;
     if (constants > 0) {
-      SNPrintF(decode_buffer,
-               "%08x       constant",
+      SNPrintF(decode_buffer, "%08x       constant",
                *reinterpret_cast<int32_t*>(pc));
       constants--;
       pc += 4;
@@ -381,8 +378,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // already, check if we can find some RelocInfo for the target address in
     // the constant pool.
     if (pcs.empty() && !code.is_null()) {
-      RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc),
-      RelocInfo::NONE,
+      RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc), RelocInfo::NONE,
                             0, Code());
       if (dummy_rinfo.IsInConstantPool()) {
         Address constant_pool_entry_address =

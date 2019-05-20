@@ -7,8 +7,8 @@
 #include <iomanip>
 #include <memory>
 
-#include "src/disasm.h"
-#include "src/disassembler.h"
+#include "src/diagnostics/disasm.h"
+#include "src/diagnostics/disassembler.h"
 #include "src/heap/heap-inl.h"                // For InOldSpace.
 #include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
 #include "src/init/bootstrapper.h"
@@ -472,11 +472,9 @@ void BytecodeArray::BytecodeArrayPrint(std::ostream& os) {  // NOLINT
   Disassemble(os);
 }
 
-
 void FreeSpace::FreeSpacePrint(std::ostream& os) {  // NOLINT
   os << "free space, size " << Size() << "\n";
 }
-
 
 template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayPrint(
@@ -877,7 +875,6 @@ void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
   os << "\n - private: " << is_private();
 }
 
-
 void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
   PrintHeader(os, "DescriptorArray");
   os << "\n - enum_cache: ";
@@ -1209,7 +1206,6 @@ void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintBody(os, *this);
 }
 
-
 void String::StringPrint(std::ostream& os) {  // NOLINT
   if (!IsOneByteRepresentation()) {
     os << "u";
@@ -1241,7 +1237,6 @@ void String::StringPrint(std::ostream& os) {  // NOLINT
   if (!StringShape(*this).IsInternalized()) os << "\"";
 }
 
-
 void Name::NamePrint(std::ostream& os) {  // NOLINT
   if (IsString()) {
     String::cast(*this)->StringPrint(os);
@@ -1250,10 +1245,8 @@ void Name::NamePrint(std::ostream& os) {  // NOLINT
   }
 }
 
-
-static const char* const weekdays[] = {
-  "???", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
-};
+static const char* const weekdays[] = {"???", "Sun", "Mon", "Tue",
+                                       "Wed", "Thu", "Fri", "Sat"};
 
 void JSDate::JSDatePrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSDate");
@@ -1275,7 +1268,6 @@ void JSDate::JSDatePrint(std::ostream& os) {  // NOLINT
   }
   JSObjectPrintBody(os, *this);
 }
-
 
 void JSProxy::JSProxyPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "JSProxy");
@@ -1643,7 +1635,6 @@ void Foreign::ForeignPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-
 void AccessorInfo::AccessorInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "AccessorInfo");
   os << "\n - name: " << Brief(name());
@@ -1968,7 +1959,6 @@ void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-
 void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "AccessCheckInfo");
   os << "\n - callback: " << Brief(callback());
@@ -1998,7 +1988,6 @@ void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - data: " << Brief(data());
   os << "\n";
 }
-
 
 void FunctionTemplateInfo::FunctionTemplateInfoPrint(
     std::ostream& os) {  // NOLINT
@@ -2056,7 +2045,6 @@ void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-
 void AllocationSite::AllocationSitePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "AllocationSite");
   if (this->HasWeakNext()) os << "\n - weak_next: " << Brief(weak_next());
@@ -2080,7 +2068,6 @@ void AllocationSite::AllocationSitePrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-
 void AllocationMemento::AllocationMementoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "AllocationMemento");
   os << "\n - allocation site: ";
@@ -2090,7 +2077,6 @@ void AllocationMemento::AllocationMementoPrint(std::ostream& os) {  // NOLINT
     os << "<invalid>\n";
   }
 }
-
 
 void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "Script");

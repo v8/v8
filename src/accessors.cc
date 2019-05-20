@@ -6,12 +6,12 @@
 
 #include "src/api/api-inl.h"
 #include "src/contexts.h"
-#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
+#include "src/logging/counters.h"
 #include "src/messages.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/field-index-inl.h"

@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/counters.h"
+#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/heap-number-inl.h"

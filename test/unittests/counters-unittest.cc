@@ -7,9 +7,9 @@
 #include "src/api/api-inl.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/time.h"
-#include "src/counters-inl.h"
-#include "src/counters.h"
 #include "src/handles-inl.h"
+#include "src/logging/counters-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/tracing/tracing-category-observer.h"
 

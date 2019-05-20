@@ -5,7 +5,7 @@
 #include "src/heap/item-parallel-job.h"
 
 #include "src/base/platform/semaphore.h"
-#include "src/counters.h"
+#include "src/logging/counters.h"
 #include "src/v8.h"
 
 namespace v8 {

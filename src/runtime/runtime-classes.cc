@@ -9,10 +9,10 @@
 
 #include "src/accessors.h"
 #include "src/arguments-inl.h"
-#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
-#include "src/log.h"
+#include "src/logging/counters.h"
+#include "src/logging/log.h"
 #include "src/message-template.h"
 #include "src/objects/elements.h"
 #include "src/objects/hash-table-inl.h"

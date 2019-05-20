@@ -42,7 +42,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/libsampler/sampler.h"
-#include "src/log.h"
+#include "src/logging/log.h"
 #include "src/messages.h"
 #include "src/microtask-queue.h"
 #include "src/objects/elements.h"
@@ -85,7 +85,7 @@
 #endif  // V8_INTL_SUPPORT
 
 #if defined(V8_OS_WIN_X64)
-#include "src/unwinding-info-win64.h"
+#include "src/diagnostics/unwinding-info-win64.h"
 #endif
 
 extern "C" const uint8_t* v8_Default_embedded_blob_;

@@ -25,12 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/perf-jit.h"
+#include "src/diagnostics/perf-jit.h"
 
 #include <memory>
 
 #include "src/assembler.h"
-#include "src/eh-frame.h"
+#include "src/diagnostics/eh-frame.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/snapshot/embedded-data.h"
@@ -40,7 +40,8 @@
 #if V8_OS_LINUX
 #include <fcntl.h>
 #include <sys/mman.h>
-#undef MAP_TYPE  // jumbo: conflicts with v8::internal::InstanceType::MAP_TYPE
+// jumbo: conflicts with v8::internal::InstanceType::MAP_TYPE
+#undef MAP_TYPE  // NOLINT
 #include <unistd.h>
 #endif  // V8_OS_LINUX
 
