@@ -1795,7 +1795,9 @@ const double load_factor = 1.0;
 //     2    (program):0 0 #2
 TEST(Inlining2) {
   FLAG_allow_natives_syntax = true;
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+  v8::HandleScope scope(isolate);
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
@@ -1889,7 +1891,9 @@ static const char* cross_script_source_b = R"(
 
 TEST(CrossScriptInliningCallerLineNumbers) {
   i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+  v8::HandleScope scope(isolate);
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
