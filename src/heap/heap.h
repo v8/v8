@@ -474,6 +474,9 @@ class Heap {
   // Print short heap statistics.
   void PrintShortHeapStatistics();
 
+  // Dump heap statistics in JSON format.
+  void DumpJSONHeapStatistics(std::stringstream& stream);
+
   bool write_protect_code_memory() const { return write_protect_code_memory_; }
 
   uintptr_t code_space_memory_modification_scope_depth() {

@@ -30,11 +30,16 @@ namespace internal {
 
 struct TracingFlags {
   static V8_EXPORT_PRIVATE std::atomic_uint runtime_stats;
+  static V8_EXPORT_PRIVATE std::atomic_uint gc;
   static V8_EXPORT_PRIVATE std::atomic_uint gc_stats;
   static V8_EXPORT_PRIVATE std::atomic_uint ic_stats;
 
   static bool is_runtime_stats_enabled() {
     return runtime_stats.load(std::memory_order_relaxed) != 0;
+  }
+
+  static bool is_gc_enabled() {
+    return gc.load(std::memory_order_relaxed) != 0;
   }
 
   static bool is_gc_stats_enabled() {

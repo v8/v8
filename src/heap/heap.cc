@@ -442,6 +442,63 @@ void Heap::PrintShortHeapStatistics() {
                total_gc_time_ms_);
 }
 
+void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {
+  HeapStatistics stats;
+  reinterpret_cast<v8::Isolate*>(isolate())->GetHeapStatistics(&stats);
+
+// clang-format off
+#define DICT(s) "{" << s << "}"
+#define LIST(s) "[" << s << "]"
+#define ESCAPE(s) "\"" << s << "\""
+#define MEMBER(s) ESCAPE(s) << ":"
+
+  auto SpaceStatistics = [this](int space_index) {
+    HeapSpaceStatistics space_stats;
+    reinterpret_cast<v8::Isolate*>(isolate())->GetHeapSpaceStatistics(
+        &space_stats, space_index);
+    std::stringstream stream;
+    stream << DICT(
+      MEMBER("name")
+        << ESCAPE(GetSpaceName(static_cast<AllocationSpace>(space_index)))
+        << ","
+      MEMBER("size") << space_stats.space_size() << ","
+      MEMBER("used_size") << space_stats.space_used_size() << ","
+      MEMBER("available_size") << space_stats.space_available_size() << ","
+      MEMBER("physical_size") << space_stats.physical_space_size());
+    return stream.str();
+  };
+
+  stream << DICT(
+    MEMBER("isolate") << ESCAPE(reinterpret_cast<void*>(isolate())) << ","
+    MEMBER("id") << gc_count() << ","
+    MEMBER("time_ms") << isolate()->time_millis_since_init() << ","
+    MEMBER("total_heap_size") << stats.total_heap_size() << ","
+    MEMBER("total_heap_size_executable")
+      << stats.total_heap_size_executable() << ","
+    MEMBER("total_physical_size") << stats.total_physical_size() << ","
+    MEMBER("total_available_size") << stats.total_available_size() << ","
+    MEMBER("used_heap_size") << stats.used_heap_size() << ","
+    MEMBER("heap_size_limit") << stats.heap_size_limit() << ","
+    MEMBER("malloced_memory") << stats.malloced_memory() << ","
+    MEMBER("external_memory") << stats.external_memory() << ","
+    MEMBER("peak_malloced_memory") << stats.peak_malloced_memory() << ","
+    MEMBER("pages") << LIST(
+      SpaceStatistics(RO_SPACE)      << "," <<
+      SpaceStatistics(NEW_SPACE)     << "," <<
+      SpaceStatistics(OLD_SPACE)     << "," <<
+      SpaceStatistics(CODE_SPACE)    << "," <<
+      SpaceStatistics(MAP_SPACE)     << "," <<
+      SpaceStatistics(LO_SPACE)      << "," <<
+      SpaceStatistics(CODE_LO_SPACE) << "," <<
+      SpaceStatistics(NEW_LO_SPACE)));
+
+#undef DICT
+#undef LIST
+#undef ESCAPE
+#undef MEMBER
+  // clang-format on
+}
+
 void Heap::ReportStatisticsAfterGC() {
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
        ++i) {

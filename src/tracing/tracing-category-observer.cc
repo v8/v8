@@ -40,6 +40,11 @@ void TracingCategoryObserver::OnTraceEnabled() {
     i::TracingFlags::runtime_stats.fetch_or(ENABLED_BY_SAMPLING,
                                             std::memory_order_relaxed);
   }
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                                     &enabled);
+  if (enabled) {
+    i::TracingFlags::gc.fetch_or(ENABLED_BY_TRACING, std::memory_order_relaxed);
+  }
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"),
                                      &enabled);
   if (enabled) {
@@ -57,6 +62,8 @@ void TracingCategoryObserver::OnTraceEnabled() {
 void TracingCategoryObserver::OnTraceDisabled() {
   i::TracingFlags::runtime_stats.fetch_and(
       ~(ENABLED_BY_TRACING | ENABLED_BY_SAMPLING), std::memory_order_relaxed);
+
+  i::TracingFlags::gc.fetch_and(~ENABLED_BY_TRACING, std::memory_order_relaxed);
 
   i::TracingFlags::gc_stats.fetch_and(~ENABLED_BY_TRACING,
                                       std::memory_order_relaxed);

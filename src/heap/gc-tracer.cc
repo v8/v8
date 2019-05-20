@@ -363,6 +363,16 @@ void GCTracer::Stop(GarbageCollector collector) {
   if (FLAG_trace_gc) {
     heap_->PrintShortHeapStatistics();
   }
+
+  if (V8_UNLIKELY(TracingFlags::gc.load(std::memory_order_relaxed) &
+                  v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
+    std::stringstream heap_stats;
+    heap_->DumpJSONHeapStatistics(heap_stats);
+
+    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GC_Heap_Stats",
+                         TRACE_EVENT_SCOPE_THREAD, "stats",
+                         TRACE_STR_COPY(heap_stats.str().c_str()));
+  }
 }
 
 
