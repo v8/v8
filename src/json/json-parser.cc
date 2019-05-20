@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/json-parser.h"
+#include "src/json/json-parser.h"
 
 #include "src/char-predicates-inl.h"
 #include "src/debug/debug.h"

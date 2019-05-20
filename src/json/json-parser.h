@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_JSON_PARSER_H_
-#define V8_JSON_PARSER_H_
+#ifndef V8_JSON_JSON_PARSER_H_
+#define V8_JSON_JSON_PARSER_H_
 
 #include "src/heap/factory.h"
 #include "src/isolate.h"
@@ -356,4 +356,4 @@ extern template class JsonParser<uint16_t>;
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_JSON_PARSER_H_
+#endif  // V8_JSON_JSON_PARSER_H_
