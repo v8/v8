@@ -18,6 +18,7 @@
 #include 'src/objects/stack-frame-info.h'
 #include 'src/objects/template-objects.h'
 #include 'src/builtins/builtins-regexp-gen.h'
+#include 'src/objects/template-objects.h'
 
 type void;
 type never;
@@ -727,6 +728,12 @@ extern class TemplateInfo extends Struct {
   number_of_properties: Smi;
   property_list: Object;
   property_accessors: Object;
+}
+
+@generatePrint
+extern class TemplateObjectDescription extends Struct {
+  raw_strings: FixedArray;
+  cooked_strings: FixedArray;
 }
 
 extern class FunctionTemplateRareData extends Struct {

@@ -349,7 +349,7 @@ Handle<TemplateObjectDescription> Factory::NewTemplateObjectDescription(
   DCHECK_LT(0, raw_strings->length());
   Handle<TemplateObjectDescription> result =
       Handle<TemplateObjectDescription>::cast(
-          NewStruct(TUPLE2_TYPE, AllocationType::kOld));
+          NewStruct(TEMPLATE_OBJECT_DESCRIPTION_TYPE, AllocationType::kOld));
   result->set_raw_strings(*raw_strings);
   result->set_cooked_strings(*cooked_strings);
   return result;

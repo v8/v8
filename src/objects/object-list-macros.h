@@ -224,7 +224,6 @@ class ZoneForwardList;
   V(SymbolWrapper)                             \
   V(TemplateInfo)                              \
   V(TemplateList)                              \
-  V(TemplateObjectDescription)                 \
   V(ThinString)                                \
   V(TransitionArray)                           \
   V(UncompiledData)                            \

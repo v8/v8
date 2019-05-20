@@ -3164,6 +3164,7 @@ void ImplementationVisitor::GeneratePrintDefinitions(
     impl << "#include \"src/objects.h\"\n\n";
     impl << "#include <iosfwd>\n\n";
     impl << "#include \"src/objects/struct-inl.h\"\n\n";
+    impl << "#include \"src/objects/template-objects-inl.h\"\n\n";
 
     NamespaceScope impl_namespaces(impl, {"v8", "internal"});
 

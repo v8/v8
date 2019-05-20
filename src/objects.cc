@@ -100,6 +100,7 @@
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/string-comparator.h"
 #include "src/objects/struct-inl.h"
+#include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/ostreams.h"
 #include "src/parsing/preparse-data.h"

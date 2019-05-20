@@ -171,6 +171,7 @@ enum InstanceType : uint16_t {
   SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE,
   STACK_FRAME_INFO_TYPE,
   STACK_TRACE_FRAME_TYPE,
+  TEMPLATE_OBJECT_DESCRIPTION_TYPE,
   TUPLE2_TYPE,
   TUPLE3_TYPE,
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
@@ -480,7 +481,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(StoreHandler, STORE_HANDLER_TYPE)                                        \
   V(StringTable, STRING_TABLE_TYPE)                                          \
   V(Symbol, SYMBOL_TYPE)                                                     \
-  V(TemplateObjectDescription, TUPLE2_TYPE)                                  \
   V(TransitionArray, TRANSITION_ARRAY_TYPE)                                  \
   V(UncompiledDataWithoutPreparseData,                                       \
     UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE)                              \

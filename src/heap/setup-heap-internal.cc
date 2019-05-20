@@ -39,6 +39,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/stack-frame-info.h"
 #include "src/objects/string.h"
+#include "src/objects/template-objects-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/wasm/wasm-objects.h"
 

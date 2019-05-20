@@ -348,6 +348,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case INTERPRETER_DATA_TYPE:
+    case TEMPLATE_OBJECT_DESCRIPTION_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case ENUM_CACHE_TYPE:

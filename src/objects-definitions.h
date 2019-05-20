@@ -111,6 +111,7 @@ namespace internal {
   V(SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE)         \
   V(STACK_FRAME_INFO_TYPE)                               \
   V(STACK_TRACE_FRAME_TYPE)                              \
+  V(TEMPLATE_OBJECT_DESCRIPTION_TYPE)                    \
   V(TUPLE2_TYPE)                                         \
   V(TUPLE3_TYPE)                                         \
   V(ARRAY_BOILERPLATE_DESCRIPTION_TYPE)                  \
@@ -329,6 +330,8 @@ namespace internal {
     SourcePositionTableWithFrameCache, source_position_table_with_frame_cache) \
   V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)                \
   V(_, STACK_TRACE_FRAME_TYPE, StackTraceFrame, stack_trace_frame)             \
+  V(_, TEMPLATE_OBJECT_DESCRIPTION_TYPE, TemplateObjectDescription,            \
+    template_object_description)                                               \
   V(_, TUPLE2_TYPE, Tuple2, tuple2)                                            \
   V(_, TUPLE3_TYPE, Tuple3, tuple3)                                            \
   V(_, ARRAY_BOILERPLATE_DESCRIPTION_TYPE, ArrayBoilerplateDescription,        \
