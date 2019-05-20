@@ -3,13 +3,15 @@
 // found in the LICENSE file.
 
 #include "src/compiler/decompression-elimination.h"
+#include "src/compiler/node-properties.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-DecompressionElimination::DecompressionElimination(Editor* editor)
-    : AdvancedReducer(editor) {}
+DecompressionElimination::DecompressionElimination(
+    Editor* editor, Graph* graph, MachineOperatorBuilder* machine)
+    : AdvancedReducer(editor), graph_(graph), machine_(machine) {}
 
 bool DecompressionElimination::IsValidDecompress(
     IrOpcode::Value compressOpcode, IrOpcode::Value decompressOpcode) {
@@ -24,9 +26,8 @@ bool DecompressionElimination::IsValidDecompress(
                  IrOpcode::kChangeCompressedPointerToTaggedPointer ||
              decompressOpcode == IrOpcode::kChangeCompressedToTagged;
     default:
-      break;
+      UNREACHABLE();
   }
-  UNREACHABLE();
 }
 
 Reduction DecompressionElimination::ReduceCompress(Node* node) {
@@ -43,6 +44,27 @@ Reduction DecompressionElimination::ReduceCompress(Node* node) {
   }
 }
 
+Reduction DecompressionElimination::ReduceWord64Equal(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWord64Equal);
+
+  DCHECK_EQ(node->InputCount(), 2);
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  if (IrOpcode::IsDecompressOpcode(lhs->opcode()) &&
+      IrOpcode::IsDecompressOpcode(rhs->opcode())) {
+    // Do a Word32Equal on the two input nodes before they are decompressed.
+    DCHECK_EQ(lhs->InputCount(), 1);
+    node->ReplaceInput(0, lhs->InputAt(0));
+    DCHECK_EQ(rhs->InputCount(), 1);
+    node->ReplaceInput(1, rhs->InputAt(0));
+    NodeProperties::ChangeOp(node, machine()->Word32Equal());
+    return Changed(node);
+  }
+
+  return NoChange();
+}
+
 Reduction DecompressionElimination::Reduce(Node* node) {
   DisallowHeapAccess no_heap_access;
 
@@ -51,6 +73,8 @@ Reduction DecompressionElimination::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedSignedToCompressedSigned:
     case IrOpcode::kChangeTaggedPointerToCompressedPointer:
       return ReduceCompress(node);
+    case IrOpcode::kWord64Equal:
+      return ReduceWord64Equal(node);
     default:
       break;
   }

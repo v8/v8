@@ -1540,7 +1540,8 @@ struct LateOptimizationPhase {
     SelectLowering select_lowering(data->jsgraph()->graph(),
                                    data->jsgraph()->common());
 #ifdef V8_COMPRESS_POINTERS
-    DecompressionElimination decompression_elimination(&graph_reducer);
+    DecompressionElimination decompression_elimination(
+        &graph_reducer, data->graph(), data->machine());
     AddReducer(data, &graph_reducer, &decompression_elimination);
 #endif
     AddReducer(data, &graph_reducer, &branch_condition_elimination);

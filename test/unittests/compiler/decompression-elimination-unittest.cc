@@ -26,7 +26,8 @@ class DecompressionEliminationTest : public GraphTest {
  protected:
   Reduction Reduce(Node* node) {
     StrictMock<MockAdvancedReducerEditor> editor;
-    DecompressionElimination decompression_elimination(&editor);
+    DecompressionElimination decompression_elimination(&editor, graph(),
+                                                       machine());
     return decompression_elimination.Reduce(node);
   }
   MachineOperatorBuilder* machine() { return &machine_; }
@@ -247,6 +248,59 @@ TEST_F(DecompressionEliminationTest,
   Reduction r = Reduce(changeToCompressed);
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(load, r.replacement());
+}
+
+// -----------------------------------------------------------------------------
+// Comparison of two decompressions
+
+TEST_F(DecompressionEliminationTest, TwoDecompressionComparison) {
+  // Skip test if pointer compression is not enabled
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+
+  // Define variables
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+
+  const Operator* DecompressionOps[] = {
+      machine()->ChangeCompressedToTagged(),
+      machine()->ChangeCompressedSignedToTaggedSigned(),
+      machine()->ChangeCompressedPointerToTaggedPointer()};
+
+  const ElementAccess ElementAccesses[] = {
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::AnyTagged(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::TaggedSigned(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::TaggedPointer(),
+       kNoWriteBarrier}};
+
+  ASSERT_EQ(arraysize(DecompressionOps), arraysize(ElementAccesses));
+
+  // For every decompression (lhs)
+  for (size_t j = 0; j < arraysize(DecompressionOps); ++j) {
+    // For every decompression (rhs)
+    for (size_t k = 0; k < arraysize(DecompressionOps); ++k) {
+      // Create the graph
+      Node* load1 =
+          graph()->NewNode(simplified()->LoadElement(ElementAccesses[j]),
+                           object, index, effect, control);
+      Node* changeToTagged1 = graph()->NewNode(DecompressionOps[j], load1);
+      Node* load2 =
+          graph()->NewNode(simplified()->LoadElement(ElementAccesses[k]),
+                           object, index, effect, control);
+      Node* changeToTagged2 = graph()->NewNode(DecompressionOps[j], load2);
+      Node* comparison = graph()->NewNode(machine()->Word64Equal(),
+                                          changeToTagged1, changeToTagged2);
+      // Reduce
+      Reduction r = Reduce(comparison);
+      ASSERT_TRUE(r.Changed());
+      EXPECT_EQ(r.replacement()->opcode(), IrOpcode::kWord32Equal);
+    }
+  }
 }
 
 }  // namespace compiler
