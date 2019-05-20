@@ -12,6 +12,23 @@
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/memcopy.h"
+
+#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
+    defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER) ||    \
+    defined(UNDEFINED_SANITIZER)
+#define V8_WITH_SANITIZER
+#endif
+
+#if defined(V8_OS_WIN) && defined(V8_WITH_SANITIZER)
+// With ASAN on Windows we have to reset the thread-in-wasm flag. Exceptions
+// caused by ASAN let the thread-in-wasm flag get out of sync. Even marking
+// functions with DISABLE_ASAN is not sufficient when the compiler produces
+// calls to memset. Therefore we add test-specific code for ASAN on
+// Windows.
+#define RESET_THREAD_IN_WASM_FLAG_FOR_ASAN_ON_WINDOWS
+#include "src/trap-handler/trap-handler.h"
+#endif
+
 #include "src/utils.h"
 #include "src/v8memory.h"
 #include "src/wasm/wasm-external-refs.h"
@@ -281,8 +298,14 @@ DISABLE_ASAN void memory_copy_wrapper(Address dst, Address src, uint32_t size) {
 // Asan on Windows triggers exceptions in this function that confuse the
 // WebAssembly trap handler, so Asan is disabled. See the comment on
 // memory_copy_wrapper above for more info.
-DISABLE_ASAN void memory_fill_wrapper(Address dst, uint32_t value,
-                                      uint32_t size) {
+void memory_fill_wrapper(Address dst, uint32_t value, uint32_t size) {
+#if defined(RESET_THREAD_IN_WASM_FLAG_FOR_ASAN_ON_WINDOWS)
+  bool thread_was_in_wasm = trap_handler::IsThreadInWasm();
+  if (thread_was_in_wasm) {
+    trap_handler::ClearThreadInWasm();
+  }
+#endif
+
   // Use an explicit forward copy to match the required semantics for the
   // memory.fill instruction. It is assumed that the caller of this function
   // has already performed bounds checks, so {dst + size} should not overflow.
@@ -292,6 +315,11 @@ DISABLE_ASAN void memory_fill_wrapper(Address dst, uint32_t value,
   for (; size > 0; size--) {
     *dst8++ = value8;
   }
+#if defined(RESET_THREAD_IN_WASM_FLAG_FOR_ASAN_ON_WINDOWS)
+  if (thread_was_in_wasm) {
+    trap_handler::SetThreadInWasm();
+  }
+#endif
 }
 
 static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;
@@ -309,3 +337,6 @@ void call_trap_callback_for_testing() {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
+
+#undef V8_WITH_SANITIZER
+#undef RESET_THREAD_IN_WASM_FLAG_FOR_ASAN_ON_WINDOWS
