@@ -109,5 +109,5 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertThrows(() => builder.instantiate().exports.main(0, 22, 77),
                WebAssembly.CompileError,
                "Compiling function #0:\"add\" failed: i64.add[1] expected " +
-               "type i64, found get_local of type i32 @+83");
+               "type i64, found local.get of type i32 @+83");
 })();

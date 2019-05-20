@@ -56,12 +56,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     assertUnreachable,
     error => assertEquals("WebAssembly.compileStreaming(): Compiling " +
                           "function #0:\"main\" failed: f32.mul[1] expected " +
-                          "type f32, found get_local of type i32 @+37",
+                          "type f32, found local.get of type i32 @+37",
                           error.message));
   assertPromiseResult(WebAssembly.instantiateStreaming(Promise.resolve(bytes)),
     assertUnreachable,
     error => assertEquals("WebAssembly.instantiateStreaming(): Compiling " +
                           "function #0:\"main\" failed: f32.mul[1] expected " +
-                          "type f32, found get_local of type i32 @+37",
+                          "type f32, found local.get of type i32 @+37",
                           error.message));
 })();
