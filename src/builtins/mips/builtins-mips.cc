@@ -2854,25 +2854,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ Addu(s2, s2, Operand(1));
   __ sw(s2, MemOperand(s5, kLevelOffset));
 
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1, a0);
-    __ li(a0, ExternalReference::isolate_address(isolate));
-    __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
-
   __ StoreReturnAddressAndCall(t9);
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1, a0);
-    __ li(a0, ExternalReference::isolate_address(isolate));
-    __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
 
   Label promote_scheduled_exception;
   Label delete_allocated_handles;

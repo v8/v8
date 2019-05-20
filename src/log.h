@@ -352,8 +352,7 @@ class Logger : public CodeEventListener {
   V(CompileCode, true)           \
   V(CompileCodeBackground, true) \
   V(DeoptimizeCode, true)        \
-  V(Execute, true)               \
-  V(External, true)
+  V(Execute, true)
 
 #define V(TimerName, expose)                          \
   class TimerEvent##TimerName : public AllStatic {    \

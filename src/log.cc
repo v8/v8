@@ -1065,22 +1065,6 @@ void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
   msg.WriteToLogFile();
 }
 
-// static
-void Logger::EnterExternal(Isolate* isolate) {
-  DCHECK(FLAG_log_internal_timer_events);
-  LOG(isolate, TimerEvent(START, TimerEventExternal::name()));
-  DCHECK(isolate->current_vm_state() == JS);
-  isolate->set_current_vm_state(EXTERNAL);
-}
-
-// static
-void Logger::LeaveExternal(Isolate* isolate) {
-  DCHECK(FLAG_log_internal_timer_events);
-  LOG(isolate, TimerEvent(END, TimerEventExternal::name()));
-  DCHECK(isolate->current_vm_state() == EXTERNAL);
-  isolate->set_current_vm_state(JS);
-}
-
 bool Logger::is_logging() {
   // Disable logging while the CPU profiler is running.
   if (isolate_->is_profiling()) return false;

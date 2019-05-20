@@ -338,9 +338,6 @@ FUNCTION_REFERENCE(f64_mod_wrapper_function, f64_mod_wrapper)
 FUNCTION_REFERENCE(wasm_call_trap_callback_for_testing,
                    wasm::call_trap_callback_for_testing)
 
-FUNCTION_REFERENCE(log_enter_external_function, Logger::EnterExternal)
-FUNCTION_REFERENCE(log_leave_external_function, Logger::LeaveExternal)
-
 ExternalReference ExternalReference::isolate_root(Isolate* isolate) {
   return ExternalReference(isolate->isolate_root());
 }

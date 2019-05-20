@@ -3442,24 +3442,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ Add(level_reg, level_reg, 1);
   __ Str(level_reg, MemOperand(handle_scope_base, kLevelOffset));
 
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ Mov(x0, ExternalReference::isolate_address(isolate));
-    __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
-
   __ Mov(x10, x3);  // TODO(arm64): Load target into x10 directly.
   __ StoreReturnAddressAndCall(x10);
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ Mov(x0, ExternalReference::isolate_address(isolate));
-    __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
 
   Label promote_scheduled_exception;
   Label delete_allocated_handles;

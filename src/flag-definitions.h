@@ -1384,9 +1384,6 @@ DEFINE_IMPLICATION(perf_prof, perf_prof_unwinding_info)
 DEFINE_STRING(gc_fake_mmap, "/tmp/__v8_gc__",
               "Specify the name of the file for fake gc mmap used in ll_prof")
 DEFINE_BOOL(log_internal_timer_events, false, "Time internal events.")
-DEFINE_BOOL(log_timer_events, false,
-            "Time events including external callbacks.")
-DEFINE_IMPLICATION(log_timer_events, log_internal_timer_events)
 DEFINE_IMPLICATION(log_internal_timer_events, prof)
 DEFINE_BOOL(log_instruction_stats, false, "Log AArch64 instruction statistics.")
 DEFINE_STRING(log_instruction_file, "arm64_inst.csv",

@@ -3019,16 +3019,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ mov(esi, __ ExternalReferenceAsOperand(next_address, esi));
   __ mov(edi, __ ExternalReferenceAsOperand(limit_address, edi));
 
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1, eax);
-    __ Move(Operand(esp, 0),
-            Immediate(ExternalReference::isolate_address(isolate)));
-    __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
-
   Label profiler_disabled;
   Label end_profiler_check;
   __ Move(eax, Immediate(ExternalReference::is_profiling_address(isolate)));
@@ -3046,16 +3036,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // Call the api function.
   __ call(function_address);
   __ bind(&end_profiler_check);
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1, eax);
-    __ mov(eax, Immediate(ExternalReference::isolate_address(isolate)));
-    __ mov(Operand(esp, 0), eax);
-    __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
 
   Label prologue;
   // Load the value from ReturnValue

@@ -2990,25 +2990,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ addi(r16, r16, Operand(1));
   __ stw(r16, MemOperand(r17, kLevelOffset));
 
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1, r3);
-    __ Move(r3, ExternalReference::isolate_address(isolate));
-    __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
-
   __ StoreReturnAddressAndCall(scratch);
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1, r3);
-    __ Move(r3, ExternalReference::isolate_address(isolate));
-    __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
 
   Label promote_scheduled_exception;
   Label delete_allocated_handles;

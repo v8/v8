@@ -3009,15 +3009,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ movq(prev_limit_reg, Operand(base_reg, kLimitOffset));
   __ addl(Operand(base_reg, kLevelOffset), Immediate(1));
 
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1);
-    __ LoadAddress(arg_reg_1, ExternalReference::isolate_address(isolate));
-    __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
-
   Label profiler_disabled;
   Label end_profiler_check;
   __ Move(rax, ExternalReference::is_profiling_address(isolate));
@@ -3037,15 +3028,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   // Call the api function!
   __ call(rax);
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1);
-    __ LoadAddress(arg_reg_1, ExternalReference::isolate_address(isolate));
-    __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
 
   // Load the value from ReturnValue
   __ movq(rax, return_value_operand);
