@@ -101,7 +101,6 @@ bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code code) {
     // Bytecode handlers will only ever be used by the interpreter and so there
     // will never be a need to use trampolines with them.
     case Builtins::BCH:
-    case Builtins::API:
     case Builtins::ASM:
       // TODO(jgruber): Extend checks to remaining kinds.
       return false;

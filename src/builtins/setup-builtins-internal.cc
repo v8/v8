@@ -313,10 +313,6 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   code = BuildAdaptor(isolate, index, FUNCTION_ADDR(Builtin_##Name), \
                       Builtins::BUILTIN_EXIT, #Name);                \
   AddBuiltin(builtins, index++, code);
-#define BUILD_API(Name)                                              \
-  code = BuildAdaptor(isolate, index, FUNCTION_ADDR(Builtin_##Name), \
-                      Builtins::EXIT, #Name);                        \
-  AddBuiltin(builtins, index++, code);
 #define BUILD_TFJ(Name, Argc, ...)                              \
   code = BuildWithCodeStubAssemblerJS(                          \
       isolate, index, &Builtins::Generate_##Name, Argc, #Name); \
@@ -350,11 +346,10 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
                                  #Name);                                    \
   AddBuiltin(builtins, index++, code);
 
-  BUILTIN_LIST(BUILD_CPP, BUILD_API, BUILD_TFJ, BUILD_TFC, BUILD_TFS, BUILD_TFH,
-               BUILD_BCH, BUILD_ASM);
+  BUILTIN_LIST(BUILD_CPP, BUILD_TFJ, BUILD_TFC, BUILD_TFS, BUILD_TFH, BUILD_BCH,
+               BUILD_ASM);
 
 #undef BUILD_CPP
-#undef BUILD_API
 #undef BUILD_TFJ
 #undef BUILD_TFC
 #undef BUILD_TFS

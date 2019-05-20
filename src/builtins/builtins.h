@@ -47,7 +47,7 @@ class Builtins {
   enum Name : int32_t {
 #define DEF_ENUM(Name, ...) k##Name,
     BUILTIN_LIST(DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM,
-                 DEF_ENUM, DEF_ENUM)
+                 DEF_ENUM)
 #undef DEF_ENUM
         builtin_count,
 
@@ -65,7 +65,7 @@ class Builtins {
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.
-  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, BCH, ASM };
+  enum Kind { CPP, TFJ, TFC, TFS, TFH, BCH, ASM };
 
   static BailoutId GetContinuationBailoutId(Name name);
   static Name GetBuiltinFromBailoutId(BailoutId);
@@ -102,7 +102,6 @@ class Builtins {
   static const char* KindNameOf(int index);
 
   static bool IsCpp(int index);
-  static bool HasCppImplementation(int index);
 
   // True, iff the given code object is a builtin. Note that this does not
   // necessarily mean that its kind is Code::BUILTIN.
@@ -231,8 +230,8 @@ class Builtins {
 #define DECLARE_TF(Name, ...) \
   static void Generate_##Name(compiler::CodeAssemblerState* state);
 
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TF, DECLARE_TF,
-               DECLARE_TF, DECLARE_TF, IGNORE_BUILTIN, DECLARE_ASM)
+  BUILTIN_LIST(IGNORE_BUILTIN, DECLARE_TF, DECLARE_TF, DECLARE_TF, DECLARE_TF,
+               IGNORE_BUILTIN, DECLARE_ASM)
 
 #undef DECLARE_ASM
 #undef DECLARE_TF

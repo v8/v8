@@ -2737,7 +2737,7 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(
     IncludeGuardScope include_guard(new_contents_stream, file_name);
     new_contents_stream
         << "\n"
-           "#define BUILTIN_LIST_FROM_TORQUE(CPP, API, TFJ, TFC, TFS, TFH, "
+           "#define BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, "
            "ASM) "
            "\\\n";
     for (auto& declarable : GlobalContext::AllDeclarables()) {

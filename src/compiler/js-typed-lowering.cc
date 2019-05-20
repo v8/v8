@@ -1446,16 +1446,15 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
 
   const bool is_construct = (node->opcode() == IrOpcode::kJSConstruct);
 
-  DCHECK(Builtins::HasCppImplementation(builtin_index));
-
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = is_construct
                          ? NodeProperties::GetValueInput(node, arity + 1)
                          : jsgraph->UndefinedConstant();
 
-  // API and CPP builtins are implemented in C++, and we can inline both.
-  // CPP builtins create a builtin exit frame, API builtins don't.
-  const bool has_builtin_exit_frame = Builtins::IsCpp(builtin_index);
+  // CPP builtins are implemented in C++, and we can inline it.
+  // CPP builtins create a builtin exit frame.
+  DCHECK(Builtins::IsCpp(builtin_index));
+  const bool has_builtin_exit_frame = true;
 
   Node* stub = jsgraph->CEntryStubConstant(1, kDontSaveFPRegs, kArgvOnStack,
                                            has_builtin_exit_frame);
@@ -1720,8 +1719,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
             common()->Call(Linkage::GetStubCallDescriptor(
                 graph()->zone(), callable.descriptor(), 1 + arity, flags)));
       }
-    } else if (shared.HasBuiltinId() &&
-               Builtins::HasCppImplementation(shared.builtin_id())) {
+    } else if (shared.HasBuiltinId() && Builtins::IsCpp(shared.builtin_id())) {
       // Patch {node} to a direct CEntry call.
       ReduceBuiltin(jsgraph(), node, shared.builtin_id(), arity, flags);
     } else if (shared.HasBuiltinId() &&

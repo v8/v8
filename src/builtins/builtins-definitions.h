@@ -15,8 +15,6 @@ namespace internal {
 
 // CPP: Builtin in C++. Entered via BUILTIN_EXIT frame.
 //      Args: name
-// API: Builtin in C++ for API callbacks. Entered via EXIT frame.
-//      Args: name
 // TFJ: Builtin in Turbofan, with JS linkage (callable as Javascript function).
 //      Args: name, arguments count, explicit argument names...
 // TFS: Builtin in Turbofan, with CodeStub linkage.
@@ -33,7 +31,7 @@ namespace internal {
 // TODO(jgruber): Remove DummyDescriptor once all ASM builtins have been
 // properly associated with their descriptor.
 
-#define BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)                   \
+#define BUILTIN_LIST_BASE(CPP, TFJ, TFC, TFS, TFH, ASM)                        \
   /* GC write barrirer */                                                      \
   TFC(RecordWrite, RecordWrite)                                                \
   TFC(EphemeronKeyBarrier, EphemeronKeyBarrier)                                \
@@ -1323,10 +1321,10 @@ namespace internal {
   CPP(StringPrototypeToUpperCase)
 #endif  // V8_INTL_SUPPORT
 
-#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, BCH, ASM)  \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)        \
-  BUILTIN_LIST_FROM_TORQUE(CPP, API, TFJ, TFC, TFS, TFH, ASM) \
-  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                            \
+#define BUILTIN_LIST(CPP, TFJ, TFC, TFS, TFH, BCH, ASM)  \
+  BUILTIN_LIST_BASE(CPP, TFJ, TFC, TFS, TFH, ASM)        \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM) \
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                       \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
 
 // The exception thrown in the following builtins are caught
@@ -1376,25 +1374,25 @@ namespace internal {
 
 #define IGNORE_BUILTIN(...)
 
-#define BUILTIN_LIST_C(V)                                            \
-  BUILTIN_LIST(V, V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+#define BUILTIN_LIST_C(V)                                         \
+  BUILTIN_LIST(V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
                IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_A(V)                                                      \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, V)
 
-#define BUILTIN_LIST_TFS(V)                                                    \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+#define BUILTIN_LIST_TFS(V)                                       \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_TFJ(V)                                       \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+  BUILTIN_LIST(IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_TFC(V)                                       \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 }  // namespace internal
 }  // namespace v8

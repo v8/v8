@@ -32,15 +32,13 @@ namespace {
 struct BuiltinMetadata {
   const char* name;
   Builtins::Kind kind;
-  // For CPP and API builtins it's cpp_entry address and for TFJ it's a
+  // For CPP builtins it's cpp_entry address and for TFJ it's a
   // parameter count.
   Address cpp_entry_or_parameter_count;
 };
 
 #define DECL_CPP(Name, ...) \
   {#Name, Builtins::CPP, FUNCTION_ADDR(Builtin_##Name)},
-#define DECL_API(Name, ...) \
-  {#Name, Builtins::API, FUNCTION_ADDR(Builtin_##Name)},
 #define DECL_TFJ(Name, Count, ...) \
   {#Name, Builtins::TFJ, static_cast<Address>(Count)},
 #define DECL_TFC(Name, ...) {#Name, Builtins::TFC, kNullAddress},
@@ -48,12 +46,9 @@ struct BuiltinMetadata {
 #define DECL_TFH(Name, ...) {#Name, Builtins::TFH, kNullAddress},
 #define DECL_BCH(Name, ...) {#Name, Builtins::BCH, kNullAddress},
 #define DECL_ASM(Name, ...) {#Name, Builtins::ASM, kNullAddress},
-const BuiltinMetadata builtin_metadata[] = {
-  BUILTIN_LIST(DECL_CPP, DECL_API, DECL_TFJ, DECL_TFC, DECL_TFS, DECL_TFH,
-               DECL_BCH, DECL_ASM)
-};
+const BuiltinMetadata builtin_metadata[] = {BUILTIN_LIST(
+    DECL_CPP, DECL_TFJ, DECL_TFC, DECL_TFS, DECL_TFH, DECL_BCH, DECL_ASM)};
 #undef DECL_CPP
-#undef DECL_API
 #undef DECL_TFJ
 #undef DECL_TFC
 #undef DECL_TFS
@@ -145,8 +140,8 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     key = Builtin_##Name##_InterfaceDescriptor::key(); \
     break;                                             \
   }
-    BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
-                 CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, CASE_OTHER)
+    BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER, CASE_OTHER,
+                 CASE_OTHER, IGNORE_BUILTIN, CASE_OTHER)
 #undef CASE_OTHER
     default:
       Builtins::Kind kind = Builtins::KindOf(name);
@@ -196,7 +191,7 @@ void Builtins::PrintBuiltinSize() {
 
 // static
 Address Builtins::CppEntryOf(int index) {
-  DCHECK(Builtins::HasCppImplementation(index));
+  DCHECK(Builtins::IsCpp(index));
   return builtin_metadata[index].cpp_entry_or_parameter_count;
 }
 
@@ -332,7 +327,6 @@ const char* Builtins::KindNameOf(int index) {
   // clang-format off
   switch (kind) {
     case CPP: return "CPP";
-    case API: return "API";
     case TFJ: return "TFJ";
     case TFC: return "TFC";
     case TFS: return "TFS";
@@ -346,12 +340,6 @@ const char* Builtins::KindNameOf(int index) {
 
 // static
 bool Builtins::IsCpp(int index) { return Builtins::KindOf(index) == CPP; }
-
-// static
-bool Builtins::HasCppImplementation(int index) {
-  Kind kind = Builtins::KindOf(index);
-  return (kind == CPP || kind == API);
-}
 
 // static
 bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
