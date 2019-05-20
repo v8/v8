@@ -1231,7 +1231,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
                                HeapObject src, int size, AllocationSpace dest) {
     Address dst_addr = dst->address();
     Address src_addr = src->address();
-    DCHECK(base->heap_->AllowedToBeMigrated(src, dest));
+    DCHECK(base->heap_->AllowedToBeMigrated(src->map(), src, dest));
     DCHECK_NE(dest, LO_SPACE);
     DCHECK_NE(dest, CODE_LO_SPACE);
     if (dest == OLD_SPACE) {

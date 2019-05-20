@@ -66,8 +66,11 @@ CAST_ACCESSOR(WeakArrayList)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
 int FixedArrayBase::length() const {
-  DCHECK(!IsInRange(map()->instance_type(), FIRST_FIXED_TYPED_ARRAY_TYPE,
+#ifdef DEBUG
+  DCHECK(map_word().IsForwardingAddress() ||
+         !IsInRange(map()->instance_type(), FIRST_FIXED_TYPED_ARRAY_TYPE,
                     LAST_FIXED_TYPED_ARRAY_TYPE));
+#endif
   Object value = READ_FIELD(*this, kLengthOffset);
   return Smi::ToInt(value);
 }
