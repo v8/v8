@@ -9,7 +9,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/cancelable-task.h"
 #include "src/compilation-cache.h"
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
 #include "src/global-handles.h"

@@ -33,7 +33,7 @@
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"

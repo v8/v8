@@ -6,7 +6,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/message-template.h"

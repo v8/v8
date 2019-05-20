@@ -10,7 +10,7 @@
 #include "src/cpu-features.h"
 #include "src/date/date.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/heap.h"
 #include "src/logging/counters.h"

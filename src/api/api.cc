@@ -35,7 +35,7 @@
 #include "src/debug/debug-type-profile.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/detachable-vector.h"
 #include "src/diagnostics/gdb-jit.h"
 #include "src/execution.h"

@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_IA32
 
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"

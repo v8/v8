@@ -5,7 +5,7 @@
 #ifndef V8_DEBUG_DEBUG_FRAMES_H_
 #define V8_DEBUG_DEBUG_FRAMES_H_
 
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/frames.h"
 #include "src/isolate.h"
 #include "src/objects.h"

@@ -39,7 +39,7 @@
 
 #include "src/code-comments.h"
 #include "src/cpu-features.h"
-#include "src/deoptimize-reason.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/external-reference.h"
 #include "src/flags.h"
 #include "src/globals.h"

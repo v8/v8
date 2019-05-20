@@ -5,7 +5,7 @@
 #include "src/safepoint-table.h"
 
 #include "src/assembler-inl.h"
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/disasm.h"
 #include "src/frames-inl.h"
 #include "src/macro-assembler.h"
