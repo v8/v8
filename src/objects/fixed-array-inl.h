@@ -66,8 +66,14 @@ CAST_ACCESSOR(WeakArrayList)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
 int FixedArrayBase::length() const {
-  DCHECK(!IsInRange(map()->instance_type(), FIRST_FIXED_TYPED_ARRAY_TYPE,
-                    LAST_FIXED_TYPED_ARRAY_TYPE));
+#ifdef DEBUG
+  // Only read the map word once to avoid race with evacuator.
+  MapWord mw = map_word();
+  if (!mw.IsForwardingAddress()) {
+    DCHECK(!IsInRange(mw.ToMap()->instance_type(), FIRST_FIXED_TYPED_ARRAY_TYPE,
+                      LAST_FIXED_TYPED_ARRAY_TYPE));
+  }
+#endif
   Object value = READ_FIELD(*this, kLengthOffset);
   return Smi::ToInt(value);
 }
@@ -360,7 +366,8 @@ uint64_t FixedDoubleArray::get_representation(int index) {
          map() != GetReadOnlyRoots().fixed_array_map());
   DCHECK(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kDoubleSize;
-  return READ_UINT64_FIELD(*this, offset);
+  // Bug(v8:8875): Doubles may be unaligned.
+  return ReadUnalignedValue<uint64_t>(FIELD_ADDR(*this, offset));
 }
 
 Handle<Object> FixedDoubleArray::get(FixedDoubleArray array, int index,
