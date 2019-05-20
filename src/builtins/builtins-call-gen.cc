@@ -478,7 +478,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       // the receiver did not pass the {signature} check.
       TNode<Map> holder_map = LoadMap(holder);
       var_holder = LoadMapPrototype(holder_map);
-      GotoIf(IsSetWord32(LoadMapBitField3(holder_map),
+      GotoIf(IsSetWord32(LoadMapBitField2(holder_map),
                          Map::HasHiddenPrototypeBit::kMask),
              &holder_loop);
       ThrowTypeError(context, MessageTemplate::kIllegalInvocation);

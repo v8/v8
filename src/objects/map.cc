@@ -1466,6 +1466,7 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> map, int instance_size,
   new_bit_field3 =
       EnumLengthBits::update(new_bit_field3, kInvalidEnumCacheSentinel);
   new_bit_field3 = IsDeprecatedBit::update(new_bit_field3, false);
+  new_bit_field3 = IsInRetainedMapListBit::update(new_bit_field3, false);
   if (!map->is_dictionary_map()) {
     new_bit_field3 = IsUnstableBit::update(new_bit_field3, false);
   }
@@ -1501,8 +1502,17 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                     Map::kDependentCodeOffset + kTaggedSize);
       DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address()),
                           reinterpret_cast<void*>(new_map->address()),
-                          Map::kDependentCodeOffset));
-      int offset = Map::kPrototypeValidityCellOffset + kTaggedSize;
+                          Map::kBitField3Offset));
+      // The IsInRetainedMapListBit might be different if the {new_map}
+      // that we got from the {cache} was already embedded into optimized
+      // code somewhere.
+      DCHECK_EQ(fresh->bit_field3() & ~IsInRetainedMapListBit::kMask,
+                new_map->bit_field3() & ~IsInRetainedMapListBit::kMask);
+      int offset = Map::kBitField3Offset + kInt32Size;
+      DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address() + offset),
+                          reinterpret_cast<void*>(new_map->address() + offset),
+                          Map::kDependentCodeOffset - offset));
+      offset = Map::kPrototypeValidityCellOffset + kTaggedSize;
       if (new_map->is_prototype_map()) {
         // For prototype maps, the PrototypeInfo is not copied.
         STATIC_ASSERT(Map::kTransitionsOrPrototypeInfoOffset ==

@@ -187,8 +187,8 @@ TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyKindData(
 
 TNode<Uint32T> ObjectEntriesValuesBuiltinsAssembler::HasHiddenPrototype(
     TNode<Map> map) {
-  TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
-  return DecodeWord32<Map::HasHiddenPrototypeBit>(bit_field3);
+  TNode<Uint32T> bit_field2 = Unsigned(LoadMapBitField2(map));
+  return DecodeWord32<Map::HasHiddenPrototypeBit>(bit_field2);
 }
 
 void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(

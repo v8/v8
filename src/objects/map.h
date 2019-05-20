@@ -142,7 +142,7 @@ using MapHandles = std::vector<Handle<Map>>;
 //      | Byte     | [bit_field2]                                |
 //      |          |   - is_extensible (bit 0)                   |
 //      |          |   - is_prototype_map (bit 1)                |
-//      |          |   - is_in_retained_map_list (bit 2)         |
+//      |          |   - has_hidden_prototype (bit 2)            |
 //      |          |   - elements_kind (bits 3..7)               |
 // +----+----------+---------------------------------------------+
 // | Int           | [bit_field3]                                |
@@ -150,7 +150,7 @@ using MapHandles = std::vector<Handle<Map>>;
 // |               |   - number_of_own_descriptors (bit 10..19)  |
 // |               |   - is_dictionary_map (bit 20)              |
 // |               |   - owns_descriptors (bit 21)               |
-// |               |   - has_hidden_prototype (bit 22)           |
+// |               |   - is_in_retained_map_list (bit 22)        |
 // |               |   - is_deprecated (bit 23)                  |
 // |               |   - is_unstable (bit 24)                    |
 // |               |   - is_migration_target (bit 25)            |
@@ -267,10 +267,10 @@ class Map : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(bit_field2, byte)
 
 // Bit positions for |bit_field2|.
-#define MAP_BIT_FIELD2_FIELDS(V, _)     \
-  V(IsExtensibleBit, bool, 1, _)        \
-  V(IsPrototypeMapBit, bool, 1, _)      \
-  V(IsInRetainedMapListBit, bool, 1, _) \
+#define MAP_BIT_FIELD2_FIELDS(V, _)    \
+  V(IsExtensibleBit, bool, 1, _)       \
+  V(IsPrototypeMapBit, bool, 1, _)     \
+  V(HasHiddenPrototypeBit, bool, 1, _) \
   V(ElementsKindBits, ElementsKind, 5, _)
 
   DEFINE_BIT_FIELDS(MAP_BIT_FIELD2_FIELDS)
@@ -291,7 +291,7 @@ class Map : public HeapObject {
   V(NumberOfOwnDescriptorsBits, int, kDescriptorIndexBitCount, _) \
   V(IsDictionaryMapBit, bool, 1, _)                               \
   V(OwnsDescriptorsBit, bool, 1, _)                               \
-  V(HasHiddenPrototypeBit, bool, 1, _)                            \
+  V(IsInRetainedMapListBit, bool, 1, _)                           \
   V(IsDeprecatedBit, bool, 1, _)                                  \
   V(IsUnstableBit, bool, 1, _)                                    \
   V(IsMigrationTargetBit, bool, 1, _)                             \

@@ -1699,10 +1699,11 @@ TNode<Uint32T> CodeStubAssembler::EnsureOnlyHasSimpleProperties(
   // This check can have false positives, since it applies to any JSValueType.
   GotoIf(IsCustomElementsReceiverInstanceType(instance_type), bailout);
 
-  TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
-  GotoIf(IsSetWord32(bit_field3, Map::IsDictionaryMapBit::kMask |
-                                     Map::HasHiddenPrototypeBit::kMask),
+  GotoIf(IsSetWord32(LoadMapBitField2(map), Map::HasHiddenPrototypeBit::kMask),
          bailout);
+
+  TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
+  GotoIf(IsSetWord32(bit_field3, Map::IsDictionaryMapBit::kMask), bailout);
 
   return bit_field3;
 }
