@@ -88,7 +88,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // be shared across threads, i.e. could be concurrently modified.
   void AsyncCompile(Isolate* isolate, const WasmFeatures& enabled,
                     std::shared_ptr<CompilationResultResolver> resolver,
-                    const ModuleWireBytes& bytes, bool is_shared);
+                    const ModuleWireBytes& bytes, bool is_shared,
+                    const char* api_method_name_for_errors);
 
   // Begin an asynchronous instantiation of the given WASM module.
   void AsyncInstantiate(Isolate* isolate,

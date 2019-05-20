@@ -364,11 +364,11 @@ void WasmEngine::AsyncInstantiate(
 void WasmEngine::AsyncCompile(
     Isolate* isolate, const WasmFeatures& enabled,
     std::shared_ptr<CompilationResultResolver> resolver,
-    const ModuleWireBytes& bytes, bool is_shared) {
-  const char* const kAPIMethodName = "WebAssembly.compile()";
+    const ModuleWireBytes& bytes, bool is_shared,
+    const char* api_method_name_for_errors) {
   if (!FLAG_wasm_async_compilation) {
     // Asynchronous compilation disabled; fall back on synchronous compilation.
-    ErrorThrower thrower(isolate, kAPIMethodName);
+    ErrorThrower thrower(isolate, api_method_name_for_errors);
     MaybeHandle<WasmModuleObject> module_object;
     if (is_shared) {
       // Make a copy of the wire bytes to avoid concurrent modification.
@@ -391,9 +391,9 @@ void WasmEngine::AsyncCompile(
 
   if (FLAG_wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
-        StartStreamingCompilation(isolate, enabled,
-                                  handle(isolate->context(), isolate),
-                                  kAPIMethodName, std::move(resolver));
+        StartStreamingCompilation(
+            isolate, enabled, handle(isolate->context(), isolate),
+            api_method_name_for_errors, std::move(resolver));
     streaming_decoder->OnBytesReceived(bytes.module_bytes());
     streaming_decoder->Finish();
     return;
@@ -403,9 +403,10 @@ void WasmEngine::AsyncCompile(
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
   memcpy(copy.get(), bytes.start(), bytes.length());
 
-  AsyncCompileJob* job = CreateAsyncCompileJob(
-      isolate, enabled, std::move(copy), bytes.length(),
-      handle(isolate->context(), isolate), kAPIMethodName, std::move(resolver));
+  AsyncCompileJob* job =
+      CreateAsyncCompileJob(isolate, enabled, std::move(copy), bytes.length(),
+                            handle(isolate->context(), isolate),
+                            api_method_name_for_errors, std::move(resolver));
   job->Start();
 }
 

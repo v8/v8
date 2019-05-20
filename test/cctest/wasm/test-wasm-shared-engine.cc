@@ -189,10 +189,11 @@ Handle<WasmInstanceObject> CompileAndInstantiateAsync(
     SharedEngineIsolate& isolate, ZoneBuffer* buffer) {
   Handle<Object> maybe_instance = handle(Smi::kZero, isolate.isolate());
   auto enabled_features = WasmFeaturesFromIsolate(isolate.isolate());
+  constexpr const char* kAPIMethodName = "Test.CompileAndInstantiateAsync";
   isolate.isolate()->wasm_engine()->AsyncCompile(
       isolate.isolate(), enabled_features,
       base::make_unique<MockCompilationResolver>(isolate, &maybe_instance),
-      ModuleWireBytes(buffer->begin(), buffer->end()), true);
+      ModuleWireBytes(buffer->begin(), buffer->end()), true, kAPIMethodName);
   while (!maybe_instance->IsWasmInstanceObject()) PumpMessageLoop(isolate);
   Handle<WasmInstanceObject> instance =
       Handle<WasmInstanceObject>::cast(maybe_instance);
