@@ -50,9 +50,13 @@ class ReadOnlyHeap final {
   // heap to be re-created on next set up.
   V8_EXPORT_PRIVATE static void ClearSharedHeapForTest();
 
-  std::vector<Object>* read_only_object_cache() {
-    return &read_only_object_cache_;
-  }
+  // Extends the read-only object cache with new zero smi and returns a
+  // reference to it.
+  Object* ExtendReadOnlyObjectCache();
+  // Returns a read-only cache entry at a particular index.
+  Object cached_read_only_object(size_t i) const;
+  bool read_only_object_cache_is_initialized() const;
+
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
  private:

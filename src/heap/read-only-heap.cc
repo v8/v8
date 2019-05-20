@@ -12,6 +12,7 @@
 #include "src/heap/spaces.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/smi.h"
 #include "src/snapshot/read-only-deserializer.h"
 
 namespace v8 {
@@ -117,6 +118,20 @@ ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(HeapObject object) {
   }
 #endif
   return ReadOnlyRoots(GetHeapFromWritableObject(object));
+}
+
+Object* ReadOnlyHeap::ExtendReadOnlyObjectCache() {
+  read_only_object_cache_.push_back(Smi::kZero);
+  return &read_only_object_cache_.back();
+}
+
+Object ReadOnlyHeap::cached_read_only_object(size_t i) const {
+  DCHECK_LE(i, read_only_object_cache_.size());
+  return read_only_object_cache_[i];
+}
+
+bool ReadOnlyHeap::read_only_object_cache_is_initialized() const {
+  return read_only_object_cache_.size() > 0;
 }
 
 ReadOnlyHeapIterator::ReadOnlyHeapIterator(ReadOnlyHeap* ro_heap)
