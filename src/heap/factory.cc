@@ -525,7 +525,6 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   vector->set_length(length);
   vector->set_invocation_count(0);
   vector->set_profiler_ticks(0);
-  vector->set_deopt_count(0);
   vector->set_closure_feedback_cell_array(*closure_feedback_cell_array);
 
   // TODO(leszeks): Initialize based on the feedback metadata.

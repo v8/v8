@@ -48,4 +48,4 @@ g();
 g();
 %OptimizeFunctionOnNextCall(g);
 g();
-assertTrue(%GetDeoptCount(g) > 0);
+assertUnoptimized(g);

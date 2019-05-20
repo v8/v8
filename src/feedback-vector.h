@@ -208,11 +208,7 @@ class FeedbackVector : public HeapObject {
   // runtime profiler.
   DECL_INT32_ACCESSORS(profiler_ticks)
 
-  // [deopt_count]: The number of times this function has deoptimized.
-  DECL_INT32_ACCESSORS(deopt_count)
-
   inline void clear_invocation_count();
-  inline void increment_deopt_count();
 
   inline Code optimized_code() const;
   inline OptimizationMarker optimization_marker() const;

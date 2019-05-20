@@ -246,7 +246,6 @@ Handle<FeedbackVector> FeedbackVector::New(
                                    : OptimizationMarker::kNone)));
   DCHECK_EQ(vector->invocation_count(), 0);
   DCHECK_EQ(vector->profiler_ticks(), 0);
-  DCHECK_EQ(vector->deopt_count(), 0);
 
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
@@ -368,7 +367,6 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
       PrintF("]\n");
     }
     if (!code->deopt_already_counted()) {
-      increment_deopt_count();
       code->set_deopt_already_counted(true);
     }
     ClearOptimizedCode();
