@@ -161,10 +161,6 @@ Node* CreateJavaScriptBuiltinContinuationFrameState(
     int stack_parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode);
 
-Node* CreateGenericLazyDeoptContinuationFrameState(
-    JSGraph* graph, const SharedFunctionInfoRef& shared, Node* target,
-    Node* context, Node* receiver, Node* outer_frame_state);
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

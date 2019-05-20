@@ -167,9 +167,9 @@ namespace internal {
   /* API callback handling */                                                  \
   ASM(CallApiCallback, ApiCallback)                                            \
   ASM(CallApiGetter, ApiGetter)                                                \
-  CPP(HandleApiCall)                                                           \
-  CPP(HandleApiCallAsFunction)                                                 \
-  CPP(HandleApiCallAsConstructor)                                              \
+  API(HandleApiCall)                                                           \
+  API(HandleApiCallAsFunction)                                                 \
+  API(HandleApiCallAsConstructor)                                              \
                                                                                \
   /* Adapters for Turbofan into runtime */                                     \
   TFC(AllocateInYoungGeneration, Allocate)                                     \
@@ -1003,7 +1003,7 @@ namespace internal {
   /* TypedArray */                                                             \
   /* ES #sec-typedarray-constructors */                                        \
   TFJ(TypedArrayBaseConstructor, 0, kReceiver)                                 \
-  TFJ(GenericLazyDeoptContinuation, 1, kReceiver, kResult)                     \
+  TFJ(GenericConstructorLazyDeoptContinuation, 1, kReceiver, kResult)          \
   TFJ(TypedArrayConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
   CPP(TypedArrayPrototypeBuffer)                                               \
   /* ES6 #sec-get-%typedarray%.prototype.bytelength */                         \
