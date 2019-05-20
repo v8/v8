@@ -159,6 +159,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function TestFunctionConstructor() {
+  let toolong = new Array(1000 + 1);
   let desc = Object.getOwnPropertyDescriptor(WebAssembly, 'Function');
   assertEquals(typeof desc.value, 'function');
   assertTrue(desc.writable);
@@ -169,7 +170,33 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(WebAssembly.Function.name, 'Function');
   assertThrows(
       () => WebAssembly.Function(), TypeError, /must be invoked with 'new'/);
-  // TODO(7742): Add tests for missing/bogus arguments.
+  assertThrows(
+    () => new WebAssembly.Function(), TypeError,
+    /Argument 0 must be a function type/);
+  assertThrows(
+    () => new WebAssembly.Function({}), TypeError,
+    /Argument 0 must be a function type with 'parameters'/);
+  assertThrows(
+    () => new WebAssembly.Function({parameters:[]}), TypeError,
+    /Argument 0 must be a function type with 'results'/);
+  assertThrows(
+    () => new WebAssembly.Function({parameters:['foo'], results:[]}), TypeError,
+    /Argument 0 parameter type at index #0 must be a value type/);
+  assertThrows(
+    () => new WebAssembly.Function({parameters:[], results:['foo']}), TypeError,
+    /Argument 0 result type at index #0 must be a value type/);
+  assertThrows(
+    () => new WebAssembly.Function({parameters:toolong, results:[]}), TypeError,
+    /Argument 0 contains too many parameters/);
+  assertThrows(
+    () => new WebAssembly.Function({parameters:[], results:toolong}), TypeError,
+    /Argument 0 contains too many results/);
+  assertThrows(
+    () => new WebAssembly.Function({parameters:[], results:[]}), TypeError,
+    /Argument 1 must be a function/);
+  assertThrows(
+    () => new WebAssembly.Function({parameters:[], results:[]}, {}), TypeError,
+    /Argument 1 must be a function/);
 })();
 
 (function TestFunctionExportedFunctions() {

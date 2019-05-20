@@ -1198,6 +1198,39 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(Utils::ToLocal(memory_obj));
 }
 
+// Determines the type encoded in a value type property (e.g. type reflection).
+// Returns false if there was an exception, true upon success. On success the
+// outgoing {type} is set accordingly, or set to {wasm::kWasmStmt} in case the
+// type could not be properly recognized.
+bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
+                  Local<Context> context, i::wasm::ValueType* type,
+                  i::wasm::WasmFeatures enabled_features) {
+  v8::Local<v8::Value> value;
+  if (!maybe.ToLocal(&value)) return false;
+  v8::Local<v8::String> string;
+  if (!value->ToString(context).ToLocal(&string)) return false;
+  if (string->StringEquals(v8_str(isolate, "i32"))) {
+    *type = i::wasm::kWasmI32;
+  } else if (string->StringEquals(v8_str(isolate, "f32"))) {
+    *type = i::wasm::kWasmF32;
+  } else if (string->StringEquals(v8_str(isolate, "i64"))) {
+    *type = i::wasm::kWasmI64;
+  } else if (string->StringEquals(v8_str(isolate, "f64"))) {
+    *type = i::wasm::kWasmF64;
+  } else if (enabled_features.anyref &&
+             string->StringEquals(v8_str(isolate, "anyref"))) {
+    *type = i::wasm::kWasmAnyRef;
+  } else if (enabled_features.anyref &&
+             string->StringEquals(v8_str(isolate, "anyfunc"))) {
+    *type = i::wasm::kWasmAnyFunc;
+  } else {
+    // Unrecognized type.
+    *type = i::wasm::kWasmStmt;
+  }
+  return true;
+}
+
+// WebAssembly.Global
 void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -1213,6 +1246,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   Local<Context> context = isolate->GetCurrentContext();
   Local<v8::Object> descriptor = Local<Object>::Cast(args[0]);
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
 
   // The descriptor's 'mutable'.
   bool is_mutable = false;
@@ -1232,27 +1266,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   {
     v8::MaybeLocal<v8::Value> maybe =
         descriptor->Get(context, v8_str(isolate, "value"));
-    v8::Local<v8::Value> value;
-    if (!maybe.ToLocal(&value)) return;
-    v8::Local<v8::String> string;
-    if (!value->ToString(context).ToLocal(&string)) return;
-
-    auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
-    if (string->StringEquals(v8_str(isolate, "i32"))) {
-      type = i::wasm::kWasmI32;
-    } else if (string->StringEquals(v8_str(isolate, "f32"))) {
-      type = i::wasm::kWasmF32;
-    } else if (string->StringEquals(v8_str(isolate, "i64"))) {
-      type = i::wasm::kWasmI64;
-    } else if (string->StringEquals(v8_str(isolate, "f64"))) {
-      type = i::wasm::kWasmF64;
-    } else if (enabled_features.anyref &&
-               string->StringEquals(v8_str(isolate, "anyref"))) {
-      type = i::wasm::kWasmAnyRef;
-    } else if (enabled_features.anyref &&
-               string->StringEquals(v8_str(isolate, "anyfunc"))) {
-      type = i::wasm::kWasmAnyFunc;
-    } else {
+    if (!GetValueType(isolate, maybe, context, &type, enabled_features)) return;
+    if (type == i::wasm::kWasmStmt) {
       thrower.TypeError(
           "Descriptor property 'value' must be 'i32', 'i64', 'f32', or "
           "'f64'");
@@ -1288,7 +1303,6 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     case i::wasm::kWasmI64: {
       int64_t i64_value = 0;
       if (!value->IsUndefined()) {
-        auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
         if (!enabled_features.bigint) {
           thrower.TypeError("Can't set the value of i64 WebAssembly.Global");
           return;
@@ -1375,6 +1389,83 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError("WebAssembly.Function must be invoked with 'new'");
     return;
   }
+  if (!args[0]->IsObject()) {
+    thrower.TypeError("Argument 0 must be a function type");
+    return;
+  }
+  Local<Object> function_type = Local<Object>::Cast(args[0]);
+  Local<Context> context = isolate->GetCurrentContext();
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+
+  // Load the 'parameters' property of the function type.
+  Local<String> parameters_key = v8_str(isolate, "parameters");
+  v8::MaybeLocal<v8::Value> parameters_maybe =
+      function_type->Get(context, parameters_key);
+  v8::Local<v8::Value> parameters_value;
+  if (!parameters_maybe.ToLocal(&parameters_value)) return;
+  // TODO(7742): Allow any iterable, not just {Array} here.
+  if (!parameters_value->IsArray()) {
+    thrower.TypeError("Argument 0 must be a function type with 'parameters'");
+    return;
+  }
+  Local<Array> parameters = parameters_value.As<Array>();
+  uint32_t parameters_len = parameters->Length();
+  if (parameters_len > i::wasm::kV8MaxWasmFunctionParams) {
+    thrower.TypeError("Argument 0 contains too many parameters");
+    return;
+  }
+
+  // Load the 'results' property of the function type.
+  Local<String> results_key = v8_str(isolate, "results");
+  v8::MaybeLocal<v8::Value> results_maybe =
+      function_type->Get(context, results_key);
+  v8::Local<v8::Value> results_value;
+  if (!results_maybe.ToLocal(&results_value)) return;
+  // TODO(7742): Allow any iterable, not just {Array} here.
+  if (!results_value->IsArray()) {
+    thrower.TypeError("Argument 0 must be a function type with 'results'");
+    return;
+  }
+  Local<Array> results = results_value.As<Array>();
+  uint32_t results_len = results->Length();
+  if (results_len > (enabled_features.mv
+                         ? i::wasm::kV8MaxWasmFunctionMultiReturns
+                         : i::wasm::kV8MaxWasmFunctionReturns)) {
+    thrower.TypeError("Argument 0 contains too many results");
+    return;
+  }
+
+  // Decode the function type and construct a signature.
+  i::Zone zone(i_isolate->allocator(), ZONE_NAME);
+  i::wasm::FunctionSig::Builder builder(&zone, parameters_len, results_len);
+  for (uint32_t i = 0; i < parameters_len; ++i) {
+    i::wasm::ValueType type;
+    MaybeLocal<Value> maybe = parameters->Get(context, i);
+    if (!GetValueType(isolate, maybe, context, &type, enabled_features)) return;
+    if (type == i::wasm::kWasmStmt) {
+      thrower.TypeError(
+          "Argument 0 parameter type at index #%u must be a value type", i);
+      return;
+    }
+    builder.AddParam(type);
+  }
+  for (uint32_t i = 0; i < results_len; ++i) {
+    i::wasm::ValueType type;
+    MaybeLocal<Value> maybe = results->Get(context, i);
+    if (!GetValueType(isolate, maybe, context, &type, enabled_features)) return;
+    if (type == i::wasm::kWasmStmt) {
+      thrower.TypeError(
+          "Argument 0 result type at index #%u must be a value type", i);
+      return;
+    }
+    builder.AddReturn(type);
+  }
+
+  if (!args[1]->IsFunction()) {
+    thrower.TypeError("Argument 1 must be a function");
+    return;
+  }
+
   // TODO(7742): Implement ability to construct.
   UNIMPLEMENTED();
 }
