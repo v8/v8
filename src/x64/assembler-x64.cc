@@ -18,7 +18,7 @@
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/string-constants.h"
 #include "src/v8.h"

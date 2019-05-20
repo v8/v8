@@ -14,7 +14,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 
 namespace v8 {
 namespace internal {

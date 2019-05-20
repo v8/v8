@@ -7,7 +7,7 @@
 #include "src/accessors.h"
 #include "src/arguments-inl.h"
 #include "src/ast/scopes.h"
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"

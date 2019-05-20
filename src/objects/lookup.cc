@@ -4,7 +4,7 @@
 
 #include "src/objects/lookup.h"
 
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
 #include "src/logging/counters.h"

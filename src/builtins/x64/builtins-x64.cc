@@ -7,7 +7,7 @@
 #include "src/api/api-arguments.h"
 #include "src/base/adapters.h"
 #include "src/code-factory.h"
-#include "src/deoptimizer.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
 #include "src/logging/counters.h"

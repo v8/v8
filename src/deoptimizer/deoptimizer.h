@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DEOPTIMIZER_H_
-#define V8_DEOPTIMIZER_H_
+#ifndef V8_DEOPTIMIZER_DEOPTIMIZER_H_
+#define V8_DEOPTIMIZER_DEOPTIMIZER_H_
 
 #include <stack>
 #include <vector>
@@ -12,7 +12,7 @@
 #include "src/base/macros.h"
 #include "src/boxed-float.h"
 #include "src/code-tracer.h"
-#include "src/deoptimize-reason.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/feedback-vector.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
@@ -154,7 +154,6 @@ class TranslatedValue {
   int object_index() const;
 };
 
-
 class TranslatedFrame {
  public:
   enum Kind {
@@ -283,7 +282,6 @@ class TranslatedFrame {
 
   ValuesContainer values_;
 };
-
 
 // Auxiliary class for translating deoptimization values.
 // Typical usage sequence:
@@ -506,7 +504,6 @@ class Deoptimizer : public Malloced {
   void QueueValueForMaterialization(Address output_address, Object obj,
                                     const TranslatedFrame::iterator& iterator);
 
-
   Deoptimizer(Isolate* isolate, JSFunction function, DeoptimizeKind kind,
               unsigned bailout_id, Address from, int fp_to_sp_delta);
   Code FindOptimizedCode();
@@ -616,7 +613,6 @@ class Deoptimizer : public Malloced {
   friend class DeoptimizedFrameInfo;
 };
 
-
 class RegisterValues {
  public:
   intptr_t GetRegister(unsigned n) const {
@@ -667,7 +663,6 @@ class RegisterValues {
   Float64 double_registers_[DoubleRegister::kNumRegisters];
 };
 
-
 class FrameDescription {
  public:
   explicit FrameDescription(uint32_t frame_size, int parameter_count = 0);
@@ -678,13 +673,9 @@ class FrameDescription {
     return malloc(size + frame_size - kSystemPointerSize);
   }
 
-  void operator delete(void* pointer, uint32_t frame_size) {
-    free(pointer);
-  }
+  void operator delete(void* pointer, uint32_t frame_size) { free(pointer); }
 
-  void operator delete(void* description) {
-    free(description);
-  }
+  void operator delete(void* description) { free(description); }
 
   uint32_t GetFrameSize() const {
     USE(frame_content_);
@@ -809,11 +800,10 @@ class FrameDescription {
 
   intptr_t* GetFrameSlotPointer(unsigned offset) {
     DCHECK(offset < frame_size_);
-    return reinterpret_cast<intptr_t*>(
-        reinterpret_cast<Address>(this) + frame_content_offset() + offset);
+    return reinterpret_cast<intptr_t*>(reinterpret_cast<Address>(this) +
+                                       frame_content_offset() + offset);
   }
 };
-
 
 class DeoptimizerData {
  public:
@@ -907,8 +897,7 @@ class Translation {
  public:
 #define DECLARE_TRANSLATION_OPCODE_ENUM(item) item,
   enum Opcode {
-    TRANSLATION_OPCODE_LIST(DECLARE_TRANSLATION_OPCODE_ENUM)
-    LAST = LITERAL
+    TRANSLATION_OPCODE_LIST(DECLARE_TRANSLATION_OPCODE_ENUM) LAST = LITERAL
   };
 #undef DECLARE_TRANSLATION_OPCODE_ENUM
 
@@ -973,11 +962,9 @@ class Translation {
   Zone* zone_;
 };
 
-
 class MaterializedObjectStore {
  public:
-  explicit MaterializedObjectStore(Isolate* isolate) : isolate_(isolate) {
-  }
+  explicit MaterializedObjectStore(Isolate* isolate) : isolate_(isolate) {}
 
   Handle<FixedArray> Get(Address fp);
   void Set(Address fp, Handle<FixedArray> materialized_objects);
@@ -993,7 +980,6 @@ class MaterializedObjectStore {
   Isolate* isolate_;
   std::vector<Address> frame_fps_;
 };
-
 
 // Class used to represent an unoptimized frame when the debugger
 // needs to inspect a frame that is part of an optimized frame. The
@@ -1030,9 +1016,7 @@ class DeoptimizedFrameInfo : public Malloced {
     return expression_stack_[index];
   }
 
-  int GetSourcePosition() {
-    return source_position_;
-  }
+  int GetSourcePosition() { return source_position_; }
 
  private:
   // Set an incoming argument.
@@ -1059,4 +1043,4 @@ class DeoptimizedFrameInfo : public Malloced {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_DEOPTIMIZER_H_
+#endif  // V8_DEOPTIMIZER_DEOPTIMIZER_H_

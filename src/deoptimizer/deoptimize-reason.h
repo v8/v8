@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DEOPTIMIZE_REASON_H_
-#define V8_DEOPTIMIZE_REASON_H_
+#ifndef V8_DEOPTIMIZER_DEOPTIMIZE_REASON_H_
+#define V8_DEOPTIMIZER_DEOPTIMIZE_REASON_H_
 
 #include "src/globals.h"
 
@@ -74,4 +74,4 @@ V8_EXPORT_PRIVATE char const* DeoptimizeReasonToString(DeoptimizeReason reason);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_DEOPTIMIZE_REASON_H_
+#endif  // V8_DEOPTIMIZER_DEOPTIMIZE_REASON_H_
