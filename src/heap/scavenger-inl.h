@@ -135,7 +135,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
-  DCHECK(heap()->AllowedToBeMigrated(map, object, NEW_SPACE));
+  DCHECK(heap()->AllowedToBeMigrated(object, NEW_SPACE));
   AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
   AllocationResult allocation =
       allocator_.Allocate(NEW_SPACE, object_size, alignment);

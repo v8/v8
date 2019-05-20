@@ -5690,7 +5690,7 @@ void VerifySmisVisitor::VisitRootPointers(Root root, const char* description,
   }
 }
 
-bool Heap::AllowedToBeMigrated(Map map, HeapObject obj, AllocationSpace dst) {
+bool Heap::AllowedToBeMigrated(HeapObject obj, AllocationSpace dst) {
   // Object migration is governed by the following rules:
   //
   // 1) Objects in new-space can be migrated to the old space
@@ -5703,8 +5703,8 @@ bool Heap::AllowedToBeMigrated(Map map, HeapObject obj, AllocationSpace dst) {
   //
   // Since this function is used for debugging only, we do not place
   // asserts here, but check everything explicitly.
-  if (map == ReadOnlyRoots(this).one_pointer_filler_map()) return false;
-  InstanceType type = map->instance_type();
+  if (obj->map() == ReadOnlyRoots(this).one_pointer_filler_map()) return false;
+  InstanceType type = obj->map()->instance_type();
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
   AllocationSpace src = chunk->owner()->identity();
   switch (src) {

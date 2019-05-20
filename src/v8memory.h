@@ -5,7 +5,6 @@
 #ifndef V8_V8MEMORY_H_
 #define V8_V8MEMORY_H_
 
-#include "src/base/macros.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -16,12 +15,13 @@ namespace internal {
 // Note that this class currently relies on undefined behaviour. There is a
 // proposal (http://wg21.link/p0593r2) to make it defined behaviour though.
 template <class T>
-inline T& Memory(Address addr) {
-  DCHECK(IsAligned(addr, alignof(T)));
+T& Memory(Address addr) {
+  // {addr} must be aligned.
+  DCHECK_EQ(0, addr & (alignof(T) - 1));
   return *reinterpret_cast<T*>(addr);
 }
 template <class T>
-inline T& Memory(byte* addr) {
+T& Memory(byte* addr) {
   return Memory<T>(reinterpret_cast<Address>(addr));
 }
 
@@ -37,6 +37,18 @@ template <typename V>
 static inline void WriteUnalignedValue(Address p, V value) {
   ASSERT_TRIVIALLY_COPYABLE(V);
   memcpy(reinterpret_cast<void*>(p), &value, sizeof(V));
+}
+
+static inline double ReadFloatValue(Address p) {
+  return ReadUnalignedValue<float>(p);
+}
+
+static inline double ReadDoubleValue(Address p) {
+  return ReadUnalignedValue<double>(p);
+}
+
+static inline void WriteDoubleValue(Address p, double value) {
+  WriteUnalignedValue(p, value);
 }
 
 static inline uint16_t ReadUnalignedUInt16(Address p) {

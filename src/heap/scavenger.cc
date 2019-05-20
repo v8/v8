@@ -463,6 +463,7 @@ void Scavenger::Process(OneshotBarrier* barrier) {
     struct PromotionListEntry entry;
     while (promotion_list_.Pop(&entry)) {
       HeapObject target = entry.heap_object;
+      DCHECK(!target->IsMap());
       IterateAndScavengePromotedObject(target, entry.map, entry.size);
       done = false;
       if (have_barrier && ((++objects % kInterruptThreshold) == 0)) {
