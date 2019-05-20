@@ -515,8 +515,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I) \
   F(ArrayBufferDetach, 1, 1)                \
-  F(ArrayBufferViewWasDetached, 1, 1)       \
-  I(IsTypedArray, 1, 1)                     \
   F(TypedArrayCopyElements, 3, 1)           \
   F(TypedArrayGetBuffer, 1, 1)              \
   F(TypedArraySet, 2, 1)                    \

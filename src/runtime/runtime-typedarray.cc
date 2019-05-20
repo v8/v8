@@ -60,12 +60,6 @@ RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   return accessor->CopyElements(source, target, length);
 }
 
-RUNTIME_FUNCTION(Runtime_ArrayBufferViewWasDetached) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  return isolate->heap()->ToBoolean(JSTypedArray::cast(args[0])->WasDetached());
-}
-
 RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -171,12 +165,6 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   }
 
   return *array;
-}
-
-RUNTIME_FUNCTION(Runtime_IsTypedArray) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  return isolate->heap()->ToBoolean(args[0]->IsJSTypedArray());
 }
 
 // 22.2.3.23 %TypedArray%.prototype.set ( overloaded [ , offset ] )

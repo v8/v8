@@ -205,7 +205,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kInlineIsJSReceiver:
     case Runtime::kInlineIsRegExp:
     case Runtime::kInlineIsSmi:
-    case Runtime::kInlineIsTypedArray:
       return false;
 
     default:

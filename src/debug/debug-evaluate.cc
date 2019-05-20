@@ -255,7 +255,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(IsJSReceiver)                             \
   V(IsRegExp)                                 \
   V(IsSmi)                                    \
-  V(IsTypedArray)                             \
   /* Loads */                                 \
   V(LoadLookupSlotForCall)                    \
   V(GetProperty)                              \

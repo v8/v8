@@ -159,12 +159,6 @@ Node* IntrinsicsGenerator::IsArray(
   return IsInstanceType(input, JS_ARRAY_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsTypedArray(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
-  return IsInstanceType(input, JS_TYPED_ARRAY_TYPE);
-}
-
 Node* IntrinsicsGenerator::IsSmi(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   Node* input = __ LoadRegisterFromRegisterList(args, 0);
