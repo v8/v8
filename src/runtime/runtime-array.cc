@@ -558,20 +558,6 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   return object->elements();
 }
 
-
-RUNTIME_FUNCTION(Runtime_HasComplexElements) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
-  for (PrototypeIterator iter(isolate, array, kStartAtReceiver);
-       !iter.IsAtEnd(); iter.Advance()) {
-    if (PrototypeIterator::GetCurrent<JSReceiver>(iter)->HasComplexElements()) {
-      return ReadOnlyRoots(isolate).true_value();
-    }
-  }
-  return ReadOnlyRoots(isolate).false_value();
-}
-
 // ES6 22.1.2.2 Array.isArray
 RUNTIME_FUNCTION(Runtime_ArrayIsArray) {
   HandleScope shs(isolate);

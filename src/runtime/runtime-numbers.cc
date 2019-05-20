@@ -78,21 +78,6 @@ RUNTIME_FUNCTION(Runtime_NumberToString) {
   return *isolate->factory()->NumberToString(number);
 }
 
-// Compare two Smis x, y as if they were converted to strings and then
-// compared lexicographically. Returns:
-// -1 if x < y
-//  0 if x == y
-//  1 if x > y
-// TODO(szuend): Remove once the call-site in src/js/array.js is gone.
-RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(Smi, x_value, 0);
-  CONVERT_ARG_CHECKED(Smi, y_value, 1);
-
-  return Object(Smi::LexicographicCompare(isolate, x_value, y_value));
-}
-
 RUNTIME_FUNCTION(Runtime_MaxSmi) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());

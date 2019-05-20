@@ -7360,21 +7360,6 @@ Handle<SimpleNumberDictionary> SimpleNumberDictionary::Set(
   return AtPut(isolate, dictionary, key, value, PropertyDetails::Empty());
 }
 
-bool NumberDictionary::HasComplexElements() {
-  if (!requires_slow_elements()) return false;
-  ReadOnlyRoots roots = GetReadOnlyRoots();
-  int capacity = this->Capacity();
-  for (int i = 0; i < capacity; i++) {
-    Object k;
-    if (!this->ToKey(roots, i, &k)) continue;
-    PropertyDetails details = this->DetailsAt(i);
-    if (details.kind() == kAccessor) return true;
-    PropertyAttributes attr = details.attributes();
-    if (attr & ALL_ATTRIBUTES_MASK) return true;
-  }
-  return false;
-}
-
 void NumberDictionary::UpdateMaxNumberKey(uint32_t key,
                                           Handle<JSObject> dictionary_holder) {
   DisallowHeapAllocation no_allocation;

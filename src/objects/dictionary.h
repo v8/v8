@@ -341,10 +341,6 @@ class NumberDictionary
   static const int kMaxNumberKeyIndex = kPrefixStartIndex;
   void UpdateMaxNumberKey(uint32_t key, Handle<JSObject> dictionary_holder);
 
-  // Returns true if the dictionary contains any elements that are non-writable,
-  // non-configurable, non-enumerable, or have getters/setters.
-  bool HasComplexElements();
-
   // Sorting support
   void CopyValuesTo(FixedArray elements);
 

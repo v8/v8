@@ -261,7 +261,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(GetProperty)                              \
   /* Arrays */                                \
   V(ArraySpeciesConstructor)                  \
-  V(HasComplexElements)                       \
   V(HasFastPackedElements)                    \
   V(NewArray)                                 \
   V(NormalizeElements)                        \
@@ -335,7 +334,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(IncrementUseCounter)                      \
   V(MaxSmi)                                   \
   V(NewObject)                                \
-  V(SmiLexicographicCompare)                  \
   V(StringMaxLength)                          \
   V(StringToArray)                            \
   /* Test */                                  \

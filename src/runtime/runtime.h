@@ -43,7 +43,6 @@ namespace internal {
   F(ArrayIsArray, 1, 1)                   \
   F(ArraySpeciesConstructor, 1, 1)        \
   F(GrowArrayElements, 2, 1)              \
-  F(HasComplexElements, 1, 1)             \
   I(IsArray, 1, 1)                        \
   F(NewArray, -1 /* >= 3 */, 1)           \
   F(NormalizeElements, 1, 1)              \
@@ -269,7 +268,6 @@ namespace internal {
   F(IsValidSmi, 1, 1)                    \
   F(MaxSmi, 0, 1)                        \
   F(NumberToString, 1, 1)                \
-  F(SmiLexicographicCompare, 2, 1)       \
   F(StringParseFloat, 1, 1)              \
   F(StringParseInt, 2, 1)                \
   F(StringToNumber, 1, 1)
