@@ -66,11 +66,6 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
       TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>
       StringAtAccessor;
 
-  void GenerateStringAt(const char* method_name, TNode<Context> context,
-                        TNode<Object> receiver, TNode<Object> maybe_position,
-                        TNode<Object> default_return,
-                        const StringAtAccessor& accessor);
-
   void StringIndexOf(Node* const subject_string, Node* const search_string,
                      Node* const position,
                      const std::function<void(Node*)>& f_return);

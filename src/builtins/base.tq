@@ -761,6 +761,8 @@ type SlackTrackingMode constexpr 'SlackTrackingMode';
 type UnicodeEncoding constexpr 'UnicodeEncoding';
 const UTF16:
     constexpr UnicodeEncoding generates 'UnicodeEncoding::UTF16';
+const UTF32:
+    constexpr UnicodeEncoding generates 'UnicodeEncoding::UTF32';
 
 extern class Foreign extends HeapObject { foreign_address: RawPtr; }
 
@@ -1075,6 +1077,7 @@ extern macro Int32TrueConstant(): bool;
 extern macro Int32FalseConstant(): bool;
 extern macro EmptyStringConstant(): EmptyString;
 extern macro LengthStringConstant(): String;
+extern macro NanConstant(): NaN;
 
 const Hole: Hole = TheHoleConstant();
 const Null: Null = NullConstant();
@@ -1083,6 +1086,7 @@ const True: True = TrueConstant();
 const False: False = FalseConstant();
 const kEmptyString: EmptyString = EmptyStringConstant();
 const kLengthString: String = LengthStringConstant();
+const kNaN: NaN = NanConstant();
 
 const true: constexpr bool generates 'true';
 const false: constexpr bool generates 'false';
@@ -1428,6 +1432,7 @@ extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(Context, String, String): Boolean;
 extern macro StringCharCodeAt(String, intptr): int32;
 extern runtime StringCompareSequence(Context, String, String, Number): Boolean;
+extern macro StringFromSingleCharCode(int32): String;
 
 extern macro StrictEqual(Object, Object): Boolean;
 extern macro SmiLexicographicCompare(Smi, Smi): Smi;

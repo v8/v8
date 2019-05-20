@@ -943,12 +943,6 @@ namespace internal {
   CPP(StringFromCodePoint)                                                     \
   /* ES6 #sec-string.fromcharcode */                                           \
   TFJ(StringFromCharCode, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
-  /* ES6 #sec-string.prototype.charat */                                       \
-  TFJ(StringPrototypeCharAt, 1, kReceiver, kPosition)                          \
-  /* ES6 #sec-string.prototype.charcodeat */                                   \
-  TFJ(StringPrototypeCharCodeAt, 1, kReceiver, kPosition)                      \
-  /* ES6 #sec-string.prototype.codepointat */                                  \
-  TFJ(StringPrototypeCodePointAt, 1, kReceiver, kPosition)                     \
   /* ES6 #sec-string.prototype.concat */                                       \
   TFJ(StringPrototypeConcat, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
   /* ES6 #sec-string.prototype.includes */                                     \

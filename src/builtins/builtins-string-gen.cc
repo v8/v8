@@ -325,29 +325,6 @@ TF_BUILTIN(SubString, StringBuiltinsAssembler) {
   Return(SubString(string, SmiUntag(from), SmiUntag(to)));
 }
 
-void StringBuiltinsAssembler::GenerateStringAt(
-    char const* method_name, TNode<Context> context, TNode<Object> receiver,
-    TNode<Object> maybe_position, TNode<Object> default_return,
-    const StringAtAccessor& accessor) {
-  // Check that {receiver} is coercible to Object and convert it to a String.
-  TNode<String> string = ToThisString(context, receiver, method_name);
-
-  // Convert the {position} to a Smi and check that it's in bounds of the
-  // {string}.
-  Label if_outofbounds(this, Label::kDeferred);
-  TNode<Number> position = ToInteger_Inline(
-      context, maybe_position, CodeStubAssembler::kTruncateMinusZero);
-  GotoIfNot(TaggedIsSmi(position), &if_outofbounds);
-  TNode<IntPtrT> index = SmiUntag(CAST(position));
-  TNode<IntPtrT> length = LoadStringLengthAsWord(string);
-  GotoIfNot(UintPtrLessThan(index, length), &if_outofbounds);
-  TNode<Object> result = accessor(string, length, index);
-  Return(result);
-
-  BIND(&if_outofbounds);
-  Return(default_return);
-}
-
 void StringBuiltinsAssembler::GenerateStringRelationalComparison(Node* context,
                                                                  Node* left,
                                                                  Node* right,
@@ -707,54 +684,6 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
 
     arguments.PopAndReturn(two_byte_result);
   }
-}
-
-// ES6 #sec-string.prototype.charat
-TF_BUILTIN(StringPrototypeCharAt, StringBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> maybe_position = CAST(Parameter(Descriptor::kPosition));
-
-  GenerateStringAt("String.prototype.charAt", context, receiver, maybe_position,
-                   EmptyStringConstant(),
-                   [this](TNode<String> string, TNode<IntPtrT> length,
-                          TNode<IntPtrT> index) {
-                     TNode<Int32T> code = StringCharCodeAt(string, index);
-                     return StringFromSingleCharCode(code);
-                   });
-}
-
-// ES6 #sec-string.prototype.charcodeat
-TF_BUILTIN(StringPrototypeCharCodeAt, StringBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> maybe_position = CAST(Parameter(Descriptor::kPosition));
-
-  GenerateStringAt("String.prototype.charCodeAt", context, receiver,
-                   maybe_position, NanConstant(),
-                   [this](TNode<String> receiver, TNode<IntPtrT> length,
-                          TNode<IntPtrT> index) {
-                     Node* value = StringCharCodeAt(receiver, index);
-                     return SmiFromInt32(value);
-                   });
-}
-
-// ES6 #sec-string.prototype.codepointat
-TF_BUILTIN(StringPrototypeCodePointAt, StringBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> maybe_position = CAST(Parameter(Descriptor::kPosition));
-
-  GenerateStringAt("String.prototype.codePointAt", context, receiver,
-                   maybe_position, UndefinedConstant(),
-                   [this](TNode<String> receiver, TNode<IntPtrT> length,
-                          TNode<IntPtrT> index) {
-                     // This is always a call to a builtin from Javascript,
-                     // so we need to produce UTF32.
-                     Node* value = LoadSurrogatePairAt(receiver, length, index,
-                                                       UnicodeEncoding::UTF32);
-                     return SmiFromInt32(value);
-                   });
 }
 
 // ES6 String.prototype.concat(...args)
