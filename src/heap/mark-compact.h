@@ -909,9 +909,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
-  // Counts the number of mark-compact collections. This is used for marking
-  // descriptor arrays. See NumberOfMarkedDescriptors. Only lower two bits are
-  // used, so it is okay if this counter overflows and wraps around.
+  // Counts the number of major mark-compact collections. The counter is
+  // incremented right after marking. This is used for:
+  // - marking descriptor arrays. See NumberOfMarkedDescriptors. Only the lower
+  //   two bits are used, so it is okay if this counter overflows and wraps
+  //   around.
   unsigned epoch_ = 0;
 
   friend class FullEvacuator;
