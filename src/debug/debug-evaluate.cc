@@ -266,7 +266,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(NewArray)                                 \
   V(NormalizeElements)                        \
   V(PrepareElementsForSort)                   \
-  V(TrySliceSimpleNonFastElements)            \
   V(TypedArrayGetBuffer)                      \
   /* Errors */                                \
   V(NewTypeError)                             \
