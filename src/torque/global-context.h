@@ -80,6 +80,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     return Get().force_assert_statements_;
   }
   static Ast* ast() { return &Get().ast_; }
+  static size_t FreshId() { return Get().fresh_id_++; }
 
  private:
   bool collect_language_server_data_;
@@ -89,6 +90,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   std::vector<std::unique_ptr<Declarable>> declarables_;
   std::vector<std::string> cpp_includes_;
   GlobalClassList classes_;
+  size_t fresh_id_ = 0;
 
   friend class LanguageServerData;
 };

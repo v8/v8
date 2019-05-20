@@ -154,19 +154,25 @@ const TypeAlias* Declarations::PredeclareTypeAlias(const Identifier* name,
 
 Macro* Declarations::CreateMacro(
     std::string external_name, std::string readable_name,
+    bool accessible_from_csa,
     base::Optional<std::string> external_assembler_name, Signature signature,
     bool transitioning, base::Optional<Statement*> body, bool is_user_defined) {
+  if (!accessible_from_csa) {
+    // TODO(tebbi): Switch to more predictable names to improve incremental
+    // compilation.
+    external_name += "_" + std::to_string(GlobalContext::FreshId());
+  }
   if (!external_assembler_name) {
     external_assembler_name = CurrentNamespace()->ExternalName();
   }
   return RegisterDeclarable(std::unique_ptr<Macro>(
       new Macro(std::move(external_name), std::move(readable_name),
                 std::move(*external_assembler_name), std::move(signature),
-                transitioning, body, is_user_defined)));
+                transitioning, body, is_user_defined, accessible_from_csa)));
 }
 
 Macro* Declarations::DeclareMacro(
-    const std::string& name,
+    const std::string& name, bool accessible_from_csa,
     base::Optional<std::string> external_assembler_name,
     const Signature& signature, bool transitioning,
     base::Optional<Statement*> body, base::Optional<std::string> op,
@@ -175,8 +181,9 @@ Macro* Declarations::DeclareMacro(
     ReportError("cannot redeclare macro ", name,
                 " with identical explicit parameters");
   }
-  Macro* macro = CreateMacro(name, name, std::move(external_assembler_name),
-                             signature, transitioning, body, is_user_defined);
+  Macro* macro = CreateMacro(name, name, accessible_from_csa,
+                             std::move(external_assembler_name), signature,
+                             transitioning, body, is_user_defined);
   Declare(name, macro);
   if (op) {
     if (TryLookupMacro(*op, signature.GetExplicitTypes())) {

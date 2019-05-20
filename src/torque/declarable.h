@@ -320,15 +320,18 @@ class Macro : public Callable {
   const std::string& external_assembler_name() const {
     return external_assembler_name_;
   }
+  bool IsAccessibleFromCSA() const { return accessible_from_csa_; }
 
  protected:
   Macro(Declarable::Kind kind, std::string external_name,
         std::string readable_name, std::string external_assembler_name,
         const Signature& signature, bool transitioning,
-        base::Optional<Statement*> body, bool is_user_defined)
+        base::Optional<Statement*> body, bool is_user_defined,
+        bool accessible_from_csa)
       : Callable(kind, std::move(external_name), std::move(readable_name),
                  signature, transitioning, body),
-        external_assembler_name_(std::move(external_assembler_name)) {
+        external_assembler_name_(std::move(external_assembler_name)),
+        accessible_from_csa_(accessible_from_csa) {
     SetIsUserDefined(is_user_defined);
     if (signature.parameter_types.var_args) {
       ReportError("Varargs are not supported for macros.");
@@ -340,12 +343,13 @@ class Macro : public Callable {
   Macro(std::string external_name, std::string readable_name,
         std::string external_assembler_name, const Signature& signature,
         bool transitioning, base::Optional<Statement*> body,
-        bool is_user_defined)
+        bool is_user_defined, bool accessible_from_csa)
       : Macro(Declarable::kMacro, std::move(external_name),
               std::move(readable_name), external_assembler_name, signature,
-              transitioning, body, is_user_defined) {}
+              transitioning, body, is_user_defined, accessible_from_csa) {}
 
   std::string external_assembler_name_;
+  bool accessible_from_csa_;
 };
 
 class Method : public Macro {
@@ -366,7 +370,7 @@ class Method : public Macro {
          const Signature& signature, bool transitioning, Statement* body)
       : Macro(Declarable::kMethod, std::move(external_name),
               std::move(readable_name), std::move(external_assembler_name),
-              signature, transitioning, body, true),
+              signature, transitioning, body, true, false),
         aggregate_type_(aggregate_type) {}
   AggregateType* aggregate_type_;
 };

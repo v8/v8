@@ -393,8 +393,9 @@ void ClassType::GenerateAccessors() {
     Statement* load_body =
         MakeNode<ReturnStatement>(MakeNode<FieldAccessExpression>(
             parameter, MakeNode<Identifier>(field.name_and_type.name)));
-    Declarations::DeclareMacro(load_macro_name, base::nullopt, load_signature,
-                               false, load_body, base::nullopt, false);
+    Declarations::DeclareMacro(load_macro_name, true, base::nullopt,
+                               load_signature, false, load_body, base::nullopt,
+                               false);
 
     // Store accessor
     IdentifierExpression* value = MakeNode<IdentifierExpression>(
@@ -413,8 +414,9 @@ void ClassType::GenerateAccessors() {
             MakeNode<FieldAccessExpression>(
                 parameter, MakeNode<Identifier>(field.name_and_type.name)),
             value));
-    Declarations::DeclareMacro(store_macro_name, base::nullopt, store_signature,
-                               false, store_body, base::nullopt, false);
+    Declarations::DeclareMacro(store_macro_name, true, base::nullopt,
+                               store_signature, false, store_body,
+                               base::nullopt, false);
   }
 }
 

@@ -801,10 +801,12 @@ struct TorqueMacroDeclaration : MacroDeclaration {
   TorqueMacroDeclaration(SourcePosition pos, bool transitioning,
                          std::string name, base::Optional<std::string> op,
                          ParameterList parameters, TypeExpression* return_type,
-                         const LabelAndTypesVector& labels)
+                         const LabelAndTypesVector& labels, bool export_to_csa)
       : MacroDeclaration(kKind, pos, transitioning, std::move(name),
                          std::move(op), std::move(parameters), return_type,
-                         labels) {}
+                         labels),
+        export_to_csa(export_to_csa) {}
+  bool export_to_csa;
 };
 
 struct BuiltinDeclaration : CallableNode {

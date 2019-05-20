@@ -78,13 +78,13 @@ class Declarations {
                                               TypeDeclaration* type,
                                               bool redeclaration);
   static Macro* CreateMacro(std::string external_name,
-                            std::string readable_name,
+                            std::string readable_name, bool accessible_from_csa,
                             base::Optional<std::string> external_assembler_name,
                             Signature signature, bool transitioning,
                             base::Optional<Statement*> body,
                             bool is_user_defined);
   static Macro* DeclareMacro(
-      const std::string& name,
+      const std::string& name, bool accessible_from_csa,
       base::Optional<std::string> external_assembler_name,
       const Signature& signature, bool transitioning,
       base::Optional<Statement*> body, base::Optional<std::string> op = {},

@@ -491,7 +491,8 @@ base::Optional<ParseResult> MakeIntrinsicDeclaration(
   CallableNode* callable = nullptr;
   if (body) {
     callable = MakeNode<TorqueMacroDeclaration>(
-        false, name, base::Optional<std::string>{}, args, return_type, labels);
+        false, name, base::Optional<std::string>{}, args, return_type, labels,
+        false);
   } else {
     callable = MakeNode<IntrinsicDeclaration>(name, args, return_type);
   }
@@ -506,6 +507,7 @@ base::Optional<ParseResult> MakeIntrinsicDeclaration(
 
 base::Optional<ParseResult> MakeTorqueMacroDeclaration(
     ParseResultIterator* child_results) {
+  auto export_to_csa = child_results->NextAs<bool>();
   auto transitioning = child_results->NextAs<bool>();
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
   auto name = child_results->NextAs<std::string>();
@@ -520,13 +522,15 @@ base::Optional<ParseResult> MakeTorqueMacroDeclaration(
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   auto body = child_results->NextAs<base::Optional<Statement*>>();
-  MacroDeclaration* macro = MakeNode<TorqueMacroDeclaration>(
-      transitioning, name, operator_name, args, return_type, labels);
+  MacroDeclaration* macro =
+      MakeNode<TorqueMacroDeclaration>(transitioning, name, operator_name, args,
+                                       return_type, labels, export_to_csa);
   Declaration* result;
   if (generic_parameters.empty()) {
     if (!body) ReportError("A non-generic declaration needs a body.");
     result = MakeNode<StandardDeclaration>(macro, *body);
   } else {
+    if (export_to_csa) ReportError("Cannot export generics to CSA.");
     result = MakeNode<GenericDeclaration>(macro, generic_parameters, body);
   }
   return ParseResult{result};
@@ -641,7 +645,7 @@ base::Optional<ParseResult> MakeMethodDeclaration(
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   auto body = child_results->NextAs<Statement*>();
   MacroDeclaration* macro = MakeNode<TorqueMacroDeclaration>(
-      transitioning, name, operator_name, args, return_type, labels);
+      transitioning, name, operator_name, args, return_type, labels, false);
   Declaration* result = MakeNode<StandardDeclaration>(macro, body);
   return ParseResult{result};
 }
@@ -1880,7 +1884,7 @@ struct TorqueGrammar : Grammar {
           {Token("extern"), CheckIf(Token("transitioning")), Token("runtime"),
            &identifier, &typeListMaybeVarArgs, &optionalReturnType, Token(";")},
           AsSingletonVector<Declaration*, MakeExternalRuntime>()),
-      Rule({CheckIf(Token("transitioning")),
+      Rule({CheckIf(Token("@export")), CheckIf(Token("transitioning")),
             Optional<std::string>(
                 Sequence({Token("operator"), &externalString})),
             Token("macro"), &identifier,

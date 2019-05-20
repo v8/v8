@@ -163,7 +163,7 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl,
 void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl,
                                const Signature& signature,
                                base::Optional<Statement*> body) {
-  Declarations::DeclareMacro(decl->name, decl->external_assembler_name,
+  Declarations::DeclareMacro(decl->name, true, decl->external_assembler_name,
                              signature, decl->transitioning, body, decl->op);
 }
 
@@ -177,9 +177,9 @@ void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl,
 void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
                                const Signature& signature,
                                base::Optional<Statement*> body) {
-  Macro* macro =
-      Declarations::DeclareMacro(decl->name, base::nullopt, signature,
-                                 decl->transitioning, body, decl->op);
+  Macro* macro = Declarations::DeclareMacro(
+      decl->name, decl->export_to_csa, base::nullopt, signature,
+      decl->transitioning, body, decl->op);
   // TODO(szuend): Set identifier_position to decl->name->pos once all callable
   // names are changed from std::string to Identifier*.
   macro->SetPosition(decl->pos);
@@ -369,8 +369,8 @@ Callable* DeclarationVisitor::Specialize(
   Callable* callable;
   if (MacroDeclaration::DynamicCast(declaration) != nullptr) {
     callable = Declarations::CreateMacro(
-        generated_name, readable_name.str(), base::nullopt, type_signature,
-        declaration->transitioning, *body, true);
+        generated_name, readable_name.str(), false, base::nullopt,
+        type_signature, declaration->transitioning, *body, true);
   } else if (IntrinsicDeclaration::DynamicCast(declaration) != nullptr) {
     callable = Declarations::CreateIntrinsic(declaration->name, type_signature);
   } else {

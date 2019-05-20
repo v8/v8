@@ -374,6 +374,7 @@ namespace typed_array_createtypedarray {
     }
   }
 
+  @export
   transitioning macro TypedArraySpeciesCreateByLength(implicit context:
                                                           Context)(
       methodName: constexpr string, exemplar: JSTypedArray,

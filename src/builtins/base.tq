@@ -2725,8 +2725,6 @@ extern macro IsJSArrayMap(Map): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsJSValue(HeapObject): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
-extern macro IsFastJSArrayWithNoCustomIteration(implicit context: Context)(
-    Object): bool;
 extern macro Typeof(Object): Object;
 
 // Return true iff number is NaN.
@@ -2815,6 +2813,7 @@ struct KeyValuePair {
 
 // Macro definitions for compatibility that expose functionality to the CSA
 // using "legacy" APIs. In Torque code, these should not be used.
+@export
 macro IsFastJSArray(o: Object, context: Context): bool {
   try {
     // Long-term, it's likely not a good idea to have this slow-path test here,
@@ -2828,16 +2827,18 @@ macro IsFastJSArray(o: Object, context: Context): bool {
   return Is<FastJSArray>(o);
 }
 
-macro BranchIfFastJSArray(o: Object, context: Context): never
-    labels True, False {
+@export
+macro BranchIfFastJSArray(o: Object, context: Context): never labels True,
+    False {
   // Long-term, it's likely not a good idea to have this slow-path test here,
   // since it fundamentally breaks the type system.
   GotoIfForceSlowPath() otherwise False;
   BranchIf<FastJSArray>(o) otherwise True, False;
 }
 
-macro BranchIfFastJSArrayForRead(o: Object, context: Context): never
-    labels True, False {
+@export
+macro BranchIfFastJSArrayForRead(o: Object, context: Context):
+    never labels True, False {
   // Long-term, it's likely not a good idea to have this slow-path test here,
   // since it fundamentally breaks the type system.
   GotoIfForceSlowPath() otherwise False;
@@ -2857,6 +2858,7 @@ macro BranchIfFastJSArrayForCopy(o: Object, context: Context): never
   BranchIf<FastJSArrayForCopy>(o) otherwise True, False;
 }
 
+@export
 macro IsFastJSArrayWithNoCustomIteration(context: Context, o: Object): bool {
   return Is<FastJSArrayWithNoCustomIteration>(o);
 }
@@ -2914,6 +2916,7 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
   return Undefined;
 }
 
+@export
 transitioning macro ToStringImpl(context: Context, o: Object): String {
   let result: Object = o;
   while (true) {

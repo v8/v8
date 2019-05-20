@@ -50,6 +50,7 @@ def preprocess(input):
   input = re.sub(r'(\n\s*\S[^\n]*\s)otherwise',
       r'\1_OtheSaLi', input)
   input = re.sub(r'@if\(', r'@iF(', input)
+  input = re.sub(r'@export', r'@eXpOrT', input)
 
   # Special handing of '%' for intrinsics, turn the percent
   # into a unicode character so that it gets treated as part of the
@@ -85,6 +86,8 @@ def postprocess(output):
   output = re.sub(r'_OtheSaLi',
       r"otherwise", output)
   output = re.sub(r'@iF\(', r'@if(', output)
+  output = re.sub(r'@eXpOrT',
+      r"@export", output)
 
   while True:
     old = output
