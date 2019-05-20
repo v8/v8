@@ -2002,7 +2002,7 @@ Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
 Handle<Map> Map::CopyForPreventExtensions(
     Isolate* isolate, Handle<Map> map, PropertyAttributes attrs_to_add,
     Handle<Symbol> transition_marker, const char* reason,
-    bool support_holey_frozen_or_sealed_elements_kind) {
+    bool old_map_is_dictionary_elements_kind) {
   int num_descriptors = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> new_desc = DescriptorArray::CopyUpToAddAttributes(
       isolate, handle(map->instance_descriptors(), isolate), num_descriptors,
@@ -2020,7 +2020,8 @@ Handle<Map> Map::CopyForPreventExtensions(
     ElementsKind new_kind = IsStringWrapperElementsKind(map->elements_kind())
                                 ? SLOW_STRING_WRAPPER_ELEMENTS
                                 : DICTIONARY_ELEMENTS;
-    if (FLAG_enable_sealed_frozen_elements_kind) {
+    if (FLAG_enable_sealed_frozen_elements_kind &&
+        !old_map_is_dictionary_elements_kind) {
       switch (map->elements_kind()) {
         case PACKED_ELEMENTS:
           if (attrs_to_add == SEALED) {
@@ -2035,9 +2036,6 @@ Handle<Map> Map::CopyForPreventExtensions(
           }
           break;
         case HOLEY_ELEMENTS:
-          if (!support_holey_frozen_or_sealed_elements_kind) {
-            break;
-          }
           if (attrs_to_add == SEALED) {
             new_kind = HOLEY_SEALED_ELEMENTS;
           } else if (attrs_to_add == FROZEN) {
@@ -2045,9 +2043,6 @@ Handle<Map> Map::CopyForPreventExtensions(
           }
           break;
         case HOLEY_SEALED_ELEMENTS:
-          if (!support_holey_frozen_or_sealed_elements_kind) {
-            break;
-          }
           if (attrs_to_add == FROZEN) {
             new_kind = HOLEY_FROZEN_ELEMENTS;
           }

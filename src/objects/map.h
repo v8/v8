@@ -728,7 +728,7 @@ class Map : public HeapObject {
   V8_EXPORT_PRIVATE static Handle<Map> CopyForPreventExtensions(
       Isolate* isolate, Handle<Map> map, PropertyAttributes attrs_to_add,
       Handle<Symbol> transition_marker, const char* reason,
-      bool support_holey_frozen_or_sealed_elements_kind = true);
+      bool old_map_is_dictionary_elements_kind = false);
 
   // Maximal number of fast properties. Used to restrict the number of map
   // transitions to avoid an explosion in the number of maps for objects used as

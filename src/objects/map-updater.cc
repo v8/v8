@@ -799,7 +799,9 @@ MapUpdater::State MapUpdater::ConstructNewMapWithIntegrityLevelTransition() {
   result_map_ = Map::CopyForPreventExtensions(
       isolate_, target_map_, integrity_level_, integrity_level_symbol_,
       "CopyForPreventExtensions",
-      old_map_->elements_kind() != DICTIONARY_ELEMENTS);
+      old_map_->elements_kind() == DICTIONARY_ELEMENTS);
+  DCHECK_IMPLIES(old_map_->elements_kind() == DICTIONARY_ELEMENTS,
+                 result_map_->elements_kind() == DICTIONARY_ELEMENTS);
 
   state_ = kEnd;
   return state_;
