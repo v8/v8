@@ -206,17 +206,6 @@ Node* CreateJavaScriptBuiltinContinuationFrameState(
       shared.object());
 }
 
-Node* CreateGenericLazyDeoptContinuationFrameState(
-    JSGraph* graph, const SharedFunctionInfoRef& shared, Node* target,
-    Node* context, Node* receiver, Node* outer_frame_state) {
-  Node* stack_parameters[]{receiver};
-  const int stack_parameter_count = arraysize(stack_parameters);
-  return CreateJavaScriptBuiltinContinuationFrameState(
-      graph, shared, Builtins::kGenericLazyDeoptContinuation, target, context,
-      stack_parameters, stack_parameter_count, outer_frame_state,
-      ContinuationFrameStateMode::LAZY);
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

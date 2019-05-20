@@ -2738,7 +2738,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   int const argc = static_cast<int>(p.arity()) - 2;
-  Node* target = NodeProperties::GetValueInput(node, 0);
   Node* global_proxy =
       jsgraph()->Constant(native_context().global_proxy_object());
   Node* receiver = (p.convert_mode() == ConvertReceiverMode::kNullOrUndefined)
@@ -2747,8 +2746,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Node* holder;
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
 
   // See if we can optimize this API call to {shared}.
   Handle<FunctionTemplateInfo> function_template_info(
@@ -2887,10 +2884,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   ApiFunction api_function(v8::ToCData<Address>(call_handler_info->callback()));
   ExternalReference function_reference = ExternalReference::Create(
       &api_function, ExternalReference::DIRECT_API_CALL);
-
-  Node* continuation_frame_state = CreateGenericLazyDeoptContinuationFrameState(
-      jsgraph(), shared, target, context, receiver, frame_state);
-
   node->InsertInput(graph()->zone(), 0,
                     jsgraph()->HeapConstant(call_api_callback.code()));
   node->ReplaceInput(1, jsgraph()->ExternalConstant(function_reference));
@@ -2898,7 +2891,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(data));
   node->InsertInput(graph()->zone(), 4, holder);
   node->ReplaceInput(5, receiver);       // Update receiver input.
-  node->ReplaceInput(7 + argc, continuation_frame_state);
   node->ReplaceInput(8 + argc, effect);  // Update effect input.
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);
@@ -5948,8 +5940,8 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
   Node* const parameters[] = {jsgraph()->TheHoleConstant()};
   int const num_parameters = static_cast<int>(arraysize(parameters));
   frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), shared, Builtins::kGenericLazyDeoptContinuation, target,
-      context, parameters, num_parameters, frame_state,
+      jsgraph(), shared, Builtins::kGenericConstructorLazyDeoptContinuation,
+      target, context, parameters, num_parameters, frame_state,
       ContinuationFrameStateMode::LAZY);
 
   Node* result =
@@ -6944,8 +6936,9 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   int stack_parameter_count = arraysize(stack_parameters);
   Node* continuation_frame_state =
       CreateJavaScriptBuiltinContinuationFrameState(
-          jsgraph(), shared_info, Builtins::kGenericLazyDeoptContinuation,
-          target, context, stack_parameters, stack_parameter_count, frame_state,
+          jsgraph(), shared_info,
+          Builtins::kGenericConstructorLazyDeoptContinuation, target, context,
+          stack_parameters, stack_parameter_count, frame_state,
           ContinuationFrameStateMode::LAZY);
 
   // Convert the {value} to a Number.

@@ -738,7 +738,8 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   }
 }
 
-TF_BUILTIN(GenericLazyDeoptContinuation, ConstructorBuiltinsAssembler) {
+TF_BUILTIN(GenericConstructorLazyDeoptContinuation,
+           ConstructorBuiltinsAssembler) {
   Node* result = Parameter(Descriptor::kResult);
   Return(result);
 }

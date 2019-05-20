@@ -821,8 +821,7 @@ class FrameArrayBuilder {
     // internal call sites in the stack trace for debugging purposes.
     if (!FLAG_builtins_in_stack_traces &&
         !function->shared()->IsUserJavaScript()) {
-      return function->shared()->native() ||
-             function->shared()->IsApiFunction();
+      return function->shared()->native();
     }
     return true;
   }
