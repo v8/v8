@@ -12,7 +12,7 @@
 #include "src/frames-inl.h"
 #include "src/objects.h"
 #include "src/objects/js-array-inl.h"
-#include "src/property-descriptor.h"
+#include "src/objects/property-descriptor.h"
 #include "src/simulator.h"
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"

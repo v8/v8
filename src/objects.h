@@ -18,14 +18,14 @@
 #include "src/base/logging.h"
 #include "src/checks.h"
 #include "src/constants-arch.h"
-#include "src/elements-kind.h"
-#include "src/field-index.h"
 #include "src/flags.h"
 #include "src/message-template.h"
 #include "src/objects-definitions.h"
+#include "src/objects/elements-kind.h"
+#include "src/objects/field-index.h"
 #include "src/objects/object-list-macros.h"
+#include "src/objects/property-details.h"
 #include "src/objects/tagged-impl.h"
-#include "src/property-details.h"
 #include "src/utils.h"
 
 // Has to be the last include (doesn't have include guards):

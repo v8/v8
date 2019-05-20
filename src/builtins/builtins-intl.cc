@@ -14,8 +14,8 @@
 #include "src/builtins/builtins.h"
 #include "src/counters.h"
 #include "src/date/date.h"
-#include "src/elements.h"
 #include "src/objects-inl.h"
+#include "src/objects/elements.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-break-iterator-inl.h"
@@ -28,8 +28,8 @@
 #include "src/objects/js-relative-time-format-inl.h"
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
+#include "src/objects/property-descriptor.h"
 #include "src/objects/smi.h"
-#include "src/property-descriptor.h"
 
 #include "unicode/brkiter.h"
 

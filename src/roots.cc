@@ -4,8 +4,8 @@
 
 #include "src/roots.h"
 
-#include "src/elements-kind.h"
 #include "src/objects-inl.h"
+#include "src/objects/elements-kind.h"
 #include "src/visitors.h"
 
 namespace v8 {

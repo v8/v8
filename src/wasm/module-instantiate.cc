@@ -7,7 +7,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/counters.h"
 #include "src/numbers/conversions-inl.h"
-#include "src/property-descriptor.h"
+#include "src/objects/property-descriptor.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils.h"
 #include "src/wasm/module-compiler.h"

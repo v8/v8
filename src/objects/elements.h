@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_ELEMENTS_H_
-#define V8_ELEMENTS_H_
+#ifndef V8_OBJECTS_ELEMENTS_H_
+#define V8_OBJECTS_ELEMENTS_H_
 
-#include "src/elements-kind.h"
 #include "src/keys.h"
 #include "src/objects.h"
+#include "src/objects/elements-kind.h"
 
 namespace v8 {
 namespace internal {
@@ -18,7 +18,7 @@ class JSTypedArray;
 // ElementsKinds.
 class ElementsAccessor {
  public:
-  explicit ElementsAccessor(const char* name) : name_(name) { }
+  explicit ElementsAccessor(const char* name) : name_(name) {}
   virtual ~ElementsAccessor() = default;
 
   const char* name() const { return name_; }
@@ -67,7 +67,6 @@ class ElementsAccessor {
   // have non-deletable elements can only be shrunk to the size of highest
   // element that is non-deletable.
   virtual void SetLength(Handle<JSArray> holder, uint32_t new_length) = 0;
-
 
   // If kCopyToEnd is specified as the copy_size to CopyElements, it copies all
   // of elements from source after source_start to the destination array.
@@ -245,4 +244,4 @@ void CopyTypedArrayElementsSlice(Address raw_source, Address raw_destination,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ELEMENTS_H_
+#endif  // V8_OBJECTS_ELEMENTS_H_

@@ -4,7 +4,6 @@
 
 #ifdef V8_INTL_SUPPORT
 
-#include "src/lookup.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-break-iterator.h"
@@ -15,6 +14,7 @@
 #include "src/objects/js-plural-rules.h"
 #include "src/objects/js-relative-time-format.h"
 #include "src/objects/js-segmenter.h"
+#include "src/objects/lookup.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

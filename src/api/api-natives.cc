@@ -6,10 +6,10 @@
 
 #include "src/api/api-inl.h"
 #include "src/isolate-inl.h"
-#include "src/lookup.h"
 #include "src/message-template.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/lookup.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/templates.h"
 

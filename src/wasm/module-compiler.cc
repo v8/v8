@@ -18,7 +18,7 @@
 #include "src/counters.h"
 #include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
 #include "src/identity-map.h"
-#include "src/property-descriptor.h"
+#include "src/objects/property-descriptor.h"
 #include "src/task-utils.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"

@@ -9,8 +9,8 @@
 
 #include "src/allocation.h"
 #include "src/base/platform/time.h"
-#include "src/elements-kind.h"
 #include "src/globals.h"
+#include "src/objects/elements-kind.h"
 #include "src/unicode.h"
 #include "src/zone/zone.h"
 

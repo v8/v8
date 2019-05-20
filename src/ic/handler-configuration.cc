@@ -8,7 +8,7 @@
 #include "src/ic/handler-configuration-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/maybe-object.h"
-#include "src/transitions.h"
+#include "src/objects/transitions.h"
 
 namespace v8 {
 namespace internal {

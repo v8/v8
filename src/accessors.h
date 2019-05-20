@@ -8,7 +8,7 @@
 #include "include/v8.h"
 #include "src/allocation.h"
 #include "src/globals.h"
-#include "src/property-details.h"
+#include "src/objects/property-details.h"
 
 namespace v8 {
 namespace internal {

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PROPERTY_DETAILS_H_
-#define V8_PROPERTY_DETAILS_H_
+#ifndef V8_OBJECTS_PROPERTY_DETAILS_H_
+#define V8_OBJECTS_PROPERTY_DETAILS_H_
 
 #include "include/v8.h"
 #include "src/allocation.h"
@@ -80,16 +80,9 @@ enum class PropertyConstness { kMutable = 0, kConst = 1 };
 
 class Representation {
  public:
-  enum Kind {
-    kNone,
-    kSmi,
-    kDouble,
-    kHeapObject,
-    kTagged,
-    kNumRepresentations
-  };
+  enum Kind { kNone, kSmi, kDouble, kHeapObject, kTagged, kNumRepresentations };
 
-  Representation() : kind_(kNone) { }
+  Representation() : kind_(kNone) {}
 
   static Representation None() { return Representation(kNone); }
   static Representation Tagged() { return Representation(kTagged); }
@@ -164,14 +157,13 @@ class Representation {
   }
 
  private:
-  explicit Representation(Kind k) : kind_(k) { }
+  explicit Representation(Kind k) : kind_(k) {}
 
   // Make sure kind fits in int8.
   STATIC_ASSERT(kNumRepresentations <= (1 << kBitsPerByte));
 
   int8_t kind_;
 };
-
 
 static const int kDescriptorIndexBitCount = 10;
 static const int kFirstInobjectPropertyOffsetBitCount = 7;
@@ -202,7 +194,6 @@ enum class PropertyCellConstantType {
   kSmi,
   kStableMap,
 };
-
 
 // PropertyDetails captures type and attributes for a property.
 // They are used both in property dictionaries and instance descriptors.
@@ -373,8 +364,8 @@ class PropertyDetails {
     value_ = DescriptorPointer::update(value, pointer);
   }
   PropertyDetails(int value, Representation representation) {
-    value_ = RepresentationField::update(
-        value, EncodeRepresentation(representation));
+    value_ = RepresentationField::update(value,
+                                         EncodeRepresentation(representation));
   }
   PropertyDetails(int value, PropertyConstness constness) {
     value_ = ConstnessField::update(value, constness);
@@ -408,4 +399,4 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_PROPERTY_DETAILS_H_
+#endif  // V8_OBJECTS_PROPERTY_DETAILS_H_

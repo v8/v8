@@ -11,11 +11,11 @@
 #include <memory>
 #include <vector>
 
-#include "src/elements-inl.h"
-#include "src/elements.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/elements-inl.h"
+#include "src/objects/elements.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-list-format-inl.h"

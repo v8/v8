@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PROPERTY_H_
-#define V8_PROPERTY_H_
+#ifndef V8_OBJECTS_PROPERTY_H_
+#define V8_OBJECTS_PROPERTY_H_
 
 #include <iosfwd>
 
@@ -12,7 +12,7 @@
 #include "src/maybe-handles.h"
 #include "src/objects.h"
 #include "src/objects/name.h"
-#include "src/property-details.h"
+#include "src/objects/property-details.h"
 
 namespace v8 {
 namespace internal {
@@ -72,4 +72,4 @@ class V8_EXPORT_PRIVATE Descriptor final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_PROPERTY_H_
+#endif  // V8_OBJECTS_PROPERTY_H_

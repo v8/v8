@@ -12,7 +12,6 @@
 #include "src/base/bits.h"
 #include "src/code-factory.h"
 #include "src/execution.h"
-#include "src/field-type.h"
 #include "src/frames-inl.h"
 #include "src/handles-inl.h"
 #include "src/ic/call-optimization.h"
@@ -24,6 +23,7 @@
 #include "src/numbers/conversions.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/data-handler-inl.h"
+#include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -32,7 +32,7 @@
 #ifdef V8_TRACE_FEEDBACK_UPDATES
 #include "src/ostreams.h"
 #endif  // V8_TRACE_FEEDBACK_UPDATES
-#include "src/prototype.h"
+#include "src/objects/prototype.h"
 #include "src/runtime-profiler.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"

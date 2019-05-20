@@ -16,7 +16,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/slots-inl.h"
-#include "src/transitions.h"
+#include "src/objects/transitions.h"
 
 namespace v8 {
 namespace internal {

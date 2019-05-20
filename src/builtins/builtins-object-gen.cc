@@ -12,8 +12,8 @@
 #include "src/ic/keyed-store-generic.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/property-descriptor-object.h"
+#include "src/objects/property-details.h"
 #include "src/objects/shared-function-info.h"
-#include "src/property-details.h"
 
 namespace v8 {
 namespace internal {

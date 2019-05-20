@@ -11,7 +11,7 @@
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/handles-inl.h"
-#include "src/prototype.h"
+#include "src/objects/prototype.h"
 
 namespace v8 {
 namespace internal {

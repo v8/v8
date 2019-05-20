@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TRANSITIONS_INL_H_
-#define V8_TRANSITIONS_INL_H_
+#ifndef V8_OBJECTS_TRANSITIONS_INL_H_
+#define V8_OBJECTS_TRANSITIONS_INL_H_
 
-#include "src/transitions.h"
+#include "src/objects/transitions.h"
 
 #include "src/ic/handler-configuration-inl.h"
 #include "src/objects/fixed-array-inl.h"
@@ -318,4 +318,4 @@ Handle<Map> TransitionsAccessor::ExpectedTransitionTarget() {
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_TRANSITIONS_INL_H_
+#endif  // V8_OBJECTS_TRANSITIONS_INL_H_

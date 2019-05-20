@@ -5,7 +5,7 @@
 #include "src/assembler-inl.h"
 #include "src/debug/debug-interface.h"
 #include "src/frames-inl.h"
-#include "src/property-descriptor.h"
+#include "src/objects/property-descriptor.h"
 #include "src/utils.h"
 #include "src/wasm/wasm-objects-inl.h"
 

@@ -8,7 +8,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/handles.h"
 #include "src/isolate.h"
-#include "src/prototype.h"
+#include "src/objects/prototype.h"
 
 #include "include/v8.h"
 

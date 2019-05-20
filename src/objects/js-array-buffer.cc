@@ -6,7 +6,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 
 #include "src/counters.h"
-#include "src/property-descriptor.h"
+#include "src/objects/property-descriptor.h"
 
 namespace v8 {
 namespace internal {

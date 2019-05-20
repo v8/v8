@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PROPERTY_DESCRIPTOR_H_
-#define V8_PROPERTY_DESCRIPTOR_H_
-
+#ifndef V8_OBJECTS_PROPERTY_DESCRIPTOR_H_
+#define V8_OBJECTS_PROPERTY_DESCRIPTOR_H_
 
 #include "src/handles.h"
-#include "src/property-details.h"
-
+#include "src/objects/property-details.h"
 
 namespace v8 {
 namespace internal {
@@ -133,4 +131,4 @@ class PropertyDescriptor {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_PROPERTY_DESCRIPTOR_H_
+#endif  // V8_OBJECTS_PROPERTY_DESCRIPTOR_H_

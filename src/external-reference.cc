@@ -12,9 +12,9 @@
 #include "src/date/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
-#include "src/elements.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/heap.h"
+#include "src/objects/elements.h"
 #include "src/objects/ordered-hash-table.h"
 // For IncrementalMarking::RecordWriteFromCode. TODO(jkummerow): Drop.
 #include "src/heap/heap-inl.h"

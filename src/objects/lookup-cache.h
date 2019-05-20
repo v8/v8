@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LOOKUP_CACHE_H_
-#define V8_LOOKUP_CACHE_H_
+#ifndef V8_OBJECTS_LOOKUP_CACHE_H_
+#define V8_OBJECTS_LOOKUP_CACHE_H_
 
 #include "src/objects.h"
 #include "src/objects/map.h"
@@ -57,4 +57,4 @@ class DescriptorLookupCache {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_LOOKUP_CACHE_H_
+#endif  // V8_OBJECTS_LOOKUP_CACHE_H_

@@ -9,11 +9,11 @@
 
 #include "src/compilation-cache.h"
 #include "src/execution.h"
-#include "src/field-type.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/objects-inl.h"
-#include "src/transitions-inl.h"
+#include "src/objects/field-type.h"
+#include "src/objects/transitions-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-transitions.h"
 

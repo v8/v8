@@ -10,9 +10,9 @@
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/types.h"
 #include "src/feedback-vector.h"
-#include "src/field-index.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
+#include "src/objects/field-index.h"
 #include "src/objects/map.h"
 #include "src/zone/zone-containers.h"
 

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LAYOUT_DESCRIPTOR_INL_H_
-#define V8_LAYOUT_DESCRIPTOR_INL_H_
+#ifndef V8_OBJECTS_LAYOUT_DESCRIPTOR_INL_H_
+#define V8_OBJECTS_LAYOUT_DESCRIPTOR_INL_H_
 
-#include "src/layout-descriptor.h"
+#include "src/objects/layout-descriptor.h"
 
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
@@ -41,7 +41,6 @@ Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
          result->DataSize());
   return result;
 }
-
 
 bool LayoutDescriptor::InobjectUnboxedField(int inobject_properties,
                                             PropertyDetails details) {
@@ -122,7 +121,6 @@ bool LayoutDescriptor::IsTagged(int field_index) {
   }
 }
 
-
 bool LayoutDescriptor::IsFastPointerLayout() {
   return *this == FastPointerLayout();
 }
@@ -132,7 +130,6 @@ bool LayoutDescriptor::IsFastPointerLayout(Object layout_descriptor) {
 }
 
 bool LayoutDescriptor::IsSlowLayout() { return !IsSmi(); }
-
 
 int LayoutDescriptor::capacity() {
   return IsSlowLayout() ? (length() * kBitsPerByte) : kBitsInSmiLayout;
@@ -238,7 +235,6 @@ LayoutDescriptorHelper::LayoutDescriptorHelper(Map map)
   all_fields_tagged_ = false;
 }
 
-
 bool LayoutDescriptorHelper::IsTagged(int offset_in_bytes) {
   DCHECK(IsAligned(offset_in_bytes, kTaggedSize));
   if (all_fields_tagged_) return true;
@@ -254,4 +250,4 @@ bool LayoutDescriptorHelper::IsTagged(int offset_in_bytes) {
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_LAYOUT_DESCRIPTOR_INL_H_
+#endif  // V8_OBJECTS_LAYOUT_DESCRIPTOR_INL_H_

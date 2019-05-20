@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/property-descriptor.h"
+#include "src/objects/property-descriptor.h"
 
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
-#include "src/lookup.h"
 #include "src/objects-inl.h"
+#include "src/objects/lookup.h"
 #include "src/objects/property-descriptor-object-inl.h"
 
 namespace v8 {
@@ -35,7 +35,6 @@ bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
   }
   return true;
 }
-
 
 // Helper function for ToPropertyDescriptor. Handles the case of "simple"
 // objects: nothing on the prototype chain, just own fast data properties.
@@ -120,7 +119,6 @@ void CreateDataProperty(Handle<JSObject> object, Handle<String> name,
 
 }  // namespace
 
-
 // ES6 6.2.4.4 "FromPropertyDescriptor"
 Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
   DCHECK(!(PropertyDescriptor::IsAccessorDescriptor(this) &&
@@ -180,7 +178,6 @@ Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
   }
   return result;
 }
-
 
 // ES6 6.2.4.5
 // Returns false in case of exception.
@@ -297,7 +294,6 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // 23. Return desc.
   return true;
 }
-
 
 // ES6 6.2.4.6
 // static

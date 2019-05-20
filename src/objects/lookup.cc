@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/lookup.h"
+#include "src/objects/lookup.h"
 
 #include "src/counters.h"
 #include "src/deoptimizer.h"
-#include "src/elements.h"
-#include "src/field-type.h"
 #include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
+#include "src/objects/elements.h"
+#include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/struct-inl.h"
@@ -234,7 +234,6 @@ Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
   }
   return Handle<JSReceiver>::cast(root);
 }
-
 
 Handle<Map> LookupIterator::GetReceiverMap() const {
   if (receiver_->IsNumber()) return factory()->heap_number_map();
@@ -503,7 +502,6 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   ReloadPropertyInformation<false>();
 }
 
-
 void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
                                              PropertyAttributes attributes) {
   DCHECK(state_ == DATA || state_ == ACCESSOR);
@@ -706,7 +704,6 @@ void LookupIterator::ApplyTransitionToDataProperty(
   }
 }
 
-
 void LookupIterator::Delete() {
   Handle<JSReceiver> holder = Handle<JSReceiver>::cast(holder_);
   if (IsElement()) {
@@ -805,7 +802,6 @@ void LookupIterator::TransitionToAccessorProperty(
 #endif
 }
 
-
 void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
                                               PropertyAttributes attributes) {
   Handle<JSObject> receiver = GetStoreTarget<JSObject>();
@@ -879,7 +875,6 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   }
   return false;
 }
-
 
 Handle<Object> LookupIterator::FetchValue() const {
   Object result;
@@ -984,7 +979,6 @@ Handle<FieldType> LookupIterator::GetFieldType() const {
       isolate_);
 }
 
-
 Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
   DCHECK(!IsElement());
   Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
@@ -992,12 +986,10 @@ Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
                 isolate_);
 }
 
-
 Handle<Object> LookupIterator::GetAccessors() const {
   DCHECK_EQ(ACCESSOR, state_);
   return FetchValue();
 }
-
 
 Handle<Object> LookupIterator::GetDataValue() const {
   DCHECK_EQ(DATA, state_);

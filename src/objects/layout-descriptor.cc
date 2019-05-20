@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/layout-descriptor.h"
+#include "src/objects/layout-descriptor.h"
 
 #include <sstream>
 
@@ -89,7 +89,6 @@ Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
   return handle(layout_descriptor, isolate);
 }
 
-
 Handle<LayoutDescriptor> LayoutDescriptor::EnsureCapacity(
     Isolate* isolate, Handle<LayoutDescriptor> layout_descriptor,
     int new_capacity) {
@@ -113,7 +112,6 @@ Handle<LayoutDescriptor> LayoutDescriptor::EnsureCapacity(
     return new_layout_descriptor;
   }
 }
-
 
 bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
                                 int* out_sequence_length) {
@@ -179,7 +177,6 @@ bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
   *out_sequence_length = Min(sequence_length, max_sequence_length);
   return is_tagged;
 }
-
 
 Handle<LayoutDescriptor> LayoutDescriptor::NewForTesting(Isolate* isolate,
                                                          int length) {

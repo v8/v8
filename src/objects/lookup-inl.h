@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LOOKUP_INL_H_
-#define V8_LOOKUP_INL_H_
+#ifndef V8_OBJECTS_LOOKUP_INL_H_
+#define V8_OBJECTS_LOOKUP_INL_H_
 
-#include "src/lookup.h"
+#include "src/objects/lookup.h"
 
 #include "src/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
-#include "src/objects/name-inl.h"
 #include "src/objects/map-inl.h"
+#include "src/objects/name-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -53,9 +53,11 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
     : LookupIterator(isolate, receiver, index,
                      GetRoot(isolate, receiver, index), configuration) {}
 
-LookupIterator LookupIterator::PropertyOrElement(
-    Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
-    Handle<JSReceiver> holder, Configuration configuration) {
+LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
+                                                 Handle<Object> receiver,
+                                                 Handle<Name> name,
+                                                 Handle<JSReceiver> holder,
+                                                 Configuration configuration) {
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
     LookupIterator it =
@@ -66,9 +68,10 @@ LookupIterator LookupIterator::PropertyOrElement(
   return LookupIterator(isolate, receiver, name, holder, configuration);
 }
 
-LookupIterator LookupIterator::PropertyOrElement(
-    Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
-    Configuration configuration) {
+LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
+                                                 Handle<Object> receiver,
+                                                 Handle<Name> name,
+                                                 Configuration configuration) {
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
     LookupIterator it = LookupIterator(isolate, receiver, index, configuration);
@@ -188,4 +191,4 @@ inline Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_LOOKUP_INL_H_
+#endif  // V8_OBJECTS_LOOKUP_INL_H_

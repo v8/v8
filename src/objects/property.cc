@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/property.h"
+#include "src/objects/property.h"
 
-#include "src/field-type.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/field-type.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/smi.h"
 #include "src/ostreams.h"

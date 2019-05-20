@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/map-updater.h"
+#include "src/objects/map-updater.h"
 
-#include "src/field-type.h"
 #include "src/handles.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
-#include "src/property-details.h"
-#include "src/transitions.h"
+#include "src/objects/field-type.h"
+#include "src/objects/property-details.h"
+#include "src/objects/transitions.h"
 
 namespace v8 {
 namespace internal {

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_FIELD_INDEX_H_
-#define V8_FIELD_INDEX_H_
+#ifndef V8_OBJECTS_FIELD_INDEX_H_
+#define V8_OBJECTS_FIELD_INDEX_H_
 
-#include "src/property-details.h"
+#include "src/objects/property-details.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -31,9 +31,7 @@ class FieldIndex final {
 
   inline int GetLoadByFieldIndex() const;
 
-  bool is_inobject() const {
-    return IsInObjectBits::decode(bit_field_);
-  }
+  bool is_inobject() const { return IsInObjectBits::decode(bit_field_); }
 
   bool is_hidden_field() const { return IsHiddenField::decode(bit_field_); }
 
@@ -133,4 +131,4 @@ class FieldIndex final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_FIELD_INDEX_H_
+#endif  // V8_OBJECTS_FIELD_INDEX_H_

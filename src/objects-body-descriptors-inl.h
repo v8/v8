@@ -18,8 +18,8 @@
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/objects/transitions.h"
 #include "src/reloc-info.h"
-#include "src/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {

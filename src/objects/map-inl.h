@@ -7,19 +7,19 @@
 
 #include "src/objects/map.h"
 
-#include "src/field-type.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/layout-descriptor-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/descriptor-array-inl.h"
+#include "src/objects/field-type.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/layout-descriptor-inl.h"
+#include "src/objects/property.h"
 #include "src/objects/prototype-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates-inl.h"
-#include "src/property.h"
-#include "src/transitions-inl.h"
+#include "src/objects/transitions-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

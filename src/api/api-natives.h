@@ -10,7 +10,7 @@
 #include "src/handles.h"
 #include "src/maybe-handles.h"
 #include "src/objects.h"
-#include "src/property-details.h"
+#include "src/objects/property-details.h"
 
 namespace v8 {
 namespace internal {

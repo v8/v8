@@ -21,7 +21,6 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/keys.h"
-#include "src/lookup-inl.h"  // TODO(jkummerow): Drop.
 #include "src/numbers/conversions.h"
 #include "src/numbers/double.h"
 #include "src/objects/bigint.h"
@@ -29,7 +28,10 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/js-proxy-inl.h"  // TODO(jkummerow): Drop.
 #include "src/objects/literal-objects.h"
+#include "src/objects/lookup-inl.h"  // TODO(jkummerow): Drop.
 #include "src/objects/oddball.h"
+#include "src/objects/property-details.h"
+#include "src/objects/property.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
@@ -37,8 +39,6 @@
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/templates.h"
-#include "src/property-details.h"
-#include "src/property.h"
 #include "src/v8memory.h"
 #include "torque-generated/class-definitions-tq-inl.h"
 

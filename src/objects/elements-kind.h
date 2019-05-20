@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_ELEMENTS_KIND_H_
-#define V8_ELEMENTS_KIND_H_
+#ifndef V8_OBJECTS_ELEMENTS_KIND_H_
+#define V8_OBJECTS_ELEMENTS_KIND_H_
 
 #include "src/base/macros.h"
 #include "src/checks.h"
@@ -148,11 +148,9 @@ inline bool IsDoubleElementsKind(ElementsKind kind) {
   return IsInRange(kind, PACKED_DOUBLE_ELEMENTS, HOLEY_DOUBLE_ELEMENTS);
 }
 
-
 inline bool IsFixedFloatElementsKind(ElementsKind kind) {
   return kind == FLOAT32_ELEMENTS || kind == FLOAT64_ELEMENTS;
 }
-
 
 inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
   return IsDoubleElementsKind(kind) || IsFixedFloatElementsKind(kind);
@@ -214,7 +212,6 @@ inline bool IsFastPackedElementsKind(ElementsKind kind) {
   return kind % 2 == 0 && kind <= PACKED_DOUBLE_ELEMENTS;
 }
 
-
 inline ElementsKind GetPackedElementsKind(ElementsKind holey_kind) {
   if (holey_kind == HOLEY_SMI_ELEMENTS) {
     return PACKED_SMI_ELEMENTS;
@@ -227,7 +224,6 @@ inline ElementsKind GetPackedElementsKind(ElementsKind holey_kind) {
   }
   return holey_kind;
 }
-
 
 inline ElementsKind GetHoleyElementsKind(ElementsKind packed_kind) {
   if (packed_kind == PACKED_SMI_ELEMENTS) {
@@ -287,17 +283,14 @@ inline ElementsKind FastSmiToObjectElementsKind(ElementsKind from_kind) {
   return (from_kind == PACKED_SMI_ELEMENTS) ? PACKED_ELEMENTS : HOLEY_ELEMENTS;
 }
 
-
 inline bool IsSimpleMapChangeTransition(ElementsKind from_kind,
                                         ElementsKind to_kind) {
   return (GetHoleyElementsKind(from_kind) == to_kind) ||
          (IsSmiElementsKind(from_kind) && IsObjectElementsKind(to_kind));
 }
 
-
 bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
                                          ElementsKind to_kind);
-
 
 inline ElementsKind GetMoreGeneralElementsKind(ElementsKind from_kind,
                                                ElementsKind to_kind) {
@@ -306,7 +299,6 @@ inline ElementsKind GetMoreGeneralElementsKind(ElementsKind from_kind,
   }
   return from_kind;
 }
-
 
 inline bool IsTransitionableFastElementsKind(ElementsKind from_kind) {
   return IsFastElementsKind(from_kind) &&
@@ -318,4 +310,4 @@ inline bool ElementsKindEqual(ElementsKind a, ElementsKind b) { return a == b; }
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ELEMENTS_KIND_H_
+#endif  // V8_OBJECTS_ELEMENTS_KIND_H_

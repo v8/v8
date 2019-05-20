@@ -6,9 +6,9 @@
 #include "src/builtins/builtins.h"
 #include "src/counters.h"
 #include "src/keys.h"
-#include "src/lookup.h"
 #include "src/objects-inl.h"
-#include "src/property-descriptor.h"
+#include "src/objects/lookup.h"
+#include "src/objects/property-descriptor.h"
 
 namespace v8 {
 namespace internal {

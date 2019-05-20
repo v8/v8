@@ -7,10 +7,10 @@
 #include "src/code-factory.h"
 #include "src/compiler.h"
 #include "src/counters.h"
-#include "src/lookup.h"
 #include "src/numbers/conversions.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/lookup.h"
 #include "src/string-builder-inl.h"
 
 namespace v8 {

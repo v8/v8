@@ -33,7 +33,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
-#include "src/property.h"
+#include "src/objects/property.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 

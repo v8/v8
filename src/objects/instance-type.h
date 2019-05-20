@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_INSTANCE_TYPE_H_
 #define V8_OBJECTS_INSTANCE_TYPE_H_
 
-#include "src/elements-kind.h"
 #include "src/objects-definitions.h"
+#include "src/objects/elements-kind.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

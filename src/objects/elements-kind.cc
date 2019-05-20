@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/elements-kind.h"
+#include "src/objects/elements-kind.h"
 
 #include "src/base/lazy-instance.h"
-#include "src/elements.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/objects/elements.h"
 
 namespace v8 {
 namespace internal {
-
 
 int ElementsKindToShiftSize(ElementsKind elements_kind) {
   switch (elements_kind) {
@@ -66,7 +65,6 @@ int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {
   }
 }
 
-
 const char* ElementsKindToString(ElementsKind kind) {
   ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
   return accessor->name();
@@ -90,8 +88,7 @@ STATIC_ASSERT(PACKED_ELEMENTS + kFastElementsKindPackedToHoley ==
               HOLEY_ELEMENTS);
 
 ElementsKind GetFastElementsKindFromSequenceIndex(int sequence_number) {
-  DCHECK(sequence_number >= 0 &&
-         sequence_number < kFastElementsKindCount);
+  DCHECK(sequence_number >= 0 && sequence_number < kFastElementsKindCount);
   return kFastElementsKindSequence[sequence_number];
 }
 
@@ -104,16 +101,14 @@ int GetSequenceIndexFromFastElementsKind(ElementsKind elements_kind) {
   UNREACHABLE();
 }
 
-
 ElementsKind GetNextTransitionElementsKind(ElementsKind kind) {
   int index = GetSequenceIndexFromFastElementsKind(kind);
   return GetFastElementsKindFromSequenceIndex(index + 1);
 }
 
-
 static inline bool IsFastTransitionTarget(ElementsKind elements_kind) {
   return IsFastElementsKind(elements_kind) ||
-      elements_kind == DICTIONARY_ELEMENTS;
+         elements_kind == DICTIONARY_ELEMENTS;
 }
 
 bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,

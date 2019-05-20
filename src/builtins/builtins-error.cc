@@ -10,7 +10,7 @@
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
-#include "src/property-descriptor.h"
+#include "src/objects/property-descriptor.h"
 
 namespace v8 {
 namespace internal {

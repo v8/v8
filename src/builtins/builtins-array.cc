@@ -8,15 +8,15 @@
 #include "src/contexts.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
-#include "src/elements-inl.h"
 #include "src/global-handles.h"
 #include "src/isolate.h"
-#include "src/lookup.h"
 #include "src/objects-inl.h"
+#include "src/objects/elements-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/lookup.h"
+#include "src/objects/prototype.h"
 #include "src/objects/smi.h"
-#include "src/prototype.h"
 
 namespace v8 {
 namespace internal {

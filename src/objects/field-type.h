@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_FIELD_TYPE_H_
-#define V8_FIELD_TYPE_H_
+#ifndef V8_OBJECTS_FIELD_TYPE_H_
+#define V8_OBJECTS_FIELD_TYPE_H_
 
 #include "src/objects.h"
 #include "src/objects/heap-object.h"
@@ -53,4 +53,4 @@ class FieldType : public Object {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_FIELD_TYPE_H_
+#endif  // V8_OBJECTS_FIELD_TYPE_H_

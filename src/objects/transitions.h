@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TRANSITIONS_H_
-#define V8_TRANSITIONS_H_
+#ifndef V8_OBJECTS_TRANSITIONS_H_
+#define V8_OBJECTS_TRANSITIONS_H_
 
 #include "src/checks.h"
-#include "src/elements-kind.h"
 #include "src/objects.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/name.h"
@@ -347,4 +347,4 @@ class TransitionArray : public WeakFixedArray {
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_TRANSITIONS_H_
+#endif  // V8_OBJECTS_TRANSITIONS_H_

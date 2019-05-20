@@ -4,11 +4,11 @@
 
 #include "src/arguments-inl.h"
 #include "src/counters.h"
-#include "src/elements.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/message-template.h"
 #include "src/objects-inl.h"
+#include "src/objects/elements.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"

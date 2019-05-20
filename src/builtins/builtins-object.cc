@@ -8,10 +8,10 @@
 #include "src/counters.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/keys.h"
-#include "src/lookup.h"
 #include "src/message-template.h"
 #include "src/objects-inl.h"
-#include "src/property-descriptor.h"
+#include "src/objects/lookup.h"
+#include "src/objects/property-descriptor.h"
 
 namespace v8 {
 namespace internal {

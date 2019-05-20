@@ -8,7 +8,7 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/property-descriptor.h"
+#include "src/objects/property-descriptor.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-interpreter.h"

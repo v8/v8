@@ -9,16 +9,16 @@
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
-#include "src/field-index-inl.h"
 #include "src/frames-inl.h"
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/field-index-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"
-#include "src/property-details.h"
-#include "src/prototype.h"
+#include "src/objects/property-details.h"
+#include "src/objects/prototype.h"
 
 namespace v8 {
 namespace internal {

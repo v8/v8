@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LOOKUP_H_
-#define V8_LOOKUP_H_
+#ifndef V8_OBJECTS_LOOKUP_H_
+#define V8_OBJECTS_LOOKUP_H_
 
 #include "src/globals.h"
 #include "src/heap/factory.h"
@@ -247,8 +247,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   inline int descriptor_number() const;
   inline int dictionary_entry() const;
 
-  static inline Configuration ComputeConfiguration(
-      Configuration configuration, Handle<Name> name);
+  static inline Configuration ComputeConfiguration(Configuration configuration,
+                                                   Handle<Name> name);
 
   static Handle<JSReceiver> GetRootForNonJSReceiver(
       Isolate* isolate, Handle<Object> receiver, uint32_t index = kMaxUInt32);
@@ -275,8 +275,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   uint32_t number_;
 };
 
-
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_LOOKUP_H_
+#endif  // V8_OBJECTS_LOOKUP_H_

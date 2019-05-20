@@ -10,16 +10,16 @@
 #include "src/v8.h"
 
 #include "src/execution.h"
-#include "src/field-type.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
+#include "src/objects/field-type.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/property.h"
 #include "src/objects/struct-inl.h"
+#include "src/objects/transitions.h"
 #include "src/ostreams.h"
-#include "src/property.h"
-#include "src/transitions.h"
 
 namespace v8 {
 namespace internal {

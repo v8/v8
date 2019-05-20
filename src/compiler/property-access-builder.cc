@@ -10,11 +10,11 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/lookup.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/lookup.h"
 
-#include "src/field-index-inl.h"
 #include "src/isolate-inl.h"
+#include "src/objects/field-index-inl.h"
 
 namespace v8 {
 namespace internal {

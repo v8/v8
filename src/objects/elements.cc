@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/elements.h"
+#include "src/objects/elements.h"
 
 #include "src/arguments.h"
 #include "src/frames.h"
@@ -66,14 +66,11 @@
 namespace v8 {
 namespace internal {
 
-
 namespace {
-
 
 static const int kPackedSizeNotKnown = -1;
 
 enum Where { AT_START, AT_END };
-
 
 // First argument in list is the accessor class, the second argument is the
 // accessor ElementsKind, and the third is the backing store class.  Use the
@@ -116,7 +113,8 @@ enum Where { AT_START, AT_END };
   V(FixedBigUint64ElementsAccessor, BIGUINT64_ELEMENTS, FixedBigUint64Array)  \
   V(FixedBigInt64ElementsAccessor, BIGINT64_ELEMENTS, FixedBigInt64Array)
 
-template<ElementsKind Kind> class ElementsKindTraits {
+template <ElementsKind Kind>
+class ElementsKindTraits {
  public:
   typedef FixedArrayBase BackingStore;
 };
@@ -155,8 +153,8 @@ void CopyObjectToObjectElements(Isolate* isolate, FixedArrayBase from_base,
   if (raw_copy_size < 0) {
     DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
-    copy_size = Min(from_base->length() - from_start,
-                    to_base->length() - to_start);
+    copy_size =
+        Min(from_base->length() - from_start, to_base->length() - to_start);
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
       int start = to_start + copy_size;
       int length = to_base->length() - start;
@@ -236,8 +234,8 @@ static void CopyDoubleToObjectElements(Isolate* isolate,
     DisallowHeapAllocation no_allocation;
     DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
-    copy_size = Min(from_base->length() - from_start,
-                    to_base->length() - to_start);
+    copy_size =
+        Min(from_base->length() - from_start, to_base->length() - to_start);
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
       // Also initialize the area that will be copied over since HeapNumber
       // allocation below can cause an incremental marking step, requiring all
@@ -284,8 +282,8 @@ static void CopyDoubleToDoubleElements(FixedArrayBase from_base,
   if (raw_copy_size < 0) {
     DCHECK(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
-    copy_size = Min(from_base->length() - from_start,
-                    to_base->length() - to_start);
+    copy_size =
+        Min(from_base->length() - from_start, to_base->length() - to_start);
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
       for (int i = to_start + copy_size; i < to_base->length(); ++i) {
         FixedDoubleArray::cast(to_base)->set_the_hole(i);
@@ -407,8 +405,8 @@ static void CopyObjectToDoubleElements(FixedArrayBase from_base,
   FixedArray from = FixedArray::cast(from_base);
   FixedDoubleArray to = FixedDoubleArray::cast(to_base);
   Object the_hole = from->GetReadOnlyRoots().the_hole_value();
-  for (uint32_t from_end = from_start + copy_size;
-       from_start < from_end; from_start++, to_start++) {
+  for (uint32_t from_end = from_start + copy_size; from_start < from_end;
+       from_start++, to_start++) {
     Object hole_or_object = from->get(from_start);
     if (hole_or_object == the_hole) {
       to->set_the_hole(to_start);
@@ -736,17 +734,13 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     return Subclass::PopImpl(receiver);
   }
 
-  static Handle<Object> PopImpl(Handle<JSArray> receiver) {
-    UNREACHABLE();
-  }
+  static Handle<Object> PopImpl(Handle<JSArray> receiver) { UNREACHABLE(); }
 
   Handle<Object> Shift(Handle<JSArray> receiver) final {
     return Subclass::ShiftImpl(receiver);
   }
 
-  static Handle<Object> ShiftImpl(Handle<JSArray> receiver) {
-    UNREACHABLE();
-  }
+  static Handle<Object> ShiftImpl(Handle<JSArray> receiver) { UNREACHABLE(); }
 
   void SetLength(Handle<JSArray> array, uint32_t length) final {
     Subclass::SetLengthImpl(array->GetIsolate(), array, length,
@@ -998,8 +992,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                     ElementsKind from_kind, Handle<FixedArrayBase> to,
                     uint32_t to_start, int copy_size) final {
     int packed_size = kPackedSizeNotKnown;
-    bool is_packed = IsFastPackedElementsKind(from_kind) &&
-        from_holder->IsJSArray();
+    bool is_packed =
+        IsFastPackedElementsKind(from_kind) && from_holder->IsJSArray();
     if (is_packed) {
       packed_size = Smi::ToInt(JSArray::cast(from_holder)->length());
       if (copy_size >= 0 && packed_size > copy_size) {
@@ -1353,9 +1347,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     DCHECK(IsFastElementsKind(kind()) || IsFrozenOrSealedElementsKind(kind()));
     uint32_t length = Subclass::GetMaxIndex(holder, backing_store);
     if (IsHoleyElementsKindForRead(kind())) {
-      return index < length &&
-                     !BackingStore::cast(backing_store)
-                          ->is_the_hole(isolate, index)
+      return index < length && !BackingStore::cast(backing_store)
+                                    ->is_the_hole(isolate, index)
                  ? index
                  : kMaxUInt32;
     } else {
@@ -1399,14 +1392,13 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessorBase);
 };
 
-
 class DictionaryElementsAccessor
     : public ElementsAccessorBase<DictionaryElementsAccessor,
-                                  ElementsKindTraits<DICTIONARY_ELEMENTS> > {
+                                  ElementsKindTraits<DICTIONARY_ELEMENTS>> {
  public:
   explicit DictionaryElementsAccessor(const char* name)
       : ElementsAccessorBase<DictionaryElementsAccessor,
-                             ElementsKindTraits<DICTIONARY_ELEMENTS> >(name) {}
+                             ElementsKindTraits<DICTIONARY_ELEMENTS>>(name) {}
 
   static uint32_t GetMaxIndex(JSObject receiver, FixedArrayBase elements) {
     // We cannot properly estimate this for dictionaries.
@@ -1899,7 +1891,6 @@ class DictionaryElementsAccessor
   }
 };
 
-
 // Super class for all fast element arrays.
 template <typename Subclass, typename KindTraits>
 class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
@@ -2160,16 +2151,16 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return Subclass::RemoveElement(receiver, AT_START);
   }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver,
-                           Arguments* args, uint32_t push_size) {
+  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+                           uint32_t push_size) {
     Handle<FixedArrayBase> backing_store(receiver->elements(),
                                          receiver->GetIsolate());
     return Subclass::AddArguments(receiver, backing_store, args, push_size,
                                   AT_END);
   }
 
-  static uint32_t UnshiftImpl(Handle<JSArray> receiver,
-                              Arguments* args, uint32_t unshift_size) {
+  static uint32_t UnshiftImpl(Handle<JSArray> receiver, Arguments* args,
+                              uint32_t unshift_size) {
     Handle<FixedArrayBase> backing_store(receiver->elements(),
                                          receiver->GetIsolate());
     return Subclass::AddArguments(receiver, backing_store, args, unshift_size,
@@ -2536,9 +2527,9 @@ class FastSmiOrObjectElementsAccessor
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-      // This function is currently only used for JSArrays with non-zero
-      // length.
-      UNREACHABLE();
+        // This function is currently only used for JSArrays with non-zero
+        // length.
+        UNREACHABLE();
       case NO_ELEMENTS:
         break;  // Nothing to do.
     }
@@ -2908,9 +2899,9 @@ class FastDoubleElementsAccessor
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-      // This function is currently only used for JSArrays with non-zero
-      // length.
-      UNREACHABLE();
+        // This function is currently only used for JSArrays with non-zero
+        // length.
+        UNREACHABLE();
     }
   }
 
@@ -2990,7 +2981,6 @@ class FastHoleyDoubleElementsAccessor
             name) {}
 };
 
-
 // Super class for all external element arrays.
 template <ElementsKind Kind, typename ctype>
 class TypedElementsAccessor
@@ -2998,8 +2988,7 @@ class TypedElementsAccessor
                                   ElementsKindTraits<Kind>> {
  public:
   explicit TypedElementsAccessor(const char* name)
-      : ElementsAccessorBase<AccessorClass,
-                             ElementsKindTraits<Kind> >(name) {}
+      : ElementsAccessorBase<AccessorClass, ElementsKindTraits<Kind>>(name) {}
 
   typedef typename ElementsKindTraits<Kind>::BackingStore BackingStore;
   typedef TypedElementsAccessor<Kind, ctype> AccessorClass;
@@ -4037,16 +4026,15 @@ class SloppyArgumentsElementsAccessor
   }
 };
 
-
 class SlowSloppyArgumentsElementsAccessor
     : public SloppyArgumentsElementsAccessor<
           SlowSloppyArgumentsElementsAccessor, DictionaryElementsAccessor,
-          ElementsKindTraits<SLOW_SLOPPY_ARGUMENTS_ELEMENTS> > {
+          ElementsKindTraits<SLOW_SLOPPY_ARGUMENTS_ELEMENTS>> {
  public:
   explicit SlowSloppyArgumentsElementsAccessor(const char* name)
       : SloppyArgumentsElementsAccessor<
             SlowSloppyArgumentsElementsAccessor, DictionaryElementsAccessor,
-            ElementsKindTraits<SLOW_SLOPPY_ARGUMENTS_ELEMENTS> >(name) {}
+            ElementsKindTraits<SLOW_SLOPPY_ARGUMENTS_ELEMENTS>>(name) {}
 
   static Handle<Object> ConvertArgumentsStoreResult(
       Isolate* isolate, Handle<SloppyArgumentsElements> elements,
@@ -4137,17 +4125,16 @@ class SlowSloppyArgumentsElementsAccessor
   }
 };
 
-
 class FastSloppyArgumentsElementsAccessor
     : public SloppyArgumentsElementsAccessor<
           FastSloppyArgumentsElementsAccessor, FastHoleyObjectElementsAccessor,
-          ElementsKindTraits<FAST_SLOPPY_ARGUMENTS_ELEMENTS> > {
+          ElementsKindTraits<FAST_SLOPPY_ARGUMENTS_ELEMENTS>> {
  public:
   explicit FastSloppyArgumentsElementsAccessor(const char* name)
       : SloppyArgumentsElementsAccessor<
             FastSloppyArgumentsElementsAccessor,
             FastHoleyObjectElementsAccessor,
-            ElementsKindTraits<FAST_SLOPPY_ARGUMENTS_ELEMENTS> >(name) {}
+            ElementsKindTraits<FAST_SLOPPY_ARGUMENTS_ELEMENTS>>(name) {}
 
   static Handle<Object> ConvertArgumentsStoreResult(
       Isolate* isolate, Handle<SloppyArgumentsElements> paramtere_map,
@@ -4474,7 +4461,6 @@ class SlowStringWrapperElementsAccessor
 
 }  // namespace
 
-
 void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t index,
                      bool allow_appending) {
   DisallowHeapAllocation no_allocation;
@@ -4513,7 +4499,6 @@ void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t index,
   }
 }
 
-
 MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
                                                      Arguments* args) {
   if (args->length() == 0) {
@@ -4551,8 +4536,8 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
 
   // Set length and elements on the array.
   int number_of_elements = args->length();
-  JSObject::EnsureCanContainElements(
-      array, args, 0, number_of_elements, ALLOW_CONVERTED_DOUBLE_ELEMENTS);
+  JSObject::EnsureCanContainElements(array, args, 0, number_of_elements,
+                                     ALLOW_CONVERTED_DOUBLE_ELEMENTS);
 
   // Allocate an appropriately typed elements array.
   ElementsKind elements_kind = array->GetElementsKind();
@@ -4665,7 +4650,6 @@ void ElementsAccessor::InitializeOncePerProcess() {
 
   elements_accessors_ = accessor_array;
 }
-
 
 void ElementsAccessor::TearDown() {
   if (elements_accessors_ == nullptr) return;
