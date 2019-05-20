@@ -7,7 +7,7 @@
 #include <cmath>
 
 #include "base/trace_event/common/trace_event_common.h"
-#include "perfetto/trace/trace_packet.pb.h"
+#include "perfetto/trace/chrome/chrome_trace_packet.pb.h"
 #include "perfetto/tracing/core/trace_packet.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -28,7 +28,7 @@ PerfettoJSONConsumer::~PerfettoJSONConsumer() { *stream_ << "]}"; }
 void PerfettoJSONConsumer::OnTraceData(
     std::vector<::perfetto::TracePacket> packets, bool has_more) {
   for (const ::perfetto::TracePacket& packet : packets) {
-    ::perfetto::protos::TracePacket proto_packet;
+    perfetto::protos::ChromeTracePacket proto_packet;
     bool success = packet.Decode(&proto_packet);
     USE(success);
     DCHECK(success);
@@ -128,7 +128,7 @@ void PerfettoJSONConsumer::AppendArgValue(
 }
 
 void PerfettoJSONConsumer::ProcessPacket(
-    const ::perfetto::protos::TracePacket& packet) {
+    const ::perfetto::protos::ChromeTracePacket& packet) {
   for (const ::perfetto::protos::ChromeTraceEvent& event :
        packet.chrome_events().trace_events()) {
     if (append_comma_) *stream_ << ",";

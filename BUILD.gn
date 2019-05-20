@@ -3676,7 +3676,7 @@ v8_component("v8_libplatform") {
     ]
     deps += [
       "third_party/perfetto:libperfetto",
-      "third_party/perfetto/protos/perfetto/trace:lite",
+      "third_party/perfetto/protos/perfetto/trace/chrome:minimal_complete_lite",
     ]
   }
 }

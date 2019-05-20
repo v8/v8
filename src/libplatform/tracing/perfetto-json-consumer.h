@@ -17,7 +17,7 @@ class TracePacket;
 
 namespace protos {
 class ChromeTraceEvent_Arg;
-class TracePacket;
+class ChromeTracePacket;
 }  // namespace protos
 }  // namespace perfetto
 
@@ -70,7 +70,7 @@ class PerfettoJSONConsumer final : public ::perfetto::Consumer {
   // Internal implementation
   void AppendJSONString(const char* str);
   void AppendArgValue(const ::perfetto::protos::ChromeTraceEvent_Arg& arg);
-  void ProcessPacket(const ::perfetto::protos::TracePacket& packet);
+  void ProcessPacket(const ::perfetto::protos::ChromeTracePacket& packet);
 
   std::ostream* stream_;
   bool append_comma_ = false;
