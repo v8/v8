@@ -6,7 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/contexts.h"
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
 #include "src/heap/factory.h"

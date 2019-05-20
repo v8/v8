@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/assembler-inl.h"
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"

@@ -4,7 +4,7 @@
 
 #include "src/profiler/profiler-listener.h"
 
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/code-inl.h"

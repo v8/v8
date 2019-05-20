@@ -12,7 +12,7 @@
 #include "src/code-comments.h"
 #include "src/code-reference.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer.h"
 #include "src/diagnostics/disasm.h"
 #include "src/ic/ic.h"
 #include "src/isolate-data.h"

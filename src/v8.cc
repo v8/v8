@@ -12,7 +12,7 @@
 #include "src/base/platform/platform.h"
 #include "src/cpu-features.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer.h"
 #include "src/frames.h"
 #include "src/init/bootstrapper.h"
 #include "src/interface-descriptors.h"

@@ -9,7 +9,7 @@
 #include "src/compiler/frame-states.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/node-properties.h"
-#include "src/deoptimizer/deoptimize-reason.h"
+#include "src/deoptimize-reason.h"
 
 namespace v8 {
 namespace internal {

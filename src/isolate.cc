@@ -31,7 +31,7 @@
 #include "src/date/date.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"

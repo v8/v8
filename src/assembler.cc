@@ -35,7 +35,7 @@
 #include "src/assembler.h"
 
 #include "src/assembler-inl.h"
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/heap-inl.h"  // For MemoryAllocator. TODO(jkummerow): Drop.
 #include "src/isolate.h"

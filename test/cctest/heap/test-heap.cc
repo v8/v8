@@ -32,7 +32,7 @@
 #include "src/assembler-inl.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/global-handles.h"
 #include "src/hash-seed-inl.h"

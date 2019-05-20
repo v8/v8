@@ -11,7 +11,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
 #include "src/compiler/write-barrier-kind.h"
-#include "src/deoptimizer/deoptimize-reason.h"
+#include "src/deoptimize-reason.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/machine-type.h"

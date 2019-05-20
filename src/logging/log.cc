@@ -11,7 +11,7 @@
 #include "src/api/api-inl.h"
 #include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer.h"
 #include "src/diagnostics/perf-jit.h"
 #include "src/global-handles.h"
 #include "src/init/bootstrapper.h"

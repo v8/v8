@@ -8,7 +8,7 @@
 #include "src/ast/ast.h"
 #include "src/base/hashmap.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate.h"
 #include "src/objects.h"

@@ -17,7 +17,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimizer.h"
 #include "src/feedback-vector.h"
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-collector.h"

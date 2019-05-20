@@ -7,7 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/compiler/frame-states.h"
-#include "src/deoptimizer/deoptimize-reason.h"
+#include "src/deoptimize-reason.h"
 #include "src/globals.h"
 #include "src/machine-type.h"
 #include "src/reloc-info.h"

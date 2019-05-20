@@ -6,8 +6,8 @@
 
 #include "src/assembler-inl.h"
 #include "src/code-reference.h"
-#include "src/deoptimizer/deoptimize-reason.h"
-#include "src/deoptimizer/deoptimizer.h"
+#include "src/deoptimize-reason.h"
+#include "src/deoptimizer.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/snapshot/snapshot.h"
