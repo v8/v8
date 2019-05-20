@@ -1257,6 +1257,7 @@ extern class FeedbackVector extends HeapObject {
   length: int32;
   invocation_count: int32;
   profiler_ticks: int32;
+  deopt_count: int32;
 }
 
 extern class FeedbackCell extends Struct {

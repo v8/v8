@@ -16,6 +16,8 @@ function foo(i, deopt = false, deoptobj = null) {
     }
 }
 
+assertEquals(0, %GetDeoptCount(foo));
+
 %PrepareFunctionForOptimization(foo);
 foo(10);
 foo(10);
@@ -23,7 +25,10 @@ foo(10);
 foo(10);
 
 assertOptimized(foo);
+assertEquals(0, %GetDeoptCount(foo));
 
 foo(10, true, { bar: function(){} });
 
 assertUnoptimized(foo);
+// Soft deopts don't count to the deopt count.
+assertEquals(0, %GetDeoptCount(foo));
