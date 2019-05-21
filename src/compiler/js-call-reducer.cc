@@ -2908,6 +2908,14 @@ Reduction JSCallReducer::ReduceCallApiFunction(
                    : Builtins::
                          kCallFunctionTemplate_CheckAccessAndCompatibleReceiver)
             : Builtins::kCallFunctionTemplate_CheckCompatibleReceiver;
+
+    // The CallFunctionTemplate builtin requires the {receiver} to be
+    // an actual JSReceiver, so make sure we do the proper conversion
+    // first if necessary.
+    receiver = holder = effect =
+        graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
+                         receiver, global_proxy, effect, control);
+
     Callable callable = Builtins::CallableFor(isolate(), builtin_name);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),
@@ -2916,6 +2924,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
                       jsgraph()->HeapConstant(callable.code()));
     node->ReplaceInput(1, jsgraph()->HeapConstant(function_template_info));
     node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(argc));
+    node->ReplaceInput(3, receiver);       // Update receiver input.
+    node->ReplaceInput(6 + argc, effect);  // Update effect input.
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     return Changed(node);
   }
