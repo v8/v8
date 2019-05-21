@@ -604,6 +604,14 @@ TEST(TestCodeAssemblerCodeComment) {
   CHECK(found_comment);
 }
 
+TEST(StaticAssert) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
+  m.StaticAssert(m.ReinterpretCast<BoolT>(m.Int32Constant(1)));
+  USE(asm_tester.GenerateCode());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

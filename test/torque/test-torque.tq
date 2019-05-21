@@ -974,4 +974,9 @@ namespace test {
 
   type FooType = Smi | Bar;
 
+  @export
+  macro TestStaticAssert() {
+    StaticAssert(1 + 2 == 3);
+  }
+
 }

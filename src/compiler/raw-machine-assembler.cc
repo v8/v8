@@ -575,6 +575,10 @@ void RawMachineAssembler::Comment(const std::string& msg) {
   AddNode(machine()->Comment(zone_buffer));
 }
 
+void RawMachineAssembler::StaticAssert(Node* value) {
+  AddNode(common()->StaticAssert(), value);
+}
+
 Node* RawMachineAssembler::CallN(CallDescriptor* call_descriptor,
                                  int input_count, Node* const* inputs) {
   DCHECK(!call_descriptor->NeedsFrameState());

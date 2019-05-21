@@ -877,6 +877,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     Comment(s.str());
   }
 
+  void StaticAssert(TNode<BoolT> value);
+
   void SetSourcePosition(const char* file, int line);
 
   void Bind(Label* label);

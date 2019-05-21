@@ -1331,6 +1331,7 @@ extern macro SelectBooleanConstant(bool): Boolean;
 extern macro Print(constexpr string);
 extern macro Print(constexpr string, Object);
 extern macro Comment(constexpr string);
+extern macro StaticAssert(bool);
 extern macro Print(Object);
 extern macro DebugBreak();
 extern transitioning macro ToInteger_Inline(Context, Object): Number;
