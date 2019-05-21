@@ -514,8 +514,8 @@ void MarkCompactCollector::CollectGarbage() {
 #ifdef VERIFY_HEAP
 void MarkCompactCollector::VerifyMarkbitsAreDirty(ReadOnlySpace* space) {
   ReadOnlyHeapIterator iterator(space);
-  for (HeapObject object = iterator.next(); !object.is_null();
-       object = iterator.next()) {
+  for (HeapObject object = iterator.Next(); !object.is_null();
+       object = iterator.Next()) {
     CHECK(non_atomic_marking_state()->IsBlack(object));
   }
 }

@@ -28,19 +28,19 @@ TEST(HeapIteratorNullPastEnd) {
 
 TEST(ReadOnlyHeapIteratorNullPastEnd) {
   ReadOnlyHeapIterator iterator(CcTest::heap()->read_only_heap());
-  while (!iterator.next().is_null()) {
+  while (!iterator.Next().is_null()) {
   }
   for (int i = 0; i < 20; i++) {
-    CHECK(iterator.next().is_null());
+    CHECK(iterator.Next().is_null());
   }
 }
 
 TEST(CombinedHeapIteratorNullPastEnd) {
   CombinedHeapIterator iterator(CcTest::heap());
-  while (!iterator.next().is_null()) {
+  while (!iterator.Next().is_null()) {
   }
   for (int i = 0; i < 20; i++) {
-    CHECK(iterator.next().is_null());
+    CHECK(iterator.Next().is_null());
   }
 }
 
@@ -57,8 +57,8 @@ TEST(ReadOnlyHeapIterator) {
   const Object sample_object = CreateWritableObject();
   ReadOnlyHeapIterator iterator(CcTest::read_only_heap());
 
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     CHECK(ReadOnlyHeap::Contains(obj));
     CHECK(!CcTest::heap()->Contains(obj));
     CHECK_NE(sample_object, obj);
@@ -88,8 +88,8 @@ TEST(CombinedHeapIterator) {
   CombinedHeapIterator iterator(CcTest::heap());
   bool seen_sample_object = false;
 
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     CHECK(IsValidHeapObject(CcTest::heap(), obj));
     if (sample_object == obj) seen_sample_object = true;
   }

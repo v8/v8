@@ -175,8 +175,8 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
   HeapObject object;
   CombinedHeapIterator iterator(heap(), HeapIterator::kFilterUnreachable);
   // Make sure that object with the given id is still reachable.
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (ids_->FindEntry(obj->address()) == id) {
       DCHECK(object.is_null());
       object = obj;
@@ -206,8 +206,8 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
   // collect all garbage first.
   heap()->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
   CombinedHeapIterator heap_iterator(heap());
-  for (HeapObject heap_obj = heap_iterator.next(); !heap_obj.is_null();
-       heap_obj = heap_iterator.next()) {
+  for (HeapObject heap_obj = heap_iterator.Next(); !heap_obj.is_null();
+       heap_obj = heap_iterator.Next()) {
     if (!heap_obj->IsJSObject() || heap_obj->IsExternal(isolate())) continue;
     v8::Local<v8::Object> v8_obj(
         Utils::ToLocal(handle(JSObject::cast(heap_obj), isolate())));

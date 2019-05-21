@@ -23,7 +23,7 @@ class V8_EXPORT_PRIVATE CombinedHeapIterator final {
                            HeapIterator::HeapObjectsFiltering::kNoFiltering)
       : heap_iterator_(heap, filtering),
         ro_heap_iterator_(heap->read_only_heap()) {}
-  HeapObject next();
+  HeapObject Next();
 
  private:
   HeapIterator heap_iterator_;

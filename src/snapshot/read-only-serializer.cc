@@ -68,8 +68,8 @@ void ReadOnlySerializer::FinalizeSerialization() {
   // Check that every object on read-only heap is reachable (and was
   // serialized).
   ReadOnlyHeapIterator iterator(isolate()->heap()->read_only_heap());
-  for (HeapObject object = iterator.next(); !object.is_null();
-       object = iterator.next()) {
+  for (HeapObject object = iterator.Next(); !object.is_null();
+       object = iterator.Next()) {
     CHECK(serialized_objects_.count(object));
   }
 #endif

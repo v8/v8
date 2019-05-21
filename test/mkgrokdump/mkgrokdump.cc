@@ -128,8 +128,8 @@ static int DumpHeapConstants(const char* argv0) {
     i::PrintF("\n# List of known V8 objects.\n");
     i::PrintF("KNOWN_OBJECTS = {\n");
     i::ReadOnlyHeapIterator ro_iterator(heap->read_only_heap());
-    for (i::HeapObject object = ro_iterator.next(); !object.is_null();
-         object = ro_iterator.next()) {
+    for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
+         object = ro_iterator.Next()) {
       // Skip read-only heap maps, they will be reported elsewhere.
       if (object->IsMap()) continue;
       DumpKnownObject(heap, i::Heap::GetSpaceName(i::RO_SPACE), object);

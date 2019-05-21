@@ -396,8 +396,8 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
   heap_->PreciseCollectAllGarbage(Heap::kNoGCFlags,
                                   GarbageCollectionReason::kHeapProfiler);
   CombinedHeapIterator iterator(heap_);
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     FindOrAddEntry(obj->address(), obj->Size());
     if (FLAG_heap_profiler_trace_objects) {
       PrintF("Update object      : %p %6d. Next address is %p\n",
@@ -648,7 +648,7 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject object) {
 int V8HeapExplorer::EstimateObjectsCount() {
   CombinedHeapIterator it(heap_, HeapIterator::kFilterUnreachable);
   int objects_count = 0;
-  while (!it.next().is_null()) ++objects_count;
+  while (!it.Next().is_null()) ++objects_count;
   return objects_count;
 }
 
@@ -1459,8 +1459,8 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 
   CombinedHeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
   // Heap iteration with filtering must be finished in any case.
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next(), progress_->ProgressStep()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next(), progress_->ProgressStep()) {
     if (interrupted) continue;
 
     size_t max_pointer = obj->Size() / kTaggedSize;

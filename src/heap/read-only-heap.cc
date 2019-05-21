@@ -142,7 +142,7 @@ ReadOnlyHeapIterator::ReadOnlyHeapIterator(ReadOnlySpace* ro_space)
       current_page_(ro_space->first_page()),
       current_addr_(current_page_->area_start()) {}
 
-HeapObject ReadOnlyHeapIterator::next() {
+HeapObject ReadOnlyHeapIterator::Next() {
   if (current_page_ == nullptr) {
     return HeapObject();
   }

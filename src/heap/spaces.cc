@@ -3423,7 +3423,7 @@ void ReadOnlySpace::ClearStringPaddingIfNeeded() {
   if (is_string_padding_cleared_) return;
 
   ReadOnlyHeapIterator iterator(this);
-  for (HeapObject o = iterator.next(); !o.is_null(); o = iterator.next()) {
+  for (HeapObject o = iterator.Next(); !o.is_null(); o = iterator.Next()) {
     if (o->IsSeqOneByteString()) {
       SeqOneByteString::cast(o)->clear_padding();
     } else if (o->IsSeqTwoByteString()) {
