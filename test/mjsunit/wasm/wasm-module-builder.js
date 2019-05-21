@@ -898,9 +898,6 @@ class WasmModuleBuilder {
   }
 
   addElementSegment(table, base, is_global, array) {
-    if (this.tables.length + this.num_imported_tables == 0) {
-      this.addTable(kWasmAnyFunc, 0);
-    }
     this.element_segments.push({table: table, base: base, is_global: is_global,
                                     array: array, is_active: true});
 

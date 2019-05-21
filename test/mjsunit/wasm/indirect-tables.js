@@ -812,6 +812,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   let i2 = (() => {
     let builder = new WasmModuleBuilder();
+    builder.addTable(kWasmAnyFunc, 4);
     builder.addImport("q", "f2", kSig_i_v);
     builder.addImport("q", "f1", kSig_i_v);
     builder.addFunction("main", kSig_i_i)
@@ -867,6 +868,7 @@ function js_div(a, b) { return (a / b) | 0; }
   let main = (() => {
     let builder = new WasmModuleBuilder();
     builder.addMemory(1, 1, false);
+    builder.addTable(kWasmAnyFunc, 4);
     builder.addImport("q", "f1", kSig_i_v);
     builder.addImport("q", "f2", kSig_i_v);
     builder.addImport("q", "f3", kSig_i_v);
