@@ -612,7 +612,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
               *factory()->mutable_heap_number_map());
         }
       }
-      object->RawFastPropertyAtPut(index, value, mode);
+      object->RawFastInobjectPropertyAtPut(index, value, mode);
     }
     // Make all MutableHeapNumbers alive.
     if (!mutable_double_buffer.is_null()) {
@@ -1141,9 +1141,9 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
 
   while (true) {
     cursor_ = std::find_if(cursor_, end_, [&bits](Char c) {
-      if (sizeof(Char) == 2) {
+      if (sizeof(Char) == 2 && V8_UNLIKELY(c > unibrow::Latin1::kMaxChar)) {
         bits |= c;
-        if (c > unibrow::Latin1::kMaxChar) return false;
+        return false;
       }
       return MayTerminateJsonString(character_json_scan_flags[c]);
     });

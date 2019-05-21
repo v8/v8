@@ -640,6 +640,9 @@ class JSObject : public JSReceiver {
   inline void RawFastPropertyAtPut(
       FieldIndex index, Object value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void RawFastInobjectPropertyAtPut(
+      FieldIndex index, Object value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void RawFastDoublePropertyAsBitsAtPut(FieldIndex index, uint64_t bits);
   inline void WriteToField(int descriptor, PropertyDetails details,
                            Object value);

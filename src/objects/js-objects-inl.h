@@ -341,12 +341,18 @@ uint64_t JSObject::RawFastDoublePropertyAsBitsAt(FieldIndex index) {
   return ReadField<uint64_t>(index.offset());
 }
 
+void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
+                                            WriteBarrierMode mode) {
+  DCHECK(index.is_inobject());
+  int offset = index.offset();
+  WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+}
+
 void JSObject::RawFastPropertyAtPut(FieldIndex index, Object value,
                                     WriteBarrierMode mode) {
   if (index.is_inobject()) {
-    int offset = index.offset();
-    WRITE_FIELD(*this, offset, value);
-    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+    RawFastInobjectPropertyAtPut(index, value, mode);
   } else {
     DCHECK_EQ(UPDATE_WRITE_BARRIER, mode);
     property_array()->set(index.outobject_array_index(), value);
