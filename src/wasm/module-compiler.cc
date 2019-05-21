@@ -148,7 +148,7 @@ class CompilationUnitQueues {
   explicit CompilationUnitQueues(int max_tasks) : queues_(max_tasks) {
     DCHECK_LT(0, max_tasks);
     for (int task_id = 0; task_id < max_tasks; ++task_id) {
-      queues_[task_id].next_steal_task_id_ = next_task_id(task_id);
+      queues_[task_id].next_steal_task_id = next_task_id(task_id);
     }
     for (auto& atomic_counter : num_units_) {
       std::atomic_init(&atomic_counter, size_t{0});
@@ -169,14 +169,14 @@ class CompilationUnitQueues {
       // so, return it, otherwise get the task id to steal from.
       int steal_task_id;
       {
-        base::MutexGuard mutex_guard(&queue->mutex_);
-        if (!queue->units_[tier].empty()) {
-          auto unit = queue->units_[tier].back();
-          queue->units_[tier].pop_back();
+        base::MutexGuard mutex_guard(&queue->mutex);
+        if (!queue->units[tier].empty()) {
+          auto unit = queue->units[tier].back();
+          queue->units[tier].pop_back();
           DecrementUnitCount(tier);
           return unit;
         }
-        steal_task_id = queue->next_steal_task_id_;
+        steal_task_id = queue->next_steal_task_id;
       }
 
       // Try to steal from all other queues. If none of this succeeds, the outer
@@ -207,18 +207,18 @@ class CompilationUnitQueues {
     }
 
     Queue* queue = &queues_[queue_to_add];
-    base::MutexGuard guard(&queue->mutex_);
+    base::MutexGuard guard(&queue->mutex);
     if (!baseline_units.empty()) {
-      queue->units_[kBaseline].insert(queue->units_[kBaseline].end(),
-                                      baseline_units.begin(),
-                                      baseline_units.end());
+      queue->units[kBaseline].insert(queue->units[kBaseline].end(),
+                                     baseline_units.begin(),
+                                     baseline_units.end());
       num_units_[kBaseline].fetch_add(baseline_units.size(),
                                       std::memory_order_relaxed);
     }
     if (!top_tier_units.empty()) {
-      queue->units_[kTopTier].insert(queue->units_[kTopTier].end(),
-                                     top_tier_units.begin(),
-                                     top_tier_units.end());
+      queue->units[kTopTier].insert(queue->units[kTopTier].end(),
+                                    top_tier_units.begin(),
+                                    top_tier_units.end());
       num_units_[kTopTier].fetch_add(top_tier_units.size(),
                                      std::memory_order_relaxed);
     }
@@ -242,12 +242,12 @@ class CompilationUnitQueues {
   static constexpr int kNumTiers = kTopTier + 1;
 
   struct Queue {
-    base::Mutex mutex_;
+    base::Mutex mutex;
 
-    // Protected by {mutex_}:
-    std::vector<WasmCompilationUnit> units_[kNumTiers];
-    int next_steal_task_id_;
-    // End of fields protected by {mutex_}.
+    // Protected by {mutex}:
+    std::vector<WasmCompilationUnit> units[kNumTiers];
+    int next_steal_task_id;
+    // End of fields protected by {mutex}.
   };
 
   std::vector<Queue> queues_;
@@ -283,8 +283,8 @@ class CompilationUnitQueues {
     base::Optional<WasmCompilationUnit> returned_unit;
     {
       Queue* steal_queue = &queues_[steal_from_task_id];
-      base::MutexGuard guard(&steal_queue->mutex_);
-      auto* steal_from_vector = &steal_queue->units_[wanted_tier];
+      base::MutexGuard guard(&steal_queue->mutex);
+      auto* steal_from_vector = &steal_queue->units[wanted_tier];
       if (steal_from_vector->empty()) return {};
       size_t remaining = steal_from_vector->size() / 2;
       auto steal_begin = steal_from_vector->begin() + remaining;
@@ -293,10 +293,10 @@ class CompilationUnitQueues {
       steal_from_vector->erase(steal_begin, steal_from_vector->end());
     }
     Queue* queue = &queues_[task_id];
-    base::MutexGuard guard(&queue->mutex_);
-    auto* target_queue = &queue->units_[wanted_tier];
+    base::MutexGuard guard(&queue->mutex);
+    auto* target_queue = &queue->units[wanted_tier];
     target_queue->insert(target_queue->end(), stolen.begin(), stolen.end());
-    queue->next_steal_task_id_ = next_task_id(steal_from_task_id);
+    queue->next_steal_task_id = next_task_id(steal_from_task_id);
     return returned_unit;
   }
 };
