@@ -240,6 +240,11 @@ class V8_PLATFORM_EXPORT TracingController
   TracingController();
   ~TracingController() override;
   void Initialize(TraceBuffer* trace_buffer);
+#ifdef V8_USE_PERFETTO
+  // Must be called before StartTracing() if V8_USE_PERFETTO is true. Provides
+  // the output stream for the JSON trace data.
+  void InitializeForPerfetto(std::ostream* output_stream);
+#endif
 
   // v8::TracingController implementation.
   const uint8_t* GetCategoryGroupEnabled(const char* category_group) override;
@@ -285,6 +290,7 @@ class V8_PLATFORM_EXPORT TracingController
 #ifdef V8_USE_PERFETTO
   std::atomic_bool perfetto_recording_{false};
   std::unique_ptr<PerfettoTracingController> perfetto_tracing_controller_;
+  std::ostream* output_stream_ = nullptr;
 #endif
 
   // Disallow copy and assign

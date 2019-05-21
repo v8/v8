@@ -22,16 +22,15 @@ PerfettoTracingController::PerfettoTracingController()
       consumer_finished_semaphore_(0) {}
 
 void PerfettoTracingController::StartTracing(
-    const ::perfetto::TraceConfig& trace_config) {
-  DCHECK(!trace_file_.is_open());
-  trace_file_.open("v8_perfetto_trace.json");
-  CHECK(trace_file_.good());
+    const ::perfetto::TraceConfig& trace_config, std::ostream* output_stream) {
+  DCHECK_NOT_NULL(output_stream);
+  DCHECK(output_stream->good());
 
   DCHECK(!task_runner_);
   task_runner_ = base::make_unique<PerfettoTaskRunner>();
   // The Perfetto service expects calls on the task runner thread which is why
   // the setup below occurs in posted tasks.
-  task_runner_->PostTask([&trace_config, this] {
+  task_runner_->PostTask([&trace_config, output_stream, this] {
     std::unique_ptr<::perfetto::SharedMemory::Factory> shmem_factory =
         base::make_unique<PerfettoSharedMemoryFactory>();
 
@@ -46,7 +45,7 @@ void PerfettoTracingController::StartTracing(
     service_->SetSMBScrapingEnabled(true);
     producer_ = base::make_unique<PerfettoProducer>(this);
     consumer_ = base::make_unique<PerfettoJSONConsumer>(
-        &trace_file_, &consumer_finished_semaphore_);
+        output_stream, &consumer_finished_semaphore_);
 
     producer_->set_service_endpoint(service_->ConnectProducer(
         producer_.get(), 0, "v8.perfetto-producer", 0, true));
@@ -90,9 +89,6 @@ void PerfettoTracingController::StopTracing() {
   // Finish the above task, and any callbacks that were triggered.
   task_runner_->FinishImmediateTasks();
   task_runner_.reset();
-
-  DCHECK(trace_file_.is_open());
-  trace_file_.close();
 }
 
 PerfettoTracingController::~PerfettoTracingController() {
