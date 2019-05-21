@@ -183,7 +183,6 @@ Heap::Heap()
           Min(max_old_generation_size_, kMaxInitialOldGenerationSize)),
       memory_pressure_level_(MemoryPressureLevel::kNone),
       old_generation_allocation_limit_(initial_old_generation_size_),
-      global_allocation_limit_(initial_old_generation_size_),
       global_pretenuring_feedback_(kInitialFeedbackCapacity),
       current_gc_callback_flags_(GCCallbackFlags::kNoGCCallbackFlags),
       is_current_gc_forced_(false),
@@ -1527,12 +1526,9 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
     if (reached_limit == IncrementalMarkingLimit::kSoftLimit) {
       incremental_marking()->incremental_marking_job()->ScheduleTask(this);
     } else if (reached_limit == IncrementalMarkingLimit::kHardLimit) {
-      StartIncrementalMarking(
-          gc_flags,
-          OldGenerationSpaceAvailable() <= new_space_->Capacity()
-              ? GarbageCollectionReason::kAllocationLimit
-              : GarbageCollectionReason::kGlobalAllocationLimit,
-          gc_callback_flags);
+      StartIncrementalMarking(gc_flags,
+                              GarbageCollectionReason::kAllocationLimit,
+                              gc_callback_flags);
     }
   }
 }
@@ -1933,24 +1929,6 @@ bool Heap::PerformGarbageCollection(
   double mutator_speed =
       tracer()->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
   size_t old_gen_size = OldGenerationSizeOfObjects();
-
-  double global_mutator_speed;
-  double global_gc_speed;
-  size_t global_memory_size;
-  if (UseGlobalMemoryScheduling()) {
-    global_mutator_speed = GCTracer::CombineSpeedsInBytesPerMillisecond(
-        mutator_speed,
-        local_embedder_heap_tracer()
-            ? tracer()
-                  ->CurrentEmbedderAllocationThroughputInBytesPerMillisecond()
-            : 0.0);
-    global_gc_speed = GCTracer::CombineSpeedsInBytesPerMillisecond(
-        gc_speed, local_embedder_heap_tracer()
-                      ? tracer()->EmbedderSpeedInBytesPerMillisecond()
-                      : 0.0);
-    global_memory_size = GlobalSizeOfObjects();
-  }
-
   if (collector == MARK_COMPACTOR) {
     // Register the amount of external allocated memory.
     isolate()->isolate_data()->external_memory_at_last_mark_compact_ =
@@ -1963,13 +1941,7 @@ bool Heap::PerformGarbageCollection(
         heap_controller()->CalculateAllocationLimit(
             old_gen_size, max_old_generation_size_, gc_speed, mutator_speed,
             new_space()->Capacity(), CurrentHeapGrowingMode());
-    if (UseGlobalMemoryScheduling()) {
-      global_allocation_limit_ =
-          global_memory_controller()->CalculateAllocationLimit(
-              global_memory_size, max_global_memory_size_, global_gc_speed,
-              global_mutator_speed, new_space()->Capacity(),
-              CurrentHeapGrowingMode());
-    }
+
     CheckIneffectiveMarkCompact(
         old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
   } else if (HasLowYoungGenerationAllocationRate() &&
@@ -1979,16 +1951,6 @@ bool Heap::PerformGarbageCollection(
         new_space()->Capacity(), CurrentHeapGrowingMode());
     if (new_limit < old_generation_allocation_limit_) {
       old_generation_allocation_limit_ = new_limit;
-    }
-    if (UseGlobalMemoryScheduling()) {
-      const size_t new_global_limit =
-          global_memory_controller()->CalculateAllocationLimit(
-              global_memory_size, max_global_memory_size_, global_gc_speed,
-              global_mutator_speed, new_space()->Capacity(),
-              CurrentHeapGrowingMode());
-      if (new_global_limit < global_allocation_limit_) {
-        global_allocation_limit_ = new_global_limit;
-      }
     }
   }
 
@@ -2646,28 +2608,17 @@ void Heap::UnregisterArrayBuffer(JSArrayBuffer buffer) {
 
 void Heap::ConfigureInitialOldGenerationSize() {
   if (!old_generation_size_configured_ && tracer()->SurvivalEventsRecorded()) {
-    const size_t minimum_growing_step =
-        MemoryController::MinimumAllocationLimitGrowingStep(
-            CurrentHeapGrowingMode());
-    const size_t new_old_generation_allocation_limit =
-        Max(OldGenerationSizeOfObjects() + minimum_growing_step,
+    const size_t new_limit =
+        Max(OldGenerationSizeOfObjects() +
+                heap_controller()->MinimumAllocationLimitGrowingStep(
+                    CurrentHeapGrowingMode()),
             static_cast<size_t>(
                 static_cast<double>(old_generation_allocation_limit_) *
                 (tracer()->AverageSurvivalRatio() / 100)));
-    if (new_old_generation_allocation_limit <
-        old_generation_allocation_limit_) {
-      old_generation_allocation_limit_ = new_old_generation_allocation_limit;
+    if (new_limit < old_generation_allocation_limit_) {
+      old_generation_allocation_limit_ = new_limit;
     } else {
       old_generation_size_configured_ = true;
-    }
-    if (UseGlobalMemoryScheduling()) {
-      const size_t new_global_memory_limit = Max(
-          GlobalSizeOfObjects() + minimum_growing_step,
-          static_cast<size_t>(static_cast<double>(global_allocation_limit_) *
-                              (tracer()->AverageSurvivalRatio() / 100)));
-      if (new_global_memory_limit < global_allocation_limit_) {
-        global_allocation_limit_ = new_global_memory_limit;
-      }
     }
   }
 }
@@ -3430,8 +3381,7 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
   double idle_time_in_ms = deadline_in_ms - start_ms;
 
   tracer()->SampleAllocation(start_ms, NewSpaceAllocationCounter(),
-                             OldGenerationAllocationCounter(),
-                             EmbedderAllocationCounter());
+                             OldGenerationAllocationCounter());
 
   GCIdleTimeHeapState heap_state = ComputeHeapState();
 
@@ -3684,8 +3634,6 @@ const char* Heap::GarbageCollectionReasonToString(
       return "testing";
     case GarbageCollectionReason::kExternalFinalize:
       return "external finalize";
-    case GarbageCollectionReason::kGlobalAllocationLimit:
-      return "global allocation limit";
     case GarbageCollectionReason::kUnknown:
       return "unknown";
   }
@@ -4424,15 +4372,6 @@ size_t Heap::OldGenerationSizeOfObjects() {
   return total + lo_space_->SizeOfObjects();
 }
 
-size_t Heap::GlobalSizeOfObjects() {
-  const size_t on_heap_size = OldGenerationSizeOfObjects();
-  const size_t embedder_size =
-      local_embedder_heap_tracer()
-          ? local_embedder_heap_tracer()->allocated_size()
-          : 0;
-  return on_heap_size + embedder_size;
-}
-
 uint64_t Heap::PromotedExternalMemorySize() {
   IsolateData* isolate_data = isolate()->isolate_data();
   if (isolate_data->external_memory_ <=
@@ -4490,14 +4429,6 @@ Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {
   }
 
   return Heap::HeapGrowingMode::kDefault;
-}
-
-size_t Heap::GlobalMemoryAvailable() {
-  return UseGlobalMemoryScheduling()
-             ? GlobalSizeOfObjects() < global_allocation_limit_
-                   ? global_allocation_limit_ - GlobalSizeOfObjects()
-                   : 0
-             : 1;
 }
 
 // This function returns either kNoLimit, kSoftLimit, or kHardLimit.
@@ -4560,10 +4491,8 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   }
 
   size_t old_generation_space_available = OldGenerationSpaceAvailable();
-  const size_t global_memory_available = GlobalMemoryAvailable();
 
-  if (old_generation_space_available > new_space_->Capacity() &&
-      (global_memory_available > 0)) {
+  if (old_generation_space_available > new_space_->Capacity()) {
     return IncrementalMarkingLimit::kNoLimit;
   }
   if (ShouldOptimizeForMemoryUsage()) {
@@ -4573,9 +4502,6 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
     return IncrementalMarkingLimit::kNoLimit;
   }
   if (old_generation_space_available == 0) {
-    return IncrementalMarkingLimit::kHardLimit;
-  }
-  if (global_memory_available == 0) {
     return IncrementalMarkingLimit::kHardLimit;
   }
   return IncrementalMarkingLimit::kSoftLimit;
@@ -4731,7 +4657,6 @@ void Heap::SetUp() {
   store_buffer_.reset(new StoreBuffer(this));
 
   heap_controller_.reset(new HeapController(this));
-  global_memory_controller_.reset(new GlobalMemoryController(this));
 
   mark_compact_collector_.reset(new MarkCompactCollector(this));
 
@@ -5009,7 +4934,6 @@ void Heap::TearDown() {
   }
 
   heap_controller_.reset();
-  global_memory_controller_.reset();
 
   if (mark_compact_collector_) {
     mark_compact_collector_->TearDown();
@@ -5855,12 +5779,6 @@ bool Heap::AllowedToBeMigrated(Map map, HeapObject obj, AllocationSpace dst) {
       return false;
   }
   UNREACHABLE();
-}
-
-size_t Heap::EmbedderAllocationCounter() const {
-  return local_embedder_heap_tracer()
-             ? local_embedder_heap_tracer()->accumulated_allocated_size()
-             : 0;
 }
 
 void Heap::CreateObjectStats() {

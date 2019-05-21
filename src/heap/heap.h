@@ -62,7 +62,6 @@ class ConcurrentMarking;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
 class GCTracer;
-class GlobalMemoryController;
 class HeapController;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
@@ -130,8 +129,7 @@ enum class GarbageCollectionReason {
   kSamplingProfiler = 19,
   kSnapshotCreator = 20,
   kTesting = 21,
-  kExternalFinalize = 22,
-  kGlobalAllocationLimit = 23,
+  kExternalFinalize = 22
   // If you add new items here, then update the incremental_marking_reason,
   // mark_compact_reason, and scavenge_reason counters in counters.h.
   // Also update src/tools/metrics/histograms/histograms.xml in chromium.
@@ -1149,8 +1147,6 @@ class Heap {
            PromotedSinceLastGC();
   }
 
-  size_t EmbedderAllocationCounter() const;
-
   // This should be used only for testing.
   void set_old_generation_allocation_counter_at_last_gc(size_t new_value) {
     old_generation_allocation_counter_at_last_gc_ = new_value;
@@ -1181,8 +1177,6 @@ class Heap {
   // Returns the size of objects residing in non-new spaces.
   // Excludes external memory held by those objects.
   V8_EXPORT_PRIVATE size_t OldGenerationSizeOfObjects();
-
-  V8_EXPORT_PRIVATE size_t GlobalSizeOfObjects();
 
   // ===========================================================================
   // Prologue/epilogue callback methods.========================================
@@ -1693,9 +1687,6 @@ class Heap {
   // ===========================================================================
 
   HeapController* heap_controller() { return heap_controller_.get(); }
-  GlobalMemoryController* global_memory_controller() const {
-    return global_memory_controller_.get();
-  }
   MemoryReducer* memory_reducer() { return memory_reducer_.get(); }
 
   // For some webpages RAIL mode does not switch from PERFORMANCE_LOAD.
@@ -1722,12 +1713,6 @@ class Heap {
 
   enum class IncrementalMarkingLimit { kNoLimit, kSoftLimit, kHardLimit };
   IncrementalMarkingLimit IncrementalMarkingLimitReached();
-
-  bool UseGlobalMemoryScheduling() const {
-    return FLAG_global_gc_scheduling && local_embedder_heap_tracer();
-  }
-
-  size_t GlobalMemoryAvailable();
 
   // ===========================================================================
   // Idle notification. ========================================================
@@ -1822,11 +1807,6 @@ class Heap {
   size_t max_semi_space_size_ = 8 * (kSystemPointerSize / 4) * MB;
   size_t initial_semispace_size_ = kMinSemiSpaceSizeInKB * KB;
   size_t max_old_generation_size_ = 700ul * (kSystemPointerSize / 4) * MB;
-  // TODO(mlippautz): Clarify whether this should be take some embedder
-  // configurable limit into account.
-  size_t max_global_memory_size_ =
-      Min(static_cast<uint64_t>(std::numeric_limits<size_t>::max()),
-          static_cast<uint64_t>(max_old_generation_size_) * 2);
   size_t initial_max_old_generation_size_;
   size_t initial_max_old_generation_size_threshold_;
   size_t initial_old_generation_size_;
@@ -1935,7 +1915,6 @@ class Heap {
   // which collector to invoke, before expanding a paged space in the old
   // generation and on every allocation in large object space.
   size_t old_generation_allocation_limit_;
-  size_t global_allocation_limit_;
 
   // Indicates that inline bump-pointer allocation has been globally disabled
   // for all spaces. This is used to disable allocations in generated code.
@@ -1986,7 +1965,6 @@ class Heap {
   std::unique_ptr<MemoryAllocator> memory_allocator_;
   std::unique_ptr<StoreBuffer> store_buffer_;
   std::unique_ptr<HeapController> heap_controller_;
-  std::unique_ptr<GlobalMemoryController> global_memory_controller_;
   std::unique_ptr<IncrementalMarking> incremental_marking_;
   std::unique_ptr<ConcurrentMarking> concurrent_marking_;
   std::unique_ptr<GCIdleTimeHandler> gc_idle_time_handler_;
@@ -2086,7 +2064,6 @@ class Heap {
   friend class ConcurrentMarking;
   friend class GCCallbacksScope;
   friend class GCTracer;
-  friend class GlobalMemoryController;
   friend class HeapController;
   friend class MemoryController;
   friend class HeapIterator;
