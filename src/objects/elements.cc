@@ -3056,15 +3056,10 @@ class TypedElementsAccessor
                : kMaxUInt32;
   }
 
-  static bool WasDetached(JSObject holder) {
-    JSArrayBufferView view = JSArrayBufferView::cast(holder);
-    return view->WasDetached();
-  }
-
   static uint32_t GetCapacityImpl(JSObject holder,
                                   FixedArrayBase backing_store) {
     JSTypedArray typed_array = JSTypedArray::cast(holder);
-    if (WasDetached(typed_array)) return 0;
+    if (typed_array->WasDetached()) return 0;
     // TODO(bmeurer, v8:4153): We need to support arbitrary size_t here.
     return static_cast<uint32_t>(typed_array->length());
   }
@@ -3142,7 +3137,7 @@ class TypedElementsAccessor
 
     // TODO(caitp): return Just(false) here when implementing strict throwing on
     // detached views.
-    if (WasDetached(typed_array)) {
+    if (typed_array->WasDetached()) {
       return Just(value->IsUndefined(isolate) && length > start_from);
     }
 
@@ -3203,7 +3198,7 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     JSTypedArray typed_array = JSTypedArray::cast(*receiver);
 
-    if (WasDetached(typed_array)) return Just<int64_t>(-1);
+    if (typed_array->WasDetached()) return Just<int64_t>(-1);
 
     BackingStore elements = BackingStore::cast(typed_array->elements());
     ctype typed_search_value;
@@ -3255,7 +3250,7 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     JSTypedArray typed_array = JSTypedArray::cast(*receiver);
 
-    DCHECK(!WasDetached(typed_array));
+    DCHECK(!typed_array->WasDetached());
 
     BackingStore elements = BackingStore::cast(typed_array->elements());
     ctype typed_search_value;
@@ -3300,7 +3295,7 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     JSTypedArray typed_array = JSTypedArray::cast(receiver);
 
-    DCHECK(!WasDetached(typed_array));
+    DCHECK(!typed_array->WasDetached());
 
     BackingStore elements = BackingStore::cast(typed_array->elements());
 
@@ -3320,7 +3315,7 @@ class TypedElementsAccessor
   static Handle<FixedArray> CreateListFromArrayLikeImpl(Isolate* isolate,
                                                         Handle<JSObject> object,
                                                         uint32_t length) {
-    DCHECK(!WasDetached(*object));
+    DCHECK(!Handle<JSArrayBufferView>::cast(object)->WasDetached());
     DCHECK(object->IsJSTypedArray());
     Handle<FixedArray> result = isolate->factory()->NewFixedArray(length);
     Handle<BackingStore> elements(BackingStore::cast(object->elements()),
