@@ -13,7 +13,6 @@
 #include <unordered_map>
 
 #include "src/api/api-inl.h"
-#include "src/assembler-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/adapters.h"
@@ -24,7 +23,8 @@
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/cancelable-task.h"
-#include "src/compilation-cache.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/compilation-statistics.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"

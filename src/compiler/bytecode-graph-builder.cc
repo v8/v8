@@ -5,6 +5,7 @@
 #include "src/compiler/bytecode-graph-builder.h"
 
 #include "src/ast/ast.h"
+#include "src/codegen/source-position-table.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -22,7 +23,6 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/template-objects-inl.h"
-#include "src/source-position-table.h"
 #include "src/vector-slot-pair.h"
 
 namespace v8 {

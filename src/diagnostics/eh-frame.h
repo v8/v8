@@ -6,8 +6,8 @@
 #define V8_DIAGNOSTICS_EH_FRAME_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/codegen/register-arch.h"
 #include "src/globals.h"
-#include "src/register-arch.h"
 #include "src/v8memory.h"
 #include "src/zone/zone-containers.h"
 

@@ -6,9 +6,9 @@
 #define V8_COMPILER_LOAD_ELIMINATION_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/codegen/machine-type.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/globals.h"
-#include "src/machine-type.h"
 #include "src/maybe-handles.h"
 #include "src/zone/zone-handle-set.h"
 

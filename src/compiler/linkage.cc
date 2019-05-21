@@ -4,14 +4,14 @@
 
 #include "src/compiler/linkage.h"
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/node.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline.h"
-#include "src/macro-assembler.h"
-#include "src/optimized-compilation-info.h"
 
 namespace v8 {
 namespace internal {

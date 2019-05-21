@@ -5,7 +5,7 @@
 // CPU specific code for s390 independent of OS goes here.
 #if V8_TARGET_ARCH_S390
 
-#include "src/cpu-features.h"
+#include "src/codegen/cpu-features.h"
 
 namespace v8 {
 namespace internal {

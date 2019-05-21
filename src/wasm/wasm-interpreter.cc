@@ -7,9 +7,9 @@
 
 #include "src/wasm/wasm-interpreter.h"
 
-#include "src/assembler-inl.h"
 #include "src/base/overflowing-math.h"
 #include "src/boxed-float.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/identity-map.h"
 #include "src/numbers/conversions.h"

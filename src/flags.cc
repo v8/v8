@@ -13,7 +13,7 @@
 #include "src/allocation.h"
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
-#include "src/cpu-features.h"
+#include "src/codegen/cpu-features.h"
 #include "src/logging/counters.h"
 #include "src/memcopy.h"
 #include "src/ostreams.h"

@@ -5,8 +5,8 @@
 #ifndef V8_ARM_REGISTER_ARM_H_
 #define V8_ARM_REGISTER_ARM_H_
 
-#include "src/register.h"
-#include "src/reglist.h"
+#include "src/codegen/register.h"
+#include "src/codegen/reglist.h"
 
 namespace v8 {
 namespace internal {

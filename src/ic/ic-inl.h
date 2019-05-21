@@ -7,7 +7,7 @@
 
 #include "src/ic/ic.h"
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/handles-inl.h"

@@ -6,7 +6,7 @@
 #define V8_ISOLATE_DATA_H_
 
 #include "src/builtins/builtins.h"
-#include "src/constants-arch.h"
+#include "src/codegen/constants-arch.h"
 #include "src/external-reference-table.h"
 #include "src/roots.h"
 #include "src/thread-local-top.h"

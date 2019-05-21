@@ -7,7 +7,7 @@
 #include <limits>
 
 #include "src/api/api-inl.h"
-#include "src/compiler.h"
+#include "src/codegen/compiler.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/objects/hash-table-inl.h"

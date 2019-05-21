@@ -39,7 +39,7 @@
 
 #include "src/ia32/assembler-ia32.h"
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
 

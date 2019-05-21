@@ -6,7 +6,7 @@
 #define V8_CALLABLE_H_
 
 #include "src/allocation.h"
-#include "src/interface-descriptors.h"
+#include "src/codegen/interface-descriptors.h"
 
 namespace v8 {
 namespace internal {

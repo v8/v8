@@ -27,11 +27,11 @@
 
 #include <iostream>  // NOLINT(readability/streams)
 
-#include "src/assembler-inl.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/factory.h"
-#include "src/macro-assembler.h"
 #include "src/numbers/double.h"
 #include "src/ostreams.h"
 #include "src/simulator.h"

@@ -4,8 +4,8 @@
 
 #include "test/cctest/wasm/wasm-run-utils.h"
 
-#include "src/assembler-inl.h"
-#include "src/code-tracer.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"

@@ -31,8 +31,8 @@
 #include "src/v8.h"
 
 #include "src/api/api-inl.h"
-#include "src/compilation-cache.h"
-#include "src/compiler.h"
+#include "src/codegen/compilation-cache.h"
+#include "src/codegen/compiler.h"
 #include "src/diagnostics/disasm.h"
 #include "src/heap/factory.h"
 #include "src/heap/spaces.h"

@@ -31,7 +31,7 @@
 #include <vector>
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/compilation-cache.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/logging/log-utils.h"
 #include "src/logging/log.h"
 #include "src/objects-inl.h"

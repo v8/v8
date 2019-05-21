@@ -6,7 +6,10 @@
 
 #include <ostream>
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
@@ -15,10 +18,7 @@
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/schedule.h"
 #include "src/frames.h"
-#include "src/interface-descriptors.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/machine-type.h"
-#include "src/macro-assembler.h"
 #include "src/memcopy.h"
 #include "src/objects-inl.h"
 #include "src/objects/smi.h"

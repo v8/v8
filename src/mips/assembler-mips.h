@@ -40,9 +40,9 @@
 
 #include <set>
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/label.h"
 #include "src/external-reference.h"
-#include "src/label.h"
 #include "src/mips/constants-mips.h"
 #include "src/mips/register-mips.h"
 #include "src/objects/smi.h"

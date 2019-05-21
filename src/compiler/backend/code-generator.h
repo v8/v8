@@ -6,14 +6,14 @@
 #define V8_COMPILER_BACKEND_CODE_GENERATOR_H_
 
 #include "src/base/optional.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/safepoint-table.h"
+#include "src/codegen/source-position-table.h"
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/backend/unwinding-info-writer.h"
 #include "src/compiler/osr.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/macro-assembler.h"
-#include "src/safepoint-table.h"
-#include "src/source-position-table.h"
 #include "src/trap-handler/trap-handler.h"
 
 namespace v8 {

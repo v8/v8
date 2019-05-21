@@ -5,8 +5,11 @@
 #include "src/compiler/backend/code-generator.h"
 
 #include "src/address-map.h"
-#include "src/assembler-inl.h"
 #include "src/base/adapters.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/string-constants.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
@@ -15,10 +18,7 @@
 #include "src/frames.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
-#include "src/macro-assembler-inl.h"
 #include "src/objects/smi.h"
-#include "src/optimized-compilation-info.h"
-#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {

@@ -43,10 +43,10 @@
 #include <stdio.h>
 #include <vector>
 
-#include "src/assembler.h"
-#include "src/constant-pool.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/constant-pool.h"
+#include "src/codegen/label.h"
 #include "src/external-reference.h"
-#include "src/label.h"
 #include "src/numbers/double.h"
 #include "src/objects/smi.h"
 #include "src/ppc/constants-ppc.h"

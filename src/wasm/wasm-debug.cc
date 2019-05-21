@@ -4,9 +4,9 @@
 
 #include <unordered_map>
 
-#include "src/assembler-inl.h"
 #include "src/assert-scope.h"
 #include "src/base/optional.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"

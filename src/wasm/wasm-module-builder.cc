@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/signature.h"
+#include "src/codegen/signature.h"
 
 #include "src/handles.h"
 #include "src/objects-inl.h"

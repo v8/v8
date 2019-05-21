@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
 #include "src/frame-constants.h"
 #include "src/mips/assembler-mips-inl.h"
 #include "src/mips/assembler-mips.h"

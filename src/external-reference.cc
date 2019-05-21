@@ -6,8 +6,8 @@
 
 #include "src/api/api.h"
 #include "src/base/ieee754.h"
+#include "src/codegen/cpu-features.h"
 #include "src/compiler/code-assembler.h"
-#include "src/cpu-features.h"
 #include "src/date/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"

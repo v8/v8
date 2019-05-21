@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/codegen/source-position-table.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/interface-types.h"
 #include "src/frames.h"
@@ -14,7 +15,6 @@
 #include "src/handles.h"
 #include "src/isolate.h"
 #include "src/objects/debug-objects.h"
-#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {

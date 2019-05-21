@@ -13,7 +13,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/template-utils.h"
-#include "src/compiler.h"
+#include "src/codegen/compiler.h"
 #include "src/flags.h"
 #include "src/handles.h"
 #include "src/objects-inl.h"

@@ -6,11 +6,11 @@
 #include "test/cctest/cctest.h"
 
 #include "src/api/api-inl.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
 #include "src/execution.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "test/cctest/test-feedback-vector.h"

@@ -10,7 +10,7 @@
 #include "src/accessors.h"
 #include "src/api/api-inl.h"
 #include "src/base/overflowing-math.h"
-#include "src/compilation-cache.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/execution.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"

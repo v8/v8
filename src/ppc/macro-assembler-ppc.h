@@ -9,7 +9,7 @@
 #ifndef V8_PPC_MACRO_ASSEMBLER_PPC_H_
 #define V8_PPC_MACRO_ASSEMBLER_PPC_H_
 
-#include "src/bailout-reason.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/contexts.h"
 #include "src/globals.h"
 #include "src/numbers/double.h"

@@ -9,7 +9,8 @@
 
 #include "builtins-generated/bytecodes-builtins-list.h"
 #include "src/ast/prettyprinter.h"
-#include "src/compiler.h"
+#include "src/codegen/compiler.h"
+#include "src/codegen/unoptimized-compilation-info.h"
 #include "src/init/bootstrapper.h"
 #include "src/init/setup-isolate.h"
 #include "src/interpreter/bytecode-generator.h"
@@ -21,7 +22,6 @@
 #include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/snapshot/snapshot.h"
-#include "src/unoptimized-compilation-info.h"
 #include "src/visitors.h"
 
 namespace v8 {

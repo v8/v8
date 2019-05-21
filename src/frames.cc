@@ -8,15 +8,15 @@
 #include <sstream>
 
 #include "src/base/bits.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/register-configuration.h"
+#include "src/codegen/safepoint-table.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/ic/ic-stats.h"
-#include "src/macro-assembler.h"
 #include "src/objects/code.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
-#include "src/register-configuration.h"
-#include "src/safepoint-table.h"
 #include "src/snapshot/snapshot.h"
 #include "src/strings/string-stream.h"
 #include "src/visitors.h"

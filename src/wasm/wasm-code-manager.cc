@@ -6,17 +6,17 @@
 
 #include <iomanip>
 
-#include "src/assembler-inl.h"
 #include "src/base/adapters.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/globals.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
-#include "src/macro-assembler-inl.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/snapshot/embedded-data.h"

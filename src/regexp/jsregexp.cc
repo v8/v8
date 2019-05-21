@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "src/base/platform/platform.h"
-#include "src/code-tracer.h"
-#include "src/compilation-cache.h"
+#include "src/codegen/compilation-cache.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/execution.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"

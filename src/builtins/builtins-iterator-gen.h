@@ -5,7 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_ITERATOR_GEN_H_
 #define V8_BUILTINS_BUILTINS_ITERATOR_GEN_H_
 
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "torque-generated/builtins-base-gen-tq.h"
 #include "torque-generated/builtins-iterator-gen-tq.h"
 

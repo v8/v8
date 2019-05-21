@@ -10,7 +10,7 @@
 #define V8_ARM_MACRO_ASSEMBLER_ARM_H_
 
 #include "src/arm/assembler-arm.h"
-#include "src/bailout-reason.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/contexts.h"
 #include "src/globals.h"
 

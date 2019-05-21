@@ -4,12 +4,12 @@
 
 #include "src/ic/keyed-store-generic.h"
 
-#include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/interface-descriptors.h"
 #include "src/contexts.h"
 #include "src/feedback-vector.h"
 #include "src/ic/accessor-assembler.h"
-#include "src/interface-descriptors.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 

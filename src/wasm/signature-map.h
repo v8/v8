@@ -7,7 +7,7 @@
 
 #include <unordered_map>
 
-#include "src/signature.h"
+#include "src/codegen/signature.h"
 #include "src/wasm/value-type.h"
 
 namespace v8 {

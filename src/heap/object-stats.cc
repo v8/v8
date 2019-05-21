@@ -7,9 +7,9 @@
 
 #include <unordered_set>
 
-#include "src/assembler-inl.h"
 #include "src/base/bits.h"
-#include "src/compilation-cache.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/globals.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-inl.h"

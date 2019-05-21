@@ -8,6 +8,8 @@
 #include <sstream>
 #include <string>
 
+#include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/source-position.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/backend/register-allocator.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -23,9 +25,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
-#include "src/optimized-compilation-info.h"
 #include "src/ostreams.h"
-#include "src/source-position.h"
 #include "src/vector.h"
 
 namespace v8 {

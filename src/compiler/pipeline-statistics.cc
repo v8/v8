@@ -4,11 +4,11 @@
 
 #include <memory>
 
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/zone-stats.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
-#include "src/optimized-compilation-info.h"
 #include "src/tracing/trace-event.h"
 
 namespace v8 {

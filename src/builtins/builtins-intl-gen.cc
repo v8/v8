@@ -8,7 +8,7 @@
 
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/objects/js-list-format-inl.h"

@@ -10,7 +10,7 @@
 #include "src/api/api-inl.h"
 #include "src/arguments.h"
 #include "src/base/platform/platform.h"
-#include "src/compilation-cache.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/execution.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"

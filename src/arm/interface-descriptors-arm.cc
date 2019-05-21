@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_ARM
 
-#include "src/interface-descriptors.h"
+#include "src/codegen/interface-descriptors.h"
 
 #include "src/frames.h"
 

@@ -6,7 +6,8 @@
 
 #include "src/accessors.h"
 #include "src/api/api-inl.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/string-constants.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder.h"
@@ -26,7 +27,6 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/templates.h"
-#include "src/string-constants.h"
 #include "src/vector-slot-pair.h"
 
 namespace v8 {

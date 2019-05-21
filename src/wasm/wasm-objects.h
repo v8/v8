@@ -6,12 +6,12 @@
 #define V8_WASM_WASM_OBJECTS_H_
 
 #include "src/base/bits.h"
+#include "src/codegen/signature.h"
 #include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
 #include "src/heap/heap.h"
 #include "src/objects.h"
 #include "src/objects/script.h"
-#include "src/signature.h"
 #include "src/wasm/value-type.h"
 
 // Has to be the last include (doesn't have include guards)

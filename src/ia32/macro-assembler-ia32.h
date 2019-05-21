@@ -9,8 +9,8 @@
 #ifndef V8_IA32_MACRO_ASSEMBLER_IA32_H_
 #define V8_IA32_MACRO_ASSEMBLER_IA32_H_
 
-#include "src/assembler.h"
-#include "src/bailout-reason.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/globals.h"
 #include "src/ia32/assembler-ia32.h"
 

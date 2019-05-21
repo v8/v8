@@ -5,7 +5,7 @@
 #ifndef V8_REGEXP_PPC_REGEXP_MACRO_ASSEMBLER_PPC_H_
 #define V8_REGEXP_PPC_REGEXP_MACRO_ASSEMBLER_PPC_H_
 
-#include "src/macro-assembler.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/ppc/assembler-ppc.h"
 #include "src/regexp/regexp-macro-assembler.h"
 

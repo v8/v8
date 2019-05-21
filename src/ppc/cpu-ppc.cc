@@ -6,7 +6,7 @@
 
 #if V8_TARGET_ARCH_PPC
 
-#include "src/cpu-features.h"
+#include "src/codegen/cpu-features.h"
 
 #define INSTR_AND_DATA_CACHE_COHERENCY LWSYNC
 

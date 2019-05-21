@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/macro-assembler.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/s390/assembler-s390-inl.h"
 #include "src/simulator.h"
 #include "test/common/assembler-tester.h"

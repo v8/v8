@@ -39,7 +39,7 @@
 
 #include "src/s390/assembler-s390.h"
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
 

@@ -4,7 +4,7 @@
 
 #include "test/cctest/assembler-helper-arm.h"
 
-#include "src/macro-assembler.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/isolate-inl.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"

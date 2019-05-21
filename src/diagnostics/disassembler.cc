@@ -8,15 +8,15 @@
 #include <unordered_map>
 #include <vector>
 
-#include "src/assembler-inl.h"
-#include "src/code-comments.h"
-#include "src/code-reference.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/code-comments.h"
+#include "src/codegen/code-reference.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/disasm.h"
 #include "src/ic/ic.h"
 #include "src/isolate-data.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-common.h"

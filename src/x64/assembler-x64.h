@@ -41,8 +41,8 @@
 #include <map>
 #include <vector>
 
-#include "src/assembler.h"
-#include "src/label.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/label.h"
 #include "src/objects/smi.h"
 #include "src/x64/constants-x64.h"
 #include "src/x64/register-x64.h"

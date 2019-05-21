@@ -4,7 +4,7 @@
 
 #include "src/snapshot/serializer.h"
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/heap/heap-inl.h"  // For Space::identity().
 #include "src/heap/read-only-heap.h"
 #include "src/interpreter/interpreter.h"

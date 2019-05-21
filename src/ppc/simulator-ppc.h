@@ -22,8 +22,8 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
 
-#include "src/assembler.h"
 #include "src/base/hashmap.h"
+#include "src/codegen/assembler.h"
 #include "src/ppc/constants-ppc.h"
 #include "src/simulator-base.h"
 

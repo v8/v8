@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_MIPS64
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
 #include "src/frame-constants.h"
 #include "src/mips64/assembler-mips64-inl.h"
 #include "src/mips64/assembler-mips64.h"

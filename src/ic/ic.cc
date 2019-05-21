@@ -10,7 +10,7 @@
 #include "src/arguments-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
 #include "src/handles-inl.h"

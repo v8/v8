@@ -30,7 +30,7 @@
 #include "src/v8.h"
 
 #include "src/api/api-inl.h"
-#include "src/compilation-cache.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"

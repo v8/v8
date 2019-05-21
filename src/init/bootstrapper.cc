@@ -8,7 +8,7 @@
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/base/ieee754.h"
-#include "src/compiler.h"
+#include "src/codegen/compiler.h"
 #include "src/debug/debug.h"
 #include "src/extensions/externalize-string-extension.h"
 #include "src/extensions/free-buffer-extension.h"

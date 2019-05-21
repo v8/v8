@@ -6,6 +6,7 @@
 
 #include <sstream>
 
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
@@ -13,7 +14,6 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/schedule.h"
 #include "src/objects-inl.h"
-#include "src/optimized-compilation-info.h"
 
 namespace v8 {
 namespace internal {

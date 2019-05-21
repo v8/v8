@@ -29,12 +29,12 @@
 
 #include <memory>
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/source-position-table.h"
 #include "src/diagnostics/eh-frame.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/snapshot/embedded-data.h"
-#include "src/source-position-table.h"
 #include "src/wasm/wasm-code-manager.h"
 
 #if V8_OS_LINUX

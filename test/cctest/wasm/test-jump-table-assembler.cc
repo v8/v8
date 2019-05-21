@@ -4,8 +4,8 @@
 
 #include <bitset>
 
-#include "src/assembler-inl.h"
-#include "src/macro-assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler-inl.h"
 #include "src/simulator.h"
 #include "src/utils.h"
 #include "src/wasm/jump-table-assembler.h"

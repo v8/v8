@@ -5,7 +5,7 @@
 #include "src/ic/accessor-assembler.h"
 
 #include "src/ast/ast.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/ic/handler-configuration.h"
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"

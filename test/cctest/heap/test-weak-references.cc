@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"

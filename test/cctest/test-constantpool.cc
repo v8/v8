@@ -6,7 +6,7 @@
 
 #include "src/v8.h"
 
-#include "src/constant-pool.h"
+#include "src/codegen/constant-pool.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

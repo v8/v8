@@ -39,7 +39,7 @@
 
 #include "src/ppc/assembler-ppc.h"
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
 

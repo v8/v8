@@ -19,8 +19,8 @@
 // Running with a simulator.
 
 #include "src/allocation.h"
-#include "src/assembler.h"
 #include "src/base/hashmap.h"
+#include "src/codegen/assembler.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/simulator-base.h"
 

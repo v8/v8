@@ -27,8 +27,8 @@
 
 #include <stdlib.h>
 
-#include "src/assembler-inl.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/simulator.h"

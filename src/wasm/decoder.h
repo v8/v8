@@ -10,8 +10,8 @@
 #include <memory>
 
 #include "src/base/compiler-specific.h"
+#include "src/codegen/signature.h"
 #include "src/flags.h"
-#include "src/signature.h"
 #include "src/utils.h"
 #include "src/v8memory.h"
 #include "src/vector.h"

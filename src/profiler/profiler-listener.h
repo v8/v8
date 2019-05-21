@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "include/v8-profiler.h"
-#include "src/code-events.h"
+#include "src/logging/code-events.h"
 #include "src/profiler/profile-generator.h"
 
 namespace v8 {

@@ -9,9 +9,9 @@
 #include "test/cctest/compiler/serializer-tester.h"
 
 #include "src/api/api-inl.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/serializer-for-background-compilation.h"
 #include "src/compiler/zone-stats.h"
-#include "src/optimized-compilation-info.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

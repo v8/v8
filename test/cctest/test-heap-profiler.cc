@@ -35,9 +35,9 @@
 
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
-#include "src/assembler-inl.h"
 #include "src/base/hashmap.h"
 #include "src/base/optional.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"

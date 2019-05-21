@@ -9,7 +9,7 @@
 #ifndef V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
 #define V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
 #include "src/contexts.h"
 #include "src/globals.h"
 #include "src/mips/assembler-mips.h"

@@ -4,7 +4,7 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/contexts.h"
 #include "src/debug/debug.h"
 #include "src/global-handles.h"

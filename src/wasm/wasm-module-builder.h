@@ -5,7 +5,7 @@
 #ifndef V8_WASM_WASM_MODULE_BUILDER_H_
 #define V8_WASM_WASM_MODULE_BUILDER_H_
 
-#include "src/signature.h"
+#include "src/codegen/signature.h"
 #include "src/zone/zone-containers.h"
 
 #include "src/v8memory.h"

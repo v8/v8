@@ -7,7 +7,7 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
 #include "src/wasm/value-type.h"
 
 namespace v8 {

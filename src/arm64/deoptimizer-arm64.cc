@@ -5,10 +5,10 @@
 #include "src/api/api.h"
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/macro-assembler-arm64-inl.h"
+#include "src/codegen/register-configuration.h"
+#include "src/codegen/safepoint-table.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/frame-constants.h"
-#include "src/register-configuration.h"
-#include "src/safepoint-table.h"
 
 namespace v8 {
 namespace internal {

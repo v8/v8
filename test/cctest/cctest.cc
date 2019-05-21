@@ -29,11 +29,11 @@
 #include "test/cctest/cctest.h"
 
 #include "include/libplatform/libplatform.h"
-#include "src/compiler.h"
+#include "src/codegen/compiler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/pipeline.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
-#include "src/optimized-compilation-info.h"
 #include "src/trap-handler/trap-handler.h"
 #include "test/cctest/print-extension.h"
 #include "test/cctest/profiler-extension.h"

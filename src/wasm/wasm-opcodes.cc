@@ -7,9 +7,9 @@
 #include <array>
 
 #include "src/base/template-utils.h"
+#include "src/codegen/signature.h"
 #include "src/messages.h"
 #include "src/runtime/runtime.h"
-#include "src/signature.h"
 
 namespace v8 {
 namespace internal {

@@ -6,10 +6,9 @@
 
 #include "src/ppc/frame-constants-ppc.h"
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/frame-constants.h"
-#include "src/macro-assembler.h"
-
 
 namespace v8 {
 namespace internal {

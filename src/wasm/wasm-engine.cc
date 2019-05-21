@@ -5,8 +5,8 @@
 #include "src/wasm/wasm-engine.h"
 
 #include "src/base/platform/time.h"
-#include "src/code-tracer.h"
 #include "src/compilation-statistics.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/frames.h"
 #include "src/logging/counters.h"
 #include "src/objects-inl.h"

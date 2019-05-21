@@ -5,13 +5,13 @@
 #include "test/cctest/compiler/function-tester.h"
 
 #include "src/api/api-inl.h"
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/objects-inl.h"
-#include "src/optimized-compilation-info.h"
 #include "src/parsing/parse-info.h"
 #include "test/cctest/cctest.h"
 

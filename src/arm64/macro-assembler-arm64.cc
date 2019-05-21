@@ -4,11 +4,13 @@
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "src/assembler.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/callable.h"
-#include "src/code-factory.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/register-configuration.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frame-constants.h"
@@ -16,8 +18,6 @@
 #include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
-#include "src/macro-assembler-inl.h"
-#include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"

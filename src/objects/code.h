@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_CODE_H_
 #define V8_OBJECTS_CODE_H_
 
+#include "src/codegen/handler-table.h"
 #include "src/contexts.h"
-#include "src/handler-table.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"

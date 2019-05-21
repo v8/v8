@@ -4,9 +4,9 @@
 
 #include "test/unittests/code-stub-assembler-unittest.h"
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors.h"
 #include "src/compiler/node.h"
-#include "src/interface-descriptors.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"

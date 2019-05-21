@@ -5,10 +5,10 @@
 #ifndef V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
 #define V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
 
+#include "src/codegen/interface-descriptors.h"
 #include "src/compiler/code-assembler.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/handles.h"
-#include "src/interface-descriptors.h"
 #include "src/isolate.h"
 #include "test/cctest/compiler/function-tester.h"
 

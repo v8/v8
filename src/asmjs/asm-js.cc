@@ -10,7 +10,8 @@
 #include "src/ast/ast.h"
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
-#include "src/compiler.h"
+#include "src/codegen/compiler.h"
+#include "src/codegen/unoptimized-compilation-info.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/heap/factory.h"
@@ -22,7 +23,6 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
-#include "src/unoptimized-compilation-info.h"
 #include "src/vector.h"
 
 #include "src/wasm/wasm-engine.h"

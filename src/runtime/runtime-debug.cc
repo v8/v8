@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "src/arguments-inl.h"
-#include "src/compiler.h"
+#include "src/codegen/compiler.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"

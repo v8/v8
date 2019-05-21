@@ -7,9 +7,9 @@
 #include <string.h>
 
 #include "src/api/api-inl.h"
-#include "src/assembler-inl.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"

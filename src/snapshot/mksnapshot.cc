@@ -8,8 +8,9 @@
 #include <iomanip>
 
 #include "include/libplatform/libplatform.h"
-#include "src/assembler-arch.h"
 #include "src/base/platform/platform.h"
+#include "src/codegen/assembler-arch.h"
+#include "src/codegen/source-position-table.h"
 #include "src/flags.h"
 #include "src/msan.h"
 #include "src/snapshot/embedded-file-writer.h"
@@ -17,7 +18,6 @@
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-serializer.h"
-#include "src/source-position-table.h"
 
 namespace {
 

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-typed-lowering.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"

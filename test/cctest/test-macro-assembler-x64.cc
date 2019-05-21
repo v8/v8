@@ -30,8 +30,8 @@
 #include "src/v8.h"
 
 #include "src/base/platform/platform.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/heap/factory.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/ostreams.h"

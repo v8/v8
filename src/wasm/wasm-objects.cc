@@ -5,9 +5,9 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/utils.h"
 
-#include "src/assembler-inl.h"
 #include "src/base/iterator.h"
-#include "src/code-factory.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug-interface.h"
 #include "src/logging/counters.h"

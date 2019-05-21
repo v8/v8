@@ -5,7 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_ARGUMENTS_GEN_H_
 #define V8_BUILTINS_BUILTINS_ARGUMENTS_GEN_H_
 
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "torque-generated/builtins-arguments-gen-tq.h"
 
 namespace v8 {

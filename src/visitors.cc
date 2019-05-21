@@ -4,7 +4,7 @@
 
 #include "src/visitors.h"
 
-#include "src/reloc-info.h"
+#include "src/codegen/reloc-info.h"
 
 namespace v8 {
 namespace internal {

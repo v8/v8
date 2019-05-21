@@ -5,10 +5,10 @@
 #ifndef V8_FRAMES_H_
 #define V8_FRAMES_H_
 
+#include "src/codegen/safepoint-table.h"
 #include "src/handles.h"
 #include "src/objects.h"
 #include "src/objects/code.h"
-#include "src/safepoint-table.h"
 
 namespace v8 {
 namespace internal {

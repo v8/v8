@@ -7,8 +7,8 @@
 
 #include <memory>
 
+#include "src/codegen/register-configuration.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/register-configuration.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 

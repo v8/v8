@@ -13,9 +13,9 @@
 #include "src/arm64/constants-arm64.h"
 #include "src/arm64/instructions-arm64.h"
 #include "src/arm64/register-arm64.h"
-#include "src/assembler.h"
 #include "src/base/optional.h"
-#include "src/constant-pool.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/constant-pool.h"
 #include "src/globals.h"
 #include "src/utils.h"
 

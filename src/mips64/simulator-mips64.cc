@@ -12,11 +12,11 @@
 #include <stdlib.h>
 #include <cmath>
 
-#include "src/assembler-inl.h"
 #include "src/base/bits.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/disasm.h"
 #include "src/heap/combined-heap.h"
-#include "src/macro-assembler.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"

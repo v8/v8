@@ -6,9 +6,9 @@
 #define V8_ARM64_REGISTER_ARM64_H_
 
 #include "src/arm64/utils-arm64.h"
+#include "src/codegen/register.h"
+#include "src/codegen/reglist.h"
 #include "src/globals.h"
-#include "src/register.h"
-#include "src/reglist.h"
 
 namespace v8 {
 namespace internal {

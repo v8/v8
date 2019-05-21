@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "src/codegen/machine-type.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
@@ -13,10 +15,8 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/machine-type.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
-#include "src/optimized-compilation-info.h"
 #include "src/simulator.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-features.h"

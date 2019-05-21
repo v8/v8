@@ -4,18 +4,18 @@
 
 #include "src/init/setup-isolate.h"
 
-#include "src/assembler-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/code-events.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/compiler/code-assembler.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"  // For MemoryAllocator::code_range.
-#include "src/interface-descriptors.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-generator.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
-#include "src/macro-assembler.h"
+#include "src/logging/code-events.h"
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"

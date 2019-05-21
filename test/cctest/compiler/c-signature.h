@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_C_SIGNATURE_H_
 #define V8_COMPILER_C_SIGNATURE_H_
 
-#include "src/machine-type.h"
+#include "src/codegen/machine-type.h"
 
 namespace v8 {
 namespace internal {

@@ -8,7 +8,10 @@
 #include "src/base/division-by-constant.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/callable.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/register-configuration.h"
+#include "src/codegen/string-constants.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
@@ -16,13 +19,10 @@
 #include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/register-configuration.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"
-#include "src/string-constants.h"
 #include "src/x64/assembler-x64.h"
 
 // Satisfy cpplint check, but don't include platform-specific header. It is

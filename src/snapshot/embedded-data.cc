@@ -4,8 +4,8 @@
 
 #include "src/snapshot/embedded-data.h"
 
-#include "src/assembler-inl.h"
 #include "src/callable.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"
 

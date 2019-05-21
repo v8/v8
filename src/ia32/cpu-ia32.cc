@@ -10,7 +10,7 @@
 
 #if V8_TARGET_ARCH_IA32
 
-#include "src/cpu-features.h"
+#include "src/codegen/cpu-features.h"
 
 namespace v8 {
 namespace internal {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/register-configuration.h"
+#include "src/codegen/register-configuration.h"
 #include "testing/gtest-support.h"
 
 namespace v8 {

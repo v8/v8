@@ -17,7 +17,7 @@
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/checks.h"
-#include "src/constants-arch.h"
+#include "src/codegen/constants-arch.h"
 #include "src/flags.h"
 #include "src/message-template.h"
 #include "src/objects-definitions.h"

@@ -4,7 +4,7 @@
 
 #include "src/snapshot/object-deserializer.h"
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/objects.h"

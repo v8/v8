@@ -6,7 +6,7 @@
 
 #include "src/api/api-arguments-inl.h"
 #include "src/arguments.h"
-#include "src/compiler.h"
+#include "src/codegen/compiler.h"
 #include "src/date/date.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"

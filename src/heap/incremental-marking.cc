@@ -4,7 +4,7 @@
 
 #include "src/heap/incremental-marking.h"
 
-#include "src/compilation-cache.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-idle-time-handler.h"

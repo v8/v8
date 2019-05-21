@@ -6,9 +6,9 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/globals.h"
 #include "src/isolate.h"
-#include "src/macro-assembler.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"
 #include "src/objects/property-cell.h"

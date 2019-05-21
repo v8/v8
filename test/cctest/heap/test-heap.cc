@@ -29,8 +29,9 @@
 #include <utility>
 
 #include "src/api/api-inl.h"
-#include "src/assembler-inl.h"
-#include "src/compilation-cache.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/compilation-cache.h"
+#include "src/codegen/macro-assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution.h"
@@ -45,7 +46,6 @@
 #include "src/heap/memory-reducer.h"
 #include "src/heap/remembered-set.h"
 #include "src/ic/ic.h"
-#include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/field-type.h"

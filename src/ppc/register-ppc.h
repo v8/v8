@@ -5,8 +5,8 @@
 #ifndef V8_PPC_REGISTER_PPC_H_
 #define V8_PPC_REGISTER_PPC_H_
 
-#include "src/register.h"
-#include "src/reglist.h"
+#include "src/codegen/register.h"
+#include "src/codegen/reglist.h"
 
 namespace v8 {
 namespace internal {

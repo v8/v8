@@ -6,7 +6,7 @@
 #include <memory>
 
 #include "src/api/api-inl.h"
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/interface-types.h"
 #include "src/frames-inl.h"

@@ -4,15 +4,15 @@
 
 #include "src/wasm/baseline/liftoff-compiler.h"
 
-#include "src/assembler-inl.h"
 #include "src/base/optional.h"
+#include "src/codegen/assembler-inl.h"
 // TODO(clemensh): Remove dependences on compiler stuff.
+#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/macro-assembler-inl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/interface-descriptors.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
-#include "src/macro-assembler-inl.h"
 #include "src/objects/smi.h"
 #include "src/ostreams.h"
 #include "src/tracing/trace-event.h"

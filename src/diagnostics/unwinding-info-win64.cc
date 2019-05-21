@@ -7,7 +7,7 @@
 #if defined(V8_OS_WIN_X64)
 
 #include "src/allocation.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/x64/assembler-x64.h"
 
 namespace v8 {

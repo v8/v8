@@ -4,6 +4,8 @@
 
 #include "src/profiler/profiler-listener.h"
 
+#include "src/codegen/reloc-info.h"
+#include "src/codegen/source-position-table.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
@@ -13,8 +15,6 @@
 #include "src/objects/string-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
-#include "src/reloc-info.h"
-#include "src/source-position-table.h"
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {

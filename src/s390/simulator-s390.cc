@@ -11,15 +11,15 @@
 #include <stdlib.h>
 #include <cmath>
 
-#include "src/assembler.h"
 #include "src/base/bits.h"
 #include "src/base/once.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/register-configuration.h"
 #include "src/diagnostics/disasm.h"
 #include "src/heap/combined-heap.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
-#include "src/register-configuration.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/s390/constants-s390.h"
 

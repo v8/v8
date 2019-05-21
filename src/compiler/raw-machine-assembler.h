@@ -7,7 +7,8 @@
 
 #include <initializer_list>
 
-#include "src/assembler.h"
+#include "src/base/type-traits.h"
+#include "src/codegen/assembler.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
@@ -20,7 +21,6 @@
 #include "src/globals.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
-#include "src/type-traits.h"
 
 namespace v8 {
 namespace internal {

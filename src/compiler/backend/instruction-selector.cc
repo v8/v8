@@ -6,8 +6,8 @@
 
 #include <limits>
 
-#include "src/assembler-inl.h"
 #include "src/base/adapters.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-matchers.h"

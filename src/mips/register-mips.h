@@ -5,9 +5,9 @@
 #ifndef V8_MIPS_REGISTER_MIPS_H_
 #define V8_MIPS_REGISTER_MIPS_H_
 
+#include "src/codegen/register.h"
+#include "src/codegen/reglist.h"
 #include "src/mips/constants-mips.h"
-#include "src/register.h"
-#include "src/reglist.h"
 
 namespace v8 {
 namespace internal {

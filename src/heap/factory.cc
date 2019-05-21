@@ -10,7 +10,7 @@
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/builtins/constants-table-builder.h"
-#include "src/compiler.h"
+#include "src/codegen/compiler.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"

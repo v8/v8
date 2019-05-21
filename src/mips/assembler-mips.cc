@@ -38,10 +38,10 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
+#include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/mips/assembler-mips-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {

@@ -7,12 +7,12 @@
 #include <limits>
 #include <ostream>
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/machine-type.h"
 #include "src/frames.h"
-#include "src/interface-descriptors.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
-#include "src/machine-type.h"
 #include "src/objects-inl.h"
 #include "src/zone/zone.h"
 

@@ -7,10 +7,10 @@
 
 #include <iosfwd>
 
+#include "src/codegen/machine-type.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/types.h"
 #include "src/feedback-vector.h"
-#include "src/machine-type.h"
 #include "src/objects.h"
 #include "src/objects/field-index.h"
 #include "src/objects/map.h"

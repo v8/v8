@@ -4,7 +4,7 @@
 
 #include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"

@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_SHARED_FUNCTION_INFO_H_
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_H_
 
-#include "src/bailout-reason.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/function-kind.h"
 #include "src/objects.h"
 #include "src/objects/compressed-slots.h"

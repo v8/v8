@@ -5,7 +5,7 @@
 #ifndef TEST_SIGNATURES_H
 #define TEST_SIGNATURES_H
 
-#include "src/signature.h"
+#include "src/codegen/signature.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-opcodes.h"
 

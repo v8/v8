@@ -5,7 +5,7 @@
 #include "src/init/setup-isolate.h"
 
 #include "src/accessors.h"
-#include "src/compilation-cache.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/contexts.h"
 #include "src/heap-symbols.h"
 #include "src/heap/factory.h"

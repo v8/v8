@@ -6,9 +6,9 @@
 #define V8_COMPILER_DEAD_CODE_ELIMINATION_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/codegen/machine-type.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/globals.h"
-#include "src/machine-type.h"
 
 namespace v8 {
 namespace internal {

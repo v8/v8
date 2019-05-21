@@ -4,10 +4,10 @@
 
 #include "src/runtime-profiler.h"
 
-#include "src/assembler.h"
 #include "src/base/platform/platform.h"
-#include "src/compilation-cache.h"
-#include "src/compiler.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/compilation-cache.h"
+#include "src/codegen/compiler.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
 #include "src/global-handles.h"

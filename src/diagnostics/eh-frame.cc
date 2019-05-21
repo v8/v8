@@ -7,7 +7,7 @@
 #include <iomanip>
 #include <ostream>
 
-#include "src/code-desc.h"
+#include "src/codegen/code-desc.h"
 
 #if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM) && \
     !defined(V8_TARGET_ARCH_ARM64)

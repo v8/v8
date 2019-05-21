@@ -18,9 +18,9 @@
 #include "src/allocation.h"
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins.h"
-#include "src/code-events.h"
+#include "src/codegen/source-position.h"
+#include "src/logging/code-events.h"
 #include "src/profiler/strings-storage.h"
-#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {

@@ -30,11 +30,11 @@
 
 #include "src/v8.h"
 
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/frames-inl.h"
-#include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

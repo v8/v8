@@ -59,7 +59,7 @@
       'filepath': '/arm/',
     },
     'csa': {
-      'filepath': 'src/code-stub-assembler\.(cc|h)$' \
+      'filepath': 'src/codegen/code-stub-assembler\.(cc|h)$' \
                   '|src/builtins/.*-gen.(cc|h)$',
     },
     'ia32': {

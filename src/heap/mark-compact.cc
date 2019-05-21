@@ -8,7 +8,7 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/cancelable-task.h"
-#include "src/compilation-cache.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"

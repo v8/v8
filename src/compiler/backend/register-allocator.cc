@@ -6,9 +6,9 @@
 
 #include <iomanip>
 
-#include "src/assembler-inl.h"
 #include "src/base/adapters.h"
 #include "src/base/small-vector.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/compiler/linkage.h"
 #include "src/strings/string-stream.h"
 #include "src/vector.h"

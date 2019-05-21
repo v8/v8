@@ -33,12 +33,12 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8-platform.h"
 #include "src/base/enum-set.h"
+#include "src/codegen/register-configuration.h"
 #include "src/debug/debug-interface.h"
 #include "src/flags.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
-#include "src/register-configuration.h"
 #include "src/v8.h"
 #include "src/zone/accounting-allocator.h"
 

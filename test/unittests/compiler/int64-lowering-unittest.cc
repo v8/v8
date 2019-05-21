@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/int64-lowering.h"
+#include "src/codegen/signature.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
@@ -10,7 +11,6 @@
 #include "src/compiler/node.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/objects-inl.h"
-#include "src/signature.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-module.h"
 #include "test/unittests/compiler/graph-unittest.h"

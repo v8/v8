@@ -39,12 +39,12 @@
 
 #include <deque>
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/label.h"
 #include "src/ia32/constants-ia32.h"
 #include "src/ia32/register-ia32.h"
 #include "src/ia32/sse-instr.h"
 #include "src/isolate.h"
-#include "src/label.h"
 #include "src/objects/smi.h"
 #include "src/utils.h"
 

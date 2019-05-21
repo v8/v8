@@ -11,6 +11,8 @@
 #include <set>
 
 #include "src/base/compiler-specific.h"
+#include "src/codegen/register-arch.h"
+#include "src/codegen/source-position.h"
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/frame.h"
@@ -18,8 +20,6 @@
 #include "src/external-reference.h"
 #include "src/globals.h"
 #include "src/numbers/double.h"
-#include "src/register-arch.h"
-#include "src/source-position.h"
 #include "src/zone/zone-allocator.h"
 
 namespace v8 {

@@ -6,12 +6,12 @@
 
 #include <iomanip>
 
+#include "src/codegen/register-configuration.h"
+#include "src/codegen/source-position.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
-#include "src/register-configuration.h"
-#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {

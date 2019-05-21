@@ -10,8 +10,8 @@
 
 #include "src/base/bits.h"
 #include "src/base/small-vector.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/frames.h"
-#include "src/macro-assembler.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/function-body-decoder.h"

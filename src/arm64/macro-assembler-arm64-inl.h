@@ -13,7 +13,7 @@
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/instrument-arm64.h"
 #include "src/base/bits.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

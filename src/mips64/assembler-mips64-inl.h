@@ -38,7 +38,7 @@
 
 #include "src/mips64/assembler-mips64.h"
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
 

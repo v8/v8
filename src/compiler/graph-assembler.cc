@@ -4,7 +4,7 @@
 
 #include "src/compiler/graph-assembler.h"
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/linkage.h"
 
 namespace v8 {

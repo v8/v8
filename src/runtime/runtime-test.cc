@@ -9,10 +9,10 @@
 
 #include "src/api/api-inl.h"
 #include "src/arguments-inl.h"
-#include "src/assembler-inl.h"
 #include "src/base/platform/mutex.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/compiler.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
-#include "src/compiler.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.

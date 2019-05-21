@@ -9,8 +9,8 @@
 #ifndef V8_X64_MACRO_ASSEMBLER_X64_H_
 #define V8_X64_MACRO_ASSEMBLER_X64_H_
 
-#include "src/bailout-reason.h"
 #include "src/base/flags.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/contexts.h"
 #include "src/globals.h"
 #include "src/x64/assembler-x64.h"

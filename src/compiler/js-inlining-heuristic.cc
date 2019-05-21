@@ -4,12 +4,12 @@
 
 #include "src/compiler/js-inlining-heuristic.h"
 
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
-#include "src/optimized-compilation-info.h"
 
 namespace v8 {
 namespace internal {

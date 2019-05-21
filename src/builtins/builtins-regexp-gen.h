@@ -6,7 +6,7 @@
 #define V8_BUILTINS_BUILTINS_REGEXP_GEN_H_
 
 #include "src/base/optional.h"
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/message-template.h"
 
 namespace v8 {

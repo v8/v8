@@ -33,7 +33,7 @@
 
 #include "src/api/api.h"
 #include "src/base/platform/platform.h"
-#include "src/compilation-cache.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/execution.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"

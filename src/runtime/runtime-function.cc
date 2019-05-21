@@ -4,7 +4,7 @@
 
 #include "src/accessors.h"
 #include "src/arguments-inl.h"
-#include "src/compiler.h"
+#include "src/codegen/compiler.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/isolate-inl.h"
 #include "src/logging/counters.h"

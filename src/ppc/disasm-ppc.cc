@@ -31,10 +31,10 @@
 #if V8_TARGET_ARCH_PPC
 
 #include "src/base/platform/platform.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/register-configuration.h"
 #include "src/diagnostics/disasm.h"
-#include "src/macro-assembler.h"
 #include "src/ppc/constants-ppc.h"
-#include "src/register-configuration.h"
 
 namespace v8 {
 namespace internal {

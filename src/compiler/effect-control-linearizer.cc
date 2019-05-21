@@ -4,7 +4,8 @@
 
 #include "src/compiler/effect-control-linearizer.h"
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/machine-type.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-assembler.h"
@@ -16,7 +17,6 @@
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
 #include "src/heap/factory-inl.h"
-#include "src/machine-type.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"

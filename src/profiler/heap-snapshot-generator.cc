@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "src/api/api-inl.h"
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/global-handles.h"
 #include "src/heap/combined-heap.h"

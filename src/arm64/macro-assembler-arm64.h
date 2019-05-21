@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "src/arm64/assembler-arm64.h"
-#include "src/bailout-reason.h"
 #include "src/base/bits.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/globals.h"
 
 // Simulator specific helpers.

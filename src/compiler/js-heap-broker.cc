@@ -11,7 +11,7 @@
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/boxed-float.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/per-isolate-compiler-cache.h"

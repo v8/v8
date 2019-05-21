@@ -37,7 +37,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/base/enum-set.h"
-#include "src/compiler.h"
+#include "src/codegen/compiler.h"
 #include "src/execution.h"
 #include "src/flags.h"
 #include "src/isolate.h"

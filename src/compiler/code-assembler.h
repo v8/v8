@@ -13,10 +13,12 @@
 // Do not include anything from src/compiler here!
 #include "src/allocation.h"
 #include "src/base/macros.h"
+#include "src/base/type-traits.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/source-position.h"
 #include "src/heap/heap.h"
-#include "src/machine-type.h"
 #include "src/objects.h"
 #include "src/objects/arguments.h"
 #include "src/objects/data-handler.h"
@@ -28,8 +30,6 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/oddball.h"
 #include "src/runtime/runtime.h"
-#include "src/source-position.h"
-#include "src/type-traits.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

@@ -6,7 +6,7 @@
 #define V8_ARM64_ASSEMBLER_ARM64_INL_H_
 
 #include "src/arm64/assembler-arm64.h"
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
 #include "src/objects/smi.h"

@@ -7,7 +7,7 @@
 
 #include "src/objects/code.h"
 
-#include "src/code-desc.h"
+#include "src/codegen/code-desc.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/isolate.h"
 #include "src/objects/dictionary.h"

@@ -9,7 +9,7 @@
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-utils.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder.h"

@@ -6,21 +6,21 @@
 
 #include "src/objects/code.h"
 
-#include "src/assembler-inl.h"
-#include "src/cpu-features.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/cpu-features.h"
+#include "src/codegen/reloc-info.h"
+#include "src/codegen/safepoint-table.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/ostreams.h"
-#include "src/reloc-info.h"
 #include "src/roots-inl.h"
-#include "src/safepoint-table.h"
 #include "src/snapshot/embedded-data.h"
 
 #ifdef ENABLE_DISASSEMBLER
-#include "src/code-comments.h"
+#include "src/codegen/code-comments.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/diagnostics/eh-frame.h"

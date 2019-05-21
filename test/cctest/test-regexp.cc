@@ -31,9 +31,9 @@
 
 #include "include/v8.h"
 #include "src/api/api-inl.h"
-#include "src/assembler-arch.h"
 #include "src/ast/ast.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/assembler-arch.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/regexp/interpreter-irregexp.h"

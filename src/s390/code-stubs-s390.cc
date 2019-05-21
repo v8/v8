@@ -5,16 +5,16 @@
 #if V8_TARGET_ARCH_S390
 
 #include "src/api/api-arguments-inl.h"
-#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/code-stubs.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/init/bootstrapper.h"
 #include "src/isolate.h"
-#include "src/macro-assembler.h"
 #include "src/objects/api-callbacks.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"

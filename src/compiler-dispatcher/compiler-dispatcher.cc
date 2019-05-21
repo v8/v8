@@ -8,7 +8,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/template-utils.h"
 #include "src/cancelable-task.h"
-#include "src/compiler.h"
+#include "src/codegen/compiler.h"
 #include "src/flags.h"
 #include "src/global-handles.h"
 #include "src/objects-inl.h"

@@ -6,7 +6,7 @@
 
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/frames.h"
 #include "src/heap/factory-inl.h"
 #include "src/interpreter/bytecodes.h"

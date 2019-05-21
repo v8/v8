@@ -12,6 +12,7 @@
 #include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
+#include "src/codegen/source-position-table.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecodes.h"
@@ -22,7 +23,6 @@
 #include "src/objects/module-inl.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime.h"
-#include "src/source-position-table.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/code-assembler.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"

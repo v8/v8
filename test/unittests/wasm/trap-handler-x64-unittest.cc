@@ -22,9 +22,9 @@
 #include "include/v8-wasm-trap-handler-win.h"
 #endif
 #include "src/allocation.h"
-#include "src/assembler-inl.h"
 #include "src/base/page-allocator.h"
-#include "src/macro-assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler-inl.h"
 #include "src/simulator.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/vector.h"

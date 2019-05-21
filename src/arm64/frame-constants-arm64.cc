@@ -8,7 +8,7 @@
 
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/assembler-arm64.h"
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
 
 #include "src/arm64/frame-constants-arm64.h"
 

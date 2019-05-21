@@ -31,8 +31,8 @@
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/base/platform/platform.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/disasm.h"
-#include "src/macro-assembler.h"
 #include "src/mips64/constants-mips64.h"
 
 namespace v8 {
