@@ -197,13 +197,17 @@ Char FlatStringReader::Get(int index) {
 template <typename Char>
 class SequentialStringKey final : public StringTableKey {
  public:
-  SequentialStringKey(const Vector<const Char>& chars, uint64_t seed)
+  SequentialStringKey(const Vector<const Char>& chars, uint64_t seed,
+                      bool convert = false)
       : SequentialStringKey(StringHasher::HashSequentialString<Char>(
                                 chars.begin(), chars.length(), seed),
-                            chars) {}
+                            chars, convert) {}
 
-  SequentialStringKey(int hash, const Vector<const Char>& chars)
-      : StringTableKey(hash, chars.length()), chars_(chars) {}
+  SequentialStringKey(int hash, const Vector<const Char>& chars,
+                      bool convert = false)
+      : StringTableKey(hash, chars.length()),
+        chars_(chars),
+        convert_(convert) {}
 
   bool IsMatch(String s) override {
     DisallowHeapAllocation no_gc;
@@ -226,12 +230,14 @@ class SequentialStringKey final : public StringTableKey {
 
  private:
   Vector<const Char> chars_;
+  bool convert_;
 };
 
 using OneByteStringKey = SequentialStringKey<uint8_t>;
 using TwoByteStringKey = SequentialStringKey<uint16_t>;
 
-class SeqOneByteSubStringKey final : public StringTableKey {
+template <typename Char>
+class SeqSubStringKey final : public StringTableKey {
  public:
 // VS 2017 on official builds gives this spurious warning:
 // warning C4789: buffer 'key' of size 16 bytes will be overrun; 4 bytes will
@@ -241,9 +247,13 @@ class SeqOneByteSubStringKey final : public StringTableKey {
 #pragma warning(push)
 #pragma warning(disable : 4789)
 #endif
-  SeqOneByteSubStringKey(Isolate* isolate, Handle<SeqOneByteString> string,
-                         int from, int len)
-      : StringTableKey(0, len), string_(string), from_(from) {
+  SeqSubStringKey(Isolate* isolate,
+                  Handle<typename CharTraits<Char>::String> string, int from,
+                  int len, bool convert = false)
+      : StringTableKey(0, len),
+        string_(string),
+        from_(from),
+        convert_(convert) {
     // We have to set the hash later.
     DisallowHeapAllocation no_gc;
     uint32_t hash = StringHasher::HashSequentialString(
@@ -252,7 +262,8 @@ class SeqOneByteSubStringKey final : public StringTableKey {
 
     DCHECK_LE(0, length());
     DCHECK_LE(from_ + length(), string_->length());
-    DCHECK(string_->IsSeqOneByteString());
+    DCHECK_EQ(string_->IsSeqOneByteString(), sizeof(Char) == 1);
+    DCHECK_EQ(string_->IsSeqTwoByteString(), sizeof(Char) == 2);
   }
 #if defined(V8_CC_MSVC)
 #pragma warning(pop)
@@ -270,14 +281,32 @@ class SeqOneByteSubStringKey final : public StringTableKey {
   }
 
   Handle<String> AsHandle(Isolate* isolate) override {
-    return isolate->factory()->NewOneByteInternalizedSubString(
-        string_, from_, length(), hash_field());
+    if (sizeof(Char) == 1 || (sizeof(Char) == 2 && convert_)) {
+      Handle<SeqOneByteString> result =
+          isolate->factory()->AllocateRawOneByteInternalizedString(
+              length(), hash_field());
+      DisallowHeapAllocation no_gc;
+      CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
+                length());
+      return result;
+    }
+    Handle<SeqTwoByteString> result =
+        isolate->factory()->AllocateRawTwoByteInternalizedString(length(),
+                                                                 hash_field());
+    DisallowHeapAllocation no_gc;
+    CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
+              length());
+    return result;
   }
 
  private:
-  Handle<SeqOneByteString> string_;
+  Handle<typename CharTraits<Char>::String> string_;
   int from_;
+  bool convert_;
 };
+
+using SeqOneByteSubStringKey = SeqSubStringKey<uint8_t>;
+using SeqTwoByteSubStringKey = SeqSubStringKey<uint16_t>;
 
 bool String::Equals(String other) {
   if (other == *this) return true;

@@ -6790,6 +6790,8 @@ template Handle<String> StringTable::LookupKey(Isolate* isolate,
                                                TwoByteStringKey* key);
 template Handle<String> StringTable::LookupKey(Isolate* isolate,
                                                SeqOneByteSubStringKey* key);
+template Handle<String> StringTable::LookupKey(Isolate* isolate,
+                                               SeqTwoByteSubStringKey* key);
 
 Handle<String> StringTable::AddKeyNoResize(Isolate* isolate,
                                            StringTableKey* key) {

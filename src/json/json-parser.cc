@@ -964,15 +964,16 @@ namespace {
 
 template <typename Char>
 bool Matches(const Vector<const Char>& chars, Handle<String> string) {
-  if (string.is_null()) return false;
+  DCHECK(!string.is_null());
 
-  // Only supports internalized strings in their canonical representation (one
-  // byte encoded as two-byte will return false here).
-  if ((sizeof(Char) == 1) != string->IsOneByteRepresentation()) return false;
   if (chars.length() != string->length()) return false;
 
   DisallowHeapAllocation no_gc;
-  const Char* string_data = string->GetChars<Char>(no_gc);
+  if (string->IsOneByteRepresentation()) {
+    const uint8_t* string_data = string->GetChars<uint8_t>(no_gc);
+    return CompareChars(chars.begin(), string_data, chars.length()) == 0;
+  }
+  const uint16_t* string_data = string->GetChars<uint16_t>(no_gc);
   return CompareChars(chars.begin(), string_data, chars.length()) == 0;
 }
 
@@ -991,7 +992,7 @@ Handle<String> JsonParser<Char>::DecodeString(
       DecodeString(dest, string.start(), string.length());
     } else {
       DCHECK_IMPLIES(string.internalize(), string.needs_conversion());
-      i::CopyChars(dest, chars_ + string.start(), string.length());
+      CopyChars(dest, chars_ + string.start(), string.length());
     }
 
     Vector<const SinkChar> data(dest, string.length());
@@ -1013,13 +1014,6 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
   if (string.length() == 0) return factory()->empty_string();
 
   if (sizeof(Char) == 1) {
-    if (V8_UNLIKELY(string.needs_conversion())) {
-      DCHECK(string.has_escape());
-      Handle<SeqTwoByteString> intermediate =
-          factory()->NewRawTwoByteString(string.length()).ToHandleChecked();
-      return DecodeString<uint16_t>(string, intermediate, hint);
-    }
-
     if (string.internalize() && !string.has_escape()) {
       if (!hint.is_null()) {
         Vector<const Char> data(chars_ + string.start(), string.length());
@@ -1035,12 +1029,13 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
           Vector<const uint8_t>::cast(chars));
     }
 
-    Handle<SeqOneByteString> intermediate =
-        factory()->NewRawOneByteString(string.length()).ToHandleChecked();
-    return DecodeString<uint8_t>(string, intermediate, hint);
-  }
+    if (V8_UNLIKELY(string.needs_conversion())) {
+      DCHECK(string.has_escape());
+      Handle<SeqTwoByteString> intermediate =
+          factory()->NewRawTwoByteString(string.length()).ToHandleChecked();
+      return DecodeString<uint16_t>(string, intermediate, hint);
+    }
 
-  if (string.needs_conversion()) {
     Handle<SeqOneByteString> intermediate =
         factory()->NewRawOneByteString(string.length()).ToHandleChecked();
     return DecodeString<uint8_t>(string, intermediate, hint);
@@ -1052,13 +1047,19 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
       if (Matches(data, hint)) return hint;
     }
     if (chars_may_relocate_) {
-      Handle<String> substring = factory()->NewProperSubString(
-          source_, string.start(), string.start() + string.length());
-      return factory()->InternalizeString(substring);
+      return factory()->InternalizeTwoByteString(
+          Handle<SeqTwoByteString>::cast(source_), string.start(),
+          string.length(), string.needs_conversion());
     }
     Vector<const Char> chars(chars_ + string.start(), string.length());
     return factory()->InternalizeTwoByteString(
-        Vector<const uint16_t>::cast(chars));
+        Vector<const uint16_t>::cast(chars), string.needs_conversion());
+  }
+
+  if (string.needs_conversion()) {
+    Handle<SeqOneByteString> intermediate =
+        factory()->NewRawOneByteString(string.length()).ToHandleChecked();
+    return DecodeString<uint8_t>(string, intermediate, hint);
   }
 
   Handle<SeqTwoByteString> intermediate =

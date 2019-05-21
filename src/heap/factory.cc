@@ -736,8 +736,16 @@ Handle<String> Factory::InternalizeOneByteString(
 }
 
 Handle<String> Factory::InternalizeTwoByteString(
-    const Vector<const uc16>& string) {
-  TwoByteStringKey key(string, HashSeed(isolate()));
+    Handle<SeqTwoByteString> string, int from, int length,
+    bool convert_to_one_byte) {
+  SeqTwoByteSubStringKey key(isolate(), string, from, length,
+                             convert_to_one_byte);
+  return InternalizeStringWithKey(&key);
+}
+
+Handle<String> Factory::InternalizeTwoByteString(
+    const Vector<const uc16>& string, bool convert_to_one_byte) {
+  TwoByteStringKey key(string, HashSeed(isolate()), convert_to_one_byte);
   return InternalizeStringWithKey(&key);
 }
 
@@ -924,22 +932,29 @@ Handle<SeqOneByteString> Factory::AllocateRawOneByteInternalizedString(
 
 Handle<String> Factory::AllocateTwoByteInternalizedString(
     const Vector<const uc16>& str, uint32_t hash_field) {
-  CHECK_GE(String::kMaxLength, str.length());
-  DCHECK_NE(0, str.length());  // Use Heap::empty_string() instead.
-
-  Map map = *internalized_string_map();
-  int size = SeqTwoByteString::SizeFor(str.length());
-  HeapObject result =
-      AllocateRawWithImmortalMap(size, AllocationType::kOld, map);
-  Handle<SeqTwoByteString> answer(SeqTwoByteString::cast(result), isolate());
-  answer->set_length(str.length());
-  answer->set_hash_field(hash_field);
-  DCHECK_EQ(size, answer->Size());
+  Handle<SeqTwoByteString> result =
+      AllocateRawTwoByteInternalizedString(str.length(), hash_field);
   DisallowHeapAllocation no_gc;
 
   // Fill in the characters.
-  MemCopy(answer->GetChars(no_gc), str.begin(), str.length() * kUC16Size);
+  MemCopy(result->GetChars(no_gc), str.begin(), str.length() * kUC16Size);
 
+  return result;
+}
+
+Handle<SeqTwoByteString> Factory::AllocateRawTwoByteInternalizedString(
+    int length, uint32_t hash_field) {
+  CHECK_GE(String::kMaxLength, length);
+  DCHECK_NE(0, length);  // Use Heap::empty_string() instead.
+
+  Map map = *internalized_string_map();
+  int size = SeqTwoByteString::SizeFor(length);
+  HeapObject result =
+      AllocateRawWithImmortalMap(size, AllocationType::kOld, map);
+  Handle<SeqTwoByteString> answer(SeqTwoByteString::cast(result), isolate());
+  answer->set_length(length);
+  answer->set_hash_field(hash_field);
+  DCHECK_EQ(size, result.Size());
   return answer;
 }
 
@@ -988,17 +1003,6 @@ Handle<String> Factory::NewOneByteInternalizedString(
       AllocateRawOneByteInternalizedString(str.length(), hash_field);
   DisallowHeapAllocation no_allocation;
   MemCopy(result->GetChars(no_allocation), str.begin(), str.length());
-  return result;
-}
-
-Handle<String> Factory::NewOneByteInternalizedSubString(
-    Handle<SeqOneByteString> string, int offset, int length,
-    uint32_t hash_field) {
-  Handle<SeqOneByteString> result =
-      AllocateRawOneByteInternalizedString(length, hash_field);
-  DisallowHeapAllocation no_allocation;
-  MemCopy(result->GetChars(no_allocation),
-          string->GetChars(no_allocation) + offset, length);
   return result;
 }
 

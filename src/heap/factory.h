@@ -245,8 +245,12 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<String> InternalizeOneByteString(const Vector<const uint8_t>& str);
   Handle<String> InternalizeOneByteString(Handle<SeqOneByteString>, int from,
                                           int length);
+  Handle<String> InternalizeTwoByteString(Handle<SeqTwoByteString>, int from,
+                                          int length,
+                                          bool convert_to_one_byte = false);
 
-  Handle<String> InternalizeTwoByteString(const Vector<const uc16>& str);
+  Handle<String> InternalizeTwoByteString(const Vector<const uc16>& str,
+                                          bool convert_to_one_byte = false);
 
   template <class StringTableKey>
   Handle<String> InternalizeStringWithKey(StringTableKey* key);
@@ -318,12 +322,14 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<String> NewOneByteInternalizedString(const Vector<const uint8_t>& str,
                                               uint32_t hash_field);
 
-  Handle<String> NewOneByteInternalizedSubString(
-      Handle<SeqOneByteString> string, int offset, int length,
-      uint32_t hash_field);
+  Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
+      int length, uint32_t hash_field);
 
   Handle<String> NewTwoByteInternalizedString(const Vector<const uc16>& str,
                                               uint32_t hash_field);
+
+  Handle<SeqTwoByteString> AllocateRawTwoByteInternalizedString(
+      int length, uint32_t hash_field);
 
   Handle<String> NewInternalizedStringImpl(Handle<String> string, int chars,
                                            uint32_t hash_field);
@@ -1067,9 +1073,6 @@ class V8_EXPORT_PRIVATE Factory {
   template <bool is_one_byte, typename T>
   Handle<String> AllocateInternalizedStringImpl(T t, int chars,
                                                 uint32_t hash_field);
-
-  Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
-      int length, uint32_t hash_field);
 
   Handle<String> AllocateTwoByteInternalizedString(
       const Vector<const uc16>& str, uint32_t hash_field);
