@@ -963,6 +963,8 @@ DEFINE_BOOL(expose_trigger_failure, false, "expose trigger-failure extension")
 DEFINE_INT(stack_trace_limit, 10, "number of stack frames to capture")
 DEFINE_BOOL(builtins_in_stack_traces, false,
             "show built-in functions in stack traces")
+DEFINE_BOOL(experimental_stack_trace_frames, false,
+            "enable experimental frames (API/Builtins) and stack trace layout")
 DEFINE_BOOL(disallow_code_generation_from_strings, false,
             "disallow eval and friends")
 DEFINE_BOOL(expose_async_hooks, false, "expose async_hooks object")

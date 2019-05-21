@@ -708,6 +708,13 @@ class FrameArrayBuilder {
     // Filter out internal frames that we do not want to show.
     if (!IsVisibleInStackTrace(function)) return;
 
+    // TODO(szuend): Remove this check once the flag is enabled
+    //               by default.
+    if (!FLAG_experimental_stack_trace_frames &&
+        function->shared()->IsApiFunction()) {
+      return;
+    }
+
     Handle<Object> receiver(exit_frame->receiver(), isolate_);
     Handle<Code> code(exit_frame->LookupCode(), isolate_);
     const int offset =
@@ -821,7 +828,8 @@ class FrameArrayBuilder {
     // internal call sites in the stack trace for debugging purposes.
     if (!FLAG_builtins_in_stack_traces &&
         !function->shared()->IsUserJavaScript()) {
-      return function->shared()->native();
+      return function->shared()->native() ||
+             function->shared()->IsApiFunction();
     }
     return true;
   }
