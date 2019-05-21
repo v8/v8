@@ -53,11 +53,13 @@ TEST(GCTracer, AverageSpeed) {
 
 namespace {
 
+constexpr size_t kNoGlobalMemory = 0;
+
 void SampleAndAddAllocaton(v8::internal::GCTracer* tracer, double time_ms,
                            size_t new_space_counter_bytes,
                            size_t old_generation_counter_bytes) {
   tracer->SampleAllocation(time_ms, new_space_counter_bytes,
-                           old_generation_counter_bytes);
+                           old_generation_counter_bytes, kNoGlobalMemory);
   tracer->AddAllocation(time_ms);
 }
 
@@ -70,7 +72,7 @@ TEST_F(GCTracerTest, AllocationThroughput) {
   int time1 = 100;
   size_t counter1 = 1000;
   // First sample creates baseline but is not part of the recorded samples.
-  tracer->SampleAllocation(time1, counter1, counter1);
+  tracer->SampleAllocation(time1, counter1, counter1, kNoGlobalMemory);
   SampleAndAddAllocaton(tracer, time1, counter1, counter1);
   int time2 = 200;
   size_t counter2 = 2000;

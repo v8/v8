@@ -7138,6 +7138,24 @@ class V8_EXPORT EmbedderHeapTracer {
     virtual void VisitTracedGlobalHandle(const TracedGlobal<Value>& value) = 0;
   };
 
+  /**
+   * Summary of a garbage collection cycle. See |TraceEpilogue| on how the
+   * summary is reported.
+   */
+  struct TraceSummary {
+    /**
+     * Time spent managing the retained memory in milliseconds. This can e.g.
+     * include the time tracing through objects in the embedder.
+     */
+    double time;
+
+    /**
+     * Memory retained by the embedder through the |EmbedderHeapTracer|
+     * mechanism in bytes.
+     */
+    size_t allocated_size;
+  };
+
   virtual ~EmbedderHeapTracer() = default;
 
   /**
@@ -7184,9 +7202,12 @@ class V8_EXPORT EmbedderHeapTracer {
   /**
    * Called at the end of a GC cycle.
    *
-   * Note that allocation is *not* allowed within |TraceEpilogue|.
+   * Note that allocation is *not* allowed within |TraceEpilogue|. Can be
+   * overriden to fill a |TraceSummary| that is used by V8 to schedule future
+   * garbage collections.
    */
   virtual void TraceEpilogue() = 0;
+  virtual void TraceEpilogue(TraceSummary* trace_summary) { TraceEpilogue(); }
 
   /**
    * Called upon entering the final marking pause. No more incremental marking
@@ -7222,6 +7243,14 @@ class V8_EXPORT EmbedderHeapTracer {
    * Should only be used in testing code.
    */
   void GarbageCollectionForTesting(EmbedderStackState stack_state);
+
+  /*
+   * Called by the embedder to signal newly allocated memory. Not bound to
+   * tracing phases. Embedders should trade off when increments are reported as
+   * V8 may consult global heuristics on whether to trigger garbage collection
+   * on this change.
+   */
+  void IncreaseAllocatedSize(size_t bytes);
 
   /*
    * Returns the v8::Isolate this tracer is attached too and |nullptr| if it

@@ -41,6 +41,7 @@
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
 #include "src/globals.h"
+#include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/init/icu_util.h"
@@ -10144,6 +10145,17 @@ void EmbedderHeapTracer::GarbageCollectionForTesting(
   heap->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
                                  i::GarbageCollectionReason::kTesting,
                                  kGCCallbackFlagForced);
+}
+
+void EmbedderHeapTracer::IncreaseAllocatedSize(size_t bytes) {
+  if (isolate_) {
+    i::LocalEmbedderHeapTracer* const tracer =
+        reinterpret_cast<i::Isolate*>(isolate_)
+            ->heap()
+            ->local_embedder_heap_tracer();
+    DCHECK_NOT_NULL(tracer);
+    tracer->IncreaseAllocatedSize(bytes);
+  }
 }
 
 void EmbedderHeapTracer::RegisterEmbedderReference(
