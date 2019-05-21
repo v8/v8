@@ -1924,6 +1924,22 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
     Variable* vars[] = {array.var_array(), array.var_length(),
                         array.var_capacity()};
     Label loop(this, 3, vars), out(this);
+
+    // Check if the regexp is an ATOM type. If then, keep the literal string to
+    // search for so that we can avoid calling substring in the loop below.
+    TVARIABLE(BoolT, var_atom, Int32FalseConstant());
+    TVARIABLE(String, var_search_string, EmptyStringConstant());
+    if (is_fastpath) {
+      TNode<JSRegExp> maybe_atom_regexp = CAST(regexp);
+      TNode<FixedArray> data =
+          CAST(LoadObjectField(maybe_atom_regexp, JSRegExp::kDataOffset));
+      GotoIfNot(SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
+                         SmiConstant(JSRegExp::ATOM)),
+                &loop);
+      var_search_string =
+          CAST(LoadFixedArrayElement(data, JSRegExp::kAtomPatternIndex));
+      var_atom = Int32TrueConstant();
+    }
     Goto(&loop);
 
     BIND(&loop);
@@ -1938,13 +1954,22 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
             RegExpPrototypeExecBodyWithoutResult(CAST(context), CAST(regexp),
                                                  string, &if_didnotmatch, true);
 
-        Node* const match_from = UnsafeLoadFixedArrayElement(
-            match_indices, RegExpMatchInfo::kFirstCaptureIndex);
-        Node* const match_to = UnsafeLoadFixedArrayElement(
-            match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
+        Label dosubstring(this), donotsubstring(this);
+        Branch(var_atom.value(), &donotsubstring, &dosubstring);
 
-        var_match.Bind(CallBuiltin(Builtins::kSubString, context, string,
-                                   match_from, match_to));
+        BIND(&dosubstring);
+        {
+          Node* const match_from = UnsafeLoadFixedArrayElement(
+              match_indices, RegExpMatchInfo::kFirstCaptureIndex);
+          Node* const match_to = UnsafeLoadFixedArrayElement(
+              match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
+          var_match.Bind(CallBuiltin(Builtins::kSubString, context, string,
+                                     match_from, match_to));
+          Goto(&if_didmatch);
+        }
+
+        BIND(&donotsubstring);
+        var_match.Bind(var_search_string.value());
         Goto(&if_didmatch);
       } else {
         DCHECK(!is_fastpath);
