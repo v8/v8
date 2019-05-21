@@ -2051,10 +2051,13 @@ class LiftoffCompiler {
 WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
                                                 CompilationEnv* env,
                                                 const FunctionBody& func_body,
+                                                int func_index,
                                                 Counters* counters,
                                                 WasmFeatures* detected) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-               "ExecuteLiftoffCompilation");
+  TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+               "ExecuteLiftoffCompilation", "func_index", func_index,
+               "body_size",
+               static_cast<uint32_t>(func_body.end - func_body.start));
   base::ElapsedTimer compile_timer;
   if (FLAG_trace_wasm_decode_time) {
     compile_timer.Start();

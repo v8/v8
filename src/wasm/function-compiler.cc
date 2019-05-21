@@ -145,8 +145,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       if (V8_LIKELY(FLAG_wasm_tier_mask_for_testing == 0) ||
           func_index_ >= 32 ||
           ((FLAG_wasm_tier_mask_for_testing & (1 << func_index_)) == 0)) {
-        result = ExecuteLiftoffCompilation(wasm_engine->allocator(), env,
-                                           func_body, counters, detected);
+        result =
+            ExecuteLiftoffCompilation(wasm_engine->allocator(), env, func_body,
+                                      func_index_, counters, detected);
         if (result.succeeded()) break;
       }
 

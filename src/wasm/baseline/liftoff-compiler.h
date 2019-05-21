@@ -20,8 +20,8 @@ struct FunctionBody;
 struct WasmFeatures;
 
 WasmCompilationResult ExecuteLiftoffCompilation(
-    AccountingAllocator*, CompilationEnv*, const FunctionBody&, Counters*,
-    WasmFeatures* detected_features);
+    AccountingAllocator*, CompilationEnv*, const FunctionBody&, int func_index,
+    Counters*, WasmFeatures* detected_features);
 
 }  // namespace wasm
 }  // namespace internal

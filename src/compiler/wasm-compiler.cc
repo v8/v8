@@ -6450,8 +6450,10 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::WasmEngine* wasm_engine, wasm::CompilationEnv* env,
     const wasm::FunctionBody& func_body, int func_index, Counters* counters,
     wasm::WasmFeatures* detected) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-               "ExecuteTurbofanCompilation");
+  TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+               "ExecuteTurbofanCompilation", "func_index", func_index,
+               "body_size",
+               static_cast<uint32_t>(func_body.end - func_body.start));
   double decode_ms = 0;
   size_t node_count = 0;
 
