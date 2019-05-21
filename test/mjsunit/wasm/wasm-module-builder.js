@@ -897,7 +897,7 @@ class WasmModuleBuilder {
     this.exports.push({name: name, kind: kExternalMemory, index: 0});
   }
 
-  addElementSegment(table, base, is_global, array, is_import = false) {
+  addElementSegment(table, base, is_global, array) {
     if (this.tables.length + this.num_imported_tables == 0) {
       this.addTable(kWasmAnyFunc, 0);
     }
@@ -909,7 +909,7 @@ class WasmModuleBuilder {
     // know how long the table actually is. If |is_global| is true, then the
     // base is a global index, instead of an integer offset, so we can't update
     // the table then either.
-    if (!(is_import || is_global)) {
+    if (!(is_global || table < this.num_imported_tables)) {
       var length = base + array.length;
       if (length > this.tables[0].initial_size) {
         this.tables[0].initial_size = length;

@@ -117,8 +117,8 @@ const dummy_func = exports.set_table_func1;
 
   const offset1 = 3;
   const offset2 = 9;
-  builder.addElementSegment(t1, offset1, false, [f1.index, f2.index], false);
-  builder.addElementSegment(t2, offset2, false, [f3.index, f1.index], false);
+  builder.addElementSegment(t1, offset1, false, [f1.index, f2.index]);
+  builder.addElementSegment(t2, offset2, false, [f3.index, f1.index]);
 
   const instance = builder.instantiate();
 
