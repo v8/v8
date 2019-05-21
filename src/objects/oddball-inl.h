@@ -27,11 +27,12 @@ double Oddball::to_number_raw() const {
 }
 
 void Oddball::set_to_number_raw(double value) {
-  WRITE_DOUBLE_FIELD(*this, kToNumberRawOffset, value);
+  WriteField<double>(kToNumberRawOffset, value);
 }
 
 void Oddball::set_to_number_raw_as_bits(uint64_t bits) {
-  WRITE_UINT64_FIELD(*this, kToNumberRawOffset, bits);
+  // Bug(v8:8875): HeapNumber's double may be unaligned.
+  WriteUnalignedValue<uint64_t>(field_address(kToNumberRawOffset), bits);
 }
 
 ACCESSORS(Oddball, to_string, String, kToStringOffset)

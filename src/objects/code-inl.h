@@ -302,7 +302,7 @@ int Code::unwinding_info_size() const {
 
 void Code::set_unwinding_info_size(int value) {
   DCHECK(has_unwinding_info());
-  WRITE_UINT64_FIELD(*this, GetUnwindingInfoSizeOffset(), value);
+  WriteField<uint64_t>(GetUnwindingInfoSizeOffset(), value);
 }
 
 Address Code::unwinding_info_start() const {
@@ -390,7 +390,7 @@ void Code::initialize_flags(Kind kind, bool has_unwinding_info,
                    IsTurbofannedField::encode(is_turbofanned) |
                    StackSlotsField::encode(stack_slots) |
                    IsOffHeapTrampoline::encode(is_off_heap_trampoline);
-  WRITE_UINT32_FIELD(*this, kFlagsOffset, flags);
+  WriteField<uint32_t>(kFlagsOffset, flags);
   DCHECK_IMPLIES(stack_slots != 0, has_safepoint_info());
 }
 
@@ -480,7 +480,7 @@ int Code::builtin_index() const {
 
 void Code::set_builtin_index(int index) {
   DCHECK(index == -1 || Builtins::IsBuiltinId(index));
-  WRITE_INT_FIELD(*this, kBuiltinIndexOffset, index);
+  WriteField<int>(kBuiltinIndexOffset, index);
 }
 
 bool Code::is_builtin() const { return builtin_index() != -1; }
@@ -547,7 +547,7 @@ int Code::constant_pool_offset() const {
 void Code::set_constant_pool_offset(int value) {
   if (!FLAG_enable_embedded_constant_pool) return;
   DCHECK_LE(value, InstructionSize());
-  WRITE_INT_FIELD(*this, kConstantPoolOffsetOffset, value);
+  WriteField<int>(kConstantPoolOffsetOffset, value);
 }
 
 Address Code::constant_pool() const {
@@ -619,13 +619,13 @@ byte BytecodeArray::get(int index) const {
 
 void BytecodeArray::set(int index, byte value) {
   DCHECK(index >= 0 && index < this->length());
-  WRITE_BYTE_FIELD(*this, kHeaderSize + index * kCharSize, value);
+  WriteField<byte>(kHeaderSize + index * kCharSize, value);
 }
 
 void BytecodeArray::set_frame_size(int frame_size) {
   DCHECK_GE(frame_size, 0);
   DCHECK(IsAligned(frame_size, kSystemPointerSize));
-  WRITE_INT_FIELD(*this, kFrameSizeOffset, frame_size);
+  WriteField<int>(kFrameSizeOffset, frame_size);
 }
 
 int BytecodeArray::frame_size() const {
@@ -640,7 +640,7 @@ void BytecodeArray::set_parameter_count(int number_of_parameters) {
   DCHECK_GE(number_of_parameters, 0);
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
-  WRITE_INT_FIELD(*this, kParameterSizeOffset,
+  WriteField<int>(kParameterSizeOffset,
                   (number_of_parameters << kSystemPointerSizeLog2));
 }
 
@@ -658,12 +658,12 @@ interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
 void BytecodeArray::set_incoming_new_target_or_generator_register(
     interpreter::Register incoming_new_target_or_generator_register) {
   if (!incoming_new_target_or_generator_register.is_valid()) {
-    WRITE_INT_FIELD(*this, kIncomingNewTargetOrGeneratorRegisterOffset, 0);
+    WriteField<int>(kIncomingNewTargetOrGeneratorRegisterOffset, 0);
   } else {
     DCHECK(incoming_new_target_or_generator_register.index() <
            register_count());
     DCHECK_NE(0, incoming_new_target_or_generator_register.ToOperand());
-    WRITE_INT_FIELD(*this, kIncomingNewTargetOrGeneratorRegisterOffset,
+    WriteField<int>(kIncomingNewTargetOrGeneratorRegisterOffset,
                     incoming_new_target_or_generator_register.ToOperand());
   }
 }
@@ -675,7 +675,7 @@ int BytecodeArray::osr_loop_nesting_level() const {
 void BytecodeArray::set_osr_loop_nesting_level(int depth) {
   DCHECK(0 <= depth && depth <= AbstractCode::kMaxLoopNestingMarker);
   STATIC_ASSERT(AbstractCode::kMaxLoopNestingMarker < kMaxInt8);
-  WRITE_INT8_FIELD(*this, kOSRNestingLevelOffset, depth);
+  WriteField<int8_t>(kOSRNestingLevelOffset, depth);
 }
 
 BytecodeArray::Age BytecodeArray::bytecode_age() const {

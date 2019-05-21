@@ -642,6 +642,23 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     }
   }
 
+  template <class T, typename std::enable_if<std::is_arithmetic<T>::value,
+                                             int>::type = 0>
+  inline void WriteField(size_t offset, T value) const {
+    // Pointer compression causes types larger than kTaggedSize to be unaligned.
+#ifdef V8_COMPRESS_POINTERS
+    constexpr bool v8_pointer_compression_unaligned = sizeof(T) > kTaggedSize;
+#else
+    constexpr bool v8_pointer_compression_unaligned = false;
+#endif
+    if (std::is_same<T, double>::value || v8_pointer_compression_unaligned) {
+      // Bug(v8:8875) Double fields may be unaligned.
+      WriteUnalignedValue<T>(field_address(offset), value);
+    } else {
+      Memory<T>(field_address(offset)) = value;
+    }
+  }
+
  protected:
   inline Address field_address(size_t offset) const {
     return ptr() + offset - kHeapObjectTag;
@@ -738,13 +755,9 @@ class MapWord {
   // View this map word as a forwarding address.
   inline HeapObject ToForwardingAddress();
 
-  static inline MapWord FromRawValue(uintptr_t value) {
-    return MapWord(value);
-  }
+  static inline MapWord FromRawValue(uintptr_t value) { return MapWord(value); }
 
-  inline uintptr_t ToRawValue() {
-    return value_;
-  }
+  inline uintptr_t ToRawValue() { return value_; }
 
  private:
   // HeapObject calls the private constructor and directly reads the value.
@@ -773,12 +786,8 @@ enum EnsureElementsMode {
   ALLOW_CONVERTED_DOUBLE_ELEMENTS
 };
 
-
 // Indicator for one component of an AccessorPair.
-enum AccessorComponent {
-  ACCESSOR_GETTER,
-  ACCESSOR_SETTER
-};
+enum AccessorComponent { ACCESSOR_GETTER, ACCESSOR_SETTER };
 
 enum class GetKeysConversion {
   kKeepNumbers = static_cast<int>(v8::KeyConversionMode::kKeepNumbers),
@@ -799,7 +808,7 @@ class Relocatable {
   explicit inline Relocatable(Isolate* isolate);
   inline virtual ~Relocatable();
   virtual void IterateInstance(RootVisitor* v) {}
-  virtual void PostGarbageCollection() { }
+  virtual void PostGarbageCollection() {}
 
   static void PostGarbageCollectionProcessing(Isolate* isolate);
   static int ArchiveSpacePerThread();
@@ -830,7 +839,6 @@ class BooleanBit : public AllStatic {
     return value;
   }
 };
-
 
 }  // NOLINT, false-positive due to second-order macros.
 }  // NOLINT, false-positive due to second-order macros.

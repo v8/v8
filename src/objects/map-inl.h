@@ -295,7 +295,7 @@ InstanceType Map::instance_type() const {
 }
 
 void Map::set_instance_type(InstanceType value) {
-  WRITE_UINT16_FIELD(*this, kInstanceTypeOffset, value);
+  WriteField<uint16_t>(kInstanceTypeOffset, value);
 }
 
 int Map::UnusedPropertyFields() const {
@@ -420,7 +420,7 @@ void Map::AccountAddedOutOfObjectPropertyField(int unused_in_property_array) {
 byte Map::bit_field() const { return ReadField<byte>(kBitFieldOffset); }
 
 void Map::set_bit_field(byte value) {
-  WRITE_BYTE_FIELD(*this, kBitFieldOffset, value);
+  WriteField<byte>(kBitFieldOffset, value);
 }
 
 byte Map::relaxed_bit_field() const {
@@ -434,7 +434,7 @@ void Map::set_relaxed_bit_field(byte value) {
 byte Map::bit_field2() const { return ReadField<byte>(kBitField2Offset); }
 
 void Map::set_bit_field2(byte value) {
-  WRITE_BYTE_FIELD(*this, kBitField2Offset, value);
+  WriteField<byte>(kBitField2Offset, value);
 }
 
 bool Map::is_abandoned_prototype_map() const {

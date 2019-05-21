@@ -26,7 +26,7 @@ CAST_ACCESSOR(MutableHeapNumber)
 double HeapNumberBase::value() const { return ReadField<double>(kValueOffset); }
 
 void HeapNumberBase::set_value(double value) {
-  WRITE_DOUBLE_FIELD(*this, kValueOffset, value);
+  WriteField<double>(kValueOffset, value);
 }
 
 uint64_t HeapNumberBase::value_as_bits() const {
@@ -35,7 +35,7 @@ uint64_t HeapNumberBase::value_as_bits() const {
 }
 
 void HeapNumberBase::set_value_as_bits(uint64_t bits) {
-  WRITE_UINT64_FIELD(*this, kValueOffset, bits);
+  WriteUnalignedValue<uint64_t>(field_address(kValueOffset), bits);
 }
 
 int HeapNumberBase::get_exponent() {

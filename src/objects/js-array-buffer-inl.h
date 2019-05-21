@@ -33,7 +33,7 @@ size_t JSArrayBuffer::byte_length() const {
 }
 
 void JSArrayBuffer::set_byte_length(size_t value) {
-  WRITE_UINTPTR_FIELD(*this, kByteLengthOffset, value);
+  WriteField<size_t>(kByteLengthOffset, value);
 }
 
 void* JSArrayBuffer::backing_store() const {
@@ -41,8 +41,7 @@ void* JSArrayBuffer::backing_store() const {
 }
 
 void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
-  intptr_t ptr = reinterpret_cast<intptr_t>(value);
-  WRITE_INTPTR_FIELD(*this, kBackingStoreOffset, ptr);
+  WriteField<Address>(kBackingStoreOffset, reinterpret_cast<Address>(value));
 }
 
 size_t JSArrayBuffer::allocation_length() const {
@@ -92,7 +91,7 @@ void JSArrayBuffer::clear_padding() {
 }
 
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
-  WRITE_UINT32_FIELD(*this, kBitFieldOffset, bits);
+  WriteField<uint32_t>(kBitFieldOffset, bits);
 }
 
 uint32_t JSArrayBuffer::bit_field() const {
@@ -114,7 +113,7 @@ size_t JSArrayBufferView::byte_offset() const {
 }
 
 void JSArrayBufferView::set_byte_offset(size_t value) {
-  WRITE_UINTPTR_FIELD(*this, kByteOffsetOffset, value);
+  WriteField<size_t>(kByteOffsetOffset, value);
 }
 
 size_t JSArrayBufferView::byte_length() const {
@@ -122,7 +121,7 @@ size_t JSArrayBufferView::byte_length() const {
 }
 
 void JSArrayBufferView::set_byte_length(size_t value) {
-  WRITE_UINTPTR_FIELD(*this, kByteLengthOffset, value);
+  WriteField<size_t>(kByteLengthOffset, value);
 }
 
 ACCESSORS(JSArrayBufferView, buffer, Object, kBufferOffset)
@@ -134,7 +133,7 @@ bool JSArrayBufferView::WasDetached() const {
 size_t JSTypedArray::length() const { return ReadField<size_t>(kLengthOffset); }
 
 void JSTypedArray::set_length(size_t value) {
-  WRITE_UINTPTR_FIELD(*this, kLengthOffset, value);
+  WriteField<size_t>(kLengthOffset, value);
 }
 
 bool JSTypedArray::is_on_heap() const {
@@ -172,8 +171,7 @@ void* JSDataView::data_pointer() const {
 }
 
 void JSDataView::set_data_pointer(void* value) {
-  intptr_t ptr = reinterpret_cast<intptr_t>(value);
-  WRITE_INTPTR_FIELD(*this, kDataPointerOffset, ptr);
+  WriteField<Address>(kDataPointerOffset, reinterpret_cast<Address>(value));
 }
 
 }  // namespace internal

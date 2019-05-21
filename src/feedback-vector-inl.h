@@ -51,7 +51,7 @@ int32_t FeedbackMetadata::get(int index) const {
 void FeedbackMetadata::set(int index, int32_t value) {
   DCHECK(index >= 0 && index < length());
   int offset = kHeaderSize + index * kInt32Size;
-  WRITE_INT32_FIELD(*this, offset, value);
+  WriteField<int32_t>(offset, value);
 }
 
 bool FeedbackMetadata::is_empty() const { return slot_count() == 0; }

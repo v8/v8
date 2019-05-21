@@ -202,11 +202,11 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   }
   inline void initialize_bitfield(bool sign, int length) {
     int32_t bitfield = LengthBits::encode(length) | SignBits::encode(sign);
-    WRITE_INT32_FIELD(*this, kBitfieldOffset, bitfield);
+    WriteField<int32_t>(kBitfieldOffset, bitfield);
   }
   inline void set_digit(int n, digit_t value) {
     SLOW_DCHECK(0 <= n && n < length());
-    WRITE_UINTPTR_FIELD(*this, kDigitsOffset + n * kDigitSize, value);
+    WriteField<digit_t>(kDigitsOffset + n * kDigitSize, value);
   }
 
   void set_64_bits(uint64_t bits);

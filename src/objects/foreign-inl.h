@@ -31,7 +31,7 @@ Address Foreign::foreign_address() {
 }
 
 void Foreign::set_foreign_address(Address value) {
-  WRITE_UINTPTR_FIELD(*this, kForeignAddressOffset, value);
+  WriteField<Address>(kForeignAddressOffset, value);
 }
 
 }  // namespace internal

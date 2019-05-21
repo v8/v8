@@ -3813,7 +3813,7 @@ void TranslatedState::InitializeJSObjectAt(
         CHECK(field_value->IsHeapNumber());
         double_field_value = HeapNumber::cast(*field_value)->value();
       }
-      WRITE_DOUBLE_FIELD(*object_storage, offset, double_field_value);
+      object_storage->WriteField<double>(offset, double_field_value);
     } else if (marker == kStoreMutableHeapNumber) {
       CHECK(field_value->IsMutableHeapNumber());
       WRITE_FIELD(*object_storage, offset, *field_value);

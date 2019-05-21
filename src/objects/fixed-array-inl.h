@@ -377,9 +377,9 @@ void FixedDoubleArray::set(int index, double value) {
          map() != GetReadOnlyRoots().fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
   if (std::isnan(value)) {
-    WRITE_DOUBLE_FIELD(*this, offset, std::numeric_limits<double>::quiet_NaN());
+    WriteField<double>(offset, std::numeric_limits<double>::quiet_NaN());
   } else {
-    WRITE_DOUBLE_FIELD(*this, offset, value);
+    WriteField<double>(offset, value);
   }
   DCHECK(!is_the_hole(index));
 }
@@ -392,7 +392,7 @@ void FixedDoubleArray::set_the_hole(int index) {
   DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
          map() != GetReadOnlyRoots().fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
-  WRITE_UINT64_FIELD(*this, offset, kHoleNanInt64);
+  WriteUnalignedValue<uint64_t>(field_address(offset), kHoleNanInt64);
 }
 
 bool FixedDoubleArray::is_the_hole(Isolate* isolate, int index) {
@@ -538,7 +538,7 @@ byte ByteArray::get(int index) const {
 
 void ByteArray::set(int index, byte value) {
   DCHECK(index >= 0 && index < this->length());
-  WRITE_BYTE_FIELD(*this, kHeaderSize + index * kCharSize, value);
+  WriteField<byte>(kHeaderSize + index * kCharSize, value);
 }
 
 void ByteArray::copy_in(int index, const byte* buffer, int length) {
@@ -562,7 +562,7 @@ int ByteArray::get_int(int index) const {
 
 void ByteArray::set_int(int index, int value) {
   DCHECK(index >= 0 && index < this->length() / kIntSize);
-  WRITE_INT_FIELD(*this, kHeaderSize + index * kIntSize, value);
+  WriteField<int>(kHeaderSize + index * kIntSize, value);
 }
 
 uint32_t ByteArray::get_uint32(int index) const {
@@ -572,7 +572,7 @@ uint32_t ByteArray::get_uint32(int index) const {
 
 void ByteArray::set_uint32(int index, uint32_t value) {
   DCHECK(index >= 0 && index < this->length() / kUInt32Size);
-  WRITE_UINT32_FIELD(*this, kHeaderSize + index * kUInt32Size, value);
+  WriteField<uint32_t>(kHeaderSize + index * kUInt32Size, value);
 }
 
 void ByteArray::clear_padding() {
@@ -623,8 +623,7 @@ void* FixedTypedArrayBase::external_pointer() const {
 }
 
 void FixedTypedArrayBase::set_external_pointer(void* value) {
-  intptr_t ptr = reinterpret_cast<intptr_t>(value);
-  WRITE_INTPTR_FIELD(*this, kExternalPointerOffset, ptr);
+  WriteField<Address>(kExternalPointerOffset, reinterpret_cast<Address>(value));
 }
 
 void* FixedTypedArrayBase::DataPtr() {

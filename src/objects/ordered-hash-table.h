@@ -546,7 +546,7 @@ class SmallOrderedHashTable : public HeapObject {
   void setByte(Offset offset, ByteIndex index, byte value) {
     DCHECK(offset < DataTableStartOffset() ||
            offset >= GetBucketsStartOffset());
-    WRITE_BYTE_FIELD(*this, offset + (index * kOneByteSize), value);
+    WriteField<byte>(offset + (index * kOneByteSize), value);
   }
 
   Offset GetDataEntryOffset(int entry, int relative_index) const {

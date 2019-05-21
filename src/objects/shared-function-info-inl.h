@@ -54,7 +54,7 @@ void PreparseData::set(int index, byte value) {
   DCHECK_LE(0, index);
   DCHECK_LT(index, data_length());
   int offset = kDataStartOffset + index * kByteSize;
-  WRITE_BYTE_FIELD(*this, offset, value);
+  WriteField<byte>(offset, value);
 }
 
 void PreparseData::copy_in(int index, const byte* buffer, int length) {

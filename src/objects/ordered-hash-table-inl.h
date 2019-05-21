@@ -192,7 +192,7 @@ Object OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
 
 inline void SmallOrderedNameDictionary::SetHash(int hash) {
   DCHECK(PropertyArray::HashField::is_valid(hash));
-  WRITE_INT_FIELD(*this, PrefixOffset(), hash);
+  WriteField<int>(PrefixOffset(), hash);
 }
 
 inline int SmallOrderedNameDictionary::Hash() {

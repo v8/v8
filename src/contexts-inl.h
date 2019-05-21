@@ -242,8 +242,8 @@ MicrotaskQueue* NativeContext::microtask_queue() const {
 }
 
 void NativeContext::set_microtask_queue(MicrotaskQueue* microtask_queue) {
-  WRITE_INTPTR_FIELD(*this, kMicrotaskQueueOffset,
-                     reinterpret_cast<intptr_t>(microtask_queue));
+  WriteField<Address>(kMicrotaskQueueOffset,
+                      reinterpret_cast<Address>(microtask_queue));
 }
 
 OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)

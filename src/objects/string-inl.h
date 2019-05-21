@@ -489,8 +489,7 @@ uint8_t SeqOneByteString::Get(int index) {
 
 void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
   DCHECK(index >= 0 && index < length() && value <= kMaxOneByteCharCode);
-  WRITE_BYTE_FIELD(*this, kHeaderSize + index * kCharSize,
-                   static_cast<byte>(value));
+  WriteField<byte>(kHeaderSize + index * kCharSize, static_cast<byte>(value));
 }
 
 Address SeqOneByteString::GetCharsAddress() {
@@ -518,7 +517,7 @@ uint16_t SeqTwoByteString::Get(int index) {
 
 void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
   DCHECK(index >= 0 && index < length());
-  WRITE_UINT16_FIELD(*this, kHeaderSize + index * kShortSize, value);
+  WriteField<uint16_t>(kHeaderSize + index * kShortSize, value);
 }
 
 int SeqTwoByteString::SeqTwoByteStringSize(InstanceType instance_type) {
@@ -584,7 +583,7 @@ Address ExternalString::resource_as_address() {
 }
 
 void ExternalString::set_address_as_resource(Address address) {
-  WRITE_UINTPTR_FIELD(*this, kResourceOffset, address);
+  WriteField<Address>(kResourceOffset, address);
   if (IsExternalOneByteString()) {
     ExternalOneByteString::cast(*this)->update_data_cache();
   } else {
@@ -597,9 +596,9 @@ uint32_t ExternalString::resource_as_uint32() {
 }
 
 void ExternalString::set_uint32_as_resource(uint32_t value) {
-  WRITE_UINTPTR_FIELD(*this, kResourceOffset, value);
+  WriteField<Address>(kResourceOffset, value);
   if (is_uncached()) return;
-  WRITE_UINTPTR_FIELD(*this, kResourceDataOffset, kNullAddress);
+  WriteField<Address>(kResourceDataOffset, kNullAddress);
 }
 
 void ExternalString::DisposeResource() {
@@ -610,7 +609,7 @@ void ExternalString::DisposeResource() {
   // Dispose of the C++ object if it has not already been disposed.
   if (resource != nullptr) {
     resource->Dispose();
-    WRITE_UINTPTR_FIELD(*this, ExternalString::kResourceOffset, kNullAddress);
+    WriteField<Address>(ExternalString::kResourceOffset, kNullAddress);
   }
 }
 
@@ -620,7 +619,7 @@ const ExternalOneByteString::Resource* ExternalOneByteString::resource() {
 
 void ExternalOneByteString::update_data_cache() {
   if (is_uncached()) return;
-  WRITE_UINTPTR_FIELD(*this, kResourceDataOffset,
+  WriteField<Address>(kResourceDataOffset,
                       reinterpret_cast<Address>(resource()->data()));
 }
 
@@ -635,8 +634,7 @@ void ExternalOneByteString::SetResource(
 
 void ExternalOneByteString::set_resource(
     const ExternalOneByteString::Resource* resource) {
-  WRITE_UINTPTR_FIELD(*this, kResourceOffset,
-                      reinterpret_cast<Address>(resource));
+  WriteField<Address>(kResourceOffset, reinterpret_cast<Address>(resource));
   if (resource != nullptr) update_data_cache();
 }
 
@@ -655,7 +653,7 @@ const ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
 
 void ExternalTwoByteString::update_data_cache() {
   if (is_uncached()) return;
-  WRITE_UINTPTR_FIELD(*this, kResourceDataOffset,
+  WriteField<Address>(kResourceDataOffset,
                       reinterpret_cast<Address>(resource()->data()));
 }
 
@@ -670,8 +668,7 @@ void ExternalTwoByteString::SetResource(
 
 void ExternalTwoByteString::set_resource(
     const ExternalTwoByteString::Resource* resource) {
-  WRITE_UINTPTR_FIELD(*this, kResourceOffset,
-                      reinterpret_cast<Address>(resource));
+  WriteField<Address>(kResourceOffset, reinterpret_cast<Address>(resource));
   if (resource != nullptr) update_data_cache();
 }
 
