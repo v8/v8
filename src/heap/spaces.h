@@ -816,8 +816,7 @@ class MemoryChunk {
   friend class PagedSpace;
 };
 
-static_assert(sizeof(std::atomic<intptr_t>) == kSystemPointerSize,
-              "sizeof(std::atomic<intptr_t>) == kSystemPointerSize");
+STATIC_ASSERT(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);
 
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 512K. Large object pages may be larger.
@@ -943,8 +942,6 @@ class Page : public MemoryChunk {
 #endif  // DEBUG
 
  private:
-  enum InitializationMode { kFreeMemory, kDoNotFreeMemory };
-
   friend class MemoryAllocator;
 };
 
