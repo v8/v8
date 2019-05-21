@@ -9,6 +9,7 @@
 #include "src/cancelable-task.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/task-utils.h"

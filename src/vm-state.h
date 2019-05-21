@@ -5,8 +5,8 @@
 #ifndef V8_VM_STATE_H_
 #define V8_VM_STATE_H_
 
-#include "src/allocation.h"
-#include "src/logging/counters.h"
+#include "include/v8.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

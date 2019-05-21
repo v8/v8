@@ -33,6 +33,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/diagnostics/basic-block-profiler.h"
 #include "src/interpreter/interpreter.h"
+#include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/ostreams.h"

@@ -14,6 +14,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/ic/ic-stats.h"
+#include "src/logging/counters.h"
 #include "src/objects/code.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"

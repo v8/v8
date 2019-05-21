@@ -9,6 +9,7 @@
 #include "src/debug/debug.h"
 #include "src/init/bootstrapper.h"
 #include "src/isolate-inl.h"
+#include "src/logging/counters.h"
 #include "src/runtime-profiler.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-engine.h"

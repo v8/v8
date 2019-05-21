@@ -42,6 +42,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/libsampler/sampler.h"
+#include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/messages.h"
 #include "src/microtask-queue.h"
