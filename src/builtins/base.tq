@@ -16,7 +16,6 @@
 #include 'src/objects/js-regexp-string-iterator.h'
 #include 'src/objects/module.h'
 #include 'src/objects/stack-frame-info.h'
-#include 'src/objects/template-objects.h'
 #include 'src/builtins/builtins-regexp-gen.h'
 #include 'src/objects/template-objects.h'
 
@@ -367,11 +366,6 @@ extern class JSSloppyArgumentsObject extends JSArgumentsObjectWithLength {
   callee: Object;
 }
 
-@hasSameInstanceTypeAsParent
-@noVerifier
-extern class JSStrictArgumentsObject extends JSArgumentsObjectWithLength {
-}
-
 extern class JSArrayIterator extends JSObject {
   iterated_object: JSReceiver;
   next_index: Number;
@@ -435,36 +429,7 @@ transient type FastJSArrayWithNoCustomIteration extends FastJSArray;
 
 type NoSharedNameSentinel extends Smi;
 
-type ModuleInfo extends FixedArray;
-type ObjectHashTable extends FixedArray;
-
-extern class Module extends Struct {
-  code: SharedFunctionInfo | JSFunction |
-      JSGeneratorObject | ModuleInfo;
-  exports: ObjectHashTable;
-  regular_exports: FixedArray;
-  regular_imports: FixedArray;
-  hash: Smi;
-  status: Smi;
-  module_namespace: JSModuleNamespace | Undefined;
-  requested_modules: FixedArray;
-  dfs_index: Smi;
-  dfs_ancestor_index: Smi;
-  exception: Object;
-  script: Script;
-  @noVerifier import_meta: Hole | JSObject;
-}
-
-extern class JSModuleNamespace extends JSObject {
-  module: Module;
-  to_string_tag_field: Object;
-}
-
-@hasSameInstanceTypeAsParent
-@noVerifier
-extern class TemplateList extends FixedArray {
-}
-
+type JSModuleNamespace extends JSObject;
 type WeakArrayList extends HeapObject;
 
 @abstract

@@ -47,8 +47,14 @@ class JSCollator : public JSObject {
   DECL_VERIFIER(JSCollator)
 
 // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSCOLLATOR_FIELDS)
+#define JS_COLLATOR_FIELDS(V)         \
+  V(kICUCollatorOffset, kTaggedSize)  \
+  V(kBoundCompareOffset, kTaggedSize) \
+  /* Total size. */                   \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_COLLATOR_FIELDS)
+#undef JS_COLLATOR_FIELDS
 
   DECL_ACCESSORS(icu_collator, Managed<icu::Collator>)
   DECL_ACCESSORS(bound_compare, Object)
