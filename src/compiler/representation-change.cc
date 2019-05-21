@@ -843,7 +843,10 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     }
   } else if (output_rep == MachineRepresentation::kBit) {
     CHECK(output_type.Is(Type::Boolean()));
-    if (use_info.truncation().IsUsedAsFloat64()) {
+    // TODO(tebbi): TypeCheckKind::kNumberOrOddball should imply Float64
+    // truncation, since this exactly means that we treat Oddballs as Numbers.
+    if (use_info.truncation().IsUsedAsFloat64() ||
+        use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
       op = machine()->ChangeUint32ToFloat64();
     } else {
       CHECK_NE(use_info.type_check(), TypeCheckKind::kNone);
@@ -975,6 +978,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       CHECK(Truncation::Any(kIdentifyZeros)
                 .IsLessGeneralThan(use_info.truncation()));
       CHECK_NE(use_info.type_check(), TypeCheckKind::kNone);
+      CHECK_NE(use_info.type_check(), TypeCheckKind::kNumberOrOddball);
       Node* unreachable =
           InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotASmi);
       return jsgraph()->graph()->NewNode(
@@ -1261,6 +1265,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
   } else if (output_rep == MachineRepresentation::kBit) {
     CHECK(output_type.Is(Type::Boolean()));
     CHECK_NE(use_info.type_check(), TypeCheckKind::kNone);
+    CHECK_NE(use_info.type_check(), TypeCheckKind::kNumberOrOddball);
     Node* unreachable =
         InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotASmi);
     return jsgraph()->graph()->NewNode(
