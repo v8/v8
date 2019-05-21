@@ -214,14 +214,7 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
   // Updating deprecated maps in-place doesn't make sense.
   if (old_map_->is_deprecated()) return state_;
 
-  // If it's just a representation generalization case (i.e. property kind and
-  // attributes stays unchanged) it's fine to transition from None to anything
-  // but double without any modification to the object, because the default
-  // uninitialized value for representation None can be overwritten by both
-  // smi and tagged values. Doubles, however, would require a box allocation.
-  if (new_representation_.IsNone() || new_representation_.IsDouble()) {
-    return state_;  // Not done yet.
-  }
+  if (new_representation_.IsNone()) return state_;  // Not done yet.
 
   PropertyDetails old_details =
       old_descriptors_->GetDetails(modified_descriptor_);

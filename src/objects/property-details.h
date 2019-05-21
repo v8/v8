@@ -105,7 +105,12 @@ class Representation {
   }
 
   bool CanBeInPlaceChangedTo(const Representation& other) const {
-    if (IsNone()) return true;
+    // If it's just a representation generalization case (i.e. property kind and
+    // attributes stays unchanged) it's fine to transition from None to anything
+    // but double without any modification to the object, because the default
+    // uninitialized value for representation None can be overwritten by both
+    // smi and tagged values. Doubles, however, would require a box allocation.
+    if (IsNone()) return !other.IsDouble();
     if (!FLAG_modify_field_representation_inplace) return false;
     return (IsSmi() || IsHeapObject()) && other.IsTagged();
   }
