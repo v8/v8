@@ -1618,6 +1618,13 @@ void InstanceBuilder::InitializeExceptions(
 bool LoadElemSegment(Isolate* isolate, Handle<WasmInstanceObject> instance,
                      uint32_t table_index, uint32_t segment_index, uint32_t dst,
                      uint32_t src, uint32_t count) {
+  // This code path is only used for passive element segments with the
+  // table.init instruction. This instruction was introduced in the
+  // bulk-memory-operations proposal. At the moment, table.init can only operate
+  // on table-0. If table.init should work for tables with higher indices, then
+  // we have to adjust the code in {LoadElemSegmentImpl}. The code there uses
+  // {IndirectFunctionTableEntry} at the moment, which only works for table-0.
+  CHECK_EQ(table_index, 0);
   auto& elem_segment = instance->module()->elem_segments[segment_index];
   return LoadElemSegmentImpl(
       isolate, instance,
