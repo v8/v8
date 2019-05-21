@@ -1413,8 +1413,8 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
           Handle<FixedArray> buffers_array(
               instance->imported_mutable_globals_buffers(), isolate_);
           if (ValueTypes::IsReferenceType(global.type)) {
-            tagged_buffer = buffers_array->GetValueChecked<FixedArray>(
-                isolate_, global.index);
+            tagged_buffer = handle(
+                FixedArray::cast(buffers_array->get(global.index)), isolate_);
             // For anyref globals we store the relative offset in the
             // imported_mutable_globals array instead of an absolute address.
             Address addr = instance->imported_mutable_globals()[global.index];
@@ -1422,8 +1422,9 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
                                 std::numeric_limits<uint32_t>::max()));
             offset = static_cast<uint32_t>(addr);
           } else {
-            untagged_buffer = buffers_array->GetValueChecked<JSArrayBuffer>(
-                isolate_, global.index);
+            untagged_buffer =
+                handle(JSArrayBuffer::cast(buffers_array->get(global.index)),
+                       isolate_);
             Address global_addr =
                 instance->imported_mutable_globals()[global.index];
 

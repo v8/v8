@@ -128,13 +128,6 @@ Handle<Object> FixedArray::get(FixedArray array, int index, Isolate* isolate) {
   return handle(array->get(index), isolate);
 }
 
-template <class T>
-Handle<T> FixedArray::GetValueChecked(Isolate* isolate, int index) const {
-  Object obj = get(index);
-  CHECK(!obj->IsUndefined(isolate));
-  return Handle<T>(T::cast(obj), isolate);
-}
-
 bool FixedArray::is_the_hole(Isolate* isolate, int index) {
   return get(index)->IsTheHole(isolate);
 }

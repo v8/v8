@@ -116,11 +116,6 @@ class FixedArray : public FixedArrayBase {
   static inline Handle<Object> get(FixedArray array, int index,
                                    Isolate* isolate);
 
-  // CHECK that the element at {index} is not undefined and return that element
-  // in a handle.
-  template <class T>
-  Handle<T> GetValueChecked(Isolate* isolate, int index) const;
-
   // Return a grown copy if the index is bigger than the array's length.
   V8_EXPORT_PRIVATE static Handle<FixedArray> SetAndGrow(
       Isolate* isolate, Handle<FixedArray> array, int index,

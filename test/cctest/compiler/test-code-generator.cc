@@ -263,7 +263,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
       FixedArray vector = FixedArray::cast(*value);
       os << "[";
       for (int lane = 0; lane < 4; lane++) {
-        os << Smi::cast(*vector->GetValueChecked<Smi>(isolate, lane))->value();
+        os << Smi::cast(vector->get(lane))->value();
         if (lane < 3) {
           os << ", ";
         }
@@ -752,8 +752,7 @@ class TestEnvironment : public HandleAndZoneScope {
         state_out->set(to_index, *constant_value);
       } else {
         int from_index = OperandToStatePosition(AllocatedOperand::cast(from));
-        state_out->set(to_index, *state_out->GetValueChecked<Object>(
-                                     main_isolate(), from_index));
+        state_out->set(to_index, state_out->get(from_index));
       }
     }
     return state_out;
@@ -773,10 +772,8 @@ class TestEnvironment : public HandleAndZoneScope {
           OperandToStatePosition(AllocatedOperand::cast(swap->destination()));
       int rhs_index =
           OperandToStatePosition(AllocatedOperand::cast(swap->source()));
-      Handle<Object> lhs =
-          state_out->GetValueChecked<Object>(main_isolate(), lhs_index);
-      Handle<Object> rhs =
-          state_out->GetValueChecked<Object>(main_isolate(), rhs_index);
+      Handle<Object> lhs{state_out->get(lhs_index), main_isolate()};
+      Handle<Object> rhs{state_out->get(rhs_index), main_isolate()};
       state_out->set(lhs_index, *rhs);
       state_out->set(rhs_index, *lhs);
     }
@@ -786,10 +783,8 @@ class TestEnvironment : public HandleAndZoneScope {
   // Compare the given state with a reference.
   void CheckState(Handle<FixedArray> actual, Handle<FixedArray> expected) {
     for (int i = 0; i < static_cast<int>(layout_.size()); i++) {
-      Handle<Object> actual_value =
-          actual->GetValueChecked<Object>(main_isolate(), i);
-      Handle<Object> expected_value =
-          expected->GetValueChecked<Object>(main_isolate(), i);
+      Handle<Object> actual_value{actual->get(i), main_isolate()};
+      Handle<Object> expected_value{expected->get(i), main_isolate()};
       if (!CompareValues(actual_value, expected_value,
                          layout_[i].representation())) {
         std::ostringstream expected_str;
@@ -812,13 +807,11 @@ class TestEnvironment : public HandleAndZoneScope {
         return actual->StrictEquals(*expected);
       case MachineRepresentation::kSimd128:
         for (int lane = 0; lane < 4; lane++) {
-          Handle<Smi> actual_lane =
-              FixedArray::cast(*actual)->GetValueChecked<Smi>(main_isolate(),
-                                                              lane);
-          Handle<Smi> expected_lane =
-              FixedArray::cast(*expected)->GetValueChecked<Smi>(main_isolate(),
-                                                                lane);
-          if (*actual_lane != *expected_lane) {
+          int actual_lane =
+              Smi::cast(FixedArray::cast(*actual)->get(lane))->value();
+          int expected_lane =
+              Smi::cast(FixedArray::cast(*expected)->get(lane))->value();
+          if (actual_lane != expected_lane) {
             return false;
           }
         }
