@@ -1531,10 +1531,15 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
 
     const WasmFunction* function = &module->functions[func_index];
 
-    // Update the local dispatch table first.
-    uint32_t sig_id = module->signature_ids[function->sig_index];
-    IndirectFunctionTableEntry(instance, entry_index)
-        .Set(sig_id, instance, func_index);
+    // Update the local dispatch table first if necessary. We only have to
+    // update the dispatch table if the first table of the instance is changed.
+    // For all other tables, function calls do not use a dispatch table at
+    // the moment.
+    if (elem_segment.table_index == 0) {
+      uint32_t sig_id = module->signature_ids[function->sig_index];
+      IndirectFunctionTableEntry(instance, entry_index)
+          .Set(sig_id, instance, func_index);
+    }
 
     // Update the table object's other dispatch tables.
     MaybeHandle<WasmExportedFunction> wasm_exported_function =

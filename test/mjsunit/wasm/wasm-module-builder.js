@@ -900,22 +900,6 @@ class WasmModuleBuilder {
   addElementSegment(table, base, is_global, array) {
     this.element_segments.push({table: table, base: base, is_global: is_global,
                                     array: array, is_active: true});
-
-    // As a testing convenience, update the table length when adding an element
-    // segment. If the table is imported, we can't do this because we don't
-    // know how long the table actually is. If |is_global| is true, then the
-    // base is a global index, instead of an integer offset, so we can't update
-    // the table then either.
-    if (!(is_global || table < this.num_imported_tables)) {
-      var length = base + array.length;
-      if (length > this.tables[0].initial_size) {
-        this.tables[0].initial_size = length;
-      }
-      if (this.tables[0].has_max &&
-          length > this.tables[0].max_size) {
-        this.tables[0].max_size = length;
-      }
-    }
     return this;
   }
 
@@ -932,7 +916,15 @@ class WasmModuleBuilder {
     if (this.tables.length == 0) {
       this.addTable(kWasmAnyFunc, 0);
     }
-    return this.addElementSegment(0, this.tables[0].initial_size, false, array);
+    // Adjust the table to the correct size.
+    let table = this.tables[0];
+    const base = table.initial_size;
+    const table_size = base + array.length;
+    table.initial_size = table_size;
+    if (table.has_max && table_size > table.max_size) {
+      table.max_size = table_size;
+    }
+    return this.addElementSegment(0, base, false, array);
   }
 
   setTableBounds(min, max = undefined) {
