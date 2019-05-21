@@ -3743,9 +3743,9 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo() {
   stack_frame_info->set_line_number(0);
   stack_frame_info->set_column_number(0);
   stack_frame_info->set_script_id(0);
-  stack_frame_info->set_script_name(Smi::kZero);
-  stack_frame_info->set_script_name_or_source_url(Smi::kZero);
-  stack_frame_info->set_function_name(Smi::kZero);
+  stack_frame_info->set_script_name(*null_value());
+  stack_frame_info->set_script_name_or_source_url(*null_value());
+  stack_frame_info->set_function_name(*null_value());
   stack_frame_info->set_flag(0);
   return stack_frame_info;
 }
@@ -3755,8 +3755,7 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   FrameArrayIterator it(isolate(), frame_array, index);
   DCHECK(it.HasFrame());
 
-  Handle<StackFrameInfo> info = Handle<StackFrameInfo>::cast(
-      NewStruct(STACK_FRAME_INFO_TYPE, AllocationType::kYoung));
+  Handle<StackFrameInfo> info = NewStackFrameInfo();
   info->set_flag(0);
 
   const bool is_wasm = frame_array->IsAnyWasmFrame(index);
