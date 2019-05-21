@@ -287,20 +287,20 @@ MaybeHandle<JSObject> ProbeInstantiationsCache(Isolate* isolate,
   if (serial_number <= TemplateInfo::kFastTemplateInstantiationsCacheSize) {
     Handle<FixedArray> fast_cache =
         isolate->fast_template_instantiations_cache();
-    return fast_cache->GetValue<JSObject>(isolate, serial_number - 1);
-  } else if (caching_mode == CachingMode::kUnlimited ||
-             (serial_number <=
-              TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
+    Handle<Object> object{fast_cache->get(serial_number - 1), isolate};
+    if (object->IsUndefined(isolate)) return {};
+    return Handle<JSObject>::cast(object);
+  }
+  if (caching_mode == CachingMode::kUnlimited ||
+      (serial_number <= TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
     Handle<SimpleNumberDictionary> slow_cache =
         isolate->slow_template_instantiations_cache();
     int entry = slow_cache->FindEntry(isolate, serial_number);
-    if (entry == SimpleNumberDictionary::kNotFound) {
-      return MaybeHandle<JSObject>();
+    if (entry != SimpleNumberDictionary::kNotFound) {
+      return handle(JSObject::cast(slow_cache->ValueAt(entry)), isolate);
     }
-    return handle(JSObject::cast(slow_cache->ValueAt(entry)), isolate);
-  } else {
-    return MaybeHandle<JSObject>();
   }
+  return {};
 }
 
 void CacheTemplateInstantiation(Isolate* isolate, int serial_number,

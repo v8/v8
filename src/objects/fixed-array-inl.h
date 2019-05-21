@@ -129,13 +129,6 @@ Handle<Object> FixedArray::get(FixedArray array, int index, Isolate* isolate) {
 }
 
 template <class T>
-MaybeHandle<T> FixedArray::GetValue(Isolate* isolate, int index) const {
-  Object obj = get(index);
-  if (obj->IsUndefined(isolate)) return MaybeHandle<T>();
-  return Handle<T>(T::cast(obj), isolate);
-}
-
-template <class T>
 Handle<T> FixedArray::GetValueChecked(Isolate* isolate, int index) const {
   Object obj = get(index);
   CHECK(!obj->IsUndefined(isolate));

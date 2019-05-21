@@ -115,9 +115,9 @@ class FixedArray : public FixedArrayBase {
   inline Object get(int index) const;
   static inline Handle<Object> get(FixedArray array, int index,
                                    Isolate* isolate);
-  template <class T>
-  MaybeHandle<T> GetValue(Isolate* isolate, int index) const;
 
+  // CHECK that the element at {index} is not undefined and return that element
+  // in a handle.
   template <class T>
   Handle<T> GetValueChecked(Isolate* isolate, int index) const;
 
