@@ -23,7 +23,7 @@ OBJECT_CONSTRUCTORS_IMPL(Oddball, HeapObject)
 CAST_ACCESSOR(Oddball)
 
 double Oddball::to_number_raw() const {
-  return READ_DOUBLE_FIELD(*this, kToNumberRawOffset);
+  return ReadField<double>(kToNumberRawOffset);
 }
 
 void Oddball::set_to_number_raw(double value) {

@@ -196,7 +196,7 @@ inline void SmallOrderedNameDictionary::SetHash(int hash) {
 }
 
 inline int SmallOrderedNameDictionary::Hash() {
-  int hash = READ_INT_FIELD(*this, PrefixOffset());
+  int hash = ReadField<int>(PrefixOffset());
   DCHECK(PropertyArray::HashField::is_valid(hash));
   return hash;
 }

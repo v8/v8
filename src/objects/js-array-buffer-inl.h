@@ -29,7 +29,7 @@ CAST_ACCESSOR(JSTypedArray)
 CAST_ACCESSOR(JSDataView)
 
 size_t JSArrayBuffer::byte_length() const {
-  return READ_UINTPTR_FIELD(*this, kByteLengthOffset);
+  return ReadField<size_t>(kByteLengthOffset);
 }
 
 void JSArrayBuffer::set_byte_length(size_t value) {
@@ -37,8 +37,7 @@ void JSArrayBuffer::set_byte_length(size_t value) {
 }
 
 void* JSArrayBuffer::backing_store() const {
-  intptr_t ptr = READ_INTPTR_FIELD(*this, kBackingStoreOffset);
-  return reinterpret_cast<void*>(ptr);
+  return reinterpret_cast<void*>(ReadField<Address>(kBackingStoreOffset));
 }
 
 void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
@@ -97,7 +96,7 @@ void JSArrayBuffer::set_bit_field(uint32_t bits) {
 }
 
 uint32_t JSArrayBuffer::bit_field() const {
-  return READ_UINT32_FIELD(*this, kBitFieldOffset);
+  return ReadField<uint32_t>(kBitFieldOffset);
 }
 
 // |bit_field| fields.
@@ -111,7 +110,7 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 
 size_t JSArrayBufferView::byte_offset() const {
-  return READ_UINTPTR_FIELD(*this, kByteOffsetOffset);
+  return ReadField<size_t>(kByteOffsetOffset);
 }
 
 void JSArrayBufferView::set_byte_offset(size_t value) {
@@ -119,7 +118,7 @@ void JSArrayBufferView::set_byte_offset(size_t value) {
 }
 
 size_t JSArrayBufferView::byte_length() const {
-  return READ_UINTPTR_FIELD(*this, kByteLengthOffset);
+  return ReadField<size_t>(kByteLengthOffset);
 }
 
 void JSArrayBufferView::set_byte_length(size_t value) {
@@ -132,9 +131,7 @@ bool JSArrayBufferView::WasDetached() const {
   return JSArrayBuffer::cast(buffer())->was_detached();
 }
 
-size_t JSTypedArray::length() const {
-  return READ_UINTPTR_FIELD(*this, kLengthOffset);
-}
+size_t JSTypedArray::length() const { return ReadField<size_t>(kLengthOffset); }
 
 void JSTypedArray::set_length(size_t value) {
   WRITE_UINTPTR_FIELD(*this, kLengthOffset, value);
@@ -171,8 +168,7 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
 }
 
 void* JSDataView::data_pointer() const {
-  intptr_t ptr = READ_INTPTR_FIELD(*this, kDataPointerOffset);
-  return reinterpret_cast<void*>(ptr);
+  return reinterpret_cast<void*>(ReadField<Address>(kDataPointerOffset));
 }
 
 void JSDataView::set_data_pointer(void* value) {

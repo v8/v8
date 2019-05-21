@@ -484,7 +484,7 @@ uint32_t String::ToValidIndex(Object number) {
 
 uint8_t SeqOneByteString::Get(int index) {
   DCHECK(index >= 0 && index < length());
-  return READ_BYTE_FIELD(*this, kHeaderSize + index * kCharSize);
+  return ReadField<byte>(kHeaderSize + index * kCharSize);
 }
 
 void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
@@ -513,7 +513,7 @@ uc16* SeqTwoByteString::GetChars(const DisallowHeapAllocation& no_gc) {
 
 uint16_t SeqTwoByteString::Get(int index) {
   DCHECK(index >= 0 && index < length());
-  return READ_UINT16_FIELD(*this, kHeaderSize + index * kShortSize);
+  return ReadField<uint16_t>(kHeaderSize + index * kShortSize);
 }
 
 void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
@@ -580,7 +580,7 @@ bool ExternalString::is_uncached() const {
 }
 
 Address ExternalString::resource_as_address() {
-  return READ_UINTPTR_FIELD(*this, kResourceOffset);
+  return ReadField<Address>(kResourceOffset);
 }
 
 void ExternalString::set_address_as_resource(Address address) {
@@ -593,7 +593,7 @@ void ExternalString::set_address_as_resource(Address address) {
 }
 
 uint32_t ExternalString::resource_as_uint32() {
-  return static_cast<uint32_t>(READ_UINTPTR_FIELD(*this, kResourceOffset));
+  return static_cast<uint32_t>(ReadField<Address>(kResourceOffset));
 }
 
 void ExternalString::set_uint32_as_resource(uint32_t value) {
@@ -605,7 +605,7 @@ void ExternalString::set_uint32_as_resource(uint32_t value) {
 void ExternalString::DisposeResource() {
   v8::String::ExternalStringResourceBase* resource =
       reinterpret_cast<v8::String::ExternalStringResourceBase*>(
-          READ_UINTPTR_FIELD(*this, ExternalString::kResourceOffset));
+          ReadField<Address>(ExternalString::kResourceOffset));
 
   // Dispose of the C++ object if it has not already been disposed.
   if (resource != nullptr) {
@@ -615,8 +615,7 @@ void ExternalString::DisposeResource() {
 }
 
 const ExternalOneByteString::Resource* ExternalOneByteString::resource() {
-  return reinterpret_cast<Resource*>(
-      READ_UINTPTR_FIELD(*this, kResourceOffset));
+  return reinterpret_cast<Resource*>(ReadField<Address>(kResourceOffset));
 }
 
 void ExternalOneByteString::update_data_cache() {
@@ -651,8 +650,7 @@ uint8_t ExternalOneByteString::Get(int index) {
 }
 
 const ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
-  return reinterpret_cast<Resource*>(
-      READ_UINTPTR_FIELD(*this, kResourceOffset));
+  return reinterpret_cast<Resource*>(ReadField<Address>(kResourceOffset));
 }
 
 void ExternalTwoByteString::update_data_cache() {

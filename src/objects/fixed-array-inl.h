@@ -351,7 +351,7 @@ double FixedDoubleArray::get_scalar(int index) {
          map() != GetReadOnlyRoots().fixed_array_map());
   DCHECK(index >= 0 && index < this->length());
   DCHECK(!is_the_hole(index));
-  return READ_DOUBLE_FIELD(*this, kHeaderSize + index * kDoubleSize);
+  return ReadField<double>(kHeaderSize + index * kDoubleSize);
 }
 
 uint64_t FixedDoubleArray::get_representation(int index) {
@@ -360,7 +360,7 @@ uint64_t FixedDoubleArray::get_representation(int index) {
   DCHECK(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kDoubleSize;
   // Bug(v8:8875): Doubles may be unaligned.
-  return ReadUnalignedValue<uint64_t>(FIELD_ADDR(*this, offset));
+  return ReadUnalignedValue<uint64_t>(field_address(offset));
 }
 
 Handle<Object> FixedDoubleArray::get(FixedDoubleArray array, int index,
@@ -533,7 +533,7 @@ int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kTaggedSize); }
 
 byte ByteArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());
-  return READ_BYTE_FIELD(*this, kHeaderSize + index * kCharSize);
+  return ReadField<byte>(kHeaderSize + index * kCharSize);
 }
 
 void ByteArray::set(int index, byte value) {
@@ -557,7 +557,7 @@ void ByteArray::copy_out(int index, byte* buffer, int length) {
 
 int ByteArray::get_int(int index) const {
   DCHECK(index >= 0 && index < this->length() / kIntSize);
-  return READ_INT_FIELD(*this, kHeaderSize + index * kIntSize);
+  return ReadField<int>(kHeaderSize + index * kIntSize);
 }
 
 void ByteArray::set_int(int index, int value) {
@@ -567,7 +567,7 @@ void ByteArray::set_int(int index, int value) {
 
 uint32_t ByteArray::get_uint32(int index) const {
   DCHECK(index >= 0 && index < this->length() / kUInt32Size);
-  return READ_UINT32_FIELD(*this, kHeaderSize + index * kUInt32Size);
+  return ReadField<uint32_t>(kHeaderSize + index * kUInt32Size);
 }
 
 void ByteArray::set_uint32(int index, uint32_t value) {
@@ -619,8 +619,7 @@ int PodArray<T>::length() const {
 }
 
 void* FixedTypedArrayBase::external_pointer() const {
-  intptr_t ptr = READ_INTPTR_FIELD(*this, kExternalPointerOffset);
-  return reinterpret_cast<void*>(ptr);
+  return reinterpret_cast<void*>(ReadField<Address>(kExternalPointerOffset));
 }
 
 void FixedTypedArrayBase::set_external_pointer(void* value) {

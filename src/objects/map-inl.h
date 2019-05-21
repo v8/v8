@@ -291,8 +291,7 @@ Handle<Map> Map::AddMissingTransitionsForTesting(
 }
 
 InstanceType Map::instance_type() const {
-  return static_cast<InstanceType>(
-      READ_UINT16_FIELD(*this, kInstanceTypeOffset));
+  return static_cast<InstanceType>(ReadField<uint16_t>(kInstanceTypeOffset));
 }
 
 void Map::set_instance_type(InstanceType value) {
@@ -418,7 +417,7 @@ void Map::AccountAddedOutOfObjectPropertyField(int unused_in_property_array) {
   DCHECK_EQ(unused_in_property_array, UnusedPropertyFields());
 }
 
-byte Map::bit_field() const { return READ_BYTE_FIELD(*this, kBitFieldOffset); }
+byte Map::bit_field() const { return ReadField<byte>(kBitFieldOffset); }
 
 void Map::set_bit_field(byte value) {
   WRITE_BYTE_FIELD(*this, kBitFieldOffset, value);
@@ -432,9 +431,7 @@ void Map::set_relaxed_bit_field(byte value) {
   RELAXED_WRITE_BYTE_FIELD(*this, kBitFieldOffset, value);
 }
 
-byte Map::bit_field2() const {
-  return READ_BYTE_FIELD(*this, kBitField2Offset);
-}
+byte Map::bit_field2() const { return ReadField<byte>(kBitField2Offset); }
 
 void Map::set_bit_field2(byte value) {
   WRITE_BYTE_FIELD(*this, kBitField2Offset, value);

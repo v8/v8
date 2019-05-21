@@ -87,7 +87,7 @@ class BigIntBase : public HeapObject {
 
   inline digit_t digit(int n) const {
     SLOW_DCHECK(0 <= n && n < length());
-    return READ_UINTPTR_FIELD(*this, kDigitsOffset + n * kDigitSize);
+    return ReadField<digit_t>(kDigitsOffset + n * kDigitSize);
   }
 
   bool is_zero() const { return length() == 0; }

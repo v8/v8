@@ -3804,7 +3804,7 @@ void TranslatedState::InitializeJSObjectAt(
     // what the markers in the storage say (note that all heap numbers
     // should be fully initialized by now).
     int offset = i * kTaggedSize;
-    uint8_t marker = READ_UINT8_FIELD(*object_storage, offset);
+    uint8_t marker = object_storage->ReadField<uint8_t>(offset);
     if (marker == kStoreUnboxedDouble) {
       double double_field_value;
       if (field_value->IsSmi()) {
@@ -3848,7 +3848,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
   for (int i = 1; i < slot->GetChildrenCount(); i++) {
     Handle<Object> field_value = GetValueAndAdvance(frame, value_index);
     int offset = i * kTaggedSize;
-    uint8_t marker = READ_UINT8_FIELD(*object_storage, offset);
+    uint8_t marker = object_storage->ReadField<uint8_t>(offset);
     if (i > 1 && marker == kStoreMutableHeapNumber) {
       CHECK(field_value->IsMutableHeapNumber());
     } else {

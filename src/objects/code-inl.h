@@ -297,8 +297,7 @@ int Code::GetUnwindingInfoSizeOffset() const {
 
 int Code::unwinding_info_size() const {
   DCHECK(has_unwinding_info());
-  return static_cast<int>(
-      READ_UINT64_FIELD(*this, GetUnwindingInfoSizeOffset()));
+  return static_cast<int>(ReadField<uint64_t>(GetUnwindingInfoSizeOffset()));
 }
 
 void Code::set_unwinding_info_size(int value) {
@@ -378,7 +377,7 @@ void Code::CopyRelocInfoToByteArray(ByteArray dest, const CodeDesc& desc) {
 int Code::CodeSize() const { return SizeFor(body_size()); }
 
 Code::Kind Code::kind() const {
-  return KindField::decode(READ_UINT32_FIELD(*this, kFlagsOffset));
+  return KindField::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
 void Code::initialize_flags(Kind kind, bool has_unwinding_info,
@@ -417,11 +416,11 @@ inline bool Code::has_tagged_params() const {
 }
 
 inline bool Code::has_unwinding_info() const {
-  return HasUnwindingInfoField::decode(READ_UINT32_FIELD(*this, kFlagsOffset));
+  return HasUnwindingInfoField::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
 inline bool Code::is_turbofanned() const {
-  return IsTurbofannedField::decode(READ_UINT32_FIELD(*this, kFlagsOffset));
+  return IsTurbofannedField::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
 inline bool Code::can_have_weak_objects() const {
@@ -464,7 +463,7 @@ inline void Code::set_is_exception_caught(bool value) {
 }
 
 inline bool Code::is_off_heap_trampoline() const {
-  return IsOffHeapTrampoline::decode(READ_UINT32_FIELD(*this, kFlagsOffset));
+  return IsOffHeapTrampoline::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
 inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
@@ -474,7 +473,7 @@ inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
 }
 
 int Code::builtin_index() const {
-  int index = READ_INT_FIELD(*this, kBuiltinIndexOffset);
+  int index = ReadField<int>(kBuiltinIndexOffset);
   DCHECK(index == -1 || Builtins::IsBuiltinId(index));
   return index;
 }
@@ -492,7 +491,7 @@ bool Code::has_safepoint_info() const {
 
 int Code::stack_slots() const {
   DCHECK(has_safepoint_info());
-  return StackSlotsField::decode(READ_UINT32_FIELD(*this, kFlagsOffset));
+  return StackSlotsField::decode(ReadField<uint32_t>(kFlagsOffset));
 }
 
 bool Code::marked_for_deoptimization() const {
@@ -542,7 +541,7 @@ bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
 
 int Code::constant_pool_offset() const {
   if (!FLAG_enable_embedded_constant_pool) return code_comments_offset();
-  return READ_INT_FIELD(*this, kConstantPoolOffsetOffset);
+  return ReadField<int>(kConstantPoolOffsetOffset);
 }
 
 void Code::set_constant_pool_offset(int value) {
@@ -615,7 +614,7 @@ void CodeDataContainer::clear_padding() {
 
 byte BytecodeArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());
-  return READ_BYTE_FIELD(*this, kHeaderSize + index * kCharSize);
+  return ReadField<byte>(kHeaderSize + index * kCharSize);
 }
 
 void BytecodeArray::set(int index, byte value) {
@@ -630,7 +629,7 @@ void BytecodeArray::set_frame_size(int frame_size) {
 }
 
 int BytecodeArray::frame_size() const {
-  return READ_INT_FIELD(*this, kFrameSizeOffset);
+  return ReadField<int>(kFrameSizeOffset);
 }
 
 int BytecodeArray::register_count() const {
@@ -648,7 +647,7 @@ void BytecodeArray::set_parameter_count(int number_of_parameters) {
 interpreter::Register BytecodeArray::incoming_new_target_or_generator_register()
     const {
   int register_operand =
-      READ_INT_FIELD(*this, kIncomingNewTargetOrGeneratorRegisterOffset);
+      ReadField<int>(kIncomingNewTargetOrGeneratorRegisterOffset);
   if (register_operand == 0) {
     return interpreter::Register::invalid_value();
   } else {
@@ -670,7 +669,7 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
 }
 
 int BytecodeArray::osr_loop_nesting_level() const {
-  return READ_INT8_FIELD(*this, kOSRNestingLevelOffset);
+  return ReadField<int8_t>(kOSRNestingLevelOffset);
 }
 
 void BytecodeArray::set_osr_loop_nesting_level(int depth) {
@@ -695,7 +694,7 @@ void BytecodeArray::set_bytecode_age(BytecodeArray::Age age) {
 int BytecodeArray::parameter_count() const {
   // Parameter count is stored as the size on stack of the parameters to allow
   // it to be used directly by generated code.
-  return READ_INT_FIELD(*this, kParameterSizeOffset) >> kSystemPointerSizeLog2;
+  return ReadField<int>(kParameterSizeOffset) >> kSystemPointerSizeLog2;
 }
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)

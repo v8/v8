@@ -47,7 +47,7 @@ byte PreparseData::get(int index) const {
   DCHECK_LE(0, index);
   DCHECK_LT(index, data_length());
   int offset = kDataStartOffset + index * kByteSize;
-  return READ_BYTE_FIELD(*this, offset);
+  return ReadField<byte>(offset);
 }
 
 void PreparseData::set(int index, byte value) {

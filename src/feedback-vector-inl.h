@@ -45,7 +45,7 @@ int32_t FeedbackMetadata::synchronized_slot_count() const {
 int32_t FeedbackMetadata::get(int index) const {
   DCHECK(index >= 0 && index < length());
   int offset = kHeaderSize + index * kInt32Size;
-  return READ_INT32_FIELD(*this, offset);
+  return ReadField<int32_t>(offset);
 }
 
 void FeedbackMetadata::set(int index, int32_t value) {

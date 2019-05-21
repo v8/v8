@@ -333,12 +333,12 @@ Object JSObject::RawFastPropertyAt(FieldIndex index) {
 
 double JSObject::RawFastDoublePropertyAt(FieldIndex index) {
   DCHECK(IsUnboxedDoubleField(index));
-  return READ_DOUBLE_FIELD(*this, index.offset());
+  return ReadField<double>(index.offset());
 }
 
 uint64_t JSObject::RawFastDoublePropertyAsBitsAt(FieldIndex index) {
   DCHECK(IsUnboxedDoubleField(index));
-  return READ_UINT64_FIELD(*this, index.offset());
+  return ReadField<uint64_t>(index.offset());
 }
 
 void JSObject::RawFastPropertyAtPut(FieldIndex index, Object value,
