@@ -34,6 +34,7 @@ namespace array_shift {
       const result = witness.LoadElementOrUndefined(0);
       witness.ChangeLength(newLength);
       witness.MoveElements(0, 1, Convert<intptr>(newLength));
+      witness.StoreHole(newLength);
       return result;
     }
     label Runtime {
