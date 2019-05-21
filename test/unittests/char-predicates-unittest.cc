@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/char-predicates.h"
-#include "src/char-predicates-inl.h"
-#include "src/unicode.h"
+#include "src/strings/char-predicates.h"
+#include "src/strings/char-predicates-inl.h"
+#include "src/strings/unicode.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {

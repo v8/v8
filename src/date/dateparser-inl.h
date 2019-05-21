@@ -5,9 +5,9 @@
 #ifndef V8_DATE_DATEPARSER_INL_H_
 #define V8_DATE_DATEPARSER_INL_H_
 
-#include "src/char-predicates-inl.h"
 #include "src/date/dateparser.h"
 #include "src/isolate.h"
+#include "src/strings/char-predicates-inl.h"
 
 namespace v8 {
 namespace internal {

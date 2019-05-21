@@ -22,7 +22,7 @@
 #include "src/objects/map.h"
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
-#include "src/string-stream.h"
+#include "src/strings/string-stream.h"
 #include "src/zone/zone-list-inl.h"
 
 namespace v8 {

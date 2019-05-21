@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_STRING_HASHER_INL_H_
-#define V8_STRING_HASHER_INL_H_
+#ifndef V8_STRINGS_STRING_HASHER_INL_H_
+#define V8_STRINGS_STRING_HASHER_INL_H_
 
-#include "src/string-hasher.h"
+#include "src/strings/string-hasher.h"
 
-#include "src/char-predicates-inl.h"
 #include "src/objects.h"
 #include "src/objects/string-inl.h"
+#include "src/strings/char-predicates-inl.h"
 #include "src/utils-inl.h"
 
 namespace v8 {
@@ -78,4 +78,4 @@ std::size_t SeededStringHasher::operator()(const char* name) const {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_STRING_HASHER_INL_H_
+#endif  // V8_STRINGS_STRING_HASHER_INL_H_

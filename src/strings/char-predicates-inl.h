@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CHAR_PREDICATES_INL_H_
-#define V8_CHAR_PREDICATES_INL_H_
+#ifndef V8_STRINGS_CHAR_PREDICATES_INL_H_
+#define V8_STRINGS_CHAR_PREDICATES_INL_H_
 
-#include "src/char-predicates.h"
+#include "src/strings/char-predicates.h"
 
 namespace v8 {
 namespace internal {
-
 
 // If c is in 'A'-'Z' or 'a'-'z', return its lower-case.
 // Else, return something outside of 'A'-'Z' and 'a'-'z'.
@@ -53,9 +52,8 @@ inline constexpr bool IsBinaryDigit(uc32 c) {
 }
 
 inline constexpr bool IsRegExpWord(uc16 c) {
-  return IsInRange(AsciiAlphaToLower(c), 'a', 'z')
-      || IsDecimalDigit(c)
-      || (c == '_');
+  return IsInRange(AsciiAlphaToLower(c), 'a', 'z') || IsDecimalDigit(c) ||
+         (c == '_');
 }
 
 inline constexpr bool IsRegExpNewline(uc16 c) {
@@ -124,4 +122,4 @@ bool IsLineTerminatorSequence(uc32 c, uc32 next) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CHAR_PREDICATES_INL_H_
+#endif  // V8_STRINGS_CHAR_PREDICATES_INL_H_

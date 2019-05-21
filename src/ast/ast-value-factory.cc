@@ -27,10 +27,10 @@
 
 #include "src/ast/ast-value-factory.h"
 
-#include "src/char-predicates-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
-#include "src/string-hasher.h"
+#include "src/strings/char-predicates-inl.h"
+#include "src/strings/string-hasher.h"
 #include "src/utils-inl.h"
 
 namespace v8 {

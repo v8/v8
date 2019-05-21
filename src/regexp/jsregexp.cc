@@ -26,9 +26,9 @@
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
 #include "src/splay-tree-inl.h"
-#include "src/string-search.h"
-#include "src/unicode-decoder.h"
-#include "src/unicode-inl.h"
+#include "src/strings/string-search.h"
+#include "src/strings/unicode-decoder.h"
+#include "src/strings/unicode-inl.h"
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT

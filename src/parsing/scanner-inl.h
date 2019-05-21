@@ -5,9 +5,9 @@
 #ifndef V8_PARSING_SCANNER_INL_H_
 #define V8_PARSING_SCANNER_INL_H_
 
-#include "src/char-predicates-inl.h"
 #include "src/parsing/keywords-gen.h"
 #include "src/parsing/scanner.h"
+#include "src/strings/char-predicates-inl.h"
 
 namespace v8 {
 namespace internal {

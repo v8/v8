@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/unicode-decoder.h"
+#include "src/strings/unicode-decoder.h"
 
 #include "src/memcopy.h"
-#include "src/unicode-inl.h"
+#include "src/strings/unicode-inl.h"
 
 namespace v8 {
 namespace internal {

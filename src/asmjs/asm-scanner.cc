@@ -6,10 +6,10 @@
 
 #include <cinttypes>
 
-#include "src/char-predicates-inl.h"
 #include "src/flags.h"
 #include "src/numbers/conversions.h"
 #include "src/parsing/scanner.h"
+#include "src/strings/char-predicates-inl.h"
 
 namespace v8 {
 namespace internal {

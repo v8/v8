@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_STRING_STREAM_H_
-#define V8_STRING_STREAM_H_
+#ifndef V8_STRINGS_STRING_STREAM_H_
+#define V8_STRINGS_STRING_STREAM_H_
 
 #include "src/allocation.h"
 #include "src/base/small-vector.h"
@@ -29,7 +29,6 @@ class StringAllocator {
   virtual char* grow(unsigned* bytes) = 0;
 };
 
-
 // Normal allocator uses new[] and delete[].
 class HeapStringAllocator final : public StringAllocator {
  public:
@@ -40,7 +39,6 @@ class HeapStringAllocator final : public StringAllocator {
  private:
   char* space_;
 };
-
 
 class FixedStringAllocator final : public StringAllocator {
  public:
@@ -213,4 +211,4 @@ class StringStream final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_STRING_STREAM_H_
+#endif  // V8_STRINGS_STRING_STREAM_H_

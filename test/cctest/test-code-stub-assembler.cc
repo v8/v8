@@ -9,7 +9,6 @@
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-string-gen.h"
-#include "src/char-predicates.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/compiler/node.h"
@@ -27,6 +26,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/strings/char-predicates.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 

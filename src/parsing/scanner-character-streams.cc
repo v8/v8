@@ -13,7 +13,7 @@
 #include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/parsing/scanner.h"
-#include "src/unicode-inl.h"
+#include "src/strings/unicode-inl.h"
 
 namespace v8 {
 namespace internal {

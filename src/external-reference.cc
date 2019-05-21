@@ -27,7 +27,7 @@
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator-base.h"
-#include "src/string-search.h"
+#include "src/strings/string-search.h"
 #include "src/wasm/wasm-external-refs.h"
 
 // Include native regexp-macro-assembler.

@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_STRING_SEARCH_H_
-#define V8_STRING_SEARCH_H_
+#ifndef V8_STRINGS_STRING_SEARCH_H_
+#define V8_STRINGS_STRING_SEARCH_H_
 
 #include "src/isolate.h"
 #include "src/vector.h"
 
 namespace v8 {
 namespace internal {
-
 
 //---------------------------------------------------------------------
 // String Search object.
@@ -51,7 +50,6 @@ class StringSearchBase {
 
   friend class Isolate;
 };
-
 
 template <typename PatternChar, typename SubjectChar>
 class StringSearch : private StringSearchBase {
@@ -95,13 +93,10 @@ class StringSearch : private StringSearchBase {
 
  private:
   typedef int (*SearchFunction)(  // NOLINT - it's not a cast!
-      StringSearch<PatternChar, SubjectChar>*,
-      Vector<const SubjectChar>,
-      int);
+      StringSearch<PatternChar, SubjectChar>*, Vector<const SubjectChar>, int);
 
   static int FailSearch(StringSearch<PatternChar, SubjectChar>*,
-                        Vector<const SubjectChar>,
-                        int) {
+                        Vector<const SubjectChar>, int) {
     return -1;
   }
 
@@ -110,17 +105,14 @@ class StringSearch : private StringSearchBase {
                               int start_index);
 
   static int LinearSearch(StringSearch<PatternChar, SubjectChar>* search,
-                          Vector<const SubjectChar> subject,
-                          int start_index);
+                          Vector<const SubjectChar> subject, int start_index);
 
   static int InitialSearch(StringSearch<PatternChar, SubjectChar>* search,
-                           Vector<const SubjectChar> subject,
-                           int start_index);
+                           Vector<const SubjectChar> subject, int start_index);
 
   static int BoyerMooreHorspoolSearch(
       StringSearch<PatternChar, SubjectChar>* search,
-      Vector<const SubjectChar> subject,
-      int start_index);
+      Vector<const SubjectChar> subject, int start_index);
 
   static int BoyerMooreSearch(StringSearch<PatternChar, SubjectChar>* search,
                               Vector<const SubjectChar> subject,
@@ -130,9 +122,7 @@ class StringSearch : private StringSearchBase {
 
   void PopulateBoyerMooreTable();
 
-  static inline bool exceedsOneByte(uint8_t c) {
-    return false;
-  }
+  static inline bool exceedsOneByte(uint8_t c) { return false; }
 
   static inline bool exceedsOneByte(uint16_t c) {
     return c > String::kMaxOneByteCharCodeU;
@@ -161,9 +151,7 @@ class StringSearch : private StringSearchBase {
   // Store for the BoyerMoore(Horspool) bad char shift table.
   // Return a table covering the last kBMMaxShift+1 positions of
   // pattern.
-  int* bad_char_table() {
-    return isolate_->bad_char_shift_table();
-  }
+  int* bad_char_table() { return isolate_->bad_char_shift_table(); }
 
   // Store for the BoyerMoore good suffix shift table.
   int* good_suffix_shift_table() {
@@ -189,22 +177,18 @@ class StringSearch : private StringSearchBase {
   int start_;
 };
 
-
 template <typename T, typename U>
 inline T AlignDown(T value, U alignment) {
   return reinterpret_cast<T>(
       (reinterpret_cast<uintptr_t>(value) & ~(alignment - 1)));
 }
 
-
 inline uint8_t GetHighestValueByte(uc16 character) {
   return Max(static_cast<uint8_t>(character & 0xFF),
              static_cast<uint8_t>(character >> 8));
 }
 
-
 inline uint8_t GetHighestValueByte(uint8_t character) { return character; }
-
 
 template <typename PatternChar, typename SubjectChar>
 inline int FindFirstCharacter(Vector<const PatternChar> pattern,
@@ -229,7 +213,6 @@ inline int FindFirstCharacter(Vector<const PatternChar> pattern,
   return -1;
 }
 
-
 //---------------------------------------------------------------------
 // Single Character Pattern Search Strategy
 //---------------------------------------------------------------------
@@ -237,8 +220,7 @@ inline int FindFirstCharacter(Vector<const PatternChar> pattern,
 template <typename PatternChar, typename SubjectChar>
 int StringSearch<PatternChar, SubjectChar>::SingleCharSearch(
     StringSearch<PatternChar, SubjectChar>* search,
-    Vector<const SubjectChar> subject,
-    int index) {
+    Vector<const SubjectChar> subject, int index) {
   DCHECK_EQ(1, search->pattern_.length());
   PatternChar pattern_first_char = search->pattern_[0];
   if (sizeof(PatternChar) > sizeof(SubjectChar)) {
@@ -253,10 +235,8 @@ int StringSearch<PatternChar, SubjectChar>::SingleCharSearch(
 // Linear Search Strategy
 //---------------------------------------------------------------------
 
-
 template <typename PatternChar, typename SubjectChar>
-inline bool CharCompare(const PatternChar* pattern,
-                        const SubjectChar* subject,
+inline bool CharCompare(const PatternChar* pattern, const SubjectChar* subject,
                         int length) {
   DCHECK_GT(length, 0);
   int pos = 0;
@@ -269,13 +249,11 @@ inline bool CharCompare(const PatternChar* pattern,
   return true;
 }
 
-
 // Simple linear search for short patterns. Never bails out.
 template <typename PatternChar, typename SubjectChar>
 int StringSearch<PatternChar, SubjectChar>::LinearSearch(
     StringSearch<PatternChar, SubjectChar>* search,
-    Vector<const SubjectChar> subject,
-    int index) {
+    Vector<const SubjectChar> subject, int index) {
   Vector<const PatternChar> pattern = search->pattern_;
   DCHECK_GT(pattern.length(), 1);
   int pattern_length = pattern.length();
@@ -303,8 +281,7 @@ int StringSearch<PatternChar, SubjectChar>::LinearSearch(
 template <typename PatternChar, typename SubjectChar>
 int StringSearch<PatternChar, SubjectChar>::BoyerMooreSearch(
     StringSearch<PatternChar, SubjectChar>* search,
-    Vector<const SubjectChar> subject,
-    int start_index) {
+    Vector<const SubjectChar> subject, int start_index) {
   Vector<const PatternChar> pattern = search->pattern_;
   int subject_length = subject.length();
   int pattern_length = pattern.length();
@@ -321,8 +298,7 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreSearch(
     int j = pattern_length - 1;
     int c;
     while (last_char != (c = subject[index + j])) {
-      int shift =
-          j - CharOccurrence(bad_char_occurence, c);
+      int shift = j - CharOccurrence(bad_char_occurence, c);
       index += shift;
       if (index > subject_length - pattern_length) {
         return -1;
@@ -334,13 +310,12 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreSearch(
     } else if (j < start) {
       // we have matched more than our tables allow us to be smart about.
       // Fall back on BMH shift.
-      index += pattern_length - 1
-          - CharOccurrence(bad_char_occurence,
-                           static_cast<SubjectChar>(last_char));
+      index += pattern_length - 1 -
+               CharOccurrence(bad_char_occurence,
+                              static_cast<SubjectChar>(last_char));
     } else {
       int gs_shift = good_suffix_shift[j + 1];
-      int bc_occ =
-          CharOccurrence(bad_char_occurence, c);
+      int bc_occ = CharOccurrence(bad_char_occurence, c);
       int shift = j - bc_occ;
       if (gs_shift > shift) {
         shift = gs_shift;
@@ -351,7 +326,6 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreSearch(
 
   return -1;
 }
-
 
 template <typename PatternChar, typename SubjectChar>
 void StringSearch<PatternChar, SubjectChar>::PopulateBoyerMooreTable() {
@@ -426,8 +400,7 @@ void StringSearch<PatternChar, SubjectChar>::PopulateBoyerMooreTable() {
 template <typename PatternChar, typename SubjectChar>
 int StringSearch<PatternChar, SubjectChar>::BoyerMooreHorspoolSearch(
     StringSearch<PatternChar, SubjectChar>* search,
-    Vector<const SubjectChar> subject,
-    int start_index) {
+    Vector<const SubjectChar> subject, int start_index) {
   Vector<const PatternChar> pattern = search->pattern_;
   int subject_length = subject.length();
   int pattern_length = pattern.length();
@@ -436,7 +409,8 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreHorspoolSearch(
 
   // How bad we are doing without a good-suffix table.
   PatternChar last_char = pattern[pattern_length - 1];
-  int last_char_shift = pattern_length - 1 -
+  int last_char_shift =
+      pattern_length - 1 -
       CharOccurrence(char_occurrences, static_cast<SubjectChar>(last_char));
   // Perform search
   int index = start_index;  // No matches found prior to this index.
@@ -473,7 +447,6 @@ int StringSearch<PatternChar, SubjectChar>::BoyerMooreHorspoolSearch(
   return -1;
 }
 
-
 template <typename PatternChar, typename SubjectChar>
 void StringSearch<PatternChar, SubjectChar>::PopulateBoyerMooreHorspoolTable() {
   int pattern_length = pattern_.length();
@@ -487,9 +460,7 @@ void StringSearch<PatternChar, SubjectChar>::PopulateBoyerMooreHorspoolTable() {
   // Notice: Doesn't include the last character.
   int table_size = AlphabetSize();
   if (start == 0) {  // All patterns less than kBMMaxShift in length.
-    memset(bad_char_occurrence,
-           -1,
-           table_size * sizeof(*bad_char_occurrence));
+    memset(bad_char_occurrence, -1, table_size * sizeof(*bad_char_occurrence));
   } else {
     for (int i = 0; i < table_size; i++) {
       bad_char_occurrence[i] = start - 1;
@@ -511,8 +482,7 @@ void StringSearch<PatternChar, SubjectChar>::PopulateBoyerMooreHorspoolTable() {
 template <typename PatternChar, typename SubjectChar>
 int StringSearch<PatternChar, SubjectChar>::InitialSearch(
     StringSearch<PatternChar, SubjectChar>* search,
-    Vector<const SubjectChar> subject,
-    int index) {
+    Vector<const SubjectChar> subject, int index) {
   Vector<const PatternChar> pattern = search->pattern_;
   int pattern_length = pattern.length();
   // Badness is a count of how much work we have done.  When we have
@@ -548,16 +518,13 @@ int StringSearch<PatternChar, SubjectChar>::InitialSearch(
   return -1;
 }
 
-
 // Perform a a single stand-alone search.
 // If searching multiple times for the same pattern, a search
 // object should be constructed once and the Search function then called
 // for each search.
 template <typename SubjectChar, typename PatternChar>
-int SearchString(Isolate* isolate,
-                 Vector<const SubjectChar> subject,
-                 Vector<const PatternChar> pattern,
-                 int start_index) {
+int SearchString(Isolate* isolate, Vector<const SubjectChar> subject,
+                 Vector<const PatternChar> pattern, int start_index) {
   StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
   return search.Search(subject, start_index);
 }
@@ -578,4 +545,4 @@ intptr_t SearchStringRaw(Isolate* isolate, const SubjectChar* subject_ptr,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_STRING_SEARCH_H_
+#endif  // V8_STRINGS_STRING_SEARCH_H_

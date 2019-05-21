@@ -18,7 +18,7 @@
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 #include "src/snapshot/snapshot.h"
-#include "src/string-stream.h"
+#include "src/strings/string-stream.h"
 #include "src/visitors.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-code-manager.h"

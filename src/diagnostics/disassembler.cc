@@ -20,7 +20,7 @@
 #include "src/objects-inl.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-common.h"
-#include "src/string-stream.h"
+#include "src/strings/string-stream.h"
 #include "src/vector.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"

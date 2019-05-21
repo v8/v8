@@ -24,7 +24,7 @@
 #include "src/objects/js-number-format-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/string.h"
-#include "src/string-case.h"
+#include "src/strings/string-case.h"
 #include "unicode/basictz.h"
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"

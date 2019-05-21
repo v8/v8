@@ -4,8 +4,8 @@
 
 #include "src/date/dateparser.h"
 
-#include "src/char-predicates-inl.h"
 #include "src/objects-inl.h"
+#include "src/strings/char-predicates-inl.h"
 
 namespace v8 {
 namespace internal {

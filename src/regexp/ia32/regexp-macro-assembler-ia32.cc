@@ -12,7 +12,7 @@
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/unicode.h"
+#include "src/strings/unicode.h"
 
 namespace v8 {
 namespace internal {

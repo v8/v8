@@ -15,7 +15,6 @@
 #include "src/base/ieee754.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
-#include "src/char-predicates-inl.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/logging/log.h"
 #include "src/message-template.h"
@@ -25,7 +24,8 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/rewriter.h"
 #include "src/runtime/runtime.h"
-#include "src/string-stream.h"
+#include "src/strings/char-predicates-inl.h"
+#include "src/strings/string-stream.h"
 #include "src/tracing/trace-event.h"
 #include "src/zone/zone-list-inl.h"
 

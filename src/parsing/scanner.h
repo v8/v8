@@ -11,13 +11,13 @@
 
 #include "src/allocation.h"
 #include "src/base/logging.h"
-#include "src/char-predicates.h"
 #include "src/globals.h"
 #include "src/message-template.h"
 #include "src/parsing/literal-buffer.h"
 #include "src/parsing/token.h"
 #include "src/pointer-with-payload.h"
-#include "src/unicode.h"
+#include "src/strings/char-predicates.h"
+#include "src/strings/unicode.h"
 
 namespace v8 {
 namespace internal {

@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/uri.h"
+#include "src/strings/uri.h"
 
 #include <vector>
 
-#include "src/char-predicates-inl.h"
 #include "src/isolate-inl.h"
-#include "src/string-search.h"
-#include "src/unicode-inl.h"
+#include "src/strings/char-predicates-inl.h"
+#include "src/strings/string-search.h"
+#include "src/strings/unicode-inl.h"
 
 namespace v8 {
 namespace internal {

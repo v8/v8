@@ -14,7 +14,7 @@
 #include "src/regexp/regexp-stack.h"
 #include "src/regexp/s390/regexp-macro-assembler-s390.h"
 #include "src/snapshot/embedded-data.h"
-#include "src/unicode.h"
+#include "src/strings/unicode.h"
 
 namespace v8 {
 namespace internal {

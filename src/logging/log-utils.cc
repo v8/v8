@@ -7,7 +7,7 @@
 #include "src/assert-scope.h"
 #include "src/base/platform/platform.h"
 #include "src/objects-inl.h"
-#include "src/string-stream.h"
+#include "src/strings/string-stream.h"
 #include "src/utils.h"
 #include "src/vector.h"
 #include "src/version.h"

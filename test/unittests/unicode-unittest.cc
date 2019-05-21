@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "src/unicode-decoder.h"
-#include "src/unicode-inl.h"
+#include "src/strings/unicode-decoder.h"
+#include "src/strings/unicode-inl.h"
 #include "src/vector.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

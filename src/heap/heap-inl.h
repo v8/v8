@@ -37,7 +37,7 @@
 #include "src/objects/slots-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/string-hasher.h"
+#include "src/strings/string-hasher.h"
 #include "src/zone/zone-list-inl.h"
 
 namespace v8 {

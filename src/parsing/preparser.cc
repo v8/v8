@@ -12,7 +12,7 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
-#include "src/unicode.h"
+#include "src/strings/unicode.h"
 #include "src/utils.h"
 #include "src/zone/zone-list-inl.h"
 

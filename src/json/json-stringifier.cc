@@ -13,7 +13,7 @@
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/smi.h"
-#include "src/string-builder-inl.h"
+#include "src/strings/string-builder-inl.h"
 #include "src/utils.h"
 
 namespace v8 {

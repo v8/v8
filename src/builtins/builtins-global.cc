@@ -8,7 +8,7 @@
 #include "src/compiler.h"
 #include "src/logging/counters.h"
 #include "src/objects-inl.h"
-#include "src/uri.h"
+#include "src/strings/uri.h"
 
 namespace v8 {
 namespace internal {

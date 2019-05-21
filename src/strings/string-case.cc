@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/string-case.h"
+#include "src/strings/string-case.h"
 
 #include "src/assert-scope.h"
 #include "src/base/logging.h"

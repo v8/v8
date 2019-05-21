@@ -11,7 +11,7 @@
 #include "src/base/platform/platform.h"
 #include "src/globals.h"
 #include "src/objects-inl.h"
-#include "src/string-builder-inl.h"
+#include "src/strings/string-builder-inl.h"
 #include "src/vector.h"
 
 namespace v8 {

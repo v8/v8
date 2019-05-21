@@ -9,7 +9,7 @@
 
 #include "include/v8-platform.h"
 #include "src/base/platform/time.h"
-#include "src/char-predicates-inl.h"
+#include "src/strings/char-predicates-inl.h"
 #include "src/v8.h"
 
 namespace v8 {

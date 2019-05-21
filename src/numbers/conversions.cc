@@ -10,13 +10,13 @@
 
 #include "src/allocation.h"
 #include "src/assert-scope.h"
-#include "src/char-predicates-inl.h"
 #include "src/handles.h"
 #include "src/heap/factory.h"
 #include "src/numbers/dtoa.h"
 #include "src/numbers/strtod.h"
 #include "src/objects-inl.h"
 #include "src/objects/bigint.h"
+#include "src/strings/char-predicates-inl.h"
 #include "src/utils.h"
 
 #if defined(_STLP_VENDOR_CSTD)

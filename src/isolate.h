@@ -33,7 +33,7 @@
 #include "src/objects/code.h"
 #include "src/objects/debug-objects.h"
 #include "src/runtime/runtime.h"
-#include "src/unicode.h"
+#include "src/strings/unicode.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uversion.h"  // Define U_ICU_NAMESPACE.

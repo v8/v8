@@ -4,7 +4,6 @@
 
 #include "src/json/json-parser.h"
 
-#include "src/char-predicates-inl.h"
 #include "src/debug/debug.h"
 #include "src/hash-seed-inl.h"
 #include "src/message-template.h"
@@ -13,7 +12,8 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/property-descriptor.h"
-#include "src/string-hasher.h"
+#include "src/strings/char-predicates-inl.h"
+#include "src/strings/string-hasher.h"
 
 namespace v8 {
 namespace internal {

@@ -17,7 +17,7 @@
 #include "src/base/once.h"
 #include "src/base/platform/time.h"
 #include "src/d8/async-hooks-wrapper.h"
-#include "src/string-hasher.h"
+#include "src/strings/string-hasher.h"
 #include "src/utils.h"
 
 namespace v8 {

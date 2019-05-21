@@ -31,7 +31,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/frames-inl.h"
-#include "src/string-stream.h"
+#include "src/strings/string-stream.h"
 #include "test/cctest/cctest.h"
 
 using ::v8::ObjectTemplate;

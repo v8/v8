@@ -6,7 +6,7 @@
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
 
-#include "src/char-predicates.h"
+#include "src/strings/char-predicates.h"
 
 #include "unicode/uchar.h"
 #include "unicode/urename.h"

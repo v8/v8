@@ -24,7 +24,7 @@
 #include "src/parsing/parsing.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/snapshot/snapshot.h"
-#include "src/string-builder-inl.h"
+#include "src/strings/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {

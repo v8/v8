@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CHAR_PREDICATES_H_
-#define V8_CHAR_PREDICATES_H_
+#ifndef V8_STRINGS_CHAR_PREDICATES_H_
+#define V8_STRINGS_CHAR_PREDICATES_H_
 
 #include "src/globals.h"
-#include "src/unicode.h"
+#include "src/strings/unicode.h"
 
 namespace v8 {
 namespace internal {
@@ -82,4 +82,4 @@ inline bool IsLineTerminatorSequence(uc32 c, uc32 next);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CHAR_PREDICATES_H_
+#endif  // V8_STRINGS_CHAR_PREDICATES_H_

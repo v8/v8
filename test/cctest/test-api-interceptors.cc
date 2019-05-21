@@ -15,7 +15,7 @@
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/runtime/runtime.h"
-#include "src/unicode-inl.h"
+#include "src/strings/unicode-inl.h"
 #include "src/utils.h"
 
 using ::v8::Boolean;

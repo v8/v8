@@ -16,7 +16,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string-inl.h"
-#include "src/string-hasher.h"
+#include "src/strings/string-hasher.h"
 
 namespace v8 {
 namespace internal {

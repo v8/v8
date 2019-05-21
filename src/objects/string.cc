@@ -4,7 +4,6 @@
 
 #include "src/objects/string.h"
 
-#include "src/char-predicates.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"  // For LooksValid implementation.
 #include "src/heap/read-only-heap.h"
@@ -14,11 +13,12 @@
 #include "src/objects/string-comparator.h"
 #include "src/objects/string-inl.h"
 #include "src/ostreams.h"
-#include "src/string-builder-inl.h"
-#include "src/string-hasher.h"
-#include "src/string-search.h"
-#include "src/string-stream.h"
-#include "src/unicode-inl.h"
+#include "src/strings/char-predicates.h"
+#include "src/strings/string-builder-inl.h"
+#include "src/strings/string-hasher.h"
+#include "src/strings/string-search.h"
+#include "src/strings/string-stream.h"
+#include "src/strings/unicode-inl.h"
 
 namespace v8 {
 namespace internal {

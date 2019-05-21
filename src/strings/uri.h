@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_URI_H_
-#define V8_URI_H_
+#ifndef V8_STRINGS_URI_H_
+#define V8_STRINGS_URI_H_
 
 #include "src/allocation.h"
 #include "src/maybe-handles.h"
@@ -52,4 +52,4 @@ class Uri : public AllStatic {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_URI_H_
+#endif  // V8_STRINGS_URI_H_

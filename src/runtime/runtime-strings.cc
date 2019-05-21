@@ -13,8 +13,8 @@
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime-utils.h"
-#include "src/string-builder-inl.h"
-#include "src/string-search.h"
+#include "src/strings/string-builder-inl.h"
+#include "src/strings/string-search.h"
 
 namespace v8 {
 namespace internal {

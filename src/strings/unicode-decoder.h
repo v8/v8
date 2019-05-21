@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UNICODE_DECODER_H_
-#define V8_UNICODE_DECODER_H_
+#ifndef V8_STRINGS_UNICODE_DECODER_H_
+#define V8_STRINGS_UNICODE_DECODER_H_
 
-#include "src/unicode.h"
+#include "src/strings/unicode.h"
 #include "src/vector.h"
 
 namespace v8 {
@@ -71,4 +71,4 @@ class V8_EXPORT_PRIVATE Utf8Decoder final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_UNICODE_DECODER_H_
+#endif  // V8_STRINGS_UNICODE_DECODER_H_

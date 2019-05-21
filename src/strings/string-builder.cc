@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/string-builder-inl.h"
+#include "src/strings/string-builder-inl.h"
 
 #include "src/isolate-inl.h"
 #include "src/objects/fixed-array-inl.h"
@@ -258,7 +258,6 @@ void IncrementalStringBuilder::Accumulate(Handle<String> new_part) {
   set_accumulator(new_accumulator);
 }
 
-
 void IncrementalStringBuilder::Extend() {
   DCHECK_EQ(current_index_, current_part()->length());
   Accumulate(current_part());
@@ -276,7 +275,6 @@ void IncrementalStringBuilder::Extend() {
   current_index_ = 0;
 }
 
-
 MaybeHandle<String> IncrementalStringBuilder::Finish() {
   ShrinkCurrentPart();
   Accumulate(current_part());
@@ -285,7 +283,6 @@ MaybeHandle<String> IncrementalStringBuilder::Finish() {
   }
   return accumulator();
 }
-
 
 void IncrementalStringBuilder::AppendString(Handle<String> string) {
   ShrinkCurrentPart();

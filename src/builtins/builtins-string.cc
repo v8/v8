@@ -12,10 +12,10 @@
 #include "src/objects/intl-objects.h"
 #endif
 #include "src/regexp/regexp-utils.h"
-#include "src/string-builder-inl.h"
-#include "src/string-case.h"
-#include "src/unicode-inl.h"
-#include "src/unicode.h"
+#include "src/strings/string-builder-inl.h"
+#include "src/strings/string-case.h"
+#include "src/strings/unicode-inl.h"
+#include "src/strings/unicode.h"
 
 namespace v8 {
 namespace internal {

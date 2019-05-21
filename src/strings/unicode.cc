@@ -4,10 +4,10 @@
 //
 // This file was generated at 2014-10-08 15:25:47.940335
 
-#include "src/unicode.h"
-#include "src/unicode-inl.h"
+#include "src/strings/unicode.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "src/strings/unicode-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
@@ -27,9 +27,9 @@ static const uchar kSentinel = static_cast<uchar>(-1);
  * Implementations of functions for working with Unicode.
  */
 
-typedef signed short int16_t;  // NOLINT
+typedef signed short int16_t;     // NOLINT
 typedef unsigned short uint16_t;  // NOLINT
-typedef int int32_t;  // NOLINT
+typedef int int32_t;              // NOLINT
 
 #ifndef V8_INTL_SUPPORT
 // All access to the character table should go through this function.
@@ -38,14 +38,9 @@ static inline uchar TableGet(const int32_t* table, int index) {
   return table[D * index];
 }
 
+static inline uchar GetEntry(int32_t entry) { return entry & (kStartBit - 1); }
 
-static inline uchar GetEntry(int32_t entry) {
-  return entry & (kStartBit - 1);
-}
-
-static inline bool IsStart(int32_t entry) {
-  return (entry & kStartBit) != 0;
-}
+static inline bool IsStart(int32_t entry) { return (entry & kStartBit) != 0; }
 
 /**
  * Look up a character in the Unicode table using a mix of binary and
@@ -107,12 +102,9 @@ struct MultiCharacterSpecialCase {
 // offset by the distance between the match and the start. Otherwise
 // the result is the same as for the start point on the entire range.
 template <bool ranges_are_linear, int kW>
-static int LookupMapping(const int32_t* table,
-                         uint16_t size,
+static int LookupMapping(const int32_t* table, uint16_t size,
                          const MultiCharacterSpecialCase<kW>* multi_chars,
-                         uchar chr,
-                         uchar next,
-                         uchar* result,
+                         uchar chr, uchar next, uchar* result,
                          bool* allow_caching_ptr) {
   static const int kEntryDist = 2;
   uint16_t key = chr & (kChunkBits - 1);
@@ -362,17 +354,27 @@ static const int32_t kUppercaseTable0[455] = {
     8172,       1073750008, 8187};  // NOLINT
 static const uint16_t kUppercaseTable1Size = 86;
 static const int32_t kUppercaseTable1[86] = {
-  258, 263, 1073742091, 269, 1073742096, 274, 277, 1073742105,  // NOLINT
-  285, 292, 294, 296, 1073742122, 301, 1073742128, 307,  // NOLINT
-  1073742142, 319, 325, 387, 1073744896, 3118, 3168, 1073744994,  // NOLINT
-  3172, 3175, 3177, 3179, 1073745005, 3184, 3186, 3189,  // NOLINT
-  1073745022, 3200, 3202, 3204, 3206, 3208, 3210, 3212,  // NOLINT
-  3214, 3216, 3218, 3220, 3222, 3224, 3226, 3228,  // NOLINT
-  3230, 3232, 3234, 3236, 3238, 3240, 3242, 3244,  // NOLINT
-  3246, 3248, 3250, 3252, 3254, 3256, 3258, 3260,  // NOLINT
-  3262, 3264, 3266, 3268, 3270, 3272, 3274, 3276,  // NOLINT
-  3278, 3280, 3282, 3284, 3286, 3288, 3290, 3292,  // NOLINT
-  3294, 3296, 3298, 3307, 3309, 3314 };  // NOLINT
+    258,        263,        1073742091, 269,  1073742096, 274,
+    277,        1073742105,  // NOLINT
+    285,        292,        294,        296,  1073742122, 301,
+    1073742128, 307,  // NOLINT
+    1073742142, 319,        325,        387,  1073744896, 3118,
+    3168,       1073744994,  // NOLINT
+    3172,       3175,       3177,       3179, 1073745005, 3184,
+    3186,       3189,  // NOLINT
+    1073745022, 3200,       3202,       3204, 3206,       3208,
+    3210,       3212,  // NOLINT
+    3214,       3216,       3218,       3220, 3222,       3224,
+    3226,       3228,  // NOLINT
+    3230,       3232,       3234,       3236, 3238,       3240,
+    3242,       3244,  // NOLINT
+    3246,       3248,       3250,       3252, 3254,       3256,
+    3258,       3260,  // NOLINT
+    3262,       3264,       3266,       3268, 3270,       3272,
+    3274,       3276,  // NOLINT
+    3278,       3280,       3282,       3284, 3286,       3288,
+    3290,       3292,                                             // NOLINT
+    3294,       3296,       3298,       3307, 3309,       3314};  // NOLINT
 static const uint16_t kUppercaseTable5Size = 101;
 static const int32_t kUppercaseTable5[101] = {
     1600, 1602,       1604, 1606,       1608, 1610,       1612, 1614,  // NOLINT
@@ -389,24 +391,20 @@ static const int32_t kUppercaseTable5[101] = {
     1944, 1946,       1948, 1950,       1952, 1954,       1956, 1958,  // NOLINT
     1960, 1073743786, 1965, 1073743792, 1969};                         // NOLINT
 static const uint16_t kUppercaseTable7Size = 2;
-static const int32_t kUppercaseTable7[2] = {
-  1073749793, 7994 };  // NOLINT
+static const int32_t kUppercaseTable7[2] = {1073749793, 7994};  // NOLINT
 bool Uppercase::Is(uchar c) {
   int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupPredicate(kUppercaseTable0,
-                                       kUppercaseTable0Size,
-                                       c);
-    case 1: return LookupPredicate(kUppercaseTable1,
-                                       kUppercaseTable1Size,
-                                       c);
-    case 5: return LookupPredicate(kUppercaseTable5,
-                                       kUppercaseTable5Size,
-                                       c);
-    case 7: return LookupPredicate(kUppercaseTable7,
-                                       kUppercaseTable7Size,
-                                       c);
-    default: return false;
+    case 0:
+      return LookupPredicate(kUppercaseTable0, kUppercaseTable0Size, c);
+    case 1:
+      return LookupPredicate(kUppercaseTable1, kUppercaseTable1Size, c);
+    case 5:
+      return LookupPredicate(kUppercaseTable5, kUppercaseTable5Size, c);
+    case 7:
+      return LookupPredicate(kUppercaseTable7, kUppercaseTable7Size, c);
+    default:
+      return false;
   }
 }
 #endif  // V8_INTL_SUPPORT
@@ -527,26 +525,35 @@ static const int32_t kLetterTable0[431] = {
     8180,       1073750006, 8188};  // NOLINT
 static const uint16_t kLetterTable1Size = 87;
 static const int32_t kLetterTable1[87] = {
-  113, 127, 1073741968, 156, 258, 263, 1073742090, 275,  // NOLINT
-  277, 1073742105, 285, 292, 294, 296, 1073742122, 301,  // NOLINT
-  1073742127, 313, 1073742140, 319, 1073742149, 329, 334, 1073742176,  // NOLINT
-  392, 1073744896, 3118, 1073744944, 3166, 1073744992, 3300, 1073745131,  // NOLINT
-  3310, 1073745138, 3315, 1073745152, 3365, 3367, 3373, 1073745200,  // NOLINT
-  3431, 3439, 1073745280, 3478, 1073745312, 3494, 1073745320, 3502,  // NOLINT
-  1073745328, 3510, 1073745336, 3518, 1073745344, 3526, 1073745352, 3534,  // NOLINT
-  1073745360, 3542, 1073745368, 3550, 3631, 1073745925, 4103, 1073745953,  // NOLINT
-  4137, 1073745969, 4149, 1073745976, 4156, 1073745985, 4246, 1073746077,  // NOLINT
-  4255, 1073746081, 4346, 1073746172, 4351, 1073746181, 4397, 1073746225,  // NOLINT
-  4494, 1073746336, 4538, 1073746416, 4607, 1073746944, 8191 };  // NOLINT
+    113,        127,        1073741968, 156,
+    258,        263,        1073742090, 275,  // NOLINT
+    277,        1073742105, 285,        292,
+    294,        296,        1073742122, 301,  // NOLINT
+    1073742127, 313,        1073742140, 319,
+    1073742149, 329,        334,        1073742176,  // NOLINT
+    392,        1073744896, 3118,       1073744944,
+    3166,       1073744992, 3300,       1073745131,  // NOLINT
+    3310,       1073745138, 3315,       1073745152,
+    3365,       3367,       3373,       1073745200,  // NOLINT
+    3431,       3439,       1073745280, 3478,
+    1073745312, 3494,       1073745320, 3502,  // NOLINT
+    1073745328, 3510,       1073745336, 3518,
+    1073745344, 3526,       1073745352, 3534,  // NOLINT
+    1073745360, 3542,       1073745368, 3550,
+    3631,       1073745925, 4103,       1073745953,  // NOLINT
+    4137,       1073745969, 4149,       1073745976,
+    4156,       1073745985, 4246,       1073746077,  // NOLINT
+    4255,       1073746081, 4346,       1073746172,
+    4351,       1073746181, 4397,       1073746225,  // NOLINT
+    4494,       1073746336, 4538,       1073746416,
+    4607,       1073746944, 8191};  // NOLINT
 static const uint16_t kLetterTable2Size = 4;
-static const int32_t kLetterTable2[4] = {
-  1073741824, 3509, 1073745408, 8191 };  // NOLINT
+static const int32_t kLetterTable2[4] = {1073741824, 3509, 1073745408,
+                                         8191};  // NOLINT
 static const uint16_t kLetterTable3Size = 2;
-static const int32_t kLetterTable3[2] = {
-  1073741824, 8191 };  // NOLINT
+static const int32_t kLetterTable3[2] = {1073741824, 8191};  // NOLINT
 static const uint16_t kLetterTable4Size = 2;
-static const int32_t kLetterTable4[2] = {
-  1073741824, 8140 };  // NOLINT
+static const int32_t kLetterTable4[2] = {1073741824, 8140};  // NOLINT
 static const uint16_t kLetterTable5Size = 100;
 static const int32_t kLetterTable5[100] = {
     1073741824, 1164,       1073743056, 1277,
@@ -575,44 +582,43 @@ static const int32_t kLetterTable5[100] = {
     1073744732, 2911,       1073744740, 2917,   // NOLINT
     1073744832, 3042,       1073744896, 8191};  // NOLINT
 static const uint16_t kLetterTable6Size = 6;
-static const int32_t kLetterTable6[6] = {
-  1073741824, 6051, 1073747888, 6086, 1073747915, 6139 };  // NOLINT
+static const int32_t kLetterTable6[6] = {1073741824, 6051, 1073747888, 6086,
+                                         1073747915, 6139};  // NOLINT
 static const uint16_t kLetterTable7Size = 48;
 static const int32_t kLetterTable7[48] = {
-  1073748224, 6765, 1073748592, 6873, 1073748736, 6918, 1073748755, 6935,  // NOLINT
-  6941, 1073748767, 6952, 1073748778, 6966, 1073748792, 6972, 6974,  // NOLINT
-  1073748800, 6977, 1073748803, 6980, 1073748806, 7089, 1073748947, 7485,  // NOLINT
-  1073749328, 7567, 1073749394, 7623, 1073749488, 7675, 1073749616, 7796,  // NOLINT
-  1073749622, 7932, 1073749793, 7994, 1073749825, 8026, 1073749862, 8126,  // NOLINT
-  1073749954, 8135, 1073749962, 8143, 1073749970, 8151, 1073749978, 8156 };  // NOLINT
+    1073748224, 6765,       1073748592, 6873,
+    1073748736, 6918,       1073748755, 6935,  // NOLINT
+    6941,       1073748767, 6952,       1073748778,
+    6966,       1073748792, 6972,       6974,  // NOLINT
+    1073748800, 6977,       1073748803, 6980,
+    1073748806, 7089,       1073748947, 7485,  // NOLINT
+    1073749328, 7567,       1073749394, 7623,
+    1073749488, 7675,       1073749616, 7796,  // NOLINT
+    1073749622, 7932,       1073749793, 7994,
+    1073749825, 8026,       1073749862, 8126,  // NOLINT
+    1073749954, 8135,       1073749962, 8143,
+    1073749970, 8151,       1073749978, 8156};  // NOLINT
 bool Letter::Is(uchar c) {
   int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupPredicate(kLetterTable0,
-                                       kLetterTable0Size,
-                                       c);
-    case 1: return LookupPredicate(kLetterTable1,
-                                       kLetterTable1Size,
-                                       c);
-    case 2: return LookupPredicate(kLetterTable2,
-                                       kLetterTable2Size,
-                                       c);
-    case 3: return LookupPredicate(kLetterTable3,
-                                       kLetterTable3Size,
-                                       c);
-    case 4: return LookupPredicate(kLetterTable4,
-                                       kLetterTable4Size,
-                                       c);
-    case 5: return LookupPredicate(kLetterTable5,
-                                       kLetterTable5Size,
-                                       c);
-    case 6: return LookupPredicate(kLetterTable6,
-                                       kLetterTable6Size,
-                                       c);
-    case 7: return LookupPredicate(kLetterTable7,
-                                       kLetterTable7Size,
-                                       c);
-    default: return false;
+    case 0:
+      return LookupPredicate(kLetterTable0, kLetterTable0Size, c);
+    case 1:
+      return LookupPredicate(kLetterTable1, kLetterTable1Size, c);
+    case 2:
+      return LookupPredicate(kLetterTable2, kLetterTable2Size, c);
+    case 3:
+      return LookupPredicate(kLetterTable3, kLetterTable3Size, c);
+    case 4:
+      return LookupPredicate(kLetterTable4, kLetterTable4Size, c);
+    case 5:
+      return LookupPredicate(kLetterTable5, kLetterTable5Size, c);
+    case 6:
+      return LookupPredicate(kLetterTable6, kLetterTable6Size, c);
+    case 7:
+      return LookupPredicate(kLetterTable7, kLetterTable7Size, c);
+    default:
+      return false;
   }
 }
 #endif
@@ -832,7 +838,6 @@ bool ID_Start::Is(uchar c) {
   }
 }
 
-
 // ID_Continue:          point.category in ['Nd', 'Mn', 'Mc', 'Pc'] or
 // 'Other_ID_Continue' in point.properties or 'JS_ID_Continue' in
 // point.properties
@@ -959,7 +964,8 @@ bool ID_Continue::Is(uchar c) {
       return LookupPredicate(kID_ContinueTable5, kID_ContinueTable5Size, c);
     case 7:
       return LookupPredicate(kID_ContinueTable7, kID_ContinueTable7Size, c);
-    default: return false;
+    default:
+      return false;
   }
 }
 
@@ -970,29 +976,30 @@ static const uint16_t kWhiteSpaceTable0Size = 6;
 static const int32_t kWhiteSpaceTable0[6] = {9,  1073741835, 12,
                                              32, 160,        5760};  // NOLINT
 static const uint16_t kWhiteSpaceTable1Size = 5;
-static const int32_t kWhiteSpaceTable1[5] = {
-  1073741824, 10, 47, 95, 4096 };  // NOLINT
+static const int32_t kWhiteSpaceTable1[5] = {1073741824, 10, 47, 95,
+                                             4096};  // NOLINT
 static const uint16_t kWhiteSpaceTable7Size = 1;
 static const int32_t kWhiteSpaceTable7[1] = {7935};  // NOLINT
 bool WhiteSpace::Is(uchar c) {
   int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupPredicate(kWhiteSpaceTable0,
-                                       kWhiteSpaceTable0Size,
-                                       c);
-    case 1: return LookupPredicate(kWhiteSpaceTable1,
-                                       kWhiteSpaceTable1Size,
-                                       c);
+    case 0:
+      return LookupPredicate(kWhiteSpaceTable0, kWhiteSpaceTable0Size, c);
+    case 1:
+      return LookupPredicate(kWhiteSpaceTable1, kWhiteSpaceTable1Size, c);
     case 7:
       return LookupPredicate(kWhiteSpaceTable7, kWhiteSpaceTable7Size, c);
-    default: return false;
+    default:
+      return false;
   }
 }
 #endif  // !V8_INTL_SUPPORT
 
 #ifndef V8_INTL_SUPPORT
-static const MultiCharacterSpecialCase<2> kToLowercaseMultiStrings0[2] = {  // NOLINT
-  {{105, 775}}, {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<2> kToLowercaseMultiStrings0[2] =
+    {  // NOLINT
+        {{105, 775}},
+        {{kSentinel}}};                              // NOLINT
 static const uint16_t kToLowercaseTable0Size = 488;  // NOLINT
 static const int32_t kToLowercaseTable0[976] = {
     1073741889, 128,    90,         128,   1073742016, 128,
@@ -1179,23 +1186,44 @@ static const int32_t kToLowercaseTable0[976] = {
     1073750008, -512,   8185,       -512,  1073750010, -504,
     8187,       -504,   8188,       -36};                 // NOLINT
 static const uint16_t kToLowercaseMultiStrings0Size = 2;  // NOLINT
-static const MultiCharacterSpecialCase<1> kToLowercaseMultiStrings1[1] = {  // NOLINT
-  {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<1> kToLowercaseMultiStrings1[1] =
+    {                                               // NOLINT
+        {{kSentinel}}};                             // NOLINT
 static const uint16_t kToLowercaseTable1Size = 79;  // NOLINT
 static const int32_t kToLowercaseTable1[158] = {
-  294, -30068, 298, -33532, 299, -33048, 306, 112, 1073742176, 64, 367, 64, 387, 4, 1073743030, 104,  // NOLINT
-  1231, 104, 1073744896, 192, 3118, 192, 3168, 4, 3170, -42972, 3171, -15256, 3172, -42908, 3175, 4,  // NOLINT
-  3177, 4, 3179, 4, 3181, -43120, 3182, -42996, 3183, -43132, 3184, -43128, 3186, 4, 3189, 4,  // NOLINT
-  1073745022, -43260, 3199, -43260, 3200, 4, 3202, 4, 3204, 4, 3206, 4, 3208, 4, 3210, 4,  // NOLINT
-  3212, 4, 3214, 4, 3216, 4, 3218, 4, 3220, 4, 3222, 4, 3224, 4, 3226, 4,  // NOLINT
-  3228, 4, 3230, 4, 3232, 4, 3234, 4, 3236, 4, 3238, 4, 3240, 4, 3242, 4,  // NOLINT
-  3244, 4, 3246, 4, 3248, 4, 3250, 4, 3252, 4, 3254, 4, 3256, 4, 3258, 4,  // NOLINT
-  3260, 4, 3262, 4, 3264, 4, 3266, 4, 3268, 4, 3270, 4, 3272, 4, 3274, 4,  // NOLINT
-  3276, 4, 3278, 4, 3280, 4, 3282, 4, 3284, 4, 3286, 4, 3288, 4, 3290, 4,  // NOLINT
-  3292, 4, 3294, 4, 3296, 4, 3298, 4, 3307, 4, 3309, 4, 3314, 4 };  // NOLINT
-static const uint16_t kToLowercaseMultiStrings1Size = 1;  // NOLINT
-static const MultiCharacterSpecialCase<1> kToLowercaseMultiStrings5[1] = {  // NOLINT
-  {{kSentinel}} }; // NOLINT
+    294,        -30068,     298,        -33532, 299,    -33048, 306,
+    112,        1073742176, 64,         367,    64,     387,    4,
+    1073743030, 104,  // NOLINT
+    1231,       104,        1073744896, 192,    3118,   192,    3168,
+    4,          3170,       -42972,     3171,   -15256, 3172,   -42908,
+    3175,       4,  // NOLINT
+    3177,       4,          3179,       4,      3181,   -43120, 3182,
+    -42996,     3183,       -43132,     3184,   -43128, 3186,   4,
+    3189,       4,  // NOLINT
+    1073745022, -43260,     3199,       -43260, 3200,   4,      3202,
+    4,          3204,       4,          3206,   4,      3208,   4,
+    3210,       4,  // NOLINT
+    3212,       4,          3214,       4,      3216,   4,      3218,
+    4,          3220,       4,          3222,   4,      3224,   4,
+    3226,       4,  // NOLINT
+    3228,       4,          3230,       4,      3232,   4,      3234,
+    4,          3236,       4,          3238,   4,      3240,   4,
+    3242,       4,  // NOLINT
+    3244,       4,          3246,       4,      3248,   4,      3250,
+    4,          3252,       4,          3254,   4,      3256,   4,
+    3258,       4,  // NOLINT
+    3260,       4,          3262,       4,      3264,   4,      3266,
+    4,          3268,       4,          3270,   4,      3272,   4,
+    3274,       4,  // NOLINT
+    3276,       4,          3278,       4,      3280,   4,      3282,
+    4,          3284,       4,          3286,   4,      3288,   4,
+    3290,       4,  // NOLINT
+    3292,       4,          3294,       4,      3296,   4,      3298,
+    4,          3307,       4,          3309,   4,      3314,   4};  // NOLINT
+static const uint16_t kToLowercaseMultiStrings1Size = 1;             // NOLINT
+static const MultiCharacterSpecialCase<1> kToLowercaseMultiStrings5[1] =
+    {                                                // NOLINT
+        {{kSentinel}}};                              // NOLINT
 static const uint16_t kToLowercaseTable5Size = 103;  // NOLINT
 static const int32_t kToLowercaseTable5[206] = {
     1600, 4,       1602, 4,       1604, 4,       1606, 4,
@@ -1225,68 +1253,72 @@ static const int32_t kToLowercaseTable5[206] = {
     1960, 4,       1962, -169232, 1963, -169276, 1964, -169260,
     1965, -169220, 1968, -169032, 1969, -169128};         // NOLINT
 static const uint16_t kToLowercaseMultiStrings5Size = 1;  // NOLINT
-static const MultiCharacterSpecialCase<1> kToLowercaseMultiStrings7[1] = {  // NOLINT
-  {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<1> kToLowercaseMultiStrings7[1] =
+    {                                              // NOLINT
+        {{kSentinel}}};                            // NOLINT
 static const uint16_t kToLowercaseTable7Size = 2;  // NOLINT
-static const int32_t kToLowercaseTable7[4] = {
-  1073749793, 128, 7994, 128 };  // NOLINT
+static const int32_t kToLowercaseTable7[4] = {1073749793, 128, 7994,
+                                              128};       // NOLINT
 static const uint16_t kToLowercaseMultiStrings7Size = 1;  // NOLINT
-int ToLowercase::Convert(uchar c,
-                      uchar n,
-                      uchar* result,
-                      bool* allow_caching_ptr) {
+int ToLowercase::Convert(uchar c, uchar n, uchar* result,
+                         bool* allow_caching_ptr) {
   int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupMapping<true>(kToLowercaseTable0,
-                                           kToLowercaseTable0Size,
-                                           kToLowercaseMultiStrings0,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 1: return LookupMapping<true>(kToLowercaseTable1,
-                                           kToLowercaseTable1Size,
-                                           kToLowercaseMultiStrings1,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 5: return LookupMapping<true>(kToLowercaseTable5,
-                                           kToLowercaseTable5Size,
-                                           kToLowercaseMultiStrings5,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 7: return LookupMapping<true>(kToLowercaseTable7,
-                                           kToLowercaseTable7Size,
-                                           kToLowercaseMultiStrings7,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    default: return 0;
+    case 0:
+      return LookupMapping<true>(kToLowercaseTable0, kToLowercaseTable0Size,
+                                 kToLowercaseMultiStrings0, c, n, result,
+                                 allow_caching_ptr);
+    case 1:
+      return LookupMapping<true>(kToLowercaseTable1, kToLowercaseTable1Size,
+                                 kToLowercaseMultiStrings1, c, n, result,
+                                 allow_caching_ptr);
+    case 5:
+      return LookupMapping<true>(kToLowercaseTable5, kToLowercaseTable5Size,
+                                 kToLowercaseMultiStrings5, c, n, result,
+                                 allow_caching_ptr);
+    case 7:
+      return LookupMapping<true>(kToLowercaseTable7, kToLowercaseTable7Size,
+                                 kToLowercaseMultiStrings7, c, n, result,
+                                 allow_caching_ptr);
+    default:
+      return 0;
   }
 }
 
-static const MultiCharacterSpecialCase<3> kToUppercaseMultiStrings0[62] = {  // NOLINT
-  {{83, 83, kSentinel}}, {{700, 78, kSentinel}}, {{74, 780, kSentinel}}, {{921, 776, 769}},  // NOLINT
-  {{933, 776, 769}}, {{1333, 1362, kSentinel}}, {{72, 817, kSentinel}}, {{84, 776, kSentinel}},  // NOLINT
-  {{87, 778, kSentinel}}, {{89, 778, kSentinel}}, {{65, 702, kSentinel}}, {{933, 787, kSentinel}},  // NOLINT
-  {{933, 787, 768}}, {{933, 787, 769}}, {{933, 787, 834}}, {{7944, 921, kSentinel}},  // NOLINT
-  {{7945, 921, kSentinel}}, {{7946, 921, kSentinel}}, {{7947, 921, kSentinel}}, {{7948, 921, kSentinel}},  // NOLINT
-  {{7949, 921, kSentinel}}, {{7950, 921, kSentinel}}, {{7951, 921, kSentinel}}, {{7976, 921, kSentinel}},  // NOLINT
-  {{7977, 921, kSentinel}}, {{7978, 921, kSentinel}}, {{7979, 921, kSentinel}}, {{7980, 921, kSentinel}},  // NOLINT
-  {{7981, 921, kSentinel}}, {{7982, 921, kSentinel}}, {{7983, 921, kSentinel}}, {{8040, 921, kSentinel}},  // NOLINT
-  {{8041, 921, kSentinel}}, {{8042, 921, kSentinel}}, {{8043, 921, kSentinel}}, {{8044, 921, kSentinel}},  // NOLINT
-  {{8045, 921, kSentinel}}, {{8046, 921, kSentinel}}, {{8047, 921, kSentinel}}, {{8122, 921, kSentinel}},  // NOLINT
-  {{913, 921, kSentinel}}, {{902, 921, kSentinel}}, {{913, 834, kSentinel}}, {{913, 834, 921}},  // NOLINT
-  {{8138, 921, kSentinel}}, {{919, 921, kSentinel}}, {{905, 921, kSentinel}}, {{919, 834, kSentinel}},  // NOLINT
-  {{919, 834, 921}}, {{921, 776, 768}}, {{921, 834, kSentinel}}, {{921, 776, 834}},  // NOLINT
-  {{933, 776, 768}}, {{929, 787, kSentinel}}, {{933, 834, kSentinel}}, {{933, 776, 834}},  // NOLINT
-  {{8186, 921, kSentinel}}, {{937, 921, kSentinel}}, {{911, 921, kSentinel}}, {{937, 834, kSentinel}},  // NOLINT
-  {{937, 834, 921}}, {{kSentinel}} }; // NOLINT
-static const uint16_t kToUppercaseTable0Size = 590;  // NOLINT
+static const MultiCharacterSpecialCase<3> kToUppercaseMultiStrings0[62] =
+    {  // NOLINT
+        {{83, 83, kSentinel}},    {{700, 78, kSentinel}},
+        {{74, 780, kSentinel}},   {{921, 776, 769}},  // NOLINT
+        {{933, 776, 769}},        {{1333, 1362, kSentinel}},
+        {{72, 817, kSentinel}},   {{84, 776, kSentinel}},  // NOLINT
+        {{87, 778, kSentinel}},   {{89, 778, kSentinel}},
+        {{65, 702, kSentinel}},   {{933, 787, kSentinel}},  // NOLINT
+        {{933, 787, 768}},        {{933, 787, 769}},
+        {{933, 787, 834}},        {{7944, 921, kSentinel}},  // NOLINT
+        {{7945, 921, kSentinel}}, {{7946, 921, kSentinel}},
+        {{7947, 921, kSentinel}}, {{7948, 921, kSentinel}},  // NOLINT
+        {{7949, 921, kSentinel}}, {{7950, 921, kSentinel}},
+        {{7951, 921, kSentinel}}, {{7976, 921, kSentinel}},  // NOLINT
+        {{7977, 921, kSentinel}}, {{7978, 921, kSentinel}},
+        {{7979, 921, kSentinel}}, {{7980, 921, kSentinel}},  // NOLINT
+        {{7981, 921, kSentinel}}, {{7982, 921, kSentinel}},
+        {{7983, 921, kSentinel}}, {{8040, 921, kSentinel}},  // NOLINT
+        {{8041, 921, kSentinel}}, {{8042, 921, kSentinel}},
+        {{8043, 921, kSentinel}}, {{8044, 921, kSentinel}},  // NOLINT
+        {{8045, 921, kSentinel}}, {{8046, 921, kSentinel}},
+        {{8047, 921, kSentinel}}, {{8122, 921, kSentinel}},  // NOLINT
+        {{913, 921, kSentinel}},  {{902, 921, kSentinel}},
+        {{913, 834, kSentinel}},  {{913, 834, 921}},  // NOLINT
+        {{8138, 921, kSentinel}}, {{919, 921, kSentinel}},
+        {{905, 921, kSentinel}},  {{919, 834, kSentinel}},  // NOLINT
+        {{919, 834, 921}},        {{921, 776, 768}},
+        {{921, 834, kSentinel}},  {{921, 776, 834}},  // NOLINT
+        {{933, 776, 768}},        {{929, 787, kSentinel}},
+        {{933, 834, kSentinel}},  {{933, 776, 834}},  // NOLINT
+        {{8186, 921, kSentinel}}, {{937, 921, kSentinel}},
+        {{911, 921, kSentinel}},  {{937, 834, kSentinel}},  // NOLINT
+        {{937, 834, 921}},        {{kSentinel}}};           // NOLINT
+static const uint16_t kToUppercaseTable0Size = 590;         // NOLINT
 static const int32_t kToUppercaseTable0[1180] = {
     1073741921, -128,   122,        -128,   181,        2972,
     223,        1,      1073742048, -128,   246,        -128,
@@ -1509,24 +1541,44 @@ static const int32_t kToUppercaseTable0[1180] = {
     8166,       217,    8167,       221,  // NOLINT
     8178,       225,    8179,       229,    8180,       233,
     8182,       237,    8183,       241,    8188,       229};  // NOLINT
-static const uint16_t kToUppercaseMultiStrings0Size = 62;  // NOLINT
-static const MultiCharacterSpecialCase<1> kToUppercaseMultiStrings1[1] = {  // NOLINT
-  {{kSentinel}} }; // NOLINT
+static const uint16_t kToUppercaseMultiStrings0Size = 62;      // NOLINT
+static const MultiCharacterSpecialCase<1> kToUppercaseMultiStrings1[1] =
+    {                                               // NOLINT
+        {{kSentinel}}};                             // NOLINT
 static const uint16_t kToUppercaseTable1Size = 73;  // NOLINT
 static const int32_t kToUppercaseTable1[146] = {
-  334, -112, 1073742192, -64, 383, -64, 388, -4, 1073743056, -104, 1257, -104, 1073744944, -192, 3166, -192,  // NOLINT
-  3169, -4, 3173, -43180, 3174, -43168, 3176, -4, 3178, -4, 3180, -4, 3187, -4, 3190, -4,  // NOLINT
-  3201, -4, 3203, -4, 3205, -4, 3207, -4, 3209, -4, 3211, -4, 3213, -4, 3215, -4,  // NOLINT
-  3217, -4, 3219, -4, 3221, -4, 3223, -4, 3225, -4, 3227, -4, 3229, -4, 3231, -4,  // NOLINT
-  3233, -4, 3235, -4, 3237, -4, 3239, -4, 3241, -4, 3243, -4, 3245, -4, 3247, -4,  // NOLINT
-  3249, -4, 3251, -4, 3253, -4, 3255, -4, 3257, -4, 3259, -4, 3261, -4, 3263, -4,  // NOLINT
-  3265, -4, 3267, -4, 3269, -4, 3271, -4, 3273, -4, 3275, -4, 3277, -4, 3279, -4,  // NOLINT
-  3281, -4, 3283, -4, 3285, -4, 3287, -4, 3289, -4, 3291, -4, 3293, -4, 3295, -4,  // NOLINT
-  3297, -4, 3299, -4, 3308, -4, 3310, -4, 3315, -4, 1073745152, -29056, 3365, -29056, 3367, -29056,  // NOLINT
-  3373, -29056 };  // NOLINT
+    334,        -112,   1073742192, -64,    383,        -64,
+    388,        -4,     1073743056, -104,   1257,       -104,
+    1073744944, -192,   3166,       -192,  // NOLINT
+    3169,       -4,     3173,       -43180, 3174,       -43168,
+    3176,       -4,     3178,       -4,     3180,       -4,
+    3187,       -4,     3190,       -4,  // NOLINT
+    3201,       -4,     3203,       -4,     3205,       -4,
+    3207,       -4,     3209,       -4,     3211,       -4,
+    3213,       -4,     3215,       -4,  // NOLINT
+    3217,       -4,     3219,       -4,     3221,       -4,
+    3223,       -4,     3225,       -4,     3227,       -4,
+    3229,       -4,     3231,       -4,  // NOLINT
+    3233,       -4,     3235,       -4,     3237,       -4,
+    3239,       -4,     3241,       -4,     3243,       -4,
+    3245,       -4,     3247,       -4,  // NOLINT
+    3249,       -4,     3251,       -4,     3253,       -4,
+    3255,       -4,     3257,       -4,     3259,       -4,
+    3261,       -4,     3263,       -4,  // NOLINT
+    3265,       -4,     3267,       -4,     3269,       -4,
+    3271,       -4,     3273,       -4,     3275,       -4,
+    3277,       -4,     3279,       -4,  // NOLINT
+    3281,       -4,     3283,       -4,     3285,       -4,
+    3287,       -4,     3289,       -4,     3291,       -4,
+    3293,       -4,     3295,       -4,  // NOLINT
+    3297,       -4,     3299,       -4,     3308,       -4,
+    3310,       -4,     3315,       -4,     1073745152, -29056,
+    3365,       -29056, 3367,       -29056,               // NOLINT
+    3373,       -29056};                                  // NOLINT
 static const uint16_t kToUppercaseMultiStrings1Size = 1;  // NOLINT
-static const MultiCharacterSpecialCase<1> kToUppercaseMultiStrings5[1] = {  // NOLINT
-  {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<1> kToUppercaseMultiStrings5[1] =
+    {                                               // NOLINT
+        {{kSentinel}}};                             // NOLINT
 static const uint16_t kToUppercaseTable5Size = 95;  // NOLINT
 static const int32_t
     kToUppercaseTable5[190] = {1601, -4, 1603, -4, 1605, -4, 1607, -4, 1609, -4,
@@ -1554,55 +1606,55 @@ static const int32_t
                                1949, -4, 1951, -4, 1953, -4, 1955, -4, 1957, -4,
                                1959, -4, 1961, -4};       // NOLINT
 static const uint16_t kToUppercaseMultiStrings5Size = 1;  // NOLINT
-static const MultiCharacterSpecialCase<3> kToUppercaseMultiStrings7[12] = {  // NOLINT
-  {{70, 70, kSentinel}}, {{70, 73, kSentinel}}, {{70, 76, kSentinel}}, {{70, 70, 73}},  // NOLINT
-  {{70, 70, 76}}, {{83, 84, kSentinel}}, {{1348, 1350, kSentinel}}, {{1348, 1333, kSentinel}},  // NOLINT
-  {{1348, 1339, kSentinel}}, {{1358, 1350, kSentinel}}, {{1348, 1341, kSentinel}}, {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<3> kToUppercaseMultiStrings7[12] =
+    {  // NOLINT
+        {{70, 70, kSentinel}},
+        {{70, 73, kSentinel}},
+        {{70, 76, kSentinel}},
+        {{70, 70, 73}},  // NOLINT
+        {{70, 70, 76}},
+        {{83, 84, kSentinel}},
+        {{1348, 1350, kSentinel}},
+        {{1348, 1333, kSentinel}},  // NOLINT
+        {{1348, 1339, kSentinel}},
+        {{1358, 1350, kSentinel}},
+        {{1348, 1341, kSentinel}},
+        {{kSentinel}}};                             // NOLINT
 static const uint16_t kToUppercaseTable7Size = 14;  // NOLINT
-static const int32_t kToUppercaseTable7[28] = {
-  6912, 1, 6913, 5, 6914, 9, 6915, 13, 6916, 17, 6917, 21, 6918, 21, 6931, 25,  // NOLINT
-  6932, 29, 6933, 33, 6934, 37, 6935, 41, 1073749825, -128, 8026, -128 };  // NOLINT
+static const int32_t kToUppercaseTable7[28] =
+    {6912,       1,    6913, 5,   6914, 9,  6915, 13,
+     6916,       17,   6917, 21,  6918, 21, 6931, 25,  // NOLINT
+     6932,       29,   6933, 33,  6934, 37, 6935, 41,
+     1073749825, -128, 8026, -128};                        // NOLINT
 static const uint16_t kToUppercaseMultiStrings7Size = 12;  // NOLINT
-int ToUppercase::Convert(uchar c,
-                      uchar n,
-                      uchar* result,
-                      bool* allow_caching_ptr) {
+int ToUppercase::Convert(uchar c, uchar n, uchar* result,
+                         bool* allow_caching_ptr) {
   int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupMapping<true>(kToUppercaseTable0,
-                                           kToUppercaseTable0Size,
-                                           kToUppercaseMultiStrings0,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 1: return LookupMapping<true>(kToUppercaseTable1,
-                                           kToUppercaseTable1Size,
-                                           kToUppercaseMultiStrings1,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 5: return LookupMapping<true>(kToUppercaseTable5,
-                                           kToUppercaseTable5Size,
-                                           kToUppercaseMultiStrings5,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 7: return LookupMapping<true>(kToUppercaseTable7,
-                                           kToUppercaseTable7Size,
-                                           kToUppercaseMultiStrings7,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    default: return 0;
+    case 0:
+      return LookupMapping<true>(kToUppercaseTable0, kToUppercaseTable0Size,
+                                 kToUppercaseMultiStrings0, c, n, result,
+                                 allow_caching_ptr);
+    case 1:
+      return LookupMapping<true>(kToUppercaseTable1, kToUppercaseTable1Size,
+                                 kToUppercaseMultiStrings1, c, n, result,
+                                 allow_caching_ptr);
+    case 5:
+      return LookupMapping<true>(kToUppercaseTable5, kToUppercaseTable5Size,
+                                 kToUppercaseMultiStrings5, c, n, result,
+                                 allow_caching_ptr);
+    case 7:
+      return LookupMapping<true>(kToUppercaseTable7, kToUppercaseTable7Size,
+                                 kToUppercaseMultiStrings7, c, n, result,
+                                 allow_caching_ptr);
+    default:
+      return 0;
   }
 }
 
-static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings0[1] = {  // NOLINT
-  {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings0[1] =
+    {                                                        // NOLINT
+        {{kSentinel}}};                                      // NOLINT
 static const uint16_t kEcma262CanonicalizeTable0Size = 498;  // NOLINT
 static const int32_t kEcma262CanonicalizeTable0[996] = {
     1073741921, -128,   122,        -128,   181,        2972,
@@ -1793,91 +1845,99 @@ static const int32_t kEcma262CanonicalizeTable0[996] = {
     8145,       32,     1073749984, 32,                           // NOLINT
     8161,       32,     8165,       28};                          // NOLINT
 static const uint16_t kEcma262CanonicalizeMultiStrings0Size = 1;  // NOLINT
-static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings1[1] = {  // NOLINT
-  {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings1[1] =
+    {                                                       // NOLINT
+        {{kSentinel}}};                                     // NOLINT
 static const uint16_t kEcma262CanonicalizeTable1Size = 73;  // NOLINT
 static const int32_t kEcma262CanonicalizeTable1[146] = {
-  334, -112, 1073742192, -64, 383, -64, 388, -4, 1073743056, -104, 1257, -104, 1073744944, -192, 3166, -192,  // NOLINT
-  3169, -4, 3173, -43180, 3174, -43168, 3176, -4, 3178, -4, 3180, -4, 3187, -4, 3190, -4,  // NOLINT
-  3201, -4, 3203, -4, 3205, -4, 3207, -4, 3209, -4, 3211, -4, 3213, -4, 3215, -4,  // NOLINT
-  3217, -4, 3219, -4, 3221, -4, 3223, -4, 3225, -4, 3227, -4, 3229, -4, 3231, -4,  // NOLINT
-  3233, -4, 3235, -4, 3237, -4, 3239, -4, 3241, -4, 3243, -4, 3245, -4, 3247, -4,  // NOLINT
-  3249, -4, 3251, -4, 3253, -4, 3255, -4, 3257, -4, 3259, -4, 3261, -4, 3263, -4,  // NOLINT
-  3265, -4, 3267, -4, 3269, -4, 3271, -4, 3273, -4, 3275, -4, 3277, -4, 3279, -4,  // NOLINT
-  3281, -4, 3283, -4, 3285, -4, 3287, -4, 3289, -4, 3291, -4, 3293, -4, 3295, -4,  // NOLINT
-  3297, -4, 3299, -4, 3308, -4, 3310, -4, 3315, -4, 1073745152, -29056, 3365, -29056, 3367, -29056,  // NOLINT
-  3373, -29056 };  // NOLINT
+    334,        -112,   1073742192, -64,    383,        -64,
+    388,        -4,     1073743056, -104,   1257,       -104,
+    1073744944, -192,   3166,       -192,  // NOLINT
+    3169,       -4,     3173,       -43180, 3174,       -43168,
+    3176,       -4,     3178,       -4,     3180,       -4,
+    3187,       -4,     3190,       -4,  // NOLINT
+    3201,       -4,     3203,       -4,     3205,       -4,
+    3207,       -4,     3209,       -4,     3211,       -4,
+    3213,       -4,     3215,       -4,  // NOLINT
+    3217,       -4,     3219,       -4,     3221,       -4,
+    3223,       -4,     3225,       -4,     3227,       -4,
+    3229,       -4,     3231,       -4,  // NOLINT
+    3233,       -4,     3235,       -4,     3237,       -4,
+    3239,       -4,     3241,       -4,     3243,       -4,
+    3245,       -4,     3247,       -4,  // NOLINT
+    3249,       -4,     3251,       -4,     3253,       -4,
+    3255,       -4,     3257,       -4,     3259,       -4,
+    3261,       -4,     3263,       -4,  // NOLINT
+    3265,       -4,     3267,       -4,     3269,       -4,
+    3271,       -4,     3273,       -4,     3275,       -4,
+    3277,       -4,     3279,       -4,  // NOLINT
+    3281,       -4,     3283,       -4,     3285,       -4,
+    3287,       -4,     3289,       -4,     3291,       -4,
+    3293,       -4,     3295,       -4,  // NOLINT
+    3297,       -4,     3299,       -4,     3308,       -4,
+    3310,       -4,     3315,       -4,     1073745152, -29056,
+    3365,       -29056, 3367,       -29056,                       // NOLINT
+    3373,       -29056};                                          // NOLINT
 static const uint16_t kEcma262CanonicalizeMultiStrings1Size = 1;  // NOLINT
-static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings5[1] = {  // NOLINT
-  {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings5[1] =
+    {                                                       // NOLINT
+        {{kSentinel}}};                                     // NOLINT
 static const uint16_t kEcma262CanonicalizeTable5Size = 95;  // NOLINT
-static const int32_t kEcma262CanonicalizeTable5
-    [190] = {1601, -4, 1603, -4, 1605, -4, 1607, -4,
-             1609, -4, 1611, -4, 1613, -4, 1615, -4,  // NOLINT
-             1617, -4, 1619, -4, 1621, -4, 1623, -4,
-             1625, -4, 1627, -4, 1629, -4, 1631, -4,  // NOLINT
-             1633, -4, 1635, -4, 1637, -4, 1639, -4,
-             1641, -4, 1643, -4, 1645, -4, 1665, -4,  // NOLINT
-             1667, -4, 1669, -4, 1671, -4, 1673, -4,
-             1675, -4, 1677, -4, 1679, -4, 1681, -4,  // NOLINT
-             1683, -4, 1685, -4, 1687, -4, 1689, -4,
-             1691, -4, 1827, -4, 1829, -4, 1831, -4,  // NOLINT
-             1833, -4, 1835, -4, 1837, -4, 1839, -4,
-             1843, -4, 1845, -4, 1847, -4, 1849, -4,  // NOLINT
-             1851, -4, 1853, -4, 1855, -4, 1857, -4,
-             1859, -4, 1861, -4, 1863, -4, 1865, -4,  // NOLINT
-             1867, -4, 1869, -4, 1871, -4, 1873, -4,
-             1875, -4, 1877, -4, 1879, -4, 1881, -4,  // NOLINT
-             1883, -4, 1885, -4, 1887, -4, 1889, -4,
-             1891, -4, 1893, -4, 1895, -4, 1897, -4,  // NOLINT
-             1899, -4, 1901, -4, 1903, -4, 1914, -4,
-             1916, -4, 1919, -4, 1921, -4, 1923, -4,  // NOLINT
-             1925, -4, 1927, -4, 1932, -4, 1937, -4,
-             1939, -4, 1943, -4, 1945, -4, 1947, -4,  // NOLINT
-             1949, -4, 1951, -4, 1953, -4, 1955, -4,
-             1957, -4, 1959, -4, 1961, -4};                       // NOLINT
+static const int32_t kEcma262CanonicalizeTable5[190] = {
+        1601, -4, 1603, -4, 1605, -4, 1607, -4,
+        1609, -4, 1611, -4, 1613, -4, 1615, -4,  // NOLINT
+        1617, -4, 1619, -4, 1621, -4, 1623, -4,
+        1625, -4, 1627, -4, 1629, -4, 1631, -4,  // NOLINT
+        1633, -4, 1635, -4, 1637, -4, 1639, -4,
+        1641, -4, 1643, -4, 1645, -4, 1665, -4,  // NOLINT
+        1667, -4, 1669, -4, 1671, -4, 1673, -4,
+        1675, -4, 1677, -4, 1679, -4, 1681, -4,  // NOLINT
+        1683, -4, 1685, -4, 1687, -4, 1689, -4,
+        1691, -4, 1827, -4, 1829, -4, 1831, -4,  // NOLINT
+        1833, -4, 1835, -4, 1837, -4, 1839, -4,
+        1843, -4, 1845, -4, 1847, -4, 1849, -4,  // NOLINT
+        1851, -4, 1853, -4, 1855, -4, 1857, -4,
+        1859, -4, 1861, -4, 1863, -4, 1865, -4,  // NOLINT
+        1867, -4, 1869, -4, 1871, -4, 1873, -4,
+        1875, -4, 1877, -4, 1879, -4, 1881, -4,  // NOLINT
+        1883, -4, 1885, -4, 1887, -4, 1889, -4,
+        1891, -4, 1893, -4, 1895, -4, 1897, -4,  // NOLINT
+        1899, -4, 1901, -4, 1903, -4, 1914, -4,
+        1916, -4, 1919, -4, 1921, -4, 1923, -4,  // NOLINT
+        1925, -4, 1927, -4, 1932, -4, 1937, -4,
+        1939, -4, 1943, -4, 1945, -4, 1947, -4,  // NOLINT
+        1949, -4, 1951, -4, 1953, -4, 1955, -4,
+        1957, -4, 1959, -4, 1961, -4};                            // NOLINT
 static const uint16_t kEcma262CanonicalizeMultiStrings5Size = 1;  // NOLINT
-static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings7[1] = {  // NOLINT
-  {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings7[1] =
+    {                                                      // NOLINT
+        {{kSentinel}}};                                    // NOLINT
 static const uint16_t kEcma262CanonicalizeTable7Size = 2;  // NOLINT
-static const int32_t kEcma262CanonicalizeTable7[4] = {
-  1073749825, -128, 8026, -128 };  // NOLINT
+static const int32_t kEcma262CanonicalizeTable7[4] = {1073749825, -128, 8026,
+                                                      -128};      // NOLINT
 static const uint16_t kEcma262CanonicalizeMultiStrings7Size = 1;  // NOLINT
-int Ecma262Canonicalize::Convert(uchar c,
-                      uchar n,
-                      uchar* result,
-                      bool* allow_caching_ptr) {
+int Ecma262Canonicalize::Convert(uchar c, uchar n, uchar* result,
+                                 bool* allow_caching_ptr) {
   int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupMapping<true>(kEcma262CanonicalizeTable0,
-                                           kEcma262CanonicalizeTable0Size,
-                                           kEcma262CanonicalizeMultiStrings0,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 1: return LookupMapping<true>(kEcma262CanonicalizeTable1,
-                                           kEcma262CanonicalizeTable1Size,
-                                           kEcma262CanonicalizeMultiStrings1,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 5: return LookupMapping<true>(kEcma262CanonicalizeTable5,
-                                           kEcma262CanonicalizeTable5Size,
-                                           kEcma262CanonicalizeMultiStrings5,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 7: return LookupMapping<true>(kEcma262CanonicalizeTable7,
-                                           kEcma262CanonicalizeTable7Size,
-                                           kEcma262CanonicalizeMultiStrings7,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    default: return 0;
+    case 0:
+      return LookupMapping<true>(
+          kEcma262CanonicalizeTable0, kEcma262CanonicalizeTable0Size,
+          kEcma262CanonicalizeMultiStrings0, c, n, result, allow_caching_ptr);
+    case 1:
+      return LookupMapping<true>(
+          kEcma262CanonicalizeTable1, kEcma262CanonicalizeTable1Size,
+          kEcma262CanonicalizeMultiStrings1, c, n, result, allow_caching_ptr);
+    case 5:
+      return LookupMapping<true>(
+          kEcma262CanonicalizeTable5, kEcma262CanonicalizeTable5Size,
+          kEcma262CanonicalizeMultiStrings5, c, n, result, allow_caching_ptr);
+    case 7:
+      return LookupMapping<true>(
+          kEcma262CanonicalizeTable7, kEcma262CanonicalizeTable7Size,
+          kEcma262CanonicalizeMultiStrings7, c, n, result, allow_caching_ptr);
+    default:
+      return 0;
   }
 }
 
@@ -2770,308 +2830,291 @@ static const int32_t kEcma262UnCanonicalizeTable0[2010] = {
     8172,       2021, 1073750008, 1973, 8185,       1977,
     1073750010, 1989, 8187,       1993};                              // NOLINT
 static const uint16_t kEcma262UnCanonicalizeMultiStrings0Size = 507;  // NOLINT
-static const MultiCharacterSpecialCase<2> kEcma262UnCanonicalizeMultiStrings1[83] = {  // NOLINT
-  {{8498, 8526}}, {{8544, 8560}}, {{8559, 8575}}, {{8579, 8580}},  // NOLINT
-  {{9398, 9424}}, {{9423, 9449}}, {{11264, 11312}}, {{11310, 11358}},  // NOLINT
-  {{11360, 11361}}, {{619, 11362}}, {{7549, 11363}}, {{637, 11364}},  // NOLINT
-  {{570, 11365}}, {{574, 11366}}, {{11367, 11368}}, {{11369, 11370}},  // NOLINT
-  {{11371, 11372}}, {{593, 11373}}, {{625, 11374}}, {{592, 11375}},  // NOLINT
-  {{594, 11376}}, {{11378, 11379}}, {{11381, 11382}}, {{575, 11390}},  // NOLINT
-  {{576, 11391}}, {{11392, 11393}}, {{11394, 11395}}, {{11396, 11397}},  // NOLINT
-  {{11398, 11399}}, {{11400, 11401}}, {{11402, 11403}}, {{11404, 11405}},  // NOLINT
-  {{11406, 11407}}, {{11408, 11409}}, {{11410, 11411}}, {{11412, 11413}},  // NOLINT
-  {{11414, 11415}}, {{11416, 11417}}, {{11418, 11419}}, {{11420, 11421}},  // NOLINT
-  {{11422, 11423}}, {{11424, 11425}}, {{11426, 11427}}, {{11428, 11429}},  // NOLINT
-  {{11430, 11431}}, {{11432, 11433}}, {{11434, 11435}}, {{11436, 11437}},  // NOLINT
-  {{11438, 11439}}, {{11440, 11441}}, {{11442, 11443}}, {{11444, 11445}},  // NOLINT
-  {{11446, 11447}}, {{11448, 11449}}, {{11450, 11451}}, {{11452, 11453}},  // NOLINT
-  {{11454, 11455}}, {{11456, 11457}}, {{11458, 11459}}, {{11460, 11461}},  // NOLINT
-  {{11462, 11463}}, {{11464, 11465}}, {{11466, 11467}}, {{11468, 11469}},  // NOLINT
-  {{11470, 11471}}, {{11472, 11473}}, {{11474, 11475}}, {{11476, 11477}},  // NOLINT
-  {{11478, 11479}}, {{11480, 11481}}, {{11482, 11483}}, {{11484, 11485}},  // NOLINT
-  {{11486, 11487}}, {{11488, 11489}}, {{11490, 11491}}, {{11499, 11500}},  // NOLINT
-  {{11501, 11502}}, {{11506, 11507}}, {{4256, 11520}}, {{4293, 11557}},  // NOLINT
-  {{4295, 11559}}, {{4301, 11565}}, {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<2>
+    kEcma262UnCanonicalizeMultiStrings1[83] = {  // NOLINT
+        {{8498, 8526}},   {{8544, 8560}},   {{8559, 8575}},
+        {{8579, 8580}},  // NOLINT
+        {{9398, 9424}},   {{9423, 9449}},   {{11264, 11312}},
+        {{11310, 11358}},  // NOLINT
+        {{11360, 11361}}, {{619, 11362}},   {{7549, 11363}},
+        {{637, 11364}},  // NOLINT
+        {{570, 11365}},   {{574, 11366}},   {{11367, 11368}},
+        {{11369, 11370}},  // NOLINT
+        {{11371, 11372}}, {{593, 11373}},   {{625, 11374}},
+        {{592, 11375}},  // NOLINT
+        {{594, 11376}},   {{11378, 11379}}, {{11381, 11382}},
+        {{575, 11390}},  // NOLINT
+        {{576, 11391}},   {{11392, 11393}}, {{11394, 11395}},
+        {{11396, 11397}},  // NOLINT
+        {{11398, 11399}}, {{11400, 11401}}, {{11402, 11403}},
+        {{11404, 11405}},  // NOLINT
+        {{11406, 11407}}, {{11408, 11409}}, {{11410, 11411}},
+        {{11412, 11413}},  // NOLINT
+        {{11414, 11415}}, {{11416, 11417}}, {{11418, 11419}},
+        {{11420, 11421}},  // NOLINT
+        {{11422, 11423}}, {{11424, 11425}}, {{11426, 11427}},
+        {{11428, 11429}},  // NOLINT
+        {{11430, 11431}}, {{11432, 11433}}, {{11434, 11435}},
+        {{11436, 11437}},  // NOLINT
+        {{11438, 11439}}, {{11440, 11441}}, {{11442, 11443}},
+        {{11444, 11445}},  // NOLINT
+        {{11446, 11447}}, {{11448, 11449}}, {{11450, 11451}},
+        {{11452, 11453}},  // NOLINT
+        {{11454, 11455}}, {{11456, 11457}}, {{11458, 11459}},
+        {{11460, 11461}},  // NOLINT
+        {{11462, 11463}}, {{11464, 11465}}, {{11466, 11467}},
+        {{11468, 11469}},  // NOLINT
+        {{11470, 11471}}, {{11472, 11473}}, {{11474, 11475}},
+        {{11476, 11477}},  // NOLINT
+        {{11478, 11479}}, {{11480, 11481}}, {{11482, 11483}},
+        {{11484, 11485}},  // NOLINT
+        {{11486, 11487}}, {{11488, 11489}}, {{11490, 11491}},
+        {{11499, 11500}},  // NOLINT
+        {{11501, 11502}}, {{11506, 11507}}, {{4256, 11520}},
+        {{4293, 11557}},                                       // NOLINT
+        {{4295, 11559}},  {{4301, 11565}},  {{kSentinel}}};    // NOLINT
 static const uint16_t kEcma262UnCanonicalizeTable1Size = 149;  // NOLINT
 static const int32_t kEcma262UnCanonicalizeTable1[298] = {
-  306, 1, 334, 1, 1073742176, 5, 367, 9, 1073742192, 5, 383, 9, 387, 13, 388, 13,  // NOLINT
-  1073743030, 17, 1231, 21, 1073743056, 17, 1257, 21, 1073744896, 25, 3118, 29, 1073744944, 25, 3166, 29,  // NOLINT
-  3168, 33, 3169, 33, 3170, 37, 3171, 41, 3172, 45, 3173, 49, 3174, 53, 3175, 57,  // NOLINT
-  3176, 57, 3177, 61, 3178, 61, 3179, 65, 3180, 65, 3181, 69, 3182, 73, 3183, 77,  // NOLINT
-  3184, 81, 3186, 85, 3187, 85, 3189, 89, 3190, 89, 1073745022, 93, 3199, 97, 3200, 101,  // NOLINT
-  3201, 101, 3202, 105, 3203, 105, 3204, 109, 3205, 109, 3206, 113, 3207, 113, 3208, 117,  // NOLINT
-  3209, 117, 3210, 121, 3211, 121, 3212, 125, 3213, 125, 3214, 129, 3215, 129, 3216, 133,  // NOLINT
-  3217, 133, 3218, 137, 3219, 137, 3220, 141, 3221, 141, 3222, 145, 3223, 145, 3224, 149,  // NOLINT
-  3225, 149, 3226, 153, 3227, 153, 3228, 157, 3229, 157, 3230, 161, 3231, 161, 3232, 165,  // NOLINT
-  3233, 165, 3234, 169, 3235, 169, 3236, 173, 3237, 173, 3238, 177, 3239, 177, 3240, 181,  // NOLINT
-  3241, 181, 3242, 185, 3243, 185, 3244, 189, 3245, 189, 3246, 193, 3247, 193, 3248, 197,  // NOLINT
-  3249, 197, 3250, 201, 3251, 201, 3252, 205, 3253, 205, 3254, 209, 3255, 209, 3256, 213,  // NOLINT
-  3257, 213, 3258, 217, 3259, 217, 3260, 221, 3261, 221, 3262, 225, 3263, 225, 3264, 229,  // NOLINT
-  3265, 229, 3266, 233, 3267, 233, 3268, 237, 3269, 237, 3270, 241, 3271, 241, 3272, 245,  // NOLINT
-  3273, 245, 3274, 249, 3275, 249, 3276, 253, 3277, 253, 3278, 257, 3279, 257, 3280, 261,  // NOLINT
-  3281, 261, 3282, 265, 3283, 265, 3284, 269, 3285, 269, 3286, 273, 3287, 273, 3288, 277,  // NOLINT
-  3289, 277, 3290, 281, 3291, 281, 3292, 285, 3293, 285, 3294, 289, 3295, 289, 3296, 293,  // NOLINT
-  3297, 293, 3298, 297, 3299, 297, 3307, 301, 3308, 301, 3309, 305, 3310, 305, 3314, 309,  // NOLINT
-  3315, 309, 1073745152, 313, 3365, 317, 3367, 321, 3373, 325 };  // NOLINT
+    306,        1,   334,        1,   1073742176, 5,   367,  9,
+    1073742192, 5,   383,        9,   387,        13,  388,  13,  // NOLINT
+    1073743030, 17,  1231,       21,  1073743056, 17,  1257, 21,
+    1073744896, 25,  3118,       29,  1073744944, 25,  3166, 29,  // NOLINT
+    3168,       33,  3169,       33,  3170,       37,  3171, 41,
+    3172,       45,  3173,       49,  3174,       53,  3175, 57,  // NOLINT
+    3176,       57,  3177,       61,  3178,       61,  3179, 65,
+    3180,       65,  3181,       69,  3182,       73,  3183, 77,  // NOLINT
+    3184,       81,  3186,       85,  3187,       85,  3189, 89,
+    3190,       89,  1073745022, 93,  3199,       97,  3200, 101,  // NOLINT
+    3201,       101, 3202,       105, 3203,       105, 3204, 109,
+    3205,       109, 3206,       113, 3207,       113, 3208, 117,  // NOLINT
+    3209,       117, 3210,       121, 3211,       121, 3212, 125,
+    3213,       125, 3214,       129, 3215,       129, 3216, 133,  // NOLINT
+    3217,       133, 3218,       137, 3219,       137, 3220, 141,
+    3221,       141, 3222,       145, 3223,       145, 3224, 149,  // NOLINT
+    3225,       149, 3226,       153, 3227,       153, 3228, 157,
+    3229,       157, 3230,       161, 3231,       161, 3232, 165,  // NOLINT
+    3233,       165, 3234,       169, 3235,       169, 3236, 173,
+    3237,       173, 3238,       177, 3239,       177, 3240, 181,  // NOLINT
+    3241,       181, 3242,       185, 3243,       185, 3244, 189,
+    3245,       189, 3246,       193, 3247,       193, 3248, 197,  // NOLINT
+    3249,       197, 3250,       201, 3251,       201, 3252, 205,
+    3253,       205, 3254,       209, 3255,       209, 3256, 213,  // NOLINT
+    3257,       213, 3258,       217, 3259,       217, 3260, 221,
+    3261,       221, 3262,       225, 3263,       225, 3264, 229,  // NOLINT
+    3265,       229, 3266,       233, 3267,       233, 3268, 237,
+    3269,       237, 3270,       241, 3271,       241, 3272, 245,  // NOLINT
+    3273,       245, 3274,       249, 3275,       249, 3276, 253,
+    3277,       253, 3278,       257, 3279,       257, 3280, 261,  // NOLINT
+    3281,       261, 3282,       265, 3283,       265, 3284, 269,
+    3285,       269, 3286,       273, 3287,       273, 3288, 277,  // NOLINT
+    3289,       277, 3290,       281, 3291,       281, 3292, 285,
+    3293,       285, 3294,       289, 3295,       289, 3296, 293,  // NOLINT
+    3297,       293, 3298,       297, 3299,       297, 3307, 301,
+    3308,       301, 3309,       305, 3310,       305, 3314, 309,  // NOLINT
+    3315,       309, 1073745152, 313, 3365,       317, 3367, 321,
+    3373,       325};                                                // NOLINT
 static const uint16_t kEcma262UnCanonicalizeMultiStrings1Size = 83;  // NOLINT
 static const MultiCharacterSpecialCase<2>
     kEcma262UnCanonicalizeMultiStrings5[104] = {  // NOLINT
-        {{42560, 42561}},
-        {{42562, 42563}},
-        {{42564, 42565}},
-        {{42566, 42567}},  // NOLINT
-        {{42568, 42569}},
-        {{42570, 42571}},
-        {{42572, 42573}},
-        {{42574, 42575}},  // NOLINT
-        {{42576, 42577}},
-        {{42578, 42579}},
-        {{42580, 42581}},
-        {{42582, 42583}},  // NOLINT
-        {{42584, 42585}},
-        {{42586, 42587}},
-        {{42588, 42589}},
-        {{42590, 42591}},  // NOLINT
-        {{42592, 42593}},
-        {{42594, 42595}},
-        {{42596, 42597}},
-        {{42598, 42599}},  // NOLINT
-        {{42600, 42601}},
-        {{42602, 42603}},
-        {{42604, 42605}},
-        {{42624, 42625}},  // NOLINT
-        {{42626, 42627}},
-        {{42628, 42629}},
-        {{42630, 42631}},
-        {{42632, 42633}},  // NOLINT
-        {{42634, 42635}},
-        {{42636, 42637}},
-        {{42638, 42639}},
-        {{42640, 42641}},  // NOLINT
-        {{42642, 42643}},
-        {{42644, 42645}},
-        {{42646, 42647}},
-        {{42648, 42649}},  // NOLINT
-        {{42650, 42651}},
-        {{42786, 42787}},
-        {{42788, 42789}},
-        {{42790, 42791}},  // NOLINT
-        {{42792, 42793}},
-        {{42794, 42795}},
-        {{42796, 42797}},
-        {{42798, 42799}},  // NOLINT
-        {{42802, 42803}},
-        {{42804, 42805}},
-        {{42806, 42807}},
-        {{42808, 42809}},  // NOLINT
-        {{42810, 42811}},
-        {{42812, 42813}},
-        {{42814, 42815}},
-        {{42816, 42817}},  // NOLINT
-        {{42818, 42819}},
-        {{42820, 42821}},
-        {{42822, 42823}},
-        {{42824, 42825}},  // NOLINT
-        {{42826, 42827}},
-        {{42828, 42829}},
-        {{42830, 42831}},
-        {{42832, 42833}},  // NOLINT
-        {{42834, 42835}},
-        {{42836, 42837}},
-        {{42838, 42839}},
-        {{42840, 42841}},  // NOLINT
-        {{42842, 42843}},
-        {{42844, 42845}},
-        {{42846, 42847}},
-        {{42848, 42849}},  // NOLINT
-        {{42850, 42851}},
-        {{42852, 42853}},
-        {{42854, 42855}},
-        {{42856, 42857}},  // NOLINT
-        {{42858, 42859}},
-        {{42860, 42861}},
-        {{42862, 42863}},
-        {{42873, 42874}},  // NOLINT
-        {{42875, 42876}},
-        {{7545, 42877}},
-        {{42878, 42879}},
-        {{42880, 42881}},  // NOLINT
-        {{42882, 42883}},
-        {{42884, 42885}},
-        {{42886, 42887}},
-        {{42891, 42892}},  // NOLINT
-        {{613, 42893}},
-        {{42896, 42897}},
-        {{42898, 42899}},
-        {{42902, 42903}},  // NOLINT
-        {{42904, 42905}},
-        {{42906, 42907}},
-        {{42908, 42909}},
-        {{42910, 42911}},  // NOLINT
-        {{42912, 42913}},
-        {{42914, 42915}},
-        {{42916, 42917}},
-        {{42918, 42919}},  // NOLINT
-        {{42920, 42921}},
-        {{614, 42922}},
-        {{604, 42923}},
-        {{609, 42924}},  // NOLINT
-        {{620, 42925}},
-        {{670, 42928}},
-        {{647, 42929}},
-        {{kSentinel}}};                                        // NOLINT
+        {{42560, 42561}}, {{42562, 42563}},
+        {{42564, 42565}}, {{42566, 42567}},  // NOLINT
+        {{42568, 42569}}, {{42570, 42571}},
+        {{42572, 42573}}, {{42574, 42575}},  // NOLINT
+        {{42576, 42577}}, {{42578, 42579}},
+        {{42580, 42581}}, {{42582, 42583}},  // NOLINT
+        {{42584, 42585}}, {{42586, 42587}},
+        {{42588, 42589}}, {{42590, 42591}},  // NOLINT
+        {{42592, 42593}}, {{42594, 42595}},
+        {{42596, 42597}}, {{42598, 42599}},  // NOLINT
+        {{42600, 42601}}, {{42602, 42603}},
+        {{42604, 42605}}, {{42624, 42625}},  // NOLINT
+        {{42626, 42627}}, {{42628, 42629}},
+        {{42630, 42631}}, {{42632, 42633}},  // NOLINT
+        {{42634, 42635}}, {{42636, 42637}},
+        {{42638, 42639}}, {{42640, 42641}},  // NOLINT
+        {{42642, 42643}}, {{42644, 42645}},
+        {{42646, 42647}}, {{42648, 42649}},  // NOLINT
+        {{42650, 42651}}, {{42786, 42787}},
+        {{42788, 42789}}, {{42790, 42791}},  // NOLINT
+        {{42792, 42793}}, {{42794, 42795}},
+        {{42796, 42797}}, {{42798, 42799}},  // NOLINT
+        {{42802, 42803}}, {{42804, 42805}},
+        {{42806, 42807}}, {{42808, 42809}},  // NOLINT
+        {{42810, 42811}}, {{42812, 42813}},
+        {{42814, 42815}}, {{42816, 42817}},  // NOLINT
+        {{42818, 42819}}, {{42820, 42821}},
+        {{42822, 42823}}, {{42824, 42825}},  // NOLINT
+        {{42826, 42827}}, {{42828, 42829}},
+        {{42830, 42831}}, {{42832, 42833}},  // NOLINT
+        {{42834, 42835}}, {{42836, 42837}},
+        {{42838, 42839}}, {{42840, 42841}},  // NOLINT
+        {{42842, 42843}}, {{42844, 42845}},
+        {{42846, 42847}}, {{42848, 42849}},  // NOLINT
+        {{42850, 42851}}, {{42852, 42853}},
+        {{42854, 42855}}, {{42856, 42857}},  // NOLINT
+        {{42858, 42859}}, {{42860, 42861}},
+        {{42862, 42863}}, {{42873, 42874}},  // NOLINT
+        {{42875, 42876}}, {{7545, 42877}},
+        {{42878, 42879}}, {{42880, 42881}},  // NOLINT
+        {{42882, 42883}}, {{42884, 42885}},
+        {{42886, 42887}}, {{42891, 42892}},  // NOLINT
+        {{613, 42893}},   {{42896, 42897}},
+        {{42898, 42899}}, {{42902, 42903}},  // NOLINT
+        {{42904, 42905}}, {{42906, 42907}},
+        {{42908, 42909}}, {{42910, 42911}},  // NOLINT
+        {{42912, 42913}}, {{42914, 42915}},
+        {{42916, 42917}}, {{42918, 42919}},  // NOLINT
+        {{42920, 42921}}, {{614, 42922}},
+        {{604, 42923}},   {{609, 42924}},  // NOLINT
+        {{620, 42925}},   {{670, 42928}},
+        {{647, 42929}},   {{kSentinel}}};                      // NOLINT
 static const uint16_t kEcma262UnCanonicalizeTable5Size = 198;  // NOLINT
-static const int32_t kEcma262UnCanonicalizeTable5
-    [396] = {1600, 1,   1601, 1,   1602, 5,   1603, 5,
-             1604, 9,   1605, 9,   1606, 13,  1607, 13,  // NOLINT
-             1608, 17,  1609, 17,  1610, 21,  1611, 21,
-             1612, 25,  1613, 25,  1614, 29,  1615, 29,  // NOLINT
-             1616, 33,  1617, 33,  1618, 37,  1619, 37,
-             1620, 41,  1621, 41,  1622, 45,  1623, 45,  // NOLINT
-             1624, 49,  1625, 49,  1626, 53,  1627, 53,
-             1628, 57,  1629, 57,  1630, 61,  1631, 61,  // NOLINT
-             1632, 65,  1633, 65,  1634, 69,  1635, 69,
-             1636, 73,  1637, 73,  1638, 77,  1639, 77,  // NOLINT
-             1640, 81,  1641, 81,  1642, 85,  1643, 85,
-             1644, 89,  1645, 89,  1664, 93,  1665, 93,  // NOLINT
-             1666, 97,  1667, 97,  1668, 101, 1669, 101,
-             1670, 105, 1671, 105, 1672, 109, 1673, 109,  // NOLINT
-             1674, 113, 1675, 113, 1676, 117, 1677, 117,
-             1678, 121, 1679, 121, 1680, 125, 1681, 125,  // NOLINT
-             1682, 129, 1683, 129, 1684, 133, 1685, 133,
-             1686, 137, 1687, 137, 1688, 141, 1689, 141,  // NOLINT
-             1690, 145, 1691, 145, 1826, 149, 1827, 149,
-             1828, 153, 1829, 153, 1830, 157, 1831, 157,  // NOLINT
-             1832, 161, 1833, 161, 1834, 165, 1835, 165,
-             1836, 169, 1837, 169, 1838, 173, 1839, 173,  // NOLINT
-             1842, 177, 1843, 177, 1844, 181, 1845, 181,
-             1846, 185, 1847, 185, 1848, 189, 1849, 189,  // NOLINT
-             1850, 193, 1851, 193, 1852, 197, 1853, 197,
-             1854, 201, 1855, 201, 1856, 205, 1857, 205,  // NOLINT
-             1858, 209, 1859, 209, 1860, 213, 1861, 213,
-             1862, 217, 1863, 217, 1864, 221, 1865, 221,  // NOLINT
-             1866, 225, 1867, 225, 1868, 229, 1869, 229,
-             1870, 233, 1871, 233, 1872, 237, 1873, 237,  // NOLINT
-             1874, 241, 1875, 241, 1876, 245, 1877, 245,
-             1878, 249, 1879, 249, 1880, 253, 1881, 253,  // NOLINT
-             1882, 257, 1883, 257, 1884, 261, 1885, 261,
-             1886, 265, 1887, 265, 1888, 269, 1889, 269,  // NOLINT
-             1890, 273, 1891, 273, 1892, 277, 1893, 277,
-             1894, 281, 1895, 281, 1896, 285, 1897, 285,  // NOLINT
-             1898, 289, 1899, 289, 1900, 293, 1901, 293,
-             1902, 297, 1903, 297, 1913, 301, 1914, 301,  // NOLINT
-             1915, 305, 1916, 305, 1917, 309, 1918, 313,
-             1919, 313, 1920, 317, 1921, 317, 1922, 321,  // NOLINT
-             1923, 321, 1924, 325, 1925, 325, 1926, 329,
-             1927, 329, 1931, 333, 1932, 333, 1933, 337,  // NOLINT
-             1936, 341, 1937, 341, 1938, 345, 1939, 345,
-             1942, 349, 1943, 349, 1944, 353, 1945, 353,  // NOLINT
-             1946, 357, 1947, 357, 1948, 361, 1949, 361,
-             1950, 365, 1951, 365, 1952, 369, 1953, 369,  // NOLINT
-             1954, 373, 1955, 373, 1956, 377, 1957, 377,
-             1958, 381, 1959, 381, 1960, 385, 1961, 385,  // NOLINT
-             1962, 389, 1963, 393, 1964, 397, 1965, 401,
-             1968, 405, 1969, 409};                                   // NOLINT
+static const int32_t
+    kEcma262UnCanonicalizeTable5[396] =
+        {1600, 1,   1601, 1,   1602, 5,   1603, 5,
+         1604, 9,   1605, 9,   1606, 13,  1607, 13,  // NOLINT
+         1608, 17,  1609, 17,  1610, 21,  1611, 21,
+         1612, 25,  1613, 25,  1614, 29,  1615, 29,  // NOLINT
+         1616, 33,  1617, 33,  1618, 37,  1619, 37,
+         1620, 41,  1621, 41,  1622, 45,  1623, 45,  // NOLINT
+         1624, 49,  1625, 49,  1626, 53,  1627, 53,
+         1628, 57,  1629, 57,  1630, 61,  1631, 61,  // NOLINT
+         1632, 65,  1633, 65,  1634, 69,  1635, 69,
+         1636, 73,  1637, 73,  1638, 77,  1639, 77,  // NOLINT
+         1640, 81,  1641, 81,  1642, 85,  1643, 85,
+         1644, 89,  1645, 89,  1664, 93,  1665, 93,  // NOLINT
+         1666, 97,  1667, 97,  1668, 101, 1669, 101,
+         1670, 105, 1671, 105, 1672, 109, 1673, 109,  // NOLINT
+         1674, 113, 1675, 113, 1676, 117, 1677, 117,
+         1678, 121, 1679, 121, 1680, 125, 1681, 125,  // NOLINT
+         1682, 129, 1683, 129, 1684, 133, 1685, 133,
+         1686, 137, 1687, 137, 1688, 141, 1689, 141,  // NOLINT
+         1690, 145, 1691, 145, 1826, 149, 1827, 149,
+         1828, 153, 1829, 153, 1830, 157, 1831, 157,  // NOLINT
+         1832, 161, 1833, 161, 1834, 165, 1835, 165,
+         1836, 169, 1837, 169, 1838, 173, 1839, 173,  // NOLINT
+         1842, 177, 1843, 177, 1844, 181, 1845, 181,
+         1846, 185, 1847, 185, 1848, 189, 1849, 189,  // NOLINT
+         1850, 193, 1851, 193, 1852, 197, 1853, 197,
+         1854, 201, 1855, 201, 1856, 205, 1857, 205,  // NOLINT
+         1858, 209, 1859, 209, 1860, 213, 1861, 213,
+         1862, 217, 1863, 217, 1864, 221, 1865, 221,  // NOLINT
+         1866, 225, 1867, 225, 1868, 229, 1869, 229,
+         1870, 233, 1871, 233, 1872, 237, 1873, 237,  // NOLINT
+         1874, 241, 1875, 241, 1876, 245, 1877, 245,
+         1878, 249, 1879, 249, 1880, 253, 1881, 253,  // NOLINT
+         1882, 257, 1883, 257, 1884, 261, 1885, 261,
+         1886, 265, 1887, 265, 1888, 269, 1889, 269,  // NOLINT
+         1890, 273, 1891, 273, 1892, 277, 1893, 277,
+         1894, 281, 1895, 281, 1896, 285, 1897, 285,  // NOLINT
+         1898, 289, 1899, 289, 1900, 293, 1901, 293,
+         1902, 297, 1903, 297, 1913, 301, 1914, 301,  // NOLINT
+         1915, 305, 1916, 305, 1917, 309, 1918, 313,
+         1919, 313, 1920, 317, 1921, 317, 1922, 321,  // NOLINT
+         1923, 321, 1924, 325, 1925, 325, 1926, 329,
+         1927, 329, 1931, 333, 1932, 333, 1933, 337,  // NOLINT
+         1936, 341, 1937, 341, 1938, 345, 1939, 345,
+         1942, 349, 1943, 349, 1944, 353, 1945, 353,  // NOLINT
+         1946, 357, 1947, 357, 1948, 361, 1949, 361,
+         1950, 365, 1951, 365, 1952, 369, 1953, 369,  // NOLINT
+         1954, 373, 1955, 373, 1956, 377, 1957, 377,
+         1958, 381, 1959, 381, 1960, 385, 1961, 385,  // NOLINT
+         1962, 389, 1963, 393, 1964, 397, 1965, 401,
+         1968, 405, 1969, 409};                                       // NOLINT
 static const uint16_t kEcma262UnCanonicalizeMultiStrings5Size = 104;  // NOLINT
-static const MultiCharacterSpecialCase<2> kEcma262UnCanonicalizeMultiStrings7[3] = {  // NOLINT
-  {{65313, 65345}}, {{65338, 65370}}, {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<2>
+    kEcma262UnCanonicalizeMultiStrings7[3] = {  // NOLINT
+        {{65313, 65345}},
+        {{65338, 65370}},
+        {{kSentinel}}};                                      // NOLINT
 static const uint16_t kEcma262UnCanonicalizeTable7Size = 4;  // NOLINT
 static const int32_t kEcma262UnCanonicalizeTable7[8] = {
-  1073749793, 1, 7994, 5, 1073749825, 1, 8026, 5 };  // NOLINT
+    1073749793, 1, 7994, 5, 1073749825, 1, 8026, 5};                // NOLINT
 static const uint16_t kEcma262UnCanonicalizeMultiStrings7Size = 3;  // NOLINT
-int Ecma262UnCanonicalize::Convert(uchar c,
-                      uchar n,
-                      uchar* result,
-                      bool* allow_caching_ptr) {
+int Ecma262UnCanonicalize::Convert(uchar c, uchar n, uchar* result,
+                                   bool* allow_caching_ptr) {
   int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupMapping<true>(kEcma262UnCanonicalizeTable0,
-                                           kEcma262UnCanonicalizeTable0Size,
-                                           kEcma262UnCanonicalizeMultiStrings0,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 1: return LookupMapping<true>(kEcma262UnCanonicalizeTable1,
-                                           kEcma262UnCanonicalizeTable1Size,
-                                           kEcma262UnCanonicalizeMultiStrings1,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 5: return LookupMapping<true>(kEcma262UnCanonicalizeTable5,
-                                           kEcma262UnCanonicalizeTable5Size,
-                                           kEcma262UnCanonicalizeMultiStrings5,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 7: return LookupMapping<true>(kEcma262UnCanonicalizeTable7,
-                                           kEcma262UnCanonicalizeTable7Size,
-                                           kEcma262UnCanonicalizeMultiStrings7,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    default: return 0;
+    case 0:
+      return LookupMapping<true>(
+          kEcma262UnCanonicalizeTable0, kEcma262UnCanonicalizeTable0Size,
+          kEcma262UnCanonicalizeMultiStrings0, c, n, result, allow_caching_ptr);
+    case 1:
+      return LookupMapping<true>(
+          kEcma262UnCanonicalizeTable1, kEcma262UnCanonicalizeTable1Size,
+          kEcma262UnCanonicalizeMultiStrings1, c, n, result, allow_caching_ptr);
+    case 5:
+      return LookupMapping<true>(
+          kEcma262UnCanonicalizeTable5, kEcma262UnCanonicalizeTable5Size,
+          kEcma262UnCanonicalizeMultiStrings5, c, n, result, allow_caching_ptr);
+    case 7:
+      return LookupMapping<true>(
+          kEcma262UnCanonicalizeTable7, kEcma262UnCanonicalizeTable7Size,
+          kEcma262UnCanonicalizeMultiStrings7, c, n, result, allow_caching_ptr);
+    default:
+      return 0;
   }
 }
 
-static const MultiCharacterSpecialCase<1> kCanonicalizationRangeMultiStrings0[1] = {  // NOLINT
-  {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<1>
+    kCanonicalizationRangeMultiStrings0[1] = {                // NOLINT
+        {{kSentinel}}};                                       // NOLINT
 static const uint16_t kCanonicalizationRangeTable0Size = 70;  // NOLINT
 static const int32_t kCanonicalizationRangeTable0[140] = {
-  1073741889, 100, 90, 0, 1073741921, 100, 122, 0, 1073742016, 88, 214, 0, 1073742040, 24, 222, 0,  // NOLINT
-  1073742048, 88, 246, 0, 1073742072, 24, 254, 0, 1073742715, 8, 893, 0, 1073742728, 8, 906, 0,  // NOLINT
-  1073742749, 8, 927, 0, 1073742759, 16, 939, 0, 1073742765, 8, 943, 0, 1073742781, 8, 959, 0,  // NOLINT
-  1073742791, 16, 971, 0, 1073742845, 8, 1023, 0, 1073742848, 60, 1039, 0, 1073742864, 124, 1071, 0,  // NOLINT
-  1073742896, 124, 1103, 0, 1073742928, 60, 1119, 0, 1073743153, 148, 1366, 0, 1073743201, 148, 1414, 0,  // NOLINT
-  1073746080, 148, 4293, 0, 1073749760, 28, 7943, 0, 1073749768, 28, 7951, 0, 1073749776, 20, 7957, 0,  // NOLINT
-  1073749784, 20, 7965, 0, 1073749792, 28, 7975, 0, 1073749800, 28, 7983, 0, 1073749808, 28, 7991, 0,  // NOLINT
-  1073749816, 28, 7999, 0, 1073749824, 20, 8005, 0, 1073749832, 20, 8013, 0, 1073749856, 28, 8039, 0,  // NOLINT
-  1073749864, 28, 8047, 0, 1073749874, 12, 8053, 0, 1073749960, 12, 8139, 0 };  // NOLINT
+    1073741889, 100, 90,   0, 1073741921, 100, 122,  0,
+    1073742016, 88,  214,  0, 1073742040, 24,  222,  0,  // NOLINT
+    1073742048, 88,  246,  0, 1073742072, 24,  254,  0,
+    1073742715, 8,   893,  0, 1073742728, 8,   906,  0,  // NOLINT
+    1073742749, 8,   927,  0, 1073742759, 16,  939,  0,
+    1073742765, 8,   943,  0, 1073742781, 8,   959,  0,  // NOLINT
+    1073742791, 16,  971,  0, 1073742845, 8,   1023, 0,
+    1073742848, 60,  1039, 0, 1073742864, 124, 1071, 0,  // NOLINT
+    1073742896, 124, 1103, 0, 1073742928, 60,  1119, 0,
+    1073743153, 148, 1366, 0, 1073743201, 148, 1414, 0,  // NOLINT
+    1073746080, 148, 4293, 0, 1073749760, 28,  7943, 0,
+    1073749768, 28,  7951, 0, 1073749776, 20,  7957, 0,  // NOLINT
+    1073749784, 20,  7965, 0, 1073749792, 28,  7975, 0,
+    1073749800, 28,  7983, 0, 1073749808, 28,  7991, 0,  // NOLINT
+    1073749816, 28,  7999, 0, 1073749824, 20,  8005, 0,
+    1073749832, 20,  8013, 0, 1073749856, 28,  8039, 0,  // NOLINT
+    1073749864, 28,  8047, 0, 1073749874, 12,  8053, 0,
+    1073749960, 12,  8139, 0};                                      // NOLINT
 static const uint16_t kCanonicalizationRangeMultiStrings0Size = 1;  // NOLINT
-static const MultiCharacterSpecialCase<1> kCanonicalizationRangeMultiStrings1[1] = {  // NOLINT
-  {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<1>
+    kCanonicalizationRangeMultiStrings1[1] = {                // NOLINT
+        {{kSentinel}}};                                       // NOLINT
 static const uint16_t kCanonicalizationRangeTable1Size = 14;  // NOLINT
 static const int32_t kCanonicalizationRangeTable1[28] = {
-  1073742176, 60, 367, 0, 1073742192, 60, 383, 0, 1073743030, 100, 1231, 0, 1073743056, 100, 1257, 0,  // NOLINT
-  1073744896, 184, 3118, 0, 1073744944, 184, 3166, 0, 1073745152, 148, 3365, 0 };  // NOLINT
+    1073742176, 60,  367,  0, 1073742192, 60,  383,  0,
+    1073743030, 100, 1231, 0, 1073743056, 100, 1257, 0,  // NOLINT
+    1073744896, 184, 3118, 0, 1073744944, 184, 3166, 0,
+    1073745152, 148, 3365, 0};                                      // NOLINT
 static const uint16_t kCanonicalizationRangeMultiStrings1Size = 1;  // NOLINT
-static const MultiCharacterSpecialCase<1> kCanonicalizationRangeMultiStrings7[1] = {  // NOLINT
-  {{kSentinel}} }; // NOLINT
+static const MultiCharacterSpecialCase<1>
+    kCanonicalizationRangeMultiStrings7[1] = {               // NOLINT
+        {{kSentinel}}};                                      // NOLINT
 static const uint16_t kCanonicalizationRangeTable7Size = 4;  // NOLINT
 static const int32_t kCanonicalizationRangeTable7[8] = {
-  1073749793, 100, 7994, 0, 1073749825, 100, 8026, 0 };  // NOLINT
+    1073749793, 100, 7994, 0, 1073749825, 100, 8026, 0};            // NOLINT
 static const uint16_t kCanonicalizationRangeMultiStrings7Size = 1;  // NOLINT
-int CanonicalizationRange::Convert(uchar c,
-                      uchar n,
-                      uchar* result,
-                      bool* allow_caching_ptr) {
+int CanonicalizationRange::Convert(uchar c, uchar n, uchar* result,
+                                   bool* allow_caching_ptr) {
   int chunk_index = c >> 13;
   switch (chunk_index) {
-    case 0: return LookupMapping<false>(kCanonicalizationRangeTable0,
-                                           kCanonicalizationRangeTable0Size,
-                                           kCanonicalizationRangeMultiStrings0,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 1: return LookupMapping<false>(kCanonicalizationRangeTable1,
-                                           kCanonicalizationRangeTable1Size,
-                                           kCanonicalizationRangeMultiStrings1,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    case 7: return LookupMapping<false>(kCanonicalizationRangeTable7,
-                                           kCanonicalizationRangeTable7Size,
-                                           kCanonicalizationRangeMultiStrings7,
-                                           c,
-                                           n,
-                                           result,
-                                           allow_caching_ptr);
-    default: return 0;
+    case 0:
+      return LookupMapping<false>(
+          kCanonicalizationRangeTable0, kCanonicalizationRangeTable0Size,
+          kCanonicalizationRangeMultiStrings0, c, n, result, allow_caching_ptr);
+    case 1:
+      return LookupMapping<false>(
+          kCanonicalizationRangeTable1, kCanonicalizationRangeTable1Size,
+          kCanonicalizationRangeMultiStrings1, c, n, result, allow_caching_ptr);
+    case 7:
+      return LookupMapping<false>(
+          kCanonicalizationRangeTable7, kCanonicalizationRangeTable7Size,
+          kCanonicalizationRangeMultiStrings7, c, n, result, allow_caching_ptr);
+    default:
+      return 0;
   }
 }
 

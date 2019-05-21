@@ -59,7 +59,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/lookup.h"
 #include "src/profiler/cpu-profiler.h"
-#include "src/unicode-inl.h"
+#include "src/strings/unicode-inl.h"
 #include "src/utils.h"
 #include "src/vm-state.h"
 #include "src/wasm/wasm-js.h"

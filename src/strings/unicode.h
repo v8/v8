@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UNICODE_H_
-#define V8_UNICODE_H_
+#ifndef V8_STRINGS_UNICODE_H_
+#define V8_STRINGS_UNICODE_H_
 
 #include <sys/types.h>
 #include "src/globals.h"
@@ -61,7 +61,6 @@ class Predicate {
   CacheEntry entries_[kSize];
 };
 
-
 // A cache used in case conversion.  It caches the value for characters
 // that either have no mapping or map to a single character independent
 // of context.  Characters that map to more than one character or that
@@ -71,14 +70,14 @@ class Mapping {
  public:
   inline Mapping() = default;
   inline int get(uchar c, uchar n, uchar* result);
+
  private:
   friend class Test;
   int CalculateValue(uchar c, uchar n, uchar* result);
   struct CacheEntry {
-    inline CacheEntry() : code_point_(kNoChar), offset_(0) { }
+    inline CacheEntry() : code_point_(kNoChar), offset_(0) {}
     inline CacheEntry(uchar code_point, signed offset)
-      : code_point_(code_point),
-        offset_(offset) { }
+        : code_point_(code_point), offset_(offset) {}
     uchar code_point_;
     signed offset_;
     static const int kNoChar = (1 << 21) - 1;
@@ -156,9 +155,7 @@ class V8_EXPORT_PRIVATE Utf8 {
 
   static inline uchar Length(uchar chr, int previous);
   static inline unsigned EncodeOneByte(char* out, uint8_t c);
-  static inline unsigned Encode(char* out,
-                                uchar c,
-                                int previous,
+  static inline unsigned Encode(char* out, uchar c, int previous,
                                 bool replace_invalid = false);
   static uchar CalculateValue(const byte* str, size_t length, size_t* cursor);
 
@@ -167,11 +164,11 @@ class V8_EXPORT_PRIVATE Utf8 {
   static const uchar kBadChar = 0xFFFD;
   static const uchar kBufferEmpty = 0x0;
   static const uchar kIncomplete = 0xFFFFFFFC;  // any non-valid code point.
-  static const unsigned kMaxEncodedSize   = 4;
-  static const unsigned kMaxOneByteChar   = 0x7f;
-  static const unsigned kMaxTwoByteChar   = 0x7ff;
+  static const unsigned kMaxEncodedSize = 4;
+  static const unsigned kMaxOneByteChar = 0x7f;
+  static const unsigned kMaxTwoByteChar = 0x7ff;
   static const unsigned kMaxThreeByteChar = 0xffff;
-  static const unsigned kMaxFourByteChar  = 0x1fffff;
+  static const unsigned kMaxFourByteChar = 0x1fffff;
 
   // A single surrogate is coded as a 3 byte UTF-8 sequence, but two together
   // that match are coded as a 4 byte UTF-8 sequence.
@@ -179,7 +176,7 @@ class V8_EXPORT_PRIVATE Utf8 {
   static const unsigned kSizeOfUnmatchedSurrogate = 3;
   // The maximum size a single UTF-16 code unit may take up when encoded as
   // UTF-8.
-  static const unsigned kMax16BitCodeUnitSize  = 3;
+  static const unsigned kMax16BitCodeUnitSize = 3;
   static inline uchar ValueOf(const byte* str, size_t length, size_t* cursor);
 
   typedef uint32_t Utf8IncrementalBuffer;
@@ -234,42 +231,27 @@ V8_INLINE bool IsStringLiteralLineTerminator(uchar c) {
 struct ToLowercase {
   static const int kMaxWidth = 3;
   static const bool kIsToLower = true;
-  static int Convert(uchar c,
-                     uchar n,
-                     uchar* result,
-                     bool* allow_caching_ptr);
+  static int Convert(uchar c, uchar n, uchar* result, bool* allow_caching_ptr);
 };
 struct ToUppercase {
   static const int kMaxWidth = 3;
   static const bool kIsToLower = false;
-  static int Convert(uchar c,
-                     uchar n,
-                     uchar* result,
-                     bool* allow_caching_ptr);
+  static int Convert(uchar c, uchar n, uchar* result, bool* allow_caching_ptr);
 };
 struct V8_EXPORT_PRIVATE Ecma262Canonicalize {
   static const int kMaxWidth = 1;
-  static int Convert(uchar c,
-                     uchar n,
-                     uchar* result,
-                     bool* allow_caching_ptr);
+  static int Convert(uchar c, uchar n, uchar* result, bool* allow_caching_ptr);
 };
 struct V8_EXPORT_PRIVATE Ecma262UnCanonicalize {
   static const int kMaxWidth = 4;
-  static int Convert(uchar c,
-                     uchar n,
-                     uchar* result,
-                     bool* allow_caching_ptr);
+  static int Convert(uchar c, uchar n, uchar* result, bool* allow_caching_ptr);
 };
 struct V8_EXPORT_PRIVATE CanonicalizationRange {
   static const int kMaxWidth = 1;
-  static int Convert(uchar c,
-                     uchar n,
-                     uchar* result,
-                     bool* allow_caching_ptr);
+  static int Convert(uchar c, uchar n, uchar* result, bool* allow_caching_ptr);
 };
 #endif  // !V8_INTL_SUPPORT
 
 }  // namespace unibrow
 
-#endif  // V8_UNICODE_H_
+#endif  // V8_STRINGS_UNICODE_H_

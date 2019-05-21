@@ -14,7 +14,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-date-time-format.h"
 #endif
-#include "src/string-stream.h"
+#include "src/strings/string-stream.h"
 
 namespace v8 {
 namespace internal {

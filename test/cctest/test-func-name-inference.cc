@@ -32,7 +32,7 @@
 #include "src/api/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
-#include "src/string-search.h"
+#include "src/strings/string-search.h"
 #include "test/cctest/cctest.h"
 
 

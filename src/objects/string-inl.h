@@ -14,7 +14,7 @@
 #include "src/objects/name-inl.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-table-inl.h"
-#include "src/string-hasher-inl.h"
+#include "src/strings/string-hasher-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

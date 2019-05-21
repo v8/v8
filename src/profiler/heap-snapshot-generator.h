@@ -19,7 +19,7 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/literal-objects.h"
 #include "src/profiler/strings-storage.h"
-#include "src/string-hasher.h"
+#include "src/strings/string-hasher.h"
 #include "src/visitors.h"
 
 namespace v8 {

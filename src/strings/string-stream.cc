@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/string-stream.h"
+#include "src/strings/string-stream.h"
 
 #include <memory>
 
@@ -23,18 +23,15 @@ char* HeapStringAllocator::allocate(unsigned bytes) {
   return space_;
 }
 
-
 char* FixedStringAllocator::allocate(unsigned bytes) {
   CHECK_LE(bytes, length_);
   return buffer_;
 }
 
-
 char* FixedStringAllocator::grow(unsigned* old) {
   *old = length_;
   return buffer_;
 }
-
 
 bool StringStream::Put(char c) {
   if (full()) return false;
@@ -66,19 +63,27 @@ bool StringStream::Put(char c) {
   return true;
 }
 
-
 // A control character is one that configures a format element.  For
 // instance, in %.5s, .5 are control characters.
 static bool IsControlChar(char c) {
   switch (c) {
-  case '0': case '1': case '2': case '3': case '4': case '5':
-  case '6': case '7': case '8': case '9': case '.': case '-':
-    return true;
-  default:
-    return false;
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+    case '.':
+    case '-':
+      return true;
+    default:
+      return false;
   }
 }
-
 
 void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
   // If we already ran out of space then return immediately.
@@ -99,77 +104,85 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
     temp[format_length++] = format[offset++];
     while (offset < format.length() && IsControlChar(format[offset]))
       temp[format_length++] = format[offset++];
-    if (offset >= format.length())
-      return;
+    if (offset >= format.length()) return;
     char type = format[offset];
     temp[format_length++] = type;
     temp[format_length] = '\0';
     offset++;
     FmtElm current = elms[elm++];
     switch (type) {
-    case 's': {
-      DCHECK_EQ(FmtElm::C_STR, current.type_);
-      const char* value = current.data_.u_c_str_;
-      Add(value);
-      break;
-    }
-    case 'w': {
-      DCHECK_EQ(FmtElm::LC_STR, current.type_);
-      Vector<const uc16> value = *current.data_.u_lc_str_;
-      for (int i = 0; i < value.length(); i++)
-        Put(static_cast<char>(value[i]));
-      break;
-    }
-    case 'o': {
-      DCHECK_EQ(FmtElm::OBJ, current.type_);
-      Object obj(current.data_.u_obj_);
-      PrintObject(obj);
-      break;
-    }
-    case 'k': {
-      DCHECK_EQ(FmtElm::INT, current.type_);
-      int value = current.data_.u_int_;
-      if (0x20 <= value && value <= 0x7F) {
-        Put(value);
-      } else if (value <= 0xFF) {
-        Add("\\x%02x", value);
-      } else {
-        Add("\\u%04x", value);
+      case 's': {
+        DCHECK_EQ(FmtElm::C_STR, current.type_);
+        const char* value = current.data_.u_c_str_;
+        Add(value);
+        break;
       }
-      break;
-    }
-    case 'i': case 'd': case 'u': case 'x': case 'c': case 'X': {
-      int value = current.data_.u_int_;
-      EmbeddedVector<char, 24> formatted;
-      int length = SNPrintF(formatted, temp.begin(), value);
-      Add(Vector<const char>(formatted.begin(), length));
-      break;
-    }
-    case 'f': case 'g': case 'G': case 'e': case 'E': {
-      double value = current.data_.u_double_;
-      int inf = std::isinf(value);
-      if (inf == -1) {
-        Add("-inf");
-      } else if (inf == 1) {
-        Add("inf");
-      } else if (std::isnan(value)) {
-        Add("nan");
-      } else {
-        EmbeddedVector<char, 28> formatted;
+      case 'w': {
+        DCHECK_EQ(FmtElm::LC_STR, current.type_);
+        Vector<const uc16> value = *current.data_.u_lc_str_;
+        for (int i = 0; i < value.length(); i++)
+          Put(static_cast<char>(value[i]));
+        break;
+      }
+      case 'o': {
+        DCHECK_EQ(FmtElm::OBJ, current.type_);
+        Object obj(current.data_.u_obj_);
+        PrintObject(obj);
+        break;
+      }
+      case 'k': {
+        DCHECK_EQ(FmtElm::INT, current.type_);
+        int value = current.data_.u_int_;
+        if (0x20 <= value && value <= 0x7F) {
+          Put(value);
+        } else if (value <= 0xFF) {
+          Add("\\x%02x", value);
+        } else {
+          Add("\\u%04x", value);
+        }
+        break;
+      }
+      case 'i':
+      case 'd':
+      case 'u':
+      case 'x':
+      case 'c':
+      case 'X': {
+        int value = current.data_.u_int_;
+        EmbeddedVector<char, 24> formatted;
+        int length = SNPrintF(formatted, temp.begin(), value);
+        Add(Vector<const char>(formatted.begin(), length));
+        break;
+      }
+      case 'f':
+      case 'g':
+      case 'G':
+      case 'e':
+      case 'E': {
+        double value = current.data_.u_double_;
+        int inf = std::isinf(value);
+        if (inf == -1) {
+          Add("-inf");
+        } else if (inf == 1) {
+          Add("inf");
+        } else if (std::isnan(value)) {
+          Add("nan");
+        } else {
+          EmbeddedVector<char, 28> formatted;
+          SNPrintF(formatted, temp.begin(), value);
+          Add(formatted.begin());
+        }
+        break;
+      }
+      case 'p': {
+        void* value = current.data_.u_pointer_;
+        EmbeddedVector<char, 20> formatted;
         SNPrintF(formatted, temp.begin(), value);
         Add(formatted.begin());
+        break;
       }
-      break;
-    }
-    case 'p': {
-      void* value = current.data_.u_pointer_;
-      EmbeddedVector<char, 20> formatted;
-      SNPrintF(formatted, temp.begin(), value);
-      Add(formatted.begin());
-      break;
-    }
-    default:
-      UNREACHABLE();
+      default:
+        UNREACHABLE();
     }
   }
 
@@ -214,11 +227,9 @@ std::unique_ptr<char[]> StringStream::ToCString() const {
   return std::unique_ptr<char[]>(str);
 }
 
-
 void StringStream::Log(Isolate* isolate) {
   LOG(isolate, StringEvent("StackDump", buffer_));
 }
-
 
 void StringStream::OutputToFile(FILE* out) {
   // Dump the output to stdout, but make sure to break it up into
@@ -235,12 +246,11 @@ void StringStream::OutputToFile(FILE* out) {
   internal::PrintF(out, "%s", &buffer_[position]);
 }
 
-
 Handle<String> StringStream::ToString(Isolate* isolate) {
-  return isolate->factory()->NewStringFromUtf8(
-      Vector<const char>(buffer_, length_)).ToHandleChecked();
+  return isolate->factory()
+      ->NewStringFromUtf8(Vector<const char>(buffer_, length_))
+      .ToHandleChecked();
 }
-
 
 void StringStream::ClearMentionedObjectCache(Isolate* isolate) {
   isolate->set_string_stream_current_security_token(Object());
@@ -249,7 +259,6 @@ void StringStream::ClearMentionedObjectCache(Isolate* isolate) {
   }
   isolate->string_stream_debug_object_cache()->clear();
 }
-
 
 #ifdef DEBUG
 bool StringStream::IsMentionedObjectCacheClear(Isolate* isolate) {
@@ -301,8 +310,7 @@ void StringStream::PrintUsingMap(JSObject js_object) {
         if (key->IsString()) {
           len = String::cast(key)->length();
         }
-        for (; len < 18; len++)
-          Put(' ');
+        for (; len < 18; len++) Put(' ');
         if (key->IsString()) {
           Put(String::cast(key));
         } else {
@@ -379,7 +387,7 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
         if (array->HasObjectElements()) {
           unsigned int limit = FixedArray::cast(array->elements())->length();
           unsigned int length =
-            static_cast<uint32_t>(JSArray::cast(array)->length()->Number());
+              static_cast<uint32_t>(JSArray::cast(array)->length()->Number());
           if (length < limit) limit = length;
           PrintFixedArray(FixedArray::cast(array->elements()), limit);
         }
@@ -425,8 +433,7 @@ void StringStream::PrintPrototype(JSFunction fun, Object receiver) {
       if (iter.GetCurrent()->IsJSProxy()) break;
       Object key = iter.GetCurrent<JSObject>()->SlowReverseLookup(fun);
       if (!key->IsUndefined(isolate)) {
-        if (!name->IsString() ||
-            !key->IsString() ||
+        if (!name->IsString() || !key->IsString() ||
             !String::cast(name)->Equals(String::cast(key))) {
           print_name = true;
         }
@@ -464,7 +471,6 @@ char* HeapStringAllocator::grow(unsigned* bytes) {
   space_ = new_space;
   return new_space;
 }
-
 
 }  // namespace internal
 }  // namespace v8

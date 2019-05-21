@@ -11,7 +11,7 @@
 #include "src/regexp/bytecodes-irregexp.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
-#include "src/unicode.h"
+#include "src/strings/unicode.h"
 #include "src/utils.h"
 
 #ifdef V8_INTL_SUPPORT

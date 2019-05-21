@@ -8,7 +8,7 @@
 #include "src/isolate-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator.h"
-#include "src/unicode-inl.h"
+#include "src/strings/unicode-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"

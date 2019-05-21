@@ -2,31 +2,32 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UNICODE_INL_H_
-#define V8_UNICODE_INL_H_
+#ifndef V8_STRINGS_UNICODE_INL_H_
+#define V8_STRINGS_UNICODE_INL_H_
 
-#include "src/unicode.h"
 #include "src/base/logging.h"
+#include "src/strings/unicode.h"
 #include "src/utils.h"
 
 namespace unibrow {
 
 #ifndef V8_INTL_SUPPORT
-template <class T, int s> bool Predicate<T, s>::get(uchar code_point) {
+template <class T, int s>
+bool Predicate<T, s>::get(uchar code_point) {
   CacheEntry entry = entries_[code_point & kMask];
   if (entry.code_point() == code_point) return entry.value();
   return CalculateValue(code_point);
 }
 
-template <class T, int s> bool Predicate<T, s>::CalculateValue(
-    uchar code_point) {
+template <class T, int s>
+bool Predicate<T, s>::CalculateValue(uchar code_point) {
   bool result = T::Is(code_point);
   entries_[code_point & kMask] = CacheEntry(code_point, result);
   return result;
 }
 
-template <class T, int s> int Mapping<T, s>::get(uchar c, uchar n,
-    uchar* result) {
+template <class T, int s>
+int Mapping<T, s>::get(uchar c, uchar n, uchar* result) {
   CacheEntry entry = entries_[c & kMask];
   if (entry.code_point_ == c) {
     if (entry.offset_ == 0) {
@@ -40,8 +41,8 @@ template <class T, int s> int Mapping<T, s>::get(uchar c, uchar n,
   }
 }
 
-template <class T, int s> int Mapping<T, s>::CalculateValue(uchar c, uchar n,
-    uchar* result) {
+template <class T, int s>
+int Mapping<T, s>::CalculateValue(uchar c, uchar n, uchar* result) {
   bool allow_caching = true;
   int length = T::Convert(c, n, result, &allow_caching);
   if (allow_caching) {
@@ -121,10 +122,7 @@ unsigned Utf8::EncodeOneByte(char* str, uint8_t c) {
 // buffer, and combines surrogate code units into single code points. If
 // replace_invalid is set to true, orphan surrogate code units will be replaced
 // with kBadChar.
-unsigned Utf8::Encode(char* str,
-                      uchar c,
-                      int previous,
-                      bool replace_invalid) {
+unsigned Utf8::Encode(char* str, uchar c, int previous, bool replace_invalid) {
   static const int kMask = ~(1 << 6);
   if (c <= kMaxOneByteChar) {
     str[0] = c;
@@ -139,11 +137,10 @@ unsigned Utf8::Encode(char* str,
       const int kUnmatchedSize = kSizeOfUnmatchedSurrogate;
       return Encode(str - kUnmatchedSize,
                     Utf16::CombineSurrogatePair(previous, c),
-                    Utf16::kNoPreviousCharacter,
-                    replace_invalid) - kUnmatchedSize;
+                    Utf16::kNoPreviousCharacter, replace_invalid) -
+             kUnmatchedSize;
     } else if (replace_invalid &&
-               (Utf16::IsLeadSurrogate(c) ||
-               Utf16::IsTrailSurrogate(c))) {
+               (Utf16::IsLeadSurrogate(c) || Utf16::IsTrailSurrogate(c))) {
       c = kBadChar;
     }
     str[0] = 0xE0 | (c >> 12);
@@ -158,7 +155,6 @@ unsigned Utf8::Encode(char* str,
     return 4;
   }
 }
-
 
 uchar Utf8::ValueOf(const byte* bytes, size_t length, size_t* cursor) {
   if (length <= 0) return kBadChar;
@@ -195,4 +191,4 @@ bool Utf8::IsValidCharacter(uchar c) {
 
 }  // namespace unibrow
 
-#endif  // V8_UNICODE_INL_H_
+#endif  // V8_STRINGS_UNICODE_INL_H_
