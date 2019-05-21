@@ -452,7 +452,7 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
   } else if (CanBeCompressedSigned(output_rep) &&
              use_info.type_check() == TypeCheckKind::kHeapObject) {
     if (!output_type.Maybe(Type::SignedSmall())) {
-      return node;
+      op = machine()->ChangeCompressedPointerToTaggedPointer();
     }
     // TODO(turbofan): Consider adding a Bailout operator that just deopts
     // for CompressedSigned output representation.
@@ -644,7 +644,7 @@ Node* RepresentationChanger::GetCompressedPointerRepresentationFor(
   } else if (CanBeTaggedSigned(output_rep) &&
              use_info.type_check() == TypeCheckKind::kHeapObject) {
     if (!output_type.Maybe(Type::SignedSmall())) {
-      return node;
+      op = machine()->ChangeTaggedPointerToCompressedPointer();
     }
     // TODO(turbofan): Consider adding a Bailout operator that just deopts
     // for TaggedSigned output representation.
