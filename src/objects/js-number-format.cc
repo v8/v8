@@ -118,6 +118,162 @@ UNumberUnitWidth ToUNumberUnitWidth(CurrencyDisplay currency_display) {
   }
 }
 
+UNumberUnitWidth ToUNumberUnitWidth(UnitDisplay unit_display) {
+  switch (unit_display) {
+    case UnitDisplay::SHORT:
+      return UNumberUnitWidth::UNUM_UNIT_WIDTH_SHORT;
+    case UnitDisplay::LONG:
+      return UNumberUnitWidth::UNUM_UNIT_WIDTH_FULL_NAME;
+    case UnitDisplay::NARROW:
+      return UNumberUnitWidth::UNUM_UNIT_WIDTH_NARROW;
+  }
+}
+
+UNumberSignDisplay ToUNumberSignDisplay(SignDisplay sign_display,
+                                        CurrencySign currency_sign) {
+  switch (sign_display) {
+    case SignDisplay::AUTO:
+      if (currency_sign == CurrencySign::ACCOUNTING) {
+        return UNumberSignDisplay::UNUM_SIGN_ACCOUNTING;
+      }
+      DCHECK(currency_sign == CurrencySign::STANDARD);
+      return UNumberSignDisplay::UNUM_SIGN_AUTO;
+    case SignDisplay::NEVER:
+      return UNumberSignDisplay::UNUM_SIGN_NEVER;
+    case SignDisplay::ALWAYS:
+      if (currency_sign == CurrencySign::ACCOUNTING) {
+        return UNumberSignDisplay::UNUM_SIGN_ACCOUNTING_ALWAYS;
+      }
+      DCHECK(currency_sign == CurrencySign::STANDARD);
+      return UNumberSignDisplay::UNUM_SIGN_ALWAYS;
+    case SignDisplay::EXCEPT_ZERO:
+      if (currency_sign == CurrencySign::ACCOUNTING) {
+        return UNumberSignDisplay::UNUM_SIGN_ACCOUNTING_EXCEPT_ZERO;
+      }
+      DCHECK(currency_sign == CurrencySign::STANDARD);
+      return UNumberSignDisplay::UNUM_SIGN_EXCEPT_ZERO;
+  }
+}
+
+icu::number::Notation ToICUNotation(Notation notation,
+                                    CompactDisplay compact_display) {
+  switch (notation) {
+    case Notation::STANDARD:
+      return icu::number::Notation::simple();
+    case Notation::SCIENTIFIC:
+      return icu::number::Notation::scientific();
+    case Notation::ENGINEERING:
+      return icu::number::Notation::engineering();
+    case Notation::COMPACT:
+      if (compact_display == CompactDisplay::SHORT) {
+        return icu::number::Notation::compactShort();
+      }
+      DCHECK(compact_display == CompactDisplay::LONG);
+      return icu::number::Notation::compactLong();
+  }
+}
+
+std::map<const std::string, icu::MeasureUnit> CreateUnitMap() {
+  UErrorCode status = U_ZERO_ERROR;
+  int32_t total = icu::MeasureUnit::getAvailable(nullptr, 0, status);
+  CHECK(U_FAILURE(status));
+  status = U_ZERO_ERROR;
+  // See the list in ecma402 #sec-issanctionedsimpleunitidentifier
+  std::set<std::string> sanctioned(
+      {"acre",       "bit",         "byte",      "celsius",
+       "centimeter", "day",         "degree",    "fahrenheit",
+       "foot",       "gigabit",     "gigabyte",  "gram",
+       "hectare",    "hour",        "inch",      "kilobit",
+       "kilobyte",   "kilogram",    "kilometer", "megabit",
+       "megabyte",   "meter",       "mile",      "mile-scandinavian",
+       "millimeter", "millisecond", "minute",    "month",
+       "ounce",      "percent",     "petabyte",  "pound",
+       "second",     "stone",       "terabit",   "terabyte",
+       "week",       "yard",        "year"});
+  std::vector<icu::MeasureUnit> units(total);
+  total = icu::MeasureUnit::getAvailable(units.data(), total, status);
+  CHECK(U_SUCCESS(status));
+  std::map<const std::string, icu::MeasureUnit> map;
+  for (auto it = units.begin(); it != units.end(); ++it) {
+    if (sanctioned.count(it->getSubtype()) > 0) {
+      map[it->getSubtype()] = *it;
+    }
+  }
+  return map;
+}
+
+class UnitFactory {
+ public:
+  UnitFactory() : map_(CreateUnitMap()) {}
+  virtual ~UnitFactory() {}
+
+  // ecma402 #sec-issanctionedsimpleunitidentifier
+  icu::MeasureUnit create(const std::string& unitIdentifier) {
+    // 1. If unitIdentifier is in the following list, return true.
+    auto found = map_.find(unitIdentifier);
+    if (found != map_.end()) {
+      return found->second;
+    }
+    // 2. Return false.
+    return icu::NoUnit::base();
+  }
+
+ private:
+  std::map<const std::string, icu::MeasureUnit> map_;
+};
+
+// ecma402 #sec-issanctionedsimpleunitidentifier
+icu::MeasureUnit IsSanctionedUnitIdentifier(const std::string& unit) {
+  static base::LazyInstance<UnitFactory>::type factory =
+      LAZY_INSTANCE_INITIALIZER;
+  return factory.Pointer()->create(unit);
+}
+
+// ecma402 #sec-iswellformedunitidentifier
+Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> IsWellFormedUnitIdentifier(
+    Isolate* isolate, const std::string& unit) {
+  icu::MeasureUnit result = IsSanctionedUnitIdentifier(unit);
+  icu::MeasureUnit none = icu::NoUnit::base();
+  // 1. If the result of IsSanctionedUnitIdentifier(unitIdentifier) is true,
+  // then
+  if (result != none) {
+    // a. Return true.
+    std::pair<icu::MeasureUnit, icu::MeasureUnit> pair(result, none);
+    return Just(pair);
+  }
+  // 2. If the substring "-per-" does not occur exactly once in unitIdentifier,
+  // then
+  size_t first_per = unit.find("-per-");
+  if (first_per == std::string::npos ||
+      unit.find("-per-", first_per + 5) != std::string::npos) {
+    // a. Return false.
+    return Nothing<std::pair<icu::MeasureUnit, icu::MeasureUnit>>();
+  }
+  // 3. Let numerator be the substring of unitIdentifier from the beginning to
+  // just before "-per-".
+  std::string numerator = unit.substr(0, first_per);
+
+  // 4. If the result of IsSanctionedUnitIdentifier(numerator) is false, then
+  result = IsSanctionedUnitIdentifier(numerator);
+  if (result == none) {
+    // a. Return false.
+    return Nothing<std::pair<icu::MeasureUnit, icu::MeasureUnit>>();
+  }
+  // 5. Let denominator be the substring of unitIdentifier from just after
+  // "-per-" to the end.
+  std::string denominator = unit.substr(first_per + 5);
+
+  // 6. If the result of IsSanctionedUnitIdentifier(denominator) is false, then
+  icu::MeasureUnit den_result = IsSanctionedUnitIdentifier(denominator);
+  if (den_result == none) {
+    // a. Return false.
+    return Nothing<std::pair<icu::MeasureUnit, icu::MeasureUnit>>();
+  }
+  // 7. Return true.
+  std::pair<icu::MeasureUnit, icu::MeasureUnit> pair(result, den_result);
+  return Just(pair);
+}
+
 // ecma-402/#sec-currencydigits
 // The currency is expected to an all upper case string value.
 int CurrencyDigits(const icu::UnicodeString& currency) {
@@ -149,24 +305,40 @@ bool IsWellFormedCurrencyCode(const std::string& currency) {
 }
 
 // Parse the 'style' from the skeleton.
-Handle<String> StyleString(Isolate* isolate,
-                           const icu::UnicodeString& skeleton) {
+Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
   // Ex: skeleton as
   // "percent precision-integer rounding-mode-half-up scale/100"
-  if (skeleton.indexOf("percent") >= 0) {
-    return ReadOnlyRoots(isolate).percent_string_handle();
+  if (skeleton.indexOf("percent") >= 0 && skeleton.indexOf("scale/100") >= 0) {
+    return Style::PERCENT;
   }
   // Ex: skeleton as "currency/TWD .00 rounding-mode-half-up"
   if (skeleton.indexOf("currency") >= 0) {
-    return ReadOnlyRoots(isolate).currency_string_handle();
+    return Style::CURRENCY;
   }
   // Ex: skeleton as
   // "measure-unit/length-meter .### rounding-mode-half-up unit-width-narrow"
-  if (skeleton.indexOf("measure-unit") >= 0) {
-    return ReadOnlyRoots(isolate).unit_string_handle();
+  // or special case for "percent .### rounding-mode-half-up"
+  if (skeleton.indexOf("measure-unit") >= 0 ||
+      skeleton.indexOf("percent") >= 0) {
+    return Style::UNIT;
   }
   // Ex: skeleton as ".### rounding-mode-half-up"
-  return ReadOnlyRoots(isolate).decimal_string_handle();
+  return Style::DECIMAL;
+}
+
+// Return the style as a String.
+Handle<String> StyleAsString(Isolate* isolate, Style style) {
+  switch (style) {
+    case Style::PERCENT:
+      return ReadOnlyRoots(isolate).percent_string_handle();
+    case Style::CURRENCY:
+      return ReadOnlyRoots(isolate).currency_string_handle();
+    case Style::UNIT:
+      return ReadOnlyRoots(isolate).unit_string_handle();
+    case Style::DECIMAL:
+      return ReadOnlyRoots(isolate).decimal_string_handle();
+  }
+  UNREACHABLE();
 }
 
 // Parse the 'currencyDisplay' from the skeleton.
@@ -178,7 +350,7 @@ Handle<String> CurrencyDisplayString(Isolate* isolate,
     return ReadOnlyRoots(isolate).code_string_handle();
   }
   // Ex: skeleton as
-  // "currency/TWD .00 rounding-mode-half-up unit-width-full-name;
+  // "currency/TWD .00 rounding-mode-half-up unit-width-full-name;"
   if (skeleton.indexOf("unit-width-full-name") >= 0) {
     return ReadOnlyRoots(isolate).name_string_handle();
   }
@@ -197,7 +369,7 @@ bool UseGroupingFromSkeleton(const icu::UnicodeString& skeleton) {
 }
 
 // Parse currency code from skeleton. For example, skeleton as
-// "currency/TWD .00 rounding-mode-half-up unit-width-full-name;
+// "currency/TWD .00 rounding-mode-half-up unit-width-full-name;"
 std::string CurrencyFromSkeleton(const icu::UnicodeString& skeleton) {
   std::string str;
   str = skeleton.toUTF8String<std::string>(str);
@@ -205,6 +377,112 @@ std::string CurrencyFromSkeleton(const icu::UnicodeString& skeleton) {
   size_t index = str.find(search);
   if (index == str.npos) return "";
   return str.substr(index + search.size(), 3);
+}
+
+// Return CurrencySign as string based on skeleton.
+Handle<String> CurrencySignString(Isolate* isolate,
+                                  const icu::UnicodeString& skeleton) {
+  // Ex: skeleton as
+  // "currency/TWD .00 rounding-mode-half-up sign-accounting-always" OR
+  // "currency/TWD .00 rounding-mode-half-up sign-accounting-except-zero"
+  if (skeleton.indexOf("sign-accounting") >= 0) {
+    return ReadOnlyRoots(isolate).accounting_string_handle();
+  }
+  return ReadOnlyRoots(isolate).standard_string_handle();
+}
+
+// Return UnitDisplay as string based on skeleton.
+Handle<String> UnitDisplayString(Isolate* isolate,
+                                 const icu::UnicodeString& skeleton) {
+  // Ex: skeleton as
+  // "measure-unit/length-meter .### rounding-mode-half-up unit-width-full-name"
+  if (skeleton.indexOf("unit-width-full-name") >= 0) {
+    return ReadOnlyRoots(isolate).long_string_handle();
+  }
+  // Ex: skeleton as
+  // "measure-unit/length-meter .### rounding-mode-half-up unit-width-narrow".
+  if (skeleton.indexOf("unit-width-narrow") >= 0) {
+    return ReadOnlyRoots(isolate).narrow_string_handle();
+  }
+  // Ex: skeleton as
+  // "measure-unit/length-foot .### rounding-mode-half-up"
+  return ReadOnlyRoots(isolate).short_string_handle();
+}
+
+// Parse Notation from skeleton.
+Notation NotationFromSkeleton(const icu::UnicodeString& skeleton) {
+  // Ex: skeleton as
+  // "scientific .### rounding-mode-half-up"
+  if (skeleton.indexOf("scientific") >= 0) {
+    return Notation::SCIENTIFIC;
+  }
+  // Ex: skeleton as
+  // "engineering .### rounding-mode-half-up"
+  if (skeleton.indexOf("engineering") >= 0) {
+    return Notation::ENGINEERING;
+  }
+  // Ex: skeleton as
+  // "compact-short .### rounding-mode-half-up" or
+  // "compact-long .### rounding-mode-half-up
+  if (skeleton.indexOf("compact-") >= 0) {
+    return Notation::COMPACT;
+  }
+  // Ex: skeleton as
+  // "measure-unit/length-foot .### rounding-mode-half-up"
+  return Notation::STANDARD;
+}
+
+Handle<String> NotationAsString(Isolate* isolate, Notation notation) {
+  switch (notation) {
+    case Notation::SCIENTIFIC:
+      return ReadOnlyRoots(isolate).scientific_string_handle();
+    case Notation::ENGINEERING:
+      return ReadOnlyRoots(isolate).engineering_string_handle();
+    case Notation::COMPACT:
+      return ReadOnlyRoots(isolate).compact_string_handle();
+    case Notation::STANDARD:
+      return ReadOnlyRoots(isolate).standard_string_handle();
+  }
+  UNREACHABLE();
+}
+
+// Return CompactString as string based on skeleton.
+Handle<String> CompactDisplayString(Isolate* isolate,
+                                    const icu::UnicodeString& skeleton) {
+  // Ex: skeleton as
+  // "compact-long .### rounding-mode-half-up"
+  if (skeleton.indexOf("compact-long") >= 0) {
+    return ReadOnlyRoots(isolate).long_string_handle();
+  }
+  // Ex: skeleton as
+  // "compact-short .### rounding-mode-half-up"
+  DCHECK_GE(skeleton.indexOf("compact-short"), 0);
+  return ReadOnlyRoots(isolate).short_string_handle();
+}
+
+// Return SignDisplay as string based on skeleton.
+Handle<String> SignDisplayString(Isolate* isolate,
+                                 const icu::UnicodeString& skeleton) {
+  // Ex: skeleton as
+  // "currency/TWD .00 rounding-mode-half-up sign-never"
+  if (skeleton.indexOf("sign-never") >= 0) {
+    return ReadOnlyRoots(isolate).never_string_handle();
+  }
+  // Ex: skeleton as
+  // ".### rounding-mode-half-up sign-always" or
+  // "currency/TWD .00 rounding-mode-half-up sign-accounting-always"
+  if (skeleton.indexOf("sign-always") >= 0 ||
+      skeleton.indexOf("sign-accounting-always") >= 0) {
+    return ReadOnlyRoots(isolate).always_string_handle();
+  }
+  // Ex: skeleton as
+  // "currency/TWD .00 rounding-mode-half-up sign-accounting-except-zero" or
+  // "currency/TWD .00 rounding-mode-half-up sign-except-zero"
+  if (skeleton.indexOf("sign-accounting-except-zero") >= 0 ||
+      skeleton.indexOf("sign-except-zero") >= 0) {
+    return ReadOnlyRoots(isolate).except_zero_string_handle();
+  }
+  return ReadOnlyRoots(isolate).auto_string_handle();
 }
 
 // Return the minimum integer digits by counting the number of '0' after
@@ -283,6 +561,73 @@ bool SignificantDigitsFromSkeleton(const icu::UnicodeString& skeleton,
   return true;
 }
 
+// Ex: percent .### rounding-mode-half-up
+// Special case for "percent"
+// Ex: "measure-unit/length-kilometer per-measure-unit/duration-hour .###
+// rounding-mode-half-up" should return "kilometer-per-unit".
+// Ex: "measure-unit/duration-year .### rounding-mode-half-up" should return
+// "year".
+std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
+  std::string str;
+  str = skeleton.toUTF8String<std::string>(str);
+  // Special case for "percent" first.
+  if (str.find("percent") != str.npos) {
+    return "percent";
+  }
+  std::string search("measure-unit/");
+  size_t begin = str.find(search);
+  if (begin == str.npos) {
+    return "";
+  }
+  // Skip the type (ex: "length").
+  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
+  //                     b
+  begin = str.find("-", begin + search.size());
+  if (begin == str.npos) {
+    return "";
+  }
+  begin++;  // Skip the '-'.
+  // Find the end of the subtype.
+  size_t end = str.find(" ", begin);
+  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
+  //                      b        e
+  if (end == str.npos) {
+    end = str.size();
+    return str.substr(begin, end - begin);
+  }
+  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
+  //                      b        e
+  //                      [result ]
+  std::string result = str.substr(begin, end - begin);
+  begin = end + 1;
+  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
+  //                      [result ]eb
+  std::string search_per("per-measure-unit/");
+  begin = str.find(search_per, begin);
+  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
+  //                      [result ]e                 b
+  if (begin == str.npos) {
+    return result;
+  }
+  // Skip the type (ex: "duration").
+  begin = str.find("-", begin + search_per.size());
+  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
+  //                      [result ]e                         b
+  if (begin == str.npos) {
+    return result;
+  }
+  begin++;  // Skip the '-'.
+  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
+  //                      [result ]e                          b
+  end = str.find(" ", begin);
+  if (end == str.npos) {
+    end = str.size();
+  }
+  // "measure-unit/length-kilometer per-measure-unit/duration-hour"
+  //                      [result ]                           b   e
+  return result + "-per-" + str.substr(begin, end - begin);
+}
+
 }  // anonymous namespace
 
 // static
@@ -335,9 +680,10 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
               Just(kDontThrow))
               .FromJust());
   }
+  Style style = StyleFromSkeleton(skeleton);
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->style_string(),
-            StyleString(isolate, skeleton), Just(kDontThrow))
+            StyleAsString(isolate, style), Just(kDontThrow))
             .FromJust());
   std::string currency = CurrencyFromSkeleton(skeleton);
   if (!currency.empty()) {
@@ -351,7 +697,31 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
               isolate, options, factory->currencyDisplay_string(),
               CurrencyDisplayString(isolate, skeleton), Just(kDontThrow))
               .FromJust());
+    if (FLAG_harmony_intl_numberformat_unified) {
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, options, factory->currencySign_string(),
+                CurrencySignString(isolate, skeleton), Just(kDontThrow))
+                .FromJust());
+    }
   }
+
+  if (FLAG_harmony_intl_numberformat_unified) {
+    std::string unit = UnitFromSkeleton(skeleton);
+    if (!unit.empty()) {
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, options, factory->unit_string(),
+                isolate->factory()->NewStringFromAsciiChecked(unit.c_str()),
+                Just(kDontThrow))
+                .FromJust());
+    }
+    if (style == Style::UNIT || style == Style::PERCENT) {
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, options, factory->unitDisplay_string(),
+                UnitDisplayString(isolate, skeleton), Just(kDontThrow))
+                .FromJust());
+    }
+  }
+
   CHECK(
       JSReceiver::CreateDataProperty(
           isolate, options, factory->minimumIntegerDigits_string(),
@@ -359,7 +729,10 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
           Just(kDontThrow))
           .FromJust());
   int32_t minimum = 0, maximum = 0;
-  if (!FractionDigitsFromSkeleton(skeleton, &minimum, &maximum)) {
+  bool output_fraction =
+      FractionDigitsFromSkeleton(skeleton, &minimum, &maximum);
+
+  if (!FLAG_harmony_intl_numberformat_unified && !output_fraction) {
     // Currenct ECMA 402 spec mandate to record (Min|Max)imumFractionDigits
     // uncondictionally while the unified number proposal eventually will only
     // record either (Min|Max)imumFractionDigits or
@@ -371,17 +744,20 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
     // present.
     // TODO(ftang) remove the following two lines once we ship
     // int-number-format-unified
+    output_fraction = true;
     minimum = number_format->minimum_fraction_digits();
     maximum = number_format->maximum_fraction_digits();
   }
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->minimumFractionDigits_string(),
-            factory->NewNumberFromInt(minimum), Just(kDontThrow))
-            .FromJust());
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->maximumFractionDigits_string(),
-            factory->NewNumberFromInt(maximum), Just(kDontThrow))
-            .FromJust());
+  if (output_fraction) {
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->minimumFractionDigits_string(),
+              factory->NewNumberFromInt(minimum), Just(kDontThrow))
+              .FromJust());
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->maximumFractionDigits_string(),
+              factory->NewNumberFromInt(maximum), Just(kDontThrow))
+              .FromJust());
+  }
   minimum = 0;
   maximum = 0;
   if (SignificantDigitsFromSkeleton(skeleton, &minimum, &maximum)) {
@@ -400,6 +776,24 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
             factory->ToBoolean(UseGroupingFromSkeleton(skeleton)),
             Just(kDontThrow))
             .FromJust());
+  if (FLAG_harmony_intl_numberformat_unified) {
+    Notation notation = NotationFromSkeleton(skeleton);
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->notation_string(),
+              NotationAsString(isolate, notation), Just(kDontThrow))
+              .FromJust());
+    // Only output compactDisplay when notation is compact.
+    if (notation == Notation::COMPACT) {
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, options, factory->compactDisplay_string(),
+                CompactDisplayString(isolate, skeleton), Just(kDontThrow))
+                .FromJust());
+    }
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->signDisplay_string(),
+              SignDisplayString(isolate, skeleton), Just(kDontThrow))
+              .FromJust());
+  }
   return options;
 }
 
@@ -437,7 +831,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
     Isolate* isolate, Handle<JSNumberFormat> number_format,
     Handle<Object> locales, Handle<Object> options_obj) {
   number_format->set_flags(0);
-  // set the flags to 0 ASAP.
   Factory* factory = isolate->factory();
 
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -508,13 +901,25 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   number_format->set_locale(*locale_str);
 
   // 11. Let dataLocale be r.[[dataLocale]].
-  //
+
+  icu::number::LocalizedNumberFormatter icu_number_formatter =
+      icu::number::NumberFormatter::withLocale(r.icu_locale)
+          .roundingMode(UNUM_ROUND_HALFUP);
+
   // 12. Let style be ? GetOption(options, "style", "string",  « "decimal",
   // "percent", "currency" », "decimal").
   const char* service = "Intl.NumberFormat";
+
+  std::vector<const char*> style_str_values({"decimal", "percent", "currency"});
+  std::vector<Style> style_enum_values(
+      {Style::DECIMAL, Style::PERCENT, Style::CURRENCY});
+  if (FLAG_harmony_intl_numberformat_unified) {
+    style_str_values.push_back("unit");
+    style_enum_values.push_back(Style::UNIT);
+  }
   Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
-      isolate, options, "style", service, {"decimal", "percent", "currency"},
-      {Style::DECIMAL, Style::PERCENT, Style::CURRENCY}, Style::DECIMAL);
+      isolate, options, "style", service, style_str_values, style_enum_values,
+      Style::DECIMAL);
   MAYBE_RETURN(maybe_style, MaybeHandle<JSNumberFormat>());
   Style style = maybe_style.FromJust();
 
@@ -565,19 +970,106 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
 
   // 18. Let currencyDisplay be ? GetOption(options, "currencyDisplay",
   // "string", « "code",  "symbol", "name" », "symbol").
-  Maybe<CurrencyDisplay> maybe_currencyDisplay =
+  std::vector<const char*> currency_display_str_values(
+      {"code", "symbol", "name"});
+  std::vector<CurrencyDisplay> currency_display_enum_values(
+      {CurrencyDisplay::CODE, CurrencyDisplay::SYMBOL, CurrencyDisplay::NAME});
+  if (FLAG_harmony_intl_numberformat_unified) {
+    currency_display_str_values.push_back("narrow-symbol");
+    currency_display_enum_values.push_back(CurrencyDisplay::NARROW_SYMBOL);
+  }
+  Maybe<CurrencyDisplay> maybe_currency_display =
       Intl::GetStringOption<CurrencyDisplay>(
           isolate, options, "currencyDisplay", service,
-          {"code", "symbol", "name"},
-          {CurrencyDisplay::CODE, CurrencyDisplay::SYMBOL,
-           CurrencyDisplay::NAME},
+          currency_display_str_values, currency_display_enum_values,
           CurrencyDisplay::SYMBOL);
-  MAYBE_RETURN(maybe_currencyDisplay, MaybeHandle<JSNumberFormat>());
-  CurrencyDisplay currency_display = maybe_currencyDisplay.FromJust();
+  MAYBE_RETURN(maybe_currency_display, MaybeHandle<JSNumberFormat>());
+  CurrencyDisplay currency_display = maybe_currency_display.FromJust();
 
-  icu::number::LocalizedNumberFormatter icu_number_formatter =
-      icu::number::NumberFormatter::withLocale(r.icu_locale)
-          .roundingMode(UNUM_ROUND_HALFUP);
+  CurrencySign currency_sign = CurrencySign::STANDARD;
+  if (FLAG_harmony_intl_numberformat_unified) {
+    // Let currencySign be ? GetOption(options, "currencySign", "string", «
+    // "standard",  "accounting" », "standard").
+    Maybe<CurrencySign> maybe_currency_sign =
+        Intl::GetStringOption<CurrencySign>(
+            isolate, options, "currencySign", service,
+            {"standard", "accounting"},
+            {CurrencySign::STANDARD, CurrencySign::ACCOUNTING},
+            CurrencySign::STANDARD);
+    MAYBE_RETURN(maybe_currency_sign, MaybeHandle<JSNumberFormat>());
+    currency_sign = maybe_currency_sign.FromJust();
+
+    // Let unit be ? GetOption(options, "unit", "string", undefined, undefined).
+    std::unique_ptr<char[]> unit_cstr;
+    Maybe<bool> found_unit = Intl::GetStringOption(
+        isolate, options, "unit", empty_values, service, &unit_cstr);
+    MAYBE_RETURN(found_unit, MaybeHandle<JSNumberFormat>());
+
+    std::string unit;
+    if (found_unit.FromJust()) {
+      DCHECK_NOT_NULL(unit_cstr.get());
+      unit = unit_cstr.get();
+    }
+
+    // Let unitDisplay be ? GetOption(options, "unitDisplay", "string", «
+    // "short", "narrow", "long" »,  "short").
+    Maybe<UnitDisplay> maybe_unit_display = Intl::GetStringOption<UnitDisplay>(
+        isolate, options, "unitDisplay", service, {"short", "narrow", "long"},
+        {UnitDisplay::SHORT, UnitDisplay::NARROW, UnitDisplay::LONG},
+        UnitDisplay::SHORT);
+    MAYBE_RETURN(maybe_unit_display, MaybeHandle<JSNumberFormat>());
+    UnitDisplay unit_display = maybe_unit_display.FromJust();
+
+    // If style is "percent", then
+    if (style == Style::PERCENT) {
+      // Let unit be "concentr-percent".
+      unit = "percent";
+    }
+    // If style is "unit" or "percent", then
+    if (style == Style::PERCENT || style == Style::UNIT) {
+      // If unit is undefined, throw a TypeError exception.
+      if (unit == "") {
+        THROW_NEW_ERROR(
+            isolate,
+            NewTypeError(MessageTemplate::kInvalidUnit,
+                         factory->NewStringFromStaticChars("Intl.NumberFormat"),
+                         factory->NewStringFromStaticChars("")),
+            JSNumberFormat);
+      }
+
+      // If the result of IsWellFormedUnitIdentifier(unit) is false, throw a
+      // RangeError exception.
+      Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> maybe_wellformed =
+          IsWellFormedUnitIdentifier(isolate, unit);
+      if (maybe_wellformed.IsNothing()) {
+        THROW_NEW_ERROR(
+            isolate,
+            NewRangeError(
+                MessageTemplate::kInvalidUnit,
+                factory->NewStringFromStaticChars("Intl.NumberFormat"),
+                factory->NewStringFromAsciiChecked(unit.c_str())),
+            JSNumberFormat);
+      }
+      std::pair<icu::MeasureUnit, icu::MeasureUnit> unit_pair =
+          maybe_wellformed.FromJust();
+
+      // Set intlObj.[[Unit]] to unit.
+      if (unit_pair.first != icu::NoUnit::base()) {
+        icu_number_formatter = icu_number_formatter.unit(unit_pair.first);
+      }
+      if (unit_pair.second != icu::NoUnit::base()) {
+        icu_number_formatter = icu_number_formatter.perUnit(unit_pair.second);
+      }
+
+      // The default unitWidth is SHORT in ICU and that mapped from
+      // Symbol so we can skip the setting for optimization.
+      if (unit_display != UnitDisplay::SHORT) {
+        icu_number_formatter =
+            icu_number_formatter.unitWidth(ToUNumberUnitWidth(unit_display));
+      }
+    }
+  }
+
   if (style == Style::PERCENT) {
     icu_number_formatter = icu_number_formatter.unit(icu::NoUnit::percent())
                                .scale(icu::number::Scale::powerOfTen(2));
@@ -670,6 +1162,35 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
             digit_options.minimum_integer_digits));
   }
 
+  if (FLAG_harmony_intl_numberformat_unified) {
+    // Let notation be ? GetOption(options, "notation", "string", « "standard",
+    // "scientific",  "engineering", "compact" », "standard").
+    Maybe<Notation> maybe_notation = Intl::GetStringOption<Notation>(
+        isolate, options, "notation", service,
+        {"standard", "scientific", "engineering", "compact"},
+        {Notation::STANDARD, Notation::SCIENTIFIC, Notation::ENGINEERING,
+         Notation::COMPACT},
+        Notation::STANDARD);
+    MAYBE_RETURN(maybe_notation, MaybeHandle<JSNumberFormat>());
+    Notation notation = maybe_notation.FromJust();
+
+    // Let compactDisplay be ? GetOption(options, "compactDisplay", "string", «
+    // "short", "long" »,  "short").
+    Maybe<CompactDisplay> maybe_compact_display =
+        Intl::GetStringOption<CompactDisplay>(
+            isolate, options, "compactDisplay", service, {"short", "long"},
+            {CompactDisplay::SHORT, CompactDisplay::LONG},
+            CompactDisplay::SHORT);
+    MAYBE_RETURN(maybe_compact_display, MaybeHandle<JSNumberFormat>());
+    CompactDisplay compact_display = maybe_compact_display.FromJust();
+
+    // The default notation in ICU is Simple, which mapped from STANDARD
+    // so we can skip setting it.
+    if (notation != Notation::STANDARD) {
+      icu_number_formatter = icu_number_formatter.notation(
+          ToICUNotation(notation, compact_display));
+    }
+  }
   // 23. Let useGrouping be ? GetOption(options, "useGrouping", "boolean",
   // undefined, true).
   bool use_grouping = true;
@@ -680,6 +1201,28 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   if (!use_grouping) {
     icu_number_formatter = icu_number_formatter.grouping(
         UNumberGroupingStrategy::UNUM_GROUPING_OFF);
+  }
+
+  if (FLAG_harmony_intl_numberformat_unified) {
+    // Let signDisplay be ? GetOption(options, "signDisplay", "string", «
+    // "auto", "never", "always",  "except-zero" », "auto").
+    Maybe<SignDisplay> maybe_sign_display = Intl::GetStringOption<SignDisplay>(
+        isolate, options, "signDisplay", service,
+        {"auto", "never", "always", "except-zero"},
+        {SignDisplay::AUTO, SignDisplay::NEVER, SignDisplay::ALWAYS,
+         SignDisplay::EXCEPT_ZERO},
+        SignDisplay::AUTO);
+    MAYBE_RETURN(maybe_sign_display, MaybeHandle<JSNumberFormat>());
+    SignDisplay sign_display = maybe_sign_display.FromJust();
+
+    // The default sign in ICU is UNUM_SIGN_AUTO which is mapped from
+    // SignDisplay::AUTO and CurrencySign::STANDARD so we can skip setting
+    // under that values for optimization.
+    if (sign_display != SignDisplay::AUTO ||
+        currency_sign != CurrencySign::STANDARD) {
+      icu_number_formatter = icu_number_formatter.sign(
+          ToUNumberSignDisplay(sign_display, currency_sign));
+    }
   }
 
   // 25. Let dataLocaleData be localeData.[[<dataLocale>]].
@@ -727,6 +1270,13 @@ Maybe<icu::UnicodeString> IcuFormatNumber(
   } else {
     double number = numeric_obj->Number();
     formatted = number_format.formatDouble(number, status);
+  }
+  if (U_FAILURE(status)) {
+    // This happen because of icu data trimming trim out "unit".
+    // See https://bugs.chromium.org/p/v8/issues/detail?id=8641
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NewTypeError(MessageTemplate::kIcuError),
+                                 Nothing<icu::UnicodeString>());
   }
   if (fp_iter) {
     formatted.getAllFieldPositions(*fp_iter, status);

@@ -18,8 +18,10 @@
   V(_, current_string, "current")                                   \
   V(_, collation_string, "collation")                               \
   V(_, compact_string, "compact")                                   \
+  V(_, compactDisplay_string, "compactDisplay")                     \
   V(_, currency_string, "currency")                                 \
   V(_, currencyDisplay_string, "currencyDisplay")                   \
+  V(_, currencySign_string, "currencySign")                         \
   V(_, dateStyle_string, "dateStyle")                               \
   V(_, day_string, "day")                                           \
   V(_, dayPeriod_string, "dayPeriod")                               \
@@ -69,6 +71,7 @@
   V(_, narrow_symbol_string, "narrow-symbol")                       \
   V(_, never_string, "never")                                       \
   V(_, none_string, "none")                                         \
+  V(_, notation_string, "notation")                                 \
   V(_, normal_string, "normal")                                     \
   V(_, numberingSystem_string, "numberingSystem")                   \
   V(_, numeric_string, "numeric")                                   \
@@ -84,6 +87,7 @@
   V(_, sensitivity_string, "sensitivity")                           \
   V(_, sep_string, "sep")                                           \
   V(_, shared_string, "shared")                                     \
+  V(_, signDisplay_string, "signDisplay")                           \
   V(_, standard_string, "standard")                                 \
   V(_, startRange_string, "startRange")                             \
   V(_, strict_string, "strict")                                     \
@@ -99,6 +103,7 @@
   V(_, useGrouping_string, "useGrouping")                           \
   V(_, UTC_string, "UTC")                                           \
   V(_, unit_string, "unit")                                         \
+  V(_, unitDisplay_string, "unitDisplay")                           \
   V(_, weekday_string, "weekday")                                   \
   V(_, year_string, "year")
 #else  // V8_INTL_SUPPORT
