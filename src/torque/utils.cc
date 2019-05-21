@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-DEFINE_CONTEXTUAL_VARIABLE(LintErrors)
+DEFINE_CONTEXTUAL_VARIABLE(TorqueMessages)
 
 std::string StringLiteralUnquote(const std::string& s) {
   DCHECK(('"' == s.front() && '"' == s.back()) ||
@@ -124,23 +124,27 @@ std::string CurrentPositionAsString() {
   return PositionAsString(CurrentSourcePosition::Get());
 }
 
-[[noreturn]] void ThrowTorqueError(const std::string& message,
-                                   bool include_position) {
-  TorqueError error(message);
-  if (include_position) error.position = CurrentSourcePosition::Get();
-  throw error;
-}
-
-void ReportLintError(const std::string& error, SourcePosition pos) {
-  LintErrors::Get().push_back({error, pos});
-}
-
 void NamingConventionError(const std::string& type, const std::string& name,
                            const std::string& convention) {
-  std::stringstream sstream;
-  sstream << type << " \"" << name << "\" does not follow \"" << convention
-          << "\" naming convention.";
-  ReportLintError(sstream.str());
+  Lint(type, " \"", name, "\" does not follow \"", convention,
+       "\" naming convention.");
+}
+
+MessageBuilder::MessageBuilder(const std::string& message,
+                               TorqueMessage::Kind kind) {
+  base::Optional<SourcePosition> position;
+  if (CurrentSourcePosition::HasScope()) {
+    position = CurrentSourcePosition::Get();
+  }
+  message_ = TorqueMessage{message, position, kind};
+}
+
+void MessageBuilder::Report() const {
+  TorqueMessages::Get().push_back(message_);
+}
+
+[[noreturn]] void MessageBuilder::Throw() const {
+  throw TorqueAbortCompilation{};
 }
 
 namespace {

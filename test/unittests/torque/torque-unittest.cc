@@ -42,8 +42,8 @@ TEST(Torque, TypeNamingConventionLintError) {
 
   const TorqueCompilerResult result = TestCompileTorque(source);
 
-  ASSERT_EQ(result.lint_errors.size(), static_cast<size_t>(1));
-  EXPECT_THAT(result.lint_errors[0].message, HasSubstr("\"foo\""));
+  ASSERT_EQ(result.messages.size(), static_cast<size_t>(1));
+  EXPECT_THAT(result.messages[0].message, HasSubstr("\"foo\""));
 }
 
 TEST(Torque, StructNamingConventionLintError) {
@@ -56,8 +56,8 @@ TEST(Torque, StructNamingConventionLintError) {
 
   const TorqueCompilerResult result = TestCompileTorque(source);
 
-  ASSERT_EQ(result.lint_errors.size(), static_cast<size_t>(1));
-  EXPECT_THAT(result.lint_errors[0].message, HasSubstr("\"foo\""));
+  ASSERT_EQ(result.messages.size(), static_cast<size_t>(1));
+  EXPECT_THAT(result.messages[0].message, HasSubstr("\"foo\""));
 }
 
 }  // namespace torque

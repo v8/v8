@@ -9,6 +9,15 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+std::string ErrorPrefixFor(TorqueMessage::Kind kind) {
+  switch (kind) {
+    case TorqueMessage::Kind::kError:
+      return "Torque Error";
+    case TorqueMessage::Kind::kLint:
+      return "Lint error";
+  }
+}
+
 int WrappedMain(int argc, const char** argv) {
   std::string output_directory;
   std::vector<std::string> files;
@@ -35,19 +44,16 @@ int WrappedMain(int argc, const char** argv) {
   // resolve the file name. Needed to report errors and lint warnings.
   SourceFileMap::Scope source_file_map_scope(result.source_file_map);
 
-  if (result.error) {
-    TorqueError& error = *result.error;
-    if (error.position) std::cerr << PositionAsString(*error.position) << ": ";
-    std::cerr << "Torque error: " << error.message << "\n";
-    v8::base::OS::Abort();
+  for (const TorqueMessage& message : result.messages) {
+    if (message.position) {
+      std::cerr << *message.position << ": ";
+    }
+
+    std::cerr << ErrorPrefixFor(message.kind) << ": " << message.message
+              << "\n";
   }
 
-  for (const LintError& error : result.lint_errors) {
-    std::cerr << PositionAsString(error.position)
-              << ": Lint error: " << error.message << "\n";
-  }
-
-  if (!result.lint_errors.empty()) v8::base::OS::Abort();
+  if (!result.messages.empty()) v8::base::OS::Abort();
 
   return 0;
 }

@@ -86,30 +86,19 @@ void ResetCompilationErrorDiagnostics(MessageWriter writer) {
 //   2) send one notification per entry (per file).
 class DiagnosticCollector {
  public:
-  void AddTorqueError(const TorqueError& error) {
-    SourceId id = error.position ? error.position->source : SourceId::Invalid();
+  void AddTorqueMessage(const TorqueMessage& message) {
+    SourceId id =
+        message.position ? message.position->source : SourceId::Invalid();
     auto& notification = GetOrCreateNotificationForSource(id);
 
     Diagnostic diagnostic = notification.params().add_diagnostics();
-    diagnostic.set_severity(Diagnostic::kError);
-    diagnostic.set_message(error.message);
+    diagnostic.set_severity(ServerityFor(message.kind));
+    diagnostic.set_message(message.message);
     diagnostic.set_source("Torque Compiler");
 
-    if (error.position) {
-      PopulateRangeFromSourcePosition(diagnostic.range(), *error.position);
+    if (message.position) {
+      PopulateRangeFromSourcePosition(diagnostic.range(), *message.position);
     }
-  }
-
-  void AddLintError(const LintError& error) {
-    auto& notification =
-        GetOrCreateNotificationForSource(error.position.source);
-
-    Diagnostic diagnostic = notification.params().add_diagnostics();
-    diagnostic.set_severity(Diagnostic::kWarning);
-    diagnostic.set_message(error.message);
-    diagnostic.set_source("Torque Compiler");
-
-    PopulateRangeFromSourcePosition(diagnostic.range(), error.position);
   }
 
   std::map<SourceId, PublishDiagnosticsNotification>& notifications() {
@@ -139,16 +128,25 @@ class DiagnosticCollector {
     range.end().set_character(position.end.column);
   }
 
+  Diagnostic::DiagnosticSeverity ServerityFor(TorqueMessage::Kind kind) {
+    switch (kind) {
+      case TorqueMessage::Kind::kError:
+        return Diagnostic::kError;
+      case TorqueMessage::Kind::kLint:
+        return Diagnostic::kWarning;
+    }
+  }
+
   std::map<SourceId, PublishDiagnosticsNotification> notifications_;
 };
 
 void SendCompilationDiagnostics(const TorqueCompilerResult& result,
                                 MessageWriter writer) {
   DiagnosticCollector collector;
-  if (result.error) collector.AddTorqueError(*result.error);
 
-  for (const LintError& error : result.lint_errors) {
-    collector.AddLintError(error);
+  // TODO(szuend): Split up messages by SourceId and sort them by line number.
+  for (const TorqueMessage& message : result.messages) {
+    collector.AddTorqueMessage(message);
   }
 
   for (auto& pair : collector.notifications()) {

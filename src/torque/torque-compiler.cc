@@ -39,7 +39,7 @@ void ReadAndParseTorqueFile(const std::string& path) {
   }
 
   if (!maybe_content) {
-    ReportErrorWithoutPosition("Cannot open file path/uri: ", path);
+    Error("Cannot open file path/uri: ", path).Throw();
   }
 
   ParseTorque(*maybe_content);
@@ -102,20 +102,21 @@ TorqueCompilerResult CompileTorque(const std::string& source,
   SourceFileMap::Scope source_map_scope;
   CurrentSourceFile::Scope no_file_scope(SourceFileMap::AddSource("<torque>"));
   CurrentAst::Scope ast_scope;
-  LintErrors::Scope lint_errors_scope;
+  TorqueMessages::Scope messages_scope;
   LanguageServerData::Scope server_data_scope;
 
   TorqueCompilerResult result;
   try {
     ParseTorque(source);
     CompileCurrentAst(options);
-  } catch (TorqueError& error) {
-    result.error = error;
+  } catch (TorqueAbortCompilation&) {
+    // Do nothing. The relevant TorqueMessage is part of the
+    // TorqueMessages contextual.
   }
 
   result.source_file_map = SourceFileMap::Get();
   result.language_server_data = std::move(LanguageServerData::Get());
-  result.lint_errors = LintErrors::Get();
+  result.messages = std::move(TorqueMessages::Get());
 
   return result;
 }
@@ -125,20 +126,21 @@ TorqueCompilerResult CompileTorque(std::vector<std::string> files,
   SourceFileMap::Scope source_map_scope;
   CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
   CurrentAst::Scope ast_scope;
-  LintErrors::Scope lint_errors_scope;
+  TorqueMessages::Scope messages_scope;
   LanguageServerData::Scope server_data_scope;
 
   TorqueCompilerResult result;
   try {
     for (const auto& path : files) ReadAndParseTorqueFile(path);
     CompileCurrentAst(options);
-  } catch (TorqueError& error) {
-    result.error = error;
+  } catch (TorqueAbortCompilation&) {
+    // Do nothing. The relevant TorqueMessage is part of the
+    // TorqueMessages contextual.
   }
 
   result.source_file_map = SourceFileMap::Get();
   result.language_server_data = std::move(LanguageServerData::Get());
-  result.lint_errors = LintErrors::Get();
+  result.messages = std::move(TorqueMessages::Get());
 
   return result;
 }

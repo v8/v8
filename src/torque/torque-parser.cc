@@ -249,7 +249,7 @@ void CheckNotDeferredStatement(Statement* statement) {
   CurrentSourcePosition::Scope source_position(statement->pos);
   if (BlockStatement* block = BlockStatement::DynamicCast(statement)) {
     if (block->deferred) {
-      ReportLintError(
+      Lint(
           "cannot use deferred with a statement block here, it will have no "
           "effect");
     }
@@ -657,14 +657,10 @@ class AnnotationSet {
     auto list = iter->NextAs<std::vector<Identifier*>>();
     for (const Identifier* i : list) {
       if (allowed.find(i->value) == allowed.end()) {
-        std::stringstream s;
-        s << "Annotation " << i->value << " is not allowed here";
-        ReportLintError(s.str(), i->pos);
+        Lint("Annotation ", i->value, " is not allowed here").Position(i->pos);
       }
       if (!set_.insert(i->value).second) {
-        std::stringstream s;
-        s << "Duplicate annotation " << i->value;
-        ReportLintError(s.str(), i->pos);
+        Lint("Duplicate annotation ", i->value).Position(i->pos);
       }
     }
   }

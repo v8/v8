@@ -35,13 +35,8 @@ struct TorqueCompilerResult {
   // Set the corresponding options flag to enable.
   LanguageServerData language_server_data;
 
-  // Lint errors collected during compilation. These are
-  // mainly naming convention violations.
-  std::vector<LintError> lint_errors;
-
-  // If any error occurred during either parsing or compilation,
-  // this field will be set.
-  base::Optional<TorqueError> error;
+  // Errors collected during compilation.
+  std::vector<TorqueMessage> messages;
 };
 
 V8_EXPORT_PRIVATE TorqueCompilerResult
