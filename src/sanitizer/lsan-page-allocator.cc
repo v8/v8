@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/lsan-page-allocator.h"
+#include "src/sanitizer/lsan-page-allocator.h"
 
 #include "src/base/logging.h"
 

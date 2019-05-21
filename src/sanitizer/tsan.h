@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BASE_TSAN_H_
-#define V8_BASE_TSAN_H_
+#ifndef V8_SANITIZER_TSAN_H_
+#define V8_SANITIZER_TSAN_H_
 
 namespace v8 {
 namespace base {
@@ -44,4 +44,4 @@ void AnnotateIgnoreWritesEnd(const char* file, int line);
 }  // namespace base
 }  // namespace v8
 
-#endif  // V8_BASE_TSAN_H_
+#endif  // V8_SANITIZER_TSAN_H_

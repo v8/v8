@@ -22,7 +22,6 @@
 #include "src/heap/spaces-inl.h"
 #include "src/isolate-data.h"
 #include "src/isolate.h"
-#include "src/msan.h"
 #include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks-inl.h"
@@ -37,6 +36,7 @@
 #include "src/objects/slots-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/profiler/heap-profiler.h"
+#include "src/sanitizer/msan.h"
 #include "src/strings/string-hasher.h"
 #include "src/zone/zone-list-inl.h"
 

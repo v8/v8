@@ -9,7 +9,7 @@
 #include "src/base/bits.h"
 #include "src/external-reference-table.h"
 #include "src/globals.h"
-#include "src/msan.h"
+#include "src/sanitizer/msan.h"
 #include "src/snapshot/references.h"
 #include "src/v8memory.h"
 #include "src/visitors.h"

@@ -7,7 +7,7 @@
 
 #include "src/handles.h"
 #include "src/isolate.h"
-#include "src/msan.h"
+#include "src/sanitizer/msan.h"
 
 namespace v8 {
 namespace internal {

@@ -7,7 +7,6 @@
 
 #include "src/objects/fixed-array.h"
 
-#include "src/base/tsan.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
@@ -20,6 +19,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/slots.h"
 #include "src/roots-inl.h"
+#include "src/sanitizer/tsan.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

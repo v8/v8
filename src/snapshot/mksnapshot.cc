@@ -12,7 +12,7 @@
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/source-position-table.h"
 #include "src/flags.h"
-#include "src/msan.h"
+#include "src/sanitizer/msan.h"
 #include "src/snapshot/embedded-file-writer.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/partial-serializer.h"

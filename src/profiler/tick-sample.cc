@@ -7,11 +7,11 @@
 #include <cinttypes>
 
 #include "include/v8-profiler.h"
-#include "src/asan.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"  // For MemoryAllocator::code_range.
 #include "src/logging/counters.h"
-#include "src/msan.h"
+#include "src/sanitizer/asan.h"
+#include "src/sanitizer/msan.h"
 #include "src/simulator.h"
 #include "src/vm-state-inl.h"
 

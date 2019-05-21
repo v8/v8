@@ -4,8 +4,8 @@
 
 // AddressSanitizer support.
 
-#ifndef V8_ASAN_H_
-#define V8_ASAN_H_
+#ifndef V8_SANITIZER_ASAN_H_
+#define V8_SANITIZER_ASAN_H_
 
 #include "src/base/macros.h"
 #include "src/globals.h"
@@ -25,4 +25,4 @@
 
 #endif  // V8_USE_ADDRESS_SANITIZER
 
-#endif  // V8_ASAN_H_
+#endif  // V8_SANITIZER_ASAN_H_

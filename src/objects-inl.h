@@ -15,7 +15,6 @@
 #include "src/objects.h"
 
 #include "src/base/bits.h"
-#include "src/base/tsan.h"
 #include "src/builtins/builtins.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
@@ -39,6 +38,7 @@
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/templates.h"
+#include "src/sanitizer/tsan.h"
 #include "src/v8memory.h"
 #include "torque-generated/class-definitions-tq-inl.h"
 

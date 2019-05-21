@@ -8,10 +8,10 @@
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
-#include "src/base/lsan-page-allocator.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
 #include "src/memcopy.h"
+#include "src/sanitizer/lsan-page-allocator.h"
 #include "src/v8.h"
 #include "src/vector.h"
 

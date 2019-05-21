@@ -4,8 +4,8 @@
 
 // MemorySanitizer support.
 
-#ifndef V8_MSAN_H_
-#define V8_MSAN_H_
+#ifndef V8_SANITIZER_MSAN_H_
+#define V8_SANITIZER_MSAN_H_
 
 #include "src/base/macros.h"
 #include "src/globals.h"
@@ -33,4 +33,4 @@
 
 #endif  // V8_USE_MEMORY_SANITIZER
 
-#endif  // V8_MSAN_H_
+#endif  // V8_SANITIZER_MSAN_H_

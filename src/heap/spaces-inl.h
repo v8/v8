@@ -12,8 +12,8 @@
 #include "src/base/v8-fallthrough.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/msan.h"
 #include "src/objects/code-inl.h"
+#include "src/sanitizer/msan.h"
 
 namespace v8 {
 namespace internal {
