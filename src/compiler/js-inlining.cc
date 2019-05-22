@@ -403,18 +403,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
   }
 
-  // Calls surrounded by a local try-block are only inlined if the
-  // appropriate flag is active. We also discover the {IfException}
-  // projection this way.
   Node* exception_target = nullptr;
-  if (NodeProperties::IsExceptionalCall(node, &exception_target) &&
-      !FLAG_inline_into_try) {
-    TRACE("Try block surrounds #"
-          << exception_target->id() << ":" << exception_target->op()->mnemonic()
-          << " and --no-inline-into-try active, so not inlining "
-          << *shared_info << " into " << info_->shared_info());
-    return NoChange();
-  }
+  NodeProperties::IsExceptionalCall(node, &exception_target);
 
   // JSInliningHeuristic has already filtered candidates without a
   // BytecodeArray by calling SharedFunctionInfoRef::IsInlineable. For the ones

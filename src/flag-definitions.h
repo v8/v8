@@ -540,7 +540,6 @@ DEFINE_VALUE_IMPLICATION(stress_inline, min_inlining_frequency, 0)
 DEFINE_VALUE_IMPLICATION(stress_inline, polymorphic_inlining, true)
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(inline_accessors, true, "inline JavaScript accessors")
-DEFINE_BOOL(inline_into_try, true, "inline into try blocks")
 DEFINE_BOOL(turbo_inline_array_builtins, true,
             "inline array builtins in TurboFan code")
 DEFINE_BOOL(use_osr, true, "use on-stack replacement")
