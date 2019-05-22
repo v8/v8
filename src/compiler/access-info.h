@@ -76,7 +76,7 @@ class PropertyAccessInfo final {
       Zone* zone, Handle<Map> receiver_map,
       ZoneVector<CompilationDependencies::Dependency const*>&&
           unrecorded_dependencies,
-      FieldIndex field_index, MachineRepresentation field_representation,
+      FieldIndex field_index, Representation field_representation,
       Type field_type, MaybeHandle<Map> field_map = MaybeHandle<Map>(),
       MaybeHandle<JSObject> holder = MaybeHandle<JSObject>(),
       MaybeHandle<Map> transition_map = MaybeHandle<Map>());
@@ -84,7 +84,7 @@ class PropertyAccessInfo final {
       Zone* zone, Handle<Map> receiver_map,
       ZoneVector<CompilationDependencies::Dependency const*>&&
           unrecorded_dependencies,
-      FieldIndex field_index, MachineRepresentation field_representation,
+      FieldIndex field_index, Representation field_representation,
       Type field_type, MaybeHandle<Map> field_map,
       MaybeHandle<JSObject> holder);
   static PropertyAccessInfo AccessorConstant(Zone* zone,
@@ -122,9 +122,7 @@ class PropertyAccessInfo final {
   Handle<Object> constant() const { return constant_; }
   FieldIndex field_index() const { return field_index_; }
   Type field_type() const { return field_type_; }
-  MachineRepresentation field_representation() const {
-    return field_representation_;
-  }
+  Representation field_representation() const { return field_representation_; }
   MaybeHandle<Map> field_map() const { return field_map_; }
   ZoneVector<Handle<Map>> const& receiver_maps() const {
     return receiver_maps_;
@@ -140,7 +138,7 @@ class PropertyAccessInfo final {
                      ZoneVector<Handle<Map>>&& receiver_maps);
   PropertyAccessInfo(
       Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
-      FieldIndex field_index, MachineRepresentation field_representation,
+      FieldIndex field_index, Representation field_representation,
       Type field_type, MaybeHandle<Map> field_map,
       ZoneVector<Handle<Map>>&& receiver_maps,
       ZoneVector<CompilationDependencies::Dependency const*>&& dependencies);
@@ -153,7 +151,7 @@ class PropertyAccessInfo final {
   MaybeHandle<Map> transition_map_;
   MaybeHandle<JSObject> holder_;
   FieldIndex field_index_;
-  MachineRepresentation field_representation_;
+  Representation field_representation_;
   Type field_type_;
   MaybeHandle<Map> field_map_;
 };

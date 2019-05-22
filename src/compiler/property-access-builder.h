@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/codegen/machine-type.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/handles.h"
 #include "src/objects/map.h"
@@ -51,6 +52,9 @@ class PropertyAccessBuilder {
   Node* BuildLoadDataField(NameRef const& name,
                            PropertyAccessInfo const& access_info,
                            Node* receiver, Node** effect, Node** control);
+
+  static MachineRepresentation ConvertRepresentation(
+      Representation representation);
 
  private:
   JSGraph* jsgraph() const { return jsgraph_; }

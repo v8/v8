@@ -2229,7 +2229,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
     FieldIndex const field_index = access_info.field_index();
     Type const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
-        access_info.field_representation();
+        PropertyAccessBuilder::ConvertRepresentation(
+            access_info.field_representation());
     Node* storage = receiver;
     if (!field_index.is_inobject()) {
       storage = effect = graph()->NewNode(

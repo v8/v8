@@ -3936,6 +3936,7 @@ Handle<Object> JSObject::FastPropertyAt(Handle<JSObject> object,
                                         FieldIndex index) {
   Isolate* isolate = object->GetIsolate();
   if (object->IsUnboxedDoubleField(index)) {
+    DCHECK(representation.IsDouble());
     double value = object->RawFastDoublePropertyAt(index);
     return isolate->factory()->NewHeapNumber(value);
   }

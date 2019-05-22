@@ -79,7 +79,7 @@ PropertyAccessInfo PropertyAccessInfo::NotFound(Zone* zone,
 PropertyAccessInfo PropertyAccessInfo::DataField(
     Zone* zone, Handle<Map> receiver_map,
     ZoneVector<CompilationDependencies::Dependency const*>&& dependencies,
-    FieldIndex field_index, MachineRepresentation field_representation,
+    FieldIndex field_index, Representation field_representation,
     Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
     MaybeHandle<Map> transition_map) {
   return PropertyAccessInfo(kDataField, holder, transition_map, field_index,
@@ -91,7 +91,7 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
 PropertyAccessInfo PropertyAccessInfo::DataConstant(
     Zone* zone, Handle<Map> receiver_map,
     ZoneVector<CompilationDependencies::Dependency const*>&& dependencies,
-    FieldIndex field_index, MachineRepresentation field_representation,
+    FieldIndex field_index, Representation field_representation,
     Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder) {
   return PropertyAccessInfo(kDataConstant, holder, MaybeHandle<Map>(),
                             field_index, field_representation, field_type,
@@ -126,7 +126,7 @@ PropertyAccessInfo::PropertyAccessInfo(Zone* zone)
     : kind_(kInvalid),
       receiver_maps_(zone),
       unrecorded_dependencies_(zone),
-      field_representation_(MachineRepresentation::kNone),
+      field_representation_(Representation::None()),
       field_type_(Type::None()) {}
 
 PropertyAccessInfo::PropertyAccessInfo(Zone* zone, Kind kind,
@@ -136,7 +136,7 @@ PropertyAccessInfo::PropertyAccessInfo(Zone* zone, Kind kind,
       receiver_maps_(receiver_maps),
       unrecorded_dependencies_(zone),
       holder_(holder),
-      field_representation_(MachineRepresentation::kNone),
+      field_representation_(Representation::None()),
       field_type_(Type::None()) {}
 
 PropertyAccessInfo::PropertyAccessInfo(Zone* zone, Kind kind,
@@ -148,12 +148,12 @@ PropertyAccessInfo::PropertyAccessInfo(Zone* zone, Kind kind,
       unrecorded_dependencies_(zone),
       constant_(constant),
       holder_(holder),
-      field_representation_(MachineRepresentation::kNone),
+      field_representation_(Representation::None()),
       field_type_(Type::Any()) {}
 
 PropertyAccessInfo::PropertyAccessInfo(
     Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
-    FieldIndex field_index, MachineRepresentation field_representation,
+    FieldIndex field_index, Representation field_representation,
     Type field_type, MaybeHandle<Map> field_map,
     ZoneVector<Handle<Map>>&& receiver_maps,
     ZoneVector<CompilationDependencies::Dependency const*>&&
@@ -188,12 +188,13 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
         switch (access_mode) {
           case AccessMode::kHas:
           case AccessMode::kLoad: {
-            if (this->field_representation_ != that->field_representation_) {
-              if (!IsAnyCompressedTagged(this->field_representation_) ||
-                  !IsAnyCompressedTagged(that->field_representation_)) {
+            if (!this->field_representation_.Equals(
+                    that->field_representation_)) {
+              if (this->field_representation_.IsDouble() ||
+                  that->field_representation_.IsDouble()) {
                 return false;
               }
-              this->field_representation_ = MachineType::RepCompressedTagged();
+              this->field_representation_ = Representation::Tagged();
             }
             if (this->field_map_.address() != that->field_map_.address()) {
               this->field_map_ = MaybeHandle<Map>();
@@ -207,7 +208,8 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
             // also need to make sure that in case of transitioning stores,
             // the transition targets match.
             if (this->field_map_.address() != that->field_map_.address() ||
-                this->field_representation_ != that->field_representation_ ||
+                !this->field_representation_.Equals(
+                    that->field_representation_) ||
                 this->transition_map_.address() !=
                     that->transition_map_.address()) {
               return false;
@@ -332,26 +334,21 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   FieldIndex field_index =
       FieldIndex::ForPropertyIndex(*map, index, details_representation);
   Type field_type = Type::NonInternal();
-  MachineRepresentation field_representation =
-      MachineType::RepCompressedTagged();
   MaybeHandle<Map> field_map;
   MapRef map_ref(broker(), map);
   ZoneVector<CompilationDependencies::Dependency const*>
       unrecorded_dependencies(zone());
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
-    field_representation = MachineType::RepCompressedTaggedSigned();
     map_ref.SerializeOwnDescriptor(descriptor);
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
                                                                   descriptor));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
-    field_representation = MachineRepresentation::kFloat64;
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
-    field_representation = MachineType::RepCompressedTaggedPointer();
     Handle<FieldType> descriptors_field_type(
         descriptors->GetFieldType(descriptor), isolate());
     if (descriptors_field_type->IsNone()) {
@@ -376,18 +373,22 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       field_map = MaybeHandle<Map>(map);
     }
   }
-  map_ref.SerializeOwnDescriptor(descriptor);
-  PropertyConstness constness =
-      dependencies()->DependOnFieldConstness(map_ref, descriptor);
+  PropertyConstness constness;
+  if (details.IsReadOnly() && !details.IsConfigurable()) {
+    constness = PropertyConstness::kConst;
+  } else {
+    map_ref.SerializeOwnDescriptor(descriptor);
+    constness = dependencies()->DependOnFieldConstness(map_ref, descriptor);
+  }
   switch (constness) {
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
-          field_representation, field_type, field_map, holder);
+          details_representation, field_type, field_map, holder);
     case PropertyConstness::kConst:
       return PropertyAccessInfo::DataConstant(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
-          field_representation, field_type, field_map, holder);
+          details_representation, field_type, field_map, holder);
   }
   UNREACHABLE();
 }
@@ -705,8 +706,7 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
   FieldIndex field_index;
   if (Accessors::IsJSObjectFieldAccessor(isolate(), map, name, &field_index)) {
     Type field_type = Type::NonInternal();
-    MachineRepresentation field_representation =
-        MachineType::RepCompressedTagged();
+    Representation field_representation = Representation::Tagged();
     if (map->IsJSArrayMap()) {
       DCHECK(
           Name::Equals(isolate(), isolate()->factory()->length_string(), name));
@@ -717,10 +717,10 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
       // case of other arrays.
       if (IsDoubleElementsKind(map->elements_kind())) {
         field_type = type_cache_->kFixedDoubleArrayLengthType;
-        field_representation = MachineType::RepCompressedTaggedSigned();
+        field_representation = Representation::Smi();
       } else if (IsFastElementsKind(map->elements_kind())) {
         field_type = type_cache_->kFixedArrayLengthType;
-        field_representation = MachineType::RepCompressedTaggedSigned();
+        field_representation = Representation::Smi();
       } else {
         field_type = type_cache_->kJSArrayLengthType;
       }
@@ -759,25 +759,20 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
                                                         details_representation);
   Type field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
-  MachineRepresentation field_representation =
-      MachineType::RepCompressedTagged();
   MapRef transition_map_ref(broker(), transition_map);
   ZoneVector<CompilationDependencies::Dependency const*>
       unrecorded_dependencies(zone());
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
-    field_representation = MachineType::RepCompressedTaggedSigned();
     transition_map_ref.SerializeOwnDescriptor(number);
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
             transition_map_ref, number));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
-    field_representation = MachineRepresentation::kFloat64;
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
-    field_representation = MachineType::RepCompressedTaggedPointer();
     Handle<FieldType> descriptors_field_type(
         transition_map->instance_descriptors()->GetFieldType(number),
         isolate());
@@ -805,7 +800,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   // Transitioning stores are never stores to constant fields.
   return PropertyAccessInfo::DataField(
       zone(), map, std::move(unrecorded_dependencies), field_index,
-      field_representation, field_type, field_map, holder, transition_map);
+      details_representation, field_type, field_map, holder, transition_map);
 }
 
 }  // namespace compiler

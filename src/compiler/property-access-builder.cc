@@ -132,11 +132,26 @@ Node* PropertyAccessBuilder::ResolveHolder(
   return receiver;
 }
 
+MachineRepresentation PropertyAccessBuilder::ConvertRepresentation(
+    Representation representation) {
+  switch (representation.kind()) {
+    case Representation::kSmi:
+      return MachineType::RepCompressedTaggedSigned();
+    case Representation::kDouble:
+      return MachineRepresentation::kFloat64;
+    case Representation::kHeapObject:
+      return MachineType::RepCompressedTaggedPointer();
+    case Representation::kTagged:
+      return MachineType::RepCompressedTagged();
+    default:
+      UNREACHABLE();
+  }
+}
+
 Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     NameRef const& name, PropertyAccessInfo const& access_info,
     Node* receiver) {
-  // Optimize immutable property loads.
-
+  if (!access_info.IsDataConstant()) return nullptr;
   // First, determine if we have a constant holder to load from.
   Handle<JSObject> holder;
   // If {access_info} has a holder, just use it.
@@ -158,27 +173,9 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     holder = Handle<JSObject>::cast(m.Value());
   }
 
-  // TODO(ishell): Use something simpler like
-  //
-  // Handle<Object> value =
-  //     JSObject::FastPropertyAt(Handle<JSObject>::cast(m.Value()),
-  //                              Representation::Tagged(), field_index);
-  //
-  // here, once we have the immutable bit in the access_info.
-
-  // TODO(turbofan): Given that we already have the field_index here, we
-  // might be smarter in the future and not rely on the LookupIterator.
-  LookupIterator it(isolate(), holder, name.object(),
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  if (it.state() == LookupIterator::DATA) {
-    if (it.IsReadOnly() && !it.IsConfigurable()) {
-      return jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
-    } else if (access_info.IsDataConstant()) {
-      DCHECK(!it.is_dictionary_holder());
-      return jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
-    }
-  }
-  return nullptr;
+  Handle<Object> value = JSObject::FastPropertyAt(
+      holder, access_info.field_representation(), access_info.field_index());
+  return jsgraph()->Constant(value);
 }
 
 Node* PropertyAccessBuilder::BuildLoadDataField(
@@ -193,7 +190,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
   FieldIndex const field_index = access_info.field_index();
   Type const field_type = access_info.field_type();
   MachineRepresentation const field_representation =
-      access_info.field_representation();
+      ConvertRepresentation(access_info.field_representation());
   Node* storage = ResolveHolder(access_info, receiver);
   if (!field_index.is_inobject()) {
     storage = *effect = graph()->NewNode(
