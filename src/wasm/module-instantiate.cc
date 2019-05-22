@@ -930,8 +930,10 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
     return false;
   }
 
-  if (table.type == kWasmAnyFunc && !InitializeImportedIndirectFunctionTable(
-                                        instance, import_index, table_object)) {
+  // The indirect function table only exists for table 0.
+  if (table.type == kWasmAnyFunc && table_index == 0 &&
+      !InitializeImportedIndirectFunctionTable(instance, import_index,
+                                               table_object)) {
     return false;
   }
 
