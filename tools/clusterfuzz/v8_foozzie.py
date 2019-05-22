@@ -96,6 +96,7 @@ ADDITIONAL_FLAGS = [
   (0.01, '--thread-pool-size=2'),
   (0.01, '--thread-pool-size=4'),
   (0.01, '--thread-pool-size=8'),
+  (0.1, '--interrupt-budget=1000'),
 ]
 
 # Timeout in seconds for one d8 run.
