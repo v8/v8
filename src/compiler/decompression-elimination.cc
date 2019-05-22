@@ -78,6 +78,21 @@ Reduction DecompressionElimination::ReduceCompress(Node* node) {
   }
 }
 
+Reduction DecompressionElimination::ReduceTypedStateValues(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kTypedStateValues);
+
+  bool any_change = false;
+  for (int i = 0; i < node->InputCount(); ++i) {
+    Node* input = node->InputAt(i);
+    if (IrOpcode::IsDecompressOpcode(input->opcode())) {
+      DCHECK_EQ(input->InputCount(), 1);
+      node->ReplaceInput(i, input->InputAt(0));
+      any_change = true;
+    }
+  }
+  return any_change ? Changed(node) : NoChange();
+}
+
 Reduction DecompressionElimination::ReduceWord64Equal(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWord64Equal);
 
@@ -123,6 +138,8 @@ Reduction DecompressionElimination::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedSignedToCompressedSigned:
     case IrOpcode::kChangeTaggedPointerToCompressedPointer:
       return ReduceCompress(node);
+    case IrOpcode::kTypedStateValues:
+      return ReduceTypedStateValues(node);
     case IrOpcode::kWord64Equal:
       return ReduceWord64Equal(node);
     default:

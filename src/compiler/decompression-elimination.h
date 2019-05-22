@@ -48,6 +48,9 @@ class V8_EXPORT_PRIVATE DecompressionElimination final
   // Can be used for Any, Signed, and Pointer compressions.
   Reduction ReduceCompress(Node* node);
 
+  // Replaces TypedStateValues's input decompressions with their parent node.
+  Reduction ReduceTypedStateValues(Node* node);
+
   // Replaces a Word64Equal with a Word32Equal if both of its inputs are
   // Decompress nodes, or if one is a Decompress node and the other a constant.
   // In the case of two decompresses, it uses the original inputs before they
