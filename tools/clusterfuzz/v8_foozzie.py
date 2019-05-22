@@ -43,7 +43,17 @@ CONFIGS = dict(
     '--no-lazy',
     '--no-lazy-inner-functions',
   ],
+  ignition_no_ic=[
+    '--turbo-filter=~',
+    '--noopt',
+    '--liftoff',
+    '--no-wasm-tier-up',
+    '--no-use-ic',
+  ],
   ignition_turbo=[],
+  ignition_turbo_no_ic=[
+    '--no-use-ic',
+  ],
   ignition_turbo_opt=[
     '--always-opt',
     '--no-liftoff',
