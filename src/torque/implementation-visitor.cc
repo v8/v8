@@ -3393,7 +3393,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
           // consistent, but for now we'll just avoid the bad case.
           cc_contents << "  " << super_name << "Verify(o, isolate);\n";
         } else {
-          cc_contents << "  o->" << super_name << "Verify(isolate);\n";
+          cc_contents << "  o." << super_name << "Verify(isolate);\n";
         }
       }
 
