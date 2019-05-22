@@ -1593,6 +1593,11 @@ struct CsaOptimizationPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
+#ifdef V8_COMPRESS_POINTERS
+    DecompressionElimination decompression_elimination(
+        &graph_reducer, data->graph(), data->machine(), data->common());
+    AddReducer(data, &graph_reducer, &decompression_elimination);
+#endif
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &machine_reducer);

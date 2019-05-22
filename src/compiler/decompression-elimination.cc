@@ -35,7 +35,8 @@ bool DecompressionElimination::IsValidDecompress(
       return IrOpcode::IsDecompressOpcode(decompressOpcode);
     case IrOpcode::kChangeTaggedSignedToCompressedSigned:
       return decompressOpcode ==
-             IrOpcode::kChangeCompressedSignedToTaggedSigned;
+                 IrOpcode::kChangeCompressedSignedToTaggedSigned ||
+             decompressOpcode == IrOpcode::kChangeCompressedToTagged;
     case IrOpcode::kChangeTaggedPointerToCompressedPointer:
       return decompressOpcode ==
                  IrOpcode::kChangeCompressedPointerToTaggedPointer ||
