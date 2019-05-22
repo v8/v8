@@ -166,26 +166,6 @@ void JSHeapBroker::IncrementTracingIndentation() { ++trace_indentation_; }
 
 void JSHeapBroker::DecrementTracingIndentation() { --trace_indentation_; }
 
-class TraceScope {
- public:
-  TraceScope(JSHeapBroker* broker, const char* label)
-      : TraceScope(broker, static_cast<void*>(broker), label) {}
-
-  TraceScope(JSHeapBroker* broker, ObjectData* data, const char* label)
-      : TraceScope(broker, static_cast<void*>(data), label) {}
-
-  ~TraceScope() { broker_->DecrementTracingIndentation(); }
-
- private:
-  JSHeapBroker* const broker_;
-
-  TraceScope(JSHeapBroker* broker, void* self, const char* label)
-      : broker_(broker) {
-    TRACE(broker_, "Running " << label << " on " << self);
-    broker_->IncrementTracingIndentation();
-  }
-};
-
 PropertyCellData::PropertyCellData(JSHeapBroker* broker, ObjectData** storage,
                                    Handle<PropertyCell> object)
     : HeapObjectData(broker, storage, object),

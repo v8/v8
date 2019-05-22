@@ -67,16 +67,15 @@ std::ostream& operator<<(std::ostream& out,
 }
 
 std::ostream& operator<<(std::ostream& out, const Hints& hints) {
-  !hints.constants().empty() &&
-      out << "\t\tConstants (" << hints.constants().size() << "):" << std::endl;
-  for (auto x : hints.constants()) out << Brief(*x) << std::endl;
-  !hints.maps().empty() && out << "\t\tMaps (" << hints.maps().size()
-                               << "):" << std::endl;
-  for (auto x : hints.maps()) out << Brief(*x) << std::endl;
-  !hints.function_blueprints().empty() &&
-      out << "\t\tBlueprints (" << hints.function_blueprints().size()
-          << "):" << std::endl;
-  for (auto x : hints.function_blueprints()) out << x;
+  for (Handle<Object> constant : hints.constants()) {
+    out << "  constant " << Brief(*constant) << std::endl;
+  }
+  for (Handle<Map> map : hints.maps()) {
+    out << "  map " << Brief(*map) << std::endl;
+  }
+  for (FunctionBlueprint const& blueprint : hints.function_blueprints()) {
+    out << "  blueprint " << blueprint << std::endl;
+  }
   return out;
 }
 
@@ -214,21 +213,43 @@ std::ostream& operator<<(
     std::ostream& out,
     const SerializerForBackgroundCompilation::Environment& env) {
   std::ostringstream output_stream;
-  output_stream << "Function ";
-  env.function_.shared->Name()->Print(output_stream);
-  output_stream << "Parameter count: " << env.parameter_count() << std::endl;
-  output_stream << "Register count: " << env.register_count() << std::endl;
 
-  output_stream << "Hints (" << env.environment_hints_.size() << "):\n";
-  for (size_t i = 0; i < env.environment_hints_.size(); ++i) {
-    if (env.environment_hints_[i].IsEmpty()) continue;
-
-    output_stream << "\tSlot " << i << std::endl;
-    output_stream << env.environment_hints_[i];
+  for (size_t i = 0; i << env.parameter_count(); ++i) {
+    Hints const& hints = env.environment_hints_[i];
+    if (!hints.IsEmpty()) {
+      output_stream << "Hints for a" << i << ":\n" << hints;
+    }
   }
-  output_stream << "Return value:\n";
-  output_stream << env.return_value_hints_
-                << "===========================================\n";
+  for (size_t i = 0; i << env.register_count(); ++i) {
+    Hints const& hints = env.environment_hints_[env.parameter_count() + i];
+    if (!hints.IsEmpty()) {
+      output_stream << "Hints for r" << i << ":\n" << hints;
+    }
+  }
+  {
+    Hints const& hints = env.environment_hints_[env.accumulator_index()];
+    if (!hints.IsEmpty()) {
+      output_stream << "Hints for <accumulator>:\n" << hints;
+    }
+  }
+  {
+    Hints const& hints = env.environment_hints_[env.function_closure_index()];
+    if (!hints.IsEmpty()) {
+      output_stream << "Hints for <closure>:\n" << hints;
+    }
+  }
+  {
+    Hints const& hints = env.environment_hints_[env.current_context_index()];
+    if (!hints.IsEmpty()) {
+      output_stream << "Hints for <context>:\n" << hints;
+    }
+  }
+  {
+    Hints const& hints = env.return_value_hints_;
+    if (!hints.IsEmpty()) {
+      output_stream << "Hints for {return value}:\n" << hints;
+    }
+  }
 
   out << output_stream.str();
   return out;
@@ -269,6 +290,10 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
       environment_(new (zone) Environment(zone, broker_->isolate(), function,
                                           new_target, arguments)),
       stashed_environments_(zone) {
+  TraceScope tracer(
+      broker_, this,
+      "SerializerForBackgroundCompilation::SerializerForBackgroundCompilation");
+  TRACE_BROKER(broker_, "Initial environment:\n" << *environment_);
   Handle<JSFunction> closure;
   if (function.closure().ToHandle(&closure)) {
     JSFunctionRef(broker, closure).Serialize();
@@ -276,10 +301,14 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
 }
 
 Hints SerializerForBackgroundCompilation::Run() {
+  TraceScope tracer(broker(), this, "SerializerForBackgroundCompilation::Run");
   SharedFunctionInfoRef shared(broker(), environment()->function().shared);
   FeedbackVectorRef feedback_vector(broker(),
                                     environment()->function().feedback_vector);
   if (shared.IsSerializedForCompilation(feedback_vector)) {
+    TRACE_BROKER(broker(), "Already ran serializer for SharedFunctionInfo "
+                               << Brief(*shared.object())
+                               << ", bailing out.\n");
     return Hints(zone());
   }
   shared.SetSerializedForCompilation(feedback_vector);
@@ -305,6 +334,12 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
 
   for (; !iterator.done(); iterator.Advance()) {
     MergeAfterJump(&iterator);
+
+    TRACE_BROKER(broker(),
+                 "Handling bytecode: " << iterator.current_offset() << "  "
+                                       << iterator.current_bytecode());
+    TRACE_BROKER(broker(), "Current environment:\n" << *environment());
+
     switch (iterator.current_bytecode()) {
 #define DEFINE_BYTECODE_CASE(name)     \
   case interpreter::Bytecode::k##name: \
@@ -577,9 +612,6 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
         Hints(zone()));
     return RunChildSerializer(function, new_target, padded, false);
   }
-
-  TRACE_BROKER(broker(), "Will run child serializer with environment:\n"
-                             << *environment());
 
   SerializerForBackgroundCompilation child_serializer(
       broker(), dependencies(), zone(), function, new_target, arguments,

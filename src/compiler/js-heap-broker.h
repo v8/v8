@@ -820,6 +820,17 @@ struct FeedbackSource {
   };
 };
 
+#define TRACE_BROKER(broker, x)                                       \
+  do {                                                                \
+    if (FLAG_trace_heap_broker_verbose) broker->Trace() << x << '\n'; \
+  } while (false)
+
+#define TRACE_BROKER_MISSING(broker, x)                             \
+  do {                                                              \
+    if (FLAG_trace_heap_broker)                                     \
+      broker->Trace() << __FUNCTION__ << ": missing " << x << '\n'; \
+  } while (false)
+
 class V8_EXPORT_PRIVATE JSHeapBroker {
  public:
   JSHeapBroker(Isolate* isolate, Zone* broker_zone);
@@ -901,6 +912,26 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   static const size_t kInitialRefsBucketCount = 1024;  // must be power of 2
 };
 
+class TraceScope {
+ public:
+  TraceScope(JSHeapBroker* broker, const char* label)
+      : TraceScope(broker, static_cast<void*>(broker), label) {}
+
+  TraceScope(JSHeapBroker* broker, ObjectData* data, const char* label)
+      : TraceScope(broker, static_cast<void*>(data), label) {}
+
+  TraceScope(JSHeapBroker* broker, void* subject, const char* label)
+      : broker_(broker) {
+    TRACE_BROKER(broker_, "Running " << label << " on " << subject);
+    broker_->IncrementTracingIndentation();
+  }
+
+  ~TraceScope() { broker_->DecrementTracingIndentation(); }
+
+ private:
+  JSHeapBroker* const broker_;
+};
+
 #define ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(something_var,             \
                                                 optionally_something)      \
   auto optionally_something_ = optionally_something;                       \
@@ -915,17 +946,6 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
 // Miscellaneous definitions that should be moved elsewhere once concurrent
 // compilation is finished.
 bool CanInlineElementAccess(MapRef const& map);
-
-#define TRACE_BROKER(broker, x)                                       \
-  do {                                                                \
-    if (FLAG_trace_heap_broker_verbose) broker->Trace() << x << '\n'; \
-  } while (false)
-
-#define TRACE_BROKER_MISSING(broker, x)                             \
-  do {                                                              \
-    if (FLAG_trace_heap_broker)                                     \
-      broker->Trace() << __FUNCTION__ << ": missing " << x << '\n'; \
-  } while (false)
 
 }  // namespace compiler
 }  // namespace internal
