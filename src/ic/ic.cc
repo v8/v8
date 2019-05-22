@@ -1766,12 +1766,16 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
 void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
                                       KeyedAccessStoreMode store_mode,
-                                      TransitionMode transition_mode) {
+                                      Handle<Map> new_receiver_map) {
   MapHandles target_receiver_maps;
   TargetMaps(&target_receiver_maps);
   if (target_receiver_maps.empty()) {
-    Handle<Map> monomorphic_map =
-        ComputeTransitionedMap(receiver_map, transition_mode);
+    Handle<Map> monomorphic_map = receiver_map;
+    // If we transitioned to a map that is a more general map than incoming
+    // then use the new map.
+    if (IsTransitionOfMonomorphicTarget(*receiver_map, *new_receiver_map)) {
+      monomorphic_map = new_receiver_map;
+    }
     Handle<Object> handler = StoreElementHandler(monomorphic_map, store_mode);
     return ConfigureVectorState(Handle<Name>(), monomorphic_map, handler);
   }
@@ -1791,11 +1795,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   KeyedAccessStoreMode old_store_mode = GetKeyedAccessStoreMode();
   Handle<Map> previous_receiver_map = target_receiver_maps.at(0);
   if (state() == MONOMORPHIC) {
-    Handle<Map> transitioned_receiver_map =
-        ComputeTransitionedMap(receiver_map, transition_mode);
-    if ((receiver_map.is_identical_to(previous_receiver_map) &&
-         transition_mode != TransitionMode::kNoTransition) ||
-        IsTransitionOfMonomorphicTarget(*previous_receiver_map,
+    Handle<Map> transitioned_receiver_map = new_receiver_map;
+    if (IsTransitionOfMonomorphicTarget(*previous_receiver_map,
                                         *transitioned_receiver_map)) {
       // If the "old" and "new" maps are in the same elements map family, or
       // if they at least come from the same origin for a transitioning store,
@@ -1805,10 +1806,11 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       ConfigureVectorState(Handle<Name>(), transitioned_receiver_map, handler);
       return;
     }
+    // If there is no transition and if we have seen the same map earlier and
+    // there is only a change in the store_mode we can still stay monomorphic.
     if (receiver_map.is_identical_to(previous_receiver_map) &&
-        old_store_mode == STANDARD_STORE &&
-        transition_mode == TransitionMode::kNoTransition &&
-        store_mode != STANDARD_STORE) {
+        new_receiver_map.is_identical_to(receiver_map) &&
+        old_store_mode == STANDARD_STORE && store_mode != STANDARD_STORE) {
       // A "normal" IC that handles stores can switch to a version that can
       // grow at the end of the array, handle OOB accesses or copy COW arrays
       // and still stay MONOMORPHIC.
@@ -1822,11 +1824,9 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   bool map_added =
       AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map);
 
-  if (transition_mode != TransitionMode::kNoTransition) {
-    Handle<Map> transitioned_receiver_map =
-        ComputeTransitionedMap(receiver_map, transition_mode);
-    map_added |= AddOneReceiverMapIfMissing(&target_receiver_maps,
-                                            transitioned_receiver_map);
+  if (IsTransitionOfMonomorphicTarget(*receiver_map, *new_receiver_map)) {
+    map_added |=
+        AddOneReceiverMapIfMissing(&target_receiver_maps, new_receiver_map);
   }
 
   if (!map_added) {
@@ -1884,27 +1884,6 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   } else {
     ConfigureVectorState(Handle<Name>(), target_receiver_maps, &handlers);
   }
-}
-
-Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
-    Handle<Map> map, TransitionMode transition_mode) {
-  switch (transition_mode) {
-    case TransitionMode::kTransitionToObject: {
-      ElementsKind kind = IsHoleyElementsKind(map->elements_kind())
-                              ? HOLEY_ELEMENTS
-                              : PACKED_ELEMENTS;
-      return Map::TransitionElementsTo(isolate(), map, kind);
-    }
-    case TransitionMode::kTransitionToDouble: {
-      ElementsKind kind = IsHoleyElementsKind(map->elements_kind())
-                              ? HOLEY_DOUBLE_ELEMENTS
-                              : PACKED_DOUBLE_ELEMENTS;
-      return Map::TransitionElementsTo(isolate(), map, kind);
-    }
-    case TransitionMode::kNoTransition:
-      return map;
-  }
-  UNREACHABLE();
 }
 
 Handle<Object> KeyedStoreIC::StoreElementHandler(
@@ -2041,25 +2020,6 @@ KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver, uint32_t index) {
   return receiver->elements()->IsCowArray() ? STORE_HANDLE_COW : STANDARD_STORE;
 }
 
-TransitionMode GetTransitionMode(Handle<JSObject> receiver,
-                                 Handle<Object> value) {
-  // TODO(mythria): Also consider index and the current length and handle
-  // transitions to HOLEY.
-  if (receiver->HasSmiElements()) {
-    if (value->IsHeapNumber()) {
-      return TransitionMode::kTransitionToDouble;
-    }
-    if (value->IsHeapObject()) {
-      return TransitionMode::kTransitionToObject;
-    }
-  } else if (receiver->HasDoubleElements()) {
-    if (!value->IsSmi() && !value->IsHeapNumber()) {
-      return TransitionMode::kTransitionToObject;
-    }
-  }
-  return TransitionMode::kNoTransition;
-}
-
 }  // namespace
 
 MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
@@ -2120,7 +2080,6 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   bool is_arguments = false;
   bool key_is_valid_index = false;
   KeyedAccessStoreMode store_mode = STANDARD_STORE;
-  TransitionMode transition_mode = TransitionMode::kNoTransition;
   if (use_ic && object->IsJSReceiver()) {
     Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
     old_receiver_map = handle(receiver->map(), isolate());
@@ -2138,7 +2097,6 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         uint32_t index = static_cast<uint32_t>(Smi::ToInt(*key));
         Handle<JSObject> receiver_object = Handle<JSObject>::cast(object);
         store_mode = GetStoreMode(receiver_object, index);
-        transition_mode = GetTransitionMode(receiver_object, value);
       }
     }
   }
@@ -2159,22 +2117,13 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
           set_slow_stub_reason("receiver with prototype map");
         } else if (!old_receiver_map->DictionaryElementsInPrototypeChainOnly(
                        isolate())) {
-          // If the SetObjectProperty call did not transition, avoid adding
-          // a transition just for the ICs. We want to avoid making
-          // the receiver map unnecessarily non-stable (crbug.com/950328).
-          //
-          // TODO(jarin) We should make this more robust so that the IC system
-          // does not duplicate the logic implemented in runtime
-          // (Runtime::SetObjectProperty).
-          if (old_receiver_map->elements_kind() ==
-              Handle<HeapObject>::cast(object)->map()->elements_kind()) {
-            transition_mode = TransitionMode::kNoTransition;
-          }
           // We should go generic if receiver isn't a dictionary, but our
           // prototype chain does have dictionary elements. This ensures that
           // other non-dictionary receivers in the polymorphic case benefit
           // from fast path keyed stores.
-          UpdateStoreElement(old_receiver_map, store_mode, transition_mode);
+          Handle<HeapObject> receiver = Handle<HeapObject>::cast(object);
+          UpdateStoreElement(old_receiver_map, store_mode,
+                             handle(receiver->map(), isolate()));
         } else {
           set_slow_stub_reason("dictionary or proxy prototype");
         }
@@ -2223,12 +2172,10 @@ void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
   // TODO(neis): Convert HeapNumber to Smi if possible?
 
   KeyedAccessStoreMode store_mode = STANDARD_STORE;
-  TransitionMode transition_mode = TransitionMode::kNoTransition;
   if (index->IsSmi()) {
     DCHECK_GE(Smi::ToInt(*index), 0);
     uint32_t index32 = static_cast<uint32_t>(Smi::ToInt(*index));
     store_mode = GetStoreMode(array, index32);
-    transition_mode = GetTransitionMode(array, value);
   }
 
   Handle<Map> old_array_map(array->map(), isolate());
@@ -2236,7 +2183,8 @@ void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
 
   if (index->IsSmi()) {
     DCHECK(!old_array_map->is_abandoned_prototype_map());
-    UpdateStoreElement(old_array_map, store_mode, transition_mode);
+    UpdateStoreElement(old_array_map, store_mode,
+                       handle(array->map(), isolate()));
   } else {
     set_slow_stub_reason("index out of Smi range");
   }

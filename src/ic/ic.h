@@ -357,7 +357,7 @@ class KeyedStoreIC : public StoreIC {
  protected:
   void UpdateStoreElement(Handle<Map> receiver_map,
                           KeyedAccessStoreMode store_mode,
-                          TransitionMode transition_mode);
+                          Handle<Map> new_receiver_map);
 
   Handle<Code> slow_stub() const override {
     return BUILTIN_CODE(isolate(), KeyedStoreIC_Slow);
