@@ -155,8 +155,13 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   }
 
   void SetEmbeddedVariant(const char* embedded_variant) {
+    if (embedded_variant == nullptr) return;
     embedded_variant_ = embedded_variant;
   }
+
+  void SetTargetArch(const char* target_arch) { target_arch_ = target_arch; }
+
+  void SetTargetOs(const char* target_os) { target_os_ = target_os; }
 
   void WriteEmbedded(const i::EmbeddedData* blob) const {
     MaybeWriteEmbeddedFile(blob);
@@ -473,8 +478,18 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   std::map<const char*, int> external_filenames_;
   std::vector<const char*> external_filenames_by_index_;
 
+  // The file to generate or nullptr.
   const char* embedded_src_path_ = nullptr;
+
+  // The variant is only used in multi-snapshot builds and otherwise set to
+  // "Default".
   const char* embedded_variant_ = kDefaultEmbeddedVariant;
+
+  // {target_arch} and {target_os} control the generated assembly format. Note
+  // these may differ from both host- and target-platforms specified through
+  // e.g. V8_OS_* and V8_TARGET_ARCH_* defines.
+  const char* target_arch_ = nullptr;
+  const char* target_os_ = nullptr;
 };
 
 }  // namespace internal

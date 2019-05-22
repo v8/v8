@@ -1208,6 +1208,7 @@ template("run_mksnapshot") {
       # mksnapshot needs to know which target OS to use at runtime.  It's weird,
       # but the target OS is really |current_os|.
       "--target_os=$current_os",
+      "--target_arch=$current_cpu",
     ]
 
     args += invoker.args

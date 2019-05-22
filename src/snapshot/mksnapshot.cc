@@ -239,9 +239,9 @@ int main(int argc, char** argv) {
 
     i::EmbeddedFileWriter embedded_writer;
     embedded_writer.SetEmbeddedFile(i::FLAG_embedded_src);
-    if (i::FLAG_embedded_variant != nullptr) {
-      embedded_writer.SetEmbeddedVariant(i::FLAG_embedded_variant);
-    }
+    embedded_writer.SetEmbeddedVariant(i::FLAG_embedded_variant);
+    embedded_writer.SetTargetArch(i::FLAG_target_arch);
+    embedded_writer.SetTargetOs(i::FLAG_target_os);
 
     std::unique_ptr<char> embed_script(
         GetExtraCode(argc >= 2 ? argv[1] : nullptr, "embedding"));
