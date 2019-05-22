@@ -1215,6 +1215,15 @@ static bool ContainsMap(MapHandles const& maps, Map map) {
   return false;
 }
 
+static bool HasElementsKind(MapHandles const& maps,
+                            ElementsKind elements_kind) {
+  for (Handle<Map> current : maps) {
+    if (!current.is_null() && current->elements_kind() == elements_kind)
+      return true;
+  }
+  return false;
+}
+
 Map Map::FindElementsKindTransitionedMap(Isolate* isolate,
                                          MapHandles const& candidates) {
   DisallowHeapAllocation no_allocation;
@@ -1238,6 +1247,9 @@ Map Map::FindElementsKindTransitionedMap(Isolate* isolate,
     for (root_map = root_map->ElementsTransitionMap();
          !root_map.is_null() && root_map->has_fast_elements();
          root_map = root_map->ElementsTransitionMap()) {
+      // If root_map's elements kind doesn't match any of the elements kind in
+      // the candidates there is no need to do any additional work.
+      if (!HasElementsKind(candidates, root_map->elements_kind())) continue;
       Map current = root_map->TryReplayPropertyTransitions(isolate, *this);
       if (current.is_null()) continue;
       if (InstancesNeedRewriting(current)) continue;
