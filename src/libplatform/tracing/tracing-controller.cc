@@ -73,14 +73,6 @@ void TracingController::Initialize(TraceBuffer* trace_buffer) {
   mutex_.reset(new base::Mutex());
 }
 
-#ifdef V8_USE_PERFETTO
-void TracingController::InitializeForPerfetto(std::ostream* output_stream) {
-  output_stream_ = output_stream;
-  DCHECK_NOT_NULL(output_stream);
-  DCHECK(output_stream->good());
-}
-#endif
-
 int64_t TracingController::CurrentTimestampMicroseconds() {
   return base::TimeTicks::HighResolutionNow().ToInternalValue();
 }
@@ -279,12 +271,8 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
   auto* ds_config = perfetto_trace_config.add_data_sources()->mutable_config();
   ds_config->set_name("v8.trace_events");
 
-  DCHECK_NOT_NULL(output_stream_);
-  DCHECK(output_stream_->good());
-
   // TODO(petermarshall): Set all the params from |perfetto_trace_config|.
-  perfetto_tracing_controller_->StartTracing(perfetto_trace_config,
-                                             output_stream_);
+  perfetto_tracing_controller_->StartTracing(perfetto_trace_config);
   perfetto_recording_.store(true);
 #endif  // V8_USE_PERFETTO
 

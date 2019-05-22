@@ -2665,11 +2665,6 @@ TEST(TracingCpuProfiler) {
           i::V8::GetCurrentPlatform()->GetTracingController());
   tracing_controller->Initialize(ring_buffer);
 
-#ifdef V8_USE_PERFETTO
-  std::ostringstream perfetto_output;
-  tracing_controller->InitializeForPerfetto(&perfetto_output);
-#endif
-
   bool result = false;
   for (int run_duration = 50; !result; run_duration += 50) {
     TraceConfig* trace_config = new TraceConfig();
