@@ -70,6 +70,7 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
       Counters*, WasmFeatures* detected);
 
   ExecutionTier tier() const { return tier_; }
+  int func_index() const { return func_index_; }
 
   static void CompileWasmFunction(Isolate*, NativeModule*,
                                   WasmFeatures* detected, const WasmFunction*,
