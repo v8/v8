@@ -133,8 +133,7 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
 }
 
 Code BuildAdaptor(Isolate* isolate, int32_t builtin_index,
-                  Address builtin_address,
-                  Builtins::ExitFrameType exit_frame_type, const char* name) {
+                  Address builtin_address, const char* name) {
   HandleScope scope(isolate);
   // Canonicalize handles, so that we can share constant pool entries pointing
   // to code targets without dereferencing their handles.
@@ -146,7 +145,7 @@ Code BuildAdaptor(Isolate* isolate, int32_t builtin_index,
                       ExternalAssemblerBuffer(buffer, kBufferSize));
   masm.set_builtin_index(builtin_index);
   DCHECK(!masm.has_frame());
-  Builtins::Generate_Adaptor(&masm, builtin_address, exit_frame_type);
+  Builtins::Generate_Adaptor(&masm, builtin_address);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::BUILTIN)
@@ -309,9 +308,8 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 
   int index = 0;
   Code code;
-#define BUILD_CPP(Name)                                              \
-  code = BuildAdaptor(isolate, index, FUNCTION_ADDR(Builtin_##Name), \
-                      Builtins::BUILTIN_EXIT, #Name);                \
+#define BUILD_CPP(Name)                                                      \
+  code = BuildAdaptor(isolate, index, FUNCTION_ADDR(Builtin_##Name), #Name); \
   AddBuiltin(builtins, index++, code);
 #define BUILD_TFJ(Name, Argc, ...)                              \
   code = BuildWithCodeStubAssemblerJS(                          \

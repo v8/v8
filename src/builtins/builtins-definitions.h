@@ -36,8 +36,7 @@ namespace internal {
   TFC(RecordWrite, RecordWrite)                                                \
   TFC(EphemeronKeyBarrier, EphemeronKeyBarrier)                                \
                                                                                \
-  /* Adaptors for CPP/API builtin */                                           \
-  TFC(AdaptorWithExitFrame, CppBuiltinAdaptor)                                 \
+  /* Adaptor for CPP builtin */                                                \
   TFC(AdaptorWithBuiltinExitFrame, CppBuiltinAdaptor)                          \
                                                                                \
   /* Calls */                                                                  \

@@ -767,19 +767,7 @@ TF_BUILTIN(SameValueNumbersOnly, CodeStubAssembler) {
   Return(FalseConstant());
 }
 
-class InternalBuiltinsAssembler : public CodeStubAssembler {
- public:
-  explicit InternalBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
-
-  template <typename Descriptor>
-  void GenerateAdaptorWithExitFrameType(
-      Builtins::ExitFrameType exit_frame_type);
-};
-
-template <typename Descriptor>
-void InternalBuiltinsAssembler::GenerateAdaptorWithExitFrameType(
-    Builtins::ExitFrameType exit_frame_type) {
+TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
   TNode<JSFunction> target = CAST(Parameter(Descriptor::kTarget));
   TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
   TNode<WordT> c_function =
@@ -803,9 +791,9 @@ void InternalBuiltinsAssembler::GenerateAdaptorWithExitFrameType(
       argc,
       Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
 
-  TNode<Code> code = HeapConstant(
-      CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
-                          exit_frame_type == Builtins::BUILTIN_EXIT));
+  const bool builtin_exit_frame = true;
+  TNode<Code> code = HeapConstant(CodeFactory::CEntry(
+      isolate(), 1, kDontSaveFPRegs, kArgvOnStack, builtin_exit_frame));
 
   // Unconditionally push argc, target and new target as extra stack arguments.
   // They will be used by stack frame iterators when constructing stack trace.
@@ -816,14 +804,6 @@ void InternalBuiltinsAssembler::GenerateAdaptorWithExitFrameType(
                SmiFromInt32(argc),  // additional stack argument 2
                target,              // additional stack argument 3
                new_target);         // additional stack argument 4
-}
-
-TF_BUILTIN(AdaptorWithExitFrame, InternalBuiltinsAssembler) {
-  GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::EXIT);
-}
-
-TF_BUILTIN(AdaptorWithBuiltinExitFrame, InternalBuiltinsAssembler) {
-  GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::BUILTIN_EXIT);
 }
 
 TF_BUILTIN(AllocateInYoungGeneration, CodeStubAssembler) {

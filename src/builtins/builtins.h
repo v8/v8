@@ -155,10 +155,7 @@ class Builtins {
       Handle<Object> receiver, int argc, Handle<Object> args[],
       Handle<HeapObject> new_target);
 
-  enum ExitFrameType { EXIT, BUILTIN_EXIT };
-
-  static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address,
-                               ExitFrameType exit_frame_type);
+  static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address);
 
   static void Generate_CEntry(MacroAssembler* masm, int result_size,
                               SaveFPRegsMode save_doubles, ArgvMode argv_mode,
