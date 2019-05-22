@@ -9,7 +9,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include "src/codegen/source-position-table.h"
 #include "src/globals.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-base.h"
@@ -23,7 +22,6 @@ namespace internal {
 
 static constexpr char kDefaultEmbeddedVariant[] = "Default";
 
-// When writing out compiled builtins to a file, we
 // Detailed source-code information about builtins can only be obtained by
 // registration on the isolate during compilation.
 class EmbeddedFileWriterInterface {
@@ -55,30 +53,9 @@ class EmbeddedFileWriterInterface {
 // The variant is usually "Default" but can be modified in multisnapshot builds.
 class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
  public:
-  int LookupOrAddExternallyCompiledFilename(const char* filename) override {
-    auto result = external_filenames_.find(filename);
-    if (result != external_filenames_.end()) {
-      return result->second;
-    }
-    int new_id =
-        ExternalFilenameIndexToId(static_cast<int>(external_filenames_.size()));
-    external_filenames_.insert(std::make_pair(filename, new_id));
-    external_filenames_by_index_.push_back(filename);
-    DCHECK_EQ(external_filenames_by_index_.size(), external_filenames_.size());
-    return new_id;
-  }
-
-  const char* GetExternallyCompiledFilename(int fileid) const override {
-    size_t index = static_cast<size_t>(ExternalFilenameIdToIndex(fileid));
-    DCHECK_GE(index, 0);
-    DCHECK_LT(index, external_filenames_by_index_.size());
-
-    return external_filenames_by_index_[index];
-  }
-
-  int GetExternallyCompiledFilenameCount() const override {
-    return static_cast<int>(external_filenames_.size());
-  }
+  int LookupOrAddExternallyCompiledFilename(const char* filename) override;
+  const char* GetExternallyCompiledFilename(int fileid) const override;
+  int GetExternallyCompiledFilenameCount() const override;
 
   void PrepareBuiltinSourcePositionMap(Builtins* builtins) override;
 
@@ -176,56 +153,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   }
 
   void WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
-                    const i::EmbeddedData* blob, const int builtin_id) const {
-    const bool is_default_variant =
-        std::strcmp(embedded_variant_, kDefaultEmbeddedVariant) == 0;
-
-    i::EmbeddedVector<char, kTemporaryStringLength> builtin_symbol;
-    if (is_default_variant) {
-      // Create nicer symbol names for the default mode.
-      i::SNPrintF(builtin_symbol, "Builtins_%s", i::Builtins::name(builtin_id));
-    } else {
-      i::SNPrintF(builtin_symbol, "%s_Builtins_%s", embedded_variant_,
-                  i::Builtins::name(builtin_id));
-    }
-
-    // Labels created here will show up in backtraces. We check in
-    // Isolate::SetEmbeddedBlob that the blob layout remains unchanged, i.e.
-    // that labels do not insert bytes into the middle of the blob byte
-    // stream.
-    w->DeclareFunctionBegin(builtin_symbol.begin());
-    const std::vector<byte>& current_positions = source_positions_[builtin_id];
-
-    // The code below interleaves bytes of assembly code for the builtin
-    // function with source positions at the appropriate offsets.
-    Vector<const byte> vpos(current_positions.data(), current_positions.size());
-    v8::internal::SourcePositionTableIterator positions(
-        vpos, SourcePositionTableIterator::kExternalOnly);
-
-    const uint8_t* data = reinterpret_cast<const uint8_t*>(
-        blob->InstructionStartOfBuiltin(builtin_id));
-    uint32_t size = blob->PaddedInstructionSizeOfBuiltin(builtin_id);
-    uint32_t i = 0;
-    uint32_t next_offset = static_cast<uint32_t>(
-        positions.done() ? size : positions.code_offset());
-    while (i < size) {
-      if (i == next_offset) {
-        // Write source directive.
-        w->SourceInfo(positions.source_position().ExternalFileId(),
-                      GetExternallyCompiledFilename(
-                          positions.source_position().ExternalFileId()),
-                      positions.source_position().ExternalLine());
-        positions.Advance();
-        next_offset = static_cast<uint32_t>(
-            positions.done() ? size : positions.code_offset());
-      }
-      CHECK_GE(next_offset, i);
-      WriteBinaryContentsAsInlineAssembly(w, data + i, next_offset - i);
-      i = next_offset;
-    }
-
-    w->DeclareFunctionEnd(builtin_symbol.begin());
-  }
+                    const i::EmbeddedData* blob, const int builtin_id) const;
 
   void WriteInstructionStreams(PlatformEmbeddedFileWriterBase* w,
                                const i::EmbeddedData* blob) const {
@@ -238,40 +166,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   }
 
   void WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
-                         const i::EmbeddedData* blob) const {
-    {
-      i::EmbeddedVector<char, kTemporaryStringLength> embedded_blob_symbol;
-      i::SNPrintF(embedded_blob_symbol, "v8_%s_embedded_blob_",
-                  embedded_variant_);
-
-      w->Comment("Pointer to the beginning of the embedded blob.");
-      w->SectionData();
-      w->AlignToDataAlignment();
-      w->DeclarePointerToSymbol(embedded_blob_symbol.begin(),
-                                EmbeddedBlobDataSymbol().c_str());
-      w->Newline();
-    }
-
-    {
-      i::EmbeddedVector<char, kTemporaryStringLength> embedded_blob_size_symbol;
-      i::SNPrintF(embedded_blob_size_symbol, "v8_%s_embedded_blob_size_",
-                  embedded_variant_);
-
-      w->Comment("The size of the embedded blob in bytes.");
-      w->SectionRoData();
-      w->AlignToDataAlignment();
-      w->DeclareUint32(embedded_blob_size_symbol.begin(), blob->size());
-      w->Newline();
-    }
-
-#if defined(V8_OS_WIN_X64)
-    if (win64_unwindinfo::CanEmitUnwindInfoForBuiltins()) {
-      WriteUnwindInfo(w, blob);
-    }
-#endif
-
-    w->FileEpilogue();
-  }
+                         const i::EmbeddedData* blob) const;
 
 #if defined(V8_OS_WIN_X64)
   std::string BuiltinsUnwindInfoLabel() const;
@@ -281,138 +176,25 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
                             uint64_t rva_start, uint64_t rva_end) const;
 #endif
 
-#if defined(_MSC_VER) && !defined(__clang__)
-#define V8_COMPILER_IS_MSVC
-#endif
-
-#if defined(V8_COMPILER_IS_MSVC)
-  // Windows MASM doesn't have an .octa directive, use QWORDs instead.
-  // Note: MASM *really* does not like large data streams. It takes over 5
-  // minutes to assemble the ~350K lines of embedded.S produced when using
-  // BYTE directives in a debug build. QWORD produces roughly 120KLOC and
-  // reduces assembly time to ~40 seconds. Still terrible, but much better
-  // than before. See also: https://crbug.com/v8/8475.
-  static constexpr DataDirective kByteChunkDirective = kQuad;
-  static constexpr int kByteChunkSize = 8;
-
-  static int WriteByteChunk(PlatformEmbeddedFileWriterBase* w,
-                            int current_line_length, const uint8_t* data) {
-    const uint64_t* quad_ptr = reinterpret_cast<const uint64_t*>(data);
-    return current_line_length + w->HexLiteral(*quad_ptr);
-  }
-
-#elif defined(V8_OS_AIX)
-  // PPC uses a fixed 4 byte instruction set, using .long
-  // to prevent any unnecessary padding.
-  static constexpr DataDirective kByteChunkDirective = kLong;
-  static constexpr int kByteChunkSize = 4;
-
-  static int WriteByteChunk(PlatformEmbeddedFileWriterBase* w,
-                            int current_line_length, const uint8_t* data) {
-    const uint32_t* long_ptr = reinterpret_cast<const uint32_t*>(data);
-    return current_line_length + w->HexLiteral(*long_ptr);
-  }
-
-#else  // defined(V8_COMPILER_IS_MSVC) || defined(V8_OS_AIX)
-  static constexpr DataDirective kByteChunkDirective = kOcta;
-  static constexpr int kByteChunkSize = 16;
-
-  static int WriteByteChunk(PlatformEmbeddedFileWriterBase* w,
-                            int current_line_length, const uint8_t* data) {
-    const size_t size = kInt64Size;
-
-    uint64_t part1, part2;
-    // Use memcpy for the reads since {data} is not guaranteed to be aligned.
-#ifdef V8_TARGET_BIG_ENDIAN
-    memcpy(&part1, data, size);
-    memcpy(&part2, data + size, size);
-#else
-    memcpy(&part1, data + size, size);
-    memcpy(&part2, data, size);
-#endif  // V8_TARGET_BIG_ENDIAN
-
-    if (part1 != 0) {
-      current_line_length +=
-          fprintf(w->fp(), "0x%" PRIx64 "%016" PRIx64, part1, part2);
-    } else {
-      current_line_length += fprintf(w->fp(), "0x%" PRIx64, part2);
-    }
-    return current_line_length;
-  }
-#endif  // defined(V8_COMPILER_IS_MSVC) || defined(V8_OS_AIX)
-#undef V8_COMPILER_IS_MSVC
-
-  static int WriteDirectiveOrSeparator(PlatformEmbeddedFileWriterBase* w,
-                                       int current_line_length,
-                                       DataDirective directive) {
-    int printed_chars;
-    if (current_line_length == 0) {
-      printed_chars = w->IndentedDataDirective(directive);
-      DCHECK_LT(0, printed_chars);
-    } else {
-      printed_chars = fprintf(w->fp(), ",");
-      DCHECK_EQ(1, printed_chars);
-    }
-    return current_line_length + printed_chars;
-  }
-
-  static int WriteLineEndIfNeeded(PlatformEmbeddedFileWriterBase* w,
-                                  int current_line_length, int write_size) {
-    static const int kTextWidth = 100;
-    // Check if adding ',0xFF...FF\n"' would force a line wrap. This doesn't use
-    // the actual size of the string to be written to determine this so it's
-    // more conservative than strictly needed.
-    if (current_line_length + strlen(",0x") + write_size * 2 > kTextWidth) {
-      fprintf(w->fp(), "\n");
-      return 0;
-    } else {
-      return current_line_length;
-    }
-  }
-
   static void WriteBinaryContentsAsInlineAssembly(
-      PlatformEmbeddedFileWriterBase* w, const uint8_t* data, uint32_t size) {
-    int current_line_length = 0;
-    uint32_t i = 0;
+      PlatformEmbeddedFileWriterBase* w, const uint8_t* data, uint32_t size);
 
-    // Begin by writing out byte chunks.
-    for (; i + kByteChunkSize < size; i += kByteChunkSize) {
-      current_line_length = WriteDirectiveOrSeparator(w, current_line_length,
-                                                      kByteChunkDirective);
-      current_line_length = WriteByteChunk(w, current_line_length, data + i);
-      current_line_length =
-          WriteLineEndIfNeeded(w, current_line_length, kByteChunkSize);
-    }
-    if (current_line_length != 0) w->Newline();
-    current_line_length = 0;
-
-    // Write any trailing bytes one-by-one.
-    for (; i < size; i++) {
-      current_line_length =
-          WriteDirectiveOrSeparator(w, current_line_length, kByte);
-      current_line_length += w->HexLiteral(data[i]);
-      current_line_length = WriteLineEndIfNeeded(w, current_line_length, 1);
-    }
-
-    if (current_line_length != 0) w->Newline();
-  }
-
+  // In assembly directives, filename ids need to begin with 1.
+  static constexpr int kFirstExternalFilenameId = 1;
   static int ExternalFilenameIndexToId(int index) {
     return kFirstExternalFilenameId + index;
   }
-
   static int ExternalFilenameIdToIndex(int id) {
     return id - kFirstExternalFilenameId;
   }
 
+ private:
   std::vector<byte> source_positions_[Builtins::builtin_count];
 
 #if defined(V8_OS_WIN_X64)
   win64_unwindinfo::BuiltinUnwindInfo unwind_infos_[Builtins::builtin_count];
 #endif
 
-  // In assembly directives, filename ids need to begin with 1.
-  static const int kFirstExternalFilenameId = 1;
   std::map<const char*, int> external_filenames_;
   std::vector<const char*> external_filenames_by_index_;
 
