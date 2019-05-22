@@ -117,4 +117,20 @@ namespace string {
       return Undefined;
     }
   }
+
+  // ES6 String.prototype.concat(...args)
+  // ES6 #sec-string.prototype.concat
+  transitioning javascript builtin StringPrototypeConcat(
+      implicit context: Context)(receiver: Object, ...arguments): Object {
+    // Check that {receiver} is coercible to Object and convert it to a String.
+    let string: String = ToThisString(receiver, 'String.prototype.concat');
+
+    // Concatenate all the arguments passed to this builtin.
+    const length: intptr = Convert<intptr>(arguments.length);
+    for (let i: intptr = 0; i < length; i++) {
+      const temp: String = ToString_Inline(context, arguments[i]);
+      string = string + temp;
+    }
+    return string;
+  }
 }
