@@ -710,44 +710,47 @@ Handle<String> Factory::InternalizeUtf8String(
     const Vector<const char>& string) {
   Vector<const uint8_t> utf8_data = Vector<const uint8_t>::cast(string);
   Utf8Decoder decoder(utf8_data);
-  if (decoder.is_ascii()) return InternalizeOneByteString(utf8_data);
+  if (decoder.is_ascii()) return InternalizeString(utf8_data);
   if (decoder.is_one_byte()) {
     std::unique_ptr<uint8_t[]> buffer(new uint8_t[decoder.utf16_length()]);
     decoder.Decode(buffer.get(), utf8_data);
-    return InternalizeOneByteString(
+    return InternalizeString(
         Vector<const uint8_t>(buffer.get(), decoder.utf16_length()));
   }
   std::unique_ptr<uint16_t[]> buffer(new uint16_t[decoder.utf16_length()]);
   decoder.Decode(buffer.get(), utf8_data);
-  return InternalizeTwoByteString(
+  return InternalizeString(
       Vector<const uc16>(buffer.get(), decoder.utf16_length()));
 }
 
-Handle<String> Factory::InternalizeOneByteString(
-    const Vector<const uint8_t>& string) {
-  OneByteStringKey key(string, HashSeed(isolate()));
+template <typename Char>
+Handle<String> Factory::InternalizeString(const Vector<const Char>& string,
+                                          bool convert_encoding) {
+  SequentialStringKey<Char> key(string, HashSeed(isolate()), convert_encoding);
   return InternalizeStringWithKey(&key);
 }
 
-Handle<String> Factory::InternalizeOneByteString(
-    Handle<SeqOneByteString> string, int from, int length) {
-  SeqOneByteSubStringKey key(isolate(), string, from, length);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<String> Factory::InternalizeString(
+        const Vector<const uint8_t>& string, bool convert_encoding);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<String> Factory::InternalizeString(
+        const Vector<const uint16_t>& string, bool convert_encoding);
+
+template <typename SeqString>
+Handle<String> Factory::InternalizeString(Handle<SeqString> string, int from,
+                                          int length, bool convert_encoding) {
+  SeqSubStringKey<SeqString> key(isolate(), string, from, length,
+                                 convert_encoding);
   return InternalizeStringWithKey(&key);
 }
 
-Handle<String> Factory::InternalizeTwoByteString(
+template Handle<String> Factory::InternalizeString(
+    Handle<SeqOneByteString> string, int from, int length,
+    bool convert_encoding);
+template Handle<String> Factory::InternalizeString(
     Handle<SeqTwoByteString> string, int from, int length,
-    bool convert_to_one_byte) {
-  SeqTwoByteSubStringKey key(isolate(), string, from, length,
-                             convert_to_one_byte);
-  return InternalizeStringWithKey(&key);
-}
-
-Handle<String> Factory::InternalizeTwoByteString(
-    const Vector<const uc16>& string, bool convert_to_one_byte) {
-  TwoByteStringKey key(string, HashSeed(isolate()), convert_to_one_byte);
-  return InternalizeStringWithKey(&key);
-}
+    bool convert_encoding);
 
 template <class StringTableKey>
 Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
@@ -1114,13 +1117,12 @@ Handle<String> Factory::LookupSingleCharacterStringFromCode(uint16_t code) {
       }
     }
     uint8_t buffer[] = {static_cast<uint8_t>(code)};
-    Handle<String> result =
-        InternalizeOneByteString(Vector<const uint8_t>(buffer, 1));
+    Handle<String> result = InternalizeString(Vector<const uint8_t>(buffer, 1));
     single_character_string_cache()->set(code, *result);
     return result;
   }
   uint16_t buffer[] = {code};
-  return InternalizeTwoByteString(Vector<const uint16_t>(buffer, 1));
+  return InternalizeString(Vector<const uint16_t>(buffer, 1));
 }
 
 static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
@@ -1128,11 +1130,11 @@ static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
                                                           uint16_t c2) {
   if ((c1 | c2) <= unibrow::Latin1::kMaxChar) {
     uint8_t buffer[] = {static_cast<uint8_t>(c1), static_cast<uint8_t>(c2)};
-    return isolate->factory()->InternalizeOneByteString(
+    return isolate->factory()->InternalizeString(
         Vector<const uint8_t>(buffer, 2));
   }
   uint16_t buffer[] = {c1, c2};
-  return isolate->factory()->InternalizeTwoByteString(
+  return isolate->factory()->InternalizeString(
       Vector<const uint16_t>(buffer, 2));
 }
 

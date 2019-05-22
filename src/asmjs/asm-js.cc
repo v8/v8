@@ -42,7 +42,7 @@ namespace {
 Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
                                 Handle<Name> name) {
   Handle<Name> math_name(
-      isolate->factory()->InternalizeOneByteString(StaticCharVector("Math")));
+      isolate->factory()->InternalizeString(StaticCharVector("Math")));
   Handle<Object> math = JSReceiver::GetDataProperty(stdlib, math_name);
   if (!math->IsJSReceiver()) return isolate->factory()->undefined_value();
   Handle<JSReceiver> math_receiver = Handle<JSReceiver>::cast(math);
@@ -68,8 +68,8 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
 #define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)                   \
   if (members.contains(wasm::AsmJsParser::StandardMember::kMath##FName)) { \
     members.Remove(wasm::AsmJsParser::StandardMember::kMath##FName);       \
-    Handle<Name> name(isolate->factory()->InternalizeOneByteString(        \
-        StaticCharVector(#fname)));                                        \
+    Handle<Name> name(                                                     \
+        isolate->factory()->InternalizeString(StaticCharVector(#fname)));  \
     Handle<Object> value = StdlibMathMember(isolate, stdlib, name);        \
     if (!value->IsJSFunction()) return false;                              \
     SharedFunctionInfo shared = Handle<JSFunction>::cast(value)->shared(); \
@@ -85,23 +85,23 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
 #define STDLIB_MATH_CONST(cname, const_value)                               \
   if (members.contains(wasm::AsmJsParser::StandardMember::kMath##cname)) {  \
     members.Remove(wasm::AsmJsParser::StandardMember::kMath##cname);        \
-    Handle<Name> name(isolate->factory()->InternalizeOneByteString(         \
-        StaticCharVector(#cname)));                                         \
+    Handle<Name> name(                                                      \
+        isolate->factory()->InternalizeString(StaticCharVector(#cname)));   \
     Handle<Object> value = StdlibMathMember(isolate, stdlib, name);         \
     if (!value->IsNumber() || value->Number() != const_value) return false; \
   }
   STDLIB_MATH_VALUE_LIST(STDLIB_MATH_CONST)
 #undef STDLIB_MATH_CONST
-#define STDLIB_ARRAY_TYPE(fname, FName)                                \
-  if (members.contains(wasm::AsmJsParser::StandardMember::k##FName)) { \
-    members.Remove(wasm::AsmJsParser::StandardMember::k##FName);       \
-    *is_typed_array = true;                                            \
-    Handle<Name> name(isolate->factory()->InternalizeOneByteString(    \
-        StaticCharVector(#FName)));                                    \
-    Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);  \
-    if (!value->IsJSFunction()) return false;                          \
-    Handle<JSFunction> func = Handle<JSFunction>::cast(value);         \
-    if (!func.is_identical_to(isolate->fname())) return false;         \
+#define STDLIB_ARRAY_TYPE(fname, FName)                                   \
+  if (members.contains(wasm::AsmJsParser::StandardMember::k##FName)) {    \
+    members.Remove(wasm::AsmJsParser::StandardMember::k##FName);          \
+    *is_typed_array = true;                                               \
+    Handle<Name> name(                                                    \
+        isolate->factory()->InternalizeString(StaticCharVector(#FName))); \
+    Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);     \
+    if (!value->IsJSFunction()) return false;                             \
+    Handle<JSFunction> func = Handle<JSFunction>::cast(value);            \
+    if (!func.is_identical_to(isolate->fname())) return false;            \
   }
   STDLIB_ARRAY_TYPE(int8_array_fun, Int8Array)
   STDLIB_ARRAY_TYPE(uint8_array_fun, Uint8Array)

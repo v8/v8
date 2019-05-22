@@ -235,9 +235,10 @@ class SequentialStringKey final : public StringTableKey {
 using OneByteStringKey = SequentialStringKey<uint8_t>;
 using TwoByteStringKey = SequentialStringKey<uint16_t>;
 
-template <typename Char>
+template <typename SeqString>
 class SeqSubStringKey final : public StringTableKey {
  public:
+  using Char = typename SeqString::Char;
 // VS 2017 on official builds gives this spurious warning:
 // warning C4789: buffer 'key' of size 16 bytes will be overrun; 4 bytes will
 // be written starting at offset 16
@@ -246,9 +247,8 @@ class SeqSubStringKey final : public StringTableKey {
 #pragma warning(push)
 #pragma warning(disable : 4789)
 #endif
-  SeqSubStringKey(Isolate* isolate,
-                  Handle<typename CharTraits<Char>::String> string, int from,
-                  int len, bool convert = false)
+  SeqSubStringKey(Isolate* isolate, Handle<SeqString> string, int from, int len,
+                  bool convert = false)
       : StringTableKey(0, len),
         string_(string),
         from_(from),
@@ -304,8 +304,8 @@ class SeqSubStringKey final : public StringTableKey {
   bool convert_;
 };
 
-using SeqOneByteSubStringKey = SeqSubStringKey<uint8_t>;
-using SeqTwoByteSubStringKey = SeqSubStringKey<uint16_t>;
+using SeqOneByteSubStringKey = SeqSubStringKey<SeqOneByteString>;
+using SeqTwoByteSubStringKey = SeqSubStringKey<SeqTwoByteString>;
 
 bool String::Equals(String other) {
   if (other == *this) return true;

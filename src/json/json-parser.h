@@ -266,11 +266,10 @@ class JsonParser final {
   template <typename SinkChar>
   void DecodeString(SinkChar* sink, int start, int length);
 
-  template <typename SinkChar>
-  Handle<String> DecodeString(
-      const JsonString& string,
-      Handle<typename CharTraits<SinkChar>::String> intermediate,
-      Handle<String> hint);
+  template <typename SinkSeqString>
+  Handle<String> DecodeString(const JsonString& string,
+                              Handle<SinkSeqString> intermediate,
+                              Handle<String> hint);
 
   // A JSON number (production JSONNumber) is a subset of the valid JavaScript
   // decimal number literals.

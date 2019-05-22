@@ -243,7 +243,7 @@ TEST(C2JSFrames) {
   CHECK(fun1->IsJSFunction());
 
   Handle<Object> argv[] = {
-      isolate->factory()->InternalizeOneByteString(StaticCharVector("hello"))};
+      isolate->factory()->InternalizeString(StaticCharVector("hello"))};
   Execution::Call(isolate,
                   Handle<JSFunction>::cast(fun1),
                   global,

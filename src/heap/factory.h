@@ -242,15 +242,14 @@ class V8_EXPORT_PRIVATE Factory {
     return InternalizeUtf8String(CStrVector(str));
   }
 
-  Handle<String> InternalizeOneByteString(const Vector<const uint8_t>& str);
-  Handle<String> InternalizeOneByteString(Handle<SeqOneByteString>, int from,
-                                          int length);
-  Handle<String> InternalizeTwoByteString(Handle<SeqTwoByteString>, int from,
-                                          int length,
-                                          bool convert_to_one_byte = false);
+  template <typename Char>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  Handle<String> InternalizeString(const Vector<const Char>& str,
+                                   bool convert_encoding = false);
 
-  Handle<String> InternalizeTwoByteString(const Vector<const uc16>& str,
-                                          bool convert_to_one_byte = false);
+  template <typename SeqString>
+  Handle<String> InternalizeString(Handle<SeqString>, int from, int length,
+                                   bool convert_encoding = false);
 
   template <class StringTableKey>
   Handle<String> InternalizeStringWithKey(StringTableKey* key);

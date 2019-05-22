@@ -13,9 +13,9 @@ namespace internal {
 
 Handle<String> LiteralBuffer::Internalize(Isolate* isolate) const {
   if (is_one_byte()) {
-    return isolate->factory()->InternalizeOneByteString(one_byte_literal());
+    return isolate->factory()->InternalizeString(one_byte_literal());
   }
-  return isolate->factory()->InternalizeTwoByteString(two_byte_literal());
+  return isolate->factory()->InternalizeString(two_byte_literal());
 }
 
 int LiteralBuffer::NewCapacity(int min_capacity) {

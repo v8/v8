@@ -503,6 +503,7 @@ class InternalizedString : public String {
 class SeqOneByteString : public SeqString {
  public:
   static const bool kHasOneByteEncoding = true;
+  using Char = uint8_t;
 
   // Dispatched behavior.
   inline uint8_t Get(int index);
@@ -544,6 +545,7 @@ class SeqOneByteString : public SeqString {
 class SeqTwoByteString : public SeqString {
  public:
   static const bool kHasOneByteEncoding = false;
+  using Char = uint16_t;
 
   // Dispatched behavior.
   inline uint16_t Get(int index);

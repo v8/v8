@@ -1047,7 +1047,7 @@ TEST(StringAllocation) {
         Vector<const char>(non_one_byte, 3 * length));
     CHECK_EQ(length, non_one_byte_sym->length());
     Handle<String> one_byte_sym =
-        factory->InternalizeOneByteString(OneByteVector(one_byte, length));
+        factory->InternalizeString(OneByteVector(one_byte, length));
     CHECK_EQ(length, one_byte_sym->length());
     Handle<String> non_one_byte_str =
         factory->NewStringFromUtf8(Vector<const char>(non_one_byte, 3 * length))

@@ -6078,7 +6078,7 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
                                            NewStringType type,
                                            i::Vector<const uint8_t> string) {
   if (type == NewStringType::kInternalized) {
-    return factory->InternalizeOneByteString(string);
+    return factory->InternalizeString(string);
   }
   return factory->NewStringFromOneByte(string);
 }
@@ -6088,7 +6088,7 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
                                            NewStringType type,
                                            i::Vector<const uint16_t> string) {
   if (type == NewStringType::kInternalized) {
-    return factory->InternalizeTwoByteString(string);
+    return factory->InternalizeString(string);
   }
   return factory->NewStringFromTwoByte(string);
 }

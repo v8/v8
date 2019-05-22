@@ -37,9 +37,10 @@ Handle<String> PrintFToOneByteString(Isolate* isolate, const char* format,
   EmbeddedVector<char, kMaxStrLen> value;
   int len = SNPrintF(value, format, args...);
   CHECK(len > 0 && len < value.length());
-  Vector<uint8_t> name = Vector<uint8_t>::cast(value.SubVector(0, len));
+  Vector<const uint8_t> name =
+      Vector<const uint8_t>::cast(value.SubVector(0, len));
   return internal
-             ? isolate->factory()->InternalizeOneByteString(name)
+             ? isolate->factory()->InternalizeString(name)
              : isolate->factory()->NewStringFromOneByte(name).ToHandleChecked();
 }
 
@@ -364,8 +365,8 @@ class InterpreterHandle {
     Handle<JSObject> global_scope_object =
         isolate_->factory()->NewJSObjectWithNullProto();
     if (instance->has_memory_object()) {
-      Handle<String> name = isolate_->factory()->InternalizeOneByteString(
-          StaticCharVector("memory"));
+      Handle<String> name =
+          isolate_->factory()->InternalizeString(StaticCharVector("memory"));
       Handle<JSArrayBuffer> memory_buffer(
           instance->memory_object().array_buffer(), isolate_);
       Handle<JSTypedArray> uint8_array = isolate_->factory()->NewJSTypedArray(
@@ -383,8 +384,7 @@ class InterpreterHandle {
       Handle<JSObject> globals_obj =
           isolate_->factory()->NewJSObjectWithNullProto();
       Handle<String> globals_name =
-          isolate_->factory()->InternalizeOneByteString(
-              StaticCharVector("globals"));
+          isolate_->factory()->InternalizeString(StaticCharVector("globals"));
       JSObject::SetOwnPropertyIgnoreAttributes(global_scope_object,
                                                globals_name, globals_obj, NONE)
           .Assert();
@@ -417,8 +417,7 @@ class InterpreterHandle {
       Handle<JSObject> locals_obj =
           isolate_->factory()->NewJSObjectWithNullProto();
       Handle<String> locals_name =
-          isolate_->factory()->InternalizeOneByteString(
-              StaticCharVector("locals"));
+          isolate_->factory()->InternalizeString(StaticCharVector("locals"));
       JSObject::SetOwnPropertyIgnoreAttributes(local_scope_object, locals_name,
                                                locals_obj, NONE)
           .Assert();
@@ -446,8 +445,8 @@ class InterpreterHandle {
     // which does not make too much sense here.
     Handle<JSObject> stack_obj =
         isolate_->factory()->NewJSObjectWithNullProto();
-    Handle<String> stack_name = isolate_->factory()->InternalizeOneByteString(
-        StaticCharVector("stack"));
+    Handle<String> stack_name =
+        isolate_->factory()->InternalizeString(StaticCharVector("stack"));
     JSObject::SetOwnPropertyIgnoreAttributes(local_scope_object, stack_name,
                                              stack_obj, NONE)
         .Assert();
@@ -650,8 +649,8 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
     function_data->set_instance(debug_info->wasm_instance());
     function_data->set_jump_table_offset(-1);
     function_data->set_function_index(-1);
-    Handle<String> name = isolate->factory()->InternalizeOneByteString(
-        StaticCharVector("c-wasm-entry"));
+    Handle<String> name =
+        isolate->factory()->InternalizeString(StaticCharVector("c-wasm-entry"));
     NewFunctionArgs args = NewFunctionArgs::ForWasm(
         name, function_data, isolate->sloppy_function_map());
     Handle<JSFunction> new_entry = isolate->factory()->NewFunction(args);

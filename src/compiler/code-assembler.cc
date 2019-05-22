@@ -275,7 +275,7 @@ TNode<HeapObject> CodeAssembler::UntypedHeapConstant(
 
 TNode<String> CodeAssembler::StringConstant(const char* str) {
   Handle<String> internalized_string =
-      factory()->InternalizeOneByteString(OneByteVector(str));
+      factory()->InternalizeString(OneByteVector(str));
   return UncheckedCast<String>(HeapConstant(internalized_string));
 }
 
