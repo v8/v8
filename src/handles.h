@@ -57,7 +57,6 @@ class HandleBase {
   // used for hashing handles; do not ever try to dereference it.
   V8_INLINE Address address() const { return bit_cast<Address>(location_); }
 
- protected:
   // Returns the address to where the raw pointer is stored.
   V8_INLINE Address* location() const {
     SLOW_DCHECK(location_ == nullptr ||
@@ -65,6 +64,7 @@ class HandleBase {
     return location_;
   }
 
+ protected:
   enum DereferenceCheckMode { INCLUDE_DEFERRED_CHECK, NO_DEFERRED_CHECK };
 #ifdef DEBUG
   bool V8_EXPORT_PRIVATE IsDereferenceAllowed(DereferenceCheckMode mode) const;
@@ -138,9 +138,6 @@ class Handle final : public HandleBase {
     SLOW_DCHECK(IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
     return T::unchecked_cast(Object(*location()));
   }
-
-  // Returns the address to where the raw pointer is stored.
-  V8_INLINE Address* location() const { return HandleBase::location(); }
 
   template <typename S>
   inline static const Handle<T> cast(Handle<S> that);
