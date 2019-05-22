@@ -127,36 +127,33 @@ struct ExceptionHandlerRecord {
   uint8_t exception_thunk[kMaxExceptionThunkSize];
 };
 
+namespace {
+
+V8_DECLARE_ONCE(load_ntdll_unwinding_functions_once);
 static decltype(
     &::RtlAddGrowableFunctionTable) add_growable_function_table_func = nullptr;
 static decltype(
     &::RtlDeleteGrowableFunctionTable) delete_growable_function_table_func =
     nullptr;
 
-namespace {
-
 void LoadNtdllUnwindingFunctions() {
-  static bool loaded = false;
-  if (loaded) {
-    return;
-  }
-  loaded = true;
+  base::CallOnce(&load_ntdll_unwinding_functions_once, []() {
+    // Load functions from the ntdll.dll module.
+    HMODULE ntdll_module =
+        LoadLibraryEx(L"ntdll.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    DCHECK_NOT_NULL(ntdll_module);
 
-  // Load functions from the ntdll.dll module.
-  HMODULE ntdll_module =
-      LoadLibraryEx(L"ntdll.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-  DCHECK_NOT_NULL(ntdll_module);
+    // This fails on Windows 7.
+    add_growable_function_table_func =
+        reinterpret_cast<decltype(&::RtlAddGrowableFunctionTable)>(
+            ::GetProcAddress(ntdll_module, "RtlAddGrowableFunctionTable"));
+    DCHECK_IMPLIES(IsWindows8OrGreater(), add_growable_function_table_func);
 
-  // This fails on Windows 7.
-  add_growable_function_table_func =
-      reinterpret_cast<decltype(&::RtlAddGrowableFunctionTable)>(
-          ::GetProcAddress(ntdll_module, "RtlAddGrowableFunctionTable"));
-  DCHECK_IMPLIES(IsWindows8OrGreater(), add_growable_function_table_func);
-
-  delete_growable_function_table_func =
-      reinterpret_cast<decltype(&::RtlDeleteGrowableFunctionTable)>(
-          ::GetProcAddress(ntdll_module, "RtlDeleteGrowableFunctionTable"));
-  DCHECK_IMPLIES(IsWindows8OrGreater(), delete_growable_function_table_func);
+    delete_growable_function_table_func =
+        reinterpret_cast<decltype(&::RtlDeleteGrowableFunctionTable)>(
+            ::GetProcAddress(ntdll_module, "RtlDeleteGrowableFunctionTable"));
+    DCHECK_IMPLIES(IsWindows8OrGreater(), delete_growable_function_table_func);
+  });
 }
 
 bool AddGrowableFunctionTable(PVOID* DynamicTable,
