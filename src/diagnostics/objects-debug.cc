@@ -1697,7 +1697,7 @@ void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
   // Just generically check all tagged fields. Don't check the untagged fields,
   // as some of them might still contain the "undefined" value if the
   // WasmInstanceObject is not fully set up yet.
-  for (int offset = kHeaderSize; offset < kEndOfTaggedFieldsOffset;
+  for (int offset = kHeaderSize; offset < kEndOfStrongFieldsOffset;
        offset += kTaggedSize) {
     VerifyObjectField(isolate, offset);
   }

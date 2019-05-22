@@ -704,8 +704,8 @@ class WasmCapiFunctionData : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_WASM_CAPI_FUNCTION_DATA_FIELDS)
 
-  STATIC_ASSERT(kStartOfPointerFieldsOffset == kWrapperCodeOffset);
-  typedef FlexibleBodyDescriptor<kStartOfPointerFieldsOffset> BodyDescriptor;
+  STATIC_ASSERT(kStartOfStrongFieldsOffset == kWrapperCodeOffset);
+  typedef FlexibleBodyDescriptor<kStartOfStrongFieldsOffset> BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(WasmCapiFunctionData, Struct);
 };

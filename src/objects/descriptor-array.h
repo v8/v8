@@ -141,9 +141,7 @@ class DescriptorArray : public HeapObject {
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_DESCRIPTOR_ARRAY_FIELDS)
-  static constexpr int kHeaderSize = kSize;
-
-  STATIC_ASSERT(IsAligned(kStartOfPointerFieldsOffset, kTaggedSize));
+  STATIC_ASSERT(IsAligned(kStartOfWeakFieldsOffset, kTaggedSize));
   STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
 
   // Garbage collection support.
@@ -165,8 +163,13 @@ class DescriptorArray : public HeapObject {
   inline ObjectSlot GetKeySlot(int descriptor);
   inline MaybeObjectSlot GetValueSlot(int descriptor);
 
-  using BodyDescriptor =
-    FlexibleWeakBodyDescriptor<kStartOfPointerFieldsOffset>;
+  static_assert(kEndOfStrongFieldsOffset == kStartOfWeakFieldsOffset,
+                "Weak fields follow strong fields.");
+  static_assert(kEndOfWeakFieldsOffset == kHeaderSize,
+                "Weak fields extend up to the end of the header.");
+  // We use this visitor to also visitor to also visit the enum_cache, which is
+  // the only tagged field in the header, and placed at the end of the header.
+  using BodyDescriptor = FlexibleWeakBodyDescriptor<kStartOfStrongFieldsOffset>;
 
   // Layout of descriptor.
   // Naming is consistent with Dictionary classes for easy templating.

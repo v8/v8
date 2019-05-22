@@ -92,7 +92,11 @@ int DescriptorArray::SearchWithCache(Isolate* isolate, Name name, Map map) {
 }
 
 ObjectSlot DescriptorArray::GetFirstPointerSlot() {
-  return RawField(DescriptorArray::kStartOfPointerFieldsOffset);
+  static_assert(kEndOfStrongFieldsOffset == kStartOfWeakFieldsOffset,
+                "Weak and strong fields are continuous.");
+  static_assert(kEndOfWeakFieldsOffset == kHeaderSize,
+                "Weak fields extend up to the end of the header.");
+  return RawField(DescriptorArray::kStartOfStrongFieldsOffset);
 }
 
 ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {

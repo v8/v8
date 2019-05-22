@@ -2800,74 +2800,162 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(
 
 namespace {
 
-enum class FieldSectionType {
+enum class FieldSectionType : uint32_t {
   kNoSection = 0,
-  kWeakSection,
-  kStrongSection,
-  kScalarSection
+  kWeakSection = 1 << 0,
+  kStrongSection = 2 << 0,
+  kScalarSection = 3 << 0
 };
 
-void PossiblyStartTagged(FieldSectionType* section,
-                         std::set<FieldSectionType>* completed_sections,
-                         std::stringstream* o) {
-  if (completed_sections->count(FieldSectionType::kWeakSection) == 0 &&
-      completed_sections->count(FieldSectionType::kStrongSection) == 0 &&
-      *section != FieldSectionType::kWeakSection &&
-      *section != FieldSectionType::kStrongSection) {
-    *o << "V(kStartOfPointerFieldsOffset, 0) \\\n";
-  }
+bool IsPointerSection(FieldSectionType type) {
+  return type == FieldSectionType::kWeakSection ||
+         type == FieldSectionType::kStrongSection;
 }
 
-void PossiblyEndTagged(FieldSectionType* section,
-                       std::set<FieldSectionType>* completed_sections,
-                       std::stringstream* o) {
-  if (completed_sections->count(FieldSectionType::kWeakSection) != 0 &&
-      completed_sections->count(FieldSectionType::kStrongSection) != 0) {
-    *o << "V(kEndOfTaggedFieldsOffset, 0) \\\n";
+using FieldSections = base::Flags<FieldSectionType>;
+
+std::ostream& operator<<(std::ostream& out, const FieldSectionType& type) {
+  switch (type) {
+    case FieldSectionType::kNoSection:
+      out << "NoSection";
+      break;
+    case FieldSectionType::kWeakSection:
+      out << "WeakFields";
+      break;
+    case FieldSectionType::kStrongSection:
+      out << "StrongFields";
+      break;
+    case FieldSectionType::kScalarSection:
+      out << "ScalarFields";
+      break;
   }
+  return out;
 }
 
-void ProcessFieldInSection(FieldSectionType* section,
-                           std::set<FieldSectionType>* completed_sections,
-                           FieldSectionType field_section,
-                           std::stringstream* o) {
-  if (*section != FieldSectionType::kNoSection) {
-    if (*section != field_section) {
-      if (completed_sections->count(field_section) != 0) {
-        ReportError("reopening of weak, strong or scalar field section");
-      }
-      completed_sections->insert(*section);
-      if (*section == FieldSectionType::kWeakSection) {
-        *o << "V(kEndOfWeakFieldsOffset, 0) \\\n";
-        PossiblyEndTagged(section, completed_sections, o);
-      } else if (*section == FieldSectionType::kStrongSection) {
-        *o << "V(kEndOfStrongFieldsOffset, 0) \\\n";
-        PossiblyEndTagged(section, completed_sections, o);
-      }
+class FieldOffsetsGenerator {
+ public:
+  FieldOffsetsGenerator(std::ostream& out, const ClassType* type)
+      : out_(out), type_(type) {
+    out_ << "#define ";
+    out_ << "TORQUE_GENERATED_" << CapifyStringWithUnderscores(type->name())
+         << "_FIELDS(V) \\\n";
+  }
+
+  ~FieldOffsetsGenerator() { CHECK(is_finished_); }
+
+  void RecordOffsetFor(const Field& f) {
+    CHECK(!is_finished_);
+    UpdateSection(f);
+    size_t field_size;
+    std::string size_string;
+    std::string machine_type;
+    std::tie(field_size, size_string) = f.GetFieldSizeInformation();
+    out_ << "V(k" << CamelifyString(f.name_and_type.name) << "Offset, "
+         << size_string << ") \\\n";
+  }
+
+  void Finish() {
+    End(current_section_);
+    if (!(completed_sections_ & FieldSectionType::kWeakSection)) {
+      Begin(FieldSectionType::kWeakSection);
+      End(FieldSectionType::kWeakSection);
+    }
+    if (!(completed_sections_ & FieldSectionType::kStrongSection)) {
+      Begin(FieldSectionType::kStrongSection);
+      End(FieldSectionType::kStrongSection);
+    }
+    is_finished_ = true;
+    if (type_->IsAbstract()) {
+      out_ << "V(kHeaderSize, 0) \\\n";
+    }
+    if (!type_->IsAbstract() || type_->IsInstantiatedAbstractClass()) {
+      out_ << "V(kSize, 0) \\\n";
     }
   }
-  if (*section != field_section) {
-    if (field_section == FieldSectionType::kWeakSection) {
-      PossiblyStartTagged(section, completed_sections, o);
-      *o << "V(kStartOfWeakFieldsOffset, 0) \\\n";
-    } else if (field_section == FieldSectionType::kStrongSection) {
-      PossiblyStartTagged(section, completed_sections, o);
-      *o << "V(kStartOfStrongFieldsOffset, 0) \\\n";
+
+ private:
+  FieldSectionType GetSectionFor(const Field& f) {
+    if (f.name_and_type.type == TypeOracle::GetVoidType()) {
+      // Allow void type for marker constants of size zero.
+      return current_section_;
+    }
+    if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      if (f.is_weak) {
+        return FieldSectionType::kWeakSection;
+      } else {
+        return FieldSectionType::kStrongSection;
+      }
+    } else {
+      return FieldSectionType::kScalarSection;
     }
   }
-  *section = field_section;
+  void UpdateSection(const Field& f) {
+    FieldSectionType type = GetSectionFor(f);
+    if (current_section_ == type) return;
+    if (IsPointerSection(type)) {
+      if (completed_sections_ & type) {
+        std::stringstream s;
+        s << "cannot declare field " << f.name_and_type.name << " in class "
+          << type_->name() << ", because section " << type
+          << " to which it belongs has already been finished.";
+        Error(s.str()).Position(f.pos);
+      }
+    }
+    End(current_section_);
+    current_section_ = type;
+    Begin(current_section_);
+  }
+  void Begin(FieldSectionType type) {
+    DCHECK(type != FieldSectionType::kNoSection);
+    if (!IsPointerSection(type)) return;
+    out_ << "V(kStartOf" << type << "Offset, 0) \\\n";
+  }
+  void End(FieldSectionType type) {
+    if (!IsPointerSection(type)) return;
+    completed_sections_ |= type;
+    out_ << "V(kEndOf" << type << "Offset, 0) \\\n";
+  }
+
+  FieldSectionType current_section_ = FieldSectionType::kNoSection;
+  FieldSections completed_sections_ = FieldSectionType::kNoSection;
+  std::ostream& out_;
+  const ClassType* type_;
+  bool is_finished_ = false;
+};
+
+}  // namespace
+
+void ImplementationVisitor::GenerateClassFieldOffsets(
+    const std::string& output_directory) {
+  std::stringstream header;
+  std::string file_name = "field-offsets-tq.h";
+  {
+    IncludeGuardScope include_guard(header, file_name);
+
+    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
+      const ClassType* type = ClassType::DynamicCast(alias->type());
+      if (!type->IsExtern()) continue;
+
+      // TODO(danno): Ideally (and we've got several core V8 dev's feedback
+      // supporting this), Torque should generate the constants for the offsets
+      // directly and not go through the existing layer of macros, which
+      // actually currently just serves to additionally obfuscate where these
+      // values come from.
+      FieldOffsetsGenerator g(header, type);
+      for (auto f : type->fields()) {
+        CurrentSourcePosition::Scope scope(f.pos);
+        g.RecordOffsetFor(f);
+      }
+      g.Finish();
+
+      header << "\n";
+    }
+  }
+  const std::string output_header_path = output_directory + "/" + file_name;
+  WriteFile(output_header_path, header.str());
 }
 
-void CompleteFieldSection(FieldSectionType* section,
-                          std::set<FieldSectionType>* completed_sections,
-                          FieldSectionType field_section,
-                          std::stringstream* o) {
-  if (completed_sections->count(field_section) == 0) {
-    ProcessFieldInSection(section, completed_sections, field_section, o);
-    ProcessFieldInSection(section, completed_sections,
-                          FieldSectionType::kNoSection, o);
-  }
-}
+namespace {
 
 class CppClassGenerator {
  public:
@@ -3059,76 +3147,6 @@ void ImplementationVisitor::GenerateClassDefinitions(
   WriteFile(file_basename + ".h", header.str());
   WriteFile(file_basename + "-inl.h", inline_header.str());
   WriteFile(file_basename + ".cc", implementation.str());
-}
-
-void ImplementationVisitor::GenerateClassFieldOffsets(
-    const std::string& output_directory) {
-  std::stringstream new_contents_stream;
-  std::string file_name = "field-offsets-tq.h";
-  {
-    IncludeGuardScope include_guard(new_contents_stream, file_name);
-
-    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
-      const ClassType* type = ClassType::DynamicCast(alias->type());
-      if (!type->IsExtern()) continue;
-
-      // TODO(danno): Ideally (and we've got several core V8 dev's feedback
-      // supporting this), Torque should generate the constants for the offsets
-      // directly and not go through the existing layer of macros, which
-      // actually currently just serves to additionally obfuscate where these
-      // values come from.
-      new_contents_stream << "#define ";
-      new_contents_stream << "TORQUE_GENERATED_"
-                          << CapifyStringWithUnderscores(type->name())
-                          << "_FIELDS(V) \\\n";
-      std::vector<Field> fields = type->fields();
-      FieldSectionType section = FieldSectionType::kNoSection;
-      std::set<FieldSectionType> completed_sections;
-      for (auto f : fields) {
-        CurrentSourcePosition::Scope scope(f.pos);
-        if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-          if (f.is_weak) {
-            ProcessFieldInSection(&section, &completed_sections,
-                                  FieldSectionType::kWeakSection,
-                                  &new_contents_stream);
-          } else {
-            ProcessFieldInSection(&section, &completed_sections,
-                                  FieldSectionType::kStrongSection,
-                                  &new_contents_stream);
-          }
-        } else if (f.name_and_type.type != TypeOracle::GetVoidType()) {
-          ProcessFieldInSection(&section, &completed_sections,
-                                FieldSectionType::kScalarSection,
-                                &new_contents_stream);
-        }
-        size_t field_size;
-        std::string size_string;
-        std::string machine_type;
-        std::tie(field_size, size_string) = f.GetFieldSizeInformation();
-        new_contents_stream << "V(k" << CamelifyString(f.name_and_type.name)
-                            << "Offset, " << size_string << ") \\\n";
-      }
-      ProcessFieldInSection(&section, &completed_sections,
-                            FieldSectionType::kNoSection, &new_contents_stream);
-      CompleteFieldSection(&section, &completed_sections,
-                           FieldSectionType::kWeakSection,
-                           &new_contents_stream);
-      CompleteFieldSection(&section, &completed_sections,
-                           FieldSectionType::kStrongSection,
-                           &new_contents_stream);
-
-      if (type->IsAbstract()) {
-        new_contents_stream << "V(kHeaderSize, 0) \\\n";
-      }
-      if (!type->IsAbstract() || type->IsInstantiatedAbstractClass()) {
-        new_contents_stream << "V(kSize, 0) \\\n";
-      }
-      new_contents_stream << "\n";
-    }
-  }
-  const std::string output_header_path = output_directory + "/" + file_name;
-  std::string new_contents(new_contents_stream.str());
-  WriteFile(output_header_path, new_contents);
 }
 
 namespace {

@@ -230,12 +230,17 @@ extern class SourcePositionTableWithFrameCache extends Struct {
   stack_frame_cache: Object;
 }
 
+// We make this class abstract because it is missing the variable-sized part,
+// which is still impossible to express in Torque.
+@abstract
 extern class DescriptorArray extends HeapObject {
   number_of_all_descriptors: uint16;
   number_of_descriptors: uint16;
   raw_number_of_marked_descriptors: uint16;
   filler16_bits: uint16;
   enum_cache: EnumCache;
+  // DescriptorEntry needs to be a struct with three fields.
+  // desriptors : DescriptorEntry[number_of_all_descriptors]
 }
 
 // These intrinsics should never be called from Torque code. They're used

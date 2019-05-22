@@ -119,9 +119,9 @@ class UncompiledData : public HeapObject {
 
   // Layout description.
 #define UNCOMPILED_DATA_FIELDS(V)                                         \
-  V(kStartOfPointerFieldsOffset, 0)                                       \
+  V(kStartOfStrongFieldsOffset, 0)                                        \
   V(kInferredNameOffset, kTaggedSize)                                     \
-  V(kEndOfTaggedFieldsOffset, 0)                                          \
+  V(kEndOfStrongFieldsOffset, 0)                                          \
   /* Raw data fields. */                                                  \
   V(kStartPositionOffset, kInt32Size)                                     \
   V(kEndPositionOffset, kInt32Size)                                       \
@@ -133,8 +133,8 @@ class UncompiledData : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, UNCOMPILED_DATA_FIELDS)
 #undef UNCOMPILED_DATA_FIELDS
 
-  using BodyDescriptor = FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                                             kEndOfTaggedFieldsOffset, kSize>;
+  using BodyDescriptor = FixedBodyDescriptor<kStartOfStrongFieldsOffset,
+                                             kEndOfStrongFieldsOffset, kSize>;
 
   // Clear uninitialized padding space.
   inline void clear_padding();
@@ -180,9 +180,9 @@ class UncompiledDataWithPreparseData : public UncompiledData {
   // Layout description.
 
 #define UNCOMPILED_DATA_WITH_PREPARSE_DATA_FIELDS(V) \
-  V(kStartOfPointerFieldsOffset, 0)                  \
+  V(kStartOfStrongFieldsOffset, 0)                   \
   V(kPreparseDataOffset, kTaggedSize)                \
-  V(kEndOfTaggedFieldsOffset, 0)                     \
+  V(kEndOfStrongFieldsOffset, 0)                     \
   /* Total size. */                                  \
   V(kSize, 0)
 
@@ -195,7 +195,7 @@ class UncompiledDataWithPreparseData : public UncompiledData {
 
   using BodyDescriptor = SubclassBodyDescriptor<
       UncompiledData::BodyDescriptor,
-      FixedBodyDescriptor<kStartOfPointerFieldsOffset, kEndOfTaggedFieldsOffset,
+      FixedBodyDescriptor<kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                           kSize>>;
 
   OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseData, UncompiledData);

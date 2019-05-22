@@ -248,8 +248,11 @@ class JSWeakRef::BodyDescriptor final : public BodyDescriptorBase {
 class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    return FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                               kEndOfTaggedFieldsOffset,
+    static_assert(kEndOfWeakFieldsOffset == kStartOfStrongFieldsOffset,
+                  "Leverage that strong fields directly follow weak fields"
+                  "to call FixedBodyDescriptor<...>::IsValidSlot below");
+    return FixedBodyDescriptor<kStartOfWeakFieldsOffset,
+                               kEndOfStrongFieldsOffset,
                                kAlignedSize>::IsValidSlot(map, obj, offset);
   }
 
@@ -258,7 +261,7 @@ class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     IterateCustomWeakPointer(obj, kFunctionDataOffset, v);
     IteratePointers(obj, SharedFunctionInfo::kStartOfStrongFieldsOffset,
-                    SharedFunctionInfo::kEndOfTaggedFieldsOffset, v);
+                    SharedFunctionInfo::kEndOfStrongFieldsOffset, v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
@@ -714,8 +717,12 @@ class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
 class Map::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    return offset >= Map::kStartOfPointerFieldsOffset &&
-           offset < Map::kEndOfTaggedFieldsOffset;
+    static_assert(
+        Map::kEndOfStrongFieldsOffset == Map::kStartOfWeakFieldsOffset,
+        "Leverage that weak fields directly follow strong fields for the "
+        "check below");
+    return offset >= Map::kStartOfStrongFieldsOffset &&
+           offset < Map::kEndOfWeakFieldsOffset;
   }
 
   template <typename ObjectVisitor>
