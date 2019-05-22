@@ -118,13 +118,13 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       // continue the inlining checks. Log a warning and continue.
       if (candidate.functions[i].has_value()) {
         TRACE_BROKER(broker(),
-                     "Missing bytecode array trying to inline function "
-                         << candidate.functions[i].value().object().address());
+                     "Missing bytecode array trying to inline JSFunction "
+                         << *candidate.functions[i]);
       } else {
         TRACE_BROKER(
             broker(),
-            "Missing bytecode array trying to inline function with SFI "
-                << candidate.shared_info.value().object().address());
+            "Missing bytecode array trying to inline SharedFunctionInfo "
+                << *candidate.shared_info);
       }
       // Those functions that don't have their bytecode serialized probably
       // don't have the SFI either, so we exit the loop early.

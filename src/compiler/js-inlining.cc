@@ -368,13 +368,12 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   base::Optional<SharedFunctionInfoRef> shared_info(DetermineCallTarget(node));
   if (!shared_info.has_value()) return NoChange();
 
-  DCHECK(shared_info.value().IsInlineable());
+  DCHECK(shared_info->IsInlineable());
 
   // Constructor must be constructable.
   if (node->opcode() == IrOpcode::kJSConstruct &&
       !IsConstructable(shared_info->kind())) {
-    TRACE("Not inlining " << shared_info->object().address() << " into "
-                          << info_->shared_info().address()
+    TRACE("Not inlining " << *shared_info << " into " << info_->shared_info()
                           << " because constructor is not constructable.");
     return NoChange();
   }
@@ -383,8 +382,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
   if (node->opcode() == IrOpcode::kJSCall &&
       IsClassConstructor(shared_info->kind())) {
-    TRACE("Not inlining " << shared_info->object().address() << " into "
-                          << info_->shared_info().address()
+    TRACE("Not inlining " << *shared_info << " into " << info_->shared_info()
                           << " because callee is a class constructor.");
     return NoChange();
   }
@@ -398,8 +396,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     nesting_level++;
     if (nesting_level > kMaxDepthForInlining) {
       TRACE("Not inlining "
-            << shared_info->object().address() << " into "
-            << info_->shared_info().address()
+            << *shared_info << " into " << info_->shared_info()
             << " because call has exceeded the maximum depth for function "
                "inlining.");
       return NoChange();
@@ -415,8 +412,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     TRACE("Try block surrounds #"
           << exception_target->id() << ":" << exception_target->op()->mnemonic()
           << " and --no-inline-into-try active, so not inlining "
-          << shared_info->object().address() << " into "
-          << info_->shared_info().address());
+          << *shared_info << " into " << info_->shared_info());
     return NoChange();
   }
 
@@ -432,8 +428,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
                                                        shared_info->object());
   }
 
-  TRACE("Inlining " << shared_info->object().address() << " into "
-                    << info_->shared_info().address()
+  TRACE("Inlining " << *shared_info << " into " << info_->shared_info()
                     << ((exception_target != nullptr) ? " (inside try-block)"
                                                       : ""));
   // Determine the targets feedback vector and its context.
@@ -443,8 +438,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   if (FLAG_concurrent_inlining) {
     if (!shared_info.value().IsSerializedForCompilation(feedback_vector)) {
       TRACE("Missed opportunity to inline a function ("
-            << shared_info->object().address() << " with "
-            << feedback_vector.object().address() << ")");
+            << *shared_info << " with " << feedback_vector << ")");
       return NoChange();
     }
   }

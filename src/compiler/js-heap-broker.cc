@@ -1413,7 +1413,7 @@ SharedFunctionInfoData::SharedFunctionInfoData(
 void SharedFunctionInfoData::SetSerializedForCompilation(
     JSHeapBroker* broker, FeedbackVectorRef feedback) {
   CHECK(serialized_for_compilation_.insert(feedback.object()).second);
-  TRACE(broker, "Set function " << object() << " with " << feedback.object()
+  TRACE(broker, "Set function " << this << " with " << feedback
                                 << " as serialized for compilation");
 }
 
@@ -2849,7 +2849,7 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(uint32_t index,
   if (serialize) {
     data()->AsJSObject()->SerializeElements(broker());
   } else if (!data()->AsJSObject()->serialized_elements()) {
-    TRACE(broker(), "'elements' on data " << this);
+    TRACE(broker(), "'elements' on " << this);
     return base::nullopt;
   }
   if (!elements().map().IsFixedCowArrayMap()) return base::nullopt;
