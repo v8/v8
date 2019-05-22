@@ -32,7 +32,7 @@ LocalEmbedderHeapTracer::WrapperInfo CreateWrapperInfo() {
 class MockEmbedderHeapTracer : public EmbedderHeapTracer {
  public:
   MOCK_METHOD1(TracePrologue, void(EmbedderHeapTracer::TraceFlags));
-  MOCK_METHOD1(TraceEpilogue, void(EmbedderHeapTracer::TraceSummary*));
+  MOCK_METHOD0(TraceEpilogue, void());
   MOCK_METHOD1(EnterFinalPause, void(EmbedderHeapTracer::EmbedderStackState));
   MOCK_METHOD0(IsTracingDone, bool());
   MOCK_METHOD1(RegisterV8References,
@@ -80,7 +80,7 @@ TEST(LocalEmbedderHeapTracer, TraceEpilogueForwards) {
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
   LocalEmbedderHeapTracer local_tracer(nullptr);
   local_tracer.SetRemoteTracer(&remote_tracer);
-  EXPECT_CALL(remote_tracer, TraceEpilogue(_));
+  EXPECT_CALL(remote_tracer, TraceEpilogue());
   local_tracer.TraceEpilogue();
 }
 

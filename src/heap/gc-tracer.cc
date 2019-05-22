@@ -191,7 +191,6 @@ void GCTracer::ResetForTesting() {
   recorded_incremental_mark_compacts_.Reset();
   recorded_new_generation_allocations_.Reset();
   recorded_old_generation_allocations_.Reset();
-  recorded_embedder_generation_allocations_.Reset();
   recorded_context_disposal_times_.Reset();
   recorded_survival_ratios_.Reset();
   start_counter_ = 0;
@@ -222,8 +221,7 @@ void GCTracer::Start(GarbageCollector collector,
   previous_ = current_;
   double start_time = heap_->MonotonicallyIncreasingTimeInMs();
   SampleAllocation(start_time, heap_->NewSpaceAllocationCounter(),
-                   heap_->OldGenerationAllocationCounter(),
-                   heap_->EmbedderAllocationCounter());
+                   heap_->OldGenerationAllocationCounter());
 
   switch (collector) {
     case SCAVENGER:
@@ -377,16 +375,15 @@ void GCTracer::Stop(GarbageCollector collector) {
   }
 }
 
+
 void GCTracer::SampleAllocation(double current_ms,
                                 size_t new_space_counter_bytes,
-                                size_t old_generation_counter_bytes,
-                                size_t embedder_allocation_bytes) {
+                                size_t old_generation_counter_bytes) {
   if (allocation_time_ms_ == 0) {
     // It is the first sample.
     allocation_time_ms_ = current_ms;
     new_space_allocation_counter_bytes_ = new_space_counter_bytes;
     old_generation_allocation_counter_bytes_ = old_generation_counter_bytes;
-    embedder_allocation_counter_bytes_ = embedder_allocation_bytes;
     return;
   }
   // This assumes that counters are unsigned integers so that the subtraction
@@ -395,8 +392,6 @@ void GCTracer::SampleAllocation(double current_ms,
       new_space_counter_bytes - new_space_allocation_counter_bytes_;
   size_t old_generation_allocated_bytes =
       old_generation_counter_bytes - old_generation_allocation_counter_bytes_;
-  size_t embedder_allocated_bytes =
-      embedder_allocation_bytes - embedder_allocation_counter_bytes_;
   double duration = current_ms - allocation_time_ms_;
   allocation_time_ms_ = current_ms;
   new_space_allocation_counter_bytes_ = new_space_counter_bytes;
@@ -405,8 +400,8 @@ void GCTracer::SampleAllocation(double current_ms,
   new_space_allocation_in_bytes_since_gc_ += new_space_allocated_bytes;
   old_generation_allocation_in_bytes_since_gc_ +=
       old_generation_allocated_bytes;
-  embedder_allocation_in_bytes_since_gc_ += embedder_allocated_bytes;
 }
+
 
 void GCTracer::AddAllocation(double current_ms) {
   allocation_time_ms_ = current_ms;
@@ -417,13 +412,10 @@ void GCTracer::AddAllocation(double current_ms) {
     recorded_old_generation_allocations_.Push(
         MakeBytesAndDuration(old_generation_allocation_in_bytes_since_gc_,
                              allocation_duration_since_gc_));
-    recorded_embedder_generation_allocations_.Push(MakeBytesAndDuration(
-        embedder_allocation_in_bytes_since_gc_, allocation_duration_since_gc_));
   }
   allocation_duration_since_gc_ = 0;
   new_space_allocation_in_bytes_since_gc_ = 0;
   old_generation_allocation_in_bytes_since_gc_ = 0;
-  embedder_allocation_in_bytes_since_gc_ = 0;
 }
 
 
@@ -889,16 +881,6 @@ void GCTracer::RecordIncrementalMarkingSpeed(size_t bytes, double duration) {
   }
 }
 
-void GCTracer::RecordEmbedderSpeed(size_t bytes, double duration) {
-  if (duration == 0 || bytes == 0) return;
-  double current_speed = bytes / duration;
-  if (recorded_embedder_speed_ == 0.0) {
-    recorded_embedder_speed_ = current_speed;
-  } else {
-    recorded_embedder_speed_ = (recorded_embedder_speed_ + current_speed) / 2;
-  }
-}
-
 void GCTracer::RecordMutatorUtilization(double mark_compact_end_time,
                                         double mark_compact_duration) {
   if (previous_mark_compact_end_time_ == 0) {
@@ -937,18 +919,12 @@ double GCTracer::CurrentMarkCompactMutatorUtilization() const {
 }
 
 double GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
+  const int kConservativeSpeedInBytesPerMillisecond = 128 * KB;
   if (recorded_incremental_marking_speed_ != 0) {
     return recorded_incremental_marking_speed_;
   }
   if (incremental_marking_duration_ != 0.0) {
     return incremental_marking_bytes_ / incremental_marking_duration_;
-  }
-  return kConservativeSpeedInBytesPerMillisecond;
-}
-
-double GCTracer::EmbedderSpeedInBytesPerMillisecond() const {
-  if (recorded_embedder_speed_ != 0.0) {
-    return recorded_embedder_speed_;
   }
   return kConservativeSpeedInBytesPerMillisecond;
 }
@@ -999,15 +975,6 @@ double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
   return combined_mark_compact_speed_cache_;
 }
 
-double GCTracer::CombineSpeedsInBytesPerMillisecond(double default_speed,
-                                                    double optional_speed) {
-  constexpr double kMinimumSpeed = 0.5;
-  if (optional_speed < kMinimumSpeed) {
-    return default_speed;
-  }
-  return default_speed * optional_speed / (default_speed + optional_speed);
-}
-
 double GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
     double time_ms) const {
   size_t bytes = new_space_allocation_in_bytes_since_gc_;
@@ -1024,14 +991,6 @@ double GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
                       MakeBytesAndDuration(bytes, durations), time_ms);
 }
 
-double GCTracer::EmbedderAllocationThroughputInBytesPerMillisecond(
-    double time_ms) const {
-  size_t bytes = embedder_allocation_in_bytes_since_gc_;
-  double durations = allocation_duration_since_gc_;
-  return AverageSpeed(recorded_embedder_generation_allocations_,
-                      MakeBytesAndDuration(bytes, durations), time_ms);
-}
-
 double GCTracer::AllocationThroughputInBytesPerMillisecond(
     double time_ms) const {
   return NewSpaceAllocationThroughputInBytesPerMillisecond(time_ms) +
@@ -1045,12 +1004,6 @@ double GCTracer::CurrentAllocationThroughputInBytesPerMillisecond() const {
 double GCTracer::CurrentOldGenerationAllocationThroughputInBytesPerMillisecond()
     const {
   return OldGenerationAllocationThroughputInBytesPerMillisecond(
-      kThroughputTimeFrameMs);
-}
-
-double GCTracer::CurrentEmbedderAllocationThroughputInBytesPerMillisecond()
-    const {
-  return EmbedderAllocationThroughputInBytesPerMillisecond(
       kThroughputTimeFrameMs);
 }
 

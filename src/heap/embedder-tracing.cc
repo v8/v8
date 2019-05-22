@@ -5,7 +5,6 @@
 #include "src/heap/embedder-tracing.h"
 
 #include "src/base/logging.h"
-#include "src/heap/gc-tracer.h"
 #include "src/objects/embedder-data-slot.h"
 #include "src/objects/js-objects-inl.h"
 
@@ -32,17 +31,7 @@ void LocalEmbedderHeapTracer::TracePrologue(
 void LocalEmbedderHeapTracer::TraceEpilogue() {
   if (!InUse()) return;
 
-  EmbedderHeapTracer::TraceSummary summary;
-  remote_tracer_->TraceEpilogue(&summary);
-  remote_stats_.allocated_size = summary.allocated_size;
-  // Force a check next time increased memory is reported. This allows for
-  // setting limits close to actual heap sizes.
-  remote_stats_.allocated_size_limit_for_check = 0;
-  constexpr double kMinReportingTimeMs = 0.5;
-  if (summary.time > kMinReportingTimeMs) {
-    isolate_->heap()->tracer()->RecordEmbedderSpeed(summary.allocated_size,
-                                                    summary.time);
-  }
+  remote_tracer_->TraceEpilogue();
 }
 
 void LocalEmbedderHeapTracer::EnterFinalPause() {
@@ -109,13 +98,6 @@ void LocalEmbedderHeapTracer::ProcessingScope::AddWrapperInfoForTesting(
     WrapperInfo info) {
   wrapper_cache_.push_back(info);
   FlushWrapperCacheIfFull();
-}
-
-void LocalEmbedderHeapTracer::StartIncrementalMarkingIfNeeded() {
-  Heap* heap = isolate_->heap();
-  heap->StartIncrementalMarkingIfAllocationLimitIsReached(
-      heap->GCFlagsForIncrementalMarking(),
-      kGCCallbackScheduleIdleGarbageCollection);
 }
 
 }  // namespace internal
