@@ -55,7 +55,7 @@ class V8_EXPORT_PRIVATE Utf8Decoder final {
   explicit Utf8Decoder(const Vector<const uint8_t>& chars);
 
   bool is_ascii() const { return encoding_ == Encoding::kAscii; }
-  bool is_one_byte() const { return encoding_ < Encoding::kLatin1; }
+  bool is_one_byte() const { return encoding_ <= Encoding::kLatin1; }
   int utf16_length() const { return utf16_length_; }
   int non_ascii_start() const { return non_ascii_start_; }
 
