@@ -2049,7 +2049,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/ast/source-range-ast-visitor.h",
     "src/ast/variables.cc",
     "src/ast/variables.h",
-    "src/base/type-traits.h",
     "src/bit-vector.cc",
     "src/bit-vector.h",
     "src/boxed-float.h",
@@ -2776,7 +2775,10 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime.cc",
     "src/runtime/runtime.h",
     "src/sanitizer/asan.h",
+    "src/sanitizer/lsan-page-allocator.cc",
+    "src/sanitizer/lsan-page-allocator.h",
     "src/sanitizer/msan.h",
+    "src/sanitizer/tsan.h",
     "src/snapshot/code-serializer.cc",
     "src/snapshot/code-serializer.h",
     "src/snapshot/deserializer-allocator.cc",
@@ -3495,11 +3497,9 @@ v8_component("v8_libbase") {
     "src/base/sys-info.h",
     "src/base/template-utils.h",
     "src/base/timezone-cache.h",
+    "src/base/type-traits.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",
-    "src/sanitizer/lsan-page-allocator.cc",
-    "src/sanitizer/lsan-page-allocator.h",
-    "src/sanitizer/tsan.h",
   ]
 
   configs = [ ":internal_config_base" ]

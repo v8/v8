@@ -6,7 +6,6 @@
 #define V8_SANITIZER_LSAN_PAGE_ALLOCATOR_H_
 
 #include "include/v8-platform.h"
-#include "src/base/base-export.h"
 #include "src/base/compiler-specific.h"
 
 namespace v8 {
@@ -15,10 +14,9 @@ namespace base {
 // This is a v8::PageAllocator implementation that decorates provided page
 // allocator object with leak sanitizer notifications when LEAK_SANITIZER
 // is defined.
-class V8_BASE_EXPORT LsanPageAllocator
-    : public NON_EXPORTED_BASE(::v8::PageAllocator) {
+class LsanPageAllocator : public v8::PageAllocator {
  public:
-  LsanPageAllocator(v8::PageAllocator* page_allocator);
+  explicit LsanPageAllocator(v8::PageAllocator* page_allocator);
   ~LsanPageAllocator() override = default;
 
   size_t AllocatePageSize() override { return allocate_page_size_; }
