@@ -516,7 +516,7 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
       top_down_.AddPathFromEnd(path, src_line, update_stats, options_.mode());
 
   bool should_record_sample =
-      options_.record_samples() && !timestamp.IsNull() &&
+      !timestamp.IsNull() &&
       (options_.max_samples() == CpuProfilingOptions::kNoSampleLimit ||
        samples_.size() < options_.max_samples());
 

@@ -439,7 +439,6 @@ class ProfilerHelper {
   v8::CpuProfile* Run(
       v8::Local<v8::Function> function, v8::Local<v8::Value> argv[], int argc,
       unsigned min_js_samples = 0, unsigned min_external_samples = 0,
-      bool collect_samples = false,
       ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers,
       unsigned max_samples = CpuProfilingOptions::kNoSampleLimit);
 
@@ -454,12 +453,11 @@ v8::CpuProfile* ProfilerHelper::Run(v8::Local<v8::Function> function,
                                     v8::Local<v8::Value> argv[], int argc,
                                     unsigned min_js_samples,
                                     unsigned min_external_samples,
-                                    bool collect_samples, ProfilingMode mode,
-                                    unsigned max_samples) {
+                                    ProfilingMode mode, unsigned max_samples) {
   v8::Local<v8::String> profile_name = v8_str("my_profile");
 
   profiler_->SetSamplingInterval(100);
-  profiler_->StartProfiling(profile_name, {mode, collect_samples, max_samples});
+  profiler_->StartProfiling(profile_name, {mode, max_samples});
 
   v8::internal::CpuProfiler* iprofiler =
       reinterpret_cast<v8::internal::CpuProfiler*>(profiler_);
@@ -667,11 +665,11 @@ TEST(CollectCpuProfileCallerLineNumbers) {
   v8::Local<v8::Value> args[] = {
       v8::Integer::New(env->GetIsolate(), profiling_interval_ms)};
   ProfilerHelper helper(env.local());
-  helper.Run(function, args, arraysize(args), 1000, 0, false,
-             v8::CpuProfilingMode::kCallerLineNumbers);
+  helper.Run(function, args, arraysize(args), 1000, 0,
+             v8::CpuProfilingMode::kCallerLineNumbers, 0);
   v8::CpuProfile* profile =
-      helper.Run(function, args, arraysize(args), 1000, 0, false,
-                 v8::CpuProfilingMode::kCallerLineNumbers);
+      helper.Run(function, args, arraysize(args), 1000, 0,
+                 v8::CpuProfilingMode::kCallerLineNumbers, 0);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* start_node = GetChild(root, {"start", 27});
@@ -753,7 +751,7 @@ TEST(CollectCpuProfileSamples) {
       v8::Integer::New(env->GetIsolate(), profiling_interval_ms)};
   ProfilerHelper helper(env.local());
   v8::CpuProfile* profile =
-      helper.Run(function, args, arraysize(args), 1000, 0, true);
+      helper.Run(function, args, arraysize(args), 1000, 0);
 
   CHECK_LE(200, profile->GetSamplesCount());
   uint64_t end_time = profile->GetEndTime();
@@ -2858,7 +2856,7 @@ TEST(NativeFrameStackTrace) {
 
   ProfilerHelper helper(env);
 
-  v8::CpuProfile* profile = helper.Run(function, nullptr, 0, 100, 0, true);
+  v8::CpuProfile* profile = helper.Run(function, nullptr, 0, 100, 0);
 
   // Count the fraction of samples landing in 'jsFunction' (valid stack)
   // vs '(program)' (no stack captured).
@@ -2966,7 +2964,7 @@ TEST(MultipleProfilersSampleIndependently) {
   std::unique_ptr<CpuProfiler> slow_profiler(
       new CpuProfiler(CcTest::i_isolate()));
   slow_profiler->set_sampling_interval(base::TimeDelta::FromSeconds(1));
-  slow_profiler->StartProfiling("1", {kLeafNodeLineNumbers, true});
+  slow_profiler->StartProfiling("1", {kLeafNodeLineNumbers});
 
   CompileRun(R"(
     function start() {
@@ -2979,7 +2977,7 @@ TEST(MultipleProfilersSampleIndependently) {
   )");
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
   ProfilerHelper helper(env.local());
-  v8::CpuProfile* profile = helper.Run(function, nullptr, 0, 100, 0, true);
+  v8::CpuProfile* profile = helper.Run(function, nullptr, 0, 100, 0);
 
   auto slow_profile = slow_profiler->StopProfiling("1");
   CHECK_GT(profile->GetSamplesCount(), slow_profile->samples_count());
@@ -3045,7 +3043,7 @@ TEST(FastStopProfiling) {
 
   std::unique_ptr<CpuProfiler> profiler(new CpuProfiler(CcTest::i_isolate()));
   profiler->set_sampling_interval(kLongInterval);
-  profiler->StartProfiling("", {kLeafNodeLineNumbers, true});
+  profiler->StartProfiling("", {kLeafNodeLineNumbers});
 
   v8::Platform* platform = v8::internal::V8::GetCurrentPlatform();
   double start = platform->CurrentClockTimeMillis();
@@ -3169,7 +3167,7 @@ TEST(SampleLimit) {
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
   ProfilerHelper helper(env.local());
   v8::CpuProfile* profile =
-      helper.Run(function, nullptr, 0, 100, 0, true,
+      helper.Run(function, nullptr, 0, 100, 0,
                  v8::CpuProfilingMode::kLeafNodeLineNumbers, 50);
 
   CHECK_EQ(profile->GetSamplesCount(), 50);
@@ -3191,7 +3189,7 @@ TEST(ProflilerSubsampling) {
 
   // Create a new CpuProfile that wants samples at 8us.
   CpuProfile profile(&profiler, "",
-                     {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
+                     {v8::CpuProfilingMode::kLeafNodeLineNumbers,
                       v8::CpuProfilingOptions::kNoSampleLimit, 8});
   // Verify that the first sample is always included.
   CHECK(profile.CheckSubsample(base::TimeDelta::FromMicroseconds(10)));
@@ -3239,24 +3237,22 @@ TEST(DynamicResampling) {
   // Add a 10us profiler, verify that the base sampling interval is as high as
   // possible (10us).
   profiles->StartProfiling("10us",
-                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
+                           {v8::CpuProfilingMode::kLeafNodeLineNumbers,
                             v8::CpuProfilingOptions::kNoSampleLimit, 10});
   CHECK_EQ(profiles->GetCommonSamplingInterval(),
            base::TimeDelta::FromMicroseconds(10));
 
   // Add a 5us profiler, verify that the base sampling interval is as high as
   // possible given a 10us and 5us profiler (5us).
-  profiles->StartProfiling("5us",
-                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
-                            v8::CpuProfilingOptions::kNoSampleLimit, 5});
+  profiles->StartProfiling("5us", {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                   v8::CpuProfilingOptions::kNoSampleLimit, 5});
   CHECK_EQ(profiles->GetCommonSamplingInterval(),
            base::TimeDelta::FromMicroseconds(5));
 
   // Add a 3us profiler, verify that the base sampling interval is 1us (due to
   // coprime intervals).
-  profiles->StartProfiling("3us",
-                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
-                            v8::CpuProfilingOptions::kNoSampleLimit, 3});
+  profiles->StartProfiling("3us", {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                   v8::CpuProfilingOptions::kNoSampleLimit, 3});
   CHECK_EQ(profiles->GetCommonSamplingInterval(),
            base::TimeDelta::FromMicroseconds(1));
 
@@ -3297,24 +3293,21 @@ TEST(DynamicResamplingWithBaseInterval) {
 
   // Add a profiler with an unset sampling interval, verify that the common
   // sampling interval is equal to the base.
-  profiles->StartProfiling("unset",
-                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
-                            v8::CpuProfilingOptions::kNoSampleLimit});
+  profiles->StartProfiling("unset", {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                     v8::CpuProfilingOptions::kNoSampleLimit});
   CHECK_EQ(profiles->GetCommonSamplingInterval(),
            base::TimeDelta::FromMicroseconds(7));
   profiles->StopProfiling("unset");
 
   // Adding a 8us sampling interval rounds to a 14us base interval.
-  profiles->StartProfiling("8us",
-                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
-                            v8::CpuProfilingOptions::kNoSampleLimit, 8});
+  profiles->StartProfiling("8us", {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                   v8::CpuProfilingOptions::kNoSampleLimit, 8});
   CHECK_EQ(profiles->GetCommonSamplingInterval(),
            base::TimeDelta::FromMicroseconds(14));
 
   // Adding a 4us sampling interval should cause a lowering to a 7us interval.
-  profiles->StartProfiling("4us",
-                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
-                            v8::CpuProfilingOptions::kNoSampleLimit, 4});
+  profiles->StartProfiling("4us", {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                   v8::CpuProfilingOptions::kNoSampleLimit, 4});
   CHECK_EQ(profiles->GetCommonSamplingInterval(),
            base::TimeDelta::FromMicroseconds(7));
 
@@ -3332,9 +3325,8 @@ TEST(DynamicResamplingWithBaseInterval) {
   // A sampling interval of 0us should enforce all profiles to have a sampling
   // interval of 0us (the only multiple of 0).
   profiler.set_sampling_interval(base::TimeDelta::FromMicroseconds(0));
-  profiles->StartProfiling("5us",
-                           {v8::CpuProfilingMode::kLeafNodeLineNumbers, true,
-                            v8::CpuProfilingOptions::kNoSampleLimit, 5});
+  profiles->StartProfiling("5us", {v8::CpuProfilingMode::kLeafNodeLineNumbers,
+                                   v8::CpuProfilingOptions::kNoSampleLimit, 5});
   CHECK_EQ(profiles->GetCommonSamplingInterval(),
            base::TimeDelta::FromMicroseconds(0));
   profiles->StopProfiling("5us");

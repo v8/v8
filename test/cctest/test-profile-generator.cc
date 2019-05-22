@@ -448,7 +448,7 @@ TEST(SampleIds) {
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
-  profiles.StartProfiling("", {CpuProfilingMode::kLeafNodeLineNumbers, true});
+  profiles.StartProfiling("", {CpuProfilingMode::kLeafNodeLineNumbers});
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");

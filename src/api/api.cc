@@ -9761,14 +9761,16 @@ void CpuProfiler::StartProfiling(Local<String> title,
 }
 
 void CpuProfiler::StartProfiling(Local<String> title, bool record_samples) {
-  CpuProfilingOptions options(kLeafNodeLineNumbers, record_samples);
+  CpuProfilingOptions options(
+      kLeafNodeLineNumbers,
+      record_samples ? CpuProfilingOptions::kNoSampleLimit : 0);
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
       *Utils::OpenHandle(*title), options);
 }
 
 void CpuProfiler::StartProfiling(Local<String> title, CpuProfilingMode mode,
                                  bool record_samples, unsigned max_samples) {
-  CpuProfilingOptions options(mode, record_samples, max_samples);
+  CpuProfilingOptions options(mode, record_samples ? max_samples : 0);
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
       *Utils::OpenHandle(*title), options);
 }
