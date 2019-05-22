@@ -1591,17 +1591,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DecompressAnyTagged(i.OutputRegister(), i.InputRegister(0));
       break;
     }
-    // TODO(solanes): Combine into one Compress? They seem to be identical.
-    // TODO(solanes): We might get away with doing a no-op in these three cases.
-    // The Uxtw instruction is the conservative way for the moment.
-    case kArm64CompressSigned: {
-      __ Uxtw(i.OutputRegister(), i.InputRegister(0));
-      break;
-    }
-    case kArm64CompressPointer: {
-      __ Uxtw(i.OutputRegister(), i.InputRegister(0));
-      break;
-    }
+    case kArm64CompressSigned:   // Fall through.
+    case kArm64CompressPointer:  // Fall through.
     case kArm64CompressAny: {
       __ Uxtw(i.OutputRegister(), i.InputRegister(0));
       break;

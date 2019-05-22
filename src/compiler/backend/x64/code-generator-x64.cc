@@ -1973,17 +1973,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_MOVX(DecompressAnyTagged);
       break;
     }
-    // TODO(solanes): Combine into one Compress? They seem to be identical.
-    // TODO(solanes): We might get away with doing a no-op in these three cases.
-    // The movl instruction is the conservative way for the moment.
-    case kX64CompressSigned: {
-      ASSEMBLE_MOVX(movl);
-      break;
-    }
-    case kX64CompressPointer: {
-      ASSEMBLE_MOVX(movl);
-      break;
-    }
+    case kX64CompressSigned:   // Fall through.
+    case kX64CompressPointer:  // Fall through.
     case kX64CompressAny: {
       ASSEMBLE_MOVX(movl);
       break;
