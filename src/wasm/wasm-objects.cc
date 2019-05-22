@@ -232,9 +232,9 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
     Handle<Script> script, size_t code_size_estimate) {
   const WasmModule* module = native_module->module();
-  int export_wrapper_size = static_cast<int>(module->num_exported_functions);
-  Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(
-      export_wrapper_size, AllocationType::kOld);
+  int num_wrappers = MaxNumExportWrappers(module);
+  Handle<FixedArray> export_wrappers =
+      isolate->factory()->NewFixedArray(num_wrappers, AllocationType::kOld);
   return New(isolate, std::move(native_module), script, export_wrappers,
              code_size_estimate);
 }
@@ -1814,15 +1814,30 @@ WasmInstanceObject::GetOrCreateWasmExportedFunction(
     return result;
   }
 
-  const WasmModule* module = instance->module_object()->module();
+  Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
+  const WasmModule* module = module_object->module();
   const WasmFunction& function = module->functions[function_index];
-  Handle<Code> wrapper_code =
-      compiler::CompileJSToWasmWrapper(isolate, function.sig, function.imported)
-          .ToHandleChecked();
+  int wrapper_index =
+      GetExportWrapperIndex(module, function.sig, function.imported);
 
+  Handle<Object> entry =
+      FixedArray::get(module_object->export_wrappers(), wrapper_index, isolate);
+
+  Handle<Code> wrapper;
+  if (entry->IsCode()) {
+    wrapper = Handle<Code>::cast(entry);
+  } else {
+    // The wrapper may not exist yet if no function in the exports section has
+    // this signature. We compile it and store the wrapper in the module for
+    // later use.
+    wrapper = compiler::CompileJSToWasmWrapper(isolate, function.sig,
+                                               function.imported)
+                  .ToHandleChecked();
+    module_object->export_wrappers()->set(wrapper_index, *wrapper);
+  }
   result = WasmExportedFunction::New(
       isolate, instance, function_index,
-      static_cast<int>(function.sig->parameter_count()), wrapper_code);
+      static_cast<int>(function.sig->parameter_count()), wrapper);
 
   WasmInstanceObject::SetWasmExportedFunction(isolate, instance, function_index,
                                               result);

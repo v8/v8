@@ -543,6 +543,8 @@ WASM_EXEC_TEST(TableCopyElems) {
       WASM_TABLE_COPY(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
       kExprI32Const, 0);
 
+  r.builder().FreezeSignatureMapAndInitializeWrapperCache();
+
   auto table = handle(
       WasmTableObject::cast(r.builder().instance_object()->tables().get(0)),
       isolate);
@@ -627,6 +629,8 @@ WASM_EXEC_TEST(TableCopyOobWrites) {
       r,
       WASM_TABLE_COPY(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
       kExprI32Const, 0);
+
+  r.builder().FreezeSignatureMapAndInitializeWrapperCache();
 
   auto table = handle(
       WasmTableObject::cast(r.builder().instance_object()->tables().get(0)),

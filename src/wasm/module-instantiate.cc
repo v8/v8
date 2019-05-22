@@ -1316,8 +1316,6 @@ bool InstanceBuilder::NeedsWrappers() const {
 // Process the exports, creating wrappers for functions, tables, memories,
 // globals, and exceptions.
 void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
-  Handle<FixedArray> export_wrappers(module_object_->export_wrappers(),
-                                     isolate_);
   if (NeedsWrappers()) {
     // If an imported WebAssembly function gets exported, the exported function
     // has to be identical to to imported function. Therefore we cache all
@@ -1365,7 +1363,6 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   desc.set_configurable(is_asm_js);
 
   // Process each export in the export table.
-  int export_index = 0;  // Index into {export_wrappers}.
   for (const WasmExport& exp : module_->export_table) {
     Handle<String> name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
                               isolate_, module_object_, exp.name)
@@ -1387,7 +1384,6 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
                 isolate_, instance, exp.index);
 
         desc.set_value(wasm_exported_function.ToHandleChecked());
-        export_index++;
         break;
       }
       case kExternalTable: {
@@ -1483,7 +1479,6 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       return;
     }
   }
-  DCHECK_EQ(export_index, export_wrappers->length());
 
   if (module_->origin == kWasmOrigin) {
     v8::Maybe<bool> success =

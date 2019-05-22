@@ -179,6 +179,10 @@ class TestingModuleBuilder {
   enum FunctionType { kImport, kWasm };
   uint32_t AddFunction(FunctionSig* sig, const char* name, FunctionType type);
 
+  // Freezes the signature map of the module and allocates the storage for
+  // export wrappers.
+  void FreezeSignatureMapAndInitializeWrapperCache();
+
   // Wrap the code so it can be called as a JS function.
   Handle<JSFunction> WrapCode(uint32_t index);
 
@@ -380,6 +384,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
                                     const char* name = nullptr) {
     functions_.emplace_back(
         new WasmFunctionCompiler(&zone_, sig, &builder_, name));
+    builder().AddSignature(sig);
     return *functions_.back();
   }
 

@@ -34,6 +34,10 @@ class V8_EXPORT_PRIVATE SignatureMap {
   // Disallows further insertions to this signature map.
   void Freeze() { frozen_ = true; }
 
+  size_t size() const { return map_.size(); }
+
+  bool is_frozen() const { return frozen_; }
+
  private:
   bool frozen_ = false;
   std::unordered_map<FunctionSig, uint32_t, base::hash<FunctionSig>> map_;

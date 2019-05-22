@@ -137,26 +137,20 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
   return index;
 }
 
-Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
-  SetExecutable();
-  FunctionSig* sig = test_module_->functions[index].sig;
-  MaybeHandle<Code> maybe_ret_code =
-      compiler::CompileJSToWasmWrapper(isolate_, sig, false);
-  Handle<Code> ret_code = maybe_ret_code.ToHandleChecked();
-  Handle<JSFunction> ret = WasmExportedFunction::New(
-      isolate_, instance_object(), static_cast<int>(index),
-      static_cast<int>(sig->parameter_count()), ret_code);
+void TestingModuleBuilder::FreezeSignatureMapAndInitializeWrapperCache() {
+  if (test_module_->signature_map.is_frozen()) return;
+  test_module_->signature_map.Freeze();
+  size_t max_num_sigs = MaxNumExportWrappers(test_module_.get());
+  Handle<FixedArray> export_wrappers =
+      isolate_->factory()->NewFixedArray(static_cast<int>(max_num_sigs));
+  instance_object_->module_object()->set_export_wrappers(*export_wrappers);
+}
 
-  // Add reference to the exported wrapper code.
-  Handle<WasmModuleObject> module_object(instance_object()->module_object(),
-                                         isolate_);
-  Handle<FixedArray> old_arr(module_object->export_wrappers(), isolate_);
-  Handle<FixedArray> new_arr =
-      isolate_->factory()->NewFixedArray(old_arr->length() + 1);
-  old_arr->CopyTo(0, *new_arr, 0, old_arr->length());
-  new_arr->set(old_arr->length(), *ret_code);
-  module_object->set_export_wrappers(*new_arr);
-  return ret;
+Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
+  FreezeSignatureMapAndInitializeWrapperCache();
+  SetExecutable();
+  return WasmInstanceObject::GetOrCreateWasmExportedFunction(
+      isolate_, instance_object(), index);
 }
 
 void TestingModuleBuilder::AddIndirectFunctionTable(

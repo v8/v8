@@ -1076,8 +1076,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   if (wasm_module->has_shared_memory) {
     isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
   }
-  int export_wrapper_size = static_cast<int>(module->num_exported_functions);
-
   // TODO(wasm): only save the sections necessary to deserialize a
   // {WasmModule}. E.g. function bodies could be omitted.
   OwnedVector<uint8_t> wire_bytes_copy =
@@ -1098,8 +1096,9 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   if (thrower->error()) return {};
 
   // Compile JS->wasm wrappers for exported functions.
-  *export_wrappers_out = isolate->factory()->NewFixedArray(
-      export_wrapper_size, AllocationType::kOld);
+  int num_wrappers = MaxNumExportWrappers(native_module->module());
+  *export_wrappers_out =
+      isolate->factory()->NewFixedArray(num_wrappers, AllocationType::kOld);
   CompileJsToWasmWrappers(isolate, native_module->module(),
                           *export_wrappers_out);
 
@@ -2186,7 +2185,6 @@ void CompilationStateImpl::SetError() {
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
                              Handle<FixedArray> export_wrappers) {
   JSToWasmWrapperCache js_to_wasm_cache;
-  int wrapper_index = 0;
 
   // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
   // optimization we keep the code space unlocked to avoid repeated unlocking
@@ -2197,9 +2195,11 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     auto& function = module->functions[exp.index];
     Handle<Code> wrapper_code = js_to_wasm_cache.GetOrCompileJSToWasmWrapper(
         isolate, function.sig, function.imported);
+    int wrapper_index =
+        GetExportWrapperIndex(module, function.sig, function.imported);
+
     export_wrappers->set(wrapper_index, *wrapper_code);
     RecordStats(*wrapper_code, isolate->counters());
-    ++wrapper_index;
   }
 }
 

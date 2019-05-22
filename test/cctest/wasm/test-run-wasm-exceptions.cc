@@ -71,7 +71,7 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
   // Build a throwing helper function.
   WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
   BUILD(throw_func, WASM_THROW(except));
-  r.builder().AddSignature(sigs.i_ii());
+  byte sig_index = r.builder().AddSignature(sigs.i_ii());
   throw_func.SetSigIndex(0);
 
   // Add an indirect function table.
@@ -86,7 +86,7 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
                WASM_STMTS(WASM_I32V(kResult1),
                           WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
                                   WASM_STMTS(WASM_CALL_INDIRECT2(
-                                                 0, WASM_GET_LOCAL(0),
+                                                 sig_index, WASM_GET_LOCAL(0),
                                                  WASM_I32V(7), WASM_I32V(9)),
                                              WASM_DROP))),
                WASM_STMTS(WASM_DROP, WASM_I32V(kResult0))));

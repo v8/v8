@@ -42,6 +42,22 @@ WireBytesRef WasmModule::LookupFunctionName(const ModuleWireBytes& wire_bytes,
   return it->second;
 }
 
+// static
+int MaxNumExportWrappers(const WasmModule* module) {
+  // For each signature there may exist a wrapper, both for imported and
+  // internal functions.
+  return static_cast<int>(module->signature_map.size()) * 2;
+}
+
+// static
+int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
+                          bool is_import) {
+  int result = module->signature_map.Find(*sig);
+  CHECK_GE(result, 0);
+  result += is_import ? module->signature_map.size() : 0;
+  return result;
+}
+
 void WasmModule::AddFunctionNameForTesting(int function_index,
                                            WireBytesRef name) {
   if (!function_names) {

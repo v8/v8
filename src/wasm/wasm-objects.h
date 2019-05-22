@@ -587,9 +587,10 @@ class WasmInstanceObject : public JSObject {
   // cache of the given {instance}, or creates a new {WasmExportedFunction} if
   // it does not exist yet. The new {WasmExportedFunction} is added to the
   // cache of the {instance} immediately.
-  static Handle<WasmExportedFunction> GetOrCreateWasmExportedFunction(
-      Isolate* isolate, Handle<WasmInstanceObject> instance,
-      int function_index);
+  V8_EXPORT_PRIVATE static Handle<WasmExportedFunction>
+  GetOrCreateWasmExportedFunction(Isolate* isolate,
+                                  Handle<WasmInstanceObject> instance,
+                                  int function_index);
 
   static void SetWasmExportedFunction(Isolate* isolate,
                                       Handle<WasmInstanceObject> instance,
