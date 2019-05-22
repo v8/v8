@@ -2618,7 +2618,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     }
 
     if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS ||
-        store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
+        store_mode == STORE_IGNORE_OUT_OF_BOUNDS) {
       // Only check that the {index} is in SignedSmall range. We do the actual
       // bounds check below and just skip the property access if it's out of
       // bounds for the {receiver}.
@@ -2702,7 +2702,7 @@ JSNativeContextSpecialization::BuildElementAccess(
         }
 
         // Check if we can skip the out-of-bounds store.
-        if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
+        if (store_mode == STORE_IGNORE_OUT_OF_BOUNDS) {
           Node* check =
               graph()->NewNode(simplified()->NumberLessThan(), index, length);
           Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
@@ -2995,7 +2995,7 @@ JSNativeContextSpecialization::BuildElementAccess(
 
       // Ensure that copy-on-write backing store is writable.
       if (IsSmiOrObjectElementsKind(elements_kind) &&
-          store_mode == STORE_NO_TRANSITION_HANDLE_COW) {
+          store_mode == STORE_HANDLE_COW) {
         elements = effect =
             graph()->NewNode(simplified()->EnsureWritableFastElements(),
                              receiver, elements, effect, control);
@@ -3037,7 +3037,7 @@ JSNativeContextSpecialization::BuildElementAccess(
         // If we didn't grow {elements}, it might still be COW, in which case we
         // copy it now.
         if (IsSmiOrObjectElementsKind(elements_kind) &&
-            store_mode == STORE_AND_GROW_NO_TRANSITION_HANDLE_COW) {
+            store_mode == STORE_AND_GROW_HANDLE_COW) {
           elements = effect =
               graph()->NewNode(simplified()->EnsureWritableFastElements(),
                                receiver, elements, effect, control);

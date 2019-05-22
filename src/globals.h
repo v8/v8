@@ -1504,55 +1504,20 @@ enum KeyedAccessLoadMode {
 
 enum KeyedAccessStoreMode {
   STANDARD_STORE,
-  STORE_TRANSITION_TO_OBJECT,
-  STORE_TRANSITION_TO_DOUBLE,
-  STORE_AND_GROW_NO_TRANSITION_HANDLE_COW,
-  STORE_AND_GROW_TRANSITION_TO_OBJECT,
-  STORE_AND_GROW_TRANSITION_TO_DOUBLE,
-  STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS,
-  STORE_NO_TRANSITION_HANDLE_COW
+  STORE_AND_GROW_HANDLE_COW,
+  STORE_IGNORE_OUT_OF_BOUNDS,
+  STORE_HANDLE_COW
 };
 
 enum MutableMode { MUTABLE, IMMUTABLE };
 
-static inline bool IsTransitionStoreMode(KeyedAccessStoreMode store_mode) {
-  return store_mode == STORE_TRANSITION_TO_OBJECT ||
-         store_mode == STORE_TRANSITION_TO_DOUBLE ||
-         store_mode == STORE_AND_GROW_TRANSITION_TO_OBJECT ||
-         store_mode == STORE_AND_GROW_TRANSITION_TO_DOUBLE;
-}
-
 static inline bool IsCOWHandlingStoreMode(KeyedAccessStoreMode store_mode) {
-  return store_mode == STORE_NO_TRANSITION_HANDLE_COW ||
-         store_mode == STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
-}
-
-static inline KeyedAccessStoreMode GetNonTransitioningStoreMode(
-    KeyedAccessStoreMode store_mode, bool receiver_was_cow) {
-  switch (store_mode) {
-    case STORE_AND_GROW_NO_TRANSITION_HANDLE_COW:
-    case STORE_AND_GROW_TRANSITION_TO_OBJECT:
-    case STORE_AND_GROW_TRANSITION_TO_DOUBLE:
-      store_mode = STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
-      break;
-    case STANDARD_STORE:
-    case STORE_TRANSITION_TO_OBJECT:
-    case STORE_TRANSITION_TO_DOUBLE:
-      store_mode =
-          receiver_was_cow ? STORE_NO_TRANSITION_HANDLE_COW : STANDARD_STORE;
-      break;
-    case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
-    case STORE_NO_TRANSITION_HANDLE_COW:
-      break;
-  }
-  DCHECK(!IsTransitionStoreMode(store_mode));
-  DCHECK_IMPLIES(receiver_was_cow, IsCOWHandlingStoreMode(store_mode));
-  return store_mode;
+  return store_mode == STORE_HANDLE_COW ||
+         store_mode == STORE_AND_GROW_HANDLE_COW;
 }
 
 static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
-  return store_mode >= STORE_AND_GROW_NO_TRANSITION_HANDLE_COW &&
-         store_mode <= STORE_AND_GROW_TRANSITION_TO_DOUBLE;
+  return store_mode == STORE_AND_GROW_HANDLE_COW;
 }
 
 enum IcCheckType { ELEMENT, PROPERTY };

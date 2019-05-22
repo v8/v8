@@ -334,6 +334,12 @@ enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };
 
 enum KeyedStoreIncrementLength { kDontIncrementLength, kIncrementLength };
 
+enum class TransitionMode {
+  kNoTransition,
+  kTransitionToDouble,
+  kTransitionToObject
+};
+
 class KeyedStoreIC : public StoreIC {
  public:
   KeyedAccessStoreMode GetKeyedAccessStoreMode() {
@@ -351,7 +357,7 @@ class KeyedStoreIC : public StoreIC {
  protected:
   void UpdateStoreElement(Handle<Map> receiver_map,
                           KeyedAccessStoreMode store_mode,
-                          bool receiver_was_cow);
+                          TransitionMode transition_mode);
 
   Handle<Code> slow_stub() const override {
     return BUILTIN_CODE(isolate(), KeyedStoreIC_Slow);
@@ -359,7 +365,7 @@ class KeyedStoreIC : public StoreIC {
 
  private:
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
-                                     KeyedAccessStoreMode store_mode);
+                                     TransitionMode transition_mode);
 
   Handle<Object> StoreElementHandler(Handle<Map> receiver_map,
                                      KeyedAccessStoreMode store_mode);

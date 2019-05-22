@@ -1153,19 +1153,19 @@ KeyedAccessStoreMode KeyedAccessStoreModeForBuiltin(int builtin_index) {
     case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
     case Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW:
     case Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
-      return STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
+      return STORE_AND_GROW_HANDLE_COW;
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
     case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
     case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
     case Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB:
     case Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
-      return STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS;
+      return STORE_IGNORE_OUT_OF_BOUNDS;
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
     case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW:
     case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
     case Builtins::kStoreFastElementIC_NoTransitionHandleCOW:
     case Builtins::kElementsTransitionAndStore_NoTransitionHandleCOW:
-      return STORE_NO_TRANSITION_HANDLE_COW;
+      return STORE_HANDLE_COW;
     default:
       UNREACHABLE();
   }

@@ -10609,7 +10609,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     // Bounds check.
     TNode<UintPtrT> length = LoadJSTypedArrayLength(CAST(object));
 
-    if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
+    if (store_mode == STORE_IGNORE_OUT_OF_BOUNDS) {
       // Skip the store if we write beyond the length or
       // to a property with a negative integer index.
       GotoIfNot(UintPtrLessThan(intptr_key, length), &done);

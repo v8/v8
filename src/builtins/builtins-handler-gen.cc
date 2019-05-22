@@ -243,17 +243,17 @@ TF_BUILTIN(ElementsTransitionAndStore_Standard, HandlerBuiltinsAssembler) {
 
 TF_BUILTIN(ElementsTransitionAndStore_GrowNoTransitionHandleCOW,
            HandlerBuiltinsAssembler) {
-  Generate_ElementsTransitionAndStore(STORE_AND_GROW_NO_TRANSITION_HANDLE_COW);
+  Generate_ElementsTransitionAndStore(STORE_AND_GROW_HANDLE_COW);
 }
 
 TF_BUILTIN(ElementsTransitionAndStore_NoTransitionIgnoreOOB,
            HandlerBuiltinsAssembler) {
-  Generate_ElementsTransitionAndStore(STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS);
+  Generate_ElementsTransitionAndStore(STORE_IGNORE_OUT_OF_BOUNDS);
 }
 
 TF_BUILTIN(ElementsTransitionAndStore_NoTransitionHandleCOW,
            HandlerBuiltinsAssembler) {
-  Generate_ElementsTransitionAndStore(STORE_NO_TRANSITION_HANDLE_COW);
+  Generate_ElementsTransitionAndStore(STORE_HANDLE_COW);
 }
 
 // All elements kinds handled by EmitElementStore. Specifically, this includes
@@ -353,15 +353,15 @@ TF_BUILTIN(StoreFastElementIC_Standard, HandlerBuiltinsAssembler) {
 
 TF_BUILTIN(StoreFastElementIC_GrowNoTransitionHandleCOW,
            HandlerBuiltinsAssembler) {
-  Generate_StoreFastElementIC(STORE_AND_GROW_NO_TRANSITION_HANDLE_COW);
+  Generate_StoreFastElementIC(STORE_AND_GROW_HANDLE_COW);
 }
 
 TF_BUILTIN(StoreFastElementIC_NoTransitionIgnoreOOB, HandlerBuiltinsAssembler) {
-  Generate_StoreFastElementIC(STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS);
+  Generate_StoreFastElementIC(STORE_IGNORE_OUT_OF_BOUNDS);
 }
 
 TF_BUILTIN(StoreFastElementIC_NoTransitionHandleCOW, HandlerBuiltinsAssembler) {
-  Generate_StoreFastElementIC(STORE_NO_TRANSITION_HANDLE_COW);
+  Generate_StoreFastElementIC(STORE_HANDLE_COW);
 }
 
 TF_BUILTIN(LoadGlobalIC_Slow, CodeStubAssembler) {
