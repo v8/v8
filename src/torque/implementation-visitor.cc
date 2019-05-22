@@ -2814,44 +2814,37 @@ bool IsPointerSection(FieldSectionType type) {
 
 using FieldSections = base::Flags<FieldSectionType>;
 
-std::ostream& operator<<(std::ostream& out, const FieldSectionType& type) {
+std::string ToString(FieldSectionType type) {
   switch (type) {
     case FieldSectionType::kNoSection:
-      out << "NoSection";
+      return "NoSection";
       break;
     case FieldSectionType::kWeakSection:
-      out << "WeakFields";
+      return "WeakFields";
       break;
     case FieldSectionType::kStrongSection:
-      out << "StrongFields";
+      return "StrongFields";
       break;
     case FieldSectionType::kScalarSection:
-      out << "ScalarFields";
+      return "ScalarFields";
       break;
   }
-  return out;
+  UNREACHABLE();
 }
 
 class FieldOffsetsGenerator {
  public:
-  FieldOffsetsGenerator(std::ostream& out, const ClassType* type)
-      : out_(out), type_(type) {
-    out_ << "#define ";
-    out_ << "TORQUE_GENERATED_" << CapifyStringWithUnderscores(type->name())
-         << "_FIELDS(V) \\\n";
-  }
+  explicit FieldOffsetsGenerator(const ClassType* type) : type_(type) {}
 
-  ~FieldOffsetsGenerator() { CHECK(is_finished_); }
+  virtual void WriteField(const Field& f) = 0;
+  virtual void WriteMarker(const std::string& marker) = 0;
+
+  virtual ~FieldOffsetsGenerator() { CHECK(is_finished_); }
 
   void RecordOffsetFor(const Field& f) {
     CHECK(!is_finished_);
     UpdateSection(f);
-    size_t field_size;
-    std::string size_string;
-    std::string machine_type;
-    std::tie(field_size, size_string) = f.GetFieldSizeInformation();
-    out_ << "V(k" << CamelifyString(f.name_and_type.name) << "Offset, "
-         << size_string << ") \\\n";
+    WriteField(f);
   }
 
   void Finish() {
@@ -2866,12 +2859,15 @@ class FieldOffsetsGenerator {
     }
     is_finished_ = true;
     if (type_->IsAbstract()) {
-      out_ << "V(kHeaderSize, 0) \\\n";
+      WriteMarker("kHeaderSize");
     }
     if (!type_->IsAbstract() || type_->IsInstantiatedAbstractClass()) {
-      out_ << "V(kSize, 0) \\\n";
+      WriteMarker("kSize");
     }
   }
+
+ protected:
+  const ClassType* type_;
 
  private:
   FieldSectionType GetSectionFor(const Field& f) {
@@ -2896,7 +2892,7 @@ class FieldOffsetsGenerator {
       if (completed_sections_ & type) {
         std::stringstream s;
         s << "cannot declare field " << f.name_and_type.name << " in class "
-          << type_->name() << ", because section " << type
+          << type_->name() << ", because section " << ToString(type)
           << " to which it belongs has already been finished.";
         Error(s.str()).Position(f.pos);
       }
@@ -2908,19 +2904,41 @@ class FieldOffsetsGenerator {
   void Begin(FieldSectionType type) {
     DCHECK(type != FieldSectionType::kNoSection);
     if (!IsPointerSection(type)) return;
-    out_ << "V(kStartOf" << type << "Offset, 0) \\\n";
+    WriteMarker("kStartOf" + ToString(type) + "Offset");
   }
   void End(FieldSectionType type) {
     if (!IsPointerSection(type)) return;
     completed_sections_ |= type;
-    out_ << "V(kEndOf" << type << "Offset, 0) \\\n";
+    WriteMarker("kEndOf" + ToString(type) + "Offset");
   }
 
   FieldSectionType current_section_ = FieldSectionType::kNoSection;
   FieldSections completed_sections_ = FieldSectionType::kNoSection;
-  std::ostream& out_;
-  const ClassType* type_;
   bool is_finished_ = false;
+};
+
+class MacroFieldOffsetsGenerator : public FieldOffsetsGenerator {
+ public:
+  MacroFieldOffsetsGenerator(std::ostream& out, const ClassType* type)
+      : FieldOffsetsGenerator(type), out_(out) {
+    out_ << "#define ";
+    out_ << "TORQUE_GENERATED_" << CapifyStringWithUnderscores(type_->name())
+         << "_FIELDS(V) \\\n";
+  }
+  virtual void WriteField(const Field& f) {
+    size_t field_size;
+    std::string size_string;
+    std::string machine_type;
+    std::tie(field_size, size_string) = f.GetFieldSizeInformation();
+    out_ << "V(k" << CamelifyString(f.name_and_type.name) << "Offset, "
+         << size_string << ") \\\n";
+  }
+  virtual void WriteMarker(const std::string& marker) {
+    out_ << "V(" << marker << ", 0) \\\n";
+  }
+
+ private:
+  std::ostream& out_;
 };
 
 }  // namespace
@@ -2936,18 +2954,14 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
       const ClassType* type = ClassType::DynamicCast(alias->type());
       if (!type->IsExtern()) continue;
 
-      // TODO(danno): Ideally (and we've got several core V8 dev's feedback
-      // supporting this), Torque should generate the constants for the offsets
-      // directly and not go through the existing layer of macros, which
-      // actually currently just serves to additionally obfuscate where these
-      // values come from.
-      FieldOffsetsGenerator g(header, type);
+      // TODO(danno): Remove this once all classes use ClassFieldOffsetGenerator
+      // to generate field offsets without the use of macros.
+      MacroFieldOffsetsGenerator g(header, type);
       for (auto f : type->fields()) {
         CurrentSourcePosition::Scope scope(f.pos);
         g.RecordOffsetFor(f);
       }
       g.Finish();
-
       header << "\n";
     }
   }
@@ -2956,6 +2970,35 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
 }
 
 namespace {
+
+class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
+ public:
+  ClassFieldOffsetGenerator(std::ostream& header, const ClassType* type)
+      : FieldOffsetsGenerator(type),
+        hdr_(header),
+        previous_field_end_("P::kHeaderSize") {}
+  virtual void WriteField(const Field& f) {
+    size_t field_size;
+    std::string size_string;
+    std::string machine_type;
+    std::tie(field_size, size_string) = f.GetFieldSizeInformation();
+    std::string field = "k" + CamelifyString(f.name_and_type.name) + "Offset";
+    std::string field_end = field + "End";
+    hdr_ << "  static constexpr int " << field << " = " << previous_field_end_
+         << ";\n";
+    hdr_ << "  static constexpr int " << field_end << " = " << field << " + "
+         << size_string << ";\n";
+    previous_field_end_ = field_end;
+  }
+  virtual void WriteMarker(const std::string& marker) {
+    hdr_ << "  static constexpr int " << marker << " = " << previous_field_end_
+         << ";\n";
+  }
+
+ private:
+  std::ostream& hdr_;
+  std::string previous_field_end_;
+};
 
 class CppClassGenerator {
  public:
@@ -3029,9 +3072,14 @@ void CppClassGenerator::GenerateClass() {
     impl_ << "}\n";
   }
 
-  hdr_ << "\n  DEFINE_FIELD_OFFSET_CONSTANTS(P::kHeaderSize,\n    "
-       << "TORQUE_GENERATED_" << CapifyStringWithUnderscores(name_)
-       << "_FIELDS)\n";
+  hdr_ << "\n";
+  ClassFieldOffsetGenerator g(hdr_, type_);
+  for (auto f : type_->fields()) {
+    CurrentSourcePosition::Scope scope(f.pos);
+    g.RecordOffsetFor(f);
+  }
+  g.Finish();
+  hdr_ << "\n";
 
   GenerateClassConstructors();
 
@@ -3059,7 +3107,7 @@ void CppClassGenerator::GenerateClassConstructors() {
   hdr_ << "  }\n";
   hdr_ << "  D* operator->() { return static_cast<D*>(this); }\n";
   hdr_ << "  const D* operator->() const { return static_cast<const D*>(this); "
-          "}\n";
+          "}\n\n";
 
   hdr_ << "protected:\n";
   hdr_ << "  inline explicit " << gen_name_ << "(Address ptr);\n";
