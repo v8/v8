@@ -6,9 +6,9 @@
 #include <limits>
 
 #include "src/base/platform/platform.h"
+#include "src/execution/isolate.h"
 #include "src/globals.h"
 #include "src/heap/gc-tracer.h"
-#include "src/isolate.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -5,6 +5,7 @@
 #include "src/heap/incremental-marking.h"
 
 #include "src/codegen/compilation-cache.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-idle-time-handler.h"
@@ -25,7 +26,6 @@
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 #include "src/visitors.h"
-#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -15,7 +15,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/diagnostics/eh-frame.h"
-#include "src/frames.h"
+#include "src/execution/frames.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/smi.h"

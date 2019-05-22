@@ -5,10 +5,10 @@
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
+#include "src/execution/message-template.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/keys.h"
 #include "src/logging/counters.h"
-#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/property-descriptor.h"

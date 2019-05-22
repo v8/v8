@@ -9,9 +9,9 @@
 #ifndef V8_OBJECTS_JS_LOCALE_H_
 #define V8_OBJECTS_JS_LOCALE_H_
 
+#include "src/execution/isolate.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/managed.h"
 

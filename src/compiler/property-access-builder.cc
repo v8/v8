@@ -13,7 +13,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/lookup.h"
 
-#include "src/isolate-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/objects/field-index-inl.h"
 
 namespace v8 {

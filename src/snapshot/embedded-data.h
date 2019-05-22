@@ -7,8 +7,8 @@
 
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
+#include "src/execution/isolate.h"
 #include "src/globals.h"
-#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

@@ -6,7 +6,7 @@
 #define V8_IA32_FRAME_CONSTANTS_IA32_H_
 
 #include "src/base/macros.h"
-#include "src/frame-constants.h"
+#include "src/execution/frame-constants.h"
 
 namespace v8 {
 namespace internal {

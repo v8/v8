@@ -38,8 +38,8 @@
 #include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/disassembler.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // For MemoryAllocator. TODO(jkummerow): Drop.
-#include "src/isolate.h"
 #include "src/ostreams.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-common.h"

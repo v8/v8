@@ -8,8 +8,8 @@
 #include "src/codegen/interface-descriptors.h"
 #include "src/compiler/code-assembler.h"
 #include "src/compiler/raw-machine-assembler.h"
+#include "src/execution/isolate.h"
 #include "src/handles.h"
-#include "src/isolate.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {

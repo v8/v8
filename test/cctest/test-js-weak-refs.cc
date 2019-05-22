@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/execution/isolate.h"
+#include "src/execution/microtask-queue.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory-inl.h"
-#include "src/isolate.h"
-#include "src/microtask-queue.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "test/cctest/cctest.h"

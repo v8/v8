@@ -8,9 +8,9 @@
 #include <forward_list>
 
 #include "src/base/macros.h"
+#include "src/execution/message-template.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/message-template.h"
 
 namespace v8 {
 namespace internal {

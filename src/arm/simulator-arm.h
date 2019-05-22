@@ -24,7 +24,7 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
 #include "src/boxed-float.h"
-#include "src/simulator-base.h"
+#include "src/execution/simulator-base.h"
 
 namespace v8 {
 namespace internal {

@@ -53,7 +53,6 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
 }
 #endif
 
-
 int HandleScope::NumberOfHandles(Isolate* isolate) {
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
   int n = static_cast<int>(impl->blocks()->size());
@@ -101,12 +100,10 @@ Address* HandleScope::Extend(Isolate* isolate) {
   return result;
 }
 
-
 void HandleScope::DeleteExtensions(Isolate* isolate) {
   HandleScopeData* current = isolate->handle_scope_data();
   isolate->handle_scope_implementer()->DeleteExtensions(current->limit);
 }
-
 
 #ifdef ENABLE_HANDLE_ZAPPING
 void HandleScope::ZapRange(Address* start, Address* end) {
@@ -117,16 +114,13 @@ void HandleScope::ZapRange(Address* start, Address* end) {
 }
 #endif
 
-
 Address HandleScope::current_level_address(Isolate* isolate) {
   return reinterpret_cast<Address>(&isolate->handle_scope_data()->level);
 }
 
-
 Address HandleScope::current_next_address(Isolate* isolate) {
   return reinterpret_cast<Address>(&isolate->handle_scope_data()->next);
 }
-
 
 Address HandleScope::current_limit_address(Isolate* isolate) {
   return reinterpret_cast<Address>(&isolate->handle_scope_data()->limit);
@@ -142,7 +136,6 @@ CanonicalHandleScope::CanonicalHandleScope(Isolate* isolate)
       isolate->heap(), ZoneAllocationPolicy(&zone_));
   canonical_level_ = handle_scope_data->level;
 }
-
 
 CanonicalHandleScope::~CanonicalHandleScope() {
   delete root_index_map_;
@@ -171,7 +164,6 @@ Address* CanonicalHandleScope::Lookup(Address object) {
   return *entry;
 }
 
-
 DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
     : impl_(isolate->handle_scope_implementer()) {
   impl_->BeginDeferredScope();
@@ -195,13 +187,11 @@ DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
   data->limit = new_limit;
 }
 
-
 DeferredHandleScope::~DeferredHandleScope() {
   impl_->isolate()->handle_scope_data()->level--;
   DCHECK(handles_detached_);
   DCHECK(impl_->isolate()->handle_scope_data()->level == prev_level_);
 }
-
 
 DeferredHandles* DeferredHandleScope::Detach() {
   DeferredHandles* deferred = impl_->Detach(prev_limit_);

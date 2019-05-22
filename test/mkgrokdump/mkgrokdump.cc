@@ -7,11 +7,11 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 
-#include "src/frames.h"
+#include "src/execution/frames.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/spaces.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

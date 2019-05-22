@@ -8,9 +8,9 @@
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/contexts.h"
+#include "src/execution/isolate.h"
 #include "src/feedback-vector.h"
 #include "src/ic/accessor-assembler.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

@@ -9,7 +9,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/overflowing-math.h"
 #include "src/codegen/compiler.h"
-#include "src/execution.h"
+#include "src/execution/execution.h"
 #include "src/handles.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"

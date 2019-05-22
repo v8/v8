@@ -12,7 +12,7 @@
 #include "src/codegen/code-stub-assembler.h"
 #include "src/compiler/node.h"
 #include "src/debug/debug.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/promise-inl.h"

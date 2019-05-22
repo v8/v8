@@ -10,10 +10,10 @@
 #include "src/codegen/source-position-table.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/interface-types.h"
-#include "src/frames.h"
+#include "src/execution/frames.h"
+#include "src/execution/isolate.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/isolate.h"
 #include "src/objects/debug-objects.h"
 
 namespace v8 {

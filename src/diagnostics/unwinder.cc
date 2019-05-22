@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/v8.h"
-#include "src/frame-constants.h"
+#include "src/execution/frame-constants.h"
 #include "src/globals.h"
 
 namespace v8 {

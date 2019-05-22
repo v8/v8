@@ -6,7 +6,7 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/utils.h"
 
 namespace v8 {

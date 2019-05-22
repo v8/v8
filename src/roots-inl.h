@@ -7,10 +7,10 @@
 
 #include "src/roots.h"
 
+#include "src/execution/isolate.h"
 #include "src/feedback-vector.h"
 #include "src/handles.h"
 #include "src/heap/read-only-heap.h"
-#include "src/isolate.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/heap-number.h"

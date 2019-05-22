@@ -9,11 +9,11 @@
 
 #include "src/api/api-inl.h"
 #include "src/debug/debug.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/slots-inl.h"
 #include "src/tracing/trace-event.h"
-#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {

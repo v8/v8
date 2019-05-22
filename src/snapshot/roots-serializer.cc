@@ -4,8 +4,8 @@
 
 #include "src/snapshot/roots-serializer.h"
 
+#include "src/execution/isolate.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"
 

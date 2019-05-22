@@ -25,7 +25,7 @@
 #include "src/base/page-allocator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
-#include "src/simulator.h"
+#include "src/execution/simulator.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/vector.h"
 #include "src/wasm/wasm-engine.h"

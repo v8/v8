@@ -15,10 +15,10 @@
 // Do not include anything from src/heap here!
 #include "include/v8-internal.h"
 #include "include/v8.h"
-#include "src/accessors.h"
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/base/atomic-utils.h"
+#include "src/builtins/accessors.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/objects.h"

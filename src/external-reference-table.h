@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#include "src/accessors.h"
+#include "src/builtins/accessors.h"
 #include "src/builtins/builtins.h"
 #include "src/external-reference.h"
 #include "src/logging/counters-definitions.h"

@@ -5,12 +5,12 @@
 #include "src/heap/sweeper.h"
 
 #include "src/base/template-utils.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects-inl.h"
-#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {

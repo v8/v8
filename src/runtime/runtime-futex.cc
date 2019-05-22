@@ -4,9 +4,9 @@
 
 #include "src/runtime/runtime-utils.h"
 
-#include "src/arguments-inl.h"
 #include "src/base/platform/time.h"
-#include "src/futex-emulation.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/futex-emulation.h"
 #include "src/globals.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"

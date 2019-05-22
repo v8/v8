@@ -11,11 +11,11 @@
 
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
-#include "src/arguments-inl.h"
 #include "src/date/date.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
-#include "src/isolate-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-array-inl.h"

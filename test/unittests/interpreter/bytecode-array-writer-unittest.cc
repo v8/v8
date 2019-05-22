@@ -6,6 +6,7 @@
 
 #include "src/api/api.h"
 #include "src/codegen/source-position-table.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-label.h"
@@ -13,7 +14,6 @@
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/constant-array-builder.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/utils.h"
 #include "test/unittests/interpreter/bytecode-utils.h"

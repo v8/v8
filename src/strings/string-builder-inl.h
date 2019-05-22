@@ -6,9 +6,9 @@
 #define V8_STRINGS_STRING_BUILDER_INL_H_
 
 #include "src/assert-scope.h"
+#include "src/execution/isolate.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/string-inl.h"

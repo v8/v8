@@ -4,15 +4,15 @@
 
 #include "src/init/setup-isolate.h"
 
-#include "src/accessors.h"
+#include "src/builtins/accessors.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/contexts.h"
+#include "src/execution/isolate.h"
 #include "src/heap-symbols.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/handler-configuration.h"
 #include "src/interpreter/interpreter.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments.h"
 #include "src/objects/cell-inl.h"

@@ -12,8 +12,8 @@
 #include <set>
 #include <string>
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/managed.h"
 #include "unicode/uversion.h"

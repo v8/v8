@@ -7,7 +7,7 @@
 
 #include <atomic>
 
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 
 namespace v8 {
 namespace internal {

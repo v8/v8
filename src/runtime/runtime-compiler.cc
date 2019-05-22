@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arguments-inl.h"
 #include "src/asmjs/asm-js.h"
 #include "src/codegen/compiler.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/frames-inl.h"
-#include "src/isolate-inl.h"
-#include "src/message-template.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/execution/message-template.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/v8threads.h"
-#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {

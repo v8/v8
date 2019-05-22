@@ -13,7 +13,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/libsampler/sampler.h"
 #include "src/locked-queue.h"
 #include "src/profiler/circular-queue.h"

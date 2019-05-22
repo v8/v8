@@ -6,8 +6,8 @@
 #define V8_DEBUG_DEBUG_FRAMES_H_
 
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/frames.h"
-#include "src/isolate.h"
+#include "src/execution/frames.h"
+#include "src/execution/isolate.h"
 #include "src/objects.h"
 #include "src/v8threads.h"
 #include "src/wasm/wasm-interpreter.h"

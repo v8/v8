@@ -4,8 +4,8 @@
 
 #include "src/compiler/js-native-context-specialization.h"
 
-#include "src/accessors.h"
 #include "src/api/api-inl.h"
+#include "src/builtins/accessors.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/string-constants.h"
 #include "src/compiler/access-builder.h"
@@ -19,8 +19,8 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/type-cache.h"
+#include "src/execution/isolate-inl.h"
 #include "src/feedback-vector.h"
-#include "src/isolate-inl.h"
 #include "src/numbers/dtoa.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/heap-number.h"

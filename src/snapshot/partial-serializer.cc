@@ -6,8 +6,8 @@
 #include "src/snapshot/startup-serializer.h"
 
 #include "src/api/api-inl.h"
+#include "src/execution/microtask-queue.h"
 #include "src/heap/combined-heap.h"
-#include "src/microtask-queue.h"
 #include "src/numbers/math-random.h"
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"

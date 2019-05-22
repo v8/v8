@@ -13,8 +13,8 @@
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/string-constants.h"
 #include "src/debug/debug.h"
+#include "src/execution/frames-inl.h"
 #include "src/external-reference-table.h"
-#include "src/frames-inl.h"
 #include "src/globals.h"
 #include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/init/bootstrapper.h"

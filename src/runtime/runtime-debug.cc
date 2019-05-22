@@ -4,7 +4,6 @@
 
 #include <vector>
 
-#include "src/arguments-inl.h"
 #include "src/codegen/compiler.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
@@ -12,13 +11,14 @@
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
-#include "src/frames-inl.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/globals.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/interpreter/bytecode-array-accessor.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
-#include "src/isolate-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/heap-object-inl.h"

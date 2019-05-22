@@ -8,7 +8,7 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/frame-constants.h"
+#include "src/execution/frame-constants.h"
 
 namespace v8 {
 namespace internal {

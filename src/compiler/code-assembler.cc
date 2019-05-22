@@ -17,7 +17,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/schedule.h"
-#include "src/frames.h"
+#include "src/execution/frames.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/memcopy.h"
 #include "src/objects-inl.h"

@@ -31,11 +31,11 @@
 #include "src/api/api-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/execution/simulator.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-array-inl.h"
 #include "src/ostreams.h"
-#include "src/simulator.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 

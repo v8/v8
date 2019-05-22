@@ -6,7 +6,7 @@
 
 #include "src/x64/frame-constants-x64.h"
 
-#include "src/frame-constants.h"
+#include "src/execution/frame-constants.h"
 #include "src/x64/assembler-x64-inl.h"
 
 

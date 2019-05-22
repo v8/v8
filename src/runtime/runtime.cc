@@ -7,9 +7,9 @@
 #include "src/base/hashmap.h"
 #include "src/codegen/reloc-info.h"
 #include "src/contexts.h"
+#include "src/execution/isolate.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 

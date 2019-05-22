@@ -7,8 +7,8 @@
 
 #include "src/heap/incremental-marking.h"
 
+#include "src/execution/isolate.h"
 #include "src/heap/mark-compact-inl.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/maybe-object.h"
 

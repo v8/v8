@@ -6,7 +6,7 @@
 #include "src/compiler/code-assembler.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"

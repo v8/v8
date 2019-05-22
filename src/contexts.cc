@@ -6,8 +6,8 @@
 
 #include "src/ast/modules.h"
 #include "src/debug/debug.h"
+#include "src/execution/isolate-inl.h"
 #include "src/init/bootstrapper.h"
-#include "src/isolate-inl.h"
 #include "src/objects/module-inl.h"
 
 namespace v8 {

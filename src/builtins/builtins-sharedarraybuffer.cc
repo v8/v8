@@ -8,7 +8,7 @@
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
-#include "src/futex-emulation.h"
+#include "src/execution/futex-emulation.h"
 #include "src/globals.h"
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"

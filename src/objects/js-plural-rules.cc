@@ -8,7 +8,7 @@
 
 #include "src/objects/js-plural-rules.h"
 
-#include "src/isolate-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-plural-rules-inl.h"
 #include "unicode/decimfmt.h"

@@ -12,7 +12,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
-#include "src/isolate-inl.h"
+#include "src/execution/isolate-inl.h"
 
 namespace v8 {
 namespace internal {

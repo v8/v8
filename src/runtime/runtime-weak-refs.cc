@@ -4,8 +4,8 @@
 
 #include "include/v8.h"
 #include "src/api/api.h"
-#include "src/arguments-inl.h"
-#include "src/execution.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/execution.h"
 #include "src/handles-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects-inl.h"

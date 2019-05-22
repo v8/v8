@@ -5,9 +5,9 @@
 #include <map>
 
 #include "src/base/region-allocator.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/isolate.h"
 #include "src/ostreams.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"

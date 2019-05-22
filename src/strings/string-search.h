@@ -5,7 +5,7 @@
 #ifndef V8_STRINGS_STRING_SEARCH_H_
 #define V8_STRINGS_STRING_SEARCH_H_
 
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/vector.h"
 
 namespace v8 {

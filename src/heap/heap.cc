@@ -8,16 +8,19 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "src/accessors.h"
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
 #include "src/base/flags.h"
 #include "src/base/once.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/microtask-queue.h"
+#include "src/execution/runtime-profiler.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/feedback-vector.h"
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-collector.h"
@@ -50,7 +53,6 @@
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/log.h"
-#include "src/microtask-queue.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/free-space-inl.h"
@@ -60,7 +62,6 @@
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/regexp/jsregexp.h"
-#include "src/runtime-profiler.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/serializer-common.h"
@@ -73,7 +74,6 @@
 #include "src/utils.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
-#include "src/vm-state-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

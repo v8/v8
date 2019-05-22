@@ -4,7 +4,7 @@
 
 #include "src/regexp/regexp-stack.h"
 
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/memcopy.h"
 
 namespace v8 {

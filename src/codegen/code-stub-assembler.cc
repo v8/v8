@@ -5,8 +5,8 @@
 #include "src/codegen/code-stub-assembler.h"
 
 #include "src/codegen/code-factory.h"
-#include "src/frames-inl.h"
-#include "src/frames.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/frames.h"
 #include "src/function-kind.h"
 #include "src/heap/heap-inl.h"  // For Page/MemoryChunk. TODO(jkummerow): Drop.
 #include "src/logging/counters.h"

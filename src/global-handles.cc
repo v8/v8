@@ -7,6 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/compiler-specific.h"
 #include "src/cancelable-task.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/logging/counters.h"
@@ -15,7 +16,6 @@
 #include "src/task-utils.h"
 #include "src/v8.h"
 #include "src/visitors.h"
-#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {

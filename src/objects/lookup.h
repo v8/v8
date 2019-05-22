@@ -5,9 +5,9 @@
 #ifndef V8_OBJECTS_LOOKUP_H_
 #define V8_OBJECTS_LOOKUP_H_
 
+#include "src/execution/isolate.h"
 #include "src/globals.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/js-objects.h"

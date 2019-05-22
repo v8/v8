@@ -4,8 +4,8 @@
 
 #include "src/objects/map-updater.h"
 
+#include "src/execution/isolate.h"
 #include "src/handles.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/objects/field-type.h"

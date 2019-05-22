@@ -6,7 +6,7 @@
 #define V8_CODEGEN_MACRO_ASSEMBLER_H_
 
 #include "src/codegen/turbo-assembler.h"
-#include "src/frames.h"
+#include "src/execution/frames.h"
 #include "src/heap/heap.h"
 
 // Helper types to make boolean flag easier to read at call-site.

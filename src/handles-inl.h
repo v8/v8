@@ -5,8 +5,8 @@
 #ifndef V8_HANDLES_INL_H_
 #define V8_HANDLES_INL_H_
 
+#include "src/execution/isolate.h"
 #include "src/handles.h"
-#include "src/isolate.h"
 #include "src/sanitizer/msan.h"
 
 namespace v8 {
@@ -147,7 +147,6 @@ Address* HandleScope::GetHandle(Isolate* isolate, Address value) {
   return canonical ? canonical->Lookup(value) : CreateHandle(isolate, value);
 }
 
-
 #ifdef DEBUG
 inline SealHandleScope::SealHandleScope(Isolate* isolate) : isolate_(isolate) {
   // Make sure the current thread is allowed to create handles to begin with.
@@ -160,7 +159,6 @@ inline SealHandleScope::SealHandleScope(Isolate* isolate) : isolate_(isolate) {
   prev_sealed_level_ = current->sealed_level;
   current->sealed_level = current->level;
 }
-
 
 inline SealHandleScope::~SealHandleScope() {
   // Restore state in current handle scope to re-enable handle

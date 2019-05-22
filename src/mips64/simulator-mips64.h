@@ -21,8 +21,8 @@
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
 #include "src/codegen/assembler.h"
+#include "src/execution/simulator-base.h"
 #include "src/mips64/constants-mips64.h"
-#include "src/simulator-base.h"
 
 namespace v8 {
 namespace internal {

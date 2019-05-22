@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
-#include "src/arguments-inl.h"
 #include "src/debug/debug.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/microtask-queue.h"
 #include "src/logging/counters.h"
-#include "src/microtask-queue.h"
 #include "src/objects-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/heap-object-inl.h"

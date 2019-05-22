@@ -5,7 +5,7 @@
 #if V8_TARGET_ARCH_IA32
 
 #include "src/codegen/assembler.h"
-#include "src/frame-constants.h"
+#include "src/execution/frame-constants.h"
 #include "src/ia32/assembler-ia32-inl.h"
 #include "src/ia32/assembler-ia32.h"
 

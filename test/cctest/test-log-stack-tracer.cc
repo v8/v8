@@ -32,10 +32,10 @@
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/diagnostics/disassembler.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"
-#include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/trace-extension.h"
 

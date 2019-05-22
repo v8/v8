@@ -4,8 +4,8 @@
 
 #include "src/heap/heap-controller.h"
 
+#include "src/execution/isolate-inl.h"
 #include "src/heap/spaces.h"
-#include "src/isolate-inl.h"
 
 namespace v8 {
 namespace internal {

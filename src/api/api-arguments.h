@@ -7,7 +7,7 @@
 
 #include "src/api/api.h"
 #include "src/debug/debug.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects/slots.h"
 #include "src/visitors.h"
 

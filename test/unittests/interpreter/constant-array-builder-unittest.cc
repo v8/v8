@@ -5,11 +5,11 @@
 #include "src/v8.h"
 
 #include "src/ast/ast-value-factory.h"
+#include "src/execution/isolate.h"
 #include "src/handles-inl.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/factory.h"
 #include "src/interpreter/constant-array-builder.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "test/unittests/test-utils.h"
 

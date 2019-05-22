@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/address-map.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-object-inl.h"
 

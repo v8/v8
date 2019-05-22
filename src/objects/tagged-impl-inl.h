@@ -8,7 +8,7 @@
 #include "src/objects/tagged-impl.h"
 
 #ifdef V8_COMPRESS_POINTERS
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #endif
 #include "src/objects/heap-object.h"
 #include "src/objects/smi.h"

@@ -5,7 +5,7 @@
 #ifndef V8_ROOTS_H_
 #define V8_ROOTS_H_
 
-#include "src/accessors.h"
+#include "src/builtins/accessors.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/objects-definitions.h"

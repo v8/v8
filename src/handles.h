@@ -87,7 +87,6 @@ class HandleBase {
   Address* location_;
 };
 
-
 // ----------------------------------------------------------------------------
 // A Handle provides a reference to an object that survives relocation by
 // the garbage collector.
@@ -121,9 +120,7 @@ class Handle final : public HandleBase {
                             std::is_convertible<S*, T*>::value>::type>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
-  V8_INLINE T operator->() const {
-    return operator*();
-  }
+  V8_INLINE T operator->() const { return operator*(); }
 
   // Provides the C++ dereference operator.
   V8_INLINE T operator*() const {
@@ -253,12 +250,10 @@ class HandleScope {
   DISALLOW_COPY_AND_ASSIGN(HandleScope);
 };
 
-
 // Forward declarations for CanonicalHandleScope.
 template <typename V, class AllocationPolicy>
 class IdentityMap;
 class RootIndexMap;
-
 
 // A CanonicalHandleScope does not open a new HandleScope. It changes the
 // existing HandleScope so that Handles created within are canonicalized.
@@ -327,7 +322,6 @@ class V8_EXPORT_PRIVATE DeferredHandleScope final {
   friend class HandleScopeImplementer;
 };
 
-
 // Seal off the current HandleScope so that new handles can only be created
 // if a new HandleScope is entered.
 class SealHandleScope final {
@@ -338,13 +332,13 @@ class SealHandleScope final {
 #else
   explicit inline SealHandleScope(Isolate* isolate);
   inline ~SealHandleScope();
+
  private:
   Isolate* isolate_;
   Address* prev_limit_;
   int prev_sealed_level_;
 #endif
 };
-
 
 struct HandleScopeData final {
   Address* next;

@@ -4,8 +4,8 @@
 
 #include "src/debug/debug-type-profile.h"
 
+#include "src/execution/isolate.h"
 #include "src/feedback-vector.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 

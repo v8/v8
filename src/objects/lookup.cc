@@ -5,8 +5,8 @@
 #include "src/objects/lookup.h"
 
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/isolate-inl.h"
 #include "src/init/bootstrapper.h"
-#include "src/isolate-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/elements.h"
 #include "src/objects/field-type.h"

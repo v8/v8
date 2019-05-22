@@ -11,6 +11,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/template-utils.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/heap/array-buffer-tracker.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
@@ -30,7 +31,6 @@
 #include "src/sanitizer/msan.h"
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"
-#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -7,7 +7,7 @@
 
 #include <map>
 
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/logging/log.h"
 #include "src/objects.h"
 #include "src/snapshot/embedded-data.h"

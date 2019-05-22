@@ -4,8 +4,8 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
+#include "src/execution/isolate.h"
 #include "src/handles-inl.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

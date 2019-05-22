@@ -4,9 +4,9 @@
 
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
-#include "src/isolate.h"
 #include "src/objects/smi.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"

@@ -12,7 +12,7 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/contexts.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/logging/code-events.h"
 #include "src/zone/zone.h"
 

@@ -4,7 +4,7 @@
 
 #include "src/d8/d8-console.h"
 #include "src/d8/d8.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 
 namespace v8 {
 

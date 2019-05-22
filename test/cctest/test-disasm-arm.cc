@@ -39,7 +39,7 @@
 #include "src/debug/debug.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
-#include "src/frames-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/numbers/double.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"

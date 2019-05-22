@@ -4,10 +4,10 @@
 
 #include "include/v8.h"
 #include "src/api/api-inl.h"
+#include "src/execution/isolate.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
-#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/heap-object.h"
 #include "src/roots-inl.h"

@@ -6,7 +6,7 @@
 
 #include "src/codegen/interface-descriptors.h"
 
-#include "src/frames.h"
+#include "src/execution/frames.h"
 
 namespace v8 {
 namespace internal {

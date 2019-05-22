@@ -9,8 +9,8 @@
 #ifndef V8_OBJECTS_JS_SEGMENT_ITERATOR_H_
 #define V8_OBJECTS_JS_SEGMENT_ITERATOR_H_
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/js-segmenter.h"
 #include "src/objects/managed.h"

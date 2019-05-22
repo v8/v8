@@ -7,7 +7,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
-#include "src/frames-inl.h"
+#include "src/execution/frames-inl.h"
 
 namespace v8 {
 namespace internal {

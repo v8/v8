@@ -33,10 +33,10 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/execution/simulator.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number.h"
 #include "src/ostreams.h"
-#include "src/simulator.h"
 
 namespace v8 {
 namespace internal {

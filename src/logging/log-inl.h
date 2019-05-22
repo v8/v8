@@ -5,7 +5,7 @@
 #ifndef V8_LOGGING_LOG_INL_H_
 #define V8_LOGGING_LOG_INL_H_
 
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/logging/log.h"
 #include "src/objects-inl.h"
 #include "src/tracing/trace-event.h"

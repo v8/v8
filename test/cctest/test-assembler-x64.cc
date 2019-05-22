@@ -33,11 +33,11 @@
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "src/numbers/double.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
-#include "src/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
 

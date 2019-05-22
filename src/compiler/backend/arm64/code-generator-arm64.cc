@@ -11,7 +11,7 @@
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/frame-constants.h"
+#include "src/execution/frame-constants.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"

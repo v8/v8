@@ -13,7 +13,7 @@
 #include "src/globals.h"
 // TODO(jkummerow): Get rid of this by moving GetIsolateFromWritableObject
 // elsewhere.
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects/code.h"
 #include "src/objects/compressed-slots-inl.h"
 #include "src/objects/fixed-array.h"

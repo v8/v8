@@ -9,7 +9,7 @@
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/linkage.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/smi.h"

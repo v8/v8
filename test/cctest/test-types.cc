@@ -5,9 +5,9 @@
 #include <vector>
 
 #include "src/compiler/types.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
 #include "src/objects.h"
 #include "test/cctest/cctest.h"
 #include "test/common/types-fuzz.h"

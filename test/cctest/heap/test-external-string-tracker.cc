@@ -4,9 +4,9 @@
 
 #include "src/api/api-inl.h"
 #include "src/api/api.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"

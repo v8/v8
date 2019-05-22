@@ -19,9 +19,9 @@
 
 #include "src/objects/bigint.h"
 
+#include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/isolate-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/double.h"
 #include "src/objects-inl.h"

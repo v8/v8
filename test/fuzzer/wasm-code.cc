@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/wasm/wasm-interpreter.h"

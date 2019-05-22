@@ -28,8 +28,8 @@
 #include "test/cctest/trace-extension.h"
 
 #include "include/v8-profiler.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/objects/smi.h"
-#include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

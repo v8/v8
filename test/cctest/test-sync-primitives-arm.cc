@@ -32,8 +32,8 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/disassembler.h"
+#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/simulator.h"
 
 namespace v8 {
 namespace internal {

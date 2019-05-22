@@ -5,11 +5,11 @@
 #ifndef V8_BUILTINS_BUILTINS_UTILS_H_
 #define V8_BUILTINS_BUILTINS_UTILS_H_
 
-#include "src/arguments.h"
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
+#include "src/execution/arguments.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

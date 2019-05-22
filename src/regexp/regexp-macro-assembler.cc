@@ -5,9 +5,9 @@
 #include "src/regexp/regexp-macro-assembler.h"
 
 #include "src/codegen/assembler.h"
-#include "src/isolate-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/execution/simulator.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/simulator.h"
 #include "src/strings/unicode-inl.h"
 
 #ifdef V8_INTL_SUPPORT

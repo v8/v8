@@ -5,8 +5,8 @@
 #include "src/init/setup-isolate.h"
 
 #include "src/base/logging.h"
+#include "src/execution/isolate.h"
 #include "src/interpreter/interpreter.h"
-#include "src/isolate.h"
 #include "src/ostreams.h"
 
 namespace v8 {

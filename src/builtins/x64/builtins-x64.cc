@@ -8,8 +8,8 @@
 #include "src/base/adapters.h"
 #include "src/codegen/code-factory.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/frame-constants.h"
-#include "src/frames.h"
+#include "src/execution/frame-constants.h"
+#include "src/execution/frames.h"
 #include "src/logging/counters.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
 #include "src/codegen/macro-assembler-inl.h"

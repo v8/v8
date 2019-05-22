@@ -6,9 +6,9 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/debug/debug.h"
+#include "src/execution/isolate.h"
+#include "src/execution/messages.h"
 #include "src/handles.h"
-#include "src/isolate.h"
-#include "src/messages.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

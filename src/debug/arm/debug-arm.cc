@@ -9,7 +9,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/liveedit.h"
-#include "src/frames-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

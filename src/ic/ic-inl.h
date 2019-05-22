@@ -9,7 +9,7 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
-#include "src/frames-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/handles-inl.h"
 #include "src/objects/prototype.h"
 

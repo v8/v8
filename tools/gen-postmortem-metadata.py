@@ -299,8 +299,8 @@ header = '''
  */
 
 #include "src/v8.h"
-#include "src/frames.h"
-#include "src/frames-inl.h" /* for architecture-specific frame constants */
+#include "src/execution/frames.h"
+#include "src/execution/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/contexts.h"
 #include "src/objects.h"
 #include "src/objects/data-handler.h"

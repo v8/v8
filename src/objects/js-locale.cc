@@ -14,9 +14,9 @@
 #include <vector>
 
 #include "src/api/api.h"
+#include "src/execution/isolate.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-locale-inl.h"

@@ -19,9 +19,9 @@
 
 // TODO(mstarzinger): There is one more include to remove in order to no longer
 // leak heap internals to users of this interface!
+#include "src/execution/isolate-data.h"
+#include "src/execution/isolate.h"
 #include "src/heap/spaces-inl.h"
-#include "src/isolate-data.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks-inl.h"

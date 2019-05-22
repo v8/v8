@@ -4,8 +4,8 @@
 
 #include "src/v8.h"
 
+#include "src/execution/isolate.h"
 #include "src/interpreter/bytecode-operands.h"
-#include "src/isolate.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {

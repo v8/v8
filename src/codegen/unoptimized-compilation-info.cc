@@ -8,7 +8,7 @@
 #include "src/ast/scopes.h"
 #include "src/codegen/source-position.h"
 #include "src/debug/debug.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 

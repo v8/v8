@@ -9,7 +9,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
-#include "src/execution.h"
+#include "src/execution/execution.h"
 #include "src/handles.h"
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"

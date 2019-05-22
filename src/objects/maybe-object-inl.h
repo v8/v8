@@ -8,7 +8,7 @@
 #include "src/objects/maybe-object.h"
 
 #ifdef V8_COMPRESS_POINTERS
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #endif
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-impl-inl.h"

@@ -5,8 +5,8 @@
 #include "src/snapshot/object-deserializer.h"
 
 #include "src/codegen/assembler-inl.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
-#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/slots.h"

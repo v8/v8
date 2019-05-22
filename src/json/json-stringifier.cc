@@ -4,7 +4,7 @@
 
 #include "src/json/json-stringifier.h"
 
-#include "src/message-template.h"
+#include "src/execution/message-template.h"
 #include "src/numbers/conversions.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number-inl.h"

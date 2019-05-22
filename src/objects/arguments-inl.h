@@ -8,7 +8,7 @@
 #include "src/objects/arguments.h"
 
 #include "src/contexts-inl.h"
-#include "src/isolate-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/fixed-array-inl.h"
 

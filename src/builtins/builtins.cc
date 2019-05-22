@@ -10,7 +10,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/code-tracer.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/ostreams.h"

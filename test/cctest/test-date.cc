@@ -26,8 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "src/date/date.h"
+#include "src/execution/isolate.h"
 #include "src/global-handles.h"
-#include "src/isolate.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 

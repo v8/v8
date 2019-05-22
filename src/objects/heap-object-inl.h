@@ -9,7 +9,7 @@
 
 #include "src/heap/heap-write-barrier-inl.h"
 // TODO(jkummerow): Get rid of this by moving NROSO::GetIsolate elsewhere.
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

@@ -10,8 +10,9 @@
 #include "src/cancelable-task.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution.h"
-#include "src/frames-inl.h"
+#include "src/execution/execution.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-collector.h"
 #include "src/heap/array-buffer-tracker-inl.h"
@@ -37,7 +38,6 @@
 #include "src/objects/transitions-inl.h"
 #include "src/utils-inl.h"
 #include "src/v8.h"
-#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {

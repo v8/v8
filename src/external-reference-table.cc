@@ -4,7 +4,7 @@
 
 #include "src/external-reference-table.h"
 
-#include "src/accessors.h"
+#include "src/builtins/accessors.h"
 #include "src/external-reference.h"
 #include "src/ic/stub-cache.h"
 #include "src/logging/counters.h"

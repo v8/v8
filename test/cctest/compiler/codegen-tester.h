@@ -9,7 +9,7 @@
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
-#include "src/simulator.h"
+#include "src/execution/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 

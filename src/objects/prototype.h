@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_PROTOTYPE_H_
 #define V8_OBJECTS_PROTOTYPE_H_
 
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects.h"
 
 namespace v8 {

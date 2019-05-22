@@ -35,7 +35,7 @@
 #include "src/base/cpu.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/string-constants.h"
-#include "src/frame-constants.h"
+#include "src/execution/frame-constants.h"
 
 namespace v8 {
 namespace internal {

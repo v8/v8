@@ -13,8 +13,8 @@
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/frame-constants.h"
-#include "src/frames.h"
+#include "src/execution/frame-constants.h"
+#include "src/execution/frames.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/ia32/assembler-ia32.h"
 #include "src/objects/smi.h"

@@ -8,8 +8,8 @@
 #include "src/objects/code.h"
 
 #include "src/codegen/code-desc.h"
+#include "src/execution/isolate.h"
 #include "src/interpreter/bytecode-register.h"
-#include "src/isolate.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map-inl.h"

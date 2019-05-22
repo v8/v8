@@ -6,7 +6,7 @@
 
 #include "src/compiler/access-info.h"
 
-#include "src/accessors.h"
+#include "src/builtins/accessors.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"

@@ -4,8 +4,8 @@
 
 #include "src/builtins/constants-table-builder.h"
 
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
-#include "src/isolate.h"
 #include "src/objects/oddball-inl.h"
 #include "src/roots-inl.h"
 

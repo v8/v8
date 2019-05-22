@@ -6,7 +6,7 @@
 #define V8_MIPS64_FRAME_CONSTANTS_MIPS64_H_
 
 #include "src/base/macros.h"
-#include "src/frame-constants.h"
+#include "src/execution/frame-constants.h"
 
 namespace v8 {
 namespace internal {

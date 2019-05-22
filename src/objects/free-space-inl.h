@@ -7,9 +7,9 @@
 
 #include "src/objects/free-space.h"
 
+#include "src/execution/isolate.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):

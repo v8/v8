@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/execution/isolate.h"
 #include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"

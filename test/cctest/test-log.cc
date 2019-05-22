@@ -32,6 +32,7 @@
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/logging/log-utils.h"
 #include "src/logging/log.h"
 #include "src/objects-inl.h"
@@ -40,7 +41,6 @@
 #include "src/snapshot/natives.h"
 #include "src/v8.h"
 #include "src/version.h"
-#include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
 
 using v8::internal::Address;

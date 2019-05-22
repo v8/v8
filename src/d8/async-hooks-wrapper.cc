@@ -4,7 +4,7 @@
 
 #include "src/d8/async-hooks-wrapper.h"
 #include "src/d8/d8.h"
-#include "src/isolate-inl.h"
+#include "src/execution/isolate-inl.h"
 
 namespace v8 {
 

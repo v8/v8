@@ -7,10 +7,10 @@
 #include <cstdarg>
 
 #include "src/base/atomic-utils.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"
-#include "src/isolate.h"
 #include "src/logging/counters-inl.h"
 
 namespace v8 {

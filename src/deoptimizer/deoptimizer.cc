@@ -6,14 +6,14 @@
 
 #include <memory>
 
-#include "src/accessors.h"
 #include "src/ast/prettyprinter.h"
+#include "src/builtins/accessors.h"
 #include "src/callable.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/diagnostics/disasm.h"
-#include "src/frames-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/global-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/interpreter/interpreter.h"

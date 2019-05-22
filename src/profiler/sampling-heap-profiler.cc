@@ -11,9 +11,9 @@
 #include "src/base/ieee754.h"
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/frames-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
 #include "src/profiler/strings-storage.h"
 
 namespace v8 {

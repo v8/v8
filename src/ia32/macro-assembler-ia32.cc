@@ -11,9 +11,9 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
+#include "src/execution/frame-constants.h"
+#include "src/execution/frames-inl.h"
 #include "src/external-reference-table.h"
-#include "src/frame-constants.h"
-#include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/ia32/assembler-ia32-inl.h"
 #include "src/init/bootstrapper.h"

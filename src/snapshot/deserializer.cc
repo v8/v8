@@ -5,11 +5,11 @@
 #include "src/snapshot/deserializer.h"
 
 #include "src/codegen/assembler-inl.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/interpreter/interpreter.h"
-#include "src/isolate.h"
 #include "src/logging/log.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/objects/api-callbacks.h"

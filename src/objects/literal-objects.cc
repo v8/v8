@@ -4,10 +4,10 @@
 
 #include "src/objects/literal-objects.h"
 
-#include "src/accessors.h"
 #include "src/ast/ast.h"
+#include "src/builtins/accessors.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"

@@ -6,9 +6,9 @@
 
 #include "src/api/api.h"
 #include "src/debug/debug.h"
-#include "src/execution.h"
+#include "src/execution/execution.h"
+#include "src/execution/isolate-inl.h"
 #include "src/init/bootstrapper.h"
-#include "src/isolate-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/visitors.h"
 

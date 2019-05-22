@@ -6,7 +6,7 @@
 
 #include "src/base/platform/mutex.h"
 #include "src/codegen/cpu-features.h"
-#include "src/simulator.h"
+#include "src/execution/simulator.h"
 
 namespace v8 {
 namespace internal {

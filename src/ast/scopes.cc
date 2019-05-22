@@ -6,12 +6,12 @@
 
 #include <set>
 
-#include "src/accessors.h"
 #include "src/ast/ast.h"
 #include "src/base/optional.h"
+#include "src/builtins/accessors.h"
+#include "src/execution/message-template.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
-#include "src/message-template.h"
 #include "src/objects-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/scope-info.h"

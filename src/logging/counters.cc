@@ -8,7 +8,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/builtins/builtins-definitions.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/logging/counters-inl.h"
 #include "src/logging/log-inl.h"
 #include "src/logging/log.h"

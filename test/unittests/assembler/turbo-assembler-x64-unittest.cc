@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/macro-assembler.h"
-#include "src/simulator.h"
+#include "src/execution/simulator.h"
 #include "test/common/assembler-tester.h"
 #include "testing/gtest-support.h"
 

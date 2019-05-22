@@ -9,6 +9,7 @@
 
 #include "include/v8config.h"
 #include "src/base/template-utils.h"
+#include "src/execution/isolate.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
@@ -18,7 +19,6 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/worklist.h"
-#include "src/isolate.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/hash-table-inl.h"

@@ -24,8 +24,8 @@
 
 #include "src/base/hashmap.h"
 #include "src/codegen/assembler.h"
+#include "src/execution/simulator-base.h"
 #include "src/ppc/constants-ppc.h"
-#include "src/simulator-base.h"
 
 namespace v8 {
 namespace internal {

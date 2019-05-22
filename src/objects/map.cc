@@ -4,11 +4,11 @@
 
 #include "src/objects/map.h"
 
-#include "src/frames.h"
+#include "src/execution/frames.h"
+#include "src/execution/isolate.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/init/bootstrapper.h"
-#include "src/isolate.h"
 #include "src/logging/counters-inl.h"
 #include "src/logging/log.h"
 #include "src/maybe-handles.h"

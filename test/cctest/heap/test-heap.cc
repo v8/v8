@@ -34,7 +34,7 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution.h"
+#include "src/execution/execution.h"
 #include "src/global-handles.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/combined-heap.h"

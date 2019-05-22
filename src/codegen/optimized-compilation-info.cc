@@ -7,7 +7,7 @@
 #include "src/api/api.h"
 #include "src/codegen/source-position.h"
 #include "src/debug/debug.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/tracing/trace-event.h"

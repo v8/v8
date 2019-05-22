@@ -8,7 +8,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/disasm.h"
-#include "src/frames-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/ostreams.h"
 
 namespace v8 {

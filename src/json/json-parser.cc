@@ -5,8 +5,8 @@
 #include "src/json/json-parser.h"
 
 #include "src/debug/debug.h"
+#include "src/execution/message-template.h"
 #include "src/hash-seed-inl.h"
-#include "src/message-template.h"
 #include "src/numbers/conversions.h"
 #include "src/objects-inl.h"
 #include "src/objects/field-type.h"

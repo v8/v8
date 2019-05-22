@@ -20,7 +20,7 @@
 #include "src/arm64/instrument-arm64.h"
 #include "src/base/compiler-specific.h"
 #include "src/codegen/assembler.h"
-#include "src/simulator-base.h"
+#include "src/execution/simulator-base.h"
 #include "src/utils.h"
 
 namespace v8 {

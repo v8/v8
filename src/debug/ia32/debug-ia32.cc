@@ -8,7 +8,7 @@
 
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/liveedit.h"
-#include "src/frames-inl.h"
+#include "src/execution/frames-inl.h"
 
 namespace v8 {
 namespace internal {

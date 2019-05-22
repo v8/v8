@@ -7,9 +7,9 @@
 
 #include "src/objects/module.h"
 
-#include "src/accessors.h"
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
+#include "src/builtins/accessors.h"
 #include "src/objects-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/hash-table-inl.h"

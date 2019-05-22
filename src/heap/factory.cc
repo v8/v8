@@ -4,13 +4,14 @@
 
 #include "src/heap/factory.h"
 
-#include "src/accessors.h"
 #include "src/allocation-site-scopes.h"
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
+#include "src/builtins/accessors.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/compiler.h"
+#include "src/execution/isolate-inl.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
@@ -19,7 +20,6 @@
 #include "src/ic/handler-configuration-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
-#include "src/isolate-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/numbers/conversions.h"

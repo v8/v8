@@ -4,8 +4,8 @@
 
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/execution/simulator.h"
 #include "src/ostreams.h"
-#include "src/simulator.h"
 #include "test/common/assembler-tester.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest-support.h"

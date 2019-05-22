@@ -6,9 +6,9 @@
 
 #include "src/base/logging.h"
 #include "src/debug/debug-evaluate.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/interpreter/interpreter.h"
-#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

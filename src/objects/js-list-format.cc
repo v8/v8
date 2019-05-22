@@ -11,8 +11,8 @@
 #include <memory>
 #include <vector>
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/elements-inl.h"
 #include "src/objects/elements.h"

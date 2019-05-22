@@ -32,6 +32,7 @@
 #include "src/d8/d8.h"
 #include "src/debug/debug-interface.h"
 #include "src/diagnostics/basic-block-profiler.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
 #include "src/objects-inl.h"
@@ -45,7 +46,6 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
 #include "src/v8.h"
-#include "src/vm-state-inl.h"
 #include "src/wasm/wasm-engine.h"
 
 #if !defined(_WIN32) && !defined(_WIN64)

@@ -5,10 +5,10 @@
 #include "src/keys.h"
 
 #include "src/api/api-arguments-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/identity-map.h"
-#include "src/isolate-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/elements-inl.h"

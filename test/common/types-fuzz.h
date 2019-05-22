@@ -29,8 +29,8 @@
 #define V8_TEST_CCTEST_TYPES_H_
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
 #include "src/v8.h"
 
 namespace v8 {

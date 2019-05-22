@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arguments.h"
+#include "src/execution/arguments.h"
+#include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/isolate-inl.h"
 #include "src/logging/counters.h"
 #include "src/runtime/runtime-utils.h"
 

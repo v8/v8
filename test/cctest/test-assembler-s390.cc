@@ -29,9 +29,9 @@
 
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/disassembler.h"
+#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "src/s390/assembler-s390-inl.h"
-#include "src/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
 

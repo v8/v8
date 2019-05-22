@@ -4,8 +4,8 @@
 
 #include "test/common/wasm/wasm-module-runner.h"
 
+#include "src/execution/isolate.h"
 #include "src/handles.h"
-#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/property-descriptor.h"

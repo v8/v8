@@ -30,7 +30,7 @@
 #include "src/v8.h"
 
 #include "src/api/api-inl.h"
-#include "src/frames-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/strings/string-stream.h"
 #include "test/cctest/cctest.h"
 

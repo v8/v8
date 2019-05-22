@@ -4,7 +4,7 @@
 
 #include <memory>
 
-#include "src/microtask-queue.h"
+#include "src/execution/microtask-queue.h"
 #include "src/objects-inl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"

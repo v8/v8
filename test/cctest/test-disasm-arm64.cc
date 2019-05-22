@@ -33,7 +33,7 @@
 #include "src/arm64/disasm-arm64.h"
 #include "src/arm64/utils-arm64.h"
 #include "src/codegen/macro-assembler-inl.h"
-#include "src/frames-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 

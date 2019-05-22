@@ -5,7 +5,7 @@
 #ifndef V8_WASM_MODULE_RUNNER_H_
 #define V8_WASM_MODULE_RUNNER_H_
 
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/objects.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module.h"

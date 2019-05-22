@@ -4,8 +4,8 @@
 
 #include "src/debug/debug-frames.h"
 
-#include "src/accessors.h"
-#include "src/frames-inl.h"
+#include "src/builtins/accessors.h"
+#include "src/execution/frames-inl.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-objects-inl.h"
 

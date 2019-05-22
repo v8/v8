@@ -9,7 +9,7 @@
 
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/source-position-table.h"
-#include "src/frames.h"
+#include "src/execution/frames.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects.h"
