@@ -27,7 +27,7 @@ class DecompressionEliminationTest : public GraphTest {
   Reduction Reduce(Node* node) {
     StrictMock<MockAdvancedReducerEditor> editor;
     DecompressionElimination decompression_elimination(&editor, graph(),
-                                                       machine());
+                                                       machine(), common());
     return decompression_elimination.Reduce(node);
   }
   MachineOperatorBuilder* machine() { return &machine_; }
@@ -251,9 +251,9 @@ TEST_F(DecompressionEliminationTest,
 }
 
 // -----------------------------------------------------------------------------
-// Comparison of two decompressions
+// Word64Equal comparison of two decompressions
 
-TEST_F(DecompressionEliminationTest, TwoDecompressionComparison) {
+TEST_F(DecompressionEliminationTest, TwoDecompressionWord64Equal) {
   // Skip test if pointer compression is not enabled
   if (!COMPRESS_POINTERS_BOOL) {
     return;
@@ -345,6 +345,142 @@ TEST_F(DecompressionEliminationTest, TwoDecompressionWord64EqualSameInput) {
     Reduction r = Reduce(comparison);
     ASSERT_TRUE(r.Changed());
     EXPECT_EQ(r.replacement()->opcode(), IrOpcode::kWord32Equal);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Word64Equal comparison of decompress and a constant
+
+TEST_F(DecompressionEliminationTest, DecompressionConstantWord64Equal) {
+  // Skip test if pointer compression is not enabled
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+
+  // Define variables
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+
+  const Operator* DecompressionOps[] = {
+      machine()->ChangeCompressedToTagged(),
+      machine()->ChangeCompressedSignedToTaggedSigned(),
+      machine()->ChangeCompressedPointerToTaggedPointer()};
+
+  const ElementAccess ElementAccesses[] = {
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::AnyTagged(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::TaggedSigned(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::TaggedPointer(),
+       kNoWriteBarrier}};
+
+  ASSERT_EQ(arraysize(DecompressionOps), arraysize(ElementAccesses));
+
+  const int64_t constants[] = {static_cast<int64_t>(0x0000000000000000),
+                               static_cast<int64_t>(0x0000000000000001),
+                               static_cast<int64_t>(0x0000FFFFFFFF0000),
+                               static_cast<int64_t>(0x7FFFFFFFFFFFFFFF),
+                               static_cast<int64_t>(0x8000000000000000),
+                               static_cast<int64_t>(0x8000000000000001),
+                               static_cast<int64_t>(0x8000FFFFFFFF0000),
+                               static_cast<int64_t>(0x8FFFFFFFFFFFFFFF),
+                               static_cast<int64_t>(0xFFFFFFFFFFFFFFFF)};
+
+  // For every decompression (lhs)
+  for (size_t j = 0; j < arraysize(DecompressionOps); ++j) {
+    // For every constant (rhs)
+    for (size_t k = 0; k < arraysize(constants); ++k) {
+      // Test with both (lhs, rhs) combinations
+      for (bool lhsIsDecompression : {false, true}) {
+        // Create the graph
+        Node* load =
+            graph()->NewNode(simplified()->LoadElement(ElementAccesses[j]),
+                             object, index, effect, control);
+        Node* changeToTagged = graph()->NewNode(DecompressionOps[j], load);
+        Node* constant =
+            graph()->NewNode(common()->Int64Constant(constants[k]));
+
+        Node* lhs = lhsIsDecompression ? changeToTagged : constant;
+        Node* rhs = lhsIsDecompression ? constant : changeToTagged;
+        Node* comparison = graph()->NewNode(machine()->Word64Equal(), lhs, rhs);
+        // Reduce
+        Reduction r = Reduce(comparison);
+        ASSERT_TRUE(r.Changed());
+        EXPECT_EQ(r.replacement()->opcode(), IrOpcode::kWord32Equal);
+      }
+    }
+  }
+}
+
+TEST_F(DecompressionEliminationTest, DecompressionHeapConstantWord64Equal) {
+  // Skip test if pointer compression is not enabled
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+
+  // Define variables
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+
+  const Operator* DecompressionOps[] = {
+      machine()->ChangeCompressedToTagged(),
+      machine()->ChangeCompressedSignedToTaggedSigned(),
+      machine()->ChangeCompressedPointerToTaggedPointer()};
+
+  const ElementAccess ElementAccesses[] = {
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::AnyTagged(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::TaggedSigned(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::TaggedPointer(),
+       kNoWriteBarrier}};
+
+  ASSERT_EQ(arraysize(DecompressionOps), arraysize(ElementAccesses));
+
+  const Handle<HeapNumber> heapConstants[] = {
+      factory()->NewHeapNumber(0.0),
+      factory()->NewHeapNumber(-0.0),
+      factory()->NewHeapNumber(11.2),
+      factory()->NewHeapNumber(-11.2),
+      factory()->NewHeapNumber(3.1415 + 1.4142),
+      factory()->NewHeapNumber(3.1415 - 1.4142),
+      factory()->NewHeapNumber(0x0000000000000000),
+      factory()->NewHeapNumber(0x0000000000000001),
+      factory()->NewHeapNumber(0x0000FFFFFFFF0000),
+      factory()->NewHeapNumber(0x7FFFFFFFFFFFFFFF),
+      factory()->NewHeapNumber(0x8000000000000000),
+      factory()->NewHeapNumber(0x8000000000000001),
+      factory()->NewHeapNumber(0x8000FFFFFFFF0000),
+      factory()->NewHeapNumber(0x8FFFFFFFFFFFFFFF),
+      factory()->NewHeapNumber(0xFFFFFFFFFFFFFFFF)};
+
+  // For every decompression (lhs)
+  for (size_t j = 0; j < arraysize(DecompressionOps); ++j) {
+    // For every constant (rhs)
+    for (size_t k = 0; k < arraysize(heapConstants); ++k) {
+      // Test with both (lhs, rhs) combinations
+      for (bool lhsIsDecompression : {false, true}) {
+        // Create the graph
+        Node* load =
+            graph()->NewNode(simplified()->LoadElement(ElementAccesses[j]),
+                             object, index, effect, control);
+        Node* changeToTagged = graph()->NewNode(DecompressionOps[j], load);
+        Node* constant =
+            graph()->NewNode(common()->HeapConstant(heapConstants[k]));
+
+        Node* lhs = lhsIsDecompression ? changeToTagged : constant;
+        Node* rhs = lhsIsDecompression ? constant : changeToTagged;
+        Node* comparison = graph()->NewNode(machine()->Word64Equal(), lhs, rhs);
+        // Reduce
+        Reduction r = Reduce(comparison);
+        ASSERT_TRUE(r.Changed());
+        EXPECT_EQ(r.replacement()->opcode(), IrOpcode::kWord32Equal);
+      }
+    }
   }
 }
 

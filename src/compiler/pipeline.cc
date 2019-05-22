@@ -1541,7 +1541,7 @@ struct LateOptimizationPhase {
                                    data->jsgraph()->common());
 #ifdef V8_COMPRESS_POINTERS
     DecompressionElimination decompression_elimination(
-        &graph_reducer, data->graph(), data->machine());
+        &graph_reducer, data->graph(), data->machine(), data->common());
     AddReducer(data, &graph_reducer, &decompression_elimination);
 #endif
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
