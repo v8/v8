@@ -10,7 +10,7 @@
 
 #include "src/allocation.h"
 #include "src/assert-scope.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/numbers/dtoa.h"
 #include "src/numbers/strtod.h"

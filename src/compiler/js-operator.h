@@ -7,7 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
-#include "src/maybe-handles.h"
+#include "src/handles/maybe-handles.h"
 #include "src/runtime/runtime.h"
 #include "src/type-hints.h"
 #include "src/vector-slot-pair.h"

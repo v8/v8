@@ -10,7 +10,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/compiler/code-assembler.h"
 #include "src/execution/isolate.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"  // For MemoryAllocator::code_range.
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-generator.h"

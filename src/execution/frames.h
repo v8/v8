@@ -6,7 +6,7 @@
 #define V8_EXECUTION_FRAMES_H_
 
 #include "src/codegen/safepoint-table.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects.h"
 #include "src/objects/code.h"
 

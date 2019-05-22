@@ -7,7 +7,7 @@
 #include <sstream>
 
 #include "src/base/bits.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

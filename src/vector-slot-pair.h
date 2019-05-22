@@ -6,7 +6,7 @@
 #define V8_VECTOR_SLOT_PAIR_H_
 
 #include "src/globals.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/utils.h"
 
 namespace v8 {

@@ -10,7 +10,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
 #include "src/execution/execution.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "test/cctest/cctest.h"

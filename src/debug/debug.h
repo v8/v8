@@ -13,7 +13,7 @@
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/globals.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects/debug-objects.h"
 
 namespace v8 {

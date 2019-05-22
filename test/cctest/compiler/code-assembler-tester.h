@@ -9,7 +9,7 @@
 #include "src/compiler/code-assembler.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/execution/isolate.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {

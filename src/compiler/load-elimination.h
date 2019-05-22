@@ -9,7 +9,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/globals.h"
-#include "src/maybe-handles.h"
+#include "src/handles/maybe-handles.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {

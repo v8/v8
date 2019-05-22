@@ -4,7 +4,7 @@
 
 #include "src/objects/string.h"
 
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"  // For LooksValid implementation.
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"

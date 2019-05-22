@@ -8,7 +8,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "torque-generated/builtins-typed-array-createtypedarray-gen-tq.h"
 

@@ -7,7 +7,7 @@
 
 #include "src/execution/arguments.h"
 
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects-inl.h"  // TODO(jkummerow): Just smi-inl.h.
 
 namespace v8 {

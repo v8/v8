@@ -6,7 +6,7 @@
 #define V8_IDENTITY_MAP_H_
 
 #include "src/base/functional.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects/heap-object.h"
 
 namespace v8 {

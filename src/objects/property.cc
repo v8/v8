@@ -4,7 +4,7 @@
 
 #include "src/objects/property.h"
 
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/name-inl.h"

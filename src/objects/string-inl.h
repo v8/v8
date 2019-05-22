@@ -7,7 +7,7 @@
 
 #include "src/objects/string.h"
 
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/factory.h"
 #include "src/numbers/conversions-inl.h"

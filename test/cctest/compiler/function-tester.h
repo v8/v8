@@ -6,7 +6,7 @@
 #define V8_CCTEST_COMPILER_FUNCTION_TESTER_H_
 
 #include "src/execution/execution.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

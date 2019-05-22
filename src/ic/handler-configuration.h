@@ -6,7 +6,7 @@
 #define V8_IC_HANDLER_CONFIGURATION_H_
 
 #include "src/globals.h"
-#include "src/maybe-handles.h"
+#include "src/handles/maybe-handles.h"
 #include "src/objects.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/elements-kind.h"

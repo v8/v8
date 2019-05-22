@@ -11,7 +11,7 @@
 
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects/js-array-buffer.h"
 
 namespace v8 {

@@ -5,7 +5,7 @@
 #include "src/wasm/function-body-decoder.h"
 
 #include "src/flags.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/wasm/decoder.h"

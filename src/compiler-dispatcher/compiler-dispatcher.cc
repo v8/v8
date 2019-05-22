@@ -10,7 +10,7 @@
 #include "src/cancelable-task.h"
 #include "src/codegen/compiler.h"
 #include "src/flags.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"

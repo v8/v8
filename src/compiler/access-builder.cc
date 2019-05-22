@@ -7,7 +7,7 @@
 #include "src/compiler/type-cache.h"
 #include "src/contexts.h"
 #include "src/execution/frames.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments.h"

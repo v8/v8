@@ -5,7 +5,7 @@
 #include "src/objects/debug-objects.h"
 
 #include "src/debug/debug-evaluate.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/ostreams.h"
 

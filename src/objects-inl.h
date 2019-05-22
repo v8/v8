@@ -16,7 +16,7 @@
 
 #include "src/base/bits.h"
 #include "src/builtins/builtins.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/keys.h"

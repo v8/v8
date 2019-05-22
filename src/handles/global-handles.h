@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_GLOBAL_HANDLES_H_
-#define V8_GLOBAL_HANDLES_H_
+#ifndef V8_HANDLES_GLOBAL_HANDLES_H_
+#define V8_HANDLES_GLOBAL_HANDLES_H_
 
 #include <type_traits>
 #include <utility>
@@ -12,7 +12,7 @@
 #include "include/v8.h"
 #include "include/v8-profiler.h"
 
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects.h"
 #include "src/utils.h"
 
@@ -309,4 +309,4 @@ class EternalHandles final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_GLOBAL_HANDLES_H_
+#endif  // V8_HANDLES_GLOBAL_HANDLES_H_

@@ -14,7 +14,7 @@
 #include "src/date/date.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
 #include "src/objects/intl-objects.h"

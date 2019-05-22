@@ -15,7 +15,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-collator-inl.h"

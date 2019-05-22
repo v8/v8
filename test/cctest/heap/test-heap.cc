@@ -35,7 +35,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/factory.h"

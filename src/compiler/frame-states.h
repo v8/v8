@@ -6,7 +6,7 @@
 #define V8_COMPILER_FRAME_STATES_H_
 
 #include "src/builtins/builtins.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects/shared-function-info.h"
 #include "src/utils.h"
 

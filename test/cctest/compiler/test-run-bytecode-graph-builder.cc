@@ -9,7 +9,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/debug/debug-interface.h"
 #include "src/execution/execution.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects-inl.h"

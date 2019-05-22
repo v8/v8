@@ -12,7 +12,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/verifier.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

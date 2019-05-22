@@ -8,7 +8,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/name.h"

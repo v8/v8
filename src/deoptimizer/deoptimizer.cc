@@ -14,7 +14,7 @@
 #include "src/codegen/register-configuration.h"
 #include "src/diagnostics/disasm.h"
 #include "src/execution/frames-inl.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"

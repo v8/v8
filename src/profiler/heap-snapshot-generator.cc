@@ -9,7 +9,7 @@
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects-body-descriptors.h"

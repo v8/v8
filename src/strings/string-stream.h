@@ -7,7 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/base/small-vector.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects/heap-object.h"
 #include "src/vector.h"
 

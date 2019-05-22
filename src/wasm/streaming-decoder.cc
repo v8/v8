@@ -5,7 +5,7 @@
 #include "src/wasm/streaming-decoder.h"
 
 #include "src/base/template-utils.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"

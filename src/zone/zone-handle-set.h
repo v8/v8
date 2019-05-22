@@ -5,7 +5,7 @@
 #ifndef V8_ZONE_ZONE_HANDLE_SET_H_
 #define V8_ZONE_ZONE_HANDLE_SET_H_
 
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 

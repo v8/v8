@@ -9,7 +9,7 @@
 
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/execution.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/objects-inl.h"
 #include "src/objects/field-type.h"

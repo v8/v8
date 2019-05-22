@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_PROPERTY_DESCRIPTOR_H_
 #define V8_OBJECTS_PROPERTY_DESCRIPTOR_H_
 
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects/property-details.h"
 
 namespace v8 {

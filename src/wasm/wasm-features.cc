@@ -5,7 +5,7 @@
 #include "src/wasm/wasm-features.h"
 #include "src/execution/isolate.h"
 #include "src/flags.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -6,7 +6,7 @@
 #define V8_EXECUTION_ARGUMENTS_H_
 
 #include "src/allocation.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/logging/counters.h"
 #include "src/objects.h"
 #include "src/objects/slots.h"

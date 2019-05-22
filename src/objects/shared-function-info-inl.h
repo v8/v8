@@ -8,7 +8,7 @@
 #include "src/objects/shared-function-info.h"
 
 #include "src/feedback-vector-inl.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/scope-info.h"

@@ -8,7 +8,7 @@
 
 #include "src/codegen/code-desc.h"
 #include "src/execution/isolate.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

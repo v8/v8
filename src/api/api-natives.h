@@ -7,8 +7,8 @@
 
 #include "include/v8.h"
 #include "src/base/macros.h"
-#include "src/handles.h"
-#include "src/maybe-handles.h"
+#include "src/handles/handles.h"
+#include "src/handles/maybe-handles.h"
 #include "src/objects.h"
 #include "src/objects/property-details.h"
 

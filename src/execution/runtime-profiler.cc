@@ -10,7 +10,7 @@
 #include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/tracing/trace-event.h"

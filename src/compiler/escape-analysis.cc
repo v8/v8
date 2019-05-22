@@ -8,7 +8,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/map-inl.h"
 

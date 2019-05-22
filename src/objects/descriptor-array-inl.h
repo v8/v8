@@ -8,9 +8,9 @@
 #include "src/objects/descriptor-array.h"
 
 #include "src/execution/isolate.h"
+#include "src/handles/maybe-handles-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
-#include "src/maybe-handles-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/lookup-cache-inl.h"

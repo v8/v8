@@ -10,7 +10,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/interpreter/bytecode-array-builder.h"

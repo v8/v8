@@ -39,7 +39,7 @@
 
 #include "src/v8.h"
 
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/objects-inl.h"

@@ -7,7 +7,7 @@
 
 #include "src/objects/lookup.h"
 
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"

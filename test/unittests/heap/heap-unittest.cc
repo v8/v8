@@ -6,7 +6,7 @@
 #include <iostream>
 #include <limits>
 
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects-inl.h"

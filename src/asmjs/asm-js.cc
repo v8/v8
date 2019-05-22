@@ -15,7 +15,7 @@
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/execution/message-template.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
 #include "src/objects-inl.h"

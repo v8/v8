@@ -8,7 +8,7 @@
 #include "src/base/hashmap.h"
 #include "src/bit-vector.h"
 #include "src/compiler/bytecode-liveness-map.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/utils.h"
 #include "src/zone/zone-containers.h"

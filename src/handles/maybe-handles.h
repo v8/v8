@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MAYBE_HANDLES_H_
-#define V8_MAYBE_HANDLES_H_
+#ifndef V8_HANDLES_MAYBE_HANDLES_H_
+#define V8_HANDLES_MAYBE_HANDLES_H_
 
 #include <type_traits>
 
-#include "src/handles.h"
+#include "src/handles/handles.h"
 
 namespace v8 {
 namespace internal {
@@ -118,4 +118,4 @@ class MaybeObjectHandle {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_MAYBE_HANDLES_H_
+#endif  // V8_HANDLES_MAYBE_HANDLES_H_

@@ -9,7 +9,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/feedback-vector.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/descriptor-array.h"

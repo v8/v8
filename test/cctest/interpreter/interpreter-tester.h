@@ -9,7 +9,7 @@
 
 #include "src/api/api.h"
 #include "src/execution/execution.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/feedback-cell.h"

@@ -9,7 +9,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-buffer-inl.h"

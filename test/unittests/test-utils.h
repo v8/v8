@@ -11,7 +11,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/zone/accounting-allocator.h"

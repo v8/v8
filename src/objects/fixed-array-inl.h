@@ -7,7 +7,7 @@
 
 #include "src/objects/fixed-array.h"
 
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects-inl.h"

@@ -9,8 +9,8 @@
 #include "src/objects-inl.h"
 #include "src/objects.h"
 
-#include "src/handles-inl.h"
-#include "src/handles.h"
+#include "src/handles/handles-inl.h"
+#include "src/handles/handles.h"
 
 #include "src/heap/heap-controller.h"
 #include "test/unittests/test-utils.h"

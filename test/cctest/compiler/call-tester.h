@@ -6,7 +6,7 @@
 #define V8_CCTEST_COMPILER_CALL_TESTER_H_
 
 #include "src/execution/simulator.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects/code.h"
 #include "test/cctest/compiler/c-signature.h"
 

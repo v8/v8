@@ -7,7 +7,7 @@
 #include "src/api/api.h"
 #include "src/contexts.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects-inl.h"

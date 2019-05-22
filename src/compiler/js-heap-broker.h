@@ -11,7 +11,7 @@
 #include "src/feedback-vector.h"
 #include "src/function-kind.h"
 #include "src/globals.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects.h"
 #include "src/objects/instance-type.h"
 #include "src/ostreams.h"

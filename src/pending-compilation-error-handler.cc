@@ -8,7 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
 #include "src/execution/messages.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

@@ -12,7 +12,7 @@
 #include "src/base/platform/platform.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects.h"
 #include "src/ostreams.h"

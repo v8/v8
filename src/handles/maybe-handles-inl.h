@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MAYBE_HANDLES_INL_H_
-#define V8_MAYBE_HANDLES_INL_H_
+#ifndef V8_HANDLES_MAYBE_HANDLES_INL_H_
+#define V8_HANDLES_MAYBE_HANDLES_INL_H_
 
-#include "src/maybe-handles.h"
+#include "src/handles/maybe-handles.h"
 
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects/maybe-object-inl.h"
 
 namespace v8 {
@@ -83,4 +83,4 @@ inline MaybeObjectHandle handle(MaybeObject object, Isolate* isolate) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_MAYBE_HANDLES_INL_H_
+#endif  // V8_HANDLES_MAYBE_HANDLES_INL_H_

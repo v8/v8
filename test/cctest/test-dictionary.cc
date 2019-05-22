@@ -31,7 +31,7 @@
 #include "src/builtins/builtins-constructor.h"
 #include "src/debug/debug.h"
 #include "src/execution/execution.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/spaces.h"
 #include "src/objects-inl.h"

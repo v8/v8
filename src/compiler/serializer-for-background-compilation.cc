@@ -7,7 +7,7 @@
 #include <sstream>
 
 #include "src/compiler/js-heap-broker.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects/code.h"
 #include "src/objects/shared-function-info-inl.h"

@@ -7,7 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/time.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/logging/counters-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects-inl.h"

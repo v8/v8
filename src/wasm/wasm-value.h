@@ -6,7 +6,7 @@
 #define V8_WASM_WASM_VALUE_H_
 
 #include "src/boxed-float.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/v8memory.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone-containers.h"

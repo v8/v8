@@ -7,7 +7,7 @@
 
 #include "src/objects/oddball.h"
 
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/string-inl.h"

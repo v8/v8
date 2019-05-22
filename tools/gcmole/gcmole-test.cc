@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/execution/isolate.h"
-#include "src/handles-inl.h"
-#include "src/handles.h"
+#include "src/handles/handles-inl.h"
+#include "src/handles/handles.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/object-macros.h"
 

@@ -4,7 +4,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/execution/microtask-queue.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-weak-refs-inl.h"

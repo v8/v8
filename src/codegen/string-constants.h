@@ -5,7 +5,7 @@
 #ifndef V8_CODEGEN_STRING_CONSTANTS_H_
 #define V8_CODEGEN_STRING_CONSTANTS_H_
 
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects/string.h"
 #include "src/zone/zone.h"
 

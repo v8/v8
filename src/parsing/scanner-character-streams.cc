@@ -9,7 +9,7 @@
 
 #include "include/v8.h"
 #include "src/globals.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/parsing/scanner.h"

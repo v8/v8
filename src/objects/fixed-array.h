@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_FIXED_ARRAY_H_
 #define V8_OBJECTS_FIXED_ARRAY_H_
 
-#include "src/maybe-handles.h"
+#include "src/handles/maybe-handles.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/smi.h"
 #include "torque-generated/field-offsets-tq.h"

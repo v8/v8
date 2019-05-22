@@ -17,7 +17,7 @@
 #include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/builtins/builtins-definitions.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/vector.h"
 #include "src/wasm/compilation-environment.h"

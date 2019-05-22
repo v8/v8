@@ -49,7 +49,7 @@
 #include "src/execution/vm-state.h"
 #include "src/feedback-vector-inl.h"
 #include "src/feedback-vector.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/local-allocator.h"

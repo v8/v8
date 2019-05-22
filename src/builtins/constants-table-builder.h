@@ -7,7 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/base/macros.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/identity-map.h"
 
 namespace v8 {

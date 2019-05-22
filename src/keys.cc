@@ -6,7 +6,7 @@
 
 #include "src/api/api-arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/identity-map.h"
 #include "src/objects-inl.h"

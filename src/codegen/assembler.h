@@ -45,7 +45,7 @@
 #include "src/external-reference.h"
 #include "src/flags.h"
 #include "src/globals.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects.h"
 
 namespace v8 {

@@ -13,7 +13,7 @@
 #include <memory>
 
 #include "src/execution/message-template.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 
 namespace v8 {
 namespace internal {

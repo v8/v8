@@ -7,7 +7,7 @@
 
 #include "src/objects/layout-descriptor.h"
 
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/smi.h"

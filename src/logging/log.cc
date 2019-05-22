@@ -18,7 +18,7 @@
 #include "src/execution/isolate.h"
 #include "src/execution/runtime-profiler.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"

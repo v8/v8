@@ -6,7 +6,7 @@
 
 #include "src/compiler/wasm-compiler.h"
 #include "src/flags.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/wasm/decoder.h"

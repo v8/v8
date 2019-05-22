@@ -6,7 +6,7 @@
 #include "src/api/api.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/execution.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-weak-refs-inl.h"

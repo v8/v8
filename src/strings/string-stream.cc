@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/logging/log.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"

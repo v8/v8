@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 
 #include "src/api/api-inl.h"
 #include "src/base/compiler-specific.h"
@@ -396,12 +396,8 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
   // State and flag accessors.
 
-  State state() const {
-    return NodeState::decode(flags_);
-  }
-  void set_state(State state) {
-    flags_ = NodeState::update(flags_, state);
-  }
+  State state() const { return NodeState::decode(flags_); }
+  void set_state(State state) { flags_ = NodeState::update(flags_, state); }
 
   bool is_in_young_list() const { return IsInYoungList::decode(flags_); }
   void set_in_young_list(bool v) { flags_ = IsInYoungList::update(flags_, v); }
@@ -578,13 +574,9 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
  private:
   // Fields that are not used for managing node memory.
-  void ClearImplFields() {
-    weak_callback_ = nullptr;
-  }
+  void ClearImplFields() { weak_callback_ = nullptr; }
 
-  void CheckImplFieldsAreCleared() {
-    DCHECK_EQ(nullptr, weak_callback_);
-  }
+  void CheckImplFieldsAreCleared() { DCHECK_EQ(nullptr, weak_callback_); }
 
   // This stores three flags (independent, partially_dependent and
   // in_young_list) and a State.
@@ -1286,7 +1278,6 @@ void GlobalHandles::PrintStats() {
   PrintF("  # free       = %d\n", destroyed);
   PrintF("  # total      = %d\n", total);
 }
-
 
 void GlobalHandles::Print() {
   PrintF("Global handles:\n");

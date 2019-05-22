@@ -10,7 +10,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects/prototype.h"
 
 namespace v8 {

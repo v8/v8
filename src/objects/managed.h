@@ -7,8 +7,8 @@
 
 #include <memory>
 #include "src/execution/isolate.h"
-#include "src/global-handles.h"
-#include "src/handles.h"
+#include "src/handles/global-handles.h"
+#include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/objects/foreign.h"
 

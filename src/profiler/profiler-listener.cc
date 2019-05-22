@@ -7,7 +7,7 @@
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/source-position-table.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/script-inl.h"

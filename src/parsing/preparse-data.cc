@@ -8,7 +8,7 @@
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/parsing/parser.h"

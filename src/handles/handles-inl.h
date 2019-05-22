@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HANDLES_INL_H_
-#define V8_HANDLES_INL_H_
+#ifndef V8_HANDLES_HANDLES_INL_H_
+#define V8_HANDLES_HANDLES_INL_H_
 
 #include "src/execution/isolate.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/sanitizer/msan.h"
 
 namespace v8 {
@@ -175,4 +175,4 @@ inline SealHandleScope::~SealHandleScope() {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HANDLES_INL_H_
+#endif  // V8_HANDLES_HANDLES_INL_H_

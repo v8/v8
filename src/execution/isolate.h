@@ -25,7 +25,7 @@
 #include "src/execution/isolate-data.h"
 #include "src/execution/messages.h"
 #include "src/globals.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"

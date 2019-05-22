@@ -5,7 +5,7 @@
 #ifndef V8_CODEGEN_CODE_REFERENCE_H_
 #define V8_CODEGEN_CODE_REFERENCE_H_
 
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/objects/code.h"
 
 namespace v8 {

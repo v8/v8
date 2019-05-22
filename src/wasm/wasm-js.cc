@@ -14,7 +14,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
-#include "src/handles.h"
+#include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-promise-inl.h"

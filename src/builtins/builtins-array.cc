@@ -8,7 +8,7 @@
 #include "src/contexts.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/elements-inl.h"

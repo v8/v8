@@ -7,7 +7,7 @@
 
 #include "src/ic/handler-configuration.h"
 
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/field-index-inl.h"
