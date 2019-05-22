@@ -5,7 +5,6 @@
 #include "src/wasm/module-compiler.h"
 
 #include <algorithm>
-#include <queue>
 
 #include "src/api/api.h"
 #include "src/asmjs/asm-js.h"
@@ -165,20 +164,39 @@ class CompilationUnitQueues {
     // before executing own higher-tier units.
     int max_tier = baseline_only ? kBaseline : kTopTier;
     for (int tier = GetLowestTierWithUnits(); tier <= max_tier; ++tier) {
-      if (auto unit = GetNextUnitOfTier(task_id, tier)) {
-        size_t old_units_count =
-            num_units_[tier].fetch_sub(1, std::memory_order_relaxed);
-        DCHECK_LE(1, old_units_count);
-        USE(old_units_count);
-        return unit;
+      Queue* queue = &queues_[task_id];
+      // First, check whether our own queue has a unit of the wanted tier. If
+      // so, return it, otherwise get the task id to steal from.
+      int steal_task_id;
+      {
+        base::MutexGuard mutex_guard(&queue->mutex);
+        if (!queue->units[tier].empty()) {
+          auto unit = queue->units[tier].back();
+          queue->units[tier].pop_back();
+          DecrementUnitCount(tier);
+          return unit;
+        }
+        steal_task_id = queue->next_steal_task_id;
+      }
+
+      // Try to steal from all other queues. If none of this succeeds, the outer
+      // loop increases the tier and retries.
+      size_t steal_trials = queues_.size();
+      for (; steal_trials > 0;
+           --steal_trials, steal_task_id = next_task_id(steal_task_id)) {
+        if (steal_task_id == task_id) continue;
+        if (auto maybe_unit =
+                StealUnitsAndGetFirst(task_id, steal_task_id, tier)) {
+          DecrementUnitCount(tier);
+          return maybe_unit;
+        }
       }
     }
     return {};
   }
 
   void AddUnits(Vector<WasmCompilationUnit> baseline_units,
-                Vector<WasmCompilationUnit> top_tier_units,
-                const WasmModule* module) {
+                Vector<WasmCompilationUnit> top_tier_units) {
     DCHECK_LT(0, baseline_units.size() + top_tier_units.size());
     // Add to the individual queues in a round-robin fashion. No special care is
     // taken to balance them; they will be balanced by work stealing.
@@ -190,26 +208,19 @@ class CompilationUnitQueues {
 
     Queue* queue = &queues_[queue_to_add];
     base::MutexGuard guard(&queue->mutex);
-    base::Optional<base::MutexGuard> big_units_guard;
-    for (auto pair : {std::make_pair(int{kBaseline}, baseline_units),
-                      std::make_pair(int{kTopTier}, top_tier_units)}) {
-      int tier = pair.first;
-      Vector<WasmCompilationUnit> units = pair.second;
-      if (units.empty()) continue;
-      num_units_[tier].fetch_add(units.size(), std::memory_order_relaxed);
-      for (WasmCompilationUnit unit : units) {
-        size_t func_size = module->functions[unit.func_index()].code.length();
-        if (func_size <= kBigUnitsLimit) {
-          queue->units[tier].push_back(unit);
-        } else {
-          if (!big_units_guard) {
-            big_units_guard.emplace(&big_units_queue_.mutex);
-          }
-          big_units_queue_.has_units[tier].store(true,
-                                                 std::memory_order_relaxed);
-          big_units_queue_.units[tier].emplace(func_size, unit);
-        }
-      }
+    if (!baseline_units.empty()) {
+      queue->units[kBaseline].insert(queue->units[kBaseline].end(),
+                                     baseline_units.begin(),
+                                     baseline_units.end());
+      num_units_[kBaseline].fetch_add(baseline_units.size(),
+                                      std::memory_order_relaxed);
+    }
+    if (!top_tier_units.empty()) {
+      queue->units[kTopTier].insert(queue->units[kTopTier].end(),
+                                    top_tier_units.begin(),
+                                    top_tier_units.end());
+      num_units_[kTopTier].fetch_add(top_tier_units.size(),
+                                     std::memory_order_relaxed);
     }
   }
 
@@ -230,10 +241,6 @@ class CompilationUnitQueues {
   static constexpr int kTopTier = 1;
   static constexpr int kNumTiers = kTopTier + 1;
 
-  // Functions bigger than {kBigUnitsLimit} will be compiled first, in ascending
-  // order of their function body size.
-  static constexpr size_t kBigUnitsLimit = 4096;
-
   struct Queue {
     base::Mutex mutex;
 
@@ -243,30 +250,7 @@ class CompilationUnitQueues {
     // End of fields protected by {mutex}.
   };
 
-  struct BigUnit {
-    BigUnit(size_t func_size, WasmCompilationUnit unit)
-        : func_size{func_size}, unit(unit) {}
-
-    size_t func_size;
-    WasmCompilationUnit unit;
-
-    bool operator<(const BigUnit& other) const {
-      return func_size < other.func_size;
-    }
-  };
-
-  struct BigUnitsQueue {
-    base::Mutex mutex;
-
-    // Can be read concurrently to check whether any elements are in the queue.
-    std::atomic<bool> has_units[kNumTiers];
-
-    // Protected by {mutex}:
-    std::priority_queue<BigUnit> units[kNumTiers];
-  };
-
   std::vector<Queue> queues_;
-  BigUnitsQueue big_units_queue_;
 
   std::atomic<size_t> num_units_[kNumTiers];
   std::atomic<int> next_queue_to_add{0};
@@ -283,52 +267,10 @@ class CompilationUnitQueues {
     return kNumTiers;
   }
 
-  base::Optional<WasmCompilationUnit> GetNextUnitOfTier(int task_id, int tier) {
-    Queue* queue = &queues_[task_id];
-    // First check whether there is a big unit of that tier. Execute that first.
-    if (auto unit = GetBigUnitOfTier(tier)) return unit;
-
-    // Then check whether our own queue has a unit of the wanted tier. If
-    // so, return it, otherwise get the task id to steal from.
-    int steal_task_id;
-    {
-      base::MutexGuard mutex_guard(&queue->mutex);
-      if (!queue->units[tier].empty()) {
-        auto unit = queue->units[tier].back();
-        queue->units[tier].pop_back();
-        return unit;
-      }
-      steal_task_id = queue->next_steal_task_id;
-    }
-
-    // Try to steal from all other queues. If this succeeds, return one of the
-    // stolen units.
-    size_t steal_trials = queues_.size();
-    for (; steal_trials > 0;
-         --steal_trials, steal_task_id = next_task_id(steal_task_id)) {
-      if (steal_task_id == task_id) continue;
-      if (auto unit = StealUnitsAndGetFirst(task_id, steal_task_id, tier)) {
-        return unit;
-      }
-    }
-
-    // If we reach here, we didn't find any unit of the requested tier.
-    return {};
-  }
-
-  base::Optional<WasmCompilationUnit> GetBigUnitOfTier(int tier) {
-    // Fast-path without locking.
-    if (!big_units_queue_.has_units[tier].load(std::memory_order_relaxed)) {
-      return {};
-    }
-    base::MutexGuard guard(&big_units_queue_.mutex);
-    if (big_units_queue_.units[tier].empty()) return {};
-    WasmCompilationUnit unit = big_units_queue_.units[tier].top().unit;
-    big_units_queue_.units[tier].pop();
-    if (big_units_queue_.units[tier].empty()) {
-      big_units_queue_.has_units[tier].store(false, std::memory_order_relaxed);
-    }
-    return unit;
+  void DecrementUnitCount(int tier) {
+    size_t old_units_count = num_units_[tier].fetch_sub(1);
+    DCHECK_LE(1, old_units_count);
+    USE(old_units_count);
   }
 
   // Steal units of {wanted_tier} from {steal_from_task_id} to {task_id}. Return
@@ -2060,8 +2002,7 @@ void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
 void CompilationStateImpl::AddCompilationUnits(
     Vector<WasmCompilationUnit> baseline_units,
     Vector<WasmCompilationUnit> top_tier_units) {
-  compilation_unit_queues_.AddUnits(baseline_units, top_tier_units,
-                                    native_module_->module());
+  compilation_unit_queues_.AddUnits(baseline_units, top_tier_units);
 
   RestartBackgroundTasks();
 }
