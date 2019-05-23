@@ -258,9 +258,7 @@ class ZoneForwardList;
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)
 #endif  // V8_INTL_SUPPORT
 
-#define HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) \
-  V(Dictionary)                           \
-  V(HashTable)
+#define HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) V(HashTable)
 
 #define HEAP_OBJECT_TYPE_LIST(V)    \
   HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \

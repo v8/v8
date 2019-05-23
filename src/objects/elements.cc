@@ -4209,7 +4209,7 @@ class FastSloppyArgumentsElementsAccessor
                                uint32_t from_start, FixedArrayBase to,
                                ElementsKind from_kind, uint32_t to_start,
                                int packed_size, int copy_size) {
-    DCHECK(!to.IsDictionary());
+    DCHECK(!to.IsNumberDictionary());
     if (from_kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS) {
       CopyDictionaryToObjectElements(isolate, from, from_start, to,
                                      HOLEY_ELEMENTS, to_start, copy_size);
@@ -4393,7 +4393,7 @@ class StringWrapperElementsAccessor
                                uint32_t from_start, FixedArrayBase to,
                                ElementsKind from_kind, uint32_t to_start,
                                int packed_size, int copy_size) {
-    DCHECK(!to.IsDictionary());
+    DCHECK(!to.IsNumberDictionary());
     if (from_kind == SLOW_STRING_WRAPPER_ELEMENTS) {
       CopyDictionaryToObjectElements(isolate, from, from_start, to,
                                      HOLEY_ELEMENTS, to_start, copy_size);

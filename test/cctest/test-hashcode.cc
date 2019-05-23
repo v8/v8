@@ -37,7 +37,7 @@ void CheckFastObject(Handle<JSObject> obj, int hash) {
 
 void CheckDictionaryObject(Handle<JSObject> obj, int hash) {
   CHECK(!obj->HasFastProperties());
-  CHECK(obj->raw_properties_or_hash().IsDictionary());
+  CHECK(obj->raw_properties_or_hash().IsNameDictionary());
   CHECK_EQ(Smi::FromInt(hash), obj->GetHash());
   CHECK_EQ(hash, obj->property_dictionary().Hash());
 }
@@ -98,7 +98,7 @@ TEST(AddHashCodeToSlowObject) {
   CHECK(obj->HasFastProperties());
   JSObject::NormalizeProperties(obj, CLEAR_INOBJECT_PROPERTIES, 0,
                                 "cctest/test-hashcode");
-  CHECK(obj->raw_properties_or_hash().IsDictionary());
+  CHECK(obj->raw_properties_or_hash().IsNameDictionary());
 
   int hash = AddToSetAndGetHash(isolate, obj, false);
   CheckDictionaryObject(obj, hash);
@@ -181,7 +181,7 @@ TEST(TransitionSlowToSlow) {
   Handle<JSObject> obj = GetGlobal<JSObject>("x");
   JSObject::NormalizeProperties(obj, CLEAR_INOBJECT_PROPERTIES, 0,
                                 "cctest/test-hashcode");
-  CHECK(obj->raw_properties_or_hash().IsDictionary());
+  CHECK(obj->raw_properties_or_hash().IsNameDictionary());
 
   int hash = AddToSetAndGetHash(isolate, obj, false);
   CHECK_EQ(hash, obj->property_dictionary().Hash());
@@ -201,7 +201,7 @@ TEST(TransitionSlowToFastWithoutProperties) {
       isolate->factory()->NewJSObject(isolate->object_function());
   JSObject::NormalizeProperties(obj, CLEAR_INOBJECT_PROPERTIES, 0,
                                 "cctest/test-hashcode");
-  CHECK(obj->raw_properties_or_hash().IsDictionary());
+  CHECK(obj->raw_properties_or_hash().IsNameDictionary());
 
   int hash = AddToSetAndGetHash(isolate, obj, false);
   CHECK_EQ(hash, obj->property_dictionary().Hash());
@@ -221,7 +221,7 @@ TEST(TransitionSlowToFastWithPropertyArray) {
   CompileRun(source);
 
   Handle<JSObject> obj = GetGlobal<JSObject>("x");
-  CHECK(obj->raw_properties_or_hash().IsDictionary());
+  CHECK(obj->raw_properties_or_hash().IsNameDictionary());
 
   int hash = AddToSetAndGetHash(isolate, obj, false);
   CHECK_EQ(hash, obj->property_dictionary().Hash());

@@ -775,7 +775,7 @@ ElementsKind JSObject::GetElementsKind() const {
              fixed_array == GetReadOnlyRoots().empty_fixed_array());
     } else if (kind == DICTIONARY_ELEMENTS) {
       DCHECK(fixed_array.IsFixedArray());
-      DCHECK(fixed_array.IsDictionary());
+      DCHECK(fixed_array.IsNumberDictionary());
     } else {
       DCHECK(kind > DICTIONARY_ELEMENTS || IsFrozenOrSealedElementsKind(kind));
     }
@@ -898,9 +898,10 @@ void JSReceiver::initialize_properties() {
 }
 
 bool JSReceiver::HasFastProperties() const {
-  DCHECK(
-      raw_properties_or_hash().IsSmi() ||
-      (raw_properties_or_hash().IsDictionary() == map().is_dictionary_map()));
+  DCHECK(raw_properties_or_hash().IsSmi() ||
+         ((raw_properties_or_hash().IsGlobalDictionary() ||
+           raw_properties_or_hash().IsNameDictionary()) ==
+          map().is_dictionary_map()));
   return !map().is_dictionary_map();
 }
 
