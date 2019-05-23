@@ -2412,7 +2412,7 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
   Handle<NativeContext> context(isolate()->native_context());
   Handle<Map> map = args.GetMap(isolate());
   Handle<SharedFunctionInfo> info =
-      NewSharedFunctionInfo(args.name_, args.maybe_exported_function_data_,
+      NewSharedFunctionInfo(args.name_, args.maybe_wasm_function_data_,
                             args.maybe_builtin_id_, kNormalFunction);
 
   // Proper language mode in shared function info will be set later.
@@ -4224,7 +4224,21 @@ NewFunctionArgs NewFunctionArgs::ForWasm(
   NewFunctionArgs args;
   args.name_ = name;
   args.maybe_map_ = map;
-  args.maybe_exported_function_data_ = exported_function_data;
+  args.maybe_wasm_function_data_ = exported_function_data;
+  args.language_mode_ = LanguageMode::kSloppy;
+  args.prototype_mutability_ = MUTABLE;
+
+  return args;
+}
+
+// static
+NewFunctionArgs NewFunctionArgs::ForWasm(
+    Handle<String> name, Handle<WasmJSFunctionData> js_function_data,
+    Handle<Map> map) {
+  NewFunctionArgs args;
+  args.name_ = name;
+  args.maybe_map_ = map;
+  args.maybe_wasm_function_data_ = js_function_data;
   args.language_mode_ = LanguageMode::kSloppy;
   args.prototype_mutability_ = MUTABLE;
 

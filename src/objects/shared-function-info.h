@@ -34,6 +34,7 @@ class DebugInfo;
 class IsCompiledScope;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
+class WasmJSFunctionData;
 
 // Data collected by the pre-parser storing information about scopes and inner
 // functions.
@@ -368,6 +369,8 @@ class SharedFunctionInfo : public HeapObject {
   inline bool HasUncompiledDataWithoutPreparseData() const;
   inline bool HasWasmExportedFunctionData() const;
   WasmExportedFunctionData wasm_exported_function_data() const;
+  inline bool HasWasmJSFunctionData() const;
+  WasmJSFunctionData wasm_js_function_data() const;
   inline bool HasWasmCapiFunctionData() const;
   WasmCapiFunctionData wasm_capi_function_data() const;
 

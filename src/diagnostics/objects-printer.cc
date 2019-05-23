@@ -1866,6 +1866,12 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(
   os << "\n";
 }
 
+void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmJSFunctionData");
+  os << "\n - wrapper_code: " << Brief(wrapper_code());
+  os << "\n";
+}
+
 void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmModuleObject");
   os << "\n - module: " << module();

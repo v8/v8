@@ -2133,6 +2133,33 @@ wasm::FunctionSig* WasmExportedFunction::sig() {
   return instance().module()->functions[function_index()].sig;
 }
 
+// static
+bool WasmJSFunction::IsWasmJSFunction(Object object) {
+  if (!object.IsJSFunction()) return false;
+  JSFunction js_function = JSFunction::cast(object);
+  return js_function.shared().HasWasmJSFunctionData();
+}
+
+Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
+                                           wasm::FunctionSig* sig,
+                                           Handle<JSReceiver> callable) {
+  Handle<WasmJSFunctionData> function_data =
+      Handle<WasmJSFunctionData>::cast(isolate->factory()->NewStruct(
+          WASM_JS_FUNCTION_DATA_TYPE, AllocationType::kOld));
+  // TODO(7742): Make this callable by using a proper wrapper code.
+  function_data->set_wrapper_code(
+      isolate->builtins()->builtin(Builtins::kIllegal));
+  Handle<String> name = isolate->factory()->Function_string();
+  if (callable->IsJSFunction()) {
+    name = JSFunction::GetName(Handle<JSFunction>::cast(callable));
+  }
+  Handle<Map> function_map = isolate->wasm_exported_function_map();
+  NewFunctionArgs args =
+      NewFunctionArgs::ForWasm(name, function_data, function_map);
+  Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);
+  return Handle<WasmJSFunction>::cast(js_function);
+}
+
 Address WasmCapiFunction::GetHostCallTarget() const {
   return shared().wasm_capi_function_data().call_target();
 }

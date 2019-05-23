@@ -308,6 +308,17 @@ SMI_ACCESSORS(WasmExportedFunctionData, jump_table_offset,
               kJumpTableOffsetOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, function_index, kFunctionIndexOffset)
 
+// WasmJSFunction
+WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {
+  SLOW_DCHECK(IsWasmJSFunction(*this));
+}
+CAST_ACCESSOR(WasmJSFunction)
+
+// WasmJSFunctionData
+OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData, Struct)
+CAST_ACCESSOR(WasmJSFunctionData)
+ACCESSORS(WasmJSFunctionData, wrapper_code, Code, kWrapperCodeOffset)
+
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmCapiFunction(*this));

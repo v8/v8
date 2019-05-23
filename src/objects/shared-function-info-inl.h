@@ -663,6 +663,10 @@ bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
   return function_data().IsWasmExportedFunctionData();
 }
 
+bool SharedFunctionInfo::HasWasmJSFunctionData() const {
+  return function_data().IsWasmJSFunctionData();
+}
+
 bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
   return function_data().IsWasmCapiFunctionData();
 }

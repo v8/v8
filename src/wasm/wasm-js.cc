@@ -1466,8 +1466,12 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  // TODO(7742): Implement ability to construct.
-  UNIMPLEMENTED();
+  i::wasm::FunctionSig* sig = builder.Build();
+  i::Handle<i::JSReceiver> callable =
+      Utils::OpenHandle(*args[1].As<Function>());
+  i::Handle<i::JSFunction> result =
+      i::WasmJSFunction::New(i_isolate, sig, callable);
+  args.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 constexpr const char* kName_WasmGlobalObject = "WebAssembly.Global";

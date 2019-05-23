@@ -197,9 +197,25 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertThrows(
     () => new WebAssembly.Function({parameters:[], results:[]}, {}), TypeError,
     /Argument 1 must be a function/);
+  assertDoesNotThrow(
+    () => new WebAssembly.Function({parameters:[], results:[]}, _ => 0));
 })();
 
-(function TestFunctionExportedFunctions() {
+(function TestFunctionConstructedFunction() {
+  let fun = new WebAssembly.Function({parameters:[], results:[]}, _ => 0);
+  assertTrue(fun instanceof WebAssembly.Function);
+  assertTrue(fun instanceof Function);
+  assertTrue(fun instanceof Object);
+  assertSame(fun.__proto__, WebAssembly.Function.prototype);
+  assertSame(fun.__proto__.__proto__, Function.prototype);
+  assertSame(fun.__proto__.__proto__.__proto__, Object.prototype);
+  assertSame(fun.constructor, WebAssembly.Function);
+  assertEquals(typeof fun, 'function');
+  // TODO(7742): Enable once it is callable.
+  // assertDoesNotThrow(() => fun());
+})();
+
+(function TestFunctionExportedFunction() {
   let builder = new WasmModuleBuilder();
   builder.addFunction("fun", kSig_v_v).addBody([]).exportFunc();
   let instance = builder.instantiate();

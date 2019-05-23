@@ -880,6 +880,8 @@ extern class WasmExportedFunctionData extends Struct {
   function_index: Smi;
 }
 
+extern class WasmJSFunctionData extends Struct { wrapper_code: Code; }
+
 extern class WasmCapiFunctionData extends Struct {
   call_target: RawPtr;
   embedder_data: RawPtr;

@@ -119,6 +119,7 @@ namespace internal {
   V(WASM_DEBUG_INFO_TYPE)                                \
   V(WASM_EXCEPTION_TAG_TYPE)                             \
   V(WASM_EXPORTED_FUNCTION_DATA_TYPE)                    \
+  V(WASM_JS_FUNCTION_DATA_TYPE)                          \
                                                          \
   V(CALLABLE_TASK_TYPE)                                  \
   V(CALLBACK_TASK_TYPE)                                  \
@@ -342,6 +343,7 @@ namespace internal {
   V(_, WASM_EXCEPTION_TAG_TYPE, WasmExceptionTag, wasm_exception_tag)          \
   V(_, WASM_EXPORTED_FUNCTION_DATA_TYPE, WasmExportedFunctionData,             \
     wasm_exported_function_data)                                               \
+  V(_, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData, wasm_js_function_data)  \
   V(_, CALLABLE_TASK_TYPE, CallableTask, callable_task)                        \
   V(_, CALLBACK_TASK_TYPE, CallbackTask, callback_task)                        \
   V(_, PROMISE_FULFILL_REACTION_JOB_TASK_TYPE, PromiseFulfillReactionJobTask,  \

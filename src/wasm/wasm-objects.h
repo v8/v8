@@ -652,6 +652,7 @@ class WasmExceptionPackage : public JSReceiver {
 };
 
 // A Wasm function that is wrapped and exported to JavaScript.
+// Representation of WebAssembly.Function JavaScript-level object.
 class WasmExportedFunction : public JSFunction {
  public:
   WasmInstanceObject instance();
@@ -669,6 +670,19 @@ class WasmExportedFunction : public JSFunction {
 
   DECL_CAST(WasmExportedFunction)
   OBJECT_CONSTRUCTORS(WasmExportedFunction, JSFunction);
+};
+
+// A Wasm function that was created by wrapping a JavaScript callable.
+// Representation of WebAssembly.Function JavaScript-level object.
+class WasmJSFunction : public JSFunction {
+ public:
+  static bool IsWasmJSFunction(Object object);
+
+  static Handle<WasmJSFunction> New(Isolate* isolate, wasm::FunctionSig* sig,
+                                    Handle<JSReceiver> callable);
+
+  DECL_CAST(WasmJSFunction)
+  OBJECT_CONSTRUCTORS(WasmJSFunction, JSFunction);
 };
 
 // An external function exposed to Wasm via the C/C++ API.
@@ -733,6 +747,26 @@ class WasmExportedFunctionData : public Struct {
       TORQUE_GENERATED_WASM_EXPORTED_FUNCTION_DATA_FIELDS)
 
   OBJECT_CONSTRUCTORS(WasmExportedFunctionData, Struct);
+};
+
+// Information for a WasmJSFunction which is referenced as the function data of
+// the SharedFunctionInfo underlying the function. For details please see the
+// {SharedFunctionInfo::HasWasmJSFunctionData} predicate.
+class WasmJSFunctionData : public Struct {
+ public:
+  DECL_ACCESSORS(wrapper_code, Code)
+
+  DECL_CAST(WasmJSFunctionData)
+
+  // Dispatched behavior.
+  DECL_PRINTER(WasmJSFunctionData)
+  DECL_VERIFIER(WasmJSFunctionData)
+
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_WASM_JSFUNCTION_DATA_FIELDS)
+
+  OBJECT_CONSTRUCTORS(WasmJSFunctionData, Struct);
 };
 
 class WasmDebugInfo : public Struct {

@@ -67,6 +67,7 @@ class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
+class WasmJSFunctionData;
 class WeakCell;
 struct SourceRange;
 template <typename T>
@@ -1113,6 +1114,9 @@ class NewFunctionArgs final {
   static NewFunctionArgs ForWasm(
       Handle<String> name,
       Handle<WasmExportedFunctionData> exported_function_data, Handle<Map> map);
+  static NewFunctionArgs ForWasm(Handle<String> name,
+                                 Handle<WasmJSFunctionData> js_function_data,
+                                 Handle<Map> map);
   V8_EXPORT_PRIVATE static NewFunctionArgs ForBuiltin(Handle<String> name,
                                                       Handle<Map> map,
                                                       int builtin_id);
@@ -1141,7 +1145,7 @@ class NewFunctionArgs final {
 
   Handle<String> name_;
   MaybeHandle<Map> maybe_map_;
-  MaybeHandle<WasmExportedFunctionData> maybe_exported_function_data_;
+  MaybeHandle<Struct> maybe_wasm_function_data_;
 
   bool should_create_and_set_initial_map_ = false;
   InstanceType type_;

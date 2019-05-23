@@ -4919,6 +4919,8 @@ Code SharedFunctionInfo::GetCode() const {
     DCHECK(code.IsCode());
     DCHECK(code.is_interpreter_trampoline_builtin());
     return code;
+  } else if (data.IsWasmJSFunctionData()) {
+    return wasm_js_function_data().wrapper_code();
   } else if (data.IsWasmCapiFunctionData()) {
     return wasm_capi_function_data().wrapper_code();
   }
@@ -4929,6 +4931,11 @@ WasmExportedFunctionData SharedFunctionInfo::wasm_exported_function_data()
     const {
   DCHECK(HasWasmExportedFunctionData());
   return WasmExportedFunctionData::cast(function_data());
+}
+
+WasmJSFunctionData SharedFunctionInfo::wasm_js_function_data() const {
+  DCHECK(HasWasmJSFunctionData());
+  return WasmJSFunctionData::cast(function_data());
 }
 
 WasmCapiFunctionData SharedFunctionInfo::wasm_capi_function_data() const {

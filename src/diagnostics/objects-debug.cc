@@ -1047,7 +1047,8 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
   CHECK(HasWasmExportedFunctionData() || IsApiFunction() ||
         HasBytecodeArray() || HasAsmWasmData() || HasBuiltinId() ||
         HasUncompiledDataWithPreparseData() ||
-        HasUncompiledDataWithoutPreparseData() || HasWasmCapiFunctionData());
+        HasUncompiledDataWithoutPreparseData() || HasWasmJSFunctionData() ||
+        HasWasmCapiFunctionData());
 
   CHECK(script_or_debug_info().IsUndefined(isolate) ||
         script_or_debug_info().IsScript() || HasDebugInfo());
@@ -1799,6 +1800,8 @@ USE_TORQUE_VERIFIER(FunctionTemplateInfo)
 USE_TORQUE_VERIFIER(FunctionTemplateRareData)
 
 USE_TORQUE_VERIFIER(WasmCapiFunctionData)
+
+USE_TORQUE_VERIFIER(WasmJSFunctionData)
 
 USE_TORQUE_VERIFIER(ObjectTemplateInfo)
 
