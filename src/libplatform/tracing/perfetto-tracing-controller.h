@@ -23,7 +23,7 @@ namespace v8 {
 namespace platform {
 namespace tracing {
 
-class PerfettoJSONConsumer;
+class PerfettoConsumerBase;
 class PerfettoProducer;
 class PerfettoTaskRunner;
 
@@ -61,7 +61,7 @@ class PerfettoTracingController {
 
   std::unique_ptr<::perfetto::TracingService> service_;
   std::unique_ptr<PerfettoProducer> producer_;
-  std::unique_ptr<PerfettoJSONConsumer> consumer_;
+  std::unique_ptr<PerfettoConsumerBase> consumer_;
   std::unique_ptr<PerfettoTaskRunner> task_runner_;
   base::Thread::LocalStorageKey writer_key_;
   // A semaphore that is signalled when StartRecording is called. StartTracing

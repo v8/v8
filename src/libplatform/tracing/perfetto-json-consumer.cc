@@ -8,36 +8,20 @@
 
 #include "base/trace_event/common/trace_event_common.h"
 #include "perfetto/trace/chrome/chrome_trace_packet.pb.h"
-#include "perfetto/tracing/core/trace_packet.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/base/platform/semaphore.h"
 
 namespace v8 {
 namespace platform {
 namespace tracing {
 
-PerfettoJSONConsumer::PerfettoJSONConsumer(std::ostream* stream,
-                                           base::Semaphore* finished)
-    : stream_(stream), finished_semaphore_(finished) {
+PerfettoJSONConsumer::PerfettoJSONConsumer(base::Semaphore* finished,
+                                           std::ostream* stream)
+    : PerfettoConsumerBase(finished), stream_(stream) {
   *stream_ << "{\"traceEvents\":[";
 }
 
 PerfettoJSONConsumer::~PerfettoJSONConsumer() { *stream_ << "]}"; }
-
-void PerfettoJSONConsumer::OnTraceData(
-    std::vector<::perfetto::TracePacket> packets, bool has_more) {
-  for (const ::perfetto::TracePacket& packet : packets) {
-    perfetto::protos::ChromeTracePacket proto_packet;
-    bool success = packet.Decode(&proto_packet);
-    USE(success);
-    DCHECK(success);
-
-    ProcessPacket(proto_packet);
-  }
-  // Alert PerfettoTracingController that we are finished during StopTracing().
-  if (!has_more) finished_semaphore_->Signal();
-}
 
 // TODO(petermarshall): Clean up this code which was copied from trace-writer.cc
 // once we've removed that file.

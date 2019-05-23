@@ -45,7 +45,7 @@ void PerfettoTracingController::StartTracing(
     service_->SetSMBScrapingEnabled(true);
     producer_ = base::make_unique<PerfettoProducer>(this);
     consumer_ = base::make_unique<PerfettoJSONConsumer>(
-        output_stream, &consumer_finished_semaphore_);
+        &consumer_finished_semaphore_, output_stream);
 
     producer_->set_service_endpoint(service_->ConnectProducer(
         producer_.get(), 0, "v8.perfetto-producer", 0, true));
@@ -72,7 +72,7 @@ void PerfettoTracingController::StopTracing() {
     // events that have been written by still-living TraceWriters.
     consumer_->service_endpoint()->DisableTracing();
     // Trigger the consumer to finish. This can trigger multiple calls to
-    // PerfettoJSONConsumer::OnTraceData(), with the final call passing has_more
+    // PerfettoConsumerBase::OnTraceData(), with the final call passing has_more
     // as false.
     consumer_->service_endpoint()->ReadBuffers();
   });

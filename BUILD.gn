@@ -3659,6 +3659,8 @@ v8_component("v8_libplatform") {
   ]
   if (v8_use_perfetto) {
     sources += [
+      "src/libplatform/tracing/perfetto-consumer-base.cc",
+      "src/libplatform/tracing/perfetto-consumer-base.h",
       "src/libplatform/tracing/perfetto-json-consumer.cc",
       "src/libplatform/tracing/perfetto-json-consumer.h",
       "src/libplatform/tracing/perfetto-producer.cc",
