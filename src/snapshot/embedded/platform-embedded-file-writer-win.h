@@ -2,25 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SNAPSHOT_EMBEDDED_PLATFORM_EMBEDDED_FILE_WRITER_GENERIC_H_
-#define V8_SNAPSHOT_EMBEDDED_PLATFORM_EMBEDDED_FILE_WRITER_GENERIC_H_
+#ifndef V8_SNAPSHOT_EMBEDDED_PLATFORM_EMBEDDED_FILE_WRITER_WIN_H_
+#define V8_SNAPSHOT_EMBEDDED_PLATFORM_EMBEDDED_FILE_WRITER_WIN_H_
 
 #include "src/base/macros.h"
-#include "src/globals.h"  // For V8_OS_WIN_X64
 #include "src/snapshot/embedded/platform-embedded-file-writer-base.h"
 
 namespace v8 {
 namespace internal {
 
-class PlatformEmbeddedFileWriterGeneric
-    : public PlatformEmbeddedFileWriterBase {
+class PlatformEmbeddedFileWriterWin : public PlatformEmbeddedFileWriterBase {
  public:
-  PlatformEmbeddedFileWriterGeneric(EmbeddedTargetArch target_arch,
-                                    EmbeddedTargetOs target_os)
+  PlatformEmbeddedFileWriterWin(EmbeddedTargetArch target_arch,
+                                EmbeddedTargetOs target_os)
       : target_arch_(target_arch), target_os_(target_os) {
-    DCHECK(target_os_ == EmbeddedTargetOs::kChromeOS ||
-           target_os_ == EmbeddedTargetOs::kFuchsia ||
-           target_os_ == EmbeddedTargetOs::kGeneric);
+    USE(target_os_);
+    DCHECK_EQ(target_os_, EmbeddedTargetOs::kWin);
   }
 
   void SectionText() override;
@@ -49,6 +46,16 @@ class PlatformEmbeddedFileWriterGeneric
 
   int IndentedDataDirective(DataDirective directive) override;
 
+  void StartPdataSection();
+  void EndPdataSection();
+  void StartXdataSection();
+  void EndXdataSection();
+  void DeclareExternalFunction(const char* name);
+
+  // Emits an RVA (address relative to the module load address) specified as an
+  // offset from a given symbol.
+  void DeclareRvaToSymbol(const char* name, uint64_t offset = 0);
+
  private:
   void DeclareSymbolGlobal(const char* name);
 
@@ -60,4 +67,4 @@ class PlatformEmbeddedFileWriterGeneric
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SNAPSHOT_EMBEDDED_PLATFORM_EMBEDDED_FILE_WRITER_GENERIC_H_
+#endif  // V8_SNAPSHOT_EMBEDDED_PLATFORM_EMBEDDED_FILE_WRITER_WIN_H_

@@ -3792,10 +3792,16 @@ if (v8_use_snapshot && current_toolchain == v8_snapshot_toolchain) {
     sources = [
       "src/snapshot/embedded-file-writer.cc",
       "src/snapshot/embedded-file-writer.h",
+      "src/snapshot/embedded/platform-embedded-file-writer-aix.cc",
+      "src/snapshot/embedded/platform-embedded-file-writer-aix.h",
       "src/snapshot/embedded/platform-embedded-file-writer-base.cc",
       "src/snapshot/embedded/platform-embedded-file-writer-base.h",
       "src/snapshot/embedded/platform-embedded-file-writer-generic.cc",
       "src/snapshot/embedded/platform-embedded-file-writer-generic.h",
+      "src/snapshot/embedded/platform-embedded-file-writer-mac.cc",
+      "src/snapshot/embedded/platform-embedded-file-writer-mac.h",
+      "src/snapshot/embedded/platform-embedded-file-writer-win.cc",
+      "src/snapshot/embedded/platform-embedded-file-writer-win.h",
       "src/snapshot/mksnapshot.cc",
     ]
 

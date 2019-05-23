@@ -19,6 +19,8 @@ enum DataDirective {
   kOcta,
 };
 
+DataDirective PointerSizeDirective();
+
 enum class EmbeddedTargetOs {
   kAIX,
   kChromeOS,

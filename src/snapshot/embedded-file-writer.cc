@@ -9,8 +9,9 @@
 #include "src/codegen/source-position-table.h"
 #include "src/objects/code-inl.h"
 
-// TODO(jgruber): Remove once windows-specific code is extracted.
-#include "src/snapshot/embedded/platform-embedded-file-writer-generic.h"
+// TODO(jgruber): Refactor to move windows-specific code into the
+// windows-specific file writer.
+#include "src/snapshot/embedded/platform-embedded-file-writer-win.h"
 
 namespace v8 {
 namespace internal {
@@ -286,47 +287,47 @@ void EmbeddedFileWriter::SetBuiltinUnwindData(
 void EmbeddedFileWriter::WriteUnwindInfoEntry(PlatformEmbeddedFileWriterBase* w,
                                               uint64_t rva_start,
                                               uint64_t rva_end) const {
-  PlatformEmbeddedFileWriterGeneric* w_gen =
-      static_cast<PlatformEmbeddedFileWriterGeneric*>(w);
-  w_gen->DeclareRvaToSymbol(EmbeddedBlobDataSymbol().c_str(), rva_start);
-  w_gen->DeclareRvaToSymbol(EmbeddedBlobDataSymbol().c_str(), rva_end);
-  w_gen->DeclareRvaToSymbol(BuiltinsUnwindInfoLabel().c_str());
+  PlatformEmbeddedFileWriterWin* w_win =
+      static_cast<PlatformEmbeddedFileWriterWin*>(w);
+  w_win->DeclareRvaToSymbol(EmbeddedBlobDataSymbol().c_str(), rva_start);
+  w_win->DeclareRvaToSymbol(EmbeddedBlobDataSymbol().c_str(), rva_end);
+  w_win->DeclareRvaToSymbol(BuiltinsUnwindInfoLabel().c_str());
 }
 
 void EmbeddedFileWriter::WriteUnwindInfo(PlatformEmbeddedFileWriterBase* w,
                                          const i::EmbeddedData* blob) const {
-  PlatformEmbeddedFileWriterGeneric* w_gen =
-      static_cast<PlatformEmbeddedFileWriterGeneric*>(w);
+  PlatformEmbeddedFileWriterWin* w_win =
+      static_cast<PlatformEmbeddedFileWriterWin*>(w);
 
   // Emit an UNWIND_INFO (XDATA) struct, which contains the unwinding
   // information that is used for all builtin functions.
   DCHECK(win64_unwindinfo::CanEmitUnwindInfoForBuiltins());
-  w_gen->Comment("xdata for all the code in the embedded blob.");
-  w_gen->DeclareExternalFunction(CRASH_HANDLER_FUNCTION_NAME_STRING);
+  w_win->Comment("xdata for all the code in the embedded blob.");
+  w_win->DeclareExternalFunction(CRASH_HANDLER_FUNCTION_NAME_STRING);
 
-  w_gen->StartXdataSection();
+  w_win->StartXdataSection();
   {
-    w_gen->DeclareLabel(BuiltinsUnwindInfoLabel().c_str());
+    w_win->DeclareLabel(BuiltinsUnwindInfoLabel().c_str());
     std::vector<uint8_t> xdata =
         win64_unwindinfo::GetUnwindInfoForBuiltinFunctions();
-    WriteBinaryContentsAsInlineAssembly(w_gen, xdata.data(),
+    WriteBinaryContentsAsInlineAssembly(w_win, xdata.data(),
                                         static_cast<uint32_t>(xdata.size()));
-    w_gen->Comment("    ExceptionHandler");
-    w_gen->DeclareRvaToSymbol(CRASH_HANDLER_FUNCTION_NAME_STRING);
+    w_win->Comment("    ExceptionHandler");
+    w_win->DeclareRvaToSymbol(CRASH_HANDLER_FUNCTION_NAME_STRING);
   }
-  w_gen->EndXdataSection();
-  w_gen->Newline();
+  w_win->EndXdataSection();
+  w_win->Newline();
 
   // Emit a RUNTIME_FUNCTION (PDATA) entry for each builtin function, as
   // documented here:
   // https://docs.microsoft.com/en-us/cpp/build/exception-handling-x64.
-  w_gen->Comment(
+  w_win->Comment(
       "pdata for all the code in the embedded blob (structs of type "
       "RUNTIME_FUNCTION).");
-  w_gen->Comment("    BeginAddress");
-  w_gen->Comment("    EndAddress");
-  w_gen->Comment("    UnwindInfoAddress");
-  w_gen->StartPdataSection();
+  w_win->Comment("    BeginAddress");
+  w_win->Comment("    EndAddress");
+  w_win->Comment("    UnwindInfoAddress");
+  w_win->StartPdataSection();
   {
     Address prev_builtin_end_offset = 0;
     for (int i = 0; i < Builtins::builtin_count; i++) {
@@ -350,7 +351,7 @@ void EmbeddedFileWriter::WriteUnwindInfo(PlatformEmbeddedFileWriterBase* w,
         // a few bytes before the beginning of the function, if it does not
         // overlap the end of the previous builtin.
         WriteUnwindInfoEntry(
-            w_gen,
+            w_win,
             std::max(prev_builtin_end_offset,
                      builtin_start_offset - win64_unwindinfo::kRbpPrefixLength),
             builtin_start_offset + builtin_size);
@@ -362,7 +363,7 @@ void EmbeddedFileWriter::WriteUnwindInfo(PlatformEmbeddedFileWriterBase* w,
         // we also emit a PDATA entry for the initial block of code up to the
         // first 'push rbp', like in the case above.
         if (xdata_desc[0] > 0) {
-          WriteUnwindInfoEntry(w_gen,
+          WriteUnwindInfoEntry(w_win,
                                std::max(prev_builtin_end_offset,
                                         builtin_start_offset -
                                             win64_unwindinfo::kRbpPrefixLength),
@@ -373,17 +374,17 @@ void EmbeddedFileWriter::WriteUnwindInfo(PlatformEmbeddedFileWriterBase* w,
           int chunk_start = xdata_desc[j];
           int chunk_end =
               (j < xdata_desc.size() - 1) ? xdata_desc[j + 1] : builtin_size;
-          WriteUnwindInfoEntry(w_gen, builtin_start_offset + chunk_start,
+          WriteUnwindInfoEntry(w_win, builtin_start_offset + chunk_start,
                                builtin_start_offset + chunk_end);
         }
       }
 
       prev_builtin_end_offset = builtin_start_offset + builtin_size;
-      w_gen->Newline();
+      w_win->Newline();
     }
   }
-  w_gen->EndPdataSection();
-  w_gen->Newline();
+  w_win->EndPdataSection();
+  w_win->Newline();
 }
 #endif
 
