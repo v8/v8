@@ -155,68 +155,48 @@ void ImplementationVisitor::Visit(NamespaceConstant* decl) {
 
 void ImplementationVisitor::Visit(TypeAlias* alias) {
   if (alias->IsRedeclaration()) return;
-  const ClassType* class_type = ClassType::DynamicCast(alias->type());
-  if (class_type && class_type->IsExtern()) {
-    // Classes that are in the default namespace are defined in the C++
-    // world and all of their fields and methods are declared explicitly.
-    // Internal classes (e.g. ones used for testing that are not in the default
-    // name space) need to be defined by Torque.
-    // TODO(danno): This is a pretty cheesy hack for now. There should be a more
-    // robust mechanism for this, e.g. declaring classes 'extern' or something.
-    if (class_type->nspace()->IsTestNamespace()) {
-      const ClassType* super = class_type->GetSuperClass();
-      std::string class_name{super->GetGeneratedTNodeTypeName()};
-      header_out() << "  class " << class_type->name() << " : public "
-                   << class_name << " {\n";
-      header_out() << "   public:\n";
-      header_out() << "    DEFINE_FIELD_OFFSET_CONSTANTS(" << class_name
-                   << "::";
-      header_out() << (super->IsAbstract() ? "kHeaderSize" : "kSize");
-      header_out() << ", TORQUE_GENERATED_"
-                   << CapifyStringWithUnderscores(class_type->name())
-                   << "_FIELDS)\n";
-      header_out() << "  };\n";
-    } else if (!class_type->nspace()->IsDefaultNamespace()) {
-      ReportError(
-          "extern classes are currently only supported in the default and test "
-          "namespaces");
+  if (const ClassType* class_type = ClassType::DynamicCast(alias->type())) {
+    if (class_type->IsExtern() && !class_type->nspace()->IsDefaultNamespace()) {
+      Error(
+          "extern classes are currently only supported in the default "
+          "namespace");
     }
-    return;
-  }
-  const StructType* struct_type = StructType::DynamicCast(alias->type());
-  if (!struct_type) return;
-  const std::string& name = struct_type->name();
-  header_out() << "  struct " << name << " {\n";
-  for (auto& field : struct_type->fields()) {
-    header_out() << "    " << field.name_and_type.type->GetGeneratedTypeName();
-    header_out() << " " << field.name_and_type.name << ";\n";
-  }
-  header_out() << "\n    std::tuple<";
-  bool first = true;
-  for (const Type* type : LowerType(struct_type)) {
-    if (!first) {
-      header_out() << ", ";
+  } else if (const StructType* struct_type =
+                 StructType::DynamicCast(alias->type())) {
+    const std::string& name = struct_type->name();
+    header_out() << "  struct " << name << " {\n";
+    for (auto& field : struct_type->fields()) {
+      header_out() << "    "
+                   << field.name_and_type.type->GetGeneratedTypeName();
+      header_out() << " " << field.name_and_type.name << ";\n";
     }
-    first = false;
-    header_out() << type->GetGeneratedTypeName();
-  }
-  header_out() << "> Flatten() const {\n"
-               << "      return std::tuple_cat(";
-  first = true;
-  for (auto& field : struct_type->fields()) {
-    if (!first) {
-      header_out() << ", ";
+    header_out() << "\n    std::tuple<";
+    bool first = true;
+    for (const Type* type : LowerType(struct_type)) {
+      if (!first) {
+        header_out() << ", ";
+      }
+      first = false;
+      header_out() << type->GetGeneratedTypeName();
     }
-    first = false;
-    if (field.name_and_type.type->IsStructType()) {
-      header_out() << field.name_and_type.name << ".Flatten()";
-    } else {
-      header_out() << "std::make_tuple(" << field.name_and_type.name << ")";
+    header_out() << "> Flatten() const {\n"
+                 << "      return std::tuple_cat(";
+    first = true;
+    for (auto& field : struct_type->fields()) {
+      if (!first) {
+        header_out() << ", ";
+      }
+      first = false;
+      if (field.name_and_type.type->IsStructType()) {
+        header_out() << field.name_and_type.name << ".Flatten()";
+      } else {
+        header_out() << "std::make_tuple(" << field.name_and_type.name << ")";
+      }
     }
+    header_out() << ");\n";
+    header_out() << "    }\n";
+    header_out() << "  };\n";
   }
-  header_out() << ");\n";
-  header_out() << "    }\n";
-  header_out() << "  };\n";
 }
 
 VisitResult ImplementationVisitor::InlineMacro(
