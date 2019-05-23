@@ -37,8 +37,10 @@ class PerfettoTracingController {
 
   // Blocks and sets up all required data structures for tracing. It is safe to
   // call GetOrCreateThreadLocalWriter() to obtain thread-local TraceWriters for
-  // writing trace events once this call returns.
-  void StartTracing(const ::perfetto::TraceConfig& trace_config);
+  // writing trace events once this call returns. Tracing output will be sent in
+  // JSON format to |output_stream|.
+  void StartTracing(const ::perfetto::TraceConfig& trace_config,
+                    std::ostream* output_stream);
 
   // Blocks and finishes all existing AddTraceEvent tasks. Stops the tracing
   // thread.
@@ -67,9 +69,6 @@ class PerfettoTracingController {
   // receive trace events.
   base::Semaphore producer_ready_semaphore_;
   base::Semaphore consumer_finished_semaphore_;
-
-  // TODO(petermarshall): pass this in instead.
-  std::ofstream trace_file_;
 
   DISALLOW_COPY_AND_ASSIGN(PerfettoTracingController);
 };
