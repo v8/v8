@@ -429,7 +429,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
     function.feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
         function.shared(), "unlinking code marked for deopt");
     if (!code.deopt_already_counted()) {
-      function.feedback_vector().increment_deopt_count();
       code.set_deopt_already_counted(true);
     }
     DeoptimizeMarkedCodeForContext(function.context().native_context());
@@ -493,19 +492,10 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   DCHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
 #endif  // DEBUG
-  if (compiled_code_.kind() != Code::OPTIMIZED_FUNCTION ||
-      !compiled_code_.deopt_already_counted()) {
-    // If the function is optimized, and we haven't counted that deopt yet, then
-    // increment the function's deopt count so that we can avoid optimising
-    // functions that deopt too often.
-
-    if (deopt_kind_ == DeoptimizeKind::kSoft) {
-      // Soft deopts shouldn't count against the overall deoptimization count
-      // that can eventually lead to disabling optimization for a function.
-      isolate->counters()->soft_deopts_executed()->Increment();
-    } else if (!function.is_null()) {
-      function.feedback_vector().increment_deopt_count();
-    }
+  if ((compiled_code_.kind() != Code::OPTIMIZED_FUNCTION ||
+       !compiled_code_.deopt_already_counted()) &&
+      deopt_kind_ == DeoptimizeKind::kSoft) {
+    isolate->counters()->soft_deopts_executed()->Increment();
   }
   if (compiled_code_.kind() == Code::OPTIMIZED_FUNCTION) {
     compiled_code_.set_deopt_already_counted(true);

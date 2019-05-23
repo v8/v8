@@ -1277,7 +1277,10 @@ extern class FeedbackVector extends HeapObject {
   length: int32;
   invocation_count: int32;
   profiler_ticks: int32;
-  deopt_count: int32;
+  // TODO(v8:9287) The padding is not necessary on platforms with 4 bytes
+  // tagged pointers, we should make it conditional; however, platform-specific
+  // interacts badly with GCMole, so we need to address that first.
+  padding: uint32;
 }
 
 extern class FeedbackCell extends Struct {

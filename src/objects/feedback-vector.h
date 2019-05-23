@@ -204,15 +204,14 @@ class FeedbackVector : public HeapObject {
   // [invocation_count]: The number of times this function has been invoked.
   DECL_INT32_ACCESSORS(invocation_count)
 
-  // [invocation_count]: The number of times this function has been seen by the
+  // [profiler_ticks]: The number of times this function has been seen by the
   // runtime profiler.
   DECL_INT32_ACCESSORS(profiler_ticks)
 
-  // [deopt_count]: The number of times this function has deoptimized.
-  DECL_INT32_ACCESSORS(deopt_count)
+  // Initialize the padding if necessary.
+  inline void clear_padding();
 
   inline void clear_invocation_count();
-  inline void increment_deopt_count();
 
   inline Code optimized_code() const;
   inline OptimizationMarker optimization_marker() const;
@@ -315,9 +314,10 @@ class FeedbackVector : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_FEEDBACK_VECTOR_FIELDS)
 
-  static constexpr int kUnalignedHeaderSize = kSize;
-  static const int kHeaderSize =
-      RoundUp<kObjectAlignment>(int{kUnalignedHeaderSize});
+  static const int kHeaderSize = kSize;
+
+  static_assert(kSize % kObjectAlignment == 0,
+                "Header must be padded for alignment");
   static const int kFeedbackSlotsOffset = kHeaderSize;
 
   class BodyDescriptor;

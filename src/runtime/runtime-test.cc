@@ -572,15 +572,6 @@ RUNTIME_FUNCTION(Runtime_UnblockConcurrentRecompilation) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_GetDeoptCount) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  // Functions without a feedback vector have never deoptimized.
-  if (!function->has_feedback_vector()) return Smi::kZero;
-  return Smi::FromInt(function->feedback_vector().deopt_count());
-}
-
 static void ReturnThis(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(args.This());
 }

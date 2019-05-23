@@ -444,7 +444,6 @@ namespace internal {
   F(DisassembleFunction, 1, 1)                \
   F(FreezeWasmLazyCompilation, 1, 1)          \
   F(GetCallable, 0, 1)                        \
-  F(GetDeoptCount, 1, 1)                      \
   F(GetInitializerFunction, 1, 1)             \
   F(GetOptimizationStatus, -1, 1)             \
   F(GetUndetectable, 0, 1)                    \
