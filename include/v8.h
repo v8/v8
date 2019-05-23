@@ -5903,21 +5903,6 @@ class V8_EXPORT FunctionTemplate : public Template {
   void SetAcceptAnyReceiver(bool value);
 
   /**
-   * Determines whether the __proto__ accessor ignores instances of
-   * the function template.  If instances of the function template are
-   * ignored, __proto__ skips all instances and instead returns the
-   * next object in the prototype chain.
-   *
-   * Call with a value of true to make the __proto__ accessor ignore
-   * instances of the function template.  Call with a value of false
-   * to make the __proto__ accessor not ignore instances of the
-   * function template.  By default, instances of a function template
-   * are not ignored.
-   */
-  V8_DEPRECATED("This feature is incompatible with ES6+.",
-                void SetHiddenPrototype(bool value));
-
-  /**
    * Sets the ReadOnly flag in the attributes of the 'prototype' property
    * of functions created from this FunctionTemplate to true.
    */

@@ -486,7 +486,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
           InstantiateObject(
               isolate,
               handle(ObjectTemplateInfo::cast(prototype_templ), isolate),
-              Handle<JSReceiver>(), data->hidden_prototype(), true),
+              Handle<JSReceiver>(), false, true),
           JSFunction);
     }
     Object parent = data->GetParentTemplate();
@@ -515,7 +515,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
                                function);
   }
   MaybeHandle<JSObject> result =
-      ConfigureInstance(isolate, function, data, data->hidden_prototype());
+      ConfigureInstance(isolate, function, data, false);
   if (result.is_null()) {
     // Uncache on error.
     if (serial_number) {

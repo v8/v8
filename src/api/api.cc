@@ -1607,14 +1607,6 @@ void FunctionTemplate::SetAcceptAnyReceiver(bool value) {
   info->set_accept_any_receiver(value);
 }
 
-void FunctionTemplate::SetHiddenPrototype(bool value) {
-  auto info = Utils::OpenHandle(this);
-  EnsureNotInstantiated(info, "v8::FunctionTemplate::SetHiddenPrototype");
-  auto isolate = info->GetIsolate();
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  info->set_hidden_prototype(value);
-}
-
 void FunctionTemplate::ReadOnlyPrototype() {
   auto info = Utils::OpenHandle(this);
   EnsureNotInstantiated(info, "v8::FunctionTemplate::ReadOnlyPrototype");

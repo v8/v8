@@ -2642,27 +2642,13 @@ void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
   RuntimeCallTimerScope stats_scope(isolate, *map,
                                     RuntimeCallCounterId::kMap_SetPrototype);
 
-  bool is_hidden = false;
   if (prototype->IsJSObject()) {
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
     JSObject::OptimizeAsPrototype(prototype_jsobj, enable_prototype_setup_mode);
-
-    Object maybe_constructor = prototype_jsobj->map().GetConstructor();
-    if (maybe_constructor.IsJSFunction()) {
-      JSFunction constructor = JSFunction::cast(maybe_constructor);
-      Object data = constructor.shared().function_data();
-      is_hidden = (data.IsFunctionTemplateInfo() &&
-                   FunctionTemplateInfo::cast(data).hidden_prototype()) ||
-                  prototype->IsJSGlobalObject();
-    } else if (maybe_constructor.IsFunctionTemplateInfo()) {
-      is_hidden =
-          FunctionTemplateInfo::cast(maybe_constructor).hidden_prototype() ||
-          prototype->IsJSGlobalObject();
-    }
   } else {
     DCHECK(prototype->IsNull(isolate) || prototype->IsJSProxy());
   }
-  map->set_has_hidden_prototype(is_hidden);
+  map->set_has_hidden_prototype(prototype->IsJSGlobalObject());
 
   WriteBarrierMode wb_mode =
       prototype->IsNull(isolate) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;

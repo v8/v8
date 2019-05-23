@@ -40,8 +40,6 @@ ACCESSORS(FunctionTemplateInfo, rare_data, HeapObject,
 ACCESSORS(FunctionTemplateInfo, cached_property_name, Object,
           kCachedPropertyNameOffset)
 SMI_ACCESSORS(FunctionTemplateInfo, length, kLengthOffset)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
-               kHiddenPrototypeBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable, kUndetectableBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, needs_access_check,
                kNeedsAccessCheckBit)
