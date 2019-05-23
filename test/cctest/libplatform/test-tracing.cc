@@ -144,6 +144,10 @@ void PopulateJSONWriter(TraceWriter* writer) {
   TraceBuffer* ring_buffer =
       TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
   tracing_controller->Initialize(ring_buffer);
+#ifdef V8_USE_PERFETTO
+  std::ostringstream sstream;
+  tracing_controller->InitializeForPerfetto(&sstream);
+#endif
   TraceConfig* trace_config = new TraceConfig();
   trace_config->AddIncludedCategory("v8-cat");
   tracing_controller->StartTracing(trace_config);
@@ -211,6 +215,10 @@ TEST(TestTracingController) {
   TraceBuffer* ring_buffer =
       TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
   tracing_controller->Initialize(ring_buffer);
+#ifdef V8_USE_PERFETTO
+  std::ostringstream sstream;
+  tracing_controller->InitializeForPerfetto(&sstream);
+#endif
   TraceConfig* trace_config = new TraceConfig();
   trace_config->AddIncludedCategory("v8");
   tracing_controller->StartTracing(trace_config);
@@ -243,7 +251,7 @@ void GetJSONStrings(std::vector<std::string>& ret, std::string str,
 }
 
 TEST(TestTracingControllerMultipleArgsAndCopy) {
-  std::ostringstream stream;
+  std::ostringstream stream, perfetto_stream;
   uint64_t aa = 11;
   unsigned int bb = 22;
   uint16_t cc = 33;
@@ -282,6 +290,9 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
     TraceBuffer* ring_buffer =
         TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
     tracing_controller->Initialize(ring_buffer);
+#ifdef V8_USE_PERFETTO
+    tracing_controller->InitializeForPerfetto(&perfetto_stream);
+#endif
     TraceConfig* trace_config = new TraceConfig();
     trace_config->AddIncludedCategory("v8");
     tracing_controller->StartTracing(trace_config);
@@ -399,6 +410,10 @@ TEST(TracingObservers) {
       v8::platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(1,
                                                                       writer);
   tracing_controller->Initialize(ring_buffer);
+#ifdef V8_USE_PERFETTO
+  std::ostringstream sstream;
+  tracing_controller->InitializeForPerfetto(&sstream);
+#endif
   v8::platform::tracing::TraceConfig* trace_config =
       new v8::platform::tracing::TraceConfig();
   trace_config->AddIncludedCategory("v8");
@@ -488,6 +503,10 @@ TEST(AddTraceEventMultiThreaded) {
   TraceBuffer* ring_buffer =
       TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
   tracing_controller->Initialize(ring_buffer);
+#ifdef V8_USE_PERFETTO
+  std::ostringstream sstream;
+  tracing_controller->InitializeForPerfetto(&sstream);
+#endif
   TraceConfig* trace_config = new TraceConfig();
   trace_config->AddIncludedCategory("v8");
   tracing_controller->StartTracing(trace_config);
