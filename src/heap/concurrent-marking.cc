@@ -124,7 +124,7 @@ class ConcurrentMarkingVisitor final
     // Perform a dummy acquire load to tell TSAN that there is no data race
     // in mark-bit initialization. See MemoryChunk::Initialize for the
     // corresponding release store.
-    MemoryChunk* chunk = MemoryChunk::FromAddress(heap_object->address());
+    MemoryChunk* chunk = MemoryChunk::FromAddress(heap_object.address());
     CHECK_NOT_NULL(chunk->synchronized_heap());
 #endif
     if (marking_state_.IsBlackOrGrey(heap_object)) {
@@ -531,7 +531,7 @@ class ConcurrentMarkingVisitor final
     // Perform a dummy acquire load to tell TSAN that there is no data race
     // in mark-bit initialization. See MemoryChunk::Initialize for the
     // corresponding release store.
-    MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+    MemoryChunk* chunk = MemoryChunk::FromAddress(object.address());
     CHECK_NOT_NULL(chunk->synchronized_heap());
 #endif
     if (marking_state_.WhiteToGrey(object)) {

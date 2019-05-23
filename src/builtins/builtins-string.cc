@@ -261,23 +261,23 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
   uc32 current = stream.GetNext();
-  bool ignore_overflow = Converter::kIsToLower || result->IsSeqTwoByteString();
+  bool ignore_overflow = Converter::kIsToLower || result.IsSeqTwoByteString();
   for (int i = 0; i < result_length;) {
     bool has_next = stream.HasMore();
     uc32 next = has_next ? stream.GetNext() : 0;
     int char_length = mapping->get(current, next, chars);
     if (char_length == 0) {
       // The case conversion of this character is the character itself.
-      result->Set(i, current);
+      result.Set(i, current);
       i++;
     } else if (char_length == 1 &&
                (ignore_overflow || !ToUpperOverflows(current))) {
       // Common case: converting the letter resulted in one character.
       DCHECK(static_cast<uc32>(chars[0]) != current);
-      result->Set(i, chars[0]);
+      result.Set(i, chars[0]);
       has_changed_character = true;
       i++;
-    } else if (result_length == string->length()) {
+    } else if (result_length == string.length()) {
       bool overflows = ToUpperOverflows(current);
       // We've assumed that the result would be as long as the
       // input but here is a character that converts to several
@@ -318,7 +318,7 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
                                              : Smi::FromInt(current_length);
     } else {
       for (int j = 0; j < char_length; j++) {
-        result->Set(i, chars[j]);
+        result.Set(i, chars[j]);
         i++;
       }
       has_changed_character = true;
@@ -376,9 +376,9 @@ V8_WARN_UNUSED_RESULT static Object ConvertCase(
   }
 
   Object answer = ConvertCaseHelper(isolate, *s, *result, length, mapping);
-  if (answer->IsException(isolate) || answer->IsString()) return answer;
+  if (answer.IsException(isolate) || answer.IsString()) return answer;
 
-  DCHECK(answer->IsSmi());
+  DCHECK(answer.IsSmi());
   length = Smi::ToInt(answer);
   if (s->IsOneByteRepresentation() && length > 0) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
