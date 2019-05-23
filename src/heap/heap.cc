@@ -212,7 +212,7 @@ size_t Heap::ComputeMaxOldGenerationSize(uint64_t physical_memory) {
   size_t computed_size = static_cast<size_t>(physical_memory / i::MB /
                                              old_space_physical_memory_factor *
                                              kPointerMultiplier);
-  size_t max_size_in_mb = HeapController::kMaxSize;
+  size_t max_size_in_mb = V8HeapTrait::kMaxSize;
 
   // Finch experiment: Increase the heap size from 2GB to 4GB for 64-bit
   // systems with physical memory bigger than 16GB.
@@ -223,7 +223,7 @@ size_t Heap::ComputeMaxOldGenerationSize(uint64_t physical_memory) {
     max_size_in_mb = 4096;  // 4GB
   }
 
-  return Max(Min(computed_size, max_size_in_mb), HeapController::kMinSize);
+  return Max(Min(computed_size, max_size_in_mb), V8HeapTrait::kMinSize);
 }
 
 size_t Heap::Capacity() {
@@ -1928,68 +1928,7 @@ bool Heap::PerformGarbageCollection(
   // Update relocatables.
   Relocatable::PostGarbageCollectionProcessing(isolate_);
 
-  double gc_speed = tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond();
-  double mutator_speed =
-      tracer()->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
-  size_t old_gen_size = OldGenerationSizeOfObjects();
-
-  double global_mutator_speed;
-  double global_gc_speed;
-  size_t global_memory_size;
-  if (UseGlobalMemoryScheduling()) {
-    global_mutator_speed = GCTracer::CombineSpeedsInBytesPerMillisecond(
-        mutator_speed,
-        local_embedder_heap_tracer()
-            ? tracer()
-                  ->CurrentEmbedderAllocationThroughputInBytesPerMillisecond()
-            : 0.0);
-    global_gc_speed = GCTracer::CombineSpeedsInBytesPerMillisecond(
-        gc_speed, local_embedder_heap_tracer()
-                      ? tracer()->EmbedderSpeedInBytesPerMillisecond()
-                      : 0.0);
-    global_memory_size = GlobalSizeOfObjects();
-  }
-
-  if (collector == MARK_COMPACTOR) {
-    // Register the amount of external allocated memory.
-    isolate()->isolate_data()->external_memory_at_last_mark_compact_ =
-        isolate()->isolate_data()->external_memory_;
-    isolate()->isolate_data()->external_memory_limit_ =
-        isolate()->isolate_data()->external_memory_ +
-        kExternalAllocationSoftLimit;
-
-    old_generation_allocation_limit_ =
-        heap_controller()->CalculateAllocationLimit(
-            old_gen_size, max_old_generation_size_, gc_speed, mutator_speed,
-            new_space()->Capacity(), CurrentHeapGrowingMode());
-    if (UseGlobalMemoryScheduling()) {
-      global_allocation_limit_ =
-          global_memory_controller()->CalculateAllocationLimit(
-              global_memory_size, max_global_memory_size_, global_gc_speed,
-              global_mutator_speed, new_space()->Capacity(),
-              CurrentHeapGrowingMode());
-    }
-    CheckIneffectiveMarkCompact(
-        old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
-  } else if (HasLowYoungGenerationAllocationRate() &&
-             old_generation_size_configured_) {
-    size_t new_limit = heap_controller()->CalculateAllocationLimit(
-        old_gen_size, max_old_generation_size_, gc_speed, mutator_speed,
-        new_space()->Capacity(), CurrentHeapGrowingMode());
-    if (new_limit < old_generation_allocation_limit_) {
-      old_generation_allocation_limit_ = new_limit;
-    }
-    if (UseGlobalMemoryScheduling()) {
-      const size_t new_global_limit =
-          global_memory_controller()->CalculateAllocationLimit(
-              global_memory_size, max_global_memory_size_, global_gc_speed,
-              global_mutator_speed, new_space()->Capacity(),
-              CurrentHeapGrowingMode());
-      if (new_global_limit < global_allocation_limit_) {
-        global_allocation_limit_ = new_global_limit;
-      }
-    }
-  }
+  RecomputeLimits(collector);
 
   {
     GCCallbacksScope scope(this);
@@ -2012,6 +1951,84 @@ bool Heap::PerformGarbageCollection(
   return freed_global_handles > 0;
 }
 
+void Heap::RecomputeLimits(GarbageCollector collector) {
+  if (!((collector == MARK_COMPACTOR) ||
+        (HasLowYoungGenerationAllocationRate() &&
+         old_generation_size_configured_))) {
+    return;
+  }
+
+  double v8_gc_speed =
+      tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond();
+  double v8_mutator_speed =
+      tracer()->CurrentOldGenerationAllocationThroughputInBytesPerMillisecond();
+  double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
+      this, max_old_generation_size_, v8_gc_speed, v8_mutator_speed);
+  double global_growing_factor = 0;
+  if (UseGlobalMemoryScheduling()) {
+    double embedder_gc_speed =
+        local_embedder_heap_tracer()
+            ? tracer()
+                  ->CurrentEmbedderAllocationThroughputInBytesPerMillisecond()
+            : 0.0;
+    double embedder_speed = local_embedder_heap_tracer()
+                                ? tracer()->EmbedderSpeedInBytesPerMillisecond()
+                                : 0.0;
+    double embedder_growing_factor =
+        (embedder_gc_speed > 0 && embedder_speed > 0)
+            ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
+                  this, max_global_memory_size_, embedder_gc_speed,
+                  embedder_speed)
+            : 0;
+    global_growing_factor = Max(v8_growing_factor, embedder_growing_factor);
+  }
+
+  size_t old_gen_size = OldGenerationSizeOfObjects();
+  size_t new_space_capacity = new_space()->Capacity();
+  HeapGrowingMode mode = CurrentHeapGrowingMode();
+
+  if (collector == MARK_COMPACTOR) {
+    // Register the amount of external allocated memory.
+    isolate()->isolate_data()->external_memory_at_last_mark_compact_ =
+        isolate()->isolate_data()->external_memory_;
+    isolate()->isolate_data()->external_memory_limit_ =
+        isolate()->isolate_data()->external_memory_ +
+        kExternalAllocationSoftLimit;
+
+    old_generation_allocation_limit_ =
+        MemoryController<V8HeapTrait>::CalculateAllocationLimit(
+            this, old_gen_size, max_old_generation_size_, new_space_capacity,
+            v8_growing_factor, mode);
+    if (UseGlobalMemoryScheduling()) {
+      DCHECK_GT(global_growing_factor, 0);
+      global_allocation_limit_ =
+          MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
+              this, GlobalSizeOfObjects(), max_global_memory_size_,
+              new_space_capacity, global_growing_factor, mode);
+    }
+    CheckIneffectiveMarkCompact(
+        old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
+  } else if (HasLowYoungGenerationAllocationRate() &&
+             old_generation_size_configured_) {
+    size_t new_old_generation_limit =
+        MemoryController<V8HeapTrait>::CalculateAllocationLimit(
+            this, old_gen_size, max_old_generation_size_, new_space_capacity,
+            v8_growing_factor, mode);
+    if (new_old_generation_limit < old_generation_allocation_limit_) {
+      old_generation_allocation_limit_ = new_old_generation_limit;
+    }
+    if (UseGlobalMemoryScheduling()) {
+      DCHECK_GT(global_growing_factor, 0);
+      size_t new_global_limit =
+          MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
+              this, GlobalSizeOfObjects(), max_global_memory_size_,
+              new_space_capacity, global_growing_factor, mode);
+      if (new_global_limit < global_allocation_limit_) {
+        global_allocation_limit_ = new_global_limit;
+      }
+    }
+  }
+}
 
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
   RuntimeCallTimerScope runtime_timer(
@@ -2646,7 +2663,7 @@ void Heap::UnregisterArrayBuffer(JSArrayBuffer buffer) {
 void Heap::ConfigureInitialOldGenerationSize() {
   if (!old_generation_size_configured_ && tracer()->SurvivalEventsRecorded()) {
     const size_t minimum_growing_step =
-        MemoryController::MinimumAllocationLimitGrowingStep(
+        MemoryController<V8HeapTrait>::MinimumAllocationLimitGrowingStep(
             CurrentHeapGrowingMode());
     const size_t new_old_generation_allocation_limit =
         Max(OldGenerationSizeOfObjects() + minimum_growing_step,
@@ -4729,9 +4746,6 @@ void Heap::SetUp() {
 
   store_buffer_.reset(new StoreBuffer(this));
 
-  heap_controller_.reset(new HeapController(this));
-  global_memory_controller_.reset(new GlobalMemoryController(this));
-
   mark_compact_collector_.reset(new MarkCompactCollector(this));
 
   scavenger_collector_.reset(new ScavengerCollector(this));
@@ -5006,9 +5020,6 @@ void Heap::TearDown() {
     delete stress_scavenge_observer_;
     stress_scavenge_observer_ = nullptr;
   }
-
-  heap_controller_.reset();
-  global_memory_controller_.reset();
 
   if (mark_compact_collector_) {
     mark_compact_collector_->TearDown();

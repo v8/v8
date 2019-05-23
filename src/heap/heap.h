@@ -62,7 +62,6 @@ class ConcurrentMarking;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
 class GCTracer;
-class GlobalMemoryController;
 class HeapController;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
@@ -212,6 +211,8 @@ class Heap {
   // usual OLD_TO_NEW remembered set.
   EphemeronRememberedSet ephemeron_remembered_set_;
   enum FindMementoMode { kForRuntime, kForGC };
+
+  enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
 
   enum HeapState {
     NOT_IN_GC,
@@ -1692,10 +1693,6 @@ class Heap {
   // Growing strategy. =========================================================
   // ===========================================================================
 
-  HeapController* heap_controller() { return heap_controller_.get(); }
-  GlobalMemoryController* global_memory_controller() const {
-    return global_memory_controller_.get();
-  }
   MemoryReducer* memory_reducer() { return memory_reducer_.get(); }
 
   // For some webpages RAIL mode does not switch from PERFORMANCE_LOAD.
@@ -1716,8 +1713,6 @@ class Heap {
 
   bool ShouldExpandOldGenerationOnSlowAllocation();
 
-  enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
-
   HeapGrowingMode CurrentHeapGrowingMode();
 
   enum class IncrementalMarkingLimit { kNoLimit, kSoftLimit, kHardLimit };
@@ -1728,6 +1723,8 @@ class Heap {
   }
 
   size_t GlobalMemoryAvailable();
+
+  void RecomputeLimits(GarbageCollector collector);
 
   // ===========================================================================
   // Idle notification. ========================================================
@@ -1985,8 +1982,6 @@ class Heap {
   std::unique_ptr<ArrayBufferCollector> array_buffer_collector_;
   std::unique_ptr<MemoryAllocator> memory_allocator_;
   std::unique_ptr<StoreBuffer> store_buffer_;
-  std::unique_ptr<HeapController> heap_controller_;
-  std::unique_ptr<GlobalMemoryController> global_memory_controller_;
   std::unique_ptr<IncrementalMarking> incremental_marking_;
   std::unique_ptr<ConcurrentMarking> concurrent_marking_;
   std::unique_ptr<GCIdleTimeHandler> gc_idle_time_handler_;
@@ -2086,9 +2081,6 @@ class Heap {
   friend class ConcurrentMarking;
   friend class GCCallbacksScope;
   friend class GCTracer;
-  friend class GlobalMemoryController;
-  friend class HeapController;
-  friend class MemoryController;
   friend class HeapIterator;
   friend class IdleScavengeObserver;
   friend class IncrementalMarking;
