@@ -774,11 +774,11 @@ bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
   if (!added.second) return false;  // An entry already existed.
   new_potentially_dead_code_size_ += code->instructions().size();
   if (FLAG_wasm_code_gc) {
-    // Trigger a GC if 1MiB plus 10% of committed code are potentially dead.
+    // Trigger a GC if 64kB plus 10% of committed code are potentially dead.
     size_t dead_code_limit =
         FLAG_stress_wasm_code_gc
             ? 0
-            : 1 * MB + code_manager_.committed_code_space() / 10;
+            : 64 * KB + code_manager_.committed_code_space() / 10;
     if (new_potentially_dead_code_size_ > dead_code_limit) {
       bool inc_gc_count =
           info->num_code_gcs_triggered < std::numeric_limits<int8_t>::max();
