@@ -936,6 +936,7 @@ bool ExecuteCompilationUnits(
 
   auto publish_results = [&results_to_publish](
                              BackgroundCompileScope* compile_scope) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "PublishResults");
     if (results_to_publish.empty()) return;
     WasmCodeRefScope code_ref_scope;
     std::vector<WasmCode*> code_vector =
@@ -963,10 +964,6 @@ bool ExecuteCompilationUnits(
         compilation_failed = true;
         break;
       }
-      // Publish TurboFan units immediately to reduce peak memory consumption.
-      if (result.requested_tier == ExecutionTier::kTurbofan) {
-        publish_results(&compile_scope);
-      }
 
       // Get next unit.
       if (deadline < platform->MonotonicallyIncreasingTime()) {
@@ -980,6 +977,12 @@ bool ExecuteCompilationUnits(
         publish_results(&compile_scope);
         stop(compile_scope);
         return true;
+      } else if (unit->tier() == ExecutionTier::kTurbofan) {
+        // Before executing a TurboFan unit, ensure to publish all previous
+        // units. If we compiled Liftoff before, we need to publish them anyway
+        // to ensure fast completion of baseline compilation, if we compiled
+        // TurboFan before, we publish to reduce peak memory consumption.
+        publish_results(&compile_scope);
       }
     }
   }
@@ -2080,6 +2083,8 @@ CompilationStateImpl::GetNextCompilationUnit(
 }
 
 void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "OnFinishedUnits");
+
   base::MutexGuard guard(&callbacks_mutex_);
 
   // In case of no outstanding functions we can return early.
@@ -2148,11 +2153,13 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
 
     // Trigger callbacks.
     if (completes_baseline_compilation) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "BaselineFinished");
       for (auto& callback : callbacks_) {
         callback(CompilationEvent::kFinishedBaselineCompilation);
       }
     }
     if (completes_top_tier_compilation) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "TopTierFinished");
       for (auto& callback : callbacks_) {
         callback(CompilationEvent::kFinishedTopTierCompilation);
       }
