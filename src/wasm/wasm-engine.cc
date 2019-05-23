@@ -827,6 +827,7 @@ void WasmEngine::FreeDeadCodeLocked(const DeadCodeMap& dead_code) {
 void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
   DCHECK_NULL(current_gc_info_);
   DCHECK(FLAG_wasm_code_gc);
+  new_potentially_dead_code_size_ = 0;
   current_gc_info_.reset(new CurrentGCInfo(gc_sequence_index));
   if (base::TimeTicks::IsHighResolution()) {
     current_gc_info_->start_time = base::TimeTicks::Now();
