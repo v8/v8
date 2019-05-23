@@ -6,8 +6,8 @@
 
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins-descriptors.h"
-#include "src/callable.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/callable.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate.h"

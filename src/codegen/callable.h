@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CALLABLE_H_
-#define V8_CALLABLE_H_
+#ifndef V8_CODEGEN_CALLABLE_H_
+#define V8_CODEGEN_CALLABLE_H_
 
 #include "src/allocation.h"
 #include "src/codegen/interface-descriptors.h"
@@ -30,4 +30,4 @@ class Callable final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CALLABLE_H_
+#endif  // V8_CODEGEN_CALLABLE_H_

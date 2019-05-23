@@ -5,7 +5,7 @@
 #include "src/compiler/frame-states.h"
 
 #include "src/base/functional.h"
-#include "src/callable.h"
+#include "src/codegen/callable.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"

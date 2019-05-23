@@ -8,8 +8,8 @@
 
 #include "src/ast/prettyprinter.h"
 #include "src/builtins/accessors.h"
-#include "src/callable.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/callable.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/diagnostics/disasm.h"
