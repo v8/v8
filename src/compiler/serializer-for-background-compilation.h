@@ -263,29 +263,37 @@ class Hints {
   MapsSet maps_;
   BlueprintsSet function_blueprints_;
 };
-
 using HintsVector = ZoneVector<Hints>;
+
+enum class SerializerForBackgroundCompilationFlag : uint8_t {
+  kBailoutOnUninitialized = 1 << 0,
+  kCollectSourcePositions = 1 << 1,
+  kOsr = 1 << 2,
+};
+using SerializerForBackgroundCompilationFlags =
+    base::Flags<SerializerForBackgroundCompilationFlag>;
 
 // The SerializerForBackgroundCompilation makes sure that the relevant function
 // data such as bytecode, SharedFunctionInfo and FeedbackVector, used by later
 // optimizations in the compiler, is copied to the heap broker.
 class SerializerForBackgroundCompilation {
  public:
-  SerializerForBackgroundCompilation(JSHeapBroker* broker,
-                                     CompilationDependencies* dependencies,
-                                     Zone* zone, Handle<JSFunction> closure,
-                                     bool collect_source_positions);
+  SerializerForBackgroundCompilation(
+      JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
+      Handle<JSFunction> closure,
+      SerializerForBackgroundCompilationFlags flags);
   Hints Run();  // NOTE: Returns empty for an already-serialized function.
 
   class Environment;
 
  private:
-  SerializerForBackgroundCompilation(JSHeapBroker* broker,
-                                     CompilationDependencies* dependencies,
-                                     Zone* zone, CompilationSubject function,
-                                     base::Optional<Hints> new_target,
-                                     const HintsVector& arguments,
-                                     bool collect_source_positions);
+  SerializerForBackgroundCompilation(
+      JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
+      CompilationSubject function, base::Optional<Hints> new_target,
+      const HintsVector& arguments,
+      SerializerForBackgroundCompilationFlags flags);
+
+  bool BailoutOnUninitialized(FeedbackSlot slot);
 
   void TraverseBytecode();
 
@@ -327,17 +335,15 @@ class SerializerForBackgroundCompilation {
   JSHeapBroker* broker() const { return broker_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
-  // The following flag is initialized from OptimizedCompilationInfo's
-  // {is_source_positions_enabled}.
-  bool collect_source_positions() const { return collect_source_positions_; }
   Environment* environment() const { return environment_; }
+  SerializerForBackgroundCompilationFlags flags() const { return flags_; }
 
   JSHeapBroker* const broker_;
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
-  bool const collect_source_positions_;
   Environment* const environment_;
   ZoneUnorderedMap<int, Environment*> stashed_environments_;
+  SerializerForBackgroundCompilationFlags const flags_;
 };
 
 }  // namespace compiler

@@ -1249,9 +1249,19 @@ struct SerializationPhase {
   static const char* phase_name() { return "V8.TFSerializeBytecode"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
+    SerializerForBackgroundCompilationFlags flags;
+    if (data->info()->is_bailout_on_uninitialized()) {
+      flags |= SerializerForBackgroundCompilationFlag::kBailoutOnUninitialized;
+    }
+    if (data->info()->is_source_positions_enabled()) {
+      flags |= SerializerForBackgroundCompilationFlag::kCollectSourcePositions;
+    }
+    if (data->info()->is_osr()) {
+      flags |= SerializerForBackgroundCompilationFlag::kOsr;
+    }
     SerializerForBackgroundCompilation serializer(
         data->broker(), data->dependencies(), temp_zone,
-        data->info()->closure(), data->info()->is_source_positions_enabled());
+        data->info()->closure(), flags);
     serializer.Run();
   }
 };

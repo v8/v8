@@ -92,20 +92,35 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
   Environment(Zone* zone, Isolate* isolate, CompilationSubject function,
               base::Optional<Hints> new_target, const HintsVector& arguments);
 
+  bool IsDead() const { return environment_hints_.empty(); }
+
+  void Kill() {
+    DCHECK(!IsDead());
+    environment_hints_.clear();
+    DCHECK(IsDead());
+  }
+
+  void ReviveForHandlerCode() {
+    DCHECK(IsDead());
+    environment_hints_.resize(environment_hints_size(), Hints(zone()));
+    DCHECK(!IsDead());
+  }
+
   // When control flow bytecodes are encountered, e.g. a conditional jump,
   // the current environment needs to be stashed together with the target jump
   // address. Later, when this target bytecode is handled, the stashed
   // environment will be merged into the current one.
   void Merge(Environment* other);
 
-  friend std::ostream& operator<<(std::ostream& out, const Environment& env);
-
   FunctionBlueprint function() const { return function_; }
 
-  Hints& accumulator_hints() { return environment_hints_[accumulator_index()]; }
+  Hints& accumulator_hints() {
+    CHECK_LT(accumulator_index(), environment_hints_.size());
+    return environment_hints_[accumulator_index()];
+  }
   Hints& register_hints(interpreter::Register reg) {
     int local_index = RegisterToLocalIndex(reg);
-    DCHECK_LT(local_index, environment_hints_.size());
+    CHECK_LT(local_index, environment_hints_.size());
     return environment_hints_[local_index];
   }
   Hints& return_value_hints() { return return_value_hints_; }
@@ -123,6 +138,8 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
                            HintsVector& dst);
 
  private:
+  friend std::ostream& operator<<(std::ostream& out, const Environment& env);
+
   int RegisterToLocalIndex(interpreter::Register reg) const;
 
   Zone* zone() const { return zone_; }
@@ -197,11 +214,17 @@ SerializerForBackgroundCompilation::Environment::Environment(
 
 void SerializerForBackgroundCompilation::Environment::Merge(
     Environment* other) {
-  // Presumably the source and the target would have the same layout
-  // so this is enforced here.
+  // {other} is guaranteed to have the same layout because it comes from an
+  // earlier bytecode in the same function.
   CHECK_EQ(parameter_count(), other->parameter_count());
   CHECK_EQ(register_count(), other->register_count());
-  CHECK_EQ(environment_hints_size(), other->environment_hints_size());
+
+  if (IsDead()) {
+    environment_hints_ = other->environment_hints_;
+    CHECK(!IsDead());
+    return;
+  }
+  CHECK_EQ(environment_hints_.size(), other->environment_hints_.size());
 
   for (size_t i = 0; i < environment_hints_.size(); ++i) {
     environment_hints_[i].Add(other->environment_hints_[i]);
@@ -269,27 +292,28 @@ int SerializerForBackgroundCompilation::Environment::RegisterToLocalIndex(
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
     JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
-    Handle<JSFunction> closure, bool collect_source_positions)
+    Handle<JSFunction> closure, SerializerForBackgroundCompilationFlags flags)
     : broker_(broker),
       dependencies_(dependencies),
       zone_(zone),
-      collect_source_positions_(collect_source_positions),
       environment_(new (zone) Environment(zone, {closure, broker_->isolate()})),
-      stashed_environments_(zone) {
+      stashed_environments_(zone),
+      flags_(flags) {
   JSFunctionRef(broker, closure).Serialize();
 }
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
     JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
     CompilationSubject function, base::Optional<Hints> new_target,
-    const HintsVector& arguments, bool collect_source_positions)
+    const HintsVector& arguments, SerializerForBackgroundCompilationFlags flags)
     : broker_(broker),
       dependencies_(dependencies),
       zone_(zone),
-      collect_source_positions_(collect_source_positions),
       environment_(new (zone) Environment(zone, broker_->isolate(), function,
                                           new_target, arguments)),
-      stashed_environments_(zone) {
+      stashed_environments_(zone),
+      flags_(flags) {
+  DCHECK(!(flags_ & SerializerForBackgroundCompilationFlag::kOsr));
   TraceScope tracer(
       broker_, this,
       "SerializerForBackgroundCompilation::SerializerForBackgroundCompilation");
@@ -298,6 +322,34 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
   if (function.closure().ToHandle(&closure)) {
     JSFunctionRef(broker, closure).Serialize();
   }
+}
+
+bool SerializerForBackgroundCompilation::BailoutOnUninitialized(
+    FeedbackSlot slot) {
+  DCHECK(!environment()->IsDead());
+  if (!(flags() &
+        SerializerForBackgroundCompilationFlag::kBailoutOnUninitialized)) {
+    return false;
+  }
+  if (flags() & SerializerForBackgroundCompilationFlag::kOsr) {
+    // Exclude OSR from this optimization because we might end up skipping the
+    // OSR entry point. TODO(neis): Support OSR?
+    return false;
+  }
+  FeedbackNexus nexus(environment()->function().feedback_vector, slot);
+  if (!slot.IsInvalid() && nexus.IsUninitialized()) {
+    FeedbackSource source(nexus);
+    if (broker()->HasFeedback(source)) {
+      DCHECK_EQ(broker()->GetFeedback(source)->kind(),
+                ProcessedFeedback::kInsufficient);
+    } else {
+      broker()->SetFeedback(source,
+                            new (broker()->zone()) InsufficientFeedback());
+    }
+    environment()->Kill();
+    return true;
+  }
+  return false;
 }
 
 Hints SerializerForBackgroundCompilation::Run() {
@@ -316,7 +368,8 @@ Hints SerializerForBackgroundCompilation::Run() {
   // We eagerly call the {EnsureSourcePositionsAvailable} for all serialized
   // SFIs while still on the main thread. Source positions will later be used
   // by JSInliner::ReduceJSCall.
-  if (collect_source_positions()) {
+  if (flags() &
+      SerializerForBackgroundCompilationFlag::kCollectSourcePositions) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(broker()->isolate(),
                                                        shared.object());
   }
@@ -326,14 +379,51 @@ Hints SerializerForBackgroundCompilation::Run() {
   return environment()->return_value_hints();
 }
 
+class ExceptionHandlerMatcher {
+ public:
+  explicit ExceptionHandlerMatcher(
+      BytecodeArrayIterator const& bytecode_iterator)
+      : bytecode_iterator_(bytecode_iterator) {
+    HandlerTable table(*bytecode_iterator_.bytecode_array());
+    for (int i = 0, n = table.NumberOfRangeEntries(); i < n; ++i) {
+      handlers_.insert(table.GetRangeHandler(i));
+    }
+    handlers_iterator_ = handlers_.cbegin();
+  }
+
+  bool CurrentBytecodeIsExceptionHandlerStart() {
+    CHECK(!bytecode_iterator_.done());
+    while (handlers_iterator_ != handlers_.cend() &&
+           *handlers_iterator_ < bytecode_iterator_.current_offset()) {
+      handlers_iterator_++;
+    }
+    return handlers_iterator_ != handlers_.cend() &&
+           *handlers_iterator_ == bytecode_iterator_.current_offset();
+  }
+
+ private:
+  BytecodeArrayIterator const& bytecode_iterator_;
+  std::set<int> handlers_;
+  std::set<int>::const_iterator handlers_iterator_;
+};
+
 void SerializerForBackgroundCompilation::TraverseBytecode() {
   BytecodeArrayRef bytecode_array(
       broker(), handle(environment()->function().shared->GetBytecodeArray(),
                        broker()->isolate()));
   BytecodeArrayIterator iterator(bytecode_array.object());
+  ExceptionHandlerMatcher handler_matcher(iterator);
 
   for (; !iterator.done(); iterator.Advance()) {
     MergeAfterJump(&iterator);
+
+    if (environment()->IsDead()) {
+      if (handler_matcher.CurrentBytecodeIsExceptionHandlerStart()) {
+        environment()->ReviveForHandlerCode();
+      } else {
+        continue;  // Skip this bytecode since TF won't generate code for it.
+      }
+    }
 
     TRACE_BROKER(broker(),
                  "Handling bytecode: " << iterator.current_offset() << "  "
@@ -615,7 +705,7 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
 
   SerializerForBackgroundCompilation child_serializer(
       broker(), dependencies(), zone(), function, new_target, arguments,
-      collect_source_positions());
+      flags().without(SerializerForBackgroundCompilationFlag::kOsr));
   return child_serializer.Run();
 }
 
@@ -637,6 +727,9 @@ base::Optional<HeapObjectRef> GetHeapObjectFeedback(
 void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     Hints callee, base::Optional<Hints> new_target,
     const HintsVector& arguments, FeedbackSlot slot, bool with_spread) {
+  // TODO(neis): Make this part of ProcessFeedback*?
+  if (BailoutOnUninitialized(slot)) return;
+
   // Incorporate feedback into hints.
   base::Optional<HeapObjectRef> feedback = GetHeapObjectFeedback(
       broker(), environment()->function().feedback_vector, slot);
@@ -777,6 +870,7 @@ SerializerForBackgroundCompilation::ProcessFeedbackForGlobalAccess(
 void SerializerForBackgroundCompilation::VisitLdaGlobal(
     BytecodeArrayIterator* iterator) {
   FeedbackSlot slot = iterator->GetSlotOperand(1);
+
   environment()->accumulator_hints().Clear();
   GlobalAccessFeedback const* feedback = ProcessFeedbackForGlobalAccess(slot);
   if (feedback != nullptr) {
@@ -905,6 +999,7 @@ void SerializerForBackgroundCompilation::ProcessFeedbackForPropertyAccess(
 void SerializerForBackgroundCompilation::ProcessKeyedPropertyAccess(
     Hints const& receiver, Hints const& key, FeedbackSlot slot,
     AccessMode mode) {
+  if (BailoutOnUninitialized(slot)) return;
   ProcessFeedbackForPropertyAccess(slot, mode, base::nullopt);
 
   for (Handle<Object> hint : receiver.constants()) {
@@ -958,6 +1053,7 @@ void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(
 void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
     Hints const& receiver, NameRef const& name, FeedbackSlot slot,
     AccessMode mode) {
+  if (BailoutOnUninitialized(slot)) return;
   ProcessFeedbackForPropertyAccess(slot, mode, name);
 
   for (Handle<Map> map :
