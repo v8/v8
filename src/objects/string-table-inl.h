@@ -28,16 +28,16 @@ StringSet::StringSet(Address ptr) : HashTable<StringSet, StringSetShape>(ptr) {
 }
 
 bool StringSetShape::IsMatch(String key, Object value) {
-  DCHECK(value->IsString());
-  return key->Equals(String::cast(value));
+  DCHECK(value.IsString());
+  return key.Equals(String::cast(value));
 }
 
 uint32_t StringSetShape::Hash(Isolate* isolate, String key) {
-  return key->Hash();
+  return key.Hash();
 }
 
 uint32_t StringSetShape::HashForObject(ReadOnlyRoots roots, Object object) {
-  return String::cast(object)->Hash();
+  return String::cast(object).Hash();
 }
 
 bool StringTableShape::IsMatch(Key key, Object value) {
@@ -69,7 +69,7 @@ Handle<Object> StringTableShape::AsHandle(Isolate* isolate,
 }
 
 uint32_t StringTableShape::HashForObject(ReadOnlyRoots roots, Object object) {
-  return String::cast(object)->Hash();
+  return String::cast(object).Hash();
 }
 
 RootIndex StringTableShape::GetMapRootIndex() {

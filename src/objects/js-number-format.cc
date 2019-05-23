@@ -638,7 +638,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
 
   UErrorCode status = U_ZERO_ERROR;
   icu::number::LocalizedNumberFormatter* icu_number_formatter =
-      number_format->icu_number_formatter()->raw();
+      number_format->icu_number_formatter().raw();
   icu::UnicodeString skeleton = icu_number_formatter->toSkeleton(status);
   CHECK(U_SUCCESS(status));
 
@@ -803,7 +803,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
   // old code copy from NumberFormat::Unwrap that has no spec comment and
   // compiled but fail unit tests.
   Handle<Context> native_context =
-      Handle<Context>(isolate->context()->native_context(), isolate);
+      Handle<Context>(isolate->context().native_context(), isolate);
   Handle<JSFunction> constructor = Handle<JSFunction>(
       JSFunction::cast(native_context->intl_number_format_function()), isolate);
   Handle<Object> object;
@@ -1471,7 +1471,7 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
   CHECK(numeric_obj->IsNumeric());
   Factory* factory = isolate->factory();
   icu::number::LocalizedNumberFormatter* fmt =
-      number_format->icu_number_formatter()->raw();
+      number_format->icu_number_formatter().raw();
   CHECK_NOT_NULL(fmt);
 
   icu::FieldPositionIterator fp_iter;

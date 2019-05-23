@@ -102,9 +102,9 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
   if (!script.is_null() && !script->IsUndefined(isolate) && !shared.is_null()) {
     Object source_name = script->name();
     os << ", \"sourceName\": \"";
-    if (source_name->IsString()) {
+    if (source_name.IsString()) {
       std::ostringstream escaped_name;
-      escaped_name << String::cast(source_name)->ToCString().get();
+      escaped_name << String::cast(source_name).ToCString().get();
       os << JSONEscaped(escaped_name);
     }
     os << "\"";
@@ -173,7 +173,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
   JsonPrintFunctionSource(os, -1,
                           info->shared_info().is_null()
                               ? std::unique_ptr<char[]>(new char[1]{0})
-                              : info->shared_info()->DebugName()->ToCString(),
+                              : info->shared_info()->DebugName().ToCString(),
                           script, isolate, info->shared_info(), true);
   const auto& inlined = info->inlined_functions();
   SourceIdAssigner id_assigner(info->inlined_functions().size());
@@ -181,7 +181,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
     os << ", ";
     Handle<SharedFunctionInfo> shared = inlined[id].shared_info;
     const int source_id = id_assigner.GetIdFor(shared);
-    JsonPrintFunctionSource(os, source_id, shared->DebugName()->ToCString(),
+    JsonPrintFunctionSource(os, source_id, shared->DebugName().ToCString(),
                             handle(Script::cast(shared->script()), isolate),
                             isolate, shared, true);
   }
@@ -216,12 +216,12 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
   if (FLAG_trace_file_names && info->has_shared_info() &&
-      info->shared_info()->script()->IsScript()) {
-    Object source_name = Script::cast(info->shared_info()->script())->name();
-    if (source_name->IsString()) {
+      info->shared_info()->script().IsScript()) {
+    Object source_name = Script::cast(info->shared_info()->script()).name();
+    if (source_name.IsString()) {
       String str = String::cast(source_name);
-      if (str->length() > 0) {
-        SNPrintF(source_file, "%s", str->ToCString().get());
+      if (str.length() > 0) {
+        SNPrintF(source_file, "%s", str.ToCString().get());
         std::replace(source_file.begin(),
                      source_file.begin() + source_file.length(), '/', '_');
         source_available = true;

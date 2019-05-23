@@ -54,9 +54,9 @@ Handle<LayoutDescriptor> LayoutDescriptor::ShareAppend(
 
   DisallowHeapAllocation no_allocation;
   LayoutDescriptor layout_desc = *layout_descriptor;
-  layout_desc = layout_desc->SetRawData(field_index);
+  layout_desc = layout_desc.SetRawData(field_index);
   if (details.field_width_in_words() > 1) {
-    layout_desc = layout_desc->SetRawData(field_index + 1);
+    layout_desc = layout_desc.SetRawData(field_index + 1);
   }
   return handle(layout_desc, isolate);
 }
@@ -66,25 +66,25 @@ Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
     Handle<LayoutDescriptor> full_layout_descriptor) {
   DisallowHeapAllocation no_allocation;
   LayoutDescriptor layout_descriptor = map->layout_descriptor();
-  if (layout_descriptor->IsSlowLayout()) {
+  if (layout_descriptor.IsSlowLayout()) {
     return full_layout_descriptor;
   }
   if (!InobjectUnboxedField(map->GetInObjectProperties(), details)) {
     DCHECK(details.location() != kField ||
-           layout_descriptor->IsTagged(details.field_index()));
+           layout_descriptor.IsTagged(details.field_index()));
     return handle(layout_descriptor, isolate);
   }
   int field_index = details.field_index();
   int new_capacity = field_index + details.field_width_in_words();
-  if (new_capacity > layout_descriptor->capacity()) {
+  if (new_capacity > layout_descriptor.capacity()) {
     // Current map's layout descriptor runs out of space, so use the full
     // layout descriptor.
     return full_layout_descriptor;
   }
 
-  layout_descriptor = layout_descriptor->SetRawData(field_index);
+  layout_descriptor = layout_descriptor.SetRawData(field_index);
   if (details.field_width_in_words() > 1) {
-    layout_descriptor = layout_descriptor->SetRawData(field_index + 1);
+    layout_descriptor = layout_descriptor.SetRawData(field_index + 1);
   }
   return handle(layout_descriptor, isolate);
 }
@@ -202,8 +202,8 @@ bool LayoutDescriptorHelper::IsTagged(
   int max_sequence_length = (end_offset - offset_in_bytes) / kTaggedSize;
   int field_index = Max(0, (offset_in_bytes - header_size_) / kTaggedSize);
   int sequence_length;
-  bool tagged = layout_descriptor_->IsTagged(field_index, max_sequence_length,
-                                             &sequence_length);
+  bool tagged = layout_descriptor_.IsTagged(field_index, max_sequence_length,
+                                            &sequence_length);
   DCHECK_GT(sequence_length, 0);
   if (offset_in_bytes < header_size_) {
     // Object headers do not contain non-tagged fields. Check if the contiguous
@@ -257,11 +257,11 @@ LayoutDescriptor LayoutDescriptor::Trim(Heap* heap, Map map,
 
 bool LayoutDescriptor::IsConsistentWithMap(Map map, bool check_tail) {
   if (FLAG_unbox_double_fields) {
-    DescriptorArray descriptors = map->instance_descriptors();
-    int nof_descriptors = map->NumberOfOwnDescriptors();
+    DescriptorArray descriptors = map.instance_descriptors();
+    int nof_descriptors = map.NumberOfOwnDescriptors();
     int last_field_index = 0;
     for (int i = 0; i < nof_descriptors; i++) {
-      PropertyDetails details = descriptors->GetDetails(i);
+      PropertyDetails details = descriptors.GetDetails(i);
       if (details.location() != kField) continue;
       FieldIndex field_index = FieldIndex::ForDescriptor(map, i);
       bool tagged_expected =

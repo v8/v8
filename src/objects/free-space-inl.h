@@ -30,7 +30,7 @@ FreeSpace FreeSpace::next() {
   Heap* heap = GetHeapFromWritableObject(*this);
   Object free_space_map =
       Isolate::FromHeap(heap)->root(RootIndex::kFreeSpaceMap);
-  DCHECK_IMPLIES(!map_slot().contains_value(free_space_map->ptr()),
+  DCHECK_IMPLIES(!map_slot().contains_value(free_space_map.ptr()),
                  !heap->deserialization_complete() &&
                      map_slot().contains_value(kNullAddress));
 #endif
@@ -43,7 +43,7 @@ void FreeSpace::set_next(FreeSpace next) {
   Heap* heap = GetHeapFromWritableObject(*this);
   Object free_space_map =
       Isolate::FromHeap(heap)->root(RootIndex::kFreeSpaceMap);
-  DCHECK_IMPLIES(!map_slot().contains_value(free_space_map->ptr()),
+  DCHECK_IMPLIES(!map_slot().contains_value(free_space_map.ptr()),
                  !heap->deserialization_complete() &&
                      map_slot().contains_value(kNullAddress));
 #endif
@@ -53,7 +53,7 @@ void FreeSpace::set_next(FreeSpace next) {
 
 FreeSpace FreeSpace::cast(HeapObject o) {
   SLOW_DCHECK(!GetHeapFromWritableObject(o)->deserialization_complete() ||
-              o->IsFreeSpace());
+              o.IsFreeSpace());
   return bit_cast<FreeSpace>(o);
 }
 

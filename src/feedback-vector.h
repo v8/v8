@@ -618,7 +618,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   FeedbackNexus(FeedbackVector vector, FeedbackSlot slot)
       : vector_(vector), slot_(slot) {
     kind_ =
-        (vector.is_null()) ? FeedbackSlotKind::kInvalid : vector->GetKind(slot);
+        (vector.is_null()) ? FeedbackSlotKind::kInvalid : vector.GetKind(slot);
   }
 
   Handle<FeedbackVector> vector_handle() const {
@@ -632,7 +632,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   FeedbackSlotKind kind() const { return kind_; }
 
   inline LanguageMode GetLanguageMode() const {
-    return vector()->GetLanguageMode(slot());
+    return vector().GetLanguageMode(slot());
   }
 
   InlineCacheState ic_state() const;

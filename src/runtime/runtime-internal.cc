@@ -269,13 +269,13 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  function->raw_feedback_cell()->set_interrupt_budget(FLAG_interrupt_budget);
+  function->raw_feedback_cell().set_interrupt_budget(FLAG_interrupt_budget);
   if (!function->has_feedback_vector()) {
     JSFunction::EnsureFeedbackVector(function);
     // Also initialize the invocation count here. This is only really needed for
     // OSR. When we OSR functions with lazy feedback allocation we want to have
     // a non zero invocation count so we can inline functions.
-    function->feedback_vector()->set_invocation_count(1);
+    function->feedback_vector().set_invocation_count(1);
     return ReadOnlyRoots(isolate).undefined_value();
   }
   // Handle interrupts.
@@ -347,7 +347,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
     int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
     if (script->IsScript() &&
-        !(Handle<Script>::cast(script)->source()->IsUndefined(isolate))) {
+        !(Handle<Script>::cast(script)->source().IsUndefined(isolate))) {
       Handle<Script> casted_script = Handle<Script>::cast(script);
       *target = MessageLocation(casted_script, pos, pos + 1, shared);
       return true;
@@ -601,7 +601,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   } else {
     DCHECK_LE(args.length(), 2);
     std::FILE* f;
-    if (args[0]->IsString()) {
+    if (args[0].IsString()) {
       // With a string argument, the results are appended to that file.
       CONVERT_ARG_HANDLE_CHECKED(String, arg0, 0);
       DisallowHeapAllocation no_gc;
@@ -626,7 +626,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
     OFStream stats_stream(f);
     isolate->counters()->runtime_call_stats()->Print(stats_stream);
     isolate->counters()->runtime_call_stats()->Reset();
-    if (args[0]->IsString())
+    if (args[0].IsString())
       std::fclose(f);
     else
       std::fflush(f);
@@ -687,7 +687,7 @@ RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared_info, 1);
   CONVERT_SMI_ARG_CHECKED(slot_id, 2);
 
-  Handle<Context> native_context(isolate->context()->native_context(), isolate);
+  Handle<Context> native_context(isolate->context().native_context(), isolate);
   return *TemplateObjectDescription::GetTemplateObject(
       isolate, native_context, description, shared_info, slot_id);
 }

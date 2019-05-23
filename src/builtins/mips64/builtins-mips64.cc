@@ -1321,7 +1321,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Ld(t0, MemOperand(t0));
 
   __ bind(&trampoline_loaded);
-  __ Daddu(ra, t0, Operand(interpreter_entry_return_pc_offset->value()));
+  __ Daddu(ra, t0, Operand(interpreter_entry_return_pc_offset.value()));
 
   // Initialize the dispatch table register.
   __ li(kInterpreterDispatchTableRegister,

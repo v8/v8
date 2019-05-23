@@ -567,18 +567,18 @@ namespace {
 
 void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
                          int source_id, Handle<SharedFunctionInfo> shared) {
-  if (!shared->script()->IsUndefined(isolate)) {
+  if (!shared->script().IsUndefined(isolate)) {
     Handle<Script> script(Script::cast(shared->script()), isolate);
 
-    if (!script->source()->IsUndefined(isolate)) {
+    if (!script->source().IsUndefined(isolate)) {
       CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
       Object source_name = script->name();
       OFStream os(tracing_scope.file());
       os << "--- FUNCTION SOURCE (";
-      if (source_name->IsString()) {
-        os << String::cast(source_name)->ToCString().get() << ":";
+      if (source_name.IsString()) {
+        os << String::cast(source_name).ToCString().get() << ":";
       }
-      os << shared->DebugName()->ToCString().get() << ") id{";
+      os << shared->DebugName().ToCString().get() << ") id{";
       os << info->optimization_id() << "," << source_id << "} start{";
       os << shared->StartPosition() << "} ---\n";
       {
@@ -604,7 +604,7 @@ void PrintInlinedFunctionInfo(
     int inlining_id, const OptimizedCompilationInfo::InlinedFunctionHolder& h) {
   CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
   OFStream os(tracing_scope.file());
-  os << "INLINE (" << h.shared_info->DebugName()->ToCString().get() << ") id{"
+  os << "INLINE (" << h.shared_info->DebugName().ToCString().get() << ") id{"
      << info->optimization_id() << "," << source_id << "} AS " << inlining_id
      << " AT ";
   const SourcePosition position = h.position.position;
@@ -654,11 +654,11 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
     bool print_source = code->kind() == Code::OPTIMIZED_FUNCTION;
     if (print_source) {
       Handle<SharedFunctionInfo> shared = info->shared_info();
-      if (shared->script()->IsScript() &&
-          !Script::cast(shared->script())->source()->IsUndefined(isolate)) {
+      if (shared->script().IsScript() &&
+          !Script::cast(shared->script()).source().IsUndefined(isolate)) {
         os << "--- Raw source ---\n";
         StringCharacterStream stream(
-            String::cast(Script::cast(shared->script())->source()),
+            String::cast(Script::cast(shared->script()).source()),
             shared->StartPosition());
         // fun->end_position() points to the last character in the stream. We
         // need to compensate by adding one to calculate the length.
@@ -956,7 +956,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     compilation_info()->MarkAsAllocationFoldingEnabled();
   }
 
-  if (compilation_info()->closure()->raw_feedback_cell()->map() ==
+  if (compilation_info()->closure()->raw_feedback_cell().map() ==
       ReadOnlyRoots(isolate).one_closure_cell_map()) {
     compilation_info()->MarkAsFunctionContextSpecializing();
   }
@@ -1016,7 +1016,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   }
 
   compilation_info()->SetCode(code);
-  compilation_info()->native_context()->AddOptimizedCode(*code);
+  compilation_info()->native_context().AddOptimizedCode(*code);
   RegisterWeakObjectsInOptimizedCode(code, isolate);
   return SUCCEEDED;
 }
@@ -1088,12 +1088,12 @@ namespace {
 Maybe<OuterContext> GetModuleContext(Handle<JSFunction> closure) {
   Context current = closure->context();
   size_t distance = 0;
-  while (!current->IsNativeContext()) {
-    if (current->IsModuleContext()) {
+  while (!current.IsNativeContext()) {
+    if (current.IsModuleContext()) {
       return Just(
-          OuterContext(handle(current, current->GetIsolate()), distance));
+          OuterContext(handle(current, current.GetIsolate()), distance));
     }
-    current = current->previous();
+    current = current.previous();
     distance++;
   }
   return Nothing<OuterContext>();

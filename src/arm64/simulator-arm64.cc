@@ -3296,7 +3296,7 @@ void Simulator::Debug() {
             if (obj.IsSmi()) {
               PrintF("smi %" PRId32, Smi::ToInt(obj));
             } else {
-              obj->ShortPrint();
+              obj.ShortPrint();
             }
             PrintF(")");
           }

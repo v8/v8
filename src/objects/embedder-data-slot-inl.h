@@ -25,7 +25,7 @@ EmbedderDataSlot::EmbedderDataSlot(EmbedderDataArray array, int entry_index)
 
 EmbedderDataSlot::EmbedderDataSlot(JSObject object, int embedder_field_index)
     : SlotBase(FIELD_ADDR(
-          object, object->GetEmbedderFieldOffset(embedder_field_index))) {}
+          object, object.GetEmbedderFieldOffset(embedder_field_index))) {}
 
 Object EmbedderDataSlot::load_tagged() const {
   return ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Load();
@@ -56,7 +56,7 @@ void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
 // static
 void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
                                     Object value) {
-  int slot_offset = object->GetEmbedderFieldOffset(embedder_field_index);
+  int slot_offset = object.GetEmbedderFieldOffset(embedder_field_index);
   ObjectSlot(FIELD_ADDR(object, slot_offset + kTaggedPayloadOffset))
       .Relaxed_Store(value);
   WRITE_BARRIER(object, slot_offset + kTaggedPayloadOffset, value);

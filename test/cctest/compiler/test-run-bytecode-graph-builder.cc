@@ -116,7 +116,7 @@ class BytecodeGraphTester {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
     JSFunction::EnsureFeedbackVector(function);
-    CHECK(function->shared()->HasBytecodeArray());
+    CHECK(function->shared().HasBytecodeArray());
 
     Zone zone(isolate_->allocator(), ZONE_NAME);
     Handle<SharedFunctionInfo> shared(function->shared(), isolate_);

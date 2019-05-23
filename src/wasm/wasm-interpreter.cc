@@ -1351,7 +1351,7 @@ class ThreadImpl {
       if (IsReferenceValue()) {
         value_ = WasmValue(Handle<Object>::null());
         int ref_index = static_cast<int>(index);
-        thread->reference_stack()->set(ref_index, *v.to_anyref());
+        thread->reference_stack().set(ref_index, *v.to_anyref());
       }
     }
 
@@ -1360,7 +1360,7 @@ class ThreadImpl {
       DCHECK(value_.to_anyref().is_null());
       int ref_index = static_cast<int>(index);
       Isolate* isolate = thread->isolate_;
-      Handle<Object> ref(thread->reference_stack()->get(ref_index), isolate);
+      Handle<Object> ref(thread->reference_stack().get(ref_index), isolate);
       DCHECK(!ref->IsTheHole(isolate));
       return WasmValue(ref);
     }
@@ -1371,18 +1371,18 @@ class ThreadImpl {
       if (!IsReferenceValue()) return;
       int ref_index = static_cast<int>(index);
       Isolate* isolate = thread->isolate_;
-      thread->reference_stack()->set_the_hole(isolate, ref_index);
+      thread->reference_stack().set_the_hole(isolate, ref_index);
     }
 
     static void ClearValues(ThreadImpl* thread, sp_t index, int count) {
       int ref_index = static_cast<int>(index);
-      thread->reference_stack()->FillWithHoles(ref_index, ref_index + count);
+      thread->reference_stack().FillWithHoles(ref_index, ref_index + count);
     }
 
     static bool IsClearedValue(ThreadImpl* thread, sp_t index) {
       int ref_index = static_cast<int>(index);
       Isolate* isolate = thread->isolate_;
-      return thread->reference_stack()->is_the_hole(isolate, ref_index);
+      return thread->reference_stack().is_the_hole(isolate, ref_index);
     }
 
    private:
@@ -2105,7 +2105,7 @@ class ThreadImpl {
     if (global->mutability && global->imported) {
       *buffer =
           handle(FixedArray::cast(
-                     instance_object_->imported_mutable_globals_buffers()->get(
+                     instance_object_->imported_mutable_globals_buffers().get(
                          global->index)),
                  isolate_);
       Address idx = instance_object_->imported_mutable_globals()[global->index];
@@ -2538,8 +2538,7 @@ class ThreadImpl {
                         uint32_t index) V8_WARN_UNUSED_RESULT {
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
     Handle<WasmExceptionTag> exception_tag(
-        WasmExceptionTag::cast(
-            instance_object_->exceptions_table()->get(index)),
+        WasmExceptionTag::cast(instance_object_->exceptions_table().get(index)),
         isolate_);
     uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(exception);
     Handle<Object> exception_object =
@@ -2614,7 +2613,7 @@ class ThreadImpl {
     Handle<Object> caught_tag =
         WasmExceptionPackage::GetExceptionTag(isolate_, exception_object);
     Handle<Object> expected_tag =
-        handle(instance_object_->exceptions_table()->get(index), isolate_);
+        handle(instance_object_->exceptions_table().get(index), isolate_);
     DCHECK(expected_tag->IsWasmExceptionTag());
     return expected_tag.is_identical_to(caught_tag);
   }

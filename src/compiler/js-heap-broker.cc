@@ -282,8 +282,8 @@ void JSObjectData::SerializeObjectCreateMap(JSHeapBroker* broker) {
   TraceScope tracer(broker, this, "JSObjectData::SerializeObjectCreateMap");
   Handle<JSObject> jsobject = Handle<JSObject>::cast(object());
 
-  if (jsobject->map()->is_prototype_map()) {
-    Handle<Object> maybe_proto_info(jsobject->map()->prototype_info(),
+  if (jsobject->map().is_prototype_map()) {
+    Handle<Object> maybe_proto_info(jsobject->map().prototype_info(),
                                     broker->isolate());
     if (maybe_proto_info->IsPrototypeInfo()) {
       auto proto_info = Handle<PrototypeInfo>::cast(maybe_proto_info);
@@ -358,7 +358,7 @@ JSTypedArrayData::JSTypedArrayData(JSHeapBroker* broker, ObjectData** storage,
       is_on_heap_(object->is_on_heap()),
       length_(object->length()),
       elements_external_pointer_(
-          FixedTypedArrayBase::cast(object->elements())->external_pointer()) {}
+          FixedTypedArrayBase::cast(object->elements()).external_pointer()) {}
 
 void JSTypedArrayData::Serialize(JSHeapBroker* broker) {
   if (serialized_) return;
@@ -705,14 +705,14 @@ bool IsFastLiteralHelper(Handle<JSObject> boilerplate, int max_depth,
 
   // TODO(turbofan): Do we want to support out-of-object properties?
   if (!(boilerplate->HasFastProperties() &&
-        boilerplate->property_array()->length() == 0)) {
+        boilerplate->property_array().length() == 0)) {
     return false;
   }
 
   // Check the in-object properties.
-  Handle<DescriptorArray> descriptors(
-      boilerplate->map()->instance_descriptors(), isolate);
-  int limit = boilerplate->map()->NumberOfOwnDescriptors();
+  Handle<DescriptorArray> descriptors(boilerplate->map().instance_descriptors(),
+                                      isolate);
+  int limit = boilerplate->map().NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.location() != kField) continue;
@@ -954,15 +954,15 @@ bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
   DCHECK(!jsarray_map->is_dictionary_map());
   Handle<Name> length_string = isolate->factory()->length_string();
   DescriptorArray descriptors = jsarray_map->instance_descriptors();
-  int number = descriptors->Search(*length_string, *jsarray_map);
+  int number = descriptors.Search(*length_string, *jsarray_map);
   DCHECK_NE(DescriptorArray::kNotFound, number);
-  return descriptors->GetDetails(number).IsReadOnly();
+  return descriptors.GetDetails(number).IsReadOnly();
 }
 
 bool SupportsFastArrayIteration(Isolate* isolate, Handle<Map> map) {
   return map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(map->elements_kind()) &&
-         map->prototype()->IsJSArray() &&
+         map->prototype().IsJSArray() &&
          isolate->IsAnyInitialArrayPrototype(
              handle(JSArray::cast(map->prototype()), isolate)) &&
          isolate->IsNoElementsProtectorIntact();
@@ -1724,7 +1724,7 @@ void JSObjectData::SerializeRecursive(JSHeapBroker* broker, int depth) {
   // We only serialize boilerplates that pass the IsInlinableFastLiteral
   // check, so we only do a sanity check on the depth here.
   CHECK_GT(depth, 0);
-  CHECK(!boilerplate->map()->is_deprecated());
+  CHECK(!boilerplate->map().is_deprecated());
 
   // Serialize the elements.
   Isolate* const isolate = broker->isolate();
@@ -1775,13 +1775,13 @@ void JSObjectData::SerializeRecursive(JSHeapBroker* broker, int depth) {
 
   // TODO(turbofan): Do we want to support out-of-object properties?
   CHECK(boilerplate->HasFastProperties() &&
-        boilerplate->property_array()->length() == 0);
+        boilerplate->property_array().length() == 0);
   CHECK_EQ(inobject_fields_.size(), 0u);
 
   // Check the in-object properties.
-  Handle<DescriptorArray> descriptors(
-      boilerplate->map()->instance_descriptors(), isolate);
-  int const limit = boilerplate->map()->NumberOfOwnDescriptors();
+  Handle<DescriptorArray> descriptors(boilerplate->map().instance_descriptors(),
+                                      isolate);
+  int const limit = boilerplate->map().NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.location() != kField) continue;
@@ -1978,14 +1978,14 @@ void JSHeapBroker::CollectArrayAndObjectPrototypes() {
   CHECK(array_and_object_prototypes_.empty());
 
   Object maybe_context = isolate()->heap()->native_contexts_list();
-  while (!maybe_context->IsUndefined(isolate())) {
+  while (!maybe_context.IsUndefined(isolate())) {
     Context context = Context::cast(maybe_context);
-    Object array_prot = context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
-    Object object_prot = context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
+    Object array_prot = context.get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
+    Object object_prot = context.get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
     array_and_object_prototypes_.emplace(JSObject::cast(array_prot), isolate());
     array_and_object_prototypes_.emplace(JSObject::cast(object_prot),
                                          isolate());
-    maybe_context = context->next_context_link();
+    maybe_context = context.next_context_link();
   }
 
   CHECK(!array_and_object_prototypes_.empty());
@@ -2427,7 +2427,7 @@ int MapRef::GetInObjectPropertyOffset(int i) const {
 PropertyDetails MapRef::GetPropertyDetails(int descriptor_index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return object()->instance_descriptors()->GetDetails(descriptor_index);
+    return object()->instance_descriptors().GetDetails(descriptor_index);
   }
   DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
   return descriptors->contents().at(descriptor_index).details;
@@ -2439,7 +2439,7 @@ NameRef MapRef::GetPropertyKey(int descriptor_index) const {
     AllowHandleDereference allow_handle_dereference;
     return NameRef(
         broker(),
-        handle(object()->instance_descriptors()->GetKey(descriptor_index),
+        handle(object()->instance_descriptors().GetKey(descriptor_index),
                broker()->isolate()));
   }
   DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
@@ -2475,7 +2475,7 @@ ObjectRef MapRef::GetFieldType(int descriptor_index) const {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     Handle<FieldType> field_type(
-        object()->instance_descriptors()->GetFieldType(descriptor_index),
+        object()->instance_descriptors().GetFieldType(descriptor_index),
         broker()->isolate());
     return ObjectRef(broker(), field_type);
   }
@@ -2667,7 +2667,7 @@ BIMODAL_ACCESSOR(FeedbackCell, HeapObject, value)
 void* JSTypedArrayRef::elements_external_pointer() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return FixedTypedArrayBase::cast(object()->elements())->external_pointer();
+    return FixedTypedArrayBase::cast(object()->elements()).external_pointer();
   }
   return data()->AsJSTypedArray()->elements_external_pointer();
 }
@@ -2842,7 +2842,7 @@ base::Optional<ObjectRef> ObjectRef::GetOwnConstantElement(
 base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(uint32_t index,
                                                        bool serialize) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
-    if (!object()->elements()->IsCowArray()) return base::nullopt;
+    if (!object()->elements().IsCowArray()) return base::nullopt;
     return GetOwnElementFromHeap(broker(), object(), index, false);
   }
 
@@ -2910,7 +2910,7 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object)
 
 namespace {
 OddballType GetOddballType(Isolate* isolate, Map map) {
-  if (map->instance_type() != ODDBALL_TYPE) {
+  if (map.instance_type() != ODDBALL_TYPE) {
     return OddballType::kNone;
   }
   ReadOnlyRoots roots(isolate);
@@ -2941,9 +2941,9 @@ HeapObjectType HeapObjectRef::GetHeapObjectType() const {
     AllowHandleDereference handle_dereference;
     Map map = Handle<HeapObject>::cast(object())->map();
     HeapObjectType::Flags flags(0);
-    if (map->is_undetectable()) flags |= HeapObjectType::kUndetectable;
-    if (map->is_callable()) flags |= HeapObjectType::kCallable;
-    return HeapObjectType(map->instance_type(), flags,
+    if (map.is_undetectable()) flags |= HeapObjectType::kUndetectable;
+    if (map.is_callable()) flags |= HeapObjectType::kCallable;
+    return HeapObjectType(map.instance_type(), flags,
                           GetOddballType(broker()->isolate(), map));
   }
   HeapObjectType::Flags flags(0);

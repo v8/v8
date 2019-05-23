@@ -33,7 +33,7 @@ bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
 }
 
 bool JSArray::AllowsSetLength() {
-  bool result = elements()->IsFixedArray() || elements()->IsFixedDoubleArray();
+  bool result = elements().IsFixedArray() || elements().IsFixedDoubleArray();
   DCHECK(result == !HasFixedTypedArrayElements());
   return result;
 }
@@ -55,7 +55,7 @@ void JSArray::SetContent(Handle<JSArray> array,
 }
 
 bool JSArray::HasArrayPrototype(Isolate* isolate) {
-  return map()->prototype() == *isolate->initial_array_prototype();
+  return map().prototype() == *isolate->initial_array_prototype();
 }
 
 ACCESSORS(JSArrayIterator, iterated_object, Object, kIteratedObjectOffset)
@@ -63,7 +63,7 @@ ACCESSORS(JSArrayIterator, next_index, Object, kNextIndexOffset)
 
 IterationKind JSArrayIterator::kind() const {
   return static_cast<IterationKind>(
-      Smi::cast(READ_FIELD(*this, kKindOffset))->value());
+      Smi::cast(READ_FIELD(*this, kKindOffset)).value());
 }
 
 void JSArrayIterator::set_kind(IterationKind kind) {

@@ -161,12 +161,12 @@ class AllocationResult {
       : object_(object) {
     // AllocationResults can't return Smis, which are used to represent
     // failure and the space to retry in.
-    CHECK(!object->IsSmi());
+    CHECK(!object.IsSmi());
   }
 
   AllocationResult() : object_(Smi::FromInt(NEW_SPACE)) {}
 
-  inline bool IsRetry() { return object_->IsSmi(); }
+  inline bool IsRetry() { return object_.IsSmi(); }
   inline HeapObject ToObjectChecked();
   inline AllocationSpace RetrySpace();
 
@@ -2384,7 +2384,7 @@ class HeapObjectAllocationTracker {
 
 template <typename T>
 T ForwardingAddress(T heap_obj) {
-  MapWord map_word = heap_obj->map_word();
+  MapWord map_word = heap_obj.map_word();
 
   if (map_word.IsForwardingAddress()) {
     return T::cast(map_word.ToForwardingAddress());

@@ -71,7 +71,7 @@ void Deserializer::Initialize(Isolate* isolate) {
 void Deserializer::Rehash() {
   DCHECK(can_rehash() || deserializing_user_code());
   for (HeapObject item : to_rehash_) {
-    item->RehashBasedOnMap(ReadOnlyRoots(isolate_));
+    item.RehashBasedOnMap(ReadOnlyRoots(isolate_));
   }
 }
 
@@ -117,7 +117,7 @@ void Deserializer::DeserializeDeferredObjects() {
         DCHECK_EQ(code - space, kNewObject);
         HeapObject object = GetBackReferencedObject(space);
         int size = source_.GetInt() << kTaggedSizeLog2;
-        Address obj_address = object->address();
+        Address obj_address = object.address();
         // Object's map is already initialized, now read the rest.
         MaybeObjectSlot start(obj_address + kTaggedSize);
         MaybeObjectSlot end(obj_address + size);
@@ -154,26 +154,26 @@ void Deserializer::LogNewMapEvents() {
 void Deserializer::LogScriptEvents(Script script) {
   DisallowHeapAllocation no_gc;
   LOG(isolate_,
-      ScriptEvent(Logger::ScriptEventType::kDeserialize, script->id()));
+      ScriptEvent(Logger::ScriptEventType::kDeserialize, script.id()));
   LOG(isolate_, ScriptDetails(script));
   TRACE_EVENT_OBJECT_CREATED_WITH_ID(
       TRACE_DISABLED_BY_DEFAULT("v8.compile"), "Script",
-      TRACE_ID_WITH_SCOPE("v8::internal::Script", script->id()));
+      TRACE_ID_WITH_SCOPE("v8::internal::Script", script.id()));
   TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
       TRACE_DISABLED_BY_DEFAULT("v8.compile"), "Script",
-      TRACE_ID_WITH_SCOPE("v8::internal::Script", script->id()),
-      script->ToTracedValue());
+      TRACE_ID_WITH_SCOPE("v8::internal::Script", script.id()),
+      script.ToTracedValue());
 }
 
 StringTableInsertionKey::StringTableInsertionKey(String string)
     : StringTableKey(ComputeHashField(string), string.length()),
       string_(string) {
-  DCHECK(string->IsInternalizedString());
+  DCHECK(string.IsInternalizedString());
 }
 
 bool StringTableInsertionKey::IsMatch(String string) {
   // We want to compare the content of two strings here.
-  return string_->SlowEquals(string);
+  return string_.SlowEquals(string);
 }
 
 Handle<String> StringTableInsertionKey::AsHandle(Isolate* isolate) {
@@ -182,8 +182,8 @@ Handle<String> StringTableInsertionKey::AsHandle(Isolate* isolate) {
 
 uint32_t StringTableInsertionKey::ComputeHashField(String string) {
   // Make sure hash_field() is computed.
-  string->Hash();
-  return string->hash_field();
+  string.Hash();
+  return string.hash_field();
 }
 
 namespace {
@@ -193,7 +193,7 @@ String ForwardStringIfExists(Isolate* isolate, StringTableInsertionKey* key) {
   int entry = table.FindEntry(isolate, key);
   if (entry == kNotFound) return String();
 
-  String canonical = String::cast(table->KeyAt(entry));
+  String canonical = String::cast(table.KeyAt(entry));
   DCHECK_NE(canonical, key->string());
   key->string().MakeThin(isolate, canonical);
   return canonical;
@@ -203,24 +203,24 @@ String ForwardStringIfExists(Isolate* isolate, StringTableInsertionKey* key) {
 
 HeapObject Deserializer::PostProcessNewObject(HeapObject obj, int space) {
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
-    if (obj->IsString()) {
+    if (obj.IsString()) {
       // Uninitialize hash field as we need to recompute the hash.
       String string = String::cast(obj);
-      string->set_hash_field(String::kEmptyHashField);
+      string.set_hash_field(String::kEmptyHashField);
       // Rehash strings before read-only space is sealed. Strings outside
       // read-only space are rehashed lazily. (e.g. when rehashing dictionaries)
       if (space == RO_SPACE) {
         to_rehash_.push_back(obj);
       }
-    } else if (obj->NeedsRehashing()) {
+    } else if (obj.NeedsRehashing()) {
       to_rehash_.push_back(obj);
     }
   }
 
   if (deserializing_user_code()) {
-    if (obj->IsString()) {
+    if (obj.IsString()) {
       String string = String::cast(obj);
-      if (string->IsInternalizedString()) {
+      if (string.IsInternalizedString()) {
         // Canonicalize the internalized string. If it already exists in the
         // string table, set it to forward to the existing one.
         StringTableInsertionKey key(string);
@@ -231,9 +231,9 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj, int space) {
         new_internalized_strings_.push_back(handle(string, isolate_));
         return string;
       }
-    } else if (obj->IsScript()) {
+    } else if (obj.IsScript()) {
       new_scripts_.push_back(handle(Script::cast(obj), isolate_));
-    } else if (obj->IsAllocationSite()) {
+    } else if (obj.IsAllocationSite()) {
       // We should link new allocation sites, but we can't do this immediately
       // because |AllocationSite::HasWeakNext()| internally accesses
       // |Heap::roots_| that may not have been initialized yet. So defer this to
@@ -243,99 +243,99 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj, int space) {
       DCHECK(CanBeDeferred(obj));
     }
   }
-  if (obj->IsScript()) {
+  if (obj.IsScript()) {
     LogScriptEvents(Script::cast(obj));
-  } else if (obj->IsCode()) {
+  } else if (obj.IsCode()) {
     // We flush all code pages after deserializing the startup snapshot.
     // Hence we only remember each individual code object when deserializing
     // user code.
     if (deserializing_user_code() || space == LO_SPACE) {
       new_code_objects_.push_back(Code::cast(obj));
     }
-  } else if (FLAG_trace_maps && obj->IsMap()) {
+  } else if (FLAG_trace_maps && obj.IsMap()) {
     // Keep track of all seen Maps to log them later since they might be only
     // partially initialized at this point.
     new_maps_.push_back(Map::cast(obj));
-  } else if (obj->IsAccessorInfo()) {
+  } else if (obj.IsAccessorInfo()) {
 #ifdef USE_SIMULATOR
     accessor_infos_.push_back(AccessorInfo::cast(obj));
 #endif
-  } else if (obj->IsCallHandlerInfo()) {
+  } else if (obj.IsCallHandlerInfo()) {
 #ifdef USE_SIMULATOR
     call_handler_infos_.push_back(CallHandlerInfo::cast(obj));
 #endif
-  } else if (obj->IsExternalString()) {
-    if (obj->map() == ReadOnlyRoots(isolate_).native_source_string_map()) {
+  } else if (obj.IsExternalString()) {
+    if (obj.map() == ReadOnlyRoots(isolate_).native_source_string_map()) {
       ExternalOneByteString string = ExternalOneByteString::cast(obj);
-      DCHECK(string->is_uncached());
-      string->SetResource(
+      DCHECK(string.is_uncached());
+      string.SetResource(
           isolate_, NativesExternalStringResource::DecodeForDeserialization(
-                        string->resource()));
+                        string.resource()));
     } else {
       ExternalString string = ExternalString::cast(obj);
-      uint32_t index = string->resource_as_uint32();
+      uint32_t index = string.resource_as_uint32();
       Address address =
           static_cast<Address>(isolate_->api_external_references()[index]);
-      string->set_address_as_resource(address);
+      string.set_address_as_resource(address);
       isolate_->heap()->UpdateExternalString(string, 0,
-                                             string->ExternalPayloadSize());
+                                             string.ExternalPayloadSize());
     }
     isolate_->heap()->RegisterExternalString(String::cast(obj));
-  } else if (obj->IsJSDataView()) {
+  } else if (obj.IsJSDataView()) {
     JSDataView data_view = JSDataView::cast(obj);
     JSArrayBuffer buffer = JSArrayBuffer::cast(data_view.buffer());
     data_view.set_data_pointer(
         reinterpret_cast<uint8_t*>(buffer.backing_store()) +
         data_view.byte_offset());
-  } else if (obj->IsJSTypedArray()) {
+  } else if (obj.IsJSTypedArray()) {
     JSTypedArray typed_array = JSTypedArray::cast(obj);
-    CHECK_LE(typed_array->byte_offset(), Smi::kMaxValue);
-    int32_t byte_offset = static_cast<int32_t>(typed_array->byte_offset());
+    CHECK_LE(typed_array.byte_offset(), Smi::kMaxValue);
+    int32_t byte_offset = static_cast<int32_t>(typed_array.byte_offset());
     if (byte_offset > 0) {
       FixedTypedArrayBase elements =
-          FixedTypedArrayBase::cast(typed_array->elements());
+          FixedTypedArrayBase::cast(typed_array.elements());
       // Must be off-heap layout.
-      DCHECK(!typed_array->is_on_heap());
+      DCHECK(!typed_array.is_on_heap());
 
       void* pointer_with_offset = reinterpret_cast<void*>(
-          reinterpret_cast<intptr_t>(elements->external_pointer()) +
+          reinterpret_cast<intptr_t>(elements.external_pointer()) +
           byte_offset);
-      elements->set_external_pointer(pointer_with_offset);
+      elements.set_external_pointer(pointer_with_offset);
     }
-  } else if (obj->IsJSArrayBuffer()) {
+  } else if (obj.IsJSArrayBuffer()) {
     JSArrayBuffer buffer = JSArrayBuffer::cast(obj);
     // Only fixup for the off-heap case.
-    if (buffer->backing_store() != nullptr) {
-      Smi store_index(reinterpret_cast<Address>(buffer->backing_store()));
-      void* backing_store = off_heap_backing_stores_[store_index->value()];
+    if (buffer.backing_store() != nullptr) {
+      Smi store_index(reinterpret_cast<Address>(buffer.backing_store()));
+      void* backing_store = off_heap_backing_stores_[store_index.value()];
 
-      buffer->set_backing_store(backing_store);
+      buffer.set_backing_store(backing_store);
       isolate_->heap()->RegisterNewArrayBuffer(buffer);
     }
-  } else if (obj->IsFixedTypedArrayBase()) {
+  } else if (obj.IsFixedTypedArrayBase()) {
     FixedTypedArrayBase fta = FixedTypedArrayBase::cast(obj);
     // Only fixup for the off-heap case.
-    if (fta->base_pointer() == Smi::kZero) {
-      Smi store_index(reinterpret_cast<Address>(fta->external_pointer()));
-      void* backing_store = off_heap_backing_stores_[store_index->value()];
-      fta->set_external_pointer(backing_store);
+    if (fta.base_pointer() == Smi::kZero) {
+      Smi store_index(reinterpret_cast<Address>(fta.external_pointer()));
+      void* backing_store = off_heap_backing_stores_[store_index.value()];
+      fta.set_external_pointer(backing_store);
     }
-  } else if (obj->IsBytecodeArray()) {
+  } else if (obj.IsBytecodeArray()) {
     // TODO(mythria): Remove these once we store the default values for these
     // fields in the serializer.
     BytecodeArray bytecode_array = BytecodeArray::cast(obj);
-    bytecode_array->set_osr_loop_nesting_level(0);
+    bytecode_array.set_osr_loop_nesting_level(0);
   }
 #ifdef DEBUG
-  if (obj->IsDescriptorArray()) {
+  if (obj.IsDescriptorArray()) {
     DescriptorArray descriptor_array = DescriptorArray::cast(obj);
-    DCHECK_EQ(0, descriptor_array->raw_number_of_marked_descriptors());
+    DCHECK_EQ(0, descriptor_array.raw_number_of_marked_descriptors());
   }
 #endif
 
   // Check alignment.
-  DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(),
-                                    HeapObject::RequiredAlignment(obj->map())));
+  DCHECK_EQ(0, Heap::GetFillToAlign(obj.address(),
+                                    HeapObject::RequiredAlignment(obj.map())));
   return obj;
 }
 
@@ -374,8 +374,8 @@ HeapObject Deserializer::GetBackReferencedObject(int space) {
     }
   }
 
-  if (deserializing_user_code() && obj->IsThinString()) {
-    obj = ThinString::cast(obj)->actual();
+  if (deserializing_user_code() && obj.IsThinString()) {
+    obj = ThinString::cast(obj).actual();
   }
 
   hot_objects_.Add(obj);
@@ -411,7 +411,7 @@ HeapObject Deserializer::ReadObject(int space_number) {
   }
 
 #ifdef DEBUG
-  if (obj->IsCode()) {
+  if (obj.IsCode()) {
     DCHECK(space_number == CODE_SPACE || space_number == CODE_LO_SPACE);
   } else {
     DCHECK(space_number != CODE_SPACE && space_number != CODE_LO_SPACE);
@@ -442,7 +442,7 @@ void Deserializer::ReadCodeObjectBody(int space_number,
 
 void Deserializer::VisitCodeTarget(Code host, RelocInfo* rinfo) {
   HeapObject object = ReadObject();
-  rinfo->set_target_address(Code::cast(object)->raw_instruction_start());
+  rinfo->set_target_address(Code::cast(object).raw_instruction_start());
 }
 
 void Deserializer::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
@@ -478,8 +478,8 @@ void Deserializer::VisitInternalReference(Code host, RelocInfo* rinfo) {
   // Internal reference target is encoded as an offset from code entry.
   int target_offset = source_.GetInt();
   DCHECK_LT(static_cast<unsigned>(target_offset),
-            static_cast<unsigned>(host->raw_instruction_size()));
-  Address target = host->entry() + target_offset;
+            static_cast<unsigned>(host.raw_instruction_size()));
+  Address target = host.entry() + target_offset;
   Assembler::deserialization_set_target_internal_reference_at(
       rinfo->pc(), target, rinfo->rmode());
 }
@@ -637,7 +637,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit, int source_space,
         HeapObject obj = HeapObject::FromAddress(current_object_address);
         // If the deferred object is a map, its instance type may be used
         // during deserialization. Initialize it with a temporary value.
-        if (obj->IsMap()) Map::cast(obj)->set_instance_type(FILLER_TYPE);
+        if (obj.IsMap()) Map::cast(obj).set_instance_type(FILLER_TYPE);
         current = limit;
         return false;
       }

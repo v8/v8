@@ -39,7 +39,7 @@ RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
   CONVERT_ARG_HANDLE_CHECKED(Symbol, symbol, 0);
   IncrementalStringBuilder builder(isolate);
   builder.AppendCString("Symbol(");
-  if (symbol->name()->IsString()) {
+  if (symbol->name().IsString()) {
     builder.AppendString(handle(String::cast(symbol->name()), isolate));
   }
   builder.AppendCharacter(')');
@@ -51,7 +51,7 @@ RUNTIME_FUNCTION(Runtime_SymbolIsPrivate) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Symbol, symbol, 0);
-  return isolate->heap()->ToBoolean(symbol->is_private());
+  return isolate->heap()->ToBoolean(symbol.is_private());
 }
 }  // namespace internal
 }  // namespace v8

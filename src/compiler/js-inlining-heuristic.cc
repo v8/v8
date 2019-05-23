@@ -744,7 +744,7 @@ void JSInliningHeuristic::PrintCandidates() {
               ? candidate.functions[i].value().shared()
               : candidate.shared_info.value();
       PrintF("  - size:%d, name: %s\n", candidate.bytecode[i].value().length(),
-             shared.object()->DebugName()->ToCString().get());
+             shared.object()->DebugName().ToCString().get());
     }
   }
 }

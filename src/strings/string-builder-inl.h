@@ -296,11 +296,11 @@ void IncrementalStringBuilder::Append(SrcChar c) {
   if (sizeof(DestChar) == 1) {
     DCHECK_EQ(String::ONE_BYTE_ENCODING, encoding_);
     SeqOneByteString::cast(*current_part_)
-        ->SeqOneByteStringSet(current_index_++, c);
+        .SeqOneByteStringSet(current_index_++, c);
   } else {
     DCHECK_EQ(String::TWO_BYTE_ENCODING, encoding_);
     SeqTwoByteString::cast(*current_part_)
-        ->SeqTwoByteStringSet(current_index_++, c);
+        .SeqTwoByteStringSet(current_index_++, c);
   }
   if (current_index_ == part_length_) Extend();
 }

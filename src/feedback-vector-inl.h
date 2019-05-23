@@ -113,7 +113,7 @@ INT32_ACCESSORS(FeedbackVector, deopt_count, kDeoptCountOffset)
 bool FeedbackVector::is_empty() const { return length() == 0; }
 
 FeedbackMetadata FeedbackVector::metadata() const {
-  return shared_function_info()->feedback_metadata();
+  return shared_function_info().feedback_metadata();
 }
 
 void FeedbackVector::clear_invocation_count() { set_invocation_count(0); }
@@ -136,7 +136,7 @@ OptimizationMarker FeedbackVector::optimization_marker() const {
   MaybeObject slot = optimized_code_weak_or_smi();
   Smi value;
   if (!slot->ToSmi(&value)) return OptimizationMarker::kNone;
-  return static_cast<OptimizationMarker>(value->value());
+  return static_cast<OptimizationMarker>(value.value());
 }
 
 bool FeedbackVector::has_optimized_code() const {
@@ -170,7 +170,7 @@ Handle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(int index) const {
   DCHECK_GE(index, 0);
   ClosureFeedbackCellArray cell_array =
       ClosureFeedbackCellArray::cast(closure_feedback_cell_array());
-  return cell_array->GetFeedbackCell(index);
+  return cell_array.GetFeedbackCell(index);
 }
 
 void FeedbackVector::Set(FeedbackSlot slot, MaybeObject value,
@@ -287,13 +287,13 @@ Symbol FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
 }
 
 bool FeedbackMetadataIterator::HasNext() const {
-  return next_slot_.ToInt() < metadata()->slot_count();
+  return next_slot_.ToInt() < metadata().slot_count();
 }
 
 FeedbackSlot FeedbackMetadataIterator::Next() {
   DCHECK(HasNext());
   cur_slot_ = next_slot_;
-  slot_kind_ = metadata()->GetKind(cur_slot_);
+  slot_kind_ = metadata().GetKind(cur_slot_);
   next_slot_ = FeedbackSlot(next_slot_.ToInt() + entry_size());
   return cur_slot_;
 }
@@ -303,18 +303,18 @@ int FeedbackMetadataIterator::entry_size() const {
 }
 
 MaybeObject FeedbackNexus::GetFeedback() const {
-  MaybeObject feedback = vector()->Get(slot());
+  MaybeObject feedback = vector().Get(slot());
   FeedbackVector::AssertNoLegacyTypes(feedback);
   return feedback;
 }
 
 MaybeObject FeedbackNexus::GetFeedbackExtra() const {
 #ifdef DEBUG
-  FeedbackSlotKind kind = vector()->GetKind(slot());
+  FeedbackSlotKind kind = vector().GetKind(slot());
   DCHECK_LT(1, FeedbackMetadata::GetSlotSize(kind));
 #endif
-  int extra_index = vector()->GetIndex(slot()) + 1;
-  return vector()->get(extra_index);
+  int extra_index = vector().GetIndex(slot()) + 1;
+  return vector().get(extra_index);
 }
 
 void FeedbackNexus::SetFeedback(Object feedback, WriteBarrierMode mode) {
@@ -323,18 +323,18 @@ void FeedbackNexus::SetFeedback(Object feedback, WriteBarrierMode mode) {
 
 void FeedbackNexus::SetFeedback(MaybeObject feedback, WriteBarrierMode mode) {
   FeedbackVector::AssertNoLegacyTypes(feedback);
-  vector()->Set(slot(), feedback, mode);
+  vector().Set(slot(), feedback, mode);
 }
 
 void FeedbackNexus::SetFeedbackExtra(Object feedback_extra,
                                      WriteBarrierMode mode) {
 #ifdef DEBUG
-  FeedbackSlotKind kind = vector()->GetKind(slot());
+  FeedbackSlotKind kind = vector().GetKind(slot());
   DCHECK_LT(1, FeedbackMetadata::GetSlotSize(kind));
   FeedbackVector::AssertNoLegacyTypes(MaybeObject::FromObject(feedback_extra));
 #endif
-  int index = vector()->GetIndex(slot()) + 1;
-  vector()->set(index, MaybeObject::FromObject(feedback_extra), mode);
+  int index = vector().GetIndex(slot()) + 1;
+  vector().set(index, MaybeObject::FromObject(feedback_extra), mode);
 }
 
 void FeedbackNexus::SetFeedbackExtra(MaybeObject feedback_extra,
@@ -342,11 +342,11 @@ void FeedbackNexus::SetFeedbackExtra(MaybeObject feedback_extra,
 #ifdef DEBUG
   FeedbackVector::AssertNoLegacyTypes(feedback_extra);
 #endif
-  int index = vector()->GetIndex(slot()) + 1;
-  vector()->set(index, feedback_extra, mode);
+  int index = vector().GetIndex(slot()) + 1;
+  vector().set(index, feedback_extra, mode);
 }
 
-Isolate* FeedbackNexus::GetIsolate() const { return vector()->GetIsolate(); }
+Isolate* FeedbackNexus::GetIsolate() const { return vector().GetIsolate(); }
 }  // namespace internal
 }  // namespace v8
 

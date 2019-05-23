@@ -539,8 +539,8 @@ static void StackCheck(Local<String> name,
     i::StackFrame* frame = iter.frame();
     CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
     i::Code code = frame->LookupCode();
-    CHECK(code->IsCode());
-    CHECK(code->contains(frame->pc()));
+    CHECK(code.IsCode());
+    CHECK(code.contains(frame->pc()));
     iter.Advance();
   }
 }

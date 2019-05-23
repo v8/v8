@@ -406,40 +406,40 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperationSmiLiteral(
     Token::Value op, Smi literal, int feedback_slot) {
   switch (op) {
     case Token::Value::ADD:
-      OutputAddSmi(literal->value(), feedback_slot);
+      OutputAddSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::SUB:
-      OutputSubSmi(literal->value(), feedback_slot);
+      OutputSubSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::MUL:
-      OutputMulSmi(literal->value(), feedback_slot);
+      OutputMulSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::DIV:
-      OutputDivSmi(literal->value(), feedback_slot);
+      OutputDivSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::MOD:
-      OutputModSmi(literal->value(), feedback_slot);
+      OutputModSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::EXP:
-      OutputExpSmi(literal->value(), feedback_slot);
+      OutputExpSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::BIT_OR:
-      OutputBitwiseOrSmi(literal->value(), feedback_slot);
+      OutputBitwiseOrSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::BIT_XOR:
-      OutputBitwiseXorSmi(literal->value(), feedback_slot);
+      OutputBitwiseXorSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::BIT_AND:
-      OutputBitwiseAndSmi(literal->value(), feedback_slot);
+      OutputBitwiseAndSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::SHL:
-      OutputShiftLeftSmi(literal->value(), feedback_slot);
+      OutputShiftLeftSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::SAR:
-      OutputShiftRightSmi(literal->value(), feedback_slot);
+      OutputShiftRightSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::SHR:
-      OutputShiftRightLogicalSmi(literal->value(), feedback_slot);
+      OutputShiftRightLogicalSmi(literal.value(), feedback_slot);
       break;
     default:
       UNREACHABLE();
@@ -573,7 +573,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadConstantPoolEntry(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Smi smi) {
-  int32_t raw_smi = smi->value();
+  int32_t raw_smi = smi.value();
   if (raw_smi == 0) {
     OutputLdaZero();
   } else {

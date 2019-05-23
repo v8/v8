@@ -39,7 +39,7 @@ void AllocationSiteUsageContext::ExitScope(Handle<AllocationSite> scope_site,
 }
 
 bool AllocationSiteUsageContext::ShouldCreateMemento(Handle<JSObject> object) {
-  if (activated_ && AllocationSite::CanTrack(object->map()->instance_type())) {
+  if (activated_ && AllocationSite::CanTrack(object->map().instance_type())) {
     if (FLAG_allocation_site_pretenuring ||
         AllocationSite::ShouldTrack(object->GetElementsKind())) {
       if (FLAG_trace_creation_allocation_sites) {

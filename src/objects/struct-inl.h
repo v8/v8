@@ -55,8 +55,8 @@ void AccessorPair::set(AccessorComponent component, Object value) {
 }
 
 void AccessorPair::SetComponents(Object getter, Object setter) {
-  if (!getter->IsNull()) set_getter(getter);
-  if (!setter->IsNull()) set_setter(setter);
+  if (!getter.IsNull()) set_getter(getter);
+  if (!setter.IsNull()) set_setter(setter);
 }
 
 bool AccessorPair::Equals(Object getter_value, Object setter_value) {

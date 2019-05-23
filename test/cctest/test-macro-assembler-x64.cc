@@ -84,7 +84,7 @@ TEST(Smi) {
         Smi smi_from_int = Smi::FromInt(static_cast<int32_t>(number));
         CHECK_EQ(smi_from_int, smi_from_intptr);
       }
-      int64_t smi_value = smi_from_intptr->value();
+      int64_t smi_value = smi_from_intptr.value();
       CHECK_EQ(number, smi_value);
     }
   }

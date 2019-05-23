@@ -14,21 +14,21 @@ namespace v8 {
 namespace internal {
 
 HandlerTable::HandlerTable(Code code)
-    : HandlerTable(code->InstructionStart() + code->handler_table_offset(),
-                   code->handler_table_size()) {}
+    : HandlerTable(code.InstructionStart() + code.handler_table_offset(),
+                   code.handler_table_size()) {}
 
 HandlerTable::HandlerTable(BytecodeArray bytecode_array)
-    : HandlerTable(bytecode_array->handler_table()) {}
+    : HandlerTable(bytecode_array.handler_table()) {}
 
 HandlerTable::HandlerTable(ByteArray byte_array)
-    : number_of_entries_(byte_array->length() / kRangeEntrySize /
+    : number_of_entries_(byte_array.length() / kRangeEntrySize /
                          sizeof(int32_t)),
 #ifdef DEBUG
       mode_(kRangeBasedEncoding),
 #endif
       raw_encoded_data_(
-          reinterpret_cast<Address>(byte_array->GetDataStartAddress())) {
-  DCHECK_EQ(0, byte_array->length() % (kRangeEntrySize * sizeof(int32_t)));
+          reinterpret_cast<Address>(byte_array.GetDataStartAddress())) {
+  DCHECK_EQ(0, byte_array.length() % (kRangeEntrySize * sizeof(int32_t)));
 }
 
 HandlerTable::HandlerTable(Address handler_table, int handler_table_size)

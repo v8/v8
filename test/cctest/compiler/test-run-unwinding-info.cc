@@ -27,7 +27,7 @@ TEST(RunUnwindingInfo) {
 
   tester.Call(tester.Val(-1));
 
-  CHECK(tester.function->code()->has_unwinding_info());
+  CHECK(tester.function->code().has_unwinding_info());
 }
 
 // TODO(ssanfilippo) Build low-level graph and check that state is correctly

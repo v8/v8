@@ -55,7 +55,7 @@ static void SetGlobalProperty(const char* name, Object value) {
   Handle<Object> object(value, isolate);
   Handle<String> internalized_name =
       isolate->factory()->InternalizeUtf8String(name);
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  Handle<JSObject> global(isolate->context().global_object(), isolate);
   Runtime::SetObjectProperty(isolate, global, internalized_name, object,
                              StoreOrigin::kMaybeKeyed, Just(kDontThrow))
       .Check();
@@ -85,7 +85,7 @@ static double Inc(Isolate* isolate, int x) {
   Handle<JSFunction> fun = Compile(buffer.begin());
   if (fun.is_null()) return -1;
 
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  Handle<JSObject> global(isolate->context().global_object(), isolate);
   Execution::Call(isolate, fun, global, 0, nullptr).Check();
   return GetGlobalProperty("result")->Number();
 }
@@ -104,7 +104,7 @@ static double Add(Isolate* isolate, int x, int y) {
 
   SetGlobalProperty("x", Smi::FromInt(x));
   SetGlobalProperty("y", Smi::FromInt(y));
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  Handle<JSObject> global(isolate->context().global_object(), isolate);
   Execution::Call(isolate, fun, global, 0, nullptr).Check();
   return GetGlobalProperty("result")->Number();
 }
@@ -122,7 +122,7 @@ static double Abs(Isolate* isolate, int x) {
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("x", Smi::FromInt(x));
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  Handle<JSObject> global(isolate->context().global_object(), isolate);
   Execution::Call(isolate, fun, global, 0, nullptr).Check();
   return GetGlobalProperty("result")->Number();
 }
@@ -141,7 +141,7 @@ static double Sum(Isolate* isolate, int n) {
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("n", Smi::FromInt(n));
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  Handle<JSObject> global(isolate->context().global_object(), isolate);
   Execution::Call(isolate, fun, global, 0, nullptr).Check();
   return GetGlobalProperty("result")->Number();
 }
@@ -161,7 +161,7 @@ TEST(Print) {
   const char* source = "for (n = 0; n < 100; ++n) print(n, 1, 2);";
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
-  Handle<JSObject> global(CcTest::i_isolate()->context()->global_object(),
+  Handle<JSObject> global(CcTest::i_isolate()->context().global_object(),
                           fun->GetIsolate());
   Execution::Call(CcTest::i_isolate(), fun, global, 0, nullptr).Check();
 }
@@ -193,7 +193,7 @@ TEST(Stuff) {
 
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
-  Handle<JSObject> global(CcTest::i_isolate()->context()->global_object(),
+  Handle<JSObject> global(CcTest::i_isolate()->context().global_object(),
                           fun->GetIsolate());
   Execution::Call(CcTest::i_isolate(), fun, global, 0, nullptr).Check();
   CHECK_EQ(511.0, GetGlobalProperty("r")->Number());
@@ -208,9 +208,9 @@ TEST(UncaughtThrow) {
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
   Isolate* isolate = fun->GetIsolate();
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  Handle<JSObject> global(isolate->context().global_object(), isolate);
   CHECK(Execution::Call(isolate, fun, global, 0, nullptr).is_null());
-  CHECK_EQ(42.0, isolate->pending_exception()->Number());
+  CHECK_EQ(42.0, isolate->pending_exception().Number());
 }
 
 
@@ -234,7 +234,7 @@ TEST(C2JSFrames) {
   Isolate* isolate = fun0->GetIsolate();
 
   // Run the generated code to populate the global object with 'foo'.
-  Handle<JSObject> global(isolate->context()->global_object(), isolate);
+  Handle<JSObject> global(isolate->context().global_object(), isolate);
   Execution::Call(isolate, fun0, global, 0, nullptr).Check();
 
   Handle<Object> fun1 =
@@ -322,7 +322,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   {
     HeapObject heap_object;
     CHECK(object->GetHeapObjectIfWeak(&heap_object));
-    CHECK(heap_object->IsJSFunction());
+    CHECK(heap_object.IsJSFunction());
   }
 
   CompileRun("%OptimizeFunctionOnNextCall(f); f(fun1);");
@@ -330,11 +330,11 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // Verify that the feedback is still "gathered" despite a recompilation
   // of the full code.
   CHECK(f->IsOptimized());
-  object = f->feedback_vector()->Get(slot_for_a);
+  object = f->feedback_vector().Get(slot_for_a);
   {
     HeapObject heap_object;
     CHECK(object->GetHeapObjectIfWeak(&heap_object));
-    CHECK(heap_object->IsJSFunction());
+    CHECK(heap_object.IsJSFunction());
   }
 }
 
@@ -366,12 +366,12 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
 
   // If we are compiling lazily then it should not be compiled, and so no
   // feedback vector allocated yet.
-  CHECK(!f->shared()->is_compiled());
+  CHECK(!f->shared().is_compiled());
 
   CompileRun("morphing_call();");
 
   // Now a feedback vector / closure feedback cell array is allocated.
-  CHECK(f->shared()->is_compiled());
+  CHECK(f->shared().is_compiled());
   CHECK(f->has_feedback_vector() || f->has_closure_feedback_cell_array());
 }
 
@@ -788,13 +788,13 @@ TEST(InvocationCount) {
       "%EnsureFeedbackVectorForFunction(foo);"
       "foo();");
   Handle<JSFunction> foo = Handle<JSFunction>::cast(GetGlobalProperty("foo"));
-  CHECK_EQ(1, foo->feedback_vector()->invocation_count());
+  CHECK_EQ(1, foo->feedback_vector().invocation_count());
   CompileRun("foo()");
-  CHECK_EQ(2, foo->feedback_vector()->invocation_count());
+  CHECK_EQ(2, foo->feedback_vector().invocation_count());
   CompileRun("bar()");
-  CHECK_EQ(2, foo->feedback_vector()->invocation_count());
+  CHECK_EQ(2, foo->feedback_vector().invocation_count());
   CompileRun("foo(); foo()");
-  CHECK_EQ(4, foo->feedback_vector()->invocation_count());
+  CHECK_EQ(4, foo->feedback_vector().invocation_count());
 }
 
 TEST(SafeToSkipArgumentsAdaptor) {
@@ -808,17 +808,17 @@ TEST(SafeToSkipArgumentsAdaptor) {
       "function e() { \"use strict\"; return eval(\"\"); }; e();"
       "function f(x, y) { \"use strict\"; return x + y; }; f(1, 2);");
   Handle<JSFunction> a = Handle<JSFunction>::cast(GetGlobalProperty("a"));
-  CHECK(a->shared()->is_safe_to_skip_arguments_adaptor());
+  CHECK(a->shared().is_safe_to_skip_arguments_adaptor());
   Handle<JSFunction> b = Handle<JSFunction>::cast(GetGlobalProperty("b"));
-  CHECK(!b->shared()->is_safe_to_skip_arguments_adaptor());
+  CHECK(!b->shared().is_safe_to_skip_arguments_adaptor());
   Handle<JSFunction> c = Handle<JSFunction>::cast(GetGlobalProperty("c"));
-  CHECK(!c->shared()->is_safe_to_skip_arguments_adaptor());
+  CHECK(!c->shared().is_safe_to_skip_arguments_adaptor());
   Handle<JSFunction> d = Handle<JSFunction>::cast(GetGlobalProperty("d"));
-  CHECK(!d->shared()->is_safe_to_skip_arguments_adaptor());
+  CHECK(!d->shared().is_safe_to_skip_arguments_adaptor());
   Handle<JSFunction> e = Handle<JSFunction>::cast(GetGlobalProperty("e"));
-  CHECK(!e->shared()->is_safe_to_skip_arguments_adaptor());
+  CHECK(!e->shared().is_safe_to_skip_arguments_adaptor());
   Handle<JSFunction> f = Handle<JSFunction>::cast(GetGlobalProperty("f"));
-  CHECK(f->shared()->is_safe_to_skip_arguments_adaptor());
+  CHECK(f->shared().is_safe_to_skip_arguments_adaptor());
 }
 
 TEST(ShallowEagerCompilation) {
@@ -944,10 +944,10 @@ TEST(DeepEagerCompilationPeakMemory) {
 // TODO(mslekova): Remove the duplication with test-heap.cc
 static int AllocationSitesCount(Heap* heap) {
   int count = 0;
-  for (Object site = heap->allocation_sites_list(); site->IsAllocationSite();) {
+  for (Object site = heap->allocation_sites_list(); site.IsAllocationSite();) {
     AllocationSite cur = AllocationSite::cast(site);
-    CHECK(cur->HasWeakNext());
-    site = cur->weak_next();
+    CHECK(cur.HasWeakNext());
+    site = cur.weak_next();
     count++;
   }
   return count;

@@ -2585,9 +2585,9 @@ THREADED_TEST(AccessorIsPreservedOnAttributeChange) {
   LocalContext env;
   v8::Local<v8::Value> res = CompileRun("var a = []; a;");
   i::Handle<i::JSReceiver> a(v8::Utils::OpenHandle(v8::Object::Cast(*res)));
-  CHECK_EQ(1, a->map()->instance_descriptors()->number_of_descriptors());
+  CHECK_EQ(1, a->map().instance_descriptors().number_of_descriptors());
   CompileRun("Object.defineProperty(a, 'length', { writable: false });");
-  CHECK_EQ(0, a->map()->instance_descriptors()->number_of_descriptors());
+  CHECK_EQ(0, a->map().instance_descriptors().number_of_descriptors());
   // But we should still have an AccessorInfo.
   i::Handle<i::String> name(v8::Utils::OpenHandle(*v8_str("length")));
   i::LookupIterator it(CcTest::i_isolate(), a, name,
@@ -2768,7 +2768,7 @@ TEST(InternalFieldsSubclassing) {
     i::Handle<i::JSObject> i_obj =
         i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj));
     CHECK_EQ(nof_embedder_fields, obj->InternalFieldCount());
-    CHECK_EQ(0, i_obj->map()->GetInObjectProperties());
+    CHECK_EQ(0, i_obj->map().GetInObjectProperties());
     // Check writing and reading internal fields.
     for (int j = 0; j < nof_embedder_fields; j++) {
       CHECK(obj->GetInternalField(j)->IsUndefined());
@@ -2831,25 +2831,25 @@ TEST(InternalFieldsSubclassing) {
           i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*value));
 #ifdef VERIFY_HEAP
       i_value->HeapObjectVerify(i_isolate);
-      i_value->map()->HeapObjectVerify(i_isolate);
-      i_value->map()->FindRootMap(i_isolate)->HeapObjectVerify(i_isolate);
+      i_value->map().HeapObjectVerify(i_isolate);
+      i_value->map().FindRootMap(i_isolate).HeapObjectVerify(i_isolate);
 #endif
       CHECK_EQ(nof_embedder_fields, value->InternalFieldCount());
       if (in_object_only) {
-        CHECK_LE(nof_properties, i_value->map()->GetInObjectProperties());
+        CHECK_LE(nof_properties, i_value->map().GetInObjectProperties());
       } else {
-        CHECK_LE(i_value->map()->GetInObjectProperties(), kMaxNofProperties);
+        CHECK_LE(i_value->map().GetInObjectProperties(), kMaxNofProperties);
       }
 
       // Make Sure we get the precise property count.
-      i_value->map()->FindRootMap(i_isolate)->CompleteInobjectSlackTracking(
+      i_value->map().FindRootMap(i_isolate).CompleteInobjectSlackTracking(
           i_isolate);
       // TODO(cbruni): fix accounting to make this condition true.
       // CHECK_EQ(0, i_value->map()->UnusedPropertyFields());
       if (in_object_only) {
-        CHECK_EQ(nof_properties, i_value->map()->GetInObjectProperties());
+        CHECK_EQ(nof_properties, i_value->map().GetInObjectProperties());
       } else {
-        CHECK_LE(i_value->map()->GetInObjectProperties(), kMaxNofProperties);
+        CHECK_LE(i_value->map().GetInObjectProperties(), kMaxNofProperties);
       }
     }
   }
@@ -3096,10 +3096,10 @@ void GlobalProxyIdentityHash(bool set_in_js) {
   if (set_in_js) {
     CompileRun("var m = new Set(); m.add(global);");
     i::Object original_hash = i_global_proxy->GetHash();
-    CHECK(original_hash->IsSmi());
+    CHECK(original_hash.IsSmi());
     hash1 = i::Smi::ToInt(original_hash);
   } else {
-    hash1 = i_global_proxy->GetOrCreateHash(i_isolate)->value();
+    hash1 = i_global_proxy->GetOrCreateHash(i_isolate).value();
   }
   // Hash should be retained after being detached.
   env->DetachGlobal();
@@ -4247,10 +4247,10 @@ THREADED_TEST(External) {
 
   {
     i::Handle<i::Object> obj = v8::Utils::OpenHandle(*ext);
-    CHECK_EQ(i::HeapObject::cast(*obj)->map(), CcTest::heap()->external_map());
+    CHECK_EQ(i::HeapObject::cast(*obj).map(), CcTest::heap()->external_map());
     CHECK(ext->IsExternal());
     CHECK(!CompileRun("new Set().add(this.ext)").IsEmpty());
-    CHECK_EQ(i::HeapObject::cast(*obj)->map(), CcTest::heap()->external_map());
+    CHECK_EQ(i::HeapObject::cast(*obj).map(), CcTest::heap()->external_map());
     CHECK(ext->IsExternal());
   }
 
@@ -8076,8 +8076,8 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
     // Verify that we created an array where the space was reserved up front.
     big_array_size =
         v8::internal::JSArray::cast(*v8::Utils::OpenHandle(*big_array))
-            ->elements()
-            ->Size();
+            .elements()
+            .Size();
     CHECK_LE(20000, big_array_size);
     a->Set(context, v8_str("y"), big_array).FromJust();
     big_heap_size = CcTest::heap()->SizeOfObjects();
@@ -11037,7 +11037,7 @@ THREADED_TEST(ShadowObjectAndDataProperty) {
   // compiler downstream.
   i::HeapObject heap_object;
   CHECK(nexus.GetFeedback().GetHeapObject(&heap_object));
-  CHECK(heap_object->IsPropertyCell());
+  CHECK(heap_object.IsPropertyCell());
 }
 
 THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
@@ -11082,7 +11082,7 @@ THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
   CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
   i::HeapObject heap_object;
   CHECK(nexus.GetFeedback().GetHeapObject(&heap_object));
-  CHECK(heap_object->IsPropertyCell());
+  CHECK(heap_object.IsPropertyCell());
 }
 
 THREADED_TEST(SetPrototype) {
@@ -12913,9 +12913,9 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
       v8::Utils::OpenHandle(*templ)->constructor());
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
   i::CallHandlerInfo handler_info =
-      i::CallHandlerInfo::cast(cons->GetInstanceCallHandler());
-  CHECK(!handler_info->IsSideEffectFreeCallHandlerInfo());
-  handler_info->set_map(
+      i::CallHandlerInfo::cast(cons.GetInstanceCallHandler());
+  CHECK(!handler_info.IsSideEffectFreeCallHandlerInfo());
+  handler_info.set_map(
       i::ReadOnlyRoots(heap).side_effect_free_call_handler_info_map());
   CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj()"), true).IsEmpty());
 }
@@ -13613,10 +13613,10 @@ static int GetGlobalObjectsCount() {
   i::HeapIterator it(CcTest::heap());
   for (i::HeapObject object = it.next(); !object.is_null();
        object = it.next()) {
-    if (object->IsJSGlobalObject()) {
+    if (object.IsJSGlobalObject()) {
       i::JSGlobalObject g = i::JSGlobalObject::cast(object);
       // Skip dummy global object.
-      if (g->global_dictionary()->NumberOfElements() != 0) {
+      if (g.global_dictionary().NumberOfElements() != 0) {
         count++;
       }
     }
@@ -14925,22 +14925,22 @@ static void MorphAString(i::String string,
   i::Isolate* isolate = CcTest::i_isolate();
   CHECK(i::StringShape(string).IsExternal());
   i::ReadOnlyRoots roots(CcTest::heap());
-  if (string->IsOneByteRepresentation()) {
+  if (string.IsOneByteRepresentation()) {
     // Check old map is not internalized or long.
-    CHECK(string->map() == roots.external_one_byte_string_map());
+    CHECK(string.map() == roots.external_one_byte_string_map());
     // Morph external string to be TwoByte string.
-    string->set_map(roots.external_string_map());
+    string.set_map(roots.external_string_map());
     i::ExternalTwoByteString morphed = i::ExternalTwoByteString::cast(string);
-    CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
-    morphed->SetResource(isolate, uc16_resource);
+    CcTest::heap()->UpdateExternalString(morphed, string.length(), 0);
+    morphed.SetResource(isolate, uc16_resource);
   } else {
     // Check old map is not internalized or long.
-    CHECK(string->map() == roots.external_string_map());
+    CHECK(string.map() == roots.external_string_map());
     // Morph external string to be one-byte string.
-    string->set_map(roots.external_one_byte_string_map());
+    string.set_map(roots.external_one_byte_string_map());
     i::ExternalOneByteString morphed = i::ExternalOneByteString::cast(string);
-    CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
-    morphed->SetResource(isolate, one_byte_resource);
+    CcTest::heap()->UpdateExternalString(morphed, string.length(), 0);
+    morphed.SetResource(isolate, one_byte_resource);
   }
 }
 
@@ -15028,14 +15028,14 @@ THREADED_TEST(MorphCompositeStringTest) {
               .FromJust());
 
     // This avoids the GC from trying to free a stack allocated resource.
-    if (ilhs->IsExternalOneByteString())
-      i::ExternalOneByteString::cast(ilhs)->SetResource(i_isolate, nullptr);
+    if (ilhs.IsExternalOneByteString())
+      i::ExternalOneByteString::cast(ilhs).SetResource(i_isolate, nullptr);
     else
-      i::ExternalTwoByteString::cast(ilhs)->SetResource(i_isolate, nullptr);
-    if (irhs->IsExternalOneByteString())
-      i::ExternalOneByteString::cast(irhs)->SetResource(i_isolate, nullptr);
+      i::ExternalTwoByteString::cast(ilhs).SetResource(i_isolate, nullptr);
+    if (irhs.IsExternalOneByteString())
+      i::ExternalOneByteString::cast(irhs).SetResource(i_isolate, nullptr);
     else
-      i::ExternalTwoByteString::cast(irhs)->SetResource(i_isolate, nullptr);
+      i::ExternalTwoByteString::cast(irhs).SetResource(i_isolate, nullptr);
   }
   i::DeleteArray(two_byte_string);
 }
@@ -16000,7 +16000,7 @@ static void FixedTypedArrayTestHelper(i::ExternalArrayType array_type,
   i::Handle<FixedTypedArrayClass> fixed_array(
       FixedTypedArrayClass::cast(jsobj->elements()), isolate);
   CHECK_EQ(FixedTypedArrayClass::kInstanceType,
-           fixed_array->map()->instance_type());
+           fixed_array->map().instance_type());
   CHECK_EQ(kElementCount, jsobj->length());
   CHECK_EQ(kElementCount, fixed_array->number_of_elements_onheap_only());
   CcTest::CollectAllGarbage();
@@ -16449,7 +16449,7 @@ TEST(ErrorLevelWarning) {
   v8::Local<v8::Script> lscript = CompileWithOrigin(source, "test", false);
   i::Handle<i::SharedFunctionInfo> obj = i::Handle<i::SharedFunctionInfo>::cast(
       v8::Utils::OpenHandle(*lscript->GetUnboundScript()));
-  CHECK(obj->script()->IsScript());
+  CHECK(obj->script().IsScript());
   i::Handle<i::Script> script(i::Script::cast(obj->script()), i_isolate);
 
   int levels[] = {
@@ -18986,8 +18986,8 @@ THREADED_TEST(TwoByteStringInOneByteCons) {
     // happen in real pages.
     CHECK(string->IsOneByteRepresentation());
     i::ConsString cons = i::ConsString::cast(*string);
-    CHECK_EQ(0, cons->second()->length());
-    CHECK(cons->first()->IsTwoByteRepresentation());
+    CHECK_EQ(0, cons.second().length());
+    CHECK(cons.first().IsTwoByteRepresentation());
   }
 
   // Check that some string operations work.
@@ -20437,11 +20437,11 @@ THREADED_TEST(ReadOnlyIndexedProperties) {
 }
 
 static int CountLiveMapsInMapCache(i::Context context) {
-  i::WeakFixedArray map_cache = i::WeakFixedArray::cast(context->map_cache());
-  int length = map_cache->length();
+  i::WeakFixedArray map_cache = i::WeakFixedArray::cast(context.map_cache());
+  int length = map_cache.length();
   int count = 0;
   for (int i = 0; i < length; i++) {
-    if (map_cache->Get(i)->IsWeak()) count++;
+    if (map_cache.Get(i)->IsWeak()) count++;
   }
   return count;
 }
@@ -21159,7 +21159,7 @@ void AssertCowElements(bool expected, const char* source) {
   Local<Value> object = CompileRun(source);
   i::Handle<i::JSObject> array =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*object.As<Object>()));
-  CHECK_EQ(expected, array->elements()->IsCowArray());
+  CHECK_EQ(expected, array->elements().IsCowArray());
 }
 
 }  // namespace
@@ -22601,9 +22601,9 @@ THREADED_TEST(FunctionNew) {
   auto serial_number =
       i::Smi::cast(i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*func))
                        ->shared()
-                       ->get_api_func_data()
-                       ->serial_number())
-          ->value();
+                       .get_api_func_data()
+                       .serial_number())
+          .value();
   CHECK_EQ(i::FunctionTemplateInfo::kInvalidSerialNumber, serial_number);
 
   // Verify that each Function::New creates a new function instance
@@ -23812,7 +23812,7 @@ TEST(ScriptPositionInfo) {
 
   i::Handle<i::SharedFunctionInfo> obj = i::Handle<i::SharedFunctionInfo>::cast(
       v8::Utils::OpenHandle(*script->GetUnboundScript()));
-  CHECK(obj->script()->IsScript());
+  CHECK(obj->script().IsScript());
 
   i::Handle<i::Script> script1(i::Script::cast(obj->script()), i_isolate);
 
@@ -27106,8 +27106,7 @@ TEST(WasmI32AtomicWaitCallback) {
             ->Set(env.local(), v8_str("func"), v8::Utils::ToLocal(func))
             .FromJust());
   Handle<JSArrayBuffer> memory(
-      r.builder().instance_object()->memory_object()->array_buffer(),
-      i_isolate);
+      r.builder().instance_object()->memory_object().array_buffer(), i_isolate);
   CHECK(env->Global()
             ->Set(env.local(), v8_str("sab"), v8::Utils::ToLocal(memory))
             .FromJust());
@@ -27143,8 +27142,7 @@ TEST(WasmI64AtomicWaitCallback) {
             ->Set(env.local(), v8_str("func"), v8::Utils::ToLocal(func))
             .FromJust());
   Handle<JSArrayBuffer> memory(
-      r.builder().instance_object()->memory_object()->array_buffer(),
-      i_isolate);
+      r.builder().instance_object()->memory_object().array_buffer(), i_isolate);
   CHECK(env->Global()
             ->Set(env.local(), v8_str("sab"), v8::Utils::ToLocal(memory))
             .FromJust());
@@ -27353,8 +27351,8 @@ TEST(TestGetUnwindState) {
     for (int id = 0; id < i::Builtins::builtin_count; id++) {
       if (!i::Builtins::IsIsolateIndependent(id)) continue;
       i::Code builtin = i_isolate->builtins()->builtin(id);
-      i::Address start = builtin->InstructionStart();
-      i::Address end = start + builtin->InstructionSize();
+      i::Address start = builtin.InstructionStart();
+      i::Address end = start + builtin.InstructionSize();
 
       i::Address builtins_start =
           reinterpret_cast<i::Address>(builtins_range.start);
@@ -27368,9 +27366,8 @@ TEST(TestGetUnwindState) {
 
   v8::JSEntryStub js_entry_stub = unwind_state.js_entry_stub;
 
-  CHECK_EQ(
-      i_isolate->heap()->builtin(i::Builtins::kJSEntry)->InstructionStart(),
-      reinterpret_cast<i::Address>(js_entry_stub.code.start));
+  CHECK_EQ(i_isolate->heap()->builtin(i::Builtins::kJSEntry).InstructionStart(),
+           reinterpret_cast<i::Address>(js_entry_stub.code.start));
 }
 
 TEST(MicrotaskContextShouldBeNativeContext) {

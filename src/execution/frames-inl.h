@@ -107,7 +107,7 @@ inline Object BuiltinExitFrame::receiver_slot_object() const {
   // fp[4]: argc.
   // fp[2 + argc - 1]: receiver.
   Object argc_slot = argc_slot_object();
-  DCHECK(argc_slot->IsSmi());
+  DCHECK(argc_slot.IsSmi());
   int argc = Smi::ToInt(argc_slot);
 
   const int receiverOffset = BuiltinExitFrameConstants::kNewTargetOffset +
@@ -138,7 +138,7 @@ inline Object StandardFrame::GetExpression(int index) const {
 }
 
 inline void StandardFrame::SetExpression(int index, Object value) {
-  Memory<Address>(GetExpressionAddress(index)) = value->ptr();
+  Memory<Address>(GetExpressionAddress(index)) = value.ptr();
 }
 
 inline Address StandardFrame::caller_fp() const {
@@ -187,7 +187,7 @@ Address JavaScriptFrame::GetParameterSlot(int index) const {
 }
 
 inline void JavaScriptFrame::set_receiver(Object value) {
-  Memory<Address>(GetParameterSlot(-1)) = value->ptr();
+  Memory<Address>(GetParameterSlot(-1)) = value.ptr();
 }
 
 inline bool JavaScriptFrame::has_adapted_arguments() const {

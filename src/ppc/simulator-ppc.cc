@@ -408,7 +408,7 @@ void PPCDebugger::Debug() {
             if (obj.IsSmi()) {
               PrintF("smi %d", Smi::ToInt(obj));
             } else {
-              obj->ShortPrint();
+              obj.ShortPrint();
             }
             PrintF(")");
           }

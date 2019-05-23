@@ -39,7 +39,7 @@ WasmInstanceObject GetWasmInstanceOnStackTop(Isolate* isolate) {
 }
 
 Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
-  return GetWasmInstanceOnStackTop(isolate)->native_context();
+  return GetWasmInstanceOnStackTop(isolate).native_context();
 }
 
 class ClearThreadInWasmScope {
@@ -325,7 +325,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 
   DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
-  auto* native_module = instance->module_object()->native_module();
+  auto* native_module = instance->module_object().native_module();
   bool success = wasm::CompileLazy(isolate, native_module, func_index);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
@@ -341,7 +341,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 Handle<JSArrayBuffer> getSharedArrayBuffer(Handle<WasmInstanceObject> instance,
                                            Isolate* isolate, uint32_t address) {
   DCHECK(instance->has_memory_object());
-  Handle<JSArrayBuffer> array_buffer(instance->memory_object()->array_buffer(),
+  Handle<JSArrayBuffer> array_buffer(instance->memory_object().array_buffer(),
                                      isolate);
 
   // Validation should have failed if the memory was not shared.
@@ -442,9 +442,9 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_UINT32_ARG_CHECKED(table_index, 1);
   CONVERT_UINT32_ARG_CHECKED(entry_index, 2);
-  DCHECK_LT(table_index, instance->tables()->length());
+  DCHECK_LT(table_index, instance->tables().length());
   auto table = handle(
-      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+      WasmTableObject::cast(instance->tables().get(table_index)), isolate);
 
   if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
@@ -465,9 +465,9 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   CONVERT_ARG_CHECKED(Object, element_raw, 3);
   // TODO(mstarzinger): Manually box because parameters are not visited yet.
   Handle<Object> element(element_raw, isolate);
-  DCHECK_LT(table_index, instance->tables()->length());
+  DCHECK_LT(table_index, instance->tables().length());
   auto table = handle(
-      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+      WasmTableObject::cast(instance->tables().get(table_index)), isolate);
 
   if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
@@ -487,9 +487,9 @@ RUNTIME_FUNCTION(Runtime_WasmIndirectCallCheckSignatureAndGetTargetInstance) {
   DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
 
-  DCHECK_LT(table_index, instance->tables()->length());
+  DCHECK_LT(table_index, instance->tables().length());
   auto table_obj = handle(
-      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+      WasmTableObject::cast(instance->tables().get(table_index)), isolate);
 
   // This check is already done in generated code.
   DCHECK(WasmTableObject::IsInBounds(isolate, table_obj, entry_index));
@@ -516,7 +516,7 @@ RUNTIME_FUNCTION(Runtime_WasmIndirectCallCheckSignatureAndGetTargetInstance) {
       maybe_target_instance.ToHandleChecked();
 
   const wasm::WasmModule* target_module =
-      target_instance->module_object()->native_module()->module();
+      target_instance->module_object().native_module()->module();
 
   wasm::FunctionSig* target_sig = target_module->functions[function_index].sig;
 
@@ -545,9 +545,9 @@ RUNTIME_FUNCTION(Runtime_WasmIndirectCallGetTargetAddress) {
   CONVERT_UINT32_ARG_CHECKED(table_index, 0);
   CONVERT_UINT32_ARG_CHECKED(entry_index, 1);
 
-  DCHECK_LT(table_index, instance->tables()->length());
+  DCHECK_LT(table_index, instance->tables().length());
   auto table_obj = handle(
-      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+      WasmTableObject::cast(instance->tables().get(table_index)), isolate);
 
   DCHECK(WasmTableObject::IsInBounds(isolate, table_obj, entry_index));
 
@@ -635,7 +635,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
   CONVERT_UINT32_ARG_CHECKED(delta, 2);
 
   Handle<WasmTableObject> table(
-      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+      WasmTableObject::cast(instance->tables().get(table_index)), isolate);
   int result = WasmTableObject::Grow(isolate, table, delta, value);
 
   return Smi::FromInt(result);
@@ -654,9 +654,9 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
   CONVERT_UINT32_ARG_CHECKED(count, 3);
 
   Handle<WasmTableObject> table(
-      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+      WasmTableObject::cast(instance->tables().get(table_index)), isolate);
 
-  uint32_t table_size = static_cast<uint32_t>(table->entries()->length());
+  uint32_t table_size = static_cast<uint32_t>(table->entries().length());
 
   if (start > table_size) {
     return ThrowTableOutOfBounds(isolate, instance);

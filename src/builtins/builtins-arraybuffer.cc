@@ -43,7 +43,7 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
   SharedFlag shared_flag =
-      (*target == target->native_context()->array_buffer_fun())
+      (*target == target->native_context().array_buffer_fun())
           ? SharedFlag::kNotShared
           : SharedFlag::kShared;
   if (!JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer>::cast(result),
@@ -61,12 +61,12 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
 BUILTIN(ArrayBufferConstructor) {
   HandleScope scope(isolate);
   Handle<JSFunction> target = args.target();
-  DCHECK(*target == target->native_context()->array_buffer_fun() ||
-         *target == target->native_context()->shared_array_buffer_fun());
+  DCHECK(*target == target->native_context().array_buffer_fun() ||
+         *target == target->native_context().shared_array_buffer_fun());
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              handle(target->shared()->Name(), isolate)));
+                              handle(target->shared().Name(), isolate)));
   }
   // [[Construct]]
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
@@ -120,7 +120,7 @@ BUILTIN(ArrayBufferIsView) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
   Object arg = args[1];
-  return isolate->heap()->ToBoolean(arg->IsJSArrayBufferView());
+  return isolate->heap()->ToBoolean(arg.IsJSArrayBufferView());
 }
 
 static Object SliceHelper(BuiltinArguments args, Isolate* isolate,

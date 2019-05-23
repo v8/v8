@@ -576,7 +576,7 @@ TEST(TestInterruptLoop) {
             isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
             .ToHandleChecked();
 
-    Handle<JSArrayBuffer> memory(instance->memory_object()->array_buffer(),
+    Handle<JSArrayBuffer> memory(instance->memory_object().array_buffer(),
                                  isolate);
     int32_t* memory_array = reinterpret_cast<int32_t*>(memory->backing_store());
 
@@ -952,12 +952,12 @@ struct ManuallyExternalizedBuffer {
   ManuallyExternalizedBuffer(JSArrayBuffer buffer, Isolate* isolate)
       : isolate_(isolate),
         buffer_(buffer, isolate),
-        allocation_base_(buffer->allocation_base()),
-        allocation_length_(buffer->allocation_length()),
+        allocation_base_(buffer.allocation_base()),
+        allocation_length_(buffer.allocation_length()),
         should_free_(!isolate_->wasm_engine()->memory_tracker()->IsWasmMemory(
-            buffer->backing_store())) {
+            buffer.backing_store())) {
     if (!isolate_->wasm_engine()->memory_tracker()->IsWasmMemory(
-            buffer->backing_store())) {
+            buffer.backing_store())) {
       v8::Utils::ToLocal(buffer_)->Externalize();
     }
   }
@@ -1072,7 +1072,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
                                          contents.Data(), is_wasm_memory));
   // Make sure we can write to the buffer without crashing
   uint32_t* int_buffer =
-      reinterpret_cast<uint32_t*>(mem->array_buffer()->backing_store());
+      reinterpret_cast<uint32_t*>(mem->array_buffer().backing_store());
   int_buffer[0] = 0;
 }
 

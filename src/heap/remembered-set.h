@@ -309,7 +309,7 @@ class UpdateTypedSlotHelper {
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&code));
     DCHECK(!HasWeakHeapObjectTag(code));
     if (code != old_code) {
-      Memory<Address>(entry_address) = code->entry();
+      Memory<Address>(entry_address) = code.entry();
     }
     return result;
   }
@@ -325,8 +325,7 @@ class UpdateTypedSlotHelper {
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
     DCHECK(!HasWeakHeapObjectTag(new_target));
     if (new_target != old_target) {
-      rinfo->set_target_address(
-          Code::cast(new_target)->raw_instruction_start());
+      rinfo->set_target_address(Code::cast(new_target).raw_instruction_start());
     }
     return result;
   }

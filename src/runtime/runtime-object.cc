@@ -42,8 +42,8 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
   if (is_found_out) *is_found_out = it.IsFound();
 
   if (!it.IsFound() && key->IsSymbol() &&
-      Symbol::cast(*key)->is_private_name()) {
-    Handle<Object> name_string(Symbol::cast(*key)->name(), isolate);
+      Symbol::cast(*key).is_private_name()) {
+    Handle<Object> name_string(Symbol::cast(*key).name(), isolate);
     DCHECK(name_string->IsString());
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kInvalidPrivateFieldRead,
@@ -145,7 +145,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
       receiver->SetProperties(ReadOnlyRoots(isolate).empty_fixed_array());
     } else {
       Object filler = ReadOnlyRoots(isolate).one_pointer_filler_map();
-      JSObject::cast(*receiver)->RawFastPropertyAtPut(index, filler);
+      JSObject::cast(*receiver).RawFastPropertyAtPut(index, filler);
       // We must clear any recorded slot for the deleted property, because
       // subsequent object modifications might put a raw double there.
       // Slot clearing is the reason why this entire function cannot currently
@@ -165,7 +165,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   receiver->synchronized_set_map(*parent_map);
 #if VERIFY_HEAP
   receiver->HeapObjectVerify(isolate);
-  receiver->property_array()->PropertyArrayVerify(isolate);
+  receiver->property_array().PropertyArrayVerify(isolate);
 #endif
   return true;
 }
@@ -304,9 +304,9 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
     }
 
     Map map = js_obj->map();
-    if (!map->has_hidden_prototype() &&
-        (key_is_array_index ? !map->has_indexed_interceptor()
-                            : !map->has_named_interceptor())) {
+    if (!map.has_hidden_prototype() &&
+        (key_is_array_index ? !map.has_indexed_interceptor()
+                            : !map.has_named_interceptor())) {
       return ReadOnlyRoots(isolate).false_value();
     }
 
@@ -335,7 +335,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   } else if (object->IsString()) {
     return isolate->heap()->ToBoolean(
         key_is_array_index
-            ? index < static_cast<uint32_t>(String::cast(*object)->length())
+            ? index < static_cast<uint32_t>(String::cast(*object).length())
             : key->Equals(ReadOnlyRoots(isolate).length_string()));
   } else if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -407,8 +407,8 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
   if (!success) return MaybeHandle<Object>();
 
   if (!it.IsFound() && key->IsSymbol() &&
-      Symbol::cast(*key)->is_private_name()) {
-    Handle<Object> name_string(Symbol::cast(*key)->name(), isolate);
+      Symbol::cast(*key).is_private_name()) {
+    Handle<Object> name_string(Symbol::cast(*key).name(), isolate);
     DCHECK(name_string->IsString());
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kInvalidPrivateFieldWrite,
@@ -523,7 +523,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
   // Convert string-index keys to their number variant to avoid internalization
   // below; and speed up subsequent conversion to index.
   uint32_t index;
-  if (key_obj->IsString() && String::cast(*key_obj)->AsArrayIndex(&index)) {
+  if (key_obj->IsString() && String::cast(*key_obj).AsArrayIndex(&index)) {
     key_obj = isolate->factory()->NewNumberFromUint(index);
   }
   if (receiver_obj->IsJSObject()) {
@@ -537,23 +537,23 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       if (receiver->IsJSGlobalObject()) {
         // Attempt dictionary lookup.
         GlobalDictionary dictionary =
-            JSGlobalObject::cast(*receiver)->global_dictionary();
-        int entry = dictionary->FindEntry(isolate, key);
+            JSGlobalObject::cast(*receiver).global_dictionary();
+        int entry = dictionary.FindEntry(isolate, key);
         if (entry != GlobalDictionary::kNotFound) {
-          PropertyCell cell = dictionary->CellAt(entry);
-          if (cell->property_details().kind() == kData) {
-            Object value = cell->value();
-            if (!value->IsTheHole(isolate)) return value;
+          PropertyCell cell = dictionary.CellAt(entry);
+          if (cell.property_details().kind() == kData) {
+            Object value = cell.value();
+            if (!value.IsTheHole(isolate)) return value;
             // If value is the hole (meaning, absent) do the general lookup.
           }
         }
       } else if (!receiver->HasFastProperties()) {
         // Attempt dictionary lookup.
         NameDictionary dictionary = receiver->property_dictionary();
-        int entry = dictionary->FindEntry(isolate, key);
+        int entry = dictionary.FindEntry(isolate, key);
         if ((entry != NameDictionary::kNotFound) &&
-            (dictionary->DetailsAt(entry).kind() == kData)) {
-          return dictionary->ValueAt(entry);
+            (dictionary.DetailsAt(entry).kind() == kData)) {
+          return dictionary.ValueAt(entry);
         }
       }
     } else if (key_obj->IsSmi()) {
@@ -566,7 +566,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       Handle<JSObject> js_object = Handle<JSObject>::cast(receiver_obj);
       ElementsKind elements_kind = js_object->GetElementsKind();
       if (IsDoubleElementsKind(elements_kind)) {
-        if (Smi::ToInt(*key_obj) >= js_object->elements()->length()) {
+        if (Smi::ToInt(*key_obj) >= js_object->elements().length()) {
           elements_kind = IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS
                                                              : PACKED_ELEMENTS;
           JSObject::TransitionElementsKind(js_object, elements_kind);
@@ -781,7 +781,7 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   if (!object->IsJSObject()) return Smi::kZero;
   Handle<JSObject> js_object = Handle<JSObject>::cast(object);
   // It could have been a DCHECK but we call this function directly from tests.
-  if (!js_object->map()->is_deprecated()) return Smi::kZero;
+  if (!js_object->map().is_deprecated()) return Smi::kZero;
   // This call must not cause lazy deopts, because it's called from deferred
   // code where we can't handle lazy deopts for lack of a suitable bailout
   // ID. So we just try migration and signal failure if necessary,
@@ -859,14 +859,14 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   if (flags & DataPropertyInLiteralFlag::kSetFunctionName) {
     DCHECK(value->IsJSFunction());
     Handle<JSFunction> function = Handle<JSFunction>::cast(value);
-    DCHECK(!function->shared()->HasSharedName());
+    DCHECK(!function->shared().HasSharedName());
     Handle<Map> function_map(function->map(), isolate);
     if (!JSFunction::SetName(function, name,
                              isolate->factory()->empty_string())) {
       return ReadOnlyRoots(isolate).exception();
     }
     // Class constructors do not reserve in-object space for name field.
-    CHECK_IMPLIES(!IsClassConstructor(function->shared()->kind()),
+    CHECK_IMPLIES(!IsClassConstructor(function->shared().kind()),
                   *function_map == function->map());
   }
 
@@ -897,7 +897,7 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
     type = Handle<String>(ReadOnlyRoots(isolate).null_string(), isolate);
   }
 
-  DCHECK(vector->metadata()->HasTypeProfileSlot());
+  DCHECK(vector->metadata().HasTypeProfileSlot());
   FeedbackNexus nexus(vector, vector->GetTypeProfileSlot());
   nexus.Collect(type, position->value());
 
@@ -909,7 +909,7 @@ RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(HeapObject, obj, 0);
   return isolate->heap()->ToBoolean(
-      IsFastPackedElementsKind(obj->map()->elements_kind()));
+      IsFastPackedElementsKind(obj.map().elements_kind()));
 }
 
 
@@ -917,7 +917,7 @@ RUNTIME_FUNCTION(Runtime_IsJSReceiver) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSReceiver());
+  return isolate->heap()->ToBoolean(obj.IsJSReceiver());
 }
 
 
@@ -925,8 +925,8 @@ RUNTIME_FUNCTION(Runtime_ClassOf) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
-  if (!obj->IsJSReceiver()) return ReadOnlyRoots(isolate).null_value();
-  return JSReceiver::cast(obj)->class_name();
+  if (!obj.IsJSReceiver()) return ReadOnlyRoots(isolate).null_value();
+  return JSReceiver::cast(obj).class_name();
 }
 
 RUNTIME_FUNCTION(Runtime_GetFunctionName) {
@@ -944,7 +944,7 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, getter, 2);
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
-  if (String::cast(getter->shared()->Name())->length() == 0) {
+  if (String::cast(getter->shared().Name()).length() == 0) {
     Handle<Map> getter_map(getter->map(), isolate);
     if (!JSFunction::SetName(getter, name, isolate->factory()->get_string())) {
       return ReadOnlyRoots(isolate).exception();
@@ -1011,7 +1011,7 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
     // instead because of our call to %ToName() in the desugaring for
     // computed properties.
     if (property->IsString() &&
-        String::cast(*property)->AsArrayIndex(&property_num)) {
+        String::cast(*property).AsArrayIndex(&property_num)) {
       property = isolate->factory()->NewNumberFromUint(property_num);
     }
 
@@ -1034,7 +1034,7 @@ RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, setter, 2);
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
-  if (String::cast(setter->shared()->Name())->length() == 0) {
+  if (String::cast(setter->shared().Name()).length() == 0) {
     Handle<Map> setter_map(setter->map(), isolate);
     if (!JSFunction::SetName(setter, name, isolate->factory()->set_string())) {
       return ReadOnlyRoots(isolate).exception();

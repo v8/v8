@@ -22,7 +22,7 @@ int Arguments::smi_at(int index) {
   return Smi::ToInt(Object(*address_of_arg_at(index)));
 }
 
-double Arguments::number_at(int index) { return (*this)[index]->Number(); }
+double Arguments::number_at(int index) { return (*this)[index].Number(); }
 
 }  // namespace internal
 }  // namespace v8

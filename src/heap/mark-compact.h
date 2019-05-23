@@ -33,7 +33,7 @@ template <typename ConcreteState, AccessMode access_mode>
 class MarkingStateBase {
  public:
   V8_INLINE MarkBit MarkBitFrom(HeapObject obj) {
-    return MarkBitFrom(MemoryChunk::FromHeapObject(obj), obj->ptr());
+    return MarkBitFrom(MemoryChunk::FromHeapObject(obj), obj.ptr());
   }
 
   // {addr} may be tagged or aligned.
@@ -601,7 +601,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void AbortCompaction();
 
   static inline bool IsOnEvacuationCandidate(Object obj) {
-    return Page::FromAddress(obj->ptr())->IsEvacuationCandidate();
+    return Page::FromAddress(obj.ptr())->IsEvacuationCandidate();
   }
 
   static bool IsOnEvacuationCandidate(MaybeObject obj);

@@ -90,7 +90,7 @@ ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
   // Do not support re-parsing top-level function of a wrapped script.
   // TODO(yangguo): consider whether we need a top-level function in a
   //                wrapped script at all.
-  DCHECK_IMPLIES(is_toplevel(), !Script::cast(shared->script())->is_wrapped());
+  DCHECK_IMPLIES(is_toplevel(), !Script::cast(shared->script()).is_wrapped());
 
   set_allow_lazy_parsing(true);
   set_asm_wasm_broken(shared->is_asm_wasm_broken());
@@ -113,7 +113,7 @@ ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
   set_collect_type_profile(
       isolate->is_collecting_type_profile() &&
       (shared->HasFeedbackMetadata()
-           ? shared->feedback_metadata()->HasTypeProfileSlot()
+           ? shared->feedback_metadata().HasTypeProfileSlot()
            : script->IsUserJavaScript()));
 }
 

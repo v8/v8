@@ -59,25 +59,25 @@ inline int16_t DescriptorArray::CompareAndSwapRawNumberOfMarkedDescriptors(
 }
 
 void DescriptorArray::CopyEnumCacheFrom(DescriptorArray array) {
-  set_enum_cache(array->enum_cache());
+  set_enum_cache(array.enum_cache());
 }
 
 int DescriptorArray::Search(Name name, int valid_descriptors) {
-  DCHECK(name->IsUniqueName());
+  DCHECK(name.IsUniqueName());
   return internal::Search<VALID_ENTRIES>(this, name, valid_descriptors,
                                          nullptr);
 }
 
 int DescriptorArray::Search(Name name, Map map) {
-  DCHECK(name->IsUniqueName());
-  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  DCHECK(name.IsUniqueName());
+  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return kNotFound;
   return Search(name, number_of_own_descriptors);
 }
 
 int DescriptorArray::SearchWithCache(Isolate* isolate, Name name, Map map) {
-  DCHECK(name->IsUniqueName());
-  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  DCHECK(name.IsUniqueName());
+  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return kNotFound;
 
   DescriptorLookupCache* cache = isolate->descriptor_lookup_cache();
@@ -109,7 +109,7 @@ ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {
 ObjectSlot DescriptorArray::GetKeySlot(int descriptor) {
   DCHECK_LE(descriptor, number_of_all_descriptors());
   ObjectSlot slot = GetDescriptorSlot(descriptor) + kEntryKeyIndex;
-  DCHECK((*slot)->IsObject());
+  DCHECK((*slot).IsObject());
   return slot;
 }
 
@@ -198,7 +198,7 @@ void DescriptorArray::Append(Descriptor* desc) {
 
   for (insertion = descriptor_number; insertion > 0; --insertion) {
     Name key = GetSortedKey(insertion - 1);
-    if (key->Hash() <= hash) break;
+    if (key.Hash() <= hash) break;
     SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
   }
 

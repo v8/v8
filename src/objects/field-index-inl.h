@@ -21,14 +21,14 @@ FieldIndex FieldIndex::ForInObjectOffset(int offset, Encoding encoding) {
 
 FieldIndex FieldIndex::ForPropertyIndex(const Map map, int property_index,
                                         Representation representation) {
-  DCHECK(map->instance_type() >= FIRST_NONSTRING_TYPE);
-  int inobject_properties = map->GetInObjectProperties();
+  DCHECK(map.instance_type() >= FIRST_NONSTRING_TYPE);
+  int inobject_properties = map.GetInObjectProperties();
   bool is_inobject = property_index < inobject_properties;
   int first_inobject_offset;
   int offset;
   if (is_inobject) {
-    first_inobject_offset = map->GetInObjectPropertyOffset(0);
-    offset = map->GetInObjectPropertyOffset(property_index);
+    first_inobject_offset = map.GetInObjectPropertyOffset(0);
+    offset = map.GetInObjectPropertyOffset(property_index);
   } else {
     first_inobject_offset = FixedArray::kHeaderSize;
     property_index -= inobject_properties;
@@ -62,7 +62,7 @@ int FieldIndex::GetLoadByFieldIndex() const {
 
 FieldIndex FieldIndex::ForDescriptor(const Map map, int descriptor_index) {
   PropertyDetails details =
-      map->instance_descriptors()->GetDetails(descriptor_index);
+      map.instance_descriptors().GetDetails(descriptor_index);
   int field_index = details.field_index();
   return ForPropertyIndex(map, field_index, details.representation());
 }

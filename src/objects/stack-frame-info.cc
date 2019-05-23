@@ -10,59 +10,59 @@ namespace v8 {
 namespace internal {
 
 int StackTraceFrame::GetLineNumber(Handle<StackTraceFrame> frame) {
-  if (frame->frame_info()->IsUndefined()) InitializeFrameInfo(frame);
+  if (frame->frame_info().IsUndefined()) InitializeFrameInfo(frame);
   int line = GetFrameInfo(frame)->line_number();
   return line != StackFrameBase::kNone ? line : Message::kNoLineNumberInfo;
 }
 
 int StackTraceFrame::GetColumnNumber(Handle<StackTraceFrame> frame) {
-  if (frame->frame_info()->IsUndefined()) InitializeFrameInfo(frame);
+  if (frame->frame_info().IsUndefined()) InitializeFrameInfo(frame);
   int column = GetFrameInfo(frame)->column_number();
   return column != StackFrameBase::kNone ? column : Message::kNoColumnInfo;
 }
 
 int StackTraceFrame::GetScriptId(Handle<StackTraceFrame> frame) {
-  if (frame->frame_info()->IsUndefined()) InitializeFrameInfo(frame);
+  if (frame->frame_info().IsUndefined()) InitializeFrameInfo(frame);
   int id = GetFrameInfo(frame)->script_id();
   return id != StackFrameBase::kNone ? id : Message::kNoScriptIdInfo;
 }
 
 Handle<Object> StackTraceFrame::GetFileName(Handle<StackTraceFrame> frame) {
-  if (frame->frame_info()->IsUndefined()) InitializeFrameInfo(frame);
+  if (frame->frame_info().IsUndefined()) InitializeFrameInfo(frame);
   auto name = GetFrameInfo(frame)->script_name();
   return handle(name, frame->GetIsolate());
 }
 
 Handle<Object> StackTraceFrame::GetScriptNameOrSourceUrl(
     Handle<StackTraceFrame> frame) {
-  if (frame->frame_info()->IsUndefined()) InitializeFrameInfo(frame);
+  if (frame->frame_info().IsUndefined()) InitializeFrameInfo(frame);
   auto name = GetFrameInfo(frame)->script_name_or_source_url();
   return handle(name, frame->GetIsolate());
 }
 
 Handle<Object> StackTraceFrame::GetFunctionName(Handle<StackTraceFrame> frame) {
-  if (frame->frame_info()->IsUndefined()) InitializeFrameInfo(frame);
+  if (frame->frame_info().IsUndefined()) InitializeFrameInfo(frame);
   auto name = GetFrameInfo(frame)->function_name();
   return handle(name, frame->GetIsolate());
 }
 
 bool StackTraceFrame::IsEval(Handle<StackTraceFrame> frame) {
-  if (frame->frame_info()->IsUndefined()) InitializeFrameInfo(frame);
+  if (frame->frame_info().IsUndefined()) InitializeFrameInfo(frame);
   return GetFrameInfo(frame)->is_eval();
 }
 
 bool StackTraceFrame::IsConstructor(Handle<StackTraceFrame> frame) {
-  if (frame->frame_info()->IsUndefined()) InitializeFrameInfo(frame);
+  if (frame->frame_info().IsUndefined()) InitializeFrameInfo(frame);
   return GetFrameInfo(frame)->is_constructor();
 }
 
 bool StackTraceFrame::IsWasm(Handle<StackTraceFrame> frame) {
-  if (frame->frame_info()->IsUndefined()) InitializeFrameInfo(frame);
+  if (frame->frame_info().IsUndefined()) InitializeFrameInfo(frame);
   return GetFrameInfo(frame)->is_wasm();
 }
 
 bool StackTraceFrame::IsUserJavaScript(Handle<StackTraceFrame> frame) {
-  if (frame->frame_info()->IsUndefined()) InitializeFrameInfo(frame);
+  if (frame->frame_info().IsUndefined()) InitializeFrameInfo(frame);
   return GetFrameInfo(frame)->is_user_java_script();
 }
 

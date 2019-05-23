@@ -261,10 +261,10 @@ void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
     Code code = builtins->builtin(i);
     // Verify that the code object is still the "real code" and not a
     // trampoline (which wouldn't have source positions).
-    DCHECK(!code->is_off_heap_trampoline());
+    DCHECK(!code.is_off_heap_trampoline());
     std::vector<unsigned char> data(
-        code->SourcePositionTable()->GetDataStartAddress(),
-        code->SourcePositionTable()->GetDataEndAddress());
+        code.SourcePositionTable().GetDataStartAddress(),
+        code.SourcePositionTable().GetDataEndAddress());
     source_positions_[i] = data;
   }
 }

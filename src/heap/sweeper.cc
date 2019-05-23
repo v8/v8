@@ -281,10 +281,9 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
        LiveObjectRange<kBlackObjects>(p, marking_state_->bitmap(p))) {
     HeapObject const object = object_and_size.first;
     if (code_object_registry)
-      code_object_registry->RegisterAlreadyExistingCodeObject(
-          object->address());
+      code_object_registry->RegisterAlreadyExistingCodeObject(object.address());
     DCHECK(marking_state_->IsBlack(object));
-    Address free_end = object->address();
+    Address free_end = object.address();
     if (free_end != free_start) {
       CHECK_GT(free_end, free_start);
       size_t size = static_cast<size_t>(free_end - free_start);
@@ -311,8 +310,8 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
             static_cast<uint32_t>(free_end - p->address())));
       }
     }
-    Map map = object->synchronized_map();
-    int size = object->SizeFromMap(map);
+    Map map = object.synchronized_map();
+    int size = object.SizeFromMap(map);
     live_bytes += size;
     free_start = free_end + size;
   }

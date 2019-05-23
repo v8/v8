@@ -80,7 +80,7 @@ RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
   Handle<CallableTask> microtask = isolate->factory()->NewCallableTask(
       function, handle(function->native_context(), isolate));
   MicrotaskQueue* microtask_queue =
-      function->native_context()->microtask_queue();
+      function->native_context().microtask_queue();
   if (microtask_queue) microtask_queue->EnqueueMicrotask(*microtask);
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -117,7 +117,7 @@ RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSPromise, promise, 0);
 
-  promise->set_has_handler(true);
+  promise.set_has_handler(true);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

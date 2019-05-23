@@ -84,7 +84,7 @@ Object FutexEmulation::WaitJs(Isolate* isolate,
                               Handle<JSArrayBuffer> array_buffer, size_t addr,
                               int32_t value, double rel_timeout_ms) {
   Object res = Wait32(isolate, array_buffer, addr, value, rel_timeout_ms);
-  if (res->IsSmi()) {
+  if (res.IsSmi()) {
     int val = Smi::ToInt(res);
     switch (val) {
       case WaitReturnValue::kOk:
@@ -201,7 +201,7 @@ Object FutexEmulation::Wait(Isolate* isolate,
       // be false, so we'll loop and then check interrupts.
       if (interrupted) {
         Object interrupt_object = isolate->stack_guard()->HandleInterrupts();
-        if (interrupt_object->IsException(isolate)) {
+        if (interrupt_object.IsException(isolate)) {
           result = interrupt_object;
           callback_result = AtomicsWaitEvent::kTerminatedExecution;
           mutex_.Pointer()->Lock();

@@ -56,11 +56,11 @@ BUILTIN(SymbolKeyFor) {
   Object result;
   if (symbol->is_public()) {
     result = symbol->name();
-    DCHECK(result->IsString());
+    DCHECK(result.IsString());
   } else {
     result = ReadOnlyRoots(isolate).undefined_value();
   }
-  DCHECK_EQ(isolate->heap()->public_symbol_table()->SlowReverseLookup(*symbol),
+  DCHECK_EQ(isolate->heap()->public_symbol_table().SlowReverseLookup(*symbol),
             result);
   return result;
 }

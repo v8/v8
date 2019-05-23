@@ -108,8 +108,8 @@ void DecodeEntry(Vector<const byte> bytes, int* index,
 }
 
 Vector<const byte> VectorFromByteArray(ByteArray byte_array) {
-  return Vector<const byte>(byte_array->GetDataStartAddress(),
-                            byte_array->length());
+  return Vector<const byte>(byte_array.GetDataStartAddress(),
+                            byte_array.length());
 }
 
 #ifdef ENABLE_SLOW_DCHECKS

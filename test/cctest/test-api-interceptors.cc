@@ -1339,9 +1339,9 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
       v8::Utils::OpenHandle<Object, i::JSReceiver>(context->Global());
   CHECK(global_proxy->IsJSGlobalProxy());
   i::Handle<i::JSGlobalObject> global(
-      i::JSGlobalObject::cast(global_proxy->map()->prototype()),
+      i::JSGlobalObject::cast(global_proxy->map().prototype()),
       global_proxy->GetIsolate());
-  CHECK(global->map()->has_named_interceptor());
+  CHECK(global->map().has_named_interceptor());
 
   v8::Local<Value> value = CompileRun(
       "var f = function() { "
@@ -1403,9 +1403,9 @@ THREADED_TEST(InterceptorLoadICGlobalWithInterceptor) {
       v8::Utils::OpenHandle<Object, i::JSReceiver>(context->Global());
   CHECK(global_proxy->IsJSGlobalProxy());
   i::Handle<i::JSGlobalObject> global(
-      i::JSGlobalObject::cast(global_proxy->map()->prototype()),
+      i::JSGlobalObject::cast(global_proxy->map().prototype()),
       global_proxy->GetIsolate());
-  CHECK(global->map()->has_named_interceptor());
+  CHECK(global->map().has_named_interceptor());
 
   ExpectInt32(
       "(function() {"

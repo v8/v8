@@ -48,7 +48,7 @@
 namespace v8 {
 namespace internal {
 
-PropertyDetails::PropertyDetails(Smi smi) { value_ = smi->value(); }
+PropertyDetails::PropertyDetails(Smi smi) { value_ = smi.value(); }
 
 Smi PropertyDetails::AsSmi() const {
   // Ensure the upper 2 bits have the same value by sign extending it. This is
@@ -74,7 +74,7 @@ bool HeapObject::IsJSSloppyArgumentsObject() const {
 }
 
 bool HeapObject::IsJSGeneratorObject() const {
-  return map()->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
+  return map().instance_type() == JS_GENERATOR_OBJECT_TYPE ||
          IsJSAsyncFunctionObject() || IsJSAsyncGeneratorObject();
 }
 
@@ -84,29 +84,29 @@ bool HeapObject::IsDataHandler() const {
 
 bool HeapObject::IsClassBoilerplate() const { return IsFixedArrayExact(); }
 
-#define IS_TYPE_FUNCTION_DEF(type_)                                \
-  bool Object::Is##type_() const {                                 \
-    return IsHeapObject() && HeapObject::cast(*this)->Is##type_(); \
+#define IS_TYPE_FUNCTION_DEF(type_)                               \
+  bool Object::Is##type_() const {                                \
+    return IsHeapObject() && HeapObject::cast(*this).Is##type_(); \
   }
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 
-#define IS_TYPE_FUNCTION_DEF(Type, Value)                         \
-  bool Object::Is##Type(Isolate* isolate) const {                 \
-    return Is##Type(ReadOnlyRoots(isolate->heap()));              \
-  }                                                               \
-  bool Object::Is##Type(ReadOnlyRoots roots) const {              \
-    return *this == roots.Value();                                \
-  }                                                               \
-  bool Object::Is##Type() const {                                 \
-    return IsHeapObject() && HeapObject::cast(*this)->Is##Type(); \
-  }                                                               \
-  bool HeapObject::Is##Type(Isolate* isolate) const {             \
-    return Object::Is##Type(isolate);                             \
-  }                                                               \
-  bool HeapObject::Is##Type(ReadOnlyRoots roots) const {          \
-    return Object::Is##Type(roots);                               \
-  }                                                               \
+#define IS_TYPE_FUNCTION_DEF(Type, Value)                        \
+  bool Object::Is##Type(Isolate* isolate) const {                \
+    return Is##Type(ReadOnlyRoots(isolate->heap()));             \
+  }                                                              \
+  bool Object::Is##Type(ReadOnlyRoots roots) const {             \
+    return *this == roots.Value();                               \
+  }                                                              \
+  bool Object::Is##Type() const {                                \
+    return IsHeapObject() && HeapObject::cast(*this).Is##Type(); \
+  }                                                              \
+  bool HeapObject::Is##Type(Isolate* isolate) const {            \
+    return Object::Is##Type(isolate);                            \
+  }                                                              \
+  bool HeapObject::Is##Type(ReadOnlyRoots roots) const {         \
+    return Object::Is##Type(roots);                              \
+  }                                                              \
   bool HeapObject::Is##Type() const { return Is##Type(GetReadOnlyRoots()); }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
@@ -120,7 +120,7 @@ bool Object::IsNullOrUndefined(ReadOnlyRoots roots) const {
 }
 
 bool Object::IsNullOrUndefined() const {
-  return IsHeapObject() && HeapObject::cast(*this)->IsNullOrUndefined();
+  return IsHeapObject() && HeapObject::cast(*this).IsNullOrUndefined();
 }
 
 bool Object::IsZero() const { return *this == Smi::zero(); }
@@ -147,12 +147,12 @@ bool HeapObject::IsUniqueName() const {
 
 bool HeapObject::IsFunction() const {
   STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
-  return map()->instance_type() >= FIRST_FUNCTION_TYPE;
+  return map().instance_type() >= FIRST_FUNCTION_TYPE;
 }
 
-bool HeapObject::IsCallable() const { return map()->is_callable(); }
+bool HeapObject::IsCallable() const { return map().is_callable(); }
 
-bool HeapObject::IsConstructor() const { return map()->is_constructor(); }
+bool HeapObject::IsConstructor() const { return map().is_constructor(); }
 
 bool HeapObject::IsModuleInfo() const {
   return map() == GetReadOnlyRoots().module_info_map();
@@ -185,13 +185,13 @@ bool HeapObject::IsSeqString() const {
 bool HeapObject::IsSeqOneByteString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(*this)).IsSequential() &&
-         String::cast(*this)->IsOneByteRepresentation();
+         String::cast(*this).IsOneByteRepresentation();
 }
 
 bool HeapObject::IsSeqTwoByteString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(*this)).IsSequential() &&
-         String::cast(*this)->IsTwoByteRepresentation();
+         String::cast(*this).IsTwoByteRepresentation();
 }
 
 bool HeapObject::IsExternalString() const {
@@ -202,13 +202,13 @@ bool HeapObject::IsExternalString() const {
 bool HeapObject::IsExternalOneByteString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(*this)).IsExternal() &&
-         String::cast(*this)->IsOneByteRepresentation();
+         String::cast(*this).IsOneByteRepresentation();
 }
 
 bool HeapObject::IsExternalTwoByteString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(*this)).IsExternal() &&
-         String::cast(*this)->IsTwoByteRepresentation();
+         String::cast(*this).IsTwoByteRepresentation();
 }
 
 bool Object::IsNumber() const { return IsSmi() || IsHeapNumber(); }
@@ -216,7 +216,7 @@ bool Object::IsNumber() const { return IsSmi() || IsHeapNumber(); }
 bool Object::IsNumeric() const { return IsNumber() || IsBigInt(); }
 
 bool HeapObject::IsFiller() const {
-  InstanceType instance_type = map()->instance_type();
+  InstanceType instance_type = map().instance_type();
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
 
@@ -249,7 +249,7 @@ bool HeapObject::IsDeoptimizationData() const {
   // a deoptimization data array.  Since this is used for asserts we can
   // check that the length is zero or else the fixed size plus a multiple of
   // the entry size.
-  int length = FixedArray::cast(*this)->length();
+  int length = FixedArray::cast(*this).length();
   if (length == 0) return true;
 
   length -= DeoptimizationData::kFirstDeoptEntryIndex;
@@ -267,7 +267,7 @@ bool HeapObject::IsTemplateList() const {
   if (!IsFixedArrayExact()) return false;
   // There's actually no way to see the difference between a fixed array and
   // a template list.
-  if (FixedArray::cast(*this)->length() < 1) return false;
+  if (FixedArray::cast(*this).length() < 1) return false;
   return true;
 }
 
@@ -283,27 +283,27 @@ bool HeapObject::IsAbstractCode() const {
 }
 
 bool HeapObject::IsStringWrapper() const {
-  return IsJSValue() && JSValue::cast(*this)->value()->IsString();
+  return IsJSValue() && JSValue::cast(*this).value().IsString();
 }
 
 bool HeapObject::IsBooleanWrapper() const {
-  return IsJSValue() && JSValue::cast(*this)->value()->IsBoolean();
+  return IsJSValue() && JSValue::cast(*this).value().IsBoolean();
 }
 
 bool HeapObject::IsScriptWrapper() const {
-  return IsJSValue() && JSValue::cast(*this)->value()->IsScript();
+  return IsJSValue() && JSValue::cast(*this).value().IsScript();
 }
 
 bool HeapObject::IsNumberWrapper() const {
-  return IsJSValue() && JSValue::cast(*this)->value()->IsNumber();
+  return IsJSValue() && JSValue::cast(*this).value().IsNumber();
 }
 
 bool HeapObject::IsBigIntWrapper() const {
-  return IsJSValue() && JSValue::cast(*this)->value()->IsBigInt();
+  return IsJSValue() && JSValue::cast(*this).value().IsBigInt();
 }
 
 bool HeapObject::IsSymbolWrapper() const {
-  return IsJSValue() && JSValue::cast(*this)->value()->IsSymbol();
+  return IsJSValue() && JSValue::cast(*this).value().IsSymbol();
 }
 
 bool HeapObject::IsJSArrayBufferView() const {
@@ -328,7 +328,7 @@ bool Object::IsSmallOrderedHashTable() const {
 }
 
 bool Object::IsPrimitive() const {
-  return IsSmi() || HeapObject::cast(*this)->map()->IsPrimitiveMap();
+  return IsSmi() || HeapObject::cast(*this).map().IsPrimitiveMap();
 }
 
 // static
@@ -340,19 +340,19 @@ Maybe<bool> Object::IsArray(Handle<Object> object) {
   return JSProxy::IsArray(Handle<JSProxy>::cast(object));
 }
 
-bool HeapObject::IsUndetectable() const { return map()->is_undetectable(); }
+bool HeapObject::IsUndetectable() const { return map().is_undetectable(); }
 
 bool HeapObject::IsAccessCheckNeeded() const {
   if (IsJSGlobalProxy()) {
     const JSGlobalProxy proxy = JSGlobalProxy::cast(*this);
-    JSGlobalObject global = proxy->GetIsolate()->context()->global_object();
-    return proxy->IsDetachedFrom(global);
+    JSGlobalObject global = proxy.GetIsolate()->context().global_object();
+    return proxy.IsDetachedFrom(global);
   }
-  return map()->is_access_check_needed();
+  return map().is_access_check_needed();
 }
 
 bool HeapObject::IsStruct() const {
-  switch (map()->instance_type()) {
+  switch (map().instance_type()) {
 #define MAKE_STRUCT_CASE(TYPE, Name, name) \
   case TYPE:                               \
     return true;
@@ -375,18 +375,18 @@ bool HeapObject::IsStruct() const {
   }
 }
 
-#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                   \
-  bool Object::Is##Name() const {                                 \
-    return IsHeapObject() && HeapObject::cast(*this)->Is##Name(); \
-  }                                                               \
+#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                  \
+  bool Object::Is##Name() const {                                \
+    return IsHeapObject() && HeapObject::cast(*this).Is##Name(); \
+  }                                                              \
   TYPE_CHECKER(Name)
 STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 #undef MAKE_STRUCT_PREDICATE
 
 double Object::Number() const {
   DCHECK(IsNumber());
-  return IsSmi() ? static_cast<double>(Smi(this->ptr())->value())
-                 : HeapNumber::unchecked_cast(*this)->value();
+  return IsSmi() ? static_cast<double>(Smi(this->ptr()).value())
+                 : HeapNumber::unchecked_cast(*this).value();
 }
 
 // static
@@ -400,12 +400,12 @@ bool Object::SameNumberValue(double value1, double value2) {
 }
 
 bool Object::IsNaN() const {
-  return this->IsHeapNumber() && std::isnan(HeapNumber::cast(*this)->value());
+  return this->IsHeapNumber() && std::isnan(HeapNumber::cast(*this).value());
 }
 
 bool Object::IsMinusZero() const {
   return this->IsHeapNumber() &&
-         i::IsMinusZero(HeapNumber::cast(*this)->value());
+         i::IsMinusZero(HeapNumber::cast(*this).value());
 }
 
 OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
@@ -430,11 +430,11 @@ bool Object::FilterKey(PropertyFilter filter) {
   DCHECK(!IsPropertyCell());
   if (filter == PRIVATE_NAMES_ONLY) {
     if (!IsSymbol()) return true;
-    return !Symbol::cast(*this)->is_private_name();
+    return !Symbol::cast(*this).is_private_name();
   } else if (IsSymbol()) {
     if (filter & SKIP_SYMBOLS) return true;
 
-    if (Symbol::cast(*this)->is_private()) return true;
+    if (Symbol::cast(*this).is_private()) return true;
   } else {
     if (filter & SKIP_STRINGS) return true;
   }
@@ -486,7 +486,7 @@ bool Object::ToUint32(uint32_t* value) const {
     return true;
   }
   if (IsHeapNumber()) {
-    double num = HeapNumber::cast(*this)->value();
+    double num = HeapNumber::cast(*this).value();
     return DoubleToUint32IfEqualToSelf(num, value);
   }
   return false;
@@ -510,7 +510,7 @@ MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> input) {
 // static
 MaybeHandle<Object> Object::ToPropertyKey(Isolate* isolate,
                                           Handle<Object> value) {
-  if (value->IsSmi() || HeapObject::cast(*value)->IsName()) return value;
+  if (value->IsSmi() || HeapObject::cast(*value).IsName()) return value;
   return ConvertToPropertyKey(isolate, value);
 }
 
@@ -547,7 +547,7 @@ MaybeHandle<Object> Object::ToInt32(Isolate* isolate, Handle<Object> input) {
 
 // static
 MaybeHandle<Object> Object::ToUint32(Isolate* isolate, Handle<Object> input) {
-  if (input->IsSmi()) return handle(Smi::cast(*input)->ToUint32Smi(), isolate);
+  if (input->IsSmi()) return handle(Smi::cast(*input).ToUint32Smi(), isolate);
   return ConvertToUint32(isolate, input);
 }
 
@@ -611,7 +611,7 @@ Map MapWord::ToMap() const { return Map::unchecked_cast(Object(value_)); }
 bool MapWord::IsForwardingAddress() const { return HAS_SMI_TAG(value_); }
 
 MapWord MapWord::FromForwardingAddress(HeapObject object) {
-  return MapWord(object->ptr() - kHeapObjectTag);
+  return MapWord(object.ptr() - kHeapObjectTag);
 }
 
 HeapObject MapWord::ToForwardingAddress() {
@@ -632,7 +632,7 @@ void HeapObject::VerifyMaybeObjectField(Isolate* isolate, int offset) {
 }
 
 void HeapObject::VerifySmiField(int offset) {
-  CHECK(READ_FIELD(*this, offset)->IsSmi());
+  CHECK(READ_FIELD(*this, offset).IsSmi());
   STATIC_ASSERT(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
@@ -807,7 +807,7 @@ AllocationAlignment HeapObject::RequiredAlignment(Map map) {
   // compression is supported) allow unaligned access to doubles and full words.
 #endif  // V8_COMPRESS_POINTERS
 #ifdef V8_HOST_ARCH_32_BIT
-  int instance_type = map->instance_type();
+  int instance_type = map.instance_type();
   if (instance_type == FIXED_FLOAT64_ARRAY_TYPE ||
       instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
     return kDoubleAligned;
@@ -919,12 +919,12 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
 // static
 Object Object::GetSimpleHash(Object object) {
   DisallowHeapAllocation no_gc;
-  if (object->IsSmi()) {
+  if (object.IsSmi()) {
     uint32_t hash = ComputeUnseededHash(Smi::ToInt(object));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
-  if (object->IsHeapNumber()) {
-    double num = HeapNumber::cast(object)->value();
+  if (object.IsHeapNumber()) {
+    double num = HeapNumber::cast(object).value();
     if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
     // Use ComputeUnseededHash for all values in Signed32 range, including -0,
     // which is considered equal to 0 because collections use SameValueZero.
@@ -937,34 +937,34 @@ Object Object::GetSimpleHash(Object object) {
     }
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
-  if (object->IsName()) {
-    uint32_t hash = Name::cast(object)->Hash();
+  if (object.IsName()) {
+    uint32_t hash = Name::cast(object).Hash();
     return Smi::FromInt(hash);
   }
-  if (object->IsOddball()) {
-    uint32_t hash = Oddball::cast(object)->to_string()->Hash();
+  if (object.IsOddball()) {
+    uint32_t hash = Oddball::cast(object).to_string().Hash();
     return Smi::FromInt(hash);
   }
-  if (object->IsBigInt()) {
-    uint32_t hash = BigInt::cast(object)->Hash();
+  if (object.IsBigInt()) {
+    uint32_t hash = BigInt::cast(object).Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
-  if (object->IsSharedFunctionInfo()) {
-    uint32_t hash = SharedFunctionInfo::cast(object)->Hash();
+  if (object.IsSharedFunctionInfo()) {
+    uint32_t hash = SharedFunctionInfo::cast(object).Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
-  DCHECK(object->IsJSReceiver());
+  DCHECK(object.IsJSReceiver());
   return object;
 }
 
 Object Object::GetHash() {
   DisallowHeapAllocation no_gc;
   Object hash = GetSimpleHash(*this);
-  if (hash->IsSmi()) return hash;
+  if (hash.IsSmi()) return hash;
 
   DCHECK(IsJSReceiver());
   JSReceiver receiver = JSReceiver::cast(*this);
-  return receiver->GetIdentityHash();
+  return receiver.GetIdentityHash();
 }
 
 Handle<Object> ObjectHashTableShape::AsHandle(Handle<Object> key) {
@@ -1036,8 +1036,8 @@ FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
 #undef FIELD_ACCESSORS
 
 FreshlyAllocatedBigInt FreshlyAllocatedBigInt::cast(Object object) {
-  SLOW_DCHECK(object->IsBigInt());
-  return FreshlyAllocatedBigInt(object->ptr());
+  SLOW_DCHECK(object.IsBigInt());
+  return FreshlyAllocatedBigInt(object.ptr());
 }
 
 }  // namespace internal

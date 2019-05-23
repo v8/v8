@@ -38,10 +38,9 @@ uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
     case WasmInitExpr::kGlobalIndex: {
       uint32_t offset =
           instance->module()->globals[expr.val.global_index].offset;
-      auto raw_addr =
-          reinterpret_cast<Address>(
-              instance->untagged_globals_buffer()->backing_store()) +
-          offset;
+      auto raw_addr = reinterpret_cast<Address>(
+                          instance->untagged_globals_buffer().backing_store()) +
+                      offset;
       return ReadLittleEndianValue<uint32_t>(raw_addr);
     }
     default:
@@ -429,10 +428,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       uint32_t base = EvalUint32InitExpr(instance, elem_segment.offset);
       // Because of imported tables, {table_size} has to come from the table
       // object itself.
-      auto table_object = handle(WasmTableObject::cast(instance->tables()->get(
+      auto table_object = handle(WasmTableObject::cast(instance->tables().get(
                                      elem_segment.table_index)),
                                  isolate_);
-      size_t table_size = table_object->entries()->length();
+      size_t table_size = table_object->entries().length();
       if (!IsInBounds(base, elem_segment.entries.size(), table_size)) {
         thrower_->LinkError("table initializer is out of bounds");
         return {};
@@ -802,9 +801,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       break;
     }
     case compiler::WasmImportCallKind::kWasmToCapi: {
-      NativeModule* native_module = instance->module_object()->native_module();
-      Address host_address =
-          WasmCapiFunction::cast(*value)->GetHostCallTarget();
+      NativeModule* native_module = instance->module_object().native_module();
+      Address host_address = WasmCapiFunction::cast(*value).GetHostCallTarget();
       WasmCodeRefScope code_ref_scope;
       WasmCode* wasm_code = compiler::CompileWasmCapiCallWrapper(
           isolate_->wasm_engine(), native_module, expected_sig, host_address);
@@ -821,7 +819,7 @@ bool InstanceBuilder::ProcessImportedFunction(
     }
     default: {
       // The imported function is a callable.
-      NativeModule* native_module = instance->module_object()->native_module();
+      NativeModule* native_module = instance->module_object().native_module();
       WasmCode* wasm_code = native_module->import_wrapper_cache()->GetOrCompile(
           isolate_->wasm_engine(), isolate_->counters(), kind, expected_sig);
       ImportedFunctionEntry entry(instance, func_index);
@@ -869,7 +867,7 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     Handle<WasmInstanceObject> target_instance =
         maybe_target_instance.ToHandleChecked();
     FunctionSig* sig = target_instance->module_object()
-                           ->module()
+                           .module()
                            ->functions[function_index]
                            .sig;
 
@@ -895,7 +893,7 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
   }
   const WasmTable& table = module_->tables[table_index];
 
-  instance->tables()->set(table_index, *value);
+  instance->tables().set(table_index, *value);
   auto table_object = Handle<WasmTableObject>::cast(value);
 
   int imported_table_size = table_object->entries().length();
@@ -906,12 +904,12 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
   }
 
   if (table.has_maximum_size) {
-    if (table_object->maximum_length()->IsUndefined(isolate_)) {
+    if (table_object->maximum_length().IsUndefined(isolate_)) {
       thrower_->LinkError("table import %d has no maximum length, expected %d",
                           import_index, table.maximum_size);
       return false;
     }
-    int64_t imported_maximum_size = table_object->maximum_length()->Number();
+    int64_t imported_maximum_size = table_object->maximum_length().Number();
     if (imported_maximum_size < 0) {
       thrower_->LinkError("table import %d has no maximum length, expected %d",
                           import_index, table.maximum_size);
@@ -1031,7 +1029,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
       address_or_offset = reinterpret_cast<Address>(raw_buffer_ptr(
           Handle<JSArrayBuffer>::cast(buffer), global_object->offset()));
     }
-    instance->imported_mutable_globals_buffers()->set(global.index, *buffer);
+    instance->imported_mutable_globals_buffers().set(global.index, *buffer);
     instance->imported_mutable_globals()[global.index] = address_or_offset;
     return true;
   }
@@ -1196,8 +1194,8 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           return -1;
         }
         Object exception_tag = imported_exception->exception_tag();
-        DCHECK(instance->exceptions_table()->get(import.index)->IsUndefined());
-        instance->exceptions_table()->set(import.index, exception_tag);
+        DCHECK(instance->exceptions_table().get(import.index).IsUndefined());
+        instance->exceptions_table().set(import.index, exception_tag);
         exception_wrappers_[import.index] = imported_exception;
         break;
       }
@@ -1387,7 +1385,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         break;
       }
       case kExternalTable: {
-        desc.set_value(handle(instance->tables()->get(exp.index), isolate_));
+        desc.set_value(handle(instance->tables().get(exp.index), isolate_));
         break;
       }
       case kExternalMemory: {
@@ -1455,7 +1453,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         Handle<WasmExceptionObject> wrapper = exception_wrappers_[exp.index];
         if (wrapper.is_null()) {
           Handle<HeapObject> exception_tag(
-              HeapObject::cast(instance->exceptions_table()->get(exp.index)),
+              HeapObject::cast(instance->exceptions_table().get(exp.index)),
               isolate_);
           wrapper =
               WasmExceptionObject::New(isolate_, exception.sig, exception_tag);
@@ -1509,7 +1507,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
   // for both instantiation and in the implementation of the table.init
   // instruction.
   bool ok =
-      ClampToBounds<size_t>(dst, &count, table_object->entries()->length());
+      ClampToBounds<size_t>(dst, &count, table_object->entries().length());
   // Use & instead of && so the clamp is not short-circuited.
   ok &= ClampToBounds<size_t>(src, &count, elem_segment.entries.size());
 
@@ -1547,8 +1545,8 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate, table_object, entry_index, instance, func_index);
     } else {
-      table_object->entries()->set(entry_index,
-                                   *wasm_exported_function.ToHandleChecked());
+      table_object->entries().set(entry_index,
+                                  *wasm_exported_function.ToHandleChecked());
     }
     // UpdateDispatchTables() updates all other dispatch tables, since
     // we have not yet added the dispatch table we are currently building.
@@ -1570,7 +1568,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     bool success = LoadElemSegmentImpl(
         isolate_, instance,
         handle(WasmTableObject::cast(
-                   instance->tables()->get(elem_segment.table_index)),
+                   instance->tables().get(elem_segment.table_index)),
                isolate_),
         elem_segment, dst, src, count);
     if (enabled_.bulk_memory) {
@@ -1590,7 +1588,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
   for (int index = 0; index < table_count; ++index) {
     if (module_->tables[index].type == kWasmAnyFunc) {
       auto table_object = handle(
-          WasmTableObject::cast(instance->tables()->get(index)), isolate_);
+          WasmTableObject::cast(instance->tables().get(index)), isolate_);
 
       // Add the new dispatch table at the end to avoid redundant lookups.
       WasmTableObject::AddDispatchTable(isolate_, table_object, instance,
@@ -1603,7 +1601,7 @@ void InstanceBuilder::InitializeExceptions(
     Handle<WasmInstanceObject> instance) {
   Handle<FixedArray> exceptions_table(instance->exceptions_table(), isolate_);
   for (int index = 0; index < exceptions_table->length(); ++index) {
-    if (!exceptions_table->get(index)->IsUndefined(isolate_)) continue;
+    if (!exceptions_table->get(index).IsUndefined(isolate_)) continue;
     Handle<WasmExceptionTag> exception_tag =
         WasmExceptionTag::New(isolate_, index);
     exceptions_table->set(index, *exception_tag);
@@ -1623,7 +1621,7 @@ bool LoadElemSegment(Isolate* isolate, Handle<WasmInstanceObject> instance,
   auto& elem_segment = instance->module()->elem_segments[segment_index];
   return LoadElemSegmentImpl(
       isolate, instance,
-      handle(WasmTableObject::cast(instance->tables()->get(table_index)),
+      handle(WasmTableObject::cast(instance->tables().get(table_index)),
              isolate),
       elem_segment, dst, src, count);
 }

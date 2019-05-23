@@ -151,7 +151,7 @@ void OptimizedCompilationInfo::RetryOptimization(BailoutReason reason) {
 
 std::unique_ptr<char[]> OptimizedCompilationInfo::GetDebugName() const {
   if (!shared_info().is_null()) {
-    return shared_info()->DebugName()->ToCString();
+    return shared_info()->DebugName().ToCString();
   }
   Vector<const char> name_vec = debug_name_;
   if (name_vec.empty()) name_vec = ArrayVector("unknown");
@@ -216,7 +216,7 @@ bool OptimizedCompilationInfo::has_global_object() const {
 
 JSGlobalObject OptimizedCompilationInfo::global_object() const {
   DCHECK(has_global_object());
-  return native_context()->global_object();
+  return native_context().global_object();
 }
 
 int OptimizedCompilationInfo::AddInlinedFunction(

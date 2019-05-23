@@ -60,7 +60,7 @@ static void DumpKnownMap(i::Heap* heap, const char* space_name,
 
   if (root_name == nullptr) return;
   i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): (%d, \"%s\"),\n", space_name,
-            root_ptr, map->instance_type(), root_name);
+            root_ptr, map.instance_type(), root_name);
 
 #undef MUTABLE_ROOT_LIST_CASE
 #undef RO_ROOT_LIST_CASE
@@ -124,13 +124,13 @@ static int DumpHeapConstants(const char* argv0) {
       i::ReadOnlyHeapIterator ro_iterator(heap->read_only_heap());
       for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
            object = ro_iterator.Next()) {
-        if (!object->IsMap()) continue;
+        if (!object.IsMap()) continue;
         DumpKnownMap(heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
       }
       i::HeapObjectIterator iterator(heap->map_space());
       for (i::HeapObject object = iterator.Next(); !object.is_null();
            object = iterator.Next()) {
-        if (!object->IsMap()) continue;
+        if (!object.IsMap()) continue;
         DumpKnownMap(heap, i::Heap::GetSpaceName(i::MAP_SPACE), object);
       }
       i::PrintF("}\n");
@@ -144,7 +144,7 @@ static int DumpHeapConstants(const char* argv0) {
       for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
            object = ro_iterator.Next()) {
         // Skip read-only heap maps, they will be reported elsewhere.
-        if (object->IsMap()) continue;
+        if (object.IsMap()) continue;
         DumpKnownObject(heap, i::Heap::GetSpaceName(i::RO_SPACE), object);
       }
 

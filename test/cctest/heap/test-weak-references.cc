@@ -28,7 +28,7 @@ Handle<FeedbackVector> CreateFeedbackVectorForTest(
           .ToLocalChecked();
   Handle<Object> obj = v8::Utils::OpenHandle(*script);
   Handle<SharedFunctionInfo> shared_function =
-      Handle<SharedFunctionInfo>(JSFunction::cast(*obj)->shared(), i_isolate);
+      Handle<SharedFunctionInfo>(JSFunction::cast(*obj).shared(), i_isolate);
   Handle<ClosureFeedbackCellArray> closure_cell_array =
       ClosureFeedbackCellArray::New(i_isolate, shared_function);
   Handle<FeedbackVector> fv = factory->NewFeedbackVector(
@@ -414,21 +414,21 @@ TEST(WeakArraysBasic) {
   CcTest::CollectGarbage(NEW_SPACE);
   HeapObject heap_object;
   CHECK(array->Get(0)->GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2016);
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2016);
   CHECK(array->Get(1)->GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2017);
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2017);
   CHECK(array->Get(2)->GetHeapObjectIfStrong(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2018);
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2018);
   CHECK(array->Get(3)->GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2019);
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2019);
 
   CcTest::CollectAllGarbage();
   CHECK(heap->InOldSpace(*array));
   CHECK(array->Get(0)->IsCleared());
   CHECK(array->Get(1)->GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2017);
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2017);
   CHECK(array->Get(2)->GetHeapObjectIfStrong(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2018);
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2018);
   CHECK(array->Get(3)->IsCleared());
 }
 
@@ -509,19 +509,19 @@ TEST(WeakArrayListBasic) {
   HeapObject heap_object;
   CHECK_EQ(array->length(), 8);
   CHECK(array->Get(0)->GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2016);
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2016);
   CHECK_EQ(array->Get(1).ToSmi().value(), 1);
 
   CHECK(array->Get(2)->GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2017);
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2017);
   CHECK_EQ(array->Get(3).ToSmi().value(), 3);
 
   CHECK(array->Get(4)->GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2018);
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2018);
   CHECK_EQ(array->Get(5).ToSmi().value(), 5);
 
   CHECK(array->Get(6)->GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2019);
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2019);
   CHECK_EQ(array->Get(7).ToSmi().value(), 7);
 
   CcTest::CollectAllGarbage();
@@ -531,7 +531,7 @@ TEST(WeakArrayListBasic) {
   CHECK_EQ(array->Get(1).ToSmi().value(), 1);
 
   CHECK(array->Get(2)->GetHeapObjectIfWeak(&heap_object));
-  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2017);
+  CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2017);
   CHECK_EQ(array->Get(3).ToSmi().value(), 3);
 
   CHECK(array->Get(4)->IsCleared());
@@ -765,7 +765,7 @@ TEST(PrototypeUsersCompacted) {
   CHECK_EQ(array->length(), 3 + PrototypeUsers::kFirstIndex);
   WeakArrayList new_array =
       PrototypeUsers::Compact(array, heap, TestCompactCallback);
-  CHECK_EQ(new_array->length(), 1 + PrototypeUsers::kFirstIndex);
+  CHECK_EQ(new_array.length(), 1 + PrototypeUsers::kFirstIndex);
   CHECK_EQ(saved_heap_object, *live_map);
 }
 

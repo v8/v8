@@ -39,7 +39,7 @@ CompilationCache::CompilationCache(Isolate* isolate)
 Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
   DCHECK(generation < generations_);
   Handle<CompilationCacheTable> result;
-  if (tables_[generation]->IsUndefined(isolate())) {
+  if (tables_[generation].IsUndefined(isolate())) {
     result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
@@ -53,8 +53,8 @@ Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
 void CompilationSubCache::Age() {
   // Don't directly age single-generation caches.
   if (generations_ == 1) {
-    if (!tables_[0]->IsUndefined(isolate())) {
-      CompilationCacheTable::cast(tables_[0])->Age();
+    if (!tables_[0].IsUndefined(isolate())) {
+      CompilationCacheTable::cast(tables_[0]).Age();
     }
     return;
   }
@@ -76,8 +76,7 @@ void CompilationSubCache::Iterate(RootVisitor* v) {
 
 void CompilationSubCache::Clear() {
   MemsetPointer(reinterpret_cast<Address*>(tables_),
-                ReadOnlyRoots(isolate()).undefined_value()->ptr(),
-                generations_);
+                ReadOnlyRoots(isolate()).undefined_value().ptr(), generations_);
 }
 
 void CompilationSubCache::Remove(Handle<SharedFunctionInfo> function_info) {
@@ -108,13 +107,13 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
   // an undefined name to have the same origin.
   Handle<Object> name;
   if (!maybe_name.ToHandle(&name)) {
-    return script->name()->IsUndefined(isolate());
+    return script->name().IsUndefined(isolate());
   }
   // Do the fast bailout checks first.
   if (line_offset != script->line_offset()) return false;
   if (column_offset != script->column_offset()) return false;
   // Check that both names are strings. If not, no match.
-  if (!name->IsString() || !script->name()->IsString()) return false;
+  if (!name->IsString() || !script->name().IsString()) return false;
   // Are the origin_options same?
   if (resource_options.Flags() != script->origin_options().Flags())
     return false;

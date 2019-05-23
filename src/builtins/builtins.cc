@@ -76,13 +76,13 @@ const char* Builtins::Lookup(Address pc) {
   // Off-heap pc's can be looked up through binary search.
   if (FLAG_embedded_builtins) {
     Code maybe_builtin = InstructionStream::TryLookupCode(isolate_, pc);
-    if (!maybe_builtin.is_null()) return name(maybe_builtin->builtin_index());
+    if (!maybe_builtin.is_null()) return name(maybe_builtin.builtin_index());
   }
 
   // May be called during initialization (disassembler).
   if (initialized_) {
     for (int i = 0; i < builtin_count; i++) {
-      if (isolate_->heap()->builtin(i)->contains(pc)) return name(i);
+      if (isolate_->heap()->builtin(i).contains(pc)) return name(i);
     }
   }
   return nullptr;
@@ -185,7 +185,7 @@ void Builtins::PrintBuiltinSize() {
     const char* kind = KindNameOf(i);
     Code code = builtin(i);
     PrintF(stdout, "%s Builtin, %s, %d\n", kind, builtin_name,
-           code->InstructionSize());
+           code.InstructionSize());
   }
 }
 
@@ -197,7 +197,7 @@ Address Builtins::CppEntryOf(int index) {
 
 // static
 bool Builtins::IsBuiltin(const Code code) {
-  return Builtins::IsBuiltinId(code->builtin_index());
+  return Builtins::IsBuiltinId(code.builtin_index());
 }
 
 bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
@@ -216,7 +216,7 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
 // static
 bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
   if (FLAG_embedded_builtins) {
-    const int builtin_index = code->builtin_index();
+    const int builtin_index = code.builtin_index();
     return Builtins::IsBuiltinId(builtin_index) &&
            Builtins::IsIsolateIndependent(builtin_index);
   } else {
@@ -245,7 +245,7 @@ void Builtins::UpdateBuiltinEntryTable(Isolate* isolate) {
   Heap* heap = isolate->heap();
   Address* builtin_entry_table = isolate->builtin_entry_table();
   for (int i = 0; i < builtin_count; i++) {
-    builtin_entry_table[i] = heap->builtin(i)->InstructionStart();
+    builtin_entry_table[i] = heap->builtin(i).InstructionStart();
   }
 }
 

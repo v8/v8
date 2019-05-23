@@ -77,8 +77,8 @@ MaybeHandle<String> StringReplaceOneCharWithString(
   recursion_limit--;
   if (subject->IsConsString()) {
     ConsString cons = ConsString::cast(*subject);
-    Handle<String> first = handle(cons->first(), isolate);
-    Handle<String> second = handle(cons->second(), isolate);
+    Handle<String> first = handle(cons.first(), isolate);
+    Handle<String> second = handle(cons.second(), isolate);
     Handle<String> new_first;
     if (!StringReplaceOneCharWithString(isolate, first, search, replace, found,
                                         recursion_limit).ToHandle(&new_first)) {
@@ -276,7 +276,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   int32_t array_length;
-  if (!args[1]->ToInt32(&array_length)) {
+  if (!args[1].ToInt32(&array_length)) {
     THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
   }
   CONVERT_ARG_HANDLE_CHECKED(String, special, 2);
@@ -303,15 +303,15 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   {
     DisallowHeapAllocation no_gc;
     FixedArray fixed_array = FixedArray::cast(array->elements());
-    if (fixed_array->length() < array_length) {
-      array_length = fixed_array->length();
+    if (fixed_array.length() < array_length) {
+      array_length = fixed_array.length();
     }
 
     if (array_length == 0) {
       return ReadOnlyRoots(isolate).empty_string();
     } else if (array_length == 1) {
-      Object first = fixed_array->get(0);
-      if (first->IsString()) return first;
+      Object first = fixed_array.get(0);
+      if (first.IsString()) return first;
     }
     length = StringBuilderConcatLength(special_length, fixed_array,
                                        array_length, &one_byte);
@@ -356,20 +356,20 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
   FixedArray one_byte_cache = heap->single_character_string_cache();
   Object undefined = ReadOnlyRoots(heap).undefined_value();
   int i;
-  WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
+  WriteBarrierMode mode = elements.GetWriteBarrierMode(no_gc);
   for (i = 0; i < length; ++i) {
-    Object value = one_byte_cache->get(chars[i]);
+    Object value = one_byte_cache.get(chars[i]);
     if (value == undefined) break;
-    elements->set(i, value, mode);
+    elements.set(i, value, mode);
   }
   if (i < length) {
-    MemsetTagged(elements->RawFieldOfElementAt(i), Smi::kZero, length - i);
+    MemsetTagged(elements.RawFieldOfElementAt(i), Smi::kZero, length - i);
   }
 #ifdef DEBUG
   for (int j = 0; j < length; ++j) {
-    Object element = elements->get(j);
+    Object element = elements.get(j);
     DCHECK(element == Smi::kZero ||
-           (element->IsString() && String::cast(element)->LooksValid()));
+           (element.IsString() && String::cast(element).LooksValid()));
   }
 #endif
   return i;
@@ -415,7 +415,7 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
 
 #ifdef DEBUG
   for (int i = 0; i < length; ++i) {
-    DCHECK_EQ(String::cast(elements->get(i))->length(), 1);
+    DCHECK_EQ(String::cast(elements->get(i)).length(), 1);
   }
 #endif
 

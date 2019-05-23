@@ -31,7 +31,7 @@ ASSERT_TRIVIALLY_COPYABLE(MaybeHandle<Object>);
 bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   DCHECK_NOT_NULL(location_);
   Object object(*location_);
-  if (object->IsSmi()) return true;
+  if (object.IsSmi()) return true;
   HeapObject heap_object = HeapObject::cast(object);
   Isolate* isolate;
   if (!GetIsolateFromWritableObject(heap_object, &isolate)) return true;
@@ -44,9 +44,9 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   if (mode == INCLUDE_DEFERRED_CHECK &&
       !AllowDeferredHandleDereference::IsAllowed()) {
     // Accessing cells, maps and internalized strings is safe.
-    if (heap_object->IsCell()) return true;
-    if (heap_object->IsMap()) return true;
-    if (heap_object->IsInternalizedString()) return true;
+    if (heap_object.IsCell()) return true;
+    if (heap_object.IsMap()) return true;
+    if (heap_object.IsInternalizedString()) return true;
     return !isolate->IsDeferredHandle(location_);
   }
   return true;

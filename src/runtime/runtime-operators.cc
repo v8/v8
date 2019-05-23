@@ -45,7 +45,7 @@ RUNTIME_FUNCTION(Runtime_StrictEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(Object, x, 0);
   CONVERT_ARG_CHECKED(Object, y, 1);
-  return isolate->heap()->ToBoolean(x->StrictEquals(y));
+  return isolate->heap()->ToBoolean(x.StrictEquals(y));
 }
 
 RUNTIME_FUNCTION(Runtime_StrictNotEqual) {
@@ -53,7 +53,7 @@ RUNTIME_FUNCTION(Runtime_StrictNotEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(Object, x, 0);
   CONVERT_ARG_CHECKED(Object, y, 1);
-  return isolate->heap()->ToBoolean(!x->StrictEquals(y));
+  return isolate->heap()->ToBoolean(!x.StrictEquals(y));
 }
 
 RUNTIME_FUNCTION(Runtime_LessThan) {

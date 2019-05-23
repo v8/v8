@@ -66,8 +66,7 @@ PipelineStatistics::PipelineStatistics(OptimizedCompilationInfo* info,
       phase_name_(nullptr) {
   if (info->has_shared_info()) {
     source_size_ = static_cast<size_t>(info->shared_info()->SourceSize());
-    std::unique_ptr<char[]> name =
-        info->shared_info()->DebugName()->ToCString();
+    std::unique_ptr<char[]> name = info->shared_info()->DebugName().ToCString();
     function_name_ = name.get();
   }
   total_stats_.Begin(this);

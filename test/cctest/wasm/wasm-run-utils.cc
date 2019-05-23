@@ -143,7 +143,7 @@ void TestingModuleBuilder::FreezeSignatureMapAndInitializeWrapperCache() {
   size_t max_num_sigs = MaxNumExportWrappers(test_module_.get());
   Handle<FixedArray> export_wrappers =
       isolate_->factory()->NewFixedArray(static_cast<int>(max_num_sigs));
-  instance_object_->module_object()->set_export_wrappers(*export_wrappers);
+  instance_object_->module_object().set_export_wrappers(*export_wrappers);
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
@@ -492,7 +492,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
 
   Vector<const uint8_t> wire_bytes = builder_->instance_object()
                                          ->module_object()
-                                         ->native_module()
+                                         .native_module()
                                          ->wire_bytes();
 
   CompilationEnv env = builder_->CreateCompilationEnv();
@@ -503,7 +503,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.begin(), func_wire_bytes.end()};
   NativeModule* native_module =
-      builder_->instance_object()->module_object()->native_module();
+      builder_->instance_object()->module_object().native_module();
   WasmCompilationUnit unit(function_->func_index, builder_->execution_tier());
   WasmFeatures unused_detected_features;
   WasmCompilationResult result = unit.ExecuteCompilation(

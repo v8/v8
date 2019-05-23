@@ -250,7 +250,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
   switch (operand.representation()) {
     case MachineRepresentation::kTagged:
       if (value->IsSmi()) {
-        os << Smi::cast(*value)->value();
+        os << Smi::cast(*value).value();
       } else {
         os << value->Number();
       }
@@ -263,7 +263,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
       FixedArray vector = FixedArray::cast(*value);
       os << "[";
       for (int lane = 0; lane < 4; lane++) {
-        os << Smi::cast(vector->get(lane))->value();
+        os << Smi::cast(vector.get(lane)).value();
         if (lane < 3) {
           os << ", ";
         }
@@ -808,9 +808,9 @@ class TestEnvironment : public HandleAndZoneScope {
       case MachineRepresentation::kSimd128:
         for (int lane = 0; lane < 4; lane++) {
           int actual_lane =
-              Smi::cast(FixedArray::cast(*actual)->get(lane))->value();
+              Smi::cast(FixedArray::cast(*actual).get(lane)).value();
           int expected_lane =
-              Smi::cast(FixedArray::cast(*expected)->get(lane))->value();
+              Smi::cast(FixedArray::cast(*expected).get(lane)).value();
           if (actual_lane != expected_lane) {
             return false;
           }

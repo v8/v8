@@ -86,7 +86,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     }
   }
 
-  if (object->map()->is_deprecated()) {
+  if (object->map().is_deprecated()) {
     JSObject::MigrateInstance(object);
   }
 
@@ -113,23 +113,23 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   // Deep copy own properties. Arrays only have 1 property "length".
   if (!copy->IsJSArray()) {
     if (copy->HasFastProperties()) {
-      Handle<DescriptorArray> descriptors(copy->map()->instance_descriptors(),
+      Handle<DescriptorArray> descriptors(copy->map().instance_descriptors(),
                                           isolate);
-      int limit = copy->map()->NumberOfOwnDescriptors();
+      int limit = copy->map().NumberOfOwnDescriptors();
       for (int i = 0; i < limit; i++) {
         DCHECK_EQ(kField, descriptors->GetDetails(i).location());
         DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
         FieldIndex index = FieldIndex::ForDescriptor(copy->map(), i);
         if (copy->IsUnboxedDoubleField(index)) continue;
         Object raw = copy->RawFastPropertyAt(index);
-        if (raw->IsJSObject()) {
+        if (raw.IsJSObject()) {
           Handle<JSObject> value(JSObject::cast(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(
               isolate, value, VisitElementOrProperty(copy, value), JSObject);
           if (copying) copy->FastPropertyAtPut(index, *value);
-        } else if (copying && raw->IsMutableHeapNumber()) {
+        } else if (copying && raw.IsMutableHeapNumber()) {
           DCHECK(descriptors->GetDetails(i).representation().IsDouble());
-          uint64_t double_value = MutableHeapNumber::cast(raw)->value_as_bits();
+          uint64_t double_value = MutableHeapNumber::cast(raw).value_as_bits();
           auto value =
               isolate->factory()->NewMutableHeapNumberFromBits(double_value);
           copy->FastPropertyAtPut(index, *value);
@@ -139,8 +139,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       Handle<NameDictionary> dict(copy->property_dictionary(), isolate);
       for (int i = 0; i < dict->Capacity(); i++) {
         Object raw = dict->ValueAt(i);
-        if (!raw->IsJSObject()) continue;
-        DCHECK(dict->KeyAt(i)->IsName());
+        if (!raw.IsJSObject()) continue;
+        DCHECK(dict->KeyAt(i).IsName());
         Handle<JSObject> value(JSObject::cast(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, value, VisitElementOrProperty(copy, value), JSObject);
@@ -149,7 +149,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     }
 
     // Assume non-arrays don't end up having elements.
-    if (copy->elements()->length() == 0) return copy;
+    if (copy->elements().length() == 0) return copy;
   }
 
   // Deep copy own elements.
@@ -164,13 +164,13 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       if (elements->map() == ReadOnlyRoots(isolate).fixed_cow_array_map()) {
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
-          DCHECK(!elements->get(i)->IsJSObject());
+          DCHECK(!elements->get(i).IsJSObject());
         }
 #endif
       } else {
         for (int i = 0; i < elements->length(); i++) {
           Object raw = elements->get(i);
-          if (!raw->IsJSObject()) continue;
+          if (!raw.IsJSObject()) continue;
           Handle<JSObject> value(JSObject::cast(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(
               isolate, value, VisitElementOrProperty(copy, value), JSObject);
@@ -185,7 +185,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       int capacity = element_dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
         Object raw = element_dictionary->ValueAt(i);
-        if (!raw->IsJSObject()) continue;
+        if (!raw.IsJSObject()) continue;
         Handle<JSObject> value(JSObject::cast(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, value, VisitElementOrProperty(copy, value), JSObject);
@@ -392,7 +392,7 @@ struct ObjectLiteralHelper {
       // TODO(cbruni): avoid making the boilerplate fast again, the clone stub
       // supports dict-mode objects directly.
       JSObject::MigrateSlowToFast(boilerplate,
-                                  boilerplate->map()->UnusedPropertyFields(),
+                                  boilerplate->map().UnusedPropertyFields(),
                                   "FastLiteral");
     }
     return boilerplate;
@@ -427,7 +427,7 @@ struct ArrayLiteralHelper {
         Handle<FixedArray> fixed_array_values =
             Handle<FixedArray>::cast(copied_elements_values);
         for (int i = 0; i < fixed_array_values->length(); i++) {
-          DCHECK(!fixed_array_values->get(i)->IsFixedArray());
+          DCHECK(!fixed_array_values->get(i).IsFixedArray());
         }
 #endif
       } else {

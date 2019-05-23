@@ -137,7 +137,7 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
     p = *f.function;
   }
   return Handle<JSFunction>(
-      p, p->GetIsolate());  // allocated in outer handle scope.
+      p, p.GetIsolate());  // allocated in outer handle scope.
 }
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {

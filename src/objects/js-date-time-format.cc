@@ -360,8 +360,8 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   Handle<Object> resolved_obj;
 
   CHECK(!date_time_format->icu_locale().is_null());
-  CHECK_NOT_NULL(date_time_format->icu_locale()->raw());
-  icu::Locale* icu_locale = date_time_format->icu_locale()->raw();
+  CHECK_NOT_NULL(date_time_format->icu_locale().raw());
+  icu::Locale* icu_locale = date_time_format->icu_locale().raw();
   Maybe<std::string> maybe_locale_str = Intl::ToLanguageTag(*icu_locale);
   MAYBE_RETURN(maybe_locale_str, MaybeHandle<JSObject>());
   std::string locale_str = maybe_locale_str.FromJust();
@@ -369,7 +369,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
       factory->NewStringFromAsciiChecked(locale_str.c_str());
 
   icu::SimpleDateFormat* icu_simple_date_format =
-      date_time_format->icu_simple_date_format()->raw();
+      date_time_format->icu_simple_date_format().raw();
   // calendar
   const icu::Calendar* calendar = icu_simple_date_format->getCalendar();
   // getType() returns legacy calendar type name instead of LDML/BCP47 calendar
@@ -580,7 +580,7 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
   }
   // 5. Return FormatDateTime(dtf, x).
   icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format()->raw();
+      date_time_format->icu_simple_date_format().raw();
   return FormatDateTime(isolate, *format, x);
 }
 
@@ -612,7 +612,7 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
                     String);
   }
 
-  double const x = Handle<JSDate>::cast(date)->value()->Number();
+  double const x = Handle<JSDate>::cast(date)->value().Number();
   // 2. If x is NaN, return "Invalid Date"
   if (std::isnan(x)) {
     return factory->Invalid_Date_string();
@@ -640,9 +640,8 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
 
   // 4. Let dateFormat be ? Construct(%DateTimeFormat%, « locales, options »).
   Handle<JSFunction> constructor = Handle<JSFunction>(
-      JSFunction::cast(isolate->context()
-                           ->native_context()
-                           ->intl_date_time_format_function()),
+      JSFunction::cast(
+          isolate->context().native_context().intl_date_time_format_function()),
       isolate);
   Handle<JSObject> obj;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -659,11 +658,11 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         cache_type, std::static_pointer_cast<icu::UMemory>(
-                        date_time_format->icu_simple_date_format()->get()));
+                        date_time_format->icu_simple_date_format().get()));
   }
   // 5. Return FormatDateTime(dateFormat, x).
   icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format()->raw();
+      date_time_format->icu_simple_date_format().raw();
   return FormatDateTime(isolate, *format, x);
 }
 
@@ -779,7 +778,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ToDateTimeOptions(
 MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
     Isolate* isolate, Handle<JSReceiver> format_holder) {
   Handle<Context> native_context =
-      Handle<Context>(isolate->context()->native_context(), isolate);
+      Handle<Context>(isolate->context().native_context(), isolate);
   Handle<JSFunction> constructor = Handle<JSFunction>(
       JSFunction::cast(native_context->intl_date_time_format_function()),
       isolate);
@@ -975,16 +974,16 @@ icu::DateIntervalFormat* LazyCreateDateIntervalFormat(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format) {
   Managed<icu::DateIntervalFormat> managed_format =
       date_time_format->icu_date_interval_format();
-  if (managed_format->get()) {
-    return managed_format->raw();
+  if (managed_format.get()) {
+    return managed_format.raw();
   }
   icu::SimpleDateFormat* icu_simple_date_format =
-      date_time_format->icu_simple_date_format()->raw();
+      date_time_format->icu_simple_date_format().raw();
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::DateIntervalFormat> date_interval_format(
       icu::DateIntervalFormat::createInstance(
           SkeletonFromDateFormat(*icu_simple_date_format),
-          *(date_time_format->icu_locale()->raw()), status));
+          *(date_time_format->icu_locale().raw()), status));
   if (U_FAILURE(status)) {
     return nullptr;
   }
@@ -993,7 +992,7 @@ icu::DateIntervalFormat* LazyCreateDateIntervalFormat(
       Managed<icu::DateIntervalFormat>::FromUniquePtr(
           isolate, 0, std::move(date_interval_format));
   date_time_format->set_icu_date_interval_format(*managed_interval_format);
-  return (*managed_interval_format)->raw();
+  return (*managed_interval_format).raw();
 }
 
 Intl::HourCycle HourCycleFromPattern(const icu::UnicodeString pattern) {
@@ -1563,7 +1562,7 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
     double date_value) {
   Factory* factory = isolate->factory();
   icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format()->raw();
+      date_time_format->icu_simple_date_format().raw();
   CHECK_NOT_NULL(format);
 
   icu::UnicodeString formatted;

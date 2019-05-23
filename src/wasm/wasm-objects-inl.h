@@ -53,7 +53,7 @@ CAST_ACCESSOR(AsmWasmData)
 
 #define OPTIONAL_ACCESSORS(holder, name, type, offset) \
   bool holder::has_##name() {                          \
-    return !READ_FIELD(*this, offset)->IsUndefined();  \
+    return !READ_FIELD(*this, offset).IsUndefined();   \
   }                                                    \
   ACCESSORS(holder, name, type, offset)
 
@@ -95,11 +95,11 @@ OPTIONAL_ACCESSORS(WasmModuleObject, asm_js_offset_table, ByteArray,
 OPTIONAL_ACCESSORS(WasmModuleObject, breakpoint_infos, FixedArray,
                    kBreakPointInfosOffset)
 wasm::NativeModule* WasmModuleObject::native_module() const {
-  return managed_native_module()->raw();
+  return managed_native_module().raw();
 }
 const std::shared_ptr<wasm::NativeModule>&
 WasmModuleObject::shared_native_module() const {
-  return managed_native_module()->get();
+  return managed_native_module().get();
 }
 const wasm::WasmModule* WasmModuleObject::module() const {
   // TODO(clemensh): Remove this helper (inline in callers).
@@ -111,7 +111,7 @@ void WasmModuleObject::reset_breakpoint_infos() {
 }
 bool WasmModuleObject::is_asm_js() {
   bool asm_js = module()->origin == wasm::kAsmJsOrigin;
-  DCHECK_EQ(asm_js, script()->IsUserJavaScript());
+  DCHECK_EQ(asm_js, script().IsUserJavaScript());
   DCHECK_EQ(asm_js, has_asm_js_offset_table());
   return asm_js;
 }
@@ -143,8 +143,8 @@ int WasmGlobalObject::type_size() const {
 
 Address WasmGlobalObject::address() const {
   DCHECK_NE(type(), wasm::kWasmAnyRef);
-  DCHECK_LE(offset() + type_size(), untagged_buffer()->byte_length());
-  return Address(untagged_buffer()->backing_store()) + offset();
+  DCHECK_LE(offset() + type_size(), untagged_buffer().byte_length());
+  return Address(untagged_buffer().backing_store()) + offset();
 }
 
 int32_t WasmGlobalObject::GetI32() {
@@ -166,7 +166,7 @@ double WasmGlobalObject::GetF64() {
 Handle<Object> WasmGlobalObject::GetRef() {
   // We use this getter for anyref, anyfunc, and except_ref.
   DCHECK(wasm::ValueTypes::IsReferenceType(type()));
-  return handle(tagged_buffer()->get(offset()), GetIsolate());
+  return handle(tagged_buffer().get(offset()), GetIsolate());
 }
 
 void WasmGlobalObject::SetI32(int32_t value) {
@@ -188,7 +188,7 @@ void WasmGlobalObject::SetF64(double value) {
 void WasmGlobalObject::SetAnyRef(Handle<Object> value) {
   // We use this getter anyref and except_ref.
   DCHECK(type() == wasm::kWasmAnyRef || type() == wasm::kWasmExceptRef);
-  tagged_buffer()->set(offset(), *value);
+  tagged_buffer().set(offset(), *value);
 }
 
 bool WasmGlobalObject::SetAnyFunc(Isolate* isolate, Handle<Object> value) {
@@ -197,7 +197,7 @@ bool WasmGlobalObject::SetAnyFunc(Isolate* isolate, Handle<Object> value) {
       !WasmExportedFunction::IsWasmExportedFunction(*value)) {
     return false;
   }
-  tagged_buffer()->set(offset(), *value);
+  tagged_buffer().set(offset(), *value);
   return true;
 }
 
@@ -339,7 +339,7 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 #undef WRITE_PRIMITIVE_FIELD
 #undef PRIMITIVE_ACCESSORS
 
-uint32_t WasmTableObject::current_length() { return entries()->length(); }
+uint32_t WasmTableObject::current_length() { return entries().length(); }
 
 wasm::ValueType WasmTableObject::type() {
   return static_cast<wasm::ValueType>(raw_type());

@@ -147,7 +147,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == FULL_EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(pc_, constant_pool_, target->ptr(),
+  Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null()) {
     WriteBarrierForCode(host(), this, target);
@@ -377,7 +377,7 @@ Address Assembler::target_constant_pool_address_at(
 void Assembler::deserialization_set_special_target_at(
     Address instruction_payload, Code code, Address target) {
   set_target_address_at(instruction_payload,
-                        !code.is_null() ? code->constant_pool() : kNullAddress,
+                        !code.is_null() ? code.constant_pool() : kNullAddress,
                         target);
 }
 

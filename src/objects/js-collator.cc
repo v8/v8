@@ -68,7 +68,7 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
   Handle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  icu::Collator* icu_collator = collator->icu_collator().raw();
   CHECK_NOT_NULL(icu_collator);
 
   UErrorCode status = U_ZERO_ERROR;

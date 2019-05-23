@@ -66,7 +66,7 @@ struct MemoryChunk {
 
   V8_INLINE static heap_internals::MemoryChunk* FromHeapObject(
       HeapObject object) {
-    return reinterpret_cast<MemoryChunk*>(object->ptr() & ~kPageAlignmentMask);
+    return reinterpret_cast<MemoryChunk*>(object.ptr() & ~kPageAlignmentMask);
   }
 
   V8_INLINE bool IsMarking() const { return GetFlags() & kMarkingBit; }
@@ -141,7 +141,7 @@ inline void MarkingBarrierInternal(HeapObject object, Address slot,
 
 inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object value) {
   DCHECK(!HasWeakHeapObjectTag(value));
-  if (!value->IsHeapObject()) return;
+  if (!value.IsHeapObject()) return;
   HeapObject object = HeapObject::cast(value);
   GenerationalBarrierForCode(host, rinfo, object);
   MarkingBarrierForCode(host, rinfo, object);
@@ -155,7 +155,7 @@ inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
                                 Object value) {
   DCHECK(!HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
-  if (!value->IsHeapObject()) return;
+  if (!value.IsHeapObject()) return;
   heap_internals::GenerationalBarrierInternal(object, slot.address(),
                                               HeapObject::cast(value));
 }
@@ -164,7 +164,7 @@ inline void GenerationalEphemeronKeyBarrier(EphemeronHashTable table,
                                             ObjectSlot slot, Object value) {
   DCHECK(!HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
-  DCHECK(value->IsHeapObject());
+  DCHECK(value.IsHeapObject());
   heap_internals::GenerationalEphemeronKeyBarrierInternal(
       table, slot.address(), HeapObject::cast(value));
 }
@@ -188,7 +188,7 @@ inline void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
 inline void MarkingBarrier(HeapObject object, ObjectSlot slot, Object value) {
   DCHECK_IMPLIES(slot.address() != kNullAddress, !HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
-  if (!value->IsHeapObject()) return;
+  if (!value.IsHeapObject()) return;
   heap_internals::MarkingBarrierInternal(object, slot.address(),
                                          HeapObject::cast(value));
 }

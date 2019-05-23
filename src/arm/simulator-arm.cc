@@ -290,7 +290,7 @@ void ArmDebugger::Debug() {
             Object obj(value);
             os << arg1 << ": \n";
 #ifdef DEBUG
-            obj->Print(os);
+            obj.Print(os);
             os << "\n";
 #else
             os << Brief(obj) << "\n";
@@ -339,7 +339,7 @@ void ArmDebugger::Debug() {
             if (obj.IsSmi()) {
               PrintF("smi %d", Smi::ToInt(obj));
             } else {
-              obj->ShortPrint();
+              obj.ShortPrint();
             }
             PrintF(")");
           }

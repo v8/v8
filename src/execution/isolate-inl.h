@@ -21,37 +21,37 @@ IsolateAllocationMode Isolate::isolate_allocation_mode() {
 }
 
 void Isolate::set_context(Context context) {
-  DCHECK(context.is_null() || context->IsContext());
+  DCHECK(context.is_null() || context.IsContext());
   thread_local_top()->context_ = context;
 }
 
 Handle<NativeContext> Isolate::native_context() {
-  return handle(context()->native_context(), this);
+  return handle(context().native_context(), this);
 }
 
 NativeContext Isolate::raw_native_context() {
-  return context()->native_context();
+  return context().native_context();
 }
 
 Object Isolate::pending_exception() {
   DCHECK(has_pending_exception());
-  DCHECK(!thread_local_top()->pending_exception_->IsException(this));
+  DCHECK(!thread_local_top()->pending_exception_.IsException(this));
   return thread_local_top()->pending_exception_;
 }
 
 void Isolate::set_pending_exception(Object exception_obj) {
-  DCHECK(!exception_obj->IsException(this));
+  DCHECK(!exception_obj.IsException(this));
   thread_local_top()->pending_exception_ = exception_obj;
 }
 
 void Isolate::clear_pending_exception() {
-  DCHECK(!thread_local_top()->pending_exception_->IsException(this));
+  DCHECK(!thread_local_top()->pending_exception_.IsException(this));
   thread_local_top()->pending_exception_ = ReadOnlyRoots(this).the_hole_value();
 }
 
 bool Isolate::has_pending_exception() {
-  DCHECK(!thread_local_top()->pending_exception_->IsException(this));
-  return !thread_local_top()->pending_exception_->IsTheHole(this);
+  DCHECK(!thread_local_top()->pending_exception_.IsException(this));
+  return !thread_local_top()->pending_exception_.IsTheHole(this);
 }
 
 void Isolate::clear_pending_message() {
@@ -61,18 +61,18 @@ void Isolate::clear_pending_message() {
 
 Object Isolate::scheduled_exception() {
   DCHECK(has_scheduled_exception());
-  DCHECK(!thread_local_top()->scheduled_exception_->IsException(this));
+  DCHECK(!thread_local_top()->scheduled_exception_.IsException(this));
   return thread_local_top()->scheduled_exception_;
 }
 
 bool Isolate::has_scheduled_exception() {
-  DCHECK(!thread_local_top()->scheduled_exception_->IsException(this));
+  DCHECK(!thread_local_top()->scheduled_exception_.IsException(this));
   return thread_local_top()->scheduled_exception_ !=
          ReadOnlyRoots(this).the_hole_value();
 }
 
 void Isolate::clear_scheduled_exception() {
-  DCHECK(!thread_local_top()->scheduled_exception_->IsException(this));
+  DCHECK(!thread_local_top()->scheduled_exception_.IsException(this));
   thread_local_top()->scheduled_exception_ =
       ReadOnlyRoots(this).the_hole_value();
 }
@@ -88,11 +88,11 @@ void Isolate::FireBeforeCallEnteredCallback() {
 }
 
 Handle<JSGlobalObject> Isolate::global_object() {
-  return handle(context()->global_object(), this);
+  return handle(context().global_object(), this);
 }
 
 Handle<JSGlobalProxy> Isolate::global_proxy() {
-  return handle(context()->global_proxy(), this);
+  return handle(context().global_proxy(), this);
 }
 
 Isolate::ExceptionScope::ExceptionScope(Isolate* isolate)
@@ -103,12 +103,12 @@ Isolate::ExceptionScope::~ExceptionScope() {
   isolate_->set_pending_exception(*pending_exception_);
 }
 
-#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)     \
-  Handle<type> Isolate::name() {                             \
-    return Handle<type>(raw_native_context()->name(), this); \
-  }                                                          \
-  bool Isolate::is_##name(type value) {                      \
-    return raw_native_context()->is_##name(value);           \
+#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)    \
+  Handle<type> Isolate::name() {                            \
+    return Handle<type>(raw_native_context().name(), this); \
+  }                                                         \
+  bool Isolate::is_##name(type value) {                     \
+    return raw_native_context().is_##name(value);           \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
@@ -116,7 +116,7 @@ NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 bool Isolate::IsArrayConstructorIntact() {
   Cell array_constructor_cell =
       Cell::cast(root(RootIndex::kArrayConstructorProtector));
-  return array_constructor_cell->value() == Smi::FromInt(kProtectorValid);
+  return array_constructor_cell.value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsArraySpeciesLookupChainIntact() {
@@ -134,64 +134,64 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
 
   PropertyCell species_cell =
       PropertyCell::cast(root(RootIndex::kArraySpeciesProtector));
-  return species_cell->value()->IsSmi() &&
-         Smi::ToInt(species_cell->value()) == kProtectorValid;
+  return species_cell.value().IsSmi() &&
+         Smi::ToInt(species_cell.value()) == kProtectorValid;
 }
 
 bool Isolate::IsTypedArraySpeciesLookupChainIntact() {
   PropertyCell species_cell =
       PropertyCell::cast(root(RootIndex::kTypedArraySpeciesProtector));
-  return species_cell->value()->IsSmi() &&
-         Smi::ToInt(species_cell->value()) == kProtectorValid;
+  return species_cell.value().IsSmi() &&
+         Smi::ToInt(species_cell.value()) == kProtectorValid;
 }
 
 bool Isolate::IsRegExpSpeciesLookupChainIntact() {
   PropertyCell species_cell =
       PropertyCell::cast(root(RootIndex::kRegExpSpeciesProtector));
-  return species_cell->value()->IsSmi() &&
-         Smi::ToInt(species_cell->value()) == kProtectorValid;
+  return species_cell.value().IsSmi() &&
+         Smi::ToInt(species_cell.value()) == kProtectorValid;
 }
 
 bool Isolate::IsPromiseSpeciesLookupChainIntact() {
   PropertyCell species_cell =
       PropertyCell::cast(root(RootIndex::kPromiseSpeciesProtector));
-  return species_cell->value()->IsSmi() &&
-         Smi::ToInt(species_cell->value()) == kProtectorValid;
+  return species_cell.value().IsSmi() &&
+         Smi::ToInt(species_cell.value()) == kProtectorValid;
 }
 
 bool Isolate::IsStringLengthOverflowIntact() {
   Cell string_length_cell = Cell::cast(root(RootIndex::kStringLengthProtector));
-  return string_length_cell->value() == Smi::FromInt(kProtectorValid);
+  return string_length_cell.value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsArrayBufferDetachingIntact() {
   PropertyCell buffer_detaching =
       PropertyCell::cast(root(RootIndex::kArrayBufferDetachingProtector));
-  return buffer_detaching->value() == Smi::FromInt(kProtectorValid);
+  return buffer_detaching.value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsArrayIteratorLookupChainIntact() {
   PropertyCell array_iterator_cell =
       PropertyCell::cast(root(RootIndex::kArrayIteratorProtector));
-  return array_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+  return array_iterator_cell.value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsMapIteratorLookupChainIntact() {
   PropertyCell map_iterator_cell =
       PropertyCell::cast(root(RootIndex::kMapIteratorProtector));
-  return map_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+  return map_iterator_cell.value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsSetIteratorLookupChainIntact() {
   PropertyCell set_iterator_cell =
       PropertyCell::cast(root(RootIndex::kSetIteratorProtector));
-  return set_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+  return set_iterator_cell.value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsStringIteratorLookupChainIntact() {
   PropertyCell string_iterator_cell =
       PropertyCell::cast(root(RootIndex::kStringIteratorProtector));
-  return string_iterator_cell->value() == Smi::FromInt(kProtectorValid);
+  return string_iterator_cell.value() == Smi::FromInt(kProtectorValid);
 }
 
 }  // namespace internal

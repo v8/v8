@@ -18,13 +18,13 @@ inline T ToCData(v8::internal::Object obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == v8::internal::Smi::kZero) return nullptr;
   return reinterpret_cast<T>(
-      v8::internal::Foreign::cast(obj)->foreign_address());
+      v8::internal::Foreign::cast(obj).foreign_address());
 }
 
 template <>
 inline v8::internal::Address ToCData(v8::internal::Object obj) {
   if (obj == v8::internal::Smi::kZero) return v8::internal::kNullAddress;
-  return v8::internal::Foreign::cast(obj)->foreign_address();
+  return v8::internal::Foreign::cast(obj).foreign_address();
 }
 
 template <typename T>
@@ -117,7 +117,7 @@ MAKE_TO_LOCAL(ScriptOrModuleToLocal, Script, ScriptOrModule)
     DCHECK(that == nullptr ||                                         \
            v8::internal::Object(                                      \
                *reinterpret_cast<const v8::internal::Address*>(that)) \
-               ->Is##To());                                           \
+               .Is##To());                                            \
     return v8::internal::Handle<v8::internal::To>(                    \
         reinterpret_cast<v8::internal::Address*>(                     \
             const_cast<v8::From*>(that)));                            \

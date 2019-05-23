@@ -902,7 +902,7 @@ class CodeDescription {
   LineInfo* lineinfo() const { return lineinfo_; }
 
   bool is_function() const {
-    Code::Kind kind = code_->kind();
+    Code::Kind kind = code_.kind();
     return kind == Code::OPTIMIZED_FUNCTION;
   }
 
@@ -910,24 +910,24 @@ class CodeDescription {
 
   ScopeInfo scope_info() const {
     DCHECK(has_scope_info());
-    return shared_info_->scope_info();
+    return shared_info_.scope_info();
   }
 
   uintptr_t CodeStart() const {
-    return static_cast<uintptr_t>(code_->InstructionStart());
+    return static_cast<uintptr_t>(code_.InstructionStart());
   }
 
   uintptr_t CodeEnd() const {
-    return static_cast<uintptr_t>(code_->InstructionEnd());
+    return static_cast<uintptr_t>(code_.InstructionEnd());
   }
 
   uintptr_t CodeSize() const { return CodeEnd() - CodeStart(); }
 
   bool has_script() {
-    return !shared_info_.is_null() && shared_info_->script()->IsScript();
+    return !shared_info_.is_null() && shared_info_.script().IsScript();
   }
 
-  Script script() { return Script::cast(shared_info_->script()); }
+  Script script() { return Script::cast(shared_info_.script()); }
 
   bool IsLineInfoAvailable() { return lineinfo_ != nullptr; }
 
@@ -945,7 +945,7 @@ class CodeDescription {
 
   std::unique_ptr<char[]> GetFilename() {
     if (!shared_info_.is_null()) {
-      return String::cast(script()->name())->ToCString();
+      return String::cast(script().name()).ToCString();
     } else {
       std::unique_ptr<char[]> result(new char[1]);
       result[0] = 0;
@@ -955,7 +955,7 @@ class CodeDescription {
 
   int GetScriptLineNumber(int pos) {
     if (!shared_info_.is_null()) {
-      return script()->GetLineNumber(pos) + 1;
+      return script().GetLineNumber(pos) + 1;
     } else {
       return 0;
     }
@@ -1087,8 +1087,8 @@ class DebugInfoSection : public DebugSection {
 #endif
       fb_block_size.set(static_cast<uint32_t>(w->position() - fb_block_start));
 
-      int params = scope->ParameterCount();
-      int context_slots = scope->ContextLocalCount();
+      int params = scope.ParameterCount();
+      int context_slots = scope.ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
       int current_abbreviation = 4;
@@ -1254,8 +1254,8 @@ class DebugAbbrevSection : public DebugSection {
 
     if (extra_info) {
       ScopeInfo scope = desc_->scope_info();
-      int params = scope->ParameterCount();
-      int context_slots = scope->ContextLocalCount();
+      int params = scope.ParameterCount();
+      int context_slots = scope.ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
       // Total children is params + context_slots + internal_slots + 2
@@ -1737,7 +1737,7 @@ JITDescriptor __jit_debug_descriptor = {1, 0, nullptr, nullptr};
 #ifdef OBJECT_PRINT
 void __gdb_print_v8_object(Object object) {
   StdoutStream os;
-  object->Print(os);
+  object.Print(os);
   os << std::flush;
 }
 #endif
@@ -1969,8 +1969,8 @@ static void AddCode(const char* name, Code code, SharedFunctionInfo shared,
 
   CodeMap* code_map = GetCodeMap();
   AddressRange range;
-  range.start = code->address();
-  range.end = code->address() + code->CodeSize();
+  range.start = code.address();
+  range.end = code.address() + code.CodeSize();
   RemoveJITCodeEntries(code_map, range);
 
   CodeDescription code_desc(name, code, shared, lineinfo);
@@ -1981,7 +1981,7 @@ static void AddCode(const char* name, Code code, SharedFunctionInfo shared,
   }
 
   AddUnwindInfo(&code_desc);
-  Isolate* isolate = code->GetIsolate();
+  Isolate* isolate = code.GetIsolate();
   JITCodeEntry* entry = CreateELFObject(&code_desc, isolate);
 
   delete lineinfo;

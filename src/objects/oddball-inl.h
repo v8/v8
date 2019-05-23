@@ -54,7 +54,7 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
 
 bool HeapObject::IsBoolean() const {
   return IsOddball() &&
-         ((Oddball::cast(*this)->kind() & Oddball::kNotBooleanMask) == 0);
+         ((Oddball::cast(*this).kind() & Oddball::kNotBooleanMask) == 0);
 }
 
 }  // namespace internal

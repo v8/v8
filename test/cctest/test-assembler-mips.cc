@@ -3224,7 +3224,7 @@ TEST(jump_tables3) {
   for (int i = 0; i < kNumCases; ++i) {
     __ bind(&labels[i]);
     obj = *values[i];
-    imm32 = obj->ptr();
+    imm32 = obj.ptr();
     __ lui(v0, (imm32 >> 16) & 0xFFFF);
     __ ori(v0, v0, imm32 & 0xFFFF);
     __ b(&done);

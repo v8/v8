@@ -94,7 +94,7 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
 
 Handle<Object> UnicodeKeywordValue(Isolate* isolate, Handle<JSLocale> locale,
                                    const char* key) {
-  icu::Locale* icu_locale = locale->icu_locale()->raw();
+  icu::Locale* icu_locale = locale->icu_locale().raw();
   UErrorCode status = U_ZERO_ERROR;
   std::string value =
       icu_locale->getUnicodeKeywordValue<std::string>(key, status);
@@ -383,28 +383,28 @@ Handle<String> JSLocale::Minimize(Isolate* isolate, String locale) {
 
 Handle<Object> JSLocale::Language(Isolate* isolate, Handle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  const char* language = locale->icu_locale()->raw()->getLanguage();
+  const char* language = locale->icu_locale().raw()->getLanguage();
   if (strlen(language) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(language);
 }
 
 Handle<Object> JSLocale::Script(Isolate* isolate, Handle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  const char* script = locale->icu_locale()->raw()->getScript();
+  const char* script = locale->icu_locale().raw()->getScript();
   if (strlen(script) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(script);
 }
 
 Handle<Object> JSLocale::Region(Isolate* isolate, Handle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  const char* region = locale->icu_locale()->raw()->getCountry();
+  const char* region = locale->icu_locale().raw()->getCountry();
   if (strlen(region) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(region);
 }
 
 Handle<String> JSLocale::BaseName(Isolate* isolate, Handle<JSLocale> locale) {
   icu::Locale icu_locale =
-      icu::Locale::createFromName(locale->icu_locale()->raw()->getBaseName());
+      icu::Locale::createFromName(locale->icu_locale().raw()->getBaseName());
   std::string base_name = Intl::ToLanguageTag(icu_locale).FromJust();
   return isolate->factory()->NewStringFromAsciiChecked(base_name.c_str());
 }
@@ -427,7 +427,7 @@ Handle<Object> JSLocale::HourCycle(Isolate* isolate, Handle<JSLocale> locale) {
 
 Handle<Object> JSLocale::Numeric(Isolate* isolate, Handle<JSLocale> locale) {
   Factory* factory = isolate->factory();
-  icu::Locale* icu_locale = locale->icu_locale()->raw();
+  icu::Locale* icu_locale = locale->icu_locale().raw();
   UErrorCode status = U_ZERO_ERROR;
   std::string numeric =
       icu_locale->getUnicodeKeywordValue<std::string>("kn", status);
@@ -440,7 +440,7 @@ Handle<Object> JSLocale::NumberingSystem(Isolate* isolate,
 }
 
 std::string JSLocale::ToString(Handle<JSLocale> locale) {
-  icu::Locale* icu_locale = locale->icu_locale()->raw();
+  icu::Locale* icu_locale = locale->icu_locale().raw();
   return Intl::ToLanguageTag(*icu_locale).FromJust();
 }
 

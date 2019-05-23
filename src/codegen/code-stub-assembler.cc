@@ -294,7 +294,7 @@ bool CodeStubAssembler::IsIntPtrOrSmiConstantZero(Node* test,
     }
   } else {
     DCHECK_EQ(mode, SMI_PARAMETERS);
-    if (ToSmiConstant(test, &smi_test) && smi_test->value() == 0) {
+    if (ToSmiConstant(test, &smi_test) && smi_test.value() == 0) {
       return true;
     }
   }
@@ -10007,7 +10007,7 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
     element_size_shift -= kSmiShiftBits;
     Smi smi_index;
     constant_index = ToSmiConstant(index_node, &smi_index);
-    if (constant_index) index = smi_index->value();
+    if (constant_index) index = smi_index.value();
     index_node = BitcastTaggedToWord(index_node);
   } else {
     DCHECK(mode == INTPTR_PARAMETERS);

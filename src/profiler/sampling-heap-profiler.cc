@@ -145,8 +145,8 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
     // closure on the stack. Skip over any such frames (they'll be
     // in the top frames of the stack). The allocations made in this
     // sensitive moment belong to the formerly optimized frame anyway.
-    if (frame->unchecked_function()->IsJSFunction()) {
-      SharedFunctionInfo shared = frame->function()->shared();
+    if (frame->unchecked_function().IsJSFunction()) {
+      SharedFunctionInfo shared = frame->function().shared();
       stack.push_back(shared);
       frames_captured++;
     } else {
@@ -190,13 +190,13 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
   // the first element in the list.
   for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
     SharedFunctionInfo shared = *it;
-    const char* name = this->names()->GetName(shared->DebugName());
+    const char* name = this->names()->GetName(shared.DebugName());
     int script_id = v8::UnboundScript::kNoScriptId;
-    if (shared->script()->IsScript()) {
-      Script script = Script::cast(shared->script());
-      script_id = script->id();
+    if (shared.script().IsScript()) {
+      Script script = Script::cast(shared.script());
+      script_id = script.id();
     }
-    node = FindOrAddChildNode(node, name, script_id, shared->StartPosition());
+    node = FindOrAddChildNode(node, name, script_id, shared.StartPosition());
   }
 
   if (found_arguments_marker_frames) {
@@ -226,7 +226,7 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
         const_cast<std::map<int, Handle<Script>>&>(scripts);
     Handle<Script> script = non_const_scripts[node->script_id_];
     if (!script.is_null()) {
-      if (script->name()->IsName()) {
+      if (script->name().IsName()) {
         Name name = Name::cast(script->name());
         script_name = ToApiHandle<v8::String>(
             isolate_->factory()->InternalizeUtf8String(names_->GetName(name)));
@@ -269,7 +269,7 @@ v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
     Script::Iterator iterator(isolate_);
     for (Script script = iterator.Next(); !script.is_null();
          script = iterator.Next()) {
-      scripts[script->id()] = handle(script, isolate_);
+      scripts[script.id()] = handle(script, isolate_);
     }
   }
   auto profile = new v8::internal::AllocationProfile();

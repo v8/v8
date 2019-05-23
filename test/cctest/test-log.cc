@@ -934,28 +934,28 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
   size_t i = 0;
   for (i::HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
-    if (!obj->IsMap()) continue;
+    if (!obj.IsMap()) continue;
     i++;
-    uintptr_t address = obj->ptr();
+    uintptr_t address = obj.ptr();
     if (map_create_addresses.find(address) == map_create_addresses.end()) {
       // logger->PrintLog();
-      i::Map::cast(obj)->Print();
+      i::Map::cast(obj).Print();
       FATAL(
           "Map (%p, #%zu) creation not logged during startup with "
           "--trace-maps!"
           "\n# Expected Log Line: map-create, ... %p",
-          reinterpret_cast<void*>(obj->ptr()), i,
-          reinterpret_cast<void*>(obj->ptr()));
+          reinterpret_cast<void*>(obj.ptr()), i,
+          reinterpret_cast<void*>(obj.ptr()));
     } else if (map_details_addresses.find(address) ==
                map_details_addresses.end()) {
       // logger->PrintLog();
-      i::Map::cast(obj)->Print();
+      i::Map::cast(obj).Print();
       FATAL(
           "Map (%p, #%zu) details not logged during startup with "
           "--trace-maps!"
           "\n# Expected Log Line: map-details, ... %p",
-          reinterpret_cast<void*>(obj->ptr()), i,
-          reinterpret_cast<void*>(obj->ptr()));
+          reinterpret_cast<void*>(obj.ptr()), i,
+          reinterpret_cast<void*>(obj.ptr()));
     }
   }
 }

@@ -248,7 +248,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
 void Assembler::deserialization_set_special_target_at(
     Address instruction_payload, Code code, Address target) {
   set_target_address_at(instruction_payload,
-                        !code.is_null() ? code->constant_pool() : kNullAddress,
+                        !code.is_null() ? code.constant_pool() : kNullAddress,
                         target);
 }
 
@@ -382,7 +382,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     WriteUnalignedValue(pc_, tagged);
 #endif  // V8_COMPRESS_POINTERS
   } else {
-    WriteUnalignedValue(pc_, target->ptr());
+    WriteUnalignedValue(pc_, target.ptr());
   }
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));

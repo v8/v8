@@ -310,8 +310,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   Scope* innermost_scope = nullptr;
   Scope* outer_scope = nullptr;
   while (!scope_info.is_null()) {
-    if (scope_info->scope_type() == WITH_SCOPE) {
-      if (scope_info->IsDebugEvaluateScope()) {
+    if (scope_info.scope_type() == WITH_SCOPE) {
+      if (scope_info.IsDebugEvaluateScope()) {
         outer_scope = new (zone)
             DeclarationScope(zone, FUNCTION_SCOPE, handle(scope_info, isolate));
         outer_scope->set_is_debug_evaluate_scope();
@@ -321,46 +321,46 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
             new (zone) Scope(zone, WITH_SCOPE, handle(scope_info, isolate));
       }
 
-    } else if (scope_info->scope_type() == SCRIPT_SCOPE) {
+    } else if (scope_info.scope_type() == SCRIPT_SCOPE) {
       // If we reach a script scope, it's the outermost scope. Install the
       // scope info of this script context onto the existing script scope to
       // avoid nesting script scopes.
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
-      DCHECK(!scope_info->HasOuterScopeInfo());
+      DCHECK(!scope_info.HasOuterScopeInfo());
       break;
-    } else if (scope_info->scope_type() == FUNCTION_SCOPE) {
+    } else if (scope_info.scope_type() == FUNCTION_SCOPE) {
       outer_scope = new (zone)
           DeclarationScope(zone, FUNCTION_SCOPE, handle(scope_info, isolate));
-      if (scope_info->IsAsmModule()) {
+      if (scope_info.IsAsmModule()) {
         outer_scope->AsDeclarationScope()->set_is_asm_module();
       }
-    } else if (scope_info->scope_type() == EVAL_SCOPE) {
+    } else if (scope_info.scope_type() == EVAL_SCOPE) {
       outer_scope = new (zone)
           DeclarationScope(zone, EVAL_SCOPE, handle(scope_info, isolate));
-    } else if (scope_info->scope_type() == CLASS_SCOPE) {
+    } else if (scope_info.scope_type() == CLASS_SCOPE) {
       outer_scope = new (zone)
           ClassScope(zone, ast_value_factory, handle(scope_info, isolate));
-    } else if (scope_info->scope_type() == BLOCK_SCOPE) {
-      if (scope_info->is_declaration_scope()) {
+    } else if (scope_info.scope_type() == BLOCK_SCOPE) {
+      if (scope_info.is_declaration_scope()) {
         outer_scope = new (zone)
             DeclarationScope(zone, BLOCK_SCOPE, handle(scope_info, isolate));
       } else {
         outer_scope =
             new (zone) Scope(zone, BLOCK_SCOPE, handle(scope_info, isolate));
       }
-    } else if (scope_info->scope_type() == MODULE_SCOPE) {
+    } else if (scope_info.scope_type() == MODULE_SCOPE) {
       outer_scope = new (zone)
           ModuleScope(isolate, handle(scope_info, isolate), ast_value_factory);
     } else {
-      DCHECK_EQ(scope_info->scope_type(), CATCH_SCOPE);
-      DCHECK_EQ(scope_info->ContextLocalCount(), 1);
-      DCHECK_EQ(scope_info->ContextLocalMode(0), VariableMode::kVar);
-      DCHECK_EQ(scope_info->ContextLocalInitFlag(0), kCreatedInitialized);
-      String name = scope_info->ContextLocalName(0);
+      DCHECK_EQ(scope_info.scope_type(), CATCH_SCOPE);
+      DCHECK_EQ(scope_info.ContextLocalCount(), 1);
+      DCHECK_EQ(scope_info.ContextLocalMode(0), VariableMode::kVar);
+      DCHECK_EQ(scope_info.ContextLocalInitFlag(0), kCreatedInitialized);
+      String name = scope_info.ContextLocalName(0);
       MaybeAssignedFlag maybe_assigned =
-          scope_info->ContextLocalMaybeAssignedFlag(0);
+          scope_info.ContextLocalMaybeAssignedFlag(0);
       outer_scope = new (zone)
           Scope(zone, ast_value_factory->GetString(handle(name, isolate)),
                 maybe_assigned, handle(scope_info, isolate));
@@ -373,8 +373,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     }
     current_scope = outer_scope;
     if (innermost_scope == nullptr) innermost_scope = current_scope;
-    scope_info = scope_info->HasOuterScopeInfo() ? scope_info->OuterScopeInfo()
-                                                 : ScopeInfo();
+    scope_info = scope_info.HasOuterScopeInfo() ? scope_info.OuterScopeInfo()
+                                                : ScopeInfo();
   }
 
   if (deserialization_mode == DeserializationMode::kIncludingVariables &&

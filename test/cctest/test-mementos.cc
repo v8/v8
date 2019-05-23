@@ -51,9 +51,9 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   // site pointer.
   AllocationMemento memento = AllocationMemento::unchecked_cast(
       Object(new_space->top() + kHeapObjectTag));
-  memento->set_map_after_allocation(
-      ReadOnlyRoots(heap).allocation_memento_map(), SKIP_WRITE_BARRIER);
-  memento->set_allocation_site(
+  memento.set_map_after_allocation(ReadOnlyRoots(heap).allocation_memento_map(),
+                                   SKIP_WRITE_BARRIER);
+  memento.set_allocation_site(
       AllocationSite::unchecked_cast(Object(kHeapObjectTag)),
       SKIP_WRITE_BARRIER);
 }

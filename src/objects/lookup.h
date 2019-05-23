@@ -217,7 +217,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   void NextInternal(Map map, JSReceiver holder);
   template <bool is_element>
   inline State LookupInHolder(Map map, JSReceiver holder) {
-    return map->IsSpecialReceiverMap()
+    return map.IsSpecialReceiverMap()
                ? LookupInSpecialHolder<is_element>(map, holder)
                : LookupInRegularHolder<is_element>(map, holder);
   }

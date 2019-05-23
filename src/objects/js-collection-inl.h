@@ -63,8 +63,8 @@ CAST_ACCESSOR(JSWeakSet)
 Object JSMapIterator::CurrentValue() {
   OrderedHashMap table = OrderedHashMap::cast(this->table());
   int index = Smi::ToInt(this->index());
-  Object value = table->ValueAt(index);
-  DCHECK(!value->IsTheHole());
+  Object value = table.ValueAt(index);
+  DCHECK(!value.IsTheHole());
   return value;
 }
 

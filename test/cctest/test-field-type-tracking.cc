@@ -110,7 +110,7 @@ class Expectations {
   explicit Expectations(Isolate* isolate)
       : Expectations(
             isolate,
-            isolate->object_function()->initial_map()->elements_kind()) {}
+            isolate->object_function()->initial_map().elements_kind()) {}
 
   void Init(int index, PropertyKind kind, PropertyAttributes attributes,
             PropertyConstness constness, PropertyLocation location,
@@ -250,7 +250,7 @@ class Expectations {
   }
 
   bool Check(DescriptorArray descriptors, int descriptor) const {
-    PropertyDetails details = descriptors->GetDetails(descriptor);
+    PropertyDetails details = descriptors.GetDetails(descriptor);
 
     if (details.kind() != kinds_[descriptor]) return false;
     if (details.location() != locations_[descriptor]) return false;
@@ -266,7 +266,7 @@ class Expectations {
     Object expected_value = *values_[descriptor];
     if (details.location() == kField) {
       if (details.kind() == kData) {
-        FieldType type = descriptors->GetFieldType(descriptor);
+        FieldType type = descriptors.GetFieldType(descriptor);
         return FieldType::cast(expected_value) == type;
       } else {
         // kAccessor
@@ -274,28 +274,28 @@ class Expectations {
       }
     } else {
       CHECK_EQ(kAccessor, details.kind());
-      Object value = descriptors->GetStrongValue(descriptor);
+      Object value = descriptors.GetStrongValue(descriptor);
       if (value == expected_value) return true;
-      if (!value->IsAccessorPair()) return false;
+      if (!value.IsAccessorPair()) return false;
       AccessorPair pair = AccessorPair::cast(value);
-      return pair->Equals(expected_value, *setter_values_[descriptor]);
+      return pair.Equals(expected_value, *setter_values_[descriptor]);
     }
     UNREACHABLE();
   }
 
   bool Check(Map map, int expected_nof) const {
-    CHECK_EQ(elements_kind_, map->elements_kind());
+    CHECK_EQ(elements_kind_, map.elements_kind());
     CHECK(number_of_properties_ <= MAX_PROPERTIES);
-    CHECK_EQ(expected_nof, map->NumberOfOwnDescriptors());
-    CHECK(!map->is_dictionary_map());
+    CHECK_EQ(expected_nof, map.NumberOfOwnDescriptors());
+    CHECK(!map.is_dictionary_map());
 
-    DescriptorArray descriptors = map->instance_descriptors();
+    DescriptorArray descriptors = map.instance_descriptors();
     CHECK(expected_nof <= number_of_properties_);
     for (int i = 0; i < expected_nof; i++) {
       if (!Check(descriptors, i)) {
         Print();
 #ifdef OBJECT_PRINT
-        descriptors->Print();
+        descriptors.Print();
 #endif
         Check(descriptors, i);
         return false;
@@ -452,7 +452,7 @@ class Expectations {
     Handle<Object> setter(pair->setter(), isolate);
 
     int descriptor =
-        map->instance_descriptors()->SearchWithCache(isolate, *name, *map);
+        map->instance_descriptors().SearchWithCache(isolate, *name, *map);
     map = Map::TransitionToAccessorProperty(isolate, map, name, descriptor,
                                             getter, setter, attributes);
     CHECK(!map->is_deprecated());
@@ -523,7 +523,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map);
   JSObject::MigrateToMap(obj, prepared_map);
   FieldIndex index = FieldIndex::ForDescriptor(*prepared_map, 0);
-  CHECK(obj->RawFastPropertyAt(index)->IsUninitialized(isolate));
+  CHECK(obj->RawFastPropertyAt(index).IsUninitialized(isolate));
 #ifdef VERIFY_HEAP
   obj->ObjectVerify(isolate);
 #endif
@@ -556,18 +556,17 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   CHECK(obj_value->IsJSObject());
   Handle<JSObject> obj = Handle<JSObject>::cast(obj_value);
 
-  CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());
-  CHECK(
-      obj->map()->instance_descriptors()->GetStrongValue(0)->IsAccessorPair());
+  CHECK_EQ(1, obj->map().NumberOfOwnDescriptors());
+  CHECK(obj->map().instance_descriptors().GetStrongValue(0).IsAccessorPair());
 
   Handle<Object> value(Smi::FromInt(42), isolate);
   JSObject::SetOwnPropertyIgnoreAttributes(obj, foo_str, value, NONE).Check();
 
   // Check that the property contains |value|.
-  CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());
+  CHECK_EQ(1, obj->map().NumberOfOwnDescriptors());
   FieldIndex index = FieldIndex::ForDescriptor(obj->map(), 0);
   Object the_value = obj->RawFastPropertyAt(index);
-  CHECK(the_value->IsSmi());
+  CHECK(the_value.IsSmi());
   CHECK_EQ(42, Smi::ToInt(the_value));
 }
 
@@ -703,10 +702,10 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
     // Check that all previous maps are not stable.
     Map tmp = *new_map;
     while (true) {
-      Object back = tmp->GetBackPointer();
-      if (back->IsUndefined(isolate)) break;
+      Object back = tmp.GetBackPointer();
+      if (back.IsUndefined(isolate)) break;
       tmp = Map::cast(back);
-      CHECK(!tmp->is_stable());
+      CHECK(!tmp.is_stable());
     }
   }
 
@@ -1409,7 +1408,7 @@ struct CheckCopyGeneralizeAllFields {
     CHECK(!map->is_deprecated());
     CHECK_NE(*map, *new_map);
 
-    CHECK(new_map->GetBackPointer()->IsUndefined(isolate));
+    CHECK(new_map->GetBackPointer().IsUndefined(isolate));
     for (int i = 0; i < kPropCount; i++) {
       expectations.GeneralizeField(i);
     }
@@ -2086,7 +2085,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
   // Try to update |map|, since there is no place for propX transition at |map2|
   // |map| should become "copy-generalized".
   Handle<Map> updated_map = Map::Update(isolate, map);
-  CHECK(updated_map->GetBackPointer()->IsUndefined(isolate));
+  CHECK(updated_map->GetBackPointer().IsUndefined(isolate));
 
   for (int i = 0; i < kPropCount; i++) {
     expectations.SetDataField(i, PropertyConstness::kMutable,
@@ -2191,13 +2190,13 @@ static void TestGeneralizeFieldWithSpecialTransition(
         for (int i = 0; i < kPropCount; i++) {
           expectations2.GeneralizeField(i);
         }
-        CHECK(new_map2->GetBackPointer()->IsUndefined(isolate));
+        CHECK(new_map2->GetBackPointer().IsUndefined(isolate));
         CHECK(expectations2.Check(*new_map2));
       } else {
         expectations2.SetDataField(i, expected.constness,
                                    expected.representation, expected.type);
 
-        CHECK(!new_map2->GetBackPointer()->IsUndefined(isolate));
+        CHECK(!new_map2->GetBackPointer().IsUndefined(isolate));
         CHECK(expectations2.Check(*new_map2));
       }
     } else {
@@ -2751,11 +2750,11 @@ TEST(HoleyMutableHeapNumber) {
       Object::NewStorageFor(isolate, isolate->factory()->uninitialized_value(),
                             Representation::Double());
   CHECK(obj->IsMutableHeapNumber());
-  CHECK_EQ(kHoleNanInt64, MutableHeapNumber::cast(*obj)->value_as_bits());
+  CHECK_EQ(kHoleNanInt64, MutableHeapNumber::cast(*obj).value_as_bits());
 
   obj = Object::NewStorageFor(isolate, mhn, Representation::Double());
   CHECK(obj->IsMutableHeapNumber());
-  CHECK_EQ(kHoleNanInt64, MutableHeapNumber::cast(*obj)->value_as_bits());
+  CHECK_EQ(kHoleNanInt64, MutableHeapNumber::cast(*obj).value_as_bits());
 }
 
 namespace {
@@ -2793,10 +2792,10 @@ void TestStoreToConstantField(const char* store_func_source,
   CHECK(!map->is_deprecated());
   CHECK_EQ(1, map->NumberOfOwnDescriptors());
 
-  CHECK(map->instance_descriptors()->GetDetails(0).representation().Equals(
+  CHECK(map->instance_descriptors().GetDetails(0).representation().Equals(
       expected_rep));
   CHECK_EQ(PropertyConstness::kConst,
-           map->instance_descriptors()->GetDetails(0).constness());
+           map->instance_descriptors().GetDetails(0).constness());
 
   // Store value2 to obj2 and check that it got same map and property details
   // did not change.
@@ -2808,10 +2807,10 @@ void TestStoreToConstantField(const char* store_func_source,
   CHECK(!map->is_deprecated());
   CHECK_EQ(1, map->NumberOfOwnDescriptors());
 
-  CHECK(map->instance_descriptors()->GetDetails(0).representation().Equals(
+  CHECK(map->instance_descriptors().GetDetails(0).representation().Equals(
       expected_rep));
   CHECK_EQ(PropertyConstness::kConst,
-           map->instance_descriptors()->GetDetails(0).constness());
+           map->instance_descriptors().GetDetails(0).constness());
 
   // Store value2 to obj1 and check that property became mutable.
   Call(isolate, store_func, obj1, value2).Check();
@@ -2821,10 +2820,10 @@ void TestStoreToConstantField(const char* store_func_source,
   CHECK(!map->is_deprecated());
   CHECK_EQ(1, map->NumberOfOwnDescriptors());
 
-  CHECK(map->instance_descriptors()->GetDetails(0).representation().Equals(
+  CHECK(map->instance_descriptors().GetDetails(0).representation().Equals(
       expected_rep));
   CHECK_EQ(expected_constness,
-           map->instance_descriptors()->GetDetails(0).constness());
+           map->instance_descriptors().GetDetails(0).constness());
 }
 
 void TestStoreToConstantField_PlusMinusZero(const char* store_func_source,

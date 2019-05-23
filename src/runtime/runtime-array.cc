@@ -189,12 +189,12 @@ Object RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
 
   Handle<JSObject> object = Handle<JSObject>::cast(receiver);
   if (object->HasStringWrapperElements()) {
-    int len = String::cast(Handle<JSValue>::cast(object)->value())->length();
+    int len = String::cast(Handle<JSValue>::cast(object)->value()).length();
     DCHECK_LE(len, limit);
     return Smi::FromInt(len);
   }
 
-  if (object->HasSloppyArgumentsElements() || !object->map()->is_extensible()) {
+  if (object->HasSloppyArgumentsElements() || !object->map().is_extensible()) {
     return RemoveArrayHolesGeneric(isolate, receiver, limit);
   }
 
@@ -251,24 +251,24 @@ Object RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
     // Assume most arrays contain no holes and undefined values, so minimize the
     // number of stores of non-undefined, non-the-hole values.
     for (unsigned int i = 0; i < holes; i++) {
-      if (elements->is_the_hole(i)) {
+      if (elements.is_the_hole(i)) {
         holes--;
       } else {
         continue;
       }
       // Position i needs to be filled.
       while (holes > i) {
-        if (elements->is_the_hole(holes)) {
+        if (elements.is_the_hole(holes)) {
           holes--;
         } else {
-          elements->set(i, elements->get_scalar(holes));
+          elements.set(i, elements.get_scalar(holes));
           break;
         }
       }
     }
     result = holes;
     while (holes < limit) {
-      elements->set_the_hole(holes);
+      elements.set_the_hole(holes);
       holes++;
     }
   } else {
@@ -277,42 +277,42 @@ Object RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
 
     // Split elements into defined, undefined and the_hole, in that order.  Only
     // count locations for undefined and the hole, and fill them afterwards.
-    WriteBarrierMode write_barrier = elements->GetWriteBarrierMode(no_gc);
+    WriteBarrierMode write_barrier = elements.GetWriteBarrierMode(no_gc);
     unsigned int undefs = limit;
     unsigned int holes = limit;
     // Assume most arrays contain no holes and undefined values, so minimize the
     // number of stores of non-undefined, non-the-hole values.
     for (unsigned int i = 0; i < undefs; i++) {
-      Object current = elements->get(i);
-      if (current->IsTheHole(isolate)) {
+      Object current = elements.get(i);
+      if (current.IsTheHole(isolate)) {
         holes--;
         undefs--;
-      } else if (current->IsUndefined(isolate)) {
+      } else if (current.IsUndefined(isolate)) {
         undefs--;
       } else {
         continue;
       }
       // Position i needs to be filled.
       while (undefs > i) {
-        current = elements->get(undefs);
-        if (current->IsTheHole(isolate)) {
+        current = elements.get(undefs);
+        if (current.IsTheHole(isolate)) {
           holes--;
           undefs--;
-        } else if (current->IsUndefined(isolate)) {
+        } else if (current.IsUndefined(isolate)) {
           undefs--;
         } else {
-          elements->set(i, current, write_barrier);
+          elements.set(i, current, write_barrier);
           break;
         }
       }
     }
     result = undefs;
     while (undefs < holes) {
-      elements->set_undefined(isolate, undefs);
+      elements.set_undefined(isolate, undefs);
       undefs++;
     }
     while (holes < limit) {
-      elements->set_the_hole(isolate, holes);
+      elements.set_the_hole(isolate, holes);
       holes++;
     }
   }
@@ -406,7 +406,7 @@ RUNTIME_FUNCTION(Runtime_PrepareElementsForSort) {
   if (object->IsJSArray() &&
       !Handle<JSArray>::cast(object)->HasFastPackedElements()) {
     if (!isolate->IsNoElementsProtectorIntact() ||
-        object->map()->prototype() != initial_array_proto) {
+        object->map().prototype() != initial_array_proto) {
       isolate->CountUsage(
           v8::Isolate::kArrayPrototypeSortJSArrayModifiedPrototype);
     }
@@ -415,7 +415,7 @@ RUNTIME_FUNCTION(Runtime_PrepareElementsForSort) {
   // Skip copying from prototype for JSArrays with ElementsProtector intact and
   // the original array prototype.
   if (!object->IsJSArray() || !isolate->IsNoElementsProtectorIntact() ||
-      object->map()->prototype() != initial_array_proto) {
+      object->map().prototype() != initial_array_proto) {
     RETURN_FAILURE_ON_EXCEPTION(isolate,
                                 CopyFromPrototype(isolate, object, length));
   }
@@ -546,7 +546,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
 
   if (key < 0) return Smi::kZero;
 
-  uint32_t capacity = static_cast<uint32_t>(object->elements()->length());
+  uint32_t capacity = static_cast<uint32_t>(object->elements().length());
   uint32_t index = static_cast<uint32_t>(key);
 
   if (index >= capacity) {
@@ -572,7 +572,7 @@ RUNTIME_FUNCTION(Runtime_IsArray) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSArray());
+  return isolate->heap()->ToBoolean(obj.IsJSArray());
 }
 
 RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {
@@ -599,9 +599,9 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
   // Let len be ? ToLength(? Get(O, "length")).
   int64_t len;
   {
-    if (object->map()->instance_type() == JS_ARRAY_TYPE) {
+    if (object->map().instance_type() == JS_ARRAY_TYPE) {
       uint32_t len32 = 0;
-      bool success = JSArray::cast(*object)->length()->ToArrayLength(&len32);
+      bool success = JSArray::cast(*object).length().ToArrayLength(&len32);
       DCHECK(success);
       USE(success);
       len = len32;
@@ -653,7 +653,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
 
   // If the receiver is not a special receiver type, and the length is a valid
   // element index, perform fast operation tailored to specific ElementsKinds.
-  if (!object->map()->IsSpecialReceiverMap() && len < kMaxUInt32 &&
+  if (!object->map().IsSpecialReceiverMap() && len < kMaxUInt32 &&
       JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
     Handle<JSObject> obj = Handle<JSObject>::cast(object);
     ElementsAccessor* elements = obj->GetElementsAccessor();
@@ -703,7 +703,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   {
     if (object->IsJSArray()) {
       uint32_t len32 = 0;
-      bool success = JSArray::cast(*object)->length()->ToArrayLength(&len32);
+      bool success = JSArray::cast(*object).length().ToArrayLength(&len32);
       DCHECK(success);
       USE(success);
       len = len32;
@@ -752,7 +752,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
 
   // If the receiver is not a special receiver type, and the length fits
   // uint32_t, perform fast operation tailored to specific ElementsKinds.
-  if (!object->map()->IsSpecialReceiverMap() && len <= kMaxUInt32 &&
+  if (!object->map().IsSpecialReceiverMap() && len <= kMaxUInt32 &&
       JSObject::PrototypeHasNoElements(isolate, JSObject::cast(*object))) {
     Handle<JSObject> obj = Handle<JSObject>::cast(object);
     ElementsAccessor* elements = obj->GetElementsAccessor();

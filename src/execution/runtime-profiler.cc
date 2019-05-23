@@ -71,7 +71,7 @@ static void TraceRecompile(JSFunction function, const char* reason,
                            const char* type) {
   if (FLAG_trace_opt) {
     PrintF("[marking ");
-    function->ShortPrint();
+    function.ShortPrint();
     PrintF(" for %s recompilation, reason: %s", type, reason);
     PrintF("]\n");
   }
@@ -80,41 +80,41 @@ static void TraceRecompile(JSFunction function, const char* reason,
 void RuntimeProfiler::Optimize(JSFunction function, OptimizationReason reason) {
   DCHECK_NE(reason, OptimizationReason::kDoNotOptimize);
   TraceRecompile(function, OptimizationReasonToString(reason), "optimized");
-  function->MarkForOptimization(ConcurrencyMode::kConcurrent);
+  function.MarkForOptimization(ConcurrencyMode::kConcurrent);
 }
 
 void RuntimeProfiler::AttemptOnStackReplacement(InterpretedFrame* frame,
                                                 int loop_nesting_levels) {
   JSFunction function = frame->function();
-  SharedFunctionInfo shared = function->shared();
-  if (!FLAG_use_osr || !shared->IsUserJavaScript()) {
+  SharedFunctionInfo shared = function.shared();
+  if (!FLAG_use_osr || !shared.IsUserJavaScript()) {
     return;
   }
 
   // If the code is not optimizable, don't try OSR.
-  if (shared->optimization_disabled()) return;
+  if (shared.optimization_disabled()) return;
 
   // We're using on-stack replacement: Store new loop nesting level in
   // BytecodeArray header so that certain back edges in any interpreter frame
   // for this bytecode will trigger on-stack replacement for that frame.
   if (FLAG_trace_osr) {
     PrintF("[OSR - arming back edges in ");
-    function->PrintName();
+    function.PrintName();
     PrintF("]\n");
   }
 
   DCHECK_EQ(StackFrame::INTERPRETED, frame->type());
-  int level = frame->GetBytecodeArray()->osr_loop_nesting_level();
-  frame->GetBytecodeArray()->set_osr_loop_nesting_level(
+  int level = frame->GetBytecodeArray().osr_loop_nesting_level();
+  frame->GetBytecodeArray().set_osr_loop_nesting_level(
       Min(level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker));
 }
 
 void RuntimeProfiler::MaybeOptimize(JSFunction function,
                                     InterpretedFrame* frame) {
-  if (function->IsInOptimizationQueue()) {
+  if (function.IsInOptimizationQueue()) {
     if (FLAG_trace_opt_verbose) {
       PrintF("[function ");
-      function->PrintName();
+      function.PrintName();
       PrintF(" is already in optimization queue]\n");
     }
     return;
@@ -127,10 +127,10 @@ void RuntimeProfiler::MaybeOptimize(JSFunction function,
     return;
   }
 
-  if (function->shared()->optimization_disabled()) return;
+  if (function.shared().optimization_disabled()) return;
 
   OptimizationReason reason =
-      ShouldOptimize(function, function->shared()->GetBytecodeArray());
+      ShouldOptimize(function, function.shared().GetBytecodeArray());
 
   if (reason != OptimizationReason::kDoNotOptimize) {
     Optimize(function, reason);
@@ -138,19 +138,19 @@ void RuntimeProfiler::MaybeOptimize(JSFunction function,
 }
 
 bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
-  int ticks = function->feedback_vector()->profiler_ticks();
+  int ticks = function.feedback_vector().profiler_ticks();
   // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
   // than kMaxToplevelSourceSize.
 
-  if (function->IsMarkedForOptimization() ||
-      function->IsMarkedForConcurrentOptimization() ||
-      function->HasOptimizedCode()) {
+  if (function.IsMarkedForOptimization() ||
+      function.IsMarkedForConcurrentOptimization() ||
+      function.HasOptimizedCode()) {
     // Attempt OSR if we are still running interpreted code even though the
     // the function has long been marked or even already been optimized.
     int64_t allowance =
         kOSRBytecodeSizeAllowanceBase +
         static_cast<int64_t>(ticks) * kOSRBytecodeSizeAllowancePerTick;
-    if (function->shared()->GetBytecodeArray()->length() <= allowance) {
+    if (function.shared().GetBytecodeArray().length() <= allowance) {
       AttemptOnStackReplacement(frame);
     }
     return true;
@@ -160,27 +160,27 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
 
 OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
                                                    BytecodeArray bytecode) {
-  int ticks = function->feedback_vector()->profiler_ticks();
+  int ticks = function.feedback_vector().profiler_ticks();
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
-      (bytecode->length() / kBytecodeSizeAllowancePerTick);
+      (bytecode.length() / kBytecodeSizeAllowancePerTick);
   if (ticks >= ticks_for_optimization) {
     return OptimizationReason::kHotAndStable;
   } else if (!any_ic_changed_ &&
-             bytecode->length() < kMaxBytecodeSizeForEarlyOpt) {
+             bytecode.length() < kMaxBytecodeSizeForEarlyOpt) {
     // If no IC was patched since the last tick and this function is very
     // small, optimistically optimize it now.
     return OptimizationReason::kSmallFunction;
   } else if (FLAG_trace_opt_verbose) {
     PrintF("[not yet optimizing ");
-    function->PrintName();
+    function.PrintName();
     PrintF(", not enough ticks: %d/%d and ", ticks,
            kProfilerTicksBeforeOptimization);
     if (any_ic_changed_) {
       PrintF("ICs changed]\n");
     } else {
       PrintF(" too large for small function optimization: %d/%d]\n",
-             bytecode->length(), kMaxBytecodeSizeForEarlyOpt);
+             bytecode.length(), kMaxBytecodeSizeForEarlyOpt);
     }
   }
   return OptimizationReason::kDoNotOptimize;
@@ -206,18 +206,18 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
     if (!frame->is_interpreted()) continue;
 
     JSFunction function = frame->function();
-    DCHECK(function->shared()->is_compiled());
-    if (!function->shared()->IsInterpreted()) continue;
+    DCHECK(function.shared().is_compiled());
+    if (!function.shared().IsInterpreted()) continue;
 
-    if (!function->has_feedback_vector()) continue;
+    if (!function.has_feedback_vector()) continue;
 
     MaybeOptimize(function, InterpretedFrame::cast(frame));
 
     // TODO(leszeks): Move this increment to before the maybe optimize checks,
     // and update the tests to assume the increment has already happened.
-    int ticks = function->feedback_vector()->profiler_ticks();
+    int ticks = function.feedback_vector().profiler_ticks();
     if (ticks < Smi::kMaxValue) {
-      function->feedback_vector()->set_profiler_ticks(ticks + 1);
+      function.feedback_vector().set_profiler_ticks(ticks + 1);
     }
   }
   any_ic_changed_ = false;

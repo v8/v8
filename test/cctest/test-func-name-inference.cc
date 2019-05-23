@@ -59,11 +59,11 @@ static void CheckFunctionName(v8::Local<v8::Script> script,
         Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(*obj), isolate);
   } else {
     shared_function =
-        Handle<SharedFunctionInfo>(JSFunction::cast(*obj)->shared(), isolate);
+        Handle<SharedFunctionInfo>(JSFunction::cast(*obj).shared(), isolate);
   }
   Handle<i::Script> i_script(i::Script::cast(shared_function->script()),
                              isolate);
-  CHECK(i_script->source()->IsString());
+  CHECK(i_script->source().IsString());
   Handle<i::String> script_src(i::String::cast(i_script->source()), isolate);
 
   // Find the position of a given func source substring in the source.
@@ -84,7 +84,7 @@ static void CheckFunctionName(v8::Local<v8::Script> script,
 
   // Verify inferred function name.
   std::unique_ptr<char[]> inferred_name =
-      shared_func_info->inferred_name()->ToCString();
+      shared_func_info->inferred_name().ToCString();
   i::PrintF("expected: %s, found: %s\n", ref_inferred_name,
             inferred_name.get());
   CHECK_EQ(0, strcmp(ref_inferred_name, inferred_name.get()));

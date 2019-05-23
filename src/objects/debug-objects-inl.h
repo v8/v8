@@ -56,9 +56,9 @@ SMI_ACCESSORS(BreakPoint, id, kIdOffset)
 ACCESSORS(BreakPoint, condition, String, kConditionOffset)
 
 bool DebugInfo::HasInstrumentedBytecodeArray() {
-  DCHECK_EQ(debug_bytecode_array()->IsBytecodeArray(),
-            original_bytecode_array()->IsBytecodeArray());
-  return debug_bytecode_array()->IsBytecodeArray();
+  DCHECK_EQ(debug_bytecode_array().IsBytecodeArray(),
+            original_bytecode_array().IsBytecodeArray());
+  return debug_bytecode_array().IsBytecodeArray();
 }
 
 BytecodeArray DebugInfo::OriginalBytecodeArray() {
@@ -68,7 +68,7 @@ BytecodeArray DebugInfo::OriginalBytecodeArray() {
 
 BytecodeArray DebugInfo::DebugBytecodeArray() {
   DCHECK(HasInstrumentedBytecodeArray());
-  DCHECK_EQ(shared()->GetDebugBytecodeArray(), debug_bytecode_array());
+  DCHECK_EQ(shared().GetDebugBytecodeArray(), debug_bytecode_array());
   return BytecodeArray::cast(debug_bytecode_array());
 }
 

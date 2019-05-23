@@ -529,7 +529,7 @@ TEST(GotoIfExceptionMultiple) {
   result = ft.Call(isolate->factory()->undefined_value(),
                    isolate->factory()->to_string_tag_symbol())
                .ToHandleChecked();
-  CHECK(String::cast(*result)->IsOneByteEqualTo(OneByteVector("undefined")));
+  CHECK(String::cast(*result).IsOneByteEqualTo(OneByteVector("undefined")));
 
   // First handler returns a number.
   result = ft.Call(isolate->factory()->to_string_tag_symbol(),

@@ -5963,8 +5963,8 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
                                          bool has_bigint_feature) {
   if (WasmExportedFunction::IsWasmExportedFunction(*target)) {
     auto imported_function = WasmExportedFunction::cast(*target);
-    auto func_index = imported_function->function_index();
-    auto module = imported_function->instance()->module();
+    auto func_index = imported_function.function_index();
+    auto module = imported_function.instance().module();
     wasm::FunctionSig* imported_sig = module->functions[func_index].sig;
     if (*imported_sig != *expected_sig) {
       return WasmImportCallKind::kLinkError;
@@ -5978,7 +5978,7 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
   }
   if (WasmCapiFunction::IsWasmCapiFunction(*target)) {
     WasmCapiFunction capi_function = WasmCapiFunction::cast(*target);
-    if (!capi_function->IsSignatureEqual(expected_sig)) {
+    if (!capi_function.IsSignatureEqual(expected_sig)) {
       return WasmImportCallKind::kLinkError;
     }
     return WasmImportCallKind::kWasmToCapi;
@@ -6011,8 +6011,8 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
     COMPARE_SIG_FOR_BUILTIN(F32##name);       \
     break;
 
-    if (FLAG_wasm_math_intrinsics && shared->HasBuiltinId()) {
-      switch (shared->builtin_id()) {
+    if (FLAG_wasm_math_intrinsics && shared.HasBuiltinId()) {
+      switch (shared.builtin_id()) {
         COMPARE_SIG_FOR_BUILTIN_F64(Acos);
         COMPARE_SIG_FOR_BUILTIN_F64(Asin);
         COMPARE_SIG_FOR_BUILTIN_F64(Atan);
@@ -6044,12 +6044,12 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
 #undef COMPARE_SIG_FOR_BUILTIN_F64
 #undef COMPARE_SIG_FOR_BUILTIN_F32_F64
 
-    if (IsClassConstructor(shared->kind())) {
+    if (IsClassConstructor(shared.kind())) {
       // Class constructor will throw anyway.
       return WasmImportCallKind::kUseCallBuiltin;
     }
-    bool sloppy = is_sloppy(shared->language_mode()) && !shared->native();
-    if (shared->internal_formal_parameter_count() ==
+    bool sloppy = is_sloppy(shared.language_mode()) && !shared.native();
+    if (shared.internal_formal_parameter_count() ==
         expected_sig->parameter_count()) {
       return sloppy ? WasmImportCallKind::kJSFunctionArityMatchSloppy
                     : WasmImportCallKind::kJSFunctionArityMatch;

@@ -272,13 +272,13 @@ void RelocIterator::next() {
 }
 
 RelocIterator::RelocIterator(Code code, int mode_mask)
-    : RelocIterator(code, code->unchecked_relocation_info(), mode_mask) {}
+    : RelocIterator(code, code.unchecked_relocation_info(), mode_mask) {}
 
 RelocIterator::RelocIterator(Code code, ByteArray relocation_info,
                              int mode_mask)
-    : RelocIterator(code, code->raw_instruction_start(), code->constant_pool(),
-                    relocation_info->GetDataEndAddress(),
-                    relocation_info->GetDataStartAddress(), mode_mask) {}
+    : RelocIterator(code, code.raw_instruction_start(), code.constant_pool(),
+                    relocation_info.GetDataEndAddress(),
+                    relocation_info.GetDataStartAddress(), mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeReference code_reference, int mode_mask)
     : RelocIterator(Code(), code_reference.instruction_start(),
@@ -289,10 +289,10 @@ RelocIterator::RelocIterator(const CodeReference code_reference, int mode_mask)
 RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code code,
                              int mode_mask)
     : RelocIterator(
-          code, embedded_data->InstructionStartOfBuiltin(code->builtin_index()),
-          code->constant_pool(),
-          code->relocation_start() + code->relocation_size(),
-          code->relocation_start(), mode_mask) {}
+          code, embedded_data->InstructionStartOfBuiltin(code.builtin_index()),
+          code.constant_pool(),
+          code.relocation_start() + code.relocation_size(),
+          code.relocation_start(), mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
     : RelocIterator(Code(), reinterpret_cast<Address>(desc.buffer), 0,
@@ -469,10 +469,10 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
   } else if (IsCodeTargetMode(rmode_)) {
     const Address code_target = target_address();
     Code code = Code::GetCodeFromTargetAddress(code_target);
-    DCHECK(code->IsCode());
-    os << " (" << Code::Kind2String(code->kind());
+    DCHECK(code.IsCode());
+    os << " (" << Code::Kind2String(code.kind());
     if (Builtins::IsBuiltin(code)) {
-      os << " " << Builtins::name(code->builtin_index());
+      os << " " << Builtins::name(code.builtin_index());
     }
     os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
   } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
@@ -505,8 +505,8 @@ void RelocInfo::Verify(Isolate* isolate) {
       // Check that we can find the right code object.
       Code code = Code::GetCodeFromTargetAddress(addr);
       Object found = isolate->FindCodeObject(addr);
-      CHECK(found->IsCode());
-      CHECK(code->address() == HeapObject::cast(found)->address());
+      CHECK(found.IsCode());
+      CHECK(code.address() == HeapObject::cast(found).address());
       break;
     }
     case INTERNAL_REFERENCE:
@@ -514,8 +514,8 @@ void RelocInfo::Verify(Isolate* isolate) {
       Address target = target_internal_reference();
       Address pc = target_internal_reference_address();
       Code code = Code::cast(isolate->FindCodeObject(pc));
-      CHECK(target >= code->InstructionStart());
-      CHECK(target <= code->InstructionEnd());
+      CHECK(target >= code.InstructionStart());
+      CHECK(target <= code.InstructionEnd());
       break;
     }
     case OFF_HEAP_TARGET: {

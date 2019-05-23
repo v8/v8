@@ -73,7 +73,7 @@ bool ReadOnlyRoots::CheckType(RootIndex index) const {
   switch (index) {
 #define CHECKTYPE(Type, name, CamelName) \
   case RootIndex::k##CamelName:          \
-    return root->Is##Type();
+    return root.Is##Type();
     READ_ONLY_ROOT_LIST(CHECKTYPE)
 #undef CHECKTYPE
 

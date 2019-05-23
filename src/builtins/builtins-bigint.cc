@@ -83,8 +83,8 @@ MaybeHandle<BigInt> ThisBigIntValue(Isolate* isolate, Handle<Object> value,
   if (value->IsJSValue()) {
     // 2a. Assert: value.[[BigIntData]] is a BigInt value.
     // 2b. Return value.[[BigIntData]].
-    Object data = JSValue::cast(*value)->value();
-    if (data->IsBigInt()) return handle(BigInt::cast(data), isolate);
+    Object data = JSValue::cast(*value).value();
+    if (data.IsBigInt()) return handle(BigInt::cast(data), isolate);
   }
   // 3. Throw a TypeError exception.
   THROW_NEW_ERROR(

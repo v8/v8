@@ -164,10 +164,10 @@ HeapObject ReadOnlyHeapIterator::Next() {
       continue;
     }
     HeapObject object = HeapObject::FromAddress(current_addr_);
-    const int object_size = object->Size();
+    const int object_size = object.Size();
     current_addr_ += object_size;
 
-    if (object->IsFiller()) {
+    if (object.IsFiller()) {
       continue;
     }
 

@@ -65,12 +65,12 @@ MaybeHandle<Object> DefineAccessorProperty(
     Handle<Object> getter, Handle<Object> setter, PropertyAttributes attributes,
     bool force_instantiate) {
   DCHECK(!getter->IsFunctionTemplateInfo() ||
-         !FunctionTemplateInfo::cast(*getter)->do_not_cache());
+         !FunctionTemplateInfo::cast(*getter).do_not_cache());
   DCHECK(!setter->IsFunctionTemplateInfo() ||
-         !FunctionTemplateInfo::cast(*setter)->do_not_cache());
+         !FunctionTemplateInfo::cast(*setter).do_not_cache());
   if (getter->IsFunctionTemplateInfo()) {
     if (force_instantiate ||
-        FunctionTemplateInfo::cast(*getter)->BreakAtEntry()) {
+        FunctionTemplateInfo::cast(*getter).BreakAtEntry()) {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, getter,
           InstantiateFunction(isolate,
@@ -80,7 +80,7 @@ MaybeHandle<Object> DefineAccessorProperty(
   }
   if (setter->IsFunctionTemplateInfo()) {
     if (force_instantiate ||
-        FunctionTemplateInfo::cast(*setter)->BreakAtEntry()) {
+        FunctionTemplateInfo::cast(*setter).BreakAtEntry()) {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, setter,
           InstantiateFunction(isolate,
@@ -145,7 +145,7 @@ class AccessCheckDisableScope {
  public:
   AccessCheckDisableScope(Isolate* isolate, Handle<JSObject> obj)
       : isolate_(isolate),
-        disabled_(obj->map()->is_access_check_needed()),
+        disabled_(obj->map().is_access_check_needed()),
         obj_(obj) {
     if (disabled_) {
       DisableAccessChecks(isolate_, obj_);
@@ -188,11 +188,11 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   int max_number_of_properties = 0;
   TemplateInfoT info = *data;
   while (!info.is_null()) {
-    Object props = info->property_accessors();
-    if (!props->IsUndefined(isolate)) {
-      max_number_of_properties += TemplateList::cast(props)->length();
+    Object props = info.property_accessors();
+    if (!props.IsUndefined(isolate)) {
+      max_number_of_properties += TemplateList::cast(props).length();
     }
-    info = info->GetParent(isolate);
+    info = info.GetParent(isolate);
   }
 
   if (max_number_of_properties > 0) {
@@ -205,7 +205,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
          temp = handle(temp->GetParent(isolate), isolate)) {
       // Accumulate accessors.
       Object maybe_properties = temp->property_accessors();
-      if (!maybe_properties->IsUndefined(isolate)) {
+      if (!maybe_properties.IsUndefined(isolate)) {
         valid_descriptors = AccessorInfo::AppendUnique(
             isolate, handle(maybe_properties, isolate), array,
             valid_descriptors);
@@ -223,7 +223,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   }
 
   Object maybe_property_list = data->property_list();
-  if (maybe_property_list->IsUndefined(isolate)) return obj;
+  if (maybe_property_list.IsUndefined(isolate)) return obj;
   Handle<TemplateList> properties(TemplateList::cast(maybe_property_list),
                                   isolate);
   if (properties->length() == 0) return obj;
@@ -232,7 +232,7 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   for (int c = 0; c < data->number_of_properties(); c++) {
     auto name = handle(Name::cast(properties->get(i++)), isolate);
     Object bit = properties->get(i++);
-    if (bit->IsSmi()) {
+    if (bit.IsSmi()) {
       PropertyDetails details(Smi::cast(bit));
       PropertyAttributes attributes = details.attributes();
       PropertyKind kind = details.kind();
@@ -336,7 +336,7 @@ void UncacheTemplateInstantiation(Isolate* isolate, int serial_number,
   if (serial_number <= TemplateInfo::kFastTemplateInstantiationsCacheSize) {
     Handle<FixedArray> fast_cache =
         isolate->fast_template_instantiations_cache();
-    DCHECK(!fast_cache->get(serial_number - 1)->IsUndefined(isolate));
+    DCHECK(!fast_cache->get(serial_number - 1).IsUndefined(isolate));
     fast_cache->set_undefined(serial_number - 1);
   } else if (caching_mode == CachingMode::kUnlimited ||
              (serial_number <=
@@ -354,11 +354,11 @@ bool IsSimpleInstantiation(Isolate* isolate, ObjectTemplateInfo info,
                            JSReceiver new_target) {
   DisallowHeapAllocation no_gc;
 
-  if (!new_target->IsJSFunction()) return false;
+  if (!new_target.IsJSFunction()) return false;
   JSFunction fun = JSFunction::cast(new_target);
-  if (fun->shared()->function_data() != info->constructor()) return false;
-  if (info->immutable_proto()) return false;
-  return fun->context()->native_context() == isolate->raw_native_context();
+  if (fun.shared().function_data() != info.constructor()) return false;
+  if (info.immutable_proto()) return false;
+  return fun.context().native_context() == isolate->raw_native_context();
 }
 
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
@@ -387,7 +387,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
 
   if (constructor.is_null()) {
     Object maybe_constructor_info = info->constructor();
-    if (maybe_constructor_info->IsUndefined(isolate)) {
+    if (maybe_constructor_info.IsUndefined(isolate)) {
       constructor = isolate->object_function();
     } else {
       // Enter a new scope.  Recursion could otherwise create a lot of handles.
@@ -471,9 +471,9 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
   Handle<Object> prototype;
   if (!data->remove_prototype()) {
     Object prototype_templ = data->GetPrototypeTemplate();
-    if (prototype_templ->IsUndefined(isolate)) {
+    if (prototype_templ.IsUndefined(isolate)) {
       Object protoype_provider_templ = data->GetPrototypeProviderTemplate();
-      if (protoype_provider_templ->IsUndefined(isolate)) {
+      if (protoype_provider_templ.IsUndefined(isolate)) {
         prototype = isolate->factory()->NewJSObject(isolate->object_function());
       } else {
         ASSIGN_RETURN_ON_EXCEPTION(
@@ -490,7 +490,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
           JSFunction);
     }
     Object parent = data->GetParentTemplate();
-    if (!parent->IsUndefined(isolate)) {
+    if (!parent.IsUndefined(isolate)) {
       Handle<Object> parent_prototype;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, parent_prototype,
                                  GetInstancePrototype(isolate, parent),
@@ -502,8 +502,8 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
   }
   InstanceType function_type =
       (!data->needs_access_check() &&
-       data->GetNamedPropertyHandler()->IsUndefined(isolate) &&
-       data->GetIndexedPropertyHandler()->IsUndefined(isolate))
+       data->GetNamedPropertyHandler().IsUndefined(isolate) &&
+       data->GetIndexedPropertyHandler().IsUndefined(isolate))
           ? JS_API_OBJECT_TYPE
           : JS_SPECIAL_API_OBJECT_TYPE;
 
@@ -531,7 +531,7 @@ void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
                                int length, Handle<Object>* data) {
   Object maybe_list = templ->property_list();
   Handle<TemplateList> list;
-  if (maybe_list->IsUndefined(isolate)) {
+  if (maybe_list.IsUndefined(isolate)) {
     list = TemplateList::New(isolate, length);
   } else {
     list = handle(TemplateList::cast(maybe_list), isolate);
@@ -623,7 +623,7 @@ void ApiNatives::AddNativeDataProperty(Isolate* isolate,
                                        Handle<AccessorInfo> property) {
   Object maybe_list = info->property_accessors();
   Handle<TemplateList> list;
-  if (maybe_list->IsUndefined(isolate)) {
+  if (maybe_list.IsUndefined(isolate)) {
     list = TemplateList::New(isolate, 1);
   } else {
     list = handle(TemplateList::cast(maybe_list), isolate);
@@ -647,7 +647,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   if (obj->remove_prototype()) {
     DCHECK(prototype.is_null());
-    DCHECK(result->shared()->IsApiFunction());
+    DCHECK(result->shared().IsApiFunction());
     DCHECK(!result->IsConstructor());
     DCHECK(!result->has_prototype_slot());
     return result;
@@ -663,7 +663,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   if (prototype->IsTheHole(isolate)) {
     prototype = isolate->factory()->NewFunctionPrototype(result);
-  } else if (obj->GetPrototypeProviderTemplate()->IsUndefined(isolate)) {
+  } else if (obj->GetPrototypeProviderTemplate().IsUndefined(isolate)) {
     JSObject::AddProperty(isolate, Handle<JSObject>::cast(prototype),
                           isolate->factory()->constructor_string(), result,
                           DONT_ENUM);
@@ -671,7 +671,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
 
   int embedder_field_count = 0;
   bool immutable_proto = false;
-  if (!obj->GetInstanceTemplate()->IsUndefined(isolate)) {
+  if (!obj->GetInstanceTemplate().IsUndefined(isolate)) {
     Handle<ObjectTemplateInfo> GetInstanceTemplate = Handle<ObjectTemplateInfo>(
         ObjectTemplateInfo::cast(obj->GetInstanceTemplate()), isolate);
     embedder_field_count = GetInstanceTemplate->embedder_field_count();
@@ -694,7 +694,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     // undetectable and callable. If we ever see the need to have an object
     // that is undetectable but not callable, we need to update the types.h
     // to allow encoding this.
-    CHECK(!obj->GetInstanceCallHandler()->IsUndefined(isolate));
+    CHECK(!obj->GetInstanceCallHandler().IsUndefined(isolate));
     map->set_is_undetectable(true);
   }
 
@@ -705,16 +705,16 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   }
 
   // Set interceptor information in the map.
-  if (!obj->GetNamedPropertyHandler()->IsUndefined(isolate)) {
+  if (!obj->GetNamedPropertyHandler().IsUndefined(isolate)) {
     map->set_has_named_interceptor(true);
     map->set_may_have_interesting_symbols(true);
   }
-  if (!obj->GetIndexedPropertyHandler()->IsUndefined(isolate)) {
+  if (!obj->GetIndexedPropertyHandler().IsUndefined(isolate)) {
     map->set_has_indexed_interceptor(true);
   }
 
   // Mark instance as callable in the map.
-  if (!obj->GetInstanceCallHandler()->IsUndefined(isolate)) {
+  if (!obj->GetInstanceCallHandler().IsUndefined(isolate)) {
     map->set_is_callable(true);
     map->set_is_constructor(!obj->undetectable());
   }

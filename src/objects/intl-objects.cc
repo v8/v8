@@ -154,7 +154,7 @@ void ToUpperWithSharpS(const Vector<const Char>& src,
 
 inline int FindFirstUpperOrNonAscii(String s, int length) {
   for (int index = 0; index < length; ++index) {
-    uint16_t ch = s->Get(index);
+    uint16_t ch = s.Get(index);
     if (V8_UNLIKELY(IsASCIIUpper(ch) || ch & ~0x7F)) {
       return index;
     }
@@ -253,16 +253,16 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
 // one-byte sliced string with a two-byte parent string.
 // Called from TF builtins.
 String Intl::ConvertOneByteToLower(String src, String dst) {
-  DCHECK_EQ(src->length(), dst->length());
-  DCHECK(src->IsOneByteRepresentation());
-  DCHECK(src->IsFlat());
-  DCHECK(dst->IsSeqOneByteString());
+  DCHECK_EQ(src.length(), dst.length());
+  DCHECK(src.IsOneByteRepresentation());
+  DCHECK(src.IsFlat());
+  DCHECK(dst.IsSeqOneByteString());
 
   DisallowHeapAllocation no_gc;
 
-  const int length = src->length();
-  String::FlatContent src_flat = src->GetFlatContent(no_gc);
-  uint8_t* dst_data = SeqOneByteString::cast(dst)->GetChars(no_gc);
+  const int length = src.length();
+  String::FlatContent src_flat = src.GetFlatContent(no_gc);
+  uint8_t* dst_data = SeqOneByteString::cast(dst).GetChars(no_gc);
 
   if (src_flat.IsOneByte()) {
     const uint8_t* src_data = src_flat.ToOneByteVector().begin();
@@ -967,7 +967,7 @@ MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
 
   Handle<JSFunction> constructor = Handle<JSFunction>(
       JSFunction::cast(
-          isolate->context()->native_context()->intl_collator_function()),
+          isolate->context().native_context().intl_collator_function()),
       isolate);
 
   Handle<JSCollator> collator;
@@ -977,10 +977,9 @@ MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultCollator,
-        std::static_pointer_cast<icu::UMemory>(
-            collator->icu_collator()->get()));
+        std::static_pointer_cast<icu::UMemory>(collator->icu_collator().get()));
   }
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  icu::Collator* icu_collator = collator->icu_collator().raw();
   return Intl::CompareStrings(isolate, *icu_collator, string1, string2);
 }
 
@@ -1052,7 +1051,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
 
   Handle<JSFunction> constructor = Handle<JSFunction>(
       JSFunction::cast(
-          isolate->context()->native_context()->intl_number_format_function()),
+          isolate->context().native_context().intl_number_format_function()),
       isolate);
   Handle<JSNumberFormat> number_format;
   // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
@@ -1064,12 +1063,12 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultNumberFormat,
         std::static_pointer_cast<icu::UMemory>(
-            number_format->icu_number_formatter()->get()));
+            number_format->icu_number_formatter().get()));
   }
 
   // Return FormatNumber(numberFormat, x).
   icu::number::LocalizedNumberFormatter* icu_number_format =
-      number_format->icu_number_formatter()->raw();
+      number_format->icu_number_formatter().raw();
   return JSNumberFormat::FormatNumeric(isolate, *icu_number_format,
                                        numeric_obj);
 }

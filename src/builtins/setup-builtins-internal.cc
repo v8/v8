@@ -214,7 +214,7 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
 // static
 void SetupIsolateDelegate::AddBuiltin(Builtins* builtins, int index,
                                       Code code) {
-  DCHECK_EQ(index, code->builtin_index());
+  DCHECK_EQ(index, code.builtin_index());
   builtins->set_builtin(index, code);
 }
 
@@ -245,7 +245,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   HeapIterator iterator(isolate->heap());
   for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
-    if (!obj->IsCode()) continue;
+    if (!obj.IsCode()) continue;
     Code code = Code::cast(obj);
     bool flush_icache = false;
     for (RelocIterator it(code, kRelocMask); !it.done(); it.next()) {
@@ -253,26 +253,26 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       if (RelocInfo::IsCodeTargetMode(rinfo->rmode())) {
         Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
         DCHECK_IMPLIES(RelocInfo::IsRelativeCodeTarget(rinfo->rmode()),
-                       Builtins::IsIsolateIndependent(target->builtin_index()));
-        if (!target->is_builtin()) continue;
-        Code new_target = builtins->builtin(target->builtin_index());
-        rinfo->set_target_address(new_target->raw_instruction_start(),
+                       Builtins::IsIsolateIndependent(target.builtin_index()));
+        if (!target.is_builtin()) continue;
+        Code new_target = builtins->builtin(target.builtin_index());
+        rinfo->set_target_address(new_target.raw_instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
         Object object = rinfo->target_object();
-        if (!object->IsCode()) continue;
+        if (!object.IsCode()) continue;
         Code target = Code::cast(object);
-        if (!target->is_builtin()) continue;
-        Code new_target = builtins->builtin(target->builtin_index());
+        if (!target.is_builtin()) continue;
+        Code new_target = builtins->builtin(target.builtin_index());
         rinfo->set_target_object(isolate->heap(), new_target,
                                  UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       }
       flush_icache = true;
     }
     if (flush_icache) {
-      FlushInstructionCache(code->raw_instruction_start(),
-                            code->raw_instruction_size());
+      FlushInstructionCache(code.raw_instruction_start(),
+                            code.raw_instruction_size());
     }
   }
 }
@@ -359,13 +359,13 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   ReplacePlaceholders(isolate);
 
 #define SET_PROMISE_REJECTION_PREDICTION(Name) \
-  builtins->builtin(Builtins::k##Name)->set_is_promise_rejection(true);
+  builtins->builtin(Builtins::k##Name).set_is_promise_rejection(true);
 
   BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(SET_PROMISE_REJECTION_PREDICTION)
 #undef SET_PROMISE_REJECTION_PREDICTION
 
 #define SET_EXCEPTION_CAUGHT_PREDICTION(Name) \
-  builtins->builtin(Builtins::k##Name)->set_is_exception_caught(true);
+  builtins->builtin(Builtins::k##Name).set_is_exception_caught(true);
 
   BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(SET_EXCEPTION_CAUGHT_PREDICTION)
 #undef SET_EXCEPTION_CAUGHT_PREDICTION

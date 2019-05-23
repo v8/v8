@@ -181,9 +181,8 @@ class FieldRepresentationDependency final
   bool IsValid() const override {
     DisallowHeapAllocation no_heap_allocation;
     Handle<Map> owner = owner_.object();
-    return representation_.Equals(owner->instance_descriptors()
-                                      ->GetDetails(descriptor_)
-                                      .representation());
+    return representation_.Equals(
+        owner->instance_descriptors().GetDetails(descriptor_).representation());
   }
 
   void Install(const MaybeObjectHandle& code) const override {
@@ -213,7 +212,7 @@ class FieldTypeDependency final : public CompilationDependencies::Dependency {
     DisallowHeapAllocation no_heap_allocation;
     Handle<Map> owner = owner_.object();
     Handle<Object> type = type_.object();
-    return *type == owner->instance_descriptors()->GetFieldType(descriptor_);
+    return *type == owner->instance_descriptors().GetFieldType(descriptor_);
   }
 
   void Install(const MaybeObjectHandle& code) const override {
@@ -242,7 +241,7 @@ class FieldConstnessDependency final
     DisallowHeapAllocation no_heap_allocation;
     Handle<Map> owner = owner_.object();
     return PropertyConstness::kConst ==
-           owner->instance_descriptors()->GetDetails(descriptor_).constness();
+           owner->instance_descriptors().GetDetails(descriptor_).constness();
   }
 
   void Install(const MaybeObjectHandle& code) const override {
@@ -332,7 +331,7 @@ class ElementsKindDependency final
   bool IsValid() const override {
     Handle<AllocationSite> site = site_.object();
     ElementsKind kind = site->PointsToLiteral()
-                            ? site->boilerplate()->GetElementsKind()
+                            ? site->boilerplate().GetElementsKind()
                             : site->GetElementsKind();
     return kind_ == kind;
   }
@@ -372,9 +371,8 @@ class InitialMapInstanceSizePredictionDependency final
 
   void Install(const MaybeObjectHandle& code) const override {
     SLOW_DCHECK(IsValid());
-    DCHECK(!function_.object()
-                ->initial_map()
-                ->IsInobjectSlackTrackingInProgress());
+    DCHECK(
+        !function_.object()->initial_map().IsInobjectSlackTrackingInProgress());
   }
 
  private:

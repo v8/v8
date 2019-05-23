@@ -85,8 +85,8 @@ LocalEmbedderHeapTracer::ProcessingScope::~ProcessingScope() {
 
 void LocalEmbedderHeapTracer::ProcessingScope::TracePossibleWrapper(
     JSObject js_object) {
-  DCHECK(js_object->IsApiWrapper());
-  if (js_object->GetEmbedderFieldCount() < 2) return;
+  DCHECK(js_object.IsApiWrapper());
+  if (js_object.GetEmbedderFieldCount() < 2) return;
 
   void* pointer0;
   void* pointer1;

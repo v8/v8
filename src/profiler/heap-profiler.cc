@@ -148,7 +148,7 @@ HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
 SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
   if (!obj->IsHeapObject())
     return v8::HeapProfiler::kUnknownObjectId;
-  return ids_->FindEntry(HeapObject::cast(*obj)->address());
+  return ids_->FindEntry(HeapObject::cast(*obj).address());
 }
 
 void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size) {
@@ -177,7 +177,7 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
   // Make sure that object with the given id is still reachable.
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (ids_->FindEntry(obj->address()) == id) {
+    if (ids_->FindEntry(obj.address()) == id) {
       DCHECK(object.is_null());
       object = obj;
       // Can't break -- kFilterUnreachable requires full heap traversal.
@@ -208,7 +208,7 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
   CombinedHeapIterator heap_iterator(heap());
   for (HeapObject heap_obj = heap_iterator.Next(); !heap_obj.is_null();
        heap_obj = heap_iterator.Next()) {
-    if (!heap_obj->IsJSObject() || heap_obj->IsExternal(isolate())) continue;
+    if (!heap_obj.IsJSObject() || heap_obj.IsExternal(isolate())) continue;
     v8::Local<v8::Object> v8_obj(
         Utils::ToLocal(handle(JSObject::cast(heap_obj), isolate())));
     if (!predicate->Filter(v8_obj)) continue;

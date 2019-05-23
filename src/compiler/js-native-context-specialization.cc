@@ -246,7 +246,7 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
       FrameStateInfoOf(frame_state->op()).shared_info().ToHandleChecked();
   DCHECK(shared->is_compiled());
   int register_count = shared->internal_formal_parameter_count() +
-                       shared->GetBytecodeArray()->register_count();
+                       shared->GetBytecodeArray().register_count();
   Node* value = effect =
       graph()->NewNode(javascript()->CreateAsyncFunctionObject(register_count),
                        closure, receiver, promise, context, effect, control);
@@ -542,8 +542,8 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
         none = false;
         break;
       }
-      if (!current->map()->is_stable() ||
-          current->map()->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE) {
+      if (!current->map().is_stable() ||
+          current->map().instance_type() <= LAST_SPECIAL_RECEIVER_TYPE) {
         return kMayBeInPrototypeChain;
       }
     }
@@ -560,7 +560,7 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
       // might be a different object each time, so it's much simpler to include
       // {prototype}. That does, however, mean that we must check {prototype}'s
       // map stability.
-      if (!prototype->map()->is_stable()) return kMayBeInPrototypeChain;
+      if (!prototype->map().is_stable()) return kMayBeInPrototypeChain;
       last_prototype.emplace(broker(), Handle<JSObject>::cast(prototype));
     }
     WhereToStart start = result == NodeProperties::kUnreliableReceiverMaps
@@ -3305,7 +3305,7 @@ MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverRootMap(
     Node* receiver) {
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
-    return handle(m.Value()->map()->FindRootMap(isolate()), isolate());
+    return handle(m.Value()->map().FindRootMap(isolate()), isolate());
   } else if (m.IsJSCreate()) {
     base::Optional<MapRef> initial_map =
         NodeProperties::GetJSCreateMap(broker(), receiver);

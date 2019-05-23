@@ -118,7 +118,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
     isolate->set_external_caught_exception(false);
 
     // Turn the exception on the message into a string if it is an object.
-    if (message->argument()->IsJSObject()) {
+    if (message->argument().IsJSObject()) {
       HandleScope scope(isolate);
       Handle<Object> argument(message->argument(), isolate);
 
@@ -169,17 +169,17 @@ void MessageHandler::ReportMessageNoExceptions(
   } else {
     for (int i = 0; i < global_length; i++) {
       HandleScope scope(isolate);
-      if (global_listeners->get(i)->IsUndefined(isolate)) continue;
+      if (global_listeners->get(i).IsUndefined(isolate)) continue;
       FixedArray listener = FixedArray::cast(global_listeners->get(i));
-      Foreign callback_obj = Foreign::cast(listener->get(0));
+      Foreign callback_obj = Foreign::cast(listener.get(0));
       int32_t message_levels =
-          static_cast<int32_t>(Smi::ToInt(listener->get(2)));
+          static_cast<int32_t>(Smi::ToInt(listener.get(2)));
       if (!(message_levels & error_level)) {
         continue;
       }
       v8::MessageCallback callback =
-          FUNCTION_CAST<v8::MessageCallback>(callback_obj->foreign_address());
-      Handle<Object> callback_data(listener->get(1), isolate);
+          FUNCTION_CAST<v8::MessageCallback>(callback_obj.foreign_address());
+      Handle<Object> callback_data(listener.get(1), isolate);
       {
         RuntimeCallTimerScope timer(
             isolate, RuntimeCallCounterId::kMessageListenerCallback);
@@ -218,7 +218,7 @@ Object EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
 
   Handle<SharedFunctionInfo> shared(script->eval_from_shared(), isolate);
   // Find the name of the function calling eval.
-  if (shared->Name()->BooleanValue(isolate)) {
+  if (shared->Name().BooleanValue(isolate)) {
     return shared->Name();
   }
 
@@ -250,7 +250,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
   if (script->has_eval_from_shared()) {
     Handle<SharedFunctionInfo> eval_from_shared(script->eval_from_shared(),
                                                 isolate);
-    if (eval_from_shared->script()->IsScript()) {
+    if (eval_from_shared->script().IsScript()) {
       Handle<Script> eval_from_script =
           handle(Script::cast(eval_from_shared->script()), isolate);
       builder.AppendCString(" (");
@@ -266,7 +266,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
                Script::COMPILATION_TYPE_EVAL);
         // eval script originated from "real" source.
         Handle<Object> name_obj = handle(eval_from_script->name(), isolate);
-        if (eval_from_script->name()->IsString()) {
+        if (eval_from_script->name().IsString()) {
           builder.AppendString(Handle<String>::cast(name_obj));
 
           Script::PositionInfo info;
@@ -287,7 +287,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
             builder.AppendString(str);
           }
         } else {
-          DCHECK(!eval_from_script->name()->IsString());
+          DCHECK(!eval_from_script->name().IsString());
           builder.AppendCString("unknown source");
         }
       }
@@ -330,9 +330,9 @@ void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   receiver_ = handle(array->Receiver(frame_ix), isolate);
   function_ = handle(array->Function(frame_ix), isolate);
   code_ = handle(array->Code(frame_ix), isolate);
-  offset_ = array->Offset(frame_ix)->value();
+  offset_ = array->Offset(frame_ix).value();
 
-  const int flags = array->Flags(frame_ix)->value();
+  const int flags = array->Flags(frame_ix).value();
   is_constructor_ = (flags & FrameArray::kIsConstructor) != 0;
   is_strict_ = (flags & FrameArray::kIsStrict) != 0;
   is_async_ = (flags & FrameArray::kIsAsync) != 0;
@@ -392,7 +392,7 @@ bool CheckMethodName(Isolate* isolate, Handle<JSReceiver> receiver,
 
 Handle<Object> ScriptNameOrSourceUrl(Handle<Script> script, Isolate* isolate) {
   Object name_or_url = script->source_url();
-  if (!name_or_url->IsString()) name_or_url = script->name();
+  if (!name_or_url.IsString()) name_or_url = script->name();
   return handle(name_or_url, isolate);
 }
 
@@ -416,7 +416,7 @@ Handle<Object> JSStackFrame::GetMethodName() {
     return isolate_->factory()->null_value();
   }
 
-  Handle<String> name(function_->shared()->Name(), isolate_);
+  Handle<String> name(function_->shared().Name(), isolate_);
   name = String::Flatten(isolate_, name);
 
   // The static initializer function is not a method, so don't add a
@@ -448,7 +448,7 @@ Handle<Object> JSStackFrame::GetMethodName() {
         KeyAccumulator::GetOwnEnumPropertyKeys(isolate_, current_obj);
     for (int i = 0; i < keys->length(); i++) {
       HandleScope inner_scope(isolate_);
-      if (!keys->get(i)->IsName()) continue;
+      if (!keys->get(i).IsName()) continue;
       Handle<Name> name_key(Name::cast(keys->get(i)), isolate_);
       if (!CheckMethodName(isolate_, current_obj, name_key, function_,
                            LookupIterator::OWN_SKIP_INTERCEPTOR))
@@ -513,7 +513,7 @@ bool JSStackFrame::IsToplevel() {
 namespace {
 
 bool IsNonEmptyString(Handle<Object> object) {
-  return (object->IsString() && String::cast(*object)->length() > 0);
+  return (object->IsString() && String::cast(*object).length() > 0);
 }
 
 void AppendFileLocation(Isolate* isolate, StackFrameBase* call_site,
@@ -688,11 +688,11 @@ int JSStackFrame::GetPosition() const {
 }
 
 bool JSStackFrame::HasScript() const {
-  return function_->shared()->script()->IsScript();
+  return function_->shared().script().IsScript();
 }
 
 Handle<Script> JSStackFrame::GetScript() const {
-  return handle(Script::cast(function_->shared()->script()), isolate_);
+  return handle(Script::cast(function_->shared().script()), isolate_);
 }
 
 void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
@@ -704,16 +704,16 @@ void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
          array->IsAsmJsWasmFrame(frame_ix));
   isolate_ = isolate;
   wasm_instance_ = handle(array->WasmInstance(frame_ix), isolate);
-  wasm_func_index_ = array->WasmFunctionIndex(frame_ix)->value();
+  wasm_func_index_ = array->WasmFunctionIndex(frame_ix).value();
   if (array->IsWasmInterpretedFrame(frame_ix)) {
     code_ = nullptr;
   } else {
     // The {WasmCode*} is held alive by the {GlobalWasmCodeRef}.
     auto global_wasm_code_ref =
         Managed<wasm::GlobalWasmCodeRef>::cast(array->WasmCodeObject(frame_ix));
-    code_ = global_wasm_code_ref->get()->code();
+    code_ = global_wasm_code_ref.get()->code();
   }
-  offset_ = array->Offset(frame_ix)->value();
+  offset_ = array->Offset(frame_ix).value();
 }
 
 Handle<Object> WasmStackFrame::GetReceiver() const { return wasm_instance_; }
@@ -783,7 +783,7 @@ Handle<Object> WasmStackFrame::Null() const {
 bool WasmStackFrame::HasScript() const { return true; }
 
 Handle<Script> WasmStackFrame::GetScript() const {
-  return handle(wasm_instance_->module_object()->script(), isolate_);
+  return handle(wasm_instance_->module_object().script(), isolate_);
 }
 
 void AsmJsWasmStackFrame::FromFrameArray(Isolate* isolate,
@@ -792,7 +792,7 @@ void AsmJsWasmStackFrame::FromFrameArray(Isolate* isolate,
   DCHECK(array->IsAsmJsWasmFrame(frame_ix));
   WasmStackFrame::FromFrameArray(isolate, array, frame_ix);
   is_at_number_conversion_ =
-      array->Flags(frame_ix)->value() & FrameArray::kAsmJsAtNumberConversion;
+      array->Flags(frame_ix).value() & FrameArray::kAsmJsAtNumberConversion;
 }
 
 Handle<Object> AsmJsWasmStackFrame::GetReceiver() const {
@@ -805,13 +805,13 @@ Handle<Object> AsmJsWasmStackFrame::GetFunction() const {
 }
 
 Handle<Object> AsmJsWasmStackFrame::GetFileName() {
-  Handle<Script> script(wasm_instance_->module_object()->script(), isolate_);
+  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
   DCHECK(script->IsUserJavaScript());
   return handle(script->name(), isolate_);
 }
 
 Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
-  Handle<Script> script(wasm_instance_->module_object()->script(), isolate_);
+  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
   DCHECK_EQ(Script::TYPE_NORMAL, script->type());
   return ScriptNameOrSourceUrl(script, isolate_);
 }
@@ -831,14 +831,14 @@ int AsmJsWasmStackFrame::GetPosition() const {
 
 int AsmJsWasmStackFrame::GetLineNumber() {
   DCHECK_LE(0, GetPosition());
-  Handle<Script> script(wasm_instance_->module_object()->script(), isolate_);
+  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
   DCHECK(script->IsUserJavaScript());
   return Script::GetLineNumber(script, GetPosition()) + 1;
 }
 
 int AsmJsWasmStackFrame::GetColumnNumber() {
   DCHECK_LE(0, GetPosition());
-  Handle<Script> script(wasm_instance_->module_object()->script(), isolate_);
+  Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
   DCHECK(script->IsUserJavaScript());
   return Script::GetColumnNumber(script, GetPosition()) + 1;
 }
@@ -873,7 +873,7 @@ void FrameArrayIterator::Advance() { frame_ix_++; }
 
 StackFrameBase* FrameArrayIterator::Frame() {
   DCHECK(HasFrame());
-  const int flags = array_->Flags(frame_ix_)->value();
+  const int flags = array_->Flags(frame_ix_).value();
   int flag_mask = FrameArray::kIsWasmFrame |
                   FrameArray::kIsWasmInterpretedFrame |
                   FrameArray::kIsAsmJsWasmFrame;

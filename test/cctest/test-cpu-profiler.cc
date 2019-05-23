@@ -182,26 +182,26 @@ TEST(CodeEvents) {
   profiler_listener.CodeMoveEvent(comment2_code, moved_code);
 
   // Enqueue a tick event to enable code events processing.
-  EnqueueTickSampleEvent(processor, aaa_code->InstructionStart());
+  EnqueueTickSampleEvent(processor, aaa_code.InstructionStart());
 
   isolate->logger()->RemoveCodeEventListener(&profiler_listener);
   processor->StopSynchronously();
 
   // Check the state of profile generator.
   CodeEntry* aaa =
-      generator->code_map()->FindEntry(aaa_code->InstructionStart());
+      generator->code_map()->FindEntry(aaa_code.InstructionStart());
   CHECK(aaa);
   CHECK_EQ(0, strcmp(aaa_str, aaa->name()));
 
   CodeEntry* comment =
-      generator->code_map()->FindEntry(comment_code->InstructionStart());
+      generator->code_map()->FindEntry(comment_code.InstructionStart());
   CHECK(comment);
   CHECK_EQ(0, strcmp("comment", comment->name()));
 
-  CHECK(!generator->code_map()->FindEntry(comment2_code->InstructionStart()));
+  CHECK(!generator->code_map()->FindEntry(comment2_code.InstructionStart()));
 
   CodeEntry* comment2 =
-      generator->code_map()->FindEntry(moved_code->InstructionStart());
+      generator->code_map()->FindEntry(moved_code.InstructionStart());
   CHECK(comment2);
   CHECK_EQ(0, strcmp("comment2", comment2->name()));
 }
@@ -236,14 +236,14 @@ TEST(TickEvents) {
   profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, "ccc");
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
 
-  EnqueueTickSampleEvent(processor, frame1_code->raw_instruction_start());
+  EnqueueTickSampleEvent(processor, frame1_code.raw_instruction_start());
   EnqueueTickSampleEvent(
       processor,
-      frame2_code->raw_instruction_start() + frame2_code->ExecutableSize() / 2,
-      frame1_code->raw_instruction_start() + frame1_code->ExecutableSize() / 2);
-  EnqueueTickSampleEvent(processor, frame3_code->raw_instruction_end() - 1,
-                         frame2_code->raw_instruction_end() - 1,
-                         frame1_code->raw_instruction_end() - 1);
+      frame2_code.raw_instruction_start() + frame2_code.ExecutableSize() / 2,
+      frame1_code.raw_instruction_start() + frame1_code.ExecutableSize() / 2);
+  EnqueueTickSampleEvent(processor, frame3_code.raw_instruction_end() - 1,
+                         frame2_code.raw_instruction_end() - 1,
+                         frame1_code.raw_instruction_end() - 1);
 
   isolate->logger()->RemoveCodeEventListener(&profiler_listener);
   processor->StopSynchronously();
@@ -303,11 +303,11 @@ TEST(Issue1398) {
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
 
   v8::internal::TickSample sample;
-  sample.pc = reinterpret_cast<void*>(code->InstructionStart());
+  sample.pc = reinterpret_cast<void*>(code.InstructionStart());
   sample.tos = nullptr;
   sample.frames_count = v8::TickSample::kMaxFramesCount;
   for (unsigned i = 0; i < sample.frames_count; ++i) {
-    sample.stack[i] = reinterpret_cast<void*>(code->InstructionStart());
+    sample.stack[i] = reinterpret_cast<void*>(code.InstructionStart());
   }
   sample.timestamp = base::TimeTicks::HighResolutionNow();
   processor->AddSample(sample);
@@ -1145,12 +1145,12 @@ static void TickLines(bool optimize) {
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
   CHECK(!func->shared().is_null());
-  CHECK(!func->shared()->abstract_code().is_null());
+  CHECK(!func->shared().abstract_code().is_null());
   CHECK(!optimize || func->IsOptimized() ||
         !CcTest::i_isolate()->use_optimizer());
   i::AbstractCode code = func->abstract_code();
   CHECK(!code.is_null());
-  i::Address code_address = code->raw_instruction_start();
+  i::Address code_address = code.raw_instruction_start();
   CHECK_NE(code_address, kNullAddress);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);

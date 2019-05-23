@@ -1109,7 +1109,7 @@ void TurboAssembler::Set(Operand dst, intptr_t x) {
 
 Register TurboAssembler::GetSmiConstant(Smi source) {
   STATIC_ASSERT(kSmiTag == 0);
-  int value = source->value();
+  int value = source.value();
   if (value == 0) {
     xorl(kScratchRegister, kScratchRegister);
     return kScratchRegister;
@@ -1120,7 +1120,7 @@ Register TurboAssembler::GetSmiConstant(Smi source) {
 
 void TurboAssembler::Move(Register dst, Smi source) {
   STATIC_ASSERT(kSmiTag == 0);
-  int value = source->value();
+  int value = source.value();
   if (value == 0) {
     xorl(dst, dst);
   } else {
@@ -1185,7 +1185,7 @@ void MacroAssembler::SmiCompare(Register dst, Smi src) {
 
 void MacroAssembler::Cmp(Register dst, Smi src) {
   DCHECK_NE(dst, kScratchRegister);
-  if (src->value() == 0) {
+  if (src.value() == 0) {
     test_tagged(dst, dst);
   } else {
     Register constant_reg = GetSmiConstant(src);
@@ -1208,7 +1208,7 @@ void MacroAssembler::SmiCompare(Operand dst, Register src) {
 void MacroAssembler::SmiCompare(Operand dst, Smi src) {
   AssertSmi(dst);
   if (SmiValuesAre32Bits()) {
-    cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
+    cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src.value()));
   } else {
     DCHECK(SmiValuesAre31Bits());
     cmpl(dst, Immediate(src));
@@ -1255,10 +1255,9 @@ void MacroAssembler::JumpIfNotSmi(Operand src, Label* on_not_smi,
 }
 
 void MacroAssembler::SmiAddConstant(Operand dst, Smi constant) {
-  if (constant->value() != 0) {
+  if (constant.value() != 0) {
     if (SmiValuesAre32Bits()) {
-      addl(Operand(dst, kSmiShift / kBitsPerByte),
-           Immediate(constant->value()));
+      addl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(constant.value()));
     } else {
       DCHECK(SmiValuesAre31Bits());
       if (kTaggedSize == kInt64Size) {

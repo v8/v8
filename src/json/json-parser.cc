@@ -220,13 +220,13 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
 
   if (StringShape(*source_).IsExternal()) {
     chars_ =
-        static_cast<const Char*>(SeqExternalString::cast(*source_)->GetChars());
+        static_cast<const Char*>(SeqExternalString::cast(*source_).GetChars());
     chars_may_relocate_ = false;
   } else {
     DisallowHeapAllocation no_gc;
     isolate->heap()->AddGCEpilogueCallback(UpdatePointersCallback,
                                            v8::kGCTypeAll, this);
-    chars_ = SeqString::cast(*source_)->GetChars(no_gc);
+    chars_ = SeqString::cast(*source_).GetChars(no_gc);
     chars_may_relocate_ = true;
   }
   cursor_ = chars_ + start;
@@ -495,7 +495,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     Handle<Object> value = property.value;
 
     PropertyDetails details =
-        target->instance_descriptors()->GetDetails(descriptor);
+        target->instance_descriptors().GetDetails(descriptor);
     Representation expected_representation = details.representation();
 
     if (!value->FitsRepresentation(expected_representation)) {
@@ -511,8 +511,8 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
                            representation, value_type);
     } else if (expected_representation.IsHeapObject() &&
                !target->instance_descriptors()
-                    ->GetFieldType(descriptor)
-                    ->NowContains(value)) {
+                    .GetFieldType(descriptor)
+                    .NowContains(value)) {
       Handle<FieldType> value_type =
           value->OptimalType(isolate(), expected_representation);
       Map::GeneralizeField(isolate(), target, descriptor, details.constness(),
@@ -523,8 +523,8 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     }
 
     DCHECK(target->instance_descriptors()
-               ->GetFieldType(descriptor)
-               ->NowContains(value));
+               .GetFieldType(descriptor)
+               .NowContains(value));
     map = target;
     descriptor++;
   }
@@ -569,7 +569,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       const JsonProperty& property = property_stack[start + j];
       if (property.string.is_index()) continue;
       PropertyDetails details =
-          map->instance_descriptors()->GetDetails(descriptor);
+          map->instance_descriptors().GetDetails(descriptor);
       Object value = *property.value;
       FieldIndex index = FieldIndex::ForDescriptor(*map, descriptor);
       descriptor++;
@@ -608,7 +608,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           mutable_double_address += kMutableDoubleSize;
         } else {
           DCHECK(value.IsHeapNumber());
-          HeapObject::cast(value)->synchronized_set_map(
+          HeapObject::cast(value).synchronized_set_map(
               *factory()->mutable_heap_number_map());
         }
       }
@@ -670,7 +670,7 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(
     DisallowHeapAllocation no_gc;
     FixedDoubleArray elements = FixedDoubleArray::cast(array->elements());
     for (int i = 0; i < length; i++) {
-      elements->set(i, element_stack[start + i]->Number());
+      elements.set(i, element_stack[start + i]->Number());
     }
   } else {
     DisallowHeapAllocation no_gc;
@@ -679,7 +679,7 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(
                                 ? SKIP_WRITE_BARRIER
                                 : elements.GetWriteBarrierMode(no_gc);
     for (int i = 0; i < length; i++) {
-      elements->set(i, *element_stack[start + i], mode);
+      elements.set(i, *element_stack[start + i], mode);
     }
   }
   return array;
@@ -826,7 +826,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
               cont_stack.back().index < element_stack.size() &&
               element_stack.back()->IsJSObject()) {
             feedback =
-                handle(JSObject::cast(*element_stack.back())->map(), isolate_);
+                handle(JSObject::cast(*element_stack.back()).map(), isolate_);
           }
           value = BuildJsonObject(cont, property_stack, feedback);
           property_stack.resize(cont.index);

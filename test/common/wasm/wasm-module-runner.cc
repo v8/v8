@@ -261,7 +261,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
     return Smi::ToInt(*result);
   }
   if (result->IsHeapNumber()) {
-    return static_cast<int32_t>(HeapNumber::cast(*result)->value());
+    return static_cast<int32_t>(HeapNumber::cast(*result).value());
   }
   thrower->RuntimeError(
       "Calling exported wasm function failed: Return value should be number");

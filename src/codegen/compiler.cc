@@ -94,7 +94,7 @@ void LogFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
 
   int line_num = Script::GetLineNumber(script, shared->StartPosition()) + 1;
   int column_num = Script::GetColumnNumber(script, shared->StartPosition()) + 1;
-  String script_name = script->name()->IsString()
+  String script_name = script->name().IsString()
                            ? String::cast(script->name())
                            : ReadOnlyRoots(isolate).empty_string();
   CodeEventListener::LogEventsAndTags log_tag =
@@ -127,9 +127,9 @@ void LogFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
 }
 
 ScriptOriginOptions OriginOptionsForEval(Object script) {
-  if (!script->IsScript()) return ScriptOriginOptions();
+  if (!script.IsScript()) return ScriptOriginOptions();
 
-  const auto outer_origin_options = Script::cast(script)->origin_options();
+  const auto outer_origin_options = Script::cast(script).origin_options();
   return ScriptOriginOptions(outer_origin_options.IsSharedCrossOrigin(),
                              outer_origin_options.IsOpaque());
 }
@@ -270,7 +270,7 @@ void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
 
     compilation_time += (ms_creategraph + ms_optimize + ms_codegen);
     compiled_functions++;
-    code_size += function->shared()->SourceSize();
+    code_size += function->shared().SourceSize();
     PrintF("Compiled: %d functions with %d byte source size in %fms.\n",
            compiled_functions, code_size, compilation_time);
   }
@@ -383,7 +383,7 @@ void InstallBytecodeArray(Handle<BytecodeArray> bytecode_array,
       Script::GetLineNumber(script, shared_info->StartPosition()) + 1;
   int column_num =
       Script::GetColumnNumber(script, shared_info->StartPosition()) + 1;
-  String script_name = script->name()->IsString()
+  String script_name = script->name().IsString()
                            ? String::cast(script->name())
                            : ReadOnlyRoots(isolate).empty_string();
   CodeEventListener::LogEventsAndTags log_tag = Logger::ToNativeByScript(
@@ -433,8 +433,8 @@ void EnsureSharedFunctionInfosArrayOnScript(ParseInfo* parse_info,
                                             Isolate* isolate) {
   DCHECK(parse_info->is_toplevel());
   DCHECK(!parse_info->script().is_null());
-  if (parse_info->script()->shared_function_infos()->length() > 0) {
-    DCHECK_EQ(parse_info->script()->shared_function_infos()->length(),
+  if (parse_info->script()->shared_function_infos().length() > 0) {
+    DCHECK_EQ(parse_info->script()->shared_function_infos().length(),
               parse_info->max_function_literal_id() + 1);
     return;
   }
@@ -659,15 +659,15 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
   if (osr_offset.IsNone()) {
     if (function->has_feedback_vector()) {
       FeedbackVector feedback_vector = function->feedback_vector();
-      feedback_vector->EvictOptimizedCodeMarkedForDeoptimization(
+      feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
           function->shared(), "GetCodeFromOptimizedCodeCache");
-      Code code = feedback_vector->optimized_code();
+      Code code = feedback_vector.optimized_code();
 
       if (!code.is_null()) {
         // Caching of optimized code enabled and optimized code found.
-        DCHECK(!code->marked_for_deoptimization());
-        DCHECK(function->shared()->is_compiled());
-        return Handle<Code>(code, feedback_vector->GetIsolate());
+        DCHECK(!code.marked_for_deoptimization());
+        DCHECK(function->shared().is_compiled());
+        return Handle<Code>(code, feedback_vector.GetIsolate());
       }
     }
   }
@@ -700,7 +700,7 @@ void InsertCodeIntoOptimizedCodeCache(
   // Cache optimized context-specific code.
   Handle<JSFunction> function = compilation_info->closure();
   Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
-  Handle<Context> native_context(function->context()->native_context(),
+  Handle<Context> native_context(function->context().native_context(),
                                  function->GetIsolate());
   if (compilation_info->osr_offset().IsNone()) {
     Handle<FeedbackVector> vector =
@@ -800,7 +800,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // If code was pending optimization for testing, delete remove the strong root
   // that was preventing the bytecode from being flushed between marking and
   // optimization.
-  if (!isolate->heap()->pending_optimize_for_test_bytecode()->IsUndefined()) {
+  if (!isolate->heap()->pending_optimize_for_test_bytecode().IsUndefined()) {
     Handle<ObjectHashTable> table =
         handle(ObjectHashTable::cast(
                    isolate->heap()->pending_optimize_for_test_bytecode()),
@@ -827,7 +827,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   // Reset profiler ticks, function is no longer considered hot.
   DCHECK(shared->is_compiled());
-  function->feedback_vector()->set_profiler_ticks(0);
+  function->feedback_vector().set_profiler_ticks(0);
 
   VMState<COMPILER> state(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
@@ -837,7 +837,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
-  bool has_script = shared->script()->IsScript();
+  bool has_script = shared->script().IsScript();
   // BUG(5946): This DCHECK is necessary to make certain that we won't
   // tolerate the lack of a script without bytecode.
   DCHECK_IMPLIES(!has_script, shared->HasBytecodeArray());
@@ -881,8 +881,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
       // Set the optimization marker and return a code object which checks it.
       function->SetOptimizationMarker(OptimizationMarker::kInOptimizationQueue);
       DCHECK(function->IsInterpreted() ||
-             (!function->is_compiled() && function->shared()->IsInterpreted()));
-      DCHECK(function->shared()->HasBytecodeArray());
+             (!function->is_compiled() && function->shared().IsInterpreted()));
+      DCHECK(function->shared().HasBytecodeArray());
       return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
     }
   } else {
@@ -1178,7 +1178,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
                                       Handle<SharedFunctionInfo> shared_info) {
   DCHECK(shared_info->is_compiled());
   DCHECK(shared_info->HasBytecodeArray());
-  DCHECK(!shared_info->GetBytecodeArray()->HasSourcePositionTable());
+  DCHECK(!shared_info->GetBytecodeArray().HasSourcePositionTable());
 
   // Collecting source positions requires allocating a new source position
   // table.
@@ -1266,8 +1266,8 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   // If debugging, make sure that instrumented bytecode has the source position
   // table set on it as well.
   if (shared_info->HasDebugInfo() &&
-      shared_info->GetDebugInfo()->HasInstrumentedBytecodeArray()) {
-    shared_info->GetDebugBytecodeArray()->set_source_position_table(
+      shared_info->GetDebugInfo().HasInstrumentedBytecodeArray()) {
+    shared_info->GetDebugBytecodeArray().set_source_position_table(
         source_position_table);
   }
 
@@ -1315,7 +1315,7 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
     parse_info.set_consumed_preparse_data(ConsumedPreparseData::For(
         isolate,
         handle(
-            shared_info->uncompiled_data_with_preparse_data()->preparse_data(),
+            shared_info->uncompiled_data_with_preparse_data().preparse_data(),
             isolate)));
   }
 
@@ -1377,7 +1377,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
   JSFunction::InitializeFeedbackCell(function);
 
   // Optimize now if --always-opt is enabled.
-  if (FLAG_always_opt && !function->shared()->HasAsmWasmData()) {
+  if (FLAG_always_opt && !function->shared().HasAsmWasmData()) {
     if (FLAG_trace_opt) {
       PrintF("[optimizing ");
       function->ShortPrint();
@@ -1395,7 +1395,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
 
   // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
-  DCHECK(function->shared()->is_compiled());
+  DCHECK(function->shared().is_compiled());
   DCHECK(function->is_compiled());
   return true;
 }
@@ -1449,8 +1449,8 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
     // Optimization failed, get unoptimized code. Unoptimized code must exist
     // already if we are optimizing.
     DCHECK(!isolate->has_pending_exception());
-    DCHECK(function->shared()->is_compiled());
-    DCHECK(function->shared()->IsInterpreted());
+    DCHECK(function->shared().is_compiled());
+    DCHECK(function->shared().IsInterpreted());
     code = BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
   }
 
@@ -1459,7 +1459,7 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
 
   // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
-  DCHECK(function->shared()->is_compiled());
+  DCHECK(function->shared().is_compiled());
   DCHECK(function->is_compiled());
   DCHECK_IMPLIES(function->HasOptimizationMarker(),
                  function->IsInOptimizationQueue());
@@ -1602,7 +1602,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 bool Compiler::CodeGenerationFromStringsAllowed(Isolate* isolate,
                                                 Handle<Context> context,
                                                 Handle<String> source) {
-  DCHECK(context->allow_code_gen_from_strings()->IsFalse(isolate));
+  DCHECK(context->allow_code_gen_from_strings().IsFalse(isolate));
   // Check with callback if set.
   AllowCodeGenerationFromStringsCallback callback =
       isolate->allow_code_gen_callback();
@@ -1624,7 +1624,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
-  if (native_context->allow_code_gen_from_strings()->IsFalse(isolate) &&
+  if (native_context->allow_code_gen_from_strings().IsFalse(isolate) &&
       !CodeGenerationFromStringsAllowed(isolate, native_context, source)) {
     Handle<Object> error_message =
         native_context->ErrorMessageForCodeGenerationFromStrings();
@@ -1638,7 +1638,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
   int eval_scope_position = 0;
   int eval_position = kNoSourcePosition;
   Handle<SharedFunctionInfo> outer_info(
-      native_context->empty_function()->shared(), isolate);
+      native_context->empty_function().shared(), isolate);
   return Compiler::GetFunctionFromEval(
       source, outer_info, native_context, LanguageMode::kSloppy, restriction,
       parameters_end_pos, eval_scope_position, eval_position);
@@ -2037,7 +2037,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     SharedFunctionInfo::ScriptIterator infos(isolate, *script);
     for (SharedFunctionInfo info = infos.Next(); !info.is_null();
          info = infos.Next()) {
-      if (info->is_wrapped()) {
+      if (info.is_wrapped()) {
         wrapped = Handle<SharedFunctionInfo>(info, isolate);
         break;
       }
@@ -2162,7 +2162,7 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
   Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
 
   // Reset profiler ticks, function is no longer considered hot.
-  compilation_info->closure()->feedback_vector()->set_profiler_ticks(0);
+  compilation_info->closure()->feedback_vector().set_profiler_ticks(0);
 
   DCHECK(!shared->HasBreakInfo());
 
@@ -2217,12 +2217,12 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
     JSFunction::InitializeFeedbackCell(function);
 
     Code code = function->has_feedback_vector()
-                    ? function->feedback_vector()->optimized_code()
+                    ? function->feedback_vector().optimized_code()
                     : Code();
     if (!code.is_null()) {
       // Caching of optimized code enabled and optimized code found.
-      DCHECK(!code->marked_for_deoptimization());
-      DCHECK(function->shared()->is_compiled());
+      DCHECK(!code.marked_for_deoptimization());
+      DCHECK(function->shared().is_compiled());
       function->set_code(code);
     }
 

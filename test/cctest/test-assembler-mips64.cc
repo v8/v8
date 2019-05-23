@@ -3351,7 +3351,7 @@ TEST(jump_tables3) {
   for (int i = 0; i < kNumCases; ++i) {
     __ bind(&labels[i]);
     obj = *values[i];
-    imm64 = obj->ptr();
+    imm64 = obj.ptr();
     __ lui(v0, (imm64 >> 32) & kImm16Mask);
     __ ori(v0, v0, (imm64 >> 16) & kImm16Mask);
     __ dsll(v0, v0, 16);

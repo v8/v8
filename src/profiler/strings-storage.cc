@@ -70,14 +70,14 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
 }
 
 const char* StringsStorage::GetName(Name name) {
-  if (name->IsString()) {
+  if (name.IsString()) {
     String str = String::cast(name);
-    int length = Min(FLAG_heap_snapshot_string_limit, str->length());
+    int length = Min(FLAG_heap_snapshot_string_limit, str.length());
     int actual_length = 0;
-    std::unique_ptr<char[]> data = str->ToCString(
+    std::unique_ptr<char[]> data = str.ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
     return AddOrDisposeString(data.release(), actual_length);
-  } else if (name->IsSymbol()) {
+  } else if (name.IsSymbol()) {
     return "<symbol>";
   }
   return "";
@@ -88,11 +88,11 @@ const char* StringsStorage::GetName(int index) {
 }
 
 const char* StringsStorage::GetConsName(const char* prefix, Name name) {
-  if (name->IsString()) {
+  if (name.IsString()) {
     String str = String::cast(name);
-    int length = Min(FLAG_heap_snapshot_string_limit, str->length());
+    int length = Min(FLAG_heap_snapshot_string_limit, str.length());
     int actual_length = 0;
-    std::unique_ptr<char[]> data = str->ToCString(
+    std::unique_ptr<char[]> data = str.ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
 
     int cons_length = actual_length + static_cast<int>(strlen(prefix)) + 1;
@@ -100,7 +100,7 @@ const char* StringsStorage::GetConsName(const char* prefix, Name name) {
     snprintf(cons_result, cons_length, "%s%s", prefix, data.get());
 
     return AddOrDisposeString(cons_result, cons_length);
-  } else if (name->IsSymbol()) {
+  } else if (name.IsSymbol()) {
     return "<symbol>";
   }
   return "";

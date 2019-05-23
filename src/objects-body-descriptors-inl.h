@@ -27,13 +27,13 @@ namespace internal {
 
 template <int start_offset>
 int FlexibleBodyDescriptor<start_offset>::SizeOf(Map map, HeapObject object) {
-  return object->SizeFromMap(map);
+  return object.SizeFromMap(map);
 }
 
 template <int start_offset>
 int FlexibleWeakBodyDescriptor<start_offset>::SizeOf(Map map,
                                                      HeapObject object) {
-  return object->SizeFromMap(map);
+  return object.SizeFromMap(map);
 }
 
 bool BodyDescriptorBase::IsValidJSObjectSlotImpl(Map map, HeapObject obj,
@@ -57,7 +57,7 @@ bool BodyDescriptorBase::IsValidJSObjectSlotImpl(Map map, HeapObject obj,
   // embedder field area as tagged slots.
   STATIC_ASSERT(kEmbedderDataSlotSize == kTaggedSize);
 #endif
-  if (!FLAG_unbox_double_fields || map->HasFastPointerLayout()) {
+  if (!FLAG_unbox_double_fields || map.HasFastPointerLayout()) {
     return true;
   } else {
     DCHECK(FLAG_unbox_double_fields);
@@ -98,7 +98,7 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Map map, HeapObject obj,
   // embedder field area as tagged slots.
   STATIC_ASSERT(kEmbedderDataSlotSize == kTaggedSize);
 #endif
-  if (!FLAG_unbox_double_fields || map->HasFastPointerLayout()) {
+  if (!FLAG_unbox_double_fields || map.HasFastPointerLayout()) {
     IteratePointers(obj, start_offset, end_offset, v);
   } else {
     DCHECK(FLAG_unbox_double_fields);
@@ -183,7 +183,7 @@ class JSObject::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return map->instance_size();
+    return map.instance_size();
   }
 };
 
@@ -202,7 +202,7 @@ class JSObject::FastBodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return map->instance_size();
+    return map.instance_size();
   }
 };
 
@@ -221,7 +221,7 @@ class WeakCell::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return map->instance_size();
+    return map.instance_size();
   }
 };
 
@@ -241,7 +241,7 @@ class JSWeakRef::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return map->instance_size();
+    return map.instance_size();
   }
 };
 
@@ -265,7 +265,7 @@ class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return map->instance_size();
+    return map.instance_size();
   }
 };
 
@@ -284,7 +284,7 @@ class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
       return true;
     }
     // check for weak_next offset
-    if (map->instance_size() == AllocationSite::kSizeWithWeakNext &&
+    if (map.instance_size() == AllocationSite::kSizeWithWeakNext &&
         offset == AllocationSite::kWeakNextOffset) {
       return true;
     }
@@ -306,7 +306,7 @@ class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return map->instance_size();
+    return map.instance_size();
   }
 };
 
@@ -327,7 +327,7 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return map->instance_size();
+    return map.instance_size();
   }
 };
 
@@ -348,7 +348,7 @@ class JSTypedArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return map->instance_size();
+    return map.instance_size();
   }
 };
 
@@ -369,7 +369,7 @@ class JSDataView::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return map->instance_size();
+    return map.instance_size();
   }
 };
 
@@ -381,7 +381,7 @@ class V8_EXPORT_PRIVATE SmallOrderedHashTable<Derived>::BodyDescriptor final
     Derived table = Derived::cast(obj);
     // Only data table part contains tagged values.
     return (offset >= DataTableStartOffset()) &&
-           (offset < table->GetBucketsStartOffset());
+           (offset < table.GetBucketsStartOffset());
   }
 
   template <typename ObjectVisitor>
@@ -389,13 +389,13 @@ class V8_EXPORT_PRIVATE SmallOrderedHashTable<Derived>::BodyDescriptor final
                                  ObjectVisitor* v) {
     Derived table = Derived::cast(obj);
     int start_offset = DataTableStartOffset();
-    int end_offset = table->GetBucketsStartOffset();
+    int end_offset = table.GetBucketsStartOffset();
     IteratePointers(obj, start_offset, end_offset, v);
   }
 
   static inline int SizeOf(Map map, HeapObject obj) {
     Derived table = Derived::cast(obj);
-    return table->SizeFor(table->Capacity());
+    return table.SizeFor(table.Capacity());
   }
 };
 
@@ -408,7 +408,7 @@ class ByteArray::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {}
 
   static inline int SizeOf(Map map, HeapObject obj) {
-    return ByteArray::SizeFor(ByteArray::cast(obj)->synchronized_length());
+    return ByteArray::SizeFor(ByteArray::cast(obj).synchronized_length());
   }
 };
 
@@ -429,7 +429,7 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject obj) {
     return BytecodeArray::SizeFor(
-        BytecodeArray::cast(obj)->synchronized_length());
+        BytecodeArray::cast(obj).synchronized_length());
   }
 };
 
@@ -442,7 +442,7 @@ class BigInt::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {}
 
   static inline int SizeOf(Map map, HeapObject obj) {
-    return BigInt::SizeFor(BigInt::cast(obj)->synchronized_length());
+    return BigInt::SizeFor(BigInt::cast(obj).synchronized_length());
   }
 };
 
@@ -456,7 +456,7 @@ class FixedDoubleArray::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject obj) {
     return FixedDoubleArray::SizeFor(
-        FixedDoubleArray::cast(obj)->synchronized_length());
+        FixedDoubleArray::cast(obj).synchronized_length());
   }
 };
 
@@ -473,7 +473,7 @@ class FixedTypedArrayBase::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return FixedTypedArrayBase::cast(object)->size();
+    return FixedTypedArrayBase::cast(object).size();
   }
 };
 
@@ -487,7 +487,7 @@ class FeedbackMetadata::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject obj) {
     return FeedbackMetadata::SizeFor(
-        FeedbackMetadata::cast(obj)->synchronized_slot_count());
+        FeedbackMetadata::cast(obj).synchronized_slot_count());
   }
 };
 
@@ -510,28 +510,28 @@ class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject obj) {
-    return FeedbackVector::SizeFor(FeedbackVector::cast(obj)->length());
+    return FeedbackVector::SizeFor(FeedbackVector::cast(obj).length());
   }
 };
 
 class PreparseData::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    return offset >= PreparseData::cast(obj)->inner_start_offset();
+    return offset >= PreparseData::cast(obj).inner_start_offset();
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
     PreparseData data = PreparseData::cast(obj);
-    int start_offset = data->inner_start_offset();
-    int end_offset = start_offset + data->children_length() * kTaggedSize;
+    int start_offset = data.inner_start_offset();
+    int end_offset = start_offset + data.children_length() * kTaggedSize;
     IteratePointers(obj, start_offset, end_offset, v);
   }
 
   static inline int SizeOf(Map map, HeapObject obj) {
     PreparseData data = PreparseData::cast(obj);
-    return PreparseData::SizeFor(data->data_length(), data->children_length());
+    return PreparseData::SizeFor(data.data_length(), data.children_length());
   }
 };
 
@@ -550,7 +550,7 @@ class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject obj) {
-    return obj->SizeFromMap(map);
+    return obj.SizeFromMap(map);
   }
 };
 
@@ -569,7 +569,7 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return map->instance_size();
+    return map.instance_size();
   }
 };
 
@@ -652,7 +652,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return Code::unchecked_cast(object)->CodeSize();
+    return Code::unchecked_cast(object).CodeSize();
   }
 };
 
@@ -666,7 +666,7 @@ class SeqOneByteString::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject obj) {
     SeqOneByteString string = SeqOneByteString::cast(obj);
-    return string->SizeFor(string->synchronized_length());
+    return string.SizeFor(string.synchronized_length());
   }
 };
 
@@ -680,7 +680,7 @@ class SeqTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject obj) {
     SeqTwoByteString string = SeqTwoByteString::cast(obj);
-    return string->SizeFor(string->synchronized_length());
+    return string.SizeFor(string.synchronized_length());
   }
 };
 
@@ -710,7 +710,7 @@ class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return map->instance_size();
+    return map.instance_size();
   }
 };
 
@@ -754,7 +754,7 @@ class DataHandler::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return object->SizeFromMap(map);
+    return object.SizeFromMap(map);
   }
 };
 
@@ -838,7 +838,7 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return object->SizeFromMap(map);
+    return object.SizeFromMap(map);
   }
 };
 
@@ -1099,7 +1099,7 @@ struct CallIterateBody {
 
 template <typename ObjectVisitor>
 void HeapObject::IterateBodyFast(Map map, int object_size, ObjectVisitor* v) {
-  BodyDescriptorApply<CallIterateBody, void>(map->instance_type(), map, *this,
+  BodyDescriptorApply<CallIterateBody, void>(map.instance_type(), map, *this,
                                              object_size, v);
 }
 
@@ -1126,7 +1126,7 @@ class EphemeronHashTable::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return object->SizeFromMap(map);
+    return object.SizeFromMap(map);
   }
 };
 

@@ -1365,7 +1365,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadP(r5, MemOperand(r5));
 
   __ bind(&trampoline_loaded);
-  __ addi(r0, r5, Operand(interpreter_entry_return_pc_offset->value()));
+  __ addi(r0, r5, Operand(interpreter_entry_return_pc_offset.value()));
   __ mtlr(r0);
 
   // Initialize the dispatch table register.

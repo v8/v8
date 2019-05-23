@@ -23,7 +23,7 @@ CAST_ACCESSOR(Foreign)
 // static
 bool Foreign::IsNormalized(Object value) {
   if (value == Smi::kZero) return true;
-  return Foreign::cast(value)->foreign_address() != kNullAddress;
+  return Foreign::cast(value).foreign_address() != kNullAddress;
 }
 
 Address Foreign::foreign_address() {

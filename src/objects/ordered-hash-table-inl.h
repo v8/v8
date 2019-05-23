@@ -185,8 +185,8 @@ template <class Derived, class TableType>
 Object OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
   TableType table = TableType::cast(this->table());
   int index = Smi::ToInt(this->index());
-  Object key = table->KeyAt(index);
-  DCHECK(!key->IsTheHole());
+  Object key = table.KeyAt(index);
+  DCHECK(!key.IsTheHole());
   return key;
 }
 

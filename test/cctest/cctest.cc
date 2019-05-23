@@ -249,7 +249,7 @@ i::Handle<i::JSFunction> Optimize(
   i::Handle<i::Code> code =
       i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
           .ToHandleChecked();
-  info.native_context()->AddOptimizedCode(*code);
+  info.native_context().AddOptimizedCode(*code);
   function->set_code(*code);
 
   return function;

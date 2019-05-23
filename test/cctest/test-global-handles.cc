@@ -388,7 +388,7 @@ TEST(TracedGlobalToJSApiObjectWithIdentityHashSurvivesScavenge) {
         Handle<JSReceiver> key =
             Utils::OpenHandle(*fp->handle.Get(CcTest::isolate()));
         Handle<Smi> smi(Smi::FromInt(23), i_isolate);
-        int32_t hash = key->GetOrCreateHash(i_isolate)->value();
+        int32_t hash = key->GetOrCreateHash(i_isolate).value();
         JSWeakCollection::Set(weakmap, key, smi, hash);
       },
       []() { InvokeScavenge(); }, SurvivalMode::kSurvives);

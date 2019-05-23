@@ -156,10 +156,10 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
   // Check that the empty_function has a properly set up ScopeInfo.
   Handle<JSFunction> function = RunJS<JSFunction>("(function(){})");
 
-  Handle<ScopeInfo> scope_info(function->shared()->scope_info(),
+  Handle<ScopeInfo> scope_info(function->shared().scope_info(),
                                function->GetIsolate());
   Handle<ScopeInfo> empty_function_scope_info(
-      isolate()->empty_function()->shared()->scope_info(),
+      isolate()->empty_function()->shared().scope_info(),
       function->GetIsolate());
 
   EXPECT_EQ(scope_info->length(), empty_function_scope_info->length());

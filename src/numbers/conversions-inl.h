@@ -160,23 +160,23 @@ bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
 }
 
 int32_t NumberToInt32(Object number) {
-  if (number->IsSmi()) return Smi::ToInt(number);
-  return DoubleToInt32(number->Number());
+  if (number.IsSmi()) return Smi::ToInt(number);
+  return DoubleToInt32(number.Number());
 }
 
 uint32_t NumberToUint32(Object number) {
-  if (number->IsSmi()) return Smi::ToInt(number);
-  return DoubleToUint32(number->Number());
+  if (number.IsSmi()) return Smi::ToInt(number);
+  return DoubleToUint32(number.Number());
 }
 
 uint32_t PositiveNumberToUint32(Object number) {
-  if (number->IsSmi()) {
+  if (number.IsSmi()) {
     int value = Smi::ToInt(number);
     if (value <= 0) return 0;
     return value;
   }
-  DCHECK(number->IsHeapNumber());
-  double value = number->Number();
+  DCHECK(number.IsHeapNumber());
+  double value = number.Number();
   // Catch all values smaller than 1 and use the double-negation trick for NANs.
   if (!(value >= 1)) return 0;
   uint32_t max = std::numeric_limits<uint32_t>::max();
@@ -185,8 +185,8 @@ uint32_t PositiveNumberToUint32(Object number) {
 }
 
 int64_t NumberToInt64(Object number) {
-  if (number->IsSmi()) return Smi::ToInt(number);
-  double d = number->Number();
+  if (number.IsSmi()) return Smi::ToInt(number);
+  double d = number.Number();
   if (std::isnan(d)) return 0;
   if (d >= static_cast<double>(std::numeric_limits<int64_t>::max())) {
     return std::numeric_limits<int64_t>::max();
@@ -198,13 +198,13 @@ int64_t NumberToInt64(Object number) {
 }
 
 uint64_t PositiveNumberToUint64(Object number) {
-  if (number->IsSmi()) {
+  if (number.IsSmi()) {
     int value = Smi::ToInt(number);
     if (value <= 0) return 0;
     return value;
   }
-  DCHECK(number->IsHeapNumber());
-  double value = number->Number();
+  DCHECK(number.IsHeapNumber());
+  double value = number.Number();
   // Catch all values smaller than 1 and use the double-negation trick for NANs.
   if (!(value >= 1)) return 0;
   uint64_t max = std::numeric_limits<uint64_t>::max();
@@ -215,7 +215,7 @@ uint64_t PositiveNumberToUint64(Object number) {
 bool TryNumberToSize(Object number, size_t* result) {
   // Do not create handles in this function! Don't use SealHandleScope because
   // the function can be used concurrently.
-  if (number->IsSmi()) {
+  if (number.IsSmi()) {
     int value = Smi::ToInt(number);
     DCHECK(static_cast<unsigned>(Smi::kMaxValue) <=
            std::numeric_limits<size_t>::max());
@@ -225,8 +225,8 @@ bool TryNumberToSize(Object number, size_t* result) {
     }
     return false;
   } else {
-    DCHECK(number->IsHeapNumber());
-    double value = HeapNumber::cast(number)->value();
+    DCHECK(number.IsHeapNumber());
+    double value = HeapNumber::cast(number).value();
     // If value is compared directly to the limit, the limit will be
     // casted to a double and could end up as limit + 1,
     // because a double might not have enough mantissa bits for it.

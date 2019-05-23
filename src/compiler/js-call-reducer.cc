@@ -452,7 +452,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
       return inference.NoChange();
     }
     if (!descriptors->GetStrongValue(JSFunction::kLengthDescriptorIndex)
-             ->IsAccessorInfo()) {
+             .IsAccessorInfo()) {
       return inference.NoChange();
     }
     if (descriptors->GetKey(JSFunction::kNameDescriptorIndex) !=
@@ -460,7 +460,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
       return inference.NoChange();
     }
     if (!descriptors->GetStrongValue(JSFunction::kNameDescriptorIndex)
-             ->IsAccessorInfo()) {
+             .IsAccessorInfo()) {
       return inference.NoChange();
     }
   }
@@ -2820,7 +2820,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
                  ? jsgraph()->HeapConstant(api_holder)
                  : receiver;
   } else if (function_template_info->accept_any_receiver() &&
-             function_template_info->signature()->IsUndefined(isolate())) {
+             function_template_info->signature().IsUndefined(isolate())) {
     // We haven't found any {receiver_maps}, but we might still be able to
     // optimize the API call depending on the {function_template_info}.
     // If the API function accepts any kind of {receiver}, we only need to
@@ -2846,7 +2846,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
     // faster than the generic call sequence.
     Builtins::Name builtin_name =
         !function_template_info->accept_any_receiver()
-            ? (function_template_info->signature()->IsUndefined(isolate())
+            ? (function_template_info->signature().IsUndefined(isolate())
                    ? Builtins::kCallFunctionTemplate_CheckAccess
                    : Builtins::
                          kCallFunctionTemplate_CheckAccessAndCompatibleReceiver)

@@ -181,12 +181,12 @@ void CodeEntry::set_deopt_info(
 }
 
 void CodeEntry::FillFunctionInfo(SharedFunctionInfo shared) {
-  if (!shared->script()->IsScript()) return;
-  Script script = Script::cast(shared->script());
-  set_script_id(script->id());
-  set_position(shared->StartPosition());
-  if (shared->optimization_disabled()) {
-    set_bailout_reason(GetBailoutReason(shared->disable_optimization_reason()));
+  if (!shared.script().IsScript()) return;
+  Script script = Script::cast(shared.script());
+  set_script_id(script.id());
+  set_position(shared.StartPosition());
+  if (shared.optimization_disabled()) {
+    set_bailout_reason(GetBailoutReason(shared.disable_optimization_reason()));
   }
 }
 

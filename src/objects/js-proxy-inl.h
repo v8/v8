@@ -22,7 +22,7 @@ CAST_ACCESSOR(JSProxy)
 ACCESSORS(JSProxy, target, Object, kTargetOffset)
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 
-bool JSProxy::IsRevoked() const { return !handler()->IsJSReceiver(); }
+bool JSProxy::IsRevoked() const { return !handler().IsJSReceiver(); }
 
 }  // namespace internal
 }  // namespace v8

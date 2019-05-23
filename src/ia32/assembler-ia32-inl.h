@@ -107,7 +107,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == FULL_EMBEDDED_OBJECT);
-  WriteUnalignedValue(pc_, target->ptr());
+  WriteUnalignedValue(pc_, target.ptr());
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
   }
@@ -257,7 +257,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 void Assembler::deserialization_set_special_target_at(
     Address instruction_payload, Code code, Address target) {
   set_target_address_at(instruction_payload,
-                        !code.is_null() ? code->constant_pool() : kNullAddress,
+                        !code.is_null() ? code.constant_pool() : kNullAddress,
                         target);
 }
 

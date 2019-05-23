@@ -350,7 +350,7 @@ class NodeBase {
 namespace {
 
 void ExtractInternalFields(JSObject jsobject, void** embedder_fields, int len) {
-  int field_count = jsobject->GetEmbedderFieldCount();
+  int field_count = jsobject.GetEmbedderFieldCount();
   for (int i = 0; i < len; ++i) {
     if (field_count == i) break;
     void* pointer;
@@ -517,7 +517,7 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
     void* embedder_fields[v8::kEmbedderFieldsInWeakCallback] = {nullptr,
                                                                 nullptr};
-    if (weakness_type() != PHANTOM_WEAK && object()->IsJSObject()) {
+    if (weakness_type() != PHANTOM_WEAK && object().IsJSObject()) {
       ExtractInternalFields(JSObject::cast(object()), embedder_fields,
                             v8::kEmbedderFieldsInWeakCallback);
     }
@@ -548,10 +548,10 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     set_state(NEAR_DEATH);
     // Check that we are not passing a finalized external string to
     // the callback.
-    DCHECK(!object()->IsExternalOneByteString() ||
-           ExternalOneByteString::cast(object())->resource() != nullptr);
-    DCHECK(!object()->IsExternalTwoByteString() ||
-           ExternalTwoByteString::cast(object())->resource() != nullptr);
+    DCHECK(!object().IsExternalOneByteString() ||
+           ExternalOneByteString::cast(object()).resource() != nullptr);
+    DCHECK(!object().IsExternalTwoByteString() ||
+           ExternalTwoByteString::cast(object()).resource() != nullptr);
     // Leaving V8.
     VMState<EXTERNAL> vmstate(isolate);
     HandleScope handle_scope(isolate);
@@ -711,7 +711,7 @@ Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
       Node::FromLocation(location)->global_handles();
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
-    Object(*location)->ObjectVerify(global_handles->isolate());
+    Object(*location).ObjectVerify(global_handles->isolate());
   }
 #endif  // VERIFY_HEAP
   return global_handles->Create(*location);
@@ -1283,7 +1283,7 @@ void GlobalHandles::Print() {
   PrintF("Global handles:\n");
   for (Node* node : *regular_nodes_) {
     PrintF("  handle %p to %p%s\n", node->location().ToVoidPtr(),
-           reinterpret_cast<void*>(node->object()->ptr()),
+           reinterpret_cast<void*>(node->object().ptr()),
            node->IsWeak() ? " (weak)" : "");
   }
 }
@@ -1336,8 +1336,8 @@ void EternalHandles::Create(Isolate* isolate, Object object, int* index) {
     MemsetPointer(FullObjectSlot(next_block), the_hole, kSize);
     blocks_.push_back(next_block);
   }
-  DCHECK_EQ(the_hole->ptr(), blocks_[block][offset]);
-  blocks_[block][offset] = object->ptr();
+  DCHECK_EQ(the_hole.ptr(), blocks_[block][offset]);
+  blocks_[block][offset] = object.ptr();
   if (ObjectInYoungGeneration(object)) {
     young_node_indices_.push_back(size_);
   }

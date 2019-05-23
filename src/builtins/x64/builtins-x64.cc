@@ -1390,7 +1390,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
               kScratchRegister));
 
   __ bind(&trampoline_loaded);
-  __ addq(rbx, Immediate(interpreter_entry_return_pc_offset->value()));
+  __ addq(rbx, Immediate(interpreter_entry_return_pc_offset.value()));
   __ Push(rbx);
 
   // Initialize dispatch table register.

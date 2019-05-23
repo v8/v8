@@ -88,7 +88,7 @@ void Context::set_previous(Context context) { set(PREVIOUS_INDEX, context); }
 
 Object Context::next_context_link() { return get(Context::NEXT_CONTEXT_LINK); }
 
-bool Context::has_extension() { return !extension()->IsTheHole(); }
+bool Context::has_extension() { return !extension().IsTheHole(); }
 HeapObject Context::extension() {
   return HeapObject::cast(get(EXTENSION_INDEX));
 }
@@ -105,44 +105,44 @@ void Context::set_native_context(NativeContext context) {
 }
 
 bool Context::IsFunctionContext() const {
-  return map()->instance_type() == FUNCTION_CONTEXT_TYPE;
+  return map().instance_type() == FUNCTION_CONTEXT_TYPE;
 }
 
 bool Context::IsCatchContext() const {
-  return map()->instance_type() == CATCH_CONTEXT_TYPE;
+  return map().instance_type() == CATCH_CONTEXT_TYPE;
 }
 
 bool Context::IsWithContext() const {
-  return map()->instance_type() == WITH_CONTEXT_TYPE;
+  return map().instance_type() == WITH_CONTEXT_TYPE;
 }
 
 bool Context::IsDebugEvaluateContext() const {
-  return map()->instance_type() == DEBUG_EVALUATE_CONTEXT_TYPE;
+  return map().instance_type() == DEBUG_EVALUATE_CONTEXT_TYPE;
 }
 
 bool Context::IsAwaitContext() const {
-  return map()->instance_type() == AWAIT_CONTEXT_TYPE;
+  return map().instance_type() == AWAIT_CONTEXT_TYPE;
 }
 
 bool Context::IsBlockContext() const {
-  return map()->instance_type() == BLOCK_CONTEXT_TYPE;
+  return map().instance_type() == BLOCK_CONTEXT_TYPE;
 }
 
 bool Context::IsModuleContext() const {
-  return map()->instance_type() == MODULE_CONTEXT_TYPE;
+  return map().instance_type() == MODULE_CONTEXT_TYPE;
 }
 
 bool Context::IsEvalContext() const {
-  return map()->instance_type() == EVAL_CONTEXT_TYPE;
+  return map().instance_type() == EVAL_CONTEXT_TYPE;
 }
 
 bool Context::IsScriptContext() const {
-  return map()->instance_type() == SCRIPT_CONTEXT_TYPE;
+  return map().instance_type() == SCRIPT_CONTEXT_TYPE;
 }
 
 bool Context::HasSameSecurityTokenAs(Context that) const {
-  return this->native_context()->security_token() ==
-         that->native_context()->security_token();
+  return this->native_context().security_token() ==
+         that.native_context().security_token();
 }
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
@@ -232,7 +232,7 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
   if (!IsFastElementsKind(kind)) return Map();
   DisallowHeapAllocation no_gc;
   Object const initial_js_array_map = get(Context::ArrayMapIndex(kind));
-  DCHECK(!initial_js_array_map->IsUndefined());
+  DCHECK(!initial_js_array_map.IsUndefined());
   return Map::cast(initial_js_array_map);
 }
 

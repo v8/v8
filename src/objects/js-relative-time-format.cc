@@ -197,7 +197,7 @@ Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
                         format_holder->StyleAsString(), NONE);
   JSObject::AddProperty(isolate, result, factory->numeric_string(),
                         format_holder->NumericAsString(), NONE);
-  std::string locale_str(format_holder->locale()->ToCString().get());
+  std::string locale_str(format_holder->locale().ToCString().get());
   icu::Locale icu_locale = Intl::CreateICULocale(locale_str);
   std::string numbering_system = Intl::GetNumberingSystem(icu_locale);
   JSObject::AddProperty(
@@ -313,7 +313,7 @@ MaybeHandle<T> FormatCommon(
                       isolate->factory()->NewStringFromAsciiChecked(func_name)),
         T);
   }
-  icu::RelativeDateTimeFormatter* formatter = format->icu_formatter()->raw();
+  icu::RelativeDateTimeFormatter* formatter = format->icu_formatter().raw();
   CHECK_NOT_NULL(formatter);
   URelativeDateTimeUnit unit_enum;
   if (!GetURelativeDateTimeUnit(unit, &unit_enum)) {

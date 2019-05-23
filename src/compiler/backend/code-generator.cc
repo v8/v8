@@ -1161,8 +1161,8 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
           // Smis.
           DCHECK_EQ(4, kSystemPointerSize);
           Smi smi(static_cast<Address>(constant.ToInt32()));
-          DCHECK(smi->IsSmi());
-          literal = DeoptimizationLiteral(smi->value());
+          DCHECK(smi.IsSmi());
+          literal = DeoptimizationLiteral(smi.value());
         } else if (type.representation() == MachineRepresentation::kBit) {
           if (constant.ToInt32() == 0) {
             literal =
@@ -1196,8 +1196,8 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
           // Smis.
           DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
           Smi smi(static_cast<Address>(constant.ToInt64()));
-          DCHECK(smi->IsSmi());
-          literal = DeoptimizationLiteral(smi->value());
+          DCHECK(smi.IsSmi());
+          literal = DeoptimizationLiteral(smi.value());
         }
         break;
       case Constant::kFloat32:

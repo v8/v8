@@ -47,7 +47,7 @@ class Arguments {
   inline double number_at(int index);
 
   inline void set_at(int index, Object value) {
-    *address_of_arg_at(index) = value->ptr();
+    *address_of_arg_at(index) = value.ptr();
   }
 
   inline FullObjectSlot slot_at(int index) {
@@ -101,7 +101,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
   }                                                                           \
                                                                               \
   Type Name(int args_length, Address* args_object, Isolate* isolate) {        \
-    DCHECK(isolate->context().is_null() || isolate->context()->IsContext());  \
+    DCHECK(isolate->context().is_null() || isolate->context().IsContext());   \
     CLOBBER_DOUBLE_REGISTERS();                                               \
     if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {              \
       return Stats_##Name(args_length, args_object, isolate);                 \
@@ -112,7 +112,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
                                                                               \
   static InternalType __RT_impl_##Name(Arguments args, Isolate* isolate)
 
-#define CONVERT_OBJECT(x) (x)->ptr()
+#define CONVERT_OBJECT(x) (x).ptr()
 #define CONVERT_OBJECTPAIR(x) (x)
 
 #define RUNTIME_FUNCTION(Name) \

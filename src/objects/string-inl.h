@@ -58,13 +58,12 @@ CAST_ACCESSOR(SlicedString)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(ThinString)
 
-StringShape::StringShape(const String str)
-    : type_(str->map()->instance_type()) {
+StringShape::StringShape(const String str) : type_(str.map().instance_type()) {
   set_valid();
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
-StringShape::StringShape(Map map) : type_(map->instance_type()) {
+StringShape::StringShape(Map map) : type_(map.instance_type()) {
   set_valid();
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
@@ -149,18 +148,18 @@ STATIC_ASSERT((kExternalStringTag | kTwoByteStringTag) ==
 STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
 
 bool String::IsOneByteRepresentation() const {
-  uint32_t type = map()->instance_type();
+  uint32_t type = map().instance_type();
   return (type & kStringEncodingMask) == kOneByteStringTag;
 }
 
 bool String::IsTwoByteRepresentation() const {
-  uint32_t type = map()->instance_type();
+  uint32_t type = map().instance_type();
   return (type & kStringEncodingMask) == kTwoByteStringTag;
 }
 
 bool String::IsOneByteRepresentationUnderneath(String string) {
   while (true) {
-    uint32_t type = string.map()->instance_type();
+    uint32_t type = string.map().instance_type();
     STATIC_ASSERT(kIsIndirectStringTag != 0);
     STATIC_ASSERT((kIsIndirectStringMask & kStringEncodingMask) == 0);
     DCHECK(string.IsFlat());
@@ -211,7 +210,7 @@ class SequentialStringKey final : public StringTableKey {
 
   bool IsMatch(String s) override {
     DisallowHeapAllocation no_gc;
-    if (s->IsOneByteRepresentation()) {
+    if (s.IsOneByteRepresentation()) {
       const uint8_t* chars = s.GetChars<uint8_t>(no_gc);
       return CompareChars(chars, chars_.begin(), chars_.length()) == 0;
     }
@@ -310,7 +309,7 @@ using SeqTwoByteSubStringKey = SeqSubStringKey<uint16_t>;
 
 bool String::Equals(String other) {
   if (other == *this) return true;
-  if (this->IsInternalizedString() && other->IsInternalizedString()) {
+  if (this->IsInternalizedString() && other.IsInternalizedString()) {
     return false;
   }
   return SlowEquals(other);
@@ -352,22 +351,22 @@ uint16_t String::Get(int index) {
   DCHECK(index >= 0 && index < length());
   switch (StringShape(*this).full_representation_tag()) {
     case kSeqStringTag | kOneByteStringTag:
-      return SeqOneByteString::cast(*this)->Get(index);
+      return SeqOneByteString::cast(*this).Get(index);
     case kSeqStringTag | kTwoByteStringTag:
-      return SeqTwoByteString::cast(*this)->Get(index);
+      return SeqTwoByteString::cast(*this).Get(index);
     case kConsStringTag | kOneByteStringTag:
     case kConsStringTag | kTwoByteStringTag:
-      return ConsString::cast(*this)->Get(index);
+      return ConsString::cast(*this).Get(index);
     case kExternalStringTag | kOneByteStringTag:
-      return ExternalOneByteString::cast(*this)->Get(index);
+      return ExternalOneByteString::cast(*this).Get(index);
     case kExternalStringTag | kTwoByteStringTag:
-      return ExternalTwoByteString::cast(*this)->Get(index);
+      return ExternalTwoByteString::cast(*this).Get(index);
     case kSlicedStringTag | kOneByteStringTag:
     case kSlicedStringTag | kTwoByteStringTag:
-      return SlicedString::cast(*this)->Get(index);
+      return SlicedString::cast(*this).Get(index);
     case kThinStringTag | kOneByteStringTag:
     case kThinStringTag | kTwoByteStringTag:
-      return ThinString::cast(*this)->Get(index);
+      return ThinString::cast(*this).Get(index);
     default:
       break;
   }
@@ -380,13 +379,13 @@ void String::Set(int index, uint16_t value) {
   DCHECK(StringShape(*this).IsSequential());
 
   return this->IsOneByteRepresentation()
-             ? SeqOneByteString::cast(*this)->SeqOneByteStringSet(index, value)
-             : SeqTwoByteString::cast(*this)->SeqTwoByteStringSet(index, value);
+             ? SeqOneByteString::cast(*this).SeqOneByteStringSet(index, value)
+             : SeqTwoByteString::cast(*this).SeqTwoByteStringSet(index, value);
 }
 
 bool String::IsFlat() {
   if (!StringShape(*this).IsCons()) return true;
-  return ConsString::cast(*this)->second()->length() == 0;
+  return ConsString::cast(*this).second().length() == 0;
 }
 
 String String::GetUnderlying() {
@@ -407,40 +406,40 @@ ConsString String::VisitFlat(Visitor* visitor, String string,
                              const int offset) {
   DisallowHeapAllocation no_gc;
   int slice_offset = offset;
-  const int length = string->length();
+  const int length = string.length();
   DCHECK(offset <= length);
   while (true) {
-    int32_t type = string->map()->instance_type();
+    int32_t type = string.map().instance_type();
     switch (type & (kStringRepresentationMask | kStringEncodingMask)) {
       case kSeqStringTag | kOneByteStringTag:
         visitor->VisitOneByteString(
-            SeqOneByteString::cast(string)->GetChars(no_gc) + slice_offset,
+            SeqOneByteString::cast(string).GetChars(no_gc) + slice_offset,
             length - offset);
         return ConsString();
 
       case kSeqStringTag | kTwoByteStringTag:
         visitor->VisitTwoByteString(
-            SeqTwoByteString::cast(string)->GetChars(no_gc) + slice_offset,
+            SeqTwoByteString::cast(string).GetChars(no_gc) + slice_offset,
             length - offset);
         return ConsString();
 
       case kExternalStringTag | kOneByteStringTag:
         visitor->VisitOneByteString(
-            ExternalOneByteString::cast(string)->GetChars() + slice_offset,
+            ExternalOneByteString::cast(string).GetChars() + slice_offset,
             length - offset);
         return ConsString();
 
       case kExternalStringTag | kTwoByteStringTag:
         visitor->VisitTwoByteString(
-            ExternalTwoByteString::cast(string)->GetChars() + slice_offset,
+            ExternalTwoByteString::cast(string).GetChars() + slice_offset,
             length - offset);
         return ConsString();
 
       case kSlicedStringTag | kOneByteStringTag:
       case kSlicedStringTag | kTwoByteStringTag: {
         SlicedString slicedString = SlicedString::cast(string);
-        slice_offset += slicedString->offset();
-        string = slicedString->parent();
+        slice_offset += slicedString.offset();
+        string = slicedString.parent();
         continue;
       }
 
@@ -450,7 +449,7 @@ ConsString String::VisitFlat(Visitor* visitor, String string,
 
       case kThinStringTag | kOneByteStringTag:
       case kThinStringTag | kTwoByteStringTag:
-        string = ThinString::cast(string)->actual();
+        string = ThinString::cast(string).actual();
         continue;
 
       default:
@@ -534,7 +533,7 @@ String SlicedString::parent() {
 
 void SlicedString::set_parent(Isolate* isolate, String parent,
                               WriteBarrierMode mode) {
-  DCHECK(parent->IsSeqString() || parent->IsExternalString());
+  DCHECK(parent.IsSeqString() || parent.IsExternalString());
   WRITE_FIELD(*this, kParentOffset, parent);
   CONDITIONAL_WRITE_BARRIER(*this, kParentOffset, parent, mode);
 }
@@ -574,7 +573,7 @@ HeapObject ThinString::unchecked_actual() const {
 }
 
 bool ExternalString::is_uncached() const {
-  InstanceType type = map()->instance_type();
+  InstanceType type = map().instance_type();
   return (type & kUncachedExternalStringMask) == kUncachedExternalStringTag;
 }
 
@@ -585,9 +584,9 @@ Address ExternalString::resource_as_address() {
 void ExternalString::set_address_as_resource(Address address) {
   WriteField<Address>(kResourceOffset, address);
   if (IsExternalOneByteString()) {
-    ExternalOneByteString::cast(*this)->update_data_cache();
+    ExternalOneByteString::cast(*this).update_data_cache();
   } else {
-    ExternalTwoByteString::cast(*this)->update_data_cache();
+    ExternalTwoByteString::cast(*this).update_data_cache();
   }
 }
 
@@ -767,7 +766,7 @@ SubStringRange::SubStringRange(String string,
                                int length)
     : string_(string),
       first_(first),
-      length_(length == -1 ? string->length() : length),
+      length_(length == -1 ? string.length() : length),
       no_gc_(no_gc) {}
 
 class SubStringRange::iterator final {
@@ -797,7 +796,7 @@ class SubStringRange::iterator final {
   friend class String;
   friend class SubStringRange;
   iterator(String from, int offset, const DisallowHeapAllocation& no_gc)
-      : content_(from->GetFlatContent(no_gc)), offset_(offset) {}
+      : content_(from.GetFlatContent(no_gc)), offset_(offset) {}
   String::FlatContent content_;
   int offset_;
 };

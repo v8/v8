@@ -14,7 +14,7 @@ namespace internal {
 
 template <typename Char>
 bool DateParser::Parse(Isolate* isolate, Vector<Char> str, FixedArray out) {
-  DCHECK(out->length() >= OUTPUT_SIZE);
+  DCHECK(out.length() >= OUTPUT_SIZE);
   InputReader<Char> in(str);
   DateStringTokenizer<Char> scanner(&in);
   TimeZoneComposer tz;

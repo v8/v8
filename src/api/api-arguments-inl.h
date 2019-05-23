@@ -43,7 +43,7 @@ Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
   // Check the ReturnValue.
   FullObjectSlot slot = slot_at(kReturnValueOffset);
   // Nothing was set, return empty handle as per previous behaviour.
-  if ((*slot)->IsTheHole(isolate)) return Handle<V>();
+  if ((*slot).IsTheHole(isolate)) return Handle<V>();
   Handle<V> result = Handle<V>::cast(Handle<Object>(slot.location()));
   result->VerifyApiCallResultType();
   return result;
@@ -144,7 +144,7 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo handler) {
   LOG(isolate, ApiObjectAccess("call", holder()));
   RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kFunctionCallback);
   v8::FunctionCallback f =
-      v8::ToCData<v8::FunctionCallback>(handler->callback());
+      v8::ToCData<v8::FunctionCallback>(handler.callback());
   Handle<Object> receiver_check_unsupported;
   if (isolate->debug_execution_mode() == DebugInfo::kSideEffects &&
       !isolate->debug()->PerformSideEffectCheckForCallback(

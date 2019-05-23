@@ -98,7 +98,7 @@ BytecodeExpectationsPrinter::GetBytecodeArrayForGlobal(
       i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
 
   i::Handle<i::BytecodeArray> bytecodes =
-      i::handle(js_function->shared()->GetBytecodeArray(), i_isolate());
+      i::handle(js_function->shared().GetBytecodeArray(), i_isolate());
 
   return bytecodes;
 }
@@ -108,7 +108,7 @@ BytecodeExpectationsPrinter::GetBytecodeArrayForModule(
     v8::Local<v8::Module> module) const {
   i::Handle<i::Module> i_module = v8::Utils::OpenHandle(*module);
   return i::handle(
-      SharedFunctionInfo::cast(i_module->code())->GetBytecodeArray(),
+      SharedFunctionInfo::cast(i_module->code()).GetBytecodeArray(),
       i_isolate());
 }
 
@@ -116,7 +116,7 @@ i::Handle<i::BytecodeArray>
 BytecodeExpectationsPrinter::GetBytecodeArrayForScript(
     v8::Local<v8::Script> script) const {
   i::Handle<i::JSFunction> js_function = v8::Utils::OpenHandle(*script);
-  return i::handle(js_function->shared()->GetBytecodeArray(), i_isolate());
+  return i::handle(js_function->shared().GetBytecodeArray(), i_isolate());
 }
 
 i::Handle<i::BytecodeArray>
@@ -126,8 +126,8 @@ BytecodeExpectationsPrinter::GetBytecodeArrayOfCallee(
       v8::Utils::OpenHandle(*CompileRun(source_code));
   i::Handle<i::JSFunction> js_function =
       i::Handle<i::JSFunction>::cast(i_object);
-  CHECK(js_function->shared()->HasBytecodeArray());
-  return i::handle(js_function->shared()->GetBytecodeArray(), i_isolate());
+  CHECK(js_function->shared().HasBytecodeArray());
+  return i::handle(js_function->shared().GetBytecodeArray(), i_isolate());
 }
 
 void BytecodeExpectationsPrinter::PrintEscapedString(
@@ -278,8 +278,8 @@ void BytecodeExpectationsPrinter::PrintSourcePosition(
 void BytecodeExpectationsPrinter::PrintV8String(std::ostream& stream,
                                                 i::String string) const {
   stream << '"';
-  for (int i = 0, length = string->length(); i < length; ++i) {
-    stream << i::AsEscapedUC16ForJSON(string->Get(i));
+  for (int i = 0, length = string.length(); i < length; ++i) {
+    stream << i::AsEscapedUC16ForJSON(string.Get(i));
   }
   stream << '"';
 }
@@ -288,13 +288,13 @@ void BytecodeExpectationsPrinter::PrintConstant(
     std::ostream& stream, i::Handle<i::Object> constant) const {
   if (constant->IsSmi()) {
     stream << "Smi [";
-    i::Smi::cast(*constant)->SmiPrint(stream);
+    i::Smi::cast(*constant).SmiPrint(stream);
     stream << "]";
   } else {
-    stream << i::HeapObject::cast(*constant)->map()->instance_type();
+    stream << i::HeapObject::cast(*constant).map().instance_type();
     if (constant->IsHeapNumber()) {
       stream << " [";
-      i::HeapNumber::cast(*constant)->HeapNumberPrint(stream);
+      i::HeapNumber::cast(*constant).HeapNumberPrint(stream);
       stream << "]";
     } else if (constant->IsString()) {
       stream << " [";
@@ -334,7 +334,7 @@ void BytecodeExpectationsPrinter::PrintBytecodeSequence(
 void BytecodeExpectationsPrinter::PrintConstantPool(
     std::ostream& stream, i::FixedArray constant_pool) const {
   stream << "constant pool: [\n";
-  int num_constants = constant_pool->length();
+  int num_constants = constant_pool.length();
   if (num_constants > 0) {
     for (int i = 0; i < num_constants; ++i) {
       stream << kIndent;

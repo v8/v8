@@ -227,7 +227,7 @@ namespace {
 Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
                                        Handle<JSObject> object,
                                        Builtins::Name builtin_id, int len) {
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
+  Handle<NativeContext> native_context(isolate->context().native_context(),
                                        isolate);
   Handle<Context> context = isolate->factory()->NewBuiltinContext(
       native_context,
@@ -483,7 +483,7 @@ BUILTIN(NumberFormatInternalFormatNumber) {
   }
 
   icu::number::LocalizedNumberFormatter* icu_localized_number_formatter =
-      number_format->icu_number_formatter()->raw();
+      number_format->icu_number_formatter().raw();
   CHECK_NOT_NULL(icu_localized_number_formatter);
 
   // Return FormatNumber(nf, x).
@@ -970,7 +970,7 @@ BUILTIN(CollatorInternalCompare) {
                                      Object::ToString(isolate, y));
 
   // 7. Return CompareStrings(collator, X, Y).
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  icu::Collator* icu_collator = collator->icu_collator().raw();
   CHECK_NOT_NULL(icu_collator);
   return *Intl::CompareStrings(isolate, *icu_collator, string_x, string_y);
 }
@@ -1072,7 +1072,7 @@ BUILTIN(SegmenterPrototypeSegment) {
   RETURN_RESULT_OR_FAILURE(
       isolate,
       JSSegmentIterator::Create(
-          isolate, segmenter_holder->icu_break_iterator()->raw()->clone(),
+          isolate, segmenter_holder->icu_break_iterator().raw()->clone(),
           segmenter_holder->granularity(), text));
 }
 

@@ -22,8 +22,8 @@ namespace internal {
 
 // static
 MaybeObject MaybeObject::FromSmi(Smi smi) {
-  DCHECK(HAS_SMI_TAG(smi->ptr()));
-  return MaybeObject(smi->ptr());
+  DCHECK(HAS_SMI_TAG(smi.ptr()));
+  return MaybeObject(smi.ptr());
 }
 
 // static
@@ -42,20 +42,20 @@ MaybeObject MaybeObject::MakeWeak(MaybeObject object) {
 //
 
 HeapObjectReference::HeapObjectReference(Object object)
-    : MaybeObject(object->ptr()) {}
+    : MaybeObject(object.ptr()) {}
 
 // static
 HeapObjectReference HeapObjectReference::Strong(Object object) {
-  DCHECK(!object->IsSmi());
+  DCHECK(!object.IsSmi());
   DCHECK(!HasWeakHeapObjectTag(object));
   return HeapObjectReference(object);
 }
 
 // static
 HeapObjectReference HeapObjectReference::Weak(Object object) {
-  DCHECK(!object->IsSmi());
+  DCHECK(!object.IsSmi());
   DCHECK(!HasWeakHeapObjectTag(object));
-  return HeapObjectReference(object->ptr() | kWeakHeapObjectMask);
+  return HeapObjectReference(object.ptr() | kWeakHeapObjectMask);
 }
 
 // static

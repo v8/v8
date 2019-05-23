@@ -49,8 +49,8 @@ SafepointTable::SafepointTable(Address instruction_start,
 }
 
 SafepointTable::SafepointTable(Code code)
-    : SafepointTable(code->InstructionStart(), code->safepoint_table_offset(),
-                     code->stack_slots(), true) {}
+    : SafepointTable(code.InstructionStart(), code.safepoint_table_offset(),
+                     code.stack_slots(), true) {}
 
 unsigned SafepointTable::find_return_pc(unsigned pc_offset) {
   for (unsigned i = 0; i < length(); i++) {

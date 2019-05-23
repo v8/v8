@@ -1624,8 +1624,8 @@ void WebAssemblyTableGetType(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  if (!table->maximum_length()->IsUndefined()) {
-    uint64_t max_size = table->maximum_length()->Number();
+  if (!table->maximum_length().IsUndefined()) {
+    uint64_t max_size = table->maximum_length().Number();
     DCHECK_LE(max_size, std::numeric_limits<uint32_t>::max());
     if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
                                  v8_str(isolate, "maximum"),
@@ -1945,7 +1945,7 @@ Handle<JSFunction> CreateFunc(Isolate* isolate, Handle<String> name,
   Handle<FunctionTemplateInfo> temp = NewFunctionTemplate(isolate, func);
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp, name).ToHandleChecked();
-  DCHECK(function->shared()->HasSharedName());
+  DCHECK(function->shared().HasSharedName());
   return function;
 }
 
@@ -1955,7 +1955,7 @@ Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
                                PropertyAttributes attributes = NONE) {
   Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> function = CreateFunc(isolate, name, func);
-  function->shared()->set_length(length);
+  function->shared().set_length(length);
   JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
 }
@@ -1996,7 +1996,7 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
       CreateFunc(isolate, GetterName(isolate, name), getter);
   Handle<JSFunction> setter_func =
       CreateFunc(isolate, SetterName(isolate, name), setter);
-  setter_func->shared()->set_length(1);
+  setter_func->shared().set_length(1);
 
   v8::PropertyAttribute attributes = v8::None;
 
@@ -2012,7 +2012,7 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
 void SetDummyInstanceTemplate(Isolate* isolate, Handle<JSFunction> fun) {
   Handle<ObjectTemplateInfo> instance_template = NewObjectTemplate(isolate);
   FunctionTemplateInfo::SetInstanceTemplate(
-      isolate, handle(fun->shared()->get_api_func_data(), isolate),
+      isolate, handle(fun->shared().get_api_func_data(), isolate),
       instance_template);
 }
 
@@ -2022,8 +2022,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<Context> context(global->native_context(), isolate);
   // Install the JS API once only.
   Object prev = context->get(Context::WASM_MODULE_CONSTRUCTOR_INDEX);
-  if (!prev->IsUndefined(isolate)) {
-    DCHECK(prev->IsJSFunction());
+  if (!prev.IsUndefined(isolate)) {
+    DCHECK(prev.IsJSFunction());
     return;
   }
 
@@ -2193,7 +2193,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
         FUNCTION_WITHOUT_PROTOTYPE, MaybeHandle<JSFunction>());
     CHECK(JSObject::SetPrototype(
               function_proto,
-              handle(context->function_function()->prototype(), isolate), false,
+              handle(context->function_function().prototype(), isolate), false,
               kDontThrow)
               .FromJust());
     JSFunction::SetInitialMap(function_constructor, function_map,

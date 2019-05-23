@@ -195,10 +195,10 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   if (params.target->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(params.target);
     if ((!params.is_construct || function->IsConstructor()) &&
-        function->shared()->IsApiFunction() &&
-        !function->shared()->BreakAtEntry()) {
+        function->shared().IsApiFunction() &&
+        !function->shared().BreakAtEntry()) {
       SaveAndSwitchContext save(isolate, function->context());
-      DCHECK(function->context()->global_object()->IsJSGlobalObject());
+      DCHECK(function->context().global_object().IsJSGlobalObject());
 
       Handle<Object> receiver = params.is_construct
                                     ? isolate->factory()->the_hole_value()
@@ -286,12 +286,12 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    value->ObjectVerify(isolate);
+    value.ObjectVerify(isolate);
   }
 #endif
 
   // Update the pending exception flag and return the value.
-  bool has_exception = value->IsException(isolate);
+  bool has_exception = value.IsException(isolate);
   DCHECK(has_exception == isolate->has_pending_exception());
   if (has_exception) {
     if (params.message_handling == Execution::MessageHandling::kReport) {

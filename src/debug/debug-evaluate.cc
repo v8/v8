@@ -90,7 +90,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
 
   // Get context and receiver.
   Handle<Context> native_context(
-      Context::cast(it.frame()->context())->native_context(), isolate);
+      Context::cast(it.frame()->context()).native_context(), isolate);
 
   // Materialize arguments as property on an extension object.
   Handle<JSObject> materialized = factory->NewJSObjectWithNullProto();
@@ -115,7 +115,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
       factory->NewDebugEvaluateContext(native_context, scope_info, materialized,
                                        Handle<Context>(), Handle<StringSet>());
   Handle<SharedFunctionInfo> outer_info(
-      native_context->empty_function()->shared(), isolate);
+      native_context->empty_function().shared(), isolate);
   Handle<JSObject> receiver(native_context->global_proxy(), isolate);
   const bool throw_on_side_effect = false;
   MaybeHandle<Object> maybe_result =
@@ -226,7 +226,7 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
               .ToHandleChecked();
 
       for (int i = 0; i < keys->length(); i++) {
-        DCHECK(keys->get(i)->IsString());
+        DCHECK(keys->get(i).IsString());
         Handle<String> key(String::cast(keys->get(i)), isolate_);
         Handle<Object> value =
             JSReceiver::GetDataProperty(element.materialized_object, key);
@@ -839,7 +839,7 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
     Isolate* isolate, Handle<SharedFunctionInfo> info) {
   if (FLAG_trace_side_effect_free_debug_evaluate) {
     PrintF("[debug-evaluate] Checking function %s for side effect.\n",
-           info->DebugName()->ToCString().get());
+           info->DebugName().ToCString().get());
   }
 
   DCHECK(info->is_compiled());
@@ -880,8 +880,8 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
     return requires_runtime_checks ? DebugInfo::kRequiresRuntimeChecks
                                    : DebugInfo::kHasNoSideEffect;
   } else if (info->IsApiFunction()) {
-    if (info->GetCode()->is_builtin()) {
-      return info->GetCode()->builtin_index() == Builtins::kHandleApiCall
+    if (info->GetCode().is_builtin()) {
+      return info->GetCode().builtin_index() == Builtins::kHandleApiCall
                  ? DebugInfo::kHasNoSideEffect
                  : DebugInfo::kHasSideEffects;
     }
@@ -1024,9 +1024,9 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
       DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
       Code callee_code = isolate->heap()->GcSafeFindCodeForInnerPointer(
           rinfo->target_address());
-      if (!callee_code->is_builtin()) continue;
+      if (!callee_code.is_builtin()) continue;
       Builtins::Name callee =
-          static_cast<Builtins::Name>(callee_code->builtin_index());
+          static_cast<Builtins::Name>(callee_code.builtin_index());
       if (BuiltinGetSideEffectState(callee) == DebugInfo::kHasNoSideEffect) {
         continue;
       }

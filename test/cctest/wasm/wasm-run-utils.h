@@ -170,7 +170,7 @@ class TestingModuleBuilder {
   void SetMaxMemPages(uint32_t maximum_pages) {
     test_module_->maximum_pages = maximum_pages;
     if (instance_object()->has_memory_object()) {
-      instance_object()->memory_object()->set_maximum_pages(maximum_pages);
+      instance_object()->memory_object().set_maximum_pages(maximum_pages);
     }
   }
 
@@ -527,7 +527,7 @@ class WasmRunner : public WasmRunnerBase {
       jsfuncs_[function_index] = builder_.WrapCode(function_index);
     }
     Handle<JSFunction> jsfunc = jsfuncs_[function_index];
-    Handle<Object> global(isolate->context()->global_object(), isolate);
+    Handle<Object> global(isolate->context().global_object(), isolate);
     MaybeHandle<Object> retval =
         Execution::TryCall(isolate, jsfunc, global, count, buffer,
                            Execution::MessageHandling::kReport, nullptr);
@@ -540,7 +540,7 @@ class WasmRunner : public WasmRunnerBase {
         CHECK_EQ(expected, Smi::ToInt(*result));
       } else {
         CHECK(result->IsHeapNumber());
-        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result)->value());
+        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result).value());
       }
     }
 

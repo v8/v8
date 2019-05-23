@@ -45,16 +45,16 @@ HeapObjectSlot TransitionArray::GetKeySlot(int transition_number) {
 }
 
 void TransitionArray::SetPrototypeTransitions(WeakFixedArray transitions) {
-  DCHECK(transitions->IsWeakFixedArray());
+  DCHECK(transitions.IsWeakFixedArray());
   WeakFixedArray::Set(kPrototypeTransitionsIndex,
                       HeapObjectReference::Strong(transitions));
 }
 
 int TransitionArray::NumberOfPrototypeTransitions(
     WeakFixedArray proto_transitions) {
-  if (proto_transitions->length() == 0) return 0;
+  if (proto_transitions.length() == 0) return 0;
   MaybeObject raw =
-      proto_transitions->Get(kProtoTransitionNumberOfEntriesOffset);
+      proto_transitions.Get(kProtoTransitionNumberOfEntriesOffset);
   return raw.ToSmi().value();
 }
 
@@ -76,7 +76,7 @@ Name TransitionsAccessor::GetKey(int transition_number) {
       return GetSimpleTransitionKey(map);
     }
     case kFullTransitionArray:
-      return transitions()->GetKey(transition_number);
+      return transitions().GetKey(transition_number);
   }
   UNREACHABLE();
 }
@@ -94,23 +94,23 @@ HeapObjectSlot TransitionArray::GetTargetSlot(int transition_number) {
 
 // static
 PropertyDetails TransitionsAccessor::GetTargetDetails(Name name, Map target) {
-  DCHECK(!IsSpecialTransition(name->GetReadOnlyRoots(), name));
-  int descriptor = target->LastAdded();
-  DescriptorArray descriptors = target->instance_descriptors();
+  DCHECK(!IsSpecialTransition(name.GetReadOnlyRoots(), name));
+  int descriptor = target.LastAdded();
+  DescriptorArray descriptors = target.instance_descriptors();
   // Transitions are allowed only for the last added property.
-  DCHECK(descriptors->GetKey(descriptor)->Equals(name));
-  return descriptors->GetDetails(descriptor);
+  DCHECK(descriptors.GetKey(descriptor).Equals(name));
+  return descriptors.GetDetails(descriptor);
 }
 
 // static
 PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map transition) {
-  return transition->GetLastDescriptorDetails();
+  return transition.GetLastDescriptorDetails();
 }
 
 // static
 Name TransitionsAccessor::GetSimpleTransitionKey(Map transition) {
-  int descriptor = transition->LastAdded();
-  return transition->instance_descriptors()->GetKey(descriptor);
+  int descriptor = transition.LastAdded();
+  return transition.instance_descriptors().GetKey(descriptor);
 }
 
 // static
@@ -138,7 +138,7 @@ Map TransitionsAccessor::GetTarget(int transition_number) {
     case kWeakRef:
       return Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
     case kFullTransitionArray:
-      return transitions()->GetTarget(transition_number);
+      return transitions().GetTarget(transition_number);
   }
   UNREACHABLE();
 }
@@ -146,7 +146,7 @@ Map TransitionsAccessor::GetTarget(int transition_number) {
 void TransitionArray::SetRawTarget(int transition_number, MaybeObject value) {
   DCHECK(transition_number < number_of_transitions());
   DCHECK(value->IsWeak());
-  DCHECK(value->GetHeapObjectAssumeWeak()->IsMap());
+  DCHECK(value->GetHeapObjectAssumeWeak().IsMap());
   WeakFixedArray::Set(ToTargetIndex(transition_number), value);
 }
 
@@ -155,7 +155,7 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
   MaybeObject raw = GetRawTarget(transition_number);
   HeapObject heap_object;
   if (raw->GetHeapObjectIfStrong(&heap_object) &&
-      heap_object->IsUndefined(isolate)) {
+      heap_object.IsUndefined(isolate)) {
     return false;
   }
   *target = TransitionsAccessor::GetTargetFromRaw(raw);
@@ -171,7 +171,7 @@ int TransitionArray::SearchSpecial(Symbol symbol, int* out_insertion_index) {
 }
 
 int TransitionArray::SearchName(Name name, int* out_insertion_index) {
-  DCHECK(name->IsUniqueName());
+  DCHECK(name.IsUniqueName());
   return internal::Search<ALL_ENTRIES>(this, name, number_of_entries(),
                                        out_insertion_index);
 }
@@ -195,20 +195,20 @@ void TransitionsAccessor::Reload() {
 }
 
 void TransitionsAccessor::Initialize() {
-  raw_transitions_ = map_->raw_transitions();
+  raw_transitions_ = map_.raw_transitions();
   HeapObject heap_object;
   if (raw_transitions_->IsSmi() || raw_transitions_->IsCleared()) {
     encoding_ = kUninitialized;
   } else if (raw_transitions_->IsWeak()) {
     encoding_ = kWeakRef;
   } else if (raw_transitions_->GetHeapObjectIfStrong(&heap_object)) {
-    if (heap_object->IsTransitionArray()) {
+    if (heap_object.IsTransitionArray()) {
       encoding_ = kFullTransitionArray;
-    } else if (heap_object->IsPrototypeInfo()) {
+    } else if (heap_object.IsPrototypeInfo()) {
       encoding_ = kPrototypeInfo;
     } else {
-      DCHECK(map_->is_deprecated());
-      DCHECK(heap_object->IsMap());
+      DCHECK(map_.is_deprecated());
+      DCHECK(heap_object.IsMap());
       encoding_ = kMigrationTarget;
     }
   } else {
@@ -301,7 +301,7 @@ Handle<String> TransitionsAccessor::ExpectedTransitionKey() {
       DCHECK_EQ(kData, details.kind());
       if (details.attributes() != NONE) return Handle<String>::null();
       Name name = GetSimpleTransitionKey(target);
-      if (!name->IsString()) return Handle<String>::null();
+      if (!name.IsString()) return Handle<String>::null();
       return handle(String::cast(name), isolate_);
     }
   }

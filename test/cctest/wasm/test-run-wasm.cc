@@ -3703,7 +3703,7 @@ TEST(Liftoff_tier_up) {
                               WASM_GET_LOCAL(1)));
 
   NativeModule* native_module =
-      r.builder().instance_object()->module_object()->native_module();
+      r.builder().instance_object()->module_object().native_module();
 
   // This test only works if we managed to compile with Liftoff.
   if (native_module->GetCode(add.function_index())->is_liftoff()) {

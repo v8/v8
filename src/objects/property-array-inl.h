@@ -84,7 +84,7 @@ void PropertyArray::CopyElements(Isolate* isolate, int dst_index,
   DisallowHeapAllocation no_gc;
 
   ObjectSlot dst_slot(data_start() + dst_index);
-  ObjectSlot src_slot(src->data_start() + src_index);
+  ObjectSlot src_slot(src.data_start() + src_index);
   isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 

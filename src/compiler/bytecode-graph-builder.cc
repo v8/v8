@@ -2028,7 +2028,7 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   // TODO(mstarzinger): Thread through number of elements. The below number is
   // only an estimate and does not match {ArrayLiteral::values::length}.
   int number_of_elements =
-      array_boilerplate_description->constant_elements()->length();
+      array_boilerplate_description->constant_elements().length();
   Node* literal = NewNode(javascript()->CreateLiteralArray(
       array_boilerplate_description, pair, literal_flags, number_of_elements));
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
@@ -2098,7 +2098,7 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
     // the JSArray constant here.
     cached_value = TemplateObjectDescription::GetTemplateObject(
         isolate(), native_context(), description, shared_info(), slot.ToInt());
-    nexus.vector()->Set(slot, *cached_value);
+    nexus.vector().Set(slot, *cached_value);
   } else {
     cached_value =
         handle(JSArray::cast(nexus.GetFeedback()->GetHeapObjectAssumeStrong()),

@@ -38,10 +38,10 @@ DateCache::DateCache()
 
 void DateCache::ResetDateCache(
     base::TimezoneCache::TimeZoneDetection time_zone_detection) {
-  if (stamp_->value() >= Smi::kMaxValue) {
+  if (stamp_.value() >= Smi::kMaxValue) {
     stamp_ = Smi::zero();
   } else {
-    stamp_ = Smi::FromInt(stamp_->value() + 1);
+    stamp_ = Smi::FromInt(stamp_.value() + 1);
   }
   DCHECK(stamp_ != Smi::FromInt(kInvalidStamp));
   for (int i = 0; i < kDSTSize; ++i) {

@@ -1162,14 +1162,14 @@ own<Val> v8_to_val(i::Isolate* isolate, i::Handle<i::Object> value,
       do {
         if (value->IsSmi()) return Val(i::Smi::ToInt(*value));
         if (value->IsHeapNumber()) {
-          return Val(i::DoubleToInt32(i::HeapNumber::cast(*value)->value()));
+          return Val(i::DoubleToInt32(i::HeapNumber::cast(*value).value()));
         }
         value = i::Object::ToInt32(isolate, value).ToHandleChecked();
         // This will loop back at most once.
       } while (true);
       UNREACHABLE();
     case I64:
-      if (value->IsBigInt()) return Val(i::BigInt::cast(*value)->AsInt64());
+      if (value->IsBigInt()) return Val(i::BigInt::cast(*value).AsInt64());
       return Val(
           i::BigInt::FromObject(isolate, value).ToHandleChecked()->AsInt64());
     case F32:
@@ -1178,7 +1178,7 @@ own<Val> v8_to_val(i::Isolate* isolate, i::Handle<i::Object> value,
           return Val(static_cast<float32_t>(i::Smi::ToInt(*value)));
         }
         if (value->IsHeapNumber()) {
-          return Val(i::DoubleToFloat32(i::HeapNumber::cast(*value)->value()));
+          return Val(i::DoubleToFloat32(i::HeapNumber::cast(*value).value()));
         }
         value = i::Object::ToNumber(isolate, value).ToHandleChecked();
         // This will loop back at most once.
@@ -1190,7 +1190,7 @@ own<Val> v8_to_val(i::Isolate* isolate, i::Handle<i::Object> value,
           return Val(static_cast<float64_t>(i::Smi::ToInt(*value)));
         }
         if (value->IsHeapNumber()) {
-          return Val(i::HeapNumber::cast(*value)->value());
+          return Val(i::HeapNumber::cast(*value).value());
         }
         value = i::Object::ToNumber(isolate, value).ToHandleChecked();
         // This will loop back at most once.
@@ -1638,36 +1638,36 @@ class SignatureHelper : public i::AllStatic {
 
   static own<FuncType*> Deserialize(i::PodArray<i::wasm::ValueType> sig) {
     int result_arity = ResultArity(sig);
-    int param_arity = sig->length() - result_arity - 1;
+    int param_arity = sig.length() - result_arity - 1;
     vec<ValType*> results = vec<ValType*>::make_uninitialized(result_arity);
     vec<ValType*> params = vec<ValType*>::make_uninitialized(param_arity);
 
     int i = 0;
-    for (; i < sig->length(); ++i) {
-      results[i] = ValType::make(v8::wasm::v8_valtype_to_wasm(sig->get(i)));
+    for (; i < sig.length(); ++i) {
+      results[i] = ValType::make(v8::wasm::v8_valtype_to_wasm(sig.get(i)));
     }
     i++;
     for (; i < param_arity; ++i) {
-      params[i] = ValType::make(v8::wasm::v8_valtype_to_wasm(sig->get(i)));
+      params[i] = ValType::make(v8::wasm::v8_valtype_to_wasm(sig.get(i)));
     }
     return FuncType::make(std::move(params), std::move(results));
   }
 
   static int ResultArity(i::PodArray<i::wasm::ValueType> sig) {
     int count = 0;
-    for (; count < sig->length(); count++) {
-      if (sig->get(count) == kMarker) return count;
+    for (; count < sig.length(); count++) {
+      if (sig.get(count) == kMarker) return count;
     }
     UNREACHABLE();
   }
 
   static int ParamArity(i::PodArray<i::wasm::ValueType> sig) {
-    return sig->length() - ResultArity(sig) - 1;
+    return sig.length() - ResultArity(sig) - 1;
   }
 
   static i::PodArray<i::wasm::ValueType> GetSig(
       i::Handle<i::JSFunction> function) {
-    return i::WasmCapiFunction::cast(*function)->GetSerializedSignature();
+    return i::WasmCapiFunction::cast(*function).GetSerializedSignature();
   }
 };
 
@@ -1710,7 +1710,7 @@ auto Func::type() const -> own<FuncType*> {
   i::Handle<i::WasmExportedFunction> function =
       i::Handle<i::WasmExportedFunction>::cast(func);
   i::wasm::FunctionSig* sig =
-      function->instance()->module()->functions[function->function_index()].sig;
+      function->instance().module()->functions[function->function_index()].sig;
   uint32_t param_arity = static_cast<uint32_t>(sig->parameter_count());
   uint32_t result_arity = static_cast<uint32_t>(sig->return_count());
   auto params = vec<ValType*>::make_uninitialized(param_arity);
@@ -1736,7 +1736,7 @@ auto Func::param_arity() const -> size_t {
   i::Handle<i::WasmExportedFunction> function =
       i::Handle<i::WasmExportedFunction>::cast(func);
   i::wasm::FunctionSig* sig =
-      function->instance()->module()->functions[function->function_index()].sig;
+      function->instance().module()->functions[function->function_index()].sig;
   return sig->parameter_count();
 }
 
@@ -1749,7 +1749,7 @@ auto Func::result_arity() const -> size_t {
   i::Handle<i::WasmExportedFunction> function =
       i::Handle<i::WasmExportedFunction>::cast(func);
   i::wasm::FunctionSig* sig =
-      function->instance()->module()->functions[function->function_index()].sig;
+      function->instance().module()->functions[function->function_index()].sig;
   return sig->return_count();
 }
 
@@ -1767,7 +1767,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap*> {
   if (i::WasmExportedFunction::IsWasmExportedFunction(*v8_func)) {
     i::WasmExportedFunction wef = i::WasmExportedFunction::cast(*v8_func);
     i::wasm::FunctionSig* sig =
-        wef->instance()->module()->functions[wef->function_index()].sig;
+        wef.instance().module()->functions[wef.function_index()].sig;
     num_params = static_cast<int>(sig->parameter_count());
     num_results = static_cast<int>(sig->return_count());
     if (num_results > 0) {
@@ -1862,7 +1862,7 @@ i::Address FuncData::v8_callback(void* data, i::Address argv) {
           params[i] = Val(nullptr);
         } else {
           i::JSReceiver raw_obj = i::JSReceiver::cast(i::Object(raw));
-          i::Handle<i::JSReceiver> obj(raw_obj, raw_obj->GetIsolate());
+          i::Handle<i::JSReceiver> obj(raw_obj, raw_obj.GetIsolate());
           params[i] = Val(implement<Ref>::type::make(impl(self->store), obj));
         }
         break;
@@ -1882,7 +1882,7 @@ i::Address FuncData::v8_callback(void* data, i::Address argv) {
     isolate->Throw(*impl(trap.get())->v8_object());
     i::Object ex = isolate->pending_exception();
     isolate->clear_pending_exception();
-    return ex->ptr();
+    return ex.ptr();
   }
 
   p = argv;
@@ -2062,7 +2062,7 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       // This doesn't call WasmTableObject::Set because the table has
       // just been created, so it can't be imported by any instances
       // yet that might require updating.
-      DCHECK_EQ(table_obj->dispatch_tables()->length(), 0);
+      DCHECK_EQ(table_obj->dispatch_tables().length(), 0);
       backing_store->set(i, *init);
     }
   }
@@ -2073,7 +2073,7 @@ auto Table::type() const -> own<TableType*> {
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
   uint32_t min = table->current_length();
   uint32_t max;
-  if (!table->maximum_length()->ToUint32(&max)) max = 0xFFFFFFFFu;
+  if (!table->maximum_length().ToUint32(&max)) max = 0xFFFFFFFFu;
   // TODO(wasm+): support new element types.
   return TableType::make(ValType::make(FUNCREF), Limits(min, max));
 }
@@ -2162,7 +2162,7 @@ auto Memory::make(Store* store_abs, const MemoryType* type) -> own<Memory*> {
 
 auto Memory::type() const -> own<MemoryType*> {
   i::Handle<i::WasmMemoryObject> memory = impl(this)->v8_object();
-  uint32_t min = static_cast<uint32_t>(memory->array_buffer()->byte_length() /
+  uint32_t min = static_cast<uint32_t>(memory->array_buffer().byte_length() /
                                        i::wasm::kWasmPageSize);
   uint32_t max =
       memory->has_maximum_pages() ? memory->maximum_pages() : 0xFFFFFFFFu;
@@ -2171,16 +2171,16 @@ auto Memory::type() const -> own<MemoryType*> {
 
 auto Memory::data() const -> byte_t* {
   return reinterpret_cast<byte_t*>(
-      impl(this)->v8_object()->array_buffer()->backing_store());
+      impl(this)->v8_object()->array_buffer().backing_store());
 }
 
 auto Memory::data_size() const -> size_t {
-  return impl(this)->v8_object()->array_buffer()->byte_length();
+  return impl(this)->v8_object()->array_buffer().byte_length();
 }
 
 auto Memory::size() const -> pages_t {
   return static_cast<pages_t>(
-      impl(this)->v8_object()->array_buffer()->byte_length() /
+      impl(this)->v8_object()->array_buffer().byte_length() /
       i::wasm::kWasmPageSize);
 }
 

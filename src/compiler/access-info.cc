@@ -407,10 +407,10 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     Handle<JSModuleNamespace> module_namespace(
         JSModuleNamespace::cast(proto_info->module_namespace()), isolate());
     Handle<Cell> cell(
-        Cell::cast(module_namespace->module()->exports()->Lookup(
+        Cell::cast(module_namespace->module().exports().Lookup(
             ReadOnlyRoots(isolate()), name, Smi::ToInt(name->GetHash()))),
         isolate());
-    if (cell->value()->IsTheHole(isolate())) {
+    if (cell->value().IsTheHole(isolate())) {
       // This module has not been fully initialized yet.
       return PropertyAccessInfo::Invalid(zone());
     }
@@ -542,15 +542,15 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // Walk up the prototype chain.
-    if (!map->prototype()->IsJSObject()) {
+    if (!map->prototype().IsJSObject()) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
       Handle<JSFunction> constructor;
       if (Map::GetConstructorFunction(map, broker()->native_context().object())
               .ToHandle(&constructor)) {
         map = handle(constructor->initial_map(), isolate());
-        DCHECK(map->prototype()->IsJSObject());
-      } else if (map->prototype()->IsNull(isolate())) {
+        DCHECK(map->prototype().IsJSObject());
+      } else if (map->prototype().IsNull(isolate())) {
         // Store to property not found on the receiver or any prototype, we need
         // to transition to a new data property.
         // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
@@ -566,7 +566,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       }
     }
     Handle<JSObject> map_prototype(JSObject::cast(map->prototype()), isolate());
-    if (map_prototype->map()->is_deprecated()) {
+    if (map_prototype->map().is_deprecated()) {
       // Try to migrate the prototype object so we don't embed the deprecated
       // map into the optimized code.
       JSObject::TryMigrateInstance(map_prototype);
@@ -744,7 +744,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   Handle<Map> transition_map(transition, isolate());
   int const number = transition_map->LastAdded();
   PropertyDetails const details =
-      transition_map->instance_descriptors()->GetDetails(number);
+      transition_map->instance_descriptors().GetDetails(number);
   // Don't bother optimizing stores to read-only properties.
   if (details.IsReadOnly()) {
     return PropertyAccessInfo::Invalid(zone());
@@ -774,8 +774,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
     Handle<FieldType> descriptors_field_type(
-        transition_map->instance_descriptors()->GetFieldType(number),
-        isolate());
+        transition_map->instance_descriptors().GetFieldType(number), isolate());
     if (descriptors_field_type->IsNone()) {
       // Store is not safe if the field type was cleared.
       return PropertyAccessInfo::Invalid(zone());

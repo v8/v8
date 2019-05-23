@@ -922,7 +922,7 @@ TEST(TransitionLookup) {
 
   CHECK(root_map->raw_transitions()
             ->GetHeapObjectAssumeStrong()
-            ->IsTransitionArray());
+            .IsTransitionArray());
   Handle<TransitionArray> transitions(
       TransitionArray::cast(
           root_map->raw_transitions()->GetHeapObjectAssumeStrong()),
@@ -1073,9 +1073,9 @@ TEST(TryHasOwnProperty) {
     Handle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names));
-    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
-    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
-    CHECK(!object->map()->is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
+    CHECK_EQ(inobject_properties, object->map().GetInObjectProperties());
+    CHECK(!object->map().is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1085,9 +1085,9 @@ TEST(TryHasOwnProperty) {
     Handle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names));
-    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
-    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
-    CHECK(!object->map()->is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
+    CHECK_EQ(inobject_properties, object->map().GetInObjectProperties());
+    CHECK(!object->map().is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1097,9 +1097,9 @@ TEST(TryHasOwnProperty) {
     Handle<Map> map = Map::Create(isolate, inobject_properties);
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names));
-    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
-    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
-    CHECK(!object->map()->is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
+    CHECK_EQ(inobject_properties, object->map().GetInObjectProperties());
+    CHECK(!object->map().is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1116,8 +1116,8 @@ TEST(TryHasOwnProperty) {
                                    LanguageMode::kSloppy)
               .FromJust());
 
-    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
-    CHECK(object->map()->is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
+    CHECK(object->map().is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1126,10 +1126,10 @@ TEST(TryHasOwnProperty) {
     Handle<JSFunction> function =
         factory->NewFunctionForTest(factory->empty_string());
     JSFunction::EnsureHasInitialMap(function);
-    function->initial_map()->set_instance_type(JS_GLOBAL_OBJECT_TYPE);
-    function->initial_map()->set_is_prototype_map(true);
-    function->initial_map()->set_is_dictionary_map(true);
-    function->initial_map()->set_may_have_interesting_symbols(true);
+    function->initial_map().set_instance_type(JS_GLOBAL_OBJECT_TYPE);
+    function->initial_map().set_is_prototype_map(true);
+    function->initial_map().set_is_dictionary_map(true);
+    function->initial_map().set_may_have_interesting_symbols(true);
     Handle<JSObject> object = factory->NewJSGlobalObject(function);
     AddProperties(object, names, arraysize(names));
 
@@ -1138,8 +1138,8 @@ TEST(TryHasOwnProperty) {
                                    LanguageMode::kSloppy)
               .FromJust());
 
-    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map()->instance_type());
-    CHECK(object->map()->is_dictionary_map());
+    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map().instance_type());
+    CHECK(object->map().is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1177,13 +1177,13 @@ TEST(TryHasOwnProperty) {
     Handle<JSFunction> function =
         factory->NewFunctionForTest(factory->empty_string());
     Handle<JSProxy> object = factory->NewJSProxy(function, objects[0]);
-    CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
+    CHECK_EQ(JS_PROXY_TYPE, object->map().instance_type());
     ft.CheckTrue(object, names[0], expect_bailout);
   }
 
   {
     Handle<JSObject> object = isolate->global_proxy();
-    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map()->instance_type());
+    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map().instance_type());
     ft.CheckTrue(object, names[0], expect_bailout);
   }
 }
@@ -1277,9 +1277,9 @@ TEST(TryGetOwnProperty) {
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
                   rand_gen.NextInt());
-    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
-    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
-    CHECK(!object->map()->is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
+    CHECK_EQ(inobject_properties, object->map().GetInObjectProperties());
+    CHECK(!object->map().is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1290,9 +1290,9 @@ TEST(TryGetOwnProperty) {
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
                   rand_gen.NextInt());
-    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
-    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
-    CHECK(!object->map()->is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
+    CHECK_EQ(inobject_properties, object->map().GetInObjectProperties());
+    CHECK(!object->map().is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1303,9 +1303,9 @@ TEST(TryGetOwnProperty) {
     Handle<JSObject> object = factory->NewJSObjectFromMap(map);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
                   rand_gen.NextInt());
-    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
-    CHECK_EQ(inobject_properties, object->map()->GetInObjectProperties());
-    CHECK(!object->map()->is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
+    CHECK_EQ(inobject_properties, object->map().GetInObjectProperties());
+    CHECK(!object->map().is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1323,8 +1323,8 @@ TEST(TryGetOwnProperty) {
                                    LanguageMode::kSloppy)
               .FromJust());
 
-    CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
-    CHECK(object->map()->is_dictionary_map());
+    CHECK_EQ(JS_OBJECT_TYPE, object->map().instance_type());
+    CHECK(object->map().is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1339,8 +1339,8 @@ TEST(TryGetOwnProperty) {
                                    LanguageMode::kSloppy)
               .FromJust());
 
-    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map()->instance_type());
-    CHECK(object->map()->is_dictionary_map());
+    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map().instance_type());
+    CHECK(object->map().is_dictionary_map());
     objects.push_back(object);
   }
 
@@ -1385,7 +1385,7 @@ TEST(TryGetOwnProperty) {
     Handle<JSFunction> function =
         factory->NewFunctionForTest(factory->empty_string());
     Handle<JSProxy> object = factory->NewJSProxy(function, objects[0]);
-    CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
+    CHECK_EQ(JS_PROXY_TYPE, object->map().instance_type());
     Handle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
     // Proxies are not supported yet.
     CHECK_EQ(*bailout_symbol, *value);
@@ -1393,7 +1393,7 @@ TEST(TryGetOwnProperty) {
 
   {
     Handle<JSObject> object = isolate->global_proxy();
-    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map()->instance_type());
+    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map().instance_type());
     // Global proxies are not supported yet.
     Handle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
     CHECK_EQ(*bailout_symbol, *value);
@@ -1493,7 +1493,7 @@ TEST(TryLookupElement) {
     Handle<JSArray> object = factory->NewJSArray(0, PACKED_SMI_ELEMENTS);
     AddElement(object, 0, smi0);
     AddElement(object, 1, smi0);
-    CHECK_EQ(PACKED_SMI_ELEMENTS, object->map()->elements_kind());
+    CHECK_EQ(PACKED_SMI_ELEMENTS, object->map().elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_FOUND(object, 1);
@@ -1506,7 +1506,7 @@ TEST(TryLookupElement) {
     Handle<JSArray> object = factory->NewJSArray(0, HOLEY_SMI_ELEMENTS);
     AddElement(object, 0, smi0);
     AddElement(object, 13, smi0);
-    CHECK_EQ(HOLEY_SMI_ELEMENTS, object->map()->elements_kind());
+    CHECK_EQ(HOLEY_SMI_ELEMENTS, object->map().elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_NOT_FOUND(object, 1);
@@ -1519,7 +1519,7 @@ TEST(TryLookupElement) {
     Handle<JSArray> object = factory->NewJSArray(0, PACKED_ELEMENTS);
     AddElement(object, 0, smi0);
     AddElement(object, 1, smi0);
-    CHECK_EQ(PACKED_ELEMENTS, object->map()->elements_kind());
+    CHECK_EQ(PACKED_ELEMENTS, object->map().elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_FOUND(object, 1);
@@ -1532,7 +1532,7 @@ TEST(TryLookupElement) {
     Handle<JSArray> object = factory->NewJSArray(0, HOLEY_ELEMENTS);
     AddElement(object, 0, smi0);
     AddElement(object, 13, smi0);
-    CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
+    CHECK_EQ(HOLEY_ELEMENTS, object->map().elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_NOT_FOUND(object, 1);
@@ -1545,7 +1545,7 @@ TEST(TryLookupElement) {
     Handle<JSTypedArray> object = factory->NewJSTypedArray(INT32_ELEMENTS, 2);
     Local<v8::ArrayBuffer> buffer = Utils::ToLocal(object->GetBuffer());
 
-    CHECK_EQ(INT32_ELEMENTS, object->map()->elements_kind());
+    CHECK_EQ(INT32_ELEMENTS, object->map().elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_FOUND(object, 1);
@@ -1571,7 +1571,7 @@ TEST(TryLookupElement) {
     Handle<String> str = factory->InternalizeUtf8String("ab");
     Handle<JSValue>::cast(object)->set_value(*str);
     AddElement(object, 13, smi0);
-    CHECK_EQ(FAST_STRING_WRAPPER_ELEMENTS, object->map()->elements_kind());
+    CHECK_EQ(FAST_STRING_WRAPPER_ELEMENTS, object->map().elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_FOUND(object, 1);
@@ -1587,7 +1587,7 @@ TEST(TryLookupElement) {
     Handle<JSValue>::cast(object)->set_value(*str);
     AddElement(object, 13, smi0);
     JSObject::NormalizeElements(object);
-    CHECK_EQ(SLOW_STRING_WRAPPER_ELEMENTS, object->map()->elements_kind());
+    CHECK_EQ(SLOW_STRING_WRAPPER_ELEMENTS, object->map().elements_kind());
 
     CHECK_FOUND(object, 0);
     CHECK_FOUND(object, 1);
@@ -1618,19 +1618,19 @@ TEST(TryLookupElement) {
     Handle<JSFunction> function =
         factory->NewFunctionForTest(factory->empty_string());
     Handle<JSProxy> object = factory->NewJSProxy(function, handler);
-    CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
+    CHECK_EQ(JS_PROXY_TYPE, object->map().instance_type());
     ft.CheckTrue(object, smi0, expect_bailout);
   }
 
   {
     Handle<JSObject> object = isolate->global_object();
-    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map()->instance_type());
+    CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map().instance_type());
     ft.CheckTrue(object, smi0, expect_bailout);
   }
 
   {
     Handle<JSObject> object = isolate->global_proxy();
-    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map()->instance_type());
+    CHECK_EQ(JS_GLOBAL_PROXY_TYPE, object->map().instance_type());
     ft.CheckTrue(object, smi0, expect_bailout);
   }
 }
@@ -2370,7 +2370,7 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   CHECK_EQ(isolate->native_context()->scope_info(), context_js->scope_info());
   CHECK_EQ(ReadOnlyRoots(isolate).the_hole_value(), context_js->extension());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK(context_js->get(PromiseBuiltins::kPromiseSlot)->IsJSPromise());
+  CHECK(context_js->get(PromiseBuiltins::kPromiseSlot).IsJSPromise());
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(),
            context_js->get(PromiseBuiltins::kDebugEventSlot));
 }
@@ -2401,8 +2401,8 @@ TEST(CreatePromiseResolvingFunctions) {
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(result_obj->IsFixedArray());
   Handle<FixedArray> result_arr = Handle<FixedArray>::cast(result_obj);
-  CHECK(result_arr->get(0)->IsJSFunction());
-  CHECK(result_arr->get(1)->IsJSFunction());
+  CHECK(result_arr->get(0).IsJSFunction());
+  CHECK(result_arr->get(1).IsJSFunction());
 }
 
 TEST(NewElementsCapacity) {
@@ -2535,7 +2535,7 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   CHECK_EQ(ReadOnlyRoots(isolate).the_hole_value(), context_js->extension());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
   CHECK(
-      context_js->get(PromiseBuiltins::kCapabilitySlot)->IsPromiseCapability());
+      context_js->get(PromiseBuiltins::kCapabilitySlot).IsPromiseCapability());
 }
 
 TEST(NewPromiseCapability) {
@@ -2565,13 +2565,13 @@ TEST(NewPromiseCapability) {
     Handle<PromiseCapability> result =
         Handle<PromiseCapability>::cast(result_obj);
 
-    CHECK(result->promise()->IsJSPromise());
-    CHECK(result->resolve()->IsJSFunction());
-    CHECK(result->reject()->IsJSFunction());
+    CHECK(result->promise().IsJSPromise());
+    CHECK(result->resolve().IsJSFunction());
+    CHECK(result->reject().IsJSFunction());
     CHECK_EQ(*isolate->promise_capability_default_reject_shared_fun(),
-             JSFunction::cast(result->reject())->shared());
+             JSFunction::cast(result->reject()).shared());
     CHECK_EQ(*isolate->promise_capability_default_resolve_shared_fun(),
-             JSFunction::cast(result->resolve())->shared());
+             JSFunction::cast(result->resolve()).shared());
 
     Handle<JSFunction> callbacks[] = {
         handle(JSFunction::cast(result->resolve()), isolate),
@@ -2618,11 +2618,11 @@ TEST(NewPromiseCapability) {
     Handle<PromiseCapability> result =
         Handle<PromiseCapability>::cast(result_obj);
 
-    CHECK(result->promise()->IsJSObject());
+    CHECK(result->promise().IsJSObject());
     Handle<JSObject> promise(JSObject::cast(result->promise()), isolate);
     CHECK_EQ(constructor_fn->prototype_or_initial_map(), promise->map());
-    CHECK(result->resolve()->IsJSFunction());
-    CHECK(result->reject()->IsJSFunction());
+    CHECK(result->resolve().IsJSFunction());
+    CHECK(result->reject().IsJSFunction());
 
     Handle<String> resolved_str =
         isolate->factory()->NewStringFromAsciiChecked("resolvedStr");
@@ -3100,7 +3100,7 @@ TEST(CloneEmptyFixedArray) {
   Handle<FixedArray> source(isolate->factory()->empty_fixed_array());
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
   FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(0, result->length());
+  CHECK_EQ(0, result.length());
   CHECK_EQ(*(isolate->factory()->empty_fixed_array()), result);
 }
 
@@ -3118,12 +3118,12 @@ TEST(CloneFixedArray) {
   source->set(1, Smi::FromInt(1234));
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
   FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(5, result->length());
-  CHECK(result->get(0)->IsTheHole(isolate));
-  CHECK_EQ(Smi::cast(result->get(1))->value(), 1234);
-  CHECK(result->get(2)->IsTheHole(isolate));
-  CHECK(result->get(3)->IsTheHole(isolate));
-  CHECK(result->get(4)->IsTheHole(isolate));
+  CHECK_EQ(5, result.length());
+  CHECK(result.get(0).IsTheHole(isolate));
+  CHECK_EQ(Smi::cast(result.get(1)).value(), 1234);
+  CHECK(result.get(2).IsTheHole(isolate));
+  CHECK(result.get(3).IsTheHole(isolate));
+  CHECK(result.get(4).IsTheHole(isolate));
 }
 
 TEST(CloneFixedArrayCOW) {
@@ -3164,12 +3164,12 @@ TEST(ExtractFixedArrayCOWForceCopy) {
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
   FixedArray result(FixedArray::cast(*result_raw));
   CHECK_NE(*source, result);
-  CHECK_EQ(5, result->length());
-  CHECK(result->get(0)->IsTheHole(isolate));
-  CHECK_EQ(Smi::cast(result->get(1))->value(), 1234);
-  CHECK(result->get(2)->IsTheHole(isolate));
-  CHECK(result->get(3)->IsTheHole(isolate));
-  CHECK(result->get(4)->IsTheHole(isolate));
+  CHECK_EQ(5, result.length());
+  CHECK(result.get(0).IsTheHole(isolate));
+  CHECK_EQ(Smi::cast(result.get(1)).value(), 1234);
+  CHECK(result.get(2).IsTheHole(isolate));
+  CHECK(result.get(3).IsTheHole(isolate));
+  CHECK(result.get(4).IsTheHole(isolate));
 }
 
 TEST(ExtractFixedArraySimple) {
@@ -3194,9 +3194,9 @@ TEST(ExtractFixedArraySimple) {
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
   FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(2, result->length());
-  CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
-  CHECK(result->get(1)->IsTheHole(isolate));
+  CHECK_EQ(2, result.length());
+  CHECK_EQ(Smi::cast(result.get(0)).value(), 1234);
+  CHECK(result.get(1).IsTheHole(isolate));
 }
 
 TEST(ExtractFixedArraySimpleSmiConstant) {
@@ -3218,9 +3218,9 @@ TEST(ExtractFixedArraySimpleSmiConstant) {
   source->set(1, Smi::FromInt(1234));
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
   FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(2, result->length());
-  CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
-  CHECK(result->get(1)->IsTheHole(isolate));
+  CHECK_EQ(2, result.length());
+  CHECK_EQ(Smi::cast(result.get(0)).value(), 1234);
+  CHECK(result.get(1).IsTheHole(isolate));
 }
 
 TEST(ExtractFixedArraySimpleIntPtrConstant) {
@@ -3242,9 +3242,9 @@ TEST(ExtractFixedArraySimpleIntPtrConstant) {
   source->set(1, Smi::FromInt(1234));
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
   FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(2, result->length());
-  CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
-  CHECK(result->get(1)->IsTheHole(isolate));
+  CHECK_EQ(2, result.length());
+  CHECK_EQ(Smi::cast(result.get(0)).value(), 1234);
+  CHECK(result.get(1).IsTheHole(isolate));
 }
 
 TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
@@ -3264,9 +3264,9 @@ TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
   source->set(1, Smi::FromInt(1234));
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
   FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(2, result->length());
-  CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
-  CHECK(result->get(1)->IsTheHole(isolate));
+  CHECK_EQ(2, result.length());
+  CHECK_EQ(Smi::cast(result.get(0)).value(), 1234);
+  CHECK(result.get(1).IsTheHole(isolate));
 }
 
 TEST(ExtractFixedArraySimpleIntPtrParameters) {
@@ -3288,9 +3288,9 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
   FixedArray result(FixedArray::cast(*result_raw));
-  CHECK_EQ(2, result->length());
-  CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
-  CHECK(result->get(1)->IsTheHole(isolate));
+  CHECK_EQ(2, result.length());
+  CHECK_EQ(Smi::cast(result.get(0)).value(), 1234);
+  CHECK(result.get(1).IsTheHole(isolate));
 
   Handle<FixedDoubleArray> source_double = Handle<FixedDoubleArray>::cast(
       isolate->factory()->NewFixedDoubleArray(5));
@@ -3304,9 +3304,9 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
               Handle<Smi>(Smi::FromInt(2), isolate))
           .ToHandleChecked();
   FixedDoubleArray double_result = FixedDoubleArray::cast(*double_result_raw);
-  CHECK_EQ(2, double_result->length());
-  CHECK_EQ(double_result->get_scalar(0), 11);
-  CHECK_EQ(double_result->get_scalar(1), 12);
+  CHECK_EQ(2, double_result.length());
+  CHECK_EQ(double_result.get_scalar(0), 11);
+  CHECK_EQ(double_result.get_scalar(1), 12);
 }
 
 TEST(SingleInputPhiElimination) {
@@ -3427,38 +3427,38 @@ TEST(IsDoubleElementsKind) {
       (*Handle<Smi>::cast(
            ft.Call(Handle<Smi>(Smi::FromInt(PACKED_DOUBLE_ELEMENTS), isolate))
                .ToHandleChecked()))
-          ->value(),
+          .value(),
       1);
   CHECK_EQ(
       (*Handle<Smi>::cast(
            ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_DOUBLE_ELEMENTS), isolate))
                .ToHandleChecked()))
-          ->value(),
+          .value(),
       1);
   CHECK_EQ((*Handle<Smi>::cast(
                 ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_ELEMENTS), isolate))
                     .ToHandleChecked()))
-               ->value(),
+               .value(),
            0);
   CHECK_EQ((*Handle<Smi>::cast(
                 ft.Call(Handle<Smi>(Smi::FromInt(PACKED_ELEMENTS), isolate))
                     .ToHandleChecked()))
-               ->value(),
+               .value(),
            0);
   CHECK_EQ((*Handle<Smi>::cast(
                 ft.Call(Handle<Smi>(Smi::FromInt(PACKED_SMI_ELEMENTS), isolate))
                     .ToHandleChecked()))
-               ->value(),
+               .value(),
            0);
   CHECK_EQ((*Handle<Smi>::cast(
                 ft.Call(Handle<Smi>(Smi::FromInt(HOLEY_SMI_ELEMENTS), isolate))
                     .ToHandleChecked()))
-               ->value(),
+               .value(),
            0);
   CHECK_EQ((*Handle<Smi>::cast(
                 ft.Call(Handle<Smi>(Smi::FromInt(DICTIONARY_ELEMENTS), isolate))
                     .ToHandleChecked()))
-               ->value(),
+               .value(),
            0);
 }
 

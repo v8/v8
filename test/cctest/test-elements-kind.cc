@@ -130,8 +130,8 @@ TEST(JSObjectAddingProperties) {
   JSObject::DefinePropertyOrElementIgnoreAttributes(object, name, value, NONE)
       .Check();
   CHECK_NE(object->map(), *previous_map);
-  CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
-  CHECK_LE(1, object->property_array()->length());
+  CHECK_EQ(HOLEY_ELEMENTS, object->map().elements_kind());
+  CHECK_LE(1, object->property_array().length());
   CHECK(EQUALS(isolate, object->elements(), empty_fixed_array));
 }
 
@@ -149,7 +149,7 @@ TEST(JSObjectInObjectAddingProperties) {
   int nof_inobject_properties = 10;
   // force in object properties by changing the expected_nof_properties
   // (we always reserve 8 inobject properties slack on top).
-  function->shared()->set_expected_nof_properties(nof_inobject_properties - 8);
+  function->shared().set_expected_nof_properties(nof_inobject_properties - 8);
   Handle<Object> value(Smi::FromInt(42), isolate);
 
   Handle<JSObject> object = factory->NewJSObject(function);
@@ -166,7 +166,7 @@ TEST(JSObjectInObjectAddingProperties) {
         .Check();
   }
   CHECK_NE(object->map(), *previous_map);
-  CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
+  CHECK_EQ(HOLEY_ELEMENTS, object->map().elements_kind());
   CHECK(EQUALS(isolate, object->property_array(), empty_property_array));
   CHECK(EQUALS(isolate, object->elements(), empty_fixed_array));
 
@@ -177,9 +177,9 @@ TEST(JSObjectInObjectAddingProperties) {
   JSObject::DefinePropertyOrElementIgnoreAttributes(object, name, value, NONE)
       .Check();
   CHECK_NE(object->map(), *previous_map);
-  CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
+  CHECK_EQ(HOLEY_ELEMENTS, object->map().elements_kind());
   // there must be at least 1 element in the properies store
-  CHECK_LE(1, object->property_array()->length());
+  CHECK_LE(1, object->property_array().length());
   CHECK(EQUALS(isolate, object->elements(), empty_fixed_array));
 }
 
@@ -209,9 +209,9 @@ TEST(JSObjectAddingElements) {
       .Check();
   // no change in elements_kind => no map transition
   CHECK_EQ(object->map(), *previous_map);
-  CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
+  CHECK_EQ(HOLEY_ELEMENTS, object->map().elements_kind());
   CHECK(EQUALS(isolate, object->property_array(), empty_property_array));
-  CHECK_LE(1, object->elements()->length());
+  CHECK_LE(1, object->elements().length());
 
   // Adding more consecutive elements without a change in the backing store
   int non_dict_backing_store_limit = 100;
@@ -222,9 +222,9 @@ TEST(JSObjectAddingElements) {
   }
   // no change in elements_kind => no map transition
   CHECK_EQ(object->map(), *previous_map);
-  CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
+  CHECK_EQ(HOLEY_ELEMENTS, object->map().elements_kind());
   CHECK(EQUALS(isolate, object->property_array(), empty_property_array));
-  CHECK_LE(non_dict_backing_store_limit, object->elements()->length());
+  CHECK_LE(non_dict_backing_store_limit, object->elements().length());
 
   // Adding an element at an very large index causes a change to
   // DICTIONARY_ELEMENTS
@@ -233,9 +233,9 @@ TEST(JSObjectAddingElements) {
       .Check();
   // change in elements_kind => map transition
   CHECK_NE(object->map(), *previous_map);
-  CHECK_EQ(DICTIONARY_ELEMENTS, object->map()->elements_kind());
+  CHECK_EQ(DICTIONARY_ELEMENTS, object->map().elements_kind());
   CHECK(EQUALS(isolate, object->property_array(), empty_property_array));
-  CHECK_LE(non_dict_backing_store_limit, object->elements()->length());
+  CHECK_LE(non_dict_backing_store_limit, object->elements().length());
 }
 
 
@@ -264,8 +264,8 @@ TEST(JSArrayAddingProperties) {
       .Check();
   // No change in elements_kind but added property => new map
   CHECK_NE(array->map(), *previous_map);
-  CHECK_EQ(PACKED_SMI_ELEMENTS, array->map()->elements_kind());
-  CHECK_LE(1, array->property_array()->length());
+  CHECK_EQ(PACKED_SMI_ELEMENTS, array->map().elements_kind());
+  CHECK_LE(1, array->property_array().length());
   CHECK(EQUALS(isolate, array->elements(), empty_fixed_array));
   CHECK_EQ(0, Smi::ToInt(array->length()));
 }
@@ -296,9 +296,9 @@ TEST(JSArrayAddingElements) {
       .Check();
   // no change in elements_kind => no map transition
   CHECK_EQ(array->map(), *previous_map);
-  CHECK_EQ(PACKED_SMI_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(PACKED_SMI_ELEMENTS, array->map().elements_kind());
   CHECK(EQUALS(isolate, array->property_array(), empty_property_array));
-  CHECK_LE(1, array->elements()->length());
+  CHECK_LE(1, array->elements().length());
   CHECK_EQ(1, Smi::ToInt(array->length()));
 
   // Adding more consecutive elements without a change in the backing store
@@ -310,9 +310,9 @@ TEST(JSArrayAddingElements) {
   }
   // no change in elements_kind => no map transition
   CHECK_EQ(array->map(), *previous_map);
-  CHECK_EQ(PACKED_SMI_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(PACKED_SMI_ELEMENTS, array->map().elements_kind());
   CHECK(EQUALS(isolate, array->property_array(), empty_property_array));
-  CHECK_LE(non_dict_backing_store_limit, array->elements()->length());
+  CHECK_LE(non_dict_backing_store_limit, array->elements().length());
   CHECK_EQ(non_dict_backing_store_limit, Smi::ToInt(array->length()));
 
   // Adding an element at an very large index causes a change to
@@ -323,10 +323,10 @@ TEST(JSArrayAddingElements) {
       .Check();
   // change in elements_kind => map transition
   CHECK_NE(array->map(), *previous_map);
-  CHECK_EQ(DICTIONARY_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(DICTIONARY_ELEMENTS, array->map().elements_kind());
   CHECK(EQUALS(isolate, array->property_array(), empty_property_array));
-  CHECK_LE(non_dict_backing_store_limit, array->elements()->length());
-  CHECK_LE(array->elements()->length(), index);
+  CHECK_LE(non_dict_backing_store_limit, array->elements().length());
+  CHECK_LE(array->elements().length(), index);
   CHECK_EQ(index + 1, Smi::ToInt(array->length()));
 }
 
@@ -355,14 +355,14 @@ TEST(JSArrayAddingElementsGeneralizingiFastSmiElements) {
       .Check();
   // no change in elements_kind => no map transition
   CHECK_EQ(array->map(), *previous_map);
-  CHECK_EQ(PACKED_SMI_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(PACKED_SMI_ELEMENTS, array->map().elements_kind());
   CHECK_EQ(1, Smi::ToInt(array->length()));
 
   // `delete array[0]` does not alter length, but changes the elments_kind
   name = MakeString("0");
   CHECK(JSReceiver::DeletePropertyOrElement(array, name).FromMaybe(false));
   CHECK_NE(array->map(), *previous_map);
-  CHECK_EQ(HOLEY_SMI_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(HOLEY_SMI_ELEMENTS, array->map().elements_kind());
   CHECK_EQ(1, Smi::ToInt(array->length()));
   previous_map = handle(array->map(), isolate);
 
@@ -376,7 +376,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastSmiElements) {
                                                     NONE)
       .Check();
   CHECK_EQ(array->map(), *previous_map);
-  CHECK_EQ(HOLEY_SMI_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(HOLEY_SMI_ELEMENTS, array->map().elements_kind());
   CHECK_EQ(2, Smi::ToInt(array->length()));
 
   // Adding a string to the array changes from FAST_HOLEY_SMI to FAST_HOLEY
@@ -385,7 +385,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastSmiElements) {
                                                     NONE)
       .Check();
   CHECK_NE(array->map(), *previous_map);
-  CHECK_EQ(HOLEY_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(HOLEY_ELEMENTS, array->map().elements_kind());
   CHECK_EQ(2, Smi::ToInt(array->length()));
   previous_map = handle(array->map(), isolate);
 
@@ -428,14 +428,14 @@ TEST(JSArrayAddingElementsGeneralizingFastElements) {
       .Check();
   // no change in elements_kind => no map transition
   CHECK_EQ(array->map(), *previous_map);
-  CHECK_EQ(PACKED_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(PACKED_ELEMENTS, array->map().elements_kind());
   CHECK_EQ(1, Smi::ToInt(array->length()));
 
   // `delete array[0]` does not alter length, but changes the elments_kind
   name = MakeString("0");
   CHECK(JSReceiver::DeletePropertyOrElement(array, name).FromMaybe(false));
   CHECK_NE(array->map(), *previous_map);
-  CHECK_EQ(HOLEY_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(HOLEY_ELEMENTS, array->map().elements_kind());
   CHECK_EQ(1, Smi::ToInt(array->length()));
   previous_map = handle(array->map(), isolate);
 
@@ -449,7 +449,7 @@ TEST(JSArrayAddingElementsGeneralizingFastElements) {
                                                     NONE)
       .Check();
   CHECK_EQ(array->map(), *previous_map);
-  CHECK_EQ(HOLEY_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(HOLEY_ELEMENTS, array->map().elements_kind());
   CHECK_EQ(2, Smi::ToInt(array->length()));
 }
 
@@ -475,7 +475,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
                                                     NONE)
       .Check();
   CHECK_NE(array->map(), *previous_map);
-  CHECK_EQ(PACKED_DOUBLE_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(PACKED_DOUBLE_ELEMENTS, array->map().elements_kind());
   CHECK_EQ(1, Smi::ToInt(array->length()));
   previous_map = handle(array->map(), isolate);
 
@@ -485,14 +485,14 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
                                                     NONE)
       .Check();
   CHECK_EQ(array->map(), *previous_map);
-  CHECK_EQ(PACKED_DOUBLE_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(PACKED_DOUBLE_ELEMENTS, array->map().elements_kind());
   CHECK_EQ(2, Smi::ToInt(array->length()));
 
   // `delete array[0]` does not alter length, but changes the elments_kind
   name = MakeString("0");
   CHECK(JSReceiver::DeletePropertyOrElement(array, name).FromMaybe(false));
   CHECK_NE(array->map(), *previous_map);
-  CHECK_EQ(HOLEY_DOUBLE_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(HOLEY_DOUBLE_ELEMENTS, array->map().elements_kind());
   CHECK_EQ(2, Smi::ToInt(array->length()));
   previous_map = handle(array->map(), isolate);
 
@@ -502,7 +502,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
                                                     NONE)
       .Check();
   CHECK_EQ(array->map(), *previous_map);
-  CHECK_EQ(HOLEY_DOUBLE_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(HOLEY_DOUBLE_ELEMENTS, array->map().elements_kind());
   CHECK_EQ(2, Smi::ToInt(array->length()));
 
   // Adding a string to the array changes to elements_kind PACKED_ELEMENTS
@@ -511,7 +511,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
                                                     NONE)
       .Check();
   CHECK_NE(array->map(), *previous_map);
-  CHECK_EQ(HOLEY_ELEMENTS, array->map()->elements_kind());
+  CHECK_EQ(HOLEY_ELEMENTS, array->map().elements_kind());
   CHECK_EQ(2, Smi::ToInt(array->length()));
   previous_map = handle(array->map(), isolate);
 

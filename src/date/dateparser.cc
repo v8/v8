@@ -58,9 +58,9 @@ bool DateParser::DayComposer::Write(FixedArray output) {
 
   if (!Smi::IsValid(year) || !IsMonth(month) || !IsDay(day)) return false;
 
-  output->set(YEAR, Smi::FromInt(year));
-  output->set(MONTH, Smi::FromInt(month - 1));  // 0-based
-  output->set(DAY, Smi::FromInt(day));
+  output.set(YEAR, Smi::FromInt(year));
+  output.set(MONTH, Smi::FromInt(month - 1));  // 0-based
+  output.set(DAY, Smi::FromInt(day));
   return true;
 }
 
@@ -89,10 +89,10 @@ bool DateParser::TimeComposer::Write(FixedArray output) {
     }
   }
 
-  output->set(HOUR, Smi::FromInt(hour));
-  output->set(MINUTE, Smi::FromInt(minute));
-  output->set(SECOND, Smi::FromInt(second));
-  output->set(MILLISECOND, Smi::FromInt(millisecond));
+  output.set(HOUR, Smi::FromInt(hour));
+  output.set(MINUTE, Smi::FromInt(minute));
+  output.set(SECOND, Smi::FromInt(second));
+  output.set(MILLISECOND, Smi::FromInt(millisecond));
   return true;
 }
 
@@ -109,9 +109,9 @@ bool DateParser::TimeZoneComposer::Write(FixedArray output) {
       total_seconds = -total_seconds;
     }
     DCHECK(Smi::IsValid(total_seconds));
-    output->set(UTC_OFFSET, Smi::FromInt(total_seconds));
+    output.set(UTC_OFFSET, Smi::FromInt(total_seconds));
   } else {
-    output->set_null(UTC_OFFSET);
+    output.set_null(UTC_OFFSET);
   }
   return true;
 }

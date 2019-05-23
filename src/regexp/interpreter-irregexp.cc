@@ -176,7 +176,7 @@ IrregexpInterpreter::Result HandleInterrupts(Isolate* isolate,
     result = isolate->stack_guard()->HandleInterrupts();
   }
 
-  if (result->IsException(isolate)) {
+  if (result.IsException(isolate)) {
     return IrregexpInterpreter::EXCEPTION;
   }
 

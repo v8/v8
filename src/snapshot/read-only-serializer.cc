@@ -27,7 +27,7 @@ ReadOnlySerializer::~ReadOnlySerializer() {
 
 void ReadOnlySerializer::SerializeObject(HeapObject obj) {
   CHECK(ReadOnlyHeap::Contains(obj));
-  CHECK_IMPLIES(obj->IsString(), obj->IsInternalizedString());
+  CHECK_IMPLIES(obj.IsString(), obj.IsInternalizedString());
 
   if (SerializeHotObject(obj)) return;
   if (IsRootAndHasBeenSerialized(obj) && SerializeRoot(obj)) {
@@ -88,7 +88,7 @@ bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
   // not be fulfilled during deserialization until few first root objects are
   // serialized. But we must serialize Map objects since deserializer checks
   // that these root objects are indeed Maps.
-  return !object->IsMap();
+  return !object.IsMap();
 }
 
 bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(

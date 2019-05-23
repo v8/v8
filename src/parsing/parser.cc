@@ -519,10 +519,9 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
     if (!info->is_eval()) {
       event_name = "parse-script";
       start = 0;
-      end = String::cast(script->source())->length();
+      end = String::cast(script.source()).length();
     }
-    LOG(isolate,
-        FunctionEvent(event_name, script->id(), ms, start, end, "", 0));
+    LOG(isolate, FunctionEvent(event_name, script.id(), ms, start, end, "", 0));
   }
   return result;
 }

@@ -34,9 +34,8 @@ MapUpdater::MapUpdater(Isolate* isolate, Handle<Map> old_map)
       is_transitionable_fast_elements_kind_(
           IsTransitionableFastElementsKind(new_elements_kind_)) {
   // We shouldn't try to update remote objects.
-  DCHECK(!old_map->FindRootMap(isolate)
-              ->GetConstructor()
-              ->IsFunctionTemplateInfo());
+  DCHECK(
+      !old_map->FindRootMap(isolate).GetConstructor().IsFunctionTemplateInfo());
 }
 
 Name MapUpdater::GetKey(int descriptor) const {
@@ -89,7 +88,7 @@ Handle<FieldType> MapUpdater::GetOrComputeFieldType(
   if (location == kField) {
     return handle(GetFieldType(descriptor), isolate_);
   } else {
-    return GetValue(descriptor)->OptimalType(isolate_, representation);
+    return GetValue(descriptor).OptimalType(isolate_, representation);
   }
 }
 
@@ -102,7 +101,7 @@ Handle<FieldType> MapUpdater::GetOrComputeFieldType(
     return handle(descriptors->GetFieldType(descriptor), isolate_);
   } else {
     return descriptors->GetStrongValue(descriptor)
-        ->OptimalType(isolate_, representation);
+        .OptimalType(isolate_, representation);
   }
 }
 
@@ -243,7 +242,7 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
              .representation()
              .Equals(new_representation_));
   DCHECK(old_descriptors_->GetFieldType(modified_descriptor_)
-             ->NowIs(new_field_type_));
+             .NowIs(new_field_type_));
 
   result_map_ = old_map_;
   state_ = kEnd;
@@ -303,7 +302,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
   if (root_map_->is_deprecated()) {
     state_ = kEnd;
     result_map_ = handle(
-        JSFunction::cast(root_map_->GetConstructor())->initial_map(), isolate_);
+        JSFunction::cast(root_map_->GetConstructor()).initial_map(), isolate_);
     result_map_ = Map::AsElementsKind(isolate_, result_map_, to_kind);
     DCHECK(result_map_->is_dictionary_map());
     return state_;
@@ -427,7 +426,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     if (modified_descriptor_ >= 0) {
       DescriptorArray target_descriptors = target_map_->instance_descriptors();
       PropertyDetails details =
-          target_descriptors->GetDetails(modified_descriptor_);
+          target_descriptors.GetDetails(modified_descriptor_);
       DCHECK_EQ(new_kind_, details.kind());
       DCHECK_EQ(GetDetails(modified_descriptor_).attributes(),
                 details.attributes());
@@ -437,12 +436,12 @@ MapUpdater::State MapUpdater::FindTargetMap() {
       if (new_location_ == kField) {
         DCHECK_EQ(kField, details.location());
         DCHECK(new_field_type_->NowIs(
-            target_descriptors->GetFieldType(modified_descriptor_)));
+            target_descriptors.GetFieldType(modified_descriptor_)));
       } else {
         DCHECK(details.location() == kField ||
                EqualImmutableValues(
                    *new_value_,
-                   target_descriptors->GetStrongValue(modified_descriptor_)));
+                   target_descriptors.GetStrongValue(modified_descriptor_)));
       }
     }
 #endif
@@ -673,9 +672,9 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
         TransitionsAccessor(isolate_, current, &no_allocation)
             .SearchTransition(name, details.kind(), details.attributes());
     if (next.is_null()) break;
-    DescriptorArray next_descriptors = next->instance_descriptors();
+    DescriptorArray next_descriptors = next.instance_descriptors();
 
-    PropertyDetails next_details = next_descriptors->GetDetails(i);
+    PropertyDetails next_details = next_descriptors.GetDetails(i);
     DCHECK_EQ(details.kind(), next_details.kind());
     DCHECK_EQ(details.attributes(), next_details.attributes());
     if (details.constness() != next_details.constness()) break;
@@ -683,13 +682,13 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
     if (!details.representation().Equals(next_details.representation())) break;
 
     if (next_details.location() == kField) {
-      FieldType next_field_type = next_descriptors->GetFieldType(i);
-      if (!descriptors->GetFieldType(i)->NowIs(next_field_type)) {
+      FieldType next_field_type = next_descriptors.GetFieldType(i);
+      if (!descriptors->GetFieldType(i).NowIs(next_field_type)) {
         break;
       }
     } else {
       if (!EqualImmutableValues(descriptors->GetStrongValue(i),
-                                next_descriptors->GetStrongValue(i))) {
+                                next_descriptors.GetStrongValue(i))) {
         break;
       }
     }
@@ -716,7 +715,7 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   Map maybe_transition = transitions.SearchTransition(
       GetKey(split_nof), split_details.kind(), split_details.attributes());
   if (!maybe_transition.is_null()) {
-    maybe_transition->DeprecateTransitionTree(isolate_);
+    maybe_transition.DeprecateTransitionTree(isolate_);
   }
 
   // If |maybe_transition| is not nullptr then the transition array already

@@ -221,7 +221,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
   } else if (RelocInfo::IsEmbeddedObjectMode(rmode)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    relocinfo->target_object()->ShortPrint(&accumulator);
+    relocinfo->target_object().ShortPrint(&accumulator);
     std::unique_ptr<char[]> obj_name = accumulator.ToCString();
     const bool is_compressed = RelocInfo::IsCompressedEmbeddedObject(rmode);
     out->AddFormatted("    ;; %sobject: %s",
@@ -236,9 +236,9 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     out->AddFormatted("    ;; code:");
     Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(
         relocinfo->target_address());
-    Code::Kind kind = code->kind();
-    if (code->is_builtin()) {
-      out->AddFormatted(" Builtin::%s", Builtins::name(code->builtin_index()));
+    Code::Kind kind = code.kind();
+    if (code.is_builtin()) {
+      out->AddFormatted(" Builtin::%s", Builtins::name(code.builtin_index()));
     } else {
       out->AddFormatted(" %s", Code::Kind2String(kind));
     }

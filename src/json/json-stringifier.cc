@@ -456,7 +456,7 @@ class CircularStructureMessageBuilder {
     static const int kBufferSize = 100;
     char chars[kBufferSize];
     Vector<char> buffer(chars, kBufferSize);
-    builder_.AppendCString(IntToCString(smi->value(), buffer));
+    builder_.AppendCString(IntToCString(smi.value(), buffer));
   }
 
   IncrementalStringBuilder builder_;
@@ -511,7 +511,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
   StackLimitCheck interrupt_check(isolate_);
   Handle<Object> initial_value = object;
   if (interrupt_check.InterruptRequested() &&
-      isolate_->stack_guard()->HandleInterrupts()->IsException(isolate_)) {
+      isolate_->stack_guard()->HandleInterrupts().IsException(isolate_)) {
     return EXCEPTION;
   }
   if (object->IsJSReceiver() || object->IsBigInt()) {
@@ -529,7 +529,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     return SerializeSmi(Smi::cast(*object));
   }
 
-  switch (HeapObject::cast(*object)->map()->instance_type()) {
+  switch (HeapObject::cast(*object).map().instance_type()) {
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
@@ -539,7 +539,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
           *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
       return EXCEPTION;
     case ODDBALL_TYPE:
-      switch (Oddball::cast(*object)->kind()) {
+      switch (Oddball::cast(*object).kind()) {
         case Oddball::kFalse:
           if (deferred_string_key) SerializeDeferredKey(comma, key);
           builder_.AppendCString("false");
@@ -586,23 +586,23 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
 JsonStringifier::Result JsonStringifier::SerializeJSValue(
     Handle<JSValue> object, Handle<Object> key) {
   Object raw = object->value();
-  if (raw->IsString()) {
+  if (raw.IsString()) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, value, Object::ToString(isolate_, object), EXCEPTION);
     SerializeString(Handle<String>::cast(value));
-  } else if (raw->IsNumber()) {
+  } else if (raw.IsNumber()) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, value, Object::ToNumber(isolate_, object), EXCEPTION);
     if (value->IsSmi()) return SerializeSmi(Smi::cast(*value));
     SerializeHeapNumber(Handle<HeapNumber>::cast(value));
-  } else if (raw->IsBigInt()) {
+  } else if (raw.IsBigInt()) {
     isolate_->Throw(
         *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
     return EXCEPTION;
-  } else if (raw->IsBoolean()) {
-    builder_.AppendCString(raw->IsTrue(isolate_) ? "true" : "false");
+  } else if (raw.IsBoolean()) {
+    builder_.AppendCString(raw.IsTrue(isolate_) ? "true" : "false");
   } else {
     // ES6 24.3.2.1 step 10.c, serialize as an ordinary JSObject.
     return SerializeJSObject(object, key);
@@ -614,7 +614,7 @@ JsonStringifier::Result JsonStringifier::SerializeSmi(Smi object) {
   static const int kBufferSize = 100;
   char chars[kBufferSize];
   Vector<char> buffer(chars, kBufferSize);
-  builder_.AppendCString(IntToCString(object->value(), buffer));
+  builder_.AppendCString(IntToCString(object.value(), buffer));
   return SUCCESS;
 }
 
@@ -636,7 +636,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
   Result stack_push = StackPush(object, key);
   if (stack_push != SUCCESS) return stack_push;
   uint32_t length = 0;
-  CHECK(object->length()->ToArrayLength(&length));
+  CHECK(object->length().ToArrayLength(&length));
   DCHECK(!object->IsAccessCheckNeeded());
   builder_.AppendCharacter('[');
   Indent();
@@ -649,7 +649,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
         StackLimitCheck interrupt_check(isolate_);
         while (i < length) {
           if (interrupt_check.InterruptRequested() &&
-              isolate_->stack_guard()->HandleInterrupts()->IsException(
+              isolate_->stack_guard()->HandleInterrupts().IsException(
                   isolate_)) {
             return EXCEPTION;
           }
@@ -667,7 +667,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
         StackLimitCheck interrupt_check(isolate_);
         while (i < length) {
           if (interrupt_check.InterruptRequested() &&
-              isolate_->stack_guard()->HandleInterrupts()->IsException(
+              isolate_->stack_guard()->HandleInterrupts().IsException(
                   isolate_)) {
             return EXCEPTION;
           }
@@ -688,7 +688,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
           Separator(i == 0);
           Result result = SerializeElement(
               isolate_,
-              Handle<Object>(FixedArray::cast(object->elements())->get(i),
+              Handle<Object>(FixedArray::cast(object->elements()).get(i),
                              isolate_),
               i);
           if (result == UNCHANGED) {
@@ -752,7 +752,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
   if (stack_push != SUCCESS) return stack_push;
 
   if (property_list_.is_null() &&
-      !object->map()->IsCustomElementsReceiverMap() &&
+      !object->map().IsCustomElementsReceiverMap() &&
       object->HasFastProperties() &&
       (object->elements() == ReadOnlyRoots(isolate_).empty_fixed_array() ||
        object->elements() ==
@@ -765,11 +765,11 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     Indent();
     bool comma = false;
     for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
-      Handle<Name> name(map->instance_descriptors()->GetKey(i), isolate_);
+      Handle<Name> name(map->instance_descriptors().GetKey(i), isolate_);
       // TODO(rossberg): Should this throw?
       if (!name->IsString()) continue;
       Handle<String> key = Handle<String>::cast(name);
-      PropertyDetails details = map->instance_descriptors()->GetDetails(i);
+      PropertyDetails details = map->instance_descriptors().GetDetails(i);
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
       if (details.location() == kField && *map == object->map()) {

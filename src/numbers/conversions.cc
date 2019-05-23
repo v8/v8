@@ -1324,7 +1324,7 @@ double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
 bool IsSpecialIndex(String string) {
   // Max length of canonical double: -X.XXXXXXXXXXXXXXXXX-eXXX
   const int kBufferSize = 24;
-  const int length = string->length();
+  const int length = string.length();
   if (length == 0 || length > kBufferSize) return false;
   uint16_t buffer[kBufferSize];
   String::WriteToFlat(string, buffer, 0, length);

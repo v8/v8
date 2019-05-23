@@ -127,7 +127,7 @@ void JSArrayBufferView::set_byte_length(size_t value) {
 ACCESSORS(JSArrayBufferView, buffer, Object, kBufferOffset)
 
 bool JSArrayBufferView::WasDetached() const {
-  return JSArrayBuffer::cast(buffer())->was_detached();
+  return JSArrayBuffer::cast(buffer()).was_detached();
 }
 
 size_t JSTypedArray::length() const { return ReadField<size_t>(kLengthOffset); }
@@ -141,7 +141,7 @@ bool JSTypedArray::is_on_heap() const {
   // Checking that buffer()->backing_store() is not nullptr is not sufficient;
   // it will be nullptr when byte_length is 0 as well.
   FixedTypedArrayBase fta = FixedTypedArrayBase::cast(elements());
-  return fta->base_pointer()->ptr() == fta.ptr();
+  return fta.base_pointer().ptr() == fta.ptr();
 }
 
 // static

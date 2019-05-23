@@ -84,7 +84,7 @@ static i::Handle<i::BreakPoint> SetBreakPoint(v8::Local<v8::Function> fun,
                                               const char* condition = nullptr) {
   i::Handle<i::JSFunction> function =
       i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
-  position += function->shared()->StartPosition();
+  position += function->shared().StartPosition();
   static int break_point_index = 0;
   i::Isolate* isolate = function->GetIsolate();
   i::Handle<i::String> condition_string =
@@ -168,7 +168,7 @@ void CheckDebuggerUnloaded() {
   HeapIterator iterator(CcTest::heap());
   for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
-    CHECK(!obj->IsDebugInfo());
+    CHECK(!obj.IsDebugInfo());
   }
 }
 
@@ -2709,7 +2709,7 @@ TEST(PauseInScript) {
 
   // Set breakpoint in the script.
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()),
+      i::Script::cast(v8::Utils::OpenHandle(*script)->shared().script()),
       isolate);
   i::Handle<i::String> condition = isolate->factory()->empty_string();
   int position = 0;
@@ -3091,11 +3091,11 @@ TEST(DebugScriptLineEndsAreAscending) {
     v8::internal::Script::InitLineEnds(script);
     v8::internal::FixedArray ends =
         v8::internal::FixedArray::cast(script->line_ends());
-    CHECK_GT(ends->length(), 0);
+    CHECK_GT(ends.length(), 0);
 
     int prev_end = -1;
-    for (int j = 0; j < ends->length(); j++) {
-      const int curr_end = v8::internal::Smi::ToInt(ends->get(j));
+    for (int j = 0; j < ends.length(); j++) {
+      const int curr_end = v8::internal::Smi::ToInt(ends.get(j));
       CHECK_GT(curr_end, prev_end);
       prev_end = curr_end;
     }
@@ -4221,8 +4221,8 @@ TEST(BuiltinsExceptionPrediction) {
   bool fail = false;
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
     i::Code builtin = builtins->builtin(i);
-    if (builtin->kind() != i::Code::BUILTIN) continue;
-    auto prediction = builtin->GetBuiltinCatchPrediction();
+    if (builtin.kind() != i::Code::BUILTIN) continue;
+    auto prediction = builtin.GetBuiltinCatchPrediction();
     USE(prediction);
   }
   CHECK(!fail);
@@ -4267,7 +4267,7 @@ TEST(DebugEvaluateNoSideEffect) {
     i::HeapIterator iterator(isolate->heap());
     for (i::HeapObject obj = iterator.next(); !obj.is_null();
          obj = iterator.next()) {
-      if (!obj->IsJSFunction()) continue;
+      if (!obj.IsJSFunction()) continue;
       i::JSFunction fun = i::JSFunction::cast(obj);
       all_functions.emplace_back(fun, isolate);
     }
@@ -4293,7 +4293,7 @@ i::MaybeHandle<i::Script> FindScript(
   Handle<i::String> i_name =
       isolate->factory()->NewStringFromAsciiChecked(name);
   for (const auto& script : scripts) {
-    if (!script->name()->IsString()) continue;
+    if (!script->name().IsString()) continue;
     if (i_name->Equals(i::String::cast(script->name()))) return script;
   }
   return i::MaybeHandle<i::Script>();
@@ -4321,11 +4321,11 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
       i::Script::Iterator iterator(i_isolate);
       for (i::Script script = iterator.Next(); !script.is_null();
            script = iterator.Next()) {
-        if (script->type() == i::Script::TYPE_NATIVE &&
-            script->name()->IsUndefined(i_isolate)) {
+        if (script.type() == i::Script::TYPE_NATIVE &&
+            script.name().IsUndefined(i_isolate)) {
           continue;
         }
-        ++count_by_type[script->type()];
+        ++count_by_type[script.type()];
         scripts.emplace_back(script, i_isolate);
       }
     }
@@ -4382,7 +4382,7 @@ TEST(SourceInfo) {
   v8::Local<v8::Script> v8_script =
       v8::Script::Compile(env.local(), v8_str(source)).ToLocalChecked();
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*v8_script)->shared()->script()),
+      i::Script::cast(v8::Utils::OpenHandle(*v8_script)->shared().script()),
       CcTest::i_isolate());
   v8::Local<v8::debug::Script> script =
       v8::ToApiHandle<v8::debug::Script>(i_script);

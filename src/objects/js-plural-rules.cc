@@ -199,11 +199,11 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
 
 MaybeHandle<String> JSPluralRules::ResolvePlural(
     Isolate* isolate, Handle<JSPluralRules> plural_rules, double number) {
-  icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules()->raw();
+  icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules().raw();
   CHECK_NOT_NULL(icu_plural_rules);
 
   icu::DecimalFormat* icu_decimal_format =
-      plural_rules->icu_decimal_format()->raw();
+      plural_rules->icu_decimal_format().raw();
   CHECK_NOT_NULL(icu_decimal_format);
 
   // Currently, PluralRules doesn't implement all the options for rounding that
@@ -262,7 +262,7 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
                                "type");
 
   icu::DecimalFormat* icu_decimal_format =
-      plural_rules->icu_decimal_format()->raw();
+      plural_rules->icu_decimal_format().raw();
   CHECK_NOT_NULL(icu_decimal_format);
 
   // This is a safe upcast as icu::DecimalFormat inherits from
@@ -296,7 +296,7 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
 
   // 6. Let pluralCategories be a List of Strings representing the
   // possible results of PluralRuleSelect for the selected locale pr.
-  icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules()->raw();
+  icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules().raw();
   CHECK_NOT_NULL(icu_plural_rules);
 
   UErrorCode status = U_ZERO_ERROR;

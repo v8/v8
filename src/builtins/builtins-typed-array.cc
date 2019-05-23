@@ -33,7 +33,7 @@ int64_t CapRelativeIndex(Handle<Object> num, int64_t minimum, int64_t maximum) {
                         : std::min<int64_t>(relative, maximum);
   } else {
     DCHECK(num->IsHeapNumber());
-    double relative = HeapNumber::cast(*num)->value();
+    double relative = HeapNumber::cast(*num).value();
     DCHECK(!std::isnan(relative));
     return static_cast<int64_t>(
         relative < 0 ? std::max<double>(relative + maximum, minimum)

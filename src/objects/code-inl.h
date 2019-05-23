@@ -48,88 +48,88 @@ ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
 
 int AbstractCode::raw_instruction_size() {
   if (IsCode()) {
-    return GetCode()->raw_instruction_size();
+    return GetCode().raw_instruction_size();
   } else {
-    return GetBytecodeArray()->length();
+    return GetBytecodeArray().length();
   }
 }
 
 int AbstractCode::InstructionSize() {
   if (IsCode()) {
-    return GetCode()->InstructionSize();
+    return GetCode().InstructionSize();
   } else {
-    return GetBytecodeArray()->length();
+    return GetBytecodeArray().length();
   }
 }
 
 ByteArray AbstractCode::source_position_table() {
   if (IsCode()) {
-    return GetCode()->SourcePositionTable();
+    return GetCode().SourcePositionTable();
   } else {
-    return GetBytecodeArray()->SourcePositionTable();
+    return GetBytecodeArray().SourcePositionTable();
   }
 }
 
 Object AbstractCode::stack_frame_cache() {
   Object maybe_table;
   if (IsCode()) {
-    maybe_table = GetCode()->source_position_table();
+    maybe_table = GetCode().source_position_table();
   } else {
-    maybe_table = GetBytecodeArray()->source_position_table();
+    maybe_table = GetBytecodeArray().source_position_table();
   }
-  if (maybe_table->IsSourcePositionTableWithFrameCache()) {
+  if (maybe_table.IsSourcePositionTableWithFrameCache()) {
     return SourcePositionTableWithFrameCache::cast(maybe_table)
-        ->stack_frame_cache();
+        .stack_frame_cache();
   }
   return Smi::kZero;
 }
 
 int AbstractCode::SizeIncludingMetadata() {
   if (IsCode()) {
-    return GetCode()->SizeIncludingMetadata();
+    return GetCode().SizeIncludingMetadata();
   } else {
-    return GetBytecodeArray()->SizeIncludingMetadata();
+    return GetBytecodeArray().SizeIncludingMetadata();
   }
 }
 int AbstractCode::ExecutableSize() {
   if (IsCode()) {
-    return GetCode()->ExecutableSize();
+    return GetCode().ExecutableSize();
   } else {
-    return GetBytecodeArray()->BytecodeArraySize();
+    return GetBytecodeArray().BytecodeArraySize();
   }
 }
 
 Address AbstractCode::raw_instruction_start() {
   if (IsCode()) {
-    return GetCode()->raw_instruction_start();
+    return GetCode().raw_instruction_start();
   } else {
-    return GetBytecodeArray()->GetFirstBytecodeAddress();
+    return GetBytecodeArray().GetFirstBytecodeAddress();
   }
 }
 
 Address AbstractCode::InstructionStart() {
   if (IsCode()) {
-    return GetCode()->InstructionStart();
+    return GetCode().InstructionStart();
   } else {
-    return GetBytecodeArray()->GetFirstBytecodeAddress();
+    return GetBytecodeArray().GetFirstBytecodeAddress();
   }
 }
 
 Address AbstractCode::raw_instruction_end() {
   if (IsCode()) {
-    return GetCode()->raw_instruction_end();
+    return GetCode().raw_instruction_end();
   } else {
-    return GetBytecodeArray()->GetFirstBytecodeAddress() +
-           GetBytecodeArray()->length();
+    return GetBytecodeArray().GetFirstBytecodeAddress() +
+           GetBytecodeArray().length();
   }
 }
 
 Address AbstractCode::InstructionEnd() {
   if (IsCode()) {
-    return GetCode()->InstructionEnd();
+    return GetCode().InstructionEnd();
   } else {
-    return GetBytecodeArray()->GetFirstBytecodeAddress() +
-           GetBytecodeArray()->length();
+    return GetBytecodeArray().GetFirstBytecodeAddress() +
+           GetBytecodeArray().length();
   }
 }
 
@@ -139,7 +139,7 @@ bool AbstractCode::contains(Address inner_pointer) {
 
 AbstractCode::Kind AbstractCode::kind() {
   if (IsCode()) {
-    return static_cast<AbstractCode::Kind>(GetCode()->kind());
+    return static_cast<AbstractCode::Kind>(GetCode().kind());
   } else {
     return INTERPRETED_FUNCTION;
   }
@@ -236,26 +236,26 @@ void Code::clear_padding() {
 ByteArray Code::SourcePositionTableIfCollected() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   Object maybe_table = source_position_table();
-  if (maybe_table->IsUndefined(roots) || maybe_table->IsException(roots))
+  if (maybe_table.IsUndefined(roots) || maybe_table.IsException(roots))
     return roots.empty_byte_array();
   return SourcePositionTable();
 }
 
 ByteArray Code::SourcePositionTable() const {
   Object maybe_table = source_position_table();
-  DCHECK(!maybe_table->IsUndefined() && !maybe_table->IsException());
-  if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
-  DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
+  DCHECK(!maybe_table.IsUndefined() && !maybe_table.IsException());
+  if (maybe_table.IsByteArray()) return ByteArray::cast(maybe_table);
+  DCHECK(maybe_table.IsSourcePositionTableWithFrameCache());
   return SourcePositionTableWithFrameCache::cast(maybe_table)
-      ->source_position_table();
+      .source_position_table();
 }
 
 Object Code::next_code_link() const {
-  return code_data_container()->next_code_link();
+  return code_data_container().next_code_link();
 }
 
 void Code::set_next_code_link(Object value) {
-  code_data_container()->set_next_code_link(value);
+  code_data_container().set_next_code_link(value);
 }
 
 int Code::InstructionSize() const {
@@ -325,8 +325,8 @@ int Code::body_size() const {
 
 int Code::SizeIncludingMetadata() const {
   int size = CodeSize();
-  size += relocation_info()->Size();
-  size += deoptimization_data()->Size();
+  size += relocation_info().Size();
+  size += deoptimization_data().Size();
   return size;
 }
 
@@ -335,15 +335,15 @@ ByteArray Code::unchecked_relocation_info() const {
 }
 
 byte* Code::relocation_start() const {
-  return unchecked_relocation_info()->GetDataStartAddress();
+  return unchecked_relocation_info().GetDataStartAddress();
 }
 
 byte* Code::relocation_end() const {
-  return unchecked_relocation_info()->GetDataEndAddress();
+  return unchecked_relocation_info().GetDataEndAddress();
 }
 
 int Code::relocation_size() const {
-  return unchecked_relocation_info()->length();
+  return unchecked_relocation_info().length();
 }
 
 Address Code::entry() const { return raw_instruction_start(); }
@@ -368,8 +368,8 @@ int Code::ExecutableSize() const {
 
 // static
 void Code::CopyRelocInfoToByteArray(ByteArray dest, const CodeDesc& desc) {
-  DCHECK_EQ(dest->length(), desc.reloc_size);
-  CopyBytes(dest->GetDataStartAddress(),
+  DCHECK_EQ(dest.length(), desc.reloc_size);
+  CopyBytes(dest.GetDataStartAddress(),
             desc.buffer + desc.buffer_size - desc.reloc_size,
             static_cast<size_t>(desc.reloc_size));
 }
@@ -425,41 +425,41 @@ inline bool Code::is_turbofanned() const {
 
 inline bool Code::can_have_weak_objects() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int32_t flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container().kind_specific_flags();
   return CanHaveWeakObjectsField::decode(flags);
 }
 
 inline void Code::set_can_have_weak_objects(bool value) {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t previous = code_data_container().kind_specific_flags();
   int32_t updated = CanHaveWeakObjectsField::update(previous, value);
-  code_data_container()->set_kind_specific_flags(updated);
+  code_data_container().set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_promise_rejection() const {
   DCHECK(kind() == BUILTIN);
-  int32_t flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container().kind_specific_flags();
   return IsPromiseRejectionField::decode(flags);
 }
 
 inline void Code::set_is_promise_rejection(bool value) {
   DCHECK(kind() == BUILTIN);
-  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t previous = code_data_container().kind_specific_flags();
   int32_t updated = IsPromiseRejectionField::update(previous, value);
-  code_data_container()->set_kind_specific_flags(updated);
+  code_data_container().set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_exception_caught() const {
   DCHECK(kind() == BUILTIN);
-  int32_t flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container().kind_specific_flags();
   return IsExceptionCaughtField::decode(flags);
 }
 
 inline void Code::set_is_exception_caught(bool value) {
   DCHECK(kind() == BUILTIN);
-  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t previous = code_data_container().kind_specific_flags();
   int32_t updated = IsExceptionCaughtField::update(previous, value);
-  code_data_container()->set_kind_specific_flags(updated);
+  code_data_container().set_kind_specific_flags(updated);
 }
 
 inline bool Code::is_off_heap_trampoline() const {
@@ -496,44 +496,44 @@ int Code::stack_slots() const {
 
 bool Code::marked_for_deoptimization() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int32_t flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container().kind_specific_flags();
   return MarkedForDeoptimizationField::decode(flags);
 }
 
 void Code::set_marked_for_deoptimization(bool flag) {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
-  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t previous = code_data_container().kind_specific_flags();
   int32_t updated = MarkedForDeoptimizationField::update(previous, flag);
-  code_data_container()->set_kind_specific_flags(updated);
+  code_data_container().set_kind_specific_flags(updated);
 }
 
 bool Code::embedded_objects_cleared() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int32_t flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container().kind_specific_flags();
   return EmbeddedObjectsClearedField::decode(flags);
 }
 
 void Code::set_embedded_objects_cleared(bool flag) {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   DCHECK_IMPLIES(flag, marked_for_deoptimization());
-  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t previous = code_data_container().kind_specific_flags();
   int32_t updated = EmbeddedObjectsClearedField::update(previous, flag);
-  code_data_container()->set_kind_specific_flags(updated);
+  code_data_container().set_kind_specific_flags(updated);
 }
 
 bool Code::deopt_already_counted() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
-  int32_t flags = code_data_container()->kind_specific_flags();
+  int32_t flags = code_data_container().kind_specific_flags();
   return DeoptAlreadyCountedField::decode(flags);
 }
 
 void Code::set_deopt_already_counted(bool flag) {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
-  int32_t previous = code_data_container()->kind_specific_flags();
+  int32_t previous = code_data_container().kind_specific_flags();
   int32_t updated = DeoptAlreadyCountedField::update(previous, flag);
-  code_data_container()->set_kind_specific_flags(updated);
+  code_data_container().set_kind_specific_flags(updated);
 }
 
 bool Code::is_optimized_code() const { return kind() == OPTIMIZED_FUNCTION; }
@@ -591,10 +591,10 @@ bool Code::IsWeakObject(HeapObject object) {
 }
 
 bool Code::IsWeakObjectInOptimizedCode(HeapObject object) {
-  Map map = object->synchronized_map();
-  InstanceType instance_type = map->instance_type();
+  Map map = object.synchronized_map();
+  InstanceType instance_type = map.instance_type();
   if (InstanceTypeChecker::IsMap(instance_type)) {
-    return Map::cast(object)->CanTransition();
+    return Map::cast(object).CanTransition();
   }
   return InstanceTypeChecker::IsPropertyCell(instance_type) ||
          InstanceTypeChecker::IsJSReceiver(instance_type) ||
@@ -714,11 +714,11 @@ Address BytecodeArray::GetFirstBytecodeAddress() {
 
 bool BytecodeArray::HasSourcePositionTable() const {
   Object maybe_table = source_position_table();
-  return !(maybe_table->IsUndefined() || DidSourcePositionGenerationFail());
+  return !(maybe_table.IsUndefined() || DidSourcePositionGenerationFail());
 }
 
 bool BytecodeArray::DidSourcePositionGenerationFail() const {
-  return source_position_table()->IsException();
+  return source_position_table().IsException();
 }
 
 void BytecodeArray::SetSourcePositionsFailedToCollect() {
@@ -727,14 +727,14 @@ void BytecodeArray::SetSourcePositionsFailedToCollect() {
 
 ByteArray BytecodeArray::SourcePositionTable() const {
   Object maybe_table = source_position_table();
-  if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
+  if (maybe_table.IsByteArray()) return ByteArray::cast(maybe_table);
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  if (maybe_table->IsException(roots)) return roots.empty_byte_array();
+  if (maybe_table.IsException(roots)) return roots.empty_byte_array();
 
-  DCHECK(!maybe_table->IsUndefined(roots));
-  DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
+  DCHECK(!maybe_table.IsUndefined(roots));
+  DCHECK(maybe_table.IsSourcePositionTableWithFrameCache());
   return SourcePositionTableWithFrameCache::cast(maybe_table)
-      ->source_position_table();
+      .source_position_table();
 }
 
 ByteArray BytecodeArray::SourcePositionTableIfCollected() const {
@@ -745,20 +745,20 @@ ByteArray BytecodeArray::SourcePositionTableIfCollected() const {
 
 void BytecodeArray::ClearFrameCacheFromSourcePositionTable() {
   Object maybe_table = source_position_table();
-  if (maybe_table->IsUndefined() || maybe_table->IsByteArray()) return;
-  DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
+  if (maybe_table.IsUndefined() || maybe_table.IsByteArray()) return;
+  DCHECK(maybe_table.IsSourcePositionTableWithFrameCache());
   set_source_position_table(SourcePositionTableWithFrameCache::cast(maybe_table)
-                                ->source_position_table());
+                                .source_position_table());
 }
 
 int BytecodeArray::BytecodeArraySize() { return SizeFor(this->length()); }
 
 int BytecodeArray::SizeIncludingMetadata() {
   int size = BytecodeArraySize();
-  size += constant_pool()->Size();
-  size += handler_table()->Size();
+  size += constant_pool().Size();
+  size += handler_table().Size();
   if (HasSourcePositionTable()) {
-    size += SourcePositionTable()->Size();
+    size += SourcePositionTable().Size();
   }
   return size;
 }
@@ -776,7 +776,7 @@ DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
 
 BailoutId DeoptimizationData::BytecodeOffset(int i) {
-  return BailoutId(BytecodeOffsetRaw(i)->value());
+  return BailoutId(BytecodeOffsetRaw(i).value());
 }
 
 void DeoptimizationData::SetBytecodeOffset(int i, BailoutId value) {

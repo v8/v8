@@ -104,7 +104,7 @@ void CompilerDispatcher::RegisterSharedFunctionInfo(
 
   if (trace_compiler_dispatcher_) {
     PrintF("CompilerDispatcher: registering ");
-    function->ShortPrint();
+    function.ShortPrint();
     PrintF(" with job id %zu\n", job_id);
   }
 

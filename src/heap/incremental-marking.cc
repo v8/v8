@@ -122,7 +122,7 @@ void IncrementalMarking::NotifyLeftTrimming(HeapObject from, HeapObject to) {
   MarkBlackAndVisitObjectDueToLayoutChange(from);
   DCHECK(marking_state()->IsBlack(from));
   // Mark the new address as black.
-  if (from->address() + kTaggedSize == to->address()) {
+  if (from.address() + kTaggedSize == to.address()) {
     // The old and the new markbits overlap. The |to| object has the
     // grey color. To make it black, we need to set the second bit.
     DCHECK(new_mark_bit.Get<kAtomicity>());
@@ -154,7 +154,7 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
  private:
   void MarkObjectByPointer(FullObjectSlot p) {
     Object obj = *p;
-    if (!obj->IsHeapObject()) return;
+    if (!obj.IsHeapObject()) return;
 
     heap_->incremental_marking()->WhiteToGreyAndPush(HeapObject::cast(obj));
   }
@@ -424,8 +424,8 @@ bool IncrementalMarking::ShouldRetainMap(Map map, int age) {
     // The map has aged. Do not retain this map.
     return false;
   }
-  Object constructor = map->GetConstructor();
-  if (!constructor->IsHeapObject() ||
+  Object constructor = map.GetConstructor();
+  if (!constructor.IsHeapObject() ||
       marking_state()->IsWhite(HeapObject::cast(constructor))) {
     // The constructor is dead, no new objects with this map can
     // be created. Do not retain this map.
@@ -442,18 +442,18 @@ void IncrementalMarking::RetainMaps() {
   bool map_retaining_is_disabled = heap()->ShouldReduceMemory() ||
                                    FLAG_retain_maps_for_n_gc == 0;
   WeakArrayList retained_maps = heap()->retained_maps();
-  int length = retained_maps->length();
+  int length = retained_maps.length();
   // The number_of_disposed_maps separates maps in the retained_maps
   // array that were created before and after context disposal.
   // We do not age and retain disposed maps to avoid memory leaks.
   int number_of_disposed_maps = heap()->number_of_disposed_maps_;
   for (int i = 0; i < length; i += 2) {
-    MaybeObject value = retained_maps->Get(i);
+    MaybeObject value = retained_maps.Get(i);
     HeapObject map_heap_object;
     if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
       continue;
     }
-    int age = retained_maps->Get(i + 1).ToSmi().value();
+    int age = retained_maps.Get(i + 1).ToSmi().value();
     int new_age;
     Map map = Map::cast(map_heap_object);
     if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
@@ -461,8 +461,8 @@ void IncrementalMarking::RetainMaps() {
       if (ShouldRetainMap(map, age)) {
         WhiteToGreyAndPush(map);
       }
-      Object prototype = map->prototype();
-      if (age > 0 && prototype->IsHeapObject() &&
+      Object prototype = map.prototype();
+      if (age > 0 && prototype.IsHeapObject() &&
           marking_state()->IsWhite(HeapObject::cast(prototype))) {
         // The prototype is not marked, age the map.
         new_age = age - 1;
@@ -476,7 +476,7 @@ void IncrementalMarking::RetainMaps() {
     }
     // Compact the array and update the age.
     if (new_age != age) {
-      retained_maps->Set(i + 1, MaybeObject::FromSmi(Smi::FromInt(new_age)));
+      retained_maps.Set(i + 1, MaybeObject::FromSmi(Smi::FromInt(new_age)));
     }
   }
 }
@@ -527,10 +527,10 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 #endif
                                  filler_map, minor_marking_state](
                                  HeapObject obj, HeapObject* out) -> bool {
-    DCHECK(obj->IsHeapObject());
+    DCHECK(obj.IsHeapObject());
     // Only pointers to from space have to be updated.
     if (Heap::InFromPage(obj)) {
-      MapWord map_word = obj->map_word();
+      MapWord map_word = obj.map_word();
       if (!map_word.IsForwardingAddress()) {
         // There may be objects on the marking deque that do not exist anymore,
         // e.g. left trimmed objects or objects from the root set (frames).
@@ -540,7 +540,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
         return false;
       }
       HeapObject dest = map_word.ToForwardingAddress();
-      DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj->IsFiller());
+      DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj.IsFiller());
       *out = dest;
       return true;
     } else if (Heap::InToPage(obj)) {
@@ -568,10 +568,10 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
         *out = obj;
         return true;
       }
-      DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj->IsFiller());
+      DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj.IsFiller());
       // Skip one word filler objects that appear on the
       // stack when we perform in place array shift.
-      if (obj->map() != filler_map) {
+      if (obj.map() != filler_map) {
         *out = obj;
         return true;
       }
@@ -681,9 +681,9 @@ int IncrementalMarking::VisitObject(Map map, HeapObject obj) {
     // 4. The object is materizalized by the deoptimizer.
     // 5. The object is a descriptor array marked black by
     //    the descriptor array marking barrier.
-    DCHECK(obj->IsHashTable() || obj->IsPropertyArray() ||
-           obj->IsFixedArray() || obj->IsContext() || obj->IsJSObject() ||
-           obj->IsString() || obj->IsDescriptorArray());
+    DCHECK(obj.IsHashTable() || obj.IsPropertyArray() || obj.IsFixedArray() ||
+           obj.IsContext() || obj.IsJSObject() || obj.IsString() ||
+           obj.IsDescriptorArray());
   }
   DCHECK(marking_state()->IsBlack(obj));
   WhiteToGreyAndPush(map);
@@ -704,7 +704,7 @@ void IncrementalMarking::RevisitObject(HeapObject obj) {
   DCHECK_IMPLIES(MemoryChunk::FromHeapObject(obj)->IsFlagSet(
                      MemoryChunk::HAS_PROGRESS_BAR),
                  0u == MemoryChunk::FromHeapObject(obj)->ProgressBar());
-  Map map = obj->map();
+  Map map = obj.map();
   WhiteToGreyAndPush(map);
   IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector(),
                                            marking_state());
@@ -731,20 +731,20 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
     if (obj.is_null()) break;
     // Left trimming may result in grey or black filler objects on the marking
     // worklist. Ignore these objects.
-    if (obj->IsFiller()) {
+    if (obj.IsFiller()) {
       // Due to copying mark bits and the fact that grey and black have their
       // first bit set, one word fillers are always black.
       DCHECK_IMPLIES(
-          obj->map() == ReadOnlyRoots(heap()).one_pointer_filler_map(),
+          obj.map() == ReadOnlyRoots(heap()).one_pointer_filler_map(),
           marking_state()->IsBlack(obj));
       // Other fillers may be black or grey depending on the color of the object
       // that was trimmed.
       DCHECK_IMPLIES(
-          obj->map() != ReadOnlyRoots(heap()).one_pointer_filler_map(),
+          obj.map() != ReadOnlyRoots(heap()).one_pointer_filler_map(),
           marking_state()->IsBlackOrGrey(obj));
       continue;
     }
-    bytes_processed += VisitObject(obj->map(), obj);
+    bytes_processed += VisitObject(obj.map(), obj);
   }
   return bytes_processed;
 }

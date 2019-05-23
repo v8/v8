@@ -2023,7 +2023,7 @@ void StringBuiltinsAssembler::BranchIfStringPrimitiveWithNoCustomIteration(
   // Check that the String iterator hasn't been modified in a way that would
   // affect iteration.
   Node* protector_cell = LoadRoot(RootIndex::kStringIteratorProtector);
-  DCHECK(isolate()->heap()->string_iterator_protector()->IsPropertyCell());
+  DCHECK(isolate()->heap()->string_iterator_protector().IsPropertyCell());
   Branch(WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                    SmiConstant(Isolate::kProtectorValid)),
          if_true, if_false);

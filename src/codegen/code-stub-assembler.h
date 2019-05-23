@@ -278,7 +278,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     if (mode == ParameterMode::SMI_PARAMETERS) {
       Smi constant;
       if (ToSmiConstant(node, &constant)) {
-        *out = static_cast<intptr_t>(constant->value());
+        *out = static_cast<intptr_t>(constant.value());
         return true;
       }
     } else {

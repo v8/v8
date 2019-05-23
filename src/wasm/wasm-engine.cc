@@ -262,7 +262,7 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
     Isolate* isolate, Handle<AsmWasmData> asm_wasm_data,
     Handle<Script> script) {
   std::shared_ptr<NativeModule> native_module =
-      asm_wasm_data->managed_native_module()->get();
+      asm_wasm_data->managed_native_module().get();
   Handle<FixedArray> export_wrappers =
       handle(asm_wasm_data->export_wrappers(), isolate);
   size_t code_size_estimate =

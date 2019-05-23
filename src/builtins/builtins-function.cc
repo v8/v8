@@ -90,7 +90,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
         Execution::Call(isolate, function, target_global_proxy, 0, nullptr),
         Object);
     function = Handle<JSFunction>::cast(result);
-    function->shared()->set_name_should_print_as_anonymous(true);
+    function->shared().set_name_should_print_as_anonymous(true);
   }
 
   // If new.target is equal to target then the function created
@@ -149,7 +149,7 @@ BUILTIN(AsyncFunctionConstructor) {
   // determined after the function is resumed.
   Handle<JSFunction> func = Handle<JSFunction>::cast(maybe_func);
   Handle<Script> script =
-      handle(Script::cast(func->shared()->script()), isolate);
+      handle(Script::cast(func->shared().script()), isolate);
   int position = Script::GetEvalPosition(isolate, script);
   USE(position);
 
@@ -168,7 +168,7 @@ BUILTIN(AsyncGeneratorFunctionConstructor) {
   // determined after the function is resumed.
   Handle<JSFunction> func = Handle<JSFunction>::cast(maybe_func);
   Handle<Script> script =
-      handle(Script::cast(func->shared()->script()), isolate);
+      handle(Script::cast(func->shared().script()), isolate);
   int position = Script::GetEvalPosition(isolate, script);
   USE(position);
 
@@ -279,7 +279,7 @@ BUILTIN(FunctionPrototypeToString) {
   // With the revised toString behavior, all callable objects are valid
   // receivers for this method.
   if (receiver->IsJSReceiver() &&
-      JSReceiver::cast(*receiver)->map()->is_callable()) {
+      JSReceiver::cast(*receiver).map().is_callable()) {
     return ReadOnlyRoots(isolate).function_native_code_string();
   }
   THROW_NEW_ERROR_RETURN_FAILURE(

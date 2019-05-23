@@ -108,7 +108,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   // In case of a SAB, the data is copied into temporary memory, as
   // std::sort might crash in case the underlying data is concurrently
   // modified while sorting.
-  CHECK(array->buffer()->IsJSArrayBuffer());
+  CHECK(array->buffer().IsJSArrayBuffer());
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(array->buffer()), isolate);
   const bool copy_data = buffer->is_shared();
 

@@ -92,10 +92,10 @@ void Log::MessageBuilder::AppendString(String str,
   if (str.is_null()) return;
 
   DisallowHeapAllocation no_gc;  // Ensure string stays valid.
-  int length = str->length();
+  int length = str.length();
   if (length_limit) length = std::min(length, *length_limit);
   for (int i = 0; i < length; i++) {
-    uint16_t c = str->Get(i);
+    uint16_t c = str.Get(i);
     if (c <= 0xFF) {
       AppendCharacter(static_cast<char>(c));
     } else {
@@ -158,12 +158,12 @@ void Log::MessageBuilder::AppendSymbolName(Symbol symbol) {
   DCHECK(!symbol.is_null());
   OFStream& os = log_->os_;
   os << "symbol(";
-  if (!symbol->name()->IsUndefined()) {
+  if (!symbol.name().IsUndefined()) {
     os << "\"";
-    AppendSymbolNameDetails(String::cast(symbol->name()), false);
+    AppendSymbolNameDetails(String::cast(symbol.name()), false);
     os << "\" ";
   }
-  os << "hash " << std::hex << symbol->Hash() << std::dec << ")";
+  os << "hash " << std::hex << symbol.Hash() << std::dec << ")";
 }
 
 void Log::MessageBuilder::AppendSymbolNameDetails(String str,
@@ -172,13 +172,13 @@ void Log::MessageBuilder::AppendSymbolNameDetails(String str,
 
   DisallowHeapAllocation no_gc;  // Ensure string stays valid.
   OFStream& os = log_->os_;
-  int limit = str->length();
+  int limit = str.length();
   if (limit > 0x1000) limit = 0x1000;
   if (show_impl_info) {
-    os << (str->IsOneByteRepresentation() ? 'a' : '2');
+    os << (str.IsOneByteRepresentation() ? 'a' : '2');
     if (StringShape(str).IsExternal()) os << 'e';
     if (StringShape(str).IsInternalized()) os << '#';
-    os << ':' << str->length() << ':';
+    os << ':' << str.length() << ':';
   }
   AppendString(str, limit);
 }
@@ -245,7 +245,7 @@ Log::MessageBuilder& Log::MessageBuilder::operator<<<Symbol>(Symbol symbol) {
 
 template <>
 Log::MessageBuilder& Log::MessageBuilder::operator<<<Name>(Name name) {
-  if (name->IsString()) {
+  if (name.IsString()) {
     this->AppendString(String::cast(name));
   } else {
     this->AppendSymbolName(Symbol::cast(name));

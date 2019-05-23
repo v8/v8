@@ -37,7 +37,7 @@ void IC::update_receiver_map(Handle<Object> receiver) {
   if (receiver->IsSmi()) {
     receiver_map_ = isolate_->factory()->heap_number_map();
   } else {
-    receiver_map_ = handle(HeapObject::cast(*receiver)->map(), isolate_);
+    receiver_map_ = handle(HeapObject::cast(*receiver).map(), isolate_);
   }
 }
 
@@ -45,16 +45,16 @@ bool IC::IsHandler(MaybeObject object) {
   HeapObject heap_object;
   return (object->IsSmi() && (object.ptr() != kNullAddress)) ||
          (object->GetHeapObjectIfWeak(&heap_object) &&
-          (heap_object->IsMap() || heap_object->IsPropertyCell())) ||
+          (heap_object.IsMap() || heap_object.IsPropertyCell())) ||
          (object->GetHeapObjectIfStrong(&heap_object) &&
-          (heap_object->IsDataHandler() || heap_object->IsCode()));
+          (heap_object.IsDataHandler() || heap_object.IsCode()));
 }
 
 bool IC::HostIsDeoptimizedCode() const {
   Code host =
       isolate()->inner_pointer_to_code_cache()->GetCacheEntry(pc())->code;
-  return (host->kind() == Code::OPTIMIZED_FUNCTION &&
-          host->marked_for_deoptimization());
+  return (host.kind() == Code::OPTIMIZED_FUNCTION &&
+          host.marked_for_deoptimization());
 }
 
 bool IC::vector_needs_update() {

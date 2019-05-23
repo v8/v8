@@ -270,7 +270,7 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
 }
 
 ExternalArrayType JSTypedArray::type() {
-  switch (elements()->map()->instance_type()) {
+  switch (elements().map().instance_type()) {
 #define INSTANCE_TYPE_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
   case FIXED_##TYPE##_ARRAY_TYPE:                            \
     return kExternal##Type##Array;
@@ -284,7 +284,7 @@ ExternalArrayType JSTypedArray::type() {
 }
 
 size_t JSTypedArray::element_size() {
-  switch (elements()->map()->instance_type()) {
+  switch (elements().map().instance_type()) {
 #define INSTANCE_TYPE_TO_ELEMENT_SIZE(Type, type, TYPE, ctype) \
   case FIXED_##TYPE##_ARRAY_TYPE:                              \
     return sizeof(ctype);

@@ -280,7 +280,7 @@ bool WasmMemoryTracker::FreeWasmMemory(Isolate* isolate,
 
 void WasmMemoryTracker::RegisterWasmMemoryAsShared(
     Handle<WasmMemoryObject> object, Isolate* isolate) {
-  const void* backing_store = object->array_buffer()->backing_store();
+  const void* backing_store = object->array_buffer().backing_store();
   // TODO(V8:8810): This should be a DCHECK, currently some tests do not
   // use a full WebAssembly.Memory, and fail on registering so return early.
   if (!IsWasmMemory(backing_store)) return;
@@ -323,9 +323,9 @@ void WasmMemoryTracker::UpdateSharedMemoryInstances(Isolate* isolate) {
 
 void WasmMemoryTracker::RegisterSharedWasmMemory_Locked(
     Handle<WasmMemoryObject> object, Isolate* isolate) {
-  DCHECK(object->array_buffer()->is_shared());
+  DCHECK(object->array_buffer().is_shared());
 
-  void* backing_store = object->array_buffer()->backing_store();
+  void* backing_store = object->array_buffer().backing_store();
   // The allocation of a WasmMemoryObject should always be registered with the
   // WasmMemoryTracker.
   const auto& result = allocations_.find(backing_store);
@@ -426,11 +426,11 @@ void WasmMemoryTracker::UpdateMemoryObjectsForIsolate_Locked(
       HandleScope scope(isolate);
       Handle<WasmMemoryObject> memory_object = memory_obj_state.memory_object;
       DCHECK(memory_object->IsWasmMemoryObject());
-      DCHECK(memory_object->array_buffer()->is_shared());
+      DCHECK(memory_object->array_buffer().is_shared());
       // Permissions adjusted, but create a new buffer with new size
       // and old attributes. Buffer has already been allocated,
       // just create a new buffer with same backing store.
-      bool is_external = memory_object->array_buffer()->is_external();
+      bool is_external = memory_object->array_buffer().is_external();
       Handle<JSArrayBuffer> new_buffer = SetupArrayBuffer(
           isolate, backing_store, new_size, is_external, SharedFlag::kShared);
       memory_obj_state.memory_object->update_instances(isolate, new_buffer);

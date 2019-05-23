@@ -111,7 +111,7 @@ Handle<T> LookupIterator::GetHolder() const {
 
 bool LookupIterator::ExtendingNonExtensible(Handle<JSReceiver> receiver) {
   DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
-  return !receiver->map()->is_extensible() &&
+  return !receiver->map().is_extensible() &&
          (IsElement() || !name_->IsPrivate());
 }
 
@@ -120,7 +120,7 @@ bool LookupIterator::IsCacheableTransition() {
   return transition_->IsPropertyCell() ||
          (transition_map()->is_dictionary_map() &&
           !GetStoreTarget<JSReceiver>()->HasFastProperties()) ||
-         transition_map()->GetBackPointer()->IsMap();
+         transition_map()->GetBackPointer().IsMap();
 }
 
 void LookupIterator::UpdateProtector() {
@@ -166,9 +166,9 @@ template <class T>
 Handle<T> LookupIterator::GetStoreTarget() const {
   DCHECK(receiver_->IsJSReceiver());
   if (receiver_->IsJSGlobalProxy()) {
-    Map map = JSGlobalProxy::cast(*receiver_)->map();
-    if (map->has_hidden_prototype()) {
-      return handle(JSGlobalObject::cast(map->prototype()), isolate_);
+    Map map = JSGlobalProxy::cast(*receiver_).map();
+    if (map.has_hidden_prototype()) {
+      return handle(JSGlobalObject::cast(map.prototype()), isolate_);
     }
   }
   return Handle<T>::cast(receiver_);
@@ -176,8 +176,8 @@ Handle<T> LookupIterator::GetStoreTarget() const {
 
 template <bool is_element>
 InterceptorInfo LookupIterator::GetInterceptor(JSObject holder) {
-  return is_element ? holder->GetIndexedInterceptor()
-                    : holder->GetNamedInterceptor();
+  return is_element ? holder.GetIndexedInterceptor()
+                    : holder.GetNamedInterceptor();
 }
 
 inline Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
