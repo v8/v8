@@ -60,6 +60,14 @@ class Builtins {
 
   static const int32_t kNoBuiltinId = -1;
 
+  static constexpr int kFirstWideBytecodeHandler =
+      kFirstBytecodeHandler + kNumberOfBytecodeHandlers;
+  static constexpr int kFirstExtraWideBytecodeHandler =
+      kFirstWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
+  static constexpr int kLastBytecodeHandlerPlusOne =
+      kFirstExtraWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
+  STATIC_ASSERT(kLastBytecodeHandlerPlusOne == builtin_count);
+
   static constexpr bool IsBuiltinId(int maybe_id) {
     return 0 <= maybe_id && maybe_id < builtin_count;
   }
@@ -114,14 +122,6 @@ class Builtins {
   // True, iff the given code object is a builtin with off-heap embedded code.
   static bool IsIsolateIndependentBuiltin(const Code code);
 
-  static constexpr int kFirstWideBytecodeHandler =
-      kFirstBytecodeHandler + kNumberOfBytecodeHandlers;
-  static constexpr int kFirstExtraWideBytecodeHandler =
-      kFirstWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
-  STATIC_ASSERT(kFirstExtraWideBytecodeHandler +
-                    kNumberOfWideBytecodeHandlers ==
-                builtin_count);
-
   // True, iff the given builtin contains no isolate-specific code and can be
   // embedded into the binary.
   static constexpr bool kAllBuiltinsAreIsolateIndependent = true;
@@ -141,6 +141,9 @@ class Builtins {
   // Updates the table of builtin entry points based on the current contents of
   // the builtins table.
   static void UpdateBuiltinEntryTable(Isolate* isolate);
+
+  // Emits a CodeCreateEvent for every builtin.
+  static void EmitCodeCreateEvents(Isolate* isolate);
 
   bool is_initialized() const { return initialized_; }
 

@@ -3189,11 +3189,6 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
     // From this point onwards, the old builtin code object is unreachable and
     // will be collected by the next GC.
     builtins->set_builtin(i, *trampoline);
-
-    if (isolate->logger()->is_listening_to_code_events() ||
-        isolate->is_profiling()) {
-      isolate->logger()->LogCodeObject(*trampoline);
-    }
   }
 }
 
@@ -3454,8 +3449,8 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   delete setup_delegate_;
   setup_delegate_ = nullptr;
 
-  // Initialize the builtin entry table.
   Builtins::UpdateBuiltinEntryTable(this);
+  Builtins::EmitCodeCreateEvents(this);
 
 #ifdef DEBUG
   // Verify that the current heap state (usually deserialized from the snapshot)

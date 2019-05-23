@@ -19,7 +19,6 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics-generator.h"
-#include "src/logging/code-events.h"
 #include "src/objects/cell.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/module.h"
@@ -3292,10 +3291,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
   }
 
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state, options);
-  PROFILE(isolate, CodeCreateEvent(
-                       CodeEventListener::BYTECODE_HANDLER_TAG,
-                       AbstractCode::cast(*code),
-                       Bytecodes::ToString(bytecode, operand_scale).c_str()));
+
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_trace_ignition_codegen) {
     StdoutStream os;
@@ -3303,6 +3299,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
     os << std::flush;
   }
 #endif  // ENABLE_DISASSEMBLER
+
   return code;
 }
 

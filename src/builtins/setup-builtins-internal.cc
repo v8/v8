@@ -15,7 +15,6 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-generator.h"
 #include "src/interpreter/interpreter.h"
-#include "src/logging/code-events.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
@@ -30,11 +29,6 @@ BUILTIN_LIST_C(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
 namespace {
-
-void PostBuildProfileAndTracing(Isolate* isolate, Code code, const char* name) {
-  PROFILE(isolate, CodeCreateEvent(CodeEventListener::BUILTIN_TAG,
-                                   AbstractCode::cast(code), name));
-}
 
 AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
                                          int32_t builtin_index) {
@@ -128,7 +122,6 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
 #if defined(V8_OS_WIN_X64)
   isolate->SetBuiltinUnwindData(builtin_index, masm.GetUnwindInfo());
 #endif
-  PostBuildProfileAndTracing(isolate, *code, s_name);
   return *code;
 }
 
@@ -152,7 +145,6 @@ Code BuildAdaptor(Isolate* isolate, int32_t builtin_index,
                           .set_self_reference(masm.CodeObject())
                           .set_builtin_index(builtin_index)
                           .Build();
-  PostBuildProfileAndTracing(isolate, *code, name);
   return *code;
 }
 
@@ -177,7 +169,6 @@ Code BuildWithCodeStubAssemblerJS(Isolate* isolate, int32_t builtin_index,
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin_index));
-  PostBuildProfileAndTracing(isolate, *code, name);
   return *code;
 }
 
@@ -205,7 +196,6 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin_index));
-  PostBuildProfileAndTracing(isolate, *code, name);
   return *code;
 }
 
@@ -284,13 +274,9 @@ Code GenerateBytecodeHandler(Isolate* isolate, int builtin_index,
                              interpreter::OperandScale operand_scale,
                              interpreter::Bytecode bytecode) {
   DCHECK(interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
-
   Handle<Code> code = interpreter::GenerateBytecodeHandler(
       isolate, bytecode, operand_scale, builtin_index,
       BuiltinAssemblerOptions(isolate, builtin_index));
-
-  PostBuildProfileAndTracing(isolate, *code, name);
-
   return *code;
 }
 
