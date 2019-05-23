@@ -66,8 +66,47 @@ int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {
 }
 
 const char* ElementsKindToString(ElementsKind kind) {
-  ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
-  return accessor->name();
+  switch (kind) {
+    case PACKED_SMI_ELEMENTS:
+      return "PACKED_SMI_ELEMENTS";
+    case HOLEY_SMI_ELEMENTS:
+      return "HOLEY_SMI_ELEMENTS";
+    case PACKED_ELEMENTS:
+      return "PACKED_ELEMENTS";
+    case HOLEY_ELEMENTS:
+      return "HOLEY_ELEMENTS";
+    case PACKED_DOUBLE_ELEMENTS:
+      return "PACKED_DOUBLE_ELEMENTS";
+    case HOLEY_DOUBLE_ELEMENTS:
+      return "HOLEY_DOUBLE_ELEMENTS";
+    case PACKED_SEALED_ELEMENTS:
+      return "PACKED_SEALED_ELEMENTS";
+    case HOLEY_SEALED_ELEMENTS:
+      return "HOLEY_SEALED_ELEMENTS";
+    case PACKED_FROZEN_ELEMENTS:
+      return "PACKED_FROZEN_ELEMENTS";
+    case HOLEY_FROZEN_ELEMENTS:
+      return "HOLEY_FROZEN_ELEMENTS";
+    case DICTIONARY_ELEMENTS:
+      return "DICTIONARY_ELEMENTS";
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+      return "FAST_SLOPPY_ARGUMENTS_ELEMENTS";
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
+      return "SLOW_SLOPPY_ARGUMENTS_ELEMENTS";
+    case FAST_STRING_WRAPPER_ELEMENTS:
+      return "FAST_STRING_WRAPPER_ELEMENTS";
+    case SLOW_STRING_WRAPPER_ELEMENTS:
+      return "SLOW_STRING_WRAPPER_ELEMENTS";
+
+#define PRINT_NAME(Type, type, TYPE, _) \
+  case TYPE##_ELEMENTS:                 \
+    return #TYPE "ELEMENTS";
+
+      TYPED_ARRAYS(PRINT_NAME);
+#undef PRINT_NAME
+    case NO_ELEMENTS:
+      return "NO_ELEMENTS";
+  }
 }
 
 ElementsKind kFastElementsKindSequence[kFastElementsKindCount] = {

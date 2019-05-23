@@ -540,9 +540,6 @@ static Maybe<int64_t> IndexOfValueSlowPath(Isolate* isolate,
 // that take an entry (instead of an index) as an argument.
 class InternalElementsAccessor : public ElementsAccessor {
  public:
-  explicit InternalElementsAccessor(const char* name)
-      : ElementsAccessor(name) {}
-
   uint32_t GetEntryForIndex(Isolate* isolate, JSObject holder,
                             FixedArrayBase backing_store,
                             uint32_t index) override = 0;
@@ -570,8 +567,7 @@ class InternalElementsAccessor : public ElementsAccessor {
 template <typename Subclass, typename ElementsTraitsParam>
 class ElementsAccessorBase : public InternalElementsAccessor {
  public:
-  explicit ElementsAccessorBase(const char* name)
-      : InternalElementsAccessor(name) {}
+  ElementsAccessorBase() = default;
 
   typedef ElementsTraitsParam ElementsTraits;
   typedef typename ElementsTraitsParam::BackingStore BackingStore;
@@ -1396,10 +1392,6 @@ class DictionaryElementsAccessor
     : public ElementsAccessorBase<DictionaryElementsAccessor,
                                   ElementsKindTraits<DICTIONARY_ELEMENTS>> {
  public:
-  explicit DictionaryElementsAccessor(const char* name)
-      : ElementsAccessorBase<DictionaryElementsAccessor,
-                             ElementsKindTraits<DICTIONARY_ELEMENTS>>(name) {}
-
   static uint32_t GetMaxIndex(JSObject receiver, FixedArrayBase elements) {
     // We cannot properly estimate this for dictionaries.
     UNREACHABLE();
@@ -1895,9 +1887,6 @@ class DictionaryElementsAccessor
 template <typename Subclass, typename KindTraits>
 class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
  public:
-  explicit FastElementsAccessor(const char* name)
-      : ElementsAccessorBase<Subclass, KindTraits>(name) {}
-
   typedef typename KindTraits::BackingStore BackingStore;
 
   static Handle<NumberDictionary> NormalizeImpl(Handle<JSObject> object,
@@ -2462,9 +2451,6 @@ template <typename Subclass, typename KindTraits>
 class FastSmiOrObjectElementsAccessor
     : public FastElementsAccessor<Subclass, KindTraits> {
  public:
-  explicit FastSmiOrObjectElementsAccessor(const char* name)
-      : FastElementsAccessor<Subclass, KindTraits>(name) {}
-
   static inline void SetImpl(Handle<JSObject> holder, uint32_t entry,
                              Object value) {
     SetImpl(holder->elements(), entry, value);
@@ -2602,43 +2588,22 @@ class FastSmiOrObjectElementsAccessor
 class FastPackedSmiElementsAccessor
     : public FastSmiOrObjectElementsAccessor<
           FastPackedSmiElementsAccessor,
-          ElementsKindTraits<PACKED_SMI_ELEMENTS>> {
- public:
-  explicit FastPackedSmiElementsAccessor(const char* name)
-      : FastSmiOrObjectElementsAccessor<
-            FastPackedSmiElementsAccessor,
-            ElementsKindTraits<PACKED_SMI_ELEMENTS>>(name) {}
-};
+          ElementsKindTraits<PACKED_SMI_ELEMENTS>> {};
 
 class FastHoleySmiElementsAccessor
     : public FastSmiOrObjectElementsAccessor<
           FastHoleySmiElementsAccessor,
-          ElementsKindTraits<HOLEY_SMI_ELEMENTS>> {
- public:
-  explicit FastHoleySmiElementsAccessor(const char* name)
-      : FastSmiOrObjectElementsAccessor<FastHoleySmiElementsAccessor,
-                                        ElementsKindTraits<HOLEY_SMI_ELEMENTS>>(
-            name) {}
-};
+          ElementsKindTraits<HOLEY_SMI_ELEMENTS>> {};
 
 class FastPackedObjectElementsAccessor
     : public FastSmiOrObjectElementsAccessor<
           FastPackedObjectElementsAccessor,
-          ElementsKindTraits<PACKED_ELEMENTS>> {
- public:
-  explicit FastPackedObjectElementsAccessor(const char* name)
-      : FastSmiOrObjectElementsAccessor<FastPackedObjectElementsAccessor,
-                                        ElementsKindTraits<PACKED_ELEMENTS>>(
-            name) {}
-};
+          ElementsKindTraits<PACKED_ELEMENTS>> {};
 
 template <typename Subclass, typename KindTraits>
 class FastSealedObjectElementsAccessor
     : public FastSmiOrObjectElementsAccessor<Subclass, KindTraits> {
  public:
-  explicit FastSealedObjectElementsAccessor(const char* name)
-      : FastSmiOrObjectElementsAccessor<Subclass, KindTraits>(name) {}
-
   typedef typename KindTraits::BackingStore BackingStore;
 
   static Handle<Object> RemoveElement(Handle<JSArray> receiver,
@@ -2721,31 +2686,18 @@ class FastPackedSealedObjectElementsAccessor
     : public FastSealedObjectElementsAccessor<
           FastPackedSealedObjectElementsAccessor,
           ElementsKindTraits<PACKED_SEALED_ELEMENTS>> {
- public:
-  explicit FastPackedSealedObjectElementsAccessor(const char* name)
-      : FastSealedObjectElementsAccessor<
-            FastPackedSealedObjectElementsAccessor,
-            ElementsKindTraits<PACKED_SEALED_ELEMENTS>>(name) {}
 };
 
 class FastHoleySealedObjectElementsAccessor
     : public FastSealedObjectElementsAccessor<
           FastHoleySealedObjectElementsAccessor,
           ElementsKindTraits<HOLEY_SEALED_ELEMENTS>> {
- public:
-  explicit FastHoleySealedObjectElementsAccessor(const char* name)
-      : FastSealedObjectElementsAccessor<
-            FastHoleySealedObjectElementsAccessor,
-            ElementsKindTraits<HOLEY_SEALED_ELEMENTS>>(name) {}
 };
 
 template <typename Subclass, typename KindTraits>
 class FastFrozenObjectElementsAccessor
     : public FastSmiOrObjectElementsAccessor<Subclass, KindTraits> {
  public:
-  explicit FastFrozenObjectElementsAccessor(const char* name)
-      : FastSmiOrObjectElementsAccessor<Subclass, KindTraits>(name) {}
-
   typedef typename KindTraits::BackingStore BackingStore;
 
   static inline void SetImpl(Handle<JSObject> holder, uint32_t entry,
@@ -2806,41 +2758,23 @@ class FastPackedFrozenObjectElementsAccessor
     : public FastFrozenObjectElementsAccessor<
           FastPackedFrozenObjectElementsAccessor,
           ElementsKindTraits<PACKED_FROZEN_ELEMENTS>> {
- public:
-  explicit FastPackedFrozenObjectElementsAccessor(const char* name)
-      : FastFrozenObjectElementsAccessor<
-            FastPackedFrozenObjectElementsAccessor,
-            ElementsKindTraits<PACKED_FROZEN_ELEMENTS>>(name) {}
 };
 
 class FastHoleyFrozenObjectElementsAccessor
     : public FastFrozenObjectElementsAccessor<
           FastHoleyFrozenObjectElementsAccessor,
           ElementsKindTraits<HOLEY_FROZEN_ELEMENTS>> {
- public:
-  explicit FastHoleyFrozenObjectElementsAccessor(const char* name)
-      : FastFrozenObjectElementsAccessor<
-            FastHoleyFrozenObjectElementsAccessor,
-            ElementsKindTraits<HOLEY_FROZEN_ELEMENTS>>(name) {}
 };
 
 class FastHoleyObjectElementsAccessor
     : public FastSmiOrObjectElementsAccessor<
           FastHoleyObjectElementsAccessor, ElementsKindTraits<HOLEY_ELEMENTS>> {
- public:
-  explicit FastHoleyObjectElementsAccessor(const char* name)
-      : FastSmiOrObjectElementsAccessor<FastHoleyObjectElementsAccessor,
-                                        ElementsKindTraits<HOLEY_ELEMENTS>>(
-            name) {}
 };
 
 template <typename Subclass, typename KindTraits>
 class FastDoubleElementsAccessor
     : public FastElementsAccessor<Subclass, KindTraits> {
  public:
-  explicit FastDoubleElementsAccessor(const char* name)
-      : FastElementsAccessor<Subclass, KindTraits>(name) {}
-
   static Handle<Object> GetImpl(Isolate* isolate, FixedArrayBase backing_store,
                                 uint32_t entry) {
     return FixedDoubleArray::get(FixedDoubleArray::cast(backing_store), entry,
@@ -2962,24 +2896,12 @@ class FastDoubleElementsAccessor
 class FastPackedDoubleElementsAccessor
     : public FastDoubleElementsAccessor<
           FastPackedDoubleElementsAccessor,
-          ElementsKindTraits<PACKED_DOUBLE_ELEMENTS>> {
- public:
-  explicit FastPackedDoubleElementsAccessor(const char* name)
-      : FastDoubleElementsAccessor<FastPackedDoubleElementsAccessor,
-                                   ElementsKindTraits<PACKED_DOUBLE_ELEMENTS>>(
-            name) {}
-};
+          ElementsKindTraits<PACKED_DOUBLE_ELEMENTS>> {};
 
 class FastHoleyDoubleElementsAccessor
     : public FastDoubleElementsAccessor<
           FastHoleyDoubleElementsAccessor,
-          ElementsKindTraits<HOLEY_DOUBLE_ELEMENTS>> {
- public:
-  explicit FastHoleyDoubleElementsAccessor(const char* name)
-      : FastDoubleElementsAccessor<FastHoleyDoubleElementsAccessor,
-                                   ElementsKindTraits<HOLEY_DOUBLE_ELEMENTS>>(
-            name) {}
-};
+          ElementsKindTraits<HOLEY_DOUBLE_ELEMENTS>> {};
 
 // Super class for all external element arrays.
 template <ElementsKind Kind, typename ctype>
@@ -2987,9 +2909,6 @@ class TypedElementsAccessor
     : public ElementsAccessorBase<TypedElementsAccessor<Kind, ctype>,
                                   ElementsKindTraits<Kind>> {
  public:
-  explicit TypedElementsAccessor(const char* name)
-      : ElementsAccessorBase<AccessorClass, ElementsKindTraits<Kind>>(name) {}
-
   typedef typename ElementsKindTraits<Kind>::BackingStore BackingStore;
   typedef TypedElementsAccessor<Kind, ctype> AccessorClass;
 
@@ -3677,11 +3596,6 @@ template <typename Subclass, typename ArgumentsAccessor, typename KindTraits>
 class SloppyArgumentsElementsAccessor
     : public ElementsAccessorBase<Subclass, KindTraits> {
  public:
-  explicit SloppyArgumentsElementsAccessor(const char* name)
-      : ElementsAccessorBase<Subclass, KindTraits>(name) {
-    USE(KindTraits::Kind);
-  }
-
   static void ConvertArgumentsStoreResult(
       Handle<SloppyArgumentsElements> elements, Handle<Object> result) {
     UNREACHABLE();
@@ -4023,11 +3937,6 @@ class SlowSloppyArgumentsElementsAccessor
           SlowSloppyArgumentsElementsAccessor, DictionaryElementsAccessor,
           ElementsKindTraits<SLOW_SLOPPY_ARGUMENTS_ELEMENTS>> {
  public:
-  explicit SlowSloppyArgumentsElementsAccessor(const char* name)
-      : SloppyArgumentsElementsAccessor<
-            SlowSloppyArgumentsElementsAccessor, DictionaryElementsAccessor,
-            ElementsKindTraits<SLOW_SLOPPY_ARGUMENTS_ELEMENTS>>(name) {}
-
   static Handle<Object> ConvertArgumentsStoreResult(
       Isolate* isolate, Handle<SloppyArgumentsElements> elements,
       Handle<Object> result) {
@@ -4122,12 +4031,6 @@ class FastSloppyArgumentsElementsAccessor
           FastSloppyArgumentsElementsAccessor, FastHoleyObjectElementsAccessor,
           ElementsKindTraits<FAST_SLOPPY_ARGUMENTS_ELEMENTS>> {
  public:
-  explicit FastSloppyArgumentsElementsAccessor(const char* name)
-      : SloppyArgumentsElementsAccessor<
-            FastSloppyArgumentsElementsAccessor,
-            FastHoleyObjectElementsAccessor,
-            ElementsKindTraits<FAST_SLOPPY_ARGUMENTS_ELEMENTS>>(name) {}
-
   static Handle<Object> ConvertArgumentsStoreResult(
       Isolate* isolate, Handle<SloppyArgumentsElements> paramtere_map,
       Handle<Object> result) {
@@ -4246,11 +4149,6 @@ template <typename Subclass, typename BackingStoreAccessor, typename KindTraits>
 class StringWrapperElementsAccessor
     : public ElementsAccessorBase<Subclass, KindTraits> {
  public:
-  explicit StringWrapperElementsAccessor(const char* name)
-      : ElementsAccessorBase<Subclass, KindTraits>(name) {
-    USE(KindTraits::Kind);
-  }
-
   static Handle<Object> GetInternalImpl(Handle<JSObject> holder,
                                         uint32_t entry) {
     return GetImpl(holder, entry);
@@ -4425,11 +4323,6 @@ class FastStringWrapperElementsAccessor
           FastStringWrapperElementsAccessor, FastHoleyObjectElementsAccessor,
           ElementsKindTraits<FAST_STRING_WRAPPER_ELEMENTS>> {
  public:
-  explicit FastStringWrapperElementsAccessor(const char* name)
-      : StringWrapperElementsAccessor<
-            FastStringWrapperElementsAccessor, FastHoleyObjectElementsAccessor,
-            ElementsKindTraits<FAST_STRING_WRAPPER_ELEMENTS>>(name) {}
-
   static Handle<NumberDictionary> NormalizeImpl(
       Handle<JSObject> object, Handle<FixedArrayBase> elements) {
     return FastHoleyObjectElementsAccessor::NormalizeImpl(object, elements);
@@ -4441,11 +4334,6 @@ class SlowStringWrapperElementsAccessor
           SlowStringWrapperElementsAccessor, DictionaryElementsAccessor,
           ElementsKindTraits<SLOW_STRING_WRAPPER_ELEMENTS>> {
  public:
-  explicit SlowStringWrapperElementsAccessor(const char* name)
-      : StringWrapperElementsAccessor<
-            SlowStringWrapperElementsAccessor, DictionaryElementsAccessor,
-            ElementsKindTraits<SLOW_STRING_WRAPPER_ELEMENTS>>(name) {}
-
   static bool HasAccessorsImpl(JSObject holder, FixedArrayBase backing_store) {
     return DictionaryElementsAccessor::HasAccessorsImpl(holder, backing_store);
   }
@@ -4632,7 +4520,7 @@ void CopyTypedArrayElementsSlice(Address raw_source, Address raw_destination,
 
 void ElementsAccessor::InitializeOncePerProcess() {
   static ElementsAccessor* accessor_array[] = {
-#define ACCESSOR_ARRAY(Class, Kind, Store) new Class(#Kind),
+#define ACCESSOR_ARRAY(Class, Kind, Store) new Class(),
       ELEMENTS_LIST(ACCESSOR_ARRAY)
 #undef ACCESSOR_ARRAY
   };

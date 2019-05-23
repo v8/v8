@@ -18,10 +18,8 @@ class JSTypedArray;
 // ElementsKinds.
 class ElementsAccessor {
  public:
-  explicit ElementsAccessor(const char* name) : name_(name) {}
+  ElementsAccessor() = default;
   virtual ~ElementsAccessor() = default;
-
-  const char* name() const { return name_; }
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {
@@ -213,7 +211,6 @@ class ElementsAccessor {
 
  private:
   static ElementsAccessor** elements_accessors_;
-  const char* name_;
 
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };
