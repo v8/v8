@@ -568,6 +568,8 @@
       "main": "run.js",
       "flags": [],
       "resources": [
+	      "array-indexof-includes.js",
+	      "spread-call.js",
 	      "tagged-template.js"
       ],
       "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
