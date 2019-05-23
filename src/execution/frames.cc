@@ -977,9 +977,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
                          parameters_limit);
   }
 
-#ifdef V8_COMPRESS_POINTERS
-  Address isolate_root = isolate()->isolate_root();
-#endif
+  DEFINE_ROOT_VALUE(isolate());
   // Visit pointer spill slots and locals.
   for (unsigned index = 0; index < stack_slots; index++) {
     int byte_index = index >> kBitsPerByteLog2;
@@ -998,8 +996,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       if (!HAS_SMI_TAG(compressed_value)) {
         // We don't need to update smi values.
         *spill_slot.location() =
-            DecompressTaggedPointer<OnHeapAddressKind::kIsolateRoot>(
-                isolate_root, compressed_value);
+            DecompressTaggedPointer(ROOT_VALUE, compressed_value);
       }
 #endif
       v->VisitRootPointer(Root::kTop, nullptr, spill_slot);

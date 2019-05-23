@@ -23,6 +23,15 @@ namespace internal {
 template <HeapObjectReferenceType kRefType, typename StorageType>
 class TaggedImpl {
  public:
+  static_assert(std::is_same<StorageType, Address>::value ||
+                    std::is_same<StorageType, Tagged_t>::value,
+                "StorageType must be either Address or Tagged_t");
+
+  // True for those TaggedImpl instantiations that represent uncompressed
+  // tagged values and false for TaggedImpl instantiations that represent
+  // compressed tagged values.
+  static const bool kIsFull = sizeof(StorageType) == kSystemPointerSize;
+
   static const bool kCanBeWeak = kRefType == HeapObjectReferenceType::WEAK;
 
   constexpr TaggedImpl() : ptr_{} {}
@@ -88,38 +97,57 @@ class TaggedImpl {
     return kCanBeWeak && HAS_WEAK_HEAP_OBJECT_TAG(ptr_);
   }
 
+  //
+  // The following set of methods get HeapObject out of the tagged value
+  // which may involve decompression in which case the ROOT_PARAM is required.
+  // If the pointer compression is not enabled then the variants with
+  // ROOT_PARAM will be exactly the same as non-ROOT_PARAM ones.
+  //
+
   // If this tagged value is a strong pointer to a HeapObject, returns true and
   // sets *result. Otherwise returns false.
   inline bool GetHeapObjectIfStrong(HeapObject* result) const;
+  inline bool GetHeapObjectIfStrong(ROOT_PARAM, HeapObject* result) const;
 
   // DCHECKs that this tagged value is a strong pointer to a HeapObject and
   // returns the HeapObject.
   inline HeapObject GetHeapObjectAssumeStrong() const;
+  inline HeapObject GetHeapObjectAssumeStrong(ROOT_PARAM) const;
 
   // If this tagged value is a weak pointer to a HeapObject, returns true and
   // sets *result. Otherwise returns false.
   inline bool GetHeapObjectIfWeak(HeapObject* result) const;
+  inline bool GetHeapObjectIfWeak(ROOT_PARAM, HeapObject* result) const;
 
   // DCHECKs that this tagged value is a weak pointer to a HeapObject and
   // returns the HeapObject.
   inline HeapObject GetHeapObjectAssumeWeak() const;
+  inline HeapObject GetHeapObjectAssumeWeak(ROOT_PARAM) const;
 
   // If this tagged value is a strong or weak pointer to a HeapObject, returns
   // true and sets *result. Otherwise returns false.
   inline bool GetHeapObject(HeapObject* result) const;
+  inline bool GetHeapObject(ROOT_PARAM, HeapObject* result) const;
+
   inline bool GetHeapObject(HeapObject* result,
+                            HeapObjectReferenceType* reference_type) const;
+  inline bool GetHeapObject(ROOT_PARAM, HeapObject* result,
                             HeapObjectReferenceType* reference_type) const;
 
   // DCHECKs that this tagged value is a strong or a weak pointer to a
   // HeapObject and returns the HeapObject.
   inline HeapObject GetHeapObject() const;
+  inline HeapObject GetHeapObject(ROOT_PARAM) const;
 
   // DCHECKs that this tagged value is a strong or a weak pointer to a
   // HeapObject or a Smi and returns the HeapObject or Smi.
   inline Object GetHeapObjectOrSmi() const;
+  inline Object GetHeapObjectOrSmi(ROOT_PARAM) const;
 
+  // Cast operation is available only for full non-weak tagged values.
   template <typename T>
   T cast() const {
+    CHECK(kIsFull);
     DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(ptr_));
     return T::cast(Object(ptr_));
   }

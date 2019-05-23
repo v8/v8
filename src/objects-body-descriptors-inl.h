@@ -41,7 +41,7 @@ bool BodyDescriptorBase::IsValidJSObjectSlotImpl(Map map, HeapObject obj,
 #ifdef V8_COMPRESS_POINTERS
   STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kTaggedSize);
   int embedder_fields_offset = JSObject::GetEmbedderFieldsStartOffset(map);
-  int inobject_fields_offset = map->GetInObjectPropertyOffset(0);
+  int inobject_fields_offset = map.GetInObjectPropertyOffset(0);
   // |embedder_fields_offset| may be greater than |inobject_fields_offset| if
   // the object does not have embedder fields but the check handles this
   // case properly.
@@ -77,7 +77,7 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Map map, HeapObject obj,
 #ifdef V8_COMPRESS_POINTERS
   STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kTaggedSize);
   int header_size = JSObject::GetHeaderSize(map);
-  int inobject_fields_offset = map->GetInObjectPropertyOffset(0);
+  int inobject_fields_offset = map.GetInObjectPropertyOffset(0);
   // We are always requested to process header and embedder fields.
   DCHECK_LE(inobject_fields_offset, end_offset);
   // Embedder fields are located between header and inobject properties.

@@ -476,8 +476,9 @@ static void SortIndices(Isolate* isolate, Handle<FixedArray> indices,
   AtomicSlot end(start + sort_size);
   std::sort(start, end, [isolate](Tagged_t elementA, Tagged_t elementB) {
 #ifdef V8_COMPRESS_POINTERS
-    Object a(DecompressTaggedAny(isolate->isolate_root(), elementA));
-    Object b(DecompressTaggedAny(isolate->isolate_root(), elementB));
+    DEFINE_ROOT_VALUE(isolate);
+    Object a(DecompressTaggedAny(ROOT_VALUE, elementA));
+    Object b(DecompressTaggedAny(ROOT_VALUE, elementB));
 #else
     Object a(elementA);
     Object b(elementB);

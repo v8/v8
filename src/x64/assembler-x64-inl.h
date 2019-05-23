@@ -326,11 +326,10 @@ HeapObject RelocInfo::target_object() {
 HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
-    Address root = isolate->isolate_root();
-    Object o = static_cast<Object>(
-        DecompressTaggedPointer<OnHeapAddressKind::kIsolateRoot>(
-            root, ReadUnalignedValue<Tagged_t>(pc_)));
-    return HeapObject::cast(o);
+    Tagged_t compressed = ReadUnalignedValue<Tagged_t>(pc_);
+    DCHECK(!HAS_SMI_TAG(compressed));
+    Object obj(DecompressTaggedPointer(isolate, compressed));
+    return HeapObject::cast(obj);
   }
   return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
 }
@@ -377,10 +376,9 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
-#ifdef V8_COMPRESS_POINTERS
-    Tagged_t tagged = CompressTagged(target->ptr());
+    DCHECK(COMPRESS_POINTERS_BOOL);
+    Tagged_t tagged = CompressTagged(target.ptr());
     WriteUnalignedValue(pc_, tagged);
-#endif  // V8_COMPRESS_POINTERS
   } else {
     WriteUnalignedValue(pc_, target.ptr());
   }
