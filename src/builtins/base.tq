@@ -850,10 +850,12 @@ extern class CallableTask extends Microtask {
 extern class StackFrameInfo extends Struct {
   line_number: Smi;
   column_number: Smi;
+  promise_all_index: Smi;
   script_id: Smi;
   script_name: Object;
   script_name_or_source_url: Object;
   function_name: Object;
+  wasm_module_name: Object;
   flag: Smi;
 }
 

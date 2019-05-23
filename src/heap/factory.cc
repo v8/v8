@@ -3747,6 +3747,7 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo() {
   stack_frame_info->set_line_number(0);
   stack_frame_info->set_column_number(0);
   stack_frame_info->set_script_id(0);
+  stack_frame_info->set_promise_all_index(-1);
   stack_frame_info->set_script_name(*null_value());
   stack_frame_info->set_script_name_or_source_url(*null_value());
   stack_frame_info->set_function_name(*null_value());
@@ -3795,8 +3796,13 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
     }
   }
   info->set_function_name(*function_name);
+  info->set_wasm_module_name(*it.Frame()->GetWasmModuleName());
   info->set_is_eval(it.Frame()->IsEval());
   info->set_is_constructor(it.Frame()->IsConstructor());
+  info->set_is_toplevel(it.Frame()->IsToplevel());
+  info->set_is_async(it.Frame()->IsAsync());
+  info->set_is_promise_all(it.Frame()->IsPromiseAll());
+  info->set_promise_all_index(it.Frame()->GetPromiseIndex());
 
   return info;
 }

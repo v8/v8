@@ -307,6 +307,10 @@ Handle<Object> StackFrameBase::GetEvalOrigin() {
   return FormatEvalOrigin(isolate_, GetScript()).ToHandleChecked();
 }
 
+Handle<Object> StackFrameBase::GetWasmModuleName() {
+  return isolate_->factory()->undefined_value();
+}
+
 int StackFrameBase::GetScriptId() const {
   if (!HasScript()) return kNone;
   return GetScript()->id();
@@ -732,6 +736,17 @@ Handle<Object> WasmStackFrame::GetFunctionName() {
     name = isolate_->factory()->null_value();
   }
   return name;
+}
+
+Handle<Object> WasmStackFrame::GetWasmModuleName() {
+  Handle<Object> module_name;
+  Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
+                                         isolate_);
+  if (!WasmModuleObject::GetModuleNameOrNull(isolate_, module_object)
+           .ToHandle(&module_name)) {
+    module_name = isolate_->factory()->null_value();
+  }
+  return module_name;
 }
 
 void WasmStackFrame::ToString(IncrementalStringBuilder& builder) {

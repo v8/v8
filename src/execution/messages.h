@@ -72,6 +72,7 @@ class StackFrameBase {
   virtual Handle<Object> GetMethodName() = 0;
   virtual Handle<Object> GetTypeName() = 0;
   virtual Handle<Object> GetEvalOrigin();
+  virtual Handle<Object> GetWasmModuleName();
 
   // Returns the script ID if one is attached, -1 otherwise.
   int GetScriptId() const;
@@ -172,6 +173,7 @@ class WasmStackFrame : public StackFrameBase {
   Handle<Object> GetScriptNameOrSourceUrl() override { return Null(); }
   Handle<Object> GetMethodName() override { return Null(); }
   Handle<Object> GetTypeName() override { return Null(); }
+  Handle<Object> GetWasmModuleName() override;
 
   int GetPosition() const override;
   int GetLineNumber() override { return wasm_func_index_; }
