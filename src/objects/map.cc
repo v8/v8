@@ -21,7 +21,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/property.h"
 #include "src/objects/transitions-inl.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

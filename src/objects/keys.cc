@@ -8,7 +8,6 @@
 #include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
-#include "src/identity-map.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/elements-inl.h"
 #include "src/objects/field-index-inl.h"
@@ -18,6 +17,7 @@
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
+#include "src/utils/identity-map.h"
 
 namespace v8 {
 namespace internal {

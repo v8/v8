@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 
 #include <cinttypes>
 
@@ -73,11 +73,9 @@ int OFStreamBase::sync() {
   return 0;
 }
 
-
 OFStreamBase::int_type OFStreamBase::overflow(int_type c) {
   return (c != EOF) ? std::fputc(c, f_) : c;
 }
-
 
 std::streamsize OFStreamBase::xsputn(const char* s, std::streamsize n) {
   return static_cast<std::streamsize>(
@@ -123,7 +121,6 @@ bool IsPrint(uint16_t c) { return 0x20 <= c && c <= 0x7E; }
 bool IsSpace(uint16_t c) { return (0x9 <= c && c <= 0xD) || c == 0x20; }
 bool IsOK(uint16_t c) { return (IsPrint(c) || IsSpace(c)) && c != '\\'; }
 
-
 std::ostream& PrintUC16(std::ostream& os, uint16_t c, bool (*pred)(uint16_t)) {
   char buf[10];
   const char* format = pred(c) ? "%c" : (c <= 0xFF) ? "\\x%02x" : "\\u%04x";
@@ -151,11 +148,9 @@ std::ostream& PrintUC32(std::ostream& os, int32_t c, bool (*pred)(uint16_t)) {
 
 }  // namespace
 
-
 std::ostream& operator<<(std::ostream& os, const AsReversiblyEscapedUC16& c) {
   return PrintUC16(os, c.value, IsOK);
 }
-
 
 std::ostream& operator<<(std::ostream& os, const AsEscapedUC16ForJSON& c) {
   if (c.value == '\n') return os << "\\n";
@@ -165,11 +160,9 @@ std::ostream& operator<<(std::ostream& os, const AsEscapedUC16ForJSON& c) {
   return PrintUC16ForJSON(os, c.value, IsOK);
 }
 
-
 std::ostream& operator<<(std::ostream& os, const AsUC16& c) {
   return PrintUC16(os, c.value, IsPrint);
 }
-
 
 std::ostream& operator<<(std::ostream& os, const AsUC32& c) {
   return PrintUC32(os, c.value, IsPrint);

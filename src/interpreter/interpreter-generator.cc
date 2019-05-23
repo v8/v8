@@ -24,7 +24,7 @@
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

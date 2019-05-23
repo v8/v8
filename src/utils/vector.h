@@ -2,20 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_VECTOR_H_
-#define V8_VECTOR_H_
+#ifndef V8_UTILS_VECTOR_H_
+#define V8_UTILS_VECTOR_H_
 
 #include <algorithm>
 #include <cstring>
 #include <iterator>
 
-#include "src/allocation.h"
 #include "src/checks.h"
 #include "src/globals.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
-
 
 template <typename T>
 class Vector {
@@ -132,7 +131,6 @@ class Vector {
   T* start_;
   size_t length_;
 };
-
 
 template <typename T>
 class ScopedVector : public Vector<T> {
@@ -288,4 +286,4 @@ class EmbeddedVector : public Vector<T> {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_VECTOR_H_
+#endif  // V8_UTILS_VECTOR_H_

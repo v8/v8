@@ -27,9 +27,9 @@
 #include "src/objects/free-space-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/ostreams.h"
 #include "src/sanitizer/msan.h"
 #include "src/snapshot/snapshot.h"
+#include "src/utils/ostreams.h"
 #include "src/v8.h"
 
 namespace v8 {

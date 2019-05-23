@@ -12,7 +12,7 @@
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 
 class TaskRunner;
 

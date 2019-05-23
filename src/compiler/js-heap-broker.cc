@@ -10,7 +10,6 @@
 
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
-#include "src/boxed-float.h"
 #include "src/codegen/code-factory.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/graph-reducer.h"
@@ -27,7 +26,8 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/templates.h"
-#include "src/utils.h"
+#include "src/utils/boxed-float.h"
+#include "src/utils/utils.h"
 #include "src/vector-slot-pair.h"
 
 namespace v8 {

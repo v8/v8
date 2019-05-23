@@ -6,7 +6,7 @@
 #define V8_OBJECTS_FIELD_INDEX_H_
 
 #include "src/objects/property-details.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

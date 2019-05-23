@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/allocation.h"
+#include "src/utils/allocation.h"
 
 #if V8_OS_POSIX
 #include <setjmp.h>

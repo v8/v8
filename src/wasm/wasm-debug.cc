@@ -13,7 +13,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/identity-map.h"
+#include "src/utils/identity-map.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-interpreter.h"

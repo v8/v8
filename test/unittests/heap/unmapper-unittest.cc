@@ -8,7 +8,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

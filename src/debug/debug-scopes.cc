@@ -14,10 +14,10 @@
 #include "src/globals.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module.h"
-#include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/rewriter.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

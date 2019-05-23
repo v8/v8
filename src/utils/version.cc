@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/version.h"
+#include "src/utils/version.h"
 
 #include "include/v8-version-string.h"
 #include "include/v8-version.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 // Define SONAME to have the build system put a specific SONAME into the
 // shared library instead the generic SONAME generated from the V8 version
 // number. This define is mainly used by the build system script.
-#define SONAME            ""
+#define SONAME ""
 
 namespace v8 {
 namespace internal {
@@ -37,7 +37,6 @@ void Version::GetString(Vector<char> str) {
   }
 }
 
-
 // Calculate the SONAME for the V8 shared library.
 void Version::GetSONAME(Vector<char> str) {
   if (soname_ == nullptr || *soname_ == '\0') {
@@ -55,6 +54,8 @@ void Version::GetSONAME(Vector<char> str) {
     SNPrintF(str, "%s", soname_);
   }
 }
+
+#undef SONAME
 
 }  // namespace internal
 }  // namespace v8

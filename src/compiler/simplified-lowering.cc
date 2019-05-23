@@ -6,7 +6,6 @@
 
 #include <limits>
 
-#include "src/address-map.h"
 #include "src/base/bits.h"
 #include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
@@ -23,6 +22,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/numbers/conversions-inl.h"
+#include "src/utils/address-map.h"
 #include "src/objects/objects.h"
 
 namespace v8 {

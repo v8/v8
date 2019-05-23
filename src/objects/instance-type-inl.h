@@ -6,7 +6,7 @@
 #define V8_OBJECTS_INSTANCE_TYPE_INL_H_
 
 #include "src/objects/map-inl.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

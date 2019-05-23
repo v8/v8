@@ -8,9 +8,9 @@
 #include "src/base/platform/platform.h"
 #include "src/objects/objects-inl.h"
 #include "src/strings/string-stream.h"
-#include "src/utils.h"
-#include "src/vector.h"
-#include "src/version.h"
+#include "src/utils/utils.h"
+#include "src/utils/vector.h"
+#include "src/utils/version.h"
 
 namespace v8 {
 namespace internal {

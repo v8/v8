@@ -8,7 +8,7 @@
 
 #include "src/strings/unicode-decoder.h"
 #include "src/strings/unicode-inl.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {

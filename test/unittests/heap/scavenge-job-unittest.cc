@@ -6,7 +6,7 @@
 
 #include "src/globals.h"
 #include "src/heap/scavenge-job.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {

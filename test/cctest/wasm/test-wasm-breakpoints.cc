@@ -6,7 +6,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/execution/frames-inl.h"
 #include "src/objects/property-descriptor.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 #include "test/cctest/cctest.h"

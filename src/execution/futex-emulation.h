@@ -7,12 +7,12 @@
 
 #include <stdint.h>
 
-#include "src/allocation.h"
 #include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/utils/allocation.h"
 
 // Support for emulating futexes, a low-level synchronization primitive. They
 // are natively supported by Linux, but must be emulated for other platforms.

@@ -5,12 +5,12 @@
 #ifndef V8_EXECUTION_ARGUMENTS_H_
 #define V8_EXECUTION_ARGUMENTS_H_
 
-#include "src/allocation.h"
 #include "src/handles/handles.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
 #include "src/tracing/trace-event.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

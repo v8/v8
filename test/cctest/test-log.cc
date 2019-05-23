@@ -36,11 +36,11 @@
 #include "src/logging/log-utils.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
-#include "src/ostreams.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/snapshot/natives.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/version.h"
 #include "src/v8.h"
-#include "src/version.h"
 #include "test/cctest/cctest.h"
 
 using v8::internal::Address;

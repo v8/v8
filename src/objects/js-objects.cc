@@ -63,9 +63,9 @@
 #include "src/objects/prototype.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/transitions.h"
-#include "src/ostreams.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/strings/string-stream.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {

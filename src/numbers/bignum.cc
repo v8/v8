@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/numbers/bignum.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

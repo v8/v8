@@ -9,8 +9,8 @@
 
 #include "src/flags.h"
 #include "src/globals.h"
+#include "src/utils/utils.h"
 #include "src/handles/handles.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

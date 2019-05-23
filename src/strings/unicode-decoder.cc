@@ -4,8 +4,8 @@
 
 #include "src/strings/unicode-decoder.h"
 
-#include "src/memcopy.h"
 #include "src/strings/unicode-inl.h"
+#include "src/utils/memcopy.h"
 
 namespace v8 {
 namespace internal {

@@ -10,7 +10,7 @@
 #include "src/execution/thread-local-top.h"
 #include "src/external-reference-table.h"
 #include "src/roots.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace v8 {

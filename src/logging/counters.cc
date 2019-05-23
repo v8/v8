@@ -12,7 +12,7 @@
 #include "src/logging/counters-inl.h"
 #include "src/logging/log-inl.h"
 #include "src/logging/log.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

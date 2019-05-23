@@ -10,7 +10,6 @@
 #include <sstream>
 #include <string>
 
-#include "src/bit-vector.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
@@ -23,7 +22,8 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
-#include "src/ostreams.h"
+#include "src/utils/bit-vector.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

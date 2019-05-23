@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MEMCOPY_H_
-#define V8_MEMCOPY_H_
+#ifndef V8_UTILS_MEMCOPY_H_
+#define V8_UTILS_MEMCOPY_H_
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -510,4 +510,4 @@ void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, size_t chars) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_MEMCOPY_H_
+#endif  // V8_UTILS_MEMCOPY_H_

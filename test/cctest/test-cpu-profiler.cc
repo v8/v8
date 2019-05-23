@@ -43,7 +43,7 @@
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/profiler/profiler-listener.h"
 #include "src/profiler/tracing-cpu-profiler.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/profiler-extension.h"
 

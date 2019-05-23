@@ -63,8 +63,8 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
-#include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "torque-generated/class-verifiers-tq.h"
 

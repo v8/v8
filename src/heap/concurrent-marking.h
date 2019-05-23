@@ -6,7 +6,6 @@
 #define V8_HEAP_CONCURRENT_MARKING_H_
 
 #include "include/v8-platform.h"
-#include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
@@ -14,7 +13,8 @@
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
 #include "src/heap/worklist.h"
-#include "src/utils.h"
+#include "src/utils/allocation.h"
+#include "src/utils/utils.h"
 #include "src/v8.h"
 
 namespace v8 {

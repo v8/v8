@@ -8,8 +8,8 @@
 #include <map>
 #include <string>
 
-#include "src/allocation.h"
 #include "src/base/platform/time.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

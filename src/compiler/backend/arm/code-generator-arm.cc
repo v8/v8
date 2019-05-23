@@ -4,7 +4,6 @@
 
 #include "src/compiler/backend/code-generator.h"
 
-#include "src/boxed-float.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -14,6 +13,7 @@
 #include "src/compiler/osr.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/numbers/double.h"
+#include "src/utils/boxed-float.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 

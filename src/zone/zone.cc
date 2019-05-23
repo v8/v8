@@ -7,7 +7,7 @@
 #include <cstring>
 
 #include "src/sanitizer/asan.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "src/v8.h"
 
 namespace v8 {

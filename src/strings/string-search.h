@@ -6,7 +6,7 @@
 #define V8_STRINGS_STRING_SEARCH_H_
 
 #include "src/execution/isolate.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

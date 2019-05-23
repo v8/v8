@@ -23,7 +23,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-js.h"

@@ -38,7 +38,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 
 using ::v8::internal::Handle;

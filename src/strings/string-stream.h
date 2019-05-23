@@ -5,11 +5,11 @@
 #ifndef V8_STRINGS_STRING_STREAM_H_
 #define V8_STRINGS_STRING_STREAM_H_
 
-#include "src/allocation.h"
 #include "src/base/small-vector.h"
 #include "src/handles/handles.h"
 #include "src/objects/heap-object.h"
-#include "src/vector.h"
+#include "src/utils/allocation.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

@@ -10,9 +10,9 @@
 #include "src/base/hashmap.h"
 #include "src/base/threaded-list.h"
 #include "src/globals.h"
+#include "src/utils/pointer-with-payload.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/objects.h"
-#include "src/pointer-with-payload.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

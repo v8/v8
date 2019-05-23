@@ -45,10 +45,10 @@
 
 #include "src/arm/constants-arm.h"
 #include "src/arm/register-arm.h"
-#include "src/boxed-float.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
 #include "src/numbers/double.h"
+#include "src/utils/boxed-float.h"
 
 namespace v8 {
 namespace internal {

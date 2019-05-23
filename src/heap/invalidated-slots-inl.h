@@ -7,11 +7,11 @@
 
 #include <map>
 
-#include "src/allocation.h"
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/spaces.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/objects-body-descriptors.h"
+#include "src/utils/allocation.h"
 #include "src/objects/objects.h"
 
 namespace v8 {

@@ -21,8 +21,8 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/ostreams.h"
 #include "src/runtime/runtime.h"
+#include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

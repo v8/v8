@@ -15,7 +15,6 @@
 // Do not include anything from src/heap here!
 #include "include/v8-internal.h"
 #include "include/v8.h"
-#include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/base/atomic-utils.h"
 #include "src/builtins/accessors.h"
@@ -28,6 +27,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/string-table.h"
 #include "src/roots.h"
+#include "src/utils/allocation.h"
 #include "src/visitors.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 

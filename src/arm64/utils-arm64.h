@@ -8,7 +8,7 @@
 #include <cmath>
 
 #include "src/arm64/constants-arm64.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

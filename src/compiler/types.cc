@@ -6,9 +6,9 @@
 
 #include "src/compiler/types.h"
 
+#include "src/utils/ostreams.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {

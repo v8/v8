@@ -13,7 +13,6 @@
 #include <stdarg.h>
 #include <vector>
 
-#include "src/allocation.h"
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/decoder-arm64.h"
 #include "src/arm64/disasm-arm64.h"
@@ -21,7 +20,8 @@
 #include "src/base/compiler-specific.h"
 #include "src/codegen/assembler.h"
 #include "src/execution/simulator-base.h"
-#include "src/utils.h"
+#include "src/utils/allocation.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

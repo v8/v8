@@ -6,7 +6,7 @@
 #include "src/base/bounded-page-allocator.h"
 #include "src/execution/isolate.h"
 #include "src/ptr-compr.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

@@ -8,7 +8,7 @@
 #include "src/objects/js-regexp.h"
 #include "src/objects/objects.h"
 #include "src/objects/string.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 

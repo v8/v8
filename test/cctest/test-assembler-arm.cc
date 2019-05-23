@@ -34,7 +34,7 @@
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "src/numbers/double.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 #include "src/v8.h"
 #include "test/cctest/assembler-helper-arm.h"
 #include "test/cctest/cctest.h"

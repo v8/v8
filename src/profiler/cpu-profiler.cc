@@ -12,10 +12,10 @@
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/locked-queue-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/profiler/cpu-profiler-inl.h"
+#include "src/utils/locked-queue-inl.h"
 #include "src/wasm/wasm-engine.h"
 
 namespace v8 {

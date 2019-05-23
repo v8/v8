@@ -8,7 +8,6 @@
 #include <stdarg.h>
 #include <cmath>
 
-#include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
@@ -17,7 +16,8 @@
 #include "src/objects/bigint.h"
 #include "src/objects/objects-inl.h"
 #include "src/strings/char-predicates-inl.h"
-#include "src/utils.h"
+#include "src/utils/allocation.h"
+#include "src/utils/utils.h"
 
 #if defined(_STLP_VENDOR_CSTD)
 // STLPort doesn't import fpclassify into the std namespace.

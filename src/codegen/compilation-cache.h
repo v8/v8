@@ -5,8 +5,8 @@
 #ifndef V8_CODEGEN_COMPILATION_CACHE_H_
 #define V8_CODEGEN_COMPILATION_CACHE_H_
 
-#include "src/allocation.h"
 #include "src/objects/compilation-cache.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

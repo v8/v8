@@ -18,11 +18,11 @@
 #if defined(USE_SIMULATOR)
 // Running with a simulator.
 
-#include "src/allocation.h"
 #include "src/base/hashmap.h"
 #include "src/codegen/assembler.h"
 #include "src/execution/simulator-base.h"
 #include "src/mips64/constants-mips64.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

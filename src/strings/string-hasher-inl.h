@@ -10,7 +10,7 @@
 #include "src/objects/objects.h"
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
-#include "src/utils-inl.h"
+#include "src/utils/utils-inl.h"
 
 namespace v8 {
 namespace internal {

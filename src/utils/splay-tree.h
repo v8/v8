@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SPLAY_TREE_H_
-#define V8_SPLAY_TREE_H_
+#ifndef V8_UTILS_SPLAY_TREE_H_
+#define V8_UTILS_SPLAY_TREE_H_
 
-#include "src/allocation.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
-
 
 // A splay tree.  The config type parameter encapsulates the different
 // configurations of a concrete splay tree:
@@ -130,7 +129,7 @@ class SplayTree {
   // exposing the node.
   class Locator {
    public:
-    explicit Locator(Node* node) : node_(node) { }
+    explicit Locator(Node* node) : node_(node) {}
     Locator() : node_(nullptr) {}
     const Key& key() { return node_->key_; }
     Value& value() { return node_->value_; }
@@ -162,11 +161,8 @@ class SplayTree {
   template <class Callback>
   class NodeToPairAdaptor {
    public:
-    explicit NodeToPairAdaptor(Callback* callback)
-        : callback_(callback) { }
-    void Call(Node* node) {
-      callback_->Call(node->key(), node->value());
-    }
+    explicit NodeToPairAdaptor(Callback* callback) : callback_(callback) {}
+    void Call(Node* node) { callback_->Call(node->key(), node->value()); }
 
    private:
     Callback* callback_;
@@ -192,8 +188,7 @@ class SplayTree {
   DISALLOW_COPY_AND_ASSIGN(SplayTree);
 };
 
-
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SPLAY_TREE_H_
+#endif  // V8_UTILS_SPLAY_TREE_H_

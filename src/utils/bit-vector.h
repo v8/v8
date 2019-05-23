@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BIT_VECTOR_H_
-#define V8_BIT_VECTOR_H_
+#ifndef V8_UTILS_BIT_VECTOR_H_
+#define V8_UTILS_BIT_VECTOR_H_
 
-#include "src/allocation.h"
+#include "src/utils/allocation.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -369,4 +369,4 @@ class GrowableBitVector {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_BIT_VECTOR_H_
+#endif  // V8_UTILS_BIT_VECTOR_H_

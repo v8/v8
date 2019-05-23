@@ -11,7 +11,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

@@ -36,7 +36,7 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/transitions-inl.h"
-#include "src/utils-inl.h"
+#include "src/utils/utils-inl.h"
 #include "src/v8.h"
 
 namespace v8 {

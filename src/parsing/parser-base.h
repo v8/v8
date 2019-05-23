@@ -24,7 +24,7 @@
 #include "src/parsing/func-name-inferrer.h"
 #include "src/parsing/scanner.h"
 #include "src/parsing/token.h"
-#include "src/pointer-with-payload.h"
+#include "src/utils/pointer-with-payload.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {

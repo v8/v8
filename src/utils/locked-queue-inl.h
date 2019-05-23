@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LOCKED_QUEUE_INL_H_
-#define V8_LOCKED_QUEUE_INL_H_
+#ifndef V8_UTILS_LOCKED_QUEUE_INL_H_
+#define V8_UTILS_LOCKED_QUEUE_INL_H_
 
 #include "src/base/atomic-utils.h"
-#include "src/locked-queue.h"
+#include "src/utils/locked-queue.h"
 
 namespace v8 {
 namespace internal {
@@ -18,14 +18,12 @@ struct LockedQueue<Record>::Node : Malloced {
   base::AtomicValue<Node*> next;
 };
 
-
 template <typename Record>
 inline LockedQueue<Record>::LockedQueue() {
   head_ = new Node();
   CHECK_NOT_NULL(head_);
   tail_ = head_;
 }
-
 
 template <typename Record>
 inline LockedQueue<Record>::~LockedQueue() {
@@ -39,7 +37,6 @@ inline LockedQueue<Record>::~LockedQueue() {
   }
 }
 
-
 template <typename Record>
 inline void LockedQueue<Record>::Enqueue(const Record& record) {
   Node* n = new Node();
@@ -51,7 +48,6 @@ inline void LockedQueue<Record>::Enqueue(const Record& record) {
     tail_ = n;
   }
 }
-
 
 template <typename Record>
 inline bool LockedQueue<Record>::Dequeue(Record* record) {
@@ -68,13 +64,11 @@ inline bool LockedQueue<Record>::Dequeue(Record* record) {
   return true;
 }
 
-
 template <typename Record>
 inline bool LockedQueue<Record>::IsEmpty() const {
   base::MutexGuard guard(&head_mutex_);
   return head_->next.Value() == nullptr;
 }
-
 
 template <typename Record>
 inline bool LockedQueue<Record>::Peek(Record* record) const {
@@ -88,4 +82,4 @@ inline bool LockedQueue<Record>::Peek(Record* record) const {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_LOCKED_QUEUE_INL_H_
+#endif  // V8_UTILS_LOCKED_QUEUE_INL_H_

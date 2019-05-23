@@ -6,11 +6,11 @@
 #define V8_COMPILER_BYTECODE_ANALYSIS_H_
 
 #include "src/base/hashmap.h"
-#include "src/bit-vector.h"
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-register.h"
-#include "src/utils.h"
+#include "src/utils/bit-vector.h"
+#include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

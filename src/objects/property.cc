@@ -9,7 +9,7 @@
 #include "src/objects/name-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

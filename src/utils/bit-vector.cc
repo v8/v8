@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/bit-vector.h"
+#include "src/utils/bit-vector.h"
 
 #include "src/base/bits.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +25,6 @@ void BitVector::Print() {
 }
 #endif
 
-
 void BitVector::Iterator::Advance() {
   current_++;
   uintptr_t val = current_value_;
@@ -40,7 +39,6 @@ void BitVector::Iterator::Advance() {
   val = SkipZeroBits(val);
   current_value_ = val >> 1;
 }
-
 
 int BitVector::Count() const {
   if (data_length_ == 0) {

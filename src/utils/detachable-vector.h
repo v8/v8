@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DETACHABLE_VECTOR_H_
-#define V8_DETACHABLE_VECTOR_H_
+#ifndef V8_UTILS_DETACHABLE_VECTOR_H_
+#define V8_UTILS_DETACHABLE_VECTOR_H_
 
 #include <stddef.h>
 
@@ -101,4 +101,4 @@ class DetachableVector : public DetachableVectorBase {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_DETACHABLE_VECTOR_H_
+#endif  // V8_UTILS_DETACHABLE_VECTOR_H_

@@ -33,7 +33,6 @@
 // former isn't available in V8.
 #include <regex>  // NOLINT(build/c++11)
 
-#include "src/boxed-float.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
@@ -41,6 +40,7 @@
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
 #include "src/numbers/double.h"
+#include "src/utils/boxed-float.h"
 #include "src/objects/objects-inl.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"

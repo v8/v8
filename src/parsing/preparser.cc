@@ -4,7 +4,6 @@
 
 #include <cmath>
 
-#include "src/allocation.h"
 #include "src/base/logging.h"
 #include "src/globals.h"
 #include "src/numbers/conversions-inl.h"
@@ -13,7 +12,8 @@
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
 #include "src/strings/unicode.h"
-#include "src/utils.h"
+#include "src/utils/allocation.h"
+#include "src/utils/utils.h"
 #include "src/zone/zone-list-inl.h"
 
 namespace v8 {

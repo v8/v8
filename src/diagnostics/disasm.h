@@ -5,7 +5,7 @@
 #ifndef V8_DIAGNOSTICS_DISASM_H_
 #define V8_DIAGNOSTICS_DISASM_H_
 
-#include "src/vector.h"
+#include "src/utils/vector.h"
 
 namespace disasm {
 

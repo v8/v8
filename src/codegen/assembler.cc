@@ -40,11 +40,11 @@
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // For MemoryAllocator. TODO(jkummerow): Drop.
-#include "src/ostreams.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
-#include "src/vector.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

@@ -19,7 +19,7 @@
 #include "src/builtins/builtins-definitions.h"
 #include "src/handles/handles.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"

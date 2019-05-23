@@ -9,7 +9,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/disasm.h"
 #include "src/execution/frames-inl.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

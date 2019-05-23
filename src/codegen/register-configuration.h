@@ -9,7 +9,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/reglist.h"
 #include "src/globals.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

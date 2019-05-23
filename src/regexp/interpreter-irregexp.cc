@@ -12,7 +12,7 @@
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/strings/unicode.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"

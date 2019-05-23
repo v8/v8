@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UTILS_H_
-#define V8_UTILS_H_
+#ifndef V8_UTILS_UTILS_H_
+#define V8_UTILS_UTILS_H_
 
 #include <limits.h>
 #include <stdlib.h>
@@ -13,7 +13,6 @@
 #include <type_traits>
 
 #include "include/v8.h"
-#include "src/allocation.h"
 #include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
@@ -22,7 +21,8 @@
 #include "src/base/v8-fallthrough.h"
 #include "src/globals.h"
 #include "src/third_party/siphash/halfsiphash.h"
-#include "src/vector.h"
+#include "src/utils/allocation.h"
+#include "src/utils/vector.h"
 
 #if defined(V8_OS_AIX)
 #include <fenv.h>  // NOLINT(build/c++11)
@@ -112,7 +112,8 @@ inline int WhichPowerOf2(T x) {
   CHECK_BIGGER(4)
 #undef CHECK_BIGGER
   switch (x) {
-    default: UNREACHABLE();
+    default:
+      UNREACHABLE();
     case 8:
       bits++;
       V8_FALLTHROUGH;
@@ -122,7 +123,8 @@ inline int WhichPowerOf2(T x) {
     case 2:
       bits++;
       V8_FALLTHROUGH;
-    case 1: break;
+    case 1:
+      break;
   }
   DCHECK_EQ(T{1} << bits, original_x);
   return bits;
@@ -173,7 +175,8 @@ int Compare(const T& a, const T& b) {
 // Compare function to compare the object pointer value of two
 // handlified objects. The handles are passed as pointers to the
 // handles.
-template<typename T> class Handle;  // Forward declaration.
+template <typename T>
+class Handle;  // Forward declaration.
 template <typename T>
 int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
   return Compare<T*>(*(*a), *(*b));
@@ -184,7 +187,6 @@ template <typename T>
 constexpr T Max(T a, T b) {
   return a < b ? b : a;
 }
-
 
 // Returns the minimum of the two parameters.
 template <typename T>
@@ -522,22 +524,21 @@ static const int kInt64UpperHalfMemoryOffset = 0;
 template <typename T>
 class StaticResource {
  public:
-  StaticResource() : is_reserved_(false)  {}
+  StaticResource() : is_reserved_(false) {}
 
  private:
-  template <typename S> friend class Access;
+  template <typename S>
+  friend class Access;
   T instance_;
   bool is_reserved_;
 };
-
 
 // Locally scoped access to a static resource.
 template <typename T>
 class Access {
  public:
   explicit Access(StaticResource<T>* resource)
-    : resource_(resource)
-    , instance_(&resource->instance_) {
+      : resource_(resource), instance_(&resource->instance_) {
     DCHECK(!resource->is_reserved_);
     resource->is_reserved_ = true;
   }
@@ -548,8 +549,8 @@ class Access {
     instance_ = nullptr;
   }
 
-  T* value()  { return instance_; }
-  T* operator -> ()  { return instance_; }
+  T* value() { return instance_; }
+  T* operator->() { return instance_; }
 
  private:
   StaticResource<T>* resource_;
@@ -557,7 +558,7 @@ class Access {
 };
 
 // A pointer that can only be set once and doesn't allow NULL values.
-template<typename T>
+template <typename T>
 class SetOncePointer {
  public:
   SetOncePointer() = default;
@@ -612,8 +613,7 @@ inline int CompareChars(const lchar* lhs, const rchar* rhs, size_t chars) {
   if (sizeof(lchar) == 1) {
     if (sizeof(rchar) == 1) {
       return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
-                                  reinterpret_cast<const uint8_t*>(rhs),
-                                  chars);
+                                  reinterpret_cast<const uint8_t*>(rhs), chars);
     } else {
       return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
                                   reinterpret_cast<const uint16_t*>(rhs),
@@ -622,8 +622,7 @@ inline int CompareChars(const lchar* lhs, const rchar* rhs, size_t chars) {
   } else {
     if (sizeof(rchar) == 1) {
       return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(lhs),
-                                  reinterpret_cast<const uint8_t*>(rhs),
-                                  chars);
+                                  reinterpret_cast<const uint8_t*>(rhs), chars);
     } else {
       return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(lhs),
                                   reinterpret_cast<const uint16_t*>(rhs),
@@ -631,7 +630,6 @@ inline int CompareChars(const lchar* lhs, const rchar* rhs, size_t chars) {
     }
   }
 }
-
 
 // Calculate 10^exponent.
 inline int TenToThe(int exponent) {
@@ -642,11 +640,10 @@ inline int TenToThe(int exponent) {
   return answer;
 }
 
-
-template<typename ElementType, int NumElements>
+template <typename ElementType, int NumElements>
 class EmbeddedContainer {
  public:
-  EmbeddedContainer() : elems_() { }
+  EmbeddedContainer() : elems_() {}
 
   int length() const { return NumElements; }
   const ElementType& operator[](int i) const {
@@ -662,8 +659,7 @@ class EmbeddedContainer {
   ElementType elems_[NumElements];
 };
 
-
-template<typename ElementType>
+template <typename ElementType>
 class EmbeddedContainer<ElementType, 0> {
  public:
   int length() const { return 0; }
@@ -679,7 +675,6 @@ class EmbeddedContainer<ElementType, 0> {
   }
 };
 
-
 // Helper class for building result strings in a character buffer. The
 // purpose of the class is to use safe operations that checks the
 // buffer bounds on all operations in debug mode.
@@ -692,9 +687,11 @@ class SimpleStringBuilder {
   explicit SimpleStringBuilder(int size);
 
   SimpleStringBuilder(char* buffer, int size)
-      : buffer_(buffer, size), position_(0) { }
+      : buffer_(buffer, size), position_(0) {}
 
-  ~SimpleStringBuilder() { if (!is_finalized()) Finalize(); }
+  ~SimpleStringBuilder() {
+    if (!is_finalized()) Finalize();
+  }
 
   int size() const { return buffer_.length(); }
 
@@ -780,24 +777,49 @@ inline T truncate_to_intn(T x, unsigned n) {
   return (x & ((static_cast<T>(1) << n) - 1));
 }
 
-#define INT_1_TO_63_LIST(V)                                                    \
-V(1)  V(2)  V(3)  V(4)  V(5)  V(6)  V(7)  V(8)                                 \
-V(9)  V(10) V(11) V(12) V(13) V(14) V(15) V(16)                                \
-V(17) V(18) V(19) V(20) V(21) V(22) V(23) V(24)                                \
-V(25) V(26) V(27) V(28) V(29) V(30) V(31) V(32)                                \
-V(33) V(34) V(35) V(36) V(37) V(38) V(39) V(40)                                \
-V(41) V(42) V(43) V(44) V(45) V(46) V(47) V(48)                                \
-V(49) V(50) V(51) V(52) V(53) V(54) V(55) V(56)                                \
-V(57) V(58) V(59) V(60) V(61) V(62) V(63)
+#define INT_1_TO_63_LIST(V)                                                   \
+  V(1)                                                                        \
+  V(2)                                                                        \
+  V(3)                                                                        \
+  V(4)                                                                        \
+  V(5)                                                                        \
+  V(6)                                                                        \
+  V(7)                                                                        \
+  V(8)                                                                        \
+  V(9)                                                                        \
+  V(10)                                                                       \
+  V(11)                                                                       \
+  V(12)                                                                       \
+  V(13)                                                                       \
+  V(14)                                                                       \
+  V(15)                                                                       \
+  V(16)                                                                       \
+  V(17)                                                                       \
+  V(18)                                                                       \
+  V(19)                                                                       \
+  V(20)                                                                       \
+  V(21)                                                                       \
+  V(22)                                                                       \
+  V(23)                                                                       \
+  V(24)                                                                       \
+  V(25)                                                                       \
+  V(26) V(27) V(28) V(29) V(30) V(31) V(32) V(33) V(34) V(35) V(36) V(37)     \
+      V(38) V(39) V(40) V(41) V(42) V(43) V(44) V(45) V(46) V(47) V(48) V(49) \
+          V(50) V(51) V(52) V(53) V(54) V(55) V(56) V(57) V(58) V(59) V(60)   \
+              V(61) V(62) V(63)
 
-#define DECLARE_IS_INT_N(N)                                                    \
-inline bool is_int##N(int64_t x) { return is_intn(x, N); }
-#define DECLARE_IS_UINT_N(N)                                                   \
-template <class T>                                                             \
-inline bool is_uint##N(T x) { return is_uintn(x, N); }
-#define DECLARE_TRUNCATE_TO_INT_N(N)                                           \
-template <class T>                                                             \
-inline T truncate_to_int##N(T x) { return truncate_to_intn(x, N); }
+#define DECLARE_IS_INT_N(N) \
+  inline bool is_int##N(int64_t x) { return is_intn(x, N); }
+#define DECLARE_IS_UINT_N(N)    \
+  template <class T>            \
+  inline bool is_uint##N(T x) { \
+    return is_uintn(x, N);      \
+  }
+#define DECLARE_TRUNCATE_TO_INT_N(N) \
+  template <class T>                 \
+  inline T truncate_to_int##N(T x) { \
+    return truncate_to_intn(x, N);   \
+  }
 INT_1_TO_63_LIST(DECLARE_IS_INT_N)
 INT_1_TO_63_LIST(DECLARE_IS_UINT_N)
 INT_1_TO_63_LIST(DECLARE_TRUNCATE_TO_INT_N)
@@ -849,7 +871,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, FeedbackSlot);
 
 class BailoutId {
  public:
-  explicit BailoutId(int id) : id_(id) { }
+  explicit BailoutId(int id) : id_(id) {}
   int ToInt() const { return id_; }
 
   static BailoutId None() { return BailoutId(kNoneId); }
@@ -906,7 +928,6 @@ class BailoutId {
   int id_;
 };
 
-
 // ----------------------------------------------------------------------------
 // I/O support.
 
@@ -932,47 +953,33 @@ void StrNCpy(Vector<char> dest, const char* src, size_t n);
 // Our version of fflush.
 void Flush(FILE* out);
 
-inline void Flush() {
-  Flush(stdout);
-}
-
+inline void Flush() { Flush(stdout); }
 
 // Read a line of characters after printing the prompt to stdout. The resulting
 // char* needs to be disposed off with DeleteArray by the caller.
 char* ReadLine(const char* prompt);
 
-
 // Append size chars from str to the file given by filename.
 // The file is overwritten. Returns the number of chars written.
-int AppendChars(const char* filename,
-                const char* str,
-                int size,
+int AppendChars(const char* filename, const char* str, int size,
                 bool verbose = true);
-
 
 // Write size chars from str to the file given by filename.
 // The file is overwritten. Returns the number of chars written.
-int WriteChars(const char* filename,
-               const char* str,
-               int size,
+int WriteChars(const char* filename, const char* str, int size,
                bool verbose = true);
-
 
 // Write size bytes to the file given by filename.
 // The file is overwritten. Returns the number of bytes written.
-int WriteBytes(const char* filename,
-               const byte* bytes,
-               int size,
+int WriteBytes(const char* filename, const byte* bytes, int size,
                bool verbose = true);
-
 
 // Write the C code
 // const char* <varname> = "<str>";
 // const int <varname>_len = <len>;
 // to the file given by filename. Only the first len chars are written.
-int WriteAsCFile(const char* filename, const char* varname,
-                 const char* str, int size, bool verbose = true);
-
+int WriteAsCFile(const char* filename, const char* varname, const char* str,
+                 int size, bool verbose = true);
 
 // Simple support to read a file into std::string.
 // On return, *exits tells whether the file existed.
@@ -983,8 +990,8 @@ V8_EXPORT_PRIVATE std::string ReadFile(FILE* file, bool* exists,
 
 class StringBuilder : public SimpleStringBuilder {
  public:
-  explicit StringBuilder(int size) : SimpleStringBuilder(size) { }
-  StringBuilder(char* buffer, int size) : SimpleStringBuilder(buffer, size) { }
+  explicit StringBuilder(int size) : SimpleStringBuilder(size) {}
+  StringBuilder(char* buffer, int size) : SimpleStringBuilder(buffer, size) {}
 
   // Add formatted contents to the builder just like printf().
   void PRINTF_FORMAT(2, 3) AddFormatted(const char* format, ...);
@@ -995,7 +1002,6 @@ class StringBuilder : public SimpleStringBuilder {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
 };
-
 
 bool DoubleToBoolean(double d);
 
@@ -1013,36 +1019,34 @@ V8_EXPORT_PRIVATE V8_NOINLINE uintptr_t GetCurrentStackPosition();
 
 static inline uint16_t ByteReverse16(uint16_t value) {
 #if V8_HAS_BUILTIN_BSWAP16
-      return __builtin_bswap16(value);
+  return __builtin_bswap16(value);
 #else
-      return value << 8 | (value >> 8 & 0x00FF);
+  return value << 8 | (value >> 8 & 0x00FF);
 #endif
 }
 
 static inline uint32_t ByteReverse32(uint32_t value) {
 #if V8_HAS_BUILTIN_BSWAP32
-      return __builtin_bswap32(value);
+  return __builtin_bswap32(value);
 #else
-      return value << 24 |
-             ((value << 8) & 0x00FF0000) |
-             ((value >> 8) & 0x0000FF00) |
-             ((value >> 24) & 0x00000FF);
+  return value << 24 | ((value << 8) & 0x00FF0000) |
+         ((value >> 8) & 0x0000FF00) | ((value >> 24) & 0x00000FF);
 #endif
 }
 
 static inline uint64_t ByteReverse64(uint64_t value) {
 #if V8_HAS_BUILTIN_BSWAP64
-      return __builtin_bswap64(value);
+  return __builtin_bswap64(value);
 #else
-      size_t bits_of_v = sizeof(value) * kBitsPerByte;
-      return value << (bits_of_v - 8) |
-             ((value << (bits_of_v - 24)) & 0x00FF000000000000) |
-             ((value << (bits_of_v - 40)) & 0x0000FF0000000000) |
-             ((value << (bits_of_v - 56)) & 0x000000FF00000000) |
-             ((value >> (bits_of_v - 56)) & 0x00000000FF000000) |
-             ((value >> (bits_of_v - 40)) & 0x0000000000FF0000) |
-             ((value >> (bits_of_v - 24)) & 0x000000000000FF00) |
-             ((value >> (bits_of_v - 8)) & 0x00000000000000FF);
+  size_t bits_of_v = sizeof(value) * kBitsPerByte;
+  return value << (bits_of_v - 8) |
+         ((value << (bits_of_v - 24)) & 0x00FF000000000000) |
+         ((value << (bits_of_v - 40)) & 0x0000FF0000000000) |
+         ((value << (bits_of_v - 56)) & 0x000000FF00000000) |
+         ((value >> (bits_of_v - 56)) & 0x00000000FF000000) |
+         ((value >> (bits_of_v - 40)) & 0x0000000000FF0000) |
+         ((value >> (bits_of_v - 24)) & 0x000000000000FF00) |
+         ((value >> (bits_of_v - 8)) & 0x00000000000000FF);
 #endif
 }
 
@@ -1078,4 +1082,4 @@ V8_INLINE void ZapCode(Address addr, size_t size_in_bytes) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_UTILS_H_
+#endif  // V8_UTILS_UTILS_H_

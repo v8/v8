@@ -40,7 +40,7 @@
 #include "src/objects/heap-number.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/graph-builder-interface.h"

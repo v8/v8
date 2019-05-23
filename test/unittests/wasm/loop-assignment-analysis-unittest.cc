@@ -4,7 +4,7 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/bit-vector.h"
+#include "src/utils/bit-vector.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/v8.h"

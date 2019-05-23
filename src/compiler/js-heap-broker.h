@@ -13,8 +13,8 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
+#include "src/utils/ostreams.h"
 #include "src/objects/objects.h"
-#include "src/ostreams.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

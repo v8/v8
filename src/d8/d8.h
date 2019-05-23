@@ -13,12 +13,12 @@
 #include <unordered_map>
 #include <vector>
 
-#include "src/allocation.h"
 #include "src/base/once.h"
 #include "src/base/platform/time.h"
 #include "src/d8/async-hooks-wrapper.h"
 #include "src/strings/string-hasher.h"
-#include "src/utils.h"
+#include "src/utils/allocation.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 

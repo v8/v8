@@ -7,13 +7,13 @@
 #include <iomanip>
 
 #include "src/base/adapters.h"
-#include "src/bit-vector.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/control-equivalence.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/utils/bit-vector.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

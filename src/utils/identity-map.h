@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_IDENTITY_MAP_H_
-#define V8_IDENTITY_MAP_H_
+#ifndef V8_UTILS_IDENTITY_MAP_H_
+#define V8_UTILS_IDENTITY_MAP_H_
 
 #include "src/base/functional.h"
 #include "src/handles/handles.h"
@@ -193,4 +193,4 @@ class IdentityMap : public IdentityMapBase {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_IDENTITY_MAP_H_
+#endif  // V8_UTILS_IDENTITY_MAP_H_

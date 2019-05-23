@@ -4,7 +4,7 @@
 
 #include <limits>
 
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "testing/gtest-support.h"
 
 namespace v8 {

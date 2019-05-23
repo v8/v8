@@ -16,7 +16,6 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/elements.h"
-#include "src/ostreams.h"
 #include "src/regexp/interpreter-irregexp.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
@@ -25,10 +24,11 @@
 #include "src/regexp/regexp-parser.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
-#include "src/splay-tree-inl.h"
 #include "src/strings/string-search.h"
 #include "src/strings/unicode-decoder.h"
 #include "src/strings/unicode-inl.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/splay-tree-inl.h"
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT

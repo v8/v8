@@ -8,7 +8,7 @@
 #include "src/api/api-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/version.h"
+#include "src/utils/version.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-memory.h"

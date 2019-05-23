@@ -7,9 +7,9 @@
 
 #include "src/base/optional.h"
 #include "src/compiler/access-info.h"
+#include "src/utils/utils.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
-#include "src/utils.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

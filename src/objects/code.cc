@@ -15,9 +15,9 @@
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/allocation-site-inl.h"
-#include "src/ostreams.h"
 #include "src/roots-inl.h"
 #include "src/snapshot/embedded-data.h"
+#include "src/utils/ostreams.h"
 
 #ifdef ENABLE_DISASSEMBLER
 #include "src/codegen/code-comments.h"

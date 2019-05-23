@@ -8,9 +8,7 @@
 #include <stack>
 #include <vector>
 
-#include "src/allocation.h"
 #include "src/base/macros.h"
-#include "src/boxed-float.h"
 #include "src/codegen/label.h"
 #include "src/codegen/register-arch.h"
 #include "src/codegen/source-position.h"
@@ -22,6 +20,8 @@
 #include "src/globals.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/shared-function-info.h"
+#include "src/utils/allocation.h"
+#include "src/utils/boxed-float.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {

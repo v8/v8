@@ -33,8 +33,8 @@
 #include "src/codegen/source-position-table.h"
 #include "src/diagnostics/eh-frame.h"
 #include "src/objects/objects-inl.h"
-#include "src/ostreams.h"
 #include "src/snapshot/embedded-data.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/wasm-code-manager.h"
 
 #if V8_OS_LINUX

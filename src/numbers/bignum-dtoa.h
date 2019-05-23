@@ -5,7 +5,7 @@
 #ifndef V8_NUMBERS_BIGNUM_DTOA_H_
 #define V8_NUMBERS_BIGNUM_DTOA_H_
 
-#include "src/vector.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

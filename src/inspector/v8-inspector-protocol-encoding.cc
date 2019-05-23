@@ -7,7 +7,7 @@
 #include <cmath>
 #include "../../third_party/inspector_protocol/encoding/encoding.h"
 #include "src/numbers/conversions.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 
 namespace v8_inspector {
 namespace {

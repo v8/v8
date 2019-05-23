@@ -12,7 +12,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/string-inl.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

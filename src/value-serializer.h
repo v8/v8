@@ -12,9 +12,9 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
 #include "src/execution/message-template.h"
+#include "src/utils/identity-map.h"
+#include "src/utils/vector.h"
 #include "src/handles/maybe-handles.h"
-#include "src/identity-map.h"
-#include "src/vector.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

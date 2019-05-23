@@ -8,11 +8,11 @@
 
 #include "src/base/platform/platform.h"
 #include "src/logging/counters.h"
-#include "src/memcopy.h"
 #include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/startup-deserializer.h"
-#include "src/version.h"
+#include "src/utils/memcopy.h"
+#include "src/utils/version.h"
 
 namespace v8 {
 namespace internal {

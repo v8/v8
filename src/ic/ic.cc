@@ -30,7 +30,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/struct-inl.h"
 #ifdef V8_TRACE_FEEDBACK_UPDATES
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 #endif  // V8_TRACE_FEEDBACK_UPDATES
 #include "src/execution/runtime-profiler.h"
 #include "src/objects/prototype.h"

@@ -6,7 +6,7 @@
 #define V8_TYPE_HINTS_H_
 
 #include "src/base/flags.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

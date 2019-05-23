@@ -19,7 +19,7 @@
 #include "src/objects/property.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/transitions.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

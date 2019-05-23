@@ -6,8 +6,8 @@
 #define V8_HEAP_HEAP_CONTROLLER_H_
 
 #include <cstddef>
-#include "src/allocation.h"
 #include "src/heap/heap.h"
+#include "src/utils/allocation.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {

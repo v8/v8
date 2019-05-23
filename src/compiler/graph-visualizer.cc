@@ -25,8 +25,8 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
-#include "src/ostreams.h"
-#include "src/vector.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

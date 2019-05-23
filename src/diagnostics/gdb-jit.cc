@@ -15,10 +15,10 @@
 #include "src/handles/global-handles.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/objects.h"
-#include "src/ostreams.h"
 #include "src/snapshot/natives.h"
-#include "src/splay-tree-inl.h"
-#include "src/vector.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/splay-tree-inl.h"
+#include "src/utils/vector.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {

@@ -6,7 +6,6 @@
 #define V8_LOGGING_COUNTERS_H_
 
 #include "include/v8.h"
-#include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
@@ -20,6 +19,7 @@
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
 #include "src/tracing/tracing-category-observer.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

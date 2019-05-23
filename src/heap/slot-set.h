@@ -8,12 +8,12 @@
 #include <map>
 #include <stack>
 
-#include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bits.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/slots.h"
-#include "src/utils.h"
+#include "src/utils/allocation.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

@@ -11,10 +11,10 @@
 #include "src/codegen/source-position-table.h"
 #include "src/execution/frames.h"
 #include "src/globals.h"
+#include "src/utils/utils.h"
+#include "src/utils/vector.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects.h"
-#include "src/utils.h"
-#include "src/vector.h"
 
 namespace v8 {
 

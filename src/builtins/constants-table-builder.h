@@ -5,10 +5,10 @@
 #ifndef V8_BUILTINS_CONSTANTS_TABLE_BUILDER_H_
 #define V8_BUILTINS_CONSTANTS_TABLE_BUILDER_H_
 
-#include "src/allocation.h"
 #include "src/base/macros.h"
+#include "src/utils/allocation.h"
+#include "src/utils/identity-map.h"
 #include "src/handles/handles.h"
-#include "src/identity-map.h"
 
 namespace v8 {
 namespace internal {

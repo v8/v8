@@ -11,7 +11,7 @@
 #include "src/compiler/backend/instruction.h"
 #include "src/flags.h"
 #include "src/globals.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

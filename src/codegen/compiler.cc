@@ -33,13 +33,13 @@
 #include "src/logging/log-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/map.h"
-#include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/snapshot/code-serializer.h"
+#include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 namespace v8 {

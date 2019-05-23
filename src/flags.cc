@@ -10,14 +10,14 @@
 #include <cstdlib>
 #include <sstream>
 
-#include "src/allocation.h"
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/cpu-features.h"
 #include "src/logging/counters.h"
-#include "src/memcopy.h"
-#include "src/ostreams.h"
-#include "src/utils.h"
+#include "src/utils/allocation.h"
+#include "src/utils/memcopy.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/utils.h"
 #include "src/wasm/wasm-limits.h"
 
 namespace v8 {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/memcopy.h"
+#include "src/utils/memcopy.h"
 
 #include "src/snapshot/embedded-data.h"
 

@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "src/allocation.h"
+#include "src/utils/allocation.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

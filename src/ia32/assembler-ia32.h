@@ -46,7 +46,7 @@
 #include "src/ia32/register-ia32.h"
 #include "src/ia32/sse-instr.h"
 #include "src/objects/smi.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

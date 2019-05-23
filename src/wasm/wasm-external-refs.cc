@@ -11,7 +11,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
-#include "src/memcopy.h"
+#include "src/utils/memcopy.h"
 
 #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
     defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER) ||    \
@@ -29,7 +29,7 @@
 #include "src/trap-handler/trap-handler.h"
 #endif
 
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "src/v8memory.h"
 #include "src/wasm/wasm-external-refs.h"
 

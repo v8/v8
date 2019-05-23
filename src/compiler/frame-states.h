@@ -8,7 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/handles/handles.h"
 #include "src/objects/shared-function-info.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

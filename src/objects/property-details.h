@@ -6,10 +6,10 @@
 #define V8_OBJECTS_PROPERTY_DETAILS_H_
 
 #include "include/v8.h"
-#include "src/allocation.h"
+#include "src/utils/allocation.h"
 // TODO(bmeurer): Remove once FLAG_modify_field_representation_inplace is gone.
 #include "src/flags.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

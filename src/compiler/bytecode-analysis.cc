@@ -6,8 +6,8 @@
 
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-array-random-iterator.h"
+#include "src/utils/ostreams.h"
 #include "src/objects/objects-inl.h"
-#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {

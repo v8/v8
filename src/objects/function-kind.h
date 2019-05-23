@@ -6,7 +6,7 @@
 #ifndef V8_OBJECTS_FUNCTION_KIND_H_
 #define V8_OBJECTS_FUNCTION_KIND_H_
 
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

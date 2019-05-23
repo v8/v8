@@ -12,13 +12,13 @@
 #include "src/objects/oddball.h"
 #include "src/objects/string-comparator.h"
 #include "src/objects/string-inl.h"
-#include "src/ostreams.h"
 #include "src/strings/char-predicates.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/strings/string-hasher.h"
 #include "src/strings/string-search.h"
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-inl.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

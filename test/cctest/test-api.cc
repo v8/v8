@@ -61,7 +61,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/strings/unicode-inl.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "src/wasm/wasm-js.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"

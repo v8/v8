@@ -35,8 +35,8 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/simulator.h"
 #include "src/objects/heap-number.h"
+#include "src/utils/ostreams.h"
 #include "src/objects/objects-inl.h"
-#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {

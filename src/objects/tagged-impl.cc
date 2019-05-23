@@ -7,8 +7,8 @@
 #include <sstream>
 
 #include "src/objects/objects.h"
-#include "src/ostreams.h"
 #include "src/strings/string-stream.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

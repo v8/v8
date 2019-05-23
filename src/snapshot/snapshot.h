@@ -8,7 +8,7 @@
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/startup-serializer.h"
 
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

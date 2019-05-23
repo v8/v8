@@ -34,8 +34,8 @@
 #include "src/execution/simulator.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-array-inl.h"
+#include "src/utils/ostreams.h"
 #include "src/objects/objects-inl.h"
-#include "src/ostreams.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 

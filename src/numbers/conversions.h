@@ -7,7 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/globals.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

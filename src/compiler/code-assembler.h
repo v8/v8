@@ -11,7 +11,6 @@
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
-#include "src/allocation.h"
 #include "src/base/macros.h"
 #include "src/base/type-traits.h"
 #include "src/builtins/builtins.h"
@@ -30,6 +29,7 @@
 #include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/runtime/runtime.h"
+#include "src/utils/allocation.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

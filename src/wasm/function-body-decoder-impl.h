@@ -10,7 +10,7 @@
 
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/small-vector.h"
-#include "src/bit-vector.h"
+#include "src/utils/bit-vector.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-features.h"

@@ -9,9 +9,9 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/boxed-float.h"
 #include "src/globals.h"
-#include "src/utils.h"
+#include "src/utils/boxed-float.h"
+#include "src/utils/utils.h"
 
 // ARM EABI is required.
 #if defined(__arm__) && !defined(__ARM_EABI__)

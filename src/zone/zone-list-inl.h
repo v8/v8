@@ -9,7 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/memcopy.h"
+#include "src/utils/memcopy.h"
 
 namespace v8 {
 namespace internal {

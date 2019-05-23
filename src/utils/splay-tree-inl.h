@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SPLAY_TREE_INL_H_
-#define V8_SPLAY_TREE_INL_H_
+#ifndef V8_UTILS_SPLAY_TREE_INL_H_
+#define V8_UTILS_SPLAY_TREE_INL_H_
 
 #include <vector>
 
-#include "src/splay-tree.h"
+#include "src/utils/splay-tree.h"
 
 namespace v8 {
 namespace internal {
@@ -289,4 +289,4 @@ void SplayTree<Config, Allocator>::ForEachNode(Callback* callback) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SPLAY_TREE_INL_H_
+#endif  // V8_UTILS_SPLAY_TREE_INL_H_

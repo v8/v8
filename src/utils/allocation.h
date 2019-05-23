@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_ALLOCATION_H_
-#define V8_ALLOCATION_H_
+#ifndef V8_UTILS_ALLOCATION_H_
+#define V8_UTILS_ALLOCATION_H_
 
 #include "include/v8-platform.h"
 #include "src/base/address-region.h"
@@ -30,7 +30,7 @@ class Isolate;
 class V8_EXPORT_PRIVATE Malloced {
  public:
   void* operator new(size_t size) { return New(size); }
-  void  operator delete(void* p) { Delete(p); }
+  void operator delete(void* p) { Delete(p); }
 
   static void* New(size_t size);
   static void Delete(void* p);
@@ -60,13 +60,11 @@ void DeleteArray(T* array) {
   delete[] array;
 }
 
-
 // The normal strdup functions use malloc.  These versions of StrDup
 // and StrNDup uses new and calls the FatalProcessOutOfMemory handler
 // if allocation fails.
 V8_EXPORT_PRIVATE char* StrDup(const char* str);
 char* StrNDup(const char* str, int n);
-
 
 // Allocation policy for allocating in the C free store using malloc
 // and free. Used as the default policy for lists.
@@ -81,7 +79,7 @@ class FreeStoreAllocationPolicy {
 void* AllocWithRetry(size_t size);
 
 V8_EXPORT_PRIVATE void* AlignedAlloc(size_t size, size_t alignment);
-void AlignedFree(void *ptr);
+void AlignedFree(void* ptr);
 
 // Returns platfrom page allocator instance. Guaranteed to be a valid pointer.
 V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformPageAllocator();
@@ -253,4 +251,4 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ALLOCATION_H_
+#endif  // V8_UTILS_ALLOCATION_H_

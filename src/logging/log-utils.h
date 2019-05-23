@@ -9,12 +9,12 @@
 
 #include <cstdarg>
 
-#include "src/allocation.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
-#include "src/ostreams.h"
+#include "src/utils/allocation.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

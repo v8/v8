@@ -38,7 +38,7 @@
 #include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
 #include "src/strings/unicode-inl.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

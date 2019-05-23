@@ -6,7 +6,7 @@
 #define V8_PARSING_LITERAL_BUFFER_H_
 
 #include "src/strings/unicode-decoder.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

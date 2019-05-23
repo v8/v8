@@ -4,7 +4,6 @@
 
 #include "src/compiler/backend/code-generator.h"
 
-#include "src/address-map.h"
 #include "src/base/adapters.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -19,6 +18,7 @@
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/smi.h"
+#include "src/utils/address-map.h"
 
 namespace v8 {
 namespace internal {

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_POINTER_WITH_PAYLOAD_H_
-#define V8_POINTER_WITH_PAYLOAD_H_
+#ifndef V8_UTILS_POINTER_WITH_PAYLOAD_H_
+#define V8_UTILS_POINTER_WITH_PAYLOAD_H_
 
 #include <cstdint>
 #include <type_traits>
@@ -101,4 +101,4 @@ class PointerWithPayload {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_POINTER_WITH_PAYLOAD_H_
+#endif  // V8_UTILS_POINTER_WITH_PAYLOAD_H_

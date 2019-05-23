@@ -5,11 +5,11 @@
 #ifndef V8_CODEGEN_CODE_FACTORY_H_
 #define V8_CODEGEN_CODE_FACTORY_H_
 
-#include "src/allocation.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/globals.h"
 #include "src/type-hints.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

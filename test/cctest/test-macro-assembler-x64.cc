@@ -35,7 +35,7 @@
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 #include "src/x64/assembler-x64-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"

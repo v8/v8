@@ -9,11 +9,11 @@
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
-#include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/property-sequences.h"
 #include "src/strings/char-predicates-inl.h"
-#include "src/utils.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/utils.h"
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT

@@ -5,7 +5,6 @@
 #ifndef V8_HEAP_STORE_BUFFER_H_
 #define V8_HEAP_STORE_BUFFER_H_
 
-#include "src/allocation.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/cancelable-task.h"
@@ -13,6 +12,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

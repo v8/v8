@@ -13,7 +13,7 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/diagnostics/disasm.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "src/x64/register-x64.h"
 #include "src/x64/sse-instr.h"
 

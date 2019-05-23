@@ -13,7 +13,7 @@
 #include "src/objects/name.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

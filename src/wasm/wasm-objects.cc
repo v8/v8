@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/wasm/wasm-objects.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 #include "src/base/iterator.h"
 #include "src/codegen/assembler-inl.h"
@@ -16,7 +16,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/struct-inl.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"

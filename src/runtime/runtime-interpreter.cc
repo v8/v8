@@ -14,9 +14,9 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
-#include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/snapshot/snapshot.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

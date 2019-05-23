@@ -5,12 +5,12 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_COMMON_H_
 #define V8_SNAPSHOT_SERIALIZER_COMMON_H_
 
-#include "src/address-map.h"
 #include "src/base/bits.h"
 #include "src/external-reference-table.h"
 #include "src/globals.h"
 #include "src/sanitizer/msan.h"
 #include "src/snapshot/references.h"
+#include "src/utils/address-map.h"
 #include "src/v8memory.h"
 #include "src/visitors.h"
 

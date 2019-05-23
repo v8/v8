@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/allocation.h"
+#include "src/utils/allocation.h"
 
 #include <stdlib.h>  // For free, malloc.
 #include "src/base/bits.h"
@@ -10,10 +10,10 @@
 #include "src/base/logging.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
-#include "src/memcopy.h"
 #include "src/sanitizer/lsan-page-allocator.h"
+#include "src/utils/memcopy.h"
+#include "src/utils/vector.h"
 #include "src/v8.h"
-#include "src/vector.h"
 
 #if V8_LIBC_BIONIC
 #include <malloc.h>  // NOLINT
@@ -92,9 +92,7 @@ void* Malloced::New(size_t size) {
   return result;
 }
 
-void Malloced::Delete(void* p) {
-  free(p);
-}
+void Malloced::Delete(void* p) { free(p); }
 
 char* StrDup(const char* str) {
   size_t length = strlen(str);
@@ -138,7 +136,7 @@ void* AlignedAlloc(size_t size, size_t alignment) {
   return result;
 }
 
-void AlignedFree(void *ptr) {
+void AlignedFree(void* ptr) {
 #if V8_OS_WIN
   _aligned_free(ptr);
 #elif V8_LIBC_BIONIC

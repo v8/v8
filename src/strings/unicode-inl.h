@@ -7,7 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/strings/unicode.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace unibrow {
 

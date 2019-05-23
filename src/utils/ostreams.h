@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_OSTREAMS_H_
-#define V8_OSTREAMS_H_
+#ifndef V8_UTILS_OSTREAMS_H_
+#define V8_UTILS_OSTREAMS_H_
 
 #include <cstddef>
 #include <cstdio>
@@ -95,12 +95,10 @@ struct AsUC16 {
   uint16_t value;
 };
 
-
 struct AsUC32 {
   explicit AsUC32(int32_t v) : value(v) {}
   int32_t value;
 };
-
 
 struct AsReversiblyEscapedUC16 {
   explicit AsReversiblyEscapedUC16(uint16_t v) : value(v) {}
@@ -193,4 +191,4 @@ std::ostream& operator<<(std::ostream& os, const PrintIteratorRange<T>& range) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_OSTREAMS_H_
+#endif  // V8_UTILS_OSTREAMS_H_

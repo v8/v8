@@ -15,12 +15,12 @@
 #include <vector>
 
 #include "include/v8-profiler.h"
-#include "src/allocation.h"
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/source-position.h"
 #include "src/logging/code-events.h"
 #include "src/profiler/strings-storage.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

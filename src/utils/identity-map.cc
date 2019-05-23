@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/identity-map.h"
+#include "src/utils/identity-map.h"
 
 #include "src/base/functional.h"
 #include "src/heap/heap.h"

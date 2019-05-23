@@ -35,7 +35,7 @@
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
-#include "src/ostreams.h"
+#include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

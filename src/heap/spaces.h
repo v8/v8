@@ -12,7 +12,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/export-template.h"
@@ -28,8 +27,9 @@
 #include "src/objects/free-space.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/map.h"
+#include "src/utils/allocation.h"
+#include "src/utils/utils.h"
 #include "src/objects/objects.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

@@ -6,7 +6,7 @@
 #define V8_STRINGS_UNICODE_DECODER_H_
 
 #include "src/strings/unicode.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BOXED_FLOAT_H_
-#define V8_BOXED_FLOAT_H_
+#ifndef V8_UTILS_BOXED_FLOAT_H_
+#define V8_UTILS_BOXED_FLOAT_H_
 
 #include <cmath>
 #include "src/base/macros.h"
@@ -95,4 +95,4 @@ ASSERT_TRIVIALLY_COPYABLE(Float64);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_BOXED_FLOAT_H_
+#endif  // V8_UTILS_BOXED_FLOAT_H_

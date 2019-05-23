@@ -26,7 +26,7 @@
 #include "src/objects/objects-definitions.h"
 #include "src/objects/property-details.h"
 #include "src/objects/tagged-impl.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

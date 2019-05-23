@@ -16,7 +16,7 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
-#include "src/pointer-with-payload.h"
+#include "src/utils/pointer-with-payload.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {

@@ -19,9 +19,9 @@
 #include "src/diagnostics/disasm.h"
 #include "src/heap/combined-heap.h"
 #include "src/mips/constants-mips.h"
-#include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
-#include "src/vector.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

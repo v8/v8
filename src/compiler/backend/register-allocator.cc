@@ -11,7 +11,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/compiler/linkage.h"
 #include "src/strings/string-stream.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

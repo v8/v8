@@ -70,8 +70,8 @@
 #include "src/strings/unicode-decoder.h"
 #include "src/strings/unicode-inl.h"
 #include "src/tracing/trace-event.h"
-#include "src/utils-inl.h"
-#include "src/utils.h"
+#include "src/utils/utils-inl.h"
+#include "src/utils/utils.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
 

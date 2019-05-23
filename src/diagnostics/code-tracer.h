@@ -5,11 +5,11 @@
 #ifndef V8_DIAGNOSTICS_CODE_TRACER_H_
 #define V8_DIAGNOSTICS_CODE_TRACER_H_
 
-#include "src/allocation.h"
 #include "src/flags.h"
 #include "src/globals.h"
-#include "src/utils.h"
-#include "src/vector.h"
+#include "src/utils/allocation.h"
+#include "src/utils/utils.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {

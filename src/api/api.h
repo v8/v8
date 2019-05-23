@@ -6,7 +6,6 @@
 #define V8_API_API_H_
 
 #include "include/v8-testing.h"
-#include "src/detachable-vector.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/bigint.h"
@@ -18,6 +17,7 @@
 #include "src/objects/module.h"
 #include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
+#include "src/utils/detachable-vector.h"
 
 #include "src/objects/templates.h"
 

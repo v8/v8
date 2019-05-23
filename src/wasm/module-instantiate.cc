@@ -9,7 +9,7 @@
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/tracing/trace-event.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"

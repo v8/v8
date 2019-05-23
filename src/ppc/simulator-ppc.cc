@@ -18,10 +18,10 @@
 #include "src/diagnostics/disasm.h"
 #include "src/heap/combined-heap.h"
 #include "src/objects/objects-inl.h"
-#include "src/ostreams.h"
 #include "src/ppc/constants-ppc.h"
 #include "src/ppc/frame-constants-ppc.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/utils/ostreams.h"
 
 // Only build the simulator if not compiling for real PPC hardware.
 namespace v8 {

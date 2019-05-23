@@ -34,7 +34,7 @@
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 #include "src/visitors.h"
 
 namespace v8 {

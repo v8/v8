@@ -15,7 +15,6 @@
 #include "include/v8-inspector.h"
 #include "include/v8-internal.h"
 #include "include/v8.h"
-#include "src/allocation.h"
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/debug/interface-types.h"
@@ -34,6 +33,7 @@
 #include "src/objects/debug-objects.h"
 #include "src/runtime/runtime.h"
 #include "src/strings/unicode.h"
+#include "src/utils/allocation.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uversion.h"  // Define U_ICU_NAMESPACE.

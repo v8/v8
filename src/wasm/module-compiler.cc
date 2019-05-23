@@ -17,12 +17,12 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
-#include "src/identity-map.h"
 #include "src/logging/counters.h"
 #include "src/objects/property-descriptor.h"
 #include "src/task-utils.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/utils/identity-map.h"
 #include "src/wasm/js-to-wasm-wrapper-cache.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"

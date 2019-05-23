@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 #include <stdarg.h>
 #include <sys/stat.h>
@@ -11,7 +11,7 @@
 #include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
-#include "src/memcopy.h"
+#include "src/utils/memcopy.h"
 
 namespace v8 {
 namespace internal {
@@ -21,13 +21,11 @@ SimpleStringBuilder::SimpleStringBuilder(int size) {
   position_ = 0;
 }
 
-
 void SimpleStringBuilder::AddString(const char* s) {
   size_t len = strlen(s);
   DCHECK_GE(kMaxInt, len);
   AddSubstring(s, static_cast<int>(len));
 }
-
 
 void SimpleStringBuilder::AddSubstring(const char* s, int n) {
   DCHECK(!is_finalized() && position_ + n <= buffer_.length());
@@ -36,13 +34,11 @@ void SimpleStringBuilder::AddSubstring(const char* s, int n) {
   position_ += n;
 }
 
-
 void SimpleStringBuilder::AddPadding(char c, int count) {
   for (int i = 0; i < count; i++) {
     AddCharacter(c);
   }
 }
-
 
 void SimpleStringBuilder::AddDecimalInteger(int32_t value) {
   uint32_t number = static_cast<uint32_t>(value);
@@ -60,7 +56,6 @@ void SimpleStringBuilder::AddDecimalInteger(int32_t value) {
     number /= 10;
   }
 }
-
 
 char* SimpleStringBuilder::Finalize() {
   DCHECK(!is_finalized() && position_ <= buffer_.length());
@@ -83,17 +78,14 @@ std::ostream& operator<<(std::ostream& os, FeedbackSlot slot) {
   return os << "#" << slot.id_;
 }
 
-
 size_t hash_value(BailoutId id) {
   base::hash<int> h;
   return h(id.id_);
 }
 
-
 std::ostream& operator<<(std::ostream& os, BailoutId id) {
   return os << id.id_;
 }
-
 
 void PrintF(const char* format, ...) {
   va_list arguments;
@@ -102,14 +94,12 @@ void PrintF(const char* format, ...) {
   va_end(arguments);
 }
 
-
 void PrintF(FILE* out, const char* format, ...) {
   va_list arguments;
   va_start(arguments, format);
   base::OS::VFPrint(out, format, arguments);
   va_end(arguments);
 }
-
 
 void PrintPID(const char* format, ...) {
   base::OS::Print("[%d] ", base::OS::GetCurrentProcessId());
@@ -119,7 +109,6 @@ void PrintPID(const char* format, ...) {
   va_end(arguments);
 }
 
-
 void PrintIsolate(void* isolate, const char* format, ...) {
   base::OS::Print("[%d:%p] ", base::OS::GetCurrentProcessId(), isolate);
   va_list arguments;
@@ -127,7 +116,6 @@ void PrintIsolate(void* isolate, const char* format, ...) {
   base::OS::VPrint(format, arguments);
   va_end(arguments);
 }
-
 
 int SNPrintF(Vector<char> str, const char* format, ...) {
   va_list args;
@@ -137,21 +125,15 @@ int SNPrintF(Vector<char> str, const char* format, ...) {
   return result;
 }
 
-
 int VSNPrintF(Vector<char> str, const char* format, va_list args) {
   return base::OS::VSNPrintF(str.begin(), str.length(), format, args);
 }
-
 
 void StrNCpy(Vector<char> dest, const char* src, size_t n) {
   base::OS::StrNCpy(dest.begin(), dest.length(), src, n);
 }
 
-
-void Flush(FILE* out) {
-  fflush(out);
-}
-
+void Flush(FILE* out) { fflush(out); }
 
 char* ReadLine(const char* prompt) {
   char* result = nullptr;
@@ -169,9 +151,7 @@ char* ReadLine(const char* prompt) {
       return nullptr;
     }
     size_t len = strlen(line_buf);
-    if (len > 1 &&
-        line_buf[len - 2] == '\\' &&
-        line_buf[len - 1] == '\n') {
+    if (len > 1 && line_buf[len - 2] == '\\' && line_buf[len - 1] == '\n') {
       // When we read a line that ends with a "\" we remove the escape and
       // append the remainder.
       line_buf[len - 2] = '\n';
@@ -261,7 +241,6 @@ std::string ReadFile(FILE* file, bool* exists, bool verbose) {
   return VectorToString(result);
 }
 
-
 int WriteCharsToFile(const char* str, int size, FILE* f) {
   int total = 0;
   while (total < size) {
@@ -275,11 +254,7 @@ int WriteCharsToFile(const char* str, int size, FILE* f) {
   return total;
 }
 
-
-int AppendChars(const char* filename,
-                const char* str,
-                int size,
-                bool verbose) {
+int AppendChars(const char* filename, const char* str, int size, bool verbose) {
   FILE* f = base::OS::FOpen(filename, "ab");
   if (f == nullptr) {
     if (verbose) {
@@ -292,11 +267,7 @@ int AppendChars(const char* filename,
   return written;
 }
 
-
-int WriteChars(const char* filename,
-               const char* str,
-               int size,
-               bool verbose) {
+int WriteChars(const char* filename, const char* str, int size, bool verbose) {
   FILE* f = base::OS::FOpen(filename, "wb");
   if (f == nullptr) {
     if (verbose) {
@@ -309,16 +280,11 @@ int WriteChars(const char* filename,
   return written;
 }
 
-
-int WriteBytes(const char* filename,
-               const byte* bytes,
-               int size,
+int WriteBytes(const char* filename, const byte* bytes, int size,
                bool verbose) {
   const char* str = reinterpret_cast<const char*>(bytes);
   return WriteChars(filename, str, size, verbose);
 }
-
-
 
 void StringBuilder::AddFormatted(const char* format, ...) {
   va_list arguments;
@@ -326,7 +292,6 @@ void StringBuilder::AddFormatted(const char* format, ...) {
   AddFormattedList(format, arguments);
   va_end(arguments);
 }
-
 
 void StringBuilder::AddFormattedList(const char* format, va_list list) {
   DCHECK(!is_finalized() && position_ <= buffer_.length());

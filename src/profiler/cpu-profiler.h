@@ -7,7 +7,6 @@
 
 #include <memory>
 
-#include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/condition-variable.h"
@@ -15,10 +14,11 @@
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
 #include "src/libsampler/sampler.h"
-#include "src/locked-queue.h"
 #include "src/profiler/circular-queue.h"
 #include "src/profiler/profiler-listener.h"
 #include "src/profiler/tick-sample.h"
+#include "src/utils/allocation.h"
+#include "src/utils/locked-queue.h"
 
 namespace v8 {
 namespace internal {

@@ -9,7 +9,7 @@
 #include "src/objects/code.h"
 
 #if !defined(USE_SIMULATOR)
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #endif
 
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64

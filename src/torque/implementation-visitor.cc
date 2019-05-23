@@ -77,7 +77,7 @@ void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
   if (nspace != GlobalContext::GetDefaultNamespace()) {
     header << "#include \"src/codegen/code-stub-assembler.h\"\n";
   }
-  header << "#include \"src/utils.h\"\n";
+  header << "#include \"src/utils/utils.h\"\n";
   header << "#include \"torque-generated/field-offsets-tq.h\"\n";
   header << "\n";
 

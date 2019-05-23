@@ -5,10 +5,10 @@
 #ifndef V8_INIT_ISOLATE_ALLOCATOR_H_
 #define V8_INIT_ISOLATE_ALLOCATOR_H_
 
-#include "src/allocation.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/page-allocator.h"
 #include "src/globals.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 

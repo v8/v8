@@ -27,7 +27,7 @@
 #include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/managed.h"
 #include "src/runtime/runtime-utils.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

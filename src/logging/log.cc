@@ -26,17 +26,17 @@
 #include "src/logging/counters.h"
 #include "src/logging/log-inl.h"
 #include "src/logging/log-utils.h"
-#include "src/memcopy.h"
 #include "src/objects/api-callbacks.h"
 #include "src/profiler/tick-sample.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-inl.h"
 #include "src/tracing/tracing-category-observer.h"
+#include "src/utils/memcopy.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects-inl.h"
 
-#include "src/version.h"
+#include "src/utils/version.h"
 
 namespace v8 {
 namespace internal {

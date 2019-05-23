@@ -19,12 +19,12 @@
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/template-objects-inl.h"
-#include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/snapshot/snapshot.h"
 #include "src/strings/string-builder-inl.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

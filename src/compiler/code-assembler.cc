@@ -19,9 +19,9 @@
 #include "src/compiler/schedule.h"
 #include "src/execution/frames.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/memcopy.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
+#include "src/utils/memcopy.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
