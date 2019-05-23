@@ -823,6 +823,59 @@ namespace test {
     assert(a.b.GetX() == 2);
   }
 
+  @noVerifier
+  extern class TestClassWithAllTypes extends JSObject {
+    a: int8;
+    b: uint8;
+    b2: uint8;
+    b3: uint8;
+    c: int16;
+    d: uint16;
+    e: int32;
+    f: uint32;
+    g: RawPtr;
+    h: intptr;
+    i: uintptr;
+  }
+
+  // This class should throw alignment errors if @if decorators aren't
+  // working.
+  @noVerifier
+  extern class PreprocessingTest extends JSObject {
+    @if(FALSE_FOR_TESTING) a: int8;
+    @if(TRUE_FOR_TESTING) a: int16;
+    b: int16;
+    d: int32;
+    @ifnot(TRUE_FOR_TESTING) e: int8;
+    @ifnot(FALSE_FOR_TESTING) f: int16;
+    g: int16;
+    h: int32;
+  }
+
+  @export
+  macro TestClassWithAllTypesLoadsAndStores(
+      t: TestClassWithAllTypes, r: RawPtr, v1: int8, v2: uint8, v3: int16,
+      v4: uint16) {
+    t.a = v1;
+    t.b = v2;
+    t.c = v3;
+    t.d = v4;
+    t.e = 0;
+    t.f = 0;
+    t.g = r;
+    t.h = 0;
+    t.i = 0;
+    t.a = t.a;
+    t.b = t.b;
+    t.c = t.c;
+    t.d = t.d;
+    t.e = t.e;
+    t.f = t.f;
+    t.g = t.g;
+    t.h = t.h;
+    t.i = t.i;
+  }
+
   class InternalClass {
     Flip() labels NotASmi {
       const tmp = Cast<Smi>(this.b) otherwise NotASmi;
@@ -902,6 +955,24 @@ namespace test {
     check(array.a == 2);
     check(array.b == 9);
   }
+
+  type Baztype = Foo | FooType;
+
+  @abstract
+  @noVerifier
+  extern class Foo extends JSObject {
+    fooField: FooType;
+  }
+
+  @noVerifier
+  extern class Bar extends Foo {
+    barField: Bartype;
+    bazfield: Baztype;
+  }
+
+  type Bartype = FooType;
+
+  type FooType = Smi | Bar;
 
   @export
   macro TestStaticAssert() {
