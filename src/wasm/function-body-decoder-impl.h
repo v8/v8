@@ -1686,9 +1686,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   // Decodes the body of a function.
   void DecodeFunctionBody() {
-    TRACE("wasm-decode %p...%p (module+%u, %d bytes)\n",
-          reinterpret_cast<const void*>(this->start()),
-          reinterpret_cast<const void*>(this->end()), this->pc_offset(),
+    TRACE("wasm-decode %p...%p (module+%u, %d bytes)\n", this->start(),
+          this->end(), this->pc_offset(),
           static_cast<int>(this->end() - this->start()));
 
     // Set up initial function block.

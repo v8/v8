@@ -1430,11 +1430,11 @@ void IndirectFunctionTableEntry::clear() {
 void IndirectFunctionTableEntry::Set(int sig_id,
                                      Handle<WasmInstanceObject> target_instance,
                                      int target_func_index) {
-  TRACE_IFT(
-      "IFT entry %p[%d] = {sig_id=%d, target_instance=%p, "
-      "target_func_index=%d}\n",
-      reinterpret_cast<void*>(instance_->ptr()), index_, sig_id,
-      reinterpret_cast<void*>(target_instance->ptr()), target_func_index);
+  TRACE_IFT("IFT entry 0x%" PRIxPTR
+            "[%d] = {sig_id=%d, target_instance=0x%" PRIxPTR
+            ", target_func_index=%d}\n",
+            instance_->ptr(), index_, sig_id, target_instance->ptr(),
+            target_func_index);
 
   Object ref;
   Address call_target = 0;
@@ -1485,9 +1485,9 @@ void IndirectFunctionTableEntry::CopyFrom(
 void ImportedFunctionEntry::SetWasmToJs(
     Isolate* isolate, Handle<JSReceiver> callable,
     const wasm::WasmCode* wasm_to_js_wrapper) {
-  TRACE_IFT("Import callable %p[%d] = {callable=%p, target=%p}\n",
-            reinterpret_cast<void*>(instance_->ptr()), index_,
-            reinterpret_cast<void*>(callable->ptr()),
+  TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
+            ", target=%p}\n",
+            instance_->ptr(), index_, callable->ptr(),
             wasm_to_js_wrapper->instructions().begin());
   DCHECK(wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToJsWrapper ||
          wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToCapiWrapper);
@@ -1500,9 +1500,9 @@ void ImportedFunctionEntry::SetWasmToJs(
 
 void ImportedFunctionEntry::SetWasmToWasm(WasmInstanceObject instance,
                                           Address call_target) {
-  TRACE_IFT("Import WASM %p[%d] = {instance=%p, target=%" PRIuPTR "}\n",
-            reinterpret_cast<void*>(instance_->ptr()), index_,
-            reinterpret_cast<void*>(instance.ptr()), call_target);
+  TRACE_IFT("Import WASM 0x%" PRIxPTR "[%d] = {instance=0x%" PRIxPTR
+            ", target=0x%" PRIxPTR "}\n",
+            instance_->ptr(), index_, instance.ptr(), call_target);
   instance_->imported_function_refs().set(index_, instance);
   instance_->imported_function_targets()[index_] = call_target;
 }

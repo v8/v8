@@ -628,8 +628,8 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
 
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
   TRACE("init [globals_start=%p + %u] = %lf, type = %s\n",
-        reinterpret_cast<void*>(raw_buffer_ptr(untagged_globals_, 0)),
-        global.offset, num, ValueTypes::TypeName(global.type));
+        raw_buffer_ptr(untagged_globals_, 0), global.offset, num,
+        ValueTypes::TypeName(global.type));
   switch (global.type) {
     case kWasmI32:
       WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global),
@@ -654,16 +654,15 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
 
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, int64_t num) {
   TRACE("init [globals_start=%p + %u] = %" PRId64 ", type = %s\n",
-        reinterpret_cast<void*>(raw_buffer_ptr(untagged_globals_, 0)),
-        global.offset, num, ValueTypes::TypeName(global.type));
+        raw_buffer_ptr(untagged_globals_, 0), global.offset, num,
+        ValueTypes::TypeName(global.type));
   DCHECK_EQ(kWasmI64, global.type);
   WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global), num);
 }
 
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
                                        Handle<WasmGlobalObject> value) {
-  TRACE("init [globals_start=%p + %u] = ",
-        reinterpret_cast<void*>(raw_buffer_ptr(untagged_globals_, 0)),
+  TRACE("init [globals_start=%p + %u] = ", raw_buffer_ptr(untagged_globals_, 0),
         global.offset);
   switch (global.type) {
     case kWasmI32: {

@@ -367,8 +367,7 @@ class ModuleDecoderImpl : public Decoder {
     if (failed()) return;
     Reset(bytes, offset);
     TRACE("Section: %s\n", SectionName(section_code));
-    TRACE("Decode Section %p - %p\n", static_cast<const void*>(bytes.begin()),
-          static_cast<const void*>(bytes.end()));
+    TRACE("Decode Section %p - %p\n", bytes.begin(), bytes.end());
 
     // Check if the section is out-of-order.
     if (section_code < next_ordered_section_ &&

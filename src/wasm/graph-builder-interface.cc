@@ -628,7 +628,7 @@ class WasmGraphBuildingInterface {
             break;
         }
       }
-      PrintF("{set_env = %p, state = %c", static_cast<void*>(env), state);
+      PrintF("{set_env = %p, state = %c", env, state);
       if (env && env->control) {
         PrintF(", control = ");
         compiler::WasmGraphBuilder::PrintDebugName(env->control);

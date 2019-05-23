@@ -515,8 +515,8 @@ Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
   allocated_code_space_.Merge(code_space);
   generated_code_size_.fetch_add(code_space.size(), std::memory_order_relaxed);
 
-  TRACE_HEAP("Code alloc for %p: %" PRIxPTR ",+%zu\n", this, code_space.begin(),
-             size);
+  TRACE_HEAP("Code alloc for %p: 0x%" PRIxPTR ",+%zu\n", this,
+             code_space.begin(), size);
   return {reinterpret_cast<byte*>(code_space.begin()), code_space.size()};
 }
 
@@ -561,9 +561,8 @@ bool WasmCodeAllocator::SetExecutable(bool executable) {
                           permission)) {
         return false;
       }
-      TRACE_HEAP("Set %p:%p to executable:%d\n",
-                 reinterpret_cast<void*>(region.begin()),
-                 reinterpret_cast<void*>(region.end()), executable);
+      TRACE_HEAP("Set 0x%" PRIxPTR ":0x%" PRIxPTR " to executable:%d\n",
+                 region.begin(), region.end(), executable);
     }
   }
   is_executable_ = executable;
@@ -1198,9 +1197,8 @@ bool WasmCodeManager::Commit(base::AddressRegion region) {
 
   bool ret = SetPermissions(GetPlatformPageAllocator(), region.begin(),
                             region.size(), permission);
-  TRACE_HEAP("Setting rw permissions for %p:%p\n",
-             reinterpret_cast<void*>(region.begin()),
-             reinterpret_cast<void*>(region.end()));
+  TRACE_HEAP("Setting rw permissions for 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
+             region.begin(), region.end());
 
   if (!ret) {
     // Highly unlikely.
@@ -1219,9 +1217,8 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   size_t old_committed = total_committed_code_space_.fetch_sub(region.size());
   DCHECK_LE(region.size(), old_committed);
   USE(old_committed);
-  TRACE_HEAP("Discarding system pages %p:%p\n",
-             reinterpret_cast<void*>(region.begin()),
-             reinterpret_cast<void*>(region.end()));
+  TRACE_HEAP("Discarding system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
+             region.begin(), region.end());
   CHECK(allocator->DiscardSystemPages(reinterpret_cast<void*>(region.begin()),
                                       region.size()));
 }
@@ -1246,9 +1243,8 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
     memory_tracker_->ReleaseReservation(size);
     return {};
   }
-  TRACE_HEAP("VMem alloc: %p:%p (%zu)\n",
-             reinterpret_cast<void*>(mem.address()),
-             reinterpret_cast<void*>(mem.end()), mem.size());
+  TRACE_HEAP("VMem alloc: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n", mem.address(),
+             mem.end(), mem.size());
 
   // TODO(v8:8462): Remove eager commit once perf supports remapping.
   if (FLAG_perf_prof) {
@@ -1461,7 +1457,7 @@ void WasmCodeManager::FreeNativeModule(Vector<VirtualMemory> owned_code_space,
   base::MutexGuard lock(&native_modules_mutex_);
   for (auto& code_space : owned_code_space) {
     DCHECK(code_space.IsReserved());
-    TRACE_HEAP("VMem Release: %" PRIxPTR ":%" PRIxPTR " (%zu)\n",
+    TRACE_HEAP("VMem Release: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n",
                code_space.address(), code_space.end(), code_space.size());
 
 #if defined(V8_OS_WIN_X64)
