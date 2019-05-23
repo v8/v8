@@ -21,8 +21,6 @@
 #define OBJECT_CONSTRUCTORS(Type, ...)            \
  public:                                          \
   constexpr Type() : __VA_ARGS__() {}             \
-  Type* operator->() { return this; }             \
-  const Type* operator->() const { return this; } \
                                                   \
  protected:                                       \
   explicit inline Type(Address ptr)
