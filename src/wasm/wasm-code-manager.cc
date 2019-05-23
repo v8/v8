@@ -617,7 +617,7 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
       enabled_features_(enabled),
       module_(std::move(module)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
-          new WasmImportWrapperCache(this))),
+          new WasmImportWrapperCache())),
       engine_(engine),
       use_trap_handler_(trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                                              : kNoTrapHandler) {

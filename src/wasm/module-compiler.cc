@@ -1958,7 +1958,6 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
   return true;
 }
 
-namespace {
 int GetMaxBackgroundTasks() {
   if (NeedsDeterministicCompile()) return 1;
   int num_worker_threads = V8::GetCurrentPlatform()->NumberOfWorkerThreads();
@@ -1966,7 +1965,6 @@ int GetMaxBackgroundTasks() {
       std::min(FLAG_wasm_num_compilation_tasks, num_worker_threads);
   return std::max(1, num_compile_tasks);
 }
-}  // namespace
 
 CompilationStateImpl::CompilationStateImpl(
     const std::shared_ptr<NativeModule>& native_module,
@@ -2271,6 +2269,28 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     export_wrappers->set(wrapper_index, *wrapper_code);
     RecordStats(*wrapper_code, isolate->counters());
   }
+}
+
+WasmCode* CompileImportWrapper(
+    WasmEngine* wasm_engine, NativeModule* native_module, Counters* counters,
+    compiler::WasmImportCallKind kind, FunctionSig* sig,
+    WasmImportWrapperCache::ModificationScope* cache_scope) {
+  // Entry should exist, so that we don't insert a new one and invalidate
+  // other threads' iterators/references, but it should not have been compiled
+  // yet.
+  WasmImportWrapperCache::CacheKey key(kind, sig);
+  DCHECK_NULL((*cache_scope)[key]);
+  bool source_positions = native_module->module()->origin == kAsmJsOrigin;
+  // Keep the {WasmCode} alive until we explicitly call {IncRef}.
+  WasmCodeRefScope code_ref_scope;
+  WasmCode* wasm_code = compiler::CompileWasmImportCallWrapper(
+      wasm_engine, native_module, kind, sig, source_positions);
+  (*cache_scope)[key] = wasm_code;
+  wasm_code->IncRef();
+  counters->wasm_generated_code_size()->Increment(
+      wasm_code->instructions().length());
+  counters->wasm_reloc_size()->Increment(wasm_code->reloc_info().length());
+  return wasm_code;
 }
 
 Handle<Script> CreateWasmScript(Isolate* isolate,

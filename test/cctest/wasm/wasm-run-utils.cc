@@ -8,6 +8,7 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/wasm/graph-builder-interface.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -48,8 +49,15 @@ TestingModuleBuilder::TestingModuleBuilder(
     CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
     auto kind = compiler::GetWasmImportCallKind(maybe_import->js_function,
                                                 maybe_import->sig, false);
-    auto import_wrapper = native_module_->import_wrapper_cache()->GetOrCompile(
-        isolate_->wasm_engine(), isolate_->counters(), kind, maybe_import->sig);
+    WasmImportWrapperCache::ModificationScope cache_scope(
+        native_module_->import_wrapper_cache());
+    WasmImportWrapperCache::CacheKey key(kind, maybe_import->sig);
+    auto import_wrapper = cache_scope[key];
+    if (import_wrapper == nullptr) {
+      import_wrapper = CompileImportWrapper(
+          isolate_->wasm_engine(), native_module_, isolate_->counters(), kind,
+          maybe_import->sig, &cache_scope);
+    }
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
         .SetWasmToJs(isolate_, maybe_import->js_function, import_wrapper);

@@ -47,6 +47,67 @@ uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
       UNREACHABLE();
   }
 }
+
+// Queue of import wrapper keys to compile for an instance.
+class ImportWrapperQueue {
+ public:
+  // Removes an arbitrary cache key from the queue and returns it.
+  // If the queue is empty, returns nullopt.
+  // Thread-safe.
+  base::Optional<WasmImportWrapperCache::CacheKey> pop() {
+    base::Optional<WasmImportWrapperCache::CacheKey> key = base::nullopt;
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    auto it = queue_.begin();
+    if (it != queue_.end()) {
+      key = *it;
+      queue_.erase(it);
+    }
+    return key;
+  }
+
+  // Add the given key to the queue.
+  // Not thread-safe.
+  void insert(const WasmImportWrapperCache::CacheKey& key) {
+    queue_.insert(key);
+  }
+
+ private:
+  base::Mutex mutex_;
+  std::unordered_set<WasmImportWrapperCache::CacheKey,
+                     WasmImportWrapperCache::CacheKeyHash>
+      queue_;
+};
+
+class CompileImportWrapperTask final : public CancelableTask {
+ public:
+  CompileImportWrapperTask(
+      CancelableTaskManager* task_manager, WasmEngine* engine,
+      Counters* counters, NativeModule* native_module,
+      ImportWrapperQueue* queue,
+      WasmImportWrapperCache::ModificationScope* cache_scope)
+      : CancelableTask(task_manager),
+        engine_(engine),
+        counters_(counters),
+        native_module_(native_module),
+        queue_(queue),
+        cache_scope_(cache_scope) {}
+
+  void RunInternal() override {
+    while (base::Optional<WasmImportWrapperCache::CacheKey> key =
+               queue_->pop()) {
+      CompileImportWrapper(engine_, native_module_, counters_, key->first,
+                           key->second, cache_scope_);
+    }
+  }
+
+ private:
+  WasmEngine* const engine_;
+  Counters* const counters_;
+  NativeModule* const native_module_;
+  ImportWrapperQueue* const queue_;
+  WasmImportWrapperCache::ModificationScope* const cache_scope_;
+};
+
 }  // namespace
 
 // A helper class to simplify instantiating a module from a module object.
@@ -168,6 +229,10 @@ class InstanceBuilder {
                                        Handle<String> import_name,
                                        const WasmGlobal& global,
                                        Handle<WasmGlobalObject> global_object);
+
+  // Compile import wrappers in parallel. The result goes into the native
+  // module's import_wrapper_cache.
+  void CompileImportWrappers(Handle<WasmInstanceObject> instance);
 
   // Process the imports, including functions, tables, globals, and memory, in
   // order, loading them from the {ffi_} object. Returns the number of imported
@@ -819,8 +884,9 @@ bool InstanceBuilder::ProcessImportedFunction(
     default: {
       // The imported function is a callable.
       NativeModule* native_module = instance->module_object().native_module();
-      WasmCode* wasm_code = native_module->import_wrapper_cache()->GetOrCompile(
-          isolate_->wasm_engine(), isolate_->counters(), kind, expected_sig);
+      WasmCode* wasm_code =
+          native_module->import_wrapper_cache()->Get(kind, expected_sig);
+      DCHECK_NOT_NULL(wasm_code);
       ImportedFunctionEntry entry(instance, func_index);
       if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
         // Wasm to JS wrappers are treated specially in the import table.
@@ -1129,6 +1195,62 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
   return false;
 }
 
+void InstanceBuilder::CompileImportWrappers(
+    Handle<WasmInstanceObject> instance) {
+  int num_imports = static_cast<int>(module_->import_table.size());
+  NativeModule* native_module = instance->module_object().native_module();
+  WasmImportWrapperCache::ModificationScope cache_scope(
+      native_module->import_wrapper_cache());
+
+  // Compilation is done in two steps:
+  // 1) Insert nullptr entries in the cache for wrappers that need to be
+  // compiled. 2) Compile wrappers in background tasks using the
+  // ImportWrapperQueue. This way the cache won't invalidate other iterators
+  // when inserting a new WasmCode, since the key will already be there.
+  ImportWrapperQueue import_wrapper_queue;
+  for (int index = 0; index < num_imports; ++index) {
+    Handle<Object> value = sanitized_imports_[index].value;
+    if (module_->import_table[index].kind != kExternalFunction ||
+        !value->IsCallable()) {
+      continue;
+    }
+    auto js_receiver = Handle<JSReceiver>::cast(value);
+    uint32_t func_index = module_->import_table[index].index;
+    FunctionSig* sig = module_->functions[func_index].sig;
+    auto kind =
+        compiler::GetWasmImportCallKind(js_receiver, sig, enabled_.bigint);
+    if (kind == compiler::WasmImportCallKind::kWasmToWasm ||
+        kind == compiler::WasmImportCallKind::kLinkError ||
+        kind == compiler::WasmImportCallKind::kWasmToCapi) {
+      continue;
+    }
+    WasmImportWrapperCache::CacheKey key(kind, sig);
+    if (cache_scope[key] != nullptr) {
+      // Cache entry already exists, no need to compile it again.
+      continue;
+    }
+    import_wrapper_queue.insert(key);
+  }
+
+  CancelableTaskManager task_manager;
+  const int max_background_tasks = GetMaxBackgroundTasks();
+  for (int i = 0; i < max_background_tasks; ++i) {
+    auto task = base::make_unique<CompileImportWrapperTask>(
+        &task_manager, isolate_->wasm_engine(), isolate_->counters(),
+        native_module, &import_wrapper_queue, &cache_scope);
+    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
+  }
+
+  // Also compile in the current thread, in case there are no worker threads.
+  while (base::Optional<WasmImportWrapperCache::CacheKey> key =
+             import_wrapper_queue.pop()) {
+    CompileImportWrapper(isolate_->wasm_engine(), native_module,
+                         isolate_->counters(), key->first, key->second,
+                         &cache_scope);
+  }
+  task_manager.CancelAndWait();
+}
+
 // Process the imports, including functions, tables, globals, and memory, in
 // order, loading them from the {ffi_} object. Returns the number of imported
 // functions.
@@ -1137,6 +1259,8 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
   int num_imported_tables = 0;
 
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
+
+  CompileImportWrappers(instance);
   int num_imports = static_cast<int>(module_->import_table.size());
   for (int index = 0; index < num_imports; ++index) {
     const WasmImport& import = module_->import_table[index];
