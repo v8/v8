@@ -76,52 +76,55 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
   Builtin::Kind kind = !javascript ? Builtin::kStub
                                    : varargs ? Builtin::kVarArgsJavaScript
                                              : Builtin::kFixedArgsJavaScript;
-
+  const Type* context_type =
+      Declarations::LookupGlobalType(CONTEXT_TYPE_STRING);
   if (signature.types().size() == 0 ||
-      !(signature.types()[0] ==
-        Declarations::LookupGlobalType(CONTEXT_TYPE_STRING))) {
-    std::stringstream stream;
-    stream << "first parameter to builtin " << decl->name
-           << " is not a context but should be";
-    ReportError(stream.str());
+      !(signature.types()[0] == context_type)) {
+    Error("First parameter to builtin ", decl->name, " must be of type ",
+          *context_type);
   }
 
   if (varargs && !javascript) {
-    std::stringstream stream;
-    stream << "builtin " << decl->name
-           << " with rest parameters must be a JavaScript builtin";
-    ReportError(stream.str());
+    Error("Rest parameters require ", decl->name,
+          " to be a JavaScript builtin");
   }
 
   if (javascript) {
     if (signature.types().size() >= 2 &&
         !(signature.types()[1] ==
           Declarations::LookupGlobalType(OBJECT_TYPE_STRING))) {
-      std::stringstream stream;
-      stream << "second parameter to javascript builtin " << decl->name
-             << " is " << *signature.types()[1] << " but should be Object";
-      ReportError(stream.str());
+      Error("Second parameter to javascript builtin ", decl->name, " is ",
+            *signature.types()[1], " but should be Object");
     }
   }
 
   for (size_t i = 0; i < signature.types().size(); ++i) {
     if (const StructType* type =
             StructType::DynamicCast(signature.types()[i])) {
-      std::stringstream stream;
-      stream << "builtin '" << decl->name << "' uses the struct '"
-             << type->name() << "' as argument '"
-             << signature.parameter_names[i] << "'. This is not supported.";
-      ReportError(stream.str());
+      Error("Builtin '", decl->name, "' uses the struct '", type->name(),
+            "' as argument '", signature.parameter_names[i],
+            "', which is not supported.");
+    }
+  }
+
+  if (TorqueBuiltinDeclaration::DynamicCast(decl)) {
+    for (size_t i = 0; i < signature.types().size(); ++i) {
+      const Type* type = signature.types()[i];
+      if (!type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+        const Identifier* id = signature.parameter_names.size() > i
+                                   ? signature.parameter_names[i]
+                                   : nullptr;
+        Error("Untagged argument ", id ? (id->value + " ") : "", "at position ",
+              i, " to builtin ", decl->name, " is not supported.")
+            .Position(id ? id->pos : decl->pos);
+      }
     }
   }
 
   if (const StructType* struct_type =
           StructType::DynamicCast(signature.return_type)) {
-    std::stringstream stream;
-    stream << "builtins (in this case " << decl->name
-           << ") cannot return structs (in this case " << struct_type->name()
-           << ")";
-    ReportError(stream.str());
+    Error("Builtins ", decl->name, " cannot return structs ",
+          struct_type->name());
   }
 
   return Declarations::CreateBuiltin(
