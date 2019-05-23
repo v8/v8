@@ -808,7 +808,8 @@ class ModuleDecoderImpl : public Decoder {
           errorf(pos, "out of bounds table index %u", table_index);
           break;
         }
-        if (module_->tables[table_index].type != kWasmAnyFunc) {
+        if (!ValueTypes::IsSubType(module_->tables[table_index].type,
+                                   kWasmAnyFunc)) {
           errorf(pos,
                  "Invalid element segment. Table %u is not of type AnyFunc",
                  table_index);
@@ -816,7 +817,7 @@ class ModuleDecoderImpl : public Decoder {
         }
       } else {
         ValueType type = consume_reference_type();
-        if (type != kWasmAnyFunc) {
+        if (!ValueTypes::IsSubType(type, kWasmAnyFunc)) {
           error(pc_ - 1, "invalid element segment type");
           break;
         }

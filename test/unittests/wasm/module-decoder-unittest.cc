@@ -1225,7 +1225,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
   EXPECT_VERIFIES(data);
 }
 
-TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefTable) {
+TEST_F(WasmModuleVerifyTest, ElementSectionInitAnyRefTableWithAnyFunc) {
   // Test that tables of type 'AnyRef' cannot be initialized by the element
   // section.
   WASM_FEATURE_SCOPE(anyref);
@@ -1251,9 +1251,11 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefTable) {
               2,                         // elements count
               FUNC_INDEX(0),             // entry 0
               FUNC_INDEX(0)),            // entry 1
+      // code ----------------------------------------------------------------
+      ONE_EMPTY_BODY,
   };
 
-  EXPECT_FAILURE(data);
+  EXPECT_VERIFIES(data);
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefImportedTable) {
