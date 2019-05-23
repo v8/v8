@@ -15,52 +15,38 @@
 namespace v8 {
 namespace internal {
 
-class Register;
-
 class SafepointEntry {
  public:
-  SafepointEntry() : info_(0), bits_(nullptr), trampoline_pc_(-1) {}
+  SafepointEntry() : deopt_index_(0), bits_(nullptr), trampoline_pc_(-1) {}
 
-  SafepointEntry(unsigned info, uint8_t* bits, int trampoline_pc)
-      : info_(info), bits_(bits), trampoline_pc_(trampoline_pc) {
+  SafepointEntry(unsigned deopt_index, uint8_t* bits, int trampoline_pc)
+      : deopt_index_(deopt_index), bits_(bits), trampoline_pc_(trampoline_pc) {
     DCHECK(is_valid());
   }
 
   bool is_valid() const { return bits_ != nullptr; }
 
   bool Equals(const SafepointEntry& other) const {
-    return info_ == other.info_ && bits_ == other.bits_;
+    return deopt_index_ == other.deopt_index_ && bits_ == other.bits_;
   }
 
   void Reset() {
-    info_ = 0;
+    deopt_index_ = 0;
     bits_ = nullptr;
   }
 
   int trampoline_pc() { return trampoline_pc_; }
 
-  static const int kSaveDoublesFieldBits = 1;
-  static const int kDeoptIndexBits = 32 - kSaveDoublesFieldBits;
-
-  class DeoptimizationIndexField : public BitField<int, 0, kDeoptIndexBits> {};
-  class SaveDoublesField
-      : public BitField<bool, DeoptimizationIndexField::kNext,
-                        kSaveDoublesFieldBits> {};
+  static const unsigned kNoDeoptIndex = kMaxUInt32;
 
   int deoptimization_index() const {
     DCHECK(is_valid() && has_deoptimization_index());
-    return DeoptimizationIndexField::decode(info_);
+    return deopt_index_;
   }
 
   bool has_deoptimization_index() const {
     DCHECK(is_valid());
-    return DeoptimizationIndexField::decode(info_) !=
-           DeoptimizationIndexField::kMax;
-  }
-
-  bool has_doubles() const {
-    DCHECK(is_valid());
-    return SaveDoublesField::decode(info_);
+    return deopt_index_ != kNoDeoptIndex;
   }
 
   uint8_t* bits() {
@@ -68,11 +54,8 @@ class SafepointEntry {
     return bits_;
   }
 
-  bool HasRegisters() const;
-  bool HasRegisterAt(int reg_index) const;
-
  private:
-  unsigned info_;
+  unsigned deopt_index_;
   uint8_t* bits_;
   // It needs to be an integer as it is -1 for eager deoptimizations.
   int trampoline_pc_;
@@ -105,11 +88,11 @@ class SafepointTable {
 
   SafepointEntry GetEntry(unsigned index) const {
     DCHECK(index < length_);
-    unsigned info = Memory<uint32_t>(GetEncodedInfoLocation(index));
+    unsigned deopt_index = Memory<uint32_t>(GetEncodedInfoLocation(index));
     uint8_t* bits = &Memory<uint8_t>(entries_ + (index * entry_size_));
     int trampoline_pc =
         has_deopt_ ? Memory<int>(GetTrampolineLocation(index)) : -1;
-    return SafepointEntry(info, bits, trampoline_pc);
+    return SafepointEntry(deopt_index, bits, trampoline_pc);
   }
 
   // Returns the entry for the given pc.
@@ -162,26 +145,15 @@ class SafepointTable {
 
 class Safepoint {
  public:
-  typedef enum {
-    kSimple = 0,
-    kWithRegisters = 1 << 0,
-    kWithDoubles = 1 << 1,
-    kWithRegistersAndDoubles = kWithRegisters | kWithDoubles
-  } Kind;
-
   enum DeoptMode { kNoLazyDeopt, kLazyDeopt };
 
-  static const int kNoDeoptimizationIndex =
-      SafepointEntry::DeoptimizationIndexField::kMax;
+  static const int kNoDeoptimizationIndex = SafepointEntry::kNoDeoptIndex;
 
   void DefinePointerSlot(int index) { indexes_->push_back(index); }
-  void DefinePointerRegister(Register reg);
 
  private:
-  Safepoint(ZoneChunkList<int>* indexes, ZoneChunkList<int>* registers)
-      : indexes_(indexes), registers_(registers) {}
+  explicit Safepoint(ZoneChunkList<int>* indexes) : indexes_(indexes) {}
   ZoneChunkList<int>* const indexes_;
-  ZoneChunkList<int>* const registers_;
 
   friend class SafepointTableBuilder;
 };
@@ -198,8 +170,7 @@ class SafepointTableBuilder {
   unsigned GetCodeOffset() const;
 
   // Define a new safepoint for the current position in the body.
-  Safepoint DefineSafepoint(Assembler* assembler, Safepoint::Kind kind,
-                            Safepoint::DeoptMode mode);
+  Safepoint DefineSafepoint(Assembler* assembler, Safepoint::DeoptMode mode);
 
   // Record deoptimization index for lazy deoptimization for the last
   // outstanding safepoints.
@@ -222,25 +193,15 @@ class SafepointTableBuilder {
   struct DeoptimizationInfo {
     unsigned pc;
     unsigned deopt_index;
-    bool has_doubles;
     int trampoline;
     ZoneChunkList<int>* indexes;
-    ZoneChunkList<int>* registers;
-    DeoptimizationInfo(Zone* zone, unsigned pc, Safepoint::Kind kind)
+    DeoptimizationInfo(Zone* zone, unsigned pc)
         : pc(pc),
           deopt_index(Safepoint::kNoDeoptimizationIndex),
-          has_doubles(kind & Safepoint::kWithDoubles),
           trampoline(-1),
           indexes(new (zone) ZoneChunkList<int>(
-              zone, ZoneChunkList<int>::StartMode::kSmall)),
-          registers(kind & Safepoint::kWithRegisters
-                        ? new (zone) ZoneChunkList<int>(
-                              zone, ZoneChunkList<int>::StartMode::kSmall)
-                        : nullptr) {}
+              zone, ZoneChunkList<int>::StartMode::kSmall)) {}
   };
-
-  // Encodes all fields of a {DeoptimizationInfo} except {pc} and {trampoline}.
-  uint32_t EncodeExceptPC(const DeoptimizationInfo&);
 
   // Compares all fields of a {DeoptimizationInfo} except {pc} and {trampoline}.
   bool IsIdenticalExceptForPc(const DeoptimizationInfo&,

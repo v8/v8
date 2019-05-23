@@ -945,32 +945,6 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   FullObjectSlot parameters_base(&Memory<Address>(sp()));
   FullObjectSlot parameters_limit(frame_header_base.address() - slot_space);
 
-  // Skip saved double registers.
-  if (safepoint_entry.has_doubles()) {
-    // Number of doubles not known at snapshot time.
-    DCHECK(!isolate()->serializer_enabled());
-    parameters_base +=
-        RegisterConfiguration::Default()->num_allocatable_double_registers() *
-        kDoubleSize / kSystemPointerSize;
-  }
-
-  // Visit the registers that contain pointers if any.
-  if (safepoint_entry.HasRegisters()) {
-    for (int i = kNumSafepointRegisters - 1; i >= 0; i--) {
-      if (safepoint_entry.HasRegisterAt(i)) {
-        int reg_stack_index = MacroAssembler::SafepointRegisterStackIndex(i);
-        v->VisitRootPointer(Root::kTop, nullptr,
-                            parameters_base + reg_stack_index);
-      }
-    }
-    // Skip the words containing the register values.
-    parameters_base += kNumSafepointRegisters;
-  }
-
-  // We're done dealing with the register bits.
-  uint8_t* safepoint_bits = safepoint_entry.bits();
-  safepoint_bits += kNumSafepointRegisters >> kBitsPerByteLog2;
-
   // Visit the rest of the parameters if they are tagged.
   if (has_tagged_params) {
     v->VisitRootPointers(Root::kTop, nullptr, parameters_base,
@@ -979,6 +953,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
 
   DEFINE_ROOT_VALUE(isolate());
   // Visit pointer spill slots and locals.
+  uint8_t* safepoint_bits = safepoint_entry.bits();
   for (unsigned index = 0; index < stack_slots; index++) {
     int byte_index = index >> kBitsPerByteLog2;
     int bit_index = index & (kBitsPerByte - 1);

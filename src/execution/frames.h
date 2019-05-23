@@ -23,6 +23,7 @@ class ExternalCallbackScope;
 class InnerPointerToCodeCache;
 class Isolate;
 class ObjectVisitor;
+class Register;
 class RootVisitor;
 class StackFrameIteratorBase;
 class StringStream;

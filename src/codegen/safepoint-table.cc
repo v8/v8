@@ -14,24 +14,6 @@
 namespace v8 {
 namespace internal {
 
-bool SafepointEntry::HasRegisters() const {
-  DCHECK(is_valid());
-  DCHECK(IsAligned(kNumSafepointRegisters, kBitsPerByte));
-  const int num_reg_bytes = kNumSafepointRegisters >> kBitsPerByteLog2;
-  for (int i = 0; i < num_reg_bytes; i++) {
-    if (bits_[i] != SafepointTable::kNoRegisters) return true;
-  }
-  return false;
-}
-
-bool SafepointEntry::HasRegisterAt(int reg_index) const {
-  DCHECK(is_valid());
-  DCHECK(reg_index >= 0 && reg_index < kNumSafepointRegisters);
-  int byte_index = reg_index >> kBitsPerByteLog2;
-  int bit_index = reg_index & (kBitsPerByte - 1);
-  return (bits_[byte_index] & (1 << bit_index)) != 0;
-}
-
 SafepointTable::SafepointTable(Address instruction_start,
                                size_t safepoint_table_offset,
                                uint32_t stack_slots, bool has_deopt)
@@ -43,9 +25,6 @@ SafepointTable::SafepointTable(Address instruction_start,
   entry_size_ = Memory<uint32_t>(header + kEntrySizeOffset);
   pc_and_deoptimization_indexes_ = header + kHeaderSize;
   entries_ = pc_and_deoptimization_indexes_ + (length_ * kFixedEntrySize);
-  DCHECK_GT(entry_size_, 0);
-  STATIC_ASSERT(SafepointEntry::DeoptimizationIndexField::kMax ==
-                Safepoint::kNoDeoptimizationIndex);
 }
 
 SafepointTable::SafepointTable(Code code)
@@ -92,20 +71,11 @@ void SafepointTable::PrintEntry(unsigned index,
 
   // Print the stack slot bits.
   if (entry_size_ > 0) {
-    DCHECK(IsAligned(kNumSafepointRegisters, kBitsPerByte));
-    const int first = kNumSafepointRegisters >> kBitsPerByteLog2;
+    const int first = 0;
     int last = entry_size_ - 1;
     for (int i = first; i < last; i++) PrintBits(os, bits[i], kBitsPerByte);
     int last_bits = stack_slots_ - ((last - first) * kBitsPerByte);
     PrintBits(os, bits[last], last_bits);
-
-    // Print the registers (if any).
-    if (!entry.HasRegisters()) return;
-    for (int j = 0; j < kNumSafepointRegisters; j++) {
-      if (entry.HasRegisterAt(j)) {
-        os << " | " << converter.NameOfCPURegister(j);
-      }
-    }
   }
 }
 
@@ -117,20 +87,15 @@ void SafepointTable::PrintBits(std::ostream& os,  // NOLINT
   }
 }
 
-void Safepoint::DefinePointerRegister(Register reg) {
-  registers_->push_back(reg.code());
-}
-
 Safepoint SafepointTableBuilder::DefineSafepoint(
-    Assembler* assembler, Safepoint::Kind kind,
-    Safepoint::DeoptMode deopt_mode) {
+    Assembler* assembler, Safepoint::DeoptMode deopt_mode) {
   deoptimization_info_.push_back(
-      DeoptimizationInfo(zone_, assembler->pc_offset(), kind));
+      DeoptimizationInfo(zone_, assembler->pc_offset()));
   if (deopt_mode == Safepoint::kNoLazyDeopt) {
     last_lazy_safepoint_ = deoptimization_info_.size();
   }
   DeoptimizationInfo& new_info = deoptimization_info_.back();
-  return Safepoint(new_info.indexes, new_info.registers);
+  return Safepoint(new_info.indexes);
 }
 
 void SafepointTableBuilder::RecordLazyDeoptimizationIndex(int index) {
@@ -166,9 +131,6 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   assembler->RecordComment(";;; Safepoint table.");
   offset_ = assembler->pc_offset();
 
-  // Take the register bits into account.
-  bits_per_entry += kNumSafepointRegisters;
-
   // Compute the number of bytes per safepoint entry.
   int bytes_per_entry =
       RoundUp(bits_per_entry, kBitsPerByte) >> kBitsPerByteLog2;
@@ -189,7 +151,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   STATIC_ASSERT(SafepointTable::kFixedEntrySize == 3 * kIntSize);
   for (const DeoptimizationInfo& info : deoptimization_info_) {
     assembler->dd(info.pc);
-    assembler->dd(EncodeExceptPC(info));
+    assembler->dd(info.deopt_index);
     assembler->dd(info.trampoline);
   }
 
@@ -197,24 +159,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   ZoneVector<uint8_t> bits(bytes_per_entry, 0, zone_);
   for (const DeoptimizationInfo& info : deoptimization_info_) {
     ZoneChunkList<int>* indexes = info.indexes;
-    ZoneChunkList<int>* registers = info.registers;
     std::fill(bits.begin(), bits.end(), 0);
-
-    // Run through the registers (if any).
-    DCHECK(IsAligned(kNumSafepointRegisters, kBitsPerByte));
-    if (registers == nullptr) {
-      const int num_reg_bytes = kNumSafepointRegisters >> kBitsPerByteLog2;
-      for (int j = 0; j < num_reg_bytes; j++) {
-        bits[j] = SafepointTable::kNoRegisters;
-      }
-    } else {
-      for (int index : *registers) {
-        DCHECK(index >= 0 && index < kNumSafepointRegisters);
-        int byte_index = index >> kBitsPerByteLog2;
-        int bit_index = index & (kBitsPerByte - 1);
-        bits[byte_index] |= (1 << bit_index);
-      }
-    }
 
     // Run through the indexes and build a bitmap.
     for (int idx : *indexes) {
@@ -230,11 +175,6 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
     }
   }
   emitted_ = true;
-}
-
-uint32_t SafepointTableBuilder::EncodeExceptPC(const DeoptimizationInfo& info) {
-  return SafepointEntry::DeoptimizationIndexField::encode(info.deopt_index) |
-         SafepointEntry::SaveDoublesField::encode(info.has_doubles);
 }
 
 void SafepointTableBuilder::RemoveDuplicates() {
@@ -260,26 +200,12 @@ void SafepointTableBuilder::RemoveDuplicates() {
 
 bool SafepointTableBuilder::IsIdenticalExceptForPc(
     const DeoptimizationInfo& info1, const DeoptimizationInfo& info2) const {
-  if (info1.has_doubles != info2.has_doubles) return false;
   if (info1.deopt_index != info2.deopt_index) return false;
 
   ZoneChunkList<int>* indexes1 = info1.indexes;
   ZoneChunkList<int>* indexes2 = info2.indexes;
   if (indexes1->size() != indexes2->size()) return false;
   if (!std::equal(indexes1->begin(), indexes1->end(), indexes2->begin())) {
-    return false;
-  }
-
-  ZoneChunkList<int>* registers1 = info1.registers;
-  ZoneChunkList<int>* registers2 = info2.registers;
-  if (registers1) {
-    if (!registers2) return false;
-    if (registers1->size() != registers2->size()) return false;
-    if (!std::equal(registers1->begin(), registers1->end(),
-                    registers2->begin())) {
-      return false;
-    }
-  } else if (registers2) {
     return false;
   }
 

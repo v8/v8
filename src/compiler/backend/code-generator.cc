@@ -440,9 +440,8 @@ bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
 }
 
 void CodeGenerator::RecordSafepoint(ReferenceMap* references,
-                                    Safepoint::Kind kind,
                                     Safepoint::DeoptMode deopt_mode) {
-  Safepoint safepoint = safepoints()->DefineSafepoint(tasm(), kind, deopt_mode);
+  Safepoint safepoint = safepoints()->DefineSafepoint(tasm(), deopt_mode);
   int stackSlotToSpillSlotDelta =
       frame()->GetTotalFrameSlotCount() - frame()->GetSpillSlotCount();
   for (const InstructionOperand& operand : references->reference_operands()) {
@@ -456,9 +455,6 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
       // knowledge about those fields anyway.
       if (index < stackSlotToSpillSlotDelta) continue;
       safepoint.DefinePointerSlot(index);
-    } else if (operand.IsRegister() && (kind & Safepoint::kWithRegisters)) {
-      Register reg = LocationOperand::cast(operand).GetRegister();
-      safepoint.DefinePointerRegister(reg);
     }
   }
 }
@@ -871,9 +867,9 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
 
   bool needs_frame_state = (flags & CallDescriptor::kNeedsFrameState);
 
-  RecordSafepoint(
-      instr->reference_map(), Safepoint::kSimple,
-      needs_frame_state ? Safepoint::kLazyDeopt : Safepoint::kNoLazyDeopt);
+  RecordSafepoint(instr->reference_map(), needs_frame_state
+                                              ? Safepoint::kLazyDeopt
+                                              : Safepoint::kNoLazyDeopt);
 
   if (flags & CallDescriptor::kHasExceptionHandler) {
     InstructionOperandConverter i(this, instr);
