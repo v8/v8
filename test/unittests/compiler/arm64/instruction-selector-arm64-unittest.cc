@@ -1277,7 +1277,7 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
 
 TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnRight) {
   TRACED_FORRANGE(int, bit, 0, 63) {
-    uint64_t mask = 1LL << bit;
+    uint64_t mask = uint64_t{1} << bit;
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
     RawMachineLabel a, b;
     m.Branch(m.Word64And(m.Parameter(0), m.Int64Constant(mask)), &a, &b);
@@ -1298,7 +1298,7 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnRight) {
 
 TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnLeft) {
   TRACED_FORRANGE(int, bit, 0, 63) {
-    uint64_t mask = 1LL << bit;
+    uint64_t mask = uint64_t{1} << bit;
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
     RawMachineLabel a, b;
     m.Branch(m.Word64And(m.Int64Constant(mask), m.Parameter(0)), &a, &b);
@@ -2196,7 +2196,8 @@ TEST_F(InstructionSelectorTest, Int64MulWithImmediate) {
   // x * (2^k + 1) -> x + (x << k)
   TRACED_FORRANGE(int64_t, k, 1, 62) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
-    m.Return(m.Int64Mul(m.Parameter(0), m.Int64Constant((1L << k) + 1)));
+    m.Return(
+        m.Int64Mul(m.Parameter(0), m.Int64Constant((int64_t{1} << k) + 1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
@@ -2209,7 +2210,8 @@ TEST_F(InstructionSelectorTest, Int64MulWithImmediate) {
   // (2^k + 1) * x -> x + (x << k)
   TRACED_FORRANGE(int64_t, k, 1, 62) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
-    m.Return(m.Int64Mul(m.Int64Constant((1L << k) + 1), m.Parameter(0)));
+    m.Return(
+        m.Int64Mul(m.Int64Constant((int64_t{1} << k) + 1), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
@@ -2223,9 +2225,9 @@ TEST_F(InstructionSelectorTest, Int64MulWithImmediate) {
   TRACED_FORRANGE(int64_t, k, 1, 62) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
                     MachineType::Int64());
-    m.Return(
-        m.Int64Add(m.Int64Mul(m.Parameter(0), m.Int64Constant((1L << k) + 1)),
-                   m.Parameter(1)));
+    m.Return(m.Int64Add(
+        m.Int64Mul(m.Parameter(0), m.Int64Constant((int64_t{1} << k) + 1)),
+        m.Parameter(1)));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
@@ -2240,9 +2242,9 @@ TEST_F(InstructionSelectorTest, Int64MulWithImmediate) {
   TRACED_FORRANGE(int64_t, k, 1, 62) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
                     MachineType::Int64());
-    m.Return(
-        m.Int64Add(m.Int64Mul(m.Int64Constant((1L << k) + 1), m.Parameter(0)),
-                   m.Parameter(1)));
+    m.Return(m.Int64Add(
+        m.Int64Mul(m.Int64Constant((int64_t{1} << k) + 1), m.Parameter(0)),
+        m.Parameter(1)));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
@@ -2257,9 +2259,9 @@ TEST_F(InstructionSelectorTest, Int64MulWithImmediate) {
   TRACED_FORRANGE(int64_t, k, 1, 62) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
                     MachineType::Int64());
-    m.Return(
-        m.Int64Add(m.Parameter(0),
-                   m.Int64Mul(m.Parameter(1), m.Int64Constant((1L << k) + 1))));
+    m.Return(m.Int64Add(
+        m.Parameter(0),
+        m.Int64Mul(m.Parameter(1), m.Int64Constant((int64_t{1} << k) + 1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
@@ -2274,9 +2276,9 @@ TEST_F(InstructionSelectorTest, Int64MulWithImmediate) {
   TRACED_FORRANGE(int64_t, k, 1, 62) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
                     MachineType::Int64());
-    m.Return(
-        m.Int64Add(m.Parameter(0),
-                   m.Int64Mul(m.Int64Constant((1L << k) + 1), m.Parameter(1))));
+    m.Return(m.Int64Add(
+        m.Parameter(0),
+        m.Int64Mul(m.Int64Constant((int64_t{1} << k) + 1), m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
@@ -2291,9 +2293,9 @@ TEST_F(InstructionSelectorTest, Int64MulWithImmediate) {
   TRACED_FORRANGE(int64_t, k, 1, 62) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
                     MachineType::Int64());
-    m.Return(
-        m.Int64Sub(m.Parameter(0),
-                   m.Int64Mul(m.Parameter(1), m.Int64Constant((1L << k) + 1))));
+    m.Return(m.Int64Sub(
+        m.Parameter(0),
+        m.Int64Mul(m.Parameter(1), m.Int64Constant((int64_t{1} << k) + 1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
@@ -2308,9 +2310,9 @@ TEST_F(InstructionSelectorTest, Int64MulWithImmediate) {
   TRACED_FORRANGE(int64_t, k, 1, 62) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
                     MachineType::Int64());
-    m.Return(
-        m.Int64Sub(m.Parameter(0),
-                   m.Int64Mul(m.Int64Constant((1L << k) + 1), m.Parameter(1))));
+    m.Return(m.Int64Sub(
+        m.Parameter(0),
+        m.Int64Mul(m.Int64Constant((int64_t{1} << k) + 1), m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());
     EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
