@@ -14,7 +14,8 @@ function foo() {
 
 %NeverOptimizeFunction(bar);
 %PrepareFunctionForOptimization(foo);
-bar(foo());
+const o = foo();  // Keep a reference so the GC doesn't kill the map.
+bar(o);
 const a = bar(foo());
 %OptimizeFunctionOnNextCall(foo);
 const b = bar(foo());
