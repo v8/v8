@@ -92,11 +92,11 @@ PropertyAccessInfo PropertyAccessInfo::DataConstant(
     Zone* zone, Handle<Map> receiver_map,
     ZoneVector<CompilationDependencies::Dependency const*>&& dependencies,
     FieldIndex field_index, Representation field_representation,
-    Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder) {
-  return PropertyAccessInfo(kDataConstant, holder, MaybeHandle<Map>(),
-                            field_index, field_representation, field_type,
-                            field_map, {{receiver_map}, zone},
-                            std::move(dependencies));
+    Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
+    MaybeHandle<Map> transition_map) {
+  return PropertyAccessInfo(kDataConstant, holder, transition_map, field_index,
+                            field_representation, field_type, field_map,
+                            {{receiver_map}, zone}, std::move(dependencies));
 }
 
 // static
@@ -796,10 +796,22 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   unrecorded_dependencies.push_back(
       dependencies()->TransitionDependencyOffTheRecord(
           MapRef(broker(), transition_map)));
-  // Transitioning stores are never stores to constant fields.
-  return PropertyAccessInfo::DataField(
-      zone(), map, std::move(unrecorded_dependencies), field_index,
-      details_representation, field_type, field_map, holder, transition_map);
+  // Transitioning stores *may* store to const fields. The resulting
+  // DataConstant access infos can be distinguished from later, i.e. redundant,
+  // stores to the same constant field by the presence of a transition map.
+  switch (details.constness()) {
+    case PropertyConstness::kMutable:
+      return PropertyAccessInfo::DataField(
+          zone(), map, std::move(unrecorded_dependencies), field_index,
+          details_representation, field_type, field_map, holder,
+          transition_map);
+    case PropertyConstness::kConst:
+      return PropertyAccessInfo::DataConstant(
+          zone(), map, std::move(unrecorded_dependencies), field_index,
+          details_representation, field_type, field_map, holder,
+          transition_map);
+  }
+  UNREACHABLE();
 }
 
 }  // namespace compiler
