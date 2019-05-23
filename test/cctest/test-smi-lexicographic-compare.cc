@@ -4,7 +4,7 @@
 
 #include <set>
 
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"

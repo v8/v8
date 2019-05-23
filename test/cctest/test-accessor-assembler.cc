@@ -7,7 +7,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/stub-cache.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"

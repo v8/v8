@@ -9,10 +9,10 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/memcopy.h"
-#include "src/objects.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/objects.h"
 #include "src/ptr-compr-inl.h"
 
 namespace v8 {

@@ -6,9 +6,9 @@
 
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
 #include "src/objects/field-type.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/property-details.h"
 #include "src/objects/transitions.h"
 

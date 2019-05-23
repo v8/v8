@@ -39,7 +39,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/libplatform/default-platform.h"
 #include "src/logging/log.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/profiler/profiler-listener.h"
 #include "src/profiler/tracing-cpu-profiler.h"

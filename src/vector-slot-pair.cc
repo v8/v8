@@ -4,7 +4,7 @@
 
 #include "src/vector-slot-pair.h"
 
-#include "src/feedback-vector.h"
+#include "src/objects/feedback-vector.h"
 
 namespace v8 {
 namespace internal {

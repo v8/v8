@@ -34,7 +34,7 @@
 #include "src/ast/ast.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/regexp/interpreter-irregexp.h"
 #include "src/regexp/jsregexp.h"

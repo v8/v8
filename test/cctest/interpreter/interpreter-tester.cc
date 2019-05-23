@@ -6,7 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

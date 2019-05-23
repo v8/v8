@@ -7,7 +7,7 @@
 
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

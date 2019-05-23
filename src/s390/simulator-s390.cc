@@ -18,7 +18,7 @@
 #include "src/codegen/register-configuration.h"
 #include "src/diagnostics/disasm.h"
 #include "src/heap/combined-heap.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/s390/constants-s390.h"

@@ -12,9 +12,9 @@
 #include <string>
 
 #include "src/execution/isolate.h"
-#include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-number-format-inl.h"
+#include "src/objects/objects-inl.h"
 #include "unicode/currunit.h"
 #include "unicode/decimfmt.h"
 #include "unicode/locid.h"

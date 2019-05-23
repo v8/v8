@@ -6,9 +6,9 @@
 
 #include "src/base/template-utils.h"
 #include "src/handles/handles.h"
-#include "src/objects-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-decoder.h"

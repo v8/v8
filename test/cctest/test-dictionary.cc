@@ -34,8 +34,8 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/spaces.h"
-#include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/roots.h"
 #include "test/cctest/heap/heap-utils.h"
 

@@ -6,9 +6,9 @@
 #define V8_OBJECTS_MAP_H_
 
 #include "src/globals.h"
-#include "src/objects.h"
 #include "src/objects/code.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/objects.h"
 #include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):

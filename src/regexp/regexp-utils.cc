@@ -6,8 +6,8 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/regexp/jsregexp.h"
 
 namespace v8 {

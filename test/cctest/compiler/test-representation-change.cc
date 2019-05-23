@@ -7,7 +7,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/representation-change.h"
 #include "src/compiler/type-cache.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/graph-and-builders.h"

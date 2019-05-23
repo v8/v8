@@ -8,10 +8,10 @@
 #include "src/objects/prototype-info.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"
 
 // Has to be the last include (doesn't have include guards):

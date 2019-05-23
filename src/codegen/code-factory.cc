@@ -7,8 +7,8 @@
 #include "src/builtins/builtins-descriptors.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
-#include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

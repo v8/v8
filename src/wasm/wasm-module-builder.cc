@@ -5,7 +5,7 @@
 #include "src/codegen/signature.h"
 
 #include "src/handles/handles.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/v8.h"
 #include "src/zone/zone-containers.h"
 

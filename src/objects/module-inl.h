@@ -7,7 +7,7 @@
 
 #include "src/objects/module.h"
 
-#include "src/objects-inl.h"  // Needed for write barriers
+#include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/scope-info.h"
 
 // Has to be the last include (doesn't have include guards):

@@ -9,8 +9,8 @@
 #ifndef V8_OBJECTS_JS_LIST_FORMAT_INL_H_
 #define V8_OBJECTS_JS_LIST_FORMAT_INL_H_
 
-#include "src/objects-inl.h"
 #include "src/objects/js-list-format.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

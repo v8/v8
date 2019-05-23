@@ -14,8 +14,8 @@
 #include "src/heap/factory.h"
 #include "src/numbers/dtoa.h"
 #include "src/numbers/strtod.h"
-#include "src/objects-inl.h"
 #include "src/objects/bigint.h"
+#include "src/objects/objects-inl.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils.h"
 

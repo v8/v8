@@ -6,17 +6,17 @@
 #define V8_API_API_H_
 
 #include "include/v8-testing.h"
-#include "src/contexts.h"
 #include "src/detachable-vector.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/objects.h"
 #include "src/objects/bigint.h"
+#include "src/objects/contexts.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-proxy.h"
 #include "src/objects/module.h"
+#include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
 
 #include "src/objects/templates.h"

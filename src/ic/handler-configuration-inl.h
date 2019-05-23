@@ -8,9 +8,9 @@
 #include "src/ic/handler-configuration.h"
 
 #include "src/handles/handles-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/field-index-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):

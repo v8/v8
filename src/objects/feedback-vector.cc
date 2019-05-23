@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/feedback-vector.h"
-#include "src/feedback-vector-inl.h"
+#include "src/objects/feedback-vector.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
-#include "src/objects.h"
 #include "src/objects/data-handler-inl.h"
+#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/object-macros.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

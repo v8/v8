@@ -8,9 +8,9 @@
 #include "src/codegen/compiler.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
-#include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/lookup.h"
+#include "src/objects/objects-inl.h"
 #include "src/strings/string-builder-inl.h"
 
 namespace v8 {

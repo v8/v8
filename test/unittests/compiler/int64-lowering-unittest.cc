@@ -10,7 +10,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-module.h"
 #include "test/unittests/compiler/graph-unittest.h"

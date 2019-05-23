@@ -9,23 +9,23 @@
 // code. gcc is not happy when attempting to inline too deep.
 //
 
-#ifndef V8_OBJECTS_INL_H_
-#define V8_OBJECTS_INL_H_
+#ifndef V8_OBJECTS_OBJECTS_INL_H_
+#define V8_OBJECTS_OBJECTS_INL_H_
 
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 #include "src/base/bits.h"
 #include "src/builtins/builtins.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/keys.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/double.h"
 #include "src/objects/bigint.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-proxy-inl.h"  // TODO(jkummerow): Drop.
+#include "src/objects/keys.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/lookup-inl.h"  // TODO(jkummerow): Drop.
 #include "src/objects/oddball.h"
@@ -56,7 +56,6 @@ Smi PropertyDetails::AsSmi() const {
   int value = value_ << 1;
   return Smi::FromInt(value >> 1);
 }
-
 
 int PropertyDetails::field_width_in_words() const {
   DCHECK_EQ(location(), kField);
@@ -457,13 +456,11 @@ Representation Object::OptimalRepresentation() {
   }
 }
 
-
 ElementsKind Object::OptimalElementsKind() {
   if (IsSmi()) return PACKED_SMI_ELEMENTS;
   if (IsNumber()) return PACKED_DOUBLE_ELEMENTS;
   return PACKED_ELEMENTS;
 }
-
 
 bool Object::FitsRepresentation(Representation representation) {
   if (FLAG_track_fields && representation.IsSmi()) {
@@ -499,7 +496,6 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
   if (object->IsJSReceiver()) return Handle<JSReceiver>::cast(object);
   return ToObjectImpl(isolate, object, method_name);
 }
-
 
 // static
 MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> input) {
@@ -676,7 +672,6 @@ void HeapObject::synchronized_set_map(Map value) {
   }
 }
 
-
 // Unsafe accessor omitting write barrier.
 void HeapObject::set_map_no_write_barrier(Map value) {
   if (!value.is_null()) {
@@ -708,7 +703,6 @@ MapWord HeapObject::map_word() const {
 void HeapObject::set_map_word(MapWord map_word) {
   map_slot().Relaxed_Store(Object(map_word.value_));
 }
-
 
 MapWord HeapObject::synchronized_map_word() const {
   return MapWord(map_slot().Acquire_Load().ptr());
@@ -838,7 +832,6 @@ Maybe<bool> Object::GreaterThan(Isolate* isolate, Handle<Object> x,
   return Nothing<bool>();
 }
 
-
 // static
 Maybe<bool> Object::GreaterThanOrEqual(Isolate* isolate, Handle<Object> x,
                                        Handle<Object> y) {
@@ -856,7 +849,6 @@ Maybe<bool> Object::GreaterThanOrEqual(Isolate* isolate, Handle<Object> x,
   return Nothing<bool>();
 }
 
-
 // static
 Maybe<bool> Object::LessThan(Isolate* isolate, Handle<Object> x,
                              Handle<Object> y) {
@@ -873,7 +865,6 @@ Maybe<bool> Object::LessThan(Isolate* isolate, Handle<Object> x,
   }
   return Nothing<bool>();
 }
-
 
 // static
 Maybe<bool> Object::LessThanOrEqual(Isolate* isolate, Handle<Object> x,
@@ -977,7 +968,6 @@ Relocatable::Relocatable(Isolate* isolate) {
   isolate->set_relocatable_top(this);
 }
 
-
 Relocatable::~Relocatable() {
   DCHECK_EQ(isolate_->relocatable_top(), this);
   isolate_->set_relocatable_top(prev_);
@@ -1045,4 +1035,4 @@ FreshlyAllocatedBigInt FreshlyAllocatedBigInt::cast(Object object) {
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_OBJECTS_INL_H_
+#endif  // V8_OBJECTS_OBJECTS_INL_H_

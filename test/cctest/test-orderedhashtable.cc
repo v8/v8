@@ -4,7 +4,7 @@
 #include <utility>
 #include "src/v8.h"
 
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "test/cctest/cctest.h"
 

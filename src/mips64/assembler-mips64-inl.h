@@ -40,7 +40,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/debug/debug.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

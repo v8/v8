@@ -11,8 +11,8 @@
 
 #include "src/arm/assembler-arm.h"
 #include "src/codegen/bailout-reason.h"
-#include "src/contexts.h"
 #include "src/globals.h"
+#include "src/objects/contexts.h"
 
 namespace v8 {
 namespace internal {

@@ -8,8 +8,8 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
 
 namespace v8 {

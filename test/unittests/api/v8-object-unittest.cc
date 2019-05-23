@@ -4,7 +4,7 @@
 
 #include "include/v8.h"
 #include "src/api/api.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

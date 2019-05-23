@@ -13,7 +13,7 @@
 #include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/utils.h"
 

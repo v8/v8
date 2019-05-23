@@ -7,7 +7,7 @@
 #include "src/codegen/code-comments.h"
 #include "src/codegen/reloc-info.h"
 #include "src/heap/spaces-inl.h"  // For HeapObjectIterator.
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

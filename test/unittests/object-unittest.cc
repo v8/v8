@@ -8,9 +8,9 @@
 
 #include "src/api/api-inl.h"
 #include "src/codegen/compiler.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "test/unittests/test-utils.h"
 
 #include "testing/gtest/include/gtest/gtest.h"

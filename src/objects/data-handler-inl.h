@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_DATA_HANDLER_INL_H_
 #define V8_OBJECTS_DATA_HANDLER_INL_H_
 
-#include "src/objects-inl.h"  // Needed for write barriers
 #include "src/objects/data-handler.h"
+#include "src/objects/objects-inl.h"  // Needed for write barriers
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

@@ -5,8 +5,8 @@
 #include "src/ast/modules.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
-#include "src/objects-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/pending-compilation-error-handler.h"
 
 namespace v8 {

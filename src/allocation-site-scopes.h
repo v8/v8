@@ -6,9 +6,9 @@
 #define V8_ALLOCATION_SITE_SCOPES_H_
 
 #include "src/handles/handles.h"
-#include "src/objects.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/map.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

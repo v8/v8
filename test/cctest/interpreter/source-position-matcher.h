@@ -7,7 +7,7 @@
 
 #include "src/codegen/source-position-table.h"
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/v8.h"
 
 namespace v8 {

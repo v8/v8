@@ -11,7 +11,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/boxed-float.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"

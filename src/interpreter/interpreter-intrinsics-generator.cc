@@ -12,9 +12,9 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics.h"
-#include "src/objects-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/module.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

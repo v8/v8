@@ -5,9 +5,9 @@
 #ifndef V8_OBJECTS_LOOKUP_CACHE_H_
 #define V8_OBJECTS_LOOKUP_CACHE_H_
 
-#include "src/objects.h"
 #include "src/objects/map.h"
 #include "src/objects/name.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

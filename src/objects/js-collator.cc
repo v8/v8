@@ -9,8 +9,8 @@
 #include "src/objects/js-collator.h"
 
 #include "src/execution/isolate.h"
-#include "src/objects-inl.h"
 #include "src/objects/js-collator-inl.h"
+#include "src/objects/objects-inl.h"
 #include "unicode/coll.h"
 #include "unicode/locid.h"
 #include "unicode/strenum.h"

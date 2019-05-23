@@ -6,8 +6,8 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 
 namespace v8 {

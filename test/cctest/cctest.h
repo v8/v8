@@ -38,7 +38,7 @@
 #include "src/execution/isolate.h"
 #include "src/flags.h"
 #include "src/heap/factory.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/v8.h"
 #include "src/zone/accounting-allocator.h"
 

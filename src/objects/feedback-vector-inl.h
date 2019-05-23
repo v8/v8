@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_FEEDBACK_VECTOR_INL_H_
-#define V8_FEEDBACK_VECTOR_INL_H_
+#ifndef V8_OBJECTS_FEEDBACK_VECTOR_INL_H_
+#define V8_OBJECTS_FEEDBACK_VECTOR_INL_H_
 
-#include "src/feedback-vector.h"
+#include "src/objects/feedback-vector.h"
 
 #include "src/globals.h"
 #include "src/heap/factory-inl.h"
@@ -352,4 +352,4 @@ Isolate* FeedbackNexus::GetIsolate() const { return vector().GetIsolate(); }
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_FEEDBACK_VECTOR_INL_H_
+#endif  // V8_OBJECTS_FEEDBACK_VECTOR_INL_H_

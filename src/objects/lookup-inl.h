@@ -9,10 +9,10 @@
 
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

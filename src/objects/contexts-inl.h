@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CONTEXTS_INL_H_
-#define V8_CONTEXTS_INL_H_
+#ifndef V8_OBJECTS_CONTEXTS_INL_H_
+#define V8_OBJECTS_CONTEXTS_INL_H_
 
-#include "src/contexts.h"
+#include "src/objects/contexts.h"
 
 #include "src/heap/heap-write-barrier.h"
-#include "src/objects-inl.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/map-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
@@ -253,4 +253,4 @@ OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_CONTEXTS_INL_H_
+#endif  // V8_OBJECTS_CONTEXTS_INL_H_

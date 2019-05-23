@@ -8,8 +8,8 @@
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
 #include "src/globals.h"
-#include "src/objects.h"
 #include "src/objects/code.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

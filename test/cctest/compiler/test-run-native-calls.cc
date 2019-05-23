@@ -10,7 +10,7 @@
 #include "src/codegen/register-configuration.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/raw-machine-assembler.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-linkage.h"
 
 #include "test/cctest/cctest.h"

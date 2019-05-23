@@ -5,8 +5,8 @@
 #include "src/compiler/compilation-dependencies.h"
 
 #include "src/handles/handles-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {

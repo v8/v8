@@ -7,7 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/interpreter/interpreter-intrinsics.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/interpreter/interpreter-tester.h"
 
 namespace v8 {

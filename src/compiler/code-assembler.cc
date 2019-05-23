@@ -20,7 +20,7 @@
 #include "src/execution/frames.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/memcopy.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/zone/zone.h"
 

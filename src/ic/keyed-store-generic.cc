@@ -7,11 +7,11 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors.h"
-#include "src/contexts.h"
 #include "src/execution/isolate.h"
-#include "src/feedback-vector.h"
 #include "src/ic/accessor-assembler.h"
-#include "src/objects-inl.h"
+#include "src/objects/contexts.h"
+#include "src/objects/feedback-vector.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

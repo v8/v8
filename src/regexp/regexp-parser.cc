@@ -8,7 +8,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/property-sequences.h"

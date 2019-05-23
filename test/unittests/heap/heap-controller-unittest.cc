@@ -6,8 +6,8 @@
 #include <iostream>
 #include <limits>
 
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 
 #include "src/handles/handles-inl.h"
 #include "src/handles/handles.h"

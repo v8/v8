@@ -15,7 +15,7 @@
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/logging/counters-definitions.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"

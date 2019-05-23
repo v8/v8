@@ -25,7 +25,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/logging/log.h"
 #include "src/numbers/math-random.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/strings/string-search.h"
 #include "src/wasm/wasm-external-refs.h"

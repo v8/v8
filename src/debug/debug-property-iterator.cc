@@ -6,8 +6,8 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/flags.h"
-#include "src/keys.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/keys.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/property-details.h"
 

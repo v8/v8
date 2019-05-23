@@ -5,9 +5,9 @@
 #ifndef V8_OBJECTS_FIELD_INDEX_INL_H_
 #define V8_OBJECTS_FIELD_INDEX_INL_H_
 
-#include "src/objects-inl.h"
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/field-index.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

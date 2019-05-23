@@ -8,8 +8,8 @@
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
-#include "src/objects.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/objects.h"
 #include "src/roots-inl.h"
 #include "test/cctest/cctest.h"
 

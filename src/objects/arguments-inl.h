@@ -7,10 +7,10 @@
 
 #include "src/objects/arguments.h"
 
-#include "src/contexts-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

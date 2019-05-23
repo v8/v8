@@ -10,7 +10,7 @@
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
 #include "src/flags.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/v8.h"
 
 namespace v8 {

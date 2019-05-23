@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CONTEXTS_H_
-#define V8_CONTEXTS_H_
+#ifndef V8_OBJECTS_CONTEXTS_H_
+#define V8_OBJECTS_CONTEXTS_H_
 
-#include "src/function-kind.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/function-kind.h"
 #include "torque-generated/field-offsets-tq.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -717,4 +717,4 @@ typedef Context::Field ContextField;
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_CONTEXTS_H_
+#endif  // V8_OBJECTS_CONTEXTS_H_

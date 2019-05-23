@@ -9,8 +9,8 @@
 #include "src/base/template-utils.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
 

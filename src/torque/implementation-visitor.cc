@@ -3165,8 +3165,8 @@ void ImplementationVisitor::GenerateClassDefinitions(
 
   {
     IncludeGuardScope header_guard(header, basename + ".h");
-    header << "#include \"src/objects.h\"\n";
     header << "#include \"src/objects/heap-number.h\"\n";
+    header << "#include \"src/objects/objects.h\"\n";
     header << "#include \"torque-generated/field-offsets-tq.h\"\n";
     header << "#include <type_traits>\n\n";
     IncludeObjectMacrosScope header_macros(header);
@@ -3227,7 +3227,7 @@ void ImplementationVisitor::GeneratePrintDefinitions(
   {
     IfDefScope object_print(impl, "OBJECT_PRINT");
 
-    impl << "#include \"src/objects.h\"\n\n";
+    impl << "#include \"src/objects/objects.h\"\n\n";
     impl << "#include <iosfwd>\n\n";
     impl << "#include \"src/objects/struct-inl.h\"\n\n";
     impl << "#include \"src/objects/template-objects-inl.h\"\n\n";
@@ -3339,7 +3339,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
     IfDefScope verify_heap_h(h_contents, "VERIFY_HEAP");
     IfDefScope verify_heap_cc(cc_contents, "VERIFY_HEAP");
 
-    cc_contents << "\n#include \"src/objects.h\"\n";
+    cc_contents << "\n#include \"src/objects/objects.h\"\n";
 
     for (const std::string& include_path : GlobalContext::CppIncludes()) {
       cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";

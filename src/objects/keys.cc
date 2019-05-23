@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/keys.h"
+#include "src/objects/keys.h"
 
 #include "src/api/api-arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/identity-map.h"
-#include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/elements-inl.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/prototype.h"
@@ -857,8 +857,9 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   // 5. Let trap be ? GetMethod(handler, "ownKeys").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, trap, Object::GetMethod(Handle<JSReceiver>::cast(handler),
-                                        isolate_->factory()->ownKeys_string()),
+      isolate_, trap,
+      Object::GetMethod(Handle<JSReceiver>::cast(handler),
+                        isolate_->factory()->ownKeys_string()),
       Nothing<bool>());
   // 6. If trap is undefined, then
   if (trap->IsUndefined(isolate_)) {

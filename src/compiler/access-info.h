@@ -10,10 +10,10 @@
 #include "src/codegen/machine-type.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/types.h"
-#include "src/feedback-vector.h"
-#include "src/objects.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/field-index.h"
 #include "src/objects/map.h"
+#include "src/objects/objects.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

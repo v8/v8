@@ -7,7 +7,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/compiler.h"
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/strings/uri.h"
 
 namespace v8 {

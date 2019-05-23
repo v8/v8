@@ -4,8 +4,8 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/ostreams.h"
 #include "src/v8.h"
 #include "src/wasm/function-body-decoder-impl.h"

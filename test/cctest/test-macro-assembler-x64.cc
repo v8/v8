@@ -33,7 +33,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/ostreams.h"
 #include "src/x64/assembler-x64-inl.h"

@@ -20,10 +20,10 @@
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics-generator.h"
 #include "src/logging/code-events.h"
-#include "src/objects-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/module.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/ostreams.h"
 

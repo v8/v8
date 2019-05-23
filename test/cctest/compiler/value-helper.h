@@ -12,7 +12,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node.h"
 #include "src/execution/isolate.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

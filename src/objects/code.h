@@ -6,10 +6,10 @@
 #define V8_OBJECTS_CODE_H_
 
 #include "src/codegen/handler-table.h"
-#include "src/contexts.h"
-#include "src/objects.h"
+#include "src/objects/contexts.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/objects.h"
 #include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):

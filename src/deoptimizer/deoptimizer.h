@@ -19,8 +19,8 @@
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
-#include "src/feedback-vector.h"
 #include "src/globals.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/shared-function-info.h"
 #include "src/zone/zone-chunk-list.h"
 

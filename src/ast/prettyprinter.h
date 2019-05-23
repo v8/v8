@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
-#include "src/function-kind.h"
+#include "src/objects/function-kind.h"
 
 namespace v8 {
 namespace internal {

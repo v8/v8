@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_OBJECTS_H_
-#define V8_OBJECTS_H_
+#ifndef V8_OBJECTS_OBJECTS_H_
+#define V8_OBJECTS_OBJECTS_H_
 
 #include <iosfwd>
 #include <memory>
@@ -20,10 +20,10 @@
 #include "src/codegen/constants-arch.h"
 #include "src/execution/message-template.h"
 #include "src/flags.h"
-#include "src/objects-definitions.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-index.h"
 #include "src/objects/object-list-macros.h"
+#include "src/objects/objects-definitions.h"
 #include "src/objects/property-details.h"
 #include "src/objects/tagged-impl.h"
 #include "src/utils.h"
@@ -209,13 +209,8 @@ enum PropertyNormalizationMode {
   KEEP_INOBJECT_PROPERTIES
 };
 
-
 // Indicates whether transitions can be added to a source map or not.
-enum TransitionFlag {
-  INSERT_TRANSITION,
-  OMIT_TRANSITION
-};
-
+enum TransitionFlag { INSERT_TRANSITION, OMIT_TRANSITION };
 
 // Indicates whether the transition is simple: the target map of the transition
 // either extends the current map with a new property, or it modifies the
@@ -228,10 +223,7 @@ enum SimpleTransitionFlag {
 
 // Indicates whether we are only interested in the descriptors of a particular
 // map, or in all descriptors in the descriptor array.
-enum DescriptorFlag {
-  ALL_DESCRIPTORS,
-  OWN_DESCRIPTORS
-};
+enum DescriptorFlag { ALL_DESCRIPTORS, OWN_DESCRIPTORS };
 
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
@@ -836,9 +828,9 @@ class BooleanBit : public AllStatic {
   }
 };
 
-}  // NOLINT, false-positive due to second-order macros.
-}  // NOLINT, false-positive due to second-order macros.
+}  // namespace internal
+}  // namespace v8
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_OBJECTS_H_
+#endif  // V8_OBJECTS_OBJECTS_H_

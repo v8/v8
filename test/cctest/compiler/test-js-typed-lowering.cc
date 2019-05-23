@@ -12,7 +12,7 @@
 #include "src/compiler/typer.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

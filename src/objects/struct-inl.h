@@ -8,7 +8,7 @@
 #include "src/objects/struct.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/roots-inl.h"
 #include "torque-generated/class-definitions-tq-inl.h"

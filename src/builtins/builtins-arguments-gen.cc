@@ -11,8 +11,8 @@
 #include "src/codegen/interface-descriptors.h"
 #include "src/execution/arguments.h"
 #include "src/execution/frame-constants.h"
-#include "src/objects-inl.h"
 #include "src/objects/arguments.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

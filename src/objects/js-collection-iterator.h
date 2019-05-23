@@ -6,8 +6,8 @@
 #define V8_OBJECTS_JS_COLLECTION_ITERATOR_H_
 
 #include "src/globals.h"
-#include "src/objects.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/objects.h"
 #include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):

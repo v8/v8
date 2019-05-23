@@ -7,7 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

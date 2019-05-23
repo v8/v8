@@ -8,7 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
 #include "src/objects/templates.h"
 #include "src/visitors.h"

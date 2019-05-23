@@ -6,8 +6,8 @@
 
 #include "src/assert-scope.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/contexts-inl.h"
 #include "src/execution/isolate.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/smi.h"
 

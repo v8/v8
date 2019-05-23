@@ -5,7 +5,7 @@
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/codegen/compiler.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparse-data-impl.h"

@@ -8,7 +8,7 @@
 #include "src/globals.h"
 #include "src/roots.h"
 
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

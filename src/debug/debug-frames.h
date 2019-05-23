@@ -8,7 +8,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/v8threads.h"
 #include "src/wasm/wasm-interpreter.h"
 

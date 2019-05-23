@@ -7,10 +7,10 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/microtask-queue.h"
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/runtime/runtime-utils.h"
 

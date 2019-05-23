@@ -6,7 +6,7 @@
 
 #include "src/flags.h"
 #include "src/handles/handles.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"

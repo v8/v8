@@ -7,12 +7,12 @@
 #include "src/codegen/code-factory.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
-#include "src/function-kind.h"
 #include "src/heap/heap-inl.h"  // For Page/MemoryChunk. TODO(jkummerow): Drop.
 #include "src/logging/counters.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/function-kind.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"

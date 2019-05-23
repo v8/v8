@@ -11,11 +11,11 @@
 #include "src/ic/keyed-store-generic.h"
 #include "src/ic/stub-cache.h"
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/module.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 
 namespace v8 {

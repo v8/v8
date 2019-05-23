@@ -9,7 +9,7 @@
 #include "src/base/template-utils.h"
 #include "src/flags.h"
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/v8.h"
 #include "src/wasm/decoder.h"

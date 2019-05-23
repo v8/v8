@@ -10,7 +10,7 @@
 #include "src/globals.h"
 #include "src/handles/handles.h"
 #include "src/numbers/conversions.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/ostreams.h"
 
 namespace v8 {

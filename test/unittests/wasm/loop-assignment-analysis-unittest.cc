@@ -5,8 +5,8 @@
 #include "test/unittests/test-utils.h"
 
 #include "src/bit-vector.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/v8.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module.h"

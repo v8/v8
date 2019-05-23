@@ -10,7 +10,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/logging/counters-inl.h"
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/tracing/tracing-category-observer.h"
 
 #include "test/unittests/test-utils.h"

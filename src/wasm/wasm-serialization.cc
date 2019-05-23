@@ -6,8 +6,8 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/external-reference-table.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"

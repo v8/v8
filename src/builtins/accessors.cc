@@ -5,7 +5,6 @@
 #include "src/builtins/accessors.h"
 
 #include "src/api/api-inl.h"
-#include "src/contexts.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
@@ -14,6 +13,7 @@
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/contexts.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"

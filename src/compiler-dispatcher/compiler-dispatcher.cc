@@ -11,7 +11,7 @@
 #include "src/codegen/compiler.h"
 #include "src/flags.h"
 #include "src/handles/global-handles.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/task-utils.h"

@@ -4,9 +4,9 @@
 
 #include "src/execution/arguments-inl.h"
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/module.h"
+#include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {

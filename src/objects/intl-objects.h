@@ -14,9 +14,9 @@
 #include <string>
 
 #include "src/base/timezone-cache.h"
-#include "src/contexts.h"
-#include "src/objects.h"
+#include "src/objects/contexts.h"
 #include "src/objects/managed.h"
+#include "src/objects/objects.h"
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 

@@ -37,8 +37,8 @@
 #include "src/heap/factory.h"
 #include "src/heap/spaces.h"
 #include "src/interpreter/interpreter.h"
-#include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

@@ -35,7 +35,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/logging/log-utils.h"
 #include "src/logging/log.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/snapshot/natives.h"

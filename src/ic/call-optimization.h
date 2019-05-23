@@ -6,7 +6,7 @@
 #define V8_IC_CALL_OPTIMIZATION_H_
 
 #include "src/api/api-arguments.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

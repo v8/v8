@@ -8,7 +8,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/diagnostics/disassembler.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

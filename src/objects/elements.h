@@ -5,9 +5,9 @@
 #ifndef V8_OBJECTS_ELEMENTS_H_
 #define V8_OBJECTS_ELEMENTS_H_
 
-#include "src/keys.h"
-#include "src/objects.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/keys.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

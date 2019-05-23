@@ -9,7 +9,7 @@
 
 #include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/string-inl.h"
 
 // Has to be the last include (doesn't have include guards):

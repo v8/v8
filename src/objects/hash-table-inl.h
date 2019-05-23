@@ -8,9 +8,9 @@
 #include "src/objects/hash-table.h"
 
 #include "src/heap/heap.h"
-#include "src/objects-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):

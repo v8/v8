@@ -6,8 +6,8 @@
 
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/frame.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
 
 namespace v8 {

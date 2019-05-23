@@ -6,7 +6,7 @@
 
 #include "src/execution/frames-inl.h"
 #include "src/handles/global-handles.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 
 namespace v8 {

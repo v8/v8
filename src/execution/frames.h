@@ -7,8 +7,8 @@
 
 #include "src/codegen/safepoint-table.h"
 #include "src/handles/handles.h"
-#include "src/objects.h"
 #include "src/objects/code.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

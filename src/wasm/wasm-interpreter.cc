@@ -13,7 +13,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/identity-map.h"
 #include "src/numbers/conversions.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
 #include "src/wasm/decoder.h"

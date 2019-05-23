@@ -13,7 +13,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/store-buffer-inl.h"
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/v8.h"
 
 namespace v8 {

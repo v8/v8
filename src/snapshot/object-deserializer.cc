@@ -7,8 +7,8 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
-#include "src/objects.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/code-serializer.h"
 

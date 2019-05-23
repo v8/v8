@@ -41,10 +41,10 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/label.h"
-#include "src/contexts.h"
 #include "src/external-reference.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/mips64/register-mips64.h"
+#include "src/objects/contexts.h"
 #include "src/objects/smi.h"
 
 namespace v8 {

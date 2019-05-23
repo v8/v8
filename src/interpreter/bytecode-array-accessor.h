@@ -9,7 +9,7 @@
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/objects/smi.h"
 #include "src/runtime/runtime.h"
 

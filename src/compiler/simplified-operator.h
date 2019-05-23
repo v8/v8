@@ -16,7 +16,7 @@
 #include "src/globals.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/type-hints.h"
 #include "src/vector-slot-pair.h"
 #include "src/zone/zone-handle-set.h"

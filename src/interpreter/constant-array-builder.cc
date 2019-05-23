@@ -13,7 +13,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/functional.h"
 #include "src/execution/isolate.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

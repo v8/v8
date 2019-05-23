@@ -6,8 +6,8 @@
 #include "src/builtins/builtins.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean.
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
 #include "src/objects/frame-array-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

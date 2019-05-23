@@ -8,9 +8,9 @@
 #include "src/builtins/accessors.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct-inl.h"
 

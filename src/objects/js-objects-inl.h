@@ -7,14 +7,14 @@
 
 #include "src/objects/js-objects.h"
 
-#include "src/feedback-vector.h"
 #include "src/heap/heap-write-barrier.h"
-#include "src/keys.h"
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/keys.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/property-array-inl.h"
 #include "src/objects/prototype-inl.h"

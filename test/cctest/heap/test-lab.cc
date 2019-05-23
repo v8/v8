@@ -7,7 +7,7 @@
 #include "src/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

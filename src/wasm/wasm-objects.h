@@ -10,7 +10,7 @@
 #include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
 #include "src/heap/heap.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/objects/script.h"
 #include "src/wasm/value-type.h"
 

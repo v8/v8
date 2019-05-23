@@ -5,7 +5,7 @@
 #include "test/unittests/test-utils.h"
 
 #include "src/handles/handles.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"

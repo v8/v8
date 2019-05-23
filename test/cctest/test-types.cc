@@ -8,7 +8,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "test/cctest/cctest.h"
 #include "test/common/types-fuzz.h"
 

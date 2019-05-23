@@ -11,9 +11,9 @@
 // Do not include anything from src/heap here!
 #include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string-inl.h"
 #include "src/strings/string-hasher.h"

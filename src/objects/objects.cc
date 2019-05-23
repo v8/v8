@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 #include <algorithm>
 #include <cmath>
@@ -10,7 +10,7 @@
 #include <sstream>
 #include <vector>
 
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 #include "src/allocation-site-scopes.h"
 #include "src/api/api-arguments-inl.h"
@@ -33,14 +33,12 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/message-template.h"
 #include "src/execution/microtask-queue.h"
-#include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/ic/ic.h"
 #include "src/identity-map.h"
 #include "src/init/bootstrapper.h"
-#include "src/keys.h"
 #include "src/logging/counters-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -61,8 +59,10 @@
 #include "src/objects/foreign.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/function-kind.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/keys.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/map-updater.h"
 #ifdef V8_INTL_SUPPORT
@@ -282,8 +282,9 @@ MaybeHandle<Object> Object::ConvertToNumberOrNumeric(Isolate* isolate,
                       Object);
     }
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, input, JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
-                                                ToPrimitiveHint::kNumber),
+        isolate, input,
+        JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
+                                ToPrimitiveHint::kNumber),
         Object);
   }
 }
@@ -371,8 +372,9 @@ MaybeHandle<String> Object::ConvertToString(Isolate* isolate,
       return BigInt::ToString(isolate, Handle<BigInt>::cast(input));
     }
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, input, JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
-                                                ToPrimitiveHint::kString),
+        isolate, input,
+        JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
+                                ToPrimitiveHint::kString),
         String);
     // The previous isString() check happened in Object::ToString and thus we
     // put it at the end of the loop in this helper.
@@ -677,7 +679,6 @@ Maybe<ComparisonResult> Object::Compare(Isolate* isolate, Handle<Object> x,
   }
 }
 
-
 // static
 Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
                            Handle<Object> y) {
@@ -809,7 +810,6 @@ Handle<String> Object::TypeOf(Isolate* isolate, Handle<Object> object) {
   return isolate->factory()->object_string();
 }
 
-
 // static
 MaybeHandle<Object> Object::Add(Isolate* isolate, Handle<Object> lhs,
                                 Handle<Object> rhs) {
@@ -835,7 +835,6 @@ MaybeHandle<Object> Object::Add(Isolate* isolate, Handle<Object> lhs,
                              Object);
   return isolate->factory()->NewNumber(lhs->Number() + rhs->Number());
 }
-
 
 // static
 MaybeHandle<Object> Object::OrdinaryHasInstance(Isolate* isolate,
@@ -930,8 +929,9 @@ MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
     return isolate->factory()->undefined_value();
   }
   if (!func->IsCallable()) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kPropertyNotFunction,
-                                          func, name, receiver),
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kPropertyNotFunction, func,
+                                 name, receiver),
                     Object);
   }
   return func;
@@ -1035,7 +1035,6 @@ MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
   return list;
 }
 
-
 // static
 MaybeHandle<Object> Object::GetLengthFromArrayLike(Isolate* isolate,
                                                    Handle<JSReceiver> object) {
@@ -1097,7 +1096,6 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
   }
   return it->isolate()->factory()->undefined_value();
 }
-
 
 // static
 MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
@@ -1217,8 +1215,6 @@ MaybeHandle<Object> JSProxy::CheckGetSetTrapResult(Isolate* isolate,
   return isolate->factory()->undefined_value();
 }
 
-
-
 bool Object::ToInt32(int32_t* value) {
   if (IsSmi()) {
     *value = Smi::ToInt(*this);
@@ -1329,7 +1325,6 @@ Handle<TemplateList> TemplateList::Add(Isolate* isolate,
   fixed_array->set(kLengthIndex, Smi::FromInt(index));
   return Handle<TemplateList>::cast(fixed_array);
 }
-
 
 // ES6 9.5.1
 // static
@@ -1558,10 +1553,11 @@ Maybe<bool> Object::SetPropertyWithAccessor(
     SaveAndSwitchContext save(isolate, *holder->GetCreationContext());
     Handle<Object> argv[] = {value};
     RETURN_ON_EXCEPTION_VALUE(
-        isolate, Builtins::InvokeApiFunction(
-                     isolate, false, Handle<FunctionTemplateInfo>::cast(setter),
-                     receiver, arraysize(argv), argv,
-                     isolate->factory()->undefined_value()),
+        isolate,
+        Builtins::InvokeApiFunction(isolate, false,
+                                    Handle<FunctionTemplateInfo>::cast(setter),
+                                    receiver, arraysize(argv), argv,
+                                    isolate->factory()->undefined_value()),
         Nothing<bool>());
     return Just(true);
   } else if (setter->IsCallable()) {
@@ -1576,8 +1572,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(
 }
 
 MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
-    Handle<Object> receiver,
-    Handle<JSReceiver> getter) {
+    Handle<Object> receiver, Handle<JSReceiver> getter) {
   Isolate* isolate = getter->GetIsolate();
 
   // Platforms with simulators like arm/arm64 expose a funny issue. If the
@@ -1602,10 +1597,11 @@ Maybe<bool> Object::SetPropertyWithDefinedSetter(
     Maybe<ShouldThrow> should_throw) {
   Isolate* isolate = setter->GetIsolate();
 
-  Handle<Object> argv[] = { value };
-  RETURN_ON_EXCEPTION_VALUE(isolate, Execution::Call(isolate, setter, receiver,
-                                                     arraysize(argv), argv),
-                            Nothing<bool>());
+  Handle<Object> argv[] = {value};
+  RETURN_ON_EXCEPTION_VALUE(
+      isolate,
+      Execution::Call(isolate, setter, receiver, arraysize(argv), argv),
+      Nothing<bool>());
   return Just(true);
 }
 
@@ -1708,8 +1704,8 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
   } else {
     if (!constructor->IsConstructor()) {
       THROW_NEW_ERROR(isolate,
-          NewTypeError(MessageTemplate::kSpeciesNotConstructor),
-          Object);
+                      NewTypeError(MessageTemplate::kSpeciesNotConstructor),
+                      Object);
     }
     return constructor;
   }
@@ -1827,8 +1823,6 @@ std::ostream& operator<<(std::ostream& os, const Brief& v) {
 void Smi::SmiPrint(std::ostream& os) const {  // NOLINT
   os << value();
 }
-
-
 
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
   os << AsHex::Address(this->ptr()) << " ";
@@ -2172,7 +2166,6 @@ void CallableTask::BriefPrintDetails(std::ostream& os) {
 
 void HeapObject::Iterate(ObjectVisitor* v) { IterateFast<ObjectVisitor>(v); }
 
-
 void HeapObject::IterateBody(ObjectVisitor* v) {
   Map m = map();
   IterateBodyFast<ObjectVisitor>(m, SizeFromMap(m), v);
@@ -2181,7 +2174,6 @@ void HeapObject::IterateBody(ObjectVisitor* v) {
 void HeapObject::IterateBody(Map map, int object_size, ObjectVisitor* v) {
   IterateBodyFast<ObjectVisitor>(map, object_size, v);
 }
-
 
 struct CallIsValidSlot {
   template <typename BodyDescriptor>
@@ -2579,7 +2571,6 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
   // The property either doesn't exist on the holder or exists there as a data
   // property.
 
-
   if (!it->GetReceiver()->IsJSReceiver()) {
     return WriteToReadOnlyProperty(it, value, should_throw);
   }
@@ -2831,7 +2822,6 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
   return Just(true);
 }
 
-
 template <class T>
 static int AppendUniqueCallbacks(Isolate* isolate,
                                  Handle<TemplateList> callbacks,
@@ -2858,19 +2848,15 @@ static int AppendUniqueCallbacks(Isolate* isolate,
 
 struct FixedArrayAppender {
   typedef FixedArray Array;
-  static bool Contains(Handle<Name> key,
-                       Handle<AccessorInfo> entry,
-                       int valid_descriptors,
-                       Handle<FixedArray> array) {
+  static bool Contains(Handle<Name> key, Handle<AccessorInfo> entry,
+                       int valid_descriptors, Handle<FixedArray> array) {
     for (int i = 0; i < valid_descriptors; i++) {
       if (*key == AccessorInfo::cast(array->get(i)).name()) return true;
     }
     return false;
   }
-  static void Insert(Handle<Name> key,
-                     Handle<AccessorInfo> entry,
-                     int valid_descriptors,
-                     Handle<FixedArray> array) {
+  static void Insert(Handle<Name> key, Handle<AccessorInfo> entry,
+                     int valid_descriptors, Handle<FixedArray> array) {
     DisallowHeapAllocation no_gc;
     array->set(valid_descriptors, *entry);
   }
@@ -2884,10 +2870,6 @@ int AccessorInfo::AppendUnique(Isolate* isolate, Handle<Object> descriptors,
   return AppendUniqueCallbacks<FixedArrayAppender>(isolate, callbacks, array,
                                                    valid_descriptors);
 }
-
-
-
-
 
 void JSProxy::Revoke(Handle<JSProxy> proxy) {
   Isolate* isolate = proxy->GetIsolate();
@@ -2942,8 +2924,9 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
   // 6. Let trap be ? GetMethod(handler, "has").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(Handle<JSReceiver>::cast(handler),
-                                       isolate->factory()->has_string()),
+      isolate, trap,
+      Object::GetMethod(Handle<JSReceiver>::cast(handler),
+                        isolate->factory()->has_string()),
       Nothing<bool>());
   // 7. If trap is undefined, then
   if (trap->IsUndefined(isolate)) {
@@ -3095,7 +3078,6 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
   return Just(true);
 }
 
-
 // static
 MaybeHandle<JSProxy> JSProxy::New(Isolate* isolate, Handle<Object> target,
                                   Handle<Object> handler) {
@@ -3120,7 +3102,6 @@ MaybeHandle<JSProxy> JSProxy::New(Isolate* isolate, Handle<Object> target,
   return isolate->factory()->NewJSProxy(Handle<JSReceiver>::cast(target),
                                         Handle<JSReceiver>::cast(handler));
 }
-
 
 // static
 MaybeHandle<NativeContext> JSProxy::GetFunctionRealm(Handle<JSProxy> proxy) {
@@ -3873,7 +3854,6 @@ void FixedArray::CopyTo(int pos, FixedArray dest, int dest_pos, int len) const {
   }
 }
 
-
 // static
 Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
                                  Handle<Object> obj) {
@@ -4348,7 +4328,6 @@ MaybeHandle<String> Name::ToFunctionName(Isolate* isolate, Handle<Name> name,
   return builder.Finish();
 }
 
-
 void Relocatable::PostGarbageCollectionProcessing(Isolate* isolate) {
   Relocatable* current = isolate->relocatable_top();
   while (current != nullptr) {
@@ -4357,12 +4336,10 @@ void Relocatable::PostGarbageCollectionProcessing(Isolate* isolate) {
   }
 }
 
-
 // Reserve space for statics needing saving and restoring.
 int Relocatable::ArchiveSpacePerThread() {
   return sizeof(Relocatable*);  // NOLINT
 }
-
 
 // Archive statics that are thread-local.
 char* Relocatable::ArchiveState(Isolate* isolate, char* to) {
@@ -4370,7 +4347,6 @@ char* Relocatable::ArchiveState(Isolate* isolate, char* to) {
   isolate->set_relocatable_top(nullptr);
   return to + ArchiveSpacePerThread();
 }
-
 
 // Restore statics that are thread-local.
 char* Relocatable::RestoreState(Isolate* isolate, char* from) {
@@ -4395,10 +4371,6 @@ void Relocatable::Iterate(RootVisitor* v, Relocatable* top) {
     current = current->prev_;
   }
 }
-
-
-
-
 
 namespace {
 
@@ -4510,9 +4482,6 @@ Address JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
   return dest.ptr();
 }
 
-
-
-
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.
@@ -4529,7 +4498,6 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
             Name::ContainsCachedArrayIndex(value));
   return value;
 }
-
 
 Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
                                        Handle<Map> initial_map) {
@@ -5319,7 +5287,6 @@ int SharedFunctionInfo::FindIndexInScript(Isolate* isolate) const {
   return kFunctionLiteralIdInvalid;
 }
 
-
 // Output the source code without any allocation in the heap.
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
   const SharedFunctionInfo s = v.value;
@@ -5352,7 +5319,6 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
     return os << "...\n";
   }
 }
-
 
 void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   DCHECK_NE(reason, BailoutReason::kNoReason);
@@ -5684,10 +5650,6 @@ Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
   return Just(true);
 }
 
-
-
-
-
 bool JSArray::SetLengthWouldNormalize(uint32_t new_length) {
   if (!HasFastElements()) return false;
   uint32_t capacity = static_cast<uint32_t>(elements().length());
@@ -5697,9 +5659,7 @@ bool JSArray::SetLengthWouldNormalize(uint32_t new_length) {
                                      &new_capacity);
 }
 
-
 const double AllocationSite::kPretenureRatio = 0.85;
-
 
 void AllocationSite::ResetPretenureDecision() {
   set_pretenure_decision(kUndecided);
@@ -5726,7 +5686,6 @@ bool AllocationSite::IsNested() {
   return false;
 }
 
-
 bool AllocationSite::ShouldTrack(ElementsKind from, ElementsKind to) {
   return IsSmiElementsKind(from) &&
          IsMoreGeneralElementsKindTransition(from, to);
@@ -5734,17 +5693,21 @@ bool AllocationSite::ShouldTrack(ElementsKind from, ElementsKind to) {
 
 const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
   switch (decision) {
-    case kUndecided: return "undecided";
-    case kDontTenure: return "don't tenure";
-    case kMaybeTenure: return "maybe tenure";
-    case kTenure: return "tenure";
-    case kZombie: return "zombie";
-    default: UNREACHABLE();
+    case kUndecided:
+      return "undecided";
+    case kDontTenure:
+      return "don't tenure";
+    case kMaybeTenure:
+      return "maybe tenure";
+    case kTenure:
+      return "tenure";
+    case kZombie:
+      return "zombie";
+    default:
+      UNREACHABLE();
   }
   return nullptr;
 }
-
-
 
 bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {
   Map map = array->map();
@@ -5763,16 +5726,12 @@ bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {
   return it.IsReadOnly();
 }
 
-
-bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
-                                        uint32_t index) {
+bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array, uint32_t index) {
   uint32_t length = 0;
   CHECK(array->length().ToArrayLength(&length));
   if (length <= index) return HasReadOnlyLength(array);
   return false;
 }
-
-
 
 // Certain compilers request function template instantiation when they
 // see the definition of the other template functions in the
@@ -5807,8 +5766,6 @@ void Dictionary<Derived, Shape>::Print() {
 }
 #endif
 
-
-
 int FixedArrayBase::GetMaxLengthForNewSpaceAllocation(ElementsKind kind) {
   return ((kMaxRegularHeapObjectSize - FixedArrayBase::kHeaderSize) >>
           ElementsKindToShiftSize(kind));
@@ -5818,7 +5775,6 @@ bool FixedArrayBase::IsCowArray() const {
   return map() == GetReadOnlyRoots().fixed_cow_array_map();
 }
 
-
 const char* Symbol::PrivateSymbolToName() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
 #define SYMBOL_CHECK_AND_PRINT(_, name) \
@@ -5827,7 +5783,6 @@ const char* Symbol::PrivateSymbolToName() const {
 #undef SYMBOL_CHECK_AND_PRINT
   return "UNKNOWN";
 }
-
 
 void Symbol::SymbolShortPrint(std::ostream& os) {
   os << "<Symbol:";
@@ -5842,7 +5797,6 @@ void Symbol::SymbolShortPrint(std::ostream& os) {
   }
   os << ">";
 }
-
 
 // StringSharedKeys are used as keys in the eval cache.
 class StringSharedKey : public HashTableKey {
@@ -6240,7 +6194,6 @@ JSRegExp::Flags RegExpFlagsFromString(Isolate* isolate, Handle<String> flags,
 
 }  // namespace
 
-
 // static
 MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
                                     Flags flags) {
@@ -6250,7 +6203,6 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
 
   return JSRegExp::Initialize(regexp, pattern, flags);
 }
-
 
 // static
 Handle<JSRegExp> JSRegExp::Copy(Handle<JSRegExp> regexp) {
@@ -6377,7 +6329,6 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   return Initialize(regexp, source, flags);
 }
 
-
 // static
 MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
                                            Handle<String> source, Flags flags) {
@@ -6417,7 +6368,6 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
 
   return regexp;
 }
-
 
 // RegExpKey carries the source and flags of a regular expression as key.
 class RegExpKey : public HashTableKey {
@@ -7184,7 +7134,6 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
   return cache;
 }
 
-
 void CompilationCacheTable::Age() {
   DisallowHeapAllocation no_allocation;
   Object the_hole_value = GetReadOnlyRoots().the_hole_value();
@@ -7421,7 +7370,6 @@ int Dictionary<Derived, Shape>::NumberOfEnumerableProperties() {
   }
   return result;
 }
-
 
 template <typename Dictionary>
 struct EnumIndexComparator {
@@ -7736,7 +7684,6 @@ void ObjectHashTableBase<Derived, Shape>::RemoveEntry(int entry) {
   this->ElementRemoved();
 }
 
-
 void JSSet::Initialize(Handle<JSSet> set, Isolate* isolate) {
   Handle<OrderedHashSet> table = isolate->factory()->NewOrderedHashSet();
   set->set_table(*table);
@@ -7747,7 +7694,6 @@ void JSSet::Clear(Isolate* isolate, Handle<JSSet> set) {
   table = OrderedHashSet::Clear(isolate, table);
   set->set_table(*table);
 }
-
 
 void JSMap::Initialize(Handle<JSMap> map, Isolate* isolate) {
   Handle<OrderedHashMap> table = isolate->factory()->NewOrderedHashMap();
@@ -7760,13 +7706,11 @@ void JSMap::Clear(Isolate* isolate, Handle<JSMap> map) {
   map->set_table(*table);
 }
 
-
 void JSWeakCollection::Initialize(Handle<JSWeakCollection> weak_collection,
                                   Isolate* isolate) {
   Handle<EphemeronHashTable> table = EphemeronHashTable::New(isolate, 0);
   weak_collection->set_table(*table);
 }
-
 
 void JSWeakCollection::Set(Handle<JSWeakCollection> weak_collection,
                            Handle<Object> key, Handle<Object> value,
@@ -7784,7 +7728,6 @@ void JSWeakCollection::Set(Handle<JSWeakCollection> weak_collection,
     EphemeronHashTable::FillEntriesWithHoles(table);
   }
 }
-
 
 bool JSWeakCollection::Delete(Handle<JSWeakCollection> weak_collection,
                               Handle<Object> key, int32_t hash) {
@@ -7840,7 +7783,6 @@ Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
   return isolate->factory()->NewJSArrayWithElements(entries);
 }
 
-
 Handle<PropertyCell> PropertyCell::InvalidateEntry(
     Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry) {
   // Swap with a copy.
@@ -7868,12 +7810,10 @@ Handle<PropertyCell> PropertyCell::InvalidateEntry(
   return new_cell;
 }
 
-
 PropertyCellConstantType PropertyCell::GetConstantType() {
   if (value().IsSmi()) return PropertyCellConstantType::kSmi;
   return PropertyCellConstantType::kStableMap;
 }
-
 
 static bool RemainsConstantType(Handle<PropertyCell> cell,
                                 Handle<Object> value) {
@@ -7973,7 +7913,6 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
   return cell;
 }
 
-
 // static
 void PropertyCell::SetValueWithInvalidation(Isolate* isolate,
                                             Handle<PropertyCell> cell,
@@ -8024,7 +7963,6 @@ AccessCheckInfo AccessCheckInfo::Get(Isolate* isolate,
 
   return AccessCheckInfo::cast(data_obj);
 }
-
 
 MaybeHandle<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
     Isolate* isolate, Handle<Object> getter) {

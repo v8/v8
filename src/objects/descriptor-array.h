@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_DESCRIPTOR_ARRAY_H_
 #define V8_OBJECTS_DESCRIPTOR_ARRAY_H_
 
-#include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/objects.h"
 #include "src/objects/struct.h"
 #include "src/utils.h"
 

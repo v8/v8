@@ -17,7 +17,7 @@
 #include "src/globals.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/vector.h"

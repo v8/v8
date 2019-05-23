@@ -19,7 +19,7 @@
 #include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/snapshot.h"

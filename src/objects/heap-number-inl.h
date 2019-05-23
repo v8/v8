@@ -7,8 +7,8 @@
 
 #include "src/objects/heap-number.h"
 
-#include "src/objects-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

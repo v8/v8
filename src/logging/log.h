@@ -11,7 +11,7 @@
 #include "include/v8-profiler.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/logging/code-events.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 

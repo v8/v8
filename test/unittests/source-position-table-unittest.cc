@@ -5,7 +5,7 @@
 #include "src/v8.h"
 
 #include "src/codegen/source-position-table.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {

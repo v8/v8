@@ -8,7 +8,7 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/read-only-heap.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/startup-serializer.h"
 #include "src/v8threads.h"

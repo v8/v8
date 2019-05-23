@@ -6,8 +6,8 @@
 #include <sstream>
 #include <utility>
 
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/third_party/siphash/halfsiphash.h"
 #include "src/utils.h"

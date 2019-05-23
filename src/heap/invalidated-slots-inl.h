@@ -12,7 +12,7 @@
 #include "src/heap/spaces.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/objects-body-descriptors.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

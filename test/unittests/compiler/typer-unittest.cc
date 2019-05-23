@@ -9,7 +9,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/common/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
 

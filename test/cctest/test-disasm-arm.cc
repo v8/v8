@@ -41,7 +41,7 @@
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
 #include "src/numbers/double.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 

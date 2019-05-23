@@ -8,8 +8,8 @@
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
-#include "src/objects-inl.h"
 #include "src/objects/compilation-cache-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/visitors.h"
 

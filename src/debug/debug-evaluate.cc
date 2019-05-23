@@ -7,7 +7,6 @@
 #include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
-#include "src/contexts.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
@@ -16,6 +15,7 @@
 #include "src/globals.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/objects/contexts.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {

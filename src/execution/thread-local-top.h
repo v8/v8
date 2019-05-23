@@ -5,9 +5,9 @@
 #ifndef V8_EXECUTION_THREAD_LOCAL_TOP_H_
 #define V8_EXECUTION_THREAD_LOCAL_TOP_H_
 
-#include "src/contexts.h"
 #include "src/execution/thread-id.h"
 #include "src/globals.h"
+#include "src/objects/contexts.h"
 
 namespace v8 {
 

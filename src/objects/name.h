@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_NAME_H_
 #define V8_OBJECTS_NAME_H_
 
-#include "src/objects.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/objects.h"
 #include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):

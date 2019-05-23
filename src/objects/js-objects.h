@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_JS_OBJECTS_H_
 #define V8_OBJECTS_JS_OBJECTS_H_
 
-#include "src/objects.h"
 #include "src/objects/embedder-data-slot.h"
+#include "src/objects/objects.h"
 #include "src/objects/property-array.h"
 #include "torque-generated/field-offsets-tq.h"
 

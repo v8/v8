@@ -14,8 +14,8 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/ic/stub-cache.h"
-#include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

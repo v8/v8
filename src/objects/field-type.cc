@@ -5,7 +5,7 @@
 #include "src/objects/field-type.h"
 
 #include "src/handles/handles-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/ostreams.h"
 

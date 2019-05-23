@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_KEYS_H_
-#define V8_KEYS_H_
+#ifndef V8_OBJECTS_KEYS_H_
+#define V8_OBJECTS_KEYS_H_
 
-#include "src/objects.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -172,4 +172,4 @@ class FastKeyAccumulator {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_KEYS_H_
+#endif  // V8_OBJECTS_KEYS_H_

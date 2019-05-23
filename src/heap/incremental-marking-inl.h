@@ -9,8 +9,8 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/mark-compact-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

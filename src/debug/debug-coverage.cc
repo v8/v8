@@ -11,8 +11,8 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
-#include "src/objects.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

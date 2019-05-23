@@ -6,10 +6,10 @@
 
 #include "src/execution/message-template.h"
 #include "src/numbers/conversions.h"
-#include "src/objects-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/lookup.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/smi.h"

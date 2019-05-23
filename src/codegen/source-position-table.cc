@@ -4,8 +4,8 @@
 
 #include "src/codegen/source-position-table.h"
 
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

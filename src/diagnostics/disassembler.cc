@@ -17,7 +17,7 @@
 #include "src/diagnostics/disasm.h"
 #include "src/execution/isolate-data.h"
 #include "src/ic/ic.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/strings/string-stream.h"

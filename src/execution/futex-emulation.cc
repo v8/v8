@@ -11,8 +11,8 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/numbers/conversions.h"
-#include "src/objects-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

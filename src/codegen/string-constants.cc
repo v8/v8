@@ -6,7 +6,7 @@
 
 #include "src/base/functional.h"
 #include "src/numbers/dtoa.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/objects/string-inl.h"
 
 namespace v8 {

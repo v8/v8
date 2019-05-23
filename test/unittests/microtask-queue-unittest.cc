@@ -10,10 +10,10 @@
 #include <vector>
 
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"
 #include "src/objects/foreign.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/visitors.h"
 #include "test/unittests/test-utils.h"

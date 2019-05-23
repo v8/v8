@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/handles/handles.h"
 #include "src/logging/counters.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/objects/slots.h"
 #include "src/tracing/trace-event.h"
 

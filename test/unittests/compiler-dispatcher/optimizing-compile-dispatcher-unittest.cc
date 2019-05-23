@@ -11,7 +11,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "test/unittests/test-helpers.h"
 #include "test/unittests/test-utils.h"

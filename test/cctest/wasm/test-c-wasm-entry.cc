@@ -6,7 +6,7 @@
 
 #include "src/base/overflowing-math.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"

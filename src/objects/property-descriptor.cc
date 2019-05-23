@@ -8,8 +8,8 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
-#include "src/objects-inl.h"
 #include "src/objects/lookup.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
 
 namespace v8 {

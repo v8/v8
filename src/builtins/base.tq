@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-regexp-gen.h'
 #include 'src/builtins/builtins-utils-gen.h'
 #include 'src/builtins/builtins.h'
 #include 'src/codegen/code-factory.h'
 #include 'src/heap/factory-inl.h'
-#include 'src/objects.h'
 #include 'src/objects/arguments.h'
 #include 'src/objects/bigint.h'
 #include 'src/objects/elements-kind.h'
@@ -15,8 +15,8 @@
 #include 'src/objects/js-promise.h'
 #include 'src/objects/js-regexp-string-iterator.h'
 #include 'src/objects/module.h'
+#include 'src/objects/objects.h'
 #include 'src/objects/stack-frame-info.h'
-#include 'src/builtins/builtins-regexp-gen.h'
 #include 'src/objects/template-objects.h'
 
 type void;

@@ -9,7 +9,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/heap/factory.h"
 #include "src/logging/log.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/strings/unicode.h"

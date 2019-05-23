@@ -6,7 +6,7 @@
 
 #include <sstream>
 
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/ostreams.h"
 #include "src/strings/string-stream.h"
 

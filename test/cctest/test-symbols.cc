@@ -32,8 +32,8 @@
 
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/objects.h"
 #include "src/objects/name-inl.h"
+#include "src/objects/objects.h"
 #include "src/ostreams.h"
 #include "test/cctest/cctest.h"
 

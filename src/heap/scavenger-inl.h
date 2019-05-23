@@ -9,8 +9,8 @@
 
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/local-allocator-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/map.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/slots-inl.h"
 
 namespace v8 {

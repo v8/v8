@@ -10,8 +10,8 @@
 #include "src/ast/variables.h"
 #include "src/init/bootstrapper.h"
 
-#include "src/objects-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

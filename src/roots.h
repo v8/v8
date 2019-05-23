@@ -8,8 +8,8 @@
 #include "src/builtins/accessors.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
-#include "src/objects-definitions.h"
-#include "src/objects.h"
+#include "src/objects/objects-definitions.h"
+#include "src/objects/objects.h"
 #include "src/objects/slots.h"
 
 namespace v8 {

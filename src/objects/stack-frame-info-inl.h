@@ -8,8 +8,8 @@
 #include "src/objects/stack-frame-info.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/frame-array-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"
 
 // Has to be the last include (doesn't have include guards):

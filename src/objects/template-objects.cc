@@ -7,7 +7,7 @@
 #include "src/base/functional.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/template-objects-inl.h"
 

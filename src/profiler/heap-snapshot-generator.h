@@ -12,12 +12,12 @@
 
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
-#include "src/objects.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/literal-objects.h"
+#include "src/objects/objects.h"
 #include "src/profiler/strings-storage.h"
 #include "src/strings/string-hasher.h"
 #include "src/visitors.h"

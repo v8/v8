@@ -34,7 +34,7 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"

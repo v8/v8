@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 #include <iomanip>
 #include <memory>
@@ -13,7 +13,6 @@
 #include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/data-handler-inl.h"
@@ -27,6 +26,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/snapshot/embedded-data.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"

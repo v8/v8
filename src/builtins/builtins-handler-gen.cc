@@ -7,7 +7,7 @@
 #include "src/codegen/code-stub-assembler.h"
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

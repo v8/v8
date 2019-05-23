@@ -9,7 +9,7 @@
 
 #include "src/debug/debug-interface.h"
 #include "src/handles/handles.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

@@ -8,10 +8,10 @@
 #include "src/execution/isolate.h"
 #include "src/globals.h"
 #include "src/heap/factory.h"
-#include "src/objects.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/map.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

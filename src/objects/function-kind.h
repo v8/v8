@@ -3,8 +3,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_FUNCTION_KIND_H_
-#define V8_FUNCTION_KIND_H_
+#ifndef V8_OBJECTS_FUNCTION_KIND_H_
+#define V8_OBJECTS_FUNCTION_KIND_H_
 
 #include "src/utils.h"
 
@@ -191,4 +191,4 @@ inline std::ostream& operator<<(std::ostream& os, FunctionKind kind) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_FUNCTION_KIND_H_
+#endif  // V8_OBJECTS_FUNCTION_KIND_H_

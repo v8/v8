@@ -8,9 +8,9 @@
 #include "src/objects/embedder-data-slot.h"
 
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/embedder-data-array.h"
 #include "src/objects/js-objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/v8memory.h"
 
 // Has to be the last include (doesn't have include guards):

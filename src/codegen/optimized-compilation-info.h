@@ -12,7 +12,7 @@
 #include "src/execution/frames.h"
 #include "src/globals.h"
 #include "src/handles/handles.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/utils.h"
 #include "src/vector.h"
 

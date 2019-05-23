@@ -6,8 +6,8 @@
 #define V8_HEAP_READ_ONLY_HEAP_H_
 
 #include "src/base/macros.h"
-#include "src/objects.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/objects.h"
 #include "src/roots.h"
 
 namespace v8 {

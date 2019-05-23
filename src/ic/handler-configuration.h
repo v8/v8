@@ -7,10 +7,10 @@
 
 #include "src/globals.h"
 #include "src/handles/maybe-handles.h"
-#include "src/objects.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-index.h"
+#include "src/objects/objects.h"
 #include "src/utils.h"
 
 // Has to be the last include (doesn't have include guards):

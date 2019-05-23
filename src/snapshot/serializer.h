@@ -9,7 +9,7 @@
 
 #include "src/execution/isolate.h"
 #include "src/logging/log.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-allocator.h"
 #include "src/snapshot/serializer-common.h"

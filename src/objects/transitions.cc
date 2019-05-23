@@ -4,7 +4,7 @@
 
 #include "src/objects/transitions.h"
 
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/utils.h"
 

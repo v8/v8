@@ -8,7 +8,6 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/keys.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/allocation-site-inl.h"
@@ -16,6 +15,7 @@
 #include "src/objects/elements.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/keys.h"
 #include "src/objects/prototype.h"
 #include "src/runtime/runtime-utils.h"
 

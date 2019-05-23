@@ -10,8 +10,8 @@
 #include "src/globals.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
-#include "src/objects.h"
 #include "src/objects/name.h"
+#include "src/objects/objects.h"
 #include "src/objects/property-details.h"
 
 namespace v8 {

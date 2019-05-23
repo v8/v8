@@ -6,8 +6,8 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {

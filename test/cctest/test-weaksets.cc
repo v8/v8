@@ -31,9 +31,9 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 

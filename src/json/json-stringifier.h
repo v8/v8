@@ -5,7 +5,7 @@
 #ifndef V8_JSON_JSON_STRINGIFIER_H_
 #define V8_JSON_JSON_STRINGIFIER_H_
 
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

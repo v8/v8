@@ -7,8 +7,8 @@
     defined(V8_TARGET_ARCH_ARM64)
 
 #include "src/flags.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {

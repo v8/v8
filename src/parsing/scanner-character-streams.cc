@@ -11,7 +11,7 @@
 #include "src/globals.h"
 #include "src/handles/handles.h"
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/scanner.h"
 #include "src/strings/unicode-inl.h"
 

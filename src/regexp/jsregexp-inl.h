@@ -7,8 +7,8 @@
 #define V8_REGEXP_JSREGEXP_INL_H_
 
 #include "src/allocation.h"
-#include "src/objects.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/objects.h"
 #include "src/regexp/jsregexp.h"
 
 namespace v8 {

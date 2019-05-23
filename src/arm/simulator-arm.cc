@@ -17,7 +17,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/disasm.h"
 #include "src/heap/combined-heap.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/utils.h"

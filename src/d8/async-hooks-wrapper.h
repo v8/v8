@@ -8,7 +8,7 @@
 #include <stack>
 
 #include "include/v8.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 

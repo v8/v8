@@ -9,7 +9,7 @@
 #include "src/date/dateparser-inl.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-date-time-format.h"

@@ -9,8 +9,8 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces-inl.h"
 #include "src/numbers/conversions-inl.h"
-#include "src/objects.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

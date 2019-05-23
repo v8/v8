@@ -6,9 +6,9 @@
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_H_
 
 #include "src/codegen/bailout-reason.h"
-#include "src/function-kind.h"
-#include "src/objects.h"
 #include "src/objects/compressed-slots.h"
+#include "src/objects/function-kind.h"
+#include "src/objects/objects.h"
 #include "src/objects/script.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"

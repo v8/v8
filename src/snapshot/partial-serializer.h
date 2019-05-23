@@ -6,7 +6,7 @@
 #define V8_SNAPSHOT_PARTIAL_SERIALIZER_H_
 
 #include "src/address-map.h"
-#include "src/contexts.h"
+#include "src/objects/contexts.h"
 #include "src/snapshot/serializer.h"
 
 namespace v8 {

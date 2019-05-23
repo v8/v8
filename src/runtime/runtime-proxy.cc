@@ -9,8 +9,8 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
 #include "src/objects/elements.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

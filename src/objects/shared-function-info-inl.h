@@ -7,10 +7,10 @@
 
 #include "src/objects/shared-function-info.h"
 
-#include "src/feedback-vector-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/feedback-vector-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/templates.h"
 #include "src/wasm/wasm-objects-inl.h"

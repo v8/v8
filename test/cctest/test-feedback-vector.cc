@@ -11,8 +11,8 @@
 #include "src/execution/execution.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/test-feedback-vector.h"
 
 namespace v8 {

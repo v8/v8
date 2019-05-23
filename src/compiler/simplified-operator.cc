@@ -9,9 +9,9 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
 #include "src/handles/handles-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/name.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {

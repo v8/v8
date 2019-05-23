@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
-#include "src/objects-inl.h"
 #include "src/objects/managed.h"
+#include "src/objects/objects-inl.h"
 #include "src/v8.h"
 #include "src/vector.h"
 

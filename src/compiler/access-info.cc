@@ -11,11 +11,11 @@
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
 #include "src/logging/counters.h"
-#include "src/objects-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/templates.h"
 
