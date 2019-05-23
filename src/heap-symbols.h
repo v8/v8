@@ -125,7 +125,6 @@
   V(_, ArrayBuffer_string, "ArrayBuffer")                             \
   V(_, ArrayIterator_string, "Array Iterator")                        \
   V(_, as_string, "as")                                               \
-  V(_, assign_string, "assign")                                       \
   V(_, async_string, "async")                                         \
   V(_, auto_string, "auto")                                           \
   V(_, await_string, "await")                                         \
@@ -142,7 +141,6 @@
   V(_, byte_length_string, "byteLength")                              \
   V(_, byte_offset_string, "byteOffset")                              \
   V(_, CompileError_string, "CompileError")                           \
-  V(_, call_string, "call")                                           \
   V(_, callee_string, "callee")                                       \
   V(_, caller_string, "caller")                                       \
   V(_, character_string, "character")                                 \
@@ -154,7 +152,6 @@
   V(_, conjunction_string, "conjunction")                             \
   V(_, construct_string, "construct")                                 \
   V(_, constructor_string, "constructor")                             \
-  V(_, create_string, "create")                                       \
   V(_, Date_string, "Date")                                           \
   V(_, date_to_string, "[object Date]")                               \
   V(_, default_string, "default")                                     \
@@ -174,7 +171,6 @@
   V(_, dot_string, ".")                                               \
   V(_, dot_switch_tag_string, ".switch_tag")                          \
   V(_, dotAll_string, "dotAll")                                       \
-  V(_, entries_string, "entries")                                     \
   V(_, enumerable_string, "enumerable")                               \
   V(_, element_string, "element")                                     \
   V(_, Error_string, "Error")                                         \
@@ -195,7 +191,6 @@
   V(_, get_space_string, "get ")                                      \
   V(_, get_string, "get")                                             \
   V(_, getOwnPropertyDescriptor_string, "getOwnPropertyDescriptor")   \
-  V(_, getOwnPropertyDescriptors_string, "getOwnPropertyDescriptors") \
   V(_, getPrototypeOf_string, "getPrototypeOf")                       \
   V(_, global_string, "global")                                       \
   V(_, globalThis_string, "globalThis")                               \
@@ -212,7 +207,6 @@
   V(_, Int32Array_string, "Int32Array")                               \
   V(_, Int8Array_string, "Int8Array")                                 \
   V(_, isExtensible_string, "isExtensible")                           \
-  V(_, isView_string, "isView")                                       \
   V(_, keys_string, "keys")                                           \
   V(_, lastIndex_string, "lastIndex")                                 \
   V(_, length_string, "length")                                       \
@@ -256,7 +250,6 @@
   V(_, preventExtensions_string, "preventExtensions")                 \
   V(_, private_constructor_string, "#constructor")                    \
   V(_, Promise_string, "Promise")                                     \
-  V(_, promise_string, "promise")                                     \
   V(_, proto_string, "__proto__")                                     \
   V(_, prototype_string, "prototype")                                 \
   V(_, proxy_string, "proxy")                                         \
@@ -315,7 +308,6 @@
   V(_, URIError_string, "URIError")                                   \
   V(_, value_string, "value")                                         \
   V(_, valueOf_string, "valueOf")                                     \
-  V(_, values_string, "values")                                       \
   V(_, WeakMap_string, "WeakMap")                                     \
   V(_, WeakRef_string, "WeakRef")                                     \
   V(_, WeakSet_string, "WeakSet")                                     \

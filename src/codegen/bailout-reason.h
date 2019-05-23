@@ -53,7 +53,6 @@ namespace internal {
   V(kPromiseAlreadySettled, "Promise already settled")                        \
   V(kReceivedInvalidReturnAddress, "Received invalid return address")         \
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root") \
-  V(kRegisterWasClobbered, "Register was clobbered")                          \
   V(kReturnAddressNotFoundInFrame, "Return address not found in frame")       \
   V(kShouldNotDirectlyEnterOsrFunction,                                       \
     "Should not directly enter OSR-compiled function")                        \
