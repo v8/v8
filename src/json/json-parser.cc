@@ -988,24 +988,20 @@ Handle<String> JsonParser<Char>::DecodeString(
   {
     DisallowHeapAllocation no_gc;
     SinkChar* dest = intermediate->GetChars(no_gc);
-    if (string.has_escape()) {
-      DecodeString(dest, string.start(), string.length());
-    } else {
-      DCHECK_IMPLIES(string.internalize(), string.needs_conversion());
+    if (!string.has_escape()) {
+      DCHECK(!string.internalize());
       CopyChars(dest, chars_ + string.start(), string.length());
+      return intermediate;
     }
+    DecodeString(dest, string.start(), string.length());
+
+    if (!string.internalize()) return intermediate;
 
     Vector<const SinkChar> data(dest, string.length());
-    if (!hint.is_null() && Matches(data, hint)) {
-      DCHECK(string.internalize());
-      return hint;
-    }
+    if (!hint.is_null() && Matches(data, hint)) return hint;
   }
 
-  if (string.internalize()) {
-    return factory()->InternalizeString(intermediate, 0, string.length());
-  }
-  return intermediate;
+  return factory()->InternalizeString(intermediate, 0, string.length());
 }
 
 template <typename Char>
@@ -1020,10 +1016,11 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
     }
     if (chars_may_relocate_) {
       return factory()->InternalizeString(Handle<SeqString>::cast(source_),
-                                          string.start(), string.length());
+                                          string.start(), string.length(),
+                                          string.needs_conversion());
     }
     Vector<const Char> chars(chars_ + string.start(), string.length());
-    return factory()->InternalizeString(chars);
+    return factory()->InternalizeString(chars, string.needs_conversion());
   }
 
   if (sizeof(Char) == 1 ? V8_LIKELY(!string.needs_conversion())
