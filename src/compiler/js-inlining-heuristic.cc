@@ -343,18 +343,12 @@ Node* JSInliningHeuristic::DuplicateFrameStateAndRename(Node* frame_state,
 }
 
 bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
-                                           Candidate const& candidate,
                                            Node** if_successes, Node** calls,
                                            Node** inputs, int input_count) {
   // We will try to reuse the control flow branch created for computing
   // the {callee} target of the call. We only reuse the branch if there
   // is no side-effect between the call and the branch, and if the callee is
   // only used as the target (and possibly also in the related frame states).
-
-  int const num_calls = candidate.num_functions;
-
-  DCHECK_EQ(IrOpcode::kPhi, callee->opcode());
-  DCHECK_EQ(num_calls, callee->op()->ValueInputCount());
 
   // We are trying to match the following pattern:
   //
@@ -437,6 +431,11 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
   //                             Phi
   //                              |
   //                             ...
+
+  // Bailout if the call is not polymorphic anymore (other reducers might
+  // have replaced the callee phi with a constant).
+  if (callee->opcode() != IrOpcode::kPhi) return false;
+  int const num_calls = callee->op()->ValueInputCount();
 
   // If there is a control node between the callee computation
   // and the call, bail out.
@@ -584,7 +583,7 @@ void JSInliningHeuristic::CreateOrReuseDispatch(Node* node, Node* callee,
                                                 int input_count) {
   SourcePositionTable::Scope position(
       source_positions_, source_positions_->GetSourcePosition(node));
-  if (TryReuseDispatch(node, callee, candidate, if_successes, calls, inputs,
+  if (TryReuseDispatch(node, callee, if_successes, calls, inputs,
                        input_count)) {
     return;
   }
