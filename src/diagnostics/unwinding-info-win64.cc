@@ -211,8 +211,9 @@ void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
                       NewAssemblerBuffer(64));
   masm.movq(rax, reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME));
   masm.jmp(rax);
-  DCHECK_GE(masm.buffer_size(), sizeof(record->exception_thunk));
-  memcpy(&record->exception_thunk[0], masm.buffer_start(), masm.buffer_size());
+  DCHECK_LE(masm.instruction_size(), sizeof(record->exception_thunk));
+  memcpy(&record->exception_thunk[0], masm.buffer_start(),
+         masm.instruction_size());
 }
 
 void RegisterNonABICompliantCodeRange(void* start, size_t size_in_bytes) {
