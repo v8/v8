@@ -586,8 +586,10 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
       for (WasmCode* code : info->potentially_dead_code) {
         current_gc_info_->dead_code.erase(code);
       }
-      if (RemoveIsolateFromCurrentGC(isolate)) PotentiallyFinishCurrentGC();
     }
+  }
+  if (current_gc_info_) {
+    if (RemoveIsolateFromCurrentGC(isolate)) PotentiallyFinishCurrentGC();
   }
   if (auto* task = info->log_codes_task) task->Cancel();
   if (!info->code_to_log.empty()) {
