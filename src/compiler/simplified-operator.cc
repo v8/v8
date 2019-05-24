@@ -78,7 +78,7 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
   }
 #endif
   os << access.type << ", " << access.machine_type << ", "
-     << access.write_barrier_kind << ", " << access.constness;
+     << access.write_barrier_kind;
   if (FLAG_untrusted_code_mitigations) {
     os << ", " << access.load_sensitivity;
   }

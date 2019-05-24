@@ -401,8 +401,6 @@ inline PropertyConstness GeneralizeConstness(PropertyConstness a,
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, const PropertyAttributes& attributes);
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           PropertyConstness constness);
 }  // namespace internal
 }  // namespace v8
 

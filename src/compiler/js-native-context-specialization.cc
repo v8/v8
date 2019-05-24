@@ -2226,8 +2226,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
                              &control, if_exceptions, access_info);
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsDataConstant());
-    DCHECK(access_mode == AccessMode::kStore ||
-           access_mode == AccessMode::kStoreInLiteral);
     FieldIndex const field_index = access_info.field_index();
     Type const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
@@ -2239,12 +2237,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
           simplified()->LoadField(AccessBuilder::ForJSObjectPropertiesOrHash()),
           storage, effect, control);
     }
-    PropertyConstness constness = access_info.IsDataConstant()
-                                      ? PropertyConstness::kConst
-                                      : PropertyConstness::kMutable;
-    bool store_to_existing_constant_field = access_info.IsDataConstant() &&
-                                            access_mode == AccessMode::kStore &&
-                                            !access_info.HasTransitionMap();
     FieldAccess field_access = {
         kTaggedBase,
         field_index.offset(),
@@ -2252,10 +2244,12 @@ JSNativeContextSpecialization::BuildPropertyStore(
         MaybeHandle<Map>(),
         field_type,
         MachineType::TypeForRepresentation(field_representation),
-        kFullWriteBarrier,
-        LoadSensitivity::kUnsafe,
-        constness};
+        kFullWriteBarrier};
+    bool store_to_constant_field =
+        (access_mode == AccessMode::kStore) && access_info.IsDataConstant();
 
+    DCHECK(access_mode == AccessMode::kStore ||
+           access_mode == AccessMode::kStoreInLiteral);
     switch (field_representation) {
       case MachineRepresentation::kFloat64: {
         value = effect =
@@ -2270,10 +2264,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
                        Type::OtherInternal());
             a.Store(AccessBuilder::ForMap(),
                     factory()->mutable_heap_number_map());
-            FieldAccess value_field_access =
-                AccessBuilder::ForHeapNumberValue();
-            value_field_access.constness = field_access.constness;
-            a.Store(value_field_access, value);
+            a.Store(AccessBuilder::ForHeapNumberValue(), value);
             value = effect = a.Finish();
 
             field_access.type = Type::Any();
@@ -2289,9 +2280,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
                 MaybeHandle<Map>(),
                 Type::OtherInternal(),
                 MachineType::TypeCompressedTaggedPointer(),
-                kPointerWriteBarrier,
-                LoadSensitivity::kUnsafe,
-                constness};
+                kPointerWriteBarrier};
             storage = effect =
                 graph()->NewNode(simplified()->LoadField(storage_access),
                                  storage, effect, control);
@@ -2300,7 +2289,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
             field_access.machine_type = MachineType::Float64();
           }
         }
-        if (store_to_existing_constant_field) {
+        if (store_to_constant_field) {
           DCHECK(!access_info.HasTransitionMap());
           // If the field is constant check that the value we are going
           // to store matches current value.
@@ -2322,7 +2311,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kCompressedSigned:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
-        if (store_to_existing_constant_field) {
+        if (store_to_constant_field) {
           DCHECK(!access_info.HasTransitionMap());
           // If the field is constant check that the value we are going
           // to store matches current value.

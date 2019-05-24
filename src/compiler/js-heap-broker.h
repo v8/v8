@@ -222,7 +222,6 @@ class JSObjectRef : public HeapObjectRef {
   using HeapObjectRef::HeapObjectRef;
   Handle<JSObject> object() const;
 
-  uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
   double RawFastDoublePropertyAt(FieldIndex index) const;
   ObjectRef RawFastPropertyAt(FieldIndex index) const;
 

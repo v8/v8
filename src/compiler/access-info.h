@@ -85,8 +85,8 @@ class PropertyAccessInfo final {
       ZoneVector<CompilationDependencies::Dependency const*>&&
           unrecorded_dependencies,
       FieldIndex field_index, Representation field_representation,
-      Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
-      MaybeHandle<Map> transition_map = MaybeHandle<Map>());
+      Type field_type, MaybeHandle<Map> field_map,
+      MaybeHandle<JSObject> holder);
   static PropertyAccessInfo AccessorConstant(Zone* zone,
                                              Handle<Map> receiver_map,
                                              Handle<Object> constant,

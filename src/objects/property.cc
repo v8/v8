@@ -24,16 +24,6 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, PropertyConstness constness) {
-  switch (constness) {
-    case PropertyConstness::kMutable:
-      return os << "mutable";
-    case PropertyConstness::kConst:
-      return os << "const";
-  }
-  UNREACHABLE();
-}
-
 Descriptor::Descriptor() : details_(Smi::zero()) {}
 
 Descriptor::Descriptor(Handle<Name> key, const MaybeObjectHandle& value,
