@@ -12,13 +12,10 @@
 
 namespace v8 {
 namespace internal {
+
 template <typename T>
 MaybeHandle<T>::MaybeHandle(T object, Isolate* isolate)
     : MaybeHandle(handle(object, isolate)) {}
-
-MaybeObjectHandle::MaybeObjectHandle()
-    : reference_type_(HeapObjectReferenceType::STRONG),
-      handle_(Handle<Object>::null()) {}
 
 MaybeObjectHandle::MaybeObjectHandle(MaybeObject object, Isolate* isolate) {
   HeapObject heap_object;

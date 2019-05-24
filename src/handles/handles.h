@@ -111,9 +111,14 @@ class Handle final : public HandleBase {
     T object_;
   };
 
-  V8_INLINE explicit Handle(Address* location = nullptr)
-      : HandleBase(location) {
-    // Type check:
+  V8_INLINE explicit Handle() : HandleBase(nullptr) {
+    // Skip static type check in order to allow Handle<XXX>::null() as default
+    // parameter values in non-inl header files without requiring full
+    // definition of type XXX.
+  }
+
+  V8_INLINE explicit Handle(Address* location) : HandleBase(location) {
+    // This static type check also fails for forward class declarations.
     static_assert(std::is_convertible<T*, Object*>::value,
                   "static type violation");
     // TODO(jkummerow): Runtime type check here as a SLOW_DCHECK?

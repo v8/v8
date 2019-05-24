@@ -81,7 +81,8 @@ class MaybeHandle final {
 // while the MaybeObjectHandle is alive.
 class MaybeObjectHandle {
  public:
-  inline MaybeObjectHandle();
+  inline MaybeObjectHandle()
+      : reference_type_(HeapObjectReferenceType::STRONG) {}
   inline MaybeObjectHandle(MaybeObject object, Isolate* isolate);
   inline MaybeObjectHandle(Object object, Isolate* isolate);
   inline explicit MaybeObjectHandle(Handle<Object> object);
