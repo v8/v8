@@ -73,6 +73,7 @@ extern class Context extends HeapObject {
 }
 type NativeContext extends Context;
 
+@generateCppClass
 extern class Oddball extends HeapObject {
   to_number_raw: float64;
   to_string: String;
@@ -169,6 +170,7 @@ type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 
 @abstract
 @noVerifier
+@generateCppClass
 extern class FixedArrayBase extends HeapObject {
   length: Smi;
 }

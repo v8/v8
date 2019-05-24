@@ -102,6 +102,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   }
   virtual bool IsTransient() const { return false; }
   virtual const Type* NonConstexprVersion() const { return this; }
+  virtual const Type* ConstexprVersion() const { return nullptr; }
   base::Optional<const ClassType*> ClassSupertype() const;
   virtual std::vector<std::string> GetRuntimeTypes() const { return {}; }
   static const Type* CommonSupertype(const Type* a, const Type* b);
@@ -210,8 +211,16 @@ class AbstractType final : public Type {
 
   const Type* NonConstexprVersion() const override {
     if (non_constexpr_version_) return non_constexpr_version_;
-    return this;
+    if (!IsConstexpr()) return this;
+    return nullptr;
   }
+
+  const AbstractType* ConstexprVersion() const override {
+    if (constexpr_version_) return constexpr_version_;
+    if (IsConstexpr()) return this;
+    return nullptr;
+  }
+
   std::vector<std::string> GetRuntimeTypes() const override { return {name()}; }
 
  private:
@@ -230,12 +239,18 @@ class AbstractType final : public Type {
                    !non_constexpr_version->IsConstexpr());
   }
 
+  void SetConstexprVersion(const AbstractType* type) const {
+    DCHECK_EQ(GetConstexprName(name()), type->name());
+    constexpr_version_ = type;
+  }
+
   bool IsTransient() const override { return transient_; }
 
   bool transient_;
   const std::string name_;
   const std::string generated_type_;
   const Type* non_constexpr_version_;
+  mutable const AbstractType* constexpr_version_ = nullptr;
 };
 
 // For now, builtin pointers are restricted to Torque-defined builtins.

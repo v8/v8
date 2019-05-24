@@ -19,11 +19,14 @@ class TypeOracle : public ContextualClass<TypeOracle> {
  public:
   static const AbstractType* GetAbstractType(
       const Type* parent, std::string name, bool transient,
-      std::string generated, const Type* non_constexpr_version) {
+      std::string generated, const AbstractType* non_constexpr_version) {
     AbstractType* result =
         new AbstractType(parent, transient, std::move(name),
                          std::move(generated), non_constexpr_version);
     Get().nominal_types_.push_back(std::unique_ptr<AbstractType>(result));
+    if (non_constexpr_version) {
+      non_constexpr_version->SetConstexprVersion(result);
+    }
     return result;
   }
 

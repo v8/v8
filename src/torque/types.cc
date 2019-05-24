@@ -341,7 +341,7 @@ void ClassType::Finalize() const {
     if (const ClassType* super_class = ClassType::DynamicCast(parent())) {
       if (super_class->HasIndexedField()) flags_ |= ClassFlag::kHasIndexedField;
       if (!super_class->IsAbstract() && !HasSameInstanceTypeAsParent()) {
-        Lint(
+        Error(
             "Super class must either be abstract (annotate super class with "
             "@abstract) "
             "or this class must have the same instance type as the super class "
@@ -355,13 +355,10 @@ void ClassType::Finalize() const {
   is_finalized_ = true;
   if (GenerateCppClassDefinitions()) {
     for (const Field& f : fields()) {
-      const Type* field_type = f.name_and_type.type;
-      if (!field_type->IsSubtypeOf(TypeOracle::GetObjectType()) ||
-          field_type->IsSubtypeOf(TypeOracle::GetSmiType()) ||
-          field_type->IsSubtypeOf(TypeOracle::GetNumberType())) {
-        Lint("Generation of C++ class for Torque class ", name(),
-             " is not supported yet, because the type of field ",
-             f.name_and_type.name, " cannot be handled yet")
+      if (f.is_weak) {
+        Error("Generation of C++ class for Torque class ", name(),
+              " is not supported yet, because field ", f.name_and_type.name,
+              ": ", *f.name_and_type.type, " is a weak field.")
             .Position(f.pos);
       }
     }

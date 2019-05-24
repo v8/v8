@@ -1107,7 +1107,7 @@ void JSGlobalObject::JSGlobalObjectVerify(Isolate* isolate) {
 }
 
 void Oddball::OddballVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::OddballVerify(*this, isolate);
+  TorqueGeneratedOddball::OddballVerify(isolate);
   Heap* heap = isolate->heap();
   Object number = to_number();
   if (number.IsHeapObject()) {

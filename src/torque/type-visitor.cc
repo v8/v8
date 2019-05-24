@@ -67,10 +67,12 @@ const AbstractType* TypeVisitor::ComputeType(AbstractTypeDeclaration* decl) {
     ReportError("cannot declare a transient type that is also constexpr");
   }
 
-  const Type* non_constexpr_version = nullptr;
+  const AbstractType* non_constexpr_version = nullptr;
   if (decl->is_constexpr) {
-    non_constexpr_version = Declarations::LookupType(
-        QualifiedName{GetNonConstexprName(decl->name->value)});
+    QualifiedName non_constexpr_name{GetNonConstexprName(decl->name->value)};
+    const Type* non_constexpr_type =
+        Declarations::LookupType(non_constexpr_name);
+    non_constexpr_version = AbstractType::DynamicCast(non_constexpr_type);
     DCHECK_NOT_NULL(non_constexpr_version);
   }
 

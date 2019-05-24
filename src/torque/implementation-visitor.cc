@@ -3004,7 +3004,11 @@ class CppClassGenerator {
 
  private:
   void GenerateClassConstructors();
-  void GenerateClassFieldAccessor(const Field& f);
+  void GenerateFieldAccessor(const Field& f);
+  void GenerateFieldAccessorForUntagged(const Field& f);
+  void GenerateFieldAccessorForSmi(const Field& f);
+  void GenerateFieldAccessorForObject(const Field& f);
+
   void GenerateClassCasts();
 
   const ClassType* type_;
@@ -3031,7 +3035,7 @@ void CppClassGenerator::GenerateClass() {
   hdr_ << "public: \n";
   hdr_ << "  using Super = P;\n";
   for (const Field& f : type_->fields()) {
-    GenerateClassFieldAccessor(f);
+    GenerateFieldAccessor(f);
   }
 
   GenerateClassCasts();
@@ -3109,27 +3113,123 @@ void CppClassGenerator::GenerateClassConstructors() {
 }
 
 // TODO(sigurds): Keep in sync with DECL_ACCESSORS and ACCESSORS macro.
-void CppClassGenerator::GenerateClassFieldAccessor(const Field& f) {
+void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
+  const Type* field_type = f.name_and_type.type;
+  if (field_type == TypeOracle::GetVoidType()) return;
+  if (!f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    return GenerateFieldAccessorForUntagged(f);
+  }
+  if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType())) {
+    return GenerateFieldAccessorForSmi(f);
+  }
+  if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetObjectType())) {
+    return GenerateFieldAccessorForObject(f);
+  }
+
+  Error("Generation of field accessor for ", type_->name(),
+        ":: ", f.name_and_type.name, " : ", *field_type, " is not supported.")
+      .Position(f.pos);
+}
+
+void CppClassGenerator::GenerateFieldAccessorForUntagged(const Field& f) {
+  DCHECK(!f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType()));
+  const Type* field_type = f.name_and_type.type;
+  if (field_type == TypeOracle::GetVoidType()) return;
+  const Type* constexpr_version = field_type->ConstexprVersion();
+  if (!constexpr_version) {
+    Error("Field accessor for ", type_->name(), ":: ", f.name_and_type.name,
+          " cannot be generated because its type ", *field_type,
+          " is neither a subclass of Object nor does the type have a constexpr "
+          "version.")
+        .Position(f.pos);
+    return;
+  }
   const std::string& name = f.name_and_type.name;
-  const std::string& type = f.name_and_type.type->GetGeneratedTNodeTypeName();
-  DCHECK(!f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType()));
+  const std::string type = constexpr_version->GetGeneratedTypeName();
+  const std::string offset = "k" + CamelifyString(name) + "Offset";
 
+  // Generate declarations in header.
   hdr_ << "  inline " << type << " " << name << "() const;\n";
-  hdr_ << "  inline void set_" << name << "(" << type << " value,\n";
-  hdr_ << "    WriteBarrierMode mode = UPDATE_WRITE_BARRIER);\n\n";
+  hdr_ << "  inline void set_" << name << "(" << type << " value);\n\n";
 
-  const std::string offset =
-      "k" + CamelifyString(f.name_and_type.name) + "Offset";
+  // Generate implementation in inline header.
   inl_ << "template <class D, class P>\n";
-  inl_ << "  " << type << " " << gen_name_ << "<D, P>::" << name
-       << "() const {\n";
-  inl_ << "  " << type << " value = " << type << "::cast(READ_FIELD(*this, "
-       << offset << "));\n";
-  inl_ << "  return value;\n";
+  inl_ << type << " " << gen_name_ << "<D, P>::" << name << "() const {\n";
+  inl_ << "  return this->template ReadField<" << type << ">(" << offset
+       << ");\n";
   inl_ << "}\n";
+
+  inl_ << "template <class D, class P>\n";
+  inl_ << "void " << gen_name_ << "<D, P>::set_" << name << "(" << type
+       << " value) {\n";
+  inl_ << "  this->template WriteField<" << type << ">(" << offset
+       << ", value);\n";
+  inl_ << "}\n\n";
+}
+
+void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
+  DCHECK(f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType()));
+  const std::string type = "Smi";
+  const std::string& name = f.name_and_type.name;
+  const std::string offset = "k" + CamelifyString(name) + "Offset";
+
+  // Generate declarations in header.
+  hdr_ << "  inline " << type << " " << name << "() const;\n";
+  hdr_ << "  inline void set_" << name << "(" << type << " value);\n\n";
+
+  // Generate implementation in inline header.
+  inl_ << "template <class D, class P>\n";
+  inl_ << type << " " << gen_name_ << "<D, P>::" << name << "() const {\n";
+  inl_ << "  return Smi::cast(READ_FIELD(*this, " << offset << "));\n";
+  inl_ << "}\n";
+
+  inl_ << "template <class D, class P>\n";
+  inl_ << "void " << gen_name_ << "<D, P>::set_" << name << "(" << type
+       << " value) {\n";
+  inl_ << "  DCHECK(value.IsSmi());\n";
+  inl_ << "  WRITE_FIELD(*this, " << offset << ", value);\n";
+  inl_ << "}\n\n";
+}
+
+void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
+  const Type* field_type = f.name_and_type.type;
+  DCHECK(field_type->IsSubtypeOf(TypeOracle::GetObjectType()));
+  const std::string& name = f.name_and_type.name;
+  const std::string offset = "k" + CamelifyString(name) + "Offset";
+  const ClassType* class_type = ClassType::DynamicCast(field_type);
+
+  std::string type = class_type ? class_type->name() : "Object";
+
+  // Generate declarations in header.
+  if (!class_type && field_type != TypeOracle::GetObjectType()) {
+    hdr_ << "  // Torque type: " << field_type->ToString() << "\n";
+  }
+  hdr_ << "  inline " << type << " " << name << "() const;\n";
+  hdr_ << "  inline void set_" << name << "(" << type
+       << " value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);\n\n";
+
+  std::string type_check;
+  for (const std::string& runtime_type : field_type->GetRuntimeTypes()) {
+    if (!type_check.empty()) type_check += " || ";
+    type_check += "value.Is" + runtime_type + "()";
+  }
+
+  // Generate implementation in inline header.
+  inl_ << "template <class D, class P>\n";
+  inl_ << type << " " << gen_name_ << "<D, P>::" << name << "() const {\n";
+  inl_ << "  Object value = READ_FIELD(*this, " << offset << ");\n";
+  if (class_type) {
+    inl_ << "  return " << type << "::cast(value);\n";
+  } else {
+    inl_ << "  DCHECK(" << type_check << ");\n";
+    inl_ << "  return value;\n";
+  }
+  inl_ << "}\n";
+
   inl_ << "template <class D, class P>\n";
   inl_ << "void " << gen_name_ << "<D, P>::set_" << name << "(" << type
        << " value, WriteBarrierMode mode) {\n";
+  inl_ << "  SLOW_DCHECK(" << type_check << ");\n";
   inl_ << "  WRITE_FIELD(*this, " << offset << ", value);\n";
   inl_ << "  CONDITIONAL_WRITE_BARRIER(*this, " << offset
        << ", value, mode);\n";
@@ -3150,6 +3250,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
     IncludeGuardScope header_guard(header, basename + ".h");
     header << "#include \"src/objects/heap-number.h\"\n";
     header << "#include \"src/objects/objects.h\"\n";
+    header << "#include \"src/objects/smi.h\"\n";
     header << "#include \"torque-generated/field-offsets-tq.h\"\n";
     header << "#include <type_traits>\n\n";
     IncludeObjectMacrosScope header_macros(header);
@@ -3158,6 +3259,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
 
     IncludeGuardScope inline_header_guard(inline_header, basename + "-inl.h");
     inline_header << "#include \"torque-generated/class-definitions-tq.h\"\n\n";
+    inline_header << "#include \"src/objects/objects-inl.h\"\n\n";
     IncludeObjectMacrosScope inline_header_macros(inline_header);
     NamespaceScope inline_header_namespaces(inline_header, {"v8", "internal"});
 
