@@ -1461,18 +1461,23 @@ namespace {
 template <typename T>
 bool IsValidExtension(const icu::Locale& locale, const char* key,
                       const std::string& value) {
+  const char* legacy_type = uloc_toLegacyType(key, value.c_str());
+  if (legacy_type == nullptr) {
+    return false;
+  }
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::StringEnumeration> enumeration(
       T::getKeywordValuesForLocale(key, icu::Locale(locale.getBaseName()),
                                    false, status));
-  if (U_SUCCESS(status)) {
-    int32_t length;
-    std::string legacy_type(uloc_toLegacyType(key, value.c_str()));
-    for (const char* item = enumeration->next(&length, status); item != nullptr;
-         item = enumeration->next(&length, status)) {
-      if (U_SUCCESS(status) && legacy_type == item) {
-        return true;
-      }
+  if (U_FAILURE(status)) {
+    return false;
+  }
+  int32_t length;
+  for (const char* item = enumeration->next(&length, status);
+       U_SUCCESS(status) && item != nullptr;
+       item = enumeration->next(&length, status)) {
+    if (strcmp(legacy_type, item) == 0) {
+      return true;
     }
   }
   return false;
