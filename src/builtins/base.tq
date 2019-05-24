@@ -1024,6 +1024,7 @@ const V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP:
     constexpr int31 generates 'V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP';
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
 const kSmiMaxValue: constexpr uintptr generates 'kSmiMaxValue';
+const kSmiMax: uintptr = kSmiMaxValue;
 const kStringMaxLength: constexpr int31 generates 'String::kMaxLength';
 const kFixedArrayMaxLength:
     constexpr int31 generates 'FixedArray::kMaxLength';

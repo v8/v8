@@ -259,9 +259,6 @@ class JSReceiver : public HeapObject {
       Handle<JSReceiver> object, PropertyFilter filter,
       bool try_fast_path = true);
 
-  V8_WARN_UNUSED_RESULT static Handle<FixedArray> GetOwnElementIndices(
-      Isolate* isolate, Handle<JSReceiver> receiver, Handle<JSObject> object);
-
   static const int kHashMask = PropertyArray::HashField::kMask;
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,

@@ -163,6 +163,13 @@
   # https://crbug.com/v8/8120
   'ecma_3/Array/regress-322135-04': [SKIP],
 
+  # These tests try to sort very large arrays. Array#sort pre-processing does
+  # not support huge sparse Arrays, so these tests run a very long time.
+  # https://crbug.com/v8/8714
+  'js1_5/Array/regress-330812': [SKIP],
+  'js1_5/Regress/regress-422348': [SKIP],
+  'js1_5/Array/regress-157652': [SKIP],
+
   ##################### SLOW TESTS #####################
 
   # Compiles a long chain of && or || operations, can time out under slower
@@ -509,7 +516,6 @@
   'ecma_3/extensions/regress-274152': [FAIL_OK],
   'js1_5/Regress/regress-372364': [FAIL_OK],
   'js1_5/Regress/regress-420919': [FAIL_OK],
-  'js1_5/Regress/regress-422348': [FAIL_OK],
   'js1_5/Regress/regress-410852': [FAIL_OK],
   'ecma_3/RegExp/regress-375715-04': [FAIL_OK],
   'js1_5/decompilation/regress-456964-01': [FAIL_OK],
