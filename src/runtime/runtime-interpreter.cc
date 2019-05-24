@@ -84,7 +84,7 @@ void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
            << interpreter::Register(reg_index).ToString(
                   bytecode_iterator.bytecode_array()->parameter_count())
            << kArrowDirection;
-        reg_object->ShortPrint(os);
+        reg_object.ShortPrint(os);
         os << " ]" << std::endl;
       }
     }
@@ -173,13 +173,13 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceUpdateFeedback) {
   CONVERT_SMI_ARG_CHECKED(slot, 1);
   CONVERT_ARG_CHECKED(String, reason, 2);
 
-  int slot_count = function->feedback_vector()->metadata()->slot_count();
+  int slot_count = function->feedback_vector().metadata().slot_count();
 
   StdoutStream os;
   os << "[Feedback slot " << slot << "/" << slot_count << " in ";
-  function->shared()->ShortPrint(os);
+  function->shared().ShortPrint(os);
   os << " updated to ";
-  function->feedback_vector()->FeedbackSlotPrint(os, FeedbackSlot(slot));
+  function->feedback_vector().FeedbackSlotPrint(os, FeedbackSlot(slot));
   os << " - ";
 
   StringCharacterStream stream(reason);

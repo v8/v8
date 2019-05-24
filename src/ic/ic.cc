@@ -347,7 +347,7 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   if (FLAG_trace_feedback_updates) {
-    int slot_count = vector->metadata()->slot_count();
+    int slot_count = vector.metadata().slot_count();
 
     StdoutStream os;
     if (slot.IsInvalid()) {
@@ -355,12 +355,12 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
     } else {
       os << "[Feedback slot " << slot.ToInt() << "/" << slot_count << " in ";
     }
-    vector->shared_function_info()->ShortPrint(os);
+    vector.shared_function_info().ShortPrint(os);
     if (slot.IsInvalid()) {
       os << " updated - ";
     } else {
       os << " updated to ";
-      vector->FeedbackSlotPrint(os, slot);
+      vector.FeedbackSlotPrint(os, slot);
       os << " - ";
     }
     os << reason << "]" << std::endl;
