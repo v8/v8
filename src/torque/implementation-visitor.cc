@@ -541,10 +541,6 @@ const Type* ImplementationVisitor::Visit(
   base::Optional<const Type*> type;
   if (stmt->type) {
     type = TypeVisitor::ComputeType(*stmt->type);
-    if ((*type)->IsConstexpr() && !stmt->const_qualified) {
-      ReportError(
-          "cannot declare variable with constexpr type. Use 'const' instead.");
-    }
   }
   base::Optional<VisitResult> init_result;
   if (stmt->initializer) {
@@ -552,6 +548,13 @@ const Type* ImplementationVisitor::Visit(
     init_result = Visit(*stmt->initializer);
     if (type) {
       init_result = GenerateImplicitConvert(*type, *init_result);
+    }
+    type = init_result->type();
+    if ((*type)->IsConstexpr() && !stmt->const_qualified) {
+      Error("Use 'const' instead of 'let' for variable '", stmt->name->value,
+            "' of constexpr type '", (*type)->ToString(), "'.")
+          .Position(stmt->name->pos)
+          .Throw();
     }
     init_result = scope.Yield(*init_result);
   } else {

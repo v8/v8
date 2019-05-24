@@ -207,6 +207,12 @@ TEST(Torque, ConditionalFields) {
                            HasSubstr("aligned"));
 }
 
+TEST(Torque, ConstexprLetBindingDoesNotCrash) {
+  ExpectFailingCompilation(
+      R"(macro FooBar() { let foo = 0; check(foo >= 0); })",
+      HasSubstr("Use 'const' instead of 'let' for variable 'foo'"));
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8
