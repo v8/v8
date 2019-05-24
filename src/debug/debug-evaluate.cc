@@ -263,6 +263,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(HasFastPackedElements)                    \
   V(NewArray)                                 \
   V(NormalizeElements)                        \
+  V(PrepareElementsForSort)                   \
   V(TypedArrayGetBuffer)                      \
   /* Errors */                                \
   V(NewTypeError)                             \
@@ -512,6 +513,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayPrototypeKeys:
     case Builtins::kArrayPrototypeLastIndexOf:
     case Builtins::kArrayPrototypeSlice:
+    case Builtins::kArrayPrototypeSort:
     case Builtins::kArrayPrototypeToLocaleString:
     case Builtins::kArrayPrototypeToString:
     case Builtins::kArrayForEach:
@@ -785,7 +787,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayPrototypeReverse:
     case Builtins::kArrayPrototypeShift:
     case Builtins::kArrayPrototypeUnshift:
-    case Builtins::kArrayPrototypeSort:
     case Builtins::kArrayPrototypeSplice:
     case Builtins::kArrayUnshift:
     // Map builtins.

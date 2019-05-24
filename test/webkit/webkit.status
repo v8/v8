@@ -36,11 +36,6 @@
   # Irregexp interpreter overflows stack. We should just not crash.
   'fast/js/regexp-stack-overflow': [PASS, FAIL],
 
-  # This test tries to sort very large array. Array#sort pre-processing does
-  # not support huge sparse Arrays, so this test runs a very long time.
-  # https://crbug.com/v8/8714
-  'array-sort-small-sparse-array-with-large-length': [SKIP],
-
   # Slow tests.
   'dfg-double-vote-fuzz': [PASS, SLOW],
 }],  # ALWAYS

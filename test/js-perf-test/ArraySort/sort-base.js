@@ -93,9 +93,7 @@ function CreateHoleyObjectArray() {
 
 function CreateDictionaryArray() {
   array_to_sort = Array.from(template_array);
-  Object.defineProperty(array_to_sort, kArraySize - 2,
-    { get: () => this.foo,
-      set: (v) => this.foo = v });
+  array_to_sort[%MaxSmi()] = 42;
 
   AssertDictionaryElements();
 }

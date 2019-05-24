@@ -3811,6 +3811,20 @@ Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
   return new_array;
 }
 
+bool FixedArray::ContainsSortedNumbers() {
+  for (int i = 1; i < length(); ++i) {
+    Object a_obj = get(i - 1);
+    Object b_obj = get(i);
+    if (!a_obj.IsNumber() || !b_obj.IsNumber()) return false;
+
+    uint32_t a = NumberToUint32(a_obj);
+    uint32_t b = NumberToUint32(b_obj);
+
+    if (a > b) return false;
+  }
+  return true;
+}
+
 Handle<FixedArray> FixedArray::ShrinkOrEmpty(Isolate* isolate,
                                              Handle<FixedArray> array,
                                              int new_length) {
