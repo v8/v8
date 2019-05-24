@@ -7,7 +7,7 @@
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestInvalidArgumentToType() {
-  ["abc", 123, {}].forEach(function(invalidInput) {
+  ["abc", 123, {}, _ => 0].forEach(function(invalidInput) {
     assertThrows(
       () => WebAssembly.Memory.type(invalidInput), TypeError,
         "WebAssembly.Memory.type(): Argument 0 must be a WebAssembly.Memory");
@@ -17,6 +17,9 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
     assertThrows(
       () => WebAssembly.Global.type(invalidInput), TypeError,
         "WebAssembly.Global.type(): Argument 0 must be a WebAssembly.Global");
+    assertThrows(
+      () => WebAssembly.Function.type(invalidInput), TypeError,
+        "WebAssembly.Function.type(): Argument 0 must be a WebAssembly.Function");
   });
 
   assertThrows(
@@ -34,6 +37,11 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
     () => WebAssembly.Global.type(
       new WebAssembly.Memory({initial:1})), TypeError,
       "WebAssembly.Global.type(): Argument 0 must be a WebAssembly.Global");
+
+  assertThrows(
+    () => WebAssembly.Function.type(
+      new WebAssembly.Memory({initial:1})), TypeError,
+      "WebAssembly.Function.type(): Argument 0 must be a WebAssembly.Function");
 })();
 
 (function TestMemoryType() {
@@ -229,4 +237,21 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertSame(fun.constructor, WebAssembly.Function);
   assertEquals(typeof fun, 'function');
   assertDoesNotThrow(() => fun());
+})();
+
+(function TestFunctionTypeOfExportedFunction() {
+  let testcases = [
+    [kSig_v_v, {parameters:[], results:[]}],
+    [kSig_v_i, {parameters:["i32"], results:[]}],
+    [kSig_i_l, {parameters:["i64"], results:["i32"]}],
+    [kSig_v_ddi, {parameters:["f64", "f64", "i32"], results:[]}],
+    [kSig_f_f, {parameters:["f32"], results:["f32"]}],
+  ];
+  testcases.forEach(function([sig, expected]) {
+    let builder = new WasmModuleBuilder();
+    builder.addFunction("fun", sig).addBody([kExprUnreachable]).exportFunc();
+    let instance = builder.instantiate();
+    let type = WebAssembly.Function.type(instance.exports.fun);
+    assertEquals(expected, type)
+  });
 })();
