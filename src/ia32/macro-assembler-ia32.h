@@ -441,7 +441,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
       mov(dst, Immediate(x));
     }
   }
-  void Set(Operand dst, int32_t x) { mov(dst, Immediate(x)); }
 
   void PushRoot(RootIndex index);
 
@@ -515,10 +514,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Load the global function with the given index.
   void LoadGlobalFunction(int index, Register function);
 
-  // Push and pop the registers that can hold pointers.
-  void PushSafepointRegisters() { pushad(); }
-  void PopSafepointRegisters() { popad(); }
-
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
@@ -547,23 +542,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Compare instance type for map.
   void CmpInstanceType(Register map, InstanceType type);
 
-  void DoubleToI(Register result_reg, XMMRegister input_reg,
-                 XMMRegister scratch, Label* lost_precision, Label* is_nan,
-                 Label::Distance dst = Label::kFar);
-
   // Smi tagging support.
   void SmiTag(Register reg) {
     STATIC_ASSERT(kSmiTag == 0);
     STATIC_ASSERT(kSmiTagSize == 1);
     add(reg, reg);
-  }
-
-  // Modifies the register even if it does not contain a Smi!
-  void UntagSmi(Register reg, Label* is_smi) {
-    STATIC_ASSERT(kSmiTagSize == 1);
-    sar(reg, kSmiTagSize);
-    STATIC_ASSERT(kSmiTag == 0);
-    j(not_carry, is_smi);
   }
 
   // Jump if register contain a non-smi.

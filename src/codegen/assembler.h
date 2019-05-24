@@ -135,9 +135,6 @@ class HeapObjectRequest {
 enum class CodeObjectRequired { kNo, kYes };
 
 struct V8_EXPORT_PRIVATE AssemblerOptions {
-  // Prohibits using any V8-specific features of assembler like (isolates,
-  // heap objects, external references, etc.).
-  bool v8_agnostic_code = false;
   // Recording reloc info for external references and off-heap targets is
   // needed whenever code is serialized, e.g. into the snapshot or as a WASM
   // module. This flag allows this reloc info to be disabled for code that
@@ -170,9 +167,6 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // info. This is useful in some platform (Win64) where the unwind info depends
   // on a function prologue/epilogue.
   bool collect_win64_unwind_info = false;
-
-  // Constructs V8-agnostic set of options from current state.
-  AssemblerOptions EnableV8AgnosticCode() const;
 
   static AssemblerOptions Default(
       Isolate* isolate, bool explicitly_support_serialization = false);
@@ -277,8 +271,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // offset at which it is stored.
   int AddCodeTarget(Handle<Code> target);
   Handle<Code> GetCodeTarget(intptr_t code_target_index) const;
-  // Update to the code target at {code_target_index} to {target}.
-  void UpdateCodeTarget(intptr_t code_target_index, Handle<Code> target);
 
   int AddCompressedEmbeddedObject(Handle<HeapObject> object);
   Handle<HeapObject> GetCompressedEmbeddedObject(intptr_t index) const;
@@ -364,20 +356,6 @@ class DontEmitDebugCodeScope {
  private:
   AssemblerBase* assembler_;
   bool old_value_;
-};
-
-// Avoids using instructions that vary in size in unpredictable ways between the
-// snapshot and the running VM.
-class PredictableCodeSizeScope {
- public:
-  PredictableCodeSizeScope(AssemblerBase* assembler, int expected_size);
-  ~PredictableCodeSizeScope();
-
- private:
-  AssemblerBase* const assembler_;
-  int const expected_size_;
-  int const start_offset_;
-  bool const old_value_;
 };
 
 // Enable a specified feature within a scope.

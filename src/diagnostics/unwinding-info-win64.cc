@@ -205,7 +205,10 @@ void InitUnwindingRecord(Record* record, size_t code_size_in_bytes) {
   record->exception_handler = offsetof(Record, exception_thunk);
 
   // Hardcoded thunk.
-  MacroAssembler masm(AssemblerOptions{}, NewAssemblerBuffer(64));
+  AssemblerOptions options;
+  options.record_reloc_info_for_serialization = false;
+  MacroAssembler masm(nullptr, options, CodeObjectRequired::kNo,
+                      NewAssemblerBuffer(64));
   masm.movq(rax, reinterpret_cast<uint64_t>(&CRASH_HANDLER_FUNCTION_NAME));
   masm.jmp(rax);
   DCHECK_GE(masm.buffer_size(), sizeof(record->exception_thunk));

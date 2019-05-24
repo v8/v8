@@ -155,27 +155,6 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
   Addu(fp, sp, Operand(offset));
 }
 
-// Push and pop all registers that can hold pointers.
-void MacroAssembler::PushSafepointRegisters() {
-  // Safepoints expect a block of kNumSafepointRegisters values on the
-  // stack, so adjust the stack for unsaved registers.
-  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
-  DCHECK_GE(num_unsaved, 0);
-  if (num_unsaved > 0) {
-    Subu(sp, sp, Operand(num_unsaved * kPointerSize));
-  }
-  MultiPush(kSafepointSavedRegisters);
-}
-
-
-void MacroAssembler::PopSafepointRegisters() {
-  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
-  MultiPop(kSafepointSavedRegisters);
-  if (num_unsaved > 0) {
-    Addu(sp, sp, Operand(num_unsaved * kPointerSize));
-  }
-}
-
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // The registers are pushed starting with the highest encoding,
   // which means that lowest encodings are closest to the stack pointer.

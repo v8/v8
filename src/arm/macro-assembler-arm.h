@@ -606,11 +606,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
 
-  // Push and pop the registers that can hold pointers, as defined by the
-  // RegList constant kSafepointSavedRegisters.
-  void PushSafepointRegisters();
-  void PopSafepointRegisters();
-
   // Enter exit frame.
   // stack_space - extra stack space, used for alignment before call to C.
   void EnterExitFrame(bool save_doubles, int stack_space = 0,
@@ -710,12 +705,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range);
 
-  // Try to convert a double to a signed 32-bit integer.
-  // Z flag set to one and result assigned if the conversion is exact.
-  void TryDoubleToInt32Exact(Register result,
-                             DwVfpRegister double_input,
-                             LowDwVfpRegister double_scratch);
-
   // ---------------------------------------------------------------------------
   // Runtime calls
 
@@ -765,16 +754,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void SmiTag(Register reg, SBit s = LeaveCC);
   void SmiTag(Register dst, Register src, SBit s = LeaveCC);
 
-  // Untag the source value into destination and jump if source is a smi.
-  // Souce and destination can be the same register.
-  void UntagAndJumpIfSmi(Register dst, Register src, Label* smi_case);
-
   // Test if the register contains a smi (Z == 0 (eq) if true).
   void SmiTst(Register value);
   // Jump if either of the registers contain a non-smi.
   void JumpIfNotSmi(Register value, Label* not_smi_label);
-  // Jump if either of the registers contain a smi.
-  void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);

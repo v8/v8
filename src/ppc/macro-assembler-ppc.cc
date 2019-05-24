@@ -656,27 +656,6 @@ void TurboAssembler::RestoreFrameStateForTailCall() {
   mtlr(r0);
 }
 
-// Push and pop all registers that can hold pointers.
-void MacroAssembler::PushSafepointRegisters() {
-  // Safepoints expect a block of kNumSafepointRegisters values on the
-  // stack, so adjust the stack for unsaved registers.
-  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
-  DCHECK_GE(num_unsaved, 0);
-  if (num_unsaved > 0) {
-    subi(sp, sp, Operand(num_unsaved * kPointerSize));
-  }
-  MultiPush(kSafepointSavedRegisters);
-}
-
-
-void MacroAssembler::PopSafepointRegisters() {
-  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
-  MultiPop(kSafepointSavedRegisters);
-  if (num_unsaved > 0) {
-    addi(sp, sp, Operand(num_unsaved * kPointerSize));
-  }
-}
-
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // The registers are pushed starting with the highest encoding,
   // which means that lowest encodings are closest to the stack pointer.
@@ -1585,32 +1564,6 @@ void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
   ble(on_in_range);
 }
 
-void MacroAssembler::TryDoubleToInt32Exact(Register result,
-                                           DoubleRegister double_input,
-                                           Register scratch,
-                                           DoubleRegister double_scratch) {
-  Label done;
-  DCHECK(double_input != double_scratch);
-
-  ConvertDoubleToInt64(double_input,
-#if !V8_TARGET_ARCH_PPC64
-                       scratch,
-#endif
-                       result, double_scratch);
-
-#if V8_TARGET_ARCH_PPC64
-  TestIfInt32(result, r0);
-#else
-  TestIfInt32(scratch, result, r0);
-#endif
-  bne(&done);
-
-  // convert back and compare
-  fcfid(double_scratch, double_scratch);
-  fcmpu(double_scratch, double_input);
-  bind(&done);
-}
-
 void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
                                        Register result,
                                        DoubleRegister double_input,
@@ -1814,22 +1767,6 @@ void TurboAssembler::Abort(AbortReason reason) {
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
   LoadP(dst, NativeContextMemOperand());
   LoadP(dst, ContextMemOperand(dst, index));
-}
-
-
-void MacroAssembler::UntagAndJumpIfSmi(Register dst, Register src,
-                                       Label* smi_case) {
-  STATIC_ASSERT(kSmiTag == 0);
-  TestBitRange(src, kSmiTagSize - 1, 0, r0);
-  SmiUntag(dst, src);
-  beq(smi_case, cr0);
-}
-
-void MacroAssembler::JumpIfEitherSmi(Register reg1, Register reg2,
-                                     Label* on_either_smi) {
-  STATIC_ASSERT(kSmiTag == 0);
-  JumpIfSmi(reg1, on_either_smi);
-  JumpIfSmi(reg2, on_either_smi);
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {

@@ -850,25 +850,6 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
   add(fp, sp, Operand(offset));
 }
 
-
-// Push and pop all registers that can hold pointers.
-void MacroAssembler::PushSafepointRegisters() {
-  // Safepoints expect a block of contiguous register values starting with r0.
-  DCHECK_EQ(kSafepointSavedRegisters, (1 << kNumSafepointSavedRegisters) - 1);
-  // Safepoints expect a block of kNumSafepointRegisters values on the
-  // stack, so adjust the stack for unsaved registers.
-  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
-  DCHECK_GE(num_unsaved, 0);
-  AllocateStackSpace(num_unsaved * kPointerSize);
-  stm(db_w, sp, kSafepointSavedRegisters);
-}
-
-void MacroAssembler::PopSafepointRegisters() {
-  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
-  ldm(ia_w, sp, kSafepointSavedRegisters);
-  add(sp, sp, Operand(num_unsaved * kPointerSize));
-}
-
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // The registers are pushed starting with the highest encoding,
   // which means that lowest encodings are closest to the stack pointer.
@@ -1817,16 +1798,6 @@ void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
   b(ls, on_in_range);
 }
 
-void MacroAssembler::TryDoubleToInt32Exact(Register result,
-                                           DwVfpRegister double_input,
-                                           LowDwVfpRegister double_scratch) {
-  DCHECK(double_input != double_scratch);
-  vcvt_s32_f64(double_scratch.low(), double_input);
-  vmov(result, double_scratch.low());
-  vcvt_f64_s32(double_scratch, double_scratch.low());
-  VFPCompareAndSetFlags(double_input, double_scratch);
-}
-
 void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
                                                 DwVfpRegister double_input,
                                                 Label* done) {
@@ -2054,13 +2025,6 @@ void MacroAssembler::SmiTag(Register dst, Register src, SBit s) {
   add(dst, src, Operand(src), s);
 }
 
-void MacroAssembler::UntagAndJumpIfSmi(
-    Register dst, Register src, Label* smi_case) {
-  STATIC_ASSERT(kSmiTag == 0);
-  SmiUntag(dst, src, SetCC);
-  b(cc, smi_case);  // Shifter carry is not set for a smi.
-}
-
 void MacroAssembler::SmiTst(Register value) {
   tst(value, Operand(kSmiTagMask));
 }
@@ -2083,15 +2047,6 @@ void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   tst(value, Operand(kSmiTagMask));
   b(ne, not_smi_label);
-}
-
-void MacroAssembler::JumpIfEitherSmi(Register reg1,
-                                     Register reg2,
-                                     Label* on_either_smi) {
-  STATIC_ASSERT(kSmiTag == 0);
-  tst(reg1, Operand(kSmiTagMask));
-  tst(reg2, Operand(kSmiTagMask), ne);
-  b(eq, on_either_smi);
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {

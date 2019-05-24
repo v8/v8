@@ -312,17 +312,6 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   return bytes;
 }
 
-void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
-                               XMMRegister scratch, Label* lost_precision,
-                               Label* is_nan, Label::Distance dst) {
-  DCHECK(input_reg != scratch);
-  cvttsd2si(result_reg, Operand(input_reg));
-  Cvtsi2sd(scratch, Operand(result_reg));
-  ucomisd(scratch, input_reg);
-  j(not_equal, lost_precision, dst);
-  j(parity_even, is_nan, dst);
-}
-
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register dst,
                                       SaveFPRegsMode save_fp,

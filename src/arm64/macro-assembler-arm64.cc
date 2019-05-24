@@ -1097,53 +1097,6 @@ void TurboAssembler::Push(const Register& src0, const VRegister& src1) {
   str(src0, MemOperand(sp, src1.SizeInBytes()));
 }
 
-void MacroAssembler::PushPopQueue::PushQueued() {
-  DCHECK_EQ(0, size_ % 16);
-  if (queued_.empty()) return;
-
-  size_t count = queued_.size();
-  size_t index = 0;
-  while (index < count) {
-    // PushHelper can only handle registers with the same size and type, and it
-    // can handle only four at a time. Batch them up accordingly.
-    CPURegister batch[4] = {NoReg, NoReg, NoReg, NoReg};
-    int batch_index = 0;
-    do {
-      batch[batch_index++] = queued_[index++];
-    } while ((batch_index < 4) && (index < count) &&
-             batch[0].IsSameSizeAndType(queued_[index]));
-
-    masm_->PushHelper(batch_index, batch[0].SizeInBytes(),
-                      batch[0], batch[1], batch[2], batch[3]);
-  }
-
-  queued_.clear();
-}
-
-
-void MacroAssembler::PushPopQueue::PopQueued() {
-  DCHECK_EQ(0, size_ % 16);
-  if (queued_.empty()) return;
-
-  size_t count = queued_.size();
-  size_t index = 0;
-  while (index < count) {
-    // PopHelper can only handle registers with the same size and type, and it
-    // can handle only four at a time. Batch them up accordingly.
-    CPURegister batch[4] = {NoReg, NoReg, NoReg, NoReg};
-    int batch_index = 0;
-    do {
-      batch[batch_index++] = queued_[index++];
-    } while ((batch_index < 4) && (index < count) &&
-             batch[0].IsSameSizeAndType(queued_[index]));
-
-    masm_->PopHelper(batch_index, batch[0].SizeInBytes(),
-                     batch[0], batch[1], batch[2], batch[3]);
-  }
-
-  queued_.clear();
-}
-
 void TurboAssembler::PushCPURegList(CPURegList registers) {
   int size = registers.RegisterSizeInBytes();
   DCHECK_EQ(0, (size * registers.Count()) % 16);
@@ -2111,23 +2064,6 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
   near_call(static_cast<int>(offset), RelocInfo::RUNTIME_ENTRY);
 }
 
-void MacroAssembler::TryRepresentDoubleAsInt(Register as_int, VRegister value,
-                                             VRegister scratch_d,
-                                             Label* on_successful_conversion,
-                                             Label* on_failed_conversion) {
-  // Convert to an int and back again, then compare with the original value.
-  Fcvtzs(as_int, value);
-  Scvtf(scratch_d, as_int);
-  Fcmp(value, scratch_d);
-
-  if (on_successful_conversion) {
-    B(on_successful_conversion, eq);
-  }
-  if (on_failed_conversion) {
-    B(on_failed_conversion, ne);
-  }
-}
-
 void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
                                         Register caller_args_count_reg,
                                         Register scratch0, Register scratch1) {
@@ -2846,67 +2782,6 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
   RecordComment("]");
 }
 
-void MacroAssembler::CompareAndSplit(const Register& lhs,
-                                     const Operand& rhs,
-                                     Condition cond,
-                                     Label* if_true,
-                                     Label* if_false,
-                                     Label* fall_through) {
-  if ((if_true == if_false) && (if_false == fall_through)) {
-    // Fall through.
-  } else if (if_true == if_false) {
-    B(if_true);
-  } else if (if_false == fall_through) {
-    CompareAndBranch(lhs, rhs, cond, if_true);
-  } else if (if_true == fall_through) {
-    CompareAndBranch(lhs, rhs, NegateCondition(cond), if_false);
-  } else {
-    CompareAndBranch(lhs, rhs, cond, if_true);
-    B(if_false);
-  }
-}
-
-
-void MacroAssembler::TestAndSplit(const Register& reg,
-                                  uint64_t bit_pattern,
-                                  Label* if_all_clear,
-                                  Label* if_any_set,
-                                  Label* fall_through) {
-  if ((if_all_clear == if_any_set) && (if_any_set == fall_through)) {
-    // Fall through.
-  } else if (if_all_clear == if_any_set) {
-    B(if_all_clear);
-  } else if (if_all_clear == fall_through) {
-    TestAndBranchIfAnySet(reg, bit_pattern, if_any_set);
-  } else if (if_any_set == fall_through) {
-    TestAndBranchIfAllClear(reg, bit_pattern, if_all_clear);
-  } else {
-    TestAndBranchIfAnySet(reg, bit_pattern, if_any_set);
-    B(if_all_clear);
-  }
-}
-
-void MacroAssembler::PopSafepointRegisters() {
-  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
-  DCHECK_GE(num_unsaved, 0);
-  DCHECK_EQ(num_unsaved % 2, 0);
-  DCHECK_EQ(kSafepointSavedRegisters % 2, 0);
-  PopXRegList(kSafepointSavedRegisters);
-  Drop(num_unsaved);
-}
-
-
-void MacroAssembler::PushSafepointRegisters() {
-  // Safepoints expect a block of kNumSafepointRegisters values on the stack, so
-  // adjust the stack for unsaved registers.
-  const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
-  DCHECK_GE(num_unsaved, 0);
-  DCHECK_EQ(num_unsaved % 2, 0);
-  DCHECK_EQ(kSafepointSavedRegisters % 2, 0);
-  Claim(num_unsaved);
-  PushXRegList(kSafepointSavedRegisters);
-}
-
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // Make sure the safepoint registers list is what we expect.
   DCHECK_EQ(CPURegList::GetSafepointSavedRegisters().list(), 0x6FFCFFFF);
@@ -3497,50 +3372,6 @@ MemOperand NativeContextMemOperand() {
   return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
 }
 
-#define __ masm->
-
-void InlineSmiCheckInfo::Emit(MacroAssembler* masm, const Register& reg,
-                              const Label* smi_check) {
-  Assembler::BlockPoolsScope scope(masm);
-  if (reg.IsValid()) {
-    DCHECK(smi_check->is_bound());
-    DCHECK(reg.Is64Bits());
-
-    // Encode the register (x0-x30) in the lowest 5 bits, then the offset to
-    // 'check' in the other bits. The possible offset is limited in that we
-    // use BitField to pack the data, and the underlying data type is a
-    // uint32_t.
-    uint32_t delta =
-        static_cast<uint32_t>(__ InstructionsGeneratedSince(smi_check));
-    __ InlineData(RegisterBits::encode(reg.code()) | DeltaBits::encode(delta));
-  } else {
-    DCHECK(!smi_check->is_bound());
-
-    // An offset of 0 indicates that there is no patch site.
-    __ InlineData(0);
-  }
-}
-
-InlineSmiCheckInfo::InlineSmiCheckInfo(Address info)
-    : reg_(NoReg), smi_check_delta_(0), smi_check_(nullptr) {
-  InstructionSequence* inline_data = InstructionSequence::At(info);
-  DCHECK(inline_data->IsInlineData());
-  if (inline_data->IsInlineData()) {
-    uint64_t payload = inline_data->InlineData();
-    // We use BitField to decode the payload, and BitField can only handle
-    // 32-bit values.
-    DCHECK(is_uint32(payload));
-    if (payload != 0) {
-      uint32_t payload32 = static_cast<uint32_t>(payload);
-      int reg_code = RegisterBits::decode(payload32);
-      reg_ = Register::XRegFromCode(reg_code);
-      smi_check_delta_ = DeltaBits::decode(payload32);
-      DCHECK_NE(0, smi_check_delta_);
-      smi_check_ = inline_data->preceding(smi_check_delta_);
-    }
-  }
-}
-
 void TurboAssembler::ComputeCodeStartAddress(const Register& rd) {
   // We can use adr to load a pc relative location.
   adr(rd, -pc_offset());
@@ -3549,9 +3380,6 @@ void TurboAssembler::ComputeCodeStartAddress(const Register& rd) {
 void TurboAssembler::ResetSpeculationPoisonRegister() {
   Mov(kSpeculationPoisonRegister, -1);
 }
-
-#undef __
-
 
 }  // namespace internal
 }  // namespace v8

@@ -1923,51 +1923,6 @@ void TurboAssembler::Popcntq(Register dst, Operand src) {
   UNREACHABLE();
 }
 
-
-void MacroAssembler::Pushad() {
-  Push(rax);
-  Push(rcx);
-  Push(rdx);
-  Push(rbx);
-  // Not pushing rsp or rbp.
-  Push(rsi);
-  Push(rdi);
-  Push(r8);
-  Push(r9);
-  // r10 is kScratchRegister.
-  Push(r11);
-  Push(r12);
-  // r13 is kRootRegister.
-  Push(r14);
-  Push(r15);
-  STATIC_ASSERT(12 == kNumSafepointSavedRegisters);
-  // Use lea for symmetry with Popad.
-  int sp_delta = (kNumSafepointRegisters - kNumSafepointSavedRegisters) *
-                 kSystemPointerSize;
-  leaq(rsp, Operand(rsp, -sp_delta));
-}
-
-
-void MacroAssembler::Popad() {
-  // Popad must not change the flags, so use lea instead of addq.
-  int sp_delta = (kNumSafepointRegisters - kNumSafepointSavedRegisters) *
-                 kSystemPointerSize;
-  leaq(rsp, Operand(rsp, sp_delta));
-  Pop(r15);
-  Pop(r14);
-  Pop(r12);
-  Pop(r11);
-  Pop(r9);
-  Pop(r8);
-  Pop(rdi);
-  Pop(rsi);
-  Pop(rbx);
-  Pop(rdx);
-  Pop(rcx);
-  Pop(rax);
-}
-
-
 // Order general registers are pushed by Pushad:
 // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.
 const int
@@ -2040,17 +1995,6 @@ void MacroAssembler::CmpObjectType(Register heap_object,
 void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
   cmpw(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
 }
-
-void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
-                               XMMRegister scratch, Label* lost_precision,
-                               Label* is_nan, Label::Distance dst) {
-  Cvttsd2si(result_reg, input_reg);
-  Cvtlsi2sd(kScratchDoubleReg, result_reg);
-  Ucomisd(kScratchDoubleReg, input_reg);
-  j(not_equal, lost_precision, dst);
-  j(parity_even, is_nan, dst);  // NaN.
-}
-
 
 void MacroAssembler::AssertNotSmi(Register object) {
   if (emit_debug_code()) {

@@ -49,19 +49,6 @@
 namespace v8 {
 namespace internal {
 
-AssemblerOptions AssemblerOptions::EnableV8AgnosticCode() const {
-  AssemblerOptions options = *this;
-  options.v8_agnostic_code = true;
-  options.record_reloc_info_for_serialization = false;
-  options.enable_root_array_delta_access = false;
-  // Inherit |enable_simulator_code| value.
-  options.isolate_independent_code = false;
-  options.inline_offheap_trampolines = false;
-  // Inherit |code_range_start| value.
-  // Inherit |use_pc_relative_calls_and_jumps| value.
-  return options;
-}
-
 AssemblerOptions AssemblerOptions::Default(
     Isolate* isolate, bool explicitly_support_serialization) {
   AssemblerOptions options;
@@ -167,23 +154,6 @@ void AssemblerBase::Print(Isolate* isolate) {
 }
 
 // -----------------------------------------------------------------------------
-// Implementation of PredictableCodeSizeScope
-
-PredictableCodeSizeScope::PredictableCodeSizeScope(AssemblerBase* assembler,
-                                                   int expected_size)
-    : assembler_(assembler),
-      expected_size_(expected_size),
-      start_offset_(assembler->pc_offset()),
-      old_value_(assembler->predictable_code_size()) {
-  assembler_->set_predictable_code_size(true);
-}
-
-PredictableCodeSizeScope::~PredictableCodeSizeScope() {
-  CHECK_EQ(expected_size_, assembler_->pc_offset() - start_offset_);
-  assembler_->set_predictable_code_size(old_value_);
-}
-
-// -----------------------------------------------------------------------------
 // Implementation of CpuFeatureScope
 
 #ifdef DEBUG
@@ -240,13 +210,11 @@ void Assembler::DataAlign(int m) {
 }
 
 void AssemblerBase::RequestHeapObject(HeapObjectRequest request) {
-  DCHECK(!options().v8_agnostic_code);
   request.set_offset(pc_offset());
   heap_object_requests_.push_front(request);
 }
 
 int AssemblerBase::AddCodeTarget(Handle<Code> target) {
-  DCHECK(!options().v8_agnostic_code);
   int current = static_cast<int>(code_targets_.size());
   if (current > 0 && !target.is_null() &&
       code_targets_.back().address() == target.address()) {
@@ -259,7 +227,6 @@ int AssemblerBase::AddCodeTarget(Handle<Code> target) {
 }
 
 int AssemblerBase::AddCompressedEmbeddedObject(Handle<HeapObject> object) {
-  DCHECK(!options().v8_agnostic_code);
   int current = static_cast<int>(compressed_embedded_objects_.size());
   compressed_embedded_objects_.push_back(object);
   return current;
@@ -267,22 +234,13 @@ int AssemblerBase::AddCompressedEmbeddedObject(Handle<HeapObject> object) {
 
 Handle<HeapObject> AssemblerBase::GetCompressedEmbeddedObject(
     intptr_t index) const {
-  DCHECK(!options().v8_agnostic_code);
   DCHECK_LT(static_cast<size_t>(index), compressed_embedded_objects_.size());
   return compressed_embedded_objects_[index];
 }
 
 Handle<Code> AssemblerBase::GetCodeTarget(intptr_t code_target_index) const {
-  DCHECK(!options().v8_agnostic_code);
   DCHECK_LT(static_cast<size_t>(code_target_index), code_targets_.size());
   return code_targets_[code_target_index];
-}
-
-void AssemblerBase::UpdateCodeTarget(intptr_t code_target_index,
-                                     Handle<Code> code) {
-  DCHECK(!options().v8_agnostic_code);
-  DCHECK_LT(static_cast<size_t>(code_target_index), code_targets_.size());
-  code_targets_[code_target_index] = code;
 }
 
 int Assembler::WriteCodeComments() {

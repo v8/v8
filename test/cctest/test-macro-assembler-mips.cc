@@ -231,8 +231,6 @@ TEST(jump_tables5) {
 
   {
     __ BlockTrampolinePoolFor(kNumCases + 6 + 1);
-    PredictableCodeSizeScope predictable(
-        masm, kNumCases * kPointerSize + ((6 + 1) * kInstrSize));
 
     __ addiupc(at, 6 + 1);
     __ Lsa(at, at, a0, 2);

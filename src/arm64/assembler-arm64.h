@@ -120,10 +120,6 @@ class Operand {
   // Relocation information.
   bool NeedsRelocation(const Assembler* assembler) const;
 
-  // Helpers
-  inline static Operand UntagSmi(Register smi);
-  inline static Operand UntagSmiAndScale(Register smi, int scale);
-
  private:
   base::Optional<HeapObjectRequest> heap_object_request_;
   Immediate immediate_;

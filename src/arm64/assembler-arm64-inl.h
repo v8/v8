@@ -384,27 +384,6 @@ unsigned Operand::shift_amount() const {
   return shift_amount_;
 }
 
-
-Operand Operand::UntagSmi(Register smi) {
-  DCHECK(smi.Is64Bits());
-  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
-  return Operand(smi, ASR, kSmiShift);
-}
-
-
-Operand Operand::UntagSmiAndScale(Register smi, int scale) {
-  DCHECK(smi.Is64Bits());
-  DCHECK((scale >= 0) && (scale <= (64 - kSmiValueSize)));
-  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
-  if (scale > kSmiShift) {
-    return Operand(smi, LSL, scale - kSmiShift);
-  } else if (scale < kSmiShift) {
-    return Operand(smi, ASR, kSmiShift - scale);
-  }
-  return Operand(smi);
-}
-
-
 MemOperand::MemOperand()
   : base_(NoReg), regoffset_(NoReg), offset_(0), addrmode_(Offset),
     shift_(NO_SHIFT), extend_(NO_EXTEND), shift_amount_(0) {

@@ -1583,35 +1583,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Push the specified register 'count' times.
   void PushMultipleTimes(CPURegister src, Register count);
 
-  // Sometimes callers need to push or pop multiple registers in a way that is
-  // difficult to structure efficiently for fixed Push or Pop calls. This scope
-  // allows push requests to be queued up, then flushed at once. The
-  // MacroAssembler will try to generate the most efficient sequence required.
-  //
-  // Unlike the other Push and Pop macros, PushPopQueue can handle mixed sets of
-  // register sizes and types.
-  class V8_EXPORT_PRIVATE PushPopQueue {
-   public:
-    explicit PushPopQueue(MacroAssembler* masm) : masm_(masm), size_(0) {}
-
-    ~PushPopQueue() {
-      DCHECK(queued_.empty());
-    }
-
-    void Queue(const CPURegister& rt) {
-      size_ += rt.SizeInBytes();
-      queued_.push_back(rt);
-    }
-
-    void PushQueued();
-    void PopQueued();
-
-   private:
-    MacroAssembler* masm_;
-    int size_;
-    std::vector<CPURegister> queued_;
-  };
-
   // Peek at two values on the stack, and put them in 'dst1' and 'dst2'. The
   // values peeked will be adjacent, with the value in 'dst2' being from a
   // higher address than 'dst1'. The offset is in bytes. The stack pointer must
@@ -1683,25 +1654,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   inline void SmiTag(Register smi);
 
   inline void JumpIfNotSmi(Register value, Label* not_smi_label);
-  inline void JumpIfBothSmi(Register value1, Register value2,
-                            Label* both_smi_label,
-                            Label* not_smi_label = nullptr);
-  inline void JumpIfEitherSmi(Register value1, Register value2,
-                              Label* either_smi_label,
-                              Label* not_smi_label = nullptr);
-  inline void JumpIfEitherNotSmi(Register value1,
-                                 Register value2,
-                                 Label* not_smi_label);
-  inline void JumpIfBothNotSmi(Register value1,
-                               Register value2,
-                               Label* not_smi_label);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object,
                     AbortReason reason = AbortReason::kOperandIsASmi);
-
-  inline void ObjectTag(Register tagged_obj, Register obj);
-  inline void ObjectUntag(Register untagged_obj, Register obj);
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object);
@@ -1720,20 +1676,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object);
-
-  // Try to represent a double as a signed 64-bit int.
-  // This succeeds if the result compares equal to the input, so inputs of -0.0
-  // are represented as 0 and handled as a success.
-  //
-  // On output the Z flag is set if the operation was successful.
-  void TryRepresentDoubleAsInt64(Register as_int, VRegister value,
-                                 VRegister scratch_d,
-                                 Label* on_successful_conversion = nullptr,
-                                 Label* on_failed_conversion = nullptr) {
-    DCHECK(as_int.Is64Bits());
-    TryRepresentDoubleAsInt(as_int, value, scratch_d, on_successful_conversion,
-                            on_failed_conversion);
-  }
 
   // ---- Calling / Jumping helpers ----
 
@@ -1848,23 +1790,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void JumpIfIsInRange(const Register& value, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range);
 
-  // Compare the contents of a register with an operand, and branch to true,
-  // false or fall through, depending on condition.
-  void CompareAndSplit(const Register& lhs,
-                       const Operand& rhs,
-                       Condition cond,
-                       Label* if_true,
-                       Label* if_false,
-                       Label* fall_through);
-
-  // Test the bits of register defined by bit_pattern, and branch to
-  // if_any_set, if_all_clear or fall_through accordingly.
-  void TestAndSplit(const Register& reg,
-                    uint64_t bit_pattern,
-                    Label* if_all_clear,
-                    Label* if_any_set,
-                    Label* fall_through);
-
   // ---------------------------------------------------------------------------
   // Frames.
 
@@ -1925,11 +1850,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Garbage collector support (GC).
 
-  // Push and pop the registers that can hold pointers, as defined by the
-  // RegList constant kSafepointSavedRegisters.
-  void PushSafepointRegisters();
-  void PopSafepointRegisters();
-
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
   // stored.
@@ -1955,12 +1875,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void AssertRegisterIsRoot(
       Register reg, RootIndex index,
       AbortReason reason = AbortReason::kRegisterDidNotMatchExpectedRoot);
-
-  // Abort if the specified register contains the invalid color bit pattern.
-  // The pattern must be in bits [1:0] of 'reg' register.
-  //
-  // If emit_debug_code() is false, this emits no code.
-  void AssertHasValidColor(const Register& reg);
 
   void LoadNativeContextSlot(int index, Register dst);
 
@@ -1994,22 +1908,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                         const CPURegister& arg2 = NoCPUReg,
                         const CPURegister& arg3 = NoCPUReg);
 
- private:
-  // Try to represent a double as an int so that integer fast-paths may be
-  // used. Not every valid integer value is guaranteed to be caught.
-  // It supports both 32-bit and 64-bit integers depending whether 'as_int'
-  // is a W or X register.
-  //
-  // This does not distinguish between +0 and -0, so if this distinction is
-  // important it must be checked separately.
-  //
-  // On output the Z flag is set if the operation was successful.
-  void TryRepresentDoubleAsInt(Register as_int, VRegister value,
-                               VRegister scratch_d,
-                               Label* on_successful_conversion = nullptr,
-                               Label* on_failed_conversion = nullptr);
-
- public:
   // Far branches resolving.
   //
   // The various classes of branch instructions with immediate offsets have
@@ -2124,55 +2022,6 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
 
 MemOperand ContextMemOperand(Register context, int index = 0);
 MemOperand NativeContextMemOperand();
-
-// Encode and decode information about patchable inline SMI checks.
-class InlineSmiCheckInfo {
- public:
-  explicit InlineSmiCheckInfo(Address info);
-
-  bool HasSmiCheck() const { return smi_check_ != nullptr; }
-
-  const Register& SmiRegister() const {
-    return reg_;
-  }
-
-  Instruction* SmiCheck() const {
-    return smi_check_;
-  }
-
-  int SmiCheckDelta() const { return smi_check_delta_; }
-
-  // Use MacroAssembler::InlineData to emit information about patchable inline
-  // SMI checks. The caller may specify 'reg' as NoReg and an unbound 'site' to
-  // indicate that there is no inline SMI check. Note that 'reg' cannot be sp.
-  //
-  // The generated patch information can be read using the InlineSMICheckInfo
-  // class.
-  static void Emit(MacroAssembler* masm, const Register& reg,
-                   const Label* smi_check);
-
-  // Emit information to indicate that there is no inline SMI check.
-  static void EmitNotInlined(MacroAssembler* masm) {
-    Label unbound;
-    Emit(masm, NoReg, &unbound);
-  }
-
- private:
-  Register reg_;
-  int smi_check_delta_;
-  Instruction* smi_check_;
-
-  // Fields in the data encoded by InlineData.
-
-  // A width of 5 (Rd_width) for the SMI register precludes the use of sp,
-  // since kSPRegInternalCode is 63. However, sp should never hold a SMI or be
-  // used in a patchable check. The Emit() method checks this.
-  //
-  // Note that the total size of the fields is restricted by the underlying
-  // storage size handled by the BitField class, which is a uint32_t.
-  class RegisterBits : public BitField<unsigned, 0, 5> {};
-  class DeltaBits : public BitField<uint32_t, 5, 32-5> {};
-};
 
 }  // namespace internal
 }  // namespace v8

@@ -3212,8 +3212,6 @@ TEST(jump_tables1) {
   Label done;
   {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
-    PredictableCodeSizeScope predictable(&assm,
-                                         (kNumCases * 2 + 6) * kInstrSize);
 
     __ nal();
     __ dsll(at, a0, 3);  // In delay slot.
@@ -3288,8 +3286,6 @@ TEST(jump_tables2) {
   __ bind(&dispatch);
   {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
-    PredictableCodeSizeScope predictable(&assm,
-                                         (kNumCases * 2 + 6) * kInstrSize);
 
     __ nal();
     __ dsll(at, a0, 3);  // In delay slot.
@@ -3364,8 +3360,6 @@ TEST(jump_tables3) {
   __ bind(&dispatch);
   {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
-    PredictableCodeSizeScope predictable(&assm,
-                                         (kNumCases * 2 + 6) * kInstrSize);
 
     __ nal();
     __ dsll(at, a0, 3);  // In delay slot.

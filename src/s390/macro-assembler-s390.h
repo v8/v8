@@ -1094,11 +1094,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range);
 
-  // Try to convert a double to a signed 32-bit integer.
-  // CR_EQ in cr7 is set and result assigned if the conversion is exact.
-  void TryDoubleToInt32Exact(Register result, DoubleRegister double_input,
-                             Register scratch, DoubleRegister double_scratch);
-
   // ---------------------------------------------------------------------------
   // In-place weak references.
   void LoadWeakValue(Register out, Register in, Label* target_if_cleared);
@@ -1192,17 +1187,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 #endif
   }
 
-  // Untag the source value into destination and jump if source is a smi.
-  // Souce and destination can be the same register.
-  void UntagAndJumpIfSmi(Register dst, Register src, Label* smi_case);
-
   // Jump if either of the registers contain a non-smi.
   inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
     TestIfSmi(value);
     bne(not_smi_label /*, cr0*/);
   }
-  // Jump if either of the registers contain a smi.
-  void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
@@ -1277,11 +1266,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
       LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
-
-  // Push and pop the registers that can hold pointers, as defined by the
-  // RegList constant kSafepointSavedRegisters.
-  void PushSafepointRegisters();
-  void PopSafepointRegisters();
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

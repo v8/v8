@@ -14,7 +14,7 @@ namespace internal {
 
 Handle<Code> AssembleCodeImpl(std::function<void(MacroAssembler&)> assemble) {
   Isolate* isolate = CcTest::i_isolate();
-  MacroAssembler assm(AssemblerOptions{});
+  MacroAssembler assm(isolate, CodeObjectRequired::kYes);
 
   assemble(assm);
   assm.bx(lr);

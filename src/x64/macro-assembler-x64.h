@@ -41,17 +41,6 @@ enum StackArgumentsAccessorReceiverMode {
 
 class StackArgumentsAccessor {
  public:
-  StackArgumentsAccessor(Register base_reg, int argument_count_immediate,
-                         StackArgumentsAccessorReceiverMode receiver_mode =
-                             ARGUMENTS_CONTAIN_RECEIVER,
-                         int extra_displacement_to_last_argument = 0)
-      : base_reg_(base_reg),
-        argument_count_reg_(no_reg),
-        argument_count_immediate_(argument_count_immediate),
-        receiver_mode_(receiver_mode),
-        extra_displacement_to_last_argument_(
-            extra_displacement_to_last_argument) {}
-
   StackArgumentsAccessor(Register base_reg, Register argument_count_reg,
                          StackArgumentsAccessorReceiverMode receiver_mode =
                              ARGUMENTS_CONTAIN_RECEIVER,
@@ -646,10 +635,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // register rax (untouched).
   void LeaveApiExitFrame();
 
-  // Push and pop the registers that can hold pointers.
-  void PushSafepointRegisters() { Pushad(); }
-  void PopSafepointRegisters() { Popad(); }
-
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
@@ -760,13 +745,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Generates a trampoline to jump to the off-heap instruction stream.
   void JumpToInstructionStream(Address entry);
 
-  // Non-x64 instructions.
-  // Push/pop all general purpose registers.
-  // Does not push rsp/rbp nor any of the assembler's special purpose registers
-  // (kScratchRegister, kRootRegister).
-  void Pushad();
-  void Popad();
-
   // Compare object type for heap object.
   // Always use unsigned comparisons: above and below, not less and greater.
   // Incoming register is heap_object and outgoing register is map.
@@ -776,10 +754,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Compare instance type for map.
   // Always use unsigned comparisons: above and below, not less and greater.
   void CmpInstanceType(Register map, InstanceType type);
-
-  void DoubleToI(Register result_reg, XMMRegister input_reg,
-                 XMMRegister scratch, Label* lost_precision, Label* is_nan,
-                 Label::Distance dst = Label::kFar);
 
   template<typename Field>
   void DecodeField(Register reg) {
