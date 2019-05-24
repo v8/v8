@@ -27,8 +27,7 @@ enum class MaskArrayIndexEnable { kDoNotMaskArrayIndex, kMaskArrayIndex };
 V8_EXPORT_PRIVATE void LinearizeEffectControl(
     JSGraph* graph, Schedule* schedule, Zone* temp_zone,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-    MaskArrayIndexEnable mask_array_index,
-    std::vector<Handle<Map>>* embedded_maps);
+    MaskArrayIndexEnable mask_array_index);
 
 }  // namespace compiler
 }  // namespace internal

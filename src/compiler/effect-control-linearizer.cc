@@ -26,18 +26,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
-bool UsingCompressedPointers() { return false; }
-}  // namespace
-
 class EffectControlLinearizer {
  public:
   EffectControlLinearizer(JSGraph* js_graph, Schedule* schedule,
                           Zone* temp_zone,
                           SourcePositionTable* source_positions,
                           NodeOriginTable* node_origins,
-                          MaskArrayIndexEnable mask_array_index,
-                          std::vector<Handle<Map>>* embedded_maps)
+                          MaskArrayIndexEnable mask_array_index)
       : js_graph_(js_graph),
         schedule_(schedule),
         temp_zone_(temp_zone),
@@ -45,8 +40,7 @@ class EffectControlLinearizer {
         source_positions_(source_positions),
         node_origins_(node_origins),
         graph_assembler_(js_graph, nullptr, nullptr, temp_zone),
-        frame_state_zapper_(nullptr),
-        embedded_maps_(embedded_maps) {}
+        frame_state_zapper_(nullptr) {}
 
   void Run();
 
@@ -249,7 +243,6 @@ class EffectControlLinearizer {
     return js_graph_->simplified();
   }
   MachineOperatorBuilder* machine() const { return js_graph_->machine(); }
-  std::vector<Handle<Map>>* embedded_maps() { return embedded_maps_; }
   GraphAssembler* gasm() { return &graph_assembler_; }
 
   JSGraph* js_graph_;
@@ -261,9 +254,6 @@ class EffectControlLinearizer {
   NodeOriginTable* node_origins_;
   GraphAssembler graph_assembler_;
   Node* frame_state_zapper_;  // For tracking down compiler::Node::New crashes.
-  // {embedded_maps_} keeps track of maps we've embedded as Uint32 constants.
-  // We do this in order to notify the garbage collector at code-gen time.
-  std::vector<Handle<Map>>* embedded_maps_;
 };
 
 namespace {
@@ -1811,20 +1801,8 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
     Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
 
     for (size_t i = 0; i < map_count; ++i) {
-      Node* check;
-
-      if (UsingCompressedPointers()) {
-        // We need the dereference scope to embed the map pointer value as an
-        // int32. We don't visit the pointer.
-        AllowHandleDereference allow_map_dereference;
-        int32_t int32Map = static_cast<int32_t>(CompressTagged(maps[i]->ptr()));
-        Node* map = __ Int32Constant(int32Map);
-        check = __ Word32Equal(value_map, map);
-        this->embedded_maps()->push_back(maps[i]);
-      } else {
-        Node* map = __ HeapConstant(maps[i]);
-        check = __ WordEqual(value_map, map);
-      }
+      Node* map = __ HeapConstant(maps[i]);
+      Node* check = __ WordEqual(value_map, map);
 
       if (i == map_count - 1) {
         __ DeoptimizeIfNot(DeoptimizeReason::kWrongMap, p.feedback(), check,
@@ -1851,20 +1829,8 @@ Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
 
   for (size_t i = 0; i < map_count; ++i) {
-    Node* check;
-
-    if (UsingCompressedPointers()) {
-      // We need the dereference scope to embed the map pointer value as an
-      // int32. We don't visit the pointer.
-      AllowHandleDereference allow_map_dereference;
-      int32_t int32Map = static_cast<int32_t>(CompressTagged(maps[i]->ptr()));
-      Node* map = __ Int32Constant(int32Map);
-      check = __ Word32Equal(value_map, map);
-      this->embedded_maps()->push_back(maps[i]);
-    } else {
-      Node* map = __ HeapConstant(maps[i]);
-      check = __ WordEqual(value_map, map);
-    }
+    Node* map = __ HeapConstant(maps[i]);
+    Node* check = __ WordEqual(value_map, map);
 
     auto next_map = __ MakeLabel();
     auto passed = __ MakeLabel();
@@ -5733,11 +5699,10 @@ Node* EffectControlLinearizer::LowerDateNow(Node* node) {
 void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
-                            MaskArrayIndexEnable mask_array_index,
-                            std::vector<Handle<Map>>* embedded_maps) {
+                            MaskArrayIndexEnable mask_array_index) {
   EffectControlLinearizer linearizer(graph, schedule, temp_zone,
                                      source_positions, node_origins,
-                                     mask_array_index, embedded_maps);
+                                     mask_array_index);
   linearizer.Run();
 }
 

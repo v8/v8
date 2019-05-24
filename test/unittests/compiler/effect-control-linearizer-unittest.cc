@@ -40,7 +40,6 @@ class EffectControlLinearizerTest : public GraphTest {
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
   SourcePositionTable* source_positions() { return source_positions_; }
   NodeOriginTable* node_origins() { return node_origins_; }
-  std::vector<Handle<Map>>* maps() { return &maps_; }
 
  private:
   MachineOperatorBuilder machine_;
@@ -49,7 +48,6 @@ class EffectControlLinearizerTest : public GraphTest {
   JSGraph jsgraph_;
   SourcePositionTable* source_positions_;
   NodeOriginTable* node_origins_;
-  std::vector<Handle<Map>> maps_;
 };
 
 namespace {
@@ -89,7 +87,7 @@ TEST_F(EffectControlLinearizerTest, SimpleLoad) {
   // Run the state effect introducer.
   LinearizeEffectControl(jsgraph(), &schedule, zone(), source_positions(),
                          node_origins(),
-                         MaskArrayIndexEnable::kDoNotMaskArrayIndex, maps());
+                         MaskArrayIndexEnable::kDoNotMaskArrayIndex);
 
   EXPECT_THAT(load,
               IsLoadField(AccessBuilder::ForHeapNumberValue(), heap_number,
@@ -151,7 +149,7 @@ TEST_F(EffectControlLinearizerTest, DiamondLoad) {
   // Run the state effect introducer.
   LinearizeEffectControl(jsgraph(), &schedule, zone(), source_positions(),
                          node_origins(),
-                         MaskArrayIndexEnable::kDoNotMaskArrayIndex, maps());
+                         MaskArrayIndexEnable::kDoNotMaskArrayIndex);
 
   // The effect input to the return should be an effect phi with the
   // newly introduced effectful change operators.
@@ -218,7 +216,7 @@ TEST_F(EffectControlLinearizerTest, LoopLoad) {
   // Run the state effect introducer.
   LinearizeEffectControl(jsgraph(), &schedule, zone(), source_positions(),
                          node_origins(),
-                         MaskArrayIndexEnable::kDoNotMaskArrayIndex, maps());
+                         MaskArrayIndexEnable::kDoNotMaskArrayIndex);
 
   ASSERT_THAT(ret, IsReturn(load, load, if_true));
   EXPECT_THAT(load, IsLoadField(AccessBuilder::ForHeapNumberValue(),
@@ -281,7 +279,7 @@ TEST_F(EffectControlLinearizerTest, CloneBranch) {
 
   LinearizeEffectControl(jsgraph(), &schedule, zone(), source_positions(),
                          node_origins(),
-                         MaskArrayIndexEnable::kDoNotMaskArrayIndex, maps());
+                         MaskArrayIndexEnable::kDoNotMaskArrayIndex);
 
   Capture<Node *> branch1_capture, branch2_capture;
   EXPECT_THAT(
