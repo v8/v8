@@ -1226,8 +1226,6 @@ TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionInitAnyRefTableWithAnyFunc) {
-  // Test that tables of type 'AnyRef' cannot be initialized by the element
-  // section.
   WASM_FEATURE_SCOPE(anyref);
   WASM_FEATURE_SCOPE(bulk_memory);
   static const byte data[] = {
