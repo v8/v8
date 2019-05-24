@@ -4,6 +4,8 @@
 
 #include "src/snapshot/embedded/platform-embedded-file-writer-win.h"
 
+#include <algorithm>
+
 namespace v8 {
 namespace internal {
 
