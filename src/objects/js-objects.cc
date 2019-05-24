@@ -1963,17 +1963,6 @@ MaybeHandle<FixedArray> JSReceiver::GetOwnEntries(Handle<JSReceiver> object,
                                try_fast_path, true);
 }
 
-Handle<FixedArray> JSReceiver::GetOwnElementIndices(Isolate* isolate,
-                                                    Handle<JSReceiver> receiver,
-                                                    Handle<JSObject> object) {
-  KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
-                             ALL_PROPERTIES);
-  accumulator.CollectOwnElementIndices(receiver, object);
-  Handle<FixedArray> keys =
-      accumulator.GetKeys(GetKeysConversion::kKeepNumbers);
-  DCHECK(keys->ContainsSortedNumbers());
-  return keys;
-}
 Maybe<bool> JSReceiver::SetPrototype(Handle<JSReceiver> object,
                                      Handle<Object> value, bool from_javascript,
                                      ShouldThrow should_throw) {

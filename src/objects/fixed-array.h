@@ -140,8 +140,6 @@ class FixedArray : public FixedArrayBase {
 
   inline ObjectSlot GetFirstElementAddress();
   inline bool ContainsOnlySmisOrHoles();
-  // Returns true iff the elements are Numbers and sorted ascending.
-  bool ContainsSortedNumbers();
 
   // Gives access to raw memory which stores the array's data.
   inline ObjectSlot data_start();
