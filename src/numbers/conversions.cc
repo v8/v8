@@ -8,7 +8,7 @@
 #include <stdarg.h>
 #include <cmath>
 
-#include "src/assert-scope.h"
+#include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/numbers/dtoa.h"

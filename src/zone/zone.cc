@@ -6,9 +6,9 @@
 
 #include <cstring>
 
+#include "src/init/v8.h"
 #include "src/sanitizer/asan.h"
 #include "src/utils/utils.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

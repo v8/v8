@@ -5,7 +5,7 @@
 #ifndef V8_EXECUTION_SIMULATOR_H_
 #define V8_EXECUTION_SIMULATOR_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/code.h"
 
 #if !defined(USE_SIMULATOR)

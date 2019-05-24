@@ -7,9 +7,9 @@
 #include <utility>
 
 #include "src/api/api-inl.h"
+#include "src/init/v8.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/v8.h"
 
 #include "test/cctest/cctest.h"
 

@@ -10,7 +10,7 @@
 #include <unistd.h>  // NOLINT
 #endif
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "test/cctest/cctest.h"
 

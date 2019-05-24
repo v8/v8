@@ -11,7 +11,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 namespace v8 {
 namespace internal {

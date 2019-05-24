@@ -7,7 +7,7 @@
 
 #include "src/objects/feedback-vector.h"
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"

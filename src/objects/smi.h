@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_SMI_H_
 #define V8_OBJECTS_SMI_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):

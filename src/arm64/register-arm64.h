@@ -8,7 +8,7 @@
 #include "src/arm64/utils-arm64.h"
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

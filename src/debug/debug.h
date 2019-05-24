@@ -8,11 +8,11 @@
 #include <vector>
 
 #include "src/codegen/source-position-table.h"
+#include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/interface-types.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
-#include "src/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/debug-objects.h"
 

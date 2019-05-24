@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "src/codegen/compiler.h"
+#include "src/common/globals.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"
@@ -14,7 +15,6 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/globals.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/interpreter/bytecode-array-accessor.h"
 #include "src/interpreter/bytecodes.h"

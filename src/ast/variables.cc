@@ -5,7 +5,7 @@
 #include "src/ast/variables.h"
 
 #include "src/ast/scopes.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

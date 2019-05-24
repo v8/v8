@@ -21,6 +21,7 @@
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
+#include "src/compiler/vector-slot-pair.h"
 #include "src/ic/call-optimization.h"
 #include "src/logging/counters.h"
 #include "src/objects/arguments-inl.h"
@@ -30,7 +31,6 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
-#include "src/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {

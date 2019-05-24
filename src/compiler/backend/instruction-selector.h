@@ -8,13 +8,13 @@
 #include <map>
 
 #include "src/codegen/cpu-features.h"
+#include "src/common/globals.h"
 #include "src/compiler/backend/instruction-scheduler.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
-#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

@@ -30,9 +30,9 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/simulator.h"
-#include "src/utils/ostreams.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
-#include "src/v8.h"
+#include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
 

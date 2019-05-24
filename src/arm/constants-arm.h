@@ -9,7 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/utils/boxed-float.h"
 #include "src/utils/utils.h"
 

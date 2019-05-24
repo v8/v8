@@ -6,7 +6,7 @@
 #define V8_ARM64_SIMULATOR_ARM64_H_
 
 // globals.h defines USE_SIMULATOR.
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 #if defined(USE_SIMULATOR)
 

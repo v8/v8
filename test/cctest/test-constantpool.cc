@@ -4,7 +4,7 @@
 
 // Test embedded constant pool builder code.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/codegen/constant-pool.h"
 #include "test/cctest/cctest.h"

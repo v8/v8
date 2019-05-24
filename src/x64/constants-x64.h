@@ -5,7 +5,7 @@
 #ifndef V8_X64_CONSTANTS_X64_H_
 #define V8_X64_CONSTANTS_X64_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

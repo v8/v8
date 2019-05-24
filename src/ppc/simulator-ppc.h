@@ -13,7 +13,7 @@
 #define V8_PPC_SIMULATOR_PPC_H_
 
 // globals.h defines USE_SIMULATOR.
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 #if defined(USE_SIMULATOR)
 // Running with a simulator.

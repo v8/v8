@@ -20,6 +20,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/runtime-profiler.h"
+#include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-collector.h"
@@ -50,6 +51,7 @@
 #include "src/heap/stress-scavenge-observer.h"
 #include "src/heap/sweeper.h"
 #include "src/init/bootstrapper.h"
+#include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/log.h"
 #include "src/numbers/conversions.h"
@@ -72,8 +74,6 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
-#include "src/v8.h"
-#include "src/v8threads.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

@@ -40,8 +40,8 @@
 #include <set>
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/external-reference.h"
 #include "src/codegen/label.h"
-#include "src/external-reference.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/mips64/register-mips64.h"
 #include "src/objects/contexts.h"

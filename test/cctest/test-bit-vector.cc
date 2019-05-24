@@ -27,7 +27,7 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/utils/bit-vector.h"
 #include "test/cctest/cctest.h"

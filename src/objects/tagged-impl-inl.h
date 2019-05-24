@@ -10,10 +10,10 @@
 #ifdef V8_COMPRESS_POINTERS
 #include "src/execution/isolate.h"
 #endif
+#include "src/common/ptr-compr-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/smi.h"
-#include "src/ptr-compr-inl.h"
-#include "src/roots-inl.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {

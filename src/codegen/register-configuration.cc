@@ -6,7 +6,7 @@
 #include "src/base/lazy-instance.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/register-arch.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

@@ -9,8 +9,8 @@
 #include "include/v8-util.h"
 #include "include/v8.h"
 
+#include "src/common/globals.h"
 #include "src/debug/interface-types.h"
-#include "src/globals.h"
 
 namespace v8 {
 

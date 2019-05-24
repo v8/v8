@@ -8,7 +8,7 @@
 #include "src/arm64/constants-arm64.h"
 #include "src/arm64/register-arm64.h"
 #include "src/arm64/utils-arm64.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/utils/utils.h"
 
 namespace v8 {

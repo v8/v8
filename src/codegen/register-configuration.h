@@ -8,7 +8,7 @@
 #include "src/base/macros.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/reglist.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/utils/utils.h"
 
 namespace v8 {

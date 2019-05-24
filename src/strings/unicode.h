@@ -6,7 +6,7 @@
 #define V8_STRINGS_UNICODE_H_
 
 #include <sys/types.h>
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/third_party/utf8-decoder/utf8-decoder.h"
 #include "src/utils/utils.h"
 /**

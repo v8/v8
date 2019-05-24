@@ -7,14 +7,14 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/optional.h"
+#include "src/common/globals.h"
 #include "src/compiler/refs-map.h"
-#include "src/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
-#include "src/utils/ostreams.h"
 #include "src/objects/objects.h"
+#include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

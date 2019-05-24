@@ -5,7 +5,7 @@
 #ifndef V8_NUMBERS_MATH_RANDOM_H_
 #define V8_NUMBERS_MATH_RANDOM_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/contexts.h"
 
 namespace v8 {

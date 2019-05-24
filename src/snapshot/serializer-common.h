@@ -6,13 +6,13 @@
 #define V8_SNAPSHOT_SERIALIZER_COMMON_H_
 
 #include "src/base/bits.h"
-#include "src/external-reference-table.h"
-#include "src/globals.h"
+#include "src/codegen/external-reference-table.h"
+#include "src/common/globals.h"
+#include "src/common/v8memory.h"
+#include "src/objects/visitors.h"
 #include "src/sanitizer/msan.h"
 #include "src/snapshot/references.h"
 #include "src/utils/address-map.h"
-#include "src/v8memory.h"
-#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {

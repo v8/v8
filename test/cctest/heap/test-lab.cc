@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects/objects.h"

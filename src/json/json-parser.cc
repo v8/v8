@@ -6,8 +6,8 @@
 
 #include "src/debug/debug.h"
 #include "src/execution/message-template.h"
-#include "src/hash-seed-inl.h"
 #include "src/numbers/conversions.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"

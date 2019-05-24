@@ -9,10 +9,10 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/string-constants.h"
+#include "src/common/globals.h"
 #include "src/compiler/frame-states.h"
+#include "src/compiler/vector-slot-pair.h"
 #include "src/deoptimizer/deoptimize-reason.h"
-#include "src/globals.h"
-#include "src/vector-slot-pair.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-handle-set.h"
 

@@ -9,7 +9,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
 #include "src/objects/slots.h"
-#include "src/visitors.h"
+#include "src/objects/visitors.h"
 
 namespace v8 {
 namespace internal {

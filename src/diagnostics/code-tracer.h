@@ -5,8 +5,8 @@
 #ifndef V8_DIAGNOSTICS_CODE_TRACER_H_
 #define V8_DIAGNOSTICS_CODE_TRACER_H_
 
-#include "src/flags.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/flags/flags.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"

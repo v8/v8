@@ -4,7 +4,7 @@
 
 #include "src/snapshot/serializer-common.h"
 
-#include "src/external-reference-table.h"
+#include "src/codegen/external-reference-table.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"

@@ -9,8 +9,8 @@
 #include <functional>
 #include <memory>
 
-#include "src/cancelable-task.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/tasks/cancelable-task.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-module.h"

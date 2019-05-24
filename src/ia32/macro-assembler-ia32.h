@@ -11,7 +11,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/bailout-reason.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/ia32/assembler-ia32.h"
 
 namespace v8 {

@@ -3,13 +3,13 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
-#include "src/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
+#include "src/init/v8.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/objects-inl.h"
-#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

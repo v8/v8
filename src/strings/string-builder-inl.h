@@ -5,7 +5,7 @@
 #ifndef V8_STRINGS_STRING_BUILDER_INL_H_
 #define V8_STRINGS_STRING_BUILDER_INL_H_
 
-#include "src/assert-scope.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"

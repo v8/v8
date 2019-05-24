@@ -8,7 +8,7 @@
 #include <iosfwd>
 
 #include "src/base/bits.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

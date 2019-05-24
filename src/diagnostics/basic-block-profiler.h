@@ -12,7 +12,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

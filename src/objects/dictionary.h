@@ -6,11 +6,11 @@
 #define V8_OBJECTS_DICTIONARY_H_
 
 #include "src/base/export-template.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/property-array.h"
 #include "src/objects/smi.h"
-#include "src/roots.h"
+#include "src/roots/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

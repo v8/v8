@@ -36,10 +36,10 @@
 #include "src/codegen/register-configuration.h"
 #include "src/debug/debug-interface.h"
 #include "src/execution/isolate.h"
-#include "src/flags.h"
+#include "src/flags/flags.h"
 #include "src/heap/factory.h"
+#include "src/init/v8.h"
 #include "src/objects/objects.h"
-#include "src/v8.h"
 #include "src/zone/accounting-allocator.h"
 
 namespace v8 {

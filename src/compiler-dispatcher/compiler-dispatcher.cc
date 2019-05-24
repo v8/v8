@@ -7,14 +7,14 @@
 #include "src/ast/ast.h"
 #include "src/base/platform/time.h"
 #include "src/base/template-utils.h"
-#include "src/cancelable-task.h"
 #include "src/codegen/compiler.h"
-#include "src/flags.h"
+#include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
-#include "src/task-utils.h"
+#include "src/tasks/cancelable-task.h"
+#include "src/tasks/task-utils.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 namespace v8 {

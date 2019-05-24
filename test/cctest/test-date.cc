@@ -28,7 +28,7 @@
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

@@ -10,7 +10,7 @@
 #define V8_MIPS64_MACRO_ASSEMBLER_MIPS64_H_
 
 #include "src/codegen/assembler.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/mips64/assembler-mips64.h"
 
 namespace v8 {

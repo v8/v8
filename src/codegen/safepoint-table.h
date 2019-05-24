@@ -5,10 +5,10 @@
 #ifndef V8_CODEGEN_SAFEPOINT_TABLE_H_
 #define V8_CODEGEN_SAFEPOINT_TABLE_H_
 
-#include "src/assert-scope.h"
+#include "src/common/assert-scope.h"
+#include "src/common/v8memory.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
-#include "src/v8memory.h"
 #include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone.h"
 

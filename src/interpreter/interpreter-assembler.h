@@ -7,7 +7,7 @@
 
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/runtime/runtime.h"

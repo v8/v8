@@ -9,16 +9,16 @@
 
 #include "src/base/macros.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/common/globals.h"
 #include "src/compiler/code-assembler.h"
 #include "src/execution/frames.h"
 #include "src/execution/message-template.h"
-#include "src/globals.h"
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
 #include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
-#include "src/roots.h"
+#include "src/roots/roots.h"
 
 #include "torque-generated/builtins-base-gen-tq.h"
 

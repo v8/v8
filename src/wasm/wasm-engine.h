@@ -8,7 +8,7 @@
 #include <memory>
 #include <unordered_set>
 
-#include "src/cancelable-task.h"
+#include "src/tasks/cancelable-task.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-tier.h"

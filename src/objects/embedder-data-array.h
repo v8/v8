@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_EMBEDDER_DATA_ARRAY_H_
 #define V8_OBJECTS_EMBEDDER_DATA_ARRAY_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/heap-object.h"
 #include "torque-generated/field-offsets-tq.h"

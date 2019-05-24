@@ -7,7 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/codegen/source-position-table.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecodes.h"
 
 namespace v8 {

@@ -9,8 +9,8 @@
 #include <cstring>
 #include <iterator>
 
-#include "src/checks.h"
-#include "src/globals.h"
+#include "src/common/checks.h"
+#include "src/common/globals.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {

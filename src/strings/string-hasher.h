@@ -5,7 +5,7 @@
 #ifndef V8_STRINGS_STRING_HASHER_H_
 #define V8_STRINGS_STRING_HASHER_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

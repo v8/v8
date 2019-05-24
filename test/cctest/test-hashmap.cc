@@ -28,7 +28,7 @@
 #include <stdlib.h>
 
 #include "src/base/overflowing-math.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 #include "src/base/hashmap.h"

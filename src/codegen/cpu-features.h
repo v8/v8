@@ -5,7 +5,7 @@
 #ifndef V8_CODEGEN_CPU_FEATURES_H_
 #define V8_CODEGEN_CPU_FEATURES_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 

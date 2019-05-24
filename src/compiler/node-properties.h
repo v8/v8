@@ -5,9 +5,9 @@
 #ifndef V8_COMPILER_NODE_PROPERTIES_H_
 #define V8_COMPILER_NODE_PROPERTIES_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/node.h"
 #include "src/compiler/types.h"
-#include "src/globals.h"
 #include "src/objects/map.h"
 #include "src/zone/zone-handle-set.h"
 

@@ -13,7 +13,7 @@
 #include "src/asmjs/asm-types.h"
 #include "src/base/optional.h"
 #include "src/base/overflowing-math.h"
-#include "src/flags.h"
+#include "src/flags/flags.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/parsing/scanner.h"
 #include "src/wasm/wasm-limits.h"

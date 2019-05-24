@@ -6,7 +6,7 @@
 
 #include "src/base/functional.h"
 #include "src/heap/heap.h"
-#include "src/roots-inl.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {

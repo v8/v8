@@ -6,7 +6,7 @@
 #define V8_EXECUTION_VM_STATE_H_
 
 #include "include/v8.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

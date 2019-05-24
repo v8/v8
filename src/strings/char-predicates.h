@@ -5,7 +5,7 @@
 #ifndef V8_STRINGS_CHAR_PREDICATES_H_
 #define V8_STRINGS_CHAR_PREDICATES_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/strings/unicode.h"
 
 namespace v8 {

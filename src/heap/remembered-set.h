@@ -6,10 +6,10 @@
 #define V8_HEAP_REMEMBERED_SET_H_
 
 #include "src/codegen/reloc-info.h"
+#include "src/common/v8memory.h"
 #include "src/heap/heap.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
-#include "src/v8memory.h"
 
 namespace v8 {
 namespace internal {

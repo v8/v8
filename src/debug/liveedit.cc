@@ -15,14 +15,14 @@
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/v8threads.h"
+#include "src/init/v8.h"
 #include "src/logging/log.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
-#include "src/v8.h"
-#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {

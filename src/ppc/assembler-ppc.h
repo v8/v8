@@ -45,8 +45,8 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
+#include "src/codegen/external-reference.h"
 #include "src/codegen/label.h"
-#include "src/external-reference.h"
 #include "src/numbers/double.h"
 #include "src/objects/smi.h"
 #include "src/ppc/constants-ppc.h"

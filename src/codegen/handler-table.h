@@ -5,8 +5,8 @@
 #ifndef V8_CODEGEN_HANDLER_TABLE_H_
 #define V8_CODEGEN_HANDLER_TABLE_H_
 
-#include "src/assert-scope.h"
-#include "src/globals.h"
+#include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/utils/utils.h"
 
 namespace v8 {

@@ -19,6 +19,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/type-cache.h"
+#include "src/compiler/vector-slot-pair.h"
 #include "src/execution/isolate-inl.h"
 #include "src/numbers/dtoa.h"
 #include "src/objects/feedback-vector.h"
@@ -27,7 +28,6 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/templates.h"
-#include "src/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {

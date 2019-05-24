@@ -4,15 +4,15 @@
 
 #include <limits>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/ast/scopes.h"
-#include "src/hash-seed-inl.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register-allocator.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "test/unittests/interpreter/bytecode-utils.h"

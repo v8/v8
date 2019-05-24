@@ -27,7 +27,7 @@
 //
 // Tests of the circular queue.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/profiler/circular-queue-inl.h"
 #include "test/cctest/cctest.h"

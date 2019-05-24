@@ -8,7 +8,7 @@
 #include "include/v8.h"
 #include "src/utils/allocation.h"
 // TODO(bmeurer): Remove once FLAG_modify_field_representation_inplace is gone.
-#include "src/flags.h"
+#include "src/flags/flags.h"
 #include "src/utils/utils.h"
 
 namespace v8 {

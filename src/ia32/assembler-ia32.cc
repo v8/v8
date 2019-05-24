@@ -54,8 +54,8 @@
 #include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/disassembler.h"
+#include "src/init/v8.h"
 #include "src/numbers/conversions-inl.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

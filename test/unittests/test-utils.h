@@ -351,7 +351,7 @@ class SaveFlags {
 
  private:
 #define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) ctype SAVED_##nam;
-#include "src/flag-definitions.h"  // NOLINT
+#include "src/flags/flag-definitions.h"  // NOLINT
 #undef FLAG_MODE_APPLY
 
   DISALLOW_COPY_AND_ASSIGN(SaveFlags);

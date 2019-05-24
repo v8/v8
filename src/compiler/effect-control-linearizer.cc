@@ -6,6 +6,7 @@
 
 #include "src/codegen/code-factory.h"
 #include "src/codegen/machine-type.h"
+#include "src/common/ptr-compr-inl.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-assembler.h"
@@ -20,7 +21,6 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"
-#include "src/ptr-compr-inl.h"
 
 namespace v8 {
 namespace internal {

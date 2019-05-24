@@ -6,15 +6,15 @@
 
 #include "src/base/atomicops.h"
 #include "src/base/template-utils.h"
-#include "src/cancelable-task.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/execution/isolate.h"
+#include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
+#include "src/tasks/cancelable-task.h"
 #include "src/tracing/trace-event.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

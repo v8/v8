@@ -4,7 +4,7 @@
 
 #include "src/torque/type-visitor.h"
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/torque/declarable.h"
 #include "src/torque/global-context.h"
 #include "src/torque/server-data.h"

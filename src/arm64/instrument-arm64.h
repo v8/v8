@@ -5,7 +5,7 @@
 #ifndef V8_ARM64_INSTRUMENT_ARM64_H_
 #define V8_ARM64_INSTRUMENT_ARM64_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/utils/utils.h"
 
 #include "src/arm64/constants-arm64.h"

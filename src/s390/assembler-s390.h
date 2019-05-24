@@ -51,8 +51,8 @@
 #include <vector>
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/external-reference.h"
 #include "src/codegen/label.h"
-#include "src/external-reference.h"
 #include "src/objects/smi.h"
 #include "src/s390/constants-s390.h"
 #include "src/s390/register-s390.h"

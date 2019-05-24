@@ -8,7 +8,7 @@
 #define V8_SANITIZER_MSAN_H_
 
 #include "src/base/macros.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 #ifdef V8_USE_MEMORY_SANITIZER
 

@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-aix.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-generic.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-mac.h"

@@ -5,7 +5,7 @@
 #include "src/codegen/code-reference.h"
 
 #include "src/codegen/code-desc.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-code-manager.h"

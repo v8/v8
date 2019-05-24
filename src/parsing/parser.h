@@ -12,7 +12,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/threaded-list.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"

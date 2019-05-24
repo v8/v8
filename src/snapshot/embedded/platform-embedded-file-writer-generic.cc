@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cinttypes>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

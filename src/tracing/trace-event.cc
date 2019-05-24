@@ -7,9 +7,9 @@
 #include <string.h>
 
 #include "src/execution/isolate.h"
+#include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/tracing/traced-value.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

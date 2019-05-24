@@ -8,8 +8,8 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 #include "src/builtins/builtins.h"
+#include "src/common/globals.h"
 #include "src/execution/messages.h"
-#include "src/globals.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/heap/heap.h"

@@ -6,7 +6,7 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/shared-function-info.h"
 

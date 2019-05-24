@@ -10,7 +10,7 @@
 
 #include "src/heap/heap-write-barrier.h"
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 // TODO(jkummerow): Get rid of this by moving GetIsolateFromWritableObject
 // elsewhere.
 #include "src/execution/isolate.h"

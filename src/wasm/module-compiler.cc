@@ -19,7 +19,7 @@
 #include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
 #include "src/logging/counters.h"
 #include "src/objects/property-descriptor.h"
-#include "src/task-utils.h"
+#include "src/tasks/task-utils.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/identity-map.h"

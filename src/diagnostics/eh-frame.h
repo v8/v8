@@ -7,8 +7,8 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/codegen/register-arch.h"
-#include "src/globals.h"
-#include "src/v8memory.h"
+#include "src/common/globals.h"
+#include "src/common/v8memory.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

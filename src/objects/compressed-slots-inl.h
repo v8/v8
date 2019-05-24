@@ -7,10 +7,10 @@
 
 #ifdef V8_COMPRESS_POINTERS
 
+#include "src/common/ptr-compr-inl.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/maybe-object-inl.h"
-#include "src/ptr-compr-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -9,8 +9,8 @@
 
 #include "src/codegen/machine-type.h"
 #include "src/codegen/register-arch.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

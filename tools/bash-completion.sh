@@ -37,11 +37,11 @@ v8_source=$(readlink -f $(dirname $BASH_SOURCE)/..)
 _v8_flag() {
   local cur defines targets
   cur="${COMP_WORDS[COMP_CWORD]}"
-  defines=$(cat $v8_source/src/flag-definitions.h \
+  defines=$(cat $v8_source/src/flags/flag-definitions.h \
     | grep "^DEFINE" \
     | grep -v "DEFINE_IMPLICATION" \
     | sed -e 's/_/-/g'; \
-    cat $v8_source/src/flag-definitions.h \
+    cat $v8_source/src/flags/flag-definitions.h \
     | grep "^  V(harmony_" \
     | sed -e 's/^  V/DEFINE-BOOL/' \
     | sed -e 's/_/-/g')

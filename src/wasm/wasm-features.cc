@@ -4,7 +4,7 @@
 
 #include "src/wasm/wasm-features.h"
 #include "src/execution/isolate.h"
-#include "src/flags.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 
 namespace v8 {

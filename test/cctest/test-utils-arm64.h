@@ -30,7 +30,7 @@
 
 #include "src/arm64/utils-arm64.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

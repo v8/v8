@@ -39,12 +39,12 @@
 
 #include "src/codegen/code-comments.h"
 #include "src/codegen/cpu-features.h"
+#include "src/codegen/external-reference.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/reloc-info.h"
+#include "src/common/globals.h"
 #include "src/deoptimizer/deoptimize-reason.h"
-#include "src/external-reference.h"
-#include "src/flags.h"
-#include "src/globals.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects.h"
 

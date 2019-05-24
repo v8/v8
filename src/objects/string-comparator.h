@@ -6,7 +6,7 @@
 #define V8_OBJECTS_STRING_COMPARATOR_H_
 
 #include "src/base/logging.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/string.h"
 #include "src/utils/utils.h"
 

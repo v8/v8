@@ -14,6 +14,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/compiler/vector-slot-pair.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecodes.h"
@@ -23,7 +24,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/template-objects-inl.h"
-#include "src/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {

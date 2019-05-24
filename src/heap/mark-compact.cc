@@ -7,7 +7,6 @@
 #include <unordered_map>
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/cancelable-task.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
@@ -29,6 +28,7 @@
 #include "src/heap/sweeper.h"
 #include "src/heap/worklist.h"
 #include "src/ic/stub-cache.h"
+#include "src/init/v8.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/foreign.h"
 #include "src/objects/hash-table-inl.h"
@@ -36,8 +36,8 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/tasks/cancelable-task.h"
 #include "src/utils/utils-inl.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

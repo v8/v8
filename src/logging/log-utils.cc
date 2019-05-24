@@ -4,8 +4,8 @@
 
 #include "src/logging/log-utils.h"
 
-#include "src/assert-scope.h"
 #include "src/base/platform/platform.h"
+#include "src/common/assert-scope.h"
 #include "src/objects/objects-inl.h"
 #include "src/strings/string-stream.h"
 #include "src/utils/utils.h"

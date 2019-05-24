@@ -5,10 +5,10 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_H_
 #define V8_HEAP_INCREMENTAL_MARKING_H_
 
-#include "src/cancelable-task.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-job.h"
 #include "src/heap/mark-compact.h"
+#include "src/tasks/cancelable-task.h"
 
 namespace v8 {
 namespace internal {

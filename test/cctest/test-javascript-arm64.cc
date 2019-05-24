@@ -27,7 +27,7 @@
 
 #include <limits.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/api/api.h"
 #include "src/base/platform/platform.h"

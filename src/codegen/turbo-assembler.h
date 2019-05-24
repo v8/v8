@@ -8,7 +8,7 @@
 #include "src/base/template-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/assembler-arch.h"
-#include "src/roots.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {

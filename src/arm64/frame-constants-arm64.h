@@ -6,8 +6,8 @@
 #define V8_ARM64_FRAME_CONSTANTS_ARM64_H_
 
 #include "src/base/macros.h"
+#include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

@@ -7,7 +7,7 @@
 
 #include "include/v8-internal.h"
 #include "include/v8.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

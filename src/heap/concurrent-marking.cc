@@ -19,6 +19,7 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/worklist.h"
+#include "src/init/v8.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -26,7 +27,6 @@
 #include "src/objects/transitions-inl.h"
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

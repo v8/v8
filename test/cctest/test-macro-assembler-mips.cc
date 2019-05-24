@@ -32,11 +32,11 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/simulator.h"
+#include "src/init/v8.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-array-inl.h"
-#include "src/utils/ostreams.h"
 #include "src/objects/objects-inl.h"
-#include "src/v8.h"
+#include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

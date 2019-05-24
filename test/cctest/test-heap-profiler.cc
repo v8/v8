@@ -31,7 +31,7 @@
 
 #include <memory>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"

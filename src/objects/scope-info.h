@@ -5,11 +5,11 @@
 #ifndef V8_OBJECTS_SCOPE_INFO_H_
 #define V8_OBJECTS_SCOPE_INFO_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/fixed-array.h"
-#include "src/utils/utils.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/objects.h"
+#include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

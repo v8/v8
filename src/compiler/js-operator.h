@@ -6,11 +6,11 @@
 #define V8_COMPILER_JS_OPERATOR_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/compiler/vector-slot-pair.h"
 #include "src/handles/maybe-handles.h"
+#include "src/objects/type-hints.h"
 #include "src/runtime/runtime.h"
-#include "src/type-hints.h"
-#include "src/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {

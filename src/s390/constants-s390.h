@@ -15,7 +15,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 // UNIMPLEMENTED_ macro for S390.
 #ifdef DEBUG

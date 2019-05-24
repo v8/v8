@@ -5,7 +5,7 @@
 #include <cmath>
 
 #include "src/base/logging.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/parsing/parser-base.h"

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 #include "src/builtins/builtins-constructor.h"
@@ -36,7 +36,7 @@
 #include "src/heap/spaces.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/roots.h"
+#include "src/roots/roots.h"
 #include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {

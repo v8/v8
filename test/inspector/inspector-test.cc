@@ -14,7 +14,7 @@
 #include "include/v8.h"
 
 #include "src/base/platform/platform.h"
-#include "src/flags.h"
+#include "src/flags/flags.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
 

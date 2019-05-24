@@ -14,6 +14,7 @@
 #include "src/compiler/access-info.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/per-isolate-compiler-cache.h"
+#include "src/compiler/vector-slot-pair.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"
@@ -28,7 +29,6 @@
 #include "src/objects/templates.h"
 #include "src/utils/boxed-float.h"
 #include "src/utils/utils.h"
-#include "src/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {

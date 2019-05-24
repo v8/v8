@@ -7,9 +7,9 @@
 
 #include "src/builtins/builtins.h"
 #include "src/codegen/constants-arch.h"
+#include "src/codegen/external-reference-table.h"
 #include "src/execution/thread-local-top.h"
-#include "src/external-reference-table.h"
-#include "src/roots.h"
+#include "src/roots/roots.h"
 #include "src/utils/utils.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 

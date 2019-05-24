@@ -8,11 +8,11 @@
 #include "src/objects/tagged-value.h"
 
 #include "include/v8-internal.h"
+#include "src/common/ptr-compr-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/tagged-impl-inl.h"
-#include "src/ptr-compr-inl.h"
-#include "src/roots-inl.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {

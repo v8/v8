@@ -17,15 +17,15 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/sweeper.h"
+#include "src/init/v8.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/objects/visitors.h"
 #include "src/tracing/trace-event.h"
-#include "src/v8.h"
-#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {

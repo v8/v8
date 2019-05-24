@@ -6,9 +6,9 @@
 #define TEST_CCTEST_INTERPRETER_SOURCE_POSITION_COMPARER_H_
 
 #include "src/codegen/source-position-table.h"
+#include "src/init/v8.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects/objects.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

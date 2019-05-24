@@ -9,16 +9,16 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/codegen/machine-type.h"
+#include "src/common/globals.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
+#include "src/compiler/vector-slot-pair.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/deoptimizer/deoptimize-reason.h"
-#include "src/globals.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects.h"
-#include "src/type-hints.h"
-#include "src/vector-slot-pair.h"
+#include "src/objects/type-hints.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {

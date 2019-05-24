@@ -10,10 +10,10 @@
 #include "src/base/logging.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
+#include "src/init/v8.h"
 #include "src/sanitizer/lsan-page-allocator.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/vector.h"
-#include "src/v8.h"
 
 #if V8_LIBC_BIONIC
 #include <malloc.h>  // NOLINT

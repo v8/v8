@@ -31,7 +31,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 namespace v8 {
 namespace internal {

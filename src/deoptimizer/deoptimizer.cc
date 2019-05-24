@@ -14,8 +14,10 @@
 #include "src/codegen/register-configuration.h"
 #include "src/diagnostics/disasm.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/v8threads.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -23,8 +25,6 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/smi.h"
 #include "src/tracing/trace-event.h"
-#include "src/v8.h"
-#include "src/v8threads.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"

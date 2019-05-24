@@ -8,7 +8,7 @@
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/decoder-arm64.h"
 #include "src/arm64/instructions-arm64.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/utils/utils.h"
 
 namespace v8 {

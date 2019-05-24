@@ -12,7 +12,6 @@
 
 #include "src/objects/objects-inl.h"
 
-#include "src/allocation-site-scopes.h"
 #include "src/api/api-arguments-inl.h"
 #include "src/api/api-natives.h"
 #include "src/api/api.h"
@@ -25,6 +24,7 @@
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/compiler.h"
+#include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments.h"
@@ -33,7 +33,6 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/message-template.h"
 #include "src/execution/microtask-queue.h"
-#include "src/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/ic/ic.h"
@@ -41,8 +40,8 @@
 #include "src/logging/counters-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
-#include "src/objects-body-descriptors-inl.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/allocation-site-scopes.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
@@ -64,6 +63,7 @@
 #include "src/objects/keys.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/map-updater.h"
+#include "src/objects/objects-body-descriptors-inl.h"
 #include "src/utils/identity-map.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator.h"

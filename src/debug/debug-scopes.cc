@@ -8,10 +8,10 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/globals.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module.h"
 #include "src/parsing/parse-info.h"

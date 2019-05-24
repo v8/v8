@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/torque/csa-generator.h"
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/implementation-visitor.h"

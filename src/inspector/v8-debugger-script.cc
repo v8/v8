@@ -4,12 +4,12 @@
 
 #include "src/inspector/v8-debugger-script.h"
 
+#include "src/common/v8memory.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/wasm-translation.h"
-#include "src/v8memory.h"
 
 namespace v8_inspector {
 

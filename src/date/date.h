@@ -6,7 +6,7 @@
 #define V8_DATE_DATE_H_
 
 #include "src/base/timezone-cache.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/smi.h"
 
 namespace v8 {

@@ -6,7 +6,7 @@
 #define V8_NUMBERS_CONVERSIONS_H_
 
 #include "src/base/logging.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/utils/vector.h"
 
 namespace v8 {

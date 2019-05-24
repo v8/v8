@@ -16,9 +16,9 @@
 #include "src/logging/log.h"          // For Logger.
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/visitors.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/utils/ostreams.h"
-#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {

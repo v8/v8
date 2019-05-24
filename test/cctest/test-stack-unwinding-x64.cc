@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/win32-headers.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 class UnwindingWinX64Callbacks {

@@ -9,7 +9,7 @@
 
 #include "src/codegen/label.h"
 #include "src/codegen/reloc-info.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/numbers/double.h"
 
 namespace v8 {

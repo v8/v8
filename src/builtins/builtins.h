@@ -7,7 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/builtins/builtins-definitions.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

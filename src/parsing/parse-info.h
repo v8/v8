@@ -10,12 +10,12 @@
 #include <vector>
 
 #include "include/v8.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/script.h"
+#include "src/parsing/pending-compilation-error-handler.h"
 #include "src/parsing/preparse-data.h"
-#include "src/pending-compilation-error-handler.h"
 
 namespace v8 {
 

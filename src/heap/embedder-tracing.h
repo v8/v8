@@ -6,8 +6,8 @@
 #define V8_HEAP_EMBEDDER_TRACING_H_
 
 #include "include/v8.h"
-#include "src/flags.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {

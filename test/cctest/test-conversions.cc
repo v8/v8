@@ -30,11 +30,11 @@
 #include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
+#include "src/init/v8.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
-#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

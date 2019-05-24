@@ -19,10 +19,10 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
+#include "src/objects/visitors.h"
 #include "src/parsing/parse-info.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/ostreams.h"
-#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {

@@ -10,7 +10,7 @@
 #include <cmath>
 
 #include "src/base/logging.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {

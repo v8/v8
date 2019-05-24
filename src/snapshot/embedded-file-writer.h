@@ -9,7 +9,7 @@
 #include <cstdio>
 #include <cstring>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-base.h"
 

@@ -6,8 +6,8 @@
 #define V8_OBJECTS_ELEMENTS_KIND_H_
 
 #include "src/base/macros.h"
-#include "src/checks.h"
-#include "src/flags.h"
+#include "src/common/checks.h"
+#include "src/flags/flags.h"
 #include "src/utils/utils.h"
 
 namespace v8 {

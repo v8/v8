@@ -9,7 +9,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/objects/feedback-vector.h"
-#include "src/type-hints.h"
+#include "src/objects/type-hints.h"
 
 namespace v8 {
 namespace internal {

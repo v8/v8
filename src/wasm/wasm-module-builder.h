@@ -8,8 +8,8 @@
 #include "src/codegen/signature.h"
 #include "src/zone/zone-containers.h"
 
+#include "src/common/v8memory.h"
 #include "src/utils/vector.h"
-#include "src/v8memory.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/wasm-module.h"

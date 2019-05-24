@@ -4,7 +4,7 @@
 
 #include "src/torque/csa-generator.h"
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/utils.h"
 

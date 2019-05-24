@@ -31,7 +31,7 @@
 #include <cmath>
 #include <limits>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/decoder-arm64-inl.h"

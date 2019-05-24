@@ -7,7 +7,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/oddball-inl.h"
-#include "src/roots-inl.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {

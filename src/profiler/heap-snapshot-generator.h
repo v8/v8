@@ -18,9 +18,9 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/objects.h"
+#include "src/objects/visitors.h"
 #include "src/profiler/strings-storage.h"
 #include "src/strings/string-hasher.h"
-#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {

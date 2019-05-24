@@ -15,7 +15,7 @@
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/promise-inl.h"
-#include "src/visitors.h"
+#include "src/objects/visitors.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

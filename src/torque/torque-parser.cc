@@ -7,7 +7,7 @@
 #include <set>
 #include <unordered_map>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/torque/constants.h"
 #include "src/torque/earley-parser.h"
 #include "src/torque/torque-parser.h"

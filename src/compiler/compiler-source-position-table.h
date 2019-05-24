@@ -7,8 +7,8 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/codegen/source-position.h"
+#include "src/common/globals.h"
 #include "src/compiler/node-aux-data.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

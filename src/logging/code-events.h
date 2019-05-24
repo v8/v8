@@ -8,7 +8,7 @@
 #include <unordered_set>
 
 #include "src/base/platform/mutex.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/code.h"
 #include "src/objects/name.h"
 #include "src/objects/shared-function-info.h"

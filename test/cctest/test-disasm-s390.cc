@@ -28,7 +28,7 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"

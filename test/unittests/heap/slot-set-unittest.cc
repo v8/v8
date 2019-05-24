@@ -5,7 +5,7 @@
 #include <limits>
 #include <map>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
 #include "src/objects/slots.h"

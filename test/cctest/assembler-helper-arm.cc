@@ -6,7 +6,7 @@
 
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/isolate-inl.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

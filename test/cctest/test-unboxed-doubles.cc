@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <utility>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/api/api-inl.h"
 #include "src/base/overflowing-math.h"

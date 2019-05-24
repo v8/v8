@@ -39,10 +39,10 @@
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
+#include "src/init/v8.h"
 #include "src/numbers/double.h"
-#include "src/utils/boxed-float.h"
 #include "src/objects/objects-inl.h"
-#include "src/v8.h"
+#include "src/utils/boxed-float.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

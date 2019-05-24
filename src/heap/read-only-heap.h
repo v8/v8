@@ -8,7 +8,7 @@
 #include "src/base/macros.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
-#include "src/roots.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {

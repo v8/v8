@@ -6,7 +6,7 @@
 #define V8_CODEGEN_RELOC_INFO_H_
 
 #include "src/codegen/flush-instruction-cache.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/code.h"
 
 namespace v8 {

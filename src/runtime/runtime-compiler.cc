@@ -10,11 +10,11 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/message-template.h"
+#include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/runtime/runtime-utils.h"
-#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {

@@ -6,7 +6,7 @@
 #define V8_OBJECTS_STRING_TABLE_H_
 
 #include "src/objects/hash-table.h"
-#include "src/roots.h"
+#include "src/roots/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

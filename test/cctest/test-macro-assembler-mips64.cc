@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <iostream>  // NOLINT(readability/streams)
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 #include "src/base/utils/random-number-generator.h"

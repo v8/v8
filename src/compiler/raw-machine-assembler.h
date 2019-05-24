@@ -9,6 +9,7 @@
 
 #include "src/base/type-traits.h"
 #include "src/codegen/assembler.h"
+#include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
@@ -19,7 +20,6 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/execution/isolate.h"
-#include "src/globals.h"
 #include "src/heap/factory.h"
 
 namespace v8 {

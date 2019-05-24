@@ -10,8 +10,8 @@
 #include "include/v8.h"
 #include "src/base/functional.h"
 #include "src/base/macros.h"
-#include "src/checks.h"
-#include "src/globals.h"
+#include "src/common/checks.h"
+#include "src/common/globals.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

@@ -7,8 +7,8 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/codegen/machine-type.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

@@ -8,9 +8,9 @@
 #include "src/x64/assembler-x64.h"
 
 #include "src/base/cpu.h"
+#include "src/common/v8memory.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
-#include "src/v8memory.h"
 
 namespace v8 {
 namespace internal {

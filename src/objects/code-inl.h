@@ -8,6 +8,7 @@
 #include "src/objects/code.h"
 
 #include "src/codegen/code-desc.h"
+#include "src/common/v8memory.h"
 #include "src/execution/isolate.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/dictionary.h"
@@ -16,7 +17,6 @@
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/smi-inl.h"
-#include "src/v8memory.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

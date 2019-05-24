@@ -6,12 +6,12 @@
 
 #include "src/api/api.h"
 #include "src/diagnostics/code-tracer.h"
+#include "src/execution/v8threads.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/startup-serializer.h"
-#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {

@@ -8,7 +8,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/vector-slot-pair.h"
+#include "src/compiler/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {

@@ -7,7 +7,7 @@
 
 #include <iosfwd>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 // Opcodes for control operators.
 #define CONTROL_OP_LIST(V) \

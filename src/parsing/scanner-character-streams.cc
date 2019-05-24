@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "include/v8.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"

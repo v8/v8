@@ -23,6 +23,7 @@
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/sweeper.h"
+#include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -30,7 +31,6 @@
 #include "src/sanitizer/msan.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/ostreams.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

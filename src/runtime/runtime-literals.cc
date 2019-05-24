@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/allocation-site-scopes-inl.h"
 #include "src/ast/ast.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/logging/counters.h"
+#include "src/objects/allocation-site-scopes-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object-inl.h"

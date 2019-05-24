@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/ast/ast-value-factory.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
-#include "src/hash-seed-inl.h"
 #include "src/heap/factory.h"
 #include "src/interpreter/constant-array-builder.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
 

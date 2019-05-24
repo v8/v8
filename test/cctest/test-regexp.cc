@@ -34,6 +34,7 @@
 #include "src/ast/ast.h"
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/interpreter-irregexp.h"
 #include "src/regexp/jsregexp.h"
@@ -45,7 +46,6 @@
 #include "src/strings/unicode-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/splay-tree-inl.h"
-#include "src/v8.h"
 #include "src/zone/zone-list-inl.h"
 
 #if V8_TARGET_ARCH_ARM

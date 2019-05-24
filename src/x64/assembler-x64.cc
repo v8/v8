@@ -21,7 +21,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 namespace v8 {
 namespace internal {

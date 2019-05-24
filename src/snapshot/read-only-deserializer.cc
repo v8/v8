@@ -5,11 +5,11 @@
 #include "src/snapshot/read-only-deserializer.h"
 
 #include "src/api/api.h"
+#include "src/execution/v8threads.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/heap/read-only-heap.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
-#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {

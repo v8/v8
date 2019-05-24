@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/init/v8.h"
 #include "src/objects/managed.h"
-#include "src/utils/vector.h"
 #include "src/objects/objects-inl.h"
-#include "src/v8.h"
+#include "src/utils/vector.h"
 
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"

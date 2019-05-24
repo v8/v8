@@ -18,18 +18,18 @@
 #include "src/base/iterator.h"
 #include "src/base/list.h"
 #include "src/base/platform/mutex.h"
-#include "src/cancelable-task.h"
-#include "src/flags.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/flags/flags.h"
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/marking.h"
 #include "src/objects/free-space.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/map.h"
+#include "src/objects/objects.h"
+#include "src/tasks/cancelable-task.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
-#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {

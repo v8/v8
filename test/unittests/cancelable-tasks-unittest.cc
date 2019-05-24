@@ -4,7 +4,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/base/platform/platform.h"
-#include "src/cancelable-task.h"
+#include "src/tasks/cancelable-task.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

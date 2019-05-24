@@ -32,7 +32,7 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/api/api-inl.h"
 #include "src/base/platform/elapsed-timer.h"

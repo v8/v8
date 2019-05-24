@@ -9,7 +9,7 @@
 #include <limits.h>  // Required for INT_MAX etc.
 #include <stdarg.h>
 #include <cmath>
-#include "src/globals.h"  // Required for V8_INFINITY
+#include "src/common/globals.h"  // Required for V8_INFINITY
 
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.

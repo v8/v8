@@ -5,8 +5,8 @@
 #ifndef V8_SNAPSHOT_REFERENCES_H_
 #define V8_SNAPSHOT_REFERENCES_H_
 
-#include "src/assert-scope.h"
 #include "src/base/hashmap.h"
+#include "src/common/assert-scope.h"
 #include "src/utils/utils.h"
 
 namespace v8 {

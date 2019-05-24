@@ -7,7 +7,7 @@
 
 #include "test/cctest/test-api.h"
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/execution/execution.h"
 #include "src/handles/global-handles.h"

@@ -11,7 +11,7 @@
 
 #include "src/base/flags.h"
 #include "src/codegen/bailout-reason.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/contexts.h"
 #include "src/x64/assembler-x64.h"
 

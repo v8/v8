@@ -14,7 +14,7 @@
 #include "src/arm64/assembler-arm64.h"
 #include "src/base/bits.h"
 #include "src/codegen/bailout-reason.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 // Simulator specific helpers.
 #if USE_SIMULATOR

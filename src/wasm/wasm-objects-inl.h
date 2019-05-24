@@ -7,6 +7,7 @@
 
 #include "src/wasm/wasm-objects.h"
 
+#include "src/common/v8memory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/contexts-inl.h"
 #include "src/objects/foreign-inl.h"
@@ -16,8 +17,7 @@
 #include "src/objects/managed.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/script-inl.h"
-#include "src/roots.h"
-#include "src/v8memory.h"
+#include "src/roots/roots.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
 

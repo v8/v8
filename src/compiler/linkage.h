@@ -12,9 +12,9 @@
 #include "src/codegen/register-arch.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/signature.h"
+#include "src/common/globals.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/operator.h"
-#include "src/globals.h"
 #include "src/runtime/runtime.h"
 #include "src/zone/zone.h"
 

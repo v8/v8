@@ -6,12 +6,12 @@
 
 #include "src/asmjs/asm-names.h"
 #include "src/asmjs/asm-parser.h"
-#include "src/assert-scope.h"
 #include "src/ast/ast.h"
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/unoptimized-compilation-info.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/execution/message-template.h"

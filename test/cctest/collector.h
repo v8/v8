@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#include "src/checks.h"
+#include "src/common/checks.h"
 #include "src/utils/vector.h"
 
 namespace v8 {

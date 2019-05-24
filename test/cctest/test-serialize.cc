@@ -29,7 +29,7 @@
 
 #include <sys/stat.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
@@ -37,12 +37,12 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/debug/debug.h"
-#include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/spaces.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"

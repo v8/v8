@@ -9,13 +9,13 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
-#include "src/cancelable-task.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
 #include "src/heap/worklist.h"
+#include "src/init/v8.h"
+#include "src/tasks/cancelable-task.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

@@ -10,7 +10,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
-#include "src/roots-inl.h"
+#include "src/roots/roots-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

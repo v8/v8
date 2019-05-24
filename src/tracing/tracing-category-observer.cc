@@ -5,9 +5,9 @@
 #include "src/tracing/tracing-category-observer.h"
 
 #include "src/base/atomic-utils.h"
+#include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/tracing/trace-event.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace tracing {

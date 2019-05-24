@@ -37,7 +37,7 @@
 
 #include <utility>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/handles/global-handles.h"
 #include "src/heap/mark-compact-inl.h"

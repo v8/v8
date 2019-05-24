@@ -11,7 +11,7 @@
 
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone-segment.h"
 

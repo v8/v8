@@ -4,9 +4,9 @@
 
 #include "src/profiler/tracing-cpu-profiler.h"
 
+#include "src/init/v8.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/tracing/trace-event.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

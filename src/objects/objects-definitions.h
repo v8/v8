@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_OBJECTS_DEFINITIONS_H_
 #define V8_OBJECTS_OBJECTS_DEFINITIONS_H_
 
-#include "src/heap-symbols.h"
+#include "src/init/heap-symbols.h"
 
 namespace v8 {
 

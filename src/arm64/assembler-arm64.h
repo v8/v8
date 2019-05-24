@@ -16,7 +16,7 @@
 #include "src/base/optional.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/utils/utils.h"
 
 // Windows arm64 SDK defines mvn to NEON intrinsic neon_not which will not

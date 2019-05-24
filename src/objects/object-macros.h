@@ -14,7 +14,7 @@
 // for fields that can be written to and read from multiple threads at the same
 // time. See comments in src/base/atomicops.h for the memory ordering sematics.
 
-#include <src/v8memory.h>
+#include "src/common/v8memory.h"
 
 // Since this changes visibility, it should always be last in a class
 // definition.

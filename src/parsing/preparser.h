@@ -8,8 +8,8 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/parsing/parser-base.h"
+#include "src/parsing/pending-compilation-error-handler.h"
 #include "src/parsing/preparser-logger.h"
-#include "src/pending-compilation-error-handler.h"
 
 namespace v8 {
 namespace internal {

@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_TRANSITIONS_H_
 #define V8_OBJECTS_TRANSITIONS_H_
 
-#include "src/checks.h"
+#include "src/common/checks.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/map.h"

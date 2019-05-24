@@ -7,7 +7,7 @@
 
 #include "include/v8.h"
 #include "include/v8config.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 #if defined(V8_OS_WIN_X64)
 #include "src/base/win32-headers.h"

@@ -11,11 +11,11 @@
 #include "src/base/division-by-constant.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/external-reference-table.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
-#include "src/external-reference-table.h"
 #include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"

@@ -7,7 +7,7 @@
 
 #include <ctype.h>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/assembler-arm64.h"

@@ -10,7 +10,7 @@
 #include "src/base/file-utils.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
-#include "src/flags.h"
+#include "src/flags/flags.h"
 #include "src/utils/utils.h"
 
 namespace v8 {

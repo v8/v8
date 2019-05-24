@@ -5,8 +5,8 @@
 #ifndef V8_EXECUTION_FRAME_CONSTANTS_H_
 #define V8_EXECUTION_FRAME_CONSTANTS_H_
 
-#include "src/flags.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {

@@ -4,9 +4,9 @@
 
 #include "src/strings/string-case.h"
 
-#include "src/assert-scope.h"
 #include "src/base/logging.h"
-#include "src/globals.h"
+#include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/utils/utils.h"
 
 namespace v8 {

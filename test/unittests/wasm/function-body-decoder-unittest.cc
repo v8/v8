@@ -4,10 +4,10 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/utils/ostreams.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
-#include "src/v8.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/local-decl-encoder.h"

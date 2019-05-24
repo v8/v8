@@ -9,7 +9,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/platform.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/objects-inl.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/utils/vector.h"

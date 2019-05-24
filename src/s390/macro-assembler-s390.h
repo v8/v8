@@ -10,7 +10,7 @@
 #define V8_S390_MACRO_ASSEMBLER_S390_H_
 
 #include "src/codegen/bailout-reason.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/contexts.h"
 #include "src/s390/assembler-s390.h"
 

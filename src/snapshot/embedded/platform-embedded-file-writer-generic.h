@@ -6,7 +6,7 @@
 #define V8_SNAPSHOT_EMBEDDED_PLATFORM_EMBEDDED_FILE_WRITER_GENERIC_H_
 
 #include "src/base/macros.h"
-#include "src/globals.h"  // For V8_OS_WIN_X64
+#include "src/common/globals.h"  // For V8_OS_WIN_X64
 #include "src/snapshot/embedded/platform-embedded-file-writer-base.h"
 
 namespace v8 {

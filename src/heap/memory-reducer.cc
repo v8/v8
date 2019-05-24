@@ -4,12 +4,12 @@
 
 #include "src/heap/memory-reducer.h"
 
-#include "src/flags.h"
+#include "src/flags/flags.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
+#include "src/init/v8.h"
 #include "src/utils/utils.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

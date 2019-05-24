@@ -7,8 +7,8 @@
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/vector-slot-pair.h"
 #include "src/objects/map-inl.h"
-#include "src/vector-slot-pair.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {

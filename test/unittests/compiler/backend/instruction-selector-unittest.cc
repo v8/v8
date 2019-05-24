@@ -8,7 +8,7 @@
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"
-#include "src/flags.h"
+#include "src/flags/flags.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 

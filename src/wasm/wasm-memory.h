@@ -10,7 +10,7 @@
 #include <unordered_set>
 
 #include "src/base/platform/mutex.h"
-#include "src/flags.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/objects/js-array-buffer.h"
 

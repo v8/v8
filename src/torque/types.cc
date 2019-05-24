@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/torque/ast.h"
 #include "src/torque/declarable.h"
 #include "src/torque/type-oracle.h"

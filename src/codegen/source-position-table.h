@@ -5,10 +5,10 @@
 #ifndef V8_CODEGEN_SOURCE_POSITION_TABLE_H_
 #define V8_CODEGEN_SOURCE_POSITION_TABLE_H_
 
-#include "src/assert-scope.h"
-#include "src/checks.h"
 #include "src/codegen/source-position.h"
-#include "src/globals.h"
+#include "src/common/assert-scope.h"
+#include "src/common/checks.h"
+#include "src/common/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

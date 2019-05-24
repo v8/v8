@@ -11,10 +11,10 @@
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
+#include "src/objects/visitors.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/version.h"
-#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {

@@ -11,7 +11,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
 #include "src/objects/templates.h"
-#include "src/visitors.h"
+#include "src/objects/visitors.h"
 
 namespace v8 {
 namespace internal {

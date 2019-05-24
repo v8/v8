@@ -7,7 +7,7 @@
 #include <stdarg.h>
 #include <cmath>
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/numbers/bignum.h"
 #include "src/numbers/cached-powers.h"
 #include "src/numbers/double.h"

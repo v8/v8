@@ -4,8 +4,8 @@
 
 #include "src/numbers/math-random.h"
 
-#include "src/assert-scope.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/objects/contexts-inl.h"
 #include "src/objects/fixed-array.h"

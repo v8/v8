@@ -19,7 +19,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/base/v8-fallthrough.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/third_party/siphash/halfsiphash.h"
 #include "src/utils/allocation.h"
 #include "src/utils/vector.h"

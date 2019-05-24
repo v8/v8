@@ -16,6 +16,7 @@
 
 #include "src/base/bits.h"
 #include "src/builtins/builtins.h"
+#include "src/common/v8memory.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -39,7 +40,6 @@
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/templates.h"
 #include "src/sanitizer/tsan.h"
-#include "src/v8memory.h"
 #include "torque-generated/class-definitions-tq-inl.h"
 
 // Has to be the last include (doesn't have include guards):

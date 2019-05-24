@@ -8,11 +8,11 @@
 #include <memory>
 
 #include "src/codegen/source-position-table.h"
-#include "src/globals.h"
-#include "src/utils/utils.h"
+#include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/objects.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

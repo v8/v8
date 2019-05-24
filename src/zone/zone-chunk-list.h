@@ -5,7 +5,7 @@
 #include <algorithm>
 
 #include "src/base/iterator.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/utils/memcopy.h"
 #include "src/zone/zone.h"
 

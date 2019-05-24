@@ -6,9 +6,9 @@
 
 #include <cinttypes>
 
+#include "src/common/v8memory.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
-#include "src/v8memory.h"
 
 namespace v8 {
 namespace internal {

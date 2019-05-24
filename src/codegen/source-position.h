@@ -7,10 +7,10 @@
 
 #include <ostream>
 
-#include "src/flags.h"
-#include "src/globals.h"
-#include "src/utils/utils.h"
+#include "src/common/globals.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

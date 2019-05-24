@@ -7,8 +7,8 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/codegen/machine-type.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/zone/zone-handle-set.h"
 

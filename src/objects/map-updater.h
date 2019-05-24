@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_MAP_UPDATER_H_
 #define V8_OBJECTS_MAP_UPDATER_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-type.h"

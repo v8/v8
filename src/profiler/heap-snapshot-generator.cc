@@ -12,7 +12,6 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/combined-heap.h"
 #include "src/numbers/conversions.h"
-#include "src/objects-body-descriptors.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell-inl.h"
@@ -26,16 +25,17 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/layout-descriptor.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/objects-body-descriptors.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/objects/visitors.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/utils/vector.h"
-#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {

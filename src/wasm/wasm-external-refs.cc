@@ -29,8 +29,8 @@
 #include "src/trap-handler/trap-handler.h"
 #endif
 
+#include "src/common/v8memory.h"
 #include "src/utils/utils.h"
-#include "src/v8memory.h"
 #include "src/wasm/wasm-external-refs.h"
 
 namespace v8 {

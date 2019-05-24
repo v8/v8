@@ -50,7 +50,7 @@
                   '|test/unittests/interpreter/',
     },
     'feature_shipping_status': {
-      'filepath': 'src/flag-definitions.h',
+      'filepath': 'src/flags/flag-definitions.h',
     },
     'gc_changes': {
       'filepath': 'src/heap/',
