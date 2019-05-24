@@ -251,6 +251,279 @@ TEST_F(DecompressionEliminationTest,
 }
 
 // -----------------------------------------------------------------------------
+// Phi
+
+TEST_F(DecompressionEliminationTest, PhiOneDecompress) {
+  // Skip test if pointer compression is not enabled
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+
+  // Define variables
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  const int number_of_inputs = 1;
+
+  const Operator* decompression_ops[] = {
+      machine()->ChangeCompressedToTagged(),
+      machine()->ChangeCompressedSignedToTaggedSigned(),
+      machine()->ChangeCompressedPointerToTaggedPointer()};
+
+  const ElementAccess element_accesses[] = {
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::AnyCompressed(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::TaggedSigned(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::TaggedPointer(),
+       kNoWriteBarrier}};
+
+  const IrOpcode::Value opcodes[] = {
+      IrOpcode::kChangeCompressedToTagged,
+      IrOpcode::kChangeCompressedSignedToTaggedSigned,
+      IrOpcode::kChangeCompressedPointerToTaggedPointer};
+
+  ASSERT_EQ(arraysize(decompression_ops), arraysize(element_accesses));
+  ASSERT_EQ(arraysize(opcodes), arraysize(element_accesses));
+
+  // For every access
+  for (size_t i = 0; i < arraysize(element_accesses); ++i) {
+    // Create the graph
+    Node* load =
+        graph()->NewNode(simplified()->LoadElement(element_accesses[i]), object,
+                         index, effect, control);
+    Node* change_to_tagged = graph()->NewNode(decompression_ops[i], load);
+    Node* phi = graph()->NewNode(
+        common()->Phi(MachineRepresentation::kTagged, number_of_inputs),
+        change_to_tagged, control);
+
+    // Reduce
+    Reduction r = Reduce(phi);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(opcodes[i], r.replacement()->opcode());
+  }
+}
+
+TEST_F(DecompressionEliminationTest, PhiThreeDecompressSameRepresentation) {
+  // Skip test if pointer compression is not enabled
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+
+  // Define variables
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  const int number_of_inputs = 3;
+
+  const Operator* decompression_ops[] = {
+      machine()->ChangeCompressedToTagged(),
+      machine()->ChangeCompressedSignedToTaggedSigned(),
+      machine()->ChangeCompressedPointerToTaggedPointer()};
+
+  const ElementAccess element_accesses[] = {
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::AnyCompressed(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::CompressedSigned(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::CompressedPointer(),
+       kNoWriteBarrier}};
+
+  const IrOpcode::Value opcodes[] = {
+      IrOpcode::kChangeCompressedToTagged,
+      IrOpcode::kChangeCompressedSignedToTaggedSigned,
+      IrOpcode::kChangeCompressedPointerToTaggedPointer};
+
+  ASSERT_EQ(arraysize(decompression_ops), arraysize(element_accesses));
+  ASSERT_EQ(arraysize(opcodes), arraysize(element_accesses));
+
+  // For every access
+  for (size_t i = 0; i < arraysize(element_accesses); ++i) {
+    // Create the graph
+    Node* load1 =
+        graph()->NewNode(simplified()->LoadElement(element_accesses[i]), object,
+                         index, effect, control);
+    Node* load2 =
+        graph()->NewNode(simplified()->LoadElement(element_accesses[i]), object,
+                         index, effect, control);
+    Node* load3 =
+        graph()->NewNode(simplified()->LoadElement(element_accesses[i]), object,
+                         index, effect, control);
+    Node* change_to_tagged1 = graph()->NewNode(decompression_ops[i], load1);
+    Node* change_to_tagged2 = graph()->NewNode(decompression_ops[i], load2);
+    Node* change_to_tagged3 = graph()->NewNode(decompression_ops[i], load3);
+
+    Node* phi = graph()->NewNode(
+        common()->Phi(MachineRepresentation::kTagged, number_of_inputs),
+        change_to_tagged1, change_to_tagged2, change_to_tagged3, control);
+
+    // Reduce
+    Reduction r = Reduce(phi);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(opcodes[i], r.replacement()->opcode());
+  }
+}
+
+TEST_F(DecompressionEliminationTest, PhiThreeDecompressOneAnyRepresentation) {
+  // Skip test if pointer compression is not enabled
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+
+  // Define variables
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  const int number_of_inputs = 3;
+
+  const Operator* decompression_ops[] = {
+      machine()->ChangeCompressedSignedToTaggedSigned(),
+      machine()->ChangeCompressedPointerToTaggedPointer()};
+
+  const ElementAccess element_accesses[] = {
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::CompressedSigned(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::CompressedPointer(),
+       kNoWriteBarrier}};
+
+  const ElementAccess any_access = {kTaggedBase, kTaggedSize, Type::Any(),
+                                    MachineType::AnyCompressed(),
+                                    kNoWriteBarrier};
+
+  ASSERT_EQ(arraysize(decompression_ops), arraysize(element_accesses));
+
+  // For every access
+  for (size_t i = 0; i < arraysize(element_accesses); ++i) {
+    // Create the graph
+    Node* load1 =
+        graph()->NewNode(simplified()->LoadElement(element_accesses[i]), object,
+                         index, effect, control);
+    Node* load2 =
+        graph()->NewNode(simplified()->LoadElement(element_accesses[i]), object,
+                         index, effect, control);
+    // Note that load3 loads a CompressedAny instead of element_accesses[i]
+    Node* load3 = graph()->NewNode(simplified()->LoadElement(any_access),
+                                   object, index, effect, control);
+    Node* change_to_tagged1 = graph()->NewNode(decompression_ops[i], load1);
+    Node* change_to_tagged2 = graph()->NewNode(decompression_ops[i], load2);
+    Node* change_to_tagged3 =
+        graph()->NewNode(machine()->ChangeCompressedToTagged(), load3);
+
+    Node* phi = graph()->NewNode(
+        common()->Phi(MachineRepresentation::kTagged, number_of_inputs),
+        change_to_tagged1, change_to_tagged2, change_to_tagged3, control);
+
+    // Reduce
+    Reduction r = Reduce(phi);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(IrOpcode::kChangeCompressedToTagged, r.replacement()->opcode());
+  }
+}
+
+TEST_F(DecompressionEliminationTest, PhiThreeInputsOneNotDecompressed) {
+  // Skip test if pointer compression is not enabled
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+
+  // Define variables
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  const int number_of_inputs = 3;
+
+  const Operator* decompression_ops[] = {
+      machine()->ChangeCompressedToTagged(),
+      machine()->ChangeCompressedSignedToTaggedSigned(),
+      machine()->ChangeCompressedPointerToTaggedPointer()};
+
+  const ElementAccess element_accesses[] = {
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::AnyCompressed(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::CompressedSigned(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::CompressedPointer(),
+       kNoWriteBarrier}};
+
+  const IrOpcode::Value opcodes[] = {
+      IrOpcode::kChangeCompressedToTagged,
+      IrOpcode::kChangeCompressedSignedToTaggedSigned,
+      IrOpcode::kChangeCompressedPointerToTaggedPointer};
+
+  ASSERT_EQ(arraysize(decompression_ops), arraysize(element_accesses));
+  ASSERT_EQ(arraysize(opcodes), arraysize(element_accesses));
+
+  // For every access
+  for (size_t i = 0; i < arraysize(element_accesses); ++i) {
+    // Create the graph
+    Node* load1 =
+        graph()->NewNode(simplified()->LoadElement(element_accesses[i]), object,
+                         index, effect, control);
+    Node* load2 =
+        graph()->NewNode(simplified()->LoadElement(element_accesses[i]), object,
+                         index, effect, control);
+    Node* load3 =
+        graph()->NewNode(simplified()->LoadElement(element_accesses[i]), object,
+                         index, effect, control);
+    Node* change_to_tagged1 = graph()->NewNode(decompression_ops[i], load1);
+    Node* change_to_tagged2 = graph()->NewNode(decompression_ops[i], load2);
+
+    Node* phi = graph()->NewNode(
+        common()->Phi(MachineRepresentation::kTagged, number_of_inputs),
+        change_to_tagged1, change_to_tagged2, load3, control);
+
+    // Reduce
+    Reduction r = Reduce(phi);
+    ASSERT_FALSE(r.Changed());
+  }
+}
+
+// In the case of having one decompress Signed and one Pointer, we have to
+// generate the conservative decompress any after the Phi.
+TEST_F(DecompressionEliminationTest, PhiTwoDecompressesOneSignedOnePointer) {
+  // Skip test if pointer compression is not enabled
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+
+  // Define variables
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  const int number_of_inputs = 2;
+  const ElementAccess signed_access = {kTaggedBase, kTaggedSize, Type::Any(),
+                                       MachineType::CompressedSigned(),
+                                       kNoWriteBarrier};
+  const ElementAccess pointer_access = {kTaggedBase, kTaggedSize, Type::Any(),
+                                        MachineType::CompressedPointer(),
+                                        kNoWriteBarrier};
+
+  // Create the graph
+  Node* load1 = graph()->NewNode(simplified()->LoadElement(signed_access),
+                                 object, index, effect, control);
+  Node* load2 = graph()->NewNode(simplified()->LoadElement(pointer_access),
+                                 object, index, effect, control);
+  Node* change_to_tagged1 = graph()->NewNode(
+      machine()->ChangeCompressedSignedToTaggedSigned(), load1);
+  Node* change_to_tagged2 = graph()->NewNode(
+      machine()->ChangeCompressedPointerToTaggedPointer(), load2);
+
+  Node* phi = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, number_of_inputs),
+      change_to_tagged1, change_to_tagged2, control);
+
+  // Reduce
+  Reduction r = Reduce(phi);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(IrOpcode::kChangeCompressedToTagged, r.replacement()->opcode());
+}
+
+// -----------------------------------------------------------------------------
 // TypedStateValues
 
 TEST_F(DecompressionEliminationTest, TypedStateValuesOneDecompress) {

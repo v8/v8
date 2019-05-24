@@ -79,6 +79,63 @@ Reduction DecompressionElimination::ReduceCompress(Node* node) {
   }
 }
 
+Reduction DecompressionElimination::ReducePhi(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kPhi);
+
+  const int value_input_count = node->op()->ValueInputCount();
+
+  // Check if all input are decompress nodes, and if all are the same.
+  bool same_decompresses = true;
+  IrOpcode::Value first_opcode = node->InputAt(0)->opcode();
+  for (int i = 0; i < value_input_count; ++i) {
+    Node* input = node->InputAt(i);
+    if (IrOpcode::IsDecompressOpcode(input->opcode())) {
+      same_decompresses &= first_opcode == input->opcode();
+    } else {
+      return NoChange();
+    }
+  }
+
+  // By now, we know that all inputs are decompress nodes. If all are the same,
+  // we can grab the first one to be used after the Phi. If we have different
+  // Decompress nodes as inputs, we need to use a conservative decompression
+  // after the Phi.
+  const Operator* op;
+  if (same_decompresses) {
+    op = node->InputAt(0)->op();
+  } else {
+    op = machine()->ChangeCompressedToTagged();
+  }
+
+  // Rewire phi's inputs to be the compressed inputs.
+  for (int i = 0; i < value_input_count; ++i) {
+    Node* input = node->InputAt(i);
+    DCHECK_EQ(input->InputCount(), 1);
+    node->ReplaceInput(i, input->InputAt(0));
+  }
+
+  // Update the MachineRepresentation on the Phi.
+  MachineRepresentation rep;
+  switch (op->opcode()) {
+    case IrOpcode::kChangeCompressedToTagged:
+      rep = MachineRepresentation::kCompressed;
+      break;
+    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
+      rep = MachineRepresentation::kCompressedSigned;
+      break;
+    case IrOpcode::kChangeCompressedPointerToTaggedPointer:
+      rep = MachineRepresentation::kCompressedPointer;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  NodeProperties::ChangeOp(node, common()->Phi(rep, value_input_count));
+
+  // Add a decompress after the Phi. To do this, we need to replace the Phi with
+  // "Phi <- Decompress".
+  return Replace(graph()->NewNode(op, node));
+}
+
 Reduction DecompressionElimination::ReduceTypedStateValues(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kTypedStateValues);
 
@@ -139,6 +196,8 @@ Reduction DecompressionElimination::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedSignedToCompressedSigned:
     case IrOpcode::kChangeTaggedPointerToCompressedPointer:
       return ReduceCompress(node);
+    case IrOpcode::kPhi:
+      return ReducePhi(node);
     case IrOpcode::kTypedStateValues:
       return ReduceTypedStateValues(node);
     case IrOpcode::kWord64Equal:
