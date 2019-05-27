@@ -1124,7 +1124,7 @@ Type OperationTyper::ToPrimitive(Type type) {
 
 Type OperationTyper::Invert(Type type) {
   DCHECK(type.Is(Type::Boolean()));
-  DCHECK(!type.IsNone());
+  CHECK(!type.IsNone());
   if (type.Is(singleton_false())) return singleton_true();
   if (type.Is(singleton_true())) return singleton_false();
   return type;
@@ -1195,6 +1195,8 @@ Type OperationTyper::SameValueNumbersOnly(Type lhs, Type rhs) {
 }
 
 Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
+  CHECK(!lhs.IsNone());
+  CHECK(!rhs.IsNone());
   if (!JSType(lhs).Maybe(JSType(rhs))) return singleton_false();
   if (lhs.Is(Type::NaN()) || rhs.Is(Type::NaN())) return singleton_false();
   if (lhs.Is(Type::Number()) && rhs.Is(Type::Number()) &&

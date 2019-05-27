@@ -624,17 +624,20 @@ Type Typer::Visitor::ToString(Type type, Typer* t) {
 
 Type Typer::Visitor::ObjectIsArrayBufferView(Type type, Typer* t) {
   // TODO(turbofan): Introduce a Type::ArrayBufferView?
+  CHECK(!type.IsNone());
   if (!type.Maybe(Type::OtherObject())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsBigInt(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::BigInt())) return t->singleton_true_;
   if (!type.Maybe(Type::BigInt())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsCallable(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::Callable())) return t->singleton_true_;
   if (!type.Maybe(Type::Callable())) return t->singleton_false_;
   return Type::Boolean();
@@ -642,53 +645,62 @@ Type Typer::Visitor::ObjectIsCallable(Type type, Typer* t) {
 
 Type Typer::Visitor::ObjectIsConstructor(Type type, Typer* t) {
   // TODO(turbofan): Introduce a Type::Constructor?
+  CHECK(!type.IsNone());
   if (!type.Maybe(Type::Callable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsDetectableCallable(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::DetectableCallable())) return t->singleton_true_;
   if (!type.Maybe(Type::DetectableCallable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsMinusZero(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::MinusZero())) return t->singleton_true_;
   if (!type.Maybe(Type::MinusZero())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::NumberIsMinusZero(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::MinusZero())) return t->singleton_true_;
   if (!type.Maybe(Type::MinusZero())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsNaN(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::NaN())) return t->singleton_true_;
   if (!type.Maybe(Type::NaN())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::NumberIsNaN(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::NaN())) return t->singleton_true_;
   if (!type.Maybe(Type::NaN())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsNonCallable(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::NonCallable())) return t->singleton_true_;
   if (!type.Maybe(Type::NonCallable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsNumber(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::Number())) return t->singleton_true_;
   if (!type.Maybe(Type::Number())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsReceiver(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::Receiver())) return t->singleton_true_;
   if (!type.Maybe(Type::Receiver())) return t->singleton_false_;
   return Type::Boolean();
@@ -700,18 +712,21 @@ Type Typer::Visitor::ObjectIsSmi(Type type, Typer* t) {
 }
 
 Type Typer::Visitor::ObjectIsString(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::String())) return t->singleton_true_;
   if (!type.Maybe(Type::String())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsSymbol(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::Symbol())) return t->singleton_true_;
   if (!type.Maybe(Type::Symbol())) return t->singleton_false_;
   return Type::Boolean();
 }
 
 Type Typer::Visitor::ObjectIsUndetectable(Type type, Typer* t) {
+  CHECK(!type.IsNone());
   if (type.Is(Type::Undetectable())) return t->singleton_true_;
   if (!type.Maybe(Type::Undetectable())) return t->singleton_false_;
   return Type::Boolean();
@@ -1000,6 +1015,7 @@ Type Typer::Visitor::TypeStaticAssert(Node* node) { UNREACHABLE(); }
 // JS comparison operators.
 
 Type Typer::Visitor::JSEqualTyper(Type lhs, Type rhs, Typer* t) {
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   if (lhs.Is(Type::NaN()) || rhs.Is(Type::NaN())) return t->singleton_false_;
   if (lhs.Is(Type::NullOrUndefined()) && rhs.Is(Type::NullOrUndefined())) {
     return t->singleton_true_;
@@ -1027,8 +1043,6 @@ Type Typer::Visitor::JSStrictEqualTyper(Type lhs, Type rhs, Typer* t) {
 Typer::Visitor::ComparisonOutcome Typer::Visitor::JSCompareTyper(Type lhs,
                                                                  Type rhs,
                                                                  Typer* t) {
-  if (lhs.IsNone() || rhs.IsNone()) return {};
-
   lhs = ToPrimitive(lhs, t);
   rhs = ToPrimitive(rhs, t);
   if (lhs.Maybe(Type::String()) && rhs.Maybe(Type::String())) {
