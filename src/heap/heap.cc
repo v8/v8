@@ -3011,10 +3011,11 @@ void Heap::MakeHeapIterable() {
   mark_compact_collector()->EnsureSweepingCompleted();
 }
 
+namespace {
 
-static double ComputeMutatorUtilization(double mutator_speed, double gc_speed) {
-  const double kMinMutatorUtilization = 0.0;
-  const double kConservativeGcSpeedInBytesPerMillisecond = 200000;
+double ComputeMutatorUtilizationImpl(double mutator_speed, double gc_speed) {
+  constexpr double kMinMutatorUtilization = 0.0;
+  constexpr double kConservativeGcSpeedInBytesPerMillisecond = 200000;
   if (mutator_speed == 0) return kMinMutatorUtilization;
   if (gc_speed == 0) gc_speed = kConservativeGcSpeedInBytesPerMillisecond;
   // Derivation:
@@ -3027,54 +3028,53 @@ static double ComputeMutatorUtilization(double mutator_speed, double gc_speed) {
   return gc_speed / (mutator_speed + gc_speed);
 }
 
+}  // namespace
 
-double Heap::YoungGenerationMutatorUtilization() {
-  double mutator_speed = static_cast<double>(
-      tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond());
-  double gc_speed =
-      tracer()->ScavengeSpeedInBytesPerMillisecond(kForSurvivedObjects);
-  double result = ComputeMutatorUtilization(mutator_speed, gc_speed);
+double Heap::ComputeMutatorUtilization(const char* tag, double mutator_speed,
+                                       double gc_speed) {
+  double result = ComputeMutatorUtilizationImpl(mutator_speed, gc_speed);
   if (FLAG_trace_mutator_utilization) {
     isolate()->PrintWithTimestamp(
-        "Young generation mutator utilization = %.3f ("
+        "%s mutator utilization = %.3f ("
         "mutator_speed=%.f, gc_speed=%.f)\n",
-        result, mutator_speed, gc_speed);
+        tag, result, mutator_speed, gc_speed);
   }
   return result;
 }
-
-
-double Heap::OldGenerationMutatorUtilization() {
-  double mutator_speed = static_cast<double>(
-      tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond());
-  double gc_speed = static_cast<double>(
-      tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond());
-  double result = ComputeMutatorUtilization(mutator_speed, gc_speed);
-  if (FLAG_trace_mutator_utilization) {
-    isolate()->PrintWithTimestamp(
-        "Old generation mutator utilization = %.3f ("
-        "mutator_speed=%.f, gc_speed=%.f)\n",
-        result, mutator_speed, gc_speed);
-  }
-  return result;
-}
-
 
 bool Heap::HasLowYoungGenerationAllocationRate() {
-  const double high_mutator_utilization = 0.993;
-  return YoungGenerationMutatorUtilization() > high_mutator_utilization;
+  double mu = ComputeMutatorUtilization(
+      "Young generation",
+      tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond(),
+      tracer()->ScavengeSpeedInBytesPerMillisecond(kForSurvivedObjects));
+  constexpr double kHighMutatorUtilization = 0.993;
+  return mu > kHighMutatorUtilization;
 }
-
 
 bool Heap::HasLowOldGenerationAllocationRate() {
-  const double high_mutator_utilization = 0.993;
-  return OldGenerationMutatorUtilization() > high_mutator_utilization;
+  double mu = ComputeMutatorUtilization(
+      "Old generation",
+      tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond(),
+      tracer()->CombinedMarkCompactSpeedInBytesPerMillisecond());
+  const double kHighMutatorUtilization = 0.993;
+  return mu > kHighMutatorUtilization;
 }
 
+bool Heap::HasLowEmbedderAllocationRate() {
+  if (!UseGlobalMemoryScheduling()) return true;
+
+  DCHECK_NOT_NULL(local_embedder_heap_tracer());
+  double mu = ComputeMutatorUtilization(
+      "Embedder",
+      tracer()->CurrentEmbedderAllocationThroughputInBytesPerMillisecond(),
+      tracer()->EmbedderSpeedInBytesPerMillisecond());
+  const double kHighMutatorUtilization = 0.993;
+  return mu > kHighMutatorUtilization;
+}
 
 bool Heap::HasLowAllocationRate() {
   return HasLowYoungGenerationAllocationRate() &&
-         HasLowOldGenerationAllocationRate();
+         HasLowOldGenerationAllocationRate() && HasLowEmbedderAllocationRate();
 }
 
 bool Heap::IsIneffectiveMarkCompact(size_t old_generation_size,

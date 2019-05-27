@@ -1539,10 +1539,11 @@ class Heap {
 
   void ConfigureInitialOldGenerationSize();
 
+  double ComputeMutatorUtilization(const char* tag, double mutator_speed,
+                                   double gc_speed);
   bool HasLowYoungGenerationAllocationRate();
   bool HasLowOldGenerationAllocationRate();
-  double YoungGenerationMutatorUtilization();
-  double OldGenerationMutatorUtilization();
+  bool HasLowEmbedderAllocationRate();
 
   void ReduceNewSpaceSize();
 
