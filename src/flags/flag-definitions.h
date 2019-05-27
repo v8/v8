@@ -881,6 +881,12 @@ DEFINE_INT(stress_scavenge, 0,
 DEFINE_IMPLICATION(fuzzer_gc_analysis, stress_marking)
 DEFINE_IMPLICATION(fuzzer_gc_analysis, stress_scavenge)
 
+// These flags will be removed after experiments. Do not rely on them.
+DEFINE_BOOL(gc_experiment_background_schedule, false,
+            "new background GC schedule heuristics")
+DEFINE_BOOL(gc_experiment_less_compaction, false,
+            "less compaction in non-memory reducing mode")
+
 DEFINE_BOOL(disable_abortjs, false, "disables AbortJS runtime function")
 
 DEFINE_BOOL(manual_evacuation_candidates_selection, false,
