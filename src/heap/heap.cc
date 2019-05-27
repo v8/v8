@@ -1966,14 +1966,10 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
       this, max_old_generation_size_, v8_gc_speed, v8_mutator_speed);
   double global_growing_factor = 0;
   if (UseGlobalMemoryScheduling()) {
-    double embedder_gc_speed =
-        local_embedder_heap_tracer()
-            ? tracer()
-                  ->CurrentEmbedderAllocationThroughputInBytesPerMillisecond()
-            : 0.0;
-    double embedder_speed = local_embedder_heap_tracer()
-                                ? tracer()->EmbedderSpeedInBytesPerMillisecond()
-                                : 0.0;
+    DCHECK_NOT_NULL(local_embedder_heap_tracer());
+    double embedder_gc_speed = tracer()->EmbedderSpeedInBytesPerMillisecond();
+    double embedder_speed =
+        tracer()->CurrentEmbedderAllocationThroughputInBytesPerMillisecond();
     double embedder_growing_factor =
         (embedder_gc_speed > 0 && embedder_speed > 0)
             ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
