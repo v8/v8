@@ -349,6 +349,7 @@ void Map::PrintGeneralization(
     Isolate* isolate, FILE* file, const char* reason, int modify_index,
     int split, int descriptors, bool descriptor_to_field,
     Representation old_representation, Representation new_representation,
+    PropertyConstness old_constness, PropertyConstness new_constness,
     MaybeHandle<FieldType> old_field_type, MaybeHandle<Object> old_value,
     MaybeHandle<FieldType> new_field_type, MaybeHandle<Object> new_value) {
   OFStream os(file);
@@ -369,7 +370,7 @@ void Map::PrintGeneralization(
     } else {
       old_field_type.ToHandleChecked()->PrintTo(os);
     }
-    os << "}";
+    os << ";" << old_constness << "}";
   }
   os << "->" << new_representation.Mnemonic() << "{";
   if (new_field_type.is_null()) {
@@ -377,7 +378,7 @@ void Map::PrintGeneralization(
   } else {
     new_field_type.ToHandleChecked()->PrintTo(os);
   }
-  os << "} (";
+  os << ";" << new_constness << "} (";
   if (strlen(reason) > 0) {
     os << reason;
   } else {
@@ -612,8 +613,9 @@ Handle<Map> Map::CopyGeneralizeAllFields(Isolate* isolate, Handle<Map> map,
           isolate, stdout, reason, modify_index,
           new_map->NumberOfOwnDescriptors(), new_map->NumberOfOwnDescriptors(),
           details.location() == kDescriptor, details.representation(),
-          Representation::Tagged(), field_type, MaybeHandle<Object>(),
-          FieldType::Any(isolate), MaybeHandle<Object>());
+          Representation::Tagged(), details.constness(), details.constness(),
+          field_type, MaybeHandle<Object>(), FieldType::Any(isolate),
+          MaybeHandle<Object>());
     }
   }
   new_map->set_elements_kind(elements_kind);
@@ -813,8 +815,9 @@ void Map::GeneralizeField(Isolate* isolate, Handle<Map> map, int modify_index,
     map->PrintGeneralization(
         isolate, stdout, "field type generalization", modify_index,
         map->NumberOfOwnDescriptors(), map->NumberOfOwnDescriptors(), false,
-        details.representation(), details.representation(), old_field_type,
-        MaybeHandle<Object>(), new_field_type, MaybeHandle<Object>());
+        details.representation(), details.representation(), old_constness,
+        new_constness, old_field_type, MaybeHandle<Object>(), new_field_type,
+        MaybeHandle<Object>());
   }
 }
 

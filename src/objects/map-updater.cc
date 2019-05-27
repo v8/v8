@@ -229,6 +229,7 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
     old_map_->PrintGeneralization(
         isolate_, stdout, "uninitialized field", modified_descriptor_, old_nof_,
         old_nof_, false, old_representation, new_representation_,
+        old_details.constness(), new_constness_,
         handle(old_descriptors_->GetFieldType(modified_descriptor_), isolate_),
         MaybeHandle<Object>(), new_field_type_, MaybeHandle<Object>());
   }
@@ -755,7 +756,8 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
         isolate_, stdout, "", modified_descriptor_, split_nof, old_nof_,
         old_details.location() == kDescriptor && new_location_ == kField,
         old_details.representation(), new_details.representation(),
-        old_field_type, old_value, new_field_type, new_value);
+        old_details.constness(), new_details.constness(), old_field_type,
+        old_value, new_field_type, new_value);
   }
 
   Handle<LayoutDescriptor> new_layout_descriptor =

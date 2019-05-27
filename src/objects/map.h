@@ -961,6 +961,7 @@ class Map : public HeapObject {
       Isolate* isolate, FILE* file, const char* reason, int modify_index,
       int split, int descriptors, bool constant_to_field,
       Representation old_representation, Representation new_representation,
+      PropertyConstness old_constness, PropertyConstness new_constness,
       MaybeHandle<FieldType> old_field_type, MaybeHandle<Object> old_value,
       MaybeHandle<FieldType> new_field_type, MaybeHandle<Object> new_value);
 
