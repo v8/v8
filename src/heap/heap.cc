@@ -64,7 +64,7 @@
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/regexp/jsregexp.h"
-#include "src/snapshot/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"

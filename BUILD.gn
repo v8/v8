@@ -1388,7 +1388,7 @@ v8_source_set("v8_nosnapshot") {
 
   sources = [
     "$target_gen_dir/extras-libraries.cc",
-    "src/snapshot/embedded-empty.cc",
+    "src/snapshot/embedded/embedded-empty.cc",
     "src/snapshot/snapshot-empty.cc",
   ]
 
@@ -1430,7 +1430,7 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
     } else if (v8_enable_embedded_builtins) {
       sources += [ "$target_gen_dir/embedded.S" ]
     } else {
-      sources += [ "src/snapshot/embedded-empty.cc" ]
+      sources += [ "src/snapshot/embedded/embedded-empty.cc" ]
     }
 
     configs = [ ":internal_config" ]
@@ -1483,7 +1483,7 @@ if (v8_use_snapshot && v8_use_external_startup_data) {
         ]
       }
     } else {
-      sources += [ "src/snapshot/embedded-empty.cc" ]
+      sources += [ "src/snapshot/embedded/embedded-empty.cc" ]
     }
 
     configs = [ ":internal_config" ]
@@ -2776,8 +2776,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/snapshot/deserializer-allocator.h",
     "src/snapshot/deserializer.cc",
     "src/snapshot/deserializer.h",
-    "src/snapshot/embedded-data.cc",
-    "src/snapshot/embedded-data.h",
+    "src/snapshot/embedded/embedded-data.cc",
+    "src/snapshot/embedded/embedded-data.h",
     "src/snapshot/natives-common.cc",
     "src/snapshot/natives.h",
     "src/snapshot/object-deserializer.cc",
@@ -3794,8 +3794,8 @@ if (v8_use_snapshot && current_toolchain == v8_snapshot_toolchain) {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     sources = [
-      "src/snapshot/embedded-file-writer.cc",
-      "src/snapshot/embedded-file-writer.h",
+      "src/snapshot/embedded/embedded-file-writer.cc",
+      "src/snapshot/embedded/embedded-file-writer.h",
       "src/snapshot/embedded/platform-embedded-file-writer-aix.cc",
       "src/snapshot/embedded/platform-embedded-file-writer-aix.h",
       "src/snapshot/embedded/platform-embedded-file-writer-base.cc",

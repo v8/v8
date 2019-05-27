@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SNAPSHOT_EMBEDDED_DATA_H_
-#define V8_SNAPSHOT_EMBEDDED_DATA_H_
+#ifndef V8_SNAPSHOT_EMBEDDED_EMBEDDED_DATA_H_
+#define V8_SNAPSHOT_EMBEDDED_EMBEDDED_DATA_H_
 
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
@@ -143,4 +143,4 @@ class EmbeddedData final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SNAPSHOT_EMBEDDED_DATA_H_
+#endif  // V8_SNAPSHOT_EMBEDDED_EMBEDDED_DATA_H_

@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SNAPSHOT_EMBEDDED_FILE_WRITER_H_
-#define V8_SNAPSHOT_EMBEDDED_FILE_WRITER_H_
+#ifndef V8_SNAPSHOT_EMBEDDED_EMBEDDED_FILE_WRITER_H_
+#define V8_SNAPSHOT_EMBEDDED_EMBEDDED_FILE_WRITER_H_
 
 #include <cinttypes>
 #include <cstdio>
 #include <cstring>
 
 #include "src/common/globals.h"
-#include "src/snapshot/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-base.h"
 
 #if defined(V8_OS_WIN_X64)
@@ -215,4 +215,4 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SNAPSHOT_EMBEDDED_FILE_WRITER_H_
+#endif  // V8_SNAPSHOT_EMBEDDED_EMBEDDED_FILE_WRITER_H_

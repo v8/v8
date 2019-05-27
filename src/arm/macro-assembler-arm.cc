@@ -23,7 +23,7 @@
 #include "src/numbers/double.h"
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime.h"
-#include "src/snapshot/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-code-manager.h"
 

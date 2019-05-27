@@ -16,7 +16,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/roots/roots-inl.h"
-#include "src/snapshot/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
 
 #ifdef ENABLE_DISASSEMBLER

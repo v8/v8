@@ -18,7 +18,7 @@
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
-#include "src/snapshot/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/vector.h"
 #include "src/wasm/compilation-environment.h"

@@ -4,7 +4,7 @@
 
 #include "src/utils/memcopy.h"
 
-#include "src/snapshot/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data.h"
 
 namespace v8 {
 namespace internal {

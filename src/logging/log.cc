@@ -28,7 +28,7 @@
 #include "src/logging/log-utils.h"
 #include "src/objects/api-callbacks.h"
 #include "src/profiler/tick-sample.h"
-#include "src/snapshot/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-inl.h"
 #include "src/tracing/tracing-category-observer.h"

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/snapshot/embedded-file-writer.h"
+#include "src/snapshot/embedded/embedded-file-writer.h"
 
 #include <cinttypes>
 

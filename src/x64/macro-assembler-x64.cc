@@ -21,7 +21,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/snapshot/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/x64/assembler-x64.h"
 
