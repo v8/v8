@@ -22,7 +22,7 @@ BUILTIN(JsonParse) {
                                      Object::ToString(isolate, source));
   string = String::Flatten(isolate, string);
   RETURN_RESULT_OR_FAILURE(
-      isolate, string->IsOneByteRepresentation()
+      isolate, String::IsOneByteRepresentationUnderneath(*string)
                    ? JsonParser<uint8_t>::Parse(isolate, string, reviver)
                    : JsonParser<uint16_t>::Parse(isolate, string, reviver));
 }
