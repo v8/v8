@@ -305,7 +305,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
   // Check if we can fold this allocation into a previous allocation represented
   // by the incoming {state}.
   IntPtrMatcher m(size);
-  if (m.IsInRange(0, kMaxRegularHeapObjectSize)) {
+  if (m.IsInRange(0, kMaxRegularHeapObjectSize) && FLAG_inline_new) {
     intptr_t const object_size = m.Value();
     if (allocation_folding_ == AllocationFolding::kDoAllocationFolding &&
         state->size() <= kMaxRegularHeapObjectSize - object_size &&

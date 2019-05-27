@@ -976,8 +976,8 @@ DEFINE_BOOL(test_small_max_function_context_stub_size, false,
             "enable testing the function context size overflow path "
             "by making the maximum size smaller")
 
-// builtins-ia32.cc
 DEFINE_BOOL(inline_new, true, "use fast inline allocation")
+DEFINE_NEG_NEG_IMPLICATION(inline_new, turbo_allocation_folding)
 
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_BOOL(trace, false, "trace function calls")
