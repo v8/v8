@@ -370,7 +370,7 @@ class InterpreterLookupContextSlotAssembler : public InterpreterAssembler {
   }
 };
 
-// LdaLookupSlot <name_index>
+// LdaLookupContextSlot <name_index>
 //
 // Lookup the object with the name in constant pool entry |name_index|
 // dynamically.
@@ -378,7 +378,7 @@ IGNITION_HANDLER(LdaLookupContextSlot, InterpreterLookupContextSlotAssembler) {
   LookupContextSlot(Runtime::kLoadLookupSlot);
 }
 
-// LdaLookupSlotInsideTypeof <name_index>
+// LdaLookupContextSlotInsideTypeof <name_index>
 //
 // Lookup the object with the name in constant pool entry |name_index|
 // dynamically without causing a NoReferenceError.
@@ -443,7 +443,7 @@ IGNITION_HANDLER(LdaLookupGlobalSlotInsideTypeof,
   LookupGlobalSlot(Runtime::kLoadLookupSlotInsideTypeof);
 }
 
-// StaLookupSlotSloppy <name_index> <flags>
+// StaLookupSlot <name_index> <flags>
 //
 // Store the object in accumulator to the object with the name in constant
 // pool entry |name_index|.
