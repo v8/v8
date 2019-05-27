@@ -35,8 +35,8 @@ class UnoptimizedCompilationInfo;
 class UnoptimizedCompilationJob;
 class WorkerThreadRuntimeCallStats;
 
-typedef std::forward_list<std::unique_ptr<UnoptimizedCompilationJob>>
-    UnoptimizedCompilationJobList;
+using UnoptimizedCompilationJobList =
+    std::forward_list<std::unique_ptr<UnoptimizedCompilationJob>>;
 
 // The V8 compiler API.
 //

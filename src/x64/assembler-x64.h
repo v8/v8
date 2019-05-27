@@ -292,7 +292,7 @@ class ConstPool {
   Assembler* assm_;
 
   // Values, pc offsets of entries.
-  typedef std::multimap<uint64_t, int> EntryMap;
+  using EntryMap = std::multimap<uint64_t, int>;
   EntryMap entries_;
 
   // Number of bytes taken up by the displacement of rip-relative addressing.

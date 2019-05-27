@@ -57,7 +57,7 @@ class CounterCollection {
   Counter counters_[kMaxCounters];
 };
 
-typedef std::unordered_map<std::string, Counter*> CounterMap;
+using CounterMap = std::unordered_map<std::string, Counter*>;
 
 class SourceGroup {
  public:

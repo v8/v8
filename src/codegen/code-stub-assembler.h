@@ -227,7 +227,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum SlackTrackingMode { kWithSlackTracking, kNoSlackTracking };
 
-  typedef base::Flags<AllocationFlag> AllocationFlags;
+  using AllocationFlags = base::Flags<AllocationFlag>;
 
   enum ParameterMode { SMI_PARAMETERS, INTPTR_PARAMETERS };
 
@@ -624,8 +624,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<BoolT> IsRegularHeapObjectSize(TNode<IntPtrT> size);
 
-  typedef std::function<void(Label*, Label*)> BranchGenerator;
-  typedef std::function<Node*()> NodeGenerator;
+  using BranchGenerator = std::function<void(Label*, Label*)>;
+  using NodeGenerator = std::function<Node*()>;
 
   void Assert(const BranchGenerator& branch, const char* message = nullptr,
               const char* file = nullptr, int line = 0,
@@ -1883,7 +1883,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     kAllFixedArraysDontCopyCOW = kAllFixedArrays | kDontCopyCOW
   };
 
-  typedef base::Flags<ExtractFixedArrayFlag> ExtractFixedArrayFlags;
+  using ExtractFixedArrayFlags = base::Flags<ExtractFixedArrayFlag>;
 
   // Copy a portion of an existing FixedArray or FixedDoubleArray into a new
   // array, including special appropriate handling for empty arrays and COW
@@ -2925,10 +2925,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // This is a type of a lookup in holder generator function. In case of a
   // property lookup the {key} is guaranteed to be an unique name and in case of
   // element lookup the key is an Int32 index.
-  typedef std::function<void(Node* receiver, Node* holder, Node* map,
-                             Node* instance_type, Node* key, Label* next_holder,
-                             Label* if_bailout)>
-      LookupInHolder;
+  using LookupInHolder = std::function<void(
+      Node* receiver, Node* holder, Node* map, Node* instance_type, Node* key,
+      Label* next_holder, Label* if_bailout)>;
 
   // For integer indexed exotic cases, check if the given string cannot be a
   // special index. If we are not sure that the given string is not a special
@@ -3093,7 +3092,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum class IndexAdvanceMode { kPre, kPost };
 
-  typedef std::function<void(Node* index)> FastLoopBody;
+  using FastLoopBody = std::function<void(Node* index)>;
 
   Node* BuildFastLoop(const VariableList& var_list, Node* start_index,
                       Node* end_index, const FastLoopBody& body, int increment,
@@ -3110,8 +3109,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum class ForEachDirection { kForward, kReverse };
 
-  typedef std::function<void(Node* fixed_array, Node* offset)>
-      FastFixedArrayForEachBody;
+  using FastFixedArrayForEachBody =
+      std::function<void(Node* fixed_array, Node* offset)>;
 
   void BuildFastFixedArrayForEach(
       const CodeStubAssembler::VariableList& vars, Node* fixed_array,
@@ -3444,8 +3443,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint32T> DescriptorArrayGetDetails(TNode<DescriptorArray> descriptors,
                                            TNode<Uint32T> descriptor_number);
 
-  typedef std::function<void(TNode<IntPtrT> descriptor_key_index)>
-      ForEachDescriptorBodyFunction;
+  using ForEachDescriptorBodyFunction =
+      std::function<void(TNode<IntPtrT> descriptor_key_index)>;
 
   // Descriptor array accessors based on key_index, which is equal to
   // DescriptorArray::ToKeyIndex(descriptor).
@@ -3474,8 +3473,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<MaybeObject> LoadFieldTypeByDescriptorEntry(
       TNode<DescriptorArray> descriptors, TNode<IntPtrT> descriptor);
 
-  typedef std::function<void(TNode<Name> key, TNode<Object> value)>
-      ForEachKeyValueFunction;
+  using ForEachKeyValueFunction =
+      std::function<void(TNode<Name> key, TNode<Object> value)>;
 
   enum ForEachEnumerationMode {
     // String and then Symbol properties according to the spec
@@ -3600,7 +3599,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 class V8_EXPORT_PRIVATE CodeStubArguments {
  public:
-  typedef compiler::Node Node;
+  using Node = compiler::Node;
   template <class T>
   using TNode = compiler::TNode<T>;
   template <class T>
@@ -3680,7 +3679,7 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
     return assembler_->UncheckedCast<IntPtrT>(argc_);
   }
 
-  typedef std::function<void(Node* arg)> ForEachBodyFunction;
+  using ForEachBodyFunction = std::function<void(Node* arg)>;
 
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
   void ForEach(const ForEachBodyFunction& body, Node* first = nullptr,
@@ -3719,7 +3718,7 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   enum Flag {
     kDontUnpackSlicedStrings = 1 << 0,
   };
-  typedef base::Flags<Flag> Flags;
+  using Flags = base::Flags<Flag>;
 
   ToDirectStringAssembler(compiler::CodeAssemblerState* state, Node* string,
                           Flags flags = Flags());

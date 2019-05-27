@@ -924,7 +924,7 @@ void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
   deserialized_data.push_back(embedder_field);
 }
 
-typedef std::vector<std::tuple<const char*, int32_t>> Int32Expectations;
+using Int32Expectations = std::vector<std::tuple<const char*, int32_t>>;
 
 void TestInt32Expectations(const Int32Expectations& expectations) {
   for (const auto& e : expectations) {

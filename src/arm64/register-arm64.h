@@ -551,9 +551,9 @@ V8_EXPORT_PRIVATE bool AreConsecutive(const VRegister& reg1,
                                       const VRegister& reg3 = NoVReg,
                                       const VRegister& reg4 = NoVReg);
 
-typedef VRegister FloatRegister;
-typedef VRegister DoubleRegister;
-typedef VRegister Simd128Register;
+using FloatRegister = VRegister;
+using DoubleRegister = VRegister;
+using Simd128Register = VRegister;
 
 // -----------------------------------------------------------------------------
 // Lists of registers.

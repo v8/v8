@@ -60,8 +60,8 @@ class CustomArguments : public CustomArgumentsBase {
 class PropertyCallbackArguments
     : public CustomArguments<PropertyCallbackInfo<Value> > {
  public:
-  typedef PropertyCallbackInfo<Value> T;
-  typedef CustomArguments<T> Super;
+  using T = PropertyCallbackInfo<Value>;
+  using Super = CustomArguments<T>;
   static const int kArgsLength = T::kArgsLength;
   static const int kThisIndex = T::kThisIndex;
   static const int kHolderIndex = T::kHolderIndex;
@@ -150,8 +150,8 @@ class PropertyCallbackArguments
 class FunctionCallbackArguments
     : public CustomArguments<FunctionCallbackInfo<Value> > {
  public:
-  typedef FunctionCallbackInfo<Value> T;
-  typedef CustomArguments<T> Super;
+  using T = FunctionCallbackInfo<Value>;
+  using Super = CustomArguments<T>;
   static const int kArgsLength = T::kArgsLength;
   static const int kHolderIndex = T::kHolderIndex;
   static const int kDataIndex = T::kDataIndex;

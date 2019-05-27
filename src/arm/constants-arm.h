@@ -114,8 +114,7 @@ inline Condition NegateCondition(Condition cond) {
 // representing instructions from usual 32 bit values.
 // Instruction objects are pointers to 32bit values, and provide methods to
 // access the various ISA fields.
-typedef int32_t Instr;
-
+using Instr = int32_t;
 
 // Opcodes for Data-processing instructions (instructions with a type 0 and 1)
 // as defined in section A3.4
@@ -263,8 +262,7 @@ enum SRegisterField {
 };
 
 // Status register field mask (or'ed SRegisterField enum values).
-typedef uint32_t SRegisterFieldMask;
-
+using SRegisterFieldMask = uint32_t;
 
 // Memory operand addressing mode.
 enum AddrMode {

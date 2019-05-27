@@ -606,7 +606,7 @@ class VisitResult {
   base::Optional<StackRange> stack_range_;
 };
 
-typedef std::map<std::string, VisitResult> NameValueMap;
+using NameValueMap = std::map<std::string, VisitResult>;
 
 VisitResult ProjectStructField(VisitResult structure,
                                const std::string& fieldname);
@@ -627,21 +627,21 @@ class VisitResultVector : public std::vector<VisitResult> {
 
 std::ostream& operator<<(std::ostream& os, const TypeVector& types);
 
-typedef std::vector<NameAndType> NameAndTypeVector;
+using NameAndTypeVector = std::vector<NameAndType>;
 
 struct LabelDefinition {
   std::string name;
   NameAndTypeVector parameters;
 };
 
-typedef std::vector<LabelDefinition> LabelDefinitionVector;
+using LabelDefinitionVector = std::vector<LabelDefinition>;
 
 struct LabelDeclaration {
   Identifier* name;
   TypeVector types;
 };
 
-typedef std::vector<LabelDeclaration> LabelDeclarationVector;
+using LabelDeclarationVector = std::vector<LabelDeclaration>;
 
 struct ParameterTypes {
   TypeVector types;
@@ -652,7 +652,7 @@ std::ostream& operator<<(std::ostream& os, const ParameterTypes& parameters);
 
 enum class ParameterMode { kProcessImplicit, kIgnoreImplicit };
 
-typedef std::vector<Identifier*> NameVector;
+using NameVector = std::vector<Identifier*>;
 
 struct Signature {
   Signature(NameVector n, base::Optional<std::string> arguments_variable,

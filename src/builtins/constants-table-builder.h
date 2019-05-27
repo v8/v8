@@ -42,7 +42,7 @@ class BuiltinsConstantsTableBuilder final {
   Isolate* isolate_;
 
   // Maps objects to corresponding indices within the constants list.
-  typedef IdentityMap<uint32_t, FreeStoreAllocationPolicy> ConstantsMap;
+  using ConstantsMap = IdentityMap<uint32_t, FreeStoreAllocationPolicy>;
   ConstantsMap map_;
 
   DISALLOW_COPY_AND_ASSIGN(BuiltinsConstantsTableBuilder);

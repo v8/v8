@@ -141,7 +141,7 @@ inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            FeedbackSlotKind kind);
 
-typedef std::vector<MaybeObjectHandle> MaybeObjectHandles;
+using MaybeObjectHandles = std::vector<MaybeObjectHandle>;
 
 class FeedbackMetadata;
 
@@ -552,9 +552,9 @@ class FeedbackMetadata : public HeapObject {
 
   void SetKind(FeedbackSlot slot, FeedbackSlotKind kind);
 
-  typedef BitSetComputer<FeedbackSlotKind, kFeedbackSlotKindBits,
-                         kInt32Size * kBitsPerByte, uint32_t>
-      VectorICComputer;
+  using VectorICComputer =
+      BitSetComputer<FeedbackSlotKind, kFeedbackSlotKindBits,
+                     kInt32Size * kBitsPerByte, uint32_t>;
 
   OBJECT_CONSTRUCTORS(FeedbackMetadata, HeapObject);
 };
@@ -697,8 +697,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   // count (taken from the type feedback vector).
   float ComputeCallFrequency();
 
-  typedef BitField<SpeculationMode, 0, 1> SpeculationModeField;
-  typedef BitField<uint32_t, 1, 31> CallCountField;
+  using SpeculationModeField = BitField<SpeculationMode, 0, 1>;
+  using CallCountField = BitField<uint32_t, 1, 31>;
 
   // For InstanceOf ICs.
   MaybeHandle<JSObject> GetConstructorFeedback() const;

@@ -91,8 +91,8 @@ static const LoadWithToInt64Extension kLoadWithToInt64Extensions[] = {
 
 }  // namespace
 
-typedef InstructionSelectorTestWithParam<LoadWithToInt64Extension>
-    InstructionSelectorChangeInt32ToInt64Test;
+using InstructionSelectorChangeInt32ToInt64Test =
+    InstructionSelectorTestWithParam<LoadWithToInt64Extension>;
 
 TEST_P(InstructionSelectorChangeInt32ToInt64Test, ChangeInt32ToInt64WithLoad) {
   const LoadWithToInt64Extension extension = GetParam();
@@ -139,10 +139,8 @@ static const MemoryAccess kMemoryAccesses[] = {
 
 }  // namespace
 
-
-typedef InstructionSelectorTestWithParam<MemoryAccess>
-    InstructionSelectorMemoryAccessTest;
-
+using InstructionSelectorMemoryAccessTest =
+    InstructionSelectorTestWithParam<MemoryAccess>;
 
 TEST_P(InstructionSelectorMemoryAccessTest, LoadWithParameters) {
   const MemoryAccess memacc = GetParam();
@@ -219,10 +217,8 @@ const BinaryOperation kWord32BinaryOperations[] = {
 
 }  // namespace
 
-
-typedef InstructionSelectorTestWithParam<BinaryOperation>
-    InstructionSelectorChangeUint32ToUint64Test;
-
+using InstructionSelectorChangeUint32ToUint64Test =
+    InstructionSelectorTestWithParam<BinaryOperation>;
 
 TEST_P(InstructionSelectorChangeUint32ToUint64Test, ChangeUint32ToUint64) {
   const BinaryOperation& bop = GetParam();
@@ -300,8 +296,8 @@ const MachInst2 kCanElideChangeUint32ToUint64[] = {
 
 }  // namespace
 
-typedef InstructionSelectorTestWithParam<MachInst2>
-    InstructionSelectorElidedChangeUint32ToUint64Test;
+using InstructionSelectorElidedChangeUint32ToUint64Test =
+    InstructionSelectorTestWithParam<MachInst2>;
 
 TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
   const MachInst2 binop = GetParam();

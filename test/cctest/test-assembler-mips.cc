@@ -9052,7 +9052,7 @@ TEST(MSA_3R_instructions) {
   }
 
 #define SUBSUS_U_DF(T, lanes, mask)                           \
-  typedef typename std::make_unsigned<T>::type uT;            \
+  using uT = typename std::make_unsigned<T>::type;            \
   int size_in_bits = kMSARegSize / lanes;                     \
   for (int i = 0; i < 2; i++) {                               \
     uint64_t res = 0;                                         \
@@ -9081,7 +9081,7 @@ TEST(MSA_3R_instructions) {
   }
 
 #define SUBSUU_S_DF(T, lanes, mask)                        \
-  typedef typename std::make_unsigned<T>::type uT;         \
+  using uT = typename std::make_unsigned<T>::type;         \
   int size_in_bits = kMSARegSize / lanes;                  \
   for (int i = 0; i < 2; i++) {                            \
     uint64_t res = 0;                                      \

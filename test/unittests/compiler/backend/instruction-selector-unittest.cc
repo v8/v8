@@ -243,8 +243,8 @@ TARGET_TEST_F(InstructionSelectorTest, FinishRegion) {
 // -----------------------------------------------------------------------------
 // Phi.
 
-typedef InstructionSelectorTestWithParam<MachineType>
-    InstructionSelectorPhiTest;
+using InstructionSelectorPhiTest =
+    InstructionSelectorTestWithParam<MachineType>;
 
 TARGET_TEST_P(InstructionSelectorPhiTest, Doubleness) {
   const MachineType type = GetParam();

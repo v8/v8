@@ -29,7 +29,7 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
   // within the {keys_} array in order to simulate a moving GC.
   friend class IdentityMapTester;
 
-  typedef void** RawEntry;
+  using RawEntry = void**;
 
   explicit IdentityMapBase(Heap* heap)
       : heap_(heap),

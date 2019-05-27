@@ -193,7 +193,7 @@ class Variable final : public ZoneObject {
                                       : kNeedsInitialization;
   }
 
-  typedef base::ThreadedList<Variable> List;
+  using List = base::ThreadedList<Variable>;
 
  private:
   Scope* scope_;

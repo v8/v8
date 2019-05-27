@@ -18,8 +18,8 @@ namespace compiler {
 
 namespace {
 
-typedef CodeAssemblerLabel Label;
-typedef CodeAssemblerVariable Variable;
+using Label = CodeAssemblerLabel;
+using Variable = CodeAssemblerVariable;
 
 Node* SmiTag(CodeAssembler& m, Node* value) {
   int32_t constant_value;

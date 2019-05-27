@@ -31,17 +31,17 @@ namespace internal {
 
 // Define interface descriptors for builtins with StubCall linkage.
 #define DEFINE_TFC_INTERFACE_DESCRIPTOR(Name, InterfaceDescriptor) \
-  typedef InterfaceDescriptor##Descriptor Builtin_##Name##_InterfaceDescriptor;
+  using Builtin_##Name##_InterfaceDescriptor = InterfaceDescriptor##Descriptor;
 
 #define DEFINE_TFS_INTERFACE_DESCRIPTOR(Name, ...) \
-  typedef Name##Descriptor Builtin_##Name##_InterfaceDescriptor;
+  using Builtin_##Name##_InterfaceDescriptor = Name##Descriptor;
 
 // Define interface descriptors for IC handlers/dispatchers.
 #define DEFINE_TFH_INTERFACE_DESCRIPTOR(Name, InterfaceDescriptor) \
-  typedef InterfaceDescriptor##Descriptor Builtin_##Name##_InterfaceDescriptor;
+  using Builtin_##Name##_InterfaceDescriptor = InterfaceDescriptor##Descriptor;
 
 #define DEFINE_ASM_INTERFACE_DESCRIPTOR(Name, InterfaceDescriptor) \
-  typedef InterfaceDescriptor##Descriptor Builtin_##Name##_InterfaceDescriptor;
+  using Builtin_##Name##_InterfaceDescriptor = InterfaceDescriptor##Descriptor;
 
 BUILTIN_LIST(IGNORE_BUILTIN, DEFINE_TFJ_INTERFACE_DESCRIPTOR,
              DEFINE_TFC_INTERFACE_DESCRIPTOR, DEFINE_TFS_INTERFACE_DESCRIPTOR,

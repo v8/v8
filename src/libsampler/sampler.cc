@@ -46,9 +46,9 @@ zx_status_t zx_thread_read_state(zx_handle_t h, uint32_t k, void* b, size_t l) {
                               &dummy_out_len);
 }
 #if defined(__x86_64__)
-typedef zx_x86_64_general_regs_t zx_thread_state_general_regs_t;
+using zx_thread_state_general_regs_t = zx_x86_64_general_regs_t;
 #else
-typedef zx_arm64_general_regs_t zx_thread_state_general_regs_t;
+using zx_thread_state_general_regs_t = zx_arm64_general_regs_t;
 #endif
 #endif  // !defined(ZX_THREAD_STATE_GENERAL_REGS)
 
@@ -71,7 +71,7 @@ typedef zx_arm64_general_regs_t zx_thread_state_general_regs_t;
 
 #if defined(__arm__)
 
-typedef struct sigcontext mcontext_t;
+using mcontext_t = struct sigcontext;
 
 typedef struct ucontext {
   uint32_t uc_flags;
@@ -83,7 +83,7 @@ typedef struct ucontext {
 
 #elif defined(__aarch64__)
 
-typedef struct sigcontext mcontext_t;
+using mcontext_t = struct sigcontext;
 
 typedef struct ucontext {
   uint64_t uc_flags;

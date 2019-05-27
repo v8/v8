@@ -73,9 +73,9 @@ class CompilationStatistics final : public Malloced {
   friend std::ostream& operator<<(std::ostream& os,
                                   const AsPrintableStatistics& s);
 
-  typedef OrderedStats PhaseKindStats;
-  typedef std::map<std::string, PhaseKindStats> PhaseKindMap;
-  typedef std::map<std::string, PhaseStats> PhaseMap;
+  using PhaseKindStats = OrderedStats;
+  using PhaseKindMap = std::map<std::string, PhaseKindStats>;
+  using PhaseMap = std::map<std::string, PhaseStats>;
 
   TotalStats total_stats_;
   PhaseKindMap phase_kind_map_;

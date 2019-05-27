@@ -19,9 +19,8 @@ struct MachInst {
   MachineType machine_type;
 };
 
-typedef MachInst<Node* (RawMachineAssembler::*)(Node*)> MachInst1;
-typedef MachInst<Node* (RawMachineAssembler::*)(Node*, Node*)> MachInst2;
-
+using MachInst1 = MachInst<Node* (RawMachineAssembler::*)(Node*)>;
+using MachInst2 = MachInst<Node* (RawMachineAssembler::*)(Node*, Node*)>;
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const MachInst<T>& mi) {
@@ -380,10 +379,8 @@ const MachInst2 kCanElideChangeUint32ToUint64[] = {
 // -----------------------------------------------------------------------------
 // Logical instructions.
 
-
-typedef InstructionSelectorTestWithParam<MachInst2>
-    InstructionSelectorLogicalTest;
-
+using InstructionSelectorLogicalTest =
+    InstructionSelectorTestWithParam<MachInst2>;
 
 TEST_P(InstructionSelectorLogicalTest, Parameter) {
   const MachInst2 dpi = GetParam();
@@ -503,8 +500,7 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
 // -----------------------------------------------------------------------------
 // Add and Sub instructions.
 
-typedef InstructionSelectorTestWithParam<AddSub> InstructionSelectorAddSubTest;
-
+using InstructionSelectorAddSubTest = InstructionSelectorTestWithParam<AddSub>;
 
 TEST_P(InstructionSelectorAddSubTest, Parameter) {
   const AddSub dpi = GetParam();
@@ -985,10 +981,8 @@ TEST_F(InstructionSelectorTest, AddSignedExtendHalfwordOnLeft) {
 // -----------------------------------------------------------------------------
 // Data processing controlled branches.
 
-
-typedef InstructionSelectorTestWithParam<MachInst2>
-    InstructionSelectorDPFlagSetTest;
-
+using InstructionSelectorDPFlagSetTest =
+    InstructionSelectorTestWithParam<MachInst2>;
 
 TEST_P(InstructionSelectorDPFlagSetTest, BranchWithParameters) {
   const MachInst2 dpi = GetParam();
@@ -1253,8 +1247,8 @@ const TestAndBranch kTestAndBranchMatchers32[] = {
       "if (mask != (mask and x))", kArm64TestAndBranch32, MachineType::Int32()},
      kEqual}};
 
-typedef InstructionSelectorTestWithParam<TestAndBranch>
-    InstructionSelectorTestAndBranchTest;
+using InstructionSelectorTestAndBranchTest =
+    InstructionSelectorTestWithParam<TestAndBranch>;
 
 TEST_P(InstructionSelectorTestAndBranchTest, TestAndBranch32) {
   const TestAndBranch inst = GetParam();
@@ -1581,10 +1575,8 @@ TEST_F(InstructionSelectorTest, EqualZeroAndBranch) {
 // -----------------------------------------------------------------------------
 // Add and subtract instructions with overflow.
 
-
-typedef InstructionSelectorTestWithParam<MachInst2>
-    InstructionSelectorOvfAddSubTest;
-
+using InstructionSelectorOvfAddSubTest =
+    InstructionSelectorTestWithParam<MachInst2>;
 
 TEST_P(InstructionSelectorOvfAddSubTest, OvfParameter) {
   const MachInst2 dpi = GetParam();
@@ -1839,9 +1831,7 @@ TEST_F(InstructionSelectorTest, OvfBranchWithImmediateOnLeft) {
 // -----------------------------------------------------------------------------
 // Shift instructions.
 
-
-typedef InstructionSelectorTestWithParam<Shift> InstructionSelectorShiftTest;
-
+using InstructionSelectorShiftTest = InstructionSelectorTestWithParam<Shift>;
 
 TEST_P(InstructionSelectorShiftTest, Parameter) {
   const Shift shift = GetParam();
@@ -1947,10 +1937,8 @@ TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithWord64Shr) {
 // -----------------------------------------------------------------------------
 // Mul and Div instructions.
 
-
-typedef InstructionSelectorTestWithParam<MachInst2>
-    InstructionSelectorMulDivTest;
-
+using InstructionSelectorMulDivTest =
+    InstructionSelectorTestWithParam<MachInst2>;
 
 TEST_P(InstructionSelectorMulDivTest, Parameter) {
   const MachInst2 dpi = GetParam();
@@ -1996,10 +1984,8 @@ static const MulDPInst kMulDPInstructions[] = {
      &RawMachineAssembler::Int64Sub, kArm64Madd, kArm64Msub, kArm64Mneg,
      MachineType::Int64()}};
 
-
-typedef InstructionSelectorTestWithParam<MulDPInst>
-    InstructionSelectorIntDPWithIntMulTest;
-
+using InstructionSelectorIntDPWithIntMulTest =
+    InstructionSelectorTestWithParam<MulDPInst>;
 
 TEST_P(InstructionSelectorIntDPWithIntMulTest, AddWithMul) {
   const MulDPInst mdpi = GetParam();
@@ -2341,9 +2327,8 @@ TEST_F(InstructionSelectorTest, Int64MulWithImmediate) {
 // -----------------------------------------------------------------------------
 // Floating point instructions.
 
-typedef InstructionSelectorTestWithParam<MachInst2>
-    InstructionSelectorFPArithTest;
-
+using InstructionSelectorFPArithTest =
+    InstructionSelectorTestWithParam<MachInst2>;
 
 TEST_P(InstructionSelectorFPArithTest, Parameter) {
   const MachInst2 fpa = GetParam();
@@ -2360,8 +2345,7 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorFPArithTest,
                          ::testing::ValuesIn(kFPArithInstructions));
 
-typedef InstructionSelectorTestWithParam<FPCmp> InstructionSelectorFPCmpTest;
-
+using InstructionSelectorFPCmpTest = InstructionSelectorTestWithParam<FPCmp>;
 
 TEST_P(InstructionSelectorFPCmpTest, Parameter) {
   const FPCmp cmp = GetParam();
@@ -2421,9 +2405,8 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorFPCmpTest,
 // -----------------------------------------------------------------------------
 // Conversions.
 
-typedef InstructionSelectorTestWithParam<Conversion>
-    InstructionSelectorConversionTest;
-
+using InstructionSelectorConversionTest =
+    InstructionSelectorTestWithParam<Conversion>;
 
 TEST_P(InstructionSelectorConversionTest, Parameter) {
   const Conversion conv = GetParam();
@@ -2444,8 +2427,8 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorConversionTest,
                          ::testing::ValuesIn(kConversionInstructions));
 
-typedef InstructionSelectorTestWithParam<MachInst2>
-    InstructionSelectorElidedChangeUint32ToUint64Test;
+using InstructionSelectorElidedChangeUint32ToUint64Test =
+    InstructionSelectorTestWithParam<MachInst2>;
 
 TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
   const MachInst2 binop = GetParam();
@@ -2666,10 +2649,8 @@ static const MemoryAccess kMemoryAccesses[] = {
      {-256, -255, -3, -2, -1, 0, 1, 2, 3, 255, 256, 264, 4096, 4104, 8192, 8200,
       16384, 16392, 32752, 32760}}};
 
-
-typedef InstructionSelectorTestWithParam<MemoryAccess>
-    InstructionSelectorMemoryAccessTest;
-
+using InstructionSelectorMemoryAccessTest =
+    InstructionSelectorTestWithParam<MemoryAccess>;
 
 TEST_P(InstructionSelectorMemoryAccessTest, LoadWithParameters) {
   const MemoryAccess memacc = GetParam();
@@ -2871,10 +2852,8 @@ static const MachInst2 kComparisonInstructions[] = {
      MachineType::Int64()},
 };
 
-
-typedef InstructionSelectorTestWithParam<MachInst2>
-    InstructionSelectorComparisonTest;
-
+using InstructionSelectorComparisonTest =
+    InstructionSelectorTestWithParam<MachInst2>;
 
 TEST_P(InstructionSelectorComparisonTest, WithParameters) {
   const MachInst2 cmp = GetParam();
@@ -3510,8 +3489,8 @@ const FlagSettingInst kFlagSettingInstructions[] = {
       MachineType::Int32()},
      kArm64Tst32}};
 
-typedef InstructionSelectorTestWithParam<FlagSettingInst>
-    InstructionSelectorFlagSettingTest;
+using InstructionSelectorFlagSettingTest =
+    InstructionSelectorTestWithParam<FlagSettingInst>;
 
 TEST_P(InstructionSelectorFlagSettingTest, CmpZeroRight) {
   const FlagSettingInst inst = GetParam();
@@ -3747,10 +3726,8 @@ static const MachInst2 kLogicalWithNotRHSs[] = {
     {&RawMachineAssembler::Word64Xor, "Word64Xor", kArm64Eon,
      MachineType::Int64()}};
 
-
-typedef InstructionSelectorTestWithParam<MachInst2>
-    InstructionSelectorLogicalWithNotRHSTest;
-
+using InstructionSelectorLogicalWithNotRHSTest =
+    InstructionSelectorTestWithParam<MachInst2>;
 
 TEST_P(InstructionSelectorLogicalWithNotRHSTest, Parameter) {
   const MachInst2 inst = GetParam();

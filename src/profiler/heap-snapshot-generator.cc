@@ -2204,11 +2204,11 @@ namespace {
 template<size_t size> struct ToUnsigned;
 
 template<> struct ToUnsigned<4> {
-  typedef uint32_t Type;
+  using Type = uint32_t;
 };
 
 template<> struct ToUnsigned<8> {
-  typedef uint64_t Type;
+  using Type = uint64_t;
 };
 
 }  // namespace

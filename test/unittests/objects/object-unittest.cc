@@ -94,7 +94,7 @@ TEST(Object, StructListOrder) {
 #undef TEST_STRUCT
 }
 
-typedef TestWithIsolate ObjectWithIsolate;
+using ObjectWithIsolate = TestWithIsolate;
 
 TEST_F(ObjectWithIsolate, DictionaryGrowth) {
   Handle<NumberDictionary> dict = NumberDictionary::New(isolate(), 1);

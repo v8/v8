@@ -249,10 +249,10 @@ ASSERT_TRIVIALLY_COPYABLE(DoubleRegister);
 static_assert(sizeof(DoubleRegister) == sizeof(int),
               "DoubleRegister can efficiently be passed by value");
 
-typedef DoubleRegister FloatRegister;
+using FloatRegister = DoubleRegister;
 
 // TODO(ppc) Define SIMD registers.
-typedef DoubleRegister Simd128Register;
+using Simd128Register = DoubleRegister;
 
 #define DEFINE_REGISTER(R) \
   constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();

@@ -2208,7 +2208,7 @@ void ArrayBuiltinsAssembler::GenerateConstructor(
 
 void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
     ElementsKind kind, AllocationSiteOverrideMode mode) {
-  typedef ArrayNoArgumentConstructorDescriptor Descriptor;
+  using Descriptor = ArrayNoArgumentConstructorDescriptor;
   Node* native_context = LoadObjectField(Parameter(Descriptor::kFunction),
                                          JSFunction::kContextOffset);
   bool track_allocation_site =
@@ -2224,7 +2224,7 @@ void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
 
 void ArrayBuiltinsAssembler::GenerateArraySingleArgumentConstructor(
     ElementsKind kind, AllocationSiteOverrideMode mode) {
-  typedef ArraySingleArgumentConstructorDescriptor Descriptor;
+  using Descriptor = ArraySingleArgumentConstructorDescriptor;
   Node* context = Parameter(Descriptor::kContext);
   Node* function = Parameter(Descriptor::kFunction);
   Node* native_context = LoadObjectField(function, JSFunction::kContextOffset);
@@ -2318,7 +2318,7 @@ GENERATE_ARRAY_CTOR(SingleArgument, HoleyDouble, HOLEY_DOUBLE_ELEMENTS,
 #undef GENERATE_ARRAY_CTOR
 
 TF_BUILTIN(InternalArrayNoArgumentConstructor_Packed, ArrayBuiltinsAssembler) {
-  typedef ArrayNoArgumentConstructorDescriptor Descriptor;
+  using Descriptor = ArrayNoArgumentConstructorDescriptor;
   TNode<Map> array_map =
       CAST(LoadObjectField(Parameter(Descriptor::kFunction),
                            JSFunction::kPrototypeOrInitialMapOffset));

@@ -151,7 +151,7 @@ void TestReturnMultipleValues(MachineType type) {
       // m.Parameter(0) is the WasmContext.
       Node* p0 = m.Parameter(1);
       Node* p1 = m.Parameter(2);
-      typedef Node* Node_ptr;
+      using Node_ptr = Node*;
       std::unique_ptr<Node_ptr[]> returns(new Node_ptr[count]);
       for (int i = 0; i < count; ++i) {
         if (i % 3 == 0) returns[i] = Add(m, type, p0, p1);

@@ -20,7 +20,7 @@
 namespace v8 {
 namespace internal {
 
-typedef TestWithNativeContext OptimizingCompileDispatcherTest;
+using OptimizingCompileDispatcherTest = TestWithNativeContext;
 
 namespace {
 

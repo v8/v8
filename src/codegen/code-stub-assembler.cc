@@ -13254,7 +13254,7 @@ void CodeStubArguments::SetReceiver(TNode<Object> object) const {
 
 TNode<WordT> CodeStubArguments::AtIndexPtr(
     Node* index, CodeStubAssembler::ParameterMode mode) const {
-  typedef compiler::Node Node;
+  using Node = compiler::Node;
   Node* negated_index = assembler_->IntPtrOrSmiSub(
       assembler_->IntPtrOrSmiConstant(0, mode), index, mode);
   Node* offset = assembler_->ElementOffsetFromIndex(

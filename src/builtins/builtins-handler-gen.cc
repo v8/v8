@@ -26,13 +26,13 @@ class HandlerBuiltinsAssembler : public CodeStubAssembler {
   // compile-time types (int) by dispatching over the runtime type and
   // emitting a specialized copy of the given case function for each elements
   // kind. Use with caution. This produces a *lot* of code.
-  typedef std::function<void(ElementsKind)> ElementsKindSwitchCase;
+  using ElementsKindSwitchCase = std::function<void(ElementsKind)>;
   void DispatchByElementsKind(TNode<Int32T> elements_kind,
                               const ElementsKindSwitchCase& case_function);
 
   // Dispatches over all possible combinations of {from,to} elements kinds.
-  typedef std::function<void(ElementsKind, ElementsKind)>
-      ElementsKindTransitionSwitchCase;
+  using ElementsKindTransitionSwitchCase =
+      std::function<void(ElementsKind, ElementsKind)>;
   void DispatchForElementsKindTransition(
       TNode<Int32T> from_kind, TNode<Int32T> to_kind,
       const ElementsKindTransitionSwitchCase& case_function);
@@ -73,7 +73,7 @@ void Builtins::Generate_StoreIC_Uninitialized(
 // TODO(mythria): Check if we can remove feedback vector and slot parameters in
 // descriptor.
 void HandlerBuiltinsAssembler::Generate_KeyedStoreIC_Slow() {
-  typedef StoreWithVectorDescriptor Descriptor;
+  using Descriptor = StoreWithVectorDescriptor;
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
@@ -106,7 +106,7 @@ TF_BUILTIN(KeyedStoreIC_Slow_NoTransitionHandleCOW, HandlerBuiltinsAssembler) {
 }
 
 void HandlerBuiltinsAssembler::Generate_StoreInArrayLiteralIC_Slow() {
-  typedef StoreWithVectorDescriptor Descriptor;
+  using Descriptor = StoreWithVectorDescriptor;
   Node* array = Parameter(Descriptor::kReceiver);
   Node* index = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
@@ -204,7 +204,7 @@ void HandlerBuiltinsAssembler::DispatchForElementsKindTransition(
 
 void HandlerBuiltinsAssembler::Generate_ElementsTransitionAndStore(
     KeyedAccessStoreMode store_mode) {
-  typedef StoreTransitionDescriptor Descriptor;
+  using Descriptor = StoreTransitionDescriptor;
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
@@ -322,7 +322,7 @@ void HandlerBuiltinsAssembler::DispatchByElementsKind(
 
 void HandlerBuiltinsAssembler::Generate_StoreFastElementIC(
     KeyedAccessStoreMode store_mode) {
-  typedef StoreWithVectorDescriptor Descriptor;
+  using Descriptor = StoreWithVectorDescriptor;
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
@@ -430,7 +430,7 @@ TF_BUILTIN(KeyedLoadIC_SloppyArguments, CodeStubAssembler) {
 }
 
 void HandlerBuiltinsAssembler::Generate_KeyedStoreIC_SloppyArguments() {
-  typedef StoreWithVectorDescriptor Descriptor;
+  using Descriptor = StoreWithVectorDescriptor;
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);

@@ -266,9 +266,9 @@ class MSARegister : public RegisterBase<MSARegister, kMsaAfterLast> {
 // but it is not in common use. Someday we will want to support this in v8.)
 
 // For O32 ABI, Floats and Doubles refer to same set of 32 32-bit registers.
-typedef FPURegister FloatRegister;
+using FloatRegister = FPURegister;
 
-typedef FPURegister DoubleRegister;
+using DoubleRegister = FPURegister;
 
 #define DECLARE_DOUBLE_REGISTER(R) \
   constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
@@ -278,7 +278,7 @@ DOUBLE_REGISTERS(DECLARE_DOUBLE_REGISTER)
 constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 // SIMD registers.
-typedef MSARegister Simd128Register;
+using Simd128Register = MSARegister;
 
 #define DECLARE_SIMD128_REGISTER(R) \
   constexpr Simd128Register R = Simd128Register::from_code<kMsaCode_##R>();

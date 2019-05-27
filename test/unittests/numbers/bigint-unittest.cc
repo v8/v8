@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-typedef TestWithIsolate BigIntWithIsolate;
+using BigIntWithIsolate = TestWithIsolate;
 
 void Compare(Handle<BigInt> x, double value, ComparisonResult expected) {
   CHECK_EQ(expected, BigInt::CompareToDouble(x, value));

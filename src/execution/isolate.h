@@ -1755,7 +1755,7 @@ class Isolate final : private HiddenFactory {
 
   CompilerDispatcher* compiler_dispatcher_ = nullptr;
 
-  typedef std::pair<InterruptCallback, void*> InterruptEntry;
+  using InterruptEntry = std::pair<InterruptCallback, void*>;
   std::queue<InterruptEntry> api_interrupts_queue_;
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue) type name##_;

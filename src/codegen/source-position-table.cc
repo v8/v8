@@ -48,7 +48,7 @@ void SubtractFromEntry(PositionTableEntry& value,
 // Helper: Encode an integer.
 template <typename T>
 void EncodeInt(std::vector<byte>& bytes, T value) {
-  typedef typename std::make_unsigned<T>::type unsigned_type;
+  using unsigned_type = typename std::make_unsigned<T>::type;
   // Zig-zag encoding.
   static const int kShift = sizeof(T) * kBitsPerByte - 1;
   value = ((static_cast<unsigned_type>(value) << 1) ^ (value >> kShift));

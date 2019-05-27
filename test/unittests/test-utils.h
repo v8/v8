@@ -22,7 +22,7 @@ namespace v8 {
 
 class ArrayBufferAllocator;
 
-typedef std::map<std::string, int> CounterMap;
+using CounterMap = std::map<std::string, int>;
 
 // RAII-like Isolate instance wrapper.
 class IsolateWrapper final {

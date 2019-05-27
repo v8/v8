@@ -49,7 +49,7 @@ class BasicBlockProfiler {
     DISALLOW_COPY_AND_ASSIGN(Data);
   };
 
-  typedef std::list<Data*> DataList;
+  using DataList = std::list<Data*>;
 
   BasicBlockProfiler() = default;
   ~BasicBlockProfiler();

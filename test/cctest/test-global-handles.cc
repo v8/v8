@@ -589,7 +589,7 @@ TEST(GCFromWeakCallbacks) {
   v8::Context::Scope context_scope(context);
 
   static const int kNumberOfGCTypes = 2;
-  typedef v8::WeakCallbackInfo<FlagAndGlobal>::Callback Callback;
+  using Callback = v8::WeakCallbackInfo<FlagAndGlobal>::Callback;
   Callback gc_forcing_callback[kNumberOfGCTypes] = {&ForceScavenge1,
                                                     &ForceMarkSweep1};
 

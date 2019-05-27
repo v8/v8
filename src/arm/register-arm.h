@@ -151,7 +151,7 @@ enum SwVfpRegisterCode {
 // This way, we make sure no registers in the list ever overlap. However, a list
 // may represent multiple different sets of registers,
 // e.g. [d0 s2 s3] <=> [s0 s1 d1].
-typedef uint64_t VfpRegList;
+using VfpRegList = uint64_t;
 
 // Single word VFP register.
 class SwVfpRegister : public RegisterBase<SwVfpRegister, kSwVfpAfterLast> {
@@ -179,7 +179,7 @@ ASSERT_TRIVIALLY_COPYABLE(SwVfpRegister);
 static_assert(sizeof(SwVfpRegister) == sizeof(int),
               "SwVfpRegister can efficiently be passed by value");
 
-typedef SwVfpRegister FloatRegister;
+using FloatRegister = SwVfpRegister;
 
 enum DoubleRegisterCode {
 #define REGISTER_CODE(R) kDoubleCode_##R,
@@ -217,7 +217,7 @@ ASSERT_TRIVIALLY_COPYABLE(DwVfpRegister);
 static_assert(sizeof(DwVfpRegister) == sizeof(int),
               "DwVfpRegister can efficiently be passed by value");
 
-typedef DwVfpRegister DoubleRegister;
+using DoubleRegister = DwVfpRegister;
 
 // Double word VFP register d0-15.
 class LowDwVfpRegister
@@ -272,9 +272,9 @@ class QwNeonRegister : public RegisterBase<QwNeonRegister, kSimd128AfterLast> {
   explicit constexpr QwNeonRegister(int code) : RegisterBase(code) {}
 };
 
-typedef QwNeonRegister QuadRegister;
+using QuadRegister = QwNeonRegister;
 
-typedef QwNeonRegister Simd128Register;
+using Simd128Register = QwNeonRegister;
 
 enum CRegisterCode {
 #define REGISTER_CODE(R) kCCode_##R,

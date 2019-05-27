@@ -143,7 +143,7 @@ double ParseDateTimeString(Isolate* isolate, Handle<String> str) {
 
 enum ToDateStringMode { kDateOnly, kTimeOnly, kDateAndTime };
 
-typedef base::SmallVector<char, 128> DateBuffer;
+using DateBuffer = base::SmallVector<char, 128>;
 
 template <class... Args>
 DateBuffer FormatDate(const char* format, Args... args) {

@@ -20,7 +20,7 @@ class PointerToIndexHashMap
                                        base::KeyEqualityMatcher<intptr_t>,
                                        base::DefaultAllocationPolicy> {
  public:
-  typedef base::TemplateHashMapEntry<uintptr_t, uint32_t> Entry;
+  using Entry = base::TemplateHashMapEntry<uintptr_t, uint32_t>;
 
   inline void Set(Type value, uint32_t index) {
     uintptr_t key = Key(value);

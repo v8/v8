@@ -219,8 +219,8 @@ class TranslatedFrame {
     int input_index_;
   };
 
-  typedef TranslatedValue& reference;
-  typedef TranslatedValue const& const_reference;
+  using reference = TranslatedValue&;
+  using const_reference = TranslatedValue const&;
 
   iterator begin() { return iterator(values_.begin()); }
   iterator end() { return iterator(values_.end()); }
@@ -278,7 +278,7 @@ class TranslatedFrame {
   int return_value_offset_;
   int return_value_count_;
 
-  typedef std::deque<TranslatedValue> ValuesContainer;
+  using ValuesContainer = std::deque<TranslatedValue>;
 
   ValuesContainer values_;
 };
@@ -308,11 +308,11 @@ class TranslatedState {
   // Store newly materialized values into the isolate.
   void StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame);
 
-  typedef std::vector<TranslatedFrame>::iterator iterator;
+  using iterator = std::vector<TranslatedFrame>::iterator;
   iterator begin() { return frames_.begin(); }
   iterator end() { return frames_.end(); }
 
-  typedef std::vector<TranslatedFrame>::const_iterator const_iterator;
+  using const_iterator = std::vector<TranslatedFrame>::const_iterator;
   const_iterator begin() const { return frames_.begin(); }
   const_iterator end() const { return frames_.end(); }
 

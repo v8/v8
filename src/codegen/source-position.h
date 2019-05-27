@@ -142,18 +142,18 @@ class SourcePosition final {
 
   void Print(std::ostream& out, SharedFunctionInfo function) const;
 
-  typedef BitField64<bool, 0, 1> IsExternalField;
+  using IsExternalField = BitField64<bool, 0, 1>;
 
   // The two below are only used if IsExternal() is true.
-  typedef BitField64<int, 1, 20> ExternalLineField;
-  typedef BitField64<int, 21, 10> ExternalFileIdField;
+  using ExternalLineField = BitField64<int, 1, 20>;
+  using ExternalFileIdField = BitField64<int, 21, 10>;
 
   // ScriptOffsetField is only used if IsExternal() is false.
-  typedef BitField64<int, 1, 30> ScriptOffsetField;
+  using ScriptOffsetField = BitField64<int, 1, 30>;
 
   // InliningId is in the high bits for better compression in
   // SourcePositionTable.
-  typedef BitField64<int, 31, 16> InliningIdField;
+  using InliningIdField = BitField64<int, 31, 16>;
 
   // Leaving the highest bit untouched to allow for signed conversion.
   uint64_t value_;

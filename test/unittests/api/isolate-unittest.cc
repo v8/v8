@@ -17,7 +17,7 @@
 
 namespace v8 {
 
-typedef TestWithIsolate IsolateTest;
+using IsolateTest = TestWithIsolate;
 
 namespace {
 

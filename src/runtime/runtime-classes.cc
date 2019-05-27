@@ -400,8 +400,8 @@ bool AddDescriptorsByTemplate(
   Handle<NumberDictionary> elements_dictionary =
       ShallowCopyDictionaryTemplate(isolate, elements_dictionary_template);
 
-  typedef ClassBoilerplate::ValueKind ValueKind;
-  typedef ClassBoilerplate::ComputedEntryFlags ComputedEntryFlags;
+  using ValueKind = ClassBoilerplate::ValueKind;
+  using ComputedEntryFlags = ClassBoilerplate::ComputedEntryFlags;
 
   // Merge computed properties with properties and elements dictionary
   // templates.

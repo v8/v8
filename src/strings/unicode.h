@@ -16,8 +16,8 @@
 
 namespace unibrow {
 
-typedef unsigned int uchar;
-typedef unsigned char byte;
+using uchar = unsigned int;
+using byte = unsigned char;
 
 /**
  * The max length of the result of converting the case of a single
@@ -179,7 +179,7 @@ class V8_EXPORT_PRIVATE Utf8 {
   static const unsigned kMax16BitCodeUnitSize = 3;
   static inline uchar ValueOf(const byte* str, size_t length, size_t* cursor);
 
-  typedef uint32_t Utf8IncrementalBuffer;
+  using Utf8IncrementalBuffer = uint32_t;
   static inline uchar ValueOfIncremental(const byte** cursor, State* state,
                                          Utf8IncrementalBuffer* buffer);
   static uchar ValueOfIncrementalFinish(State* state);

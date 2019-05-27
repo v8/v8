@@ -18,7 +18,7 @@ struct AssemblerOptions;
 
 // ISA constants. --------------------------------------------------------------
 
-typedef uint32_t Instr;
+using Instr = uint32_t;
 
 #if defined(V8_OS_WIN)
 extern "C" {

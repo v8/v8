@@ -11,9 +11,9 @@
 namespace v8 {
 namespace internal {
 
-typedef compiler::Node Node;
-typedef compiler::CodeAssemblerState CodeAssemblerState;
-typedef compiler::CodeAssemblerLabel CodeAssemblerLabel;
+using Node = compiler::Node;
+using CodeAssemblerState = compiler::CodeAssemblerState;
+using CodeAssemblerLabel = compiler::CodeAssemblerLabel;
 
 class ArgumentsBuiltinsAssembler
     : public CodeStubAssembler,

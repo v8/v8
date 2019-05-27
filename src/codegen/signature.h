@@ -105,7 +105,7 @@ class Signature : public ZoneObject {
   const T* reps_;
 };
 
-typedef Signature<MachineType> MachineSignature;
+using MachineSignature = Signature<MachineType>;
 
 template <typename T>
 size_t hash_value(const Signature<T>& sig) {

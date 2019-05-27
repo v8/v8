@@ -97,7 +97,7 @@ class Bootstrapper final {
   void LogAllMaps();
 
   Isolate* isolate_;
-  typedef int NestingCounterType;
+  using NestingCounterType = int;
   NestingCounterType nesting_;
   SourceCodeCache extensions_cache_;
 

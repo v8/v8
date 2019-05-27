@@ -19,7 +19,7 @@ namespace v8 {
 namespace internal {
 
 // Convenience for platform-independent signatures.
-typedef Operand MemOperand;
+using MemOperand = Operand;
 
 class StringConstantBase;
 

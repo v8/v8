@@ -27,8 +27,8 @@ namespace compiler {
 
 namespace {
 
-typedef CodeAssemblerLabel Label;
-typedef CodeAssemblerVariable Variable;
+using Label = CodeAssemblerLabel;
+using Variable = CodeAssemblerVariable;
 
 class TestTorqueAssembler : public CodeStubAssembler,
                             public TorqueGeneratedTestBuiltinsAssembler {

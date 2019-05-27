@@ -114,7 +114,7 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                         TNode<IntPtrT> start,
                                         TNode<IntPtrT> end);
 
-  typedef std::function<void(ElementsKind, int, int)> TypedArraySwitchCase;
+  using TypedArraySwitchCase = std::function<void(ElementsKind, int, int)>;
 
   void DispatchTypedArrayByElementsKind(
       TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);

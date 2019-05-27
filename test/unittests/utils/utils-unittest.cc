@@ -13,16 +13,16 @@ namespace internal {
 template <typename T>
 class UtilsTest : public ::testing::Test {};
 
-typedef ::testing::Types<signed char, unsigned char,
-                         short,                    // NOLINT(runtime/int)
-                         unsigned short,           // NOLINT(runtime/int)
-                         int, unsigned int, long,  // NOLINT(runtime/int)
-                         unsigned long,            // NOLINT(runtime/int)
-                         long long,                // NOLINT(runtime/int)
-                         unsigned long long,       // NOLINT(runtime/int)
-                         int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t,
-                         int64_t, uint64_t>
-    IntegerTypes;
+using IntegerTypes =
+    ::testing::Types<signed char, unsigned char,
+                     short,                    // NOLINT(runtime/int)
+                     unsigned short,           // NOLINT(runtime/int)
+                     int, unsigned int, long,  // NOLINT(runtime/int)
+                     unsigned long,            // NOLINT(runtime/int)
+                     long long,                // NOLINT(runtime/int)
+                     unsigned long long,       // NOLINT(runtime/int)
+                     int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t,
+                     int64_t, uint64_t>;
 
 TYPED_TEST_SUITE(UtilsTest, IntegerTypes);
 

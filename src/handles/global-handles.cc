@@ -763,7 +763,7 @@ void GlobalHandles::SetFinalizationCallbackForTraced(
                                                               callback);
 }
 
-typedef v8::WeakCallbackInfo<void>::Callback GenericCallback;
+using GenericCallback = v8::WeakCallbackInfo<void>::Callback;
 
 void GlobalHandles::MakeWeak(Address* location, void* parameter,
                              GenericCallback phantom_callback,

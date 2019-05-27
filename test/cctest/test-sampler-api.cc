@@ -19,7 +19,7 @@ class Sample {
 
   Sample() = default;
 
-  typedef const void* const* const_iterator;
+  using const_iterator = const void* const*;
   const_iterator begin() const { return data_.begin(); }
   const_iterator end() const { return &data_[data_.length()]; }
 
@@ -100,7 +100,7 @@ class SamplingTestHelper {
     const void* code_start;
     size_t code_len;
   };
-  typedef std::map<const void*, CodeEventEntry> CodeEntries;
+  using CodeEntries = std::map<const void*, CodeEventEntry>;
 
   explicit SamplingTestHelper(const std::string& test_function)
       : sample_is_taken_(false), isolate_(CcTest::isolate()) {

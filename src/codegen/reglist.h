@@ -15,9 +15,9 @@ namespace internal {
 
 // Register configurations.
 #if V8_TARGET_ARCH_ARM64
-typedef uint64_t RegList;
+using RegList = uint64_t;
 #else
-typedef uint32_t RegList;
+using RegList = uint32_t;
 #endif
 
 // Get the number of registers in a given register list.

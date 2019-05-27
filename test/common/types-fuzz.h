@@ -135,8 +135,8 @@ class Types {
 
   Type Integer;
 
-  typedef std::vector<Type> TypeVector;
-  typedef std::vector<Handle<i::Object> > ValueVector;
+  using TypeVector = std::vector<Type>;
+  using ValueVector = std::vector<Handle<i::Object> >;
 
   TypeVector types;
   ValueVector values;

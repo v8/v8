@@ -58,7 +58,7 @@ class FixedStringAllocator final : public StringAllocator {
 template <std::size_t kInlineSize>
 class SmallStringOptimizedAllocator final : public StringAllocator {
  public:
-  typedef base::SmallVector<char, kInlineSize> SmallVector;
+  using SmallVector = base::SmallVector<char, kInlineSize>;
 
   explicit SmallStringOptimizedAllocator(SmallVector* vector) V8_NOEXCEPT
       : vector_(vector) {}

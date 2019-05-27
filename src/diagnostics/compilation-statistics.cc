@@ -113,16 +113,16 @@ std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& ps) {
   // pointers into them.
   const CompilationStatistics& s = ps.s;
 
-  typedef std::vector<CompilationStatistics::PhaseKindMap::const_iterator>
-      SortedPhaseKinds;
+  using SortedPhaseKinds =
+      std::vector<CompilationStatistics::PhaseKindMap::const_iterator>;
   SortedPhaseKinds sorted_phase_kinds(s.phase_kind_map_.size());
   for (auto it = s.phase_kind_map_.begin(); it != s.phase_kind_map_.end();
        ++it) {
     sorted_phase_kinds[it->second.insert_order_] = it;
   }
 
-  typedef std::vector<CompilationStatistics::PhaseMap::const_iterator>
-      SortedPhases;
+  using SortedPhases =
+      std::vector<CompilationStatistics::PhaseMap::const_iterator>;
   SortedPhases sorted_phases(s.phase_map_.size());
   for (auto it = s.phase_map_.begin(); it != s.phase_map_.end(); ++it) {
     sorted_phases[it->second.insert_order_] = it;

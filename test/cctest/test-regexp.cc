@@ -588,8 +588,8 @@ static void Execute(const char* input, bool multiline, bool unicode,
 
 class TestConfig {
  public:
-  typedef int Key;
-  typedef int Value;
+  using Key = int;
+  using Value = int;
   static const int kNoKey;
   static int NoValue() { return 0; }
   static inline int Compare(int a, int b) {
@@ -733,23 +733,23 @@ TEST(ParsePossessiveRepetition) {
 // Tests of interpreter.
 
 #if V8_TARGET_ARCH_IA32
-typedef RegExpMacroAssemblerIA32 ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerIA32;
 #elif V8_TARGET_ARCH_X64
-typedef RegExpMacroAssemblerX64 ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerX64;
 #elif V8_TARGET_ARCH_ARM
-typedef RegExpMacroAssemblerARM ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerARM;
 #elif V8_TARGET_ARCH_ARM64
-typedef RegExpMacroAssemblerARM64 ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerARM64;
 #elif V8_TARGET_ARCH_S390
-typedef RegExpMacroAssemblerS390 ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerS390;
 #elif V8_TARGET_ARCH_PPC
-typedef RegExpMacroAssemblerPPC ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerPPC;
 #elif V8_TARGET_ARCH_MIPS
-typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
 #elif V8_TARGET_ARCH_MIPS64
-typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
 #elif V8_TARGET_ARCH_X87
-typedef RegExpMacroAssemblerX87 ArchRegExpMacroAssembler;
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerX87;
 #endif
 
 class ContextInitializer {

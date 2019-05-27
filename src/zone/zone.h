@@ -216,7 +216,7 @@ class ZoneList final {
   inline T& last() const { return at(length_ - 1); }
   inline T& first() const { return at(0); }
 
-  typedef T* iterator;
+  using iterator = T*;
   inline iterator begin() const { return &data_[0]; }
   inline iterator end() const { return &data_[length_]; }
 
@@ -388,7 +388,7 @@ class ScopedPtrList final {
     end_ += list.length();
   }
 
-  typedef T** iterator;
+  using iterator = T**;
   inline iterator begin() const {
     return reinterpret_cast<T**>(buffer_.data() + start_);
   }
@@ -402,10 +402,10 @@ class ScopedPtrList final {
   size_t end_;
 };
 
-typedef base::PointerTemplateHashMapImpl<ZoneAllocationPolicy> ZoneHashMap;
+using ZoneHashMap = base::PointerTemplateHashMapImpl<ZoneAllocationPolicy>;
 
-typedef base::CustomMatcherTemplateHashMapImpl<ZoneAllocationPolicy>
-    CustomMatcherZoneHashMap;
+using CustomMatcherZoneHashMap =
+    base::CustomMatcherTemplateHashMapImpl<ZoneAllocationPolicy>;
 
 }  // namespace internal
 }  // namespace v8

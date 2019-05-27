@@ -160,7 +160,7 @@ class V8_EXPORT_PRIVATE Operand {
   friend class MacroAssembler;
 };
 
-typedef int32_t Disp;
+using Disp = int32_t;
 
 // Class MemOperand represents a memory operand in load and store instructions
 // On S390, we have various flavours of memory operands:

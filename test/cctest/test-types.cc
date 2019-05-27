@@ -25,11 +25,11 @@ static bool IsInteger(double x) {
   return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
 }
 
-typedef uint32_t bitset;
+using bitset = uint32_t;
 
 struct Tests {
-  typedef Types::TypeVector::iterator TypeIterator;
-  typedef Types::ValueVector::iterator ValueIterator;
+  using TypeIterator = Types::TypeVector::iterator;
+  using ValueIterator = Types::ValueVector::iterator;
 
   Isolate* isolate;
   HandleScope scope;

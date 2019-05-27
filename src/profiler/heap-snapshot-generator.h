@@ -294,7 +294,7 @@ class HeapObjectsMap {
 
 // A typedef for referencing anything that can be snapshotted living
 // in any kind of heap memory.
-typedef void* HeapThing;
+using HeapThing = void*;
 
 // An interface that creates HeapEntries by HeapThings.
 class HeapEntriesAllocator {

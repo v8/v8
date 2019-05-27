@@ -253,8 +253,8 @@ class V8_EXPORT_PRIVATE CpuProfiler {
 
   static void CollectSample(Isolate* isolate);
 
-  typedef v8::CpuProfilingMode ProfilingMode;
-  typedef v8::CpuProfilingNamingMode NamingMode;
+  using ProfilingMode = v8::CpuProfilingMode;
+  using NamingMode = v8::CpuProfilingNamingMode;
 
   base::TimeDelta sampling_interval() const { return base_sampling_interval_; }
   void set_sampling_interval(base::TimeDelta value);

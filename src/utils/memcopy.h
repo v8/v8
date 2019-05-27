@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-typedef uintptr_t Address;
+using Address = uintptr_t;
 
 // ----------------------------------------------------------------------------
 // Generated memcpy/memmove for ia32, arm, and mips.

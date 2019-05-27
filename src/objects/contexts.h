@@ -656,7 +656,7 @@ class Context : public HeapObject {
   DECL_PRINTER(Context)
   DECL_VERIFIER(Context)
 
-  typedef FlexibleBodyDescriptor<kStartOfTaggedFieldsOffset> BodyDescriptor;
+  using BodyDescriptor = FlexibleBodyDescriptor<kStartOfTaggedFieldsOffset>;
 
  private:
 #ifdef DEBUG
@@ -710,7 +710,7 @@ class NativeContext : public Context {
   OBJECT_CONSTRUCTORS(NativeContext, Context);
 };
 
-typedef Context::Field ContextField;
+using ContextField = Context::Field;
 
 }  // namespace internal
 }  // namespace v8

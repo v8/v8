@@ -45,7 +45,7 @@ namespace internal {
 #define CYAN    "36"
 #define WHITE   "37"
 
-typedef char const * const TEXT_COLOUR;
+using TEXT_COLOUR = char const* const;
 TEXT_COLOUR clr_normal         = FLAG_log_colour ? COLOUR(NORMAL)       : "";
 TEXT_COLOUR clr_flag_name      = FLAG_log_colour ? COLOUR_BOLD(WHITE)   : "";
 TEXT_COLOUR clr_flag_value     = FLAG_log_colour ? COLOUR(NORMAL)       : "";
@@ -874,7 +874,7 @@ void Simulator::AddSubWithCarry(Instruction* instr) {
 
 template <typename T>
 T Simulator::ShiftOperand(T value, Shift shift_type, unsigned amount) {
-  typedef typename std::make_unsigned<T>::type unsignedT;
+  using unsignedT = typename std::make_unsigned<T>::type;
 
   if (amount == 0) {
     return value;
@@ -2388,7 +2388,7 @@ void Simulator::DataProcessing2Source(Instruction* instr) {
     }
     case UDIV_w:
     case UDIV_x: {
-      typedef typename std::make_unsigned<T>::type unsignedT;
+      using unsignedT = typename std::make_unsigned<T>::type;
       unsignedT rn = static_cast<unsignedT>(reg<T>(instr->Rn()));
       unsignedT rm = static_cast<unsignedT>(reg<T>(instr->Rm()));
       if (rm == 0) {
@@ -2493,7 +2493,7 @@ void Simulator::VisitDataProcessing3Source(Instruction* instr) {
 
 template <typename T>
 void Simulator::BitfieldHelper(Instruction* instr) {
-  typedef typename std::make_unsigned<T>::type unsignedT;
+  using unsignedT = typename std::make_unsigned<T>::type;
   T reg_size = sizeof(T) * 8;
   T R = instr->ImmR();
   T S = instr->ImmS();

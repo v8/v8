@@ -73,8 +73,8 @@ class V8_EXPORT_PRIVATE Bignum {
   }
 
  private:
-  typedef uint32_t Chunk;
-  typedef uint64_t DoubleChunk;
+  using Chunk = uint32_t;
+  using DoubleChunk = uint64_t;
 
   static const int kChunkSize = sizeof(Chunk) * 8;
   static const int kDoubleChunkSize = sizeof(DoubleChunk) * 8;

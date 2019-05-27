@@ -25,10 +25,9 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
                                        Variable* var_exception,
                                        const char* method_name);
 
-  typedef std::function<void(Node* const context, Node* const promise,
-                             Label* if_exception)>
-      UndefinedMethodHandler;
-  typedef std::function<Node*(Node*)> SyncIteratorNodeGenerator;
+  using UndefinedMethodHandler = std::function<void(
+      Node* const context, Node* const promise, Label* if_exception)>;
+  using SyncIteratorNodeGenerator = std::function<Node*(Node*)>;
   void Generate_AsyncFromSyncIteratorMethod(
       Node* const context, Node* const iterator, Node* const sent_value,
       const SyncIteratorNodeGenerator& get_method,

@@ -7,7 +7,7 @@
 
 namespace {
 
-typedef int Record;
+using Record = int;
 
 }  // namespace
 

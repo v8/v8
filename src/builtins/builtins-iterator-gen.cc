@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-typedef TorqueGeneratedIteratorBuiltinsAssembler::IteratorRecord IteratorRecord;
+using IteratorRecord = TorqueGeneratedIteratorBuiltinsAssembler::IteratorRecord;
 
 using compiler::Node;
 

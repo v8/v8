@@ -422,7 +422,7 @@ class DoExpression final : public Expression {
 
 class Declaration : public AstNode {
  public:
-  typedef base::ThreadedList<Declaration> List;
+  using List = base::ThreadedList<Declaration>;
 
   Variable* var() const { return var_; }
   void set_var(Variable* var) { var_ = var; }
@@ -1300,7 +1300,7 @@ class ObjectLiteralProperty final : public LiteralProperty {
 // for minimizing the work when constructing it at runtime.
 class ObjectLiteral final : public AggregateLiteral {
  public:
-  typedef ObjectLiteralProperty Property;
+  using Property = ObjectLiteralProperty;
 
   Handle<ObjectBoilerplateDescription> boilerplate_description() const {
     DCHECK(!boilerplate_description_.is_null());
@@ -2459,7 +2459,7 @@ class ClassLiteralProperty final : public LiteralProperty {
 
 class InitializeClassMembersStatement final : public Statement {
  public:
-  typedef ClassLiteralProperty Property;
+  using Property = ClassLiteralProperty;
 
   ZonePtrList<Property>* fields() const { return fields_; }
 
@@ -2474,7 +2474,7 @@ class InitializeClassMembersStatement final : public Statement {
 
 class ClassLiteral final : public Expression {
  public:
-  typedef ClassLiteralProperty Property;
+  using Property = ClassLiteralProperty;
 
   ClassScope* scope() const { return scope_; }
   Variable* class_variable() const { return class_variable_; }

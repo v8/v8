@@ -31,14 +31,14 @@ namespace GDBJITInterface {
 #define __MACH_O
 class MachO;
 class MachOSection;
-typedef MachO DebugObject;
-typedef MachOSection DebugSection;
+using DebugObject = MachO;
+using DebugSection = MachOSection;
 #else
 #define __ELF
 class ELF;
 class ELFSection;
-typedef ELF DebugObject;
-typedef ELFSection DebugSection;
+using DebugObject = ELF;
+using DebugSection = ELFSection;
 #endif
 
 class Writer {
@@ -183,7 +183,7 @@ class DebugSectionBase : public ZoneObject {
 
   virtual bool WriteBodyInternal(Writer* writer) { return false; }
 
-  typedef THeader Header;
+  using Header = THeader;
 };
 
 struct MachOSectionHeader {
@@ -1823,8 +1823,8 @@ struct AddressRange {
 };
 
 struct SplayTreeConfig {
-  typedef AddressRange Key;
-  typedef JITCodeEntry* Value;
+  using Key = AddressRange;
+  using Value = JITCodeEntry*;
   static const AddressRange kNoKey;
   static Value NoValue() { return nullptr; }
   static int Compare(const AddressRange& a, const AddressRange& b) {
@@ -1836,7 +1836,7 @@ struct SplayTreeConfig {
 };
 
 const AddressRange SplayTreeConfig::kNoKey = {0, 0};
-typedef SplayTree<SplayTreeConfig> CodeMap;
+using CodeMap = SplayTree<SplayTreeConfig>;
 
 static CodeMap* GetCodeMap() {
   static CodeMap* code_map = nullptr;

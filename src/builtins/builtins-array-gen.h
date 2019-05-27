@@ -14,14 +14,13 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit ArrayBuiltinsAssembler(compiler::CodeAssemblerState* state);
 
-  typedef std::function<void(ArrayBuiltinsAssembler* masm)>
-      BuiltinResultGenerator;
+  using BuiltinResultGenerator =
+      std::function<void(ArrayBuiltinsAssembler* masm)>;
 
-  typedef std::function<Node*(ArrayBuiltinsAssembler* masm, Node* k_value,
-                              Node* k)>
-      CallResultProcessor;
+  using CallResultProcessor = std::function<Node*(ArrayBuiltinsAssembler* masm,
+                                                  Node* k_value, Node* k)>;
 
-  typedef std::function<void(ArrayBuiltinsAssembler* masm)> PostLoopAction;
+  using PostLoopAction = std::function<void(ArrayBuiltinsAssembler* masm)>;
 
   void FindResultGenerator();
 

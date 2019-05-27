@@ -20,7 +20,7 @@ class PerfettoTracingController;
 
 class PerfettoProducer final : public ::perfetto::Producer {
  public:
-  typedef ::perfetto::TracingService::ProducerEndpoint ServiceEndpoint;
+  using ServiceEndpoint = ::perfetto::TracingService::ProducerEndpoint;
 
   explicit PerfettoProducer(PerfettoTracingController* tracing_controller);
 

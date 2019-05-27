@@ -92,11 +92,11 @@ class XMMRegister : public RegisterBase<XMMRegister, kDoubleAfterLast> {
   explicit constexpr XMMRegister(int code) : RegisterBase(code) {}
 };
 
-typedef XMMRegister FloatRegister;
+using FloatRegister = XMMRegister;
 
-typedef XMMRegister DoubleRegister;
+using DoubleRegister = XMMRegister;
 
-typedef XMMRegister Simd128Register;
+using Simd128Register = XMMRegister;
 
 #define DEFINE_REGISTER(R) \
   constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();

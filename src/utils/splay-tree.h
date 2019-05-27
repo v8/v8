@@ -29,8 +29,8 @@ namespace internal {
 template <typename Config, class AllocationPolicy>
 class SplayTree {
  public:
-  typedef typename Config::Key Key;
-  typedef typename Config::Value Value;
+  using Key = typename Config::Key;
+  using Value = typename Config::Value;
 
   class Locator;
 

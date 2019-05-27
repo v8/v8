@@ -434,7 +434,7 @@ class ProfilerHelper {
     profiler_->Dispose();
   }
 
-  typedef v8::CpuProfilingMode ProfilingMode;
+  using ProfilingMode = v8::CpuProfilingMode;
 
   v8::CpuProfile* Run(
       v8::Local<v8::Function> function, v8::Local<v8::Value> argv[], int argc,

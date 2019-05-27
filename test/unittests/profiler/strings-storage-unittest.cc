@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-typedef TestWithIsolate StringsStorageWithIsolate;
+using StringsStorageWithIsolate = TestWithIsolate;
 
 bool StringEq(const char* left, const char* right) {
   return strcmp(left, right) == 0;

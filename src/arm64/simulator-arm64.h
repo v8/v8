@@ -372,8 +372,8 @@ class SimRegisterBase {
   void NotifyRegisterWrite() { written_since_last_log_ = true; }
 };
 
-typedef SimRegisterBase<kXRegSize> SimRegister;   // r0-r31
-typedef SimRegisterBase<kQRegSize> SimVRegister;  // v0-v31
+using SimRegister = SimRegisterBase<kXRegSize>;   // r0-r31
+using SimVRegister = SimRegisterBase<kQRegSize>;  // v0-v31
 
 // Representation of a vector register, with typed getters and setters for lanes
 // and additional information to represent lane state.

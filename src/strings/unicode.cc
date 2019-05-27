@@ -27,9 +27,9 @@ static const uchar kSentinel = static_cast<uchar>(-1);
  * Implementations of functions for working with Unicode.
  */
 
-typedef signed short int16_t;     // NOLINT
-typedef unsigned short uint16_t;  // NOLINT
-typedef int int32_t;              // NOLINT
+using int16_t = signed short;     // NOLINT
+using uint16_t = unsigned short;  // NOLINT
+using int32_t = int;              // NOLINT
 
 #ifndef V8_INTL_SUPPORT
 // All access to the character table should go through this function.

@@ -19,8 +19,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef v8::internal::compiler::Instruction TestInstr;
-typedef v8::internal::compiler::InstructionSequence TestInstrSeq;
+using TestInstr = v8::internal::compiler::Instruction;
+using TestInstrSeq = v8::internal::compiler::InstructionSequence;
 
 // A testing helper for the register code abstraction.
 class InstructionTester : public HandleAndZoneScope {

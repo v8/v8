@@ -4608,7 +4608,7 @@ Local<v8::Object> NewObjectForIntKey(
 template <typename K, typename V>
 class PhantomStdMapTraits : public v8::StdMapTraits<K, V> {
  public:
-  typedef typename v8::GlobalValueMap<K, V, PhantomStdMapTraits<K, V>> MapType;
+  using MapType = typename v8::GlobalValueMap<K, V, PhantomStdMapTraits<K, V>>;
   static const v8::PersistentContainerCallbackType kCallbackType =
       v8::kWeakWithInternalFields;
   struct WeakCallbackDataType {
@@ -4719,8 +4719,8 @@ TEST(GlobalValueMap) {
   TestGlobalValueMap<v8::StdGlobalValueMap<int, v8::Object>>();
 
   // Custom traits with weak callbacks:
-  typedef v8::GlobalValueMap<int, v8::Object,
-                             PhantomStdMapTraits<int, v8::Object>> WeakMap;
+  using WeakMap =
+      v8::GlobalValueMap<int, v8::Object, PhantomStdMapTraits<int, v8::Object>>;
   TestGlobalValueMap<WeakMap>();
 }
 
@@ -8289,7 +8289,7 @@ THREADED_TEST(GCFromWeakCallbacks) {
   Context::Scope context_scope(context);
 
   static const int kNumberOfGCTypes = 2;
-  typedef v8::WeakCallbackInfo<FlagAndPersistent>::Callback Callback;
+  using Callback = v8::WeakCallbackInfo<FlagAndPersistent>::Callback;
   Callback gc_forcing_callback[kNumberOfGCTypes] = {&ForceScavenge1,
                                                     &ForceMarkSweep1};
 
@@ -13683,8 +13683,8 @@ TEST(CopyablePersistent) {
   i::GlobalHandles* globals =
       reinterpret_cast<i::Isolate*>(isolate)->global_handles();
   size_t initial_handles = globals->handles_count();
-  typedef v8::Persistent<v8::Object, v8::CopyablePersistentTraits<v8::Object> >
-      CopyableObject;
+  using CopyableObject =
+      v8::Persistent<v8::Object, v8::CopyablePersistentTraits<v8::Object>>;
   {
     CopyableObject handle1;
     {

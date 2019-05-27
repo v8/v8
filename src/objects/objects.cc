@@ -2847,7 +2847,7 @@ static int AppendUniqueCallbacks(Isolate* isolate,
 }
 
 struct FixedArrayAppender {
-  typedef FixedArray Array;
+  using Array = FixedArray;
   static bool Contains(Handle<Name> key, Handle<AccessorInfo> entry,
                        int valid_descriptors, Handle<FixedArray> array) {
     for (int i = 0; i < valid_descriptors; i++) {

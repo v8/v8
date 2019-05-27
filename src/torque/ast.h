@@ -739,7 +739,7 @@ struct LabelAndTypes {
   std::vector<TypeExpression*> types;
 };
 
-typedef std::vector<LabelAndTypes> LabelAndTypesVector;
+using LabelAndTypesVector = std::vector<LabelAndTypes>;
 
 struct CallableNodeSignature {
   ParameterList parameters;

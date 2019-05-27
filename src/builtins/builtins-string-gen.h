@@ -62,9 +62,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void GenerateStringRelationalComparison(Node* context, Node* left,
                                           Node* right, Operation op);
 
-  typedef std::function<TNode<Object>(
-      TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>
-      StringAtAccessor;
+  using StringAtAccessor = std::function<TNode<Object>(
+      TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>;
 
   void StringIndexOf(Node* const subject_string, Node* const search_string,
                      Node* const position,
@@ -96,8 +95,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   //
   // Contains fast paths for Smi and RegExp objects.
   // Important: {regexp_call} may not contain any code that can call into JS.
-  typedef std::function<void()> NodeFunction0;
-  typedef std::function<void(Node* fn)> NodeFunction1;
+  using NodeFunction0 = std::function<void()>;
+  using NodeFunction1 = std::function<void(Node* fn)>;
   void MaybeCallFunctionAtSymbol(Node* const context, Node* const object,
                                  Node* const maybe_string,
                                  Handle<Symbol> symbol,

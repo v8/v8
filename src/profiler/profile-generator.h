@@ -234,7 +234,7 @@ struct CodeEntryAndLineNumber {
   int line_number;
 };
 
-typedef std::vector<CodeEntryAndLineNumber> ProfileStackTrace;
+using ProfileStackTrace = std::vector<CodeEntryAndLineNumber>;
 
 class ProfileTree;
 
@@ -311,7 +311,7 @@ class V8_EXPORT_PRIVATE ProfileTree {
   explicit ProfileTree(Isolate* isolate);
   ~ProfileTree();
 
-  typedef v8::CpuProfilingMode ProfilingMode;
+  using ProfilingMode = v8::CpuProfilingMode;
 
   ProfileNode* AddPathFromEnd(
       const std::vector<CodeEntry*>& path,

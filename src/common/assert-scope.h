@@ -119,16 +119,16 @@ class PerIsolateAssertScopeDebugOnly {
 // Per-thread assert scopes.
 
 // Scope to document where we do not expect handles to be created.
-typedef PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, false>
-    DisallowHandleAllocation;
+using DisallowHandleAllocation =
+    PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, false>;
 
 // Scope to introduce an exception to DisallowHandleAllocation.
-typedef PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, true>
-    AllowHandleAllocation;
+using AllowHandleAllocation =
+    PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, true>;
 
 // Scope to document where we do not expect any allocation and GC.
-typedef PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, false>
-    DisallowHeapAllocation;
+using DisallowHeapAllocation =
+    PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, false>;
 #ifdef DEBUG
 #define DISALLOW_HEAP_ALLOCATION(name) DisallowHeapAllocation name;
 #else
@@ -136,32 +136,32 @@ typedef PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, false>
 #endif
 
 // Scope to introduce an exception to DisallowHeapAllocation.
-typedef PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, true>
-    AllowHeapAllocation;
+using AllowHeapAllocation =
+    PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, true>;
 
 // Scope to document where we do not expect any handle dereferences.
-typedef PerThreadAssertScopeDebugOnly<HANDLE_DEREFERENCE_ASSERT, false>
-    DisallowHandleDereference;
+using DisallowHandleDereference =
+    PerThreadAssertScopeDebugOnly<HANDLE_DEREFERENCE_ASSERT, false>;
 
 // Scope to introduce an exception to DisallowHandleDereference.
-typedef PerThreadAssertScopeDebugOnly<HANDLE_DEREFERENCE_ASSERT, true>
-    AllowHandleDereference;
+using AllowHandleDereference =
+    PerThreadAssertScopeDebugOnly<HANDLE_DEREFERENCE_ASSERT, true>;
 
 // Scope to document where we do not expect deferred handles to be dereferenced.
-typedef PerThreadAssertScopeDebugOnly<DEFERRED_HANDLE_DEREFERENCE_ASSERT, false>
-    DisallowDeferredHandleDereference;
+using DisallowDeferredHandleDereference =
+    PerThreadAssertScopeDebugOnly<DEFERRED_HANDLE_DEREFERENCE_ASSERT, false>;
 
 // Scope to introduce an exception to DisallowDeferredHandleDereference.
-typedef PerThreadAssertScopeDebugOnly<DEFERRED_HANDLE_DEREFERENCE_ASSERT, true>
-    AllowDeferredHandleDereference;
+using AllowDeferredHandleDereference =
+    PerThreadAssertScopeDebugOnly<DEFERRED_HANDLE_DEREFERENCE_ASSERT, true>;
 
 // Scope to document where we do not expect deferred handles to be dereferenced.
-typedef PerThreadAssertScopeDebugOnly<CODE_DEPENDENCY_CHANGE_ASSERT, false>
-    DisallowCodeDependencyChange;
+using DisallowCodeDependencyChange =
+    PerThreadAssertScopeDebugOnly<CODE_DEPENDENCY_CHANGE_ASSERT, false>;
 
 // Scope to introduce an exception to DisallowDeferredHandleDereference.
-typedef PerThreadAssertScopeDebugOnly<CODE_DEPENDENCY_CHANGE_ASSERT, true>
-    AllowCodeDependencyChange;
+using AllowCodeDependencyChange =
+    PerThreadAssertScopeDebugOnly<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
 
 class DisallowHeapAccess {
   DisallowCodeDependencyChange no_dependency_change_;
@@ -183,60 +183,60 @@ class DisallowHeapAccessIf {
 // Per-isolate assert scopes.
 
 // Scope to document where we do not expect javascript execution.
-typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>
-    DisallowJavascriptExecution;
+using DisallowJavascriptExecution =
+    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
 
 // Scope to introduce an exception to DisallowJavascriptExecution.
-typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>
-    AllowJavascriptExecution;
+using AllowJavascriptExecution =
+    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;
 
 // Scope to document where we do not expect javascript execution (debug only)
-typedef PerIsolateAssertScopeDebugOnly<JAVASCRIPT_EXECUTION_ASSERT, false>
-    DisallowJavascriptExecutionDebugOnly;
+using DisallowJavascriptExecutionDebugOnly =
+    PerIsolateAssertScopeDebugOnly<JAVASCRIPT_EXECUTION_ASSERT, false>;
 
 // Scope to introduce an exception to DisallowJavascriptExecutionDebugOnly.
-typedef PerIsolateAssertScopeDebugOnly<JAVASCRIPT_EXECUTION_ASSERT, true>
-    AllowJavascriptExecutionDebugOnly;
+using AllowJavascriptExecutionDebugOnly =
+    PerIsolateAssertScopeDebugOnly<JAVASCRIPT_EXECUTION_ASSERT, true>;
 
 // Scope in which javascript execution leads to exception being thrown.
-typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>
-    ThrowOnJavascriptExecution;
+using ThrowOnJavascriptExecution =
+    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>;
 
 // Scope to introduce an exception to ThrowOnJavascriptExecution.
-typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>
-    NoThrowOnJavascriptExecution;
+using NoThrowOnJavascriptExecution =
+    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>;
 
 // Scope in which javascript execution causes dumps.
-typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, false>
-    DumpOnJavascriptExecution;
+using DumpOnJavascriptExecution =
+    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, false>;
 
 // Scope in which javascript execution causes dumps.
-typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, true>
-    NoDumpOnJavascriptExecution;
+using NoDumpOnJavascriptExecution =
+    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, true>;
 
 // Scope to document where we do not expect deoptimization.
-typedef PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, false>
-    DisallowDeoptimization;
+using DisallowDeoptimization =
+    PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, false>;
 
 // Scope to introduce an exception to DisallowDeoptimization.
-typedef PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, true>
-    AllowDeoptimization;
+using AllowDeoptimization =
+    PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, true>;
 
 // Scope to document where we do not expect deoptimization.
-typedef PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, false>
-    DisallowCompilation;
+using DisallowCompilation =
+    PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, false>;
 
 // Scope to introduce an exception to DisallowDeoptimization.
-typedef PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, true>
-    AllowCompilation;
+using AllowCompilation =
+    PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, true>;
 
 // Scope to document where we do not expect exceptions.
-typedef PerIsolateAssertScopeDebugOnly<NO_EXCEPTION_ASSERT, false>
-    DisallowExceptions;
+using DisallowExceptions =
+    PerIsolateAssertScopeDebugOnly<NO_EXCEPTION_ASSERT, false>;
 
 // Scope to introduce an exception to DisallowExceptions.
-typedef PerIsolateAssertScopeDebugOnly<NO_EXCEPTION_ASSERT, true>
-    AllowExceptions;
+using AllowExceptions =
+    PerIsolateAssertScopeDebugOnly<NO_EXCEPTION_ASSERT, true>;
 
 // Explicit instantiation declarations.
 extern template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, false>;

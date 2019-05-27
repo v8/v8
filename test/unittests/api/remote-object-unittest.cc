@@ -13,7 +13,7 @@
 namespace v8 {
 namespace remote_object_unittest {
 
-typedef TestWithIsolate RemoteObjectTest;
+using RemoteObjectTest = TestWithIsolate;
 
 namespace {
 

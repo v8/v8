@@ -116,7 +116,7 @@ enum Where { AT_START, AT_END };
 template <ElementsKind Kind>
 class ElementsKindTraits {
  public:
-  typedef FixedArrayBase BackingStore;
+  using BackingStore = FixedArrayBase;
 };
 
 #define ELEMENTS_TRAITS(Class, KindParam, Store)    \
@@ -124,7 +124,7 @@ class ElementsKindTraits {
   class ElementsKindTraits<KindParam> {             \
    public: /* NOLINT */                             \
     static constexpr ElementsKind Kind = KindParam; \
-    typedef Store BackingStore;                     \
+    using BackingStore = Store;                     \
   };                                                \
   constexpr ElementsKind ElementsKindTraits<KindParam>::Kind;
 ELEMENTS_LIST(ELEMENTS_TRAITS)
@@ -570,8 +570,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
  public:
   ElementsAccessorBase() = default;
 
-  typedef ElementsTraitsParam ElementsTraits;
-  typedef typename ElementsTraitsParam::BackingStore BackingStore;
+  using ElementsTraits = ElementsTraitsParam;
+  using BackingStore = typename ElementsTraitsParam::BackingStore;
 
   static ElementsKind kind() { return ElementsTraits::Kind; }
 
@@ -1888,7 +1888,7 @@ class DictionaryElementsAccessor
 template <typename Subclass, typename KindTraits>
 class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
  public:
-  typedef typename KindTraits::BackingStore BackingStore;
+  using BackingStore = typename KindTraits::BackingStore;
 
   static Handle<NumberDictionary> NormalizeImpl(Handle<JSObject> object,
                                                 Handle<FixedArrayBase> store) {
@@ -2605,7 +2605,7 @@ template <typename Subclass, typename KindTraits>
 class FastSealedObjectElementsAccessor
     : public FastSmiOrObjectElementsAccessor<Subclass, KindTraits> {
  public:
-  typedef typename KindTraits::BackingStore BackingStore;
+  using BackingStore = typename KindTraits::BackingStore;
 
   static Handle<Object> RemoveElement(Handle<JSArray> receiver,
                                       Where remove_position) {
@@ -2699,7 +2699,7 @@ template <typename Subclass, typename KindTraits>
 class FastFrozenObjectElementsAccessor
     : public FastSmiOrObjectElementsAccessor<Subclass, KindTraits> {
  public:
-  typedef typename KindTraits::BackingStore BackingStore;
+  using BackingStore = typename KindTraits::BackingStore;
 
   static inline void SetImpl(Handle<JSObject> holder, uint32_t entry,
                              Object value) {
@@ -2910,8 +2910,8 @@ class TypedElementsAccessor
     : public ElementsAccessorBase<TypedElementsAccessor<Kind, ctype>,
                                   ElementsKindTraits<Kind>> {
  public:
-  typedef typename ElementsKindTraits<Kind>::BackingStore BackingStore;
-  typedef TypedElementsAccessor<Kind, ctype> AccessorClass;
+  using BackingStore = typename ElementsKindTraits<Kind>::BackingStore;
+  using AccessorClass = TypedElementsAccessor<Kind, ctype>;
 
   static inline void SetImpl(Handle<JSObject> holder, uint32_t entry,
                              Object value) {
@@ -3587,8 +3587,8 @@ class TypedElementsAccessor
 };
 
 #define FIXED_ELEMENTS_ACCESSOR(Type, type, TYPE, ctype) \
-  typedef TypedElementsAccessor<TYPE##_ELEMENTS, ctype>  \
-      Fixed##Type##ElementsAccessor;
+  using Fixed##Type##ElementsAccessor =                  \
+      TypedElementsAccessor<TYPE##_ELEMENTS, ctype>;
 
 TYPED_ARRAYS(FIXED_ELEMENTS_ACCESSOR)
 #undef FIXED_ELEMENTS_ACCESSOR

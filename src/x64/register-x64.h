@@ -169,11 +169,11 @@ ASSERT_TRIVIALLY_COPYABLE(XMMRegister);
 static_assert(sizeof(XMMRegister) == sizeof(int),
               "XMMRegister can efficiently be passed by value");
 
-typedef XMMRegister FloatRegister;
+using FloatRegister = XMMRegister;
 
-typedef XMMRegister DoubleRegister;
+using DoubleRegister = XMMRegister;
 
-typedef XMMRegister Simd128Register;
+using Simd128Register = XMMRegister;
 
 #define DECLARE_REGISTER(R) \
   constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();

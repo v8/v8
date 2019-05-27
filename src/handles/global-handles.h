@@ -241,7 +241,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
 class GlobalHandles::PendingPhantomCallback final {
  public:
-  typedef v8::WeakCallbackInfo<void> Data;
+  using Data = v8::WeakCallbackInfo<void>;
 
   enum InvocationType { kFirstPass, kSecondPass };
 

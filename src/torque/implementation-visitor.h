@@ -529,7 +529,7 @@ class ImplementationVisitor {
   void GenerateBranch(const VisitResult& condition, Block* true_block,
                       Block* false_block);
 
-  typedef std::function<VisitResult()> VisitResultGenerator;
+  using VisitResultGenerator = std::function<VisitResult()>;
   void GenerateExpressionBranch(VisitResultGenerator, Block* true_block,
                                 Block* false_block);
   void GenerateExpressionBranch(Expression* expression, Block* true_block,

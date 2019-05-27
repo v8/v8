@@ -860,7 +860,7 @@ void Assembler::DeleteUnresolvedBranchInfoForLabelTraverse(Label* label) {
       int max_reachable_pc =
           static_cast<int>(InstructionOffset(link) +
                            Instruction::ImmBranchRange(link->BranchType()));
-      typedef std::multimap<int, FarBranchInfo>::iterator unresolved_info_it;
+      using unresolved_info_it = std::multimap<int, FarBranchInfo>::iterator;
       std::pair<unresolved_info_it, unresolved_info_it> range;
       range = unresolved_branches_.equal_range(max_reachable_pc);
       unresolved_info_it it;

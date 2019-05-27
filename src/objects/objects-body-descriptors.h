@@ -123,7 +123,7 @@ class FlexibleBodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map map, HeapObject object);
 };
 
-typedef FlexibleBodyDescriptor<HeapObject::kHeaderSize> StructBodyDescriptor;
+using StructBodyDescriptor = FlexibleBodyDescriptor<HeapObject::kHeaderSize>;
 
 template <int start_offset>
 class FlexibleWeakBodyDescriptor final : public BodyDescriptorBase {

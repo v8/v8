@@ -60,7 +60,7 @@ class AsmOverloadedFunctionType;
 
 class AsmValueType {
  public:
-  typedef uint32_t bitset_t;
+  using bitset_t = uint32_t;
 
   enum : uint32_t {
 #define DEFINE_TAG(CamelName, string_name, number, parent_types) \

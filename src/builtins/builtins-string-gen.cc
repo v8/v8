@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-typedef compiler::Node Node;
+using Node = compiler::Node;
 template <class T>
 using TNode = compiler::TNode<T>;
 
@@ -748,8 +748,8 @@ void StringBuiltinsAssembler::StringIndexOf(
                             search_to_direct.instance_type(), &one_one,
                             &one_two, &two_one, &two_two);
 
-  typedef const uint8_t onebyte_t;
-  typedef const uc16 twobyte_t;
+  using onebyte_t = const uint8_t;
+  using twobyte_t = const uc16;
 
   BIND(&one_one);
   {

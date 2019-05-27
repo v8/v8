@@ -49,7 +49,7 @@ class SamplingHeapProfiler {
  public:
   class AllocationNode {
    public:
-    typedef uint64_t FunctionId;
+    using FunctionId = uint64_t;
     AllocationNode(AllocationNode* parent, const char* name, int script_id,
                    int start_position, uint32_t id)
         : parent_(parent),

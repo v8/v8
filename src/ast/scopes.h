@@ -30,8 +30,8 @@ class Statement;
 class StringSet;
 class VariableProxy;
 
-typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
-    UnresolvedList;
+using UnresolvedList =
+    base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>;
 
 // A hash map to support fast variable declaration and lookup.
 class VariableMap : public ZoneHashMap {

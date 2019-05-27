@@ -12,7 +12,7 @@
 
 namespace v8 {
 
-typedef double async_id_t;
+using async_id_t = double;
 
 struct AsyncContext {
   async_id_t execution_async_id;

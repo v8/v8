@@ -5290,7 +5290,7 @@ void v8::String::VerifyExternalStringResourceBase(
 
 String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
   i::DisallowHeapAllocation no_allocation;
-  typedef internal::Internals I;
+  using I = internal::Internals;
   i::String str = *Utils::OpenHandle(this);
 
   if (str.IsThinString()) {
@@ -5307,7 +5307,7 @@ String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
 String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
     String::Encoding* encoding_out) const {
   i::DisallowHeapAllocation no_allocation;
-  typedef internal::Internals I;
+  using I = internal::Internals;
   ExternalStringResourceBase* resource = nullptr;
   i::String str = *Utils::OpenHandle(this);
 

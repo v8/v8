@@ -259,7 +259,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     }
   };
 
-  typedef std::vector<InlinedFunctionHolder> InlinedFunctionList;
+  using InlinedFunctionList = std::vector<InlinedFunctionHolder>;
   InlinedFunctionList& inlined_functions() { return inlined_functions_; }
 
   // Returns the inlining id for source position tracking.

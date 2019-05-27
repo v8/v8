@@ -5009,7 +5009,7 @@ void Simulator::DecodeTypeMsaELM() {
 
 template <typename T>
 T Simulator::MsaBitInstrHelper(uint32_t opcode, T wd, T ws, int32_t m) {
-  typedef typename std::make_unsigned<T>::type uT;
+  using uT = typename std::make_unsigned<T>::type;
   T res;
   switch (opcode) {
     case SLLI:
@@ -5202,7 +5202,7 @@ void Simulator::DecodeTypeMsaMI10() {
 
 template <typename T>
 T Simulator::Msa3RInstrHelper(uint32_t opcode, T wd, T ws, T wt) {
-  typedef typename std::make_unsigned<T>::type uT;
+  using uT = typename std::make_unsigned<T>::type;
   T res;
   int wt_modulo = wt % (sizeof(T) * 8);
   switch (opcode) {
@@ -5482,8 +5482,8 @@ template <typename T_int, typename T_smaller_int, typename T_reg>
 void Msa3RInstrHelper_horizontal(const uint32_t opcode, T_reg ws, T_reg wt,
                                  T_reg wd, const int i,
                                  const int num_of_lanes) {
-  typedef typename std::make_unsigned<T_int>::type T_uint;
-  typedef typename std::make_unsigned<T_smaller_int>::type T_smaller_uint;
+  using T_uint = typename std::make_unsigned<T_int>::type;
+  using T_smaller_uint = typename std::make_unsigned<T_smaller_int>::type;
   T_int* wd_p;
   T_smaller_int *ws_p, *wt_p;
   ws_p = reinterpret_cast<T_smaller_int*>(ws);
@@ -5776,8 +5776,8 @@ void Msa3RFInstrHelper(uint32_t opcode, T_reg ws, T_reg wt, T_reg& wd) {
 
 template <typename T_int, typename T_int_dbl, typename T_reg>
 void Msa3RFInstrHelper2(uint32_t opcode, T_reg ws, T_reg wt, T_reg& wd) {
-  // typedef typename std::make_unsigned<T_int>::type T_uint;
-  typedef typename std::make_unsigned<T_int_dbl>::type T_uint_dbl;
+  //  using T_uint = typename std::make_unsigned<T_int>::type;
+  using T_uint_dbl = typename std::make_unsigned<T_int_dbl>::type;
   const T_int max_int = std::numeric_limits<T_int>::max();
   const T_int min_int = std::numeric_limits<T_int>::min();
   const int shift = kBitsPerByte * sizeof(T_int) - 1;
@@ -6229,7 +6229,7 @@ static inline bool isSnan(double fp) { return !QUIET_BIT_D(fp); }
 template <typename T_int, typename T_fp, typename T_src, typename T_dst>
 T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst& dst,
                         Simulator* sim) {
-  typedef typename std::make_unsigned<T_int>::type T_uint;
+  using T_uint = typename std::make_unsigned<T_int>::type;
   switch (opcode) {
     case FCLASS: {
 #define SNAN_BIT BIT(0)
@@ -6414,7 +6414,7 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst& dst,
       dst = bit_cast<T_int>(static_cast<T_fp>(src));
       break;
     case FFINT_U:
-      typedef typename std::make_unsigned<T_src>::type uT_src;
+      using uT_src = typename std::make_unsigned<T_src>::type;
       dst = bit_cast<T_int>(static_cast<T_fp>(bit_cast<uT_src>(src)));
       break;
     default:

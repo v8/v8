@@ -9,7 +9,7 @@
 
 namespace disasm {
 
-typedef unsigned char byte;
+using byte = unsigned char;
 
 // Interface and default implementation for converting addresses and
 // register-numbers to text.  The default implementation is machine

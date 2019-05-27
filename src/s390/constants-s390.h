@@ -147,10 +147,10 @@ inline Condition NegateCondition(Condition cond) {
 // representing instructions from usual 32 bit values.
 // Instruction objects are pointers to 32bit values, and provide methods to
 // access the various ISA fields.
-typedef int32_t Instr;
-typedef uint16_t TwoByteInstr;
-typedef uint32_t FourByteInstr;
-typedef uint64_t SixByteInstr;
+using Instr = int32_t;
+using TwoByteInstr = uint16_t;
+using FourByteInstr = uint32_t;
+using SixByteInstr = uint64_t;
 
 #define S390_RSY_A_OPCODE_LIST(V)                                              \
   V(lmg, LMG, 0xEB04)     /* type = RSY_A LOAD MULTIPLE (64)  */               \

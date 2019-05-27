@@ -99,7 +99,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
     // untagged stack arguments.
     kNoStackScan = 1u << 1,
   };
-  typedef base::Flags<Flag> Flags;
+  using Flags = base::Flags<Flag>;
 
   CallInterfaceDescriptorData() = default;
 
@@ -225,7 +225,7 @@ class V8_EXPORT_PRIVATE CallDescriptors : public AllStatic {
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
  public:
-  typedef CallInterfaceDescriptorData::Flags Flags;
+  using Flags = CallInterfaceDescriptorData::Flags;
 
   CallInterfaceDescriptor() : data_(nullptr) {}
   virtual ~CallInterfaceDescriptor() = default;
@@ -485,10 +485,10 @@ class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
 
 // Dummy descriptor used to mark builtins that don't yet have their proper
 // descriptor associated.
-typedef VoidDescriptor DummyDescriptor;
+using DummyDescriptor = VoidDescriptor;
 
 // Dummy descriptor that marks builtins with C calling convention.
-typedef VoidDescriptor CCallDescriptor;
+using CCallDescriptor = VoidDescriptor;
 
 class AllocateDescriptor : public CallInterfaceDescriptor {
  public:

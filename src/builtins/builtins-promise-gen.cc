@@ -18,7 +18,7 @@
 namespace v8 {
 namespace internal {
 
-typedef compiler::Node Node;
+using Node = compiler::Node;
 template <class T>
 using TNode = CodeStubAssembler::TNode<T>;
 using IteratorRecord = IteratorBuiltinsAssembler::IteratorRecord;

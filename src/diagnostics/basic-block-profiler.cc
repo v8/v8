@@ -78,7 +78,7 @@ void BasicBlockProfiler::ResetCounts() {
 
 std::ostream& operator<<(std::ostream& os, const BasicBlockProfiler& p) {
   os << "---- Start Profiling Data ----" << std::endl;
-  typedef BasicBlockProfiler::DataList::const_iterator iterator;
+  using iterator = BasicBlockProfiler::DataList::const_iterator;
   for (iterator i = p.data_list_.begin(); i != p.data_list_.end(); ++i) {
     os << **i;
   }

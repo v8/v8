@@ -215,7 +215,7 @@ class ConstPool {
   void EmitGuard();
   void EmitEntries();
 
-  typedef std::map<uint64_t, int> SharedEntryMap;
+  using SharedEntryMap = std::map<uint64_t, int>;
   // Adds a shared entry to entries_, using 'entry_map' to determine whether we
   // already track this entry. Returns true if this is the first time we add
   // this entry, false otherwise.

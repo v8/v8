@@ -609,7 +609,7 @@ TEST(InterpreterParameter8) {
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
   InterpreterTester tester(isolate, bytecode_array, metadata);
-  typedef Handle<Object> H;
+  using H = Handle<Object>;
   auto callable = tester.GetCallable<H, H, H, H, H, H, H, H>();
 
   Handle<Smi> arg1 = Handle<Smi>(Smi::FromInt(1), handles.main_isolate());
@@ -919,7 +919,7 @@ TEST(InterpreterUnaryOpFeedback) {
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
     InterpreterTester tester(isolate, bytecode_array, metadata);
-    typedef Handle<Object> H;
+    using H = Handle<Object>;
     auto callable = tester.GetCallable<H, H, H, H, H>();
 
     Handle<Object> return_val =
@@ -979,7 +979,7 @@ TEST(InterpreterBitwiseTypeFeedback) {
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
     InterpreterTester tester(isolate, bytecode_array, metadata);
-    typedef Handle<Object> H;
+    using H = Handle<Object>;
     auto callable = tester.GetCallable<H, H, H, H>();
 
     Handle<Smi> arg1 = Handle<Smi>(Smi::FromInt(2), isolate);
@@ -2165,7 +2165,7 @@ TEST(InterpreterStrictNotEqual) {
 }
 
 TEST(InterpreterCompareTypeOf) {
-  typedef TestTypeOfFlags::LiteralFlag LiteralFlag;
+  using LiteralFlag = TestTypeOfFlags::LiteralFlag;
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Factory* factory = isolate->factory();

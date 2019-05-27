@@ -29,7 +29,7 @@ class Utf16CharacterStream;
 //   (for performance).
 class V8_EXPORT_PRIVATE AsmJsScanner {
  public:
-  typedef int32_t token_t;
+  using token_t = int32_t;
 
   explicit AsmJsScanner(Utf16CharacterStream* stream);
 

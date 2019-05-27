@@ -3101,7 +3101,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   Register scratch = r6;
   DCHECK(!AreAliased(api_function_address, argc, call_data, holder, scratch));
 
-  typedef FunctionCallbackArguments FCA;
+  using FCA = FunctionCallbackArguments;
 
   STATIC_ASSERT(FCA::kArgsLength == 6);
   STATIC_ASSERT(FCA::kNewTargetIndex == 5);

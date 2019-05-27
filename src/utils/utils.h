@@ -60,7 +60,7 @@ inline constexpr bool IsInRange(T value, U lower_limit, U higher_limit) {
   DCHECK(lower_limit <= higher_limit);
 #endif
   STATIC_ASSERT(sizeof(U) <= sizeof(T));
-  typedef typename std::make_unsigned<T>::type unsigned_T;
+  using unsigned_T = typename std::make_unsigned<T>::type;
   // Use static_cast to support enum classes.
   return static_cast<unsigned_T>(static_cast<unsigned_T>(value) -
                                  static_cast<unsigned_T>(lower_limit)) <=
@@ -219,7 +219,7 @@ typename std::make_unsigned<T>::type Abs(T a) {
   // This is a branch-free implementation of the absolute value function and is
   // described in Warren's "Hacker's Delight", chapter 2. It avoids undefined
   // behavior with the arithmetic negation operation on signed values as well.
-  typedef typename std::make_unsigned<T>::type unsignedT;
+  using unsignedT = typename std::make_unsigned<T>::type;
   unsignedT x = static_cast<unsignedT>(a);
   unsignedT y = static_cast<unsignedT>(a >> (sizeof(T) * 8 - 1));
   return (x ^ y) - y;
@@ -381,10 +381,10 @@ using BitField64 = BitField<T, shift, size, uint64_t>;
   };
 
 #define DEFINE_BIT_FIELD_TYPE(Name, Type, Size, RangesName) \
-  typedef BitField<Type, RangesName::k##Name##Start, Size> Name;
+  using Name = BitField<Type, RangesName::k##Name##Start, Size>;
 
 #define DEFINE_BIT_FIELD_64_TYPE(Name, Type, Size, RangesName) \
-  typedef BitField64<Type, RangesName::k##Name##Start, Size> Name;
+  using Name = BitField64<Type, RangesName::k##Name##Start, Size>;
 
 #define DEFINE_BIT_FIELDS(LIST_MACRO) \
   DEFINE_BIT_RANGES(LIST_MACRO)       \
@@ -399,7 +399,7 @@ using BitField64 = BitField<T, shift, size, uint64_t>;
 // a variable number of items in an array.
 //
 // To encode boolean data in a smi array you would use:
-// typedef BitSetComputer<bool, 1, kSmiValueSize, uint32_t> BoolComputer;
+//  using BoolComputer = BitSetComputer<bool, 1, kSmiValueSize, uint32_t>;
 //
 template <class T, int kBitsPerItem, int kBitsPerWord, class U>
 class BitSetComputer {

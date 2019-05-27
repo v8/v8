@@ -17,7 +17,7 @@
 namespace v8 {
 namespace internal {
 
-typedef compiler::Node Node;
+using Node = compiler::Node;
 
 std::tuple<Node*, Node*, Node*>
 ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,

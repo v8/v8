@@ -121,7 +121,7 @@ static inline ObjectPair MakePair(Object x, Object y) {
   return result;
 }
 #else
-typedef uint64_t ObjectPair;
+using ObjectPair = uint64_t;
 static inline ObjectPair MakePair(Object x, Object y) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   return x.ptr() | (static_cast<ObjectPair>(y.ptr()) << 32);

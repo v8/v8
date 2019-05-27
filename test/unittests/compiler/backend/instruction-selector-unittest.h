@@ -279,8 +279,8 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
 
     friend class StreamBuilder;
 
-    typedef std::map<int, Constant> ConstantMap;
-    typedef std::map<NodeId, int> VirtualRegisters;
+    using ConstantMap = std::map<int, Constant>;
+    using VirtualRegisters = std::map<NodeId, int>;
 
     ConstantMap constants_;
     ConstantMap immediates_;

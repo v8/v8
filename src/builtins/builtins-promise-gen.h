@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-typedef compiler::CodeAssemblerState CodeAssemblerState;
+using CodeAssemblerState = compiler::CodeAssemblerState;
 
 class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
  public:
@@ -133,10 +133,10 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
-  typedef std::function<TNode<Object>(TNode<Context> context, TNode<Smi> index,
-                                      TNode<NativeContext> native_context,
-                                      TNode<PromiseCapability> capability)>
-      PromiseAllResolvingElementFunction;
+  using PromiseAllResolvingElementFunction =
+      std::function<TNode<Object>(TNode<Context> context, TNode<Smi> index,
+                                  TNode<NativeContext> native_context,
+                                  TNode<PromiseCapability> capability)>;
 
   Node* PerformPromiseAll(
       Node* context, Node* constructor, Node* capability,
@@ -172,10 +172,10 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       const PromiseAllResolvingElementFunction& create_resolve_element_function,
       const PromiseAllResolvingElementFunction& create_reject_element_function);
 
-  typedef std::function<TNode<Object>(TNode<Context> context,
-                                      TNode<NativeContext> native_context,
-                                      TNode<Object> value)>
-      CreatePromiseAllResolveElementFunctionValue;
+  using CreatePromiseAllResolveElementFunctionValue =
+      std::function<TNode<Object>(TNode<Context> context,
+                                  TNode<NativeContext> native_context,
+                                  TNode<Object> value)>;
 
   void Generate_PromiseAllResolveElementClosure(
       TNode<Context> context, TNode<Object> value, TNode<JSFunction> function,

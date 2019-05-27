@@ -110,7 +110,7 @@ class AllStatic {
 #endif
 };
 
-typedef uint8_t byte;
+using byte = uint8_t;
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -316,8 +316,8 @@ constexpr uint64_t kQuietNaNMask = static_cast<uint64_t>(0xfff) << 51;
 // Latin1/UTF-16 constants
 // Code-point values in Unicode 4.0 are 21 bits wide.
 // Code units in UTF-16 are 16 bits wide.
-typedef uint16_t uc16;
-typedef int32_t uc32;
+using uc16 = uint16_t;
+using uc32 = int32_t;
 constexpr int kOneByteSize = kCharSize;
 constexpr int kUC16Size = sizeof(uc16);  // NOLINT
 
@@ -892,11 +892,11 @@ union IeeeDoubleBigEndianArchType {
 };
 
 #if V8_TARGET_LITTLE_ENDIAN
-typedef IeeeDoubleLittleEndianArchType IeeeDoubleArchType;
+using IeeeDoubleArchType = IeeeDoubleLittleEndianArchType;
 constexpr int kIeeeDoubleMantissaWordOffset = 0;
 constexpr int kIeeeDoubleExponentWordOffset = 4;
 #else
-typedef IeeeDoubleBigEndianArchType IeeeDoubleArchType;
+using IeeeDoubleArchType = IeeeDoubleBigEndianArchType;
 constexpr int kIeeeDoubleMantissaWordOffset = 4;
 constexpr int kIeeeDoubleExponentWordOffset = 0;
 #endif
@@ -1384,7 +1384,7 @@ enum class DataPropertyInLiteralFlag {
   kDontEnum = 1 << 0,
   kSetFunctionName = 1 << 1
 };
-typedef base::Flags<DataPropertyInLiteralFlag> DataPropertyInLiteralFlags;
+using DataPropertyInLiteralFlags = base::Flags<DataPropertyInLiteralFlag>;
 DEFINE_OPERATORS_FOR_FLAGS(DataPropertyInLiteralFlags)
 
 enum ExternalArrayType {

@@ -771,7 +771,7 @@ class SlotConstraintTest : public RegisterAllocatorTest,
   int variant() const { return ::testing::get<1>(B::GetParam()); }
 
  private:
-  typedef ::testing::WithParamInterface<::testing::tuple<ParameterType, int>> B;
+  using B = ::testing::WithParamInterface<::testing::tuple<ParameterType, int>>;
 };
 
 }  // namespace

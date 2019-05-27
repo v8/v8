@@ -128,7 +128,7 @@ inline Condition NegateCondition(Condition cond) {
 // representing instructions from usual 32 bit values.
 // Instruction objects are pointers to 32bit values, and provide methods to
 // access the various ISA fields.
-typedef uint32_t Instr;
+using Instr = uint32_t;
 
 #define PPC_XX3_OPCODE_LIST(V)                                                 \
   /* VSX Scalar Add Double-Precision */                                        \

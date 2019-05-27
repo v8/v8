@@ -118,7 +118,7 @@ Handle<Code> CreateCodeOfKind(Code::Kind kind) {
 }  // namespace
 
 TEST(TryProbeStubCache) {
-  typedef CodeStubAssembler::Label Label;
+  using Label = CodeStubAssembler::Label;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 3;
   CodeAssemblerTester data(isolate, kNumParams);

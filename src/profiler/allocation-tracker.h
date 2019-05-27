@@ -87,7 +87,7 @@ class V8_EXPORT_PRIVATE AddressToTraceMap {
     unsigned trace_node_id;
   };
   // [start, end) -> trace
-  typedef std::map<Address, RangeStack> RangeMap;
+  using RangeMap = std::map<Address, RangeStack>;
 
   void RemoveRange(Address start, Address end);
 

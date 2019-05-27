@@ -54,7 +54,7 @@ TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
 }
 
-typedef compiler::Node Node;
+using Node = compiler::Node;
 
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   Node* shared_function_info = Parameter(Descriptor::kSharedFunctionInfo);
