@@ -647,12 +647,12 @@ Object StackGuard::HandleInterrupts() {
   }
 
   if (CheckAndClearInterrupt(LOG_WASM_CODE)) {
-    TRACE_EVENT0("v8.wasm", "LogCode");
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "LogCode");
     isolate_->wasm_engine()->LogOutstandingCodesForIsolate(isolate_);
   }
 
   if (CheckAndClearInterrupt(WASM_CODE_GC)) {
-    TRACE_EVENT0("v8.wasm", "WasmCodeGC");
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "WasmCodeGC");
     isolate_->wasm_engine()->ReportLiveCodeFromStackForGC(isolate_);
   }
 

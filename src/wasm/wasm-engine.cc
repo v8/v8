@@ -740,6 +740,7 @@ void WasmEngine::SampleTopTierCodeSizeInAllIsolates(
 
 void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
                                      Vector<WasmCode*> live_code) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "ReportLiveCodeForGC");
   TRACE_CODE_GC("Isolate %d reporting %zu live code objects.\n", isolate->id(),
                 live_code.size());
   base::MutexGuard guard(&mutex_);
@@ -810,6 +811,7 @@ void WasmEngine::FreeDeadCode(const DeadCodeMap& dead_code) {
 }
 
 void WasmEngine::FreeDeadCodeLocked(const DeadCodeMap& dead_code) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "FreeDeadCode");
   DCHECK(!mutex_.TryLock());
   for (auto& dead_code_entry : dead_code) {
     NativeModule* native_module = dead_code_entry.first;
