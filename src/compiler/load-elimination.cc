@@ -601,9 +601,6 @@ Node* LoadElimination::AbstractState::LookupField(
   if (AbstractField const* this_field = fields[index]) {
     return this_field->Lookup(object);
   }
-  if (constness == PropertyConstness::kConst) {
-    return LookupField(object, index, PropertyConstness::kMutable);
-  }
   return nullptr;
 }
 
@@ -853,8 +850,13 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
   } else {
     int field_index = FieldIndexOf(access);
     if (field_index >= 0) {
-      if (Node* replacement =
-              state->LookupField(object, field_index, access.constness)) {
+      PropertyConstness constness = access.constness;
+      Node* replacement = state->LookupField(object, field_index, constness);
+      if (!replacement && constness == PropertyConstness::kConst) {
+        replacement = state->LookupField(object, field_index,
+                                         PropertyConstness::kMutable);
+      }
+      if (replacement) {
         // Make sure we don't resurrect dead {replacement} nodes.
         if (!replacement->IsDead()) {
           // Introduce a TypeGuard if the type of the {replacement} node is not
@@ -873,8 +875,8 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
           return Replace(replacement);
         }
       }
-      state = state->AddField(object, field_index, node, access.name,
-                              access.constness, zone());
+      state = state->AddField(object, field_index, node, access.name, constness,
+                              zone());
     }
   }
   Handle<Map> field_map;
@@ -907,16 +909,36 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
   } else {
     int field_index = FieldIndexOf(access);
     if (field_index >= 0) {
+      PropertyConstness constness = access.constness;
       Node* const old_value =
-          state->LookupField(object, field_index, access.constness);
+          state->LookupField(object, field_index, constness);
+
+      if (constness == PropertyConstness::kConst && old_value) {
+        // At runtime, we should never see two consecutive const stores, i.e.,
+        //    DCHECK_NULL(old_value)
+        // ought to hold, but we might see such (unreachable) code statically.
+        Node* control = NodeProperties::GetControlInput(node);
+        Node* unreachable =
+            graph()->NewNode(common()->Unreachable(), effect, control);
+        return Replace(unreachable);
+      }
+
       if (old_value == new_value) {
         // This store is fully redundant.
         return Replace(effect);
       }
+
       // Kill all potentially aliasing fields and record the new value.
       state = state->KillField(object, field_index, access.name, zone());
       state = state->AddField(object, field_index, new_value, access.name,
-                              access.constness, zone());
+                              PropertyConstness::kMutable, zone());
+      if (constness == PropertyConstness::kConst) {
+        // For const stores, we track information in both the const and the
+        // mutable world to guard against field accesses that should have
+        // been marked const, but were not.
+        state = state->AddField(object, field_index, new_value, access.name,
+                                constness, zone());
+      }
     } else {
       // Unsupported StoreField operator.
       state = state->KillFields(object, access.name, zone());
@@ -1199,10 +1221,13 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
                                      MaybeHandle<Name>(), zone());
             break;
           }
-          case IrOpcode::kStoreField:
-            state = ComputeLoopStateForStoreField(current, state,
-                                                  FieldAccessOf(current->op()));
+          case IrOpcode::kStoreField: {
+            FieldAccess access = FieldAccessOf(current->op());
+            if (access.constness == PropertyConstness::kMutable) {
+              state = ComputeLoopStateForStoreField(current, state, access);
+            }
             break;
+          }
           case IrOpcode::kStoreElement: {
             Node* const object = NodeProperties::GetValueInput(current, 0);
             Node* const index = NodeProperties::GetValueInput(current, 1);

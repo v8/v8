@@ -208,9 +208,13 @@ void CallHandlerInfoData::Serialize(JSHeapBroker* broker) {
 class JSObjectField {
  public:
   bool IsDouble() const { return object_ == nullptr; }
+  uint64_t AsBitsOfDouble() const {
+    CHECK(IsDouble());
+    return number_bits_;
+  }
   double AsDouble() const {
     CHECK(IsDouble());
-    return number_;
+    return bit_cast<double>(number_bits_);
   }
 
   bool IsObject() const { return object_ != nullptr; }
@@ -219,12 +223,12 @@ class JSObjectField {
     return object_;
   }
 
-  explicit JSObjectField(double value) : number_(value) {}
+  explicit JSObjectField(uint64_t value_bits) : number_bits_(value_bits) {}
   explicit JSObjectField(ObjectData* value) : object_(value) {}
 
  private:
   ObjectData* object_ = nullptr;
-  double number_ = 0;
+  uint64_t number_bits_ = 0;
 };
 
 class JSObjectData : public HeapObjectData {
@@ -1793,8 +1797,9 @@ void JSObjectData::SerializeRecursive(JSHeapBroker* broker, int depth) {
     DCHECK_EQ(field_index.property_index(),
               static_cast<int>(inobject_fields_.size()));
     if (boilerplate->IsUnboxedDoubleField(field_index)) {
-      double value = boilerplate->RawFastDoublePropertyAt(field_index);
-      inobject_fields_.push_back(JSObjectField{value});
+      uint64_t value_bits =
+          boilerplate->RawFastDoublePropertyAsBitsAt(field_index);
+      inobject_fields_.push_back(JSObjectField{value_bits});
     } else {
       Handle<Object> value(boilerplate->RawFastPropertyAt(field_index),
                            isolate);
@@ -2359,6 +2364,16 @@ double JSObjectRef::RawFastDoublePropertyAt(FieldIndex index) const {
   JSObjectData* object_data = data()->AsJSObject();
   CHECK(index.is_inobject());
   return object_data->GetInobjectField(index.property_index()).AsDouble();
+}
+
+uint64_t JSObjectRef::RawFastDoublePropertyAsBitsAt(FieldIndex index) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference handle_dereference;
+    return object()->RawFastDoublePropertyAsBitsAt(index);
+  }
+  JSObjectData* object_data = data()->AsJSObject();
+  CHECK(index.is_inobject());
+  return object_data->GetInobjectField(index.property_index()).AsBitsOfDouble();
 }
 
 ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
