@@ -9,6 +9,12 @@
 #include "src/tracing/trace-event.h"
 #include "test/cctest/cctest.h"
 
+#ifdef V8_USE_PERFETTO
+#include "perfetto/trace/chrome/chrome_trace_event.pb.h"
+#include "perfetto/trace/chrome/chrome_trace_packet.pb.h"
+#include "src/libplatform/tracing/trace-event-listener.h"
+#endif
+
 namespace v8 {
 namespace platform {
 namespace tracing {
@@ -524,6 +530,136 @@ TEST(AddTraceEventMultiThreaded) {
 
   i::V8::SetPlatformForTesting(old_platform);
 }
+
+#ifdef V8_USE_PERFETTO
+
+struct TraceEvent {
+  std::string name;
+  int64_t timestamp;
+  int32_t phase;
+  int32_t thread_id;
+  int64_t duration;
+  int64_t thread_duration;
+  std::string scope;
+  uint64_t id;
+  uint32_t flags;
+  std::string category_group_name;
+  int32_t process_id;
+  int64_t thread_timestamp;
+  uint64_t bind_id;
+};
+
+class TestListener : public TraceEventListener {
+ public:
+  void ProcessPacket(
+      const ::perfetto::protos::ChromeTracePacket& packet) override {
+    for (const ::perfetto::protos::ChromeTraceEvent& event :
+         packet.chrome_events().trace_events()) {
+      TraceEvent trace_event{event.name(),       event.timestamp(),
+                             event.phase(),      event.thread_id(),
+                             event.duration(),   event.thread_duration(),
+                             event.scope(),      event.id(),
+                             event.flags(),      event.category_group_name(),
+                             event.process_id(), event.thread_timestamp(),
+                             event.bind_id()};
+      events_.push_back(trace_event);
+    }
+  }
+
+  TraceEvent* get_event(size_t index) { return &events_.at(index); }
+
+  size_t events_size() const { return events_.size(); }
+
+ private:
+  std::vector<TraceEvent> events_;
+};
+
+TEST(Perfetto) {
+  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
+  std::unique_ptr<v8::Platform> default_platform(
+      v8::platform::NewDefaultPlatform());
+  i::V8::SetPlatformForTesting(default_platform.get());
+
+  auto tracing = base::make_unique<v8::platform::tracing::TracingController>();
+  v8::platform::tracing::TracingController* tracing_controller = tracing.get();
+  static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
+      ->SetTracingController(std::move(tracing));
+
+  MockTraceWriter* writer = new MockTraceWriter();
+  TraceBuffer* ring_buffer =
+      TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
+  tracing_controller->Initialize(ring_buffer);
+  TestListener listener;
+  std::ostringstream sstream;
+  tracing_controller->InitializeForPerfetto(&sstream);
+  tracing_controller->SetTraceEventListenerForTesting(&listener);
+  TraceConfig* trace_config = new TraceConfig();
+  trace_config->AddIncludedCategory("v8");
+  tracing_controller->StartTracing(trace_config);
+
+  uint64_t uint64_arg = 1024;
+  const char* str_arg = "str_arg";
+
+  {
+    TRACE_EVENT0("v8", "test1");
+    TRACE_EVENT1("v8", "test2", "arg1", uint64_arg);
+    TRACE_EVENT2("v8", "test3", "arg1", uint64_arg, "arg2", str_arg);
+  }
+  TRACE_EVENT_INSTANT0("v8", "final event not captured",
+                       TRACE_EVENT_SCOPE_THREAD);
+
+  tracing_controller->StopTracing();
+
+  TraceEvent* event = listener.get_event(0);
+  int32_t thread_id = event->thread_id;
+  int32_t process_id = event->process_id;
+  CHECK_EQ("test1", event->name);
+  CHECK_EQ(TRACE_EVENT_PHASE_BEGIN, event->phase);
+  int64_t timestamp = event->timestamp;
+
+  event = listener.get_event(1);
+  CHECK_EQ("test2", event->name);
+  CHECK_EQ(TRACE_EVENT_PHASE_BEGIN, event->phase);
+  CHECK_EQ(thread_id, event->thread_id);
+  CHECK_EQ(process_id, event->process_id);
+  CHECK_GE(event->timestamp, timestamp);
+  timestamp = event->timestamp;
+
+  event = listener.get_event(2);
+  CHECK_EQ("test3", event->name);
+  CHECK_EQ(TRACE_EVENT_PHASE_BEGIN, event->phase);
+  CHECK_EQ(thread_id, event->thread_id);
+  CHECK_EQ(process_id, event->process_id);
+  CHECK_GE(event->timestamp, timestamp);
+  timestamp = event->timestamp;
+
+  event = listener.get_event(3);
+  CHECK_EQ(TRACE_EVENT_PHASE_END, event->phase);
+  CHECK_EQ(thread_id, event->thread_id);
+  CHECK_EQ(process_id, event->process_id);
+  CHECK_GE(event->timestamp, timestamp);
+  timestamp = event->timestamp;
+
+  event = listener.get_event(4);
+  CHECK_EQ(TRACE_EVENT_PHASE_END, event->phase);
+  CHECK_EQ(thread_id, event->thread_id);
+  CHECK_EQ(process_id, event->process_id);
+  CHECK_GE(event->timestamp, timestamp);
+  timestamp = event->timestamp;
+
+  event = listener.get_event(5);
+  CHECK_EQ(TRACE_EVENT_PHASE_END, event->phase);
+  CHECK_EQ(thread_id, event->thread_id);
+  CHECK_EQ(process_id, event->process_id);
+  CHECK_GE(event->timestamp, timestamp);
+  timestamp = event->timestamp;
+
+  CHECK_EQ(6, listener.events_size());
+
+  i::V8::SetPlatformForTesting(old_platform);
+}
+
+#endif  // V8_USE_PERFETTO
 
 }  // namespace tracing
 }  // namespace platform

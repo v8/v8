@@ -20,6 +20,7 @@
 #include "perfetto/tracing/core/trace_config.h"
 #include "perfetto/tracing/core/trace_packet.h"
 #include "perfetto/tracing/core/trace_writer.h"
+#include "src/libplatform/tracing/json-trace-event-listener.h"
 #include "src/libplatform/tracing/perfetto-tracing-controller.h"
 #endif  // V8_USE_PERFETTO
 
@@ -78,6 +79,11 @@ void TracingController::InitializeForPerfetto(std::ostream* output_stream) {
   output_stream_ = output_stream;
   DCHECK_NOT_NULL(output_stream);
   DCHECK(output_stream->good());
+}
+
+void TracingController::SetTraceEventListenerForTesting(
+    TraceEventListener* listener) {
+  listener_for_testing_ = listener;
 }
 #endif
 
@@ -273,18 +279,21 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
 #ifdef V8_USE_PERFETTO
   perfetto_tracing_controller_ = base::make_unique<PerfettoTracingController>();
 
+  if (listener_for_testing_) {
+    perfetto_tracing_controller_->AddTraceEventListener(listener_for_testing_);
+  }
+  DCHECK_NOT_NULL(output_stream_);
+  DCHECK(output_stream_->good());
+  json_listener_ = base::make_unique<JSONTraceEventListener>(output_stream_);
+  perfetto_tracing_controller_->AddTraceEventListener(json_listener_.get());
   ::perfetto::TraceConfig perfetto_trace_config;
 
   perfetto_trace_config.add_buffers()->set_size_kb(4096);
   auto* ds_config = perfetto_trace_config.add_data_sources()->mutable_config();
   ds_config->set_name("v8.trace_events");
 
-  DCHECK_NOT_NULL(output_stream_);
-  DCHECK(output_stream_->good());
-
   // TODO(petermarshall): Set all the params from |perfetto_trace_config|.
-  perfetto_tracing_controller_->StartTracing(perfetto_trace_config,
-                                             output_stream_);
+  perfetto_tracing_controller_->StartTracing(perfetto_trace_config);
   perfetto_recording_.store(true);
 #endif  // V8_USE_PERFETTO
 
@@ -321,6 +330,7 @@ void TracingController::StopTracing() {
   perfetto_recording_.store(false);
   perfetto_tracing_controller_->StopTracing();
   perfetto_tracing_controller_.reset();
+  json_listener_.reset();
 #endif  // V8_USE_PERFETTO
 
   {

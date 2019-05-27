@@ -23,9 +23,10 @@ namespace v8 {
 namespace platform {
 namespace tracing {
 
-class PerfettoConsumerBase;
+class PerfettoConsumer;
 class PerfettoProducer;
 class PerfettoTaskRunner;
+class TraceEventListener;
 
 // This is the top-level interface for performing tracing with perfetto. The
 // user of this class should call StartTracing() to start tracing, and
@@ -37,14 +38,18 @@ class PerfettoTracingController {
 
   // Blocks and sets up all required data structures for tracing. It is safe to
   // call GetOrCreateThreadLocalWriter() to obtain thread-local TraceWriters for
-  // writing trace events once this call returns. Tracing output will be sent in
-  // JSON format to |output_stream|.
-  void StartTracing(const ::perfetto::TraceConfig& trace_config,
-                    std::ostream* output_stream);
+  // writing trace events once this call returns. Tracing output will be sent to
+  // the TraceEventListeners registered via AddTraceEventListener().
+  void StartTracing(const ::perfetto::TraceConfig& trace_config);
 
   // Blocks and finishes all existing AddTraceEvent tasks. Stops the tracing
   // thread.
   void StopTracing();
+
+  // Register a trace event listener that will receive trace events. This can be
+  // called multiple times to register multiple listeners, but must be called
+  // before starting tracing.
+  void AddTraceEventListener(TraceEventListener* listener);
 
   ~PerfettoTracingController();
 
@@ -61,8 +66,9 @@ class PerfettoTracingController {
 
   std::unique_ptr<::perfetto::TracingService> service_;
   std::unique_ptr<PerfettoProducer> producer_;
-  std::unique_ptr<PerfettoConsumerBase> consumer_;
+  std::unique_ptr<PerfettoConsumer> consumer_;
   std::unique_ptr<PerfettoTaskRunner> task_runner_;
+  std::vector<TraceEventListener*> listeners_;
   base::Thread::LocalStorageKey writer_key_;
   // A semaphore that is signalled when StartRecording is called. StartTracing
   // waits on this semaphore to be notified when the tracing service is ready to

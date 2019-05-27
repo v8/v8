@@ -412,6 +412,10 @@ v8_source_set("cctest_sources") {
     # MSVS wants this for gay-{precision,shortest}.cc.
     cflags += [ "/bigobj" ]
   }
+
+  if (v8_use_perfetto) {
+    deps += [ "//third_party/perfetto/protos/perfetto/trace/chrome:minimal_complete_lite" ]
+  }
 }
 
 action("resources") {

@@ -139,10 +139,6 @@ declare_args() {
   # Use Siphash as added protection against hash flooding attacks.
   v8_use_siphash = false
 
-  # Use Perfetto (https://perfetto.dev) as the default TracingController. Not
-  # currently implemented.
-  v8_use_perfetto = false
-
   # Switches off inlining in V8.
   v8_no_inline = false
 
@@ -3661,10 +3657,10 @@ v8_component("v8_libplatform") {
   ]
   if (v8_use_perfetto) {
     sources += [
-      "src/libplatform/tracing/perfetto-consumer-base.cc",
-      "src/libplatform/tracing/perfetto-consumer-base.h",
-      "src/libplatform/tracing/perfetto-json-consumer.cc",
-      "src/libplatform/tracing/perfetto-json-consumer.h",
+      "src/libplatform/tracing/json-trace-event-listener.cc",
+      "src/libplatform/tracing/json-trace-event-listener.h",
+      "src/libplatform/tracing/perfetto-consumer.cc",
+      "src/libplatform/tracing/perfetto-consumer.h",
       "src/libplatform/tracing/perfetto-producer.cc",
       "src/libplatform/tracing/perfetto-producer.h",
       "src/libplatform/tracing/perfetto-shared-memory.cc",
@@ -3673,6 +3669,7 @@ v8_component("v8_libplatform") {
       "src/libplatform/tracing/perfetto-tasks.h",
       "src/libplatform/tracing/perfetto-tracing-controller.cc",
       "src/libplatform/tracing/perfetto-tracing-controller.h",
+      "src/libplatform/tracing/trace-event-listener.h",
     ]
     deps += [
       "third_party/perfetto:libperfetto",

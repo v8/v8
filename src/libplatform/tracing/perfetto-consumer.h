@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LIBPLATFORM_TRACING_PERFETTO_CONSUMER_BASE_H_
-#define V8_LIBPLATFORM_TRACING_PERFETTO_CONSUMER_BASE_H_
+#ifndef V8_LIBPLATFORM_TRACING_PERFETTO_CONSUMER_H_
+#define V8_LIBPLATFORM_TRACING_PERFETTO_CONSUMER_H_
 
 #include <memory>
 
@@ -26,25 +26,31 @@ class Semaphore;
 namespace platform {
 namespace tracing {
 
-// A base class for custom Consumers within V8. Implements V8-specific logic
-// for interacting with the tracing controller and leaves the consumption of
-// the trace events to the subclass.
+class TraceEventListener;
+
 // A Perfetto Consumer gets streamed trace events from the Service via
 // OnTraceData(). A Consumer can be configured (via
 // service_endpoint()->EnableTracing()) to listen to various different types of
 // trace events. The Consumer is responsible for producing whatever tracing
 // output the system should have.
-class PerfettoConsumerBase : public ::perfetto::Consumer {
+
+// Implements the V8-specific logic for interacting with the tracing controller
+// and directs trace events to the added TraceEventListeners.
+class PerfettoConsumer final : public ::perfetto::Consumer {
  public:
+  explicit PerfettoConsumer(base::Semaphore* finished);
+
   using ServiceEndpoint = ::perfetto::TracingService::ConsumerEndpoint;
+
+  // Register a trace event listener that will receive trace events from this
+  // consumer. This can be called multiple times to register multiple listeners,
+  // but must be called before starting tracing.
+  void AddTraceEventListener(TraceEventListener* listener);
 
   ServiceEndpoint* service_endpoint() const { return service_endpoint_.get(); }
   void set_service_endpoint(std::unique_ptr<ServiceEndpoint> endpoint) {
     service_endpoint_ = std::move(endpoint);
   }
-
- protected:
-  explicit PerfettoConsumerBase(base::Semaphore* finished);
 
  private:
   // ::perfetto::Consumer implementation
@@ -52,7 +58,7 @@ class PerfettoConsumerBase : public ::perfetto::Consumer {
   void OnDisconnect() override {}
   void OnTracingDisabled() override {}
   void OnTraceData(std::vector<::perfetto::TracePacket> packets,
-                   bool has_more) final;
+                   bool has_more) override;
   void OnDetach(bool success) override {}
   void OnAttach(bool success, const ::perfetto::TraceConfig&) override {}
   void OnTraceStats(bool success, const ::perfetto::TraceStats&) override {
@@ -62,16 +68,13 @@ class PerfettoConsumerBase : public ::perfetto::Consumer {
     UNREACHABLE();
   }
 
-  // Subclasses override this method to respond to trace packets.
-  virtual void ProcessPacket(
-      const ::perfetto::protos::ChromeTracePacket& packet) = 0;
-
   std::unique_ptr<ServiceEndpoint> service_endpoint_;
   base::Semaphore* finished_semaphore_;
+  std::vector<TraceEventListener*> listeners_;
 };
 
 }  // namespace tracing
 }  // namespace platform
 }  // namespace v8
 
-#endif  // V8_LIBPLATFORM_TRACING_PERFETTO_CONSUMER_BASE_H_
+#endif  // V8_LIBPLATFORM_TRACING_PERFETTO_CONSUMER_H_

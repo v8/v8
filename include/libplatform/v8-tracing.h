@@ -24,6 +24,7 @@ namespace platform {
 namespace tracing {
 
 class PerfettoTracingController;
+class TraceEventListener;
 
 const int kTraceMaxNumArgs = 2;
 
@@ -244,6 +245,9 @@ class V8_PLATFORM_EXPORT TracingController
   // Must be called before StartTracing() if V8_USE_PERFETTO is true. Provides
   // the output stream for the JSON trace data.
   void InitializeForPerfetto(std::ostream* output_stream);
+  // Provide an optional listener for testing that will receive trace events.
+  // Must be called before StartTracing().
+  void SetTraceEventListenerForTesting(TraceEventListener* listener);
 #endif
 
   // v8::TracingController implementation.
@@ -291,6 +295,8 @@ class V8_PLATFORM_EXPORT TracingController
   std::atomic_bool perfetto_recording_{false};
   std::unique_ptr<PerfettoTracingController> perfetto_tracing_controller_;
   std::ostream* output_stream_ = nullptr;
+  std::unique_ptr<TraceEventListener> json_listener_;
+  TraceEventListener* listener_for_testing_ = nullptr;
 #endif
 
   // Disallow copy and assign

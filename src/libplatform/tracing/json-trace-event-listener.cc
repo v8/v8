@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/libplatform/tracing/perfetto-json-consumer.h"
+#include "src/libplatform/tracing/json-trace-event-listener.h"
 
 #include <cmath>
 
@@ -15,19 +15,18 @@ namespace v8 {
 namespace platform {
 namespace tracing {
 
-PerfettoJSONConsumer::PerfettoJSONConsumer(base::Semaphore* finished,
-                                           std::ostream* stream)
-    : PerfettoConsumerBase(finished), stream_(stream) {
+JSONTraceEventListener::JSONTraceEventListener(std::ostream* stream)
+    : stream_(stream) {
   *stream_ << "{\"traceEvents\":[";
 }
 
-PerfettoJSONConsumer::~PerfettoJSONConsumer() { *stream_ << "]}"; }
+JSONTraceEventListener::~JSONTraceEventListener() { *stream_ << "]}"; }
 
 // TODO(petermarshall): Clean up this code which was copied from trace-writer.cc
 // once we've removed that file.
 
 // Writes the given string, taking care to escape characters when necessary.
-void PerfettoJSONConsumer::AppendJSONString(const char* str) {
+void JSONTraceEventListener::AppendJSONString(const char* str) {
   size_t len = strlen(str);
   *stream_ << "\"";
   for (size_t i = 0; i < len; ++i) {
@@ -65,7 +64,7 @@ void PerfettoJSONConsumer::AppendJSONString(const char* str) {
   *stream_ << "\"";
 }
 
-void PerfettoJSONConsumer::AppendArgValue(
+void JSONTraceEventListener::AppendArgValue(
     const ::perfetto::protos::ChromeTraceEvent_Arg& arg) {
   if (arg.has_bool_value()) {
     *stream_ << (arg.bool_value() ? "true" : "false");
@@ -111,7 +110,7 @@ void PerfettoJSONConsumer::AppendArgValue(
   CHECK(!arg.has_traced_value());
 }
 
-void PerfettoJSONConsumer::ProcessPacket(
+void JSONTraceEventListener::ProcessPacket(
     const ::perfetto::protos::ChromeTracePacket& packet) {
   for (const ::perfetto::protos::ChromeTraceEvent& event :
        packet.chrome_events().trace_events()) {

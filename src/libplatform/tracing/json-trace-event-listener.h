@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LIBPLATFORM_TRACING_PERFETTO_JSON_CONSUMER_H_
-#define V8_LIBPLATFORM_TRACING_PERFETTO_JSON_CONSUMER_H_
+#ifndef V8_LIBPLATFORM_TRACING_JSON_TRACE_EVENT_LISTENER_H_
+#define V8_LIBPLATFORM_TRACING_JSON_TRACE_EVENT_LISTENER_H_
 
 #include <ostream>
 
-#include "src/libplatform/tracing/perfetto-consumer-base.h"
+#include "src/libplatform/tracing/trace-event-listener.h"
 
 namespace perfetto {
 namespace protos {
 class ChromeTraceEvent_Arg;
-class ChromeTracePacket;
 }  // namespace protos
 }  // namespace perfetto
 
@@ -20,12 +19,12 @@ namespace v8 {
 namespace platform {
 namespace tracing {
 
-// A consumer that converts the proto trace data to JSON and writes it to a
+// A listener that converts the proto trace data to JSON and writes it to a
 // file.
-class PerfettoJSONConsumer final : public PerfettoConsumerBase {
+class JSONTraceEventListener final : public TraceEventListener {
  public:
-  PerfettoJSONConsumer(base::Semaphore* finished, std::ostream* stream);
-  ~PerfettoJSONConsumer() override;
+  explicit JSONTraceEventListener(std::ostream* stream);
+  ~JSONTraceEventListener() override;
 
  private:
   void ProcessPacket(
@@ -43,4 +42,4 @@ class PerfettoJSONConsumer final : public PerfettoConsumerBase {
 }  // namespace platform
 }  // namespace v8
 
-#endif  // V8_LIBPLATFORM_TRACING_PERFETTO_JSON_CONSUMER_H_
+#endif  // V8_LIBPLATFORM_TRACING_JSON_TRACE_EVENT_LISTENER_H_

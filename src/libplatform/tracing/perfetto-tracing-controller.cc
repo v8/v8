@@ -7,10 +7,11 @@
 #include "perfetto/tracing/core/trace_config.h"
 #include "perfetto/tracing/core/trace_writer.h"
 #include "perfetto/tracing/core/tracing_service.h"
-#include "src/libplatform/tracing/perfetto-json-consumer.h"
+#include "src/libplatform/tracing/perfetto-consumer.h"
 #include "src/libplatform/tracing/perfetto-producer.h"
 #include "src/libplatform/tracing/perfetto-shared-memory.h"
 #include "src/libplatform/tracing/perfetto-tasks.h"
+#include "src/libplatform/tracing/trace-event-listener.h"
 
 namespace v8 {
 namespace platform {
@@ -22,15 +23,12 @@ PerfettoTracingController::PerfettoTracingController()
       consumer_finished_semaphore_(0) {}
 
 void PerfettoTracingController::StartTracing(
-    const ::perfetto::TraceConfig& trace_config, std::ostream* output_stream) {
-  DCHECK_NOT_NULL(output_stream);
-  DCHECK(output_stream->good());
-
+    const ::perfetto::TraceConfig& trace_config) {
   DCHECK(!task_runner_);
   task_runner_ = base::make_unique<PerfettoTaskRunner>();
   // The Perfetto service expects calls on the task runner thread which is why
   // the setup below occurs in posted tasks.
-  task_runner_->PostTask([&trace_config, output_stream, this] {
+  task_runner_->PostTask([&trace_config, this] {
     std::unique_ptr<::perfetto::SharedMemory::Factory> shmem_factory =
         base::make_unique<PerfettoSharedMemoryFactory>();
 
@@ -44,8 +42,12 @@ void PerfettoTracingController::StartTracing(
     // for now we just leak all TraceWriters.
     service_->SetSMBScrapingEnabled(true);
     producer_ = base::make_unique<PerfettoProducer>(this);
-    consumer_ = base::make_unique<PerfettoJSONConsumer>(
-        &consumer_finished_semaphore_, output_stream);
+    consumer_ =
+        base::make_unique<PerfettoConsumer>(&consumer_finished_semaphore_);
+
+    for (TraceEventListener* listener : listeners_) {
+      consumer_->AddTraceEventListener(listener);
+    }
 
     producer_->set_service_endpoint(service_->ConnectProducer(
         producer_.get(), 0, "v8.perfetto-producer", 0, true));
@@ -72,7 +74,7 @@ void PerfettoTracingController::StopTracing() {
     // events that have been written by still-living TraceWriters.
     consumer_->service_endpoint()->DisableTracing();
     // Trigger the consumer to finish. This can trigger multiple calls to
-    // PerfettoConsumerBase::OnTraceData(), with the final call passing has_more
+    // PerfettoConsumer::OnTraceData(), with the final call passing has_more
     // as false.
     consumer_->service_endpoint()->ReadBuffers();
   });
@@ -89,6 +91,11 @@ void PerfettoTracingController::StopTracing() {
   // Finish the above task, and any callbacks that were triggered.
   task_runner_->FinishImmediateTasks();
   task_runner_.reset();
+}
+
+void PerfettoTracingController::AddTraceEventListener(
+    TraceEventListener* listener) {
+  listeners_.push_back(listener);
 }
 
 PerfettoTracingController::~PerfettoTracingController() {
