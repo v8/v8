@@ -1542,10 +1542,8 @@ TEST(TryLookupElement) {
   }
 
   {
-    v8::Local<v8::ArrayBuffer> buffer =
-        v8::ArrayBuffer::New(reinterpret_cast<v8::Isolate*>(isolate), 8);
-    Handle<JSTypedArray> object = factory->NewJSTypedArray(
-        kExternalInt32Array, v8::Utils::OpenHandle(*buffer), 0, 2);
+    Handle<JSTypedArray> object = factory->NewJSTypedArray(INT32_ELEMENTS, 2);
+    Local<v8::ArrayBuffer> buffer = Utils::ToLocal(object->GetBuffer());
 
     CHECK_EQ(INT32_ELEMENTS, object->map().elements_kind());
 

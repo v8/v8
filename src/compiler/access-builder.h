@@ -137,12 +137,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSTypedArray::length() field.
   static FieldAccess ForJSTypedArrayLength();
 
-  // Provides access to JSTypedArray::base_pointer() field.
-  static FieldAccess ForJSTypedArrayBasePointer();
-
-  // Provides access to JSTypedArray::external_pointer() field.
-  static FieldAccess ForJSTypedArrayExternalPointer();
-
   // Provides access to JSDataView::data_pointer() field.
   static FieldAccess ForJSDataViewDataPointer();
 
@@ -175,6 +169,12 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to PropertyArray::length() field.
   static FieldAccess ForPropertyArrayLengthAndHash();
+
+  // Provides access to FixedTypedArrayBase::base_pointer() field.
+  static FieldAccess ForFixedTypedArrayBaseBasePointer();
+
+  // Provides access to FixedTypedArrayBase::external_pointer() field.
+  static FieldAccess ForFixedTypedArrayBaseExternalPointer();
 
   // Provides access to DescriptorArray::enum_cache() field.
   static FieldAccess ForDescriptorArrayEnumCache();

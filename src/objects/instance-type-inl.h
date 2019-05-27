@@ -19,6 +19,11 @@ namespace InstanceTypeChecker {
 // Define type checkers for classes with single instance type.
 INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECKER)
 
+#define TYPED_ARRAY_INSTANCE_TYPE_CHECKER(Type, type, TYPE, ctype) \
+  INSTANCE_TYPE_CHECKER(Fixed##Type##Array, FIXED_##TYPE##_ARRAY_TYPE)
+TYPED_ARRAYS(TYPED_ARRAY_INSTANCE_TYPE_CHECKER)
+#undef TYPED_ARRAY_INSTANCE_TYPE_CHECKER
+
 #define STRUCT_INSTANCE_TYPE_CHECKER(TYPE, Name, name) \
   INSTANCE_TYPE_CHECKER(Name, TYPE)
 STRUCT_LIST(STRUCT_INSTANCE_TYPE_CHECKER)
@@ -35,7 +40,8 @@ INSTANCE_TYPE_CHECKERS_RANGE(INSTANCE_TYPE_CHECKER_RANGE)
 
 V8_INLINE bool IsFixedArrayBase(InstanceType instance_type) {
   return IsFixedArray(instance_type) || IsFixedDoubleArray(instance_type) ||
-         IsByteArray(instance_type) || IsBytecodeArray(instance_type);
+         IsFixedTypedArrayBase(instance_type) || IsByteArray(instance_type) ||
+         IsBytecodeArray(instance_type);
 }
 
 V8_INLINE bool IsHeapObject(InstanceType instance_type) { return true; }
@@ -62,6 +68,11 @@ V8_INLINE bool IsJSReceiver(InstanceType instance_type) {
 // roots, and when that map is a embedded in the binary, compare against the map
 // pointer rather than looking up the instance type.
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
+
+#define TYPED_ARRAY_TYPE_CHECKER(Type, type, TYPE, ctype) \
+  TYPE_CHECKER(Fixed##Type##Array)
+TYPED_ARRAYS(TYPED_ARRAY_TYPE_CHECKER)
+#undef TYPED_ARRAY_TYPE_CHECKER
 
 }  // namespace internal
 }  // namespace v8

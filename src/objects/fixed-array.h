@@ -576,6 +576,141 @@ class PodArray : public ByteArray {
   OBJECT_CONSTRUCTORS(PodArray<T>, ByteArray);
 };
 
+class FixedTypedArrayBase : public FixedArrayBase {
+ public:
+  // [base_pointer]: Either points to the FixedTypedArrayBase itself or nullptr.
+  DECL_ACCESSORS(base_pointer, Object)
+
+  // [external_pointer]: Contains the offset between base_pointer and the start
+  // of the data. If the base_pointer is a nullptr, the external_pointer
+  // therefore points to the actual backing store.
+  DECL_PRIMITIVE_ACCESSORS(external_pointer, void*)
+
+  // Dispatched behavior.
+  DECL_CAST(FixedTypedArrayBase)
+
+  // [number_of_elements_onheap]: This length is the number of elements stored
+  // in this FixedTypedArray if it is on-heap. It is always 0 for the off-heap
+  // case (where the base_pointer == 0). It is only useful for printing,
+  // verification and object setup as it does not represent the length of the
+  // associated JSTypedArray object anymore.
+  inline int number_of_elements_onheap_only() const;
+  inline void set_number_of_elements_onheap_only(int value);
+
+  // These length accessors are deleted because the meaning of length() has
+  // changed (see comment above). For the length of a JSTypedArray, use
+  // JSTypedArray::length(). For the number of elements in an on-heap
+  // FixedTypedArray, use number_of_elements_onheap_only() above.
+  inline int length() const = delete;
+  inline void set_length(int) = delete;
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
+                                TORQUE_GENERATED_FIXED_TYPED_ARRAY_BASE_FIELDS)
+  static const int kHeaderSize = kSize;
+
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): When pointer compression is enabled the kHeaderSize
+  // is only kTaggedSize aligned but we can keep using unaligned access since
+  // both x64 and arm64 architectures (where pointer compression supported)
+  // allow unaligned access to doubles.
+  STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
+#else
+  STATIC_ASSERT(IsAligned(kHeaderSize, kDoubleAlignment));
+#endif
+
+  static const int kDataOffset = kHeaderSize;
+
+  static const int kMaxElementSize = 8;
+
+#ifdef V8_HOST_ARCH_32_BIT
+  static const size_t kMaxByteLength = std::numeric_limits<size_t>::max();
+#else
+  static const size_t kMaxByteLength =
+      static_cast<size_t>(Smi::kMaxValue) * kMaxElementSize;
+#endif  // V8_HOST_ARCH_32_BIT
+
+  static const size_t kMaxLength = Smi::kMaxValue;
+
+  class BodyDescriptor;
+
+  inline int size() const;
+
+  static inline int TypedArraySize(InstanceType type, int length);
+  inline int TypedArraySize(InstanceType type) const;
+
+  // Use with care: returns raw pointer into heap.
+  inline void* DataPtr();
+
+  inline int DataSize() const;
+
+  static inline intptr_t ExternalPointerValueForOnHeapArray() {
+    return FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
+  }
+
+  static inline void* ExternalPointerPtrForOnHeapArray() {
+    return reinterpret_cast<void*>(ExternalPointerValueForOnHeapArray());
+  }
+
+ private:
+  static inline int ElementSize(InstanceType type);
+
+  inline int DataSize(InstanceType type) const;
+
+  OBJECT_CONSTRUCTORS(FixedTypedArrayBase, FixedArrayBase);
+};
+
+template <class Traits>
+class FixedTypedArray : public FixedTypedArrayBase {
+ public:
+  using ElementType = typename Traits::ElementType;
+  static const InstanceType kInstanceType = Traits::kInstanceType;
+
+  DECL_CAST(FixedTypedArray<Traits>)
+
+  static inline ElementType get_scalar_from_data_ptr(void* data_ptr, int index);
+  inline ElementType get_scalar(int index);
+  static inline Handle<Object> get(Isolate* isolate, FixedTypedArray array,
+                                   int index);
+  inline void set(int index, ElementType value);
+
+  static inline ElementType from(int value);
+  static inline ElementType from(uint32_t value);
+  static inline ElementType from(double value);
+  static inline ElementType from(int64_t value);
+  static inline ElementType from(uint64_t value);
+
+  static inline ElementType FromHandle(Handle<Object> value,
+                                       bool* lossless = nullptr);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
+  inline void SetValue(uint32_t index, Object value);
+
+  DECL_PRINTER(FixedTypedArray)
+  DECL_VERIFIER(FixedTypedArray)
+
+ private:
+  OBJECT_CONSTRUCTORS(FixedTypedArray, FixedTypedArrayBase);
+};
+
+#define FIXED_TYPED_ARRAY_TRAITS(Type, type, TYPE, elementType)               \
+  STATIC_ASSERT(sizeof(elementType) <= FixedTypedArrayBase::kMaxElementSize); \
+  class Type##ArrayTraits {                                                   \
+   public: /* NOLINT */                                                       \
+    using ElementType = elementType;                                          \
+    static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;      \
+    static const char* ArrayTypeName() { return "Fixed" #Type "Array"; }      \
+    static inline Handle<Object> ToHandle(Isolate* isolate,                   \
+                                          elementType scalar);                \
+    static inline elementType defaultValue();                                 \
+  };                                                                          \
+                                                                              \
+  using Fixed##Type##Array = FixedTypedArray<Type##ArrayTraits>;
+
+TYPED_ARRAYS(FIXED_TYPED_ARRAY_TRAITS)
+
+#undef FIXED_TYPED_ARRAY_TRAITS
+
 class TemplateList : public FixedArray {
  public:
   static Handle<TemplateList> New(Isolate* isolate, int size);

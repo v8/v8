@@ -1977,6 +1977,15 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case FREE_SPACE_TYPE:
       os << "<FreeSpace[" << FreeSpace::cast(*this).size() << "]>";
       break;
+#define TYPED_ARRAY_SHORT_PRINT(Type, type, TYPE, ctype)                   \
+  case FIXED_##TYPE##_ARRAY_TYPE:                                          \
+    os << "<Fixed" #Type "Array["                                          \
+       << Fixed##Type##Array::cast(*this).number_of_elements_onheap_only() \
+       << "]>";                                                            \
+    break;
+
+      TYPED_ARRAYS(TYPED_ARRAY_SHORT_PRINT)
+#undef TYPED_ARRAY_SHORT_PRINT
 
     case PREPARSE_DATA_TYPE: {
       PreparseData data = PreparseData::cast(*this);
@@ -2238,6 +2247,11 @@ int HeapObject::SizeFromMap(Map map) const {
   if (instance_type == WEAK_ARRAY_LIST_TYPE) {
     return WeakArrayList::SizeForCapacity(
         WeakArrayList::unchecked_cast(*this).synchronized_capacity());
+  }
+  if (IsInRange(instance_type, FIRST_FIXED_TYPED_ARRAY_TYPE,
+                LAST_FIXED_TYPED_ARRAY_TYPE)) {
+    return FixedTypedArrayBase::unchecked_cast(*this).TypedArraySize(
+        instance_type);
   }
   if (instance_type == SMALL_ORDERED_HASH_SET_TYPE) {
     return SmallOrderedHashSet::SizeFor(
@@ -2685,7 +2699,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
   Handle<Object> to_assign = value;
   // Convert the incoming value to a number for storing into typed arrays.
   if (it->IsElement() && receiver->IsJSObject() &&
-      JSObject::cast(*receiver).HasTypedArrayElements()) {
+      JSObject::cast(*receiver).HasFixedTypedArrayElements()) {
     ElementsKind elements_kind = JSObject::cast(*receiver).GetElementsKind();
     if (elements_kind == BIGINT64_ELEMENTS ||
         elements_kind == BIGUINT64_ELEMENTS) {
@@ -2772,11 +2786,12 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
                                     Object::TypeOf(isolate, array), array));
       }
 
-      if (FLAG_trace_external_array_abuse && array->HasTypedArrayElements()) {
+      if (FLAG_trace_external_array_abuse &&
+          array->HasFixedTypedArrayElements()) {
         CheckArrayAbuse(array, "typed elements write", it->index(), true);
       }
 
-      if (FLAG_trace_js_array_abuse && !array->HasTypedArrayElements()) {
+      if (FLAG_trace_js_array_abuse && !array->HasFixedTypedArrayElements()) {
         CheckArrayAbuse(array, "elements write", it->index(), false);
       }
     }

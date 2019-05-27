@@ -150,7 +150,10 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
 
   Isolate* isolate = typed_array->GetIsolate();
 
-  DCHECK(IsTypedArrayElementsKind(typed_array->GetElementsKind()));
+  DCHECK(IsFixedTypedArrayElementsKind(typed_array->GetElementsKind()));
+
+  Handle<FixedTypedArrayBase> fixed_typed_array(
+      FixedTypedArrayBase::cast(typed_array->elements()), isolate);
 
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(typed_array->buffer()),
                                isolate);
@@ -159,13 +162,14 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
 
   void* backing_store =
       isolate->array_buffer_allocator()->AllocateUninitialized(
-          typed_array->byte_length());
+          fixed_typed_array->DataSize());
   if (backing_store == nullptr) {
     isolate->heap()->FatalProcessOutOfMemory(
         "JSTypedArray::MaterializeArrayBuffer");
   }
   buffer->set_is_external(false);
-  DCHECK_EQ(buffer->byte_length(), typed_array->byte_length());
+  DCHECK_EQ(buffer->byte_length(),
+            static_cast<uintptr_t>(fixed_typed_array->DataSize()));
   // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
   // are currently being constructed in the |ArrayBufferTracker|. The
   // registration method below handles the case of registering a buffer that has
@@ -173,12 +177,13 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
   buffer->set_backing_store(backing_store);
   // RegisterNewArrayBuffer expects a valid length for adjusting counters.
   isolate->heap()->RegisterNewArrayBuffer(*buffer);
-  memcpy(buffer->backing_store(), typed_array->DataPtr(),
-         typed_array->byte_length());
+  memcpy(buffer->backing_store(), fixed_typed_array->DataPtr(),
+         fixed_typed_array->DataSize());
+  Handle<FixedTypedArrayBase> new_elements =
+      isolate->factory()->NewFixedTypedArrayWithExternalPointer(
+          typed_array->type(), static_cast<uint8_t*>(buffer->backing_store()));
 
-  typed_array->set_elements(ReadOnlyRoots(isolate).empty_byte_array());
-  typed_array->set_external_pointer(backing_store);
-  typed_array->set_base_pointer(Smi::kZero);
+  typed_array->set_elements(*new_elements);
   DCHECK(!typed_array->is_on_heap());
 
   return buffer;
@@ -265,13 +270,13 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
 }
 
 ExternalArrayType JSTypedArray::type() {
-  switch (map().elements_kind()) {
-#define ELEMENTS_KIND_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
-  case TYPE##_ELEMENTS:                                      \
+  switch (elements().map().instance_type()) {
+#define INSTANCE_TYPE_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
+  case FIXED_##TYPE##_ARRAY_TYPE:                            \
     return kExternal##Type##Array;
 
-    TYPED_ARRAYS(ELEMENTS_KIND_TO_ARRAY_TYPE)
-#undef ELEMENTS_KIND_TO_ARRAY_TYPE
+    TYPED_ARRAYS(INSTANCE_TYPE_TO_ARRAY_TYPE)
+#undef INSTANCE_TYPE_TO_ARRAY_TYPE
 
     default:
       UNREACHABLE();
@@ -279,13 +284,13 @@ ExternalArrayType JSTypedArray::type() {
 }
 
 size_t JSTypedArray::element_size() {
-  switch (map().elements_kind()) {
-#define ELEMENTS_KIND_TO_ELEMENT_SIZE(Type, type, TYPE, ctype) \
-  case TYPE##_ELEMENTS:                                        \
+  switch (elements().map().instance_type()) {
+#define INSTANCE_TYPE_TO_ELEMENT_SIZE(Type, type, TYPE, ctype) \
+  case FIXED_##TYPE##_ARRAY_TYPE:                              \
     return sizeof(ctype);
 
-    TYPED_ARRAYS(ELEMENTS_KIND_TO_ELEMENT_SIZE)
-#undef ELEMENTS_KIND_TO_ELEMENT_SIZE
+    TYPED_ARRAYS(INSTANCE_TYPE_TO_ELEMENT_SIZE)
+#undef INSTANCE_TYPE_TO_ELEMENT_SIZE
 
     default:
       UNREACHABLE();

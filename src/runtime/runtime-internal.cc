@@ -309,14 +309,6 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
                                               AllocationType::kOld);
 }
 
-RUNTIME_FUNCTION(Runtime_AllocateByteArray) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_SMI_ARG_CHECKED(length, 0);
-  DCHECK_LT(0, length);
-  return *isolate->factory()->NewByteArray(length);
-}
-
 RUNTIME_FUNCTION(Runtime_AllocateSeqOneByteString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

@@ -46,7 +46,8 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     CSA_ASSERT(this, UintPtrLessThanOrEqual(SmiUntag(CAST(len_)),
                                             LoadJSTypedArrayLength(a)));
     fast_typed_array_target_ =
-        Word32Equal(LoadElementsKind(original_array), LoadElementsKind(a));
+        Word32Equal(LoadInstanceType(LoadElements(original_array)),
+                    LoadInstanceType(LoadElements(a)));
     a_.Bind(a);
   }
 
@@ -150,8 +151,8 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     Label throw_not_typed_array(this, Label::kDeferred);
 
     GotoIf(TaggedIsSmi(receiver_), &throw_not_typed_array);
-    TNode<Map> typed_array_map = LoadMap(CAST(receiver_));
-    GotoIfNot(IsJSTypedArrayMap(typed_array_map), &throw_not_typed_array);
+    GotoIfNot(HasInstanceType(CAST(receiver_), JS_TYPED_ARRAY_TYPE),
+              &throw_not_typed_array);
 
     TNode<JSTypedArray> typed_array = CAST(receiver_);
     o_ = typed_array;
@@ -178,13 +179,13 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     BIND(&unexpected_instance_type);
     Unreachable();
 
-    std::vector<int32_t> elements_kinds = {
-#define ELEMENTS_KIND(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
-        TYPED_ARRAYS(ELEMENTS_KIND)
-#undef ELEMENTS_KIND
+    std::vector<int32_t> instance_types = {
+#define INSTANCE_TYPE(Type, type, TYPE, ctype) FIXED_##TYPE##_ARRAY_TYPE,
+        TYPED_ARRAYS(INSTANCE_TYPE)
+#undef INSTANCE_TYPE
     };
     std::list<Label> labels;
-    for (size_t i = 0; i < elements_kinds.size(); ++i) {
+    for (size_t i = 0; i < instance_types.size(); ++i) {
       labels.emplace_back(this);
     }
     std::vector<Label*> label_ptrs;
@@ -202,15 +203,16 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
       k_.Bind(NumberDec(len()));
     }
     CSA_ASSERT(this, IsSafeInteger(k()));
-    TNode<Int32T> elements_kind = LoadMapElementsKind(typed_array_map);
-    Switch(elements_kind, &unexpected_instance_type, elements_kinds.data(),
+    Node* instance_type = LoadInstanceType(LoadElements(typed_array));
+    Switch(instance_type, &unexpected_instance_type, instance_types.data(),
            label_ptrs.data(), labels.size());
 
     size_t i = 0;
     for (auto it = labels.begin(); it != labels.end(); ++i, ++it) {
       BIND(&*it);
       Label done(this);
-      source_elements_kind_ = static_cast<ElementsKind>(elements_kinds[i]);
+      source_elements_kind_ = ElementsKindForInstanceType(
+          static_cast<InstanceType>(instance_types[i]));
       // TODO(tebbi): Silently cancelling the loop on buffer detachment is a
       // spec violation. Should go to &throw_detached and throw a TypeError
       // instead.
@@ -224,6 +226,21 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     }
   }
 
+  ElementsKind ArrayBuiltinsAssembler::ElementsKindForInstanceType(
+      InstanceType type) {
+    switch (type) {
+#define INSTANCE_TYPE_TO_ELEMENTS_KIND(Type, type, TYPE, ctype) \
+  case FIXED_##TYPE##_ARRAY_TYPE:                               \
+    return TYPE##_ELEMENTS;
+
+      TYPED_ARRAYS(INSTANCE_TYPE_TO_ELEMENTS_KIND)
+#undef INSTANCE_TYPE_TO_ELEMENTS_KIND
+
+      default:
+        UNREACHABLE();
+    }
+  }
+
   void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
       Node* array_buffer, const CallResultProcessor& processor, Label* detached,
       ForEachDirection direction, TNode<JSTypedArray> typed_array) {
@@ -231,7 +248,13 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
 
     FastLoopBody body = [&](Node* index) {
       GotoIf(IsDetachedBuffer(array_buffer), detached);
-      TNode<RawPtrT> data_ptr = LoadJSTypedArrayBackingStore(typed_array);
+      Node* elements = LoadElements(typed_array);
+      Node* base_ptr =
+          LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
+      Node* external_ptr =
+          LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
+                          MachineType::Pointer());
+      Node* data_ptr = IntPtrAdd(BitcastTaggedToWord(base_ptr), external_ptr);
       Node* value = LoadFixedTypedArrayElementAsTagged(
           data_ptr, index, source_elements_kind_, SMI_PARAMETERS);
       k_.Bind(index);
@@ -1645,7 +1668,14 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
            &allocate_iterator_result);
 
     TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
-    TNode<RawPtrT> data_ptr = LoadJSTypedArrayBackingStore(CAST(array));
+    Node* elements = LoadElements(CAST(array));
+    Node* base_ptr =
+        LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
+    Node* external_ptr =
+        LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
+                        MachineType::Pointer());
+    TNode<WordT> data_ptr =
+        IntPtrAdd(BitcastTaggedToWord(base_ptr), external_ptr);
     var_value.Bind(LoadFixedTypedArrayElementAsTagged(data_ptr, CAST(index),
                                                       elements_kind));
     Goto(&allocate_entry_if_needed);

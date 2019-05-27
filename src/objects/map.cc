@@ -325,6 +325,21 @@ VisitorId Map::GetVisitorId(Map map) {
     case BIGINT_TYPE:
       return kVisitBigInt;
 
+    case FIXED_UINT8_ARRAY_TYPE:
+    case FIXED_INT8_ARRAY_TYPE:
+    case FIXED_UINT16_ARRAY_TYPE:
+    case FIXED_INT16_ARRAY_TYPE:
+    case FIXED_UINT32_ARRAY_TYPE:
+    case FIXED_INT32_ARRAY_TYPE:
+    case FIXED_FLOAT32_ARRAY_TYPE:
+    case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
+    case FIXED_BIGUINT64_ARRAY_TYPE:
+    case FIXED_BIGINT64_ARRAY_TYPE:
+      return kVisitFixedTypedArrayBase;
+
+    case FIXED_FLOAT64_ARRAY_TYPE:
+      return kVisitFixedFloat64Array;
+
     case ALLOCATION_SITE_TYPE:
       return kVisitAllocationSite;
 
@@ -989,7 +1004,7 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
     // the integrity level transition sets the elements to dictionary mode.
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
            to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
-           IsTypedArrayElementsKind(to_kind) ||
+           IsFixedTypedArrayElementsKind(to_kind) ||
            IsHoleyFrozenOrSealedElementsKind(to_kind));
     to_kind = info.integrity_level_source_map.elements_kind();
   }
@@ -2012,7 +2027,7 @@ Handle<Map> Map::CopyForPreventExtensions(
       isolate, map, new_desc, new_layout_descriptor, flag, transition_marker,
       reason, SPECIAL_TRANSITION);
   new_map->set_is_extensible(false);
-  if (!IsTypedArrayElementsKind(map->elements_kind())) {
+  if (!IsFixedTypedArrayElementsKind(map->elements_kind())) {
     ElementsKind new_kind = IsStringWrapperElementsKind(map->elements_kind())
                                 ? SLOW_STRING_WRAPPER_ELEMENTS
                                 : DICTIONARY_ELEMENTS;

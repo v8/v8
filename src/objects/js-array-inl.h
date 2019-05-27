@@ -34,7 +34,7 @@ bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
 
 bool JSArray::AllowsSetLength() {
   bool result = elements().IsFixedArray() || elements().IsFixedDoubleArray();
-  DCHECK(result == !HasTypedArrayElements());
+  DCHECK(result == !HasFixedTypedArrayElements());
   return result;
 }
 

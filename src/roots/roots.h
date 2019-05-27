@@ -17,6 +17,7 @@ namespace internal {
 
 // Forward declarations.
 enum ElementsKind : uint8_t;
+class FixedTypedArrayBase;
 template <typename T>
 class Handle;
 class Heap;
@@ -149,6 +150,18 @@ class Symbol;
     UncachedExternalOneByteInternalizedStringMap)                              \
   V(Map, uncached_external_one_byte_string_map,                                \
     UncachedExternalOneByteStringMap)                                          \
+  /* Array element maps */                                                     \
+  V(Map, fixed_uint8_array_map, FixedUint8ArrayMap)                            \
+  V(Map, fixed_int8_array_map, FixedInt8ArrayMap)                              \
+  V(Map, fixed_uint16_array_map, FixedUint16ArrayMap)                          \
+  V(Map, fixed_int16_array_map, FixedInt16ArrayMap)                            \
+  V(Map, fixed_uint32_array_map, FixedUint32ArrayMap)                          \
+  V(Map, fixed_int32_array_map, FixedInt32ArrayMap)                            \
+  V(Map, fixed_float32_array_map, FixedFloat32ArrayMap)                        \
+  V(Map, fixed_float64_array_map, FixedFloat64ArrayMap)                        \
+  V(Map, fixed_uint8_clamped_array_map, FixedUint8ClampedArrayMap)             \
+  V(Map, fixed_biguint64_array_map, FixedBigUint64ArrayMap)                    \
+  V(Map, fixed_bigint64_array_map, FixedBigInt64ArrayMap)                      \
   /* Oddball maps */                                                           \
   V(Map, undefined_map, UndefinedMap)                                          \
   V(Map, the_hole_map, TheHoleMap)                                             \
@@ -171,6 +184,19 @@ class Symbol;
     EmptyArrayBoilerplateDescription)                                          \
   V(ClosureFeedbackCellArray, empty_closure_feedback_cell_array,               \
     EmptyClosureFeedbackCellArray)                                             \
+  V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
+  V(FixedTypedArrayBase, empty_fixed_int8_array, EmptyFixedInt8Array)          \
+  V(FixedTypedArrayBase, empty_fixed_uint16_array, EmptyFixedUint16Array)      \
+  V(FixedTypedArrayBase, empty_fixed_int16_array, EmptyFixedInt16Array)        \
+  V(FixedTypedArrayBase, empty_fixed_uint32_array, EmptyFixedUint32Array)      \
+  V(FixedTypedArrayBase, empty_fixed_int32_array, EmptyFixedInt32Array)        \
+  V(FixedTypedArrayBase, empty_fixed_float32_array, EmptyFixedFloat32Array)    \
+  V(FixedTypedArrayBase, empty_fixed_float64_array, EmptyFixedFloat64Array)    \
+  V(FixedTypedArrayBase, empty_fixed_uint8_clamped_array,                      \
+    EmptyFixedUint8ClampedArray)                                               \
+  V(FixedTypedArrayBase, empty_fixed_biguint64_array,                          \
+    EmptyFixedBigUint64Array)                                                  \
+  V(FixedTypedArrayBase, empty_fixed_bigint64_array, EmptyFixedBigInt64Array)  \
   V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
   V(NumberDictionary, empty_slow_element_dictionary,                           \
     EmptySlowElementDictionary)                                                \
@@ -402,6 +428,10 @@ class RootsTable {
     return static_cast<int>(root_index) * kSystemPointerSize;
   }
 
+  static RootIndex RootIndexForFixedTypedArray(ExternalArrayType array_type);
+  static RootIndex RootIndexForFixedTypedArray(ElementsKind elements_kind);
+  static RootIndex RootIndexForEmptyFixedTypedArray(ElementsKind elements_kind);
+
   // Immortal immovable root objects are allocated in OLD space and GC never
   // moves them and the root table entries are guaranteed to not be modified
   // after initialization. Note, however, that contents of those root objects
@@ -496,6 +526,11 @@ class ReadOnlyRoots {
 
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
+
+  V8_INLINE Map MapForFixedTypedArray(ExternalArrayType array_type);
+  V8_INLINE Map MapForFixedTypedArray(ElementsKind elements_kind);
+  V8_INLINE FixedTypedArrayBase
+  EmptyFixedTypedArrayForTypedArray(ElementsKind elements_kind);
 
   // Iterate over all the read-only roots. This is not necessary for garbage
   // collection and is usually only performed as part of (de)serialization or

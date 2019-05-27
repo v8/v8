@@ -7237,7 +7237,9 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
       DCHECK(self->IsJSTypedArray());
       i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*self),
                                              isolate);
-      source = reinterpret_cast<char*>(typed_array->DataPtr());
+      i::Handle<i::FixedTypedArrayBase> fixed_array(
+          i::FixedTypedArrayBase::cast(typed_array->elements()), isolate);
+      source = reinterpret_cast<char*>(fixed_array->DataPtr());
     }
     memcpy(dest, source + byte_offset, bytes_to_copy);
   }

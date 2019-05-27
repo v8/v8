@@ -799,9 +799,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<UintPtrT> UintPtrConstant(uintptr_t value) {
     return Unsigned(IntPtrConstant(bit_cast<intptr_t>(value)));
   }
-  TNode<RawPtrT> PointerConstant(void* value) {
-    return ReinterpretCast<RawPtrT>(IntPtrConstant(bit_cast<intptr_t>(value)));
-  }
   TNode<Number> NumberConstant(double value);
   TNode<Smi> SmiConstant(Smi value);
   TNode<Smi> SmiConstant(int value);

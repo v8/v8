@@ -307,7 +307,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void EmitFastElementsBoundsCheck(Node* object, Node* elements,
                                    Node* intptr_index,
                                    Node* is_jsarray_condition, Label* miss);
-  void EmitElementLoad(Node* object, Node* elements_kind,
+  void EmitElementLoad(Node* object, Node* elements, Node* elements_kind,
                        SloppyTNode<IntPtrT> key, Node* is_jsarray_condition,
                        Label* if_hole, Label* rebox_double,
                        Variable* var_double_value,

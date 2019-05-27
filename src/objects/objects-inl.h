@@ -421,9 +421,8 @@ CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
 
 bool Object::HasValidElements() {
-  // Dictionary is covered under FixedArray. ByteArray is used
-  // for the JSTypedArray backing stores.
-  return IsFixedArray() || IsFixedDoubleArray() || IsByteArray();
+  // Dictionary is covered under FixedArray.
+  return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase();
 }
 
 bool Object::FilterKey(PropertyFilter filter) {
@@ -795,9 +794,6 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
 
 // static
 AllocationAlignment HeapObject::RequiredAlignment(Map map) {
-  // TODO(bmeurer, v8:4153): We should think about requiring double alignment
-  // in general for ByteArray, since they are used as backing store for typed
-  // arrays now.
 #ifdef V8_COMPRESS_POINTERS
   // TODO(ishell, v8:8875): Consider using aligned allocations once the
   // allocation alignment inconsistency is fixed. For now we keep using
@@ -806,7 +802,10 @@ AllocationAlignment HeapObject::RequiredAlignment(Map map) {
 #endif  // V8_COMPRESS_POINTERS
 #ifdef V8_HOST_ARCH_32_BIT
   int instance_type = map.instance_type();
-  if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) return kDoubleAligned;
+  if (instance_type == FIXED_FLOAT64_ARRAY_TYPE ||
+      instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
+    return kDoubleAligned;
+  }
   if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
 #endif  // V8_HOST_ARCH_32_BIT
   return kWordAligned;

@@ -201,7 +201,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_INTERNAL(F, I)            \
   F(AccessCheck, 1, 1)                               \
-  F(AllocateByteArray, 1, 1)                         \
   F(AllocateInYoungGeneration, 1, 1)                 \
   F(AllocateInOldGeneration, 2, 1)                   \
   F(AllocateSeqOneByteString, 1, 1)                  \

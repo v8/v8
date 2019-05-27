@@ -83,6 +83,26 @@ ReadOnlyRoots::ReadOnlyRoots(Address* ro_roots) : read_only_roots_(ro_roots) {}
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
+Map ReadOnlyRoots::MapForFixedTypedArray(ExternalArrayType array_type) {
+  RootIndex root_index = RootsTable::RootIndexForFixedTypedArray(array_type);
+  DCHECK(CheckType(root_index));
+  return Map::unchecked_cast(Object(at(root_index)));
+}
+
+Map ReadOnlyRoots::MapForFixedTypedArray(ElementsKind elements_kind) {
+  RootIndex root_index = RootsTable::RootIndexForFixedTypedArray(elements_kind);
+  DCHECK(CheckType(root_index));
+  return Map::unchecked_cast(Object(at(root_index)));
+}
+
+FixedTypedArrayBase ReadOnlyRoots::EmptyFixedTypedArrayForTypedArray(
+    ElementsKind elements_kind) {
+  RootIndex root_index =
+      RootsTable::RootIndexForEmptyFixedTypedArray(elements_kind);
+  DCHECK(CheckType(root_index));
+  return FixedTypedArrayBase::unchecked_cast(Object(at(root_index)));
+}
+
 Address& ReadOnlyRoots::at(RootIndex root_index) const {
   size_t index = static_cast<size_t>(root_index);
   DCHECK_LT(index, kEntriesCount);

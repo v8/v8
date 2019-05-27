@@ -3218,7 +3218,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
 
         // Special case: properties of typed arrays cannot be reconfigured to
         // non-writable nor to non-enumerable.
-        if (it->IsElement() && object->HasTypedArrayElements()) {
+        if (it->IsElement() && object->HasFixedTypedArrayElements()) {
           return Object::RedefineIncompatibleProperty(
               it->isolate(), it->GetName(), value, should_throw);
         }
@@ -3446,7 +3446,7 @@ void JSObject::RequireSlowElements(NumberDictionary dictionary) {
 }
 
 Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
-  DCHECK(!object->HasTypedArrayElements());
+  DCHECK(!object->HasFixedTypedArrayElements());
   Isolate* isolate = object->GetIsolate();
   bool is_sloppy_arguments = object->HasSloppyArgumentsElements();
   {
@@ -3630,7 +3630,7 @@ bool TestElementsIntegrityLevel(JSObject object, PropertyAttributes level) {
         NumberDictionary::cast(object.elements()), object.GetReadOnlyRoots(),
         level);
   }
-  if (IsTypedArrayElementsKind(kind)) {
+  if (IsFixedTypedArrayElementsKind(kind)) {
     if (level == FROZEN && JSArrayBufferView::cast(object).byte_length() > 0)
       return false;  // TypedArrays with elements can't be frozen.
     return TestPropertiesIntegrityLevel(object, level);
@@ -3695,7 +3695,7 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
                    NewTypeError(MessageTemplate::kCannotPreventExt));
   }
 
-  if (!object->HasTypedArrayElements()) {
+  if (!object->HasFixedTypedArrayElements()) {
     // If there are fast elements we normalize.
     Handle<NumberDictionary> dictionary = NormalizeElements(object);
     DCHECK(object->HasDictionaryElements() ||
@@ -3807,7 +3807,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   Handle<NumberDictionary> new_element_dictionary;
-  if (!object->HasTypedArrayElements() && !object->HasDictionaryElements() &&
+  if (!object->HasFixedTypedArrayElements() &&
+      !object->HasDictionaryElements() &&
       !object->HasSlowStringWrapperElements()) {
     int length = object->IsJSArray()
                      ? Smi::ToInt(Handle<JSArray>::cast(object)->length())
@@ -3834,7 +3835,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   if (!transition.is_null()) {
     Handle<Map> transition_map(transition, isolate);
     DCHECK(transition_map->has_dictionary_elements() ||
-           transition_map->has_typed_array_elements() ||
+           transition_map->has_fixed_typed_array_elements() ||
            transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS ||
            transition_map->has_frozen_or_sealed_elements());
     DCHECK(!transition_map->is_extensible());
@@ -3886,7 +3887,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
   // Both seal and preventExtensions always go through without modifications to
   // typed array elements. Freeze works only if there are no actual elements.
-  if (object->HasTypedArrayElements()) {
+  if (object->HasFixedTypedArrayElements()) {
     if (attrs == FROZEN && JSArrayBufferView::cast(*object).byte_length() > 0) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kCannotFreezeArrayBufferView));
@@ -4029,7 +4030,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
 
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   // Ignore accessors on typed arrays.
-  if (it->IsElement() && object->HasTypedArrayElements()) {
+  if (it->IsElement() && object->HasFixedTypedArrayElements()) {
     return it->factory()->undefined_value();
   }
 
@@ -4066,7 +4067,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   }
 
   // Ignore accessors on typed arrays.
-  if (it.IsElement() && object->HasTypedArrayElements()) {
+  if (it.IsElement() && object->HasFixedTypedArrayElements()) {
     return it.factory()->undefined_value();
   }
 

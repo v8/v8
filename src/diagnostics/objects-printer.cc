@@ -210,6 +210,14 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       FreeSpace::cast(*this).FreeSpacePrint(os);
       break;
 
+#define PRINT_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype)      \
+  case Fixed##Type##Array::kInstanceType:                     \
+    Fixed##Type##Array::cast(*this).FixedTypedArrayPrint(os); \
+    break;
+
+      TYPED_ARRAYS(PRINT_FIXED_TYPED_ARRAY)
+#undef PRINT_FIXED_TYPED_ARRAY
+
     case FILLER_TYPE:
       os << "filler";
       break;
@@ -469,6 +477,20 @@ void FreeSpace::FreeSpacePrint(std::ostream& os) {  // NOLINT
   os << "free space, size " << Size() << "\n";
 }
 
+template <class Traits>
+void FixedTypedArray<Traits>::FixedTypedArrayPrint(
+    std::ostream& os) {  // NOLINT
+  PrintHeader(os, Traits::ArrayTypeName());
+  os << "\n - length: " << number_of_elements_onheap_only()
+     << "\n - base_pointer: ";
+  if (base_pointer().ptr() == kNullAddress) {
+    os << "<nullptr>";
+  } else {
+    os << Brief(base_pointer());
+  }
+  os << "\n - external_pointer: " << external_pointer() << "\n";
+}
+
 bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   if (HasFastProperties()) {
     DescriptorArray descs = map().instance_descriptors();
@@ -559,30 +581,6 @@ void DoPrintElements(std::ostream& os, Object object, int length) {  // NOLINT
     } else {
       os << previous_value;
     }
-    previous_index = i;
-    previous_value = value;
-  }
-}
-
-template <typename ElementType>
-void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
-                             size_t length) {
-  if (length == 0) return;
-  size_t previous_index = 0;
-  ElementType previous_value = data_ptr[0];
-  ElementType value = 0;
-  for (size_t i = 1; i <= length; i++) {
-    if (i < length) value = data_ptr[i];
-    if (i != length && previous_value == value) {
-      continue;
-    }
-    os << "\n";
-    std::stringstream ss;
-    ss << previous_index;
-    if (previous_index != i - 1) {
-      ss << '-' << (i - 1);
-    }
-    os << std::setw(12) << ss.str() << ": " << previous_value;
     previous_index = i;
     previous_value = value;
   }
@@ -687,13 +685,12 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
       break;
     }
 
-#define PRINT_ELEMENTS(Type, type, TYPE, elementType)                         \
-  case TYPE##_ELEMENTS: {                                                     \
-    size_t length = JSTypedArray::cast(*this).length();                       \
-    const elementType* data_ptr =                                             \
-        static_cast<const elementType*>(JSTypedArray::cast(*this).DataPtr()); \
-    PrintTypedArrayElements<elementType>(os, data_ptr, length);               \
-    break;                                                                    \
+    // TODO(bmeurer, v8:4153): Change this to size_t later.
+#define PRINT_ELEMENTS(Type, type, TYPE, elementType)                  \
+  case TYPE##_ELEMENTS: {                                              \
+    int length = static_cast<int>(JSTypedArray::cast(*this).length()); \
+    DoPrintElements<Fixed##Type##Array>(os, elements(), length);       \
+    break;                                                             \
   }
       TYPED_ARRAYS(PRINT_ELEMENTS)
 #undef PRINT_ELEMENTS
@@ -752,8 +749,10 @@ static void JSObjectPrintBody(std::ostream& os,
   if (obj.PrintProperties(os)) os << "\n ";
   os << "}\n";
   if (print_elements) {
-    size_t length = obj.IsJSTypedArray() ? JSTypedArray::cast(obj).length()
-                                         : obj.elements().length();
+    int length = obj.HasFixedTypedArrayElements()
+                     ? FixedTypedArrayBase::cast(obj.elements())
+                           .number_of_elements_onheap_only()
+                     : obj.elements().length();
     if (length > 0) obj.PrintElements(os);
   }
   int embedder_fields = obj.GetEmbedderFieldCount();

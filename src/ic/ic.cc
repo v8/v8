@@ -1186,7 +1186,7 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
          IsFrozenOrSealedElementsKind(elements_kind) ||
-         IsTypedArrayElementsKind(elements_kind));
+         IsFixedTypedArrayElementsKind(elements_kind));
   bool convert_hole_to_undefined =
       (elements_kind == HOLEY_SMI_ELEMENTS ||
        elements_kind == HOLEY_ELEMENTS) &&
@@ -1855,7 +1855,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   if (store_mode != STANDARD_STORE) {
     size_t external_arrays = 0;
     for (Handle<Map> map : target_receiver_maps) {
-      if (map->has_typed_array_elements()) {
+      if (map->has_fixed_typed_array_elements()) {
         DCHECK(!IsStoreInArrayLiteralICKind(kind()));
         external_arrays++;
       }
@@ -1903,10 +1903,10 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
         CodeFactory::KeyedStoreIC_SloppyArguments(isolate(), store_mode).code();
   } else if (receiver_map->has_fast_elements() ||
              receiver_map->has_sealed_elements() ||
-             receiver_map->has_typed_array_elements()) {
+             receiver_map->has_fixed_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
     code = CodeFactory::StoreFastElementIC(isolate(), store_mode).code();
-    if (receiver_map->has_typed_array_elements()) return code;
+    if (receiver_map->has_fixed_typed_array_elements()) return code;
   } else if (IsStoreInArrayLiteralICKind(kind())) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), StoreInArrayLiteralIC_SlowStub);
@@ -2012,7 +2012,7 @@ KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver, uint32_t index) {
     return STORE_AND_GROW_HANDLE_COW;
   }
   if (!FLAG_trace_external_array_abuse &&
-      receiver->map().has_typed_array_elements() && oob_access) {
+      receiver->map().has_fixed_typed_array_elements() && oob_access) {
     return STORE_IGNORE_OUT_OF_BOUNDS;
   }
   return receiver->elements().IsCowArray() ? STORE_HANDLE_COW : STANDARD_STORE;

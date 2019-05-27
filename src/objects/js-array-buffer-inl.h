@@ -136,31 +136,12 @@ void JSTypedArray::set_length(size_t value) {
   WriteField<size_t>(kLengthOffset, value);
 }
 
-void* JSTypedArray::external_pointer() const {
-  return reinterpret_cast<void*>(ReadField<Address>(kExternalPointerOffset));
-}
-
-void JSTypedArray::set_external_pointer(void* value) {
-  WriteField<Address>(kExternalPointerOffset, reinterpret_cast<Address>(value));
-}
-
-ACCESSORS(JSTypedArray, base_pointer, Object, kBasePointerOffset)
-
-void* JSTypedArray::DataPtr() {
-  return reinterpret_cast<void*>(
-      base_pointer().ptr() + reinterpret_cast<intptr_t>(external_pointer()));
-}
-
 bool JSTypedArray::is_on_heap() const {
   DisallowHeapAllocation no_gc;
   // Checking that buffer()->backing_store() is not nullptr is not sufficient;
   // it will be nullptr when byte_length is 0 as well.
-  return base_pointer().ptr() == elements().ptr();
-}
-
-// static
-void* JSTypedArray::ExternalPointerForOnHeapArray() {
-  return reinterpret_cast<void*>(ByteArray::kHeaderSize - kHeapObjectTag);
+  FixedTypedArrayBase fta = FixedTypedArrayBase::cast(elements());
+  return fta.base_pointer().ptr() == fta.ptr();
 }
 
 // static

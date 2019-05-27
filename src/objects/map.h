@@ -42,6 +42,8 @@ enum InstanceType : uint16_t;
   V(FeedbackCell)                      \
   V(FeedbackVector)                    \
   V(FixedArray)                        \
+  V(FixedFloat64Array)                 \
+  V(FixedTypedArrayBase)               \
   V(FreeSpace)                         \
   V(JSApiObject)                       \
   V(JSArrayBuffer)                     \
@@ -421,7 +423,7 @@ class Map : public HeapObject {
   inline bool has_sloppy_arguments_elements() const;
   inline bool has_fast_sloppy_arguments_elements() const;
   inline bool has_fast_string_wrapper_elements() const;
-  inline bool has_typed_array_elements() const;
+  inline bool has_fixed_typed_array_elements() const;
   inline bool has_dictionary_elements() const;
   inline bool has_frozen_or_sealed_elements() const;
   inline bool has_sealed_elements() const;

@@ -93,12 +93,14 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   DCHECK_LT(to, len);
   DCHECK_GE(len - count, 0);
 
+  Handle<FixedTypedArrayBase> elements(
+      FixedTypedArrayBase::cast(array->elements()), isolate);
   size_t element_size = array->element_size();
   to = to * element_size;
   from = from * element_size;
   count = count * element_size;
 
-  uint8_t* data = static_cast<uint8_t*>(array->DataPtr());
+  uint8_t* data = static_cast<uint8_t*>(elements->DataPtr());
   std::memmove(data + to, data + from, count);
 
   return *array;

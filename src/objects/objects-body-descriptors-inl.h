@@ -335,8 +335,6 @@ class JSTypedArray::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     if (offset < kEndOfTaggedFieldsOffset) return true;
-    // TODO(v8:4153): Remove this.
-    if (offset == kBasePointerOffset) return true;
     if (offset < kHeaderSize) return false;
     return IsValidJSObjectSlotImpl(map, obj, offset);
   }
@@ -346,8 +344,6 @@ class JSTypedArray::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     // JSTypedArray contains raw data that the GC does not know about.
     IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
-    // TODO(v8:4153): Remove this.
-    IteratePointer(obj, kBasePointerOffset, v);
     IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
   }
 
@@ -461,6 +457,23 @@ class FixedDoubleArray::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map map, HeapObject obj) {
     return FixedDoubleArray::SizeFor(
         FixedDoubleArray::cast(obj).synchronized_length());
+  }
+};
+
+class FixedTypedArrayBase::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    return offset == kBasePointerOffset;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointer(obj, kBasePointerOffset, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) {
+    return FixedTypedArrayBase::cast(object).size();
   }
 };
 
@@ -1026,6 +1039,13 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case FREE_SPACE_TYPE:
     case BIGINT_TYPE:
       return ReturnType();
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                              \
+  case FIXED_##TYPE##_ARRAY_TYPE:                                              \
+    return Op::template apply<FixedTypedArrayBase::BodyDescriptor>(p1, p2, p3, \
+                                                                   p4);
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
 
     case SHARED_FUNCTION_INFO_TYPE: {
       return Op::template apply<SharedFunctionInfo::BodyDescriptor>(p1, p2, p3,

@@ -5,21 +5,6 @@
 #include 'src/builtins/builtins-typed-array-gen.h'
 
 namespace typed_array {
-  // Naming convention from elements.cc. We have a similar intent but implement
-  // fastpaths using generics instead of using a class hierarchy for elements
-  // kinds specific implementations.
-  type Uint8Elements;
-  type Int8Elements;
-  type Uint16Elements;
-  type Int16Elements;
-  type Uint32Elements;
-  type Int32Elements;
-  type Float32Elements;
-  type Float64Elements;
-  type Uint8ClampedElements;
-  type BigUint64Elements;
-  type BigInt64Elements;
-
   struct TypedArrayElementsInfo {
     // Calculates the number of bytes required for specified number of elements.
     CalculateByteLength(lengthSmi: PositiveSmi): uintptr labels IfInvalid {
@@ -49,6 +34,7 @@ namespace typed_array {
     }
 
     sizeLog2: uintptr;
+    map: Map;
     kind: ElementsKind;
   }
   extern runtime TypedArraySortFast(Context, Object): JSTypedArray;
@@ -69,8 +55,8 @@ namespace typed_array {
       ElementsKind): bool;
   extern macro LoadFixedTypedArrayElementAsTagged(
       RawPtr, Smi, constexpr ElementsKind, constexpr ParameterMode): Object;
-  extern macro StoreJSTypedArrayElementFromTagged(
-      Context, JSTypedArray, Smi, Object, constexpr ElementsKind,
+  extern macro StoreFixedTypedArrayElementFromTagged(
+      Context, FixedTypedArrayBase, Smi, Object, constexpr ElementsKind,
       constexpr ParameterMode);
 
   type LoadFn = builtin(Context, JSTypedArray, Smi) => Object;
@@ -134,31 +120,31 @@ namespace typed_array {
   macro GetLoadFnForElementsKind(elementsKind: ElementsKind): LoadFn {
     if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
       if (elementsKind == INT32_ELEMENTS) {
-        return LoadFixedElement<Int32Elements>;
+        return LoadFixedElement<FixedInt32Array>;
       } else if (elementsKind == FLOAT32_ELEMENTS) {
-        return LoadFixedElement<Float32Elements>;
+        return LoadFixedElement<FixedFloat32Array>;
       } else if (elementsKind == FLOAT64_ELEMENTS) {
-        return LoadFixedElement<Float64Elements>;
+        return LoadFixedElement<FixedFloat64Array>;
       } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
-        return LoadFixedElement<Uint8ClampedElements>;
+        return LoadFixedElement<FixedUint8ClampedArray>;
       } else if (elementsKind == BIGUINT64_ELEMENTS) {
-        return LoadFixedElement<BigUint64Elements>;
+        return LoadFixedElement<FixedBigUint64Array>;
       } else if (elementsKind == BIGINT64_ELEMENTS) {
-        return LoadFixedElement<BigInt64Elements>;
+        return LoadFixedElement<FixedBigInt64Array>;
       } else {
         unreachable;
       }
     } else {
       if (elementsKind == UINT8_ELEMENTS) {
-        return LoadFixedElement<Uint8Elements>;
+        return LoadFixedElement<FixedUint8Array>;
       } else if (elementsKind == INT8_ELEMENTS) {
-        return LoadFixedElement<Int8Elements>;
+        return LoadFixedElement<FixedInt8Array>;
       } else if (elementsKind == UINT16_ELEMENTS) {
-        return LoadFixedElement<Uint16Elements>;
+        return LoadFixedElement<FixedUint16Array>;
       } else if (elementsKind == INT16_ELEMENTS) {
-        return LoadFixedElement<Int16Elements>;
+        return LoadFixedElement<FixedInt16Array>;
       } else if (elementsKind == UINT32_ELEMENTS) {
-        return LoadFixedElement<Uint32Elements>;
+        return LoadFixedElement<FixedUint32Array>;
       } else {
         unreachable;
       }
@@ -166,37 +152,37 @@ namespace typed_array {
   }
 
   macro KindForArrayType<T: type>(): constexpr ElementsKind;
-  KindForArrayType<Uint8Elements>(): constexpr ElementsKind {
+  KindForArrayType<FixedUint8Array>(): constexpr ElementsKind {
     return UINT8_ELEMENTS;
   }
-  KindForArrayType<Int8Elements>(): constexpr ElementsKind {
+  KindForArrayType<FixedInt8Array>(): constexpr ElementsKind {
     return INT8_ELEMENTS;
   }
-  KindForArrayType<Uint16Elements>(): constexpr ElementsKind {
+  KindForArrayType<FixedUint16Array>(): constexpr ElementsKind {
     return UINT16_ELEMENTS;
   }
-  KindForArrayType<Int16Elements>(): constexpr ElementsKind {
+  KindForArrayType<FixedInt16Array>(): constexpr ElementsKind {
     return INT16_ELEMENTS;
   }
-  KindForArrayType<Uint32Elements>(): constexpr ElementsKind {
+  KindForArrayType<FixedUint32Array>(): constexpr ElementsKind {
     return UINT32_ELEMENTS;
   }
-  KindForArrayType<Int32Elements>(): constexpr ElementsKind {
+  KindForArrayType<FixedInt32Array>(): constexpr ElementsKind {
     return INT32_ELEMENTS;
   }
-  KindForArrayType<Float32Elements>(): constexpr ElementsKind {
+  KindForArrayType<FixedFloat32Array>(): constexpr ElementsKind {
     return FLOAT32_ELEMENTS;
   }
-  KindForArrayType<Float64Elements>(): constexpr ElementsKind {
+  KindForArrayType<FixedFloat64Array>(): constexpr ElementsKind {
     return FLOAT64_ELEMENTS;
   }
-  KindForArrayType<Uint8ClampedElements>(): constexpr ElementsKind {
+  KindForArrayType<FixedUint8ClampedArray>(): constexpr ElementsKind {
     return UINT8_CLAMPED_ELEMENTS;
   }
-  KindForArrayType<BigUint64Elements>(): constexpr ElementsKind {
+  KindForArrayType<FixedBigUint64Array>(): constexpr ElementsKind {
     return BIGUINT64_ELEMENTS;
   }
-  KindForArrayType<BigInt64Elements>(): constexpr ElementsKind {
+  KindForArrayType<FixedBigInt64Array>(): constexpr ElementsKind {
     return BIGINT64_ELEMENTS;
   }
 
@@ -207,11 +193,12 @@ namespace typed_array {
   }
 
   builtin StoreFixedElement<T: type>(
-      context: Context, typedArray: JSTypedArray, index: Smi,
+      context: Context, array: JSTypedArray, index: Smi,
       value: Object): Object {
-    StoreJSTypedArrayElementFromTagged(
-        context, typedArray, index, value, KindForArrayType<T>(),
-        SMI_PARAMETERS);
+    const elements: FixedTypedArrayBase =
+        UnsafeCast<FixedTypedArrayBase>(array.elements);
+    StoreFixedTypedArrayElementFromTagged(
+        context, elements, index, value, KindForArrayType<T>(), SMI_PARAMETERS);
     return Undefined;
   }
 
@@ -326,42 +313,42 @@ namespace typed_array {
 
     if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
       if (elementsKind == INT32_ELEMENTS) {
-        loadfn = LoadFixedElement<Int32Elements>;
-        storefn = StoreFixedElement<Int32Elements>;
+        loadfn = LoadFixedElement<FixedInt32Array>;
+        storefn = StoreFixedElement<FixedInt32Array>;
       } else if (elementsKind == FLOAT32_ELEMENTS) {
-        loadfn = LoadFixedElement<Float32Elements>;
-        storefn = StoreFixedElement<Float32Elements>;
+        loadfn = LoadFixedElement<FixedFloat32Array>;
+        storefn = StoreFixedElement<FixedFloat32Array>;
       } else if (elementsKind == FLOAT64_ELEMENTS) {
-        loadfn = LoadFixedElement<Float64Elements>;
-        storefn = StoreFixedElement<Float64Elements>;
+        loadfn = LoadFixedElement<FixedFloat64Array>;
+        storefn = StoreFixedElement<FixedFloat64Array>;
       } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
-        loadfn = LoadFixedElement<Uint8ClampedElements>;
-        storefn = StoreFixedElement<Uint8ClampedElements>;
+        loadfn = LoadFixedElement<FixedUint8ClampedArray>;
+        storefn = StoreFixedElement<FixedUint8ClampedArray>;
       } else if (elementsKind == BIGUINT64_ELEMENTS) {
-        loadfn = LoadFixedElement<BigUint64Elements>;
-        storefn = StoreFixedElement<BigUint64Elements>;
+        loadfn = LoadFixedElement<FixedBigUint64Array>;
+        storefn = StoreFixedElement<FixedBigUint64Array>;
       } else if (elementsKind == BIGINT64_ELEMENTS) {
-        loadfn = LoadFixedElement<BigInt64Elements>;
-        storefn = StoreFixedElement<BigInt64Elements>;
+        loadfn = LoadFixedElement<FixedBigInt64Array>;
+        storefn = StoreFixedElement<FixedBigInt64Array>;
       } else {
         unreachable;
       }
     } else {
       if (elementsKind == UINT8_ELEMENTS) {
-        loadfn = LoadFixedElement<Uint8Elements>;
-        storefn = StoreFixedElement<Uint8Elements>;
+        loadfn = LoadFixedElement<FixedUint8Array>;
+        storefn = StoreFixedElement<FixedUint8Array>;
       } else if (elementsKind == INT8_ELEMENTS) {
-        loadfn = LoadFixedElement<Int8Elements>;
-        storefn = StoreFixedElement<Int8Elements>;
+        loadfn = LoadFixedElement<FixedInt8Array>;
+        storefn = StoreFixedElement<FixedInt8Array>;
       } else if (elementsKind == UINT16_ELEMENTS) {
-        loadfn = LoadFixedElement<Uint16Elements>;
-        storefn = StoreFixedElement<Uint16Elements>;
+        loadfn = LoadFixedElement<FixedUint16Array>;
+        storefn = StoreFixedElement<FixedUint16Array>;
       } else if (elementsKind == INT16_ELEMENTS) {
-        loadfn = LoadFixedElement<Int16Elements>;
-        storefn = StoreFixedElement<Int16Elements>;
+        loadfn = LoadFixedElement<FixedInt16Array>;
+        storefn = StoreFixedElement<FixedInt16Array>;
       } else if (elementsKind == UINT32_ELEMENTS) {
-        loadfn = LoadFixedElement<Uint32Elements>;
-        storefn = StoreFixedElement<Uint32Elements>;
+        loadfn = LoadFixedElement<FixedUint32Array>;
+        storefn = StoreFixedElement<FixedUint32Array>;
       } else {
         unreachable;
       }

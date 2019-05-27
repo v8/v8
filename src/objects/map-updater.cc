@@ -323,7 +323,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
     // the seal transitions), so change {to_kind} accordingly.
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
            to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
-           IsTypedArrayElementsKind(to_kind) ||
+           IsFixedTypedArrayElementsKind(to_kind) ||
            IsFrozenOrSealedElementsKind(to_kind));
     to_kind = integrity_source_map_->elements_kind();
   }

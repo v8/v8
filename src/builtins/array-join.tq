@@ -383,31 +383,31 @@ namespace array_join {
 
     if (IsElementsKindGreaterThan(kind, UINT32_ELEMENTS)) {
       if (kind == INT32_ELEMENTS) {
-        loadFn = LoadJoinTypedElement<typed_array::Int32Elements>;
+        loadFn = LoadJoinTypedElement<FixedInt32Array>;
       } else if (kind == FLOAT32_ELEMENTS) {
-        loadFn = LoadJoinTypedElement<typed_array::Float32Elements>;
+        loadFn = LoadJoinTypedElement<FixedFloat32Array>;
       } else if (kind == FLOAT64_ELEMENTS) {
-        loadFn = LoadJoinTypedElement<typed_array::Float64Elements>;
+        loadFn = LoadJoinTypedElement<FixedFloat64Array>;
       } else if (kind == UINT8_CLAMPED_ELEMENTS) {
-        loadFn = LoadJoinTypedElement<typed_array::Uint8ClampedElements>;
+        loadFn = LoadJoinTypedElement<FixedUint8ClampedArray>;
       } else if (kind == BIGUINT64_ELEMENTS) {
-        loadFn = LoadJoinTypedElement<typed_array::BigUint64Elements>;
+        loadFn = LoadJoinTypedElement<FixedBigUint64Array>;
       } else if (kind == BIGINT64_ELEMENTS) {
-        loadFn = LoadJoinTypedElement<typed_array::BigInt64Elements>;
+        loadFn = LoadJoinTypedElement<FixedBigInt64Array>;
       } else {
         unreachable;
       }
     } else {
       if (kind == UINT8_ELEMENTS) {
-        loadFn = LoadJoinTypedElement<typed_array::Uint8Elements>;
+        loadFn = LoadJoinTypedElement<FixedUint8Array>;
       } else if (kind == INT8_ELEMENTS) {
-        loadFn = LoadJoinTypedElement<typed_array::Int8Elements>;
+        loadFn = LoadJoinTypedElement<FixedInt8Array>;
       } else if (kind == UINT16_ELEMENTS) {
-        loadFn = LoadJoinTypedElement<typed_array::Uint16Elements>;
+        loadFn = LoadJoinTypedElement<FixedUint16Array>;
       } else if (kind == INT16_ELEMENTS) {
-        loadFn = LoadJoinTypedElement<typed_array::Int16Elements>;
+        loadFn = LoadJoinTypedElement<FixedInt16Array>;
       } else if (kind == UINT32_ELEMENTS) {
-        loadFn = LoadJoinTypedElement<typed_array::Uint32Elements>;
+        loadFn = LoadJoinTypedElement<FixedUint32Array>;
       } else {
         unreachable;
       }

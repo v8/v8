@@ -58,7 +58,7 @@ int ElementsKindToByteSize(ElementsKind elements_kind) {
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
 
-  if (IsTypedArrayElementsKind(elements_kind)) {
+  if (IsFixedTypedArrayElementsKind(elements_kind)) {
     return 0;
   } else {
     return FixedArray::kHeaderSize - kHeapObjectTag;
@@ -154,8 +154,8 @@ bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
                                          ElementsKind to_kind) {
   if (!IsFastElementsKind(from_kind)) return false;
   if (!IsFastTransitionTarget(to_kind)) return false;
-  DCHECK(!IsTypedArrayElementsKind(from_kind));
-  DCHECK(!IsTypedArrayElementsKind(to_kind));
+  DCHECK(!IsFixedTypedArrayElementsKind(from_kind));
+  DCHECK(!IsFixedTypedArrayElementsKind(to_kind));
   switch (from_kind) {
     case PACKED_SMI_ELEMENTS:
       return to_kind != PACKED_SMI_ELEMENTS;

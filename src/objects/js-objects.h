@@ -339,7 +339,7 @@ class JSObject : public JSReceiver {
   inline bool HasPackedElements();
   inline bool HasFrozenOrSealedElements();
 
-  inline bool HasTypedArrayElements();
+  inline bool HasFixedTypedArrayElements();
 
   inline bool HasFixedUint8ClampedElements();
   inline bool HasFixedArrayElements();

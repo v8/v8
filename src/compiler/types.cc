@@ -324,6 +324,11 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     // require bit set types, they should get kOtherInternal.
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FREE_SPACE_TYPE:
+#define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case FIXED_##TYPE##_ARRAY_TYPE:
+
+      TYPED_ARRAYS(FIXED_TYPED_ARRAY_CASE)
+#undef FIXED_TYPED_ARRAY_CASE
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
     case ASM_WASM_DATA_TYPE:

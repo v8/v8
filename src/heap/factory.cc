@@ -1814,6 +1814,45 @@ Handle<BytecodeArray> Factory::NewBytecodeArray(
   return instance;
 }
 
+Handle<FixedTypedArrayBase> Factory::NewFixedTypedArrayWithExternalPointer(
+    ExternalArrayType array_type, void* external_pointer,
+    AllocationType allocation) {
+  int size = FixedTypedArrayBase::kHeaderSize;
+  HeapObject result = AllocateRawWithImmortalMap(
+      size, allocation,
+      ReadOnlyRoots(isolate()).MapForFixedTypedArray(array_type));
+  Handle<FixedTypedArrayBase> elements(FixedTypedArrayBase::cast(result),
+                                       isolate());
+  elements->set_base_pointer(Smi::kZero, SKIP_WRITE_BARRIER);
+  elements->set_external_pointer(external_pointer);
+  elements->set_number_of_elements_onheap_only(0);
+  return elements;
+}
+
+Handle<FixedTypedArrayBase> Factory::NewFixedTypedArray(
+    size_t length, size_t byte_length, ExternalArrayType array_type,
+    bool initialize, AllocationType allocation) {
+  // TODO(7881): Smi length check
+  DCHECK(0 <= length && length <= Smi::kMaxValue);
+  CHECK(byte_length <= kMaxInt - FixedTypedArrayBase::kDataOffset);
+  size_t size =
+      OBJECT_POINTER_ALIGN(byte_length + FixedTypedArrayBase::kDataOffset);
+  Map map = ReadOnlyRoots(isolate()).MapForFixedTypedArray(array_type);
+  AllocationAlignment alignment =
+      array_type == kExternalFloat64Array ? kDoubleAligned : kWordAligned;
+  HeapObject object = AllocateRawWithImmortalMap(static_cast<int>(size),
+                                                 allocation, map, alignment);
+
+  Handle<FixedTypedArrayBase> elements(FixedTypedArrayBase::cast(object),
+                                       isolate());
+  elements->set_base_pointer(*elements, SKIP_WRITE_BARRIER);
+  elements->set_external_pointer(
+      FixedTypedArrayBase::ExternalPointerPtrForOnHeapArray());
+  elements->set_number_of_elements_onheap_only(static_cast<int>(length));
+  if (initialize) memset(elements->DataPtr(), 0, elements->DataSize());
+  return elements;
+}
+
 Handle<Cell> Factory::NewCell(Handle<Object> value) {
   AllowDeferredHandleDereference convert_to_cell;
   STATIC_ASSERT(Cell::kSize <= kMaxRegularHeapObjectSize);
@@ -2880,7 +2919,7 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
 
   InitializeJSObjectFromMap(js_obj, empty_fixed_array(), map);
 
-  DCHECK(js_obj->HasFastElements() || js_obj->HasTypedArrayElements() ||
+  DCHECK(js_obj->HasFastElements() || js_obj->HasFixedTypedArrayElements() ||
          js_obj->HasFastStringWrapperElements() ||
          js_obj->HasFastArgumentsElements() || js_obj->HasDictionaryElements());
   return js_obj;
@@ -3120,8 +3159,9 @@ void Factory::TypeAndSizeForElementsKind(ElementsKind kind,
 
 namespace {
 
-void ForFixedTypedArray(ExternalArrayType array_type, size_t* element_size,
-                        ElementsKind* element_kind) {
+static void ForFixedTypedArray(ExternalArrayType array_type,
+                               size_t* element_size,
+                               ElementsKind* element_kind) {
   switch (array_type) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
   case kExternal##Type##Array:                    \
@@ -3135,50 +3175,25 @@ void ForFixedTypedArray(ExternalArrayType array_type, size_t* element_size,
   UNREACHABLE();
 }
 
-}  // namespace
+JSFunction GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
+  NativeContext native_context = isolate->context().native_context();
+  switch (type) {
+#define TYPED_ARRAY_FUN(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                   \
+    return native_context.type##_array_fun();
 
-Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
-    Handle<Map> map, Handle<FixedArrayBase> elements,
-    Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length,
-    AllocationType allocation) {
-  CHECK_LE(byte_length, buffer->byte_length());
-  CHECK_LE(byte_offset, buffer->byte_length());
-  CHECK_LE(byte_offset + byte_length, buffer->byte_length());
-  Handle<JSArrayBufferView> array_buffer_view =
-      Handle<JSArrayBufferView>::cast(NewJSObjectFromMap(map, allocation));
-  array_buffer_view->set_elements(*elements);
-  array_buffer_view->set_buffer(*buffer);
-  array_buffer_view->set_byte_offset(byte_offset);
-  array_buffer_view->set_byte_length(byte_length);
-  for (int i = 0; i < v8::ArrayBufferView::kEmbedderFieldCount; i++) {
-    array_buffer_view->SetEmbedderField(i, Smi::kZero);
+    TYPED_ARRAYS(TYPED_ARRAY_FUN)
+#undef TYPED_ARRAY_FUN
   }
-  DCHECK_EQ(array_buffer_view->GetEmbedderFieldCount(),
-            v8::ArrayBufferView::kEmbedderFieldCount);
-  return array_buffer_view;
+  UNREACHABLE();
 }
 
-Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
-                                              Handle<JSArrayBuffer> buffer,
-                                              size_t byte_offset, size_t length,
-                                              AllocationType allocation) {
-  size_t element_size;
-  ElementsKind elements_kind;
-  ForFixedTypedArray(type, &element_size, &elements_kind);
-  size_t byte_length = length * element_size;
-
-  CHECK_LE(length, JSTypedArray::kMaxLength);
-  CHECK_EQ(length, byte_length / element_size);
-  CHECK_EQ(0, byte_offset % ElementsKindToByteSize(elements_kind));
-
-  Handle<Map> map;
+JSFunction GetTypedArrayFun(ElementsKind elements_kind, Isolate* isolate) {
+  NativeContext native_context = isolate->context().native_context();
   switch (elements_kind) {
-#define TYPED_ARRAY_FUN(Type, type, TYPE, ctype)                              \
-  case TYPE##_ELEMENTS:                                                       \
-    map =                                                                     \
-        handle(isolate()->native_context()->type##_array_fun().initial_map(), \
-               isolate());                                                    \
-    break;
+#define TYPED_ARRAY_FUN(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                          \
+    return native_context.type##_array_fun();
 
     TYPED_ARRAYS(TYPED_ARRAY_FUN)
 #undef TYPED_ARRAY_FUN
@@ -3186,24 +3201,111 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
     default:
       UNREACHABLE();
   }
-  Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(
-      NewJSArrayBufferView(map, empty_byte_array(), buffer, byte_offset,
-                           byte_length, allocation));
-  typed_array->set_length(length);
-  typed_array->set_external_pointer(
-      reinterpret_cast<byte*>(buffer->backing_store()) + byte_offset);
-  typed_array->set_base_pointer(Smi::kZero);
-  return typed_array;
+}
+
+void SetupArrayBufferView(i::Isolate* isolate,
+                          i::Handle<i::JSArrayBufferView> obj,
+                          i::Handle<i::JSArrayBuffer> buffer,
+                          size_t byte_offset, size_t byte_length) {
+  DCHECK_LE(byte_offset + byte_length, buffer->byte_length());
+  DCHECK_EQ(obj->GetEmbedderFieldCount(),
+            v8::ArrayBufferView::kEmbedderFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kEmbedderFieldCount; i++) {
+    obj->SetEmbedderField(i, Smi::kZero);
+  }
+  obj->set_buffer(*buffer);
+  obj->set_byte_offset(byte_offset);
+  obj->set_byte_length(byte_length);
+}
+
+}  // namespace
+
+Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
+                                              AllocationType allocation) {
+  Handle<JSFunction> typed_array_fun(GetTypedArrayFun(type, isolate()),
+                                     isolate());
+  Handle<Map> map(typed_array_fun->initial_map(), isolate());
+  return Handle<JSTypedArray>::cast(NewJSObjectFromMap(map, allocation));
+}
+
+Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
+                                              AllocationType allocation) {
+  Handle<JSFunction> typed_array_fun(GetTypedArrayFun(elements_kind, isolate()),
+                                     isolate());
+  Handle<Map> map(typed_array_fun->initial_map(), isolate());
+  return Handle<JSTypedArray>::cast(NewJSObjectFromMap(map, allocation));
+}
+
+Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
+                                              Handle<JSArrayBuffer> buffer,
+                                              size_t byte_offset, size_t length,
+                                              AllocationType allocation) {
+  Handle<JSTypedArray> obj = NewJSTypedArray(type, allocation);
+
+  size_t element_size;
+  ElementsKind elements_kind;
+  ForFixedTypedArray(type, &element_size, &elements_kind);
+
+  CHECK_EQ(byte_offset % element_size, 0);
+
+  CHECK(length <= (std::numeric_limits<size_t>::max() / element_size));
+  // TODO(7881): Smi length check
+  CHECK(length <= static_cast<size_t>(Smi::kMaxValue));
+  size_t byte_length = length * element_size;
+  SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length);
+
+  obj->set_length(length);
+
+  Handle<FixedTypedArrayBase> elements = NewFixedTypedArrayWithExternalPointer(
+      type, static_cast<uint8_t*>(buffer->backing_store()) + byte_offset,
+      allocation);
+  Handle<Map> map = JSObject::GetElementsTransitionMap(obj, elements_kind);
+  JSObject::SetMapAndElements(obj, map, elements);
+  return obj;
+}
+
+Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
+                                              size_t number_of_elements,
+                                              AllocationType allocation) {
+  Handle<JSTypedArray> obj = NewJSTypedArray(elements_kind, allocation);
+  DCHECK_EQ(obj->GetEmbedderFieldCount(),
+            v8::ArrayBufferView::kEmbedderFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kEmbedderFieldCount; i++) {
+    obj->SetEmbedderField(i, Smi::kZero);
+  }
+
+  size_t element_size;
+  ExternalArrayType array_type;
+  TypeAndSizeForElementsKind(elements_kind, &array_type, &element_size);
+
+  CHECK(number_of_elements <=
+        (std::numeric_limits<size_t>::max() / element_size));
+  // TODO(7881): Smi length check
+  CHECK(number_of_elements <= static_cast<size_t>(Smi::kMaxValue));
+  size_t byte_length = number_of_elements * element_size;
+
+  obj->set_byte_offset(0);
+  obj->set_byte_length(byte_length);
+  obj->set_length(number_of_elements);
+
+  Handle<JSArrayBuffer> buffer =
+      NewJSArrayBuffer(SharedFlag::kNotShared, allocation);
+  JSArrayBuffer::Setup(buffer, isolate(), true, nullptr, byte_length,
+                       SharedFlag::kNotShared);
+  obj->set_buffer(*buffer);
+  Handle<FixedTypedArrayBase> elements = NewFixedTypedArray(
+      number_of_elements, byte_length, array_type, true, allocation);
+  obj->set_elements(*elements);
+  return obj;
 }
 
 Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
                                           size_t byte_offset,
-                                          size_t byte_length,
-                                          AllocationType allocation) {
+                                          size_t byte_length) {
   Handle<Map> map(isolate()->native_context()->data_view_fun().initial_map(),
                   isolate());
-  Handle<JSDataView> obj = Handle<JSDataView>::cast(NewJSArrayBufferView(
-      map, empty_fixed_array(), buffer, byte_offset, byte_length, allocation));
+  Handle<JSDataView> obj = Handle<JSDataView>::cast(NewJSObjectFromMap(map));
+  SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length);
   obj->set_data_pointer(static_cast<uint8_t*>(buffer->backing_store()) +
                         byte_offset);
   return obj;
