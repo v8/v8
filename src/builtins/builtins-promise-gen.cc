@@ -21,7 +21,7 @@ namespace internal {
 using Node = compiler::Node;
 template <class T>
 using TNode = CodeStubAssembler::TNode<T>;
-using IteratorRecord = IteratorBuiltinsAssembler::IteratorRecord;
+using IteratorRecord = TorqueStructIteratorRecord;
 
 Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
   Node* const native_context = LoadNativeContext(context);

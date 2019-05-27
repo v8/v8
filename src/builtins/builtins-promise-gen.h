@@ -7,8 +7,6 @@
 
 #include "src/codegen/code-stub-assembler.h"
 #include "src/objects/promise.h"
-#include "torque-generated/builtins-base-gen-tq.h"
-#include "torque-generated/builtins-iterator-gen-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -140,7 +138,7 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* PerformPromiseAll(
       Node* context, Node* constructor, Node* capability,
-      const TorqueGeneratedIteratorBuiltinsAssembler::IteratorRecord& record,
+      const TorqueStructIteratorRecord& record,
       const PromiseAllResolvingElementFunction& create_resolve_element_function,
       const PromiseAllResolvingElementFunction& create_reject_element_function,
       Label* if_exception, Variable* var_exception);

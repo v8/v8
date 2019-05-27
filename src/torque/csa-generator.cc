@@ -131,8 +131,7 @@ void CSAGenerator::EmitInstruction(
   } else if (results.size() == 1) {
     out_ << results[0] << " = ";
   }
-  out_ << instruction.constant->ExternalAssemblerName() << "(state_)."
-       << instruction.constant->name()->value << "()";
+  out_ << instruction.constant->external_name() << "(state_)";
   if (type->IsStructType()) {
     out_ << ".Flatten();\n";
   } else {
@@ -321,8 +320,12 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
       DCHECK_EQ(0, results.size());
     }
   }
-  out_ << instruction.macro->external_assembler_name() << "(state_)."
-       << instruction.macro->ExternalName() << "(";
+  if (ExternMacro* extern_macro = ExternMacro::DynamicCast(instruction.macro)) {
+    out_ << extern_macro->external_assembler_name() << "(state_).";
+  } else {
+    args.insert(args.begin(), "state_");
+  }
+  out_ << instruction.macro->ExternalName() << "(";
   PrintCommaSeparatedList(out_, args);
   if (needs_flattening) {
     out_ << ").Flatten();\n";
@@ -386,8 +389,12 @@ void CSAGenerator::EmitInstruction(
     PrintCommaSeparatedList(out_, results);
     out_ << ") = ";
   }
-  out_ << instruction.macro->external_assembler_name() << "(state_)."
-       << instruction.macro->ExternalName() << "(";
+  if (ExternMacro* extern_macro = ExternMacro::DynamicCast(instruction.macro)) {
+    out_ << extern_macro->external_assembler_name() << "(state_).";
+  } else {
+    args.insert(args.begin(), "state_");
+  }
+  out_ << instruction.macro->ExternalName() << "(";
   PrintCommaSeparatedList(out_, args);
   bool first = args.empty();
   for (size_t i = 0; i < label_names.size(); ++i) {

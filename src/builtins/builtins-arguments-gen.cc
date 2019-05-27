@@ -112,9 +112,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
   ParameterMode mode = OptimalParameterMode();
   Node* zero = IntPtrOrSmiConstant(0, mode);
 
-  TorqueGeneratedArgumentsBuiltinsAssembler::ArgumentsInfo info =
-      GetArgumentsFrameAndCount(CAST(context),
-                                UncheckedCast<JSFunction>(function));
+  TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(
+      CAST(context), UncheckedCast<JSFunction>(function));
 
   VARIABLE(result, MachineRepresentation::kTagged);
   Label no_rest_parameters(this), runtime(this, Label::kDeferred),
@@ -167,9 +166,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
   ParameterMode mode = OptimalParameterMode();
   Node* zero = IntPtrOrSmiConstant(0, mode);
 
-  TorqueGeneratedArgumentsBuiltinsAssembler::ArgumentsInfo info =
-      GetArgumentsFrameAndCount(CAST(context),
-                                UncheckedCast<JSFunction>(function));
+  TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(
+      CAST(context), UncheckedCast<JSFunction>(function));
 
   GotoIfFixedArraySizeDoesntFitInNewSpace(
       info.argument_count, &runtime,
@@ -216,9 +214,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   Label done(this, &result), empty(this), no_parameters(this),
       runtime(this, Label::kDeferred);
 
-  TorqueGeneratedArgumentsBuiltinsAssembler::ArgumentsInfo info =
-      GetArgumentsFrameAndCount(CAST(context),
-                                UncheckedCast<JSFunction>(function));
+  TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(
+      CAST(context), UncheckedCast<JSFunction>(function));
 
   GotoIf(WordEqual(info.argument_count, zero), &empty);
 

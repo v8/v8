@@ -74,25 +74,15 @@ void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
   header << "#ifndef " << headerDefine << "\n";
   header << "#define " << headerDefine << "\n\n";
   header << "#include \"src/compiler/code-assembler.h\"\n";
-  if (nspace != GlobalContext::GetDefaultNamespace()) {
-    header << "#include \"src/codegen/code-stub-assembler.h\"\n";
-  }
+  header << "#include \"src/codegen/code-stub-assembler.h\"\n";
   header << "#include \"src/utils/utils.h\"\n";
   header << "#include \"torque-generated/field-offsets-tq.h\"\n";
+  header << "#include \"torque-generated/csa-types-tq.h\"\n";
   header << "\n";
 
   header << "namespace v8 {\n"
          << "namespace internal {\n"
          << "\n";
-
-  header << "class ";
-  // TODO(sigurds): Decide which assemblers we should export for testing.
-  header << "V8_EXPORT_PRIVATE ";
-  header << nspace->ExternalName() << " {\n";
-  header << " public:\n";
-  header << "  explicit " << nspace->ExternalName()
-         << "(compiler::CodeAssemblerState* state) : state_(state), ca_(state) "
-            "{ USE(state_, ca_); }\n";
 }
 
 void ImplementationVisitor::EndNamespaceFile(Namespace* nspace) {
@@ -109,10 +99,6 @@ void ImplementationVisitor::EndNamespaceFile(Namespace* nspace) {
          << "}  // namespace v8\n"
          << "\n";
 
-  header << " private:\n"
-         << "  compiler::CodeAssemblerState* const state_;\n"
-         << "  compiler::CodeAssembler ca_;\n"
-         << "};\n\n";
   header << "}  // namespace internal\n"
          << "}  // namespace v8\n"
          << "\n";
@@ -121,18 +107,18 @@ void ImplementationVisitor::EndNamespaceFile(Namespace* nspace) {
 
 void ImplementationVisitor::Visit(NamespaceConstant* decl) {
   Signature signature{{}, base::nullopt, {{}, false}, 0, decl->type(), {}};
-  const std::string& name = decl->name()->value;
 
   BindingsManagersScope bindings_managers_scope;
 
   header_out() << "  ";
-  GenerateFunctionDeclaration(header_out(), "", name, signature, {});
+  GenerateFunctionDeclaration(header_out(), "", decl->external_name(),
+                              signature, {});
   header_out() << ";\n";
 
-  GenerateFunctionDeclaration(source_out(),
-                              CurrentNamespace()->ExternalName() + "::", name,
+  GenerateFunctionDeclaration(source_out(), "", decl->external_name(),
                               signature, {});
   source_out() << " {\n";
+  source_out() << "  compiler::CodeAssembler ca_(state_);\n";
 
   DCHECK(!signature.return_type->IsVoidOrNever());
 
@@ -161,41 +147,6 @@ void ImplementationVisitor::Visit(TypeAlias* alias) {
           "extern classes are currently only supported in the default "
           "namespace");
     }
-  } else if (const StructType* struct_type =
-                 StructType::DynamicCast(alias->type())) {
-    const std::string& name = struct_type->name();
-    header_out() << "  struct " << name << " {\n";
-    for (auto& field : struct_type->fields()) {
-      header_out() << "    "
-                   << field.name_and_type.type->GetGeneratedTypeName();
-      header_out() << " " << field.name_and_type.name << ";\n";
-    }
-    header_out() << "\n    std::tuple<";
-    bool first = true;
-    for (const Type* type : LowerType(struct_type)) {
-      if (!first) {
-        header_out() << ", ";
-      }
-      first = false;
-      header_out() << type->GetGeneratedTypeName();
-    }
-    header_out() << "> Flatten() const {\n"
-                 << "      return std::tuple_cat(";
-    first = true;
-    for (auto& field : struct_type->fields()) {
-      if (!first) {
-        header_out() << ", ";
-      }
-      first = false;
-      if (field.name_and_type.type->IsStructType()) {
-        header_out() << field.name_and_type.name << ".Flatten()";
-      } else {
-        header_out() << "std::make_tuple(" << field.name_and_type.name << ")";
-      }
-    }
-    header_out() << ");\n";
-    header_out() << "    }\n";
-    header_out() << "  };\n";
   }
 }
 
@@ -314,13 +265,12 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   bool has_return_value =
       can_return && return_type != TypeOracle::GetVoidType();
 
-  header_out() << "  ";
   GenerateMacroFunctionDeclaration(header_out(), "", macro);
   header_out() << ";\n";
 
-  GenerateMacroFunctionDeclaration(
-      source_out(), CurrentNamespace()->ExternalName() + "::", macro);
+  GenerateMacroFunctionDeclaration(source_out(), "", macro);
   source_out() << " {\n";
+  source_out() << "  compiler::CodeAssembler ca_(state_);\n";
 
   Stack<std::string> lowered_parameters;
   Stack<const Type*> lowered_parameter_types;
@@ -416,8 +366,7 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   source_out() << "}\n\n";
 }
 
-void ImplementationVisitor::Visit(Macro* macro) {
-  if (macro->IsExternal()) return;
+void ImplementationVisitor::Visit(TorqueMacro* macro) {
   VisitMacroCommon(macro);
 }
 
@@ -481,7 +430,7 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
         << "  TNode<IntPtrT> arguments_length(ChangeInt32ToIntPtr(argc));\n";
     source_out() << "  TNode<RawPtrT> arguments_frame = "
                     "UncheckedCast<RawPtrT>(LoadFramePointer());\n";
-    source_out() << "  TorqueGeneratedBaseBuiltinsAssembler::Arguments "
+    source_out() << "  TorqueStructArguments "
                     "torque_arguments(GetFrameArguments(arguments_frame, "
                     "arguments_length));\n";
     source_out() << "  CodeStubArguments arguments(this, torque_arguments);\n";
@@ -1536,9 +1485,11 @@ void ImplementationVisitor::GenerateMacroFunctionDeclaration(
                               macro->signature(), macro->parameter_names());
 }
 
-void ImplementationVisitor::GenerateFunctionDeclaration(
+std::vector<std::string> ImplementationVisitor::GenerateFunctionDeclaration(
     std::ostream& o, const std::string& macro_prefix, const std::string& name,
-    const Signature& signature, const NameVector& parameter_names) {
+    const Signature& signature, const NameVector& parameter_names,
+    bool pass_code_assembler_state) {
+  std::vector<std::string> generated_parameter_names;
   if (signature.return_type->IsVoidOrNever()) {
     o << "void";
   } else {
@@ -1546,27 +1497,32 @@ void ImplementationVisitor::GenerateFunctionDeclaration(
   }
   o << " " << macro_prefix << name << "(";
 
-  DCHECK_EQ(signature.types().size(), parameter_names.size());
-  auto type_iterator = signature.types().begin();
   bool first = true;
-  for (const Identifier* name : parameter_names) {
-    if (!first) {
-      o << ", ";
-    }
-    const Type* parameter_type = *type_iterator;
+  if (pass_code_assembler_state) {
+    first = false;
+    o << "compiler::CodeAssemblerState* state_";
+  }
+
+  DCHECK_GE(signature.types().size(), parameter_names.size());
+  for (size_t i = 0; i < signature.types().size(); ++i) {
+    if (!first) o << ", ";
+    first = false;
+    const Type* parameter_type = signature.types()[i];
     const std::string& generated_type_name =
         parameter_type->GetGeneratedTypeName();
-    o << generated_type_name << " " << ExternalParameterName(name->value);
-    type_iterator++;
-    first = false;
+
+    generated_parameter_names.push_back(ExternalParameterName(
+        i < parameter_names.size() ? parameter_names[i]->value
+                                   : std::to_string(i)));
+    o << generated_type_name << " " << generated_parameter_names.back();
   }
 
   for (const LabelDeclaration& label_info : signature.labels) {
-    if (!first) {
-      o << ", ";
-    }
-    o << "compiler::CodeAssemblerLabel* "
-      << ExternalLabelName(label_info.name->value);
+    if (!first) o << ", ";
+    first = false;
+    generated_parameter_names.push_back(
+        ExternalLabelName(label_info.name->value));
+    o << "compiler::CodeAssemblerLabel* " << generated_parameter_names.back();
     size_t i = 0;
     for (const Type* type : label_info.types) {
       std::string generated_type_name;
@@ -1578,13 +1534,15 @@ void ImplementationVisitor::GenerateFunctionDeclaration(
         generated_type_name += ">*";
       }
       o << ", ";
-      o << generated_type_name << " "
-        << ExternalLabelParameterName(label_info.name->value, i);
+      generated_parameter_names.push_back(
+          ExternalLabelParameterName(label_info.name->value, i));
+      o << generated_type_name << " " << generated_parameter_names.back();
       ++i;
     }
   }
 
   o << ")";
+  return generated_parameter_names;
 }
 
 namespace {
@@ -1955,9 +1913,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
   if (auto* constant = NamespaceConstant::DynamicCast(value)) {
     if (constant->type()->IsConstexpr()) {
       return LocationReference::Temporary(
-          VisitResult(constant->type(), constant->ExternalAssemblerName() +
-                                            "(state_)." +
-                                            constant->name()->value + "()"),
+          VisitResult(constant->type(), constant->external_name() + "(state_)"),
           "namespace constant " + expr->name->value);
     }
     assembler().Emit(NamespaceConstantInstruction{constant});
@@ -2214,9 +2170,15 @@ VisitResult ImplementationVisitor::GenerateCall(
     if (return_type->IsConstexpr()) {
       DCHECK_EQ(0, arguments.labels.size());
       std::stringstream result;
-      result << "(" << macro->external_assembler_name() << "(state_)."
-             << macro->ExternalName() << "(";
+      result << "(";
       bool first = true;
+      if (auto* extern_macro = ExternMacro::DynamicCast(macro)) {
+        result << extern_macro->external_assembler_name() << "(state_)."
+               << extern_macro->ExternalName() << "(";
+      } else {
+        result << macro->ExternalName() << "(state_";
+        first = false;
+      }
       for (VisitResult arg : arguments.parameters) {
         DCHECK(!arg.IsOnStack());
         if (!first) {
@@ -2629,8 +2591,10 @@ void ImplementationVisitor::Visit(Declarable* declarable) {
   CurrentScope::Scope current_scope(declarable->ParentScope());
   CurrentSourcePosition::Scope current_source_position(declarable->Position());
   switch (declarable->kind()) {
-    case Declarable::kMacro:
-      return Visit(Macro::cast(declarable));
+    case Declarable::kExternMacro:
+      return Visit(ExternMacro::cast(declarable));
+    case Declarable::kTorqueMacro:
+      return Visit(TorqueMacro::cast(declarable));
     case Declarable::kMethod:
       return Visit(Method::cast(declarable));
     case Declarable::kBuiltin:
@@ -3502,6 +3466,117 @@ void ImplementationVisitor::GenerateClassVerifiers(
   }
   WriteFile(output_directory + "/" + file_name + ".h", h_contents.str());
   WriteFile(output_directory + "/" + file_name + ".cc", cc_contents.str());
+}
+
+void ImplementationVisitor::GenerateExportedMacrosAssembler(
+    const std::string& output_directory) {
+  std::string file_name = "exported-macros-assembler-tq";
+  std::stringstream h_contents;
+  std::stringstream cc_contents;
+  {
+    IncludeGuardScope include_guard(h_contents, file_name + ".h");
+
+    h_contents << "#include \"src/compiler/code-assembler.h\"\n";
+    h_contents << "#include \"src/execution/frames.h\"\n";
+    h_contents << "#include \"torque-generated/csa-types-tq.h\"\n";
+    cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
+    for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
+      cc_contents << "#include \"torque-generated/builtins-" +
+                         DashifyString(n->name()) + "-gen-tq.h\"\n";
+    }
+
+    NamespaceScope h_namespaces(h_contents, {"v8", "internal"});
+    NamespaceScope cc_namespaces(cc_contents, {"v8", "internal"});
+
+    h_contents << "class V8_EXPORT_PRIVATE "
+                  "TorqueGeneratedExportedMacrosAssembler {\n"
+               << " public:\n"
+               << "  explicit TorqueGeneratedExportedMacrosAssembler"
+                  "(compiler::CodeAssemblerState* state) : state_(state) {\n"
+               << "    USE(state_);\n"
+               << "  }\n";
+
+    for (auto& declarable : GlobalContext::AllDeclarables()) {
+      TorqueMacro* macro = TorqueMacro::DynamicCast(declarable.get());
+      if (!(macro && macro->IsExportedToCSA())) continue;
+
+      h_contents << "  ";
+      GenerateFunctionDeclaration(h_contents, "", macro->ReadableName(),
+                                  macro->signature(), macro->parameter_names(),
+                                  false);
+      h_contents << ";\n";
+
+      std::vector<std::string> parameter_names = GenerateFunctionDeclaration(
+          cc_contents,
+          "TorqueGeneratedExportedMacrosAssembler::", macro->ReadableName(),
+          macro->signature(), macro->parameter_names(), false);
+      cc_contents << "{\n";
+      cc_contents << "return " << macro->ExternalName() << "(state_";
+      for (auto& name : parameter_names) {
+        cc_contents << ", " << name;
+      }
+      cc_contents << ");\n";
+      cc_contents << "}\n";
+    }
+
+    h_contents << " private:\n"
+               << "  compiler::CodeAssemblerState* state_;\n"
+               << "};\n";
+  }
+  WriteFile(output_directory + "/" + file_name + ".h", h_contents.str());
+  WriteFile(output_directory + "/" + file_name + ".cc", cc_contents.str());
+}
+
+void ImplementationVisitor::GenerateCSATypes(
+    const std::string& output_directory) {
+  std::string file_name = "csa-types-tq";
+  std::stringstream h_contents;
+  {
+    IncludeGuardScope include_guard(h_contents, file_name + ".h");
+    h_contents << "#include \"src/compiler/code-assembler.h\"\n\n";
+
+    NamespaceScope h_namespaces(h_contents, {"v8", "internal"});
+
+    for (auto& declarable : GlobalContext::AllDeclarables()) {
+      TypeAlias* alias = TypeAlias::DynamicCast(declarable.get());
+      if (!alias || alias->IsRedeclaration()) continue;
+      const StructType* struct_type = StructType::DynamicCast(alias->type());
+      if (!struct_type) continue;
+      const std::string& name = struct_type->name();
+      h_contents << "struct TorqueStruct" << name << " {\n";
+      for (auto& field : struct_type->fields()) {
+        h_contents << "  " << field.name_and_type.type->GetGeneratedTypeName();
+        h_contents << " " << field.name_and_type.name << ";\n";
+      }
+      h_contents << "\n  std::tuple<";
+      bool first = true;
+      for (const Type* type : LowerType(struct_type)) {
+        if (!first) {
+          h_contents << ", ";
+        }
+        first = false;
+        h_contents << type->GetGeneratedTypeName();
+      }
+      h_contents << "> Flatten() const {\n"
+                 << "    return std::tuple_cat(";
+      first = true;
+      for (auto& field : struct_type->fields()) {
+        if (!first) {
+          h_contents << ", ";
+        }
+        first = false;
+        if (field.name_and_type.type->IsStructType()) {
+          h_contents << field.name_and_type.name << ".Flatten()";
+        } else {
+          h_contents << "std::make_tuple(" << field.name_and_type.name << ")";
+        }
+      }
+      h_contents << ");\n";
+      h_contents << "  }\n";
+      h_contents << "};\n";
+    }
+  }
+  WriteFile(output_directory + "/" + file_name + ".h", h_contents.str());
 }
 
 }  // namespace torque

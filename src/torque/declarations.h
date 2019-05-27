@@ -77,12 +77,16 @@ class Declarations {
   static const TypeAlias* PredeclareTypeAlias(const Identifier* name,
                                               TypeDeclaration* type,
                                               bool redeclaration);
-  static Macro* CreateMacro(std::string external_name,
-                            std::string readable_name, bool accessible_from_csa,
-                            base::Optional<std::string> external_assembler_name,
-                            Signature signature, bool transitioning,
-                            base::Optional<Statement*> body,
-                            bool is_user_defined);
+  static TorqueMacro* CreateTorqueMacro(std::string external_name,
+                                        std::string readable_name,
+                                        bool exported_to_csa,
+                                        Signature signature, bool transitioning,
+                                        base::Optional<Statement*> body,
+                                        bool is_user_defined);
+  static ExternMacro* CreateExternMacro(std::string name,
+                                        std::string external_assembler_name,
+                                        Signature signature,
+                                        bool transitioning);
   static Macro* DeclareMacro(
       const std::string& name, bool accessible_from_csa,
       base::Optional<std::string> external_assembler_name,

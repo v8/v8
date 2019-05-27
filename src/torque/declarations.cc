@@ -152,23 +152,24 @@ const TypeAlias* Declarations::PredeclareTypeAlias(const Identifier* name,
   return Declare(name->value, std::move(alias_ptr));
 }
 
-Macro* Declarations::CreateMacro(
-    std::string external_name, std::string readable_name,
-    bool accessible_from_csa,
-    base::Optional<std::string> external_assembler_name, Signature signature,
-    bool transitioning, base::Optional<Statement*> body, bool is_user_defined) {
-  if (!accessible_from_csa) {
-    // TODO(tebbi): Switch to more predictable names to improve incremental
-    // compilation.
-    external_name += "_" + std::to_string(GlobalContext::FreshId());
-  }
-  if (!external_assembler_name) {
-    external_assembler_name = CurrentNamespace()->ExternalName();
-  }
-  return RegisterDeclarable(std::unique_ptr<Macro>(
-      new Macro(std::move(external_name), std::move(readable_name),
-                std::move(*external_assembler_name), std::move(signature),
-                transitioning, body, is_user_defined, accessible_from_csa)));
+TorqueMacro* Declarations::CreateTorqueMacro(
+    std::string external_name, std::string readable_name, bool exported_to_csa,
+    Signature signature, bool transitioning, base::Optional<Statement*> body,
+    bool is_user_defined) {
+  // TODO(tebbi): Switch to more predictable names to improve incremental
+  // compilation.
+  external_name += "_" + std::to_string(GlobalContext::FreshId());
+  return RegisterDeclarable(std::unique_ptr<TorqueMacro>(new TorqueMacro(
+      std::move(external_name), std::move(readable_name), std::move(signature),
+      transitioning, body, is_user_defined, exported_to_csa)));
+}
+
+ExternMacro* Declarations::CreateExternMacro(
+    std::string name, std::string external_assembler_name, Signature signature,
+    bool transitioning) {
+  return RegisterDeclarable(std::unique_ptr<ExternMacro>(
+      new ExternMacro(std::move(name), std::move(external_assembler_name),
+                      std::move(signature), transitioning)));
 }
 
 Macro* Declarations::DeclareMacro(
@@ -181,9 +182,14 @@ Macro* Declarations::DeclareMacro(
     ReportError("cannot redeclare macro ", name,
                 " with identical explicit parameters");
   }
-  Macro* macro = CreateMacro(name, name, accessible_from_csa,
-                             std::move(external_assembler_name), signature,
-                             transitioning, body, is_user_defined);
+  Macro* macro;
+  if (external_assembler_name) {
+    macro = CreateExternMacro(name, std::move(*external_assembler_name),
+                              signature, transitioning);
+  } else {
+    macro = CreateTorqueMacro(name, name, accessible_from_csa, signature,
+                              transitioning, body, is_user_defined);
+  }
   Declare(name, macro);
   if (op) {
     if (TryLookupMacro(*op, signature.GetExplicitTypes())) {
@@ -201,8 +207,7 @@ Method* Declarations::CreateMethod(AggregateType* container_type,
   std::string generated_name{container_type->GetGeneratedMethodName(name)};
   Method* result = RegisterDeclarable(std::unique_ptr<Method>(
       new Method(container_type, container_type->GetGeneratedMethodName(name),
-                 name, CurrentNamespace()->ExternalName(), std::move(signature),
-                 transitioning, body)));
+                 name, std::move(signature), transitioning, body)));
   container_type->RegisterMethod(result);
   return result;
 }
@@ -260,7 +265,10 @@ NamespaceConstant* Declarations::DeclareNamespaceConstant(Identifier* name,
                                                           const Type* type,
                                                           Expression* body) {
   CheckAlreadyDeclared<Value>(name->value, "constant");
-  NamespaceConstant* result = new NamespaceConstant(name, type, body);
+  std::string external_name =
+      name->value + "_" + std::to_string(GlobalContext::FreshId());
+  NamespaceConstant* result =
+      new NamespaceConstant(name, std::move(external_name), type, body);
   Declare(name->value, std::unique_ptr<Declarable>(result));
   return result;
 }

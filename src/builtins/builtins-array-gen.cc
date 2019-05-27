@@ -15,13 +15,12 @@
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/property-cell.h"
-#include "torque-generated/builtins-typed-array-createtypedarray-gen-tq.h"
 
 namespace v8 {
 namespace internal {
 
 using Node = compiler::Node;
-using IteratorRecord = TorqueGeneratedIteratorBuiltinsAssembler::IteratorRecord;
+using IteratorRecord = TorqueStructIteratorRecord;
 
 ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     compiler::CodeAssemblerState* state)
@@ -37,9 +36,7 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     TNode<Smi> length = CAST(len_);
     const char* method_name = "%TypedArray%.prototype.map";
 
-    TorqueGeneratedTypedArrayCreatetypedarrayBuiltinsAssembler typedarray_asm(
-        state());
-    TNode<JSTypedArray> a = typedarray_asm.TypedArraySpeciesCreateByLength(
+    TNode<JSTypedArray> a = TypedArraySpeciesCreateByLength(
         context(), method_name, original_array, length);
     // In the Spec and our current implementation, the length check is already
     // performed in TypedArraySpeciesCreate.

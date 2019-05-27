@@ -280,6 +280,8 @@ class ImplementationVisitor {
   void GeneratePrintDefinitions(const std::string& output_directory);
   void GenerateClassDefinitions(const std::string& output_directory);
   void GenerateClassVerifiers(const std::string& output_directory);
+  void GenerateExportedMacrosAssembler(const std::string& output_directory);
+  void GenerateCSATypes(const std::string& output_directory);
 
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);
@@ -327,7 +329,8 @@ class ImplementationVisitor {
                           const std::vector<VisitResult>& arguments,
                           const std::vector<Block*> label_blocks);
   void VisitMacroCommon(Macro* macro);
-  void Visit(Macro* macro);
+  void Visit(ExternMacro* macro) {}
+  void Visit(TorqueMacro* macro);
   void Visit(Method* macro);
   void Visit(Builtin* builtin);
   void Visit(NamespaceConstant* decl);
@@ -538,11 +541,10 @@ class ImplementationVisitor {
   void GenerateMacroFunctionDeclaration(std::ostream& o,
                                         const std::string& macro_prefix,
                                         Macro* macro);
-  void GenerateFunctionDeclaration(std::ostream& o,
-                                   const std::string& macro_prefix,
-                                   const std::string& name,
-                                   const Signature& signature,
-                                   const NameVector& parameter_names);
+  std::vector<std::string> GenerateFunctionDeclaration(
+      std::ostream& o, const std::string& macro_prefix, const std::string& name,
+      const Signature& signature, const NameVector& parameter_names,
+      bool pass_code_assembler_state = true);
 
   VisitResult GenerateImplicitConvert(const Type* destination_type,
                                       VisitResult source);

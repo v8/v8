@@ -30,7 +30,7 @@ using SloppyTNode = compiler::SloppyTNode<T>;
 
 CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
     : compiler::CodeAssembler(state),
-      TorqueGeneratedBaseBuiltinsAssembler(state) {
+      TorqueGeneratedExportedMacrosAssembler(state) {
   if (DEBUG_BOOL && FLAG_csa_trap_on_node != nullptr) {
     HandleBreakOnNode();
   }
@@ -13724,15 +13724,13 @@ Node* CodeStubAssembler::CheckEnumCache(Node* receiver, Label* if_empty,
   return receiver_map;
 }
 
-TNode<Object> CodeStubAssembler::GetArgumentValue(
-    TorqueGeneratedBaseBuiltinsAssembler::Arguments args,
-    TNode<IntPtrT> index) {
+TNode<Object> CodeStubAssembler::GetArgumentValue(TorqueStructArguments args,
+                                                  TNode<IntPtrT> index) {
   return CodeStubArguments(this, args).GetOptionalArgumentValue(index);
 }
 
-TorqueGeneratedBaseBuiltinsAssembler::Arguments
-CodeStubAssembler::GetFrameArguments(TNode<RawPtrT> frame,
-                                     TNode<IntPtrT> argc) {
+TorqueStructArguments CodeStubAssembler::GetFrameArguments(
+    TNode<RawPtrT> frame, TNode<IntPtrT> argc) {
   return CodeStubArguments(this, argc, frame, INTPTR_PARAMETERS)
       .GetTorqueArguments();
 }

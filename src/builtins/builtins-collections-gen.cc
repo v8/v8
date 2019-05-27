@@ -13,8 +13,6 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/ordered-hash-table.h"
-#include "torque-generated/builtins-base-gen-tq.h"
-#include "torque-generated/builtins-collections-gen-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -25,13 +23,10 @@ using TNode = compiler::TNode<T>;
 template <class T>
 using TVariable = compiler::TypedCodeAssemblerVariable<T>;
 
-class BaseCollectionsAssembler
-    : public CodeStubAssembler,
-      public TorqueGeneratedCollectionsBuiltinsAssembler {
+class BaseCollectionsAssembler : public CodeStubAssembler {
  public:
   explicit BaseCollectionsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state),
-        TorqueGeneratedCollectionsBuiltinsAssembler(state) {}
+      : CodeStubAssembler(state) {}
 
   virtual ~BaseCollectionsAssembler() = default;
 
@@ -160,7 +155,7 @@ void BaseCollectionsAssembler::AddConstructorEntry(
                                                         var_exception);
   CSA_ASSERT(this, Word32BinaryNot(IsTheHole(key_value)));
   if (variant == kMap || variant == kWeakMap) {
-    TorqueGeneratedBaseBuiltinsAssembler::KeyValuePair pair =
+    TorqueStructKeyValuePair pair =
         if_may_have_side_effects != nullptr
             ? LoadKeyValuePairNoSideEffects(context, key_value,
                                             if_may_have_side_effects)
@@ -320,7 +315,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
 
   TNode<Object> add_func = GetAddFunction(variant, context, collection);
   IteratorBuiltinsAssembler iterator_assembler(this->state());
-  IteratorBuiltinsAssembler::IteratorRecord iterator =
+  TorqueStructIteratorRecord iterator =
       iterator_assembler.GetIterator(context, iterable);
 
   CSA_ASSERT(this, Word32BinaryNot(IsUndefined(iterator.object)));

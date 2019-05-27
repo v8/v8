@@ -83,6 +83,8 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   implementation_visitor.GeneratePrintDefinitions(output_directory);
   implementation_visitor.GenerateClassDefinitions(output_directory);
   implementation_visitor.GenerateClassVerifiers(output_directory);
+  implementation_visitor.GenerateExportedMacrosAssembler(output_directory);
+  implementation_visitor.GenerateCSATypes(output_directory);
 
   for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
     implementation_visitor.EndNamespaceFile(n);

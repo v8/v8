@@ -6,21 +6,18 @@
 #define V8_BUILTINS_BUILTINS_ITERATOR_GEN_H_
 
 #include "src/codegen/code-stub-assembler.h"
-#include "torque-generated/builtins-base-gen-tq.h"
-#include "torque-generated/builtins-iterator-gen-tq.h"
 
 namespace v8 {
 namespace internal {
 
 using compiler::Node;
 
-class IteratorBuiltinsAssembler
-    : public CodeStubAssembler,
-      public TorqueGeneratedIteratorBuiltinsAssembler {
+class IteratorBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit IteratorBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state),
-        TorqueGeneratedIteratorBuiltinsAssembler(state) {}
+      : CodeStubAssembler(state) {}
+
+  using IteratorRecord = TorqueStructIteratorRecord;
 
   // Returns object[Symbol.iterator].
   TNode<Object> GetIteratorMethod(Node* context, Node* object);

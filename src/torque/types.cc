@@ -95,7 +95,7 @@ std::string Type::GetGeneratedTypeName() const {
 
 std::string Type::GetGeneratedTNodeTypeName() const {
   std::string result = GetGeneratedTNodeTypeNameImpl();
-  if (result.empty()) {
+  if (result.empty() || IsConstexpr()) {
     ReportError("Generated TNode type is required for type '", ToString(),
                 "'. Use 'generates' clause in definition.");
   }
@@ -272,7 +272,7 @@ const Field& AggregateType::LookupField(const std::string& name) const {
 }
 
 std::string StructType::GetGeneratedTypeNameImpl() const {
-  return nspace()->ExternalName() + "::" + name();
+  return "TorqueStruct" + name();
 }
 
 std::vector<Method*> AggregateType::Methods(const std::string& name) const {
@@ -310,11 +310,7 @@ bool ClassType::HasIndexedField() const {
 }
 
 std::string ClassType::GetGeneratedTNodeTypeNameImpl() const {
-  if (!IsExtern()) return generates_;
-  std::string prefix = nspace()->IsDefaultNamespace()
-                           ? std::string{}
-                           : (nspace()->ExternalName() + "::");
-  return prefix + generates_;
+  return generates_;
 }
 
 std::string ClassType::GetGeneratedTypeNameImpl() const {

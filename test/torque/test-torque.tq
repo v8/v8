@@ -339,9 +339,8 @@ namespace test {
     return TestStructC{x: TestStruct2(), y: TestStruct2()};
   }
 
-  @export
   macro TestStructInLabel(implicit context: Context)(): never labels
-      Foo(TestStructA) {
+  Foo(TestStructA) {
     goto Foo(TestStruct2());
   }
   macro CallTestStructInLabel(implicit context: Context)() {

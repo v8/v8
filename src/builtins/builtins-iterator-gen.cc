@@ -11,13 +11,11 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
-#include "torque-generated/builtins-base-gen-tq.h"
 
 namespace v8 {
 namespace internal {
 
-using IteratorRecord = TorqueGeneratedIteratorBuiltinsAssembler::IteratorRecord;
-
+using IteratorRecord = TorqueStructIteratorRecord;
 using compiler::Node;
 
 TNode<Object> IteratorBuiltinsAssembler::GetIteratorMethod(Node* context,

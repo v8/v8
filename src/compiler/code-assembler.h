@@ -474,12 +474,12 @@ struct types_have_common_values<MaybeObject, T> {
 template <class T>
 class TNode {
  public:
-  static_assert(is_valid_type_tag<T>::value, "invalid type tag");
-
   template <class U,
             typename std::enable_if<is_subtype<U, T>::value, int>::type = 0>
-  TNode(const TNode<U>& other) : node_(other) {}
-  TNode() : node_(nullptr) {}
+  TNode(const TNode<U>& other) : node_(other) {
+    LazyTemplateChecks();
+  }
+  TNode() : TNode(nullptr) {}
 
   TNode operator=(TNode other) {
     DCHECK_NOT_NULL(other.node_);
@@ -492,9 +492,14 @@ class TNode {
   static TNode UncheckedCast(compiler::Node* node) { return TNode(node); }
 
  protected:
-  explicit TNode(compiler::Node* node) : node_(node) {}
+  explicit TNode(compiler::Node* node) : node_(node) { LazyTemplateChecks(); }
 
  private:
+  // These checks shouldn't be checked before TNode is actually used.
+  void LazyTemplateChecks() {
+    static_assert(is_valid_type_tag<T>::value, "invalid type tag");
+  }
+
   compiler::Node* node_;
 };
 

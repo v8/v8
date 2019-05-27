@@ -20,7 +20,7 @@
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
 
-#include "torque-generated/builtins-base-gen-tq.h"
+#include "torque-generated/exported-macros-assembler-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -205,7 +205,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 // from a compiler directory OWNER).
 class V8_EXPORT_PRIVATE CodeStubAssembler
     : public compiler::CodeAssembler,
-      public TorqueGeneratedBaseBuiltinsAssembler {
+      public TorqueGeneratedExportedMacrosAssembler {
  public:
   using Node = compiler::Node;
   template <class T>
@@ -3311,12 +3311,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                Label* if_fast, Label* if_slow);
   Node* CheckEnumCache(Node* receiver, Label* if_empty, Label* if_runtime);
 
-  TNode<Object> GetArgumentValue(
-      TorqueGeneratedBaseBuiltinsAssembler::Arguments args,
-      TNode<IntPtrT> index);
+  TNode<Object> GetArgumentValue(TorqueStructArguments args,
+                                 TNode<IntPtrT> index);
 
-  TorqueGeneratedBaseBuiltinsAssembler::Arguments GetFrameArguments(
-      TNode<RawPtrT> frame, TNode<IntPtrT> argc);
+  TorqueStructArguments GetFrameArguments(TNode<RawPtrT> frame,
+                                          TNode<IntPtrT> argc);
 
   // Support for printf-style debugging
   void Print(const char* s);
@@ -3620,9 +3619,8 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
 
   // Used by Torque to construct arguments based on a Torque-defined
   // struct of values.
-  CodeStubArguments(
-      CodeStubAssembler* assembler,
-      TorqueGeneratedBaseBuiltinsAssembler::Arguments torque_arguments)
+  CodeStubArguments(CodeStubAssembler* assembler,
+                    TorqueStructArguments torque_arguments)
       : assembler_(assembler),
         argc_mode_(CodeStubAssembler::INTPTR_PARAMETERS),
         receiver_mode_(ReceiverMode::kHasReceiver),
@@ -3659,11 +3657,10 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
     return argc_;
   }
 
-  TorqueGeneratedBaseBuiltinsAssembler::Arguments GetTorqueArguments() const {
+  TorqueStructArguments GetTorqueArguments() const {
     DCHECK_EQ(argc_mode_, CodeStubAssembler::INTPTR_PARAMETERS);
-    return TorqueGeneratedBaseBuiltinsAssembler::Arguments{
-        assembler_->UncheckedCast<RawPtrT>(fp_), base_,
-        assembler_->UncheckedCast<IntPtrT>(argc_)};
+    return TorqueStructArguments{assembler_->UncheckedCast<RawPtrT>(fp_), base_,
+                                 assembler_->UncheckedCast<IntPtrT>(argc_)};
   }
 
   TNode<Object> GetOptionalArgumentValue(TNode<IntPtrT> index) {

@@ -30,11 +30,10 @@ namespace {
 using Label = CodeAssemblerLabel;
 using Variable = CodeAssemblerVariable;
 
-class TestTorqueAssembler : public CodeStubAssembler,
-                            public TorqueGeneratedTestBuiltinsAssembler {
+class TestTorqueAssembler : public CodeStubAssembler {
  public:
   explicit TestTorqueAssembler(CodeAssemblerState* state)
-      : CodeStubAssembler(state), TorqueGeneratedTestBuiltinsAssembler(state) {}
+      : CodeStubAssembler(state) {}
 };
 
 }  // namespace

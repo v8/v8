@@ -6,15 +6,13 @@
 #define V8_BUILTINS_BUILTINS_TYPED_ARRAY_GEN_H_
 
 #include "src/codegen/code-stub-assembler.h"
-#include "torque-generated/builtins-typed-array-gen-tq.h"
 
 namespace v8 {
 namespace internal {
 
 class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
  public:
-  using ElementsInfo =
-      TorqueGeneratedTypedArrayBuiltinsAssembler::TypedArrayElementsInfo;
+  using ElementsInfo = TorqueStructTypedArrayElementsInfo;
   explicit TypedArrayBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 

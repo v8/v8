@@ -371,9 +371,9 @@ Callable* DeclarationVisitor::Specialize(
   readable_name << ">";
   Callable* callable;
   if (MacroDeclaration::DynamicCast(declaration) != nullptr) {
-    callable = Declarations::CreateMacro(
-        generated_name, readable_name.str(), false, base::nullopt,
-        type_signature, declaration->transitioning, *body, true);
+    callable = Declarations::CreateTorqueMacro(
+        generated_name, readable_name.str(), false, type_signature,
+        declaration->transitioning, *body, true);
   } else if (IntrinsicDeclaration::DynamicCast(declaration) != nullptr) {
     callable = Declarations::CreateIntrinsic(declaration->name, type_signature);
   } else {
