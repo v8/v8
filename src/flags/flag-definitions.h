@@ -624,8 +624,6 @@ DEFINE_IMPLICATION(future, wasm_tier_up)
 #endif
 DEFINE_IMPLICATION(wasm_tier_up, liftoff)
 DEFINE_DEBUG_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
-DEFINE_DEBUG_BOOL(trace_wasm_decode_time, false,
-                  "trace decoding time of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_interpreter, false,
                   "trace interpretation of wasm code")

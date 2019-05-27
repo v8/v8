@@ -1534,11 +1534,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DCHECK(stack_.empty());
     DCHECK(control_.empty());
 
-    base::ElapsedTimer decode_timer;
-    if (FLAG_trace_wasm_decode_time) {
-      decode_timer.Start();
-    }
-
     if (this->end_ < this->pc_) {
       this->error("function body end < start");
       return false;
@@ -1561,13 +1556,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
     if (this->failed()) return this->TraceFailed();
 
-    if (FLAG_trace_wasm_decode_time) {
-      double ms = decode_timer.Elapsed().InMillisecondsF();
-      PrintF("wasm-decode %s (%0.3f ms)\n\n",
-             VALIDATE(this->ok()) ? "ok" : "failed", ms);
-    } else {
-      TRACE("wasm-decode %s\n\n", VALIDATE(this->ok()) ? "ok" : "failed");
-    }
+    TRACE("wasm-decode %s\n\n", VALIDATE(this->ok()) ? "ok" : "failed");
 
     return true;
   }

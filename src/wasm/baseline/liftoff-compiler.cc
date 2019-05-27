@@ -2052,10 +2052,6 @@ WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
                "ExecuteLiftoffCompilation", "func_index", func_index,
                "body_size",
                static_cast<uint32_t>(func_body.end - func_body.start));
-  base::ElapsedTimer compile_timer;
-  if (FLAG_trace_wasm_decode_time) {
-    compile_timer.Start();
-  }
 
   Zone zone(allocator, "LiftoffCompilationZone");
   const WasmModule* module = env ? env->module : nullptr;
@@ -2081,14 +2077,6 @@ WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
   }
 
   counters->liftoff_compiled_functions()->Increment();
-
-  if (FLAG_trace_wasm_decode_time) {
-    double compile_ms = compile_timer.Elapsed().InMillisecondsF();
-    PrintF(
-        "wasm-compilation liftoff phase 1 ok: %u bytes, %0.3f ms decode and "
-        "compile\n",
-        static_cast<unsigned>(func_body.end - func_body.start), compile_ms);
-  }
 
   WasmCompilationResult result;
   compiler->GetCode(&result.code_desc);

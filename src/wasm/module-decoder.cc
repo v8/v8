@@ -1307,9 +1307,8 @@ class ModuleDecoderImpl : public Decoder {
                           const WasmModule* module, WasmFunction* function) {
     WasmFunctionName func_name(function,
                                wire_bytes.GetNameOrNull(function, module));
-    if (FLAG_trace_wasm_decoder || FLAG_trace_wasm_decode_time) {
-      StdoutStream os;
-      os << "Verifying wasm function " << func_name << std::endl;
+    if (FLAG_trace_wasm_decoder) {
+      StdoutStream{} << "Verifying wasm function " << func_name << std::endl;
     }
     FunctionBody body = {
         function->sig, function->code.offset(),

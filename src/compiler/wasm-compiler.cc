@@ -6389,14 +6389,9 @@ bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
                                wasm::CompilationEnv* env,
                                const wasm::FunctionBody& func_body,
                                int func_index, wasm::WasmFeatures* detected,
-                               double* decode_ms, MachineGraph* mcgraph,
+                               MachineGraph* mcgraph,
                                NodeOriginTable* node_origins,
                                SourcePositionTable* source_positions) {
-  base::ElapsedTimer decode_timer;
-  if (FLAG_trace_wasm_decode_time) {
-    decode_timer.Start();
-  }
-
   // Create a TF graph during decoding.
   WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, func_body.sig,
                            source_positions);
@@ -6425,9 +6420,6 @@ bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
       func_index < FLAG_trace_wasm_ast_end) {
     PrintRawWasmCode(allocator, func_body, env->module, wasm::kPrintLocals);
   }
-  if (FLAG_trace_wasm_decode_time) {
-    *decode_ms = decode_timer.Elapsed().InMillisecondsF();
-  }
   return true;
 }
 
@@ -6454,9 +6446,6 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
                "ExecuteTurbofanCompilation", "func_index", func_index,
                "body_size",
                static_cast<uint32_t>(func_body.end - func_body.start));
-  double decode_ms = 0;
-  size_t node_count = 0;
-
   Zone zone(wasm_engine->allocator(), ZONE_NAME);
   MachineGraph* mcgraph = new (&zone) MachineGraph(
       new (&zone) Graph(&zone), new (&zone) CommonOperatorBuilder(&zone),
@@ -6483,19 +6472,13 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
   SourcePositionTable* source_positions =
       new (mcgraph->zone()) SourcePositionTable(mcgraph->graph());
   if (!BuildGraphForWasmFunction(wasm_engine->allocator(), env, func_body,
-                                 func_index, detected, &decode_ms, mcgraph,
-                                 node_origins, source_positions)) {
+                                 func_index, detected, mcgraph, node_origins,
+                                 source_positions)) {
     return wasm::WasmCompilationResult{};
   }
 
   if (node_origins) {
     node_origins->AddDecorator();
-  }
-
-  base::ElapsedTimer pipeline_timer;
-  if (FLAG_trace_wasm_decode_time) {
-    node_count = mcgraph->graph()->NodeCount();
-    pipeline_timer.Start();
   }
 
   // Run the compiler pipeline to generate machine code.
@@ -6508,14 +6491,6 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
       &info, wasm_engine, mcgraph, call_descriptor, source_positions,
       node_origins, func_body, env->module, func_index);
 
-  if (FLAG_trace_wasm_decode_time) {
-    double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();
-    PrintF(
-        "wasm-compilation phase 1 ok: %u bytes, %0.3f ms decode, %zu nodes, "
-        "%0.3f ms pipeline\n",
-        static_cast<unsigned>(func_body.end - func_body.start), decode_ms,
-        node_count, pipeline_ms);
-  }
   // TODO(bradnelson): Improve histogram handling of size_t.
   counters->wasm_compile_function_peak_memory_bytes()->AddSample(
       static_cast<int>(mcgraph->graph()->zone()->allocation_size()));
