@@ -412,11 +412,6 @@ ExternalReference ExternalReference::address_of_pending_message_obj(
 
 FUNCTION_REFERENCE(abort_with_reason, i::abort_with_reason)
 
-ExternalReference
-ExternalReference::address_of_harmony_await_optimization_flag() {
-  return ExternalReference(&FLAG_harmony_await_optimization);
-}
-
 ExternalReference ExternalReference::address_of_min_int() {
   return ExternalReference(reinterpret_cast<Address>(&double_min_int_constant));
 }

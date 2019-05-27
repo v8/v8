@@ -238,7 +238,6 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   V(harmony_dynamic_import, "harmony dynamic import")                      \
   V(harmony_global, "harmony global")                                      \
   V(harmony_object_from_entries, "harmony Object.fromEntries()")           \
-  V(harmony_await_optimization, "harmony await taking 1 tick")             \
   V(harmony_hashbang, "harmony hashbang syntax")                           \
   V(harmony_numeric_separator, "harmony numeric separator between digits") \
   V(harmony_promise_all_settled, "harmony Promise.allSettled")
@@ -1127,7 +1126,6 @@ DEFINE_BOOL(trace_sim_messages, false,
 // isolate.cc
 DEFINE_BOOL(async_stack_traces, true,
             "include async stack traces in Error.stack")
-DEFINE_IMPLICATION(async_stack_traces, harmony_await_optimization)
 DEFINE_BOOL(stack_trace_on_illegal, false,
             "print stack trace when an illegal exception is thrown")
 DEFINE_BOOL(abort_on_uncaught_exception, false,
