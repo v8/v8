@@ -56,6 +56,11 @@ class PlatformEmbeddedFileWriterWin : public PlatformEmbeddedFileWriterBase {
   // offset from a given symbol.
   void DeclareRvaToSymbol(const char* name, uint64_t offset = 0);
 
+  void MaybeEmitUnwindData(const char* unwind_info_symbol,
+                           const char* embedded_blob_data_symbol,
+                           const EmbeddedData* blob,
+                           const void* unwind_infos) override;
+
  private:
   void DeclareSymbolGlobal(const char* name);
 

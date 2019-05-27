@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class EmbeddedData;
+
 enum DataDirective {
   kByte,
   kLong,
@@ -74,6 +76,16 @@ class PlatformEmbeddedFileWriterBase {
   virtual void FileEpilogue() = 0;
 
   virtual int IndentedDataDirective(DataDirective directive) = 0;
+
+  // This awkward interface works around the fact that unwind data emission
+  // is both high-level and platform-dependent. The former implies it should
+  // live in EmbeddedFileWriter, but code there should be platform-independent.
+  //
+  // Emits unwinding data on x64 Windows, and does nothing otherwise.
+  virtual void MaybeEmitUnwindData(const char* unwind_info_symbol,
+                                   const char* embedded_blob_data_symbol,
+                                   const EmbeddedData* blob,
+                                   const void* unwind_infos) {}
 
  protected:
   FILE* fp_ = nullptr;

@@ -62,7 +62,10 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 #if defined(V8_OS_WIN_X64)
   void SetBuiltinUnwindData(
       int builtin_index,
-      const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) override;
+      const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) override {
+    DCHECK_LT(builtin_index, Builtins::builtin_count);
+    unwind_infos_[builtin_index] = unwinding_info;
+  }
 #endif
 
   void SetEmbeddedFile(const char* embedded_src_path) {
