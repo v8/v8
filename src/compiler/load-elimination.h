@@ -98,24 +98,42 @@ class V8_EXPORT_PRIVATE LoadElimination final
   // not alias.
   class AliasStateInfo;
 
+  struct FieldInfo {
+    FieldInfo() = default;
+    FieldInfo(Node* value, MachineRepresentation representation)
+        : value(value), name(), representation(representation) {}
+    FieldInfo(Node* value, MaybeHandle<Name> name,
+              MachineRepresentation representation)
+        : value(value), name(name), representation(representation) {}
+
+    bool operator==(const FieldInfo& other) const {
+      return value == other.value && name.address() == other.name.address() &&
+             representation == other.representation;
+    }
+
+    Node* value = nullptr;
+    MaybeHandle<Name> name;
+    MachineRepresentation representation = MachineRepresentation::kNone;
+  };
+
   // Abstract state to approximate the current state of a certain field along
   // the effect paths through the graph.
   class AbstractField final : public ZoneObject {
    public:
     explicit AbstractField(Zone* zone) : info_for_node_(zone) {}
-    AbstractField(Node* object, Node* value, MaybeHandle<Name> name, Zone* zone)
+    AbstractField(Node* object, FieldInfo info, Zone* zone)
         : info_for_node_(zone) {
-      info_for_node_.insert(std::make_pair(object, Field(value, name)));
+      info_for_node_.insert(std::make_pair(object, info));
     }
 
-    AbstractField const* Extend(Node* object, Node* value,
-                                MaybeHandle<Name> name, Zone* zone) const {
+    AbstractField const* Extend(Node* object, FieldInfo info,
+                                Zone* zone) const {
       AbstractField* that = new (zone) AbstractField(zone);
       that->info_for_node_ = this->info_for_node_;
-      that->info_for_node_.insert(std::make_pair(object, Field(value, name)));
+      that->info_for_node_[object] = info;
       return that;
     }
-    Node* Lookup(Node* object) const;
+    FieldInfo const* Lookup(Node* object) const;
     AbstractField const* Kill(const AliasStateInfo& alias_info,
                               MaybeHandle<Name> name, Zone* zone) const;
     bool Equals(AbstractField const* that) const {
@@ -126,7 +144,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
       AbstractField* copy = new (zone) AbstractField(zone);
       for (auto this_it : this->info_for_node_) {
         Node* this_object = this_it.first;
-        Field this_second = this_it.second;
+        FieldInfo this_second = this_it.second;
         if (this_object->IsDead()) continue;
         auto that_it = that->info_for_node_.find(this_object);
         if (that_it != that->info_for_node_.end() &&
@@ -140,19 +158,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
     void Print() const;
 
    private:
-    struct Field {
-      Field() = default;
-      Field(Node* value, MaybeHandle<Name> name) : value(value), name(name) {}
-
-      bool operator==(const Field& other) const {
-        return value == other.value && name.address() == other.name.address();
-      }
-
-      Node* value = nullptr;
-      MaybeHandle<Name> name;
-    };
-
-    ZoneMap<Node*, Field> info_for_node_;
+    ZoneMap<Node*, FieldInfo> info_for_node_;
   };
 
   static size_t const kMaxTrackedFields = 32;
@@ -194,8 +200,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
                                   Zone* zone) const;
     bool LookupMaps(Node* object, ZoneHandleSet<Map>* object_maps) const;
 
-    AbstractState const* AddField(Node* object, size_t index, Node* value,
-                                  MaybeHandle<Name> name,
+    AbstractState const* AddField(Node* object, size_t index, FieldInfo info,
                                   PropertyConstness constness,
                                   Zone* zone) const;
     AbstractState const* KillField(const AliasStateInfo& alias_info,
@@ -206,8 +211,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
     AbstractState const* KillFields(Node* object, MaybeHandle<Name> name,
                                     Zone* zone) const;
     AbstractState const* KillAll(Zone* zone) const;
-    Node* LookupField(Node* object, size_t index,
-                      PropertyConstness constness) const;
+    FieldInfo const* LookupField(Node* object, size_t index,
+                                 PropertyConstness constness) const;
 
     AbstractState const* AddElement(Node* object, Node* index, Node* value,
                                     MachineRepresentation representation,

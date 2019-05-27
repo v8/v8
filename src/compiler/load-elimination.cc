@@ -140,7 +140,7 @@ namespace {
 
 bool IsCompatible(MachineRepresentation r1, MachineRepresentation r2) {
   if (r1 == r2) return true;
-  return IsAnyTagged(r1) && IsAnyTagged(r2);
+  return IsAnyCompressedTagged(r1) && IsAnyCompressedTagged(r2);
 }
 
 }  // namespace
@@ -249,10 +249,11 @@ void LoadElimination::AbstractElements::Print() const {
   }
 }
 
-Node* LoadElimination::AbstractField::Lookup(Node* object) const {
-  for (auto pair : info_for_node_) {
+LoadElimination::FieldInfo const* LoadElimination::AbstractField::Lookup(
+    Node* object) const {
+  for (auto& pair : info_for_node_) {
     if (pair.first->IsDead()) continue;
-    if (MustAlias(object, pair.first)) return pair.second.value;
+    if (MustAlias(object, pair.first)) return &pair.second;
   }
   return nullptr;
 }
@@ -304,9 +305,10 @@ LoadElimination::AbstractField const* LoadElimination::AbstractField::Kill(
 
 void LoadElimination::AbstractField::Print() const {
   for (auto pair : info_for_node_) {
-    PrintF("    #%d:%s -> #%d:%s\n", pair.first->id(),
+    PrintF("    #%d:%s -> #%d:%s [repr=%s]\n", pair.first->id(),
            pair.first->op()->mnemonic(), pair.second.value->id(),
-           pair.second.value->op()->mnemonic());
+           pair.second.value->op()->mnemonic(),
+           MachineReprToString(pair.second.representation));
   }
 }
 
@@ -524,16 +526,16 @@ LoadElimination::AbstractState::KillElement(Node* object, Node* index,
 }
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::AddField(
-    Node* object, size_t index, Node* value, MaybeHandle<Name> name,
+    Node* object, size_t index, LoadElimination::FieldInfo info,
     PropertyConstness constness, Zone* zone) const {
   AbstractState* that = new (zone) AbstractState(*this);
   AbstractFields& fields = constness == PropertyConstness::kConst
                                ? that->const_fields_
                                : that->fields_;
   if (fields[index]) {
-    fields[index] = fields[index]->Extend(object, value, name, zone);
+    fields[index] = fields[index]->Extend(object, info, zone);
   } else {
-    fields[index] = new (zone) AbstractField(object, value, name, zone);
+    fields[index] = new (zone) AbstractField(object, info, zone);
   }
   return that;
 }
@@ -594,7 +596,7 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillAll(
   return LoadElimination::empty_state();
 }
 
-Node* LoadElimination::AbstractState::LookupField(
+LoadElimination::FieldInfo const* LoadElimination::AbstractState::LookupField(
     Node* object, size_t index, PropertyConstness constness) const {
   AbstractFields const& fields =
       constness == PropertyConstness::kConst ? const_fields_ : fields_;
@@ -733,9 +735,9 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
   state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
                            MaybeHandle<Name>(), zone());
   // Add the new elements on {object}.
-  state =
-      state->AddField(object, FieldIndexOf(JSObject::kElementsOffset), node,
-                      MaybeHandle<Name>(), PropertyConstness::kMutable, zone());
+  state = state->AddField(object, FieldIndexOf(JSObject::kElementsOffset),
+                          {node, MachineType::RepCompressedTaggedPointer()},
+                          PropertyConstness::kMutable, zone());
   return UpdateState(node, state);
 }
 
@@ -760,9 +762,9 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
   state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
                            MaybeHandle<Name>(), zone());
   // Add the new elements on {object}.
-  state =
-      state->AddField(object, FieldIndexOf(JSObject::kElementsOffset), node,
-                      MaybeHandle<Name>(), PropertyConstness::kMutable, zone());
+  state = state->AddField(object, FieldIndexOf(JSObject::kElementsOffset),
+                          {node, MachineType::RepCompressedTaggedPointer()},
+                          PropertyConstness::kMutable, zone());
   return UpdateState(node, state);
 }
 
@@ -851,14 +853,20 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
     int field_index = FieldIndexOf(access);
     if (field_index >= 0) {
       PropertyConstness constness = access.constness;
-      Node* replacement = state->LookupField(object, field_index, constness);
-      if (!replacement && constness == PropertyConstness::kConst) {
-        replacement = state->LookupField(object, field_index,
-                                         PropertyConstness::kMutable);
+      MachineRepresentation representation =
+          access.machine_type.representation();
+      FieldInfo const* lookup_result =
+          state->LookupField(object, field_index, constness);
+      if (!lookup_result && constness == PropertyConstness::kConst) {
+        lookup_result = state->LookupField(object, field_index,
+                                           PropertyConstness::kMutable);
       }
-      if (replacement) {
-        // Make sure we don't resurrect dead {replacement} nodes.
-        if (!replacement->IsDead()) {
+      if (lookup_result) {
+        // Make sure we don't reuse values that were recorded with a different
+        // representation or resurrect dead {replacement} nodes.
+        Node* replacement = lookup_result->value;
+        if (IsCompatible(representation, lookup_result->representation) &&
+            !replacement->IsDead()) {
           // Introduce a TypeGuard if the type of the {replacement} node is not
           // a subtype of the original {node}'s type.
           if (!NodeProperties::GetType(replacement)
@@ -875,8 +883,8 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
           return Replace(replacement);
         }
       }
-      state = state->AddField(object, field_index, node, access.name, constness,
-                              zone());
+      FieldInfo info(node, access.name, representation);
+      state = state->AddField(object, field_index, info, constness, zone());
     }
   }
   Handle<Map> field_map;
@@ -910,34 +918,39 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
     int field_index = FieldIndexOf(access);
     if (field_index >= 0) {
       PropertyConstness constness = access.constness;
-      Node* const old_value =
+      MachineRepresentation representation =
+          access.machine_type.representation();
+      FieldInfo const* lookup_result =
           state->LookupField(object, field_index, constness);
 
-      if (constness == PropertyConstness::kConst && old_value) {
-        // At runtime, we should never see two consecutive const stores, i.e.,
-        //    DCHECK_NULL(old_value)
-        // ought to hold, but we might see such (unreachable) code statically.
-        Node* control = NodeProperties::GetControlInput(node);
-        Node* unreachable =
-            graph()->NewNode(common()->Unreachable(), effect, control);
-        return Replace(unreachable);
-      }
-
-      if (old_value == new_value) {
-        // This store is fully redundant.
-        return Replace(effect);
+      if (lookup_result) {
+        CHECK(lookup_result->name.is_null() ||
+              IsCompatible(representation, lookup_result->representation));
+        if (constness == PropertyConstness::kConst) {
+          // At runtime, we should never see two consecutive const stores, but
+          // we might see such (unreachable) code statically.
+          Node* control = NodeProperties::GetControlInput(node);
+          Node* unreachable =
+              graph()->NewNode(common()->Unreachable(), effect, control);
+          return Replace(unreachable);
+        }
+        if (lookup_result->value == new_value) {
+          // This store is fully redundant.
+          return Replace(effect);
+        }
       }
 
       // Kill all potentially aliasing fields and record the new value.
+      FieldInfo new_info(new_value, access.name, representation);
       state = state->KillField(object, field_index, access.name, zone());
-      state = state->AddField(object, field_index, new_value, access.name,
+      state = state->AddField(object, field_index, new_info,
                               PropertyConstness::kMutable, zone());
       if (constness == PropertyConstness::kConst) {
         // For const stores, we track information in both the const and the
         // mutable world to guard against field accesses that should have
         // been marked const, but were not.
-        state = state->AddField(object, field_index, new_value, access.name,
-                                constness, zone());
+        state =
+            state->AddField(object, field_index, new_info, constness, zone());
       }
     } else {
       // Unsupported StoreField operator.
