@@ -6866,7 +6866,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
 
     // Bail out if the exec method is not the original one.
     Handle<Object> constant = JSObject::FastPropertyAt(
-        holder, Representation::Tagged(), ai_exec.field_index());
+        holder, ai_exec.field_representation(), ai_exec.field_index());
     if (!constant.is_identical_to(isolate()->regexp_exec_function())) {
       return inference.NoChange();
     }

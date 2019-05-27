@@ -451,8 +451,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     if (!found_on_proto) holder = receiver;
 
     FieldIndex field_index = access_info.field_index();
-    Handle<Object> constant =
-        JSObject::FastPropertyAt(holder, Representation::Tagged(), field_index);
+    Handle<Object> constant = JSObject::FastPropertyAt(
+        holder, access_info.field_representation(), field_index);
     if (!constant->IsCallable()) {
       return NoChange();
     }
