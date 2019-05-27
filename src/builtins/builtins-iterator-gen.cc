@@ -270,8 +270,10 @@ void IteratorBuiltinsAssembler::FastIterableToList(
     TVariable<Object>* var_result, Label* slow) {
   Label done(this), check_string(this), check_map(this), check_set(this);
 
-  GotoIfNot(IsFastJSArrayWithNoCustomIteration(context, iterable),
-            &check_string);
+  GotoIfNot(
+      Word32Or(IsFastJSArrayWithNoCustomIteration(context, iterable),
+               IsFastJSArrayForReadWithNoCustomIteration(context, iterable)),
+      &check_string);
 
   // Fast path for fast JSArray.
   *var_result =

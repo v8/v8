@@ -2365,6 +2365,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   Node* IsFastSmiOrTaggedElementsKind(Node* elements_kind);
   Node* IsFastSmiElementsKind(Node* elements_kind);
   Node* IsHoleyFastElementsKind(Node* elements_kind);
+  Node* IsHoleyFastElementsKindForRead(Node* elements_kind);
   Node* IsElementsKindGreaterThan(Node* target_kind,
                                   ElementsKind reference_kind);
   TNode<BoolT> IsElementsKindLessThanOrEqual(TNode<Int32T> target_kind,

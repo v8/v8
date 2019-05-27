@@ -441,3 +441,19 @@ assertEquals(arrSpread.length, arrLike.length);
 assertEquals(arrSpread[0], 'a');
 assertEquals(arrSpread[1], 'b');
 assertEquals(arrSpread[2], 'c');
+
+// Spread with holey
+function countArgs() {
+  return arguments.length;
+}
+var arr = [, 'b','c'];
+Object.preventExtensions(arr);
+assertEquals(countArgs(...arr), 3);
+assertEquals(countArgs(...[...arr]), 3);
+assertEquals(countArgs.apply(this, [...arr]), 3);
+function checkUndefined() {
+  return arguments[0] === undefined;
+}
+assertTrue(checkUndefined(...arr));
+assertTrue(checkUndefined(...[...arr]));
+assertTrue(checkUndefined.apply(this, [...arr]));

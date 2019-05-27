@@ -434,6 +434,11 @@ transient type FastJSArrayForCopy extends FastJSArray;
 // A FastJSArray when the global ArrayIteratorProtector is not invalidated.
 transient type FastJSArrayWithNoCustomIteration extends FastJSArray;
 
+// A FastJSArrayForRead when the global ArrayIteratorProtector is not
+// invalidated.
+transient type FastJSArrayForReadWithNoCustomIteration extends
+    FastJSArrayForRead;
+
 type NoSharedNameSentinel extends Smi;
 
 type JSModuleNamespace extends JSObject;
@@ -1950,6 +1955,14 @@ Cast<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
   return %RawDownCast<FastJSArrayWithNoCustomIteration>(o);
 }
 
+Cast<FastJSArrayForReadWithNoCustomIteration>(implicit context: Context)(
+    o: HeapObject): FastJSArrayForReadWithNoCustomIteration
+    labels CastError {
+  if (IsArrayIteratorProtectorCellInvalid()) goto CastError;
+  const a: FastJSArrayForRead = Cast<FastJSArrayForRead>(o) otherwise CastError;
+  return %RawDownCast<FastJSArrayForReadWithNoCustomIteration>(o);
+}
+
 Cast<JSReceiver>(implicit context: Context)(o: HeapObject): JSReceiver
     labels CastError {
   if (IsJSReceiver(o)) return %RawDownCast<JSReceiver>(o);
@@ -2854,6 +2867,12 @@ macro BranchIfFastJSArrayForCopy(o: Object, context: Context): never
 @export
 macro IsFastJSArrayWithNoCustomIteration(context: Context, o: Object): bool {
   return Is<FastJSArrayWithNoCustomIteration>(o);
+}
+
+@export
+macro IsFastJSArrayForReadWithNoCustomIteration(context: Context, o: Object):
+    bool {
+  return Is<FastJSArrayForReadWithNoCustomIteration>(o);
 }
 
 extern transitioning runtime

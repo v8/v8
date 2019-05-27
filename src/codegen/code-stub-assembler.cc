@@ -4076,13 +4076,15 @@ Node* CodeStubAssembler::CloneFastJSArray(Node* context, Node* array,
   VARIABLE(var_new_elements, MachineRepresentation::kTagged);
   TVARIABLE(Int32T, var_elements_kind, LoadMapElementsKind(LoadMap(array)));
 
-  Label allocate_jsarray(this), holey_extract(this);
+  Label allocate_jsarray(this), holey_extract(this),
+      allocate_jsarray_main(this);
 
   bool need_conversion =
       convert_holes == HoleConversionMode::kConvertToUndefined;
   if (need_conversion) {
     // We need to take care of holes, if the array is of holey elements kind.
-    GotoIf(IsHoleyFastElementsKind(var_elements_kind.value()), &holey_extract);
+    GotoIf(IsHoleyFastElementsKindForRead(var_elements_kind.value()),
+           &holey_extract);
   }
 
   // Simple extraction that preserves holes.
@@ -4117,6 +4119,17 @@ Node* CodeStubAssembler::CloneFastJSArray(Node* context, Node* array,
   }
 
   BIND(&allocate_jsarray);
+
+  // Handle sealed, frozen elements kinds
+  CSA_ASSERT(this, IsElementsKindLessThanOrEqual(var_elements_kind.value(),
+                                                 LAST_FROZEN_ELEMENTS_KIND));
+  GotoIf(IsElementsKindLessThanOrEqual(var_elements_kind.value(),
+                                       LAST_FAST_ELEMENTS_KIND),
+         &allocate_jsarray_main);
+  var_elements_kind = Int32Constant(PACKED_ELEMENTS);
+  Goto(&allocate_jsarray_main);
+
+  BIND(&allocate_jsarray_main);
   // Use the cannonical map for the chosen elements kind.
   Node* native_context = LoadNativeContext(context);
   TNode<Map> array_map =
@@ -13393,6 +13406,19 @@ Node* CodeStubAssembler::IsHoleyFastElementsKind(Node* elements_kind) {
   STATIC_ASSERT(HOLEY_SMI_ELEMENTS == (PACKED_SMI_ELEMENTS | 1));
   STATIC_ASSERT(HOLEY_ELEMENTS == (PACKED_ELEMENTS | 1));
   STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == (PACKED_DOUBLE_ELEMENTS | 1));
+  return IsSetWord32(elements_kind, 1);
+}
+
+Node* CodeStubAssembler::IsHoleyFastElementsKindForRead(Node* elements_kind) {
+  CSA_ASSERT(this,
+             Uint32LessThanOrEqual(elements_kind,
+                                   Int32Constant(LAST_FROZEN_ELEMENTS_KIND)));
+
+  STATIC_ASSERT(HOLEY_SMI_ELEMENTS == (PACKED_SMI_ELEMENTS | 1));
+  STATIC_ASSERT(HOLEY_ELEMENTS == (PACKED_ELEMENTS | 1));
+  STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == (PACKED_DOUBLE_ELEMENTS | 1));
+  STATIC_ASSERT(HOLEY_SEALED_ELEMENTS == (PACKED_SEALED_ELEMENTS | 1));
+  STATIC_ASSERT(HOLEY_FROZEN_ELEMENTS == (PACKED_FROZEN_ELEMENTS | 1));
   return IsSetWord32(elements_kind, 1);
 }
 

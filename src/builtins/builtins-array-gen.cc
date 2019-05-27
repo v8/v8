@@ -553,8 +553,8 @@ TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
   TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
 
   CSA_ASSERT(this,
-             Word32Or(Word32BinaryNot(
-                          IsHoleyFastElementsKind(LoadElementsKind(array))),
+             Word32Or(Word32BinaryNot(IsHoleyFastElementsKindForRead(
+                          LoadElementsKind(array))),
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
   ParameterMode mode = OptimalParameterMode();
@@ -573,8 +573,8 @@ TF_BUILTIN(CloneFastJSArrayFillingHoles, ArrayBuiltinsAssembler) {
   TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
 
   CSA_ASSERT(this,
-             Word32Or(Word32BinaryNot(
-                          IsHoleyFastElementsKind(LoadElementsKind(array))),
+             Word32Or(Word32BinaryNot(IsHoleyFastElementsKindForRead(
+                          LoadElementsKind(array))),
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
   ParameterMode mode = OptimalParameterMode();
