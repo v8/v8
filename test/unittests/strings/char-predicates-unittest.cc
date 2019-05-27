@@ -26,7 +26,6 @@ TEST(CharPredicatesTest, WhiteSpace) {
   EXPECT_FALSE(IsWhiteSpace(0x180E));
 }
 
-
 TEST(CharPredicatesTest, WhiteSpaceOrLineTerminator) {
   EXPECT_TRUE(IsWhiteSpaceOrLineTerminator(0x0009));
   EXPECT_TRUE(IsWhiteSpaceOrLineTerminator(0x000B));
@@ -46,7 +45,6 @@ TEST(CharPredicatesTest, WhiteSpaceOrLineTerminator) {
   EXPECT_TRUE(IsWhiteSpaceOrLineTerminator(0x2029));
   EXPECT_FALSE(IsWhiteSpaceOrLineTerminator(0x180E));
 }
-
 
 TEST(CharPredicatesTest, IdentifierStart) {
   EXPECT_TRUE(IsIdentifierStart('$'));
@@ -88,7 +86,6 @@ TEST(CharPredicatesTest, IdentifierStart) {
   EXPECT_TRUE(IsIdentifierStart(0x1E922));
 #endif
 }
-
 
 TEST(CharPredicatesTest, IdentifierPart) {
   EXPECT_TRUE(IsIdentifierPart('$'));

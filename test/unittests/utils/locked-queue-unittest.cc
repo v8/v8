@@ -19,7 +19,6 @@ TEST(LockedQueue, ConstructorEmpty) {
   EXPECT_TRUE(queue.IsEmpty());
 }
 
-
 TEST(LockedQueue, SingleRecordEnqueueDequeue) {
   LockedQueue<Record> queue;
   EXPECT_TRUE(queue.IsEmpty());
@@ -31,7 +30,6 @@ TEST(LockedQueue, SingleRecordEnqueueDequeue) {
   EXPECT_EQ(a, 1);
   EXPECT_TRUE(queue.IsEmpty());
 }
-
 
 TEST(LockedQueue, Peek) {
   LockedQueue<Record> queue;
@@ -49,7 +47,6 @@ TEST(LockedQueue, Peek) {
   EXPECT_TRUE(queue.IsEmpty());
 }
 
-
 TEST(LockedQueue, PeekOnEmpty) {
   LockedQueue<Record> queue;
   EXPECT_TRUE(queue.IsEmpty());
@@ -57,7 +54,6 @@ TEST(LockedQueue, PeekOnEmpty) {
   bool success = queue.Peek(&a);
   EXPECT_FALSE(success);
 }
-
 
 TEST(LockedQueue, MultipleRecords) {
   LockedQueue<Record> queue;

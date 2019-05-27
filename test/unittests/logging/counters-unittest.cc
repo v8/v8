@@ -30,7 +30,6 @@ class MockHistogram : public Histogram {
   std::vector<int> samples_;
 };
 
-
 class AggregatedMemoryHistogramTest : public ::testing::Test {
  public:
   AggregatedMemoryHistogramTest() : aggregated_(&mock_) {}
@@ -182,7 +181,6 @@ class SnapshotNativeCounterTest : public TestWithNativeContextAndCounters {
 
 }  // namespace
 
-
 TEST_F(AggregatedMemoryHistogramTest, OneSample1) {
   FLAG_histogram_interval = 10;
   AddSample(10, 1000);
@@ -191,7 +189,6 @@ TEST_F(AggregatedMemoryHistogramTest, OneSample1) {
   EXPECT_EQ(1000, (*samples())[0]);
 }
 
-
 TEST_F(AggregatedMemoryHistogramTest, OneSample2) {
   FLAG_histogram_interval = 10;
   AddSample(10, 500);
@@ -199,7 +196,6 @@ TEST_F(AggregatedMemoryHistogramTest, OneSample2) {
   EXPECT_EQ(1U, samples()->size());
   EXPECT_EQ(750, (*samples())[0]);
 }
-
 
 TEST_F(AggregatedMemoryHistogramTest, OneSample3) {
   FLAG_histogram_interval = 10;
@@ -211,7 +207,6 @@ TEST_F(AggregatedMemoryHistogramTest, OneSample3) {
   EXPECT_EQ(750, (*samples())[0]);
 }
 
-
 TEST_F(AggregatedMemoryHistogramTest, OneSample4) {
   FLAG_histogram_interval = 10;
   AddSample(10, 500);
@@ -220,7 +215,6 @@ TEST_F(AggregatedMemoryHistogramTest, OneSample4) {
   EXPECT_EQ(1U, samples()->size());
   EXPECT_EQ(750, (*samples())[0]);
 }
-
 
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples1) {
   FLAG_histogram_interval = 10;
@@ -231,7 +225,6 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples1) {
   EXPECT_EQ(1000, (*samples())[1]);
 }
 
-
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples2) {
   FLAG_histogram_interval = 10;
   AddSample(10, 1000);
@@ -241,7 +234,6 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples2) {
   EXPECT_EQ(1000, (*samples())[0]);
   EXPECT_EQ(1000, (*samples())[1]);
 }
-
 
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples3) {
   FLAG_histogram_interval = 10;
@@ -254,7 +246,6 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples3) {
   EXPECT_EQ(500, (*samples())[1]);
 }
 
-
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples4) {
   FLAG_histogram_interval = 10;
   AddSample(10, 1000);
@@ -263,7 +254,6 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples4) {
   EXPECT_EQ(750, (*samples())[0]);
   EXPECT_EQ(250, (*samples())[1]);
 }
-
 
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples5) {
   FLAG_histogram_interval = 10;
@@ -274,7 +264,6 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples5) {
   EXPECT_EQ(750, (*samples())[1]);
 }
 
-
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples6) {
   FLAG_histogram_interval = 10;
   AddSample(10, 0);
@@ -284,7 +273,6 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples6) {
   EXPECT_EQ((500 + 1000) / 2, (*samples())[0]);
   EXPECT_EQ(1000, (*samples())[1]);
 }
-
 
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples7) {
   FLAG_histogram_interval = 10;
@@ -297,7 +285,6 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples7) {
   EXPECT_EQ((250 + 500) / 2, (*samples())[1]);
 }
 
-
 TEST_F(AggregatedMemoryHistogramTest, TwoSamples8) {
   FLAG_histogram_interval = 10;
   AddSample(10, 1000);
@@ -309,7 +296,6 @@ TEST_F(AggregatedMemoryHistogramTest, TwoSamples8) {
   EXPECT_EQ((750 + 500) / 2, (*samples())[1]);
 }
 
-
 TEST_F(AggregatedMemoryHistogramTest, ManySamples1) {
   FLAG_histogram_interval = 10;
   const int kMaxSamples = 1000;
@@ -320,7 +306,6 @@ TEST_F(AggregatedMemoryHistogramTest, ManySamples1) {
     EXPECT_EQ(i * 10 + 5, (*samples())[i]);
   }
 }
-
 
 TEST_F(AggregatedMemoryHistogramTest, ManySamples2) {
   FLAG_histogram_interval = 10;

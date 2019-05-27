@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/unittests/code-stub-assembler-unittest.h"
+#include "test/unittests/codegen/code-stub-assembler-unittest.h"
 
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors.h"
