@@ -107,7 +107,7 @@ extern "C" __declspec(dllexport) int CRASH_HANDLER_FUNCTION_NAME(
     EXCEPTION_POINTERS info = {ExceptionRecord, ContextRecord};
     return unhandled_exception_callback_g(&info);
   }
-  return EXCEPTION_CONTINUE_SEARCH;
+  return ExceptionContinueSearch;
 }
 
 static constexpr int kMaxExceptionThunkSize = 12;
