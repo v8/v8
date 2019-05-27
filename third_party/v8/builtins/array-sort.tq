@@ -99,6 +99,38 @@ namespace array {
   type FastSmiElements;
   type FastObjectElements;
 
+  // With the pre-processing step in Torque, the exact number of elements
+  // to sort is unknown at the time the sort state is created.
+  // The 'length' property is an upper bound (as per spec),
+  // while the actual size of the backing store is a good guess.
+  // After the pre-processing step, the workarray won't change in length.
+  macro CalculateWorkArrayLength(
+      receiver: JSReceiver, initialReceiverLength: Number): intptr {
+    // TODO(szuend): Implement full range sorting, not only up to MaxSmi.
+    //               https://crbug.com/v8/7970.
+    let clampedReceiverLength: uintptr =
+        Convert<uintptr>(initialReceiverLength);
+    if (clampedReceiverLength > kSmiMaxValue) {
+      clampedReceiverLength = kSmiMaxValue;
+    }
+
+    let workArrayLength: intptr = Convert<intptr>(clampedReceiverLength);
+    try {
+      const object = Cast<JSObject>(receiver) otherwise NoJsObject;
+      const elementsLength = Convert<intptr>(object.elements.length);
+
+      // In some cases, elements are only on prototypes, but not on the receiver
+      // itself. Do nothing then, as {workArrayLength} got initialized with the
+      // {length} property.
+      if (elementsLength != 0) {
+        workArrayLength = IntPtrMin(workArrayLength, elementsLength);
+      }
+    }
+    label NoJsObject {}
+
+    return workArrayLength;
+  }
+
   transitioning macro NewSortState(implicit context: Context)(
       receiver: JSReceiver, comparefn: Undefined | Callable,
       initialReceiverLength: Number): SortState {
@@ -142,24 +174,8 @@ namespace array {
       canUseSameAccessorFn = CanUseSameAccessor<GenericElementsAccessor>;
     }
 
-    // With the pre-processing step in Torque, the exact number of elements
-    // to sort is unknown at this time. The 'length' property is an upper bound
-    // (as per spec) while the actual size of the backing store is a good guess.
-    // After the pre-processing step, the workarray won't change in length.
-    let workArrayLength: intptr =
-        Signed(Convert<uintptr>(initialReceiverLength));
-    try {
-      const object = Cast<JSObject>(receiver) otherwise NoJsObject;
-      const elementsLength = Convert<intptr>(object.elements.length);
-
-      // In some cases, elements are only on prototypes, but not on the receiver
-      // itself. Do nothing then, as {workArrayLength} got initialized with the
-      // {length} property.
-      if (elementsLength != 0) {
-        workArrayLength = IntPtrMin(workArrayLength, elementsLength);
-      }
-    }
-    label NoJsObject {}
+    const workArrayLength =
+        CalculateWorkArrayLength(receiver, initialReceiverLength);
 
     return new SortState{
       receiver,
