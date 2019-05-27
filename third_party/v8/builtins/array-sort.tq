@@ -114,6 +114,9 @@ namespace array {
       GotoIfForceSlowPath() otherwise Slow;
       let a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
+      // Copy copy-on-write (COW) arrays.
+      array::EnsureWriteableFastElements(a);
+
       const elementsKind: ElementsKind = map.elements_kind;
       if (IsDoubleElementsKind(elementsKind)) {
         loadFn = Load<FastDoubleElements>;
