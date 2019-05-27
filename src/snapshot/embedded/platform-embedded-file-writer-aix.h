@@ -47,6 +47,9 @@ class PlatformEmbeddedFileWriterAIX : public PlatformEmbeddedFileWriterBase {
 
   int IndentedDataDirective(DataDirective directive) override;
 
+  DataDirective ByteChunkDataDirective() const override;
+  int WriteByteChunk(const uint8_t* data) override;
+
  private:
   void DeclareSymbolGlobal(const char* name);
 

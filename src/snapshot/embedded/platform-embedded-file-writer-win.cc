@@ -582,6 +582,30 @@ int PlatformEmbeddedFileWriterWin::IndentedDataDirective(
 
 #endif
 
+DataDirective PlatformEmbeddedFileWriterWin::ByteChunkDataDirective() const {
+#if defined(V8_COMPILER_IS_MSVC)
+  // Windows MASM doesn't have an .octa directive, use QWORDs instead.
+  // Note: MASM *really* does not like large data streams. It takes over 5
+  // minutes to assemble the ~350K lines of embedded.S produced when using
+  // BYTE directives in a debug build. QWORD produces roughly 120KLOC and
+  // reduces assembly time to ~40 seconds. Still terrible, but much better
+  // than before. See also: https://crbug.com/v8/8475.
+  return kQuad;
+#else
+  return PlatformEmbeddedFileWriterBase::ByteChunkDataDirective();
+#endif
+}
+
+int PlatformEmbeddedFileWriterWin::WriteByteChunk(const uint8_t* data) {
+#if defined(V8_COMPILER_IS_MSVC)
+  DCHECK_EQ(ByteChunkDataDirective(), kQuad);
+  const uint64_t* quad_ptr = reinterpret_cast<const uint64_t*>(data);
+  return HexLiteral(*quad_ptr);
+#else
+  return PlatformEmbeddedFileWriterBase::WriteByteChunk(data);
+#endif
+}
+
 #undef SYMBOL_PREFIX
 #undef V8_ASSEMBLER_IS_MASM
 #undef V8_ASSEMBLER_IS_MARMASM

@@ -22,6 +22,7 @@ enum DataDirective {
 };
 
 DataDirective PointerSizeDirective();
+int DataDirectiveSize(DataDirective directive);
 
 enum class EmbeddedTargetOs {
   kAIX,
@@ -76,6 +77,9 @@ class PlatformEmbeddedFileWriterBase {
   virtual void FileEpilogue() = 0;
 
   virtual int IndentedDataDirective(DataDirective directive) = 0;
+
+  virtual DataDirective ByteChunkDataDirective() const { return kOcta; }
+  virtual int WriteByteChunk(const uint8_t* data);
 
   // This awkward interface works around the fact that unwind data emission
   // is both high-level and platform-dependent. The former implies it should

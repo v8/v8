@@ -24,6 +24,42 @@ DataDirective PointerSizeDirective() {
   }
 }
 
+int DataDirectiveSize(DataDirective directive) {
+  switch (directive) {
+    case kByte:
+      return 1;
+    case kLong:
+      return 4;
+    case kQuad:
+      return 8;
+    case kOcta:
+      return 16;
+  }
+  UNREACHABLE();
+}
+
+int PlatformEmbeddedFileWriterBase::WriteByteChunk(const uint8_t* data) {
+  DCHECK_EQ(ByteChunkDataDirective(), kOcta);
+
+  static constexpr size_t kSize = kInt64Size;
+
+  uint64_t part1, part2;
+  // Use memcpy for the reads since {data} is not guaranteed to be aligned.
+#ifdef V8_TARGET_BIG_ENDIAN
+  memcpy(&part1, data, kSize);
+  memcpy(&part2, data + kSize, kSize);
+#else
+  memcpy(&part1, data + kSize, kSize);
+  memcpy(&part2, data, kSize);
+#endif  // V8_TARGET_BIG_ENDIAN
+
+  if (part1 != 0) {
+    return fprintf(fp(), "0x%" PRIx64 "%016" PRIx64, part1, part2);
+  } else {
+    return fprintf(fp(), "0x%" PRIx64, part2);
+  }
+}
+
 namespace {
 
 EmbeddedTargetArch DefaultEmbeddedTargetArch() {

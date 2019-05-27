@@ -123,70 +123,6 @@ int WriteDirectiveOrSeparator(PlatformEmbeddedFileWriterBase* w,
   return current_line_length + printed_chars;
 }
 
-#if defined(_MSC_VER) && !defined(__clang__)
-#define V8_COMPILER_IS_MSVC
-#endif
-
-// TODO(jgruber): Move these sections into platform-dependent file writers.
-
-#if defined(V8_COMPILER_IS_MSVC)
-// Windows MASM doesn't have an .octa directive, use QWORDs instead.
-// Note: MASM *really* does not like large data streams. It takes over 5
-// minutes to assemble the ~350K lines of embedded.S produced when using
-// BYTE directives in a debug build. QWORD produces roughly 120KLOC and
-// reduces assembly time to ~40 seconds. Still terrible, but much better
-// than before. See also: https://crbug.com/v8/8475.
-static constexpr DataDirective kByteChunkDirective = kQuad;
-static constexpr int kByteChunkSize = 8;
-
-int WriteByteChunk(PlatformEmbeddedFileWriterBase* w, int current_line_length,
-                   const uint8_t* data) {
-  const uint64_t* quad_ptr = reinterpret_cast<const uint64_t*>(data);
-  return current_line_length + w->HexLiteral(*quad_ptr);
-}
-
-#elif defined(V8_OS_AIX)
-// PPC uses a fixed 4 byte instruction set, using .long
-// to prevent any unnecessary padding.
-static constexpr DataDirective kByteChunkDirective = kLong;
-static constexpr int kByteChunkSize = 4;
-
-int WriteByteChunk(PlatformEmbeddedFileWriterBase* w, int current_line_length,
-                   const uint8_t* data) {
-  const uint32_t* long_ptr = reinterpret_cast<const uint32_t*>(data);
-  return current_line_length + w->HexLiteral(*long_ptr);
-}
-
-#else  // defined(V8_COMPILER_IS_MSVC) || defined(V8_OS_AIX)
-static constexpr DataDirective kByteChunkDirective = kOcta;
-static constexpr int kByteChunkSize = 16;
-
-int WriteByteChunk(PlatformEmbeddedFileWriterBase* w, int current_line_length,
-                   const uint8_t* data) {
-  const size_t size = kInt64Size;
-
-  uint64_t part1, part2;
-  // Use memcpy for the reads since {data} is not guaranteed to be aligned.
-#ifdef V8_TARGET_BIG_ENDIAN
-  memcpy(&part1, data, size);
-  memcpy(&part2, data + size, size);
-#else
-  memcpy(&part1, data + size, size);
-  memcpy(&part2, data, size);
-#endif  // V8_TARGET_BIG_ENDIAN
-
-  if (part1 != 0) {
-    current_line_length +=
-        fprintf(w->fp(), "0x%" PRIx64 "%016" PRIx64, part1, part2);
-  } else {
-    current_line_length += fprintf(w->fp(), "0x%" PRIx64, part2);
-  }
-  return current_line_length;
-}
-#endif  // defined(V8_COMPILER_IS_MSVC) || defined(V8_OS_AIX)
-
-#undef V8_COMPILER_IS_MSVC
-
 int WriteLineEndIfNeeded(PlatformEmbeddedFileWriterBase* w,
                          int current_line_length, int write_size) {
   static const int kTextWidth = 100;
@@ -210,12 +146,14 @@ void EmbeddedFileWriter::WriteBinaryContentsAsInlineAssembly(
   uint32_t i = 0;
 
   // Begin by writing out byte chunks.
-  for (; i + kByteChunkSize < size; i += kByteChunkSize) {
+  const DataDirective directive = w->ByteChunkDataDirective();
+  const int byte_chunk_size = DataDirectiveSize(directive);
+  for (; i + byte_chunk_size < size; i += byte_chunk_size) {
     current_line_length =
-        WriteDirectiveOrSeparator(w, current_line_length, kByteChunkDirective);
-    current_line_length = WriteByteChunk(w, current_line_length, data + i);
+        WriteDirectiveOrSeparator(w, current_line_length, directive);
+    current_line_length += w->WriteByteChunk(data + i);
     current_line_length =
-        WriteLineEndIfNeeded(w, current_line_length, kByteChunkSize);
+        WriteLineEndIfNeeded(w, current_line_length, byte_chunk_size);
   }
   if (current_line_length != 0) w->Newline();
   current_line_length = 0;
