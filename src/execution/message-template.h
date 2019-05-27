@@ -171,6 +171,11 @@ namespace internal {
     "'defineProperty' on proxy: trap returned truish for defining "            \
     "non-configurable property '%' which is either non-existent or "           \
     "configurable in the proxy target")                                        \
+  T(ProxyDefinePropertyNonConfigurableWritable,                                \
+    "'defineProperty' on proxy: trap returned truish for defining "            \
+    "non-configurable property '%' which cannot be non-writable, unless "      \
+    "there exists a corresponding non-configurable, non-writable own "         \
+    "property of the target object.")                                          \
   T(ProxyDefinePropertyNonExtensible,                                          \
     "'defineProperty' on proxy: trap returned truish for adding property '%' " \
     " to the non-extensible proxy target")                                     \
@@ -180,6 +185,9 @@ namespace internal {
   T(ProxyDeletePropertyNonConfigurable,                                        \
     "'deleteProperty' on proxy: trap returned truish for property '%' which "  \
     "is non-configurable in the proxy target")                                 \
+  T(ProxyDeletePropertyNonExtensible,                                          \
+    "'deleteProperty' on proxy: trap returned truish for property '%' but "    \
+    "the proxy target is non-extensible")                                      \
   T(ProxyGetNonConfigurableData,                                               \
     "'get' on proxy: property '%' is a read-only and "                         \
     "non-configurable data property on the proxy target but the proxy "        \
@@ -199,6 +207,10 @@ namespace internal {
     "'getOwnPropertyDescriptor' on proxy: trap reported non-configurability "  \
     "for property '%' which is either non-existent or configurable in the "    \
     "proxy target")                                                            \
+  T(ProxyGetOwnPropertyDescriptorNonConfigurableWritable,                      \
+    "'getOwnPropertyDescriptor' on proxy: trap reported non-configurable "     \
+    "and writable for property '%' which is non-configurable, non-writable "   \
+    "in the proxy target")                                                     \
   T(ProxyGetOwnPropertyDescriptorNonExtensible,                                \
     "'getOwnPropertyDescriptor' on proxy: trap returned undefined for "        \
     "property '%' which exists in the non-extensible proxy target")            \

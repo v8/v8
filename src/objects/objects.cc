@@ -3070,11 +3070,23 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
   Maybe<bool> owned =
       JSReceiver::GetOwnPropertyDescriptor(isolate, target, name, &target_desc);
   MAYBE_RETURN(owned, Nothing<bool>());
-  if (owned.FromJust() && !target_desc.configurable()) {
-    isolate->Throw(*factory->NewTypeError(
-        MessageTemplate::kProxyDeletePropertyNonConfigurable, name));
-    return Nothing<bool>();
+  if (owned.FromJust()) {
+    if (!target_desc.configurable()) {
+      isolate->Throw(*factory->NewTypeError(
+          MessageTemplate::kProxyDeletePropertyNonConfigurable, name));
+      return Nothing<bool>();
+    }
+    // 13. Let extensibleTarget be ? IsExtensible(target).
+    // 14. If extensibleTarget is false, throw a TypeError exception.
+    Maybe<bool> extensible = JSReceiver::IsExtensible(target);
+    MAYBE_RETURN(extensible, Nothing<bool>());
+    if (!extensible.FromJust()) {
+      isolate->Throw(*factory->NewTypeError(
+          MessageTemplate::kProxyDeletePropertyNonExtensible, name));
+      return Nothing<bool>();
+    }
   }
+
   return Just(true);
 }
 
@@ -3432,6 +3444,20 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
           MessageTemplate::kProxyDefinePropertyNonConfigurable, property_name));
       return Nothing<bool>();
     }
+    // 16c. If IsDataDescriptor(targetDesc) is true,
+    // targetDesc.[[Configurable]] is
+    //       false, and targetDesc.[[Writable]] is true, then
+    if (PropertyDescriptor::IsDataDescriptor(&target_desc) &&
+        !target_desc.configurable() && target_desc.writable()) {
+      // 16c i. If Desc has a [[Writable]] field and Desc.[[Writable]] is false,
+      // throw a TypeError exception.
+      if (desc->has_writable() && !desc->writable()) {
+        isolate->Throw(*isolate->factory()->NewTypeError(
+            MessageTemplate::kProxyDefinePropertyNonConfigurableWritable,
+            property_name));
+        return Nothing<bool>();
+      }
+    }
   }
   // 17. Return true.
   return Just(true);
@@ -3582,6 +3608,18 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
           MessageTemplate::kProxyGetOwnPropertyDescriptorNonConfigurable,
           name));
       return Nothing<bool>();
+    }
+    // 17b. If resultDesc has a [[Writable]] field and resultDesc.[[Writable]]
+    // is false, then
+    if (desc->has_writable() && !desc->writable()) {
+      // 17b i. If targetDesc.[[Writable]] is true, throw a TypeError exception.
+      if (target_desc.writable()) {
+        isolate->Throw(*isolate->factory()->NewTypeError(
+            MessageTemplate::
+                kProxyGetOwnPropertyDescriptorNonConfigurableWritable,
+            name));
+        return Nothing<bool>();
+      }
     }
   }
   // 18. Return resultDesc.

@@ -517,11 +517,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9228
-  'built-ins/Proxy/defineProperty/targetdesc-not-configurable-writable-desc-not-writable': [FAIL],
-  'built-ins/Proxy/deleteProperty/targetdesc-is-configurable-target-is-not-extensible': [FAIL],
-  'built-ins/Proxy/getOwnPropertyDescriptor/resultdesc-is-not-configurable-not-writable-targetdesc-is-writable': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9229
   'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage': [FAIL],
   'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage': [FAIL],
