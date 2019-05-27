@@ -123,14 +123,13 @@ inline bool IsStringWrapperElementsKind(ElementsKind kind) {
                    SLOW_STRING_WRAPPER_ELEMENTS);
 }
 
-inline bool IsFixedTypedArrayElementsKind(ElementsKind kind) {
+inline bool IsTypedArrayElementsKind(ElementsKind kind) {
   return IsInRange(kind, FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
                    LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
 }
 
 inline bool IsTerminalElementsKind(ElementsKind kind) {
-  return kind == TERMINAL_FAST_ELEMENTS_KIND ||
-         IsFixedTypedArrayElementsKind(kind);
+  return kind == TERMINAL_FAST_ELEMENTS_KIND || IsTypedArrayElementsKind(kind);
 }
 
 inline bool IsFastElementsKind(ElementsKind kind) {
@@ -139,7 +138,7 @@ inline bool IsFastElementsKind(ElementsKind kind) {
 }
 
 inline bool IsTransitionElementsKind(ElementsKind kind) {
-  return IsFastElementsKind(kind) || IsFixedTypedArrayElementsKind(kind) ||
+  return IsFastElementsKind(kind) || IsTypedArrayElementsKind(kind) ||
          kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS ||
          kind == FAST_STRING_WRAPPER_ELEMENTS;
 }

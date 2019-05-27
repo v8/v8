@@ -172,6 +172,9 @@ class JSArrayBufferView : public JSObject {
                                 JS_ARRAY_BUFFER_VIEW_FIELDS)
 #undef JS_ARRAY_BUFFER_VIEW_FIELDS
 
+  STATIC_ASSERT(IsAligned(kByteOffsetOffset, kUIntptrSize));
+  STATIC_ASSERT(IsAligned(kByteLengthOffset, kUIntptrSize));
+
   OBJECT_CONSTRUCTORS(JSArrayBufferView, JSObject);
 };
 
@@ -182,6 +185,12 @@ class JSTypedArray : public JSArrayBufferView {
 
   // [length]: length of typed array in elements.
   DECL_PRIMITIVE_ACCESSORS(length, size_t)
+
+  // [external_pointer]: TODO(v8:4153)
+  DECL_PRIMITIVE_ACCESSORS(external_pointer, void*)
+
+  // [base_pointer]: TODO(v8:4153)
+  DECL_ACCESSORS(base_pointer, Object)
 
   // ES6 9.4.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
@@ -195,8 +204,13 @@ class JSTypedArray : public JSArrayBufferView {
 
   V8_EXPORT_PRIVATE Handle<JSArrayBuffer> GetBuffer();
 
+  // Use with care: returns raw pointer into heap.
+  inline void* DataPtr();
+
   // Whether the buffer's backing store is on-heap or off-heap.
   inline bool is_on_heap() const;
+
+  static inline void* ExternalPointerForOnHeapArray();
 
   static inline MaybeHandle<JSTypedArray> Validate(Isolate* isolate,
                                                    Handle<Object> receiver,
@@ -207,15 +221,20 @@ class JSTypedArray : public JSArrayBufferView {
   DECL_VERIFIER(JSTypedArray)
 
 // Layout description.
-#define JS_TYPED_ARRAY_FIELDS(V) \
-  /* Raw data fields. */         \
-  V(kLengthOffset, kUIntptrSize) \
-  /* Header size. */             \
+#define JS_TYPED_ARRAY_FIELDS(V)                \
+  /* Raw data fields. */                        \
+  V(kLengthOffset, kUIntptrSize)                \
+  V(kExternalPointerOffset, kSystemPointerSize) \
+  V(kBasePointerOffset, kTaggedSize)            \
+  /* Header size. */                            \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSArrayBufferView::kHeaderSize,
                                 JS_TYPED_ARRAY_FIELDS)
 #undef JS_TYPED_ARRAY_FIELDS
+
+  STATIC_ASSERT(IsAligned(kLengthOffset, kUIntptrSize));
+  STATIC_ASSERT(IsAligned(kExternalPointerOffset, kSystemPointerSize));
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +
@@ -251,6 +270,8 @@ class JSDataView : public JSArrayBufferView {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSArrayBufferView::kHeaderSize,
                                 JS_DATA_VIEW_FIELDS)
 #undef JS_DATA_VIEW_FIELDS
+
+  STATIC_ASSERT(IsAligned(kDataPointerOffset, kUIntptrSize));
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +

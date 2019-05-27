@@ -538,15 +538,8 @@ extern class JSBoundFunction extends JSObject {
 
 type Callable = JSFunction | JSBoundFunction | JSProxy;
 
-extern class FixedTypedArrayBase extends FixedArrayBase {
-  base_pointer: Smi;
-  external_pointer: RawPtr;
-}
 extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
     FixedArrayBase): intptr;
-
-type FixedTypedArray extends FixedTypedArrayBase
-    generates 'TNode<FixedTypedArray>';
 
 type SloppyArgumentsElements extends FixedArray;
 type NumberDictionary extends HeapObject
@@ -616,8 +609,7 @@ extern class JSArrayBufferView extends JSObject {
 }
 
 extern class JSTypedArray extends JSArrayBufferView {
-  AttachOffHeapBuffer(buffer: JSArrayBuffer, map: Map, byteOffset: uintptr):
-      void {
+  AttachOffHeapBuffer(buffer: JSArrayBuffer, byteOffset: uintptr): void {
     const basePointer: Smi = 0;
 
     // The max byteOffset is 8 * MaxSmi on the particular platform. 32 bit
@@ -635,16 +627,15 @@ extern class JSTypedArray extends JSArrayBufferView {
         IsMockArrayBufferAllocatorFlag() ||
         Convert<uintptr>(externalPointer) >= Convert<uintptr>(backingStore));
 
+    this.elements = kEmptyByteArray;
     this.buffer = buffer;
-    this.elements = new FixedTypedArrayBase{
-      map,
-      length: 0,
-      base_pointer: basePointer,
-      external_pointer: externalPointer
-    };
+    this.external_pointer = externalPointer;
+    this.base_pointer = basePointer;
   }
 
   length: uintptr;
+  external_pointer: RawPtr;
+  base_pointer: ByteArray | Smi;
 }
 
 @noVerifier
@@ -751,7 +742,7 @@ extern class PropertyCell extends HeapObject {
   dependent_code: DependentCode;
 }
 
-extern class JSDataView extends JSArrayBufferView {}
+extern class JSDataView extends JSArrayBufferView { data_pointer: RawPtr; }
 
 type ElementsKind generates 'TNode<Int32T>' constexpr 'ElementsKind';
 type LanguageMode extends Smi constexpr 'LanguageMode';
@@ -960,18 +951,6 @@ const kWithSlackTracking: constexpr SlackTrackingMode
 const kNoSlackTracking: constexpr SlackTrackingMode
     generates 'SlackTrackingMode::kNoSlackTracking';
 
-type FixedUint8Array extends FixedTypedArray;
-type FixedInt8Array extends FixedTypedArray;
-type FixedUint16Array extends FixedTypedArray;
-type FixedInt16Array extends FixedTypedArray;
-type FixedUint32Array extends FixedTypedArray;
-type FixedInt32Array extends FixedTypedArray;
-type FixedFloat32Array extends FixedTypedArray;
-type FixedFloat64Array extends FixedTypedArray;
-type FixedUint8ClampedArray extends FixedTypedArray;
-type FixedBigUint64Array extends FixedTypedArray;
-type FixedBigInt64Array extends FixedTypedArray;
-
 const kFixedDoubleArrays: constexpr ExtractFixedArrayFlags
     generates 'CodeStubAssembler::ExtractFixedArrayFlag::kFixedDoubleArrays';
 const kAllFixedArrays: constexpr ExtractFixedArrayFlags
@@ -983,6 +962,8 @@ const kFixedArrayMapRootIndex:
     constexpr RootIndex generates 'RootIndex::kFixedArrayMap';
 const kFixedCOWArrayMapRootIndex:
     constexpr RootIndex generates 'RootIndex::kFixedCOWArrayMap';
+const kEmptyByteArrayRootIndex:
+    constexpr RootIndex generates 'RootIndex::kEmptyByteArray';
 const kEmptyFixedArrayRootIndex:
     constexpr RootIndex generates 'RootIndex::kEmptyFixedArray';
 const kTheHoleValueRootIndex:
@@ -1025,8 +1006,8 @@ const kPropertyNotFunction: constexpr MessageTemplate
 
 const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
-const kTypedArrayMaxByteLength:
-    constexpr uintptr generates 'FixedTypedArrayBase::kMaxByteLength';
+const kArrayBufferMaxByteLength:
+    constexpr uintptr generates 'JSArrayBuffer::kMaxByteLength';
 const V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP:
     constexpr int31 generates 'V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP';
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
@@ -1035,8 +1016,6 @@ const kSmiMax: uintptr = kSmiMaxValue;
 const kStringMaxLength: constexpr int31 generates 'String::kMaxLength';
 const kFixedArrayMaxLength:
     constexpr int31 generates 'FixedArray::kMaxLength';
-const kFixedTypedArrayBaseHeaderSize: constexpr intptr
-    generates 'FixedTypedArrayBase::kHeaderSize';
 const kObjectAlignmentMask: constexpr intptr
     generates 'kObjectAlignmentMask';
 const kMinAddedElementsCapacity:
@@ -1443,7 +1422,6 @@ extern transitioning runtime TransitionElementsKindWithKind(
 extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
 extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
 extern macro LoadBufferSmi(RawPtr, constexpr int32): Smi;
-extern macro LoadFixedTypedArrayOnHeapBackingStore(FixedTypedArrayBase): RawPtr;
 
 extern macro LoadRoot(constexpr RootIndex): Object;
 extern macro StoreRoot(constexpr RootIndex, Object): Object;
@@ -1823,12 +1801,6 @@ Cast<JSObject>(o: HeapObject): JSObject
 Cast<NumberDictionary>(o: HeapObject): NumberDictionary
     labels CastError {
   if (IsNumberDictionary(o)) return %RawDownCast<NumberDictionary>(o);
-  goto CastError;
-}
-
-Cast<FixedTypedArrayBase>(o: HeapObject): FixedTypedArrayBase
-    labels CastError {
-  if (IsFixedTypedArray(o)) return %RawDownCast<FixedTypedArrayBase>(o);
   goto CastError;
 }
 
@@ -2295,6 +2267,8 @@ UnsafeCast<Object>(o: Object): Object {
 const kFixedArrayMap: Map =
     %RawDownCast<Map>(LoadRoot(kFixedArrayMapRootIndex));
 const kCOWMap: Map = %RawDownCast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
+const kEmptyByteArray: ByteArray =
+    %RawDownCast<ByteArray>(LoadRoot(kEmptyByteArrayRootIndex));
 const kEmptyFixedArray: FixedArray =
     %RawDownCast<FixedArray>(LoadRoot(kEmptyFixedArrayRootIndex));
 
@@ -2309,8 +2283,8 @@ extern macro IsMockArrayBufferAllocatorFlag(): bool;
 extern macro IsPrototypeTypedArrayPrototype(implicit context: Context)(Map):
     bool;
 
-extern operator '.data_ptr' macro TypedArrayBuiltinsAssembler::LoadDataPtr(
-    JSTypedArray): RawPtr;
+extern operator '.data_ptr' macro LoadJSTypedArrayBackingStore(JSTypedArray):
+    RawPtr;
 
 extern operator '.elements_kind' macro LoadMapElementsKind(Map): ElementsKind;
 extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
@@ -2714,7 +2688,6 @@ extern macro IsJSFunction(HeapObject): bool;
 extern macro IsJSObject(HeapObject): bool;
 extern macro IsJSTypedArray(HeapObject): bool;
 extern macro IsNumberDictionary(HeapObject): bool;
-extern macro IsFixedTypedArray(HeapObject): bool;
 extern macro IsContext(HeapObject): bool;
 extern macro IsJSReceiver(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;

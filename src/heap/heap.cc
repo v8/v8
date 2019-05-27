@@ -2590,9 +2590,9 @@ STATIC_ASSERT(IsAligned(FixedDoubleArray::kHeaderSize, kDoubleAlignment));
 // is only kTaggedSize aligned but we can keep using unaligned access since
 // both x64 and arm64 architectures (where pointer compression supported)
 // allow unaligned access to doubles.
-STATIC_ASSERT(IsAligned(FixedTypedArrayBase::kDataOffset, kTaggedSize));
+STATIC_ASSERT(IsAligned(ByteArray::kHeaderSize, kTaggedSize));
 #else
-STATIC_ASSERT(IsAligned(FixedTypedArrayBase::kDataOffset, kDoubleAlignment));
+STATIC_ASSERT(IsAligned(ByteArray::kHeaderSize, kDoubleAlignment));
 #endif
 
 #ifdef V8_HOST_ARCH_32_BIT
@@ -2916,7 +2916,6 @@ void Heap::RightTrimFixedArray(FixedArrayBase object, int elements_to_trim) {
   DCHECK_GE(elements_to_trim, 0);
 
   int bytes_to_trim;
-  DCHECK(!object.IsFixedTypedArrayBase());
   if (object.IsByteArray()) {
     int new_size = ByteArray::SizeFor(len - elements_to_trim);
     bytes_to_trim = ByteArray::SizeFor(len) - new_size;

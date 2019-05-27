@@ -114,19 +114,7 @@ class ZoneForwardList;
   V(FixedArray)                                \
   V(FixedArrayBase)                            \
   V(FixedArrayExact)                           \
-  V(FixedBigInt64Array)                        \
-  V(FixedBigUint64Array)                       \
   V(FixedDoubleArray)                          \
-  V(FixedFloat32Array)                         \
-  V(FixedFloat64Array)                         \
-  V(FixedInt16Array)                           \
-  V(FixedInt32Array)                           \
-  V(FixedInt8Array)                            \
-  V(FixedTypedArrayBase)                       \
-  V(FixedUint16Array)                          \
-  V(FixedUint32Array)                          \
-  V(FixedUint8Array)                           \
-  V(FixedUint8ClampedArray)                    \
   V(Foreign)                                   \
   V(FrameArray)                                \
   V(FreeSpace)                                 \

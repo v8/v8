@@ -517,7 +517,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 
   Handle<JSObject> holder_obj = Handle<JSObject>::cast(holder);
   if (IsElement()) {
-    DCHECK(!holder_obj->HasFixedTypedArrayElements());
+    DCHECK(!holder_obj->HasTypedArrayElements());
     DCHECK(attributes != NONE || !holder_obj->HasFastElements());
     Handle<FixedArrayBase> elements(holder_obj->elements(), isolate());
     holder_obj->GetElementsAccessor()->Reconfigure(holder_obj, elements,

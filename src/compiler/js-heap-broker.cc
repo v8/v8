@@ -340,7 +340,7 @@ class JSTypedArrayData : public JSObjectData {
 
   bool is_on_heap() const { return is_on_heap_; }
   size_t length() const { return length_; }
-  void* elements_external_pointer() const { return elements_external_pointer_; }
+  void* external_pointer() const { return external_pointer_; }
 
   void Serialize(JSHeapBroker* broker);
   bool serialized() const { return serialized_; }
@@ -350,7 +350,7 @@ class JSTypedArrayData : public JSObjectData {
  private:
   bool const is_on_heap_;
   size_t const length_;
-  void* const elements_external_pointer_;
+  void* const external_pointer_;
 
   bool serialized_ = false;
   HeapObjectData* buffer_ = nullptr;
@@ -361,8 +361,7 @@ JSTypedArrayData::JSTypedArrayData(JSHeapBroker* broker, ObjectData** storage,
     : JSObjectData(broker, storage, object),
       is_on_heap_(object->is_on_heap()),
       length_(object->length()),
-      elements_external_pointer_(
-          FixedTypedArrayBase::cast(object->elements()).external_pointer()) {}
+      external_pointer_(object->external_pointer()) {}
 
 void JSTypedArrayData::Serialize(JSHeapBroker* broker) {
   if (serialized_) return;
@@ -2679,12 +2678,12 @@ BIMODAL_ACCESSOR_C(String, int, length)
 
 BIMODAL_ACCESSOR(FeedbackCell, HeapObject, value)
 
-void* JSTypedArrayRef::elements_external_pointer() const {
+void* JSTypedArrayRef::external_pointer() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return FixedTypedArrayBase::cast(object()->elements()).external_pointer();
+    return object()->external_pointer();
   }
-  return data()->AsJSTypedArray()->elements_external_pointer();
+  return data()->AsJSTypedArray()->external_pointer();
 }
 
 bool MapRef::IsInobjectSlackTrackingInProgress() const {
@@ -3253,7 +3252,7 @@ bool CanInlineElementAccess(MapRef const& map) {
   if (map.has_indexed_interceptor()) return false;
   ElementsKind const elements_kind = map.elements_kind();
   if (IsFastElementsKind(elements_kind)) return true;
-  if (IsFixedTypedArrayElementsKind(elements_kind) &&
+  if (IsTypedArrayElementsKind(elements_kind) &&
       elements_kind != BIGUINT64_ELEMENTS &&
       elements_kind != BIGINT64_ELEMENTS) {
     return true;

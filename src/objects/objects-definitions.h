@@ -71,18 +71,6 @@ namespace internal {
   V(BYTECODE_ARRAY_TYPE)                                 \
   V(FREE_SPACE_TYPE)                                     \
                                                          \
-  V(FIXED_INT8_ARRAY_TYPE)                               \
-  V(FIXED_UINT8_ARRAY_TYPE)                              \
-  V(FIXED_INT16_ARRAY_TYPE)                              \
-  V(FIXED_UINT16_ARRAY_TYPE)                             \
-  V(FIXED_INT32_ARRAY_TYPE)                              \
-  V(FIXED_UINT32_ARRAY_TYPE)                             \
-  V(FIXED_FLOAT32_ARRAY_TYPE)                            \
-  V(FIXED_FLOAT64_ARRAY_TYPE)                            \
-  V(FIXED_UINT8_CLAMPED_ARRAY_TYPE)                      \
-  V(FIXED_BIGINT64_ARRAY_TYPE)                           \
-  V(FIXED_BIGUINT64_ARRAY_TYPE)                          \
-                                                         \
   V(FIXED_DOUBLE_ARRAY_TYPE)                             \
   V(FEEDBACK_METADATA_TYPE)                              \
   V(FILLER_TYPE)                                         \

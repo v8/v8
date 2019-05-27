@@ -848,15 +848,14 @@ bool JSObject::HasSlowStringWrapperElements() {
   return GetElementsKind() == SLOW_STRING_WRAPPER_ELEMENTS;
 }
 
-bool JSObject::HasFixedTypedArrayElements() {
+bool JSObject::HasTypedArrayElements() {
   DCHECK(!elements().is_null());
-  return map().has_fixed_typed_array_elements();
+  return map().has_typed_array_elements();
 }
 
-#define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype)          \
-  bool JSObject::HasFixed##Type##Elements() {                        \
-    FixedArrayBase array = elements();                               \
-    return array.map().instance_type() == FIXED_##TYPE##_ARRAY_TYPE; \
+#define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype) \
+  bool JSObject::HasFixed##Type##Elements() {               \
+    return map().elements_kind() == TYPE##_ELEMENTS;        \
   }
 
 TYPED_ARRAYS(FIXED_TYPED_ELEMENTS_CHECK)

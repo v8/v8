@@ -186,27 +186,6 @@ AllocationResult Heap::Allocate(Map map, AllocationType allocation_type) {
   return result;
 }
 
-AllocationResult Heap::AllocateEmptyFixedTypedArray(
-    ExternalArrayType array_type) {
-  int size = OBJECT_POINTER_ALIGN(FixedTypedArrayBase::kDataOffset);
-
-  HeapObject object;
-  AllocationResult allocation = AllocateRaw(
-      size, AllocationType::kReadOnly,
-      array_type == kExternalFloat64Array ? kDoubleAligned : kWordAligned);
-  if (!allocation.To(&object)) return allocation;
-
-  object.set_map_after_allocation(
-      ReadOnlyRoots(this).MapForFixedTypedArray(array_type),
-      SKIP_WRITE_BARRIER);
-  FixedTypedArrayBase elements = FixedTypedArrayBase::cast(object);
-  elements.set_base_pointer(elements, SKIP_WRITE_BARRIER);
-  elements.set_external_pointer(
-      FixedTypedArrayBase::ExternalPointerPtrForOnHeapArray());
-  elements.set_number_of_elements_onheap_only(0);
-  return elements;
-}
-
 bool Heap::CreateInitialMaps() {
   HeapObject obj;
   {
@@ -426,12 +405,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(SMALL_ORDERED_NAME_DICTIONARY_TYPE,
                          small_ordered_name_dictionary)
 
-#define ALLOCATE_FIXED_TYPED_ARRAY_MAP(Type, type, TYPE, ctype) \
-  ALLOCATE_VARSIZE_MAP(FIXED_##TYPE##_ARRAY_TYPE, fixed_##type##_array)
-
-    TYPED_ARRAYS(ALLOCATE_FIXED_TYPED_ARRAY_MAP)
-#undef ALLOCATE_FIXED_TYPED_ARRAY_MAP
-
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, sloppy_arguments_elements)
 
     ALLOCATE_VARSIZE_MAP(CODE_TYPE, code)
@@ -611,18 +584,6 @@ bool Heap::CreateInitialMaps() {
     FixedArray::cast(obj).set_length(0);
     set_empty_closure_feedback_cell_array(ClosureFeedbackCellArray::cast(obj));
   }
-
-#define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype)         \
-  {                                                                       \
-    FixedTypedArrayBase obj;                                              \
-    if (!AllocateEmptyFixedTypedArray(kExternal##Type##Array).To(&obj)) { \
-      return false;                                                       \
-    }                                                                     \
-    set_empty_fixed_##type##_array(obj);                                  \
-  }
-
-  TYPED_ARRAYS(ALLOCATE_EMPTY_FIXED_TYPED_ARRAY)
-#undef ALLOCATE_EMPTY_FIXED_TYPED_ARRAY
 
   DCHECK(!InYoungGeneration(roots.empty_fixed_array()));
 
