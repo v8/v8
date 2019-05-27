@@ -359,9 +359,6 @@ int32_t Serializer::ObjectSerializer::SerializeBackingStore(
 
 void Serializer::ObjectSerializer::SerializeJSTypedArray() {
   JSTypedArray typed_array = JSTypedArray::cast(object_);
-  FixedTypedArrayBase elements =
-      FixedTypedArrayBase::cast(typed_array.elements());
-
   if (!typed_array.WasDetached()) {
     if (!typed_array.is_on_heap()) {
       // Explicitly serialize the backing store now.
@@ -374,23 +371,18 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
       // We need to calculate the backing store from the external pointer
       // because the ArrayBuffer may already have been serialized.
       void* backing_store = reinterpret_cast<void*>(
-          reinterpret_cast<intptr_t>(elements.external_pointer()) -
+          reinterpret_cast<intptr_t>(typed_array.external_pointer()) -
           byte_offset);
       int32_t ref = SerializeBackingStore(backing_store, byte_length);
 
       // The external_pointer is the backing_store + typed_array->byte_offset.
       // To properly share the buffer, we set the backing store ref here. On
       // deserialization we re-add the byte_offset to external_pointer.
-      elements.set_external_pointer(
+      typed_array.set_external_pointer(
           reinterpret_cast<void*>(Smi::FromInt(ref).ptr()));
     }
   } else {
-    // When a JSArrayBuffer is detached, the FixedTypedArray that points to the
-    // same backing store does not know anything about it. This fixup step finds
-    // detached TypedArrays and clears the values in the FixedTypedArray so that
-    // we don't try to serialize the now invalid backing store.
-    elements.set_external_pointer(reinterpret_cast<void*>(Smi::kZero.ptr()));
-    elements.set_number_of_elements_onheap_only(0);
+    typed_array.set_external_pointer(nullptr);
   }
   SerializeObject();
 }

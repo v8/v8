@@ -2032,37 +2032,16 @@ TNode<IntPtrT> CodeStubAssembler::LoadPropertyArrayLength(
   return Signed(DecodeWord<PropertyArray::LengthField>(value));
 }
 
-TNode<RawPtrT> CodeStubAssembler::LoadFixedTypedArrayBackingStore(
-    TNode<FixedTypedArrayBase> typed_array) {
+TNode<RawPtrT> CodeStubAssembler::LoadJSTypedArrayBackingStore(
+    TNode<JSTypedArray> typed_array) {
   // Backing store = external_pointer + base_pointer.
   Node* external_pointer =
-      LoadObjectField(typed_array, FixedTypedArrayBase::kExternalPointerOffset,
+      LoadObjectField(typed_array, JSTypedArray::kExternalPointerOffset,
                       MachineType::Pointer());
   Node* base_pointer =
-      LoadObjectField(typed_array, FixedTypedArrayBase::kBasePointerOffset);
+      LoadObjectField(typed_array, JSTypedArray::kBasePointerOffset);
   return UncheckedCast<RawPtrT>(
       IntPtrAdd(external_pointer, BitcastTaggedToWord(base_pointer)));
-}
-
-TNode<RawPtrT> CodeStubAssembler::LoadFixedTypedArrayOnHeapBackingStore(
-    TNode<FixedTypedArrayBase> typed_array) {
-  // This is specialized method of retrieving the backing store pointer for on
-  // heap allocated typed array buffer. On heap allocated buffer's backing
-  // stores are a fixed offset from the pointer to a typed array's elements. See
-  // TypedArrayBuiltinsAssembler::AllocateOnHeapElements().
-  TNode<WordT> backing_store =
-      IntPtrAdd(BitcastTaggedToWord(typed_array),
-                IntPtrConstant(
-                    FixedTypedArrayBase::ExternalPointerValueForOnHeapArray()));
-
-#ifdef DEBUG
-  // Verify that this is an on heap backing store.
-  TNode<RawPtrT> expected_backing_store_pointer =
-      LoadFixedTypedArrayBackingStore(typed_array);
-  CSA_ASSERT(this, WordEqual(backing_store, expected_backing_store_pointer));
-#endif
-
-  return UncheckedCast<RawPtrT>(backing_store);
 }
 
 Node* CodeStubAssembler::LoadFixedBigInt64ArrayElementAsTagged(
@@ -2340,11 +2319,11 @@ TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
   return var_result.value();
 }
 
-void CodeStubAssembler::StoreFixedTypedArrayElementFromTagged(
-    TNode<Context> context, TNode<FixedTypedArrayBase> elements,
+void CodeStubAssembler::StoreJSTypedArrayElementFromTagged(
+    TNode<Context> context, TNode<JSTypedArray> typed_array,
     TNode<Object> index_node, TNode<Object> value, ElementsKind elements_kind,
     ParameterMode parameter_mode) {
-  TNode<RawPtrT> data_pointer = LoadFixedTypedArrayBackingStore(elements);
+  TNode<RawPtrT> data_pointer = LoadJSTypedArrayBackingStore(typed_array);
   switch (elements_kind) {
     case UINT8_ELEMENTS:
     case UINT8_CLAMPED_ELEMENTS:
@@ -2369,13 +2348,10 @@ void CodeStubAssembler::StoreFixedTypedArrayElementFromTagged(
                    LoadHeapNumberValue(CAST(value)), parameter_mode);
       break;
     case BIGUINT64_ELEMENTS:
-    case BIGINT64_ELEMENTS: {
-      TNode<IntPtrT> offset =
-          ElementOffsetFromIndex(index_node, elements_kind, parameter_mode, 0);
-      EmitBigTypedArrayElementStore(elements, data_pointer, offset,
-                                    CAST(value));
+    case BIGINT64_ELEMENTS:
+      StoreElement(data_pointer, elements_kind, index_node,
+                   UncheckedCast<BigInt>(value), parameter_mode);
       break;
-    }
     default:
       UNREACHABLE();
   }
@@ -3194,6 +3170,55 @@ TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
   return UncheckedCast<UintPtrT>(LoadObjectField(
       bigint, BigInt::kDigitsOffset + digit_index * kSystemPointerSize,
       MachineType::UintPtr()));
+}
+
+TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,
+                                                      AllocationFlags flags) {
+  Comment("AllocateByteArray");
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+
+  // Compute the ByteArray size and check if it fits into new space.
+  Label if_lengthiszero(this), if_sizeissmall(this),
+      if_notsizeissmall(this, Label::kDeferred), if_join(this);
+  GotoIf(WordEqual(length, UintPtrConstant(0)), &if_lengthiszero);
+
+  Node* raw_size = GetArrayAllocationSize(
+      Signed(length), UINT8_ELEMENTS, INTPTR_PARAMETERS,
+      SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
+  TNode<WordT> size = WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
+  Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
+         &if_sizeissmall, &if_notsizeissmall);
+
+  BIND(&if_sizeissmall);
+  {
+    // Just allocate the ByteArray in new space.
+    TNode<Object> result =
+        AllocateInNewSpace(UncheckedCast<IntPtrT>(size), flags);
+    DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kByteArrayMap));
+    StoreMapNoWriteBarrier(result, RootIndex::kByteArrayMap);
+    StoreObjectFieldNoWriteBarrier(result, ByteArray::kLengthOffset,
+                                   SmiTag(Signed(length)));
+    var_result.Bind(result);
+    Goto(&if_join);
+  }
+
+  BIND(&if_notsizeissmall);
+  {
+    // We might need to allocate in large object space, go to the runtime.
+    Node* result = CallRuntime(Runtime::kAllocateByteArray, NoContextConstant(),
+                               ChangeUintPtrToTagged(length));
+    var_result.Bind(result);
+    Goto(&if_join);
+  }
+
+  BIND(&if_lengthiszero);
+  {
+    var_result.Bind(LoadRoot(RootIndex::kEmptyByteArray));
+    Goto(&if_join);
+  }
+
+  BIND(&if_join);
+  return CAST(var_result.value());
 }
 
 TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
@@ -4893,8 +4918,8 @@ void CodeStubAssembler::CopyFixedArrayElements(
   Comment("[ CopyFixedArrayElements");
 
   // Typed array elements are not supported.
-  DCHECK(!IsFixedTypedArrayElementsKind(from_kind));
-  DCHECK(!IsFixedTypedArrayElementsKind(to_kind));
+  DCHECK(!IsTypedArrayElementsKind(from_kind));
+  DCHECK(!IsTypedArrayElementsKind(to_kind));
 
   Label done(this);
   bool from_double_elements = IsDoubleElementsKind(from_kind);
@@ -6582,8 +6607,17 @@ TNode<BoolT> CodeStubAssembler::IsJSFunctionMap(SloppyTNode<Map> map) {
   return IsJSFunctionInstanceType(LoadMapInstanceType(map));
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSTypedArrayInstanceType(
+    SloppyTNode<Int32T> instance_type) {
+  return InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSTypedArrayMap(SloppyTNode<Map> map) {
+  return IsJSTypedArrayInstanceType(LoadMapInstanceType(map));
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSTypedArray(SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, JS_TYPED_ARRAY_TYPE);
+  return IsJSTypedArrayMap(LoadMap(object));
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSArrayBuffer(
@@ -6593,16 +6627,6 @@ TNode<BoolT> CodeStubAssembler::IsJSArrayBuffer(
 
 TNode<BoolT> CodeStubAssembler::IsJSDataView(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_DATA_VIEW_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsFixedTypedArray(
-    SloppyTNode<HeapObject> object) {
-  TNode<Int32T> instance_type = LoadInstanceType(object);
-  return UncheckedCast<BoolT>(Word32And(
-      Int32GreaterThanOrEqual(instance_type,
-                              Int32Constant(FIRST_FIXED_TYPED_ARRAY_TYPE)),
-      Int32LessThanOrEqual(instance_type,
-                           Int32Constant(LAST_FIXED_TYPED_ARRAY_TYPE))));
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSRegExp(SloppyTNode<HeapObject> object) {
@@ -10352,7 +10376,32 @@ MachineRepresentation ElementsKindToMachineRepresentation(ElementsKind kind) {
 void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
                                      Node* index, Node* value,
                                      ParameterMode mode) {
-  if (IsFixedTypedArrayElementsKind(kind)) {
+  if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
+    TNode<IntPtrT> offset = ElementOffsetFromIndex(index, kind, mode, 0);
+    TVARIABLE(UintPtrT, var_low);
+    // Only used on 32-bit platforms.
+    TVARIABLE(UintPtrT, var_high);
+    BigIntToRawBytes(CAST(value), &var_low, &var_high);
+
+    MachineRepresentation rep = WordT::kMachineRepresentation;
+#if defined(V8_TARGET_BIG_ENDIAN)
+    if (!Is64()) {
+      StoreNoWriteBarrier(rep, elements, offset, var_high.value());
+      StoreNoWriteBarrier(rep, elements,
+                          IntPtrAdd(offset, IntPtrConstant(kSystemPointerSize)),
+                          var_low.value());
+    } else {
+      StoreNoWriteBarrier(rep, elements, offset, var_low.value());
+    }
+#else
+    StoreNoWriteBarrier(rep, elements, offset, var_low.value());
+    if (!Is64()) {
+      StoreNoWriteBarrier(rep, elements,
+                          IntPtrAdd(offset, IntPtrConstant(kSystemPointerSize)),
+                          var_high.value());
+    }
+#endif
+  } else if (IsTypedArrayElementsKind(kind)) {
     if (kind == UINT8_CLAMPED_ELEMENTS) {
       CSA_ASSERT(this,
                  Word32Equal(value, Word32And(Int32Constant(0xFF), value)));
@@ -10404,7 +10453,7 @@ Node* CodeStubAssembler::Float64ToUint8Clamped(Node* float64_value) {
 
 Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
     TNode<Object> input, ElementsKind elements_kind, TNode<Context> context) {
-  DCHECK(IsFixedTypedArrayElementsKind(elements_kind));
+  DCHECK(IsTypedArrayElementsKind(elements_kind));
 
   MachineRepresentation rep;
   switch (elements_kind) {
@@ -10492,24 +10541,6 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
   return var_result.value();
 }
 
-void CodeStubAssembler::EmitBigTypedArrayElementStore(
-    TNode<JSTypedArray> object, TNode<FixedTypedArrayBase> elements,
-    TNode<IntPtrT> intptr_key, TNode<Object> value, TNode<Context> context,
-    Label* opt_if_detached) {
-  TNode<BigInt> bigint_value = ToBigInt(context, value);
-
-  if (opt_if_detached != nullptr) {
-    // Check if buffer has been detached. Must happen after {ToBigInt}!
-    Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
-    GotoIf(IsDetachedBuffer(buffer), opt_if_detached);
-  }
-
-  TNode<RawPtrT> backing_store = LoadFixedTypedArrayBackingStore(elements);
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(intptr_key, BIGINT64_ELEMENTS,
-                                                 INTPTR_PARAMETERS, 0);
-  EmitBigTypedArrayElementStore(elements, backing_store, offset, bigint_value);
-}
-
 void CodeStubAssembler::BigIntToRawBytes(TNode<BigInt> bigint,
                                          TVariable<UintPtrT>* var_low,
                                          TVariable<UintPtrT>* var_high) {
@@ -10543,34 +10574,6 @@ void CodeStubAssembler::BigIntToRawBytes(TNode<BigInt> bigint,
   BIND(&done);
 }
 
-void CodeStubAssembler::EmitBigTypedArrayElementStore(
-    TNode<FixedTypedArrayBase> elements, TNode<RawPtrT> backing_store,
-    TNode<IntPtrT> offset, TNode<BigInt> bigint_value) {
-  TVARIABLE(UintPtrT, var_low);
-  // Only used on 32-bit platforms.
-  TVARIABLE(UintPtrT, var_high);
-  BigIntToRawBytes(bigint_value, &var_low, &var_high);
-
-  MachineRepresentation rep = WordT::kMachineRepresentation;
-#if defined(V8_TARGET_BIG_ENDIAN)
-  if (!Is64()) {
-    StoreNoWriteBarrier(rep, backing_store, offset, var_high.value());
-    StoreNoWriteBarrier(rep, backing_store,
-                        IntPtrAdd(offset, IntPtrConstant(kSystemPointerSize)),
-                        var_low.value());
-  } else {
-    StoreNoWriteBarrier(rep, backing_store, offset, var_low.value());
-  }
-#else
-  StoreNoWriteBarrier(rep, backing_store, offset, var_low.value());
-  if (!Is64()) {
-    StoreNoWriteBarrier(rep, backing_store,
-                        IntPtrAdd(offset, IntPtrConstant(kSystemPointerSize)),
-                        var_high.value());
-  }
-#endif
-}
-
 void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
                                          ElementsKind elements_kind,
                                          KeyedAccessStoreMode store_mode,
@@ -10589,7 +10592,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   ParameterMode parameter_mode = INTPTR_PARAMETERS;
   TNode<IntPtrT> intptr_key = TryToIntptr(key, bailout);
 
-  if (IsFixedTypedArrayElementsKind(elements_kind)) {
+  if (IsTypedArrayElementsKind(elements_kind)) {
     Label done(this);
 
     // IntegerIndexedElementSet converts value to a Number/BigInt prior to the
@@ -10623,21 +10626,9 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
       DebugBreak();
     }
 
-    if (elements_kind == BIGINT64_ELEMENTS ||
-        elements_kind == BIGUINT64_ELEMENTS) {
-      TNode<BigInt> bigint_value = UncheckedCast<BigInt>(value);
-
-      TNode<RawPtrT> backing_store =
-          LoadFixedTypedArrayBackingStore(CAST(elements));
-      TNode<IntPtrT> offset = ElementOffsetFromIndex(
-          intptr_key, BIGINT64_ELEMENTS, INTPTR_PARAMETERS, 0);
-      EmitBigTypedArrayElementStore(CAST(elements), backing_store, offset,
-                                    bigint_value);
-    } else {
-      Node* backing_store = LoadFixedTypedArrayBackingStore(CAST(elements));
-      StoreElement(backing_store, elements_kind, intptr_key, value,
-                   parameter_mode);
-    }
+    TNode<RawPtrT> backing_store = LoadJSTypedArrayBackingStore(CAST(object));
+    StoreElement(backing_store, elements_kind, intptr_key, value,
+                 parameter_mode);
     Goto(&done);
 
     BIND(&done);

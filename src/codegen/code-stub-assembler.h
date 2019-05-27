@@ -1233,10 +1233,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Float64T> LoadDoubleWithHoleCheck(
       SloppyTNode<Object> base, SloppyTNode<IntPtrT> offset, Label* if_hole,
       MachineType machine_type = MachineType::Float64());
-  TNode<RawPtrT> LoadFixedTypedArrayBackingStore(
-      TNode<FixedTypedArrayBase> typed_array);
-  TNode<RawPtrT> LoadFixedTypedArrayOnHeapBackingStore(
-      TNode<FixedTypedArrayBase> typed_array);
   Node* LoadFixedTypedArrayElementAsTagged(
       Node* data_pointer, Node* index_node, ElementsKind elements_kind,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
@@ -1253,10 +1249,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BigInt> BigIntFromInt32Pair(TNode<IntPtrT> low, TNode<IntPtrT> high);
   TNode<BigInt> BigIntFromUint32Pair(TNode<UintPtrT> low, TNode<UintPtrT> high);
 
-  void StoreFixedTypedArrayElementFromTagged(
-      TNode<Context> context, TNode<FixedTypedArrayBase> elements,
-      TNode<Object> index_node, TNode<Object> value, ElementsKind elements_kind,
-      ParameterMode parameter_mode);
+  void StoreJSTypedArrayElementFromTagged(TNode<Context> context,
+                                          TNode<JSTypedArray> typed_array,
+                                          TNode<Object> index_node,
+                                          TNode<Object> value,
+                                          ElementsKind elements_kind,
+                                          ParameterMode parameter_mode);
 
   // Context manipulation
   TNode<Object> LoadContextElement(SloppyTNode<Context> context,
@@ -1541,6 +1539,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                         TNode<UintPtrT> digit);
   TNode<Word32T> LoadBigIntBitfield(TNode<BigInt> bigint);
   TNode<UintPtrT> LoadBigIntDigit(TNode<BigInt> bigint, int digit_index);
+
+  // Allocate a ByteArray with the given length.
+  TNode<ByteArray> AllocateByteArray(TNode<UintPtrT> length,
+                                     AllocationFlags flags = kNone);
 
   // Allocate a SeqOneByteString with the given length.
   TNode<String> AllocateSeqOneByteString(uint32_t length,
@@ -2207,7 +2209,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsFixedArrayWithKindOrEmpty(SloppyTNode<HeapObject> object,
                                            ElementsKind kind);
   TNode<BoolT> IsFixedDoubleArray(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsFixedTypedArray(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFunctionWithPrototypeSlotMap(SloppyTNode<Map> map);
   TNode<BoolT> IsHashTable(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsEphemeronHashTable(SloppyTNode<HeapObject> object);
@@ -2241,6 +2242,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSReceiverMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSReceiver(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSRegExp(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSTypedArrayInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSTypedArrayMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSTypedArray(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSValueInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSValueMap(SloppyTNode<Map> map);
@@ -3034,20 +3037,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                          TNode<Context> context);
 
   // Store value to an elements array with given elements kind.
+  // TODO(turbofan): For BIGINT64_ELEMENTS and BIGUINT64_ELEMENTS
+  // we pass {value} as BigInt object instead of int64_t. We should
+  // teach TurboFan to handle int64_t on 32-bit platforms eventually.
   void StoreElement(Node* elements, ElementsKind kind, Node* index, Node* value,
                     ParameterMode mode);
 
-  void EmitBigTypedArrayElementStore(TNode<JSTypedArray> object,
-                                     TNode<FixedTypedArrayBase> elements,
-                                     TNode<IntPtrT> intptr_key,
-                                     TNode<Object> value,
-                                     TNode<Context> context,
-                                     Label* opt_if_detached);
-  // Part of the above, refactored out to reuse in another place.
-  void EmitBigTypedArrayElementStore(TNode<FixedTypedArrayBase> elements,
-                                     TNode<RawPtrT> backing_store,
-                                     TNode<IntPtrT> offset,
-                                     TNode<BigInt> bigint_value);
   // Implements the BigInt part of
   // https://tc39.github.io/proposal-bigint/#sec-numbertorawbytes,
   // including truncation to 64 bits (i.e. modulo 2^64).
@@ -3275,6 +3270,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // JSTypedArray helpers
   TNode<UintPtrT> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
+  TNode<RawPtrT> LoadJSTypedArrayBackingStore(TNode<JSTypedArray> typed_array);
 
   TNode<IntPtrT> ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                         ParameterMode mode, int base_size = 0);

@@ -4766,7 +4766,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   // Check that various {iterated_object_maps} have compatible elements kinds.
   ElementsKind elements_kind =
       MapRef(broker(), iterated_object_maps[0]).elements_kind();
-  if (IsFixedTypedArrayElementsKind(elements_kind)) {
+  if (IsTypedArrayElementsKind(elements_kind)) {
     // TurboFan doesn't support loading from BigInt typed arrays yet.
     if (elements_kind == BIGUINT64_ELEMENTS ||
         elements_kind == BIGINT64_ELEMENTS) {
@@ -4793,7 +4793,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   // was reliable.
   inference.InsertMapChecks(jsgraph(), &effect, control, p.feedback());
 
-  if (IsFixedTypedArrayElementsKind(elements_kind)) {
+  if (IsTypedArrayElementsKind(elements_kind)) {
     // See if we can skip the detaching check.
     if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
       // Bail out if the {iterated_object}s JSArrayBuffer was detached.
@@ -4821,7 +4821,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   // {iterated_object} is either a JSArray or a JSTypedArray. For the
   // latter case we even know that it's a Smi in UnsignedSmall range.
   FieldAccess index_access = AccessBuilder::ForJSArrayIteratorNextIndex();
-  if (IsFixedTypedArrayElementsKind(elements_kind)) {
+  if (IsTypedArrayElementsKind(elements_kind)) {
     index_access.type = TypeCache::Get()->kJSTypedArrayLengthType;
     index_access.machine_type = MachineType::TypeCompressedTaggedSigned();
     index_access.write_barrier_kind = kNoWriteBarrier;
@@ -4845,7 +4845,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   // already know something about the length here, which we can leverage
   // to generate Word32 operations below without additional checking.
   FieldAccess length_access =
-      IsFixedTypedArrayElementsKind(elements_kind)
+      IsTypedArrayElementsKind(elements_kind)
           ? AccessBuilder::ForJSTypedArrayLength()
           : AccessBuilder::ForJSArrayLength(elements_kind);
   Node* length = effect = graph()->NewNode(
@@ -4875,15 +4875,15 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
       DCHECK(iteration_kind == IterationKind::kEntries ||
              iteration_kind == IterationKind::kValues);
 
-      if (IsFixedTypedArrayElementsKind(elements_kind)) {
-        Node* base_ptr = etrue = graph()->NewNode(
-            simplified()->LoadField(
-                AccessBuilder::ForFixedTypedArrayBaseBasePointer()),
-            elements, etrue, if_true);
+      if (IsTypedArrayElementsKind(elements_kind)) {
+        Node* base_ptr = etrue =
+            graph()->NewNode(simplified()->LoadField(
+                                 AccessBuilder::ForJSTypedArrayBasePointer()),
+                             iterated_object, etrue, if_true);
         Node* external_ptr = etrue = graph()->NewNode(
             simplified()->LoadField(
-                AccessBuilder::ForFixedTypedArrayBaseExternalPointer()),
-            elements, etrue, if_true);
+                AccessBuilder::ForJSTypedArrayExternalPointer()),
+            iterated_object, etrue, if_true);
 
         ExternalArrayType array_type = kExternalInt8Array;
         switch (elements_kind) {
@@ -4952,7 +4952,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     done_false = jsgraph()->TrueConstant();
     value_false = jsgraph()->UndefinedConstant();
 
-    if (!IsFixedTypedArrayElementsKind(elements_kind)) {
+    if (!IsTypedArrayElementsKind(elements_kind)) {
       // Mark the {iterator} as exhausted by setting the [[NextIndex]] to a
       // value that will never pass the length check again (aka the maximum
       // value possible for the specific iterated object). Note that this is

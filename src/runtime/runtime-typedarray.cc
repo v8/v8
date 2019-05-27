@@ -102,9 +102,6 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   size_t length = array->length();
   if (length <= 1) return *array;
 
-  Handle<FixedTypedArrayBase> elements(
-      FixedTypedArrayBase::cast(array->elements()), isolate);
-
   // In case of a SAB, the data is copied into temporary memory, as
   // std::sort might crash in case the underlying data is concurrently
   // modified while sorting.
@@ -120,7 +117,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
     CHECK_LE(bytes, INT_MAX);
     array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
     std::memcpy(static_cast<void*>(array_copy->GetDataStartAddress()),
-                static_cast<void*>(elements->DataPtr()), bytes);
+                static_cast<void*>(array->DataPtr()), bytes);
   }
 
   DisallowHeapAllocation no_gc;
@@ -131,7 +128,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
     ctype* data =                                                          \
         copy_data                                                          \
             ? reinterpret_cast<ctype*>(array_copy->GetDataStartAddress())  \
-            : static_cast<ctype*>(elements->DataPtr());                    \
+            : static_cast<ctype*>(array->DataPtr());                       \
     if (kExternal##Type##Array == kExternalFloat64Array ||                 \
         kExternal##Type##Array == kExternalFloat32Array) {                 \
       if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {        \
@@ -160,7 +157,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   if (copy_data) {
     DCHECK(!array_copy.is_null());
     const size_t bytes = array->byte_length();
-    std::memcpy(static_cast<void*>(elements->DataPtr()),
+    std::memcpy(static_cast<void*>(array->DataPtr()),
                 static_cast<void*>(array_copy->GetDataStartAddress()), bytes);
   }
 

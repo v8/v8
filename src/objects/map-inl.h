@@ -198,9 +198,8 @@ FixedArrayBase Map::GetInitialElements() const {
     result = GetReadOnlyRoots().empty_fixed_array();
   } else if (has_fast_sloppy_arguments_elements()) {
     result = GetReadOnlyRoots().empty_sloppy_arguments_elements();
-  } else if (has_fixed_typed_array_elements()) {
-    result =
-        GetReadOnlyRoots().EmptyFixedTypedArrayForTypedArray(elements_kind());
+  } else if (has_typed_array_elements()) {
+    result = GetReadOnlyRoots().empty_byte_array();
   } else if (has_dictionary_elements()) {
     result = GetReadOnlyRoots().empty_slow_element_dictionary();
   } else {
@@ -487,8 +486,8 @@ bool Map::has_fast_string_wrapper_elements() const {
   return elements_kind() == FAST_STRING_WRAPPER_ELEMENTS;
 }
 
-bool Map::has_fixed_typed_array_elements() const {
-  return IsFixedTypedArrayElementsKind(elements_kind());
+bool Map::has_typed_array_elements() const {
+  return IsTypedArrayElementsKind(elements_kind());
 }
 
 bool Map::has_dictionary_elements() const {

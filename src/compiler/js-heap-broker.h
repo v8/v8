@@ -655,7 +655,7 @@ class JSTypedArrayRef : public JSObjectRef {
 
   bool is_on_heap() const;
   size_t length() const;
-  void* elements_external_pointer() const;
+  void* external_pointer() const;
 
   void Serialize();
   bool serialized() const;

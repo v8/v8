@@ -28,23 +28,6 @@ using TNode = compiler::TNode<T>;
 // -----------------------------------------------------------------------------
 // ES6 section 22.2 TypedArray Objects
 
-TNode<Map> TypedArrayBuiltinsAssembler::LoadMapForType(
-    TNode<JSTypedArray> array) {
-  TVARIABLE(Map, var_typed_map);
-  TNode<Map> array_map = LoadMap(array);
-  TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
-  ReadOnlyRoots roots(isolate());
-
-  DispatchTypedArrayByElementsKind(
-      elements_kind,
-      [&](ElementsKind kind, int size, int typed_array_fun_index) {
-        Handle<Map> map(roots.MapForFixedTypedArray(kind), isolate());
-        var_typed_map = HeapConstant(map);
-      });
-
-  return var_typed_map.value();
-}
-
 // Setup the TypedArray which is under construction.
 //  - Set the length.
 //  - Set the byte_offset.
@@ -70,6 +53,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
 
 // Allocate a new ArrayBuffer and initialize it with empty properties and
 // elements.
+// TODO(bmeurer,v8:4153): Rename this and maybe fix up the implementation a bit.
 TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
     TNode<Context> context, TNode<JSTypedArray> holder,
     TNode<UintPtrT> byte_length) {
@@ -115,47 +99,16 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
     StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));
   }
 
-  StoreObjectField(holder, JSArrayBufferView::kBufferOffset, buffer);
-  return buffer;
-}
+  StoreObjectField(holder, JSTypedArray::kBufferOffset, buffer);
 
-TNode<FixedTypedArrayBase> TypedArrayBuiltinsAssembler::AllocateOnHeapElements(
-    TNode<Map> map, TNode<IntPtrT> total_size, TNode<Number> length) {
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(total_size, IntPtrConstant(0)));
-
-  // Allocate a FixedTypedArray and set the length, base pointer and external
-  // pointer.
-  CSA_ASSERT(this, IsRegularHeapObjectSize(total_size));
-
-  TNode<HeapObject> elements;
-
-  if (UnalignedLoadSupported(MachineRepresentation::kFloat64) &&
-      UnalignedStoreSupported(MachineRepresentation::kFloat64)) {
-    elements = AllocateInNewSpace(total_size);
-  } else {
-    elements = AllocateInNewSpace(total_size, kDoubleAlignment);
-  }
-
-  // These skipped write barriers are marked unsafe because the MemoryOptimizer
-  // currently doesn't handle double alignment, so it fails at verifying them.
-  UnsafeStoreObjectFieldNoWriteBarrier(elements,
-                                       FixedTypedArrayBase::kMapOffset, map);
-  UnsafeStoreObjectFieldNoWriteBarrier(
-      elements, FixedTypedArrayBase::kLengthOffset, length);
-  UnsafeStoreObjectFieldNoWriteBarrier(
-      elements, FixedTypedArrayBase::kBasePointerOffset, elements);
+  TNode<ByteArray> elements = AllocateByteArray(byte_length);
+  StoreObjectField(holder, JSTypedArray::kElementsOffset, elements);
+  StoreObjectField(holder, JSTypedArray::kBasePointerOffset, elements);
   StoreObjectFieldNoWriteBarrier(
-      elements, FixedTypedArrayBase::kExternalPointerOffset,
-      IntPtrConstant(FixedTypedArrayBase::ExternalPointerValueForOnHeapArray()),
+      holder, JSTypedArray::kExternalPointerOffset,
+      PointerConstant(JSTypedArray::ExternalPointerForOnHeapArray()),
       MachineType::PointerRepresentation());
-  return CAST(elements);
-}
-
-TNode<RawPtrT> TypedArrayBuiltinsAssembler::LoadDataPtr(
-    TNode<JSTypedArray> typed_array) {
-  TNode<FixedArrayBase> elements = LoadElements(typed_array);
-  CSA_ASSERT(this, IsFixedTypedArray(elements));
-  return LoadFixedTypedArrayBackingStore(CAST(elements));
+  return buffer;
 }
 
 TF_BUILTIN(TypedArrayBaseConstructor, TypedArrayBuiltinsAssembler) {
@@ -286,13 +239,10 @@ TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
       [&](ElementsKind kind, int size, int typed_array_fun_index) {
         DCHECK_GT(size, 0);
         var_size_log2 = UintPtrConstant(ElementsKindToShiftSize(kind));
-
-        Handle<Map> map(roots.MapForFixedTypedArray(kind), isolate());
-        var_map = HeapConstant(map);
       });
 
   return TorqueGeneratedTypedArrayBuiltinsAssembler::TypedArrayElementsInfo{
-      var_size_log2.value(), var_map.value(), elements_kind};
+      var_size_log2.value(), elements_kind};
 }
 
 TNode<JSFunction> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
@@ -397,8 +347,8 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
 
   // Grab pointers and byte lengths we need later on.
 
-  TNode<RawPtrT> target_data_ptr = LoadDataPtr(target);
-  TNode<RawPtrT> source_data_ptr = LoadDataPtr(source);
+  TNode<RawPtrT> target_data_ptr = LoadJSTypedArrayBackingStore(target);
+  TNode<RawPtrT> source_data_ptr = LoadJSTypedArrayBackingStore(source);
 
   TNode<Word32T> source_el_kind = LoadElementsKind(source);
   TNode<Word32T> target_el_kind = LoadElementsKind(target);
@@ -816,34 +766,25 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
   DispatchTypedArrayByElementsKind(
       elements_kind,
       [&](ElementsKind kind, int size, int typed_array_fun_index) {
-        TNode<FixedTypedArrayBase> elements =
-            CAST(LoadElements(new_typed_array));
         BuildFastLoop(
             IntPtrConstant(0), length,
             [&](Node* index) {
               TNode<Object> item = args.AtIndex(index, INTPTR_PARAMETERS);
-              TNode<IntPtrT> intptr_index = UncheckedCast<IntPtrT>(index);
-              if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
-                EmitBigTypedArrayElementStore(new_typed_array, elements,
-                                              intptr_index, item, context,
-                                              &if_detached);
-              } else {
-                Node* value =
-                    PrepareValueForWriteToTypedArray(item, kind, context);
+              Node* value =
+                  PrepareValueForWriteToTypedArray(item, kind, context);
 
-                // ToNumber may execute JavaScript code, which could detach
-                // the array's buffer.
-                Node* buffer = LoadObjectField(new_typed_array,
-                                               JSTypedArray::kBufferOffset);
-                GotoIf(IsDetachedBuffer(buffer), &if_detached);
+              // ToNumber/ToBigInt may execute JavaScript code, which could
+              // detach the array's buffer.
+              Node* buffer =
+                  LoadObjectField(new_typed_array, JSTypedArray::kBufferOffset);
+              GotoIf(IsDetachedBuffer(buffer), &if_detached);
 
-                // GC may move backing store in ToNumber, thus load backing
-                // store everytime in this loop.
-                TNode<RawPtrT> backing_store =
-                    LoadFixedTypedArrayBackingStore(elements);
-                StoreElement(backing_store, kind, index, value,
-                             INTPTR_PARAMETERS);
-              }
+              // GC may move backing store in ToNumber, thus load backing
+              // store everytime in this loop.
+              TNode<RawPtrT> backing_store =
+                  LoadJSTypedArrayBackingStore(new_typed_array);
+              StoreElement(backing_store, kind, index, value,
+                           INTPTR_PARAMETERS);
             },
             1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
       });
@@ -1039,7 +980,6 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   TNode<Word32T> elements_kind = LoadElementsKind(target_obj.value());
 
   // 7e/13 : Copy the elements
-  TNode<FixedTypedArrayBase> elements = CAST(LoadElements(target_obj.value()));
   BuildFastLoop(
       SmiConstant(0), final_length.value(),
       [&](Node* index) {
@@ -1050,31 +990,24 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
             CAST(CallJS(CodeFactory::Call(isolate()), context, map_fn, this_arg,
                         k_value, index));
 
-        TNode<IntPtrT> intptr_index = SmiUntag(index);
         DispatchTypedArrayByElementsKind(
             elements_kind,
             [&](ElementsKind kind, int size, int typed_array_fun_index) {
-              if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
-                EmitBigTypedArrayElementStore(target_obj.value(), elements,
-                                              intptr_index, mapped_value,
-                                              context, &if_detached);
-              } else {
-                Node* const final_value = PrepareValueForWriteToTypedArray(
-                    mapped_value, kind, context);
+              Node* const final_value =
+                  PrepareValueForWriteToTypedArray(mapped_value, kind, context);
 
-                // ToNumber may execute JavaScript code, which could detach
-                // the array's buffer.
-                Node* buffer = LoadObjectField(target_obj.value(),
-                                               JSTypedArray::kBufferOffset);
-                GotoIf(IsDetachedBuffer(buffer), &if_detached);
+              // ToNumber/ToBigInt may execute JavaScript code, which could
+              // detach the array's buffer.
+              Node* buffer = LoadObjectField(target_obj.value(),
+                                             JSTypedArray::kBufferOffset);
+              GotoIf(IsDetachedBuffer(buffer), &if_detached);
 
-                // GC may move backing store in map_fn, thus load backing
-                // store in each iteration of this loop.
-                TNode<RawPtrT> backing_store =
-                    LoadFixedTypedArrayBackingStore(elements);
-                StoreElement(backing_store, kind, index, final_value,
-                             SMI_PARAMETERS);
-              }
+              // GC may move backing store in map_fn, thus load backing
+              // store in each iteration of this loop.
+              TNode<RawPtrT> backing_store =
+                  LoadJSTypedArrayBackingStore(target_obj.value());
+              StoreElement(backing_store, kind, index, final_value,
+                           SMI_PARAMETERS);
             });
       },
       1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);

@@ -1105,7 +1105,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobDetachedArrayBuffer) {
     i::Handle<i::JSTypedArray> array =
         i::Handle<i::JSTypedArray>::cast(v8::Utils::OpenHandle(*x));
     CHECK(array->WasDetached());
-    CHECK_NULL(FixedTypedArrayBase::cast(array->elements()).external_pointer());
   }
   isolate->Dispose();
   delete[] blob.data;  // We can dispose of the snapshot blob now.

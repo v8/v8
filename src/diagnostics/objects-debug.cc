@@ -250,14 +250,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       FeedbackVector::cast(*this).FeedbackVectorVerify(isolate);
       break;
 
-#define VERIFY_TYPED_ARRAY(Type, type, TYPE, ctype)                 \
-  case FIXED_##TYPE##_ARRAY_TYPE:                                   \
-    Fixed##Type##Array::cast(*this).FixedTypedArrayVerify(isolate); \
-    break;
-
-      TYPED_ARRAYS(VERIFY_TYPED_ARRAY)
-#undef VERIFY_TYPED_ARRAY
-
     case CODE_TYPE:
       Code::cast(*this).CodeVerify(isolate);
       break;
@@ -523,18 +515,6 @@ void FeedbackVector::FeedbackVectorVerify(Isolate* isolate) {
   CHECK(code->IsSmi() || code->IsWeakOrCleared());
 }
 
-template <class Traits>
-void FixedTypedArray<Traits>::FixedTypedArrayVerify(Isolate* isolate) {
-  CHECK(IsHeapObject() && map().instance_type() == Traits::kInstanceType);
-  if (base_pointer().ptr() == ptr()) {
-    CHECK_EQ(reinterpret_cast<Address>(external_pointer()),
-             FixedTypedArrayBase::kDataOffset - kHeapObjectTag);
-  } else {
-    CHECK_EQ(Smi::kZero, base_pointer());
-    CHECK_EQ(0, number_of_elements_onheap_only());
-  }
-}
-
 bool JSObject::ElementsAreSafeToExamine() const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
@@ -542,17 +522,16 @@ bool JSObject::ElementsAreSafeToExamine() const {
 }
 
 namespace {
+
 void VerifyJSObjectElements(Isolate* isolate, JSObject object) {
   // Only TypedArrays can have these specialized elements.
   if (object.IsJSTypedArray()) {
-    // TODO(cbruni): Fix CreateTypedArray to either not instantiate the object
-    // or propertly initialize it on errors during construction.
-    /* CHECK(object->HasFixedTypedArrayElements()); */
-    /* CHECK(object->elements()->IsFixedTypedArrayBase()); */
+    // TODO(bmeurer,v8:4153): Fix CreateTypedArray to either not instantiate
+    // the object or propertly initialize it on errors during construction.
+    /* CHECK(object->HasTypedArrayElements()); */
     return;
   }
-  CHECK(!object.HasFixedTypedArrayElements());
-  CHECK(!object.elements().IsFixedTypedArrayBase());
+  CHECK(!object.elements().IsByteArray());
 
   if (object.HasDoubleElements()) {
     if (object.elements().length() > 0) {

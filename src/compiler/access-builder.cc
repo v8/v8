@@ -416,6 +416,29 @@ FieldAccess AccessBuilder::ForJSTypedArrayLength() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSTypedArrayBasePointer() {
+  FieldAccess access = {
+      kTaggedBase,           JSTypedArray::kBasePointerOffset,
+      MaybeHandle<Name>(),   MaybeHandle<Map>(),
+      Type::OtherInternal(), MachineType::TypeCompressedTagged(),
+      kPointerWriteBarrier,  LoadSensitivity::kCritical};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSTypedArrayExternalPointer() {
+  FieldAccess access = {kTaggedBase,
+                        JSTypedArray::kExternalPointerOffset,
+                        MaybeHandle<Name>(),
+                        MaybeHandle<Map>(),
+                        Type::ExternalPointer(),
+                        MachineType::Pointer(),
+                        kNoWriteBarrier,
+                        LoadSensitivity::kCritical};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSDataViewDataPointer() {
   FieldAccess access = {kTaggedBase,           JSDataView::kDataPointerOffset,
                         MaybeHandle<Name>(),   MaybeHandle<Map>(),
@@ -528,29 +551,6 @@ FieldAccess AccessBuilder::ForPropertyArrayLengthAndHash() {
       MaybeHandle<Name>(), MaybeHandle<Map>(),
       Type::SignedSmall(), MachineType::TypeCompressedTaggedSigned(),
       kNoWriteBarrier};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForFixedTypedArrayBaseBasePointer() {
-  FieldAccess access = {
-      kTaggedBase,           FixedTypedArrayBase::kBasePointerOffset,
-      MaybeHandle<Name>(),   MaybeHandle<Map>(),
-      Type::OtherInternal(), MachineType::TypeCompressedTagged(),
-      kPointerWriteBarrier,  LoadSensitivity::kCritical};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForFixedTypedArrayBaseExternalPointer() {
-  FieldAccess access = {kTaggedBase,
-                        FixedTypedArrayBase::kExternalPointerOffset,
-                        MaybeHandle<Name>(),
-                        MaybeHandle<Map>(),
-                        Type::ExternalPointer(),
-                        MachineType::Pointer(),
-                        kNoWriteBarrier,
-                        LoadSensitivity::kCritical};
   return access;
 }
 
@@ -998,7 +998,7 @@ ElementAccess AccessBuilder::ForTypedArrayElement(
     ExternalArrayType type, bool is_external,
     LoadSensitivity load_sensitivity) {
   BaseTaggedness taggedness = is_external ? kUntaggedBase : kTaggedBase;
-  int header_size = is_external ? 0 : FixedTypedArrayBase::kDataOffset;
+  int header_size = is_external ? 0 : ByteArray::kHeaderSize;
   switch (type) {
     case kExternalInt8Array: {
       ElementAccess access = {taggedness,       header_size,

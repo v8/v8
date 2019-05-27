@@ -40,6 +40,7 @@ class EnumCache;
 class FinalizationGroupCleanupJobTask;
 class FreshlyAllocatedBigInt;
 class Isolate;
+class JSArrayBufferView;
 class JSDataView;
 class JSGeneratorObject;
 class JSMap;
@@ -490,14 +491,6 @@ class V8_EXPORT_PRIVATE Factory {
                                          int frame_size, int parameter_count,
                                          Handle<FixedArray> constant_pool);
 
-  Handle<FixedTypedArrayBase> NewFixedTypedArrayWithExternalPointer(
-      ExternalArrayType array_type, void* external_pointer,
-      AllocationType allocation = AllocationType::kYoung);
-
-  Handle<FixedTypedArrayBase> NewFixedTypedArray(
-      size_t length, size_t byte_length, ExternalArrayType array_type,
-      bool initialize, AllocationType allocation = AllocationType::kYoung);
-
   Handle<Cell> NewCell(Handle<Object> value);
 
   Handle<PropertyCell> NewPropertyCell(
@@ -696,26 +689,14 @@ class V8_EXPORT_PRIVATE Factory {
                                          ExternalArrayType* array_type,
                                          size_t* element_size);
 
-  Handle<JSTypedArray> NewJSTypedArray(
-      ExternalArrayType type,
-      AllocationType allocation = AllocationType::kYoung);
-
-  Handle<JSTypedArray> NewJSTypedArray(
-      ElementsKind elements_kind,
-      AllocationType allocation = AllocationType::kYoung);
-
   // Creates a new JSTypedArray with the specified buffer.
   Handle<JSTypedArray> NewJSTypedArray(
       ExternalArrayType type, Handle<JSArrayBuffer> buffer, size_t byte_offset,
       size_t length, AllocationType allocation = AllocationType::kYoung);
 
-  // Creates a new on-heap JSTypedArray.
-  Handle<JSTypedArray> NewJSTypedArray(
-      ElementsKind elements_kind, size_t number_of_elements,
+  Handle<JSDataView> NewJSDataView(
+      Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length,
       AllocationType allocation = AllocationType::kYoung);
-
-  Handle<JSDataView> NewJSDataView(Handle<JSArrayBuffer> buffer,
-                                   size_t byte_offset, size_t byte_length);
 
   Handle<JSIteratorResult> NewJSIteratorResult(Handle<Object> value, bool done);
   Handle<JSAsyncFromSyncIterator> NewJSAsyncFromSyncIterator(
@@ -1040,6 +1021,11 @@ class V8_EXPORT_PRIVATE Factory {
   HeapObject AllocateRawWithAllocationSite(
       Handle<Map> map, AllocationType allocation,
       Handle<AllocationSite> allocation_site);
+
+  Handle<JSArrayBufferView> NewJSArrayBufferView(
+      Handle<Map> map, Handle<FixedArrayBase> elements,
+      Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length,
+      AllocationType allocation);
 
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
   HeapObject AllocateRawArray(int size, AllocationType allocation);

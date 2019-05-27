@@ -1510,7 +1510,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
   // Check if we have the necessary data for building element accesses.
   for (ElementAccessInfo const& access_info : access_infos) {
-    if (!IsFixedTypedArrayElementsKind(access_info.elements_kind())) continue;
+    if (!IsTypedArrayElementsKind(access_info.elements_kind())) continue;
     base::Optional<JSTypedArrayRef> typed_array =
         GetTypedArrayConstant(broker(), receiver);
     if (typed_array.has_value()) {
@@ -2554,8 +2554,8 @@ JSNativeContextSpecialization::BuildElementAccess(
   ElementsKind elements_kind = access_info.elements_kind();
   ZoneVector<Handle<Map>> const& receiver_maps = access_info.receiver_maps();
 
-  if (IsFixedTypedArrayElementsKind(elements_kind)) {
-    Node* buffer;
+  if (IsTypedArrayElementsKind(elements_kind)) {
+    Node* buffer_or_receiver = receiver;
     Node* length;
     Node* base_pointer;
     Node* external_pointer;
@@ -2565,7 +2565,6 @@ JSNativeContextSpecialization::BuildElementAccess(
     base::Optional<JSTypedArrayRef> typed_array =
         GetTypedArrayConstant(broker(), receiver);
     if (typed_array.has_value()) {
-      buffer = jsgraph()->Constant(typed_array->buffer());
       length = jsgraph()->Constant(static_cast<double>(typed_array->length()));
 
       // Load the (known) base and external pointer for the {receiver}. The
@@ -2573,21 +2572,11 @@ JSNativeContextSpecialization::BuildElementAccess(
       // we need to make sure that any access is properly guarded.
       base_pointer = jsgraph()->ZeroConstant();
       external_pointer =
-          jsgraph()->PointerConstant(typed_array->elements_external_pointer());
+          jsgraph()->PointerConstant(typed_array->external_pointer());
     } else {
       // Load the {receiver}s length.
       length = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSTypedArrayLength()),
-          receiver, effect, control);
-
-      // Load the buffer for the {receiver}.
-      buffer = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
-          receiver, effect, control);
-
-      // Load the elements for the {receiver}.
-      Node* elements = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
           receiver, effect, control);
 
       // Load the base pointer for the {receiver}. This will always be Smi
@@ -2598,21 +2587,30 @@ JSNativeContextSpecialization::BuildElementAccess(
       if (V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP == 0) {
         base_pointer = jsgraph()->ZeroConstant();
       } else {
-        base_pointer = effect = graph()->NewNode(
-            simplified()->LoadField(
-                AccessBuilder::ForFixedTypedArrayBaseBasePointer()),
-            elements, effect, control);
+        base_pointer = effect =
+            graph()->NewNode(simplified()->LoadField(
+                                 AccessBuilder::ForJSTypedArrayBasePointer()),
+                             receiver, effect, control);
       }
 
-      // Load the external pointer for the {receiver}s {elements}.
-      external_pointer = effect = graph()->NewNode(
-          simplified()->LoadField(
-              AccessBuilder::ForFixedTypedArrayBaseExternalPointer()),
-          elements, effect, control);
+      // Load the external pointer for the {receiver}.
+      external_pointer = effect =
+          graph()->NewNode(simplified()->LoadField(
+                               AccessBuilder::ForJSTypedArrayExternalPointer()),
+                           receiver, effect, control);
     }
 
     // See if we can skip the detaching check.
     if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+      // Load the buffer for the {receiver}.
+      Node* buffer =
+          typed_array.has_value()
+              ? jsgraph()->Constant(typed_array->buffer())
+              : (effect = graph()->NewNode(
+                     simplified()->LoadField(
+                         AccessBuilder::ForJSArrayBufferViewBuffer()),
+                     receiver, effect, control));
+
       // Deopt if the {buffer} was detached.
       // Note: A detached buffer leads to megamorphic feedback.
       Node* buffer_bit_field = effect = graph()->NewNode(
@@ -2627,6 +2625,9 @@ JSNativeContextSpecialization::BuildElementAccess(
       effect = graph()->NewNode(
           simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached),
           check, effect, control);
+
+      // Retain the {buffer} instead of {receiver} to reduce live ranges.
+      buffer_or_receiver = buffer;
     }
 
     if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS ||
@@ -2668,8 +2669,9 @@ JSNativeContextSpecialization::BuildElementAccess(
           {
             // Perform the actual load
             vtrue = etrue = graph()->NewNode(
-                simplified()->LoadTypedElement(external_array_type), buffer,
-                base_pointer, external_pointer, index, etrue, if_true);
+                simplified()->LoadTypedElement(external_array_type),
+                buffer_or_receiver, base_pointer, external_pointer, index,
+                etrue, if_true);
           }
 
           Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
@@ -2689,8 +2691,9 @@ JSNativeContextSpecialization::BuildElementAccess(
         } else {
           // Perform the actual load.
           value = effect = graph()->NewNode(
-              simplified()->LoadTypedElement(external_array_type), buffer,
-              base_pointer, external_pointer, index, effect, control);
+              simplified()->LoadTypedElement(external_array_type),
+              buffer_or_receiver, base_pointer, external_pointer, index, effect,
+              control);
         }
         break;
       }
@@ -2725,8 +2728,9 @@ JSNativeContextSpecialization::BuildElementAccess(
           {
             // Perform the actual store.
             etrue = graph()->NewNode(
-                simplified()->StoreTypedElement(external_array_type), buffer,
-                base_pointer, external_pointer, index, value, etrue, if_true);
+                simplified()->StoreTypedElement(external_array_type),
+                buffer_or_receiver, base_pointer, external_pointer, index,
+                value, etrue, if_true);
           }
 
           Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
@@ -2741,8 +2745,9 @@ JSNativeContextSpecialization::BuildElementAccess(
         } else {
           // Perform the actual store
           effect = graph()->NewNode(
-              simplified()->StoreTypedElement(external_array_type), buffer,
-              base_pointer, external_pointer, index, value, effect, control);
+              simplified()->StoreTypedElement(external_array_type),
+              buffer_or_receiver, base_pointer, external_pointer, index, value,
+              effect, control);
         }
         break;
       }
