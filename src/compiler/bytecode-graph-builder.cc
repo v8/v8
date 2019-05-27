@@ -996,11 +996,9 @@ Node* BytecodeGraphBuilder::GetFunctionClosure() {
 }
 
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
-  const Operator* op =
-      javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true);
-  Node* native_context = NewNode(op);
   Node* result = NewNode(javascript()->LoadContext(0, index, true));
-  NodeProperties::ReplaceContextInput(result, native_context);
+  NodeProperties::ReplaceContextInput(
+      result, jsgraph()->HeapConstant(native_context()));
   return result;
 }
 
