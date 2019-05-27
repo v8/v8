@@ -574,28 +574,53 @@ class TestListener : public TraceEventListener {
   std::vector<TraceEvent> events_;
 };
 
+class TracingTestHarness {
+ public:
+  TracingTestHarness() {
+    old_platform_ = i::V8::GetCurrentPlatform();
+    default_platform_ = v8::platform::NewDefaultPlatform();
+    i::V8::SetPlatformForTesting(default_platform_.get());
+
+    auto tracing =
+        base::make_unique<v8::platform::tracing::TracingController>();
+    tracing_controller_ = tracing.get();
+    static_cast<v8::platform::DefaultPlatform*>(default_platform_.get())
+        ->SetTracingController(std::move(tracing));
+
+    MockTraceWriter* writer = new MockTraceWriter();
+    TraceBuffer* ring_buffer =
+        TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
+    tracing_controller_->Initialize(ring_buffer);
+    tracing_controller_->InitializeForPerfetto(&perfetto_json_stream_);
+    tracing_controller_->SetTraceEventListenerForTesting(&listener_);
+  }
+
+  ~TracingTestHarness() { i::V8::SetPlatformForTesting(old_platform_); }
+
+  void StartTracing() {
+    TraceConfig* trace_config = new TraceConfig();
+    trace_config->AddIncludedCategory("v8");
+    tracing_controller_->StartTracing(trace_config);
+  }
+
+  void StopTracing() { tracing_controller_->StopTracing(); }
+
+  TraceEvent* get_event(size_t index) { return listener_.get_event(index); }
+  size_t events_size() const { return listener_.events_size(); }
+
+  std::string perfetto_json_stream() { return perfetto_json_stream_.str(); }
+
+ private:
+  std::unique_ptr<v8::Platform> default_platform_;
+  v8::Platform* old_platform_;
+  v8::platform::tracing::TracingController* tracing_controller_;
+  TestListener listener_;
+  std::ostringstream perfetto_json_stream_;
+};
+
 TEST(Perfetto) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  std::unique_ptr<v8::Platform> default_platform(
-      v8::platform::NewDefaultPlatform());
-  i::V8::SetPlatformForTesting(default_platform.get());
-
-  auto tracing = base::make_unique<v8::platform::tracing::TracingController>();
-  v8::platform::tracing::TracingController* tracing_controller = tracing.get();
-  static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
-      ->SetTracingController(std::move(tracing));
-
-  MockTraceWriter* writer = new MockTraceWriter();
-  TraceBuffer* ring_buffer =
-      TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
-  tracing_controller->Initialize(ring_buffer);
-  TestListener listener;
-  std::ostringstream sstream;
-  tracing_controller->InitializeForPerfetto(&sstream);
-  tracing_controller->SetTraceEventListenerForTesting(&listener);
-  TraceConfig* trace_config = new TraceConfig();
-  trace_config->AddIncludedCategory("v8");
-  tracing_controller->StartTracing(trace_config);
+  TracingTestHarness harness;
+  harness.StartTracing();
 
   uint64_t uint64_arg = 1024;
   const char* str_arg = "str_arg";
@@ -608,16 +633,16 @@ TEST(Perfetto) {
   TRACE_EVENT_INSTANT0("v8", "final event not captured",
                        TRACE_EVENT_SCOPE_THREAD);
 
-  tracing_controller->StopTracing();
+  harness.StopTracing();
 
-  TraceEvent* event = listener.get_event(0);
+  TraceEvent* event = harness.get_event(0);
   int32_t thread_id = event->thread_id;
   int32_t process_id = event->process_id;
   CHECK_EQ("test1", event->name);
   CHECK_EQ(TRACE_EVENT_PHASE_BEGIN, event->phase);
   int64_t timestamp = event->timestamp;
 
-  event = listener.get_event(1);
+  event = harness.get_event(1);
   CHECK_EQ("test2", event->name);
   CHECK_EQ(TRACE_EVENT_PHASE_BEGIN, event->phase);
   CHECK_EQ(thread_id, event->thread_id);
@@ -625,7 +650,7 @@ TEST(Perfetto) {
   CHECK_GE(event->timestamp, timestamp);
   timestamp = event->timestamp;
 
-  event = listener.get_event(2);
+  event = harness.get_event(2);
   CHECK_EQ("test3", event->name);
   CHECK_EQ(TRACE_EVENT_PHASE_BEGIN, event->phase);
   CHECK_EQ(thread_id, event->thread_id);
@@ -633,30 +658,28 @@ TEST(Perfetto) {
   CHECK_GE(event->timestamp, timestamp);
   timestamp = event->timestamp;
 
-  event = listener.get_event(3);
+  event = harness.get_event(3);
   CHECK_EQ(TRACE_EVENT_PHASE_END, event->phase);
   CHECK_EQ(thread_id, event->thread_id);
   CHECK_EQ(process_id, event->process_id);
   CHECK_GE(event->timestamp, timestamp);
   timestamp = event->timestamp;
 
-  event = listener.get_event(4);
+  event = harness.get_event(4);
   CHECK_EQ(TRACE_EVENT_PHASE_END, event->phase);
   CHECK_EQ(thread_id, event->thread_id);
   CHECK_EQ(process_id, event->process_id);
   CHECK_GE(event->timestamp, timestamp);
   timestamp = event->timestamp;
 
-  event = listener.get_event(5);
+  event = harness.get_event(5);
   CHECK_EQ(TRACE_EVENT_PHASE_END, event->phase);
   CHECK_EQ(thread_id, event->thread_id);
   CHECK_EQ(process_id, event->process_id);
   CHECK_GE(event->timestamp, timestamp);
   timestamp = event->timestamp;
 
-  CHECK_EQ(6, listener.events_size());
-
-  i::V8::SetPlatformForTesting(old_platform);
+  CHECK_EQ(6, harness.events_size());
 }
 
 #endif  // V8_USE_PERFETTO
