@@ -440,6 +440,29 @@ class CompilationStateImpl {
     return background_compile_token_;
   }
 
+  double GetCompilationDeadline(double now) {
+    // Execute for at least 50ms. Try to distribute deadlines of different tasks
+    // such that every 5ms one task stops. No task should execute longer than
+    // 200ms though.
+    constexpr double kMinLimit = 50. / base::Time::kMillisecondsPerSecond;
+    constexpr double kMaxLimit = 200. / base::Time::kMillisecondsPerSecond;
+    constexpr double kGapBetweenTasks = 5. / base::Time::kMillisecondsPerSecond;
+    double min_deadline = now + kMinLimit;
+    double max_deadline = now + kMaxLimit;
+    double next_deadline =
+        next_compilation_deadline_.load(std::memory_order_relaxed);
+    while (true) {
+      double deadline =
+          std::max(min_deadline, std::min(max_deadline, next_deadline));
+      if (next_compilation_deadline_.compare_exchange_weak(
+              next_deadline, deadline + kGapBetweenTasks,
+              std::memory_order_relaxed)) {
+        return deadline;
+      }
+      // Otherwise, retry with the updated {next_deadline}.
+    }
+  }
+
  private:
   NativeModule* const native_module_;
   const std::shared_ptr<BackgroundCompileToken> background_compile_token_;
@@ -453,6 +476,13 @@ class CompilationStateImpl {
   const int max_background_tasks_ = 0;
 
   CompilationUnitQueues compilation_unit_queues_;
+
+  // Each compilation task executes until a certain deadline. The
+  // {CompilationStateImpl} orchestrates the deadlines such that they are
+  // evenly distributed and not all tasks stop at the same time. This removes
+  // contention during publishing of compilation results and also gives other
+  // tasks a fair chance to utilize the worker threads on a regular basis.
+  std::atomic<double> next_compilation_deadline_{0};
 
   // This mutex protects all information of this {CompilationStateImpl} which is
   // being accessed concurrently.
@@ -889,14 +919,11 @@ bool ExecuteCompilationUnits(
   if (is_foreground) task_id = 0;
 
   Platform* platform = V8::GetCurrentPlatform();
-  // Deadline is in 50ms from now.
-  static constexpr double kBackgroundCompileTimeLimit =
-      50.0 / base::Time::kMillisecondsPerSecond;
-  const double deadline =
-      platform->MonotonicallyIncreasingTime() + kBackgroundCompileTimeLimit;
+  double compilation_start = platform->MonotonicallyIncreasingTime();
 
   // These fields are initialized in a {BackgroundCompileScope} before
   // starting compilation.
+  double deadline = 0;
   base::Optional<CompilationEnv> env;
   std::shared_ptr<WireBytesStorage> wire_bytes;
   std::shared_ptr<const WasmModule> module;
@@ -920,12 +947,13 @@ bool ExecuteCompilationUnits(
   {
     BackgroundCompileScope compile_scope(token);
     if (compile_scope.cancelled()) return false;
+    auto* compilation_state = compile_scope.compilation_state();
+    deadline = compilation_state->GetCompilationDeadline(compilation_start);
     env.emplace(compile_scope.native_module()->CreateCompilationEnv());
-    wire_bytes = compile_scope.compilation_state()->GetWireBytesStorage();
+    wire_bytes = compilation_state->GetWireBytesStorage();
     module = compile_scope.native_module()->shared_module();
     wasm_engine = compile_scope.native_module()->engine();
-    unit = compile_scope.compilation_state()->GetNextCompilationUnit(
-        task_id, baseline_only);
+    unit = compilation_state->GetNextCompilationUnit(task_id, baseline_only);
     if (!unit) {
       stop(compile_scope);
       return false;
