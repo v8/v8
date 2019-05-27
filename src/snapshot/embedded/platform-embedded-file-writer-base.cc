@@ -119,7 +119,7 @@ EmbeddedTargetOs ToEmbeddedTargetOs(const char* s) {
     return EmbeddedTargetOs::kChromeOS;
   } else if (string == "fuchsia") {
     return EmbeddedTargetOs::kFuchsia;
-  } else if (string == "mac") {
+  } else if (string == "ios" || string == "mac") {
     return EmbeddedTargetOs::kMac;
   } else if (string == "win") {
     return EmbeddedTargetOs::kWin;
