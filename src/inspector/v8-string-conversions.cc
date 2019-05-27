@@ -39,12 +39,12 @@ inline int inlineUTF8SequenceLength(char b0) {
 static const unsigned char firstByteMark[7] = {0x00, 0x00, 0xC0, 0xE0,
                                                0xF0, 0xF8, 0xFC};
 
-typedef enum {
+enum ConversionResult {
   conversionOK,     // conversion successful
   sourceExhausted,  // partial character in source, but hit end
   targetExhausted,  // insuff. room in target for conversion
   sourceIllegal     // source sequence is illegal/malformed
-} ConversionResult;
+};
 
 ConversionResult convertUTF16ToUTF8(const UChar** sourceStart,
                                     const UChar* sourceEnd, char** targetStart,

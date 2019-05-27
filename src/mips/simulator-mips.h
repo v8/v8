@@ -291,7 +291,7 @@ class Simulator : public SimulatorBase {
 
   // MSA Data Format
   enum MSADataFormat { MSA_VECT = 0, MSA_BYTE, MSA_HALF, MSA_WORD, MSA_DWORD };
-  typedef union {
+  union msa_reg_t {
     int8_t b[kMSALanesByte];
     uint8_t ub[kMSALanesByte];
     int16_t h[kMSALanesHalf];
@@ -300,7 +300,7 @@ class Simulator : public SimulatorBase {
     uint32_t uw[kMSALanesWord];
     int64_t d[kMSALanesDword];
     uint64_t ud[kMSALanesDword];
-  } msa_reg_t;
+  };
 
   // Read and write memory.
   inline uint32_t ReadBU(int32_t addr);

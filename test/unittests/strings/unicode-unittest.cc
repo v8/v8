@@ -67,10 +67,10 @@ void DecodeIncrementally(const std::vector<byte>& bytes,
 
 TEST(UnicodeTest, Utf16BufferReuse) {
   // Not enough continuation bytes before string ends.
-  typedef struct {
+  struct TestCase {
     std::vector<byte> bytes;
     std::vector<unibrow::uchar> unicode_expected;
-  } TestCase;
+  };
 
   TestCase data[] = {
       {{0x00}, {0x0}},
@@ -112,10 +112,10 @@ TEST(UnicodeTest, IncrementalUTF8DecodingVsNonIncrementalUtf8Decoding) {
   // Unfortunately, V8 has two UTF-8 decoders. This test checks that they
   // produce the same result. This test was inspired by
   // https://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-test.txt .
-  typedef struct {
+  struct TestCase {
     std::vector<byte> bytes;
     std::vector<unibrow::uchar> unicode_expected;
-  } TestCase;
+  };
 
   TestCase data[] = {
       // Correct UTF-8 text.

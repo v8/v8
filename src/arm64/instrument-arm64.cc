@@ -55,11 +55,10 @@ CounterType Counter::type() {
   return type_;
 }
 
-
-typedef struct {
+struct CounterDescriptor {
   const char* name;
   CounterType type;
-} CounterDescriptor;
+};
 
 static const CounterDescriptor kCounterList[] = {
     {"Instruction", Cumulative},

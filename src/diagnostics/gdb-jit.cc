@@ -1708,7 +1708,7 @@ static void CreateDWARFSections(CodeDescription* desc, Zone* zone,
 // Binary GDB JIT Interface as described in
 //   http://sourceware.org/gdb/onlinedocs/gdb/Declarations.html
 extern "C" {
-typedef enum { JIT_NOACTION = 0, JIT_REGISTER_FN, JIT_UNREGISTER_FN } JITAction;
+enum JITAction { JIT_NOACTION = 0, JIT_REGISTER_FN, JIT_UNREGISTER_FN };
 
 struct JITCodeEntry {
   JITCodeEntry* next_;

@@ -31,23 +31,23 @@ bool RegisterUnwindInfoForExceptionHandlingOnly() {
  * From Windows SDK ehdata.h, which does not compile with Clang.
  * See https://msdn.microsoft.com/en-us/library/ddssxxy8.aspx.
  */
-typedef union _UNWIND_CODE {
+union UNWIND_CODE {
   struct {
     unsigned char CodeOffset;
     unsigned char UnwindOp : 4;
     unsigned char OpInfo : 4;
   };
   uint16_t FrameOffset;
-} UNWIND_CODE, *PUNWIND_CODE;
+};
 
-typedef struct _UNWIND_INFO {
+struct UNWIND_INFO {
   unsigned char Version : 3;
   unsigned char Flags : 5;
   unsigned char SizeOfProlog;
   unsigned char CountOfCodes;
   unsigned char FrameRegister : 4;
   unsigned char FrameOffset : 4;
-} UNWIND_INFO, *PUNWIND_INFO;
+};
 
 struct V8UnwindData {
   UNWIND_INFO unwind_info;

@@ -859,11 +859,11 @@ enum ShouldThrow {
 };
 
 // The Store Buffer (GC).
-typedef enum {
+enum StoreBufferEvent {
   kStoreBufferFullEvent,
   kStoreBufferStartScanningPagesEvent,
   kStoreBufferScanningPageEvent
-} StoreBufferEvent;
+};
 
 using StoreBufferCallback = void (*)(Heap* heap, MemoryChunk* page,
                                      StoreBufferEvent event);

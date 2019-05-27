@@ -73,29 +73,29 @@ using zx_thread_state_general_regs_t = zx_arm64_general_regs_t;
 
 using mcontext_t = struct sigcontext;
 
-typedef struct ucontext {
+struct ucontext_t {
   uint32_t uc_flags;
   struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
   // Other fields are not used by V8, don't define them here.
-} ucontext_t;
+};
 
 #elif defined(__aarch64__)
 
 using mcontext_t = struct sigcontext;
 
-typedef struct ucontext {
+struct ucontext_t {
   uint64_t uc_flags;
   struct ucontext *uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
   // Other fields are not used by V8, don't define them here.
-} ucontext_t;
+};
 
 #elif defined(__mips__)
 // MIPS version of sigcontext, for Android bionic.
-typedef struct {
+struct mcontext_t {
   uint32_t regmask;
   uint32_t status;
   uint64_t pc;
@@ -114,50 +114,50 @@ typedef struct {
   uint32_t lo2;
   uint32_t hi3;
   uint32_t lo3;
-} mcontext_t;
+};
 
-typedef struct ucontext {
+struct ucontext_t {
   uint32_t uc_flags;
   struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
   // Other fields are not used by V8, don't define them here.
-} ucontext_t;
+};
 
 #elif defined(__i386__)
 // x86 version for Android.
-typedef struct {
+struct mcontext_t {
   uint32_t gregs[19];
   void* fpregs;
   uint32_t oldmask;
   uint32_t cr2;
-} mcontext_t;
+};
 
-typedef uint32_t kernel_sigset_t[2];  // x86 kernel uses 64-bit signal masks
-typedef struct ucontext {
+using kernel_sigset_t = uint32_t[2];  // x86 kernel uses 64-bit signal masks
+struct ucontext_t {
   uint32_t uc_flags;
   struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
   // Other fields are not used by V8, don't define them here.
-} ucontext_t;
+};
 enum { REG_EBP = 6, REG_ESP = 7, REG_EIP = 14 };
 
 #elif defined(__x86_64__)
 // x64 version for Android.
-typedef struct {
+struct mcontext_t {
   uint64_t gregs[23];
   void* fpregs;
   uint64_t __reserved1[8];
-} mcontext_t;
+};
 
-typedef struct ucontext {
+struct ucontext_t {
   uint64_t uc_flags;
   struct ucontext *uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
   // Other fields are not used by V8, don't define them here.
-} ucontext_t;
+};
 enum { REG_RBP = 10, REG_RSP = 15, REG_RIP = 16 };
 #endif
 

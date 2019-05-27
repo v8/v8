@@ -58,7 +58,7 @@ TEST(ExtractLane) {
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
 
-  typedef struct {
+  struct T {
     int32_t i32x4_low[4];
     int32_t i32x4_high[4];
     int32_t i16x8_low[8];
@@ -69,7 +69,7 @@ TEST(ExtractLane) {
     int32_t f32x4_high[4];
     int32_t i8x16_low_d[16];
     int32_t i8x16_high_d[16];
-  } T;
+  };
   T t;
 
   __ stm(db_w, sp, r4.bit() | r5.bit() | lr.bit());
@@ -196,7 +196,7 @@ TEST(ReplaceLane) {
                            buffer->CreateView());
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
 
-  typedef struct {
+  struct T {
     int32_t i32x4_low[4];
     int32_t i32x4_high[4];
     int16_t i16x8_low[8];
@@ -205,7 +205,7 @@ TEST(ReplaceLane) {
     int8_t i8x16_high[16];
     int32_t f32x4_low[4];
     int32_t f32x4_high[4];
-  } T;
+  };
   T t;
 
   __ stm(db_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | lr.bit());
