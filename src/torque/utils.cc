@@ -62,7 +62,6 @@ std::string StringLiteralQuote(const std::string& s) {
       case '\t':
         result << "\\t";
         break;
-      case '\'':
       case '"':
       case '\\':
         result << "\\" << s[i];

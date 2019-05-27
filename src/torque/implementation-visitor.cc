@@ -2583,7 +2583,11 @@ void ImplementationVisitor::VisitAllDeclarables() {
   // This has to be an index-based loop because all_declarables can be extended
   // during the loop.
   for (size_t i = 0; i < all_declarables.size(); ++i) {
-    Visit(all_declarables[i].get());
+    try {
+      Visit(all_declarables[i].get());
+    } catch (TorqueAbortCompilation&) {
+      // Recover from compile errors here. The error is recorded already.
+    }
   }
 }
 
