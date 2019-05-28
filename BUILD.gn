@@ -3388,6 +3388,8 @@ v8_source_set("torque_base") {
   ]
 
   if (is_win && is_asan) {
+    # Due to a bug in ASAN on Windows (chromium:893437), we disable ASAN for
+    # Torque on Windows.
     remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
   }
 

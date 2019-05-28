@@ -232,11 +232,6 @@ class Stack {
     elements_.at(from_bottom.offset) = std::move(x);
   }
   void Push(T x) {
-    // Manually increasing the std::vector capacity is a workaround for an
-    // ASAN-container-overflow false positive.
-    if (elements_.size() == elements_.capacity()) {
-      elements_.reserve(2 * elements_.size() + 1);
-    }
     elements_.push_back(std::move(x));
   }
   StackRange TopRange(size_t slot_count) const {
