@@ -100,7 +100,7 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
     DCHECK(IsDead());
   }
 
-  void ReviveForHandlerCode() {
+  void Revive() {
     DCHECK(IsDead());
     environment_hints_.resize(environment_hints_size(), Hints(zone()));
     DCHECK(!IsDead());
@@ -418,8 +418,10 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
     MergeAfterJump(&iterator);
 
     if (environment()->IsDead()) {
-      if (handler_matcher.CurrentBytecodeIsExceptionHandlerStart()) {
-        environment()->ReviveForHandlerCode();
+      if (iterator.current_bytecode() ==
+              interpreter::Bytecode::kResumeGenerator ||
+          handler_matcher.CurrentBytecodeIsExceptionHandlerStart()) {
+        environment()->Revive();
       } else {
         continue;  // Skip this bytecode since TF won't generate code for it.
       }
