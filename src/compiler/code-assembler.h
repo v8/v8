@@ -298,6 +298,8 @@ inline bool NeedsBoundsCheck(CheckBounds check_bounds) {
   }
 }
 
+enum class StoreToObjectWriteBarrier { kNone, kMap, kFull };
+
 class AccessCheckNeeded;
 class BigIntWrapper;
 class ClassBoilerplate;
@@ -966,6 +968,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       Node* base, Node* offset,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
+  Node* LoadFromObject(MachineType type, TNode<HeapObject> object,
+                       TNode<IntPtrT> offset);
+
   // Load a value from the root array.
   TNode<Object> LoadRoot(RootIndex root_index);
 
@@ -991,6 +996,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
                                       AllocationType allocation,
                                       AllowLargeObjects allow_large_objects);
+  void StoreToObject(MachineRepresentation rep, TNode<HeapObject> object,
+                     TNode<IntPtrT> offset, Node* value,
+                     StoreToObjectWriteBarrier write_barrier);
   void OptimizedStoreField(MachineRepresentation rep, TNode<HeapObject> object,
                            int offset, Node* value);
   void OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentation rep,

@@ -127,32 +127,37 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // Memory Operations.
+  std::pair<MachineType, const Operator*> InsertDecompressionIfNeeded(
+      MachineType type) {
+    const Operator* decompress_op = nullptr;
+    if (COMPRESS_POINTERS_BOOL) {
+      switch (type.representation()) {
+        case MachineRepresentation::kTaggedPointer:
+          type = MachineType::CompressedPointer();
+          decompress_op = machine()->ChangeCompressedPointerToTaggedPointer();
+          break;
+        case MachineRepresentation::kTaggedSigned:
+          type = MachineType::CompressedSigned();
+          decompress_op = machine()->ChangeCompressedSignedToTaggedSigned();
+          break;
+        case MachineRepresentation::kTagged:
+          type = MachineType::AnyCompressed();
+          decompress_op = machine()->ChangeCompressedToTagged();
+          break;
+        default:
+          break;
+      }
+    }
+    return std::make_pair(type, decompress_op);
+  }
   Node* Load(MachineType type, Node* base,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return Load(type, base, IntPtrConstant(0), needs_poisoning);
   }
   Node* Load(MachineType type, Node* base, Node* index,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
-    // change_op is used below to change to the correct Tagged representation
-    const Operator* change_op = nullptr;
-    if (COMPRESS_POINTERS_BOOL) {
-      switch (type.representation()) {
-        case MachineRepresentation::kTaggedPointer:
-          type = MachineType::CompressedPointer();
-          change_op = machine()->ChangeCompressedPointerToTaggedPointer();
-          break;
-        case MachineRepresentation::kTaggedSigned:
-          type = MachineType::CompressedSigned();
-          change_op = machine()->ChangeCompressedSignedToTaggedSigned();
-          break;
-        case MachineRepresentation::kTagged:
-          type = MachineType::AnyCompressed();
-          change_op = machine()->ChangeCompressedToTagged();
-          break;
-        default:
-          break;
-      }
-    }
+    const Operator* decompress_op;
+    std::tie(type, decompress_op) = InsertDecompressionIfNeeded(type);
     const Operator* op = machine()->Load(type);
     CHECK_NE(PoisoningMitigationLevel::kPoisonAll, poisoning_level_);
     if (needs_poisoning == LoadSensitivity::kCritical &&
@@ -161,11 +166,25 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     }
 
     Node* load = AddNode(op, base, index);
-    if (change_op != nullptr) {
-      load = AddNode(change_op, load);
+    if (decompress_op != nullptr) {
+      load = AddNode(decompress_op, load);
     }
     return load;
   }
+  Node* LoadFromObject(
+      MachineType type, Node* base, Node* offset,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    const Operator* decompress_op;
+    std::tie(type, decompress_op) = InsertDecompressionIfNeeded(type);
+    CHECK_EQ(needs_poisoning, LoadSensitivity::kSafe);
+    ObjectAccess access = {type, WriteBarrierKind::kNoWriteBarrier};
+    Node* load = AddNode(simplified()->LoadFromObject(access), base, offset);
+    if (decompress_op != nullptr) {
+      load = AddNode(decompress_op, load);
+    }
+    return load;
+  }
+
   std::pair<MachineRepresentation, Node*> InsertCompressionIfNeeded(
       MachineRepresentation rep, Node* value) {
     if (COMPRESS_POINTERS_BOOL) {
@@ -199,6 +218,13 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     std::tie(rep, value) = InsertCompressionIfNeeded(rep, value);
     return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
                    base, index, value);
+  }
+  void StoreToObject(MachineRepresentation rep, Node* object, Node* offset,
+                     Node* value, WriteBarrierKind write_barrier) {
+    std::tie(rep, value) = InsertCompressionIfNeeded(rep, value);
+    ObjectAccess access = {MachineType::TypeForRepresentation(rep),
+                           write_barrier};
+    AddNode(simplified()->StoreToObject(access), object, offset, value);
   }
   void OptimizedStoreField(MachineRepresentation rep, Node* object, int offset,
                            Node* value, WriteBarrierKind write_barrier) {

@@ -1563,6 +1563,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckValueInputIs(node, 0, Type::Object());
       // CheckTypeIs(node, ElementAccessOf(node->op()).type));
       break;
+    case IrOpcode::kLoadFromObject:
+      // TODO(gsps): Can we check some types here?
+      break;
     case IrOpcode::kLoadTypedElement:
       break;
     case IrOpcode::kLoadDataViewElement:
@@ -1580,6 +1583,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckValueInputIs(node, 0, Type::Object());
       // CheckValueInputIs(node, 1, ElementAccessOf(node->op()).type));
       CheckNotTyped(node);
+      break;
+    case IrOpcode::kStoreToObject:
+      // TODO(gsps): Can we check some types here?
       break;
     case IrOpcode::kTransitionAndStoreElement:
       CheckNotTyped(node);

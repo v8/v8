@@ -142,6 +142,30 @@ V8_EXPORT_PRIVATE ElementAccess const& ElementAccessOf(const Operator* op)
 
 ExternalArrayType ExternalArrayTypeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
+// An access descriptor for loads/stores of CSA-accessible structures.
+struct ObjectAccess {
+  MachineType machine_type;             // machine type of the field.
+  WriteBarrierKind write_barrier_kind;  // write barrier hint.
+
+  ObjectAccess()
+      : machine_type(MachineType::None()),
+        write_barrier_kind(kFullWriteBarrier) {}
+
+  ObjectAccess(MachineType machine_type, WriteBarrierKind write_barrier_kind)
+      : machine_type(machine_type), write_barrier_kind(write_barrier_kind) {}
+
+  int tag() const { return kHeapObjectTag; }
+};
+
+V8_EXPORT_PRIVATE bool operator==(ObjectAccess const&, ObjectAccess const&);
+
+size_t hash_value(ObjectAccess const&);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ObjectAccess const&);
+
+V8_EXPORT_PRIVATE ObjectAccess const& ObjectAccessOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
 // The ConvertReceiverMode is used as parameter by ConvertReceiver operators.
 ConvertReceiverMode ConvertReceiverModeOf(Operator const* op)
     V8_WARN_UNUSED_RESULT;
@@ -828,6 +852,12 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // store-element [base + index], object value, only with fast arrays.
   const Operator* TransitionAndStoreNonNumberElement(Handle<Map> fast_map,
                                                      Type value_type);
+
+  // load-from-object [base + offset]
+  const Operator* LoadFromObject(ObjectAccess const&);
+
+  // store-to-object [base + offset], value
+  const Operator* StoreToObject(ObjectAccess const&);
 
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);

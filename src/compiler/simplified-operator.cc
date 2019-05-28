@@ -113,7 +113,6 @@ size_t hash_value(ElementAccess const& access) {
                             access.machine_type);
 }
 
-
 std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   os << access.base_is_tagged << ", " << access.header_size << ", "
      << access.type << ", " << access.machine_type << ", "
@@ -124,6 +123,20 @@ std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   return os;
 }
 
+bool operator==(ObjectAccess const& lhs, ObjectAccess const& rhs) {
+  return lhs.machine_type == rhs.machine_type &&
+         lhs.write_barrier_kind == rhs.write_barrier_kind;
+}
+
+size_t hash_value(ObjectAccess const& access) {
+  return base::hash_combine(access.machine_type, access.write_barrier_kind);
+}
+
+std::ostream& operator<<(std::ostream& os, ObjectAccess const& access) {
+  os << access.machine_type << ", " << access.write_barrier_kind;
+  return os;
+}
+
 const FieldAccess& FieldAccessOf(const Operator* op) {
   DCHECK_NOT_NULL(op);
   DCHECK(op->opcode() == IrOpcode::kLoadField ||
@@ -131,12 +144,18 @@ const FieldAccess& FieldAccessOf(const Operator* op) {
   return OpParameter<FieldAccess>(op);
 }
 
-
 const ElementAccess& ElementAccessOf(const Operator* op) {
   DCHECK_NOT_NULL(op);
   DCHECK(op->opcode() == IrOpcode::kLoadElement ||
          op->opcode() == IrOpcode::kStoreElement);
   return OpParameter<ElementAccess>(op);
+}
+
+const ObjectAccess& ObjectAccessOf(const Operator* op) {
+  DCHECK_NOT_NULL(op);
+  DCHECK(op->opcode() == IrOpcode::kLoadFromObject ||
+         op->opcode() == IrOpcode::kStoreToObject);
+  return OpParameter<ObjectAccess>(op);
 }
 
 ExternalArrayType ExternalArrayTypeOf(const Operator* op) {
@@ -1684,7 +1703,9 @@ SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
   V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)             \
   V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)             \
   V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1)    \
+  V(LoadFromObject, ObjectAccess, Operator::kNoWrite, 2, 1, 1)           \
   V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)    \
+  V(StoreToObject, ObjectAccess, Operator::kNoRead, 3, 1, 0)             \
   V(LoadDataViewElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1) \
   V(StoreDataViewElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)
 

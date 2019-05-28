@@ -412,10 +412,12 @@
   V(LoadField)                          \
   V(LoadElement)                        \
   V(LoadTypedElement)                   \
+  V(LoadFromObject)                     \
   V(LoadDataViewElement)                \
   V(StoreField)                         \
   V(StoreElement)                       \
   V(StoreTypedElement)                  \
+  V(StoreToObject)                      \
   V(StoreDataViewElement)               \
   V(StoreSignedSmallElement)            \
   V(TransitionAndStoreElement)          \

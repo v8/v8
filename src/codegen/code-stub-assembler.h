@@ -887,37 +887,36 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          std::is_convertible<TNode<T>, TNode<Object>>::value,
                          int>::type = 0>
   TNode<T> LoadReference(Reference reference) {
-    return CAST(LoadObjectField(reference.object, reference.offset,
-                                MachineTypeOf<T>::value));
+    return CAST(LoadFromObject(MachineTypeOf<T>::value, reference.object,
+                               reference.offset));
   }
   template <class T, typename std::enable_if<
                          std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
                          int>::type = 0>
   TNode<T> LoadReference(Reference reference) {
-    return UncheckedCast<T>(LoadObjectField(reference.object, reference.offset,
-                                            MachineTypeOf<T>::value));
+    return UncheckedCast<T>(LoadFromObject(MachineTypeOf<T>::value,
+                                           reference.object, reference.offset));
   }
   template <class T, typename std::enable_if<
                          std::is_convertible<TNode<T>, TNode<Object>>::value,
                          int>::type = 0>
   void StoreReference(Reference reference, TNode<T> value) {
-    int const_offset;
+    MachineRepresentation rep = MachineRepresentationOf<T>::value;
+    StoreToObjectWriteBarrier write_barrier = StoreToObjectWriteBarrier::kFull;
     if (std::is_same<T, Smi>::value) {
-      StoreObjectFieldNoWriteBarrier(reference.object, reference.offset, value);
-    } else if (std::is_same<T, Map>::value &&
-               ToInt32Constant(reference.offset, const_offset) &&
-               const_offset == HeapObject::kMapOffset) {
-      StoreMap(reference.object, value);
-    } else {
-      StoreObjectField(reference.object, reference.offset, value);
+      write_barrier = StoreToObjectWriteBarrier::kNone;
+    } else if (std::is_same<T, Map>::value) {
+      write_barrier = StoreToObjectWriteBarrier::kMap;
     }
+    StoreToObject(rep, reference.object, reference.offset, value,
+                  write_barrier);
   }
   template <class T, typename std::enable_if<
                          std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
                          int>::type = 0>
   void StoreReference(Reference reference, TNode<T> value) {
-    StoreObjectFieldNoWriteBarrier<T>(reference.object, reference.offset,
-                                      value);
+    StoreToObject(MachineRepresentationOf<T>::value, reference.object,
+                  reference.offset, value, StoreToObjectWriteBarrier::kNone);
   }
 
   // Tag a smi and store it.

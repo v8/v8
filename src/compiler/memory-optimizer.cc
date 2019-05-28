@@ -227,10 +227,14 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
       return VisitCall(node, state);
     case IrOpcode::kCallWithCallerSavedRegisters:
       return VisitCallWithCallerSavedRegisters(node, state);
+    case IrOpcode::kLoadFromObject:
+      return VisitLoadFromObject(node, state);
     case IrOpcode::kLoadElement:
       return VisitLoadElement(node, state);
     case IrOpcode::kLoadField:
       return VisitLoadField(node, state);
+    case IrOpcode::kStoreToObject:
+      return VisitStoreToObject(node, state);
     case IrOpcode::kStoreElement:
       return VisitStoreElement(node, state);
     case IrOpcode::kStoreField:
@@ -473,6 +477,32 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
   // Kill the {node} to make sure we don't leave dangling dead uses.
   node->Kill();
+}
+
+void MemoryOptimizer::VisitLoadFromObject(Node* node,
+                                          AllocationState const* state) {
+  DCHECK_EQ(IrOpcode::kLoadFromObject, node->opcode());
+  ObjectAccess const& access = ObjectAccessOf(node->op());
+  Node* offset = node->InputAt(1);
+  node->ReplaceInput(1, __ IntSub(offset, __ IntPtrConstant(kHeapObjectTag)));
+  NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
+  EnqueueUses(node, state);
+}
+
+void MemoryOptimizer::VisitStoreToObject(Node* node,
+                                         AllocationState const* state) {
+  DCHECK_EQ(IrOpcode::kStoreToObject, node->opcode());
+  ObjectAccess const& access = ObjectAccessOf(node->op());
+  Node* object = node->InputAt(0);
+  Node* offset = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  node->ReplaceInput(1, __ IntSub(offset, __ IntPtrConstant(kHeapObjectTag)));
+  WriteBarrierKind write_barrier_kind = ComputeWriteBarrierKind(
+      node, object, value, state, access.write_barrier_kind);
+  NodeProperties::ChangeOp(
+      node, machine()->Store(StoreRepresentation(
+                access.machine_type.representation(), write_barrier_kind)));
+  EnqueueUses(node, state);
 }
 
 #undef __

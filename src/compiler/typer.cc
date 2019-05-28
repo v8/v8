@@ -2168,6 +2168,8 @@ Type Typer::Visitor::TypeLoadElement(Node* node) {
   return ElementAccessOf(node->op()).type;
 }
 
+Type Typer::Visitor::TypeLoadFromObject(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeLoadTypedElement(Node* node) {
   switch (ExternalArrayTypeOf(node->op())) {
 #define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype) \
@@ -2193,6 +2195,8 @@ Type Typer::Visitor::TypeLoadDataViewElement(Node* node) {
 Type Typer::Visitor::TypeStoreField(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeStoreElement(Node* node) { UNREACHABLE(); }
+
+Type Typer::Visitor::TypeStoreToObject(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeTransitionAndStoreElement(Node* node) {
   UNREACHABLE();

@@ -971,6 +971,11 @@ Node* CodeAssembler::AtomicLoad(MachineType type, Node* base, Node* offset) {
   return raw_assembler()->AtomicLoad(type, base, offset);
 }
 
+Node* CodeAssembler::LoadFromObject(MachineType type, TNode<HeapObject> object,
+                                    TNode<IntPtrT> offset) {
+  return raw_assembler()->LoadFromObject(type, object, offset);
+}
+
 TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   if (RootsTable::IsImmortalImmovable(root_index)) {
     Handle<Object> root = isolate()->root_handle(root_index);
@@ -994,6 +999,30 @@ TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
 Node* CodeAssembler::Store(Node* base, Node* value) {
   return raw_assembler()->Store(MachineRepresentation::kTagged, base, value,
                                 kFullWriteBarrier);
+}
+
+void CodeAssembler::StoreToObject(MachineRepresentation rep,
+                                  TNode<HeapObject> object,
+                                  TNode<IntPtrT> offset, Node* value,
+                                  StoreToObjectWriteBarrier write_barrier) {
+  WriteBarrierKind write_barrier_kind;
+  switch (write_barrier) {
+    case StoreToObjectWriteBarrier::kFull:
+      write_barrier_kind = WriteBarrierKind::kFullWriteBarrier;
+      break;
+    case StoreToObjectWriteBarrier::kMap:
+      write_barrier_kind = WriteBarrierKind::kMapWriteBarrier;
+      break;
+    case StoreToObjectWriteBarrier::kNone:
+      if (CanBeTaggedPointer(rep)) {
+        write_barrier_kind = WriteBarrierKind::kAssertNoWriteBarrier;
+      } else {
+        write_barrier_kind = WriteBarrierKind::kNoWriteBarrier;
+      }
+      break;
+  }
+  raw_assembler()->StoreToObject(rep, object, offset, value,
+                                 write_barrier_kind);
 }
 
 void CodeAssembler::OptimizedStoreField(MachineRepresentation rep,
