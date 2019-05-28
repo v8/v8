@@ -334,6 +334,9 @@ VisitorId Map::GetVisitorId(Map map) {
       if (instance_type == PROTOTYPE_INFO_TYPE) {
         return kVisitPrototypeInfo;
       }
+      if (instance_type == WASM_CAPI_FUNCTION_DATA_TYPE) {
+        return kVisitWasmCapiFunctionData;
+      }
       return kVisitStruct;
 
     case LOAD_HANDLER_TYPE:

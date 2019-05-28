@@ -24,6 +24,7 @@ group("gn_all") {
   deps = [
     "inspector:inspector-test",
     "mkgrokdump:mkgrokdump",
+    "wasm-api-tests:wasm_api_tests",
   ]
 
   if (host_os != "mac" || !is_android) {
@@ -82,6 +83,7 @@ group("v8_bot_default") {
     "mkgrokdump:mkgrokdump",
     "preparser:v8_preparser",
     "unittests:unittests",
+    "wasm-api-tests:wasm_api_tests",
     "wasm-js:v8_wasm_js",
     "wasm-spec-tests:v8_wasm_spec_tests",
     "webkit:v8_webkit",
@@ -102,6 +104,7 @@ group("v8_default") {
     "mkgrokdump:mkgrokdump",
     "preparser:v8_preparser",
     "unittests:unittests",
+    "wasm-api-tests:wasm_api_tests",
     "wasm-js:v8_wasm_js",
     "wasm-spec-tests:v8_wasm_spec_tests",
   ]

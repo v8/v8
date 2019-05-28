@@ -159,11 +159,20 @@ void StackTraceFrameIterator::Advance() {
 
 bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) const {
   if (frame->is_java_script()) {
-    JavaScriptFrame* jsFrame = static_cast<JavaScriptFrame*>(frame);
-    if (!jsFrame->function().IsJSFunction()) return false;
-    return jsFrame->function().shared().IsSubjectToDebugging();
+    JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
+    if (!js_frame->function().IsJSFunction()) return false;
+    return js_frame->function().shared().IsSubjectToDebugging();
   }
-  // apart from javascript, only wasm is valid
+  // Apart from JavaScript frames, only Wasm frames are valid, with the
+  // exception of Wasm-to-Capi frames.
+  // TODO(jkummerow): Give Wasm-to-Capi frames their own marker.
+  if (frame->is_wasm_compiled()) {
+    wasm::WasmCodeRefScope scope;
+    if (static_cast<WasmCompiledFrame*>(frame)->wasm_code()->kind() ==
+        wasm::WasmCode::kWasmToCapiWrapper) {
+      return false;
+    }
+  }
   return frame->is_wasm();
 }
 
@@ -667,10 +676,17 @@ Address ExitFrame::GetCallerStackPointer() const {
 StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   if (fp == 0) return NONE;
   Address sp = ComputeStackPointer(fp);
+  StackFrame::Type type = ComputeFrameType(fp);
+  if (type == StackFrame::WASM_COMPILED) {
+    // {sp} is only needed for finding the PC slot, the rest is handled
+    // via safepoint.
+    sp = fp + WasmExitFrameConstants::kWasmInstanceOffset;
+    DCHECK_EQ(sp - 1 * kPCOnStackSize,
+              fp + WasmExitFrameConstants::kCallingPCOffset);
+  }
   FillState(fp, sp, state);
   DCHECK_NE(*state->pc_address, kNullAddress);
-
-  return ComputeFrameType(fp);
+  return type;
 }
 
 StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
@@ -686,7 +702,8 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
   intptr_t marker_int = bit_cast<intptr_t>(marker);
 
   StackFrame::Type frame_type = static_cast<StackFrame::Type>(marker_int >> 1);
-  if (frame_type == EXIT || frame_type == BUILTIN_EXIT) {
+  if (frame_type == EXIT || frame_type == BUILTIN_EXIT ||
+      frame_type == WASM_COMPILED) {
     return frame_type;
   }
 

@@ -3761,6 +3761,7 @@ v8_static_library("wee8") {
   sources = [
     ### gcmole(all) ###
     "src/wasm/c-api.cc",
+    "src/wasm/c-api.h",
     "third_party/wasm-api/wasm.h",
     "third_party/wasm-api/wasm.hh",
   ]

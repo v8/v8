@@ -1040,6 +1040,9 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       if (type == PROTOTYPE_INFO_TYPE) {
         return Op::template apply<PrototypeInfo::BodyDescriptor>(p1, p2, p3,
                                                                  p4);
+      } else if (type == WASM_CAPI_FUNCTION_DATA_TYPE) {
+        return Op::template apply<WasmCapiFunctionData::BodyDescriptor>(p1, p2,
+                                                                        p3, p4);
       } else {
         return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
       }

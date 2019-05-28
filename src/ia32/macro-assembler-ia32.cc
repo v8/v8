@@ -1836,16 +1836,12 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
   if (isolate() != nullptr) {
-    // Get the current PC via call, pop. This gets the return address pushed to
-    // the stack by call.
-    Label get_pc;
-    call(&get_pc);
-    bind(&get_pc);
     // Find two caller-saved scratch registers.
     Register scratch1 = eax;
     Register scratch2 = ecx;
     if (function == eax) scratch1 = edx;
     if (function == ecx) scratch2 = edx;
+    PushPC();
     pop(scratch1);
     mov(ExternalReferenceAsOperand(
             ExternalReference::fast_c_call_caller_pc_address(isolate()),
@@ -1871,6 +1867,14 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
   } else {
     add(esp, Immediate(num_arguments * kSystemPointerSize));
   }
+}
+
+void TurboAssembler::PushPC() {
+  // Push the current PC onto the stack as "return address" via calling
+  // the next instruction.
+  Label get_pc;
+  call(&get_pc);
+  bind(&get_pc);
 }
 
 void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {

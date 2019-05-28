@@ -5675,7 +5675,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         MachineType::TypeCompressedTagged());
     Node* host_data = LOAD_RAW(
         sfi_data, WasmCapiFunctionData::kEmbedderDataOffset - kHeapObjectTag,
-        MachineType::TypeCompressedTagged());
+        MachineType::Pointer());
+
+    BuildModifyThreadInWasmFlag(false);
+    Node* isolate_root =
+        LOAD_INSTANCE_FIELD(IsolateRoot, MachineType::Pointer());
+    Node* fp_value = graph()->NewNode(mcgraph()->machine()->LoadFramePointer());
+    STORE_RAW(isolate_root, Isolate::c_entry_fp_offset(), fp_value,
+              MachineType::PointerRepresentation(), kNoWriteBarrier);
 
     // TODO(jkummerow): Load the address from the {host_data}, and cache
     // wrappers per signature.
@@ -5687,11 +5694,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     MachineType host_sig_types[] = {
         MachineType::Pointer(), MachineType::Pointer(), MachineType::Pointer()};
     MachineSignature host_sig(1, 2, host_sig_types);
-    // TODO(jkummerow): Set/unset the "thread-in-wasm" flag before and after
-    // the C call, using {BuildModifyThreadInWasmFlag}.
-    // TODO(jkummerow): This is currently not safe for stack walking. Add
-    // test coverage for that, and fix it!
     Node* return_value = BuildCCall(&host_sig, function, host_data, values);
+
+    BuildModifyThreadInWasmFlag(true);
 
     Node* exception_branch =
         graph()->NewNode(mcgraph()->common()->Branch(BranchHint::kTrue),

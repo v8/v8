@@ -744,6 +744,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
+      // Put the return address in a stack slot.
+      Register scratch = x8;
+      Label return_location;
+      if (linkage()->GetIncomingDescriptor()->kind() ==
+          CallDescriptor::kCallWasmImportWrapper) {
+        // WasmCapiFunctionWrappers, which are reusing the WasmImportWrapper
+        // call descriptor, need access to the calling PC.
+        // TODO(jkummerow): Separate the call descriptors for clarity.
+        __ Adr(scratch, &return_location);
+        __ Str(scratch,
+               MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+      }
+
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
         __ CallCFunction(ref, num_parameters, 0);
@@ -751,6 +764,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters, 0);
       }
+      __ Bind(&return_location);
+      RecordSafepoint(instr->reference_map(), Safepoint::kNoLazyDeopt);
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
@@ -2553,7 +2568,7 @@ void CodeGenerator::AssembleConstructFrame() {
             kWasmInstanceRegister,
             FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
         __ Claim(required_slots +
-                 2);  // Claim extra slots for marker + instance.
+                 3);  // Claim extra slots for marker + instance + pc.
         Register scratch = temps.AcquireX();
         __ Mov(scratch,
                StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));

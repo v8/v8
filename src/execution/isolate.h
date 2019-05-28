@@ -655,6 +655,11 @@ class Isolate final : private HiddenFactory {
   inline Address* c_entry_fp_address() {
     return &thread_local_top()->c_entry_fp_;
   }
+  static uint32_t c_entry_fp_offset() {
+    return static_cast<uint32_t>(
+        OFFSET_OF(Isolate, thread_local_top()->c_entry_fp_) -
+        isolate_root_bias());
+  }
   inline Address* handler_address() { return &thread_local_top()->handler_; }
   inline Address* c_function_address() {
     return &thread_local_top()->c_function_;

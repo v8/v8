@@ -813,6 +813,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
+      Label return_location;
+      if (linkage()->GetIncomingDescriptor()->kind() ==
+          CallDescriptor::kCallWasmImportWrapper) {
+        // WasmCapiFunctionWrappers, which are reusing the WasmImportWrapper
+        // call descriptor, also need access to the PC.
+        // TODO(jkummerow): Separate the call descriptors for clarity.
+        Register scratch = eax;
+        __ push(scratch);
+        __ PushPC();
+        int pc = __ pc_offset();
+        __ pop(scratch);
+        __ sub(scratch, Immediate(pc + Code::kHeaderSize - kHeapObjectTag));
+        __ add(scratch, Immediate::CodeRelativeOffset(&return_location));
+        __ mov(MemOperand(ebp, WasmExitFrameConstants::kCallingPCOffset),
+               scratch);
+        __ pop(scratch);
+      }
       if (HasImmediateInput(instr, 0)) {
         ExternalReference ref = i.InputExternalReference(0);
         __ CallCFunction(ref, num_parameters);
@@ -820,6 +837,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters);
       }
+      __ bind(&return_location);
+      RecordSafepoint(instr->reference_map(), Safepoint::kNoLazyDeopt);
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
@@ -4229,6 +4248,9 @@ void CodeGenerator::AssembleConstructFrame() {
                Operand(kWasmInstanceRegister,
                        Tuple2::kValue1Offset - kHeapObjectTag));
         __ push(kWasmInstanceRegister);
+        // Reserve PC slot space for WasmCapiFunction wrappers.
+        // TODO(jkummerow): Separate the call descriptors for clarity.
+        __ AllocateStackSpace(kSystemPointerSize);
       }
     }
   }

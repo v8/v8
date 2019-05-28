@@ -256,6 +256,13 @@ class WasmCompiledFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(1);
 };
 
+class WasmExitFrameConstants : public WasmCompiledFrameConstants {
+ public:
+  // FP-relative.
+  static const int kCallingPCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  DEFINE_TYPED_FRAME_SIZES(2);
+};
+
 class BuiltinContinuationFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.

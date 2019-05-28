@@ -22,11 +22,11 @@
 #include <cstring>
 #include <iostream>
 
+#include "src/wasm/c-api.h"
+
 #include "third_party/wasm-api/wasm.h"
-#include "third_party/wasm-api/wasm.hh"
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-instantiate.h"
@@ -707,42 +707,17 @@ auto Engine::make(own<Config*>&& config) -> own<Engine*> {
 
 // Stores
 
-class StoreImpl {
-  friend own<Store*> Store::make(Engine*);
-
-  v8::Isolate::CreateParams create_params_;
-  v8::Isolate* isolate_;
-  v8::Eternal<v8::Context> context_;
-
- public:
-  StoreImpl() {}
-
-  ~StoreImpl() {
+StoreImpl::~StoreImpl() {
 #ifdef DEBUG
-    reinterpret_cast<i::Isolate*>(isolate_)->heap()->PreciseCollectAllGarbage(
-        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting,
-        v8::kGCCallbackFlagForced);
+  reinterpret_cast<i::Isolate*>(isolate_)->heap()->PreciseCollectAllGarbage(
+      i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting,
+      v8::kGCCallbackFlagForced);
 #endif
-    context()->Exit();
-    isolate_->Exit();
-    isolate_->Dispose();
-    delete create_params_.array_buffer_allocator;
-  }
-
-  auto isolate() const -> v8::Isolate* { return isolate_; }
-  i::Isolate* i_isolate() const {
-    return reinterpret_cast<i::Isolate*>(isolate_);
-  }
-
-  auto context() const -> v8::Local<v8::Context> {
-    return context_.Get(isolate_);
-  }
-
-  static auto get(i::Isolate* isolate) -> StoreImpl* {
-    return static_cast<StoreImpl*>(
-        reinterpret_cast<v8::Isolate*>(isolate)->GetData(0));
-  }
-};
+  context()->Exit();
+  isolate_->Exit();
+  isolate_->Dispose();
+  delete create_params_.array_buffer_allocator;
+}
 
 template <>
 struct implement<Store> {
