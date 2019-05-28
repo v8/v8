@@ -2,45 +2,25 @@
 # Disagreement among owners should be escalated to eng reviewers.
 file://ENG_REVIEW_OWNERS
 
-adamk@chromium.org
-ahaas@chromium.org
-aseemgarg@chromium.org
-bbudge@chromium.org
-binji@chromium.org
-bmeurer@chromium.org
-cbruni@chromium.org
-clemensh@chromium.org
-danno@chromium.org
-delphick@chromium.org
-gdeepti@chromium.org
-gsathya@chromium.org
-hablich@chromium.org
-herhut@chromium.org
-hpayer@chromium.org
-ishell@chromium.org
-jarin@chromium.org
-jgruber@chromium.org
-jkummerow@chromium.org
-leszeks@chromium.org
-machenbach@chromium.org
-mathias@chromium.org
-marja@chromium.org
-mlippautz@chromium.org
-mslekova@chromium.org
-mstarzinger@chromium.org
-mvstanton@chromium.org
-mythria@chromium.org
-neis@chromium.org
-petermarshall@chromium.org
-rmcilroy@chromium.org
-sergiyb@chromium.org
-sigurds@chromium.org
-szuend@chromium.org
-tebbi@chromium.org
-titzer@chromium.org
-ulan@chromium.org
-verwaest@chromium.org
-yangguo@chromium.org
+# TODO(9247) remove this.
+file://COMMON_OWNERS
+
+per-file .clang-format=file://INFRA_OWNERS
+per-file .clang-tidy=file://INFRA_OWNERS
+per-file .editorconfig=file://INFRA_OWNERS
+per-file .git-blame-ignore-revs=file://INFRA_OWNERS
+per-file .gitattributes=file://INFRA_OWNERS
+per-file .gitignore=file://INFRA_OWNERS
+per-file .gn=file://INFRA_OWNERS
+per-file .vpython=file://INFRA_OWNERS
+per-file .ycm_extra_conf.py=file://INFRA_OWNERS
+per-file BUILD.gn=file://INFRA_OWNERS
+per-file DEPS=file://INFRA_OWNERS
+per-file PRESUBMIT=file://INFRA_OWNERS
+per-file codereview.settings=file://INFRA_OWNERS
+
+per-file AUTHORS=file://COMMON_OWNERS
+per-file WATCHLIST=file://COMMON_OWNERS
 
 # TEAM: v8-dev@googlegroups.com
 # COMPONENT: Blink>JavaScript
