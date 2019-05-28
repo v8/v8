@@ -19,14 +19,37 @@ namespace internal {
 using HeapTest = TestWithIsolate;
 using HeapWithPointerCompressionTest = TestWithIsolateAndPointerCompression;
 
-TEST(Heap, SemiSpaceSize) {
+TEST(Heap, MaxSpaceSizes) {
   const size_t MB = static_cast<size_t>(i::MB);
+  const size_t KB = static_cast<size_t>(i::KB);
   const size_t pm = i::Heap::kPointerMultiplier;
-  ASSERT_EQ(512u * pm, i::Heap::ComputeMaxSemiSpaceSize(0u));
-  ASSERT_EQ(512u * pm, i::Heap::ComputeMaxSemiSpaceSize(512u * MB));
-  ASSERT_EQ(2048u * pm, i::Heap::ComputeMaxSemiSpaceSize(1024u * MB));
-  ASSERT_EQ(5120u * pm, i::Heap::ComputeMaxSemiSpaceSize(2024u * MB));
-  ASSERT_EQ(8192u * pm, i::Heap::ComputeMaxSemiSpaceSize(4095u * MB));
+  size_t old_space, semi_space;
+
+  i::Heap::ComputeMaxSpaceSizes(0u, &old_space, &semi_space);
+  ASSERT_EQ(128u * pm * MB, old_space);
+  ASSERT_EQ(512u * pm * KB, semi_space);
+
+  i::Heap::ComputeMaxSpaceSizes(512u * MB, &old_space, &semi_space);
+  ASSERT_EQ(128u * pm * MB, old_space);
+  ASSERT_EQ(512u * pm * KB, semi_space);
+
+  i::Heap::ComputeMaxSpaceSizes(1024u * MB, &old_space, &semi_space);
+  ASSERT_EQ(256u * pm * MB, old_space);
+  ASSERT_EQ(2048u * pm * KB, semi_space);
+
+  i::Heap::ComputeMaxSpaceSizes(2048u * MB, &old_space, &semi_space);
+  ASSERT_EQ(512u * pm * MB, old_space);
+  ASSERT_EQ(4096u * pm * KB, semi_space);
+
+  i::Heap::ComputeMaxSpaceSizes(static_cast<uint64_t>(4096u) * MB, &old_space,
+                                &semi_space);
+  ASSERT_EQ(1024u * pm * MB, old_space);
+  ASSERT_EQ(8192u * pm * KB, semi_space);
+
+  i::Heap::ComputeMaxSpaceSizes(static_cast<uint64_t>(8192u) * MB, &old_space,
+                                &semi_space);
+  ASSERT_EQ(1024u * pm * MB, old_space);
+  ASSERT_EQ(8192u * pm * KB, semi_space);
 }
 
 TEST_F(HeapTest, ASLR) {

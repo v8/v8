@@ -972,9 +972,11 @@ ResourceConstraints::ResourceConstraints()
 
 void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                                             uint64_t virtual_memory_limit) {
-  set_max_semi_space_size_in_kb(
-      i::Heap::ComputeMaxSemiSpaceSize(physical_memory));
-  set_max_old_space_size(i::Heap::ComputeMaxOldGenerationSize(physical_memory));
+  size_t old_space_size, semi_space_size;
+  i::Heap::ComputeMaxSpaceSizes(physical_memory, &old_space_size,
+                                &semi_space_size);
+  set_max_semi_space_size_in_kb(semi_space_size / i::KB);
+  set_max_old_space_size(old_space_size / i::MB);
 
   if (virtual_memory_limit > 0 && i::kRequiresCodeRange) {
     // Reserve no more than 1/8 of the memory for the code range, but at most

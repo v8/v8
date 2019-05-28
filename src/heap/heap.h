@@ -250,12 +250,16 @@ class Heap {
   static const size_t kMaxInitialOldGenerationSize =
       256 * MB * kPointerMultiplier;
 
-  // Semi-space size needs to be a multiple of page size.
-  static const size_t kMinSemiSpaceSizeInKB = 512 * kPointerMultiplier;
-  static const size_t kMaxSemiSpaceSizeInKB = 8192 * kPointerMultiplier;
+  // These constants control heap configuration based on the physical memory.
+  static const size_t kPhysicalMemoryToOldSpaceRatio = 4;
+  static const size_t kOldSpaceToSemiSpaceRatio = 128;
+  static const size_t kOldSpaceToSemiSpaceRatioLowMemory = 256;
+  static const size_t kLowMemory = 512 * MB;
+  static const size_t kMinSemiSpaceSize = 512 * KB * kPointerMultiplier;
+  static const size_t kMaxSemiSpaceSize = 8192 * KB * kPointerMultiplier;
 
-  STATIC_ASSERT(kMinSemiSpaceSizeInKB* KB % (1 << kPageSizeBits) == 0);
-  STATIC_ASSERT(kMaxSemiSpaceSizeInKB* KB % (1 << kPageSizeBits) == 0);
+  STATIC_ASSERT(kMinSemiSpaceSize % (1 << kPageSizeBits) == 0);
+  STATIC_ASSERT(kMaxSemiSpaceSize % (1 << kPageSizeBits) == 0);
 
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
@@ -1042,23 +1046,9 @@ class Heap {
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
   size_t MaxOldGenerationSize() { return max_old_generation_size_; }
 
-  V8_EXPORT_PRIVATE static size_t ComputeMaxOldGenerationSize(
-      uint64_t physical_memory);
-
-  static size_t ComputeMaxSemiSpaceSize(uint64_t physical_memory) {
-    const uint64_t min_physical_memory = 512 * MB;
-    const uint64_t max_physical_memory = 3 * static_cast<uint64_t>(GB);
-
-    uint64_t capped_physical_memory =
-        Max(Min(physical_memory, max_physical_memory), min_physical_memory);
-    // linearly scale max semi-space size: (X-A)/(B-A)*(D-C)+C
-    size_t semi_space_size_in_kb =
-        static_cast<size_t>(((capped_physical_memory - min_physical_memory) *
-                             (kMaxSemiSpaceSizeInKB - kMinSemiSpaceSizeInKB)) /
-                                (max_physical_memory - min_physical_memory) +
-                            kMinSemiSpaceSizeInKB);
-    return RoundUp(semi_space_size_in_kb, (1 << kPageSizeBits) / KB);
-  }
+  V8_EXPORT_PRIVATE static void ComputeMaxSpaceSizes(uint64_t physical_memory,
+                                                     size_t* old_space_size,
+                                                     size_t* semi_space_size);
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
@@ -1818,7 +1808,7 @@ class Heap {
 
   size_t code_range_size_ = 0;
   size_t max_semi_space_size_ = 8 * (kSystemPointerSize / 4) * MB;
-  size_t initial_semispace_size_ = kMinSemiSpaceSizeInKB * KB;
+  size_t initial_semispace_size_ = kMinSemiSpaceSize;
   size_t max_old_generation_size_ = 700ul * (kSystemPointerSize / 4) * MB;
   // TODO(mlippautz): Clarify whether this should be take some embedder
   // configurable limit into account.

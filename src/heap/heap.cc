@@ -207,23 +207,37 @@ size_t Heap::MaxReserved() {
                              max_old_generation_size_);
 }
 
-size_t Heap::ComputeMaxOldGenerationSize(uint64_t physical_memory) {
-  const size_t old_space_physical_memory_factor = 4;
-  size_t computed_size = static_cast<size_t>(physical_memory / i::MB /
-                                             old_space_physical_memory_factor *
-                                             kPointerMultiplier);
-  size_t max_size_in_mb = V8HeapTrait::kMaxSize;
-
+void Heap::ComputeMaxSpaceSizes(uint64_t physical_memory,
+                                size_t* old_space_size,
+                                size_t* semi_space_size) {
+  // Compute the old space size and cap it.
+  uint64_t old_space =
+      physical_memory / kPhysicalMemoryToOldSpaceRatio * kPointerMultiplier;
+  uint64_t max_size = V8HeapTrait::kMaxSize;
   // Finch experiment: Increase the heap size from 2GB to 4GB for 64-bit
   // systems with physical memory bigger than 16GB.
   constexpr bool x64_bit = Heap::kPointerMultiplier >= 2;
   if (FLAG_huge_max_old_generation_size && x64_bit &&
       physical_memory / GB > 16) {
-    DCHECK_LE(max_size_in_mb, 4096);
-    max_size_in_mb = 4096;  // 4GB
+    DCHECK_EQ(max_size / GB, 2048);
+    max_size *= 2;
   }
+  old_space = Min<uint64_t>(old_space, max_size);
+  old_space = Max<uint64_t>(old_space, V8HeapTrait::kMinSize);
+  old_space = RoundUp(old_space, Page::kPageSize);
 
-  return Max(Min(computed_size, max_size_in_mb), V8HeapTrait::kMinSize);
+  // Compute the semi space size and cap it.
+  size_t ratio = physical_memory <= kLowMemory
+                     ? kOldSpaceToSemiSpaceRatioLowMemory
+                     : kOldSpaceToSemiSpaceRatio;
+  uint64_t semi_space = old_space / ratio;
+  semi_space = Min<uint64_t>(semi_space, kMaxSemiSpaceSize);
+  semi_space = Max<uint64_t>(semi_space, kMinSemiSpaceSize);
+  semi_space = RoundUp(semi_space, Page::kPageSize);
+
+  // Write the results back.
+  *old_space_size = static_cast<size_t>(old_space);
+  *semi_space_size = static_cast<size_t>(semi_space);
 }
 
 size_t Heap::Capacity() {
@@ -4299,7 +4313,7 @@ void Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
   max_semi_space_size_ = static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
       static_cast<uint64_t>(max_semi_space_size_)));
 
-  if (max_semi_space_size_ == kMaxSemiSpaceSizeInKB * KB) {
+  if (max_semi_space_size_ == kMaxSemiSpaceSize) {
     // Start with at least 1*MB semi-space on machines with a lot of memory.
     initial_semispace_size_ =
         Max(initial_semispace_size_, static_cast<size_t>(1 * MB));
