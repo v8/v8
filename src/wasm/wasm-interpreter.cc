@@ -2837,6 +2837,11 @@ class ThreadImpl {
           }
           break;
         }
+        case kExprSelectWithType: {
+          SelectTypeImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          len = 1 + imm.length;
+          V8_FALLTHROUGH;
+        }
         case kExprSelect: {
           WasmValue cond = Pop();
           WasmValue fval = Pop();

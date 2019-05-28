@@ -2667,6 +2667,14 @@ TEST_F(FunctionBodyDecoderTest, Select) {
                   {WASM_SELECT(WASM_I64V_1(0), WASM_I64V_1(0), WASM_ZERO)});
 }
 
+TEST_F(FunctionBodyDecoderTest, Select_needs_value_type) {
+  WASM_FEATURE_SCOPE(anyref);
+  ExpectFailure(sigs.r_r(),
+                {WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_ZERO)});
+  ExpectFailure(sigs.a_a(),
+                {WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_ZERO)});
+}
+
 TEST_F(FunctionBodyDecoderTest, Select_fail1) {
   ExpectFailure(sigs.i_i(), {WASM_SELECT(WASM_F32(0.0), WASM_GET_LOCAL(0),
                                          WASM_GET_LOCAL(0))});
@@ -2680,6 +2688,8 @@ TEST_F(FunctionBodyDecoderTest, Select_fail2) {
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType type = kValueTypes[i];
     if (type == kWasmI32) continue;
+    // Select without specified type is only allowed for number types.
+    if (type == kWasmAnyRef) continue;
 
     ValueType types[] = {type, kWasmI32, type};
     FunctionSig sig(1, 2, types);
@@ -2707,6 +2717,34 @@ TEST_F(FunctionBodyDecoderTest, Select_TypeCheck) {
 
   ExpectFailure(sigs.i_i(), {WASM_SELECT(WASM_F32(9.9), WASM_GET_LOCAL(0),
                                          WASM_I64V_1(0))});
+}
+
+TEST_F(FunctionBodyDecoderTest, SelectWithType) {
+  WASM_FEATURE_SCOPE(anyref);
+  ExpectValidates(sigs.i_i(), {WASM_SELECT_I(WASM_GET_LOCAL(0),
+                                             WASM_GET_LOCAL(0), WASM_ZERO)});
+  ExpectValidates(sigs.f_ff(),
+                  {WASM_SELECT_F(WASM_F32(0.0), WASM_F32(0.0), WASM_ZERO)});
+  ExpectValidates(sigs.d_dd(),
+                  {WASM_SELECT_D(WASM_F64(0.0), WASM_F64(0.0), WASM_ZERO)});
+  ExpectValidates(sigs.l_l(),
+                  {WASM_SELECT_L(WASM_I64V_1(0), WASM_I64V_1(0), WASM_ZERO)});
+  ExpectValidates(sigs.r_r(),
+                  {WASM_SELECT_R(WASM_REF_NULL, WASM_REF_NULL, WASM_ZERO)});
+  ExpectValidates(sigs.a_a(),
+                  {WASM_SELECT_A(WASM_REF_NULL, WASM_REF_NULL, WASM_ZERO)});
+}
+
+TEST_F(FunctionBodyDecoderTest, SelectWithType_fail) {
+  WASM_FEATURE_SCOPE(anyref);
+  ExpectFailure(sigs.i_i(), {WASM_SELECT_F(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
+                                           WASM_ZERO)});
+  ExpectFailure(sigs.f_ff(),
+                {WASM_SELECT_D(WASM_F32(0.0), WASM_F32(0.0), WASM_ZERO)});
+  ExpectFailure(sigs.d_dd(),
+                {WASM_SELECT_L(WASM_F64(0.0), WASM_F64(0.0), WASM_ZERO)});
+  ExpectFailure(sigs.l_l(),
+                {WASM_SELECT_I(WASM_I64V_1(0), WASM_I64V_1(0), WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Throw) {

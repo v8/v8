@@ -752,9 +752,16 @@ WASM_EXEC_TEST(Return_F64) {
 
 WASM_EXEC_TEST(Select_float_parameters) {
   WasmRunner<float, float, float, int32_t> r(execution_tier);
-  // return select(11, 22, a);
   BUILD(r,
         WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)));
+  CHECK_FLOAT_EQ(2.0f, r.Call(2.0f, 1.0f, 1));
+}
+
+WASM_EXEC_TEST(SelectWithType_float_parameters) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  WasmRunner<float, float, float, int32_t> r(execution_tier);
+  BUILD(r,
+        WASM_SELECT_F(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)));
   CHECK_FLOAT_EQ(2.0f, r.Call(2.0f, 1.0f, 1));
 }
 
@@ -768,12 +775,35 @@ WASM_EXEC_TEST(Select) {
   }
 }
 
+WASM_EXEC_TEST(SelectWithType) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  WasmRunner<int32_t, int32_t> r(execution_tier);
+  // return select(11, 22, a);
+  BUILD(r, WASM_SELECT_I(WASM_I32V_1(11), WASM_I32V_1(22), WASM_GET_LOCAL(0)));
+  FOR_INT32_INPUTS(i) {
+    int32_t expected = i ? 11 : 22;
+    CHECK_EQ(expected, r.Call(i));
+  }
+}
+
 WASM_EXEC_TEST(Select_strict1) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // select(a=0, a=1, a=2); return a
   BUILD(r, WASM_SELECT(WASM_TEE_LOCAL(0, WASM_ZERO),
                        WASM_TEE_LOCAL(0, WASM_I32V_1(1)),
                        WASM_TEE_LOCAL(0, WASM_I32V_1(2))),
+        WASM_DROP, WASM_GET_LOCAL(0));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(2, r.Call(i)); }
+}
+
+WASM_EXEC_TEST(SelectWithType_strict1) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  WasmRunner<int32_t, int32_t> r(execution_tier);
+  // select(a=0, a=1, a=2); return a
+  BUILD(r,
+        WASM_SELECT_I(WASM_TEE_LOCAL(0, WASM_ZERO),
+                      WASM_TEE_LOCAL(0, WASM_I32V_1(1)),
+                      WASM_TEE_LOCAL(0, WASM_I32V_1(2))),
         WASM_DROP, WASM_GET_LOCAL(0));
   FOR_INT32_INPUTS(i) { CHECK_EQ(2, r.Call(i)); }
 }
@@ -791,6 +821,20 @@ WASM_EXEC_TEST(Select_strict2) {
   }
 }
 
+WASM_EXEC_TEST(SelectWithType_strict2) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  WasmRunner<int32_t, int32_t> r(execution_tier);
+  r.AllocateLocal(kWasmI32);
+  r.AllocateLocal(kWasmI32);
+  // select(b=5, c=6, a)
+  BUILD(r, WASM_SELECT_I(WASM_TEE_LOCAL(1, WASM_I32V_1(5)),
+                         WASM_TEE_LOCAL(2, WASM_I32V_1(6)), WASM_GET_LOCAL(0)));
+  FOR_INT32_INPUTS(i) {
+    int32_t expected = i ? 5 : 6;
+    CHECK_EQ(expected, r.Call(i));
+  }
+}
+
 WASM_EXEC_TEST(Select_strict3) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   r.AllocateLocal(kWasmI32);
@@ -799,6 +843,21 @@ WASM_EXEC_TEST(Select_strict3) {
   BUILD(r, WASM_SELECT(WASM_TEE_LOCAL(1, WASM_I32V_1(5)),
                        WASM_TEE_LOCAL(2, WASM_I32V_1(6)),
                        WASM_TEE_LOCAL(0, WASM_GET_LOCAL(1))));
+  FOR_INT32_INPUTS(i) {
+    int32_t expected = 5;
+    CHECK_EQ(expected, r.Call(i));
+  }
+}
+
+WASM_EXEC_TEST(SelectWithType_strict3) {
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
+  WasmRunner<int32_t, int32_t> r(execution_tier);
+  r.AllocateLocal(kWasmI32);
+  r.AllocateLocal(kWasmI32);
+  // select(b=5, c=6, a=b)
+  BUILD(r, WASM_SELECT_I(WASM_TEE_LOCAL(1, WASM_I32V_1(5)),
+                         WASM_TEE_LOCAL(2, WASM_I32V_1(6)),
+                         WASM_TEE_LOCAL(0, WASM_GET_LOCAL(1))));
   FOR_INT32_INPUTS(i) {
     int32_t expected = 5;
     CHECK_EQ(expected, r.Call(i));

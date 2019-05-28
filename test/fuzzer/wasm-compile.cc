@@ -389,6 +389,16 @@ class WasmGenerator {
     global_op<wanted_type>(data);
   }
 
+  template <ValueType select_type>
+  void select_with_type(DataRange& data) {
+    static_assert(select_type != kWasmStmt, "illegal type for select");
+    Generate<select_type, select_type, kWasmI32>(data);
+    // num_types is always 1.
+    uint8_t num_types = 1;
+    builder_->EmitWithU8U8(kExprSelectWithType, num_types,
+                           ValueTypes::ValueTypeCodeFor(select_type));
+  }
+
   void set_global(DataRange& data) { global_op<kWasmStmt>(data); }
 
   template <ValueType... Types>
@@ -603,6 +613,8 @@ void WasmGenerator::Generate<kWasmI32>(DataRange& data) {
       &WasmGenerator::get_local<kWasmI32>,
       &WasmGenerator::tee_local<kWasmI32>,
       &WasmGenerator::get_global<kWasmI32>,
+      &WasmGenerator::op<kExprSelect, kWasmI32, kWasmI32, kWasmI32>,
+      &WasmGenerator::select_with_type<kWasmI32>,
 
       &WasmGenerator::call<kWasmI32>};
 
@@ -669,6 +681,8 @@ void WasmGenerator::Generate<kWasmI64>(DataRange& data) {
       &WasmGenerator::get_local<kWasmI64>,
       &WasmGenerator::tee_local<kWasmI64>,
       &WasmGenerator::get_global<kWasmI64>,
+      &WasmGenerator::op<kExprSelect, kWasmI64, kWasmI64, kWasmI32>,
+      &WasmGenerator::select_with_type<kWasmI64>,
 
       &WasmGenerator::call<kWasmI64>};
 
@@ -702,6 +716,8 @@ void WasmGenerator::Generate<kWasmF32>(DataRange& data) {
       &WasmGenerator::get_local<kWasmF32>,
       &WasmGenerator::tee_local<kWasmF32>,
       &WasmGenerator::get_global<kWasmF32>,
+      &WasmGenerator::op<kExprSelect, kWasmF32, kWasmF32, kWasmI32>,
+      &WasmGenerator::select_with_type<kWasmF32>,
 
       &WasmGenerator::call<kWasmF32>};
 
@@ -735,6 +751,8 @@ void WasmGenerator::Generate<kWasmF64>(DataRange& data) {
       &WasmGenerator::get_local<kWasmF64>,
       &WasmGenerator::tee_local<kWasmF64>,
       &WasmGenerator::get_global<kWasmF64>,
+      &WasmGenerator::op<kExprSelect, kWasmF64, kWasmF64, kWasmI32>,
+      &WasmGenerator::select_with_type<kWasmF64>,
 
       &WasmGenerator::call<kWasmF64>};
 
