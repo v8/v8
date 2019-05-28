@@ -17,14 +17,15 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
-#include "unicode/numberformatter.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace U_ICU_NAMESPACE {
-class NumberFormat;
 class UnicodeString;
+namespace number {
+class LocalizedNumberFormatter;
+}  //  namespace number
 }  //  namespace U_ICU_NAMESPACE
 
 namespace v8 {
@@ -55,6 +56,13 @@ class JSNumberFormat : public JSObject {
       Handle<Object> numeric_obj);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
+
+  static int32_t MinimumIntegerDigitsFromSkeleton(
+      const icu::UnicodeString& skeleton);
+  static bool FractionDigitsFromSkeleton(const icu::UnicodeString& skeleton,
+                                         int32_t* minimum, int32_t* maximum);
+  static bool SignificantDigitsFromSkeleton(const icu::UnicodeString& skeleton,
+                                            int32_t* minimum, int32_t* maximum);
 
   DECL_CAST(JSNumberFormat)
   DECL_PRINTER(JSNumberFormat)

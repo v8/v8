@@ -34,6 +34,7 @@
 #include "unicode/formattedvalue.h"
 #include "unicode/locid.h"
 #include "unicode/normalizer2.h"
+#include "unicode/numberformatter.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
 #include "unicode/timezone.h"

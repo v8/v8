@@ -485,6 +485,8 @@ Handle<String> SignDisplayString(Isolate* isolate,
   return ReadOnlyRoots(isolate).auto_string_handle();
 }
 
+}  // anonymous namespace
+
 // Return the minimum integer digits by counting the number of '0' after
 // "integer-width/+" in the skeleton.
 // Ex: Return 15 for skeleton as
@@ -492,7 +494,8 @@ Handle<String> SignDisplayString(Isolate* isolate,
 //                                                                 1
 //                                                        123456789012345
 // Return default value as 1 if there are no "integer-width/+".
-int32_t MinimumIntegerDigitsFromSkeleton(const icu::UnicodeString& skeleton) {
+int32_t JSNumberFormat::MinimumIntegerDigitsFromSkeleton(
+    const icu::UnicodeString& skeleton) {
   // count the number of 0 after "integer-width/+"
   icu::UnicodeString search("integer-width/+");
   int32_t index = skeleton.indexOf(search);
@@ -515,8 +518,8 @@ int32_t MinimumIntegerDigitsFromSkeleton(const icu::UnicodeString& skeleton) {
 //                            123
 //                               4567
 // Set The minimum as 3 and maximum as 7.
-bool FractionDigitsFromSkeleton(const icu::UnicodeString& skeleton,
-                                int32_t* minimum, int32_t* maximum) {
+bool JSNumberFormat::FractionDigitsFromSkeleton(
+    const icu::UnicodeString& skeleton, int32_t* minimum, int32_t* maximum) {
   icu::UnicodeString search(".");
   int32_t index = skeleton.indexOf(search);
   if (index < 0) return false;
@@ -542,8 +545,8 @@ bool FractionDigitsFromSkeleton(const icu::UnicodeString& skeleton,
 //                  12345
 //                       6789012
 // Set The minimum as 5 and maximum as 12.
-bool SignificantDigitsFromSkeleton(const icu::UnicodeString& skeleton,
-                                   int32_t* minimum, int32_t* maximum) {
+bool JSNumberFormat::SignificantDigitsFromSkeleton(
+    const icu::UnicodeString& skeleton, int32_t* minimum, int32_t* maximum) {
   icu::UnicodeString search("@");
   int32_t index = skeleton.indexOf(search);
   if (index < 0) return false;
@@ -560,6 +563,8 @@ bool SignificantDigitsFromSkeleton(const icu::UnicodeString& skeleton,
   }
   return true;
 }
+
+namespace {
 
 // Ex: percent .### rounding-mode-half-up
 // Special case for "percent"
@@ -641,9 +646,6 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
       number_format->icu_number_formatter().raw();
   icu::UnicodeString skeleton = icu_number_formatter->toSkeleton(status);
   CHECK(U_SUCCESS(status));
-
-  std::string s_str;
-  s_str = skeleton.toUTF8String<std::string>(s_str);
 
   // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());

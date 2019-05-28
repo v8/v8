@@ -22,8 +22,10 @@
 #include "src/objects/object-macros.h"
 
 namespace U_ICU_NAMESPACE {
-class DecimalFormat;
 class PluralRules;
+namespace number {
+class LocalizedNumberFormatter;
+}  //  namespace number
 }  //  namespace U_ICU_NAMESPACE
 
 namespace v8 {
@@ -76,7 +78,8 @@ class JSPluralRules : public JSObject {
   DECL_ACCESSORS(locale, String)
   DECL_INT_ACCESSORS(flags)
   DECL_ACCESSORS(icu_plural_rules, Managed<icu::PluralRules>)
-  DECL_ACCESSORS(icu_decimal_format, Managed<icu::DecimalFormat>)
+  DECL_ACCESSORS(icu_number_formatter,
+                 Managed<icu::number::LocalizedNumberFormatter>)
 
   OBJECT_CONSTRUCTORS(JSPluralRules, JSObject);
 };

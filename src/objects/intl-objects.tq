@@ -37,8 +37,9 @@ extern class JSNumberFormat extends JSObject {
 extern class JSPluralRules extends JSObject {
   locale: String;
   flags: Smi;
-  icu_plural_rules: Foreign;    // Managed<icu::PluralRules>
-  icu_decimal_format: Foreign;  // Managed<icu::DecimalFormat>
+  icu_plural_rules: Foreign;  // Managed<icu::PluralRules>
+  icu_number_formatter:
+      Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
 }
 
 extern class JSRelativeTimeFormat extends JSObject {
