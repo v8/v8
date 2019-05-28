@@ -681,6 +681,10 @@ class WasmJSFunction : public JSFunction {
   static Handle<WasmJSFunction> New(Isolate* isolate, wasm::FunctionSig* sig,
                                     Handle<JSReceiver> callable);
 
+  // Deserializes the signature of this function using the provided zone. Note
+  // that lifetime of the signature is hence directly coupled to the zone.
+  wasm::FunctionSig* GetSignature(Zone* zone);
+
   DECL_CAST(WasmJSFunction)
   OBJECT_CONSTRUCTORS(WasmJSFunction, JSFunction);
 };
@@ -754,6 +758,9 @@ class WasmExportedFunctionData : public Struct {
 // {SharedFunctionInfo::HasWasmJSFunctionData} predicate.
 class WasmJSFunctionData : public Struct {
  public:
+  DECL_INT_ACCESSORS(serialized_return_count)
+  DECL_INT_ACCESSORS(serialized_parameter_count)
+  DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
   DECL_ACCESSORS(wrapper_code, Code)
 
   DECL_CAST(WasmJSFunctionData)

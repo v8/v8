@@ -552,9 +552,9 @@ class PodArray : public ByteArray {
   static Handle<PodArray<T>> New(
       Isolate* isolate, int length,
       AllocationType allocation = AllocationType::kYoung);
-  void copy_out(int index, T* result) {
+  void copy_out(int index, T* result, int length) {
     ByteArray::copy_out(index * sizeof(T), reinterpret_cast<byte*>(result),
-                        sizeof(T));
+                        length * sizeof(T));
   }
 
   void copy_in(int index, const T* buffer, int length) {
@@ -564,7 +564,7 @@ class PodArray : public ByteArray {
 
   T get(int index) {
     T result;
-    copy_out(index, &result);
+    copy_out(index, &result, 1);
     return result;
   }
 
