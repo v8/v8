@@ -180,8 +180,9 @@ class JSArrayBufferView : public JSObject {
 
 class JSTypedArray : public JSArrayBufferView {
  public:
-  // TODO(v8:4153): This should become JSArrayBuffer::kMaxByteLength eventually.
-  static constexpr size_t kMaxLength = kSmiMaxValue;
+  // TODO(v8:4153): This should be equal to JSArrayBuffer::kMaxByteLength
+  // eventually.
+  static constexpr size_t kMaxLength = v8::TypedArray::kMaxLength;
 
   // [length]: length of typed array in elements.
   DECL_PRIMITIVE_ACCESSORS(length, size_t)
