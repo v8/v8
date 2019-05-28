@@ -1437,7 +1437,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   // Decode the function type and construct a signature.
   i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-  i::wasm::FunctionSig::Builder builder(&zone, parameters_len, results_len);
+  i::wasm::FunctionSig::Builder builder(&zone, results_len, parameters_len);
   for (uint32_t i = 0; i < parameters_len; ++i) {
     i::wasm::ValueType type;
     MaybeLocal<Value> maybe = parameters->Get(context, i);
@@ -1513,13 +1513,12 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Function.type()");
 
   i::wasm::FunctionSig* sig;
+  i::Zone zone(i_isolate->allocator(), ZONE_NAME);
   i::Handle<i::Object> arg0 = Utils::OpenHandle(*args[0]);
   if (i::WasmExportedFunction::IsWasmExportedFunction(*arg0)) {
     sig = i::Handle<i::WasmExportedFunction>::cast(arg0)->sig();
   } else if (i::WasmJSFunction::IsWasmJSFunction(*arg0)) {
-    // TODO(7742): Implement deserialization of signature.
-    sig = nullptr;
-    UNIMPLEMENTED();
+    sig = i::Handle<i::WasmJSFunction>::cast(arg0)->GetSignature(&zone);
   } else {
     thrower.TypeError("Argument 0 must be a WebAssembly.Function");
     return;
