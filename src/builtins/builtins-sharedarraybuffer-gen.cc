@@ -21,10 +21,10 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  typedef Node* (CodeAssembler::*AssemblerFunction)(MachineType type,
-                                                    Node* base, Node* offset,
-                                                    Node* value,
-                                                    Node* value_high);
+  using AssemblerFunction = Node* (CodeAssembler::*)(MachineType type,
+                                                     Node* base, Node* offset,
+                                                     Node* value,
+                                                     Node* value_high);
   void ValidateSharedTypedArray(Node* tagged, Node* context,
                                 Node** out_elements_kind,
                                 Node** out_backing_store);

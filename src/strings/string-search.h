@@ -92,8 +92,8 @@ class StringSearch : private StringSearchBase {
   }
 
  private:
-  typedef int (*SearchFunction)(  // NOLINT - it's not a cast!
-      StringSearch<PatternChar, SubjectChar>*, Vector<const SubjectChar>, int);
+  using SearchFunction = int (*)(StringSearch<PatternChar, SubjectChar>*,
+                                 Vector<const SubjectChar>, int);
 
   static int FailSearch(StringSearch<PatternChar, SubjectChar>*,
                         Vector<const SubjectChar>, int) {

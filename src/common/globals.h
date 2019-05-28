@@ -706,9 +706,9 @@ using MaybeObjectSlot = SlotTraits<SlotLocation::kOnHeap>::TMaybeObjectSlot;
 // HeapObjectReference).
 using HeapObjectSlot = SlotTraits<SlotLocation::kOnHeap>::THeapObjectSlot;
 
-typedef bool (*WeakSlotCallback)(FullObjectSlot pointer);
+using WeakSlotCallback = bool (*)(FullObjectSlot pointer);
 
-typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, FullObjectSlot pointer);
+using WeakSlotCallbackWithHeap = bool (*)(Heap* heap, FullObjectSlot pointer);
 
 // -----------------------------------------------------------------------------
 // Miscellaneous
@@ -865,8 +865,8 @@ typedef enum {
   kStoreBufferScanningPageEvent
 } StoreBufferEvent;
 
-typedef void (*StoreBufferCallback)(Heap* heap, MemoryChunk* page,
-                                    StoreBufferEvent event);
+using StoreBufferCallback = void (*)(Heap* heap, MemoryChunk* page,
+                                     StoreBufferEvent event);
 
 // Union used for customized checking of the IEEE double types
 // inlined within v8 runtime, rather than going to the underlying

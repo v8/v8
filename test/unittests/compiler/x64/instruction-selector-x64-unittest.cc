@@ -179,8 +179,7 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
 
 namespace {
 
-typedef Node* (RawMachineAssembler::*Constructor)(Node*, Node*);
-
+using Constructor = Node* (RawMachineAssembler::*)(Node*, Node*);
 
 struct BinaryOperation {
   Constructor constructor;
@@ -248,7 +247,7 @@ struct MachInst {
   MachineType machine_type;
 };
 
-typedef MachInst<Node* (RawMachineAssembler::*)(Node*, Node*)> MachInst2;
+using MachInst2 = MachInst<Node* (RawMachineAssembler::*)(Node*, Node*)>;
 
 // X64 instructions that clear the top 32 bits of the destination.
 const MachInst2 kCanElideChangeUint32ToUint64[] = {

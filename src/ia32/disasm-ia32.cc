@@ -372,7 +372,7 @@ class DisassemblerIA32 {
     *base = data & 7;
   }
 
-  typedef const char* (DisassemblerIA32::*RegisterNameMapping)(int reg) const;
+  using RegisterNameMapping = const char* (DisassemblerIA32::*)(int reg) const;
 
   int PrintRightOperandHelper(byte* modrmp, RegisterNameMapping register_name);
   int PrintRightOperand(byte* modrmp);

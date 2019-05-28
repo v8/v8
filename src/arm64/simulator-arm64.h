@@ -1450,11 +1450,11 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   LogicVRegister pmul(VectorFormat vform, LogicVRegister dst,
                       const LogicVRegister& src1, const LogicVRegister& src2);
 
-  typedef LogicVRegister (Simulator::*ByElementOp)(VectorFormat vform,
-                                                   LogicVRegister dst,
-                                                   const LogicVRegister& src1,
-                                                   const LogicVRegister& src2,
-                                                   int index);
+  using ByElementOp = LogicVRegister (Simulator::*)(VectorFormat vform,
+                                                    LogicVRegister dst,
+                                                    const LogicVRegister& src1,
+                                                    const LogicVRegister& src2,
+                                                    int index);
   LogicVRegister fmul(VectorFormat vform, LogicVRegister dst,
                       const LogicVRegister& src1, const LogicVRegister& src2,
                       int index);
@@ -1998,7 +1998,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   LogicVRegister urecpe(VectorFormat vform, LogicVRegister dst,
                         const LogicVRegister& src);
 
-  typedef float (Simulator::*FPMinMaxOp)(float a, float b);
+  using FPMinMaxOp = float (Simulator::*)(float a, float b);
 
   LogicVRegister FMinMaxV(VectorFormat vform, LogicVRegister dst,
                           const LogicVRegister& src, FPMinMaxOp Op);

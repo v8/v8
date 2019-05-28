@@ -450,7 +450,7 @@ class DisassemblerX64 {
     *base = (data & 7) | (rex_b() ? 8 : 0);
   }
 
-  typedef const char* (DisassemblerX64::*RegisterNameMapping)(int reg) const;
+  using RegisterNameMapping = const char* (DisassemblerX64::*)(int reg) const;
 
   void TryAppendRootRelativeName(int offset);
   int PrintRightOperandHelper(byte* modrmp,

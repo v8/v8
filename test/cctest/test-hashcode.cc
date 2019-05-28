@@ -232,7 +232,7 @@ TEST(TransitionSlowToFastWithPropertyArray) {
 
 namespace {
 
-typedef uint32_t (*HashFunction)(uint32_t key, uint64_t seed);
+using HashFunction = uint32_t (*)(uint32_t key, uint64_t seed);
 
 void TestIntegerHashQuality(const int samples_log2, int num_buckets_log2,
                             uint64_t seed, double max_var,

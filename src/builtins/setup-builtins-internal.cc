@@ -56,8 +56,8 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
   return options;
 }
 
-typedef void (*MacroAssemblerGenerator)(MacroAssembler*);
-typedef void (*CodeAssemblerGenerator)(compiler::CodeAssemblerState*);
+using MacroAssemblerGenerator = void (*)(MacroAssembler*);
+using CodeAssemblerGenerator = void (*)(compiler::CodeAssemblerState*);
 
 Handle<Code> BuildPlaceholder(Isolate* isolate, int32_t builtin_index) {
   HandleScope scope(isolate);

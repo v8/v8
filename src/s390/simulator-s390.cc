@@ -1854,30 +1854,30 @@ static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
 }
 
 // Calls into the V8 runtime.
-typedef intptr_t (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1,
-                                         intptr_t arg2, intptr_t arg3,
-                                         intptr_t arg4, intptr_t arg5,
-                                         intptr_t arg6, intptr_t arg7,
-                                         intptr_t arg8);
-typedef ObjectPair (*SimulatorRuntimePairCall)(intptr_t arg0, intptr_t arg1,
-                                               intptr_t arg2, intptr_t arg3,
-                                               intptr_t arg4, intptr_t arg5);
+using SimulatorRuntimeCall = intptr_t (*)(intptr_t arg0, intptr_t arg1,
+                                          intptr_t arg2, intptr_t arg3,
+                                          intptr_t arg4, intptr_t arg5,
+                                          intptr_t arg6, intptr_t arg7,
+                                          intptr_t arg8);
+using SimulatorRuntimePairCall = ObjectPair (*)(intptr_t arg0, intptr_t arg1,
+                                                intptr_t arg2, intptr_t arg3,
+                                                intptr_t arg4, intptr_t arg5);
 
 // These prototypes handle the four types of FP calls.
-typedef int (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
-typedef double (*SimulatorRuntimeFPFPCall)(double darg0, double darg1);
-typedef double (*SimulatorRuntimeFPCall)(double darg0);
-typedef double (*SimulatorRuntimeFPIntCall)(double darg0, intptr_t arg0);
+using SimulatorRuntimeCompareCall = int (*)(double darg0, double darg1);
+using SimulatorRuntimeFPFPCall = double (*)(double darg0, double darg1);
+using SimulatorRuntimeFPCall = double (*)(double darg0);
+using SimulatorRuntimeFPIntCall = double (*)(double darg0, intptr_t arg0);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
-typedef void (*SimulatorRuntimeDirectApiCall)(intptr_t arg0);
-typedef void (*SimulatorRuntimeProfilingApiCall)(intptr_t arg0, void* arg1);
+using SimulatorRuntimeDirectApiCall = void (*)(intptr_t arg0);
+using SimulatorRuntimeProfilingApiCall = void (*)(intptr_t arg0, void* arg1);
 
 // This signature supports direct call to accessor getter callback.
-typedef void (*SimulatorRuntimeDirectGetterCall)(intptr_t arg0, intptr_t arg1);
-typedef void (*SimulatorRuntimeProfilingGetterCall)(intptr_t arg0,
-                                                    intptr_t arg1, void* arg2);
+using SimulatorRuntimeDirectGetterCall = void (*)(intptr_t arg0, intptr_t arg1);
+using SimulatorRuntimeProfilingGetterCall = void (*)(intptr_t arg0,
+                                                     intptr_t arg1, void* arg2);
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime.

@@ -110,9 +110,9 @@ class Accessors : public AllStatic {
   // conventions as many of the internal methods in objects.cc:
   // - The return value is unset iff there was an exception.
   // - If the ShouldThrow argument is true, the return value must not be false.
-  typedef void (*AccessorNameBooleanSetterCallback)(
-      Local<v8::Name> property, Local<v8::Value> value,
-      const PropertyCallbackInfo<v8::Boolean>& info);
+  using AccessorNameBooleanSetterCallback =
+      void (*)(Local<v8::Name> property, Local<v8::Value> value,
+               const PropertyCallbackInfo<v8::Boolean>& info);
 
   V8_EXPORT_PRIVATE static Handle<AccessorInfo> MakeAccessor(
       Isolate* isolate, Handle<Name> name, AccessorNameGetterCallback getter,

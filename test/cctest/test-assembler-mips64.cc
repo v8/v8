@@ -43,11 +43,11 @@ namespace internal {
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 // TODO(mips64): Refine these signatures per test case.
-typedef void*(F1)(int x, int p1, int p2, int p3, int p4);
-typedef void*(F2)(int x, int y, int p2, int p3, int p4);
-typedef void*(F3)(void* p, int p1, int p2, int p3, int p4);
-typedef void*(F4)(int64_t x, int64_t y, int64_t p2, int64_t p3, int64_t p4);
-typedef void*(F5)(void* p0, void* p1, int p2, int p3, int p4);
+using F1 = void*(int x, int p1, int p2, int p3, int p4);
+using F2 = void*(int x, int y, int p2, int p3, int p4);
+using F3 = void*(void* p, int p1, int p2, int p3, int p4);
+using F4 = void*(int64_t x, int64_t y, int64_t p2, int64_t p3, int64_t p4);
+using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ assm.
 

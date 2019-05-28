@@ -655,7 +655,7 @@ static const std::vector<int64_t> cvt_trunc_int64_test_values() {
 
 template <typename RET_TYPE, typename IN_TYPE, typename Func>
 RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
-  typedef RET_TYPE(F_CVT)(IN_TYPE x0, int x1, int x2, int x3, int x4);
+  using F_CVT = RET_TYPE(IN_TYPE x0, int x1, int x2, int x3, int x4);
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -986,7 +986,7 @@ TEST(min_max_nan) {
 template <typename IN_TYPE, typename Func>
 bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
                    IN_TYPE value, Func GenerateUnalignedInstructionFunc) {
-  typedef int32_t(F_CVT)(char* x0, int x1, int x2, int x3, int x4);
+  using F_CVT = int32_t(char* x0, int x1, int x2, int x3, int x4);
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -1350,7 +1350,7 @@ static const std::vector<uint64_t> sltu_test_values() {
 
 template <typename Func>
 bool run_Sltu(uint64_t rs, uint64_t rd, Func GenerateSltuInstructionFunc) {
-  typedef int64_t(F_CVT)(uint64_t x0, uint64_t x1, int x2, int x3, int x4);
+  using F_CVT = int64_t(uint64_t x0, uint64_t x1, int x2, int x3, int x4);
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);

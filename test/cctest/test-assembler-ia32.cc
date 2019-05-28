@@ -41,10 +41,9 @@
 namespace v8 {
 namespace internal {
 
-typedef int (*F0)();
-typedef int (*F1)(int x);
-typedef int (*F2)(int x, int y);
-
+using F0 = int (*)();
+using F1 = int (*)(int x);
+using F2 = int (*)(int x, int y);
 
 #define __ assm.
 
@@ -152,8 +151,7 @@ TEST(AssemblerIa322) {
   CHECK_EQ(3628800, res);
 }
 
-
-typedef int (*F3)(float x);
+using F3 = int (*)(float x);
 
 TEST(AssemblerIa323) {
   CcTest::InitializeVM();
@@ -181,8 +179,7 @@ TEST(AssemblerIa323) {
   CHECK_EQ(-3, res);
 }
 
-
-typedef int (*F4)(double x);
+using F4 = int (*)(double x);
 
 TEST(AssemblerIa324) {
   CcTest::InitializeVM();
@@ -232,8 +229,7 @@ TEST(AssemblerIa325) {
   CHECK_EQ(42, res);
 }
 
-
-typedef double (*F5)(double x, double y);
+using F5 = double (*)(double x, double y);
 
 TEST(AssemblerIa326) {
   CcTest::InitializeVM();
@@ -270,8 +266,7 @@ TEST(AssemblerIa326) {
   CHECK(2.29 < res && res < 2.31);
 }
 
-
-typedef double (*F6)(int x);
+using F6 = double (*)(int x);
 
 TEST(AssemblerIa328) {
   CcTest::InitializeVM();
@@ -500,8 +495,7 @@ TEST(AssemblerIa32Extractps) {
   CHECK_EQ(static_cast<int>(0x87654321), f(uint64_to_double(value2)));
 }
 
-
-typedef int (*F8)(float x, float y);
+using F8 = int (*)(float x, float y);
 TEST(AssemblerIa32SSE) {
   CcTest::InitializeVM();
 
@@ -568,7 +562,7 @@ TEST(AssemblerIa32SSE3) {
   CHECK_EQ(4, f(1.0, 2.0));
 }
 
-typedef int (*F9)(double x, double y, double z);
+using F9 = int (*)(double x, double y, double z);
 TEST(AssemblerX64FMA_sd) {
   CcTest::InitializeVM();
   if (!CpuFeatures::IsSupported(FMA3)) return;
@@ -795,8 +789,7 @@ TEST(AssemblerX64FMA_sd) {
   CHECK_EQ(0, f(0.000092662107262076, -2.460774966188315, -1.0958787393627414));
 }
 
-
-typedef int (*F10)(float x, float y, float z);
+using F10 = int (*)(float x, float y, float z);
 TEST(AssemblerX64FMA_ss) {
   CcTest::InitializeVM();
   if (!CpuFeatures::IsSupported(FMA3)) return;

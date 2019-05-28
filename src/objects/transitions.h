@@ -84,7 +84,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
       PropertyAttributes* out_integrity_level = nullptr);
 
   // ===== ITERATION =====
-  typedef void (*TraverseCallback)(Map map, void* data);
+  using TraverseCallback = void (*)(Map map, void* data);
 
   // Traverse the transition tree in postorder.
   void TraverseTransitionTree(TraverseCallback callback, void* data) {

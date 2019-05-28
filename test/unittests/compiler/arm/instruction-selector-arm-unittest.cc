@@ -14,8 +14,7 @@ namespace compiler {
 
 namespace {
 
-typedef Node* (RawMachineAssembler::*Constructor)(Node*, Node*);
-
+using Constructor = Node* (RawMachineAssembler::*)(Node*, Node*);
 
 // Data processing instructions.
 struct DPI {

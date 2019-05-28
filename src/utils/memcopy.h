@@ -29,7 +29,7 @@ const size_t kMinComplexMemCopy = 64;
 
 // Copy memory area. No restrictions.
 V8_EXPORT_PRIVATE void MemMove(void* dest, const void* src, size_t size);
-typedef void (*MemMoveFunction)(void* dest, const void* src, size_t size);
+using MemMoveFunction = void (*)(void* dest, const void* src, size_t size);
 
 // Keep the distinction of "move" vs. "copy" for the benefit of other
 // architectures.
@@ -37,8 +37,8 @@ V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
   MemMove(dest, src, size);
 }
 #elif defined(V8_HOST_ARCH_ARM)
-typedef void (*MemCopyUint8Function)(uint8_t* dest, const uint8_t* src,
-                                     size_t size);
+using MemCopyUint8Function = void (*)(uint8_t* dest, const uint8_t* src,
+                                      size_t size);
 V8_EXPORT_PRIVATE extern MemCopyUint8Function memcopy_uint8_function;
 V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
                                    size_t chars) {
@@ -55,8 +55,8 @@ V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
   memmove(dest, src, size);
 }
 
-typedef void (*MemCopyUint16Uint8Function)(uint16_t* dest, const uint8_t* src,
-                                           size_t size);
+using MemCopyUint16Uint8Function = void (*)(uint16_t* dest, const uint8_t* src,
+                                            size_t size);
 extern MemCopyUint16Uint8Function memcopy_uint16_uint8_function;
 void MemCopyUint16Uint8Wrapper(uint16_t* dest, const uint8_t* src,
                                size_t chars);
@@ -67,8 +67,8 @@ V8_INLINE void MemCopyUint16Uint8(uint16_t* dest, const uint8_t* src,
   (*memcopy_uint16_uint8_function)(dest, src, size);
 }
 #elif defined(V8_HOST_ARCH_MIPS)
-typedef void (*MemCopyUint8Function)(uint8_t* dest, const uint8_t* src,
-                                     size_t size);
+using MemCopyUint8Function = void (*)(uint8_t* dest, const uint8_t* src,
+                                      size_t size);
 V8_EXPORT_PRIVATE extern MemCopyUint8Function memcopy_uint8_function;
 V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
                                    size_t chars) {

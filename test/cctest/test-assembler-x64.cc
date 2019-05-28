@@ -54,12 +54,12 @@ namespace internal {
 // with GCC.  A different convention is used on 64-bit windows,
 // where the first four integer arguments are passed in RCX, RDX, R8 and R9.
 
-typedef int(F0)();
-typedef int(F1)(int64_t x);
-typedef int(F2)(int64_t x, int64_t y);
-typedef unsigned(F3)(double x);
-typedef uint64_t(F4)(uint64_t* x, uint64_t* y);
-typedef uint64_t(F5)(uint64_t x);
+using F0 = int();
+using F1 = int(int64_t x);
+using F2 = int(int64_t x, int64_t y);
+using F3 = unsigned(double x);
+using F4 = uint64_t(uint64_t* x, uint64_t* y);
+using F5 = uint64_t(uint64_t x);
 
 #ifdef _WIN64
 static const Register arg1 = rcx;
@@ -477,7 +477,7 @@ TEST(AssemblerX64TestlOperations) {
 }
 
 TEST(AssemblerX64TestwOperations) {
-  typedef uint16_t(F)(uint16_t * x);
+  using F = uint16_t(uint16_t * x);
   CcTest::InitializeVM();
   auto buffer = AllocateAssemblerBuffer();
   Assembler masm(AssemblerOptions{}, buffer->CreateView());
@@ -876,7 +876,7 @@ TEST(AssemblerX64Extractps) {
   CHECK_EQ(0x87654321u, f.Call(uint64_to_double(value2)));
 }
 
-typedef int(F6)(float x, float y);
+using F6 = int(float x, float y);
 TEST(AssemblerX64SSE) {
   CcTest::InitializeVM();
 
@@ -939,7 +939,7 @@ TEST(AssemblerX64SSE3) {
   CHECK_EQ(4, f.Call(1.0, 2.0));
 }
 
-typedef int(F7)(double x, double y, double z);
+using F7 = int(double x, double y, double z);
 TEST(AssemblerX64FMA_sd) {
   CcTest::InitializeVM();
   if (!CpuFeatures::IsSupported(FMA3)) return;
@@ -1164,7 +1164,7 @@ TEST(AssemblerX64FMA_sd) {
       0, f.Call(0.000092662107262076, -2.460774966188315, -1.0958787393627414));
 }
 
-typedef int(F8)(float x, float y, float z);
+using F8 = int(float x, float y, float z);
 TEST(AssemblerX64FMA_ss) {
   CcTest::InitializeVM();
   if (!CpuFeatures::IsSupported(FMA3)) return;
@@ -2469,7 +2469,7 @@ TEST(AssemblerX64PslldWithXmm15) {
   CHECK_EQ(uint64_t{0x22446688AACCEF10}, result);
 }
 
-typedef float(F9)(float x, float y);
+using F9 = float(float x, float y);
 TEST(AssemblerX64vmovups) {
   CcTest::InitializeVM();
   if (!CpuFeatures::IsSupported(AVX)) return;

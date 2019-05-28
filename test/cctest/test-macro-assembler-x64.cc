@@ -53,7 +53,7 @@ namespace test_macro_assembler_x64 {
 // This calling convention is used on Linux, with GCC, and on Mac OS,
 // with GCC.  A different convention is used on 64-bit windows.
 
-typedef int(F0)();
+using F0 = int();
 
 #define __ masm->
 
@@ -454,7 +454,7 @@ TEST(EmbeddedObj) {
   StdoutStream os;
   code->Print(os);
 #endif
-  typedef Address(myF0)();
+  using myF0 = Address();
   auto f = GeneratedCode<myF0>::FromAddress(isolate, code->entry());
   Object result = Object(f.Call());
   CHECK_EQ(old_array->ptr(), result.ptr());

@@ -8293,7 +8293,7 @@ THREADED_TEST(GCFromWeakCallbacks) {
   Callback gc_forcing_callback[kNumberOfGCTypes] = {&ForceScavenge1,
                                                     &ForceMarkSweep1};
 
-  typedef void (*GCInvoker)();
+  using GCInvoker = void (*)();
   GCInvoker invoke_gc[kNumberOfGCTypes] = {&InvokeScavenge, &InvokeMarkSweep};
 
   for (int outer_gc = 0; outer_gc < kNumberOfGCTypes; outer_gc++) {

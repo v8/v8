@@ -403,33 +403,33 @@ void Simulator::RunFrom(Instruction* start) {
 // The simulator assumes all runtime calls return two 64-bits values. If they
 // don't, register x1 is clobbered. This is fine because x1 is caller-saved.
 #if defined(V8_OS_WIN)
-typedef int64_t (*SimulatorRuntimeCall_ReturnPtr)(int64_t arg0, int64_t arg1,
-                                                  int64_t arg2, int64_t arg3,
-                                                  int64_t arg4, int64_t arg5,
-                                                  int64_t arg6, int64_t arg7,
-                                                  int64_t arg8);
+using SimulatorRuntimeCall_ReturnPtr = int64_t (*)(int64_t arg0, int64_t arg1,
+                                                   int64_t arg2, int64_t arg3,
+                                                   int64_t arg4, int64_t arg5,
+                                                   int64_t arg6, int64_t arg7,
+                                                   int64_t arg8);
 #endif
 
-typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0, int64_t arg1,
-                                           int64_t arg2, int64_t arg3,
-                                           int64_t arg4, int64_t arg5,
-                                           int64_t arg6, int64_t arg7,
-                                           int64_t arg8);
+using SimulatorRuntimeCall = ObjectPair (*)(int64_t arg0, int64_t arg1,
+                                            int64_t arg2, int64_t arg3,
+                                            int64_t arg4, int64_t arg5,
+                                            int64_t arg6, int64_t arg7,
+                                            int64_t arg8);
 
-typedef int64_t (*SimulatorRuntimeCompareCall)(double arg1, double arg2);
-typedef double (*SimulatorRuntimeFPFPCall)(double arg1, double arg2);
-typedef double (*SimulatorRuntimeFPCall)(double arg1);
-typedef double (*SimulatorRuntimeFPIntCall)(double arg1, int32_t arg2);
+using SimulatorRuntimeCompareCall = int64_t (*)(double arg1, double arg2);
+using SimulatorRuntimeFPFPCall = double (*)(double arg1, double arg2);
+using SimulatorRuntimeFPCall = double (*)(double arg1);
+using SimulatorRuntimeFPIntCall = double (*)(double arg1, int32_t arg2);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
-typedef void (*SimulatorRuntimeDirectApiCall)(int64_t arg0);
-typedef void (*SimulatorRuntimeProfilingApiCall)(int64_t arg0, void* arg1);
+using SimulatorRuntimeDirectApiCall = void (*)(int64_t arg0);
+using SimulatorRuntimeProfilingApiCall = void (*)(int64_t arg0, void* arg1);
 
 // This signature supports direct call to accessor getter callback.
-typedef void (*SimulatorRuntimeDirectGetterCall)(int64_t arg0, int64_t arg1);
-typedef void (*SimulatorRuntimeProfilingGetterCall)(int64_t arg0, int64_t arg1,
-                                                    void* arg2);
+using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
+using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
+                                                     void* arg2);
 
 void Simulator::DoRuntimeCall(Instruction* instr) {
   Redirection* redirection = Redirection::FromInstruction(instr);

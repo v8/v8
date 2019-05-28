@@ -2223,27 +2223,27 @@ void Simulator::Format(Instruction* instr, const char* format) {
 // 64 bits of result. If they don't, the v1 result register contains a bogus
 // value, which is fine because it is caller-saved.
 
-typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0, int64_t arg1,
-                                           int64_t arg2, int64_t arg3,
-                                           int64_t arg4, int64_t arg5,
-                                           int64_t arg6, int64_t arg7,
-                                           int64_t arg8);
+using SimulatorRuntimeCall = ObjectPair (*)(int64_t arg0, int64_t arg1,
+                                            int64_t arg2, int64_t arg3,
+                                            int64_t arg4, int64_t arg5,
+                                            int64_t arg6, int64_t arg7,
+                                            int64_t arg8);
 
 // These prototypes handle the four types of FP calls.
-typedef int64_t (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
-typedef double (*SimulatorRuntimeFPFPCall)(double darg0, double darg1);
-typedef double (*SimulatorRuntimeFPCall)(double darg0);
-typedef double (*SimulatorRuntimeFPIntCall)(double darg0, int32_t arg0);
+using SimulatorRuntimeCompareCall = int64_t (*)(double darg0, double darg1);
+using SimulatorRuntimeFPFPCall = double (*)(double darg0, double darg1);
+using SimulatorRuntimeFPCall = double (*)(double darg0);
+using SimulatorRuntimeFPIntCall = double (*)(double darg0, int32_t arg0);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
-typedef void (*SimulatorRuntimeDirectApiCall)(int64_t arg0);
-typedef void (*SimulatorRuntimeProfilingApiCall)(int64_t arg0, void* arg1);
+using SimulatorRuntimeDirectApiCall = void (*)(int64_t arg0);
+using SimulatorRuntimeProfilingApiCall = void (*)(int64_t arg0, void* arg1);
 
 // This signature supports direct call to accessor getter callback.
-typedef void (*SimulatorRuntimeDirectGetterCall)(int64_t arg0, int64_t arg1);
-typedef void (*SimulatorRuntimeProfilingGetterCall)(
-    int64_t arg0, int64_t arg1, void* arg2);
+using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
+using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
+                                                     void* arg2);
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime. They are also used for debugging with simulator.

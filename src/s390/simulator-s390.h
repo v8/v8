@@ -494,7 +494,7 @@ class Simulator : public SimulatorBase {
   int DecodeInstruction(Instruction* instr);
   int Evaluate_Unknown(Instruction* instr);
 #define MAX_NUM_OPCODES (1 << 16)
-  typedef int (Simulator::*EvaluateFuncType)(Instruction*);
+  using EvaluateFuncType = int (Simulator::*)(Instruction*);
 
   static EvaluateFuncType EvalTable[MAX_NUM_OPCODES];
   static void EvalTableInit();

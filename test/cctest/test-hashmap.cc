@@ -37,7 +37,7 @@ namespace v8 {
 namespace internal {
 namespace test_hashmap {
 
-typedef uint32_t (*IntKeyHash)(uint32_t key);
+using IntKeyHash = uint32_t (*)(uint32_t key);
 
 class IntSet {
  public:
