@@ -2579,6 +2579,7 @@ void JSObject::NotifyMapChange(Handle<Map> old_map, Handle<Map> new_map,
 }
 
 namespace {
+
 // To migrate a fast instance to a fast map:
 // - First check whether the instance needs to be rewritten. If not, simply
 //   change the map.
@@ -2606,31 +2607,28 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
       return;
     }
 
+    // If the map adds a new kDescriptor property, simply set the map.
     PropertyDetails details = new_map->GetLastDescriptorDetails();
-    int target_index = details.field_index() - new_map->GetInObjectProperties();
-    int property_array_length = object->property_array().length();
-    bool have_space = old_map->UnusedPropertyFields() > 0 ||
-                      (details.location() == kField && target_index >= 0 &&
-                       property_array_length > target_index);
-    // Either new_map adds an kDescriptor property, or a kField property for
-    // which there is still space, and which does not require a mutable double
-    // box (an out-of-object double).
-    if (details.location() == kDescriptor ||
-        (have_space && ((FLAG_unbox_double_fields && target_index < 0) ||
-                        !details.representation().IsDouble()))) {
+    if (details.location() == kDescriptor) {
       object->synchronized_set_map(*new_map);
       return;
     }
 
-    // If there is still space in the object, we need to allocate a mutable
-    // double box.
-    if (have_space) {
-      FieldIndex index =
-          FieldIndex::ForDescriptor(*new_map, new_map->LastAdded());
-      DCHECK(details.representation().IsDouble());
-      DCHECK(!new_map->IsUnboxedDoubleField(index));
-      auto value = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
-      object->RawFastPropertyAtPut(index, *value);
+    // Check if we still have space in the {object}, in which case we
+    // can also simply set the map (modulo a special case for mutable
+    // double boxes).
+    FieldIndex index =
+        FieldIndex::ForDescriptor(*new_map, new_map->LastAdded());
+    if (index.is_inobject() ||
+        index.outobject_array_index() < object->property_array().length()) {
+      // We still need to allocate MutableHeapNumbers for double fields
+      // if either double field unboxing is disabled or the double field
+      // is in the PropertyArray backing store (where we don't support
+      // double field unboxing).
+      if (index.is_double() && !new_map->IsUnboxedDoubleField(index)) {
+        auto value = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
+        object->RawFastPropertyAtPut(index, *value);
+      }
       object->synchronized_set_map(*new_map);
       return;
     }
@@ -2651,8 +2649,8 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     }
     DCHECK_EQ(kField, details.location());
     DCHECK_EQ(kData, details.kind());
-    DCHECK_GE(target_index, 0);  // Must be a backing store index.
-    new_storage->set(target_index, *value);
+    DCHECK(!index.is_inobject());  // Must be a backing store index.
+    new_storage->set(index.outobject_array_index(), *value);
 
     // From here on we cannot fail and we shouldn't GC anymore.
     DisallowHeapAllocation no_allocation;

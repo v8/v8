@@ -387,10 +387,6 @@ void JSObject::WriteToField(int descriptor, PropertyDetails details,
   DisallowHeapAllocation no_gc;
   FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
   if (details.representation().IsDouble()) {
-    // Nothing more to be done.
-    if (value.IsUninitialized()) {
-      return;
-    }
     // Manipulating the signaling NaN used for the hole and uninitialized
     // double field sentinel in C++, e.g. with bit_cast or value()/set_value(),
     // will change its value on ia32 (the x87 stack is used to return values
@@ -398,6 +394,8 @@ void JSObject::WriteToField(int descriptor, PropertyDetails details,
     uint64_t bits;
     if (value.IsSmi()) {
       bits = bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
+    } else if (value.IsUninitialized()) {
+      bits = kHoleNanInt64;
     } else {
       DCHECK(value.IsHeapNumber());
       bits = HeapNumber::cast(value).value_as_bits();
