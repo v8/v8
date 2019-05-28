@@ -254,6 +254,15 @@ struct BinopMatcher : public NodeMatcher {
   bool IsFoldable() const { return left().HasValue() && right().HasValue(); }
   bool LeftEqualsRight() const { return left().node() == right().node(); }
 
+  bool OwnsInput(Node* input) {
+    for (Node* use : input->uses()) {
+      if (use != node()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
  protected:
   void SwapInputs() {
     std::swap(left_, right_);

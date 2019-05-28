@@ -754,7 +754,7 @@ Reduction MachineOperatorReducer::ReduceInt32Add(Node* node) {
   // (x + Int32Constant(a)) + Int32Constant(b)) => x + Int32Constant(a + b)
   if (m.right().HasValue() && m.left().IsInt32Add()) {
     Int32BinopMatcher n(m.left().node());
-    if (n.right().HasValue()) {
+    if (n.right().HasValue() && m.OwnsInput(m.left().node())) {
       node->ReplaceInput(1, Int32Constant(base::AddWithWraparound(
                                 m.right().Value(), n.right().Value())));
       node->ReplaceInput(0, n.left().node());
@@ -775,7 +775,7 @@ Reduction MachineOperatorReducer::ReduceInt64Add(Node* node) {
   // (x + Int64Constant(a)) + Int64Constant(b)) => x + Int64Constant(a + b)
   if (m.right().HasValue() && m.left().IsInt64Add()) {
     Int64BinopMatcher n(m.left().node());
-    if (n.right().HasValue()) {
+    if (n.right().HasValue() && m.OwnsInput(m.left().node())) {
       node->ReplaceInput(1, Int64Constant(base::AddWithWraparound(
                                 m.right().Value(), n.right().Value())));
       node->ReplaceInput(0, n.left().node());
