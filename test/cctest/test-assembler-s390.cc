@@ -28,10 +28,10 @@
 #include "src/init/v8.h"
 
 #include "src/codegen/macro-assembler.h"
+#include "src/codegen/s390/assembler-s390-inl.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/s390/assembler-s390-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
 

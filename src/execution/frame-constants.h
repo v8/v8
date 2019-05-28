@@ -351,21 +351,21 @@ inline static int FrameSlotToFPOffset(int slot) {
 }  // namespace v8
 
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/frame-constants-ia32.h"  // NOLINT
+#include "src/execution/ia32/frame-constants-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/frame-constants-x64.h"  // NOLINT
+#include "src/execution/x64/frame-constants-x64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/frame-constants-arm64.h"  // NOLINT
+#include "src/execution/arm64/frame-constants-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/frame-constants-arm.h"  // NOLINT
+#include "src/execution/arm/frame-constants-arm.h"  // NOLINT
 #elif V8_TARGET_ARCH_PPC
-#include "src/ppc/frame-constants-ppc.h"  // NOLINT
+#include "src/execution/ppc/frame-constants-ppc.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/frame-constants-mips.h"  // NOLINT
+#include "src/execution/mips/frame-constants-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64
-#include "src/mips64/frame-constants-mips64.h"  // NOLINT
+#include "src/execution/mips64/frame-constants-mips64.h"  // NOLINT
 #elif V8_TARGET_ARCH_S390
-#include "src/s390/frame-constants-s390.h"  // NOLINT
+#include "src/execution/s390/frame-constants-s390.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif

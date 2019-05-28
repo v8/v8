@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/codegen/macro-assembler.h"
+#include "src/codegen/s390/assembler-s390-inl.h"
 #include "src/execution/simulator.h"
-#include "src/s390/assembler-s390-inl.h"
 #include "test/common/assembler-tester.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest-support.h"

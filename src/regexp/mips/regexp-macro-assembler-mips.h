@@ -6,7 +6,7 @@
 #define V8_REGEXP_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
 
 #include "src/codegen/macro-assembler.h"
-#include "src/mips/assembler-mips.h"
+#include "src/codegen/mips/assembler-mips.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {

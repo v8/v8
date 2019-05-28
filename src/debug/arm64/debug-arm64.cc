@@ -6,7 +6,7 @@
 
 #include "src/debug/debug.h"
 
-#include "src/arm64/macro-assembler-arm64-inl.h"
+#include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #include "src/debug/liveedit.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames-inl.h"

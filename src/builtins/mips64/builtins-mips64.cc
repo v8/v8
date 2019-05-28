@@ -13,9 +13,9 @@
 #include "src/logging/counters.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/mips64/constants-mips64.h"
 #include "src/codegen/register-configuration.h"
 #include "src/heap/heap-inl.h"
-#include "src/mips64/constants-mips64.h"
 #include "src/objects/cell.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"

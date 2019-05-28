@@ -4,8 +4,8 @@
 
 #include "src/compiler/backend/code-generator.h"
 
-#include "src/arm64/assembler-arm64-inl.h"
-#include "src/arm64/macro-assembler-arm64-inl.h"
+#include "src/codegen/arm64/assembler-arm64-inl.h"
+#include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/gap-resolver.h"

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arm/assembler-arm-inl.h"
+#include "src/codegen/arm/assembler-arm-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/simulator.h"
 #include "src/utils/ostreams.h"

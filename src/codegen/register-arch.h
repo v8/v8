@@ -9,21 +9,21 @@
 #include "src/codegen/reglist.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/register-ia32.h"
+#include "src/codegen/ia32/register-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/register-x64.h"
+#include "src/codegen/x64/register-x64.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/register-arm64.h"
+#include "src/codegen/arm64/register-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/register-arm.h"
+#include "src/codegen/arm/register-arm.h"
 #elif V8_TARGET_ARCH_PPC
-#include "src/ppc/register-ppc.h"
+#include "src/codegen/ppc/register-ppc.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/register-mips.h"
+#include "src/codegen/mips/register-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
-#include "src/mips64/register-mips64.h"
+#include "src/codegen/mips64/register-mips64.h"
 #elif V8_TARGET_ARCH_S390
-#include "src/s390/register-s390.h"
+#include "src/codegen/s390/register-s390.h"
 #else
 #error Unknown architecture.
 #endif

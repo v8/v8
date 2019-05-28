@@ -6,8 +6,8 @@
 #define V8_REGEXP_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
 
 #include "src/codegen/macro-assembler.h"
+#include "src/codegen/x64/assembler-x64.h"
 #include "src/regexp/regexp-macro-assembler.h"
-#include "src/x64/assembler-x64.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {

@@ -9,7 +9,7 @@
 #include "src/codegen/macro-assembler.h"
 
 #if V8_TARGET_ARCH_ARM64
-#include "src/arm64/macro-assembler-arm64-inl.h"
+#include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #endif
 
 #endif  // V8_CODEGEN_MACRO_ASSEMBLER_INL_H_

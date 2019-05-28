@@ -28,8 +28,8 @@
 #include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/arm64/simulator-arm64.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/execution/arm64/simulator-arm64.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
 

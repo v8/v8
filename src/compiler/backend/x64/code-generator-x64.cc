@@ -9,6 +9,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/x64/assembler-x64.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
@@ -17,7 +18,6 @@
 #include "src/objects/smi.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
-#include "src/x64/assembler-x64.h"
 
 namespace v8 {
 namespace internal {

@@ -8,21 +8,21 @@
 #include "src/codegen/assembler.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/assembler-ia32-inl.h"
+#include "src/codegen/ia32/assembler-ia32-inl.h"
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/assembler-x64-inl.h"
+#include "src/codegen/x64/assembler-x64-inl.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/assembler-arm64-inl.h"
+#include "src/codegen/arm64/assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/assembler-arm-inl.h"
+#include "src/codegen/arm/assembler-arm-inl.h"
 #elif V8_TARGET_ARCH_PPC
-#include "src/ppc/assembler-ppc-inl.h"
+#include "src/codegen/ppc/assembler-ppc-inl.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/assembler-mips-inl.h"
+#include "src/codegen/mips/assembler-mips-inl.h"
 #elif V8_TARGET_ARCH_MIPS64
-#include "src/mips64/assembler-mips64-inl.h"
+#include "src/codegen/mips64/assembler-mips64-inl.h"
 #elif V8_TARGET_ARCH_S390
-#include "src/s390/assembler-s390-inl.h"
+#include "src/codegen/s390/assembler-s390-inl.h"
 #else
 #error Unknown architecture.
 #endif

@@ -5,6 +5,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/codegen/mips64/constants-mips64.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/code-generator.h"
@@ -12,7 +13,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
-#include "src/mips64/constants-mips64.h"
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {

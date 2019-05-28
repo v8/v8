@@ -27,10 +27,10 @@
 
 #include "src/init/v8.h"
 
+#include "src/codegen/ppc/assembler-ppc-inl.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/ppc/assembler-ppc-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
 

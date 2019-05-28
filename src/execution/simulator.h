@@ -15,17 +15,17 @@
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 // No simulator for ia32 or x64.
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/simulator-arm64.h"
+#include "src/execution/arm64/simulator-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/simulator-arm.h"
+#include "src/execution/arm/simulator-arm.h"
 #elif V8_TARGET_ARCH_PPC
-#include "src/ppc/simulator-ppc.h"
+#include "src/execution/ppc/simulator-ppc.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/simulator-mips.h"
+#include "src/execution/mips/simulator-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
-#include "src/mips64/simulator-mips64.h"
+#include "src/execution/mips64/simulator-mips64.h"
 #elif V8_TARGET_ARCH_S390
-#include "src/s390/simulator-s390.h"
+#include "src/execution/s390/simulator-s390.h"
 #else
 #error Unsupported target architecture.
 #endif

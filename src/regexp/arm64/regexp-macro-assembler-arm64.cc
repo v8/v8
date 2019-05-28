@@ -6,7 +6,7 @@
 
 #include "src/regexp/arm64/regexp-macro-assembler-arm64.h"
 
-#include "src/arm64/macro-assembler-arm64-inl.h"
+#include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"

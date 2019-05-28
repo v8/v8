@@ -27,9 +27,9 @@
 
 #include "test/cctest/test-utils-arm64.h"
 
-#include "src/arm64/assembler-arm64-inl.h"
-#include "src/arm64/utils-arm64.h"
 #include "src/base/template-utils.h"
+#include "src/codegen/arm64/assembler-arm64-inl.h"
+#include "src/codegen/arm64/utils-arm64.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/init/v8.h"
 #include "test/cctest/cctest.h"
