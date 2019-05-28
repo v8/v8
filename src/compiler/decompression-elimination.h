@@ -34,9 +34,9 @@ class V8_EXPORT_PRIVATE DecompressionElimination final
   bool IsValidDecompress(IrOpcode::Value compressOpcode,
                          IrOpcode::Value decompressOpcode);
 
-  // Returns true if the constant opcode is a reduceable one in decompression
+  // Returns true if the constant opcode is a reducible one in decompression
   // elimination.
-  bool IsReduceableConstantOpcode(IrOpcode::Value opcode);
+  bool IsReducibleConstantOpcode(IrOpcode::Value opcode);
 
   // Get the new 32 bit node constant given the 64 bit one
   Node* GetCompressedConstant(Node* constant);

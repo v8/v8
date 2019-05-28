@@ -251,6 +251,131 @@ TEST_F(DecompressionEliminationTest,
 }
 
 // -----------------------------------------------------------------------------
+// Compress after constant
+
+TEST_F(DecompressionEliminationTest,
+       DecompressionConstantStoreElementInt64Constant) {
+  // Skip test if pointer compression is not enabled.
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+
+  // Define variables.
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+
+  const ElementAccess element_accesses[] = {
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::AnyCompressed(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::CompressedSigned(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::CompressedPointer(),
+       kNoWriteBarrier}};
+
+  const Operator* compression_ops[] = {
+      machine()->ChangeTaggedToCompressed(),
+      machine()->ChangeTaggedSignedToCompressedSigned(),
+      machine()->ChangeTaggedPointerToCompressedPointer()};
+
+  ASSERT_EQ(arraysize(compression_ops), arraysize(element_accesses));
+
+  const int64_t constants[] = {static_cast<int64_t>(0x0000000000000000),
+                               static_cast<int64_t>(0x0000000000000001),
+                               static_cast<int64_t>(0x0000FFFFFFFF0000),
+                               static_cast<int64_t>(0x7FFFFFFFFFFFFFFF),
+                               static_cast<int64_t>(0x8000000000000000),
+                               static_cast<int64_t>(0x8000000000000001),
+                               static_cast<int64_t>(0x8000FFFFFFFF0000),
+                               static_cast<int64_t>(0x8FFFFFFFFFFFFFFF),
+                               static_cast<int64_t>(0xFFFFFFFFFFFFFFFF)};
+
+  // For every compression.
+  for (size_t i = 0; i < arraysize(compression_ops); ++i) {
+    // For every Int64Constant.
+    for (size_t j = 0; j < arraysize(constants); ++j) {
+      // Create the graph.
+      Node* constant = graph()->NewNode(common()->Int64Constant(constants[j]));
+      Node* changeToCompressed = graph()->NewNode(compression_ops[i], constant);
+      effect =
+          graph()->NewNode(simplified()->StoreElement(element_accesses[i]),
+                           object, index, changeToCompressed, effect, control);
+      // Reduce.
+      Reduction r = Reduce(changeToCompressed);
+      ASSERT_TRUE(r.Changed());
+      EXPECT_EQ(r.replacement()->opcode(), IrOpcode::kInt32Constant);
+    }
+  }
+}
+
+TEST_F(DecompressionEliminationTest,
+       DecompressionConstantStoreElementHeapConstant) {
+  // Skip test if pointer compression is not enabled.
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+
+  // Define variables.
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+
+  const ElementAccess element_accesses[] = {
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::AnyCompressed(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::CompressedSigned(),
+       kNoWriteBarrier},
+      {kTaggedBase, kTaggedSize, Type::Any(), MachineType::CompressedPointer(),
+       kNoWriteBarrier}};
+
+  const Operator* compression_ops[] = {
+      machine()->ChangeTaggedToCompressed(),
+      machine()->ChangeTaggedSignedToCompressedSigned(),
+      machine()->ChangeTaggedPointerToCompressedPointer()};
+
+  ASSERT_EQ(arraysize(compression_ops), arraysize(element_accesses));
+
+  const Handle<HeapNumber> heap_constants[] = {
+      factory()->NewHeapNumber(0.0),
+      factory()->NewHeapNumber(-0.0),
+      factory()->NewHeapNumber(11.2),
+      factory()->NewHeapNumber(-11.2),
+      factory()->NewHeapNumber(3.1415 + 1.4142),
+      factory()->NewHeapNumber(3.1415 - 1.4142),
+      factory()->NewHeapNumber(0x0000000000000000),
+      factory()->NewHeapNumber(0x0000000000000001),
+      factory()->NewHeapNumber(0x0000FFFFFFFF0000),
+      factory()->NewHeapNumber(0x7FFFFFFFFFFFFFFF),
+      factory()->NewHeapNumber(0x8000000000000000),
+      factory()->NewHeapNumber(0x8000000000000001),
+      factory()->NewHeapNumber(0x8000FFFFFFFF0000),
+      factory()->NewHeapNumber(0x8FFFFFFFFFFFFFFF),
+      factory()->NewHeapNumber(0xFFFFFFFFFFFFFFFF)};
+
+  // For every compression.
+  for (size_t i = 0; i < arraysize(compression_ops); ++i) {
+    // For every HeapNumber.
+    for (size_t j = 0; j < arraysize(heap_constants); ++j) {
+      // Create the graph.
+      Node* constant =
+          graph()->NewNode(common()->HeapConstant(heap_constants[j]));
+      Node* changeToCompressed = graph()->NewNode(compression_ops[i], constant);
+      effect =
+          graph()->NewNode(simplified()->StoreElement(element_accesses[i]),
+                           object, index, changeToCompressed, effect, control);
+      // Reduce.
+      Reduction r = Reduce(changeToCompressed);
+      ASSERT_TRUE(r.Changed());
+      // TODO(v8:8977): Change the IrOpcode here to kCompressedHeapConstant when
+      // that is in place.
+      EXPECT_EQ(r.replacement()->opcode(), IrOpcode::kHeapConstant);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Phi
 
 TEST_F(DecompressionEliminationTest, PhiOneDecompress) {

@@ -17,7 +17,7 @@ DecompressionElimination::DecompressionElimination(
       machine_(machine),
       common_(common) {}
 
-bool DecompressionElimination::IsReduceableConstantOpcode(
+bool DecompressionElimination::IsReducibleConstantOpcode(
     IrOpcode::Value opcode) {
   switch (opcode) {
     case IrOpcode::kInt64Constant:
@@ -70,10 +70,13 @@ Reduction DecompressionElimination::ReduceCompress(Node* node) {
 
   DCHECK_EQ(node->InputCount(), 1);
   Node* input_node = node->InputAt(0);
-  if (IrOpcode::IsDecompressOpcode(input_node->opcode())) {
-    DCHECK(IsValidDecompress(node->opcode(), input_node->opcode()));
+  IrOpcode::Value input_opcode = input_node->opcode();
+  if (IrOpcode::IsDecompressOpcode(input_opcode)) {
+    DCHECK(IsValidDecompress(node->opcode(), input_opcode));
     DCHECK_EQ(input_node->InputCount(), 1);
     return Replace(input_node->InputAt(0));
+  } else if (IsReducibleConstantOpcode(input_opcode)) {
+    return Replace(GetCompressedConstant(input_node));
   } else {
     return NoChange();
   }
@@ -171,8 +174,8 @@ Reduction DecompressionElimination::ReduceWord64Equal(Node* node) {
     return Changed(node);
   }
 
-  bool lhs_is_constant = IsReduceableConstantOpcode(lhs->opcode());
-  bool rhs_is_constant = IsReduceableConstantOpcode(rhs->opcode());
+  bool lhs_is_constant = IsReducibleConstantOpcode(lhs->opcode());
+  bool rhs_is_constant = IsReducibleConstantOpcode(rhs->opcode());
 
   // Case where one input is a Decompress node and the other a constant.
   if ((lhs_is_decompress && rhs_is_constant) ||
