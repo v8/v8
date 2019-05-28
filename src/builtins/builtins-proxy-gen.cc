@@ -265,6 +265,7 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
 Node* ProxiesCodeStubAssembler::CheckGetSetTrapResult(
     Node* context, Node* target, Node* proxy, Node* name, Node* trap_result,
     JSProxy::AccessKind access_kind) {
+  // TODO(mslekova): Think of a better name for the trap_result param.
   Node* map = LoadMap(target);
   VARIABLE(var_value, MachineRepresentation::kTagged);
   VARIABLE(var_details, MachineRepresentation::kWord32);

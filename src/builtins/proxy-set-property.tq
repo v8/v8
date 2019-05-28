@@ -64,8 +64,7 @@ namespace proxy {
       const trapResult = Call(
           context, trap, handlerJSReceiver, target, name, value, receiverValue);
       if (BranchIfToBooleanIsTrue(trapResult)) {
-        return CheckGetSetTrapResult(
-            target, proxy, name, trapResult, kProxySet);
+        return CheckGetSetTrapResult(target, proxy, name, value, kProxySet);
       }
       ThrowTypeErrorIfStrict(
           SmiConstant(kProxyTrapReturnedFalsishFor), 'set', name);
