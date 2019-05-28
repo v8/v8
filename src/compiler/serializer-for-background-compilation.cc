@@ -447,21 +447,6 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
   }
 }
 
-void SerializerForBackgroundCompilation::VisitIllegal(
-    BytecodeArrayIterator* iterator) {
-  UNREACHABLE();
-}
-
-void SerializerForBackgroundCompilation::VisitWide(
-    BytecodeArrayIterator* iterator) {
-  UNREACHABLE();
-}
-
-void SerializerForBackgroundCompilation::VisitExtraWide(
-    BytecodeArrayIterator* iterator) {
-  UNREACHABLE();
-}
-
 void SerializerForBackgroundCompilation::VisitGetSuperConstructor(
     BytecodeArrayIterator* iterator) {
   interpreter::Register dst = iterator->GetRegisterOperand(0);
@@ -811,6 +796,17 @@ void SerializerForBackgroundCompilation::VisitReturn(
     BytecodeArrayIterator* iterator) {
   environment()->return_value_hints().Add(environment()->accumulator_hints());
   environment()->ClearEphemeralHints();
+}
+
+void SerializerForBackgroundCompilation::VisitSwitchOnSmiNoFeedback(
+    interpreter::BytecodeArrayIterator* iterator) {
+  interpreter::JumpTableTargetOffsets targets =
+      iterator->GetJumpTableTargetOffsets();
+  for (const auto& target : targets) {
+    // TODO(neis): Here and in ProcessJump, don't overwrite stashed environment.
+    stashed_environments_[target.target_offset] =
+        new (zone()) Environment(*environment());
+  }
 }
 
 void SerializerForBackgroundCompilation::Environment::ExportRegisterHints(
@@ -1175,6 +1171,22 @@ UNCONDITIONAL_JUMPS_LIST(DEFINE_UNCONDITIONAL_JUMP)
       BytecodeArrayIterator* iterator) {}
 IGNORED_BYTECODE_LIST(DEFINE_IGNORE)
 #undef DEFINE_IGNORE
+
+#define DEFINE_UNREACHABLE(name, ...)                   \
+  void SerializerForBackgroundCompilation::Visit##name( \
+      BytecodeArrayIterator* iterator) {                \
+    UNREACHABLE();                                      \
+  }
+UNREACHABLE_BYTECODE_LIST(DEFINE_UNREACHABLE)
+#undef DEFINE_UNREACHABLE
+
+#define DEFINE_KILL(name, ...)                          \
+  void SerializerForBackgroundCompilation::Visit##name( \
+      BytecodeArrayIterator* iterator) {                \
+    environment()->Kill();                              \
+  }
+KILL_ENVIRONMENT_LIST(DEFINE_KILL)
+#undef DEFINE_KILL
 
 }  // namespace compiler
 }  // namespace internal

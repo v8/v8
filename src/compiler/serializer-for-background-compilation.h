@@ -31,7 +31,6 @@ class Zone;
 namespace compiler {
 
 #define CLEAR_ENVIRONMENT_LIST(V) \
-  V(Abort)                        \
   V(CallRuntime)                  \
   V(CallRuntimeForPair)           \
   V(CreateBlockContext)           \
@@ -41,11 +40,14 @@ namespace compiler {
   V(PopContext)                   \
   V(PushContext)                  \
   V(ResumeGenerator)              \
-  V(ReThrow)                      \
   V(StaContextSlot)               \
   V(StaCurrentContextSlot)        \
   V(SuspendGenerator)             \
-  V(SwitchOnGeneratorState)       \
+  V(SwitchOnGeneratorState)
+
+#define KILL_ENVIRONMENT_LIST(V) \
+  V(Abort)                       \
+  V(ReThrow)                     \
   V(Throw)
 
 #define CLEAR_ACCUMULATOR_LIST(V)   \
@@ -152,6 +154,11 @@ namespace compiler {
   V(ThrowSuperAlreadyCalledIfNotHole) \
   V(ThrowSuperNotCalledIfHole)
 
+#define UNREACHABLE_BYTECODE_LIST(V) \
+  V(ExtraWide)                       \
+  V(Illegal)                         \
+  V(Wide)
+
 #define SUPPORTED_BYTECODE_LIST(V)   \
   V(CallAnyReceiver)                 \
   V(CallProperty)                    \
@@ -166,9 +173,7 @@ namespace compiler {
   V(Construct)                       \
   V(ConstructWithSpread)             \
   V(CreateClosure)                   \
-  V(ExtraWide)                       \
   V(GetSuperConstructor)             \
-  V(Illegal)                         \
   V(LdaConstant)                     \
   V(LdaFalse)                        \
   V(LdaGlobal)                       \
@@ -192,13 +197,15 @@ namespace compiler {
   V(StaNamedOwnProperty)             \
   V(StaNamedProperty)                \
   V(Star)                            \
+  V(SwitchOnSmiNoFeedback)           \
   V(TestIn)                          \
-  V(Wide)                            \
-  CLEAR_ENVIRONMENT_LIST(V)          \
   CLEAR_ACCUMULATOR_LIST(V)          \
+  CLEAR_ENVIRONMENT_LIST(V)          \
   CONDITIONAL_JUMPS_LIST(V)          \
+  IGNORED_BYTECODE_LIST(V)           \
+  KILL_ENVIRONMENT_LIST(V)           \
   UNCONDITIONAL_JUMPS_LIST(V)        \
-  IGNORED_BYTECODE_LIST(V)
+  UNREACHABLE_BYTECODE_LIST(V)
 
 class JSHeapBroker;
 
