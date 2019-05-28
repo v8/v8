@@ -4976,15 +4976,6 @@ void MacroAssembler::AssertStackIsAligned() {
     }
 }
 
-void MacroAssembler::UntagAndJumpIfSmi(Register dst,
-                                       Register src,
-                                       Label* smi_case) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  JumpIfSmi(src, smi_case, scratch, USE_DELAY_SLOT);
-  SmiUntag(dst, src);
-}
-
 void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
                                Register scratch, BranchDelaySlot bd) {
   DCHECK_EQ(0, kSmiTag);
@@ -4999,19 +4990,6 @@ void MacroAssembler::JumpIfNotSmi(Register value,
   DCHECK_EQ(0, kSmiTag);
   andi(scratch, value, kSmiTagMask);
   Branch(bd, not_smi_label, ne, scratch, Operand(zero_reg));
-}
-
-
-void MacroAssembler::JumpIfEitherSmi(Register reg1,
-                                     Register reg2,
-                                     Label* on_either_smi) {
-  STATIC_ASSERT(kSmiTag == 0);
-  DCHECK_EQ(1, kSmiTagMask);
-  // Both Smi tags must be 1 (not Smi).
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  and_(scratch, reg1, reg2);
-  JumpIfSmi(scratch, on_either_smi);
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
