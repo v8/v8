@@ -1630,11 +1630,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
       access.machine_type = MachineType::Float64();
       access.type = Type::Number();
       uint64_t value_bits = boilerplate.RawFastDoublePropertyAsBitsAt(index);
-      // TODO(gsps): Remove the is_undefined once we've eliminated the case
-      //   where a pointer to the undefined value gets reinterpreted as the
-      //   boilerplate value of certain uninitialized unboxed double fields.
-      bool is_undefined = value_bits == (*(factory()->undefined_value())).ptr();
-      if (value_bits == kHoleNanInt64 || is_undefined) {
+      if (value_bits == kHoleNanInt64) {
         // This special case is analogous to is_uninitialized being true in the
         // non-unboxed-double case below. The store of the hole NaN value here
         // will always be followed by another store that actually initializes
