@@ -2011,8 +2011,7 @@ KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver, uint32_t index) {
   if (allow_growth) {
     return STORE_AND_GROW_HANDLE_COW;
   }
-  if (!FLAG_trace_external_array_abuse &&
-      receiver->map().has_typed_array_elements() && oob_access) {
+  if (receiver->map().has_typed_array_elements() && oob_access) {
     return STORE_IGNORE_OUT_OF_BOUNDS;
   }
   return receiver->elements().IsCowArray() ? STORE_HANDLE_COW : STANDARD_STORE;

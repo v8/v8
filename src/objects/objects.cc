@@ -2771,14 +2771,6 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
                                     isolate->factory()->length_string(),
                                     Object::TypeOf(isolate, array), array));
       }
-
-      if (FLAG_trace_external_array_abuse && array->HasTypedArrayElements()) {
-        CheckArrayAbuse(array, "typed elements write", it->index(), true);
-      }
-
-      if (FLAG_trace_js_array_abuse && !array->HasTypedArrayElements()) {
-        CheckArrayAbuse(array, "elements write", it->index(), false);
-      }
     }
 
     Handle<JSObject> receiver_obj = Handle<JSObject>::cast(receiver);

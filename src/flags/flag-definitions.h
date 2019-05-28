@@ -1019,16 +1019,6 @@ DEFINE_BOOL(trace_compiler_dispatcher, false,
 DEFINE_INT(cpu_profiler_sampling_interval, 1000,
            "CPU profiler sampling interval in microseconds")
 
-// Array abuse tracing
-DEFINE_BOOL(trace_js_array_abuse, false,
-            "trace out-of-bounds accesses to JS arrays")
-DEFINE_BOOL(trace_external_array_abuse, false,
-            "trace out-of-bounds-accesses to external arrays")
-DEFINE_BOOL(trace_array_abuse, false,
-            "trace out-of-bounds accesses to all arrays")
-DEFINE_IMPLICATION(trace_array_abuse, trace_js_array_abuse)
-DEFINE_IMPLICATION(trace_array_abuse, trace_external_array_abuse)
-
 // debugger
 DEFINE_BOOL(
     trace_side_effect_free_debug_evaluate, false,

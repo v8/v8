@@ -447,26 +447,6 @@ static void CopyDictionaryToDoubleElements(
   }
 }
 
-static void TraceTopFrame(Isolate* isolate) {
-  StackFrameIterator it(isolate);
-  if (it.done()) {
-    PrintF("unknown location (no JavaScript frames present)");
-    return;
-  }
-  StackFrame* raw_frame = it.frame();
-  if (raw_frame->is_internal()) {
-    Code current_code_object =
-        isolate->heap()->GcSafeFindCodeForInnerPointer(raw_frame->pc());
-    if (current_code_object.builtin_index() ==
-        Builtins::kFunctionPrototypeApply) {
-      PrintF("apply from ");
-      it.Advance();
-      raw_frame = it.frame();
-    }
-  }
-  JavaScriptFrame::PrintTop(isolate, stdout, false, true);
-}
-
 static void SortIndices(Isolate* isolate, Handle<FixedArray> indices,
                         uint32_t sort_size) {
   // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
@@ -4591,44 +4571,6 @@ class SlowStringWrapperElementsAccessor
 };
 
 }  // namespace
-
-void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t index,
-                     bool allow_appending) {
-  DisallowHeapAllocation no_allocation;
-  Object raw_length;
-  const char* elements_type = "array";
-  if (obj->IsJSArray()) {
-    JSArray array = JSArray::cast(*obj);
-    raw_length = array.length();
-  } else {
-    raw_length = Smi::FromInt(obj->elements().length());
-    elements_type = "object";
-  }
-
-  if (raw_length.IsNumber()) {
-    double n = raw_length.Number();
-    if (FastI2D(FastD2UI(n)) == n) {
-      int32_t int32_length = DoubleToInt32(n);
-      uint32_t compare_length = static_cast<uint32_t>(int32_length);
-      if (allow_appending) compare_length++;
-      if (index >= compare_length) {
-        PrintF("[OOB %s %s (%s length = %d, element accessed = %d) in ",
-               elements_type, op, elements_type, static_cast<int>(int32_length),
-               static_cast<int>(index));
-        TraceTopFrame(obj->GetIsolate());
-        PrintF("]\n");
-      }
-    } else {
-      PrintF("[%s elements length not integer value in ", elements_type);
-      TraceTopFrame(obj->GetIsolate());
-      PrintF("]\n");
-    }
-  } else {
-    PrintF("[%s elements length not a number in ", elements_type);
-    TraceTopFrame(obj->GetIsolate());
-    PrintF("]\n");
-  }
-}
 
 MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
                                                      Arguments* args) {

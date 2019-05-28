@@ -215,9 +215,6 @@ class ElementsAccessor {
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };
 
-void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t index,
-                     bool allow_appending = false);
-
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
     Handle<JSArray> array, Arguments* args);
 
