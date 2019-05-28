@@ -878,12 +878,7 @@ extern class WasmExportedFunctionData extends Struct {
   function_index: Smi;
 }
 
-extern class WasmJSFunctionData extends Struct {
-  wrapper_code: Code;
-  serialized_return_count: Smi;
-  serialized_parameter_count: Smi;
-  serialized_signature: ByteArray;  // PodArray<wasm::ValueType>
-}
+extern class WasmJSFunctionData extends Struct { wrapper_code: Code; }
 
 extern class WasmCapiFunctionData extends Struct {
   call_target: RawPtr;

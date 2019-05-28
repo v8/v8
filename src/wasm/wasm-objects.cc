@@ -2143,19 +2143,9 @@ bool WasmJSFunction::IsWasmJSFunction(Object object) {
 Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
                                            wasm::FunctionSig* sig,
                                            Handle<JSReceiver> callable) {
-  DCHECK_LE(sig->all().size(), kMaxInt);
-  int sig_size = static_cast<int>(sig->all().size());
-  int return_count = static_cast<int>(sig->return_count());
-  int parameter_count = static_cast<int>(sig->parameter_count());
-  Handle<PodArray<wasm::ValueType>> serialized_sig =
-      PodArray<wasm::ValueType>::New(isolate, sig_size, AllocationType::kOld);
-  serialized_sig->copy_in(0, sig->all().begin(), sig_size);
   Handle<WasmJSFunctionData> function_data =
       Handle<WasmJSFunctionData>::cast(isolate->factory()->NewStruct(
           WASM_JS_FUNCTION_DATA_TYPE, AllocationType::kOld));
-  function_data->set_serialized_return_count(return_count);
-  function_data->set_serialized_parameter_count(parameter_count);
-  function_data->set_serialized_signature(*serialized_sig);
   // TODO(7742): Make this callable by using a proper wrapper code.
   function_data->set_wrapper_code(
       isolate->builtins()->builtin(Builtins::kIllegal));
@@ -2168,16 +2158,6 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
       NewFunctionArgs::ForWasm(name, function_data, function_map);
   Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);
   return Handle<WasmJSFunction>::cast(js_function);
-}
-
-wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
-  WasmJSFunctionData function_data = shared().wasm_js_function_data();
-  int sig_size = function_data.serialized_signature().length();
-  wasm::ValueType* types = zone->NewArray<wasm::ValueType>(sig_size);
-  function_data.serialized_signature().copy_out(0, types, sig_size);
-  int return_count = function_data.serialized_return_count();
-  int parameter_count = function_data.serialized_parameter_count();
-  return new (zone) wasm::FunctionSig(return_count, parameter_count, types);
 }
 
 Address WasmCapiFunction::GetHostCallTarget() const {

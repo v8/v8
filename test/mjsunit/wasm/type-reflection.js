@@ -239,21 +239,6 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertDoesNotThrow(() => fun());
 })();
 
-(function TestFunctionTypeOfConstructedFunction() {
-  let testcases = [
-    {parameters:[], results:[]},
-    {parameters:["i32"], results:[]},
-    {parameters:["i64"], results:["i32"]},
-    {parameters:["f64", "f64", "i32"], results:[]},
-    {parameters:["f32"], results:["f32"]},
-  ];
-  testcases.forEach(function(expected) {
-    let fun = new WebAssembly.Function(expected, _ => 0);
-    let type = WebAssembly.Function.type(fun);
-    assertEquals(expected, type)
-  });
-})();
-
 (function TestFunctionTypeOfExportedFunction() {
   let testcases = [
     [kSig_v_v, {parameters:[], results:[]}],

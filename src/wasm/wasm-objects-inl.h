@@ -317,12 +317,6 @@ CAST_ACCESSOR(WasmJSFunction)
 // WasmJSFunctionData
 OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData, Struct)
 CAST_ACCESSOR(WasmJSFunctionData)
-SMI_ACCESSORS(WasmJSFunctionData, serialized_return_count,
-              kSerializedReturnCountOffset)
-SMI_ACCESSORS(WasmJSFunctionData, serialized_parameter_count,
-              kSerializedParameterCountOffset)
-ACCESSORS(WasmJSFunctionData, serialized_signature, PodArray<wasm::ValueType>,
-          kSerializedSignatureOffset)
 ACCESSORS(WasmJSFunctionData, wrapper_code, Code, kWrapperCodeOffset)
 
 // WasmCapiFunction
