@@ -33,8 +33,6 @@ class FieldIndex final {
 
   bool is_inobject() const { return IsInObjectBits::decode(bit_field_); }
 
-  bool is_hidden_field() const { return IsHiddenField::decode(bit_field_); }
-
   bool is_double() const { return EncodingBits::decode(bit_field_) == kDouble; }
 
   int offset() const { return OffsetBits::decode(bit_field_); }
@@ -53,7 +51,6 @@ class FieldIndex final {
   // Zero-based from the first inobject property. Overflows to out-of-object
   // properties.
   int property_index() const {
-    DCHECK(!is_hidden_field());
     int result = index() - first_inobject_property_offset() / kTaggedSize;
     if (!is_inobject()) {
       result += InObjectPropertyBits::decode(bit_field_);
@@ -73,14 +70,13 @@ class FieldIndex final {
 
  private:
   FieldIndex(bool is_inobject, int offset, Encoding encoding,
-             int inobject_properties, int first_inobject_property_offset,
-             bool is_hidden = false) {
+             int inobject_properties, int first_inobject_property_offset) {
     DCHECK(IsAligned(first_inobject_property_offset, kTaggedSize));
     bit_field_ = IsInObjectBits::encode(is_inobject) |
                  EncodingBits::encode(encoding) |
                  FirstInobjectPropertyOffsetBits::encode(
                      first_inobject_property_offset) |
-                 IsHiddenField::encode(is_hidden) | OffsetBits::encode(offset) |
+                 OffsetBits::encode(offset) |
                  InObjectPropertyBits::encode(inobject_properties);
   }
 
@@ -102,7 +98,6 @@ class FieldIndex final {
   }
 
   int first_inobject_property_offset() const {
-    DCHECK(!is_hidden_field());
     return FirstInobjectPropertyOffsetBits::decode(bit_field_);
   }
 
@@ -121,9 +116,7 @@ class FieldIndex final {
   class FirstInobjectPropertyOffsetBits
       : public BitField64<int, InObjectPropertyBits::kNext,
                           kFirstInobjectPropertyOffsetBitCount> {};
-  class IsHiddenField
-      : public BitField64<bool, FirstInobjectPropertyOffsetBits::kNext, 1> {};
-  STATIC_ASSERT(IsHiddenField::kNext <= 64);
+  STATIC_ASSERT(FirstInobjectPropertyOffsetBits::kNext <= 64);
 
   uint64_t bit_field_;
 };

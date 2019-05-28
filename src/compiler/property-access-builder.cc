@@ -211,8 +211,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       LoadSensitivity::kCritical,
       constness};
   if (field_representation == MachineRepresentation::kFloat64) {
-    if (!field_index.is_inobject() || field_index.is_hidden_field() ||
-        !FLAG_unbox_double_fields) {
+    if (!field_index.is_inobject() || !FLAG_unbox_double_fields) {
       FieldAccess const storage_access = {
           kTaggedBase,
           field_index.offset(),

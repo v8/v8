@@ -138,7 +138,7 @@ void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
 
 bool Map::IsUnboxedDoubleField(FieldIndex index) const {
   if (!FLAG_unbox_double_fields) return false;
-  if (index.is_hidden_field() || !index.is_inobject()) return false;
+  if (!index.is_inobject()) return false;
   return !layout_descriptor().IsTagged(index.property_index());
 }
 
