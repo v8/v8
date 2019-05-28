@@ -112,6 +112,8 @@ void LocalEmbedderHeapTracer::ProcessingScope::AddWrapperInfoForTesting(
 }
 
 void LocalEmbedderHeapTracer::StartIncrementalMarkingIfNeeded() {
+  if (!FLAG_global_gc_scheduling) return;
+
   Heap* heap = isolate_->heap();
   heap->StartIncrementalMarkingIfAllocationLimitIsReached(
       heap->GCFlagsForIncrementalMarking(),
