@@ -441,6 +441,13 @@ transient type FastJSArrayForReadWithNoCustomIteration extends
 
 type NoSharedNameSentinel extends Smi;
 
+@generateCppClass
+extern class CallHandlerInfo extends Struct {
+  callback: Foreign | Undefined;
+  js_callback: Foreign | Undefined;
+  data: Object;
+}
+
 type JSModuleNamespace extends JSObject;
 type WeakArrayList extends HeapObject;
 

@@ -1750,15 +1750,12 @@ USE_TORQUE_VERIFIER(AccessorPair)
 USE_TORQUE_VERIFIER(AccessCheckInfo)
 
 void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
-  CHECK(IsCallHandlerInfo());
+  TorqueGeneratedClassVerifiers::CallHandlerInfoVerify(*this, isolate);
   CHECK(map() == ReadOnlyRoots(isolate).side_effect_call_handler_info_map() ||
         map() ==
             ReadOnlyRoots(isolate).side_effect_free_call_handler_info_map() ||
         map() == ReadOnlyRoots(isolate)
                      .next_call_side_effect_free_call_handler_info_map());
-  VerifyPointer(isolate, callback());
-  VerifyPointer(isolate, js_callback());
-  VerifyPointer(isolate, data());
 }
 
 void InterceptorInfo::InterceptorInfoVerify(Isolate* isolate) {
