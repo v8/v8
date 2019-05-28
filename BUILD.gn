@@ -3681,8 +3681,8 @@ v8_component("v8_libplatform") {
       "src/libplatform/tracing/trace-event-listener.h",
     ]
     deps += [
-      "third_party/perfetto:libperfetto",
-      "third_party/perfetto/protos/perfetto/trace/chrome:minimal_complete_lite",
+      "//third_party/perfetto:libperfetto",
+      "//third_party/perfetto/protos/perfetto/trace/chrome:minimal_complete_lite",
     ]
   }
 }
@@ -4420,16 +4420,13 @@ if (!build_with_chromium && v8_use_perfetto) {
       "GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER",
     ]
     cflags = [
-      # Using -isystem instead of include_dirs (-I), so we don't need to suppress
-      # warnings coming from libprotobuf headers. Doing so would mask warnings in
-      # our own code.
-      "-isystem",
-      rebase_path("third_party/protobuf/src", root_build_dir),
       "-Wno-unknown-warning-option",
       "-Wno-deprecated",
       "-Wno-undef",
       "-Wno-zero-as-null-pointer-constant",
+      "-Wno-thread-safety-attributes",
     ]
+    include_dirs = [ "third_party/protobuf/src" ]
   }
 
   # Configuration used to build libprotobuf_* and the protoc compiler.
@@ -4437,7 +4434,9 @@ if (!build_with_chromium && v8_use_perfetto) {
     # Apply the lighter supressions and macro definitions from above.
     configs = [ ":protobuf_gen_config" ]
 
-    defines = [ "HAVE_PTHREAD=1" ]
+    if (!is_win) {
+      defines = [ "HAVE_PTHREAD=1" ]
+    }
     if (is_clang) {
       cflags = [
         "-Wno-unused-private-field",
@@ -4448,6 +4447,9 @@ if (!build_with_chromium && v8_use_perfetto) {
         "-Wno-user-defined-warnings",
         "-Wno-tautological-constant-compare",
       ]
+    }
+    if (is_win) {
+      cflags += [ "-Wno-microsoft-unqualified-friend" ]
     }
   }
 
@@ -4483,6 +4485,9 @@ if (!build_with_chromium && v8_use_perfetto) {
       "//build/config/compiler:no_chromium_code",
       ":protobuf_config",
     ]
+    if (is_win) {
+      configs -= [ "//build/config/win:lean_and_mean" ]
+    }
     public_configs = [ ":protobuf_gen_config" ]
   }
 
@@ -4552,6 +4557,9 @@ if (!build_with_chromium && v8_use_perfetto) {
       "//build/config/compiler:no_chromium_code",
       ":protobuf_config",
     ]
+    if (is_win) {
+      configs -= [ "//build/config/win:lean_and_mean" ]
+    }
     public_configs = [ ":protobuf_gen_config" ]
   }
 
@@ -4587,6 +4595,9 @@ if (!build_with_chromium && v8_use_perfetto) {
         "//build/config/compiler:no_chromium_code",
         ":protobuf_config",
       ]
+      if (is_win) {
+        configs -= [ "//build/config/win:lean_and_mean" ]
+      }
       public_configs = [ ":protobuf_gen_config" ]
     }
 
