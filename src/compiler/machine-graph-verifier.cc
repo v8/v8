@@ -498,8 +498,8 @@ class MachineRepresentationChecker {
                     node, 1, inferrer_->GetRepresentation(node->InputAt(0)));
               }
             } else {
-              CheckValueInputForInt32Op(node, 0);
-              CheckValueInputForInt32Op(node, 1);
+              CheckValueIsCompressedOrInt32(node, 0);
+              CheckValueIsCompressedOrInt32(node, 1);
             }
             break;
 
@@ -602,6 +602,11 @@ class MachineRepresentationChecker {
               case MachineRepresentation::kTaggedSigned:
                 CheckValueInputIsTagged(node, 2);
                 break;
+              case MachineRepresentation::kCompressed:
+              case MachineRepresentation::kCompressedPointer:
+              case MachineRepresentation::kCompressedSigned:
+                CheckValueInputIsCompressed(node, 2);
+                break;
               default:
                 CheckValueInputRepresentationIs(
                     node, 2, inferrer_->GetRepresentation(node));
@@ -639,6 +644,13 @@ class MachineRepresentationChecker {
               case MachineRepresentation::kTaggedSigned:
                 for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
                   CheckValueInputIsTagged(node, i);
+                }
+                break;
+              case MachineRepresentation::kCompressed:
+              case MachineRepresentation::kCompressedPointer:
+              case MachineRepresentation::kCompressedSigned:
+                for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+                  CheckValueInputIsCompressed(node, i);
                 }
                 break;
               case MachineRepresentation::kWord32:
@@ -729,6 +741,24 @@ class MachineRepresentationChecker {
     }
   }
 
+  void CheckValueInputIsCompressed(Node const* node, int index) {
+    Node const* input = node->InputAt(index);
+    switch (inferrer_->GetRepresentation(input)) {
+      case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kCompressedSigned:
+        return;
+      default:
+        break;
+    }
+    std::ostringstream str;
+    str << "TypeError: node #" << node->id() << ":" << *node->op()
+        << " uses node #" << input->id() << ":" << *input->op()
+        << " which doesn't have a compressed representation.";
+    PrintDebugHelp(str, node);
+    FATAL("%s", str.str().c_str());
+  }
+
   void CheckValueInputIsTagged(Node const* node, int index) {
     Node const* input = node->InputAt(index);
     switch (inferrer_->GetRepresentation(input)) {
@@ -804,6 +834,38 @@ class MachineRepresentationChecker {
     str << "TypeError: node #" << node->id() << ":" << *node->op()
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have an int32-compatible representation.";
+    PrintDebugHelp(str, node);
+    FATAL("%s", str.str().c_str());
+  }
+
+  void CheckValueIsCompressedOrInt32(Node const* node, int index) {
+    Node const* input = node->InputAt(index);
+    switch (inferrer_->GetRepresentation(input)) {
+      case MachineRepresentation::kBit:
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        return;
+      case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kCompressedSigned:
+      case MachineRepresentation::kCompressedPointer:
+        return;
+      case MachineRepresentation::kNone: {
+        std::ostringstream str;
+        str << "TypeError: node #" << input->id() << ":" << *input->op()
+            << " is untyped.";
+        PrintDebugHelp(str, node);
+        FATAL("%s", str.str().c_str());
+        break;
+      }
+      default:
+        break;
+    }
+    std::ostringstream str;
+    str << "TypeError: node #" << node->id() << ":" << *node->op()
+        << " uses node #" << input->id() << ":" << *input->op()
+        << " which doesn't have a compressed or int32-compatible "
+           "representation.";
     PrintDebugHelp(str, node);
     FATAL("%s", str.str().c_str());
   }

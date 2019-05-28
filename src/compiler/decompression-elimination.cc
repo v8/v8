@@ -21,8 +21,10 @@ bool DecompressionElimination::IsReducibleConstantOpcode(
     IrOpcode::Value opcode) {
   switch (opcode) {
     case IrOpcode::kInt64Constant:
-    case IrOpcode::kHeapConstant:
       return true;
+    // TODO(v8:8977): Disabling HeapConstant until CompressedHeapConstant
+    // exists, since it breaks with verify CSA on.
+    case IrOpcode::kHeapConstant:
     default:
       return false;
   }
