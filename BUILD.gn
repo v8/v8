@@ -3473,6 +3473,7 @@ v8_component("v8_libbase") {
     "src/base/list.h",
     "src/base/logging.cc",
     "src/base/logging.h",
+    "src/base/lsan.h",
     "src/base/macros.h",
     "src/base/once.cc",
     "src/base/once.h",

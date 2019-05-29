@@ -6,6 +6,7 @@
 
 #include <cstring>
 
+#include "src/base/lsan.h"
 #include "src/base/once.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -77,6 +78,9 @@ void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
       isolate->roots_table().read_only_roots_begin().address());
   std::memcpy(read_only_roots_, isolate_ro_roots,
               kEntriesCount * sizeof(Address));
+  // N.B. Since pages are manually allocated with mmap, Lsan doesn't track
+  // their pointers. Seal explicitly ignores the necessary objects.
+  LSAN_IGNORE_OBJECT(this);
   read_only_space_->Seal(ReadOnlySpace::SealMode::kDetachFromHeapAndForget);
 #else
   read_only_space_->Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
@@ -97,7 +101,6 @@ void ReadOnlyHeap::ClearSharedHeapForTest() {
   DCHECK_NOT_NULL(shared_ro_heap);
   // TODO(v8:7464): Just leak read-only space for now. The paged-space heap
   // is null so there isn't a nice way to do this.
-  delete shared_ro_heap;
   shared_ro_heap = nullptr;
   setup_ro_heap_once = 0;
 #endif
