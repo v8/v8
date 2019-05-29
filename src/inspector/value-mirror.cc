@@ -1145,19 +1145,28 @@ void addTypedArrayViews(v8::Local<v8::Context> context,
                         v8::Local<ArrayBuffer> buffer,
                         ValueMirror::PropertyAccumulator* accumulator) {
   // TODO(alph): these should be internal properties.
-  size_t length = buffer->ByteLength();
+  // TODO(v8:9308): Reconsider how large arrays are previewed.
+  const size_t byte_length = buffer->ByteLength();
+
+  size_t length = byte_length;
+  if (length > v8::TypedArray::kMaxLength) return;
+
   addTypedArrayView<v8::Int8Array>(context, buffer, length, "[[Int8Array]]",
                                    accumulator);
   addTypedArrayView<v8::Uint8Array>(context, buffer, length, "[[Uint8Array]]",
                                     accumulator);
-  if (buffer->ByteLength() % 2 == 0) {
-    addTypedArrayView<v8::Int16Array>(context, buffer, length / 2,
-                                      "[[Int16Array]]", accumulator);
-  }
-  if (buffer->ByteLength() % 4 == 0) {
-    addTypedArrayView<v8::Int32Array>(context, buffer, length / 4,
-                                      "[[Int32Array]]", accumulator);
-  }
+
+  length = byte_length / 2;
+  if (length > v8::TypedArray::kMaxLength || (byte_length % 2) != 0) return;
+
+  addTypedArrayView<v8::Int16Array>(context, buffer, length, "[[Int16Array]]",
+                                    accumulator);
+
+  length = byte_length / 4;
+  if (length > v8::TypedArray::kMaxLength || (byte_length % 4) != 0) return;
+
+  addTypedArrayView<v8::Int32Array>(context, buffer, length, "[[Int32Array]]",
+                                    accumulator);
 }
 }  // anonymous namespace
 
