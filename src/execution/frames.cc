@@ -163,16 +163,7 @@ bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) const {
     if (!js_frame->function().IsJSFunction()) return false;
     return js_frame->function().shared().IsSubjectToDebugging();
   }
-  // Apart from JavaScript frames, only Wasm frames are valid, with the
-  // exception of Wasm-to-Capi frames.
-  // TODO(jkummerow): Give Wasm-to-Capi frames their own marker.
-  if (frame->is_wasm_compiled()) {
-    wasm::WasmCodeRefScope scope;
-    if (static_cast<WasmCompiledFrame*>(frame)->wasm_code()->kind() ==
-        wasm::WasmCode::kWasmToCapiWrapper) {
-      return false;
-    }
-  }
+  // Apart from JavaScript frames, only Wasm frames are valid.
   return frame->is_wasm();
 }
 
@@ -520,8 +511,9 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     if (wasm_code != nullptr) {
       switch (wasm_code->kind()) {
         case wasm::WasmCode::kFunction:
-        case wasm::WasmCode::kWasmToCapiWrapper:
           return WASM_COMPILED;
+        case wasm::WasmCode::kWasmToCapiWrapper:
+          return WASM_EXIT;
         case wasm::WasmCode::kWasmToJsWrapper:
           return WASM_TO_JS;
         case wasm::WasmCode::kRuntimeStub:
@@ -593,6 +585,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case WASM_TO_JS:
     case WASM_COMPILED:
     case WASM_COMPILE_LAZY:
+    case WASM_EXIT:
       return candidate;
     case JS_TO_WASM:
     case OPTIMIZED:
@@ -675,15 +668,9 @@ Address ExitFrame::GetCallerStackPointer() const {
 
 StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   if (fp == 0) return NONE;
-  Address sp = ComputeStackPointer(fp);
   StackFrame::Type type = ComputeFrameType(fp);
-  if (type == StackFrame::WASM_COMPILED) {
-    // {sp} is only needed for finding the PC slot, the rest is handled
-    // via safepoint.
-    sp = fp + WasmExitFrameConstants::kWasmInstanceOffset;
-    DCHECK_EQ(sp - 1 * kPCOnStackSize,
-              fp + WasmExitFrameConstants::kCallingPCOffset);
-  }
+  Address sp = (type == WASM_EXIT) ? WasmExitFrame::ComputeStackPointer(fp)
+                                   : ExitFrame::ComputeStackPointer(fp);
   FillState(fp, sp, state);
   DCHECK_NE(*state->pc_address, kNullAddress);
   return type;
@@ -703,7 +690,7 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
 
   StackFrame::Type frame_type = static_cast<StackFrame::Type>(marker_int >> 1);
   if (frame_type == EXIT || frame_type == BUILTIN_EXIT ||
-      frame_type == WASM_COMPILED) {
+      frame_type == WASM_EXIT) {
     return frame_type;
   }
 
@@ -714,6 +701,15 @@ Address ExitFrame::ComputeStackPointer(Address fp) {
   MSAN_MEMORY_IS_INITIALIZED(fp + ExitFrameConstants::kSPOffset,
                              kSystemPointerSize);
   return Memory<Address>(fp + ExitFrameConstants::kSPOffset);
+}
+
+Address WasmExitFrame::ComputeStackPointer(Address fp) {
+  // For WASM_EXIT frames, {sp} is only needed for finding the PC slot,
+  // everything else is handled via safepoint information.
+  Address sp = fp + WasmExitFrameConstants::kWasmInstanceOffset;
+  DCHECK_EQ(sp - 1 * kPCOnStackSize,
+            fp + WasmExitFrameConstants::kCallingPCOffset);
+  return sp;
 }
 
 void ExitFrame::FillState(Address fp, Address sp, State* state) {
@@ -936,6 +932,14 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       case WASM_COMPILED:
       case WASM_INTERPRETER_ENTRY:
       case WASM_COMPILE_LAZY:
+        frame_header_size = WasmCompiledFrameConstants::kFixedFrameSizeFromFp;
+        break;
+      case WASM_EXIT:
+        // The last value in the frame header is the calling PC, which should
+        // not be visited.
+        static_assert(WasmExitFrameConstants::kFixedSlotCountFromFp ==
+                          WasmCompiledFrameConstants::kFixedSlotCountFromFp + 1,
+                      "WasmExitFrame has one slot more than WasmCompiledFrame");
         frame_header_size = WasmCompiledFrameConstants::kFixedFrameSizeFromFp;
         break;
       case OPTIMIZED:

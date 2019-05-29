@@ -210,13 +210,13 @@ class TypedFrameConstants : public CommonFrameConstants {
   (TypedFrameConstants::kFirstPushedFrameValueOffset - (x)*kSystemPointerSize)
 #define TYPED_FRAME_SIZE(count) \
   (TypedFrameConstants::kFixedFrameSize + (count)*kSystemPointerSize)
-#define TYPED_FRAME_SIZE_FROM_SP(count) \
+#define TYPED_FRAME_SIZE_FROM_FP(count) \
   (TypedFrameConstants::kFixedFrameSizeFromFp + (count)*kSystemPointerSize)
 #define DEFINE_TYPED_FRAME_SIZES(count)                                        \
   static constexpr int kFixedFrameSize = TYPED_FRAME_SIZE(count);              \
   static constexpr int kFixedSlotCount = kFixedFrameSize / kSystemPointerSize; \
   static constexpr int kFixedFrameSizeFromFp =                                 \
-      TYPED_FRAME_SIZE_FROM_SP(count);                                         \
+      TYPED_FRAME_SIZE_FROM_FP(count);                                         \
   static constexpr int kFixedSlotCountFromFp =                                 \
       kFixedFrameSizeFromFp / kSystemPointerSize
 

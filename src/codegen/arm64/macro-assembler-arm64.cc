@@ -2402,7 +2402,8 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     // sp[1] : type
     // sp[0] : for alignment
   } else if (type == StackFrame::WASM_COMPILED ||
-             type == StackFrame::WASM_COMPILE_LAZY) {
+             type == StackFrame::WASM_COMPILE_LAZY ||
+             type == StackFrame::WASM_EXIT) {
     Register type_reg = temps.AcquireX();
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Push(lr, fp);

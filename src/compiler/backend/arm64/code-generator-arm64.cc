@@ -744,14 +744,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
-      // Put the return address in a stack slot.
-      Register scratch = x8;
       Label return_location;
-      if (linkage()->GetIncomingDescriptor()->kind() ==
-          CallDescriptor::kCallWasmImportWrapper) {
-        // WasmCapiFunctionWrappers, which are reusing the WasmImportWrapper
-        // call descriptor, need access to the calling PC.
-        // TODO(jkummerow): Separate the call descriptors for clarity.
+      if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
+        // Put the return address in a stack slot.
+        Register scratch = x8;
         __ Adr(scratch, &return_location);
         __ Str(scratch,
                MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
@@ -2559,7 +2555,8 @@ void CodeGenerator::AssembleConstructFrame() {
         __ Str(kWasmInstanceRegister,
                MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
       } break;
-      case CallDescriptor::kCallWasmImportWrapper: {
+      case CallDescriptor::kCallWasmImportWrapper:
+      case CallDescriptor::kCallWasmCapiFunction: {
         UseScratchRegisterScope temps(tasm());
         __ LoadTaggedPointerField(
             kJSFunctionRegister,
@@ -2567,8 +2564,11 @@ void CodeGenerator::AssembleConstructFrame() {
         __ LoadTaggedPointerField(
             kWasmInstanceRegister,
             FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
-        __ Claim(required_slots +
-                 3);  // Claim extra slots for marker + instance + pc.
+        int extra_slots =
+            call_descriptor->kind() == CallDescriptor::kCallWasmImportWrapper
+                ? 2   // Import wrapper: marker + instance.
+                : 3;  // C-API function: marker + instance + PC.
+        __ Claim(required_slots + extra_slots);
         Register scratch = temps.AcquireX();
         __ Mov(scratch,
                StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
