@@ -385,40 +385,6 @@ WASM_EXEC_TEST(Int32DivS_byzero_const) {
   }
 }
 
-WASM_EXEC_TEST(Int32AsmjsDivS_byzero_const) {
-  for (int8_t denom = -2; denom < 8; ++denom) {
-    WasmRunner<int32_t, int32_t> r(execution_tier);
-    r.builder().ChangeOriginToAsmjs();
-    BUILD(r, WASM_I32_ASMJS_DIVS(WASM_GET_LOCAL(0), WASM_I32V_1(denom)));
-    FOR_INT32_INPUTS(i) {
-      if (denom == 0) {
-        CHECK_EQ(0, r.Call(i));
-      } else if (denom == -1 && i == std::numeric_limits<int32_t>::min()) {
-        CHECK_EQ(std::numeric_limits<int32_t>::min(), r.Call(i));
-      } else {
-        CHECK_EQ(i / denom, r.Call(i));
-      }
-    }
-  }
-}
-
-WASM_EXEC_TEST(Int32AsmjsRemS_byzero_const) {
-  for (int8_t denom = -2; denom < 8; ++denom) {
-    WasmRunner<int32_t, int32_t> r(execution_tier);
-    r.builder().ChangeOriginToAsmjs();
-    BUILD(r, WASM_I32_ASMJS_REMS(WASM_GET_LOCAL(0), WASM_I32V_1(denom)));
-    FOR_INT32_INPUTS(i) {
-      if (denom == 0) {
-        CHECK_EQ(0, r.Call(i));
-      } else if (denom == -1 && i == std::numeric_limits<int32_t>::min()) {
-        CHECK_EQ(0, r.Call(i));
-      } else {
-        CHECK_EQ(i % denom, r.Call(i));
-      }
-    }
-  }
-}
-
 WASM_EXEC_TEST(Int32DivU_byzero_const) {
   for (uint32_t denom = 0xFFFFFFFE; denom < 8; ++denom) {
     WasmRunner<uint32_t, uint32_t> r(execution_tier);

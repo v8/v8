@@ -773,8 +773,20 @@ class LiftoffCompiler {
               __ emit_i64_eqz(dst.gp(), src);
             });
         break;
-      default:
+      case WasmOpcode::kExprI64Clz:
+      case WasmOpcode::kExprI64Ctz:
+      case WasmOpcode::kExprI64Popcnt:
+      case WasmOpcode::kExprI32SConvertSatF32:
+      case WasmOpcode::kExprI32UConvertSatF32:
+      case WasmOpcode::kExprI32SConvertSatF64:
+      case WasmOpcode::kExprI32UConvertSatF64:
+      case WasmOpcode::kExprI64SConvertSatF32:
+      case WasmOpcode::kExprI64UConvertSatF32:
+      case WasmOpcode::kExprI64SConvertSatF64:
+      case WasmOpcode::kExprI64UConvertSatF64:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
+      default:
+        UNREACHABLE();
     }
 #undef CASE_I32_UNOP
 #undef CASE_I32_SIGN_EXTENSION
@@ -1104,8 +1116,11 @@ class LiftoffCompiler {
           }
         });
         break;
-      default:
+      case WasmOpcode::kExprI64Rol:
+      case WasmOpcode::kExprI64Ror:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
+      default:
+        UNREACHABLE();
     }
 #undef CASE_I32_BINOP
 #undef CASE_I32_BINOPI
