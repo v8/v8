@@ -10,12 +10,13 @@
 
 #include "include/v8.h"
 #include "src/execution/isolate.h"
-#include "src/utils/ostreams.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
+#include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
@@ -865,6 +866,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   constexpr bool require_valid = true;
+  EXPERIMENTAL_FLAG_SCOPE(anyref);
   WasmCompileFuzzer().FuzzWasmModule({data, size}, require_valid);
   return 0;
 }
