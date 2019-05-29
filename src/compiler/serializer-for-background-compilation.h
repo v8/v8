@@ -317,7 +317,6 @@ class SerializerForBackgroundCompilation {
                           bool with_spread = false);
 
   void ProcessJump(interpreter::BytecodeArrayIterator* iterator);
-  void MergeAfterJump(interpreter::BytecodeArrayIterator* iterator);
 
   void ProcessKeyedPropertyAccess(Hints const& receiver, Hints const& key,
                                   FeedbackSlot slot, AccessMode mode);
@@ -339,6 +338,16 @@ class SerializerForBackgroundCompilation {
                            base::Optional<Hints> new_target,
                            const HintsVector& arguments, bool with_spread);
 
+  // When (forward-)branching bytecodes are encountered, e.g. a conditional
+  // jump, we call ContributeToJumpTargetEnvironment to "remember" the current
+  // environment, associated with the jump target offset. When serialization
+  // eventually reaches that offset, we call IncorporateJumpTargetEnvironment to
+  // merge that environment back into whatever is the current environment then.
+  // Note: Since there may be multiple jumps to the same target,
+  // ContributeToJumpTargetEnvironment may actually do a merge as well.
+  void ContributeToJumpTargetEnvironment(int target_offset);
+  void IncorporateJumpTargetEnvironment(int target_offset);
+
   JSHeapBroker* broker() const { return broker_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
@@ -349,7 +358,7 @@ class SerializerForBackgroundCompilation {
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
   Environment* const environment_;
-  ZoneUnorderedMap<int, Environment*> stashed_environments_;
+  ZoneUnorderedMap<int, Environment*> jump_target_environments_;
   SerializerForBackgroundCompilationFlags const flags_;
 };
 

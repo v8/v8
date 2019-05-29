@@ -274,6 +274,20 @@ TEST(SerializeUnconditionalJump) {
       "f(); return f;");
 }
 
+TEST(MergeJumpTargetEnvironment) {
+  CheckForSerializedInlinee(
+      "function f() {"
+      "  let g;"
+      "  while (true) {"
+      "    if (g === undefined) {g = ()=>1; break;} else {g = ()=>2; break};"
+      "  };"
+      "  g(); return g;"
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "%EnsureFeedbackVectorForFunction(f());"
+      "f(); return f;");  // Two calls to f to make g() megamorhpic.
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
