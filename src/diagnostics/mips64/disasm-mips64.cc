@@ -744,7 +744,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       return 4;
     }
     case 'i': {  // 'imm16u or 'imm26.
-      if (format[`] == '1') {
+      if (format[3] == '1') {
         if (format[4] == '6') {
           DCHECK(STRING_STARTS_WITH(format, "imm16"));
           switch (format[5]) {
