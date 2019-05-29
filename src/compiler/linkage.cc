@@ -37,6 +37,9 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallAddress:
       os << "Addr";
       break;
+    case CallDescriptor::kCallWasmCapiFunction:
+      os << "WasmExit";
+      break;
     case CallDescriptor::kCallWasmFunction:
       os << "WasmFunction";
       break;
@@ -147,11 +150,9 @@ int CallDescriptor::CalculateFixedFrameSize() const {
     case kCallBuiltinPointer:
       return TypedFrameConstants::kFixedSlotCount;
     case kCallWasmFunction:
-      return WasmCompiledFrameConstants::kFixedSlotCount;
     case kCallWasmImportWrapper:
-      // TODO(jkummerow): Introduce a separate "wasm-to-capi" frame type,
-      // and let other CallWasmImportWrapper frames go back to having the
-      // same size as CallWasmFunction frames.
+      return WasmCompiledFrameConstants::kFixedSlotCount;
+    case kCallWasmCapiFunction:
       return WasmExitFrameConstants::kFixedSlotCount;
   }
   UNREACHABLE();

@@ -907,6 +907,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                     ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
                     : g.UseRegister(callee));
       break;
+    case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
     case CallDescriptor::kCallWasmImportWrapper:
       buffer->instruction_args.push_back(
@@ -2631,6 +2632,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     case CallDescriptor::kCallJSFunction:
       opcode = kArchCallJSFunction | MiscField::encode(flags);
       break;
+    case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
     case CallDescriptor::kCallWasmImportWrapper:
       opcode = kArchCallWasmFunction | MiscField::encode(flags);

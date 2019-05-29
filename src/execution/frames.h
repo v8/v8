@@ -70,6 +70,7 @@ class StackHandler {
   V(JS_TO_WASM, JsToWasmFrame)                                            \
   V(WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame)                    \
   V(C_WASM_ENTRY, CWasmEntryFrame)                                        \
+  V(WASM_EXIT, WasmExitFrame)                                             \
   V(WASM_COMPILE_LAZY, WasmCompileLazyFrame)                              \
   V(INTERPRETED, InterpretedFrame)                                        \
   V(STUB, StubFrame)                                                      \
@@ -171,6 +172,7 @@ class StackFrame {
   bool is_optimized() const { return type() == OPTIMIZED; }
   bool is_interpreted() const { return type() == INTERPRETED; }
   bool is_wasm_compiled() const { return type() == WASM_COMPILED; }
+  bool is_wasm_exit() const { return type() == WASM_EXIT; }
   bool is_wasm_compile_lazy() const { return type() == WASM_COMPILE_LAZY; }
   bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
   bool is_js_to_wasm() const { return type() == JS_TO_WASM; }
@@ -925,7 +927,7 @@ class BuiltinFrame final : public JavaScriptFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmCompiledFrame final : public StandardFrame {
+class WasmCompiledFrame : public StandardFrame {
  public:
   Type type() const override { return WASM_COMPILED; }
 
@@ -966,6 +968,18 @@ class WasmCompiledFrame final : public StandardFrame {
  private:
   friend class StackFrameIteratorBase;
   WasmModuleObject module_object() const;
+};
+
+class WasmExitFrame : public WasmCompiledFrame {
+ public:
+  Type type() const override { return WASM_EXIT; }
+  static Address ComputeStackPointer(Address fp);
+
+ protected:
+  inline explicit WasmExitFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
 };
 
 class WasmInterpreterEntryFrame final : public StandardFrame {

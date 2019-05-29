@@ -175,6 +175,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kCallCodeObject,         // target is a Code object
     kCallJSFunction,         // target is a JSFunction object
     kCallAddress,            // target is a machine pointer
+    kCallWasmCapiFunction,   // target is a Wasm C API function
     kCallWasmFunction,       // target is a wasm function
     kCallWasmImportWrapper,  // target is a wasm import wrapper
     kCallBuiltinPointer,     // target is a builtin pointer
@@ -235,6 +236,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   // Returns {true} if this descriptor is a call to a WebAssembly function.
   bool IsWasmImportWrapper() const { return kind_ == kCallWasmImportWrapper; }
+
+  // Returns {true} if this descriptor is a call to a Wasm C API function.
+  bool IsWasmCapiFunction() const { return kind_ == kCallWasmCapiFunction; }
 
   bool RequiresFrameAsIncoming() const {
     return IsCFunctionCall() || IsJSFunctionCall() || IsWasmFunctionCall();

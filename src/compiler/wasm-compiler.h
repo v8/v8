@@ -164,10 +164,6 @@ class WasmGraphBuilder {
     kRetpoline = true,
     kNoRetpoline = false
   };
-  enum ExtraCallableParam : bool {  // --
-    kExtraCallableParam = true,
-    kNoExtraCallableParam = false
-  };
 
   V8_EXPORT_PRIVATE WasmGraphBuilder(
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
@@ -610,12 +606,13 @@ class WasmGraphBuilder {
   TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 };
 
+enum WasmCallKind { kWasmFunction, kWasmImportWrapper, kWasmCapiFunction };
+
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
     Zone* zone, wasm::FunctionSig* signature,
     WasmGraphBuilder::UseRetpoline use_retpoline =
         WasmGraphBuilder::kNoRetpoline,
-    WasmGraphBuilder::ExtraCallableParam callable_param =
-        WasmGraphBuilder::kNoExtraCallableParam);
+    WasmCallKind kind = kWasmFunction);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
     Zone* zone, CallDescriptor* call_descriptor);

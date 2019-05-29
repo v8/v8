@@ -6224,7 +6224,7 @@ wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine* wasm_engine,
   // Schedule and compile to machine code.
   CallDescriptor* incoming =
       GetWasmCallDescriptor(&zone, sig, WasmGraphBuilder::kNoRetpoline,
-                            WasmGraphBuilder::kExtraCallableParam);
+                            WasmCallKind::kWasmImportWrapper);
   if (machine.Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
@@ -6279,7 +6279,7 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
   // Run the compiler pipeline to generate machine code.
   CallDescriptor* call_descriptor =
       GetWasmCallDescriptor(&zone, sig, WasmGraphBuilder::kNoRetpoline,
-                            WasmGraphBuilder::kExtraCallableParam);
+                            WasmCallKind::kWasmCapiFunction);
   if (mcgraph->machine()->Is32()) {
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
@@ -6559,10 +6559,11 @@ class LinkageLocationAllocator {
 // General code uses the above configuration data.
 CallDescriptor* GetWasmCallDescriptor(
     Zone* zone, wasm::FunctionSig* fsig,
-    WasmGraphBuilder::UseRetpoline use_retpoline,
-    WasmGraphBuilder::ExtraCallableParam extra_callable_param) {
+    WasmGraphBuilder::UseRetpoline use_retpoline, WasmCallKind call_kind) {
   // The extra here is to accomodate the instance object as first parameter
   // and, when specified, the additional callable.
+  bool extra_callable_param =
+      call_kind == kWasmImportWrapper || call_kind == kWasmCapiFunction;
   int extra_params = extra_callable_param ? 2 : 1;
   LocationSignature::Builder locations(zone, fsig->return_count(),
                                        fsig->parameter_count() + extra_params);
@@ -6627,14 +6628,20 @@ CallDescriptor* GetWasmCallDescriptor(
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
 
-  CallDescriptor::Kind kind = extra_callable_param
-                                  ? CallDescriptor::kCallWasmImportWrapper
-                                  : CallDescriptor::kCallWasmFunction;
+  CallDescriptor::Kind descriptor_kind;
+  if (call_kind == kWasmFunction) {
+    descriptor_kind = CallDescriptor::kCallWasmFunction;
+  } else if (call_kind == kWasmImportWrapper) {
+    descriptor_kind = CallDescriptor::kCallWasmImportWrapper;
+  } else {
+    DCHECK_EQ(call_kind, kWasmCapiFunction);
+    descriptor_kind = CallDescriptor::kCallWasmCapiFunction;
+  }
 
   CallDescriptor::Flags flags =
       use_retpoline ? CallDescriptor::kRetpoline : CallDescriptor::kNoFlags;
   return new (zone) CallDescriptor(             // --
-      kind,                                     // kind
+      descriptor_kind,                          // kind
       target_type,                              // target MachineType
       target_loc,                               // target location
       locations.Build(),                        // location_sig
