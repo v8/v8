@@ -4111,6 +4111,11 @@ void MacroAssembler::Swap(Register reg1, Register reg2, Register scratch) {
 
 void TurboAssembler::Call(Label* target) { BranchAndLink(target); }
 
+void TurboAssembler::LoadAddress(Register dst, Label* target) {
+  uint32_t address = jump_address(target);
+  li(dst, address);
+}
+
 void TurboAssembler::Push(Handle<HeapObject> handle) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();

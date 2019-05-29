@@ -234,6 +234,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             COND_ARGS);
   void Call(Label* target);
+  void LoadAddress(Register dst, Label* target);
 
   void CallBuiltinPointer(Register builtin_pointer) override;
 
