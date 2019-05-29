@@ -1,1 +1,3 @@
+file://COMMON_OWNERS
+
 per-file JSTests.json=petermarshall@chromium.org

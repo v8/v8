@@ -1,9 +1,10 @@
-ahaas@chromium.org
 bmeurer@chromium.org
 clemensh@chromium.org
+ishell@chromium.org
 jarin@chromium.org
 jgruber@chromium.org
 jkummerow@chromium.org
+leszeks@chromium.org
 mslekova@chromium.org
 mstarzinger@chromium.org
 mvstanton@chromium.org
@@ -11,3 +12,6 @@ neis@chromium.org
 rmcilroy@chromium.org
 sigurds@chromium.org
 tebbi@chromium.org
+titzer@chromium.org
+
+# COMPONENT: Blink>JavaScript>Compiler
