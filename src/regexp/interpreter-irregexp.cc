@@ -93,16 +93,10 @@ static void TraceInterpreter(const byte* code_base,
   }
 }
 
-
-#define BYTECODE(name)                                                      \
-  case BC_##name:                                                           \
-    TraceInterpreter(code_base,                                             \
-                     pc,                                                    \
-                     static_cast<int>(backtrack_sp - backtrack_stack_base), \
-                     current,                                               \
-                     current_char,                                          \
-                     BC_##name##_LENGTH,                                    \
-                     #name);
+#define BYTECODE(name)                                             \
+  case BC_##name:                                                  \
+    TraceInterpreter(code_base, pc, backtrack_stack.sp(), current, \
+                     current_char, BC_##name##_LENGTH, #name);
 #else
 #define BYTECODE(name)                                                      \
   case BC_##name:
@@ -120,27 +114,35 @@ static int32_t Load16Aligned(const byte* pc) {
   return *reinterpret_cast<const uint16_t *>(pc);
 }
 
-
 // A simple abstraction over the backtracking stack used by the interpreter.
-// This backtracking stack does not grow automatically, but it ensures that the
-// the memory held by the stack is released or remembered in a cache if the
-// matching terminates.
+//
+// Despite the name 'backtracking' stack, it's actually used as a generic stack
+// that stores both program counters (= offsets into the bytecode) and generic
+// integer values.
 class BacktrackStack {
  public:
-  BacktrackStack() { data_ = NewArray<int>(kBacktrackStackSize); }
+  BacktrackStack() = default;
 
-  ~BacktrackStack() {
-    DeleteArray(data_);
+  void push(int v) { data_.emplace_back(v); }
+  int peek() const {
+    DCHECK(!data_.empty());
+    return data_.back();
+  }
+  int pop() {
+    int v = peek();
+    data_.pop_back();
+    return v;
   }
 
-  int* data() const { return data_; }
-
-  int max_size() const { return kBacktrackStackSize; }
+  // The 'sp' is the index of the first empty element in the stack.
+  int sp() const { return static_cast<int>(data_.size()); }
+  void set_sp(int new_sp) {
+    DCHECK_LE(new_sp, sp());
+    data_.resize(new_sp);
+  }
 
  private:
-  static const int kBacktrackStackSize = 10000;
-
-  int* data_;
+  std::vector<int> data_;
 
   DISALLOW_COPY_AND_ASSIGN(BacktrackStack);
 };
@@ -221,78 +223,67 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate,
   const byte* pc = code_array->GetDataStartAddress();
   const byte* code_base = pc;
 
-  // BacktrackStack ensures that the memory allocated for the backtracking stack
-  // is returned to the system or cached if there is no stack being cached at
-  // the moment.
   BacktrackStack backtrack_stack;
-  int* backtrack_stack_base = backtrack_stack.data();
-  int* backtrack_sp = backtrack_stack_base;
-  int backtrack_stack_space = backtrack_stack.max_size();
+
 #ifdef DEBUG
   if (FLAG_trace_regexp_bytecodes) {
     PrintF("\n\nStart bytecode interpreter\n\n");
   }
 #endif
   while (true) {
-    int32_t insn = Load32Aligned(pc);
+    const int32_t insn = Load32Aligned(pc);
     switch (insn & BYTECODE_MASK) {
-      BYTECODE(BREAK)
-        UNREACHABLE();
-      BYTECODE(PUSH_CP)
-        if (--backtrack_stack_space < 0) {
-          return StackOverflow(isolate);
-        }
-        *backtrack_sp++ = current;
+      BYTECODE(BREAK) { UNREACHABLE(); }
+      BYTECODE(PUSH_CP) {
+        backtrack_stack.push(current);
         pc += BC_PUSH_CP_LENGTH;
         break;
-      BYTECODE(PUSH_BT)
-        if (--backtrack_stack_space < 0) {
-          return StackOverflow(isolate);
-        }
-        *backtrack_sp++ = Load32Aligned(pc + 4);
+      }
+      BYTECODE(PUSH_BT) {
+        backtrack_stack.push(Load32Aligned(pc + 4));
         pc += BC_PUSH_BT_LENGTH;
         break;
-      BYTECODE(PUSH_REGISTER)
-        if (--backtrack_stack_space < 0) {
-          return StackOverflow(isolate);
-        }
-        *backtrack_sp++ = registers[insn >> BYTECODE_SHIFT];
+      }
+      BYTECODE(PUSH_REGISTER) {
+        backtrack_stack.push(registers[insn >> BYTECODE_SHIFT]);
         pc += BC_PUSH_REGISTER_LENGTH;
         break;
-      BYTECODE(SET_REGISTER)
+      }
+      BYTECODE(SET_REGISTER) {
         registers[insn >> BYTECODE_SHIFT] = Load32Aligned(pc + 4);
         pc += BC_SET_REGISTER_LENGTH;
         break;
-      BYTECODE(ADVANCE_REGISTER)
+      }
+      BYTECODE(ADVANCE_REGISTER) {
         registers[insn >> BYTECODE_SHIFT] += Load32Aligned(pc + 4);
         pc += BC_ADVANCE_REGISTER_LENGTH;
         break;
-      BYTECODE(SET_REGISTER_TO_CP)
+      }
+      BYTECODE(SET_REGISTER_TO_CP) {
         registers[insn >> BYTECODE_SHIFT] = current + Load32Aligned(pc + 4);
         pc += BC_SET_REGISTER_TO_CP_LENGTH;
         break;
-      BYTECODE(SET_CP_TO_REGISTER)
+      }
+      BYTECODE(SET_CP_TO_REGISTER) {
         current = registers[insn >> BYTECODE_SHIFT];
         pc += BC_SET_CP_TO_REGISTER_LENGTH;
         break;
-      BYTECODE(SET_REGISTER_TO_SP)
-        registers[insn >> BYTECODE_SHIFT] =
-            static_cast<int>(backtrack_sp - backtrack_stack_base);
+      }
+      BYTECODE(SET_REGISTER_TO_SP) {
+        registers[insn >> BYTECODE_SHIFT] = backtrack_stack.sp();
         pc += BC_SET_REGISTER_TO_SP_LENGTH;
         break;
-      BYTECODE(SET_SP_TO_REGISTER)
-        backtrack_sp = backtrack_stack_base + registers[insn >> BYTECODE_SHIFT];
-        backtrack_stack_space = backtrack_stack.max_size() -
-            static_cast<int>(backtrack_sp - backtrack_stack_base);
+      }
+      BYTECODE(SET_SP_TO_REGISTER) {
+        backtrack_stack.set_sp(registers[insn >> BYTECODE_SHIFT]);
         pc += BC_SET_SP_TO_REGISTER_LENGTH;
         break;
-      BYTECODE(POP_CP)
-        backtrack_stack_space++;
-        --backtrack_sp;
-        current = *backtrack_sp;
+      }
+      BYTECODE(POP_CP) {
+        current = backtrack_stack.pop();
         pc += BC_POP_CP_LENGTH;
         break;
-        // clang-format off
+      }
       BYTECODE(POP_BT) {
         IrregexpInterpreter::Result return_code = HandleInterrupts(
             isolate, subject_string);
@@ -301,41 +292,39 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate,
         UpdateCodeAndSubjectReferences(isolate, code_array, subject_string,
             &code_base, &pc, &subject);
 
-        backtrack_stack_space++;
-        --backtrack_sp;
-        pc = code_base + *backtrack_sp;
+        pc = code_base + backtrack_stack.pop();
         break;
       }
-      BYTECODE(POP_REGISTER)  // clang-format on
-        backtrack_stack_space++;
-        --backtrack_sp;
-        registers[insn >> BYTECODE_SHIFT] = *backtrack_sp;
+      BYTECODE(POP_REGISTER) {
+        registers[insn >> BYTECODE_SHIFT] = backtrack_stack.pop();
         pc += BC_POP_REGISTER_LENGTH;
         break;
-      BYTECODE(FAIL)
-      return IrregexpInterpreter::FAILURE;
-      BYTECODE(SUCCEED)
-      return IrregexpInterpreter::SUCCESS;
-      BYTECODE(ADVANCE_CP)
+      }
+      BYTECODE(FAIL) { return IrregexpInterpreter::FAILURE; }
+      BYTECODE(SUCCEED) { return IrregexpInterpreter::SUCCESS; }
+      BYTECODE(ADVANCE_CP) {
         current += insn >> BYTECODE_SHIFT;
         pc += BC_ADVANCE_CP_LENGTH;
         break;
-      BYTECODE(GOTO)
+      }
+      BYTECODE(GOTO) {
         pc = code_base + Load32Aligned(pc + 4);
         break;
-      BYTECODE(ADVANCE_CP_AND_GOTO)
+      }
+      BYTECODE(ADVANCE_CP_AND_GOTO) {
         current += insn >> BYTECODE_SHIFT;
         pc = code_base + Load32Aligned(pc + 4);
         break;
-      BYTECODE(CHECK_GREEDY)
-        if (current == backtrack_sp[-1]) {
-          backtrack_sp--;
-          backtrack_stack_space++;
+      }
+      BYTECODE(CHECK_GREEDY) {
+        if (current == backtrack_stack.peek()) {
+          backtrack_stack.pop();
           pc = code_base + Load32Aligned(pc + 4);
         } else {
           pc += BC_CHECK_GREEDY_LENGTH;
         }
         break;
+      }
       BYTECODE(LOAD_CURRENT_CHAR) {
         int pos = current + (insn >> BYTECODE_SHIFT);
         if (pos >= subject.length() || pos < 0) {
@@ -533,28 +522,31 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate,
         }
         break;
       }
-      BYTECODE(CHECK_REGISTER_LT)
+      BYTECODE(CHECK_REGISTER_LT) {
         if (registers[insn >> BYTECODE_SHIFT] < Load32Aligned(pc + 4)) {
           pc = code_base + Load32Aligned(pc + 8);
         } else {
           pc += BC_CHECK_REGISTER_LT_LENGTH;
         }
         break;
-      BYTECODE(CHECK_REGISTER_GE)
+      }
+      BYTECODE(CHECK_REGISTER_GE) {
         if (registers[insn >> BYTECODE_SHIFT] >= Load32Aligned(pc + 4)) {
           pc = code_base + Load32Aligned(pc + 8);
         } else {
           pc += BC_CHECK_REGISTER_GE_LENGTH;
         }
         break;
-      BYTECODE(CHECK_REGISTER_EQ_POS)
+      }
+      BYTECODE(CHECK_REGISTER_EQ_POS) {
         if (registers[insn >> BYTECODE_SHIFT] == current) {
           pc = code_base + Load32Aligned(pc + 4);
         } else {
           pc += BC_CHECK_REGISTER_EQ_POS_LENGTH;
         }
         break;
-      BYTECODE(CHECK_NOT_REGS_EQUAL)
+      }
+      BYTECODE(CHECK_NOT_REGS_EQUAL) {
         if (registers[insn >> BYTECODE_SHIFT] ==
             registers[Load32Aligned(pc + 4)]) {
           pc += BC_CHECK_NOT_REGS_EQUAL_LENGTH;
@@ -562,6 +554,7 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate,
           pc = code_base + Load32Aligned(pc + 8);
         }
         break;
+      }
       BYTECODE(CHECK_NOT_BACK_REF) {
         int from = registers[insn >> BYTECODE_SHIFT];
         int len = registers[(insn >> BYTECODE_SHIFT) + 1] - from;
@@ -628,20 +621,22 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate,
         pc += BC_CHECK_NOT_BACK_REF_NO_CASE_BACKWARD_LENGTH;
         break;
       }
-      BYTECODE(CHECK_AT_START)
+      BYTECODE(CHECK_AT_START) {
         if (current == 0) {
           pc = code_base + Load32Aligned(pc + 4);
         } else {
           pc += BC_CHECK_AT_START_LENGTH;
         }
         break;
-      BYTECODE(CHECK_NOT_AT_START)
+      }
+      BYTECODE(CHECK_NOT_AT_START) {
         if (current + (insn >> BYTECODE_SHIFT) == 0) {
           pc += BC_CHECK_NOT_AT_START_LENGTH;
         } else {
           pc = code_base + Load32Aligned(pc + 4);
         }
         break;
+      }
       BYTECODE(SET_CURRENT_POSITION_FROM_END) {
         int by = static_cast<uint32_t>(insn) >> BYTECODE_SHIFT;
         if (subject.length() - current > by) {
@@ -657,6 +652,8 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate,
     }
   }
 }
+
+#undef BYTECODE
 
 }  // namespace
 

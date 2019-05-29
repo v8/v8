@@ -1201,13 +1201,6 @@
   'built-ins/SharedArrayBuffer/length-is-too-large-throws': [SKIP],
 }],  # asan == True or msan == True or tsan == True
 
-['variant == interpreted_regexp', {
-  # Call stack exceeded: https://crbug.com/v8/8678
-  'built-ins/RegExp/CharacterClassEscapes/character-class-non-digit-class-escape-plus-quantifier-flags-u': [SKIP],
-  'built-ins/RegExp/CharacterClassEscapes/character-class-non-whitespace-class-escape-plus-quantifier-flags-u': [SKIP],
-  'built-ins/RegExp/CharacterClassEscapes/character-class-non-word-class-escape-plus-quantifier-flags-u': [SKIP],
-}],  # variant == interpreted_regexp
-
 ##############################################################################
 ['variant == jitless', {
   # https://crbug.com/v8/7777
