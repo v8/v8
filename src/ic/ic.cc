@@ -648,8 +648,7 @@ void IC::PatchCache(Handle<Name> name, const MaybeObjectHandle& handler) {
 }
 
 void LoadIC::UpdateCaches(LookupIterator* lookup) {
-  if (!FLAG_lazy_feedback_allocation && state() == UNINITIALIZED &&
-      !IsLoadGlobalIC()) {
+  if (state() == UNINITIALIZED && !IsLoadGlobalIC()) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
     TRACE_HANDLER_STATS(isolate(), LoadIC_Premonomorphic);
