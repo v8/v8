@@ -782,9 +782,9 @@ extern class InterceptorInfo extends Struct {
 }
 
 extern class AccessCheckInfo extends Struct {
-  callback: Foreign | Zero;
-  named_interceptor: InterceptorInfo | Zero;
-  indexed_interceptor: InterceptorInfo | Zero;
+  callback: Foreign | Zero | Undefined;
+  named_interceptor: InterceptorInfo | Zero | Undefined;
+  indexed_interceptor: InterceptorInfo | Zero | Undefined;
   data: Object;
 }
 
