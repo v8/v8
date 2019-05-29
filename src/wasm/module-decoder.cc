@@ -1680,45 +1680,41 @@ class ModuleDecoderImpl : public Decoder {
   void consume_segment_header(const char* name, bool* is_active,
                               uint32_t* index, WasmInitExpr* offset) {
     const byte* pos = pc();
-    // In the MVP, this is a table or memory index field that must be 0, but
-    // we've repurposed it as a flags field in the bulk memory proposal.
-    uint32_t flags;
-    if (enabled_features_.bulk_memory) {
-      flags = consume_u32v("flags");
-      if (failed()) return;
-    } else {
-      // Without the bulk memory proposal, we should still read the table
-      // index. This is the same as reading the `ActiveWithIndex` flag with
-      // the bulk memory proposal.
-      flags = SegmentFlags::kActiveWithIndex;
-    }
+    uint32_t flag = consume_u32v("flag");
 
-    bool read_index;
-    bool read_offset;
-    if (flags == SegmentFlags::kActiveNoIndex) {
-      *is_active = true;
-      read_index = false;
-      read_offset = true;
-    } else if (flags == SegmentFlags::kPassive) {
-      *is_active = false;
-      read_index = false;
-      read_offset = false;
-    } else if (flags == SegmentFlags::kActiveWithIndex) {
-      *is_active = true;
-      read_index = true;
-      read_offset = true;
-    } else {
-      errorf(pos, "illegal flag value %u. Must be 0, 1, or 2", flags);
+    // Some flag values are only valid for specific proposals.
+    if (flag == SegmentFlags::kPassive) {
+      if (!enabled_features_.bulk_memory) {
+        error(
+            "Passive element segments require --experimental-wasm-bulk-memory");
+        return;
+      }
+    } else if (flag == SegmentFlags::kActiveWithIndex) {
+      if (!(enabled_features_.bulk_memory || enabled_features_.anyref)) {
+        error(
+            "Element segments with table indices require "
+            "--experimental-wasm-bulk-memory or --experimental-wasm-anyref");
+        return;
+      }
+    } else if (flag != SegmentFlags::kActiveNoIndex) {
+      errorf(pos, "illegal flag value %u. Must be 0, 1, or 2", flag);
       return;
     }
 
-    if (read_index) {
-      *index = consume_u32v(name);
-    } else {
+    // We know now that the flag is valid. Time to read the rest.
+    if (flag == SegmentFlags::kActiveNoIndex) {
+      *is_active = true;
       *index = 0;
+      *offset = consume_init_expr(module_.get(), kWasmI32);
+      return;
     }
-
-    if (read_offset) {
+    if (flag == SegmentFlags::kPassive) {
+      *is_active = false;
+      return;
+    }
+    if (flag == SegmentFlags::kActiveWithIndex) {
+      *is_active = true;
+      *index = consume_u32v(name);
       *offset = consume_init_expr(module_.get(), kWasmI32);
     }
   }
