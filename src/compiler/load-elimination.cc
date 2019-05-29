@@ -924,11 +924,17 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
           state->LookupField(object, field_index, constness);
 
       if (lookup_result) {
-        CHECK(lookup_result->name.is_null() ||
-              IsCompatible(representation, lookup_result->representation));
-        if (constness == PropertyConstness::kConst) {
-          // At runtime, we should never see two consecutive const stores, but
-          // we might see such (unreachable) code statically.
+        // At runtime, we should never encounter
+        // - any store replacing existing info with a different, incompatible
+        //   representation, nor
+        // - two consecutive const stores.
+        // However, we may see such code statically, so we guard against
+        // executing it by emitting Unreachable.
+        bool incompatible_representation =
+            !lookup_result->name.is_null() &&
+            !IsCompatible(representation, lookup_result->representation);
+        if (incompatible_representation ||
+            constness == PropertyConstness::kConst) {
           Node* control = NodeProperties::GetControlInput(node);
           Node* unreachable =
               graph()->NewNode(common()->Unreachable(), effect, control);
