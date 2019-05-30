@@ -830,7 +830,8 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     os << reinterpret_cast<const void*>(current_address) << " @ "
        << std::setw(4) << iterator.current_offset() << " : ";
     interpreter::BytecodeDecoder::Decode(
-        os, reinterpret_cast<byte*>(current_address), parameter_count());
+        os, reinterpret_cast<byte*>(current_address),
+        static_cast<int>(parameter_count()));
     if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
       Address jump_target = base_address + iterator.GetJumpTargetOffset();
       os << " (" << reinterpret_cast<void*>(jump_target) << " @ "

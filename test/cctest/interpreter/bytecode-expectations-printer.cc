@@ -306,7 +306,7 @@ void BytecodeExpectationsPrinter::PrintConstant(
 
 void BytecodeExpectationsPrinter::PrintFrameSize(
     std::ostream& stream, i::Handle<i::BytecodeArray> bytecode_array) const {
-  int frame_size = bytecode_array->frame_size();
+  int32_t frame_size = bytecode_array->frame_size();
 
   DCHECK(IsAligned(frame_size, kSystemPointerSize));
   stream << "frame size: " << frame_size / kSystemPointerSize

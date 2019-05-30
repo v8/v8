@@ -604,8 +604,8 @@ TEST(BytecodeArray) {
   if (FLAG_never_compact) return;
   static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
   static const int kRawBytesSize = sizeof(kRawBytes);
-  static const int kFrameSize = 32;
-  static const int kParameterCount = 2;
+  static const int32_t kFrameSize = 32;
+  static const int32_t kParameterCount = 2;
 
   ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
@@ -666,8 +666,8 @@ TEST(BytecodeArray) {
 TEST(BytecodeArrayAging) {
   static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
   static const int kRawBytesSize = sizeof(kRawBytes);
-  static const int kFrameSize = 32;
-  static const int kParameterCount = 2;
+  static const int32_t kFrameSize = 32;
+  static const int32_t kParameterCount = 2;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();

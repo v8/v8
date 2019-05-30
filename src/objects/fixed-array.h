@@ -364,14 +364,9 @@ class WeakArrayList : public HeapObject {
 
 
   // Layout description.
-#define WEAK_ARRAY_LIST_FIELDS(V) \
-  V(kCapacityOffset, kTaggedSize) \
-  V(kLengthOffset, kTaggedSize)   \
-  /* Header size. */              \
-  V(kHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, WEAK_ARRAY_LIST_FIELDS)
-#undef WEAK_ARRAY_LIST_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_WEAK_ARRAY_LIST_FIELDS)
+  static constexpr int kHeaderSize = kSize;
 
   using BodyDescriptor = WeakArrayBodyDescriptor;
 

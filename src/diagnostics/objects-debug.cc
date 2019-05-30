@@ -502,6 +502,10 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   CHECK(IsBytecodeArray());
   CHECK(constant_pool().IsFixedArray());
   VerifyHeapPointer(isolate, constant_pool());
+  CHECK(source_position_table().IsUndefined() ||
+        source_position_table().IsByteArray() ||
+        source_position_table().IsSourcePositionTableWithFrameCache());
+  CHECK(handler_table().IsByteArray());
 }
 
 USE_TORQUE_VERIFIER(FreeSpace)
@@ -709,6 +713,8 @@ void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
 }
 
 void WeakArrayList::WeakArrayListVerify(Isolate* isolate) {
+  VerifySmiField(kCapacityOffset);
+  VerifySmiField(kLengthOffset);
   for (int i = 0; i < length(); i++) {
     MaybeObject::VerifyMaybeObjectPointer(isolate, Get(i));
   }
@@ -1288,6 +1294,7 @@ void JSFinalizationGroup::JSFinalizationGroupVerify(Isolate* isolate) {
   if (cleared_cells().IsWeakCell()) {
     CHECK(WeakCell::cast(cleared_cells()).prev().IsUndefined(isolate));
   }
+  CHECK(next().IsUndefined(isolate) || next().IsJSFinalizationGroup());
 }
 
 void JSFinalizationGroupCleanupIterator::
