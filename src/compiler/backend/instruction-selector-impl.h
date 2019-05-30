@@ -326,6 +326,8 @@ class OperandGenerator {
       }
       case IrOpcode::kHeapConstant:
         return Constant(HeapConstantOf(node->op()));
+      case IrOpcode::kCompressedHeapConstant:
+        return Constant(HeapConstantOf(node->op()), true);
       case IrOpcode::kDelayedStringConstant:
         return Constant(StringConstantBaseOf(node->op()));
       case IrOpcode::kDeadValue: {

@@ -21,10 +21,8 @@ bool DecompressionElimination::IsReducibleConstantOpcode(
     IrOpcode::Value opcode) {
   switch (opcode) {
     case IrOpcode::kInt64Constant:
-      return true;
-    // TODO(v8:8977): Disabling HeapConstant until CompressedHeapConstant
-    // exists, since it breaks with verify CSA on.
     case IrOpcode::kHeapConstant:
+      return true;
     default:
       return false;
   }
@@ -55,13 +53,8 @@ Node* DecompressionElimination::GetCompressedConstant(Node* constant) {
           static_cast<int32_t>(OpParameter<int64_t>(constant->op()))));
       break;
     case IrOpcode::kHeapConstant:
-      // TODO(v8:8977): The HeapConstant remains as 64 bits. This does not
-      // affect the comparison and it will still work correctly. However, we are
-      // introducing a 64 bit value in the stream where a 32 bit one will
-      // suffice. Currently there is no "CompressedHeapConstant", and
-      // introducing a new opcode and handling it correctly throught the
-      // pipeline seems that it will involve quite a bit of work.
-      return constant;
+      return graph()->NewNode(
+          common()->CompressedHeapConstant(HeapConstantOf(constant->op())));
     default:
       UNREACHABLE();
   }

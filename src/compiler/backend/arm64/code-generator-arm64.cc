@@ -224,6 +224,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         return Operand(Operand::EmbeddedNumber(constant.ToFloat64().value()));
       case Constant::kExternalReference:
         return Operand(constant.ToExternalReference());
+      case Constant::kCompressedHeapObject:  // Fall through.
       case Constant::kHeapObject:
         return Operand(constant.ToHeapObject());
       case Constant::kDelayedStringConstant:
@@ -2667,6 +2668,15 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (IsMaterializableFromRoot(src_object, &index)) {
         __ LoadRoot(dst, index);
       } else {
+        __ Mov(dst, src_object);
+      }
+    } else if (src.type() == Constant::kCompressedHeapObject) {
+      Handle<HeapObject> src_object = src.ToHeapObject();
+      RootIndex index;
+      if (IsMaterializableFromRoot(src_object, &index)) {
+        __ LoadRoot(dst, index);
+      } else {
+        // TODO(v8:8977): Add the needed RelocInfo and make this mov on 32 bits
         __ Mov(dst, src_object);
       }
     } else {

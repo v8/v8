@@ -79,6 +79,7 @@ class PPCOperandConverter final : public InstructionOperandConverter {
       case Constant::kDelayedStringConstant:
         return Operand::EmbeddedStringConstant(
             constant.ToDelayedStringConstant());
+      case Constant::kCompressedHeapObject:
       case Constant::kHeapObject:
       case Constant::kRpoNumber:
         break;
@@ -2580,6 +2581,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           }
           break;
         }
+        case Constant::kCompressedHeapObject:
+          UNREACHABLE();
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(dcarney): loading RPO constants on PPC.
           break;

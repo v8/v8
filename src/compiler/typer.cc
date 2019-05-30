@@ -798,6 +798,8 @@ Type Typer::Visitor::TypeHeapConstant(Node* node) {
   return TypeConstant(HeapConstantOf(node->op()));
 }
 
+Type Typer::Visitor::TypeCompressedHeapConstant(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeExternalConstant(Node* node) {
   return Type::ExternalPointer();
 }

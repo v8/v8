@@ -3970,6 +3970,16 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         }
         break;
       }
+      case Constant::kCompressedHeapObject: {
+        Handle<HeapObject> src_object = src.ToHeapObject();
+        RootIndex index;
+        if (IsMaterializableFromRoot(src_object, &index)) {
+          __ LoadRoot(dst, index);
+        } else {
+          __ Move(dst, src_object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
+        }
+        break;
+      }
       case Constant::kDelayedStringConstant: {
         const StringConstantBase* src_constant = src.ToDelayedStringConstant();
         __ MoveStringConstant(dst, src_constant);

@@ -431,6 +431,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Number());
       break;
     case IrOpcode::kHeapConstant:
+    case IrOpcode::kCompressedHeapConstant:
       // Constants have no inputs.
       CHECK_EQ(0, input_count);
       // Type is anything.

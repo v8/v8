@@ -748,6 +748,11 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressedSigned:
         return;
+      case MachineRepresentation::kNone:
+        if (input->opcode() == IrOpcode::kCompressedHeapConstant) {
+          return;
+        }
+        break;
       default:
         break;
     }
@@ -851,6 +856,9 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kCompressedPointer:
         return;
       case MachineRepresentation::kNone: {
+        if (input->opcode() == IrOpcode::kCompressedHeapConstant) {
+          return;
+        }
         std::ostringstream str;
         str << "TypeError: node #" << input->id() << ":" << *input->op()
             << " is untyped.";

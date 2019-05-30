@@ -82,6 +82,7 @@ class MipsOperandConverter final : public InstructionOperandConverter {
       case Constant::kFloat64:
         return Operand::EmbeddedNumber(constant.ToFloat64().value());
       case Constant::kExternalReference:
+      case Constant::kCompressedHeapObject:
       case Constant::kHeapObject:
         // TODO(plind): Maybe we should handle ExtRef & HeapObj here?
         //    maybe not done on arm due to const pool ??
@@ -3737,6 +3738,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           }
           break;
         }
+        case Constant::kCompressedHeapObject:
+          UNREACHABLE();
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(titzer): loading RPO numbers on mips64.
           break;

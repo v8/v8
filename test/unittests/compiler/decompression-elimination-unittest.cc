@@ -311,11 +311,6 @@ TEST_F(DecompressionEliminationTest,
 
 TEST_F(DecompressionEliminationTest,
        DecompressionConstantStoreElementHeapConstant) {
-  // TODO(v8:8977): Disabling HeapConstant until CompressedHeapConstant
-  // exists, since it breaks with verify CSA on.
-  if (COMPRESS_POINTERS_BOOL) {
-    return;
-  }
   // Skip test if pointer compression is not enabled.
   if (!COMPRESS_POINTERS_BOOL) {
     return;
@@ -373,9 +368,7 @@ TEST_F(DecompressionEliminationTest,
       // Reduce.
       Reduction r = Reduce(changeToCompressed);
       ASSERT_TRUE(r.Changed());
-      // TODO(v8:8977): Change the IrOpcode here to kCompressedHeapConstant when
-      // that is in place.
-      EXPECT_EQ(r.replacement()->opcode(), IrOpcode::kHeapConstant);
+      EXPECT_EQ(r.replacement()->opcode(), IrOpcode::kCompressedHeapConstant);
     }
   }
 }
@@ -1015,11 +1008,6 @@ TEST_F(DecompressionEliminationTest, DecompressionConstantWord64Equal) {
 }
 
 TEST_F(DecompressionEliminationTest, DecompressionHeapConstantWord64Equal) {
-  // TODO(v8:8977): Disabling HeapConstant until CompressedHeapConstant
-  // exists, since it breaks with verify CSA on.
-  if (COMPRESS_POINTERS_BOOL) {
-    return;
-  }
   // Skip test if pointer compression is not enabled
   if (!COMPRESS_POINTERS_BOOL) {
     return;

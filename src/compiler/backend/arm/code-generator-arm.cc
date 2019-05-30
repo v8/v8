@@ -130,6 +130,7 @@ class ArmOperandConverter final : public InstructionOperandConverter {
         return Operand::EmbeddedStringConstant(
             constant.ToDelayedStringConstant());
       case Constant::kInt64:
+      case Constant::kCompressedHeapObject:
       case Constant::kHeapObject:
       // TODO(dcarney): loading RPO constants on arm.
       case Constant::kRpoNumber:

@@ -45,6 +45,7 @@
   V(NumberConstant)           \
   V(PointerConstant)          \
   V(HeapConstant)             \
+  V(CompressedHeapConstant)   \
   V(RelocatableInt32Constant) \
   V(RelocatableInt64Constant)
 

@@ -1301,6 +1301,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitConstant(node);
     case IrOpcode::kHeapConstant:
       return MarkAsReference(node), VisitConstant(node);
+    case IrOpcode::kCompressedHeapConstant:
+      return MarkAsCompressed(node), VisitConstant(node);
     case IrOpcode::kNumberConstant: {
       double value = OpParameter<double>(node->op());
       if (!IsSmiDouble(value)) MarkAsReference(node);

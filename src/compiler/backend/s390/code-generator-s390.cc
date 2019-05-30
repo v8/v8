@@ -73,6 +73,7 @@ class S390OperandConverter final : public InstructionOperandConverter {
       case Constant::kDelayedStringConstant:
         return Operand::EmbeddedStringConstant(
             constant.ToDelayedStringConstant());
+      case Constant::kCompressedHeapObject:
       case Constant::kHeapObject:
       case Constant::kRpoNumber:
         break;
@@ -3261,6 +3262,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           }
           break;
         }
+        case Constant::kCompressedHeapObject:
+          UNREACHABLE();
+          break;
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(dcarney): loading RPO constants on S390.
           break;
