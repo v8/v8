@@ -506,3 +506,47 @@ newBenchmark("HasInIdiom", {
     return result === 20 * SOME_NUMBER;
   }
 });
+
+// ----------------------------------------------------------------------------
+
+obj = {};
+value = false;
+
+newBenchmark("IsExtensibleWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.isExtensible(p);
+    }
+    return value;
+  },
+  teardown() {
+    return value === true;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+obj = {};
+value = false;
+
+newBenchmark("IsExtensibleWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      isExtensible: function(target) {
+        return true;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.isExtensible(p);
+    }
+    return value;
+  },
+  teardown() {
+    return value === true;
+  }
+});
