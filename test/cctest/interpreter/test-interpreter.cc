@@ -5197,13 +5197,19 @@ TEST(InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
 
 namespace {
 
+void CheckStringEqual(const char* expected_ptr, const char* actual_ptr) {
+  CHECK_NOT_NULL(expected_ptr);
+  CHECK_NOT_NULL(actual_ptr);
+  std::string expected(expected_ptr);
+  std::string actual(actual_ptr);
+  CHECK_EQ(expected, actual);
+}
+
 void CheckStringEqual(const char* expected_ptr, Handle<Object> actual_handle) {
   v8::String::Utf8Value utf8(
       v8::Isolate::GetCurrent(),
       v8::Utils::ToLocal(Handle<String>::cast(actual_handle)));
-  std::string expected(expected_ptr);
-  std::string actual(*utf8);
-  CHECK_EQ(expected, actual);
+  CheckStringEqual(expected_ptr, *utf8);
 }
 
 }  // namespace
@@ -5244,6 +5250,23 @@ TEST(InterpreterCollectSourcePositions_GenerateStackTrace) {
   CHECK(bytecode_array->HasSourcePositionTable());
   ByteArray source_position_table = bytecode_array->SourcePositionTable();
   CHECK_GT(source_position_table.length(), 0);
+}
+
+TEST(InterpreterLookupNameOfBytecodeHandler) {
+  Interpreter* interpreter = CcTest::i_isolate()->interpreter();
+  Code ldaLookupSlot = interpreter->GetBytecodeHandler(Bytecode::kLdaLookupSlot,
+                                                       OperandScale::kSingle);
+  CheckStringEqual("LdaLookupSlotHandler",
+                   interpreter->LookupNameOfBytecodeHandler(ldaLookupSlot));
+  Code wideLdaLookupSlot = interpreter->GetBytecodeHandler(
+      Bytecode::kLdaLookupSlot, OperandScale::kDouble);
+  CheckStringEqual("LdaLookupSlotWideHandler",
+                   interpreter->LookupNameOfBytecodeHandler(wideLdaLookupSlot));
+  Code extraWideLdaLookupSlot = interpreter->GetBytecodeHandler(
+      Bytecode::kLdaLookupSlot, OperandScale::kQuadruple);
+  CheckStringEqual(
+      "LdaLookupSlotExtraWideHandler",
+      interpreter->LookupNameOfBytecodeHandler(extraWideLdaLookupSlot));
 }
 
 }  // namespace interpreter

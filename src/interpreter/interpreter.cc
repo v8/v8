@@ -290,14 +290,9 @@ bool Interpreter::IsDispatchTableInitialized() const {
 }
 
 const char* Interpreter::LookupNameOfBytecodeHandler(const Code code) {
-#ifdef ENABLE_DISASSEMBLER
-#define RETURN_NAME(Name, ...)                                                 \
-  if (dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] == code.entry()) { \
-    return #Name;                                                              \
+  if (code.kind() == Code::BYTECODE_HANDLER) {
+    return Builtins::name(code.builtin_index());
   }
-  BYTECODE_LIST(RETURN_NAME)
-#undef RETURN_NAME
-#endif  // ENABLE_DISASSEMBLER
   return nullptr;
 }
 
