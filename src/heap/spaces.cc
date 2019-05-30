@@ -768,7 +768,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   return chunk;
 }
 
-Page* PagedSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
+Page* PagedSpace::InitializePage(MemoryChunk* chunk) {
   Page* page = static_cast<Page*>(chunk);
   DCHECK_EQ(MemoryChunkLayout::AllocatableMemoryInMemoryChunk(
                 page->owner()->identity()),
@@ -783,8 +783,7 @@ Page* PagedSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
   return page;
 }
 
-Page* SemiSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
-  DCHECK_EQ(executable, Executability::NOT_EXECUTABLE);
+Page* SemiSpace::InitializePage(MemoryChunk* chunk) {
   bool in_to_space = (id() != kFromSpace);
   chunk->SetFlag(in_to_space ? MemoryChunk::TO_PAGE : MemoryChunk::FROM_PAGE);
   Page* page = static_cast<Page*>(chunk);
@@ -856,7 +855,7 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
   old_page->SetFlags(0, static_cast<uintptr_t>(~0));
-  Page* new_page = old_space->InitializePage(old_page, NOT_EXECUTABLE);
+  Page* new_page = old_space->InitializePage(old_page);
   old_space->AddPage(new_page);
   return new_page;
 }
@@ -1251,7 +1250,7 @@ Page* MemoryAllocator::AllocatePage(size_t size, SpaceType* owner,
     chunk = AllocateChunk(size, size, executable, owner);
   }
   if (chunk == nullptr) return nullptr;
-  return owner->InitializePage(chunk, executable);
+  return owner->InitializePage(chunk);
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)

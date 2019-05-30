@@ -2211,7 +2211,7 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   void RefineAllocatedBytesAfterSweeping(Page* page);
 
-  Page* InitializePage(MemoryChunk* chunk, Executability executable);
+  Page* InitializePage(MemoryChunk* chunk);
 
   void ReleasePage(Page* page);
 
@@ -2465,7 +2465,7 @@ class SemiSpace : public Space {
   void RemovePage(Page* page);
   void PrependPage(Page* page);
 
-  Page* InitializePage(MemoryChunk* chunk, Executability executable);
+  Page* InitializePage(MemoryChunk* chunk);
 
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
