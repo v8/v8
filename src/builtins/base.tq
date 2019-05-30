@@ -373,6 +373,11 @@ extern class JSSloppyArgumentsObject extends JSArgumentsObjectWithLength {
   callee: Object;
 }
 
+@hasSameInstanceTypeAsParent
+@noVerifier
+extern class JSStrictArgumentsObject extends JSArgumentsObjectWithLength {
+}
+
 extern class JSArrayIterator extends JSObject {
   iterated_object: JSReceiver;
   next_index: Number;
@@ -448,7 +453,35 @@ extern class CallHandlerInfo extends Struct {
   data: Object;
 }
 
-type JSModuleNamespace extends JSObject;
+type ModuleInfo extends FixedArray;
+type ObjectHashTable extends FixedArray;
+
+extern class Module extends Struct {
+  code: SharedFunctionInfo | JSFunction |
+      JSGeneratorObject | ModuleInfo;
+  exports: ObjectHashTable;
+  regular_exports: FixedArray;
+  regular_imports: FixedArray;
+  hash: Smi;
+  status: Smi;
+  module_namespace: JSModuleNamespace | Undefined;
+  requested_modules: FixedArray;
+  dfs_index: Smi;
+  dfs_ancestor_index: Smi;
+  exception: Object;
+  script: Script;
+  @noVerifier import_meta: Hole | JSObject;
+}
+
+@abstract
+extern class JSModuleNamespace extends JSObject {
+  module: Module;
+}
+
+@hasSameInstanceTypeAsParent
+@noVerifier
+extern class TemplateList extends FixedArray {
+}
 
 @abstract
 extern class JSWeakCollection extends JSObject {

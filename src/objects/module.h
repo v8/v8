@@ -9,6 +9,7 @@
 #include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
+#include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -126,25 +127,8 @@ class Module : public Struct {
                                                       Handle<Module> module);
 
 // Layout description.
-#define MODULE_FIELDS(V)                  \
-  V(kCodeOffset, kTaggedSize)             \
-  V(kExportsOffset, kTaggedSize)          \
-  V(kRegularExportsOffset, kTaggedSize)   \
-  V(kRegularImportsOffset, kTaggedSize)   \
-  V(kHashOffset, kTaggedSize)             \
-  V(kModuleNamespaceOffset, kTaggedSize)  \
-  V(kRequestedModulesOffset, kTaggedSize) \
-  V(kStatusOffset, kTaggedSize)           \
-  V(kDfsIndexOffset, kTaggedSize)         \
-  V(kDfsAncestorIndexOffset, kTaggedSize) \
-  V(kExceptionOffset, kTaggedSize)        \
-  V(kScriptOffset, kTaggedSize)           \
-  V(kImportMetaOffset, kTaggedSize)       \
-  /* Total size. */                       \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, MODULE_FIELDS)
-#undef MODULE_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_MODULE_FIELDS)
 
  private:
   friend class Factory;
@@ -250,18 +234,14 @@ class JSModuleNamespace : public JSObject {
     kInObjectFieldCount,
   };
 
-// Layout description.
-#define JS_MODULE_NAMESPACE_FIELDS(V)                        \
-  V(kModuleOffset, kTaggedSize)                              \
-  /* Header size. */                                         \
-  V(kHeaderSize, 0)                                          \
-  V(kInObjectFieldsOffset, kTaggedSize* kInObjectFieldCount) \
-  /* Total size. */                                          \
-  V(kSize, 0)
-
+  // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_MODULE_NAMESPACE_FIELDS)
-#undef JS_MODULE_NAMESPACE_FIELDS
+                                TORQUE_GENERATED_JSMODULE_NAMESPACE_FIELDS)
+
+  // We need to include in-object fields
+  // TODO(v8:8944): improve handling of in-object fields
+  static constexpr int kSize =
+      kHeaderSize + (kTaggedSize * kInObjectFieldCount);
 
   OBJECT_CONSTRUCTORS(JSModuleNamespace, JSObject);
 };
@@ -309,6 +289,7 @@ class ModuleInfo : public FixedArray {
     kRegularExportExportNamesOffset,
     kRegularExportLength
   };
+
   OBJECT_CONSTRUCTORS(ModuleInfo, FixedArray);
 };
 
