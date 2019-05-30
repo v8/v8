@@ -2560,8 +2560,7 @@ void NewSpace::Verify(Isolate* isolate) {
       // be in map space or read-only space.
       Map map = object.map();
       CHECK(map.IsMap());
-      CHECK(heap()->map_space()->Contains(map) ||
-            heap()->read_only_space()->Contains(map));
+      CHECK(heap()->map_space()->Contains(map) || ReadOnlyHeap::Contains(map));
 
       // The object should not be code or a map.
       CHECK(!object.IsMap());
@@ -3722,8 +3721,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
     // in map space or read-only space.
     Map map = object.map();
     CHECK(map.IsMap());
-    CHECK(heap()->map_space()->Contains(map) ||
-          heap()->read_only_space()->Contains(map));
+    CHECK(heap()->map_space()->Contains(map) || ReadOnlyHeap::Contains(map));
 
     // We have only the following types in the large object space:
     if (!(object.IsAbstractCode() || object.IsSeqString() ||

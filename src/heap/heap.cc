@@ -3736,7 +3736,7 @@ bool Heap::InSpace(HeapObject value, AllocationSpace space) {
     case NEW_LO_SPACE:
       return new_lo_space_->Contains(value);
     case RO_SPACE:
-      return read_only_space_->Contains(value);
+      return ReadOnlyHeap::Contains(value);
   }
   UNREACHABLE();
 }
