@@ -573,11 +573,10 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
   MapHandles maps;
   MaybeObjectHandles handlers;
 
-  TargetMaps(&maps);
+  nexus()->ExtractMapsAndHandlers(&maps, &handlers);
   int number_of_maps = static_cast<int>(maps.size());
   int deprecated_maps = 0;
   int handler_to_overwrite = -1;
-  if (!nexus()->FindHandlers(&handlers, number_of_maps)) return false;
 
   for (int i = 0; i < number_of_maps; i++) {
     Handle<Map> current_map = maps.at(i);
@@ -642,9 +641,8 @@ void IC::UpdateMonomorphicIC(const MaybeObjectHandle& handler,
 void IC::CopyICToMegamorphicCache(Handle<Name> name) {
   MapHandles maps;
   MaybeObjectHandles handlers;
-  TargetMaps(&maps);
-  if (!nexus()->FindHandlers(&handlers, static_cast<int>(maps.size()))) return;
-  for (int i = 0; i < static_cast<int>(maps.size()); i++) {
+  nexus()->ExtractMapsAndHandlers(&maps, &handlers);
+  for (size_t i = 0; i < maps.size(); ++i) {
     UpdateMegamorphicCache(maps.at(i), name, handlers.at(i));
   }
 }

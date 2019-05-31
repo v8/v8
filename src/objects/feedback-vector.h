@@ -646,8 +646,9 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   Map GetFirstMap() const;
 
   int ExtractMaps(MapHandles* maps) const;
+  int ExtractMapsAndHandlers(MapHandles* maps,
+                             MaybeObjectHandles* handlers) const;
   MaybeObjectHandle FindHandlerForMap(Handle<Map> map) const;
-  bool FindHandlers(MaybeObjectHandles* code_list, int length = -1) const;
 
   bool IsCleared() const {
     InlineCacheState state = ic_state();
