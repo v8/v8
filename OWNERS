@@ -2,9 +2,6 @@
 # Disagreement among owners should be escalated to eng reviewers.
 file://ENG_REVIEW_OWNERS
 
-# TODO(9247) remove this.
-file://COMMON_OWNERS
-
 per-file .clang-format=file://INFRA_OWNERS
 per-file .clang-tidy=file://INFRA_OWNERS
 per-file .editorconfig=file://INFRA_OWNERS
