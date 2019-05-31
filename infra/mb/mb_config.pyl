@@ -491,7 +491,7 @@
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
-      'debug_bot', 'x64', 'gcc'],
+      'debug_bot', 'x64', 'gcc', 'v8_check_header_includes'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_jumbo': [
@@ -535,9 +535,10 @@
     'release_x86_noembed_trybot': [
       'release_trybot', 'x86', 'v8_no_enable_embedded_builtins'],
     'release_x86_gcc': [
-      'release_bot', 'x86', 'gcc'],
+      'release_bot', 'x86', 'gcc', 'v8_check_header_includes'],
     'release_x86_gcc_minimal_symbols': [
-      'release_bot', 'x86', 'gcc', 'minimal_symbols'],
+      'release_bot', 'x86', 'gcc', 'minimal_symbols',
+      'v8_check_header_includes'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [
