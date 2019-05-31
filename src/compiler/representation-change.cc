@@ -25,12 +25,12 @@ const char* Truncation::description() const {
       return "truncate-to-bool";
     case TruncationKind::kWord32:
       return "truncate-to-word32";
-    case TruncationKind::kFloat64:
+    case TruncationKind::kOddballAndBigIntToNumber:
       switch (identify_zeros()) {
         case kIdentifyZeros:
-          return "truncate-to-float64 (identify zeros)";
+          return "truncate-oddball&bigint-to-number (identify zeros)";
         case kDistinguishZeros:
-          return "truncate-to-float64 (distinguish zeros)";
+          return "truncate-oddball&bigint-to-number (distinguish zeros)";
       }
     case TruncationKind::kAny:
       switch (identify_zeros()) {
@@ -45,22 +45,22 @@ const char* Truncation::description() const {
 
 // Partial order for truncations:
 //
-//          kAny <-------+
-//            ^          |
-//            |          |
-//          kFloat64     |
-//          ^            |
-//          /            |
-//   kWord32           kBool
-//         ^            ^
-//         \            /
-//          \          /
-//           \        /
-//            \      /
-//             \    /
-//             kNone
+//               kAny <-------+
+//                 ^          |
+//                 |          |
+//  kOddballAndBigIntToNumber |
+//               ^            |
+//               /            |
+//        kWord32           kBool
+//              ^            ^
+//              \            /
+//               \          /
+//                \        /
+//                 \      /
+//                  \    /
+//                  kNone
 //
-// TODO(jarin) We might consider making kBool < kFloat64.
+// TODO(jarin) We might consider making kBool < kOddballAndBigIntToNumber.
 
 // static
 Truncation::TruncationKind Truncation::Generalize(TruncationKind rep1,
@@ -68,9 +68,9 @@ Truncation::TruncationKind Truncation::Generalize(TruncationKind rep1,
   if (LessGeneral(rep1, rep2)) return rep2;
   if (LessGeneral(rep2, rep1)) return rep1;
   // Handle the generalization of float64-representable values.
-  if (LessGeneral(rep1, TruncationKind::kFloat64) &&
-      LessGeneral(rep2, TruncationKind::kFloat64)) {
-    return TruncationKind::kFloat64;
+  if (LessGeneral(rep1, TruncationKind::kOddballAndBigIntToNumber) &&
+      LessGeneral(rep2, TruncationKind::kOddballAndBigIntToNumber)) {
+    return TruncationKind::kOddballAndBigIntToNumber;
   }
   // Handle the generalization of any-representable values.
   if (LessGeneral(rep1, TruncationKind::kAny) &&
@@ -101,9 +101,11 @@ bool Truncation::LessGeneral(TruncationKind rep1, TruncationKind rep2) {
       return rep2 == TruncationKind::kBool || rep2 == TruncationKind::kAny;
     case TruncationKind::kWord32:
       return rep2 == TruncationKind::kWord32 ||
-             rep2 == TruncationKind::kFloat64 || rep2 == TruncationKind::kAny;
-    case TruncationKind::kFloat64:
-      return rep2 == TruncationKind::kFloat64 || rep2 == TruncationKind::kAny;
+             rep2 == TruncationKind::kOddballAndBigIntToNumber ||
+             rep2 == TruncationKind::kAny;
+    case TruncationKind::kOddballAndBigIntToNumber:
+      return rep2 == TruncationKind::kOddballAndBigIntToNumber ||
+             rep2 == TruncationKind::kAny;
     case TruncationKind::kAny:
       return rep2 == TruncationKind::kAny;
   }
@@ -560,7 +562,7 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
       op = simplified()->ChangeUint32ToTagged();
     } else if (output_type.Is(Type::Number()) ||
                (output_type.Is(Type::NumberOrOddball()) &&
-                truncation.IsUsedAsFloat64())) {
+                truncation.TruncatesOddballAndBigIntToNumber())) {
       op = simplified()->ChangeFloat64ToTagged(
           output_type.Maybe(Type::MinusZero())
               ? CheckForMinusZeroMode::kCheckForMinusZero
@@ -843,9 +845,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     }
   } else if (output_rep == MachineRepresentation::kBit) {
     CHECK(output_type.Is(Type::Boolean()));
-    // TODO(tebbi): TypeCheckKind::kNumberOrOddball should imply Float64
-    // truncation, since this exactly means that we treat Oddballs as Numbers.
-    if (use_info.truncation().IsUsedAsFloat64() ||
+    if (use_info.truncation().TruncatesOddballAndBigIntToNumber() ||
         use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
       op = machine()->ChangeUint32ToFloat64();
     } else {
@@ -867,7 +867,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     } else if (output_type.Is(Type::Number())) {
       op = simplified()->ChangeTaggedToFloat64();
     } else if ((output_type.Is(Type::NumberOrOddball()) &&
-                use_info.truncation().IsUsedAsFloat64()) ||
+                use_info.truncation().TruncatesOddballAndBigIntToNumber()) ||
                output_type.Is(Type::NumberOrHole())) {
       // JavaScript 'null' is an Oddball that results in +0 when truncated to
       // Number. In a context like -0 == null, which must evaluate to false,

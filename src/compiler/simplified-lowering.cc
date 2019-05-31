@@ -958,7 +958,8 @@ class RepresentationSelector {
       return MachineRepresentation::kWord32;
     } else if (type.Is(Type::Boolean())) {
       return MachineRepresentation::kBit;
-    } else if (type.Is(Type::NumberOrOddball()) && use.IsUsedAsFloat64()) {
+    } else if (type.Is(Type::NumberOrOddball()) &&
+               use.TruncatesOddballAndBigIntToNumber()) {
       return MachineRepresentation::kFloat64;
     } else if (type.Is(Type::Union(Type::SignedSmall(), Type::NaN(), zone()))) {
       // TODO(turbofan): For Phis that return either NaN or some Smi, it's
@@ -1715,13 +1716,15 @@ class RepresentationSelector {
       case IrOpcode::kJSToNumber:
       case IrOpcode::kJSToNumberConvertBigInt:
       case IrOpcode::kJSToNumeric: {
+        DCHECK(NodeProperties::GetType(node).Is(Type::Union(
+            Type::BigInt(), Type::NumberOrOddball(), graph()->zone())));
         VisitInputs(node);
         // TODO(bmeurer): Optimize somewhat based on input type?
         if (truncation.IsUsedAsWord32()) {
           SetOutput(node, MachineRepresentation::kWord32);
           if (lower())
             lowering->DoJSToNumberOrNumericTruncatesToWord32(node, this);
-        } else if (truncation.IsUsedAsFloat64()) {
+        } else if (truncation.TruncatesOddballAndBigIntToNumber()) {
           SetOutput(node, MachineRepresentation::kFloat64);
           if (lower())
             lowering->DoJSToNumberOrNumericTruncatesToFloat64(node, this);
@@ -2983,7 +2986,7 @@ class RepresentationSelector {
                                        simplified()->PlainPrimitiveToWord32());
             }
           }
-        } else if (truncation.IsUsedAsFloat64()) {
+        } else if (truncation.TruncatesOddballAndBigIntToNumber()) {
           if (InputIs(node, Type::NumberOrOddball())) {
             VisitUnop(node, UseInfo::TruncatingFloat64(),
                       MachineRepresentation::kFloat64);
@@ -3236,7 +3239,7 @@ class RepresentationSelector {
           // identifies NaN and undefined, we can just pass along
           // the {truncation} and completely wipe the {node}.
           if (truncation.IsUnused()) return VisitUnused(node);
-          if (truncation.IsUsedAsFloat64()) {
+          if (truncation.TruncatesOddballAndBigIntToNumber()) {
             VisitUnop(node, UseInfo::TruncatingFloat64(),
                       MachineRepresentation::kFloat64);
             if (lower()) DeferReplacement(node, node->InputAt(0));
@@ -3263,7 +3266,7 @@ class RepresentationSelector {
                     MachineRepresentation::kWord32);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else if (InputIs(node, Type::NumberOrOddball()) &&
-                   truncation.IsUsedAsFloat64()) {
+                   truncation.TruncatesOddballAndBigIntToNumber()) {
           // Propagate the Float64 truncation.
           VisitUnop(node, UseInfo::TruncatingFloat64(),
                     MachineRepresentation::kFloat64);

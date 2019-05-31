@@ -29,8 +29,10 @@ class Truncation final {
   static Truncation Word32() {
     return Truncation(TruncationKind::kWord32, kIdentifyZeros);
   }
-  static Truncation Float64(IdentifyZeros identify_zeros = kDistinguishZeros) {
-    return Truncation(TruncationKind::kFloat64, identify_zeros);
+  static Truncation OddballAndBigIntToNumber(
+      IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return Truncation(TruncationKind::kOddballAndBigIntToNumber,
+                      identify_zeros);
   }
   static Truncation Any(IdentifyZeros identify_zeros = kDistinguishZeros) {
     return Truncation(TruncationKind::kAny, identify_zeros);
@@ -50,8 +52,8 @@ class Truncation final {
   bool IsUsedAsWord32() const {
     return LessGeneral(kind_, TruncationKind::kWord32);
   }
-  bool IsUsedAsFloat64() const {
-    return LessGeneral(kind_, TruncationKind::kFloat64);
+  bool TruncatesOddballAndBigIntToNumber() const {
+    return LessGeneral(kind_, TruncationKind::kOddballAndBigIntToNumber);
   }
   bool IdentifiesUndefinedAndZero() {
     return LessGeneral(kind_, TruncationKind::kWord32) ||
@@ -81,13 +83,14 @@ class Truncation final {
     kNone,
     kBool,
     kWord32,
-    kFloat64,
+    kOddballAndBigIntToNumber,
     kAny
   };
 
   explicit Truncation(TruncationKind kind, IdentifyZeros identify_zeros)
       : kind_(kind), identify_zeros_(identify_zeros) {
-    DCHECK(kind == TruncationKind::kAny || kind == TruncationKind::kFloat64 ||
+    DCHECK(kind == TruncationKind::kAny ||
+           kind == TruncationKind::kOddballAndBigIntToNumber ||
            identify_zeros == kIdentifyZeros);
   }
   TruncationKind kind() const { return kind_; }
@@ -175,7 +178,7 @@ class UseInfo {
   static UseInfo TruncatingFloat64(
       IdentifyZeros identify_zeros = kDistinguishZeros) {
     return UseInfo(MachineRepresentation::kFloat64,
-                   Truncation::Float64(identify_zeros));
+                   Truncation::OddballAndBigIntToNumber(identify_zeros));
   }
   static UseInfo AnyTagged() {
     return UseInfo(MachineRepresentation::kTagged, Truncation::Any());
@@ -240,8 +243,6 @@ class UseInfo {
   }
   static UseInfo CheckedNumberOrOddballAsFloat64(
       IdentifyZeros identify_zeros, const VectorSlotPair& feedback) {
-    // TODO(tebbi): We should use Float64 truncation here, since this exactly
-    // means that we treat Oddballs as Numbers.
     return UseInfo(MachineRepresentation::kFloat64,
                    Truncation::Any(identify_zeros),
                    TypeCheckKind::kNumberOrOddball, feedback);
