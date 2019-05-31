@@ -140,7 +140,7 @@ using MapHandles = std::vector<Handle<Map>>;
 //      | Byte     | [bit_field2]                                |
 //      |          |   - is_extensible (bit 0)                   |
 //      |          |   - is_prototype_map (bit 1)                |
-//      |          |   - has_hidden_prototype (bit 2)            |
+//      |          |   - unused bit (bit 2)                      |
 //      |          |   - elements_kind (bits 3..7)               |
 // +----+----------+---------------------------------------------+
 // | Int           | [bit_field3]                                |
@@ -265,10 +265,10 @@ class Map : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(bit_field2, byte)
 
 // Bit positions for |bit_field2|.
-#define MAP_BIT_FIELD2_FIELDS(V, _)    \
-  V(IsExtensibleBit, bool, 1, _)       \
-  V(IsPrototypeMapBit, bool, 1, _)     \
-  V(HasHiddenPrototypeBit, bool, 1, _) \
+#define MAP_BIT_FIELD2_FIELDS(V, _) \
+  V(IsExtensibleBit, bool, 1, _)    \
+  V(IsPrototypeMapBit, bool, 1, _)  \
+  V(UnusedBit, bool, 1, _)          \
   V(ElementsKindBits, ElementsKind, 5, _)
 
   DEFINE_BIT_FIELDS(MAP_BIT_FIELD2_FIELDS)
@@ -377,9 +377,6 @@ class Map : public HeapObject {
   DECL_BOOLEAN_ACCESSORS(may_have_interesting_symbols)
 
   DECL_BOOLEAN_ACCESSORS(has_prototype_slot)
-
-  // Tells whether the instance with this map has a hidden prototype.
-  DECL_BOOLEAN_ACCESSORS(has_hidden_prototype)
 
   // Records and queries whether the instance has a named interceptor.
   DECL_BOOLEAN_ACCESSORS(has_named_interceptor)

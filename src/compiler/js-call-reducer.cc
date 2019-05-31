@@ -588,7 +588,6 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
     MapRef object_map(broker(), object_maps[i]);
     object_map.SerializePrototype();
     if (IsSpecialReceiverInstanceType(object_map.instance_type()) ||
-        object_map.has_hidden_prototype() ||
         !object_map.prototype().equals(candidate_prototype)) {
       // We exclude special receivers, like JSProxy or API objects that
       // might require access checks here; we also don't want to deal

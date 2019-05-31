@@ -304,7 +304,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
     }
 
     Map map = js_obj->map();
-    if (!map.has_hidden_prototype() &&
+    if (!map.IsJSGlobalProxyMap() &&
         (key_is_array_index ? !map.has_indexed_interceptor()
                             : !map.has_named_interceptor())) {
       return ReadOnlyRoots(isolate).false_value();

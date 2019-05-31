@@ -2631,8 +2631,6 @@ BIMODAL_ACCESSOR(JSTypedArray, HeapObject, buffer)
 
 BIMODAL_ACCESSOR_B(Map, bit_field2, elements_kind, Map::ElementsKindBits)
 BIMODAL_ACCESSOR_B(Map, bit_field2, is_extensible, Map::IsExtensibleBit)
-BIMODAL_ACCESSOR_B(Map, bit_field2, has_hidden_prototype,
-                   Map::HasHiddenPrototypeBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_dictionary_map, Map::IsDictionaryMapBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,

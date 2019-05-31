@@ -65,8 +65,6 @@ class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
 
   TNode<BoolT> IsPropertyKindData(TNode<Uint32T> kind);
 
-  TNode<Uint32T> HasHiddenPrototype(TNode<Map> map);
-
   TNode<Uint32T> LoadPropertyKind(TNode<Uint32T> details) {
     return DecodeWord32<PropertyDetails::KindField>(details);
   }
@@ -185,12 +183,6 @@ TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyKindData(
   return Word32Equal(kind, Int32Constant(PropertyKind::kData));
 }
 
-TNode<Uint32T> ObjectEntriesValuesBuiltinsAssembler::HasHiddenPrototype(
-    TNode<Map> map) {
-  TNode<Uint32T> bit_field2 = Unsigned(LoadMapBitField2(map));
-  return DecodeWord32<Map::HasHiddenPrototypeBit>(bit_field2);
-}
-
 void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
     TNode<Context> context, TNode<Object> maybe_object,
     CollectType collect_type) {
@@ -254,7 +246,6 @@ void ObjectEntriesValuesBuiltinsAssembler::GotoIfMapHasSlowProperties(
     TNode<Map> map, Label* if_slow) {
   GotoIf(IsStringWrapperElementsKind(map), if_slow);
   GotoIf(IsSpecialReceiverMap(map), if_slow);
-  GotoIf(HasHiddenPrototype(map), if_slow);
   GotoIf(IsDictionaryMap(map), if_slow);
 }
 

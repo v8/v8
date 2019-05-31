@@ -2229,6 +2229,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSFunction(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSGeneratorObject(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSGlobalProxyInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSGlobalProxyMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSGlobalProxy(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSObjectInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSObjectMap(SloppyTNode<Map> map);

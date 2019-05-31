@@ -859,21 +859,9 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
-  DisallowHeapAllocation no_gc;
   if (*receiver_ == *holder_) return true;
-  if (!receiver_->IsJSReceiver()) return false;
-  JSReceiver current = JSReceiver::cast(*receiver_);
-  JSReceiver object = *holder_;
-  if (!current.map().has_hidden_prototype()) return false;
-  // JSProxy do not occur as hidden prototypes.
-  if (object.IsJSProxy()) return false;
-  PrototypeIterator iter(isolate(), current, kStartAtPrototype,
-                         PrototypeIterator::END_AT_NON_HIDDEN);
-  while (!iter.IsAtEnd()) {
-    if (iter.GetCurrent<JSReceiver>() == object) return true;
-    iter.Advance();
-  }
-  return false;
+  if (!receiver_->IsJSGlobalProxy()) return false;
+  return Handle<JSGlobalProxy>::cast(receiver_)->map().prototype() == *holder_;
 }
 
 Handle<Object> LookupIterator::FetchValue() const {
@@ -1054,7 +1042,7 @@ JSReceiver LookupIterator::NextHolder(Map map) {
   if (map.prototype() == ReadOnlyRoots(heap()).null_value()) {
     return JSReceiver();
   }
-  if (!check_prototype_chain() && !map.has_hidden_prototype()) {
+  if (!check_prototype_chain() && !map.IsJSGlobalProxyMap()) {
     return JSReceiver();
   }
   return JSReceiver::cast(map.prototype());

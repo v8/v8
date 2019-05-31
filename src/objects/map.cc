@@ -1418,8 +1418,7 @@ bool Map::OnlyHasSimpleProperties() const {
   // Wrapped string elements aren't explicitly stored in the elements backing
   // store, but are loaded indirectly from the underlying string.
   return !IsStringWrapperElementsKind(elements_kind()) &&
-         !IsSpecialReceiverMap() && !has_hidden_prototype() &&
-         !is_dictionary_map();
+         !IsSpecialReceiverMap() && !is_dictionary_map();
 }
 
 bool Map::DictionaryElementsInPrototypeChainOnly(Isolate* isolate) {
@@ -2433,8 +2432,7 @@ bool CheckEquivalent(const Map first, const Map second) {
          first.instance_type() == second.instance_type() &&
          first.bit_field() == second.bit_field() &&
          first.is_extensible() == second.is_extensible() &&
-         first.new_target_is_base() == second.new_target_is_base() &&
-         first.has_hidden_prototype() == second.has_hidden_prototype();
+         first.new_target_is_base() == second.new_target_is_base();
 }
 
 }  // namespace
@@ -2442,7 +2440,6 @@ bool CheckEquivalent(const Map first, const Map second) {
 bool Map::EquivalentToForTransition(const Map other) const {
   CHECK_EQ(GetConstructor(), other.GetConstructor());
   CHECK_EQ(instance_type(), other.instance_type());
-  CHECK_EQ(has_hidden_prototype(), other.has_hidden_prototype());
 
   if (bit_field() != other.bit_field()) return false;
   if (new_target_is_base() != other.new_target_is_base()) return false;
@@ -2639,7 +2636,6 @@ void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
   } else {
     DCHECK(prototype->IsNull(isolate) || prototype->IsJSProxy());
   }
-  map->set_has_hidden_prototype(prototype->IsJSGlobalObject());
 
   WriteBarrierMode wb_mode =
       prototype->IsNull(isolate) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;

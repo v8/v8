@@ -1701,9 +1701,6 @@ TNode<Uint32T> CodeStubAssembler::EnsureOnlyHasSimpleProperties(
   // This check can have false positives, since it applies to any JSValueType.
   GotoIf(IsCustomElementsReceiverInstanceType(instance_type), bailout);
 
-  GotoIf(IsSetWord32(LoadMapBitField2(map), Map::HasHiddenPrototypeBit::kMask),
-         bailout);
-
   TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
   GotoIf(IsSetWord32(bit_field3, Map::IsDictionaryMapBit::kMask), bailout);
 
@@ -6266,6 +6263,15 @@ TNode<BoolT> CodeStubAssembler::IsJSGlobalProxyInstanceType(
   return InstanceTypeEqual(instance_type, JS_GLOBAL_PROXY_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSGlobalProxyMap(SloppyTNode<Map> map) {
+  return IsJSGlobalProxyInstanceType(LoadMapInstanceType(map));
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSGlobalProxy(
+    SloppyTNode<HeapObject> object) {
+  return IsJSGlobalProxyMap(LoadMap(object));
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSObjectInstanceType(
     SloppyTNode<Int32T> instance_type) {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
@@ -6298,11 +6304,6 @@ TNode<BoolT> CodeStubAssembler::IsJSProxy(SloppyTNode<HeapObject> object) {
 TNode<BoolT> CodeStubAssembler::IsJSStringIterator(
     SloppyTNode<HeapObject> object) {
   return HasInstanceType(object, JS_STRING_ITERATOR_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsJSGlobalProxy(
-    SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, JS_GLOBAL_PROXY_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsMap(SloppyTNode<HeapObject> map) {

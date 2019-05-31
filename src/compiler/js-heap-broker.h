@@ -502,7 +502,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool is_undetectable() const;
   bool is_callable() const;
   bool has_indexed_interceptor() const;
-  bool has_hidden_prototype() const;
   bool is_migration_target() const;
   bool supports_fast_array_iteration() const;
   bool supports_fast_array_resize() const;
