@@ -920,8 +920,6 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   code->MaybePrint();
   code->Validate();
 
-  code->RegisterTrapHandlerData();
-
   return code;
 }
 
@@ -990,6 +988,8 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
           jump_table_->instruction_start(), slot_idx, code->instruction_start(),
           WasmCode::kFlushICache);
     }
+
+    code->RegisterTrapHandlerData();
   }
   WasmCodeRefScope::AddRef(code.get());
   WasmCode* result = code.get();
@@ -1016,8 +1016,6 @@ WasmCode* NativeModule::AddDeserializedCode(
       code_comments_offset, unpadded_binary_size,
       std::move(protected_instructions), std::move(reloc_info),
       std::move(source_position_table), kind, tier}};
-
-  code->RegisterTrapHandlerData();
 
   // Note: we do not flush the i-cache here, since the code needs to be
   // relocated anyway. The caller is responsible for flushing the i-cache later.
