@@ -19,10 +19,10 @@ namespace heap {
 
 TEST(HeapIteratorNullPastEnd) {
   HeapIterator iterator(CcTest::heap());
-  while (!iterator.next().is_null()) {
+  while (!iterator.Next().is_null()) {
   }
   for (int i = 0; i < 20; i++) {
-    CHECK(iterator.next().is_null());
+    CHECK(iterator.Next().is_null());
   }
 }
 
@@ -72,8 +72,8 @@ TEST(HeapIterator) {
   HeapIterator iterator(CcTest::heap());
   bool seen_sample_object = false;
 
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     CHECK(!ReadOnlyHeap::Contains(obj));
     CHECK(CcTest::heap()->Contains(obj));
     if (sample_object == obj) seen_sample_object = true;
@@ -99,18 +99,18 @@ TEST(CombinedHeapIterator) {
 TEST(PagedSpaces) {
   Heap* const heap = CcTest::heap();
   PagedSpaces iterator(heap);
-  CHECK_EQ(iterator.next(), reinterpret_cast<PagedSpace*>(heap->old_space()));
-  CHECK_EQ(iterator.next(), reinterpret_cast<PagedSpace*>(heap->code_space()));
-  CHECK_EQ(iterator.next(), reinterpret_cast<PagedSpace*>(heap->map_space()));
+  CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->old_space()));
+  CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->code_space()));
+  CHECK_EQ(iterator.Next(), reinterpret_cast<PagedSpace*>(heap->map_space()));
   for (int i = 0; i < 20; i++) {
-    CHECK_NULL(iterator.next());
+    CHECK_NULL(iterator.Next());
   }
 }
 
 TEST(SpaceIterator) {
   auto* const read_only_space = CcTest::read_only_heap()->read_only_space();
-  for (SpaceIterator it(CcTest::heap()); it.has_next();) {
-    CHECK_NE(it.next(), reinterpret_cast<Space*>(read_only_space));
+  for (SpaceIterator it(CcTest::heap()); it.HasNext();) {
+    CHECK_NE(it.Next(), reinterpret_cast<Space*>(read_only_space));
   }
 }
 

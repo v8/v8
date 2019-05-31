@@ -827,8 +827,8 @@ void IncrementalMarking::Stop() {
   }
 
   SpaceIterator it(heap_);
-  while (it.has_next()) {
-    Space* space = it.next();
+  while (it.HasNext()) {
+    Space* space = it.Next();
     if (space == heap_->new_space()) {
       space->RemoveAllocationObserver(&new_generation_observer_);
     } else {

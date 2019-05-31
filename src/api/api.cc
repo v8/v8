@@ -765,8 +765,8 @@ StartupData SnapshotCreator::CreateBlob(
 
     {  // Heap allocation is disallowed within this scope.
       i::HeapIterator heap_iterator(isolate->heap());
-      for (i::HeapObject current_obj = heap_iterator.next();
-           !current_obj.is_null(); current_obj = heap_iterator.next()) {
+      for (i::HeapObject current_obj = heap_iterator.Next();
+           !current_obj.is_null(); current_obj = heap_iterator.Next()) {
         if (current_obj.IsSharedFunctionInfo()) {
           i::SharedFunctionInfo shared =
               i::SharedFunctionInfo::cast(current_obj);
@@ -811,8 +811,8 @@ StartupData SnapshotCreator::CreateBlob(
   CHECK(handle_checker.CheckGlobalAndEternalHandles());
 
   i::HeapIterator heap_iterator(isolate->heap());
-  for (i::HeapObject current_obj = heap_iterator.next(); !current_obj.is_null();
-       current_obj = heap_iterator.next()) {
+  for (i::HeapObject current_obj = heap_iterator.Next(); !current_obj.is_null();
+       current_obj = heap_iterator.Next()) {
     if (current_obj.IsJSFunction()) {
       i::JSFunction fun = i::JSFunction::cast(current_obj);
 
@@ -8270,8 +8270,8 @@ void Isolate::LowMemoryNotification() {
   }
   {
     i::HeapIterator iterator(isolate->heap());
-    for (i::HeapObject obj = iterator.next(); !obj.is_null();
-         obj = iterator.next()) {
+    for (i::HeapObject obj = iterator.Next(); !obj.is_null();
+         obj = iterator.Next()) {
       if (obj.IsAbstractCode()) {
         i::AbstractCode::cast(obj).DropStackFrameCache();
       }

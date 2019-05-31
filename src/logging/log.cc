@@ -1671,8 +1671,8 @@ static int EnumerateCompiledFunctions(Heap* heap,
 
   // Iterate the heap to find shared function info objects and record
   // the unoptimized code for them.
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (obj.IsSharedFunctionInfo()) {
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
       if (sfi.is_compiled() && (!sfi.script().IsScript() ||
@@ -1710,8 +1710,8 @@ static int EnumerateWasmModuleObjects(
   DisallowHeapAllocation no_gc;
   int module_objects_count = 0;
 
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (obj.IsWasmModuleObject()) {
       WasmModuleObject module = WasmModuleObject::cast(obj);
       if (module_objects != nullptr) {
@@ -1743,8 +1743,8 @@ void Logger::LogAccessorCallbacks() {
   Heap* heap = isolate_->heap();
   HeapIterator iterator(heap);
   DisallowHeapAllocation no_gc;
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (!obj.IsAccessorInfo()) continue;
     AccessorInfo ai = AccessorInfo::cast(obj);
     if (!ai.name().IsName()) continue;
@@ -1770,8 +1770,8 @@ void Logger::LogAllMaps() {
   DisallowHeapAllocation no_gc;
   Heap* heap = isolate_->heap();
   HeapIterator iterator(heap);
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (!obj.IsMap()) continue;
     Map map = Map::cast(obj);
     MapCreate(map);
@@ -2001,8 +2001,8 @@ void ExistingCodeLogger::LogCodeObjects() {
   Heap* heap = isolate_->heap();
   HeapIterator iterator(heap);
   DisallowHeapAllocation no_gc;
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (obj.IsCode()) LogCodeObject(obj);
     if (obj.IsBytecodeArray()) LogCodeObject(obj);
   }

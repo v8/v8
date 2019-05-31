@@ -932,8 +932,8 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
   i::HeapIterator iterator(heap);
   i::DisallowHeapAllocation no_gc;
   size_t i = 0;
-  for (i::HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (i::HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (!obj.IsMap()) continue;
     i++;
     uintptr_t address = obj.ptr();

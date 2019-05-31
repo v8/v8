@@ -1521,8 +1521,8 @@ int CountBuiltins() {
   HeapIterator iterator(CcTest::heap());
   DisallowHeapAllocation no_allocation;
   int counter = 0;
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (obj.IsCode() && Code::cast(obj).kind() == Code::BUILTIN) counter++;
   }
   return counter;

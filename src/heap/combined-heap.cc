@@ -12,7 +12,7 @@ HeapObject CombinedHeapIterator::Next() {
   if (!object.is_null()) {
     return object;
   }
-  return heap_iterator_.next();
+  return heap_iterator_.Next();
 }
 
 }  // namespace internal

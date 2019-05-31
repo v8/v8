@@ -13611,8 +13611,8 @@ THREADED_TEST(LockUnlockLock) {
 static int GetGlobalObjectsCount() {
   int count = 0;
   i::HeapIterator it(CcTest::heap());
-  for (i::HeapObject object = it.next(); !object.is_null();
-       object = it.next()) {
+  for (i::HeapObject object = it.Next(); !object.is_null();
+       object = it.Next()) {
     if (object.IsJSGlobalObject()) {
       i::JSGlobalObject g = i::JSGlobalObject::cast(object);
       // Skip dummy global object.

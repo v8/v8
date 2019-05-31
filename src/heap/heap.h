@@ -2250,7 +2250,7 @@ class VerifySmisVisitor : public RootVisitor {
 class V8_EXPORT_PRIVATE PagedSpaces {
  public:
   explicit PagedSpaces(Heap* heap) : heap_(heap), counter_(OLD_SPACE) {}
-  PagedSpace* next();
+  PagedSpace* Next();
 
  private:
   Heap* heap_;
@@ -2262,8 +2262,8 @@ class V8_EXPORT_PRIVATE SpaceIterator : public Malloced {
   explicit SpaceIterator(Heap* heap);
   virtual ~SpaceIterator();
 
-  bool has_next();
-  Space* next();
+  bool HasNext();
+  Space* Next();
 
  private:
   Heap* heap_;
@@ -2293,7 +2293,7 @@ class V8_EXPORT_PRIVATE HeapIterator {
                         HeapObjectsFiltering filtering = kNoFiltering);
   ~HeapIterator();
 
-  HeapObject next();
+  HeapObject Next();
 
  private:
   HeapObject NextObject();

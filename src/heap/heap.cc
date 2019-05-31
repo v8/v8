@@ -236,8 +236,8 @@ size_t Heap::OldGenerationCapacity() {
   if (!HasBeenSetUp()) return 0;
   PagedSpaces spaces(this);
   size_t total = 0;
-  for (PagedSpace* space = spaces.next(); space != nullptr;
-       space = spaces.next()) {
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
     total += space->Capacity();
   }
   return total + lo_space_->SizeOfObjects() + code_lo_space_->SizeOfObjects();
@@ -248,8 +248,8 @@ size_t Heap::CommittedOldGenerationMemory() {
 
   PagedSpaces spaces(this);
   size_t total = 0;
-  for (PagedSpace* space = spaces.next(); space != nullptr;
-       space = spaces.next()) {
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
     total += space->CommittedMemory();
   }
   return total + lo_space_->Size() + code_lo_space_->Size();
@@ -273,8 +273,8 @@ size_t Heap::CommittedPhysicalMemory() {
   if (!HasBeenSetUp()) return 0;
 
   size_t total = 0;
-  for (SpaceIterator it(this); it.has_next();) {
-    total += it.next()->CommittedPhysicalMemory();
+  for (SpaceIterator it(this); it.HasNext();) {
+    total += it.Next()->CommittedPhysicalMemory();
   }
 
   return total;
@@ -301,8 +301,8 @@ size_t Heap::Available() {
 
   size_t total = 0;
 
-  for (SpaceIterator it(this); it.has_next();) {
-    total += it.next()->Available();
+  for (SpaceIterator it(this); it.HasNext();) {
+    total += it.Next()->Available();
   }
 
   total += memory_allocator()->Available();
@@ -693,8 +693,8 @@ void Heap::GarbageCollectionPrologue() {
 size_t Heap::SizeOfObjects() {
   size_t total = 0;
 
-  for (SpaceIterator it(this); it.has_next();) {
-    total += it.next()->SizeOfObjects();
+  for (SpaceIterator it(this); it.HasNext();) {
+    total += it.Next()->SizeOfObjects();
   }
   return total;
 }
@@ -750,8 +750,8 @@ void Heap::AddAllocationObserversToAllSpaces(
     AllocationObserver* observer, AllocationObserver* new_space_observer) {
   DCHECK(observer && new_space_observer);
 
-  for (SpaceIterator it(this); it.has_next();) {
-    Space* space = it.next();
+  for (SpaceIterator it(this); it.HasNext();) {
+    Space* space = it.Next();
     if (space == new_space()) {
       space->AddAllocationObserver(new_space_observer);
     } else {
@@ -764,8 +764,8 @@ void Heap::RemoveAllocationObserversFromAllSpaces(
     AllocationObserver* observer, AllocationObserver* new_space_observer) {
   DCHECK(observer && new_space_observer);
 
-  for (SpaceIterator it(this); it.has_next();) {
-    Space* space = it.next();
+  for (SpaceIterator it(this); it.HasNext();) {
+    Space* space = it.Next();
     if (space == new_space()) {
       space->RemoveAllocationObserver(new_space_observer);
     } else {
@@ -1281,8 +1281,8 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   if (FLAG_trace_duplicate_threshold_kb) {
     std::map<int, std::vector<HeapObject>> objects_by_size;
     PagedSpaces spaces(this);
-    for (PagedSpace* space = spaces.next(); space != nullptr;
-         space = spaces.next()) {
+    for (PagedSpace* space = spaces.Next(); space != nullptr;
+         space = spaces.Next()) {
       HeapObjectIterator it(space);
       for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
         objects_by_size[obj.Size()].push_back(obj);
@@ -3634,8 +3634,8 @@ void Heap::Print() {
   if (!HasBeenSetUp()) return;
   isolate()->PrintStack(stdout);
 
-  for (SpaceIterator it(this); it.has_next();) {
-    it.next()->Print();
+  for (SpaceIterator it(this); it.HasNext();) {
+    it.Next()->Print();
   }
 }
 
@@ -3998,16 +3998,16 @@ void Heap::VerifyRememberedSetFor(HeapObject object) {
 #ifdef DEBUG
 void Heap::VerifyCountersAfterSweeping() {
   PagedSpaces spaces(this);
-  for (PagedSpace* space = spaces.next(); space != nullptr;
-       space = spaces.next()) {
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
     space->VerifyCountersAfterSweeping();
   }
 }
 
 void Heap::VerifyCountersBeforeConcurrentSweeping() {
   PagedSpaces spaces(this);
-  for (PagedSpace* space = spaces.next(); space != nullptr;
-       space = spaces.next()) {
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
     space->VerifyCountersBeforeConcurrentSweeping();
   }
 }
@@ -4404,8 +4404,8 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->malloced_peak_memory = isolate_->allocator()->GetMaxMemoryUsage();
   if (take_snapshot) {
     HeapIterator iterator(this);
-    for (HeapObject obj = iterator.next(); !obj.is_null();
-         obj = iterator.next()) {
+    for (HeapObject obj = iterator.Next(); !obj.is_null();
+         obj = iterator.Next()) {
       InstanceType type = obj.map().instance_type();
       DCHECK(0 <= type && type <= LAST_TYPE);
       stats->objects_per_type[type]++;
@@ -4428,8 +4428,8 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
 size_t Heap::OldGenerationSizeOfObjects() {
   PagedSpaces spaces(this);
   size_t total = 0;
-  for (PagedSpace* space = spaces.next(); space != nullptr;
-       space = spaces.next()) {
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
     total += space->SizeOfObjects();
   }
   return total + lo_space_->SizeOfObjects();
@@ -4611,8 +4611,8 @@ void Heap::DisableInlineAllocation() {
   // Update inline allocation limit for old spaces.
   PagedSpaces spaces(this);
   CodeSpaceMemoryModificationScope modification_scope(this);
-  for (PagedSpace* space = spaces.next(); space != nullptr;
-       space = spaces.next()) {
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
     space->FreeLinearAllocationArea();
   }
 }
@@ -4909,7 +4909,7 @@ int Heap::NextStressMarkingLimit() {
 
 void Heap::NotifyDeserializationComplete() {
   PagedSpaces spaces(this);
-  for (PagedSpace* s = spaces.next(); s != nullptr; s = spaces.next()) {
+  for (PagedSpace* s = spaces.Next(); s != nullptr; s = spaces.Next()) {
     if (isolate()->snapshot_available()) s->ShrinkImmortalImmovablePages();
 #ifdef DEBUG
     // All pages right after bootstrapping must be marked as never-evacuate.
@@ -5159,7 +5159,7 @@ void Heap::CompactWeakArrayLists(AllocationType allocation) {
   std::vector<Handle<PrototypeInfo>> prototype_infos;
   {
     HeapIterator iterator(this);
-    for (HeapObject o = iterator.next(); !o.is_null(); o = iterator.next()) {
+    for (HeapObject o = iterator.Next(); !o.is_null(); o = iterator.Next()) {
       if (o.IsPrototypeInfo()) {
         PrototypeInfo prototype_info = PrototypeInfo::cast(o);
         if (prototype_info.prototype_users().IsWeakArrayList()) {
@@ -5337,7 +5337,7 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
   }
 }
 
-PagedSpace* PagedSpaces::next() {
+PagedSpace* PagedSpaces::Next() {
   switch (counter_++) {
     case RO_SPACE:
     case NEW_SPACE:
@@ -5358,16 +5358,15 @@ SpaceIterator::SpaceIterator(Heap* heap)
 
 SpaceIterator::~SpaceIterator() = default;
 
-bool SpaceIterator::has_next() {
+bool SpaceIterator::HasNext() {
   // Iterate until no more spaces.
   return current_space_ != LAST_SPACE;
 }
 
-Space* SpaceIterator::next() {
-  DCHECK(has_next());
+Space* SpaceIterator::Next() {
+  DCHECK(HasNext());
   return heap_->space(++current_space_);
 }
-
 
 class HeapObjectsFilter {
  public:
@@ -5502,7 +5501,7 @@ HeapIterator::HeapIterator(Heap* heap,
     default:
       break;
   }
-  object_iterator_ = space_iterator_->next()->GetObjectIterator();
+  object_iterator_ = space_iterator_->Next()->GetObjectIterator();
 }
 
 
@@ -5518,7 +5517,7 @@ HeapIterator::~HeapIterator() {
   delete filter_;
 }
 
-HeapObject HeapIterator::next() {
+HeapObject HeapIterator::Next() {
   if (filter_ == nullptr) return NextObject();
 
   HeapObject obj = NextObject();
@@ -5536,8 +5535,8 @@ HeapObject HeapIterator::NextObject() {
     return obj;
   } else {
     // Go though the spaces looking for one that has objects.
-    while (space_iterator_->has_next()) {
-      object_iterator_ = space_iterator_->next()->GetObjectIterator();
+    while (space_iterator_->HasNext()) {
+      object_iterator_ = space_iterator_->Next()->GetObjectIterator();
       obj = object_iterator_.get()->Next();
       if (!obj.is_null()) {
         return obj;

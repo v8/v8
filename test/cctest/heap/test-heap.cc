@@ -1069,8 +1069,8 @@ static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
   // Count the number of objects found in the heap.
   int found_count = 0;
   HeapIterator iterator(heap);
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     for (int i = 0; i < size; i++) {
       if (*objs[i] == obj) {
         found_count++;
@@ -1834,8 +1834,8 @@ TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   HeapIterator iterator(CcTest::heap());
   intptr_t size_of_objects_1 = CcTest::heap()->SizeOfObjects();
   intptr_t size_of_objects_2 = 0;
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (!obj.IsFreeSpace()) {
       size_of_objects_2 += obj.Size();
     }
@@ -1949,8 +1949,8 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
 static int NumberOfGlobalObjects() {
   int count = 0;
   HeapIterator iterator(CcTest::heap());
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
     if (obj.IsJSGlobalObject()) count++;
   }
   return count;
@@ -4870,7 +4870,7 @@ TEST(Regress507979) {
   // way the filler object shares the mark bits with the following live object.
   o1->Shrink(isolate, kFixedArrayLen - 1);
 
-  for (HeapObject obj = it.next(); !obj.is_null(); obj = it.next()) {
+  for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     // Let's not optimize the loop away.
     CHECK_NE(obj.address(), kNullAddress);
   }
@@ -5282,7 +5282,7 @@ TEST(ScriptIterator) {
   int script_count = 0;
   {
     HeapIterator it(heap);
-    for (HeapObject obj = it.next(); !obj.is_null(); obj = it.next()) {
+    for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
       if (obj.IsScript()) script_count++;
     }
   }
@@ -5312,7 +5312,7 @@ TEST(SharedFunctionInfoIterator) {
   int sfi_count = 0;
   {
     HeapIterator it(heap);
-    for (HeapObject obj = it.next(); !obj.is_null(); obj = it.next()) {
+    for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
       if (!obj.IsSharedFunctionInfo()) continue;
       sfi_count++;
     }

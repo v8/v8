@@ -808,8 +808,8 @@ void MarkCompactCollector::Prepare() {
   }
 
   PagedSpaces spaces(heap());
-  for (PagedSpace* space = spaces.next(); space != nullptr;
-       space = spaces.next()) {
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
     space->PrepareForMarkCompact();
   }
   heap()->account_external_memory_concurrently_freed();

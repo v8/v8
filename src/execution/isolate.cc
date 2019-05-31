@@ -3694,8 +3694,8 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
 
   {
     HeapIterator heap_iterator(heap());
-    for (HeapObject current_obj = heap_iterator.next(); !current_obj.is_null();
-         current_obj = heap_iterator.next()) {
+    for (HeapObject current_obj = heap_iterator.Next(); !current_obj.is_null();
+         current_obj = heap_iterator.Next()) {
       if (!current_obj.IsFeedbackVector()) continue;
 
       FeedbackVector vector = FeedbackVector::cast(current_obj);

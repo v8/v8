@@ -827,8 +827,8 @@ class FunctionDataMap : public ThreadVisitor {
   void Fill(Isolate* isolate, Address* restart_frame_fp) {
     {
       HeapIterator iterator(isolate->heap(), HeapIterator::kFilterUnreachable);
-      for (HeapObject obj = iterator.next(); !obj.is_null();
-           obj = iterator.next()) {
+      for (HeapObject obj = iterator.Next(); !obj.is_null();
+           obj = iterator.Next()) {
         if (obj.IsSharedFunctionInfo()) {
           SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
           FunctionData* data = nullptr;

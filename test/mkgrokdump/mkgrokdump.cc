@@ -149,7 +149,7 @@ static int DumpHeapConstants(const char* argv0) {
       }
 
       i::PagedSpaces spit(heap);
-      for (i::PagedSpace* s = spit.next(); s != nullptr; s = spit.next()) {
+      for (i::PagedSpace* s = spit.Next(); s != nullptr; s = spit.Next()) {
         i::HeapObjectIterator it(s);
         // Code objects are generally platform-dependent.
         if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
