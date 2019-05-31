@@ -231,6 +231,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                    const SharedFunctionInfoRef& shared,
                                    Node* context = nullptr);
 
+  void CheckIfElementsKind(Node* receiver_elements_kind, ElementsKind kind,
+                           Node* control, Node** if_true, Node** if_false);
+  Node* LoadReceiverElementsKind(Node* receiver, Node** effect, Node** control);
+
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   JSHeapBroker* broker() const { return broker_; }

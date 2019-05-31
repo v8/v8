@@ -1003,25 +1003,26 @@ bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
 
 bool CanInlineArrayResizingBuiltin(JSHeapBroker* broker,
                                    MapHandles const& receiver_maps,
-                                   ElementsKind* kind_return,
+                                   std::vector<ElementsKind>& kinds,
                                    bool builtin_is_push = false) {
   DCHECK_NE(0, receiver_maps.size());
-  *kind_return = MapRef(broker, receiver_maps[0]).elements_kind();
   for (auto receiver_map : receiver_maps) {
     MapRef map(broker, receiver_map);
     if (!map.supports_fast_array_resize()) return false;
-    if (builtin_is_push) {
-      if (!UnionElementsKindUptoPackedness(kind_return, map.elements_kind())) {
-        return false;
-      }
-    } else {
-      // TODO(turbofan): We should also handle fast holey double elements once
-      // we got the hole NaN mess sorted out in TurboFan/V8.
-      if (map.elements_kind() == HOLEY_DOUBLE_ELEMENTS ||
-          !UnionElementsKindUptoSize(kind_return, map.elements_kind())) {
-        return false;
+    // TODO(turbofan): We should also handle fast holey double elements once
+    // we got the hole NaN mess sorted out in TurboFan/V8.
+    if (map.elements_kind() == HOLEY_DOUBLE_ELEMENTS && !builtin_is_push) {
+      return false;
+    }
+    ElementsKind current_kind = map.elements_kind();
+    auto kind_ptr = kinds.data();
+    size_t i;
+    for (i = 0; i < kinds.size(); i++, kind_ptr++) {
+      if (UnionElementsKindUptoPackedness(kind_ptr, current_kind)) {
+        break;
       }
     }
+    if (i == kinds.size()) kinds.push_back(current_kind);
   }
   return true;
 }
@@ -4249,6 +4250,52 @@ Reduction JSCallReducer::ReduceSoftDeoptimize(Node* node,
   return Changed(node);
 }
 
+Node* JSCallReducer::LoadReceiverElementsKind(Node* receiver, Node** effect,
+                                              Node** control) {
+  Node* receiver_map = *effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       receiver, *effect, *control);
+  Node* receiver_bit_field2 = *effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapBitField2()), receiver_map,
+      *effect, *control);
+  Node* receiver_elements_kind = graph()->NewNode(
+      simplified()->NumberShiftRightLogical(),
+      graph()->NewNode(simplified()->NumberBitwiseAnd(), receiver_bit_field2,
+                       jsgraph()->Constant(Map::ElementsKindBits::kMask)),
+      jsgraph()->Constant(Map::ElementsKindBits::kShift));
+  return receiver_elements_kind;
+}
+
+void JSCallReducer::CheckIfElementsKind(Node* receiver_elements_kind,
+                                        ElementsKind kind, Node* control,
+                                        Node** if_true, Node** if_false) {
+  Node* is_packed_kind =
+      graph()->NewNode(simplified()->NumberEqual(), receiver_elements_kind,
+                       jsgraph()->Constant(GetPackedElementsKind(kind)));
+  Node* packed_branch =
+      graph()->NewNode(common()->Branch(), is_packed_kind, control);
+  Node* if_packed = graph()->NewNode(common()->IfTrue(), packed_branch);
+
+  if (IsHoleyElementsKind(kind)) {
+    Node* if_not_packed = graph()->NewNode(common()->IfFalse(), packed_branch);
+    Node* is_holey_kind =
+        graph()->NewNode(simplified()->NumberEqual(), receiver_elements_kind,
+                         jsgraph()->Constant(GetHoleyElementsKind(kind)));
+    Node* holey_branch =
+        graph()->NewNode(common()->Branch(), is_holey_kind, if_not_packed);
+    Node* if_holey = graph()->NewNode(common()->IfTrue(), holey_branch);
+
+    Node* if_not_packed_not_holey =
+        graph()->NewNode(common()->IfFalse(), holey_branch);
+
+    *if_true = graph()->NewNode(common()->Merge(2), if_packed, if_holey);
+    *if_false = if_not_packed_not_holey;
+  } else {
+    *if_true = if_packed;
+    *if_false = graph()->NewNode(common()->IfFalse(), packed_branch);
+  }
+}
+
 // ES6 section 22.1.3.18 Array.prototype.push ( )
 Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -4266,81 +4313,121 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
-  ElementsKind kind;
-  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kind, true)) {
+  std::vector<ElementsKind> kinds;
+  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, kinds, true)) {
     return inference.NoChange();
   }
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
-  // Collect the value inputs to push.
-  std::vector<Node*> values(num_values);
-  for (int i = 0; i < num_values; ++i) {
-    values[i] = NodeProperties::GetValueInput(node, 2 + i);
-  }
+  std::vector<Node*> controls_to_merge;
+  std::vector<Node*> effects_to_merge;
+  std::vector<Node*> values_to_merge;
+  Node* return_value = jsgraph()->UndefinedConstant();
 
-  for (auto& value : values) {
-    if (IsSmiElementsKind(kind)) {
-      value = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
-                                        value, effect, control);
-    } else if (IsDoubleElementsKind(kind)) {
-      value = effect = graph()->NewNode(simplified()->CheckNumber(p.feedback()),
-                                        value, effect, control);
-      // Make sure we do not store signaling NaNs into double arrays.
-      value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+  Node* receiver_elements_kind =
+      LoadReceiverElementsKind(receiver, &effect, &control);
+  Node* next_control = control;
+  Node* next_effect = effect;
+  for (size_t i = 0; i < kinds.size(); i++) {
+    ElementsKind kind = kinds[i];
+    control = next_control;
+    effect = next_effect;
+    // We do not need branch for the last elements kind.
+    if (i != kinds.size() - 1) {
+      CheckIfElementsKind(receiver_elements_kind, kind, control, &control,
+                          &next_control);
     }
-  }
 
-  // Load the "length" property of the {receiver}.
-  Node* length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
-      effect, control);
-  Node* value = length;
-
-  // Check if we have any {values} to push.
-  if (num_values > 0) {
-    // Compute the resulting "length" of the {receiver}.
-    Node* new_length = value = graph()->NewNode(
-        simplified()->NumberAdd(), length, jsgraph()->Constant(num_values));
-
-    // Load the elements backing store of the {receiver}.
-    Node* elements = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
-        effect, control);
-    Node* elements_length = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForFixedArrayLength()), elements,
-        effect, control);
-
-    GrowFastElementsMode mode =
-        IsDoubleElementsKind(kind) ? GrowFastElementsMode::kDoubleElements
-                                   : GrowFastElementsMode::kSmiOrObjectElements;
-    elements = effect = graph()->NewNode(
-        simplified()->MaybeGrowFastElements(mode, p.feedback()), receiver,
-        elements,
-        graph()->NewNode(simplified()->NumberAdd(), length,
-                         jsgraph()->Constant(num_values - 1)),
-        elements_length, effect, control);
-
-    // Update the JSArray::length field. Since this is observable,
-    // there must be no other check after this.
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSArrayLength(kind)),
-        receiver, new_length, effect, control);
-
-    // Append the {values} to the {elements}.
+    // Collect the value inputs to push.
+    std::vector<Node*> values(num_values);
     for (int i = 0; i < num_values; ++i) {
-      Node* value = values[i];
-      Node* index = graph()->NewNode(simplified()->NumberAdd(), length,
-                                     jsgraph()->Constant(i));
-      effect = graph()->NewNode(
-          simplified()->StoreElement(AccessBuilder::ForFixedArrayElement(kind)),
-          elements, index, value, effect, control);
+      values[i] = NodeProperties::GetValueInput(node, 2 + i);
     }
+
+    for (auto& value : values) {
+      if (IsSmiElementsKind(kind)) {
+        value = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
+                                          value, effect, control);
+      } else if (IsDoubleElementsKind(kind)) {
+        value = effect = graph()->NewNode(
+            simplified()->CheckNumber(p.feedback()), value, effect, control);
+        // Make sure we do not store signaling NaNs into double arrays.
+        value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+      }
+    }
+
+    // Load the "length" property of the {receiver}.
+    Node* length = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)),
+        receiver, effect, control);
+    return_value = length;
+
+    // Check if we have any {values} to push.
+    if (num_values > 0) {
+      // Compute the resulting "length" of the {receiver}.
+      Node* new_length = return_value = graph()->NewNode(
+          simplified()->NumberAdd(), length, jsgraph()->Constant(num_values));
+
+      // Load the elements backing store of the {receiver}.
+      Node* elements = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+          receiver, effect, control);
+      Node* elements_length = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+          elements, effect, control);
+
+      GrowFastElementsMode mode =
+          IsDoubleElementsKind(kind)
+              ? GrowFastElementsMode::kDoubleElements
+              : GrowFastElementsMode::kSmiOrObjectElements;
+      elements = effect = graph()->NewNode(
+          simplified()->MaybeGrowFastElements(mode, p.feedback()), receiver,
+          elements,
+          graph()->NewNode(simplified()->NumberAdd(), length,
+                           jsgraph()->Constant(num_values - 1)),
+          elements_length, effect, control);
+
+      // Update the JSArray::length field. Since this is observable,
+      // there must be no other check after this.
+      effect = graph()->NewNode(
+          simplified()->StoreField(AccessBuilder::ForJSArrayLength(kind)),
+          receiver, new_length, effect, control);
+
+      // Append the {values} to the {elements}.
+      for (int i = 0; i < num_values; ++i) {
+        Node* value = values[i];
+        Node* index = graph()->NewNode(simplified()->NumberAdd(), length,
+                                       jsgraph()->Constant(i));
+        effect =
+            graph()->NewNode(simplified()->StoreElement(
+                                 AccessBuilder::ForFixedArrayElement(kind)),
+                             elements, index, value, effect, control);
+      }
+    }
+
+    controls_to_merge.push_back(control);
+    effects_to_merge.push_back(effect);
+    values_to_merge.push_back(return_value);
   }
 
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
+  if (controls_to_merge.size() > 1) {
+    int const count = static_cast<int>(controls_to_merge.size());
+
+    control = graph()->NewNode(common()->Merge(count), count,
+                               &controls_to_merge.front());
+    effects_to_merge.push_back(control);
+    effect = graph()->NewNode(common()->EffectPhi(count), count + 1,
+                              &effects_to_merge.front());
+    values_to_merge.push_back(control);
+    return_value =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, count),
+                         count + 1, &values_to_merge.front());
+  }
+
+  ReplaceWithValue(node, return_value, effect, control);
+  return Replace(return_value);
 }
 
 // ES6 section 22.1.3.17 Array.prototype.pop ( )
@@ -4359,79 +4446,117 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
   if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
-  ElementsKind kind;
-  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kind)) {
+  std::vector<ElementsKind> kinds;
+  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, kinds)) {
     return inference.NoChange();
   }
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
-  // Load the "length" property of the {receiver}.
-  Node* length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
-      effect, control);
+  std::vector<Node*> controls_to_merge;
+  std::vector<Node*> effects_to_merge;
+  std::vector<Node*> values_to_merge;
+  Node* value = jsgraph()->UndefinedConstant();
 
-  // Check if the {receiver} has any elements.
-  Node* check = graph()->NewNode(simplified()->NumberEqual(), length,
-                                 jsgraph()->ZeroConstant());
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* etrue = effect;
-  Node* vtrue = jsgraph()->UndefinedConstant();
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* efalse = effect;
-  Node* vfalse;
-  {
-    // TODO(tebbi): We should trim the backing store if the capacity is too
-    // big, as implemented in elements.cc:ElementsAccessorBase::SetLengthImpl.
-
-    // Load the elements backing store from the {receiver}.
-    Node* elements = efalse = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
-        efalse, if_false);
-
-    // Ensure that we aren't popping from a copy-on-write backing store.
-    if (IsSmiOrObjectElementsKind(kind)) {
-      elements = efalse =
-          graph()->NewNode(simplified()->EnsureWritableFastElements(), receiver,
-                           elements, efalse, if_false);
+  Node* receiver_elements_kind =
+      LoadReceiverElementsKind(receiver, &effect, &control);
+  Node* next_control = control;
+  Node* next_effect = effect;
+  for (size_t i = 0; i < kinds.size(); i++) {
+    ElementsKind kind = kinds[i];
+    control = next_control;
+    effect = next_effect;
+    // We do not need branch for the last elements kind.
+    if (i != kinds.size() - 1) {
+      CheckIfElementsKind(receiver_elements_kind, kind, control, &control,
+                          &next_control);
     }
 
-    // Compute the new {length}.
-    length = graph()->NewNode(simplified()->NumberSubtract(), length,
-                              jsgraph()->OneConstant());
+    // Load the "length" property of the {receiver}.
+    Node* length = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)),
+        receiver, effect, control);
 
-    // Store the new {length} to the {receiver}.
-    efalse = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSArrayLength(kind)),
-        receiver, length, efalse, if_false);
+    // Check if the {receiver} has any elements.
+    Node* check = graph()->NewNode(simplified()->NumberEqual(), length,
+                                   jsgraph()->ZeroConstant());
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
 
-    // Load the last entry from the {elements}.
-    vfalse = efalse = graph()->NewNode(
-        simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
-        elements, length, efalse, if_false);
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* etrue = effect;
+    Node* vtrue = jsgraph()->UndefinedConstant();
 
-    // Store a hole to the element we just removed from the {receiver}.
-    efalse = graph()->NewNode(
-        simplified()->StoreElement(
-            AccessBuilder::ForFixedArrayElement(GetHoleyElementsKind(kind))),
-        elements, length, jsgraph()->TheHoleConstant(), efalse, if_false);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* efalse = effect;
+    Node* vfalse;
+    {
+      // TODO(tebbi): We should trim the backing store if the capacity is too
+      // big, as implemented in elements.cc:ElementsAccessorBase::SetLengthImpl.
+
+      // Load the elements backing store from the {receiver}.
+      Node* elements = efalse = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+          receiver, efalse, if_false);
+
+      // Ensure that we aren't popping from a copy-on-write backing store.
+      if (IsSmiOrObjectElementsKind(kind)) {
+        elements = efalse =
+            graph()->NewNode(simplified()->EnsureWritableFastElements(),
+                             receiver, elements, efalse, if_false);
+      }
+
+      // Compute the new {length}.
+      length = graph()->NewNode(simplified()->NumberSubtract(), length,
+                                jsgraph()->OneConstant());
+
+      // Store the new {length} to the {receiver}.
+      efalse = graph()->NewNode(
+          simplified()->StoreField(AccessBuilder::ForJSArrayLength(kind)),
+          receiver, length, efalse, if_false);
+
+      // Load the last entry from the {elements}.
+      vfalse = efalse = graph()->NewNode(
+          simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
+          elements, length, efalse, if_false);
+
+      // Store a hole to the element we just removed from the {receiver}.
+      efalse = graph()->NewNode(
+          simplified()->StoreElement(
+              AccessBuilder::ForFixedArrayElement(GetHoleyElementsKind(kind))),
+          elements, length, jsgraph()->TheHoleConstant(), efalse, if_false);
+    }
+
+    control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+    value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                             vtrue, vfalse, control);
+
+    // Convert the hole to undefined. Do this last, so that we can optimize
+    // conversion operator via some smart strength reduction in many cases.
+    if (IsHoleyElementsKind(kind)) {
+      value =
+          graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(), value);
+    }
+
+    controls_to_merge.push_back(control);
+    effects_to_merge.push_back(effect);
+    values_to_merge.push_back(value);
   }
 
-  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-  Node* value = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), vtrue, vfalse, control);
+  if (controls_to_merge.size() > 1) {
+    int const count = static_cast<int>(controls_to_merge.size());
 
-  // Convert the hole to undefined. Do this last, so that we can optimize
-  // conversion operator via some smart strength reduction in many cases.
-  if (IsHoleyElementsKind(kind)) {
+    control = graph()->NewNode(common()->Merge(count), count,
+                               &controls_to_merge.front());
+    effects_to_merge.push_back(control);
+    effect = graph()->NewNode(common()->EffectPhi(count), count + 1,
+                              &effects_to_merge.front());
+    values_to_merge.push_back(control);
     value =
-        graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(), value);
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, count),
+                         count + 1, &values_to_merge.front());
   }
 
   ReplaceWithValue(node, value, effect, control);
@@ -4457,151 +4582,172 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
-  ElementsKind kind;
-  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kind)) {
+  std::vector<ElementsKind> kinds;
+  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, kinds)) {
     return inference.NoChange();
   }
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
-  // Load length of the {receiver}.
-  Node* length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
-      effect, control);
+  std::vector<Node*> controls_to_merge;
+  std::vector<Node*> effects_to_merge;
+  std::vector<Node*> values_to_merge;
+  Node* value = jsgraph()->UndefinedConstant();
 
-  // Return undefined if {receiver} has no elements.
-  Node* check0 = graph()->NewNode(simplified()->NumberEqual(), length,
-                                  jsgraph()->ZeroConstant());
-  Node* branch0 =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check0, control);
+  Node* receiver_elements_kind =
+      LoadReceiverElementsKind(receiver, &effect, &control);
+  Node* next_control = control;
+  Node* next_effect = effect;
+  for (size_t i = 0; i < kinds.size(); i++) {
+    ElementsKind kind = kinds[i];
+    control = next_control;
+    effect = next_effect;
+    // We do not need branch for the last elements kind.
+    if (i != kinds.size() - 1) {
+      CheckIfElementsKind(receiver_elements_kind, kind, control, &control,
+                          &next_control);
+    }
 
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* etrue0 = effect;
-  Node* vtrue0 = jsgraph()->UndefinedConstant();
+    // Load length of the {receiver}.
+    Node* length = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)),
+        receiver, effect, control);
 
-  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
-  Node* efalse0 = effect;
-  Node* vfalse0;
-  {
-    // Check if we should take the fast-path.
-    Node* check1 =
-        graph()->NewNode(simplified()->NumberLessThanOrEqual(), length,
-                         jsgraph()->Constant(JSArray::kMaxCopyElements));
-    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                     check1, if_false0);
+    // Return undefined if {receiver} has no elements.
+    Node* check0 = graph()->NewNode(simplified()->NumberEqual(), length,
+                                    jsgraph()->ZeroConstant());
+    Node* branch0 =
+        graph()->NewNode(common()->Branch(BranchHint::kFalse), check0, control);
 
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* etrue1 = efalse0;
-    Node* vtrue1;
+    Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+    Node* etrue0 = effect;
+    Node* vtrue0 = jsgraph()->UndefinedConstant();
+
+    Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+    Node* efalse0 = effect;
+    Node* vfalse0;
     {
-      Node* elements = etrue1 = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
-          receiver, etrue1, if_true1);
+      // Check if we should take the fast-path.
+      Node* check1 =
+          graph()->NewNode(simplified()->NumberLessThanOrEqual(), length,
+                           jsgraph()->Constant(JSArray::kMaxCopyElements));
+      Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                       check1, if_false0);
 
-      // Load the first element here, which we return below.
-      vtrue1 = etrue1 = graph()->NewNode(
-          simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
-          elements, jsgraph()->ZeroConstant(), etrue1, if_true1);
-
-      // Ensure that we aren't shifting a copy-on-write backing store.
-      if (IsSmiOrObjectElementsKind(kind)) {
-        elements = etrue1 =
-            graph()->NewNode(simplified()->EnsureWritableFastElements(),
-                             receiver, elements, etrue1, if_true1);
-      }
-
-      // Shift the remaining {elements} by one towards the start.
-      Node* loop = graph()->NewNode(common()->Loop(2), if_true1, if_true1);
-      Node* eloop =
-          graph()->NewNode(common()->EffectPhi(2), etrue1, etrue1, loop);
-      Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-      NodeProperties::MergeControlToEnd(graph(), common(), terminate);
-      Node* index = graph()->NewNode(
-          common()->Phi(MachineRepresentation::kTagged, 2),
-          jsgraph()->OneConstant(),
-          jsgraph()->Constant(JSArray::kMaxCopyElements - 1), loop);
-
+      Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+      Node* etrue1 = efalse0;
+      Node* vtrue1;
       {
-        Node* check2 =
-            graph()->NewNode(simplified()->NumberLessThan(), index, length);
-        Node* branch2 = graph()->NewNode(common()->Branch(), check2, loop);
+        Node* elements = etrue1 = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+            receiver, etrue1, if_true1);
 
-        if_true1 = graph()->NewNode(common()->IfFalse(), branch2);
-        etrue1 = eloop;
+        // Load the first element here, which we return below.
+        vtrue1 = etrue1 = graph()->NewNode(
+            simplified()->LoadElement(
+                AccessBuilder::ForFixedArrayElement(kind)),
+            elements, jsgraph()->ZeroConstant(), etrue1, if_true1);
 
-        Node* control = graph()->NewNode(common()->IfTrue(), branch2);
-        Node* effect = etrue1;
+        // Ensure that we aren't shifting a copy-on-write backing store.
+        if (IsSmiOrObjectElementsKind(kind)) {
+          elements = etrue1 =
+              graph()->NewNode(simplified()->EnsureWritableFastElements(),
+                               receiver, elements, etrue1, if_true1);
+        }
 
-        ElementAccess const access = AccessBuilder::ForFixedArrayElement(kind);
-        Node* value = effect =
-            graph()->NewNode(simplified()->LoadElement(access), elements, index,
-                             effect, control);
-        effect =
-            graph()->NewNode(simplified()->StoreElement(access), elements,
-                             graph()->NewNode(simplified()->NumberSubtract(),
-                                              index, jsgraph()->OneConstant()),
-                             value, effect, control);
+        // Shift the remaining {elements} by one towards the start.
+        Node* loop = graph()->NewNode(common()->Loop(2), if_true1, if_true1);
+        Node* eloop =
+            graph()->NewNode(common()->EffectPhi(2), etrue1, etrue1, loop);
+        Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
+        NodeProperties::MergeControlToEnd(graph(), common(), terminate);
+        Node* index = graph()->NewNode(
+            common()->Phi(MachineRepresentation::kTagged, 2),
+            jsgraph()->OneConstant(),
+            jsgraph()->Constant(JSArray::kMaxCopyElements - 1), loop);
 
-        loop->ReplaceInput(1, control);
-        eloop->ReplaceInput(1, effect);
-        index->ReplaceInput(1,
-                            graph()->NewNode(simplified()->NumberAdd(), index,
-                                             jsgraph()->OneConstant()));
+        {
+          Node* check2 =
+              graph()->NewNode(simplified()->NumberLessThan(), index, length);
+          Node* branch2 = graph()->NewNode(common()->Branch(), check2, loop);
+
+          if_true1 = graph()->NewNode(common()->IfFalse(), branch2);
+          etrue1 = eloop;
+
+          Node* control = graph()->NewNode(common()->IfTrue(), branch2);
+          Node* effect = etrue1;
+
+          ElementAccess const access =
+              AccessBuilder::ForFixedArrayElement(kind);
+          Node* value = effect =
+              graph()->NewNode(simplified()->LoadElement(access), elements,
+                               index, effect, control);
+          effect = graph()->NewNode(
+              simplified()->StoreElement(access), elements,
+              graph()->NewNode(simplified()->NumberSubtract(), index,
+                               jsgraph()->OneConstant()),
+              value, effect, control);
+
+          loop->ReplaceInput(1, control);
+          eloop->ReplaceInput(1, effect);
+          index->ReplaceInput(1,
+                              graph()->NewNode(simplified()->NumberAdd(), index,
+                                               jsgraph()->OneConstant()));
+        }
+
+        // Compute the new {length}.
+        length = graph()->NewNode(simplified()->NumberSubtract(), length,
+                                  jsgraph()->OneConstant());
+
+        // Store the new {length} to the {receiver}.
+        etrue1 = graph()->NewNode(
+            simplified()->StoreField(AccessBuilder::ForJSArrayLength(kind)),
+            receiver, length, etrue1, if_true1);
+
+        // Store a hole to the element we just removed from the {receiver}.
+        etrue1 = graph()->NewNode(
+            simplified()->StoreElement(AccessBuilder::ForFixedArrayElement(
+                GetHoleyElementsKind(kind))),
+            elements, length, jsgraph()->TheHoleConstant(), etrue1, if_true1);
       }
 
-      // Compute the new {length}.
-      length = graph()->NewNode(simplified()->NumberSubtract(), length,
-                                jsgraph()->OneConstant());
+      Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+      Node* efalse1 = efalse0;
+      Node* vfalse1;
+      {
+        // Call the generic C++ implementation.
+        const int builtin_index = Builtins::kArrayShift;
+        auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
+            graph()->zone(), 1, BuiltinArguments::kNumExtraArgsWithReceiver,
+            Builtins::name(builtin_index), node->op()->properties(),
+            CallDescriptor::kNeedsFrameState);
+        Node* stub_code = jsgraph()->CEntryStubConstant(1, kDontSaveFPRegs,
+                                                        kArgvOnStack, true);
+        Address builtin_entry = Builtins::CppEntryOf(builtin_index);
+        Node* entry = jsgraph()->ExternalConstant(
+            ExternalReference::Create(builtin_entry));
+        Node* argc =
+            jsgraph()->Constant(BuiltinArguments::kNumExtraArgsWithReceiver);
+        if_false1 = efalse1 = vfalse1 =
+            graph()->NewNode(common()->Call(call_descriptor), stub_code,
+                             receiver, jsgraph()->PaddingConstant(), argc,
+                             target, jsgraph()->UndefinedConstant(), entry,
+                             argc, context, frame_state, efalse1, if_false1);
+      }
 
-      // Store the new {length} to the {receiver}.
-      etrue1 = graph()->NewNode(
-          simplified()->StoreField(AccessBuilder::ForJSArrayLength(kind)),
-          receiver, length, etrue1, if_true1);
-
-      // Store a hole to the element we just removed from the {receiver}.
-      etrue1 = graph()->NewNode(
-          simplified()->StoreElement(
-              AccessBuilder::ForFixedArrayElement(GetHoleyElementsKind(kind))),
-          elements, length, jsgraph()->TheHoleConstant(), etrue1, if_true1);
-    }
-
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* efalse1 = efalse0;
-    Node* vfalse1;
-    {
-      // Call the generic C++ implementation.
-      const int builtin_index = Builtins::kArrayShift;
-      auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
-          graph()->zone(), 1, BuiltinArguments::kNumExtraArgsWithReceiver,
-          Builtins::name(builtin_index), node->op()->properties(),
-          CallDescriptor::kNeedsFrameState);
-      Node* stub_code =
-          jsgraph()->CEntryStubConstant(1, kDontSaveFPRegs, kArgvOnStack, true);
-      Address builtin_entry = Builtins::CppEntryOf(builtin_index);
-      Node* entry =
-          jsgraph()->ExternalConstant(ExternalReference::Create(builtin_entry));
-      Node* argc =
-          jsgraph()->Constant(BuiltinArguments::kNumExtraArgsWithReceiver);
-      if_false1 = efalse1 = vfalse1 =
-          graph()->NewNode(common()->Call(call_descriptor), stub_code, receiver,
-                           jsgraph()->PaddingConstant(), argc, target,
-                           jsgraph()->UndefinedConstant(), entry, argc, context,
-                           frame_state, efalse1, if_false1);
-    }
-
-    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    efalse0 =
-        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_false0);
-    vfalse0 = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                               vtrue1, vfalse1, if_false0);
+      if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+      efalse0 =
+          graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_false0);
+      vfalse0 =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           vtrue1, vfalse1, if_false0);
     }
 
     control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
     effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
-    Node* value =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                         vtrue0, vfalse0, control);
+    value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                             vtrue0, vfalse0, control);
 
     // Convert the hole to undefined. Do this last, so that we can optimize
     // conversion operator via some smart strength reduction in many cases.
@@ -4610,8 +4756,27 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
           graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(), value);
     }
 
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
+    controls_to_merge.push_back(control);
+    effects_to_merge.push_back(effect);
+    values_to_merge.push_back(value);
+  }
+
+  if (controls_to_merge.size() > 1) {
+    int const count = static_cast<int>(controls_to_merge.size());
+
+    control = graph()->NewNode(common()->Merge(count), count,
+                               &controls_to_merge.front());
+    effects_to_merge.push_back(control);
+    effect = graph()->NewNode(common()->EffectPhi(count), count + 1,
+                              &effects_to_merge.front());
+    values_to_merge.push_back(control);
+    value =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, count),
+                         count + 1, &values_to_merge.front());
+  }
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 // ES6 section 22.1.3.23 Array.prototype.slice ( )
