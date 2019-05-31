@@ -558,6 +558,9 @@ class BaseTestRunner(object):
         asan_options.append('detect_leaks=1')
       else:
         asan_options.append('detect_leaks=0')
+      if utils.GuessOS() == 'windows':
+        # https://crbug.com/967663
+        asan_options.append('detect_stack_use_after_return=0')
       os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
 
     if self.build_config.cfi_vptr:
