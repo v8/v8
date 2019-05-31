@@ -1,5 +1,4 @@
-per-file intl.*=cira@chromium.org
-per-file intl.*=mnita@google.com
-per-file intl.*=jshin@chromium.org
+per-file intl-*=file://INTL_OWNERS
+per-file *-intl*=file://INTL_OWNERS
 
 # COMPONENT: Blink>JavaScript
