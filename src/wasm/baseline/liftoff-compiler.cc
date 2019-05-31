@@ -174,7 +174,8 @@ class LiftoffCompiler {
         compilation_zone_(compilation_zone),
         safepoint_table_builder_(compilation_zone_) {}
 
-  bool ok() const { return ok_; }
+  bool did_bailout() const { return bailout_reason_ != kSuccess; }
+  LiftoffBailoutReason bailout_reason() const { return bailout_reason_; }
 
   void GetCode(CodeDesc* desc) {
     asm_.GetCode(nullptr, desc, &safepoint_table_builder_,
@@ -195,30 +196,51 @@ class LiftoffCompiler {
     return __ GetTotalFrameSlotCount();
   }
 
-  void unsupported(FullDecoder* decoder, const char* reason) {
-    ok_ = false;
-    TRACE("unsupported: %s\n", reason);
+  void unsupported(FullDecoder* decoder, LiftoffBailoutReason reason,
+                   const char* detail) {
+    DCHECK_NE(kSuccess, reason);
+    if (did_bailout()) return;
+    bailout_reason_ = reason;
+    TRACE("unsupported: %s\n", detail);
     decoder->errorf(decoder->pc_offset(), "unsupported liftoff operation: %s",
-                    reason);
+                    detail);
     UnuseLabels(decoder);
   }
 
   bool DidAssemblerBailout(FullDecoder* decoder) {
     if (decoder->failed() || !__ did_bailout()) return false;
-    unsupported(decoder, __ bailout_reason());
+    unsupported(decoder, __ bailout_reason(), __ bailout_detail());
     return true;
+  }
+
+  LiftoffBailoutReason BailoutReasonForType(ValueType type) {
+    switch (type) {
+      case kWasmS128:
+        return kSimd;
+      case kWasmAnyRef:
+      case kWasmAnyFunc:
+      case kWasmNullRef:
+        return kAnyRef;
+      case kWasmExceptRef:
+        return kExceptionHandling;
+      case kWasmVar:
+        return kMultiValue;
+      default:
+        return kOtherReason;
+    }
   }
 
   bool CheckSupportedType(FullDecoder* decoder,
                           Vector<const ValueType> supported_types,
                           ValueType type, const char* context) {
-    char buffer[128];
     // Check supported types.
     for (ValueType supported : supported_types) {
       if (type == supported) return true;
     }
-    SNPrintF(ArrayVector(buffer), "%s %s", ValueTypes::TypeName(type), context);
-    unsupported(decoder, buffer);
+    LiftoffBailoutReason bailout_reason = BailoutReasonForType(type);
+    EmbeddedVector<char, 128> buffer;
+    SNPrintF(buffer, "%s %s", ValueTypes::TypeName(type), context);
+    unsupported(decoder, bailout_reason, buffer.begin());
     return false;
   }
 
@@ -449,7 +471,7 @@ class LiftoffCompiler {
   }
 
   void OnFirstError(FullDecoder* decoder) {
-    ok_ = false;
+    if (!did_bailout()) bailout_reason_ = kDecodeError;
     UnuseLabels(decoder);
     asm_.AbortCompilation();
   }
@@ -481,19 +503,20 @@ class LiftoffCompiler {
   }
 
   void Try(FullDecoder* decoder, Control* block) {
-    unsupported(decoder, "try");
+    unsupported(decoder, kExceptionHandling, "try");
   }
 
   void Catch(FullDecoder* decoder, Control* block, Value* exception) {
-    unsupported(decoder, "catch");
+    unsupported(decoder, kExceptionHandling, "catch");
   }
 
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
     DCHECK_EQ(if_block, decoder->control_at(0));
     DCHECK(if_block->is_if());
 
-    if (if_block->start_merge.arity > 0 || if_block->end_merge.arity > 1)
-      return unsupported(decoder, "multi-value if");
+    if (if_block->start_merge.arity > 0 || if_block->end_merge.arity > 1) {
+      return unsupported(decoder, kMultiValue, "multi-value if");
+    }
 
     // Allocate the else state.
     if_block->else_state = base::make_unique<ElseState>();
@@ -776,6 +799,8 @@ class LiftoffCompiler {
       case WasmOpcode::kExprI64Clz:
       case WasmOpcode::kExprI64Ctz:
       case WasmOpcode::kExprI64Popcnt:
+        return unsupported(decoder, kComplexOperation,
+                           WasmOpcodes::OpcodeName(opcode));
       case WasmOpcode::kExprI32SConvertSatF32:
       case WasmOpcode::kExprI32UConvertSatF32:
       case WasmOpcode::kExprI32SConvertSatF64:
@@ -784,7 +809,8 @@ class LiftoffCompiler {
       case WasmOpcode::kExprI64UConvertSatF32:
       case WasmOpcode::kExprI64SConvertSatF64:
       case WasmOpcode::kExprI64UConvertSatF64:
-        return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
+        return unsupported(decoder, kNonTrappingFloatToInt,
+                           WasmOpcodes::OpcodeName(opcode));
       default:
         UNREACHABLE();
     }
@@ -1118,7 +1144,8 @@ class LiftoffCompiler {
         break;
       case WasmOpcode::kExprI64Rol:
       case WasmOpcode::kExprI64Ror:
-        return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
+        return unsupported(decoder, kComplexOperation,
+                           WasmOpcodes::OpcodeName(opcode));
       default:
         UNREACHABLE();
     }
@@ -1168,11 +1195,11 @@ class LiftoffCompiler {
   }
 
   void RefNull(FullDecoder* decoder, Value* result) {
-    unsupported(decoder, "ref_null");
+    unsupported(decoder, kAnyRef, "ref_null");
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    unsupported(decoder, "func");
+    unsupported(decoder, kAnyRef, "func");
   }
 
   void Drop(FullDecoder* decoder, const Value& value) {
@@ -1184,7 +1211,9 @@ class LiftoffCompiler {
 
   void ReturnImpl(FullDecoder* decoder) {
     size_t num_returns = decoder->sig_->return_count();
-    if (num_returns > 1) return unsupported(decoder, "multi-return");
+    if (num_returns > 1) {
+      return unsupported(decoder, kMultiValue, "multi-return");
+    }
     if (num_returns > 0) __ MoveToReturnRegisters(decoder->sig_);
     __ LeaveFrame(StackFrame::WASM_COMPILED);
     __ DropStackSlotsAndRet(
@@ -1313,12 +1342,12 @@ class LiftoffCompiler {
 
   void GetTable(FullDecoder* decoder, const Value& index, Value* result,
                 TableIndexImmediate<validate>& imm) {
-    unsupported(decoder, "table_get");
+    unsupported(decoder, kAnyRef, "table_get");
   }
 
   void SetTable(FullDecoder* decoder, const Value& index, const Value& value,
                 TableIndexImmediate<validate>& imm) {
-    unsupported(decoder, "table_set");
+    unsupported(decoder, kAnyRef, "table_set");
   }
 
   void Unreachable(FullDecoder* decoder) {
@@ -1735,12 +1764,14 @@ class LiftoffCompiler {
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[]) {
-    if (imm.sig->return_count() > 1)
-      return unsupported(decoder, "multi-return");
+    if (imm.sig->return_count() > 1) {
+      return unsupported(decoder, kMultiValue, "multi-return");
+    }
     if (imm.sig->return_count() == 1 &&
         !CheckSupportedType(decoder, kSupportedTypes, imm.sig->GetReturn(0),
-                            "return"))
+                            "return")) {
       return;
+    }
 
     auto call_descriptor =
         compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);
@@ -1798,10 +1829,10 @@ class LiftoffCompiler {
                     const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
     if (imm.sig->return_count() > 1) {
-      return unsupported(decoder, "multi-return");
+      return unsupported(decoder, kMultiValue, "multi-return");
     }
     if (imm.table_index != 0) {
-      return unsupported(decoder, "table index != 0");
+      return unsupported(decoder, kAnyRef, "table index != 0");
     }
     if (imm.sig->return_count() == 1 &&
         !CheckSupportedType(decoder, kSupportedTypes, imm.sig->GetReturn(0),
@@ -1933,96 +1964,96 @@ class LiftoffCompiler {
   void ReturnCall(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
-    unsupported(decoder, "return_call");
+    unsupported(decoder, kTailCall, "return_call");
   }
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index_val,
                           const CallIndirectImmediate<validate>& imm,
                           const Value args[]) {
-    unsupported(decoder, "return_call_indirect");
+    unsupported(decoder, kTailCall, "return_call_indirect");
   }
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
-    unsupported(decoder, "simd");
+    unsupported(decoder, kSimd, "simd");
   }
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
                   const SimdLaneImmediate<validate>& imm,
                   const Vector<Value> inputs, Value* result) {
-    unsupported(decoder, "simd");
+    unsupported(decoder, kSimd, "simd");
   }
   void SimdShiftOp(FullDecoder* decoder, WasmOpcode opcode,
                    const SimdShiftImmediate<validate>& imm, const Value& input,
                    Value* result) {
-    unsupported(decoder, "simd");
+    unsupported(decoder, kSimd, "simd");
   }
   void Simd8x16ShuffleOp(FullDecoder* decoder,
                          const Simd8x16ShuffleImmediate<validate>& imm,
                          const Value& input0, const Value& input1,
                          Value* result) {
-    unsupported(decoder, "simd");
+    unsupported(decoder, kSimd, "simd");
   }
   void Throw(FullDecoder* decoder, const ExceptionIndexImmediate<validate>&,
              const Vector<Value>& args) {
-    unsupported(decoder, "throw");
+    unsupported(decoder, kExceptionHandling, "throw");
   }
   void Rethrow(FullDecoder* decoder, const Value& exception) {
-    unsupported(decoder, "rethrow");
+    unsupported(decoder, kExceptionHandling, "rethrow");
   }
   void BrOnException(FullDecoder* decoder, const Value& exception,
                      const ExceptionIndexImmediate<validate>& imm,
                      uint32_t depth, Vector<Value> values) {
-    unsupported(decoder, "br_on_exn");
+    unsupported(decoder, kExceptionHandling, "br_on_exn");
   }
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
                 const MemoryAccessImmediate<validate>& imm, Value* result) {
-    unsupported(decoder, "atomicop");
+    unsupported(decoder, kAtomics, "atomicop");
   }
   void MemoryInit(FullDecoder* decoder,
                   const MemoryInitImmediate<validate>& imm, const Value& dst,
                   const Value& src, const Value& size) {
-    unsupported(decoder, "memory.init");
+    unsupported(decoder, kBulkMemory, "memory.init");
   }
   void DataDrop(FullDecoder* decoder, const DataDropImmediate<validate>& imm) {
-    unsupported(decoder, "data.drop");
+    unsupported(decoder, kBulkMemory, "data.drop");
   }
   void MemoryCopy(FullDecoder* decoder,
                   const MemoryCopyImmediate<validate>& imm, const Value& dst,
                   const Value& src, const Value& size) {
-    unsupported(decoder, "memory.copy");
+    unsupported(decoder, kBulkMemory, "memory.copy");
   }
   void MemoryFill(FullDecoder* decoder,
                   const MemoryIndexImmediate<validate>& imm, const Value& dst,
                   const Value& value, const Value& size) {
-    unsupported(decoder, "memory.fill");
+    unsupported(decoder, kBulkMemory, "memory.fill");
   }
   void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
                  Vector<Value> args) {
-    unsupported(decoder, "table.init");
+    unsupported(decoder, kBulkMemory, "table.init");
   }
   void ElemDrop(FullDecoder* decoder, const ElemDropImmediate<validate>& imm) {
-    unsupported(decoder, "elem.drop");
+    unsupported(decoder, kBulkMemory, "elem.drop");
   }
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
                  Vector<Value> args) {
-    unsupported(decoder, "table.copy");
+    unsupported(decoder, kBulkMemory, "table.copy");
   }
   void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
                  Value& value, Value& delta, Value* result) {
-    unsupported(decoder, "table.grow");
+    unsupported(decoder, kAnyRef, "table.grow");
   }
   void TableSize(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
                  Value* result) {
-    unsupported(decoder, "table.size");
+    unsupported(decoder, kAnyRef, "table.size");
   }
   void TableFill(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
                  Value& start, Value& value, Value& count) {
-    unsupported(decoder, "table.fill");
+    unsupported(decoder, kAnyRef, "table.fill");
   }
 
  private:
   LiftoffAssembler asm_;
   compiler::CallDescriptor* const descriptor_;
   CompilationEnv* const env_;
-  bool ok_ = true;
+  LiftoffBailoutReason bailout_reason_ = kSuccess;
   std::vector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder source_position_table_builder_;
   std::vector<trap_handler::ProtectedInstructionData> protected_instructions_;
@@ -2081,11 +2112,17 @@ WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();
-  if (decoder.failed()) {
-    compiler->OnFirstError(&decoder);
-    return WasmCompilationResult{};
-  }
-  if (!compiler->ok()) {
+  if (decoder.failed()) compiler->OnFirstError(&decoder);
+
+  // Check that the histogram for the bailout reasons has the correct size.
+  DCHECK_EQ(0, counters->liftoff_bailout_reasons()->min());
+  DCHECK_EQ(kNumBailoutReasons - 1, counters->liftoff_bailout_reasons()->max());
+  DCHECK_EQ(kNumBailoutReasons,
+            counters->liftoff_bailout_reasons()->num_buckets());
+  // Register the bailout reason (can also be {kSuccess}).
+  counters->liftoff_bailout_reasons()->AddSample(
+      static_cast<int>(compiler->bailout_reason()));
+  if (compiler->did_bailout()) {
     // Liftoff compilation failed.
     counters->liftoff_unsupported_functions()->Increment();
     return WasmCompilationResult{};

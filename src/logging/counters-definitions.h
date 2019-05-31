@@ -89,7 +89,9 @@ namespace internal {
      0, 100, 32)                                                               \
   /* number of code GCs triggered per native module, collected on code GC */   \
   HR(wasm_module_num_triggered_code_gcs,                                       \
-     V8.WasmModuleNumberOfCodeGCsTriggered, 1, 128, 20)
+     V8.WasmModuleNumberOfCodeGCsTriggered, 1, 128, 20)                        \
+  /* bailout reason if Liftoff failed, or {kSuccess} (per function) */         \
+  HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Timer histograms, not thread safe: HT(name, caption, max, unit) */        \

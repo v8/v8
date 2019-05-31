@@ -7,8 +7,6 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
-#define BAILOUT(reason) bailout("mips64 " reason)
-
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -742,7 +740,7 @@ void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
 
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("f32_copysign");
+  bailout(kComplexOperation, "f32_copysign");
 }
 
 void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
@@ -769,7 +767,7 @@ void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
 
 void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  BAILOUT("f64_copysign");
+  bailout(kComplexOperation, "f64_copysign");
 }
 
 #define FP_BINOP(name, instruction)                                          \
@@ -1010,26 +1008,26 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
 }
 
 void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
-  BAILOUT("emit_i32_signextend_i8");
+  bailout(kComplexOperation, "i32_signextend_i8");
 }
 
 void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
-  BAILOUT("emit_i32_signextend_i16");
+  bailout(kComplexOperation, "i32_signextend_i16");
 }
 
 void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  BAILOUT("emit_i64_signextend_i8");
+  bailout(kComplexOperation, "i64_signextend_i8");
 }
 
 void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  BAILOUT("emit_i64_signextend_i16");
+  bailout(kComplexOperation, "i64_signextend_i16");
 }
 
 void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
                                                LiftoffRegister src) {
-  BAILOUT("emit_i64_signextend_i32");
+  bailout(kComplexOperation, "i64_signextend_i32");
 }
 
 void LiftoffAssembler::emit_jump(Label* label) {
@@ -1350,7 +1348,5 @@ void LiftoffStackSlots::Construct() {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
-
-#undef BAILOUT
 
 #endif  // V8_WASM_BASELINE_MIPS64_LIFTOFF_ASSEMBLER_MIPS64_H_
