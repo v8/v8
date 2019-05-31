@@ -5340,9 +5340,8 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
 PagedSpace* PagedSpaces::next() {
   switch (counter_++) {
     case RO_SPACE:
-      // skip NEW_SPACE
-      counter_++;
-      return heap_->read_only_space();
+    case NEW_SPACE:
+      UNREACHABLE();
     case OLD_SPACE:
       return heap_->old_space();
     case CODE_SPACE:

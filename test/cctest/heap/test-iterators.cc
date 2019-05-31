@@ -96,6 +96,24 @@ TEST(CombinedHeapIterator) {
   CHECK(seen_sample_object);
 }
 
+TEST(PagedSpaces) {
+  Heap* const heap = CcTest::heap();
+  PagedSpaces iterator(heap);
+  CHECK_EQ(iterator.next(), reinterpret_cast<PagedSpace*>(heap->old_space()));
+  CHECK_EQ(iterator.next(), reinterpret_cast<PagedSpace*>(heap->code_space()));
+  CHECK_EQ(iterator.next(), reinterpret_cast<PagedSpace*>(heap->map_space()));
+  for (int i = 0; i < 20; i++) {
+    CHECK_NULL(iterator.next());
+  }
+}
+
+TEST(SpaceIterator) {
+  auto* const read_only_space = CcTest::read_only_heap()->read_only_space();
+  for (SpaceIterator it(CcTest::heap()); it.has_next();) {
+    CHECK_NE(it.next(), reinterpret_cast<Space*>(read_only_space));
+  }
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

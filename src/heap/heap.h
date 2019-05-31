@@ -2245,8 +2245,8 @@ class VerifySmisVisitor : public RootVisitor {
 };
 
 // Space iterator for iterating over all the paged spaces of the heap: Map
-// space, old space, code space and optionally read only space. Returns each
-// space in turn, and null when it is done.
+// space, old space and code space. Returns each space in turn, and null when it
+// is done.
 class V8_EXPORT_PRIVATE PagedSpaces {
  public:
   explicit PagedSpaces(Heap* heap) : heap_(heap), counter_(OLD_SPACE) {}
@@ -2257,8 +2257,7 @@ class V8_EXPORT_PRIVATE PagedSpaces {
   int counter_;
 };
 
-
-class SpaceIterator : public Malloced {
+class V8_EXPORT_PRIVATE SpaceIterator : public Malloced {
  public:
   explicit SpaceIterator(Heap* heap);
   virtual ~SpaceIterator();
