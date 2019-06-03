@@ -106,6 +106,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
                    const protocol::ProtocolMessage& message) override;
   void flushProtocolNotifications() override;
 
+  std::unique_ptr<StringBuffer> serializeForFrontend(
+      std::unique_ptr<protocol::Serializable> message);
   int m_contextGroupId;
   int m_sessionId;
   V8InspectorImpl* m_inspector;
