@@ -835,9 +835,17 @@ class JSObject : public JSReceiver {
 class JSAccessorPropertyDescriptor : public JSObject {
  public:
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSObject::kHeaderSize,
-      TORQUE_GENERATED_JSACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
+#define JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS(V) \
+  V(kGetOffset, kTaggedSize)                      \
+  V(kSetOffset, kTaggedSize)                      \
+  V(kEnumerableOffset, kTaggedSize)               \
+  V(kConfigurableOffset, kTaggedSize)             \
+  /* Total size. */                               \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
+#undef JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS
 
   // Indices of in-object properties.
   static const int kGetIndex = 0;
@@ -855,8 +863,18 @@ class JSAccessorPropertyDescriptor : public JSObject {
 // FromPropertyDescriptor function for regular data properties.
 class JSDataPropertyDescriptor : public JSObject {
  public:
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSObject::kHeaderSize, TORQUE_GENERATED_JSDATA_PROPERTY_DESCRIPTOR_FIELDS)
+  // Layout description.
+#define JS_DATA_PROPERTY_DESCRIPTOR_FIELDS(V) \
+  V(kValueOffset, kTaggedSize)                \
+  V(kWritableOffset, kTaggedSize)             \
+  V(kEnumerableOffset, kTaggedSize)           \
+  V(kConfigurableOffset, kTaggedSize)         \
+  /* Total size. */                           \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_DATA_PROPERTY_DESCRIPTOR_FIELDS)
+#undef JS_DATA_PROPERTY_DESCRIPTOR_FIELDS
 
   // Indices of in-object properties.
   static const int kValueIndex = 0;
@@ -870,7 +888,7 @@ class JSDataPropertyDescriptor : public JSObject {
 
 // JSIteratorResult is just a JSObject with a specific initial map.
 // This initial map adds in-object properties for "done" and "value",
-// as specified by ES6 section 25.1.1.3 The IteratorResult Interface
+// as specified by ES6 section 25.1.1.3 The IteratorResult Interface.
 class JSIteratorResult : public JSObject {
  public:
   DECL_ACCESSORS(value, Object)
@@ -878,8 +896,15 @@ class JSIteratorResult : public JSObject {
   DECL_ACCESSORS(done, Object)
 
   // Layout description.
+#define JS_ITERATOR_RESULT_FIELDS(V) \
+  V(kValueOffset, kTaggedSize)       \
+  V(kDoneOffset, kTaggedSize)        \
+  /* Total size. */                  \
+  V(kSize, 0)
+
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSITERATOR_RESULT_FIELDS)
+                                JS_ITERATOR_RESULT_FIELDS)
+#undef JS_ITERATOR_RESULT_FIELDS
 
   // Indices of in-object properties.
   static const int kValueIndex = 0;

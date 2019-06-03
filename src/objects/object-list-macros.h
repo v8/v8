@@ -134,6 +134,7 @@ class ZoneForwardList;
   V(JSAsyncGeneratorObject)                    \
   V(JSBoundFunction)                           \
   V(JSCollection)                              \
+  V(JSCollectionIterator)                      \
   V(JSContextExtensionObject)                  \
   V(JSDataView)                                \
   V(JSDate)                                    \

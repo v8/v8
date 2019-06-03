@@ -309,6 +309,10 @@ bool HeapObject::IsJSArrayBufferView() const {
   return IsJSDataView() || IsJSTypedArray();
 }
 
+bool HeapObject::IsJSCollectionIterator() const {
+  return IsJSMapIterator() || IsJSSetIterator();
+}
+
 bool HeapObject::IsStringSet() const { return IsHashTable(); }
 
 bool HeapObject::IsObjectHashSet() const { return IsHashTable(); }

@@ -480,6 +480,7 @@ class SubStringRange {
 class SeqString : public String {
  public:
   DECL_CAST(SeqString)
+  DECL_VERIFIER(SeqString)
 
   // Truncate the string in-place if possible and return the result.
   // In case of new_length == 0, the empty string is returned without
@@ -705,6 +706,7 @@ class SlicedString : public String {
 class ExternalString : public String {
  public:
   DECL_CAST(ExternalString)
+  DECL_VERIFIER(ExternalString)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize,
                                 TORQUE_GENERATED_EXTERNAL_STRING_FIELDS)

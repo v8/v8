@@ -153,6 +153,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       SlicedString::cast(*this).SlicedStringVerify(isolate);
     } else if (IsThinString()) {
       ThinString::cast(*this).ThinStringVerify(isolate);
+    } else if (IsSeqString()) {
+      SeqString::cast(*this).SeqStringVerify(isolate);
+    } else if (IsExternalString()) {
+      ExternalString::cast(*this).ExternalStringVerify(isolate);
     } else {
       String::cast(*this).StringVerify(isolate);
     }
@@ -703,6 +707,10 @@ void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
   }
 }
 
+USE_TORQUE_VERIFIER(Struct)
+
+USE_TORQUE_VERIFIER(FixedArrayBase)
+
 USE_TORQUE_VERIFIER(FixedArray)
 
 void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
@@ -954,6 +962,8 @@ void JSMessageObject::JSMessageObjectVerify(Isolate* isolate) {
   VerifySmiField(kErrorLevelOffset);
 }
 
+USE_TORQUE_VERIFIER(Name)
+
 void String::StringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::StringVerify(*this, isolate);
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
@@ -987,6 +997,10 @@ void SlicedString::SlicedStringVerify(Isolate* isolate) {
   CHECK(!this->parent().IsSlicedString());
   CHECK_GE(this->length(), SlicedString::kMinLength);
 }
+
+USE_TORQUE_VERIFIER(SeqString)
+
+USE_TORQUE_VERIFIER(ExternalString)
 
 void JSBoundFunction::JSBoundFunctionVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSBoundFunctionVerify(*this, isolate);
@@ -1212,32 +1226,32 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
   }
 }
 
+USE_TORQUE_VERIFIER(JSCollection)
+
 void JSSet::JSSetVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSSetVerify(*this, isolate);
-  VerifyHeapPointer(isolate, table());
   CHECK(table().IsOrderedHashSet() || table().IsUndefined(isolate));
   // TODO(arv): Verify OrderedHashTable too.
 }
 
 void JSMap::JSMapVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSMapVerify(*this, isolate);
-  VerifyHeapPointer(isolate, table());
   CHECK(table().IsOrderedHashMap() || table().IsUndefined(isolate));
   // TODO(arv): Verify OrderedHashTable too.
 }
 
+USE_TORQUE_VERIFIER(JSCollectionIterator)
+
 void JSSetIterator::JSSetIteratorVerify(Isolate* isolate) {
   CHECK(IsJSSetIterator());
-  JSObjectVerify(isolate);
-  VerifyHeapPointer(isolate, table());
+  JSCollectionIteratorVerify(isolate);
   CHECK(table().IsOrderedHashSet());
   CHECK(index().IsSmi());
 }
 
 void JSMapIterator::JSMapIteratorVerify(Isolate* isolate) {
   CHECK(IsJSMapIterator());
-  JSObjectVerify(isolate);
-  VerifyHeapPointer(isolate, table());
+  JSCollectionIteratorVerify(isolate);
   CHECK(table().IsOrderedHashMap());
   CHECK(index().IsSmi());
 }
@@ -1312,7 +1326,6 @@ void FinalizationGroupCleanupJobTask::FinalizationGroupCleanupJobTaskVerify(
 
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSWeakMapVerify(*this, isolate);
-  VerifyHeapPointer(isolate, table());
   CHECK(table().IsEphemeronHashTable() || table().IsUndefined(isolate));
 }
 
@@ -1343,9 +1356,10 @@ void JSStringIterator::JSStringIteratorVerify(Isolate* isolate) {
 
 USE_TORQUE_VERIFIER(JSAsyncFromSyncIterator)
 
+USE_TORQUE_VERIFIER(JSWeakCollection)
+
 void JSWeakSet::JSWeakSetVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSWeakSetVerify(*this, isolate);
-  VerifyHeapPointer(isolate, table());
   CHECK(table().IsEphemeronHashTable() || table().IsUndefined(isolate));
 }
 

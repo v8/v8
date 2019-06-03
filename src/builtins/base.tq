@@ -90,7 +90,6 @@ type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
 
 @abstract
-@noVerifier
 extern class Name extends HeapObject {
   hash_field: int32;
 }
@@ -111,7 +110,6 @@ extern class ConsString extends String {
 }
 
 @abstract
-@noVerifier
 extern class ExternalString extends String {
   resource: RawPtr;
   resource_data: RawPtr;
@@ -124,7 +122,6 @@ extern class InternalizedString extends String {}
 
 // TODO(v8:8983): Add declaration for variable-sized region.
 @abstract
-@noVerifier
 extern class SeqString extends String {
 }
 extern class SeqOneByteString extends SeqString {}
@@ -141,7 +138,6 @@ extern class ThinString extends String { actual: String; }
 type NaN extends HeapNumber;
 
 @abstract
-@noVerifier
 @generatePrint
 @generateCppClass
 extern class Struct extends HeapObject {
@@ -171,7 +167,6 @@ type DirectString extends String;
 type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 
 @abstract
-@noVerifier
 @generateCppClass
 extern class FixedArrayBase extends HeapObject {
   length: Smi;
@@ -341,6 +336,7 @@ extern class JSProxy extends JSReceiver {
   handler: Object;
 }
 
+// Just a starting shape for JSObject; properties can move after initialization.
 @noVerifier
 extern class JSProxyRevocableResult extends JSObject {
   proxy: Object;
@@ -363,11 +359,15 @@ extern class JSGlobalProxy extends JSObject { native_context: Object; }
 extern class JSValue extends JSObject { value: Object; }
 
 extern class JSArgumentsObject extends JSObject {}
+
+// Just a starting shape for JSObject; properties can move after initialization.
 @noVerifier
 @hasSameInstanceTypeAsParent
 extern class JSArgumentsObjectWithLength extends JSArgumentsObject {
   length: Object;
 }
+
+// Just a starting shape for JSObject; properties can move after initialization.
 @hasSameInstanceTypeAsParent
 extern class JSSloppyArgumentsObject extends JSArgumentsObjectWithLength {
   callee: Object;
@@ -451,14 +451,12 @@ extern class CallHandlerInfo extends Struct {
 type JSModuleNamespace extends JSObject;
 
 @abstract
-@noVerifier
 extern class JSWeakCollection extends JSObject {
   table: Object;
 }
 extern class JSWeakSet extends JSWeakCollection {}
 extern class JSWeakMap extends JSWeakCollection {}
 
-@noVerifier
 extern class JSCollectionIterator extends JSObject {
   table: Object;
   index: Object;
@@ -651,16 +649,7 @@ extern class JSTypedArray extends JSArrayBufferView {
   base_pointer: ByteArray | Smi;
 }
 
-@noVerifier
-extern class JSAccessorPropertyDescriptor extends JSObject {
-  get: Object;
-  set: Object;
-  enumerable: Object;
-  configurable: Object;
-}
-
 @abstract
-@noVerifier
 extern class JSCollection extends JSObject {
   table: Object;
 }
@@ -692,14 +681,6 @@ extern class JSAsyncFromSyncIterator extends JSObject {
 extern class JSStringIterator extends JSObject {
   string: String;
   next_index: Smi;
-}
-
-@noVerifier
-extern class JSDataPropertyDescriptor extends JSObject {
-  value: Object;
-  writable: Object;
-  enumerable: Object;
-  configurable: Object;
 }
 
 @abstract
@@ -1173,22 +1154,8 @@ extern class JSRegExp extends JSObject {
   flags: Smi | Undefined;
 }
 
-@noVerifier
-extern class JSIteratorResult extends JSObject {
-  value: Object;
-  done: Boolean;
-}
-
-macro NewJSIteratorResult(implicit context: Context)(
-    value: Object, done: Boolean): JSIteratorResult {
-  return new JSIteratorResult{
-    map: GetIteratorResultMap(),
-    properties_or_hash: kEmptyFixedArray,
-    elements: kEmptyFixedArray,
-    value,
-    done
-  };
-}
+extern transitioning macro AllocateJSIteratorResult(implicit context: Context)(
+    Object, Boolean): JSObject;
 
 // Note: Although a condition for a FastJSRegExp is having a positive smi
 // lastIndex (see RegExpBuiltinsAssembler::BranchIfFastRegExp), it is possible
@@ -1330,10 +1297,6 @@ extern class WasmGlobalObject extends JSObject {
 extern class WasmExceptionObject extends JSObject {
   serialized_signature: ByteArray;  // PodArray<wasm::ValueType>
   exception_tag: HeapObject;
-}
-
-@noVerifier
-extern class WasmExceptionPackage extends JSReceiver {
 }
 
 type WasmExportedFunction extends JSFunction;

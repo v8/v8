@@ -67,6 +67,7 @@ class Name : public HeapObject {
   DECL_PRINTER(Name)
   void NameShortPrint();
   int NameShortPrint(Vector<char> str);
+  DECL_VERIFIER(Name)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_NAME_FIELDS)
