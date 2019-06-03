@@ -219,7 +219,7 @@ void Heap::ComputeMaxSpaceSizes(uint64_t physical_memory,
   constexpr bool x64_bit = Heap::kPointerMultiplier >= 2;
   if (FLAG_huge_max_old_generation_size && x64_bit &&
       physical_memory / GB > 16) {
-    DCHECK_EQ(max_size / GB, 2048);
+    DCHECK_EQ(max_size / GB, 2);
     max_size *= 2;
   }
   old_space = Min<uint64_t>(old_space, max_size);
