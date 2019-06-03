@@ -57,12 +57,16 @@ class JSNumberFormat : public JSObject {
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
+  // Helper functions shared with JSPluralRules.
   static int32_t MinimumIntegerDigitsFromSkeleton(
       const icu::UnicodeString& skeleton);
   static bool FractionDigitsFromSkeleton(const icu::UnicodeString& skeleton,
                                          int32_t* minimum, int32_t* maximum);
   static bool SignificantDigitsFromSkeleton(const icu::UnicodeString& skeleton,
                                             int32_t* minimum, int32_t* maximum);
+  static icu::number::LocalizedNumberFormatter SetDigitOptionsToFormatter(
+      const icu::number::LocalizedNumberFormatter& icu_number_formatter,
+      const Intl::NumberFormatDigitOptions& digit_options);
 
   DECL_CAST(JSNumberFormat)
   DECL_PRINTER(JSNumberFormat)

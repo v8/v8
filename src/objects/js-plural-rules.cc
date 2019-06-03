@@ -153,21 +153,8 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
       Intl::SetNumberFormatDigitOptions(isolate, options, 0, 3);
   MAYBE_RETURN(maybe_digit_options, MaybeHandle<JSPluralRules>());
   Intl::NumberFormatDigitOptions digit_options = maybe_digit_options.FromJust();
-  icu::number::Precision precision =
-      (digit_options.minimum_significant_digits > 0)
-          ? icu::number::Precision::minMaxSignificantDigits(
-                digit_options.minimum_significant_digits,
-                digit_options.maximum_significant_digits)
-          : icu::number::Precision::minMaxFraction(
-                digit_options.minimum_fraction_digits,
-                digit_options.maximum_fraction_digits);
-
-  icu_number_formatter = icu_number_formatter.precision(precision);
-  if (digit_options.minimum_integer_digits > 1) {
-    icu_number_formatter =
-        icu_number_formatter.integerWidth(icu::number::IntegerWidth::zeroFillTo(
-            digit_options.minimum_integer_digits));
-  }
+  icu_number_formatter = JSNumberFormat::SetDigitOptionsToFormatter(
+      icu_number_formatter, digit_options);
 
   Handle<Managed<icu::PluralRules>> managed_plural_rules =
       Managed<icu::PluralRules>::FromUniquePtr(isolate, 0,

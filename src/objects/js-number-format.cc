@@ -635,6 +635,28 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
 
 }  // anonymous namespace
 
+icu::number::LocalizedNumberFormatter
+JSNumberFormat::SetDigitOptionsToFormatter(
+    const icu::number::LocalizedNumberFormatter& icu_number_formatter,
+    const Intl::NumberFormatDigitOptions& digit_options) {
+  icu::number::Precision precision =
+      (digit_options.minimum_significant_digits > 0)
+          ? icu::number::Precision::minMaxSignificantDigits(
+                digit_options.minimum_significant_digits,
+                digit_options.maximum_significant_digits)
+          : icu::number::Precision::minMaxFraction(
+                digit_options.minimum_fraction_digits,
+                digit_options.maximum_fraction_digits);
+
+  icu::number::LocalizedNumberFormatter result =
+      icu_number_formatter.precision(precision);
+  if (digit_options.minimum_integer_digits > 1) {
+    result = result.integerWidth(icu::number::IntegerWidth::zeroFillTo(
+        digit_options.minimum_integer_digits));
+  }
+  return result;
+}
+
 // static
 // ecma402 #sec-intl.numberformat.prototype.resolvedoptions
 Handle<JSObject> JSNumberFormat::ResolvedOptions(
@@ -1129,15 +1151,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
                                         mxfd_default);
   MAYBE_RETURN(maybe_digit_options, Handle<JSNumberFormat>());
   Intl::NumberFormatDigitOptions digit_options = maybe_digit_options.FromJust();
-
-  icu::number::Precision precision =
-      (digit_options.minimum_significant_digits > 0)
-          ? icu::number::Precision::minMaxSignificantDigits(
-                digit_options.minimum_significant_digits,
-                digit_options.maximum_significant_digits)
-          : icu::number::Precision::minMaxFraction(
-                digit_options.minimum_fraction_digits,
-                digit_options.maximum_fraction_digits);
+  icu_number_formatter = JSNumberFormat::SetDigitOptionsToFormatter(
+      icu_number_formatter, digit_options);
 
   if (digit_options.minimum_significant_digits > 0) {
     // Currenct ECMA 402 spec mandate to record (Min|Max)imumFractionDigits
@@ -1155,13 +1170,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
         digit_options.minimum_fraction_digits);
     number_format->set_maximum_fraction_digits(
         digit_options.maximum_fraction_digits);
-  }
-
-  icu_number_formatter = icu_number_formatter.precision(precision);
-  if (digit_options.minimum_integer_digits > 1) {
-    icu_number_formatter =
-        icu_number_formatter.integerWidth(icu::number::IntegerWidth::zeroFillTo(
-            digit_options.minimum_integer_digits));
   }
 
   if (FLAG_harmony_intl_numberformat_unified) {
