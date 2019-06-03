@@ -20,7 +20,8 @@ TEST(LanguageServerMessage, InitializeRequest) {
   request.set_method("initialize");
   request.params();
 
-  HandleMessage(request.GetJsonValue(), [](JsonValue& raw_response) {
+  bool writer_called = false;
+  HandleMessage(request.GetJsonValue(), [&](JsonValue& raw_response) {
     InitializeResponse response(raw_response);
 
     // Check that the response id matches up with the request id, and that
@@ -28,7 +29,10 @@ TEST(LanguageServerMessage, InitializeRequest) {
     EXPECT_EQ(response.id(), 5);
     EXPECT_TRUE(response.result().capabilities().definitionProvider());
     EXPECT_TRUE(response.result().capabilities().documentSymbolProvider());
+
+    writer_called = true;
   });
+  EXPECT_TRUE(writer_called);
 }
 
 TEST(LanguageServerMessage,
@@ -36,7 +40,8 @@ TEST(LanguageServerMessage,
   Request<bool> notification;
   notification.set_method("initialized");
 
-  HandleMessage(notification.GetJsonValue(), [](JsonValue& raw_request) {
+  bool writer_called = false;
+  HandleMessage(notification.GetJsonValue(), [&](JsonValue& raw_request) {
     RegistrationRequest request(raw_request);
 
     ASSERT_EQ(request.method(), "client/registerCapability");
@@ -49,7 +54,10 @@ TEST(LanguageServerMessage,
         registration
             .registerOptions<DidChangeWatchedFilesRegistrationOptions>();
     ASSERT_EQ(options.watchers_size(), (size_t)1);
+
+    writer_called = true;
   });
+  EXPECT_TRUE(writer_called);
 }
 
 TEST(LanguageServerMessage, GotoDefinitionUnkownFile) {
@@ -60,11 +68,15 @@ TEST(LanguageServerMessage, GotoDefinitionUnkownFile) {
   request.set_method("textDocument/definition");
   request.params().textDocument().set_uri("file:///unknown.tq");
 
-  HandleMessage(request.GetJsonValue(), [](JsonValue& raw_response) {
+  bool writer_called = false;
+  HandleMessage(request.GetJsonValue(), [&](JsonValue& raw_response) {
     GotoDefinitionResponse response(raw_response);
     EXPECT_EQ(response.id(), 42);
     EXPECT_TRUE(response.IsNull("result"));
+
+    writer_called = true;
   });
+  EXPECT_TRUE(writer_called);
 }
 
 TEST(LanguageServerMessage, GotoDefinition) {
@@ -84,11 +96,15 @@ TEST(LanguageServerMessage, GotoDefinition) {
   request.params().position().set_line(2);
   request.params().position().set_character(0);
 
-  HandleMessage(request.GetJsonValue(), [](JsonValue& raw_response) {
+  bool writer_called = false;
+  HandleMessage(request.GetJsonValue(), [&](JsonValue& raw_response) {
     GotoDefinitionResponse response(raw_response);
     EXPECT_EQ(response.id(), 42);
     EXPECT_TRUE(response.IsNull("result"));
+
+    writer_called = true;
   });
+  EXPECT_TRUE(writer_called);
 
   // Second, check a known defintion.
   request = GotoDefinitionRequest();
@@ -98,7 +114,8 @@ TEST(LanguageServerMessage, GotoDefinition) {
   request.params().position().set_line(1);
   request.params().position().set_character(5);
 
-  HandleMessage(request.GetJsonValue(), [](JsonValue& raw_response) {
+  writer_called = false;
+  HandleMessage(request.GetJsonValue(), [&](JsonValue& raw_response) {
     GotoDefinitionResponse response(raw_response);
     EXPECT_EQ(response.id(), 43);
     ASSERT_FALSE(response.IsNull("result"));
@@ -109,7 +126,10 @@ TEST(LanguageServerMessage, GotoDefinition) {
     EXPECT_EQ(location.range().start().character(), 1);
     EXPECT_EQ(location.range().end().line(), 4);
     EXPECT_EQ(location.range().end().character(), 5);
+
+    writer_called = true;
   });
+  EXPECT_TRUE(writer_called);
 }
 
 TEST(LanguageServerMessage, CompilationErrorSendsDiagnostics) {
@@ -123,7 +143,8 @@ TEST(LanguageServerMessage, CompilationErrorSendsDiagnostics) {
   result.messages = std::move(TorqueMessages::Get());
   result.source_file_map = SourceFileMap::Get();
 
-  CompilationFinished(std::move(result), [](JsonValue& raw_response) {
+  bool writer_called = false;
+  CompilationFinished(std::move(result), [&](JsonValue& raw_response) {
     PublishDiagnosticsNotification notification(raw_response);
 
     EXPECT_EQ(notification.method(), "textDocument/publishDiagnostics");
@@ -134,7 +155,10 @@ TEST(LanguageServerMessage, CompilationErrorSendsDiagnostics) {
     Diagnostic diagnostic = notification.params().diagnostics(0);
     EXPECT_EQ(diagnostic.severity(), Diagnostic::kError);
     EXPECT_EQ(diagnostic.message(), "compilation failed somehow");
+
+    writer_called = true;
   });
+  EXPECT_TRUE(writer_called);
 }
 
 TEST(LanguageServerMessage, LintErrorSendsDiagnostics) {
@@ -156,7 +180,8 @@ TEST(LanguageServerMessage, LintErrorSendsDiagnostics) {
   result.messages = std::move(TorqueMessages::Get());
   result.source_file_map = SourceFileMap::Get();
 
-  CompilationFinished(std::move(result), [](JsonValue& raw_response) {
+  bool writer_called = false;
+  CompilationFinished(std::move(result), [&](JsonValue& raw_response) {
     PublishDiagnosticsNotification notification(raw_response);
 
     EXPECT_EQ(notification.method(), "textDocument/publishDiagnostics");
@@ -171,7 +196,10 @@ TEST(LanguageServerMessage, LintErrorSendsDiagnostics) {
     Diagnostic diagnostic2 = notification.params().diagnostics(1);
     EXPECT_EQ(diagnostic2.severity(), Diagnostic::kWarning);
     EXPECT_EQ(diagnostic2.message(), "lint error 2");
+
+    writer_called = true;
   });
+  EXPECT_TRUE(writer_called);
 }
 
 TEST(LanguageServerMessage, CleanCompileSendsNoDiagnostics) {
@@ -195,11 +223,15 @@ TEST(LanguageServerMessage, NoSymbolsSendsEmptyResponse) {
   request.set_method("textDocument/documentSymbol");
   request.params().textDocument().set_uri("test.tq");
 
-  HandleMessage(request.GetJsonValue(), [](JsonValue& raw_response) {
+  bool writer_called = false;
+  HandleMessage(request.GetJsonValue(), [&](JsonValue& raw_response) {
     DocumentSymbolResponse response(raw_response);
     EXPECT_EQ(response.id(), 42);
     EXPECT_EQ(response.result_size(), static_cast<size_t>(0));
+
+    writer_called = true;
   });
+  EXPECT_TRUE(writer_called);
 }
 
 }  // namespace ls
