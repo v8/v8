@@ -1371,29 +1371,28 @@ static Local<ObjectTemplate> ObjectTemplateNew(
     bool do_not_cache);
 
 Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Object> result(Utils::OpenHandle(this)->GetPrototypeTemplate(),
-                              i_isolate);
+  i::Handle<i::Object> result(self->GetPrototypeTemplate(), i_isolate);
   if (result->IsUndefined(i_isolate)) {
     // Do not cache prototype objects.
     result = Utils::OpenHandle(
         *ObjectTemplateNew(i_isolate, Local<FunctionTemplate>(), true));
-    i::FunctionTemplateInfo::SetPrototypeTemplate(
-        i_isolate, Utils::OpenHandle(this), result);
+    i::FunctionTemplateInfo::SetPrototypeTemplate(i_isolate, self, result);
   }
   return ToApiHandle<ObjectTemplate>(result);
 }
 
 void FunctionTemplate::SetPrototypeProviderTemplate(
     Local<FunctionTemplate> prototype_provider) {
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::Object> result = Utils::OpenHandle(*prototype_provider);
-  auto info = Utils::OpenHandle(this);
-  CHECK(info->GetPrototypeTemplate().IsUndefined(i_isolate));
-  CHECK(info->GetParentTemplate().IsUndefined(i_isolate));
-  i::FunctionTemplateInfo::SetPrototypeProviderTemplate(i_isolate, info,
+  CHECK(self->GetPrototypeTemplate().IsUndefined(i_isolate));
+  CHECK(self->GetParentTemplate().IsUndefined(i_isolate));
+  i::FunctionTemplateInfo::SetPrototypeProviderTemplate(i_isolate, self,
                                                         result);
 }
 
@@ -2002,9 +2001,10 @@ bool ObjectTemplate::IsImmutableProto() {
 }
 
 void ObjectTemplate::SetImmutableProto() {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  Utils::OpenHandle(this)->set_immutable_proto(true);
+  self->set_immutable_proto(true);
 }
 
 // --- S c r i p t s ---
@@ -2239,9 +2239,9 @@ Local<String> Module::GetModuleRequest(int i) const {
 
 Location Module::GetModuleRequestLocation(int i) const {
   CHECK_GE(i, 0);
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::HandleScope scope(isolate);
   i::Handle<i::Module> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  i::HandleScope scope(isolate);
   i::Handle<i::FixedArray> module_request_positions(
       self->info().module_request_positions(), isolate);
   CHECK_LT(i, module_request_positions->length());
@@ -2734,11 +2734,12 @@ void v8::TryCatch::SetCaptureMessage(bool value) { capture_message_ = value; }
 // --- M e s s a g e ---
 
 Local<String> Message::Get() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::String> raw_result = i::MessageHandler::GetMessage(isolate, obj);
+  i::Handle<i::String> raw_result =
+      i::MessageHandler::GetMessage(isolate, self);
   Local<String> result = Utils::ToLocal(raw_result);
   return scope.Escape(result);
 }
@@ -2749,10 +2750,10 @@ v8::Isolate* Message::GetIsolate() const {
 }
 
 ScriptOrigin Message::GetScriptOrigin() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  auto message = i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::Script> script(message->script(), isolate);
+  i::Handle<i::Script> script(self->script(), isolate);
   return GetScriptOriginForScript(isolate, script);
 }
 
@@ -2761,11 +2762,11 @@ v8::Local<Value> Message::GetScriptResourceName() const {
 }
 
 v8::Local<v8::StackTrace> Message::GetStackTrace() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  auto message = i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::Object> stackFramesObj(message->stack_frames(), isolate);
+  i::Handle<i::Object> stackFramesObj(self->stack_frames(), isolate);
   if (!stackFramesObj->IsFixedArray()) return v8::Local<v8::StackTrace>();
   auto stackTrace = i::Handle<i::FixedArray>::cast(stackFramesObj);
   return scope.Escape(Utils::StackTraceToLocal(stackTrace));
@@ -2834,18 +2835,17 @@ Maybe<int> Message::GetEndColumn(Local<Context> context) const {
 }
 
 bool Message::IsSharedCrossOrigin() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  return Utils::OpenHandle(this)
-      ->script()
-      .origin_options()
-      .IsSharedCrossOrigin();
+  return self->script().origin_options().IsSharedCrossOrigin();
 }
 
 bool Message::IsOpaque() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  return Utils::OpenHandle(this)->script().origin_options().IsOpaque();
+  return self->script().origin_options().IsOpaque();
 }
 
 MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
@@ -2904,30 +2904,31 @@ int StackFrame::GetScriptId() const {
 }
 
 Local<String> StackFrame::GetScriptName() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  i::Handle<i::Object> name =
-      i::StackTraceFrame::GetFileName(Utils::OpenHandle(this));
+  i::Handle<i::Object> name = i::StackTraceFrame::GetFileName(self);
   return name->IsString()
              ? scope.Escape(Local<String>::Cast(Utils::ToLocal(name)))
              : Local<String>();
 }
 
 Local<String> StackFrame::GetScriptNameOrSourceURL() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::Object> name =
-      i::StackTraceFrame::GetScriptNameOrSourceUrl(Utils::OpenHandle(this));
+      i::StackTraceFrame::GetScriptNameOrSourceUrl(self);
   return name->IsString()
              ? scope.Escape(Local<String>::Cast(Utils::ToLocal(name)))
              : Local<String>();
 }
 
 Local<String> StackFrame::GetFunctionName() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  i::Handle<i::Object> name =
-      i::StackTraceFrame::GetFunctionName(Utils::OpenHandle(this));
+  i::Handle<i::Object> name = i::StackTraceFrame::GetFunctionName(self);
   return name->IsString()
              ? scope.Escape(Local<String>::Cast(Utils::ToLocal(name)))
              : Local<String>();
@@ -4160,8 +4161,8 @@ MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
 }
 
 Local<Value> v8::Object::GetPrototype() {
-  auto isolate = Utils::OpenHandle(this)->GetIsolate();
   auto self = Utils::OpenHandle(this);
+  auto isolate = self->GetIsolate();
   i::PrototypeIterator iter(isolate, self);
   return Utils::ToLocal(i::PrototypeIterator::GetCurrent(iter));
 }
@@ -4413,10 +4414,10 @@ void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
                                  AccessControl settings) {
   // TODO(verwaest): Remove |settings|.
   DCHECK_EQ(v8::DEFAULT, settings);
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
-  auto self = Utils::OpenHandle(this);
   if (!self->IsJSObject()) return;
   i::Handle<i::Object> getter_i = v8::Utils::OpenHandle(*getter);
   i::Handle<i::Object> setter_i = v8::Utils::OpenHandle(*setter, true);
@@ -4626,9 +4627,9 @@ Local<v8::Context> v8::Object::CreationContext() {
 
 int v8::Object::GetIdentityHash() {
   i::DisallowHeapAllocation no_gc;
-  auto isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::HandleScope scope(isolate);
   auto self = Utils::OpenHandle(this);
+  auto isolate = self->GetIsolate();
+  i::HandleScope scope(isolate);
   return self->GetOrCreateIdentityHash(isolate).value();
 }
 
@@ -4814,9 +4815,9 @@ Local<Value> Function::GetDebugName() const {
 }
 
 Local<Value> Function::GetDisplayName() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   if (!self->IsJSFunction()) {
     return ToApiHandle<Primitive>(isolate->factory()->undefined_value());
   }
@@ -8819,9 +8820,9 @@ std::vector<int> debug::Script::LineEnds() const {
 }
 
 MaybeLocal<String> debug::Script::Name() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
+  i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> value(script->name(), isolate);
   if (!value->IsString()) return MaybeLocal<String>();
   return Utils::ToLocal(
@@ -8829,9 +8830,9 @@ MaybeLocal<String> debug::Script::Name() const {
 }
 
 MaybeLocal<String> debug::Script::SourceURL() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
+  i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> value(script->source_url(), isolate);
   if (!value->IsString()) return MaybeLocal<String>();
   return Utils::ToLocal(
@@ -8839,9 +8840,9 @@ MaybeLocal<String> debug::Script::SourceURL() const {
 }
 
 MaybeLocal<String> debug::Script::SourceMappingURL() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
+  i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> value(script->source_mapping_url(), isolate);
   if (!value->IsString()) return MaybeLocal<String>();
   return Utils::ToLocal(
@@ -8849,18 +8850,18 @@ MaybeLocal<String> debug::Script::SourceMappingURL() const {
 }
 
 Maybe<int> debug::Script::ContextId() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
+  i::HandleScope handle_scope(isolate);
   i::Object value = script->context_data();
   if (value.IsSmi()) return Just(i::Smi::ToInt(value));
   return Nothing<int>();
 }
 
 MaybeLocal<String> debug::Script::Source() const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
+  i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> value(script->source(), isolate);
   if (!value->IsString()) return MaybeLocal<String>();
   return Utils::ToLocal(
