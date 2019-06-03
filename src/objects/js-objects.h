@@ -338,6 +338,7 @@ class JSObject : public JSReceiver {
   // Returns true if an object has elements of PACKED_ELEMENTS
   inline bool HasPackedElements();
   inline bool HasFrozenOrSealedElements();
+  inline bool HasSealedElements();
 
   inline bool HasTypedArrayElements();
 

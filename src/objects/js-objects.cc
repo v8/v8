@@ -3462,7 +3462,7 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
 
   DCHECK(object->HasSmiOrObjectElements() || object->HasDoubleElements() ||
          object->HasFastArgumentsElements() ||
-         object->HasFastStringWrapperElements());
+         object->HasFastStringWrapperElements() || object->HasSealedElements());
 
   Handle<NumberDictionary> dictionary =
       object->GetElementsAccessor()->Normalize(object);

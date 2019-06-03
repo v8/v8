@@ -822,6 +822,10 @@ bool JSObject::HasFrozenOrSealedElements() {
   return IsFrozenOrSealedElementsKind(GetElementsKind());
 }
 
+bool JSObject::HasSealedElements() {
+  return IsSealedElementsKind(GetElementsKind());
+}
+
 bool JSObject::HasFastArgumentsElements() {
   return GetElementsKind() == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
 }
