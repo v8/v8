@@ -63,8 +63,6 @@ class StringUtil {
   }
   static std::unique_ptr<protocol::Value> parseJSON(const String16& json);
   static std::unique_ptr<protocol::Value> parseJSON(const StringView& json);
-  static std::unique_ptr<protocol::Value> parseProtocolMessage(
-      const ProtocolMessage&);
   static ProtocolMessage jsonToMessage(String message);
   static ProtocolMessage binaryToMessage(std::vector<uint8_t> message);
 
