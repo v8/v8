@@ -226,11 +226,23 @@ base::Optional<ParseResult> AddGlobalDeclarations(
   return base::nullopt;
 }
 
+void NamingConventionError(const std::string& type, const std::string& name,
+                           const std::string& convention,
+                           SourcePosition pos = CurrentSourcePosition::Get()) {
+  Lint(type, " \"", name, "\" does not follow \"", convention,
+       "\" naming convention.")
+      .Position(pos);
+}
+
+void NamingConventionError(const std::string& type, const Identifier* name,
+                           const std::string& convention) {
+  NamingConventionError(type, name->value, convention, name->pos);
+}
+
 void LintGenericParameters(const GenericParameters& parameters) {
-  for (const Identifier* parameter : parameters) {
+  for (auto parameter : parameters) {
     if (!IsUpperCamelCase(parameter->value)) {
-      NamingConventionError("Generic parameter", parameter->value,
-                            "UpperCamelCase");
+      NamingConventionError("Generic parameter", parameter, "UpperCamelCase");
     }
   }
 }
@@ -382,8 +394,7 @@ base::Optional<ParseResult> MakeParameterListFromTypes(
   result.implicit_count = implicit_params.size();
   for (NameAndTypeExpression& implicit_param : implicit_params) {
     if (!IsLowerCamelCase(implicit_param.name->value)) {
-      NamingConventionError("Parameter", implicit_param.name->value,
-                            "lowerCamelCase");
+      NamingConventionError("Parameter", implicit_param.name, "lowerCamelCase");
     }
     result.names.push_back(implicit_param.name);
     result.types.push_back(implicit_param.type);
@@ -408,7 +419,7 @@ base::Optional<ParseResult> MakeParameterListFromNameAndTypeList(
   ParameterList result;
   for (NameAndTypeExpression& pair : implicit_params) {
     if (!IsLowerCamelCase(pair.name->value)) {
-      NamingConventionError("Parameter", pair.name->value, "lowerCamelCase");
+      NamingConventionError("Parameter", pair.name, "lowerCamelCase");
     }
 
     result.names.push_back(std::move(pair.name));
@@ -416,7 +427,7 @@ base::Optional<ParseResult> MakeParameterListFromNameAndTypeList(
   }
   for (NameAndTypeExpression& pair : explicit_params) {
     if (!IsLowerCamelCase(pair.name->value)) {
-      NamingConventionError("Parameter", pair.name->value, "lowerCamelCase");
+      NamingConventionError("Parameter", pair.name, "lowerCamelCase");
     }
 
     result.names.push_back(pair.name);
@@ -567,7 +578,7 @@ base::Optional<ParseResult> MakeConstDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<Identifier*>();
   if (!IsValidNamespaceConstName(name->value)) {
-    NamingConventionError("Constant", name->value, "kUpperCamelCase");
+    NamingConventionError("Constant", name, "kUpperCamelCase");
   }
 
   auto type = child_results->NextAs<TypeExpression*>();
@@ -599,7 +610,7 @@ base::Optional<ParseResult> MakeAbstractTypeDeclaration(
   auto transient = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
   if (!IsValidTypeName(name->value)) {
-    NamingConventionError("Type", name->value, "UpperCamelCase");
+    NamingConventionError("Type", name, "UpperCamelCase");
   }
   auto extends = child_results->NextAs<base::Optional<Identifier*>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
@@ -700,7 +711,7 @@ base::Optional<ParseResult> MakeClassDeclaration(
   if (transient) flags |= ClassFlag::kTransient;
   auto name = child_results->NextAs<Identifier*>();
   if (!IsValidTypeName(name->value)) {
-    NamingConventionError("Type", name->value, "UpperCamelCase");
+    NamingConventionError("Type", name, "UpperCamelCase");
   }
   auto extends = child_results->NextAs<base::Optional<TypeExpression*>>();
   if (extends && !BasicTypeExpression::DynamicCast(*extends)) {
@@ -760,7 +771,7 @@ base::Optional<ParseResult> MakeStructDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<Identifier*>();
   if (!IsValidTypeName(name->value)) {
-    NamingConventionError("Struct", name->value, "UpperCamelCase");
+    NamingConventionError("Struct", name, "UpperCamelCase");
   }
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<StructFieldExpression>>();
@@ -1004,7 +1015,7 @@ base::Optional<ParseResult> MakeVarDeclarationStatement(
   if (!const_qualified) DCHECK_EQ("let", kind->value);
   auto name = child_results->NextAs<Identifier*>();
   if (!IsLowerCamelCase(name->value)) {
-    NamingConventionError("Variable", name->value, "lowerCamelCase");
+    NamingConventionError("Variable", name, "lowerCamelCase");
   }
 
   auto type = child_results->NextAs<base::Optional<TypeExpression*>>();
@@ -1098,7 +1109,7 @@ base::Optional<ParseResult> MakeForLoopStatement(
 base::Optional<ParseResult> MakeLabelBlock(ParseResultIterator* child_results) {
   auto label = child_results->NextAs<Identifier*>();
   if (!IsUpperCamelCase(label->value)) {
-    NamingConventionError("Label", label->value, "UpperCamelCase");
+    NamingConventionError("Label", label, "UpperCamelCase");
   }
   auto parameters = child_results->NextAs<ParameterList>();
   auto body = child_results->NextAs<Statement*>();
@@ -1265,7 +1276,7 @@ base::Optional<ParseResult> MakeLabelAndTypes(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<Identifier*>();
   if (!IsUpperCamelCase(name->value)) {
-    NamingConventionError("Label", name->value, "UpperCamelCase");
+    NamingConventionError("Label", name, "UpperCamelCase");
   }
   auto types = child_results->NextAs<std::vector<TypeExpression*>>();
   return ParseResult{LabelAndTypes{name, std::move(types)}};
