@@ -3545,34 +3545,6 @@ TEST(TestGotoIfDebugExecutionModeChecksSideEffects) {
   CHECK_EQ(true, result->BooleanValue(isolate));
 }
 
-#ifdef V8_COMPRESS_POINTERS
-
-TEST(CompressedSlotInterleavedGC) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-
-  const int kNumParams = 1;
-
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
-
-  Node* compressed = m.ChangeTaggedToCompressed(m.Parameter(0));
-
-  m.Print(m.ChangeCompressedToTagged(compressed));
-
-  Node* const context = m.Parameter(kNumParams + 2);
-  m.CallRuntime(Runtime::kCollectGarbage, context, m.SmiConstant(0));
-
-  m.Return(m.ChangeCompressedToTagged(compressed));
-
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result =
-      ft.Call(isolate->factory()->NewNumber(0.5)).ToHandleChecked();
-  CHECK(result->IsHeapNumber());
-  CHECK_EQ(0.5, Handle<HeapNumber>::cast(result)->Number());
-}
-
-#endif  // V8_COMPRESS_POINTERS
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
