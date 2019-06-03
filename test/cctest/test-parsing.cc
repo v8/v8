@@ -11319,15 +11319,9 @@ TEST(HashbangSyntax) {
 
   const char* data[] = {"function\nFN\n(\n)\n {\n}\nFN();", nullptr};
 
-  i::FLAG_harmony_hashbang = true;
   RunParserSyncTest(context_data, data, kSuccess);
   RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, nullptr, 0,
                     nullptr, 0, true);
-
-  i::FLAG_harmony_hashbang = false;
-  RunParserSyncTest(context_data, data, kError);
-  RunParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0, nullptr,
-                    0, true);
 }
 
 TEST(HashbangSyntaxErrors) {
@@ -11370,12 +11364,6 @@ TEST(HashbangSyntaxErrors) {
   const char* hashbang_data[] = {"#!\n", "#!---IGNORED---\n", nullptr};
 
   auto SyntaxErrorTest = [](const char* context_data[][2], const char* data[]) {
-    i::FLAG_harmony_hashbang = true;
-    RunParserSyncTest(context_data, data, kError);
-    RunParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
-                      nullptr, 0, true);
-
-    i::FLAG_harmony_hashbang = false;
     RunParserSyncTest(context_data, data, kError);
     RunParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
                       nullptr, 0, true);

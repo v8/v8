@@ -53,7 +53,6 @@ FEATURE_FLAGS = {
   'globalThis': '--harmony-global',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
   'Object.fromEntries': '--harmony-object-from-entries',
-  'hashbang': '--harmony-hashbang',
   'BigInt': '--harmony-intl-bigint',
   'Promise.allSettled': '--harmony-promise-all-settled',
 }
