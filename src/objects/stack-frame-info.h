@@ -25,10 +25,14 @@ class StackFrameInfo : public Struct {
   DECL_ACCESSORS(script_name, Object)
   DECL_ACCESSORS(script_name_or_source_url, Object)
   DECL_ACCESSORS(function_name, Object)
+  DECL_ACCESSORS(method_name, Object)
+  DECL_ACCESSORS(type_name, Object)
+  DECL_ACCESSORS(eval_origin, Object)
   DECL_ACCESSORS(wasm_module_name, Object)
   DECL_BOOLEAN_ACCESSORS(is_eval)
   DECL_BOOLEAN_ACCESSORS(is_constructor)
   DECL_BOOLEAN_ACCESSORS(is_wasm)
+  DECL_BOOLEAN_ACCESSORS(is_asmjs_wasm)
   DECL_BOOLEAN_ACCESSORS(is_user_java_script)
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
   DECL_BOOLEAN_ACCESSORS(is_async)
@@ -49,10 +53,11 @@ class StackFrameInfo : public Struct {
   static const int kIsEvalBit = 0;
   static const int kIsConstructorBit = 1;
   static const int kIsWasmBit = 2;
-  static const int kIsUserJavaScriptBit = 3;
-  static const int kIsToplevelBit = 4;
-  static const int kIsAsyncBit = 5;
-  static const int kIsPromiseAllBit = 6;
+  static const int kIsAsmJsWasmBit = 3;
+  static const int kIsUserJavaScriptBit = 4;
+  static const int kIsToplevelBit = 5;
+  static const int kIsAsyncBit = 6;
+  static const int kIsPromiseAllBit = 7;
 
   OBJECT_CONSTRUCTORS(StackFrameInfo, Struct);
 };
@@ -87,11 +92,15 @@ class StackTraceFrame : public Struct {
   static Handle<Object> GetFileName(Handle<StackTraceFrame> frame);
   static Handle<Object> GetScriptNameOrSourceUrl(Handle<StackTraceFrame> frame);
   static Handle<Object> GetFunctionName(Handle<StackTraceFrame> frame);
+  static Handle<Object> GetMethodName(Handle<StackTraceFrame> frame);
+  static Handle<Object> GetTypeName(Handle<StackTraceFrame> frame);
+  static Handle<Object> GetEvalOrigin(Handle<StackTraceFrame> frame);
   static Handle<Object> GetWasmModuleName(Handle<StackTraceFrame> frame);
 
   static bool IsEval(Handle<StackTraceFrame> frame);
   static bool IsConstructor(Handle<StackTraceFrame> frame);
   static bool IsWasm(Handle<StackTraceFrame> frame);
+  static bool IsAsmJsWasm(Handle<StackTraceFrame> frame);
   static bool IsUserJavaScript(Handle<StackTraceFrame> frame);
   static bool IsToplevel(Handle<StackTraceFrame> frame);
   static bool IsAsync(Handle<StackTraceFrame> frame);

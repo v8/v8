@@ -461,7 +461,6 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
   Handle<StackTraceFrame> NewStackTraceFrame(Handle<FrameArray> frame_array,
                                              int index);
-  Handle<StackFrameInfo> NewStackFrameInfo();
   Handle<StackFrameInfo> NewStackFrameInfo(Handle<FrameArray> frame_array,
                                            int index);
   Handle<SourcePositionTableWithFrameCache>

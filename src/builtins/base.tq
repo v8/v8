@@ -880,6 +880,9 @@ extern class StackFrameInfo extends Struct {
   script_name: Object;
   script_name_or_source_url: Object;
   function_name: Object;
+  method_name: Object;
+  type_name: Object;
+  eval_origin: Object;
   wasm_module_name: Object;
   flag: Smi;
 }

@@ -303,7 +303,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
 }  // namespace
 
 Handle<Object> StackFrameBase::GetEvalOrigin() {
-  if (!HasScript()) return isolate_->factory()->undefined_value();
+  if (!HasScript() || !IsEval()) return isolate_->factory()->undefined_value();
   return FormatEvalOrigin(isolate_, GetScript()).ToHandleChecked();
 }
 
