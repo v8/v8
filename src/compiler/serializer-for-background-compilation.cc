@@ -234,36 +234,42 @@ std::ostream& operator<<(
     const SerializerForBackgroundCompilation::Environment& env) {
   std::ostringstream output_stream;
 
-  for (size_t i = 0; i << env.parameter_count(); ++i) {
-    Hints const& hints = env.environment_hints_[i];
-    if (!hints.IsEmpty()) {
-      output_stream << "Hints for a" << i << ":\n" << hints;
+  if (env.IsDead()) {
+    output_stream << "dead\n";
+  } else {
+    output_stream << "alive\n";
+    for (size_t i = 0; i << env.parameter_count(); ++i) {
+      Hints const& hints = env.environment_hints_[i];
+      if (!hints.IsEmpty()) {
+        output_stream << "Hints for a" << i << ":\n" << hints;
+      }
+    }
+    for (size_t i = 0; i << env.register_count(); ++i) {
+      Hints const& hints = env.environment_hints_[env.parameter_count() + i];
+      if (!hints.IsEmpty()) {
+        output_stream << "Hints for r" << i << ":\n" << hints;
+      }
+    }
+    {
+      Hints const& hints = env.environment_hints_[env.accumulator_index()];
+      if (!hints.IsEmpty()) {
+        output_stream << "Hints for <accumulator>:\n" << hints;
+      }
+    }
+    {
+      Hints const& hints = env.environment_hints_[env.function_closure_index()];
+      if (!hints.IsEmpty()) {
+        output_stream << "Hints for <closure>:\n" << hints;
+      }
+    }
+    {
+      Hints const& hints = env.environment_hints_[env.current_context_index()];
+      if (!hints.IsEmpty()) {
+        output_stream << "Hints for <context>:\n" << hints;
+      }
     }
   }
-  for (size_t i = 0; i << env.register_count(); ++i) {
-    Hints const& hints = env.environment_hints_[env.parameter_count() + i];
-    if (!hints.IsEmpty()) {
-      output_stream << "Hints for r" << i << ":\n" << hints;
-    }
-  }
-  {
-    Hints const& hints = env.environment_hints_[env.accumulator_index()];
-    if (!hints.IsEmpty()) {
-      output_stream << "Hints for <accumulator>:\n" << hints;
-    }
-  }
-  {
-    Hints const& hints = env.environment_hints_[env.function_closure_index()];
-    if (!hints.IsEmpty()) {
-      output_stream << "Hints for <closure>:\n" << hints;
-    }
-  }
-  {
-    Hints const& hints = env.environment_hints_[env.current_context_index()];
-    if (!hints.IsEmpty()) {
-      output_stream << "Hints for <context>:\n" << hints;
-    }
-  }
+
   {
     Hints const& hints = env.return_value_hints_;
     if (!hints.IsEmpty()) {
@@ -414,6 +420,11 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
   for (; !iterator.done(); iterator.Advance()) {
     IncorporateJumpTargetEnvironment(iterator.current_offset());
 
+    TRACE_BROKER(broker(),
+                 "Handling bytecode: " << iterator.current_offset() << "  "
+                                       << iterator.current_bytecode());
+    TRACE_BROKER(broker(), "Current environment: " << *environment());
+
     if (environment()->IsDead()) {
       if (iterator.current_bytecode() ==
               interpreter::Bytecode::kResumeGenerator ||
@@ -423,11 +434,6 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
         continue;  // Skip this bytecode since TF won't generate code for it.
       }
     }
-
-    TRACE_BROKER(broker(),
-                 "Handling bytecode: " << iterator.current_offset() << "  "
-                                       << iterator.current_bytecode());
-    TRACE_BROKER(broker(), "Current environment:\n" << *environment());
 
     switch (iterator.current_bytecode()) {
 #define DEFINE_BYTECODE_CASE(name)     \
