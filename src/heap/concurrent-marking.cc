@@ -121,11 +121,7 @@ class ConcurrentMarkingVisitor final
   void ProcessWeakHeapObject(HeapObject host, THeapObjectSlot slot,
                              HeapObject heap_object) {
 #ifdef THREAD_SANITIZER
-    // Perform a dummy acquire load to tell TSAN that there is no data race
-    // in mark-bit initialization. See MemoryChunk::Initialize for the
-    // corresponding release store.
-    MemoryChunk* chunk = MemoryChunk::FromAddress(heap_object.address());
-    CHECK_NOT_NULL(chunk->synchronized_heap());
+    MemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
 #endif
     if (marking_state_.IsBlackOrGrey(heap_object)) {
       // Weak references with live values are directly processed here to
@@ -528,11 +524,7 @@ class ConcurrentMarkingVisitor final
 
   void MarkObject(HeapObject object) {
 #ifdef THREAD_SANITIZER
-    // Perform a dummy acquire load to tell TSAN that there is no data race
-    // in mark-bit initialization. See MemoryChunk::Initialize for the
-    // corresponding release store.
-    MemoryChunk* chunk = MemoryChunk::FromAddress(object.address());
-    CHECK_NOT_NULL(chunk->synchronized_heap());
+    MemoryChunk::FromHeapObject(object)->SynchronizedHeapLoad();
 #endif
     if (marking_state_.WhiteToGrey(object)) {
       shared_.Push(object);
