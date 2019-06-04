@@ -222,7 +222,6 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   HARMONY_STAGED_BASE(V)                                                     \
   V(harmony_intl_add_calendar_numbering_system,                              \
     "Add calendar and numberingSystem to DateTimeFormat")                    \
-  V(harmony_intl_numberformat_unified, "Unified Intl.NumberFormat Features") \
   V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -242,11 +241,12 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   V(harmony_promise_all_settled, "harmony Promise.allSettled")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V)                                       \
-  HARMONY_SHIPPING_BASE(V)                                        \
-  V(harmony_intl_bigint, "BigInt.prototype.toLocaleString")       \
-  V(harmony_intl_date_format_range, "DateTimeFormat formatRange") \
-  V(harmony_intl_datetime_style, "dateStyle timeStyle for DateTimeFormat")
+#define HARMONY_SHIPPING(V)                                                \
+  HARMONY_SHIPPING_BASE(V)                                                 \
+  V(harmony_intl_bigint, "BigInt.prototype.toLocaleString")                \
+  V(harmony_intl_date_format_range, "DateTimeFormat formatRange")          \
+  V(harmony_intl_datetime_style, "dateStyle timeStyle for DateTimeFormat") \
+  V(harmony_intl_numberformat_unified, "Unified Intl.NumberFormat Features")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #endif

@@ -75,9 +75,13 @@
   'intl402/DateTimeFormat/prototype/format/format-function-name': [FAIL],
   'intl402/Collator/prototype/compare/compare-function-name': [FAIL],
 
-  # intl tests which require flags. https://bugs.chromium.org/p/v8/issues/detail?id=9154
+  # Intl tests which require flags.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9154
   'intl402/NumberFormat/numbering-system-options': ['--harmony-intl-add-calendar-numbering-system'],
   'intl402/DateTimeFormat/numbering-system-calendar-options': ['--harmony-intl-add-calendar-numbering-system'],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9319
+  'intl402/NumberFormat/prototype/resolvedOptions/order': ['--noharmony-intl-numberformat-unified'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9084
   'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
