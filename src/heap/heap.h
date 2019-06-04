@@ -623,13 +623,7 @@ class Heap {
   // Initialization. ===========================================================
   // ===========================================================================
 
-  // Configure heap sizes
-  // max_semi_space_size_in_kb: maximum semi-space size in KB
-  // max_old_generation_size_in_mb: maximum old generation size in MB
-  // code_range_size_in_mb: code range size in MB
-  void ConfigureHeap(size_t max_semi_space_size_in_kb,
-                     size_t max_old_generation_size_in_mb,
-                     size_t code_range_size_in_mb);
+  void ConfigureHeap(const v8::ResourceConstraints& constraints);
   void ConfigureHeapDefault();
 
   // Prepares the heap, setting up for deserialization.
