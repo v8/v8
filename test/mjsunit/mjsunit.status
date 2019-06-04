@@ -896,6 +896,12 @@
 }],  # 'arch == ppc64'
 
 ##############################################################################
+['system == aix', {
+  # stack overflow
+  'regress/regress-crbug-178790': [PASS, ['mode == debug', SKIP]],
+}],  # 'system == aix'
+
+##############################################################################
 ['arch == s390x', {
   # stack overflow
   'regress/regress-crbug-178790': [PASS, ['mode == debug', SKIP]],
