@@ -4855,22 +4855,12 @@ std::unique_ptr<v8::tracing::TracedValue> SharedFunctionInfo::ToTracedValue(
 const char* SharedFunctionInfo::kTraceScope =
     "v8::internal::SharedFunctionInfo";
 
-uint64_t SharedFunctionInfo::TraceID() const {
-  // TODO(bmeurer): We use a combination of Script ID and function literal
-  // ID (within the Script) to uniquely identify SharedFunctionInfos. This
-  // can add significant overhead, and we should probably find a better way
-  // to uniquely identify SharedFunctionInfos over time.
+uint64_t SharedFunctionInfo::TraceID(FunctionLiteral* literal) const {
+  int literal_id =
+      literal ? literal->function_literal_id() : FunctionLiteralId();
   Script script = Script::cast(this->script());
-  WeakFixedArray script_functions = script.shared_function_infos();
-  for (int i = 0; i < script_functions.length(); ++i) {
-    HeapObject script_function;
-    if (script_functions.Get(i).GetHeapObjectIfWeak(&script_function) &&
-        script_function.address() == address()) {
-      return (static_cast<uint64_t>(script.id() + 1) << 32) |
-             (static_cast<uint64_t>(i));
-    }
-  }
-  UNREACHABLE();
+  return (static_cast<uint64_t>(script.id() + 1) << 32) |
+         (static_cast<uint64_t>(literal_id));
 }
 
 std::unique_ptr<v8::tracing::TracedValue> SharedFunctionInfo::TraceIDRef()
@@ -4946,21 +4936,17 @@ WasmCapiFunctionData SharedFunctionInfo::wasm_capi_function_data() const {
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
                                                    Script script)
-    : ScriptIterator(isolate, handle(script.shared_function_infos(), isolate)) {
-}
+    : ScriptIterator(handle(script.shared_function_infos(), isolate)) {}
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(
-    Isolate* isolate, Handle<WeakFixedArray> shared_function_infos)
-    : isolate_(isolate),
-      shared_function_infos_(shared_function_infos),
-      index_(0) {}
+    Handle<WeakFixedArray> shared_function_infos)
+    : shared_function_infos_(shared_function_infos), index_(0) {}
 
 SharedFunctionInfo SharedFunctionInfo::ScriptIterator::Next() {
   while (index_ < shared_function_infos_->length()) {
     MaybeObject raw = shared_function_infos_->Get(index_++);
     HeapObject heap_object;
-    if (!raw->GetHeapObject(&heap_object) ||
-        heap_object.IsUndefined(isolate_)) {
+    if (!raw->GetHeapObject(&heap_object) || heap_object.IsUndefined()) {
       continue;
     }
     return SharedFunctionInfo::cast(heap_object);
@@ -4968,13 +4954,15 @@ SharedFunctionInfo SharedFunctionInfo::ScriptIterator::Next() {
   return SharedFunctionInfo();
 }
 
-void SharedFunctionInfo::ScriptIterator::Reset(Script script) {
-  shared_function_infos_ = handle(script.shared_function_infos(), isolate_);
+void SharedFunctionInfo::ScriptIterator::Reset(Isolate* isolate,
+                                               Script script) {
+  shared_function_infos_ = handle(script.shared_function_infos(), isolate);
   index_ = 0;
 }
 
 SharedFunctionInfo::GlobalIterator::GlobalIterator(Isolate* isolate)
-    : script_iterator_(isolate),
+    : isolate_(isolate),
+      script_iterator_(isolate),
       noscript_sfi_iterator_(isolate->heap()->noscript_shared_function_infos()),
       sfi_iterator_(isolate, script_iterator_.Next()) {}
 
@@ -4986,7 +4974,7 @@ SharedFunctionInfo SharedFunctionInfo::GlobalIterator::Next() {
     if (!next.is_null()) return SharedFunctionInfo::cast(next);
     Script next_script = script_iterator_.Next();
     if (next_script.is_null()) return SharedFunctionInfo();
-    sfi_iterator_.Reset(next_script);
+    sfi_iterator_.Reset(isolate_, next_script);
   }
 }
 
@@ -5148,7 +5136,7 @@ void SharedFunctionInfo::DiscardCompiled(
       handle(shared_info->inferred_name(), isolate);
   int start_position = shared_info->StartPosition();
   int end_position = shared_info->EndPosition();
-  int function_literal_id = shared_info->FunctionLiteralId(isolate);
+  int function_literal_id = shared_info->FunctionLiteralId();
 
   shared_info->DiscardCompiledMetadata(isolate);
 
@@ -5273,7 +5261,7 @@ bool SharedFunctionInfo::IsInlineable() {
 
 int SharedFunctionInfo::SourceSize() { return EndPosition() - StartPosition(); }
 
-int SharedFunctionInfo::FindIndexInScript(Isolate* isolate) const {
+int SharedFunctionInfo::FindIndexInScript() const {
   DisallowHeapAllocation no_gc;
 
   Object script_obj = script();
@@ -5282,7 +5270,6 @@ int SharedFunctionInfo::FindIndexInScript(Isolate* isolate) const {
   WeakFixedArray shared_info_list =
       Script::cast(script_obj).shared_function_infos();
   SharedFunctionInfo::ScriptIterator iterator(
-      isolate,
       Handle<WeakFixedArray>(reinterpret_cast<Address*>(&shared_info_list)));
 
   for (SharedFunctionInfo shared = iterator.Next(); !shared.is_null();
@@ -5510,19 +5497,19 @@ int SharedFunctionInfo::EndPosition() const {
   return kNoSourcePosition;
 }
 
-int SharedFunctionInfo::FunctionLiteralId(Isolate* isolate) const {
+int SharedFunctionInfo::FunctionLiteralId() const {
   // Fast path for the common case when the SFI is uncompiled and so the
   // function literal id is already in the uncompiled data.
   if (HasUncompiledData() && uncompiled_data().has_function_literal_id()) {
     int id = uncompiled_data().function_literal_id();
     // Make sure the id is what we should have found with the slow path.
-    DCHECK_EQ(id, FindIndexInScript(isolate));
+    DCHECK_EQ(id, FindIndexInScript());
     return id;
   }
 
   // Otherwise, search for the function in the SFI's script's function list,
   // and return its index in that list.
-  return FindIndexInScript(isolate);
+  return FindIndexInScript();
 }
 
 void SharedFunctionInfo::SetPosition(int start_position, int end_position) {

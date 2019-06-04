@@ -3335,10 +3335,12 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
                                 false);
   TRACE_EVENT_OBJECT_CREATED_WITH_ID(
       TRACE_DISABLED_BY_DEFAULT("v8.compile"), "SharedFunctionInfo",
-      TRACE_ID_WITH_SCOPE(SharedFunctionInfo::kTraceScope, shared->TraceID()));
+      TRACE_ID_WITH_SCOPE(SharedFunctionInfo::kTraceScope,
+                          shared->TraceID(literal)));
   TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
       TRACE_DISABLED_BY_DEFAULT("v8.compile"), "SharedFunctionInfo",
-      TRACE_ID_WITH_SCOPE(SharedFunctionInfo::kTraceScope, shared->TraceID()),
+      TRACE_ID_WITH_SCOPE(SharedFunctionInfo::kTraceScope,
+                          shared->TraceID(literal)),
       shared->ToTracedValue(literal));
   return shared;
 }

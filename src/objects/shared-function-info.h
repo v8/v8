@@ -386,7 +386,7 @@ class SharedFunctionInfo : public HeapObject {
   inline String inferred_name();
 
   // Get the function literal id associated with this function, for parsing.
-  V8_EXPORT_PRIVATE int FunctionLiteralId(Isolate* isolate) const;
+  V8_EXPORT_PRIVATE int FunctionLiteralId() const;
 
   // Break infos are contained in DebugInfo, this is a convenience method
   // to simplify access.
@@ -624,7 +624,7 @@ class SharedFunctionInfo : public HeapObject {
   // Returns the unique TraceID for this SharedFunctionInfo (within the
   // kTraceScope, works only for functions that have a Script and start/end
   // position).
-  uint64_t TraceID() const;
+  uint64_t TraceID(FunctionLiteral* literal = nullptr) const;
 
   // Returns the unique trace ID reference for this SharedFunctionInfo
   // (based on the |TraceID()| above).
@@ -634,16 +634,14 @@ class SharedFunctionInfo : public HeapObject {
   class ScriptIterator {
    public:
     V8_EXPORT_PRIVATE ScriptIterator(Isolate* isolate, Script script);
-    ScriptIterator(Isolate* isolate,
-                   Handle<WeakFixedArray> shared_function_infos);
+    explicit ScriptIterator(Handle<WeakFixedArray> shared_function_infos);
     V8_EXPORT_PRIVATE SharedFunctionInfo Next();
     int CurrentIndex() const { return index_ - 1; }
 
     // Reset the iterator to run on |script|.
-    void Reset(Script script);
+    void Reset(Isolate* isolate, Script script);
 
    private:
-    Isolate* isolate_;
     Handle<WeakFixedArray> shared_function_infos_;
     int index_;
     DISALLOW_COPY_AND_ASSIGN(ScriptIterator);
@@ -656,6 +654,7 @@ class SharedFunctionInfo : public HeapObject {
     V8_EXPORT_PRIVATE SharedFunctionInfo Next();
 
    private:
+    Isolate* isolate_;
     Script::Iterator script_iterator_;
     WeakArrayList::Iterator noscript_sfi_iterator_;
     SharedFunctionInfo::ScriptIterator sfi_iterator_;
@@ -746,7 +745,7 @@ class SharedFunctionInfo : public HeapObject {
 
   // Find the index of this function in the parent script. Slow path of
   // FunctionLiteralId.
-  int FindIndexInScript(Isolate* isolate) const;
+  int FindIndexInScript() const;
 
   OBJECT_CONSTRUCTORS(SharedFunctionInfo, HeapObject);
 };
