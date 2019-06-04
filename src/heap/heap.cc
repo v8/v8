@@ -4454,10 +4454,9 @@ size_t Heap::OldGenerationSizeOfObjects() {
 
 size_t Heap::GlobalSizeOfObjects() {
   const size_t on_heap_size = OldGenerationSizeOfObjects();
-  const size_t embedder_size =
-      local_embedder_heap_tracer()
-          ? local_embedder_heap_tracer()->allocated_size()
-          : 0;
+  const size_t embedder_size = local_embedder_heap_tracer()
+                                   ? local_embedder_heap_tracer()->used_size()
+                                   : 0;
   return on_heap_size + embedder_size;
 }
 
@@ -5879,7 +5878,7 @@ bool Heap::AllowedToBeMigrated(Map map, HeapObject obj, AllocationSpace dst) {
 
 size_t Heap::EmbedderAllocationCounter() const {
   return local_embedder_heap_tracer()
-             ? local_embedder_heap_tracer()->accumulated_allocated_size()
+             ? local_embedder_heap_tracer()->allocated_size()
              : 0;
 }
 

@@ -7230,12 +7230,13 @@ class V8_EXPORT EmbedderHeapTracer {
   void GarbageCollectionForTesting(EmbedderStackState stack_state);
 
   /*
-   * Called by the embedder to signal newly allocated memory. Not bound to
-   * tracing phases. Embedders should trade off when increments are reported as
-   * V8 may consult global heuristics on whether to trigger garbage collection
-   * on this change.
+   * Called by the embedder to signal newly allocated or freed memory. Not bound
+   * to tracing phases. Embedders should trade off when increments are reported
+   * as V8 may consult global heuristics on whether to trigger garbage
+   * collection on this change.
    */
   void IncreaseAllocatedSize(size_t bytes);
+  void DecreaseAllocatedSize(size_t bytes);
 
   /*
    * Returns the v8::Isolate this tracer is attached too and |nullptr| if it

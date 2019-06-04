@@ -10151,6 +10151,17 @@ void EmbedderHeapTracer::IncreaseAllocatedSize(size_t bytes) {
   }
 }
 
+void EmbedderHeapTracer::DecreaseAllocatedSize(size_t bytes) {
+  if (isolate_) {
+    i::LocalEmbedderHeapTracer* const tracer =
+        reinterpret_cast<i::Isolate*>(isolate_)
+            ->heap()
+            ->local_embedder_heap_tracer();
+    DCHECK_NOT_NULL(tracer);
+    tracer->DecreaseAllocatedSize(bytes);
+  }
+}
+
 void EmbedderHeapTracer::RegisterEmbedderReference(
     const TracedGlobal<v8::Value>& ref) {
   if (ref.IsEmpty()) return;
