@@ -34,6 +34,7 @@
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/constant-folding-reducer.h"
 #include "src/compiler/control-flow-optimizer.h"
+#include "src/compiler/csa-load-elimination.h"
 #include "src/compiler/dead-code-elimination.h"
 #include "src/compiler/decompression-elimination.h"
 #include "src/compiler/effect-control-linearizer.h"
@@ -1565,6 +1566,19 @@ struct MachineOperatorOptimizationPhase {
   }
 };
 
+struct CsaEarlyOptimizationPhase {
+  static const char* phase_name() { return "V8.CSAEarlyOptimization"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    GraphReducer graph_reducer(temp_zone, data->graph(),
+                               data->jsgraph()->Dead());
+    CsaLoadElimination load_elimination(&graph_reducer, data->jsgraph(),
+                                        temp_zone);
+    AddReducer(data, &graph_reducer, &load_elimination);
+    graph_reducer.ReduceGraph();
+  }
+};
+
 struct CsaOptimizationPhase {
   static const char* phase_name() { return "V8.CSAOptimization"; }
 
@@ -2200,6 +2214,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     }
     pipeline.Run<PrintGraphPhase>("V8.TFMachineCode");
   }
+
+  pipeline.Run<CsaEarlyOptimizationPhase>();
+  pipeline.RunPrintAndVerify(CsaEarlyOptimizationPhase::phase_name(), true);
 
   // Optimize memory access and allocation operations.
   pipeline.Run<MemoryOptimizationPhase>();

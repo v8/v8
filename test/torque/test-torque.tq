@@ -907,4 +907,21 @@ namespace test {
     StaticAssert(1 + 2 == 3);
   }
 
+  class SmiBox {
+    value: Smi;
+    unrelated: Smi;
+  }
+
+  builtin NewSmiBox(implicit c: Context)(value: Smi): SmiBox {
+    return new SmiBox{value, unrelated: 0};
+  }
+
+  @export
+  macro TestLoadEliminationNoWrite(implicit c: Context)() {
+    const box = NewSmiBox(123);
+    const v1 = box.value;
+    const v2 = (box.unrelated == 0) ? box.value : box.value;
+    StaticAssert(WordEqual(v1, v2));
+  }
+
 }
