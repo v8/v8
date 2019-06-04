@@ -4405,7 +4405,6 @@ group("v8_generated_cc_files") {
     ":js2c_extras",
     ":run_torque",
     "src/inspector:v8_generated_cc_files",
-    "test/cctest:v8_generated_cc_files",
   ]
 }
 

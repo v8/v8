@@ -48,9 +48,6 @@
   # works as intended.
   'test-api/DisallowJavascriptExecutionScope': [FAIL],
 
-  # TODO(gc): Temporarily disabled in the GC branch.
-  'test-log/EquivalenceOfLoggingAndTraversal': [PASS, FAIL],
-
   # We do not yet shrink weak maps after they have been emptied by the GC
   'test-weakmaps/Shrinking': [FAIL],
   'test-weaksets/WeakSet_Shrinking': [FAIL],
@@ -374,14 +371,6 @@
   # Consumes too much memory on ODROIDs in debug mode and optimize_for_size.
   'test-code-generator/FuzzAssemble*': [PASS, ['(mode == debug) and optimize_for_size', SKIP]],
 }],  # 'system != android and arch in [arm, arm64] and not simulator_run'
-
-##############################################################################
-['system == aix and arch == ppc64', {
-
-  # BUG 2857
-  'test-log/EquivalenceOfLoggingAndTraversal' : [SKIP],
-
-}],  # 'system == aix and arch == ppc64'
 
 ##############################################################################
 ['system == aix or (arch == ppc64 and byteorder == big)', {

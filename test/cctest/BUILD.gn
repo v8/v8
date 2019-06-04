@@ -55,8 +55,6 @@ v8_source_set("cctest_sources") {
   testonly = true
 
   sources = [
-    "$target_gen_dir/resources.cc",
-
     ### gcmole(all) ###
     "../common/assembler-tester.h",
     "../common/wasm/flag-utils.h",
@@ -369,7 +367,6 @@ v8_source_set("cctest_sources") {
 
   public_deps = [
     ":cctest_headers",
-    ":resources",
     "..:common_test_headers",
     "../..:v8_for_testing",
     "../..:v8_libbase",
@@ -418,35 +415,6 @@ v8_source_set("cctest_sources") {
   }
 }
 
-action("resources") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  script = "../../tools/js2c.py"
-
-  # NOSORT
-  sources = [
-    "../../tools/splaytree.js",
-    "../../tools/codemap.js",
-    "../../tools/csvparser.js",
-    "../../tools/consarray.js",
-    "../../tools/profile.js",
-    "../../tools/profile_view.js",
-    "../../tools/arguments.js",
-    "../../tools/logreader.js",
-    "log-eq-of-logging-and-traversal.js",
-  ]
-
-  outputs = [
-    "$target_gen_dir/resources.cc",
-  ]
-
-  args = [
-    rebase_path("$target_gen_dir/resources.cc", root_build_dir),
-    "TEST",
-  ]
-  args += rebase_path(sources, root_build_dir)
-}
-
 v8_executable("generate-bytecode-expectations") {
   testonly = true
 
@@ -467,14 +435,5 @@ v8_executable("generate-bytecode-expectations") {
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "//build/win:default_exe_manifest",
-  ]
-}
-
-#Target to generate all .cc files.
-group("v8_generated_cc_files") {
-  testonly = true
-
-  deps = [
-    ":resources",
   ]
 }
