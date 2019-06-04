@@ -242,6 +242,8 @@ assert(!v8_enable_lite_mode || v8_use_snapshot,
 assert(
     !v8_enable_pointer_compression || !v8_enable_shared_ro_heap,
     "Pointer compression is not supported with shared read-only heap enabled")
+assert(v8_use_snapshot || !v8_enable_shared_ro_heap,
+       "Shared read-only heap requires snapshot")
 
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
