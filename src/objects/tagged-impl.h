@@ -40,16 +40,24 @@ class TaggedImpl {
   // Make clang on Linux catch what MSVC complains about on Windows:
   operator bool() const = delete;
 
-  constexpr bool operator==(TaggedImpl other) const {
-    return ptr_ == other.ptr_;
+  template <typename U>
+  constexpr bool operator==(TaggedImpl<kRefType, U> other) const {
+    static_assert(
+        std::is_same<U, Address>::value || std::is_same<U, Tagged_t>::value,
+        "U must be either Address or Tagged_t");
+    return static_cast<Tagged_t>(ptr_) == static_cast<Tagged_t>(other.ptr());
   }
-  constexpr bool operator!=(TaggedImpl other) const {
-    return ptr_ != other.ptr_;
+  template <typename U>
+  constexpr bool operator!=(TaggedImpl<kRefType, U> other) const {
+    static_assert(
+        std::is_same<U, Address>::value || std::is_same<U, Tagged_t>::value,
+        "U must be either Address or Tagged_t");
+    return static_cast<Tagged_t>(ptr_) != static_cast<Tagged_t>(other.ptr());
   }
 
   // For using in std::set and std::map.
   constexpr bool operator<(TaggedImpl other) const {
-    return ptr_ < other.ptr();
+    return static_cast<Tagged_t>(ptr_) < static_cast<Tagged_t>(other.ptr());
   }
 
   constexpr StorageType ptr() const { return ptr_; }

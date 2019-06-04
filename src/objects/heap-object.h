@@ -22,7 +22,9 @@ class Heap;
 // objects.
 class HeapObject : public Object {
  public:
-  bool is_null() const { return ptr() == kNullAddress; }
+  bool is_null() const {
+    return static_cast<Tagged_t>(ptr()) == static_cast<Tagged_t>(kNullAddress);
+  }
 
   // [map]: Contains a map which contains the object's reflective
   // information.
