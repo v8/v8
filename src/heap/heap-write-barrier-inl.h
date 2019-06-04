@@ -46,23 +46,14 @@ V8_EXPORT_PRIVATE void Heap_MarkingBarrierForDescriptorArraySlow(
 // internals are only intended to shortcut write barrier checks.
 namespace heap_internals {
 
-struct Space {
-  static constexpr uintptr_t kIdOffset = 9 * kSystemPointerSize;
-  V8_INLINE AllocationSpace identity() {
-    return *reinterpret_cast<AllocationSpace*>(reinterpret_cast<Address>(this) +
-                                               kIdOffset);
-  }
-};
-
 struct MemoryChunk {
   static constexpr uintptr_t kFlagsOffset = sizeof(size_t);
   static constexpr uintptr_t kHeapOffset =
       kFlagsOffset + kUIntptrSize + 4 * kSystemPointerSize;
-  static constexpr uintptr_t kOwnerOffset =
-      kHeapOffset + 2 * kSystemPointerSize;
   static constexpr uintptr_t kMarkingBit = uintptr_t{1} << 18;
   static constexpr uintptr_t kFromPageBit = uintptr_t{1} << 3;
   static constexpr uintptr_t kToPageBit = uintptr_t{1} << 4;
+  static constexpr uintptr_t kReadOnlySpaceBit = uintptr_t{1} << 21;
 
   V8_INLINE static heap_internals::MemoryChunk* FromHeapObject(
       HeapObject object) {
@@ -84,13 +75,12 @@ struct MemoryChunk {
   V8_INLINE Heap* GetHeap() {
     Heap* heap = *reinterpret_cast<Heap**>(reinterpret_cast<Address>(this) +
                                            kHeapOffset);
-    SLOW_DCHECK(heap != nullptr);
+    DCHECK_NOT_NULL(heap);
     return heap;
   }
 
-  V8_INLINE Space* GetOwner() {
-    return *reinterpret_cast<Space**>(reinterpret_cast<Address>(this) +
-                                      kOwnerOffset);
+  V8_INLINE bool InReadOnlySpace() const {
+    return GetFlags() & kReadOnlySpaceBit;
   }
 };
 
@@ -246,7 +236,7 @@ inline Heap* GetHeapFromWritableObject(const HeapObject object) {
 inline bool GetIsolateFromWritableObject(HeapObject obj, Isolate** isolate) {
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(obj);
-  if (chunk->GetOwner()->identity() == RO_SPACE) {
+  if (chunk->InReadOnlySpace()) {
     *isolate = nullptr;
     return false;
   }

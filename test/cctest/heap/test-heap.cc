@@ -5924,7 +5924,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
+  CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
   CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
@@ -5936,7 +5936,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   // After the first young generation GC array_small will be in the old
   // generation large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE, chunk->owner()->identity());
+  CHECK_EQ(LO_SPACE, chunk->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   CcTest::CollectAllAvailableGarbage();
@@ -5954,7 +5954,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
+  CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
   CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
@@ -5966,7 +5966,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   // After the first full GC array_small will be in the old generation
   // large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
-  CHECK_EQ(LO_SPACE, chunk->owner()->identity());
+  CHECK_EQ(LO_SPACE, chunk->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
   CcTest::CollectAllAvailableGarbage();
@@ -5986,7 +5986,7 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
     for (int i = 0; i < 10; i++) {
       Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
-      CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
+      CHECK_EQ(NEW_LO_SPACE, chunk->owner_identity());
       CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
     }
   }
@@ -6009,7 +6009,7 @@ TEST(UncommitUnusedLargeObjectMemory) {
   Handle<FixedArray> array =
       isolate->factory()->NewFixedArray(200000, AllocationType::kOld);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
-  CHECK(chunk->owner()->identity() == LO_SPACE);
+  CHECK(chunk->owner_identity() == LO_SPACE);
 
   intptr_t size_before = array->Size();
   size_t committed_memory_before = chunk->CommittedPhysicalMemory();
@@ -6033,7 +6033,7 @@ TEST(RememberedSetRemoveRange) {
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(
       Page::kPageSize / kTaggedSize, AllocationType::kOld);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
-  CHECK(chunk->owner()->identity() == LO_SPACE);
+  CHECK(chunk->owner_identity() == LO_SPACE);
   Address start = array->address();
   // Maps slot to boolean indicator of whether the slot should be in the set.
   std::map<Address, bool> slots;
@@ -6189,7 +6189,7 @@ HEAP_TEST(Regress5831) {
 
   // Ensure it's not in large object space.
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*code);
-  CHECK(chunk->owner()->identity() != LO_SPACE);
+  CHECK(chunk->owner_identity() != LO_SPACE);
   CHECK(chunk->NeverEvacuate());
 }
 

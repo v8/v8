@@ -413,7 +413,7 @@ void Scavenger::RememberPromotedEphemeron(EphemeronHashTable table, int entry) {
 }
 
 void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
-  AllocationSpace space = page->owner()->identity();
+  AllocationSpace space = page->owner_identity();
   if ((space == OLD_SPACE) && !page->SweepingDone()) {
     heap()->mark_compact_collector()->sweeper()->AddPage(
         space, reinterpret_cast<Page*>(page),

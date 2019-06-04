@@ -263,15 +263,13 @@ void Heap::OnAllocationEvent(HeapObject object, int size_in_bytes) {
 }
 
 bool Heap::CanAllocateInReadOnlySpace() {
-  return !deserialization_complete_ &&
-         (isolate()->serializer_enabled() ||
-          !isolate()->initialized_from_snapshot());
+  return read_only_space()->writable();
 }
 
 void Heap::UpdateAllocationsHash(HeapObject object) {
   Address object_address = object.address();
   MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
-  AllocationSpace allocation_space = memory_chunk->owner()->identity();
+  AllocationSpace allocation_space = memory_chunk->owner_identity();
 
   STATIC_ASSERT(kSpaceTagSize + kPageSizeBits <= 32);
   uint32_t value =
@@ -379,8 +377,7 @@ Heap* Heap::FromWritableHeapObject(const HeapObject obj) {
   // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
   // find a heap. The exception is when the ReadOnlySpace is writeable, during
   // bootstrapping, so explicitly allow this case.
-  SLOW_DCHECK(chunk->owner()->identity() != RO_SPACE ||
-              static_cast<ReadOnlySpace*>(chunk->owner())->writable());
+  SLOW_DCHECK(chunk->IsWritable());
   Heap* heap = chunk->heap();
   SLOW_DCHECK(heap != nullptr);
   return heap;
@@ -614,8 +611,8 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(
       scope_active_(chunk_->heap()->write_protect_code_memory() &&
                     chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
   if (scope_active_) {
-    DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
-           (chunk_->owner()->identity() == CODE_LO_SPACE));
+    DCHECK(chunk_->owner_identity() == CODE_SPACE ||
+           (chunk_->owner_identity() == CODE_LO_SPACE));
     chunk_->SetReadAndWritable();
   }
 }

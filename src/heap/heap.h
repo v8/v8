@@ -990,8 +990,9 @@ class Heap {
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object object);
 
-  // Checks whether an address/object in the heap (including auxiliary
-  // area and unused area).
+  // Checks whether an address/object is in the non-read-only heap (including
+  // auxiliary area and unused area). Use IsValidHeapObject if checking both
+  // heaps is required.
   V8_EXPORT_PRIVATE bool Contains(HeapObject value);
 
   // Checks whether an address/object in a space.

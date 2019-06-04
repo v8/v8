@@ -96,8 +96,7 @@ ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
 }
 
 bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj) {
-  PagedSpace* read_only_space = isolate()->heap()->read_only_space();
-  if (!read_only_space->Contains(obj)) return false;
+  if (!ReadOnlyHeap::Contains(obj)) return false;
 
   // For objects in RO_SPACE, never serialize the object, but instead create a
   // back reference that encodes the page number as the chunk_index and the
@@ -105,6 +104,7 @@ bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj) {
   Address address = obj.address();
   Page* page = Page::FromAddress(address);
   uint32_t chunk_index = 0;
+  ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
   for (Page* p : *read_only_space) {
     if (p == page) break;
     ++chunk_index;

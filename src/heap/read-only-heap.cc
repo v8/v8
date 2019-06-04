@@ -108,7 +108,7 @@ void ReadOnlyHeap::ClearSharedHeapForTest() {
 
 // static
 bool ReadOnlyHeap::Contains(HeapObject object) {
-  return Page::FromHeapObject(object)->owner()->identity() == RO_SPACE;
+  return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
 }
 
 // static

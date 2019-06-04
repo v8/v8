@@ -567,7 +567,7 @@ void Serializer::ObjectSerializer::SerializeObject() {
   int size = object_.Size();
   Map map = object_.map();
   AllocationSpace space =
-      MemoryChunk::FromHeapObject(object_)->owner()->identity();
+      MemoryChunk::FromHeapObject(object_)->owner_identity();
   // Young generation large objects are tenured.
   if (space == NEW_LO_SPACE) {
     space = LO_SPACE;

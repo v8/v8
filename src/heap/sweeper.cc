@@ -184,7 +184,7 @@ void Sweeper::StartSweeperTasks() {
 
 void Sweeper::SweepOrWaitUntilSweepingCompleted(Page* page) {
   if (!page->SweepingDone()) {
-    ParallelSweepPage(page, page->owner()->identity());
+    ParallelSweepPage(page, page->owner_identity());
     if (!page->SweepingDone()) {
       // We were not able to sweep that page, i.e., a concurrent
       // sweeper thread currently owns this page. Wait for the sweeper
@@ -500,7 +500,7 @@ Page* Sweeper::GetSweepingPageSafe(AllocationSpace space) {
 }
 
 void Sweeper::EnsurePageIsIterable(Page* page) {
-  AllocationSpace space = page->owner()->identity();
+  AllocationSpace space = page->owner_identity();
   if (IsValidSweepingSpace(space)) {
     SweepOrWaitUntilSweepingCompleted(page);
   } else {
@@ -573,7 +573,7 @@ void Sweeper::AddPageForIterability(Page* page) {
   DCHECK(sweeping_in_progress_);
   DCHECK(iterability_in_progress_);
   DCHECK(!iterability_task_started_);
-  DCHECK(IsValidIterabilitySpace(page->owner()->identity()));
+  DCHECK(IsValidIterabilitySpace(page->owner_identity()));
   DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state());
 
   iterability_list_.push_back(page);
@@ -581,7 +581,7 @@ void Sweeper::AddPageForIterability(Page* page) {
 }
 
 void Sweeper::MakeIterable(Page* page) {
-  DCHECK(IsValidIterabilitySpace(page->owner()->identity()));
+  DCHECK(IsValidIterabilitySpace(page->owner_identity()));
   const FreeSpaceTreatmentMode free_space_mode =
       Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
   RawSweep(page, IGNORE_FREE_LIST, free_space_mode);

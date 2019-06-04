@@ -1463,7 +1463,7 @@ class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
 
   inline bool Visit(HeapObject object, int size) override {
     HeapObject target_object;
-    if (TryEvacuateObject(Page::FromHeapObject(object)->owner()->identity(),
+    if (TryEvacuateObject(Page::FromHeapObject(object)->owner_identity(),
                           object, size, &target_object)) {
       DCHECK(object.map_word().IsForwardingAddress());
       return true;
@@ -3183,7 +3183,7 @@ void MarkCompactCollector::Evacuate() {
         sweeper()->AddPageForIterability(p);
       } else if (p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
         p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
-        DCHECK_EQ(OLD_SPACE, p->owner()->identity());
+        DCHECK_EQ(OLD_SPACE, p->owner_identity());
         sweeper()->AddPage(OLD_SPACE, p, Sweeper::REGULAR);
       }
     }
@@ -3191,7 +3191,7 @@ void MarkCompactCollector::Evacuate() {
 
     for (Page* p : old_space_evacuation_pages_) {
       if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
-        sweeper()->AddPage(p->owner()->identity(), p, Sweeper::REGULAR);
+        sweeper()->AddPage(p->owner_identity(), p, Sweeper::REGULAR);
         p->ClearFlag(Page::COMPACTION_WAS_ABORTED);
       }
     }
