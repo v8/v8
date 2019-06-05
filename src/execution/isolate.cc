@@ -32,6 +32,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/compilation-statistics.h"
+#include "src/diagnostics/crash-key.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
@@ -3282,6 +3283,19 @@ bool Isolate::InitWithSnapshot(ReadOnlyDeserializer* read_only_deserializer,
   return Init(read_only_deserializer, startup_deserializer);
 }
 
+static void AddCrashKeysForIsolateAndHeapPointers(Isolate* isolate) {
+  const int id = isolate->id();
+  crash::AddCrashKey(id, "isolate", reinterpret_cast<uintptr_t>(isolate));
+
+  auto heap = isolate->heap();
+  crash::AddCrashKey(id, "ro_space",
+    reinterpret_cast<uintptr_t>(heap->read_only_space()->first_page()));
+  crash::AddCrashKey(id, "map_space",
+    reinterpret_cast<uintptr_t>(heap->map_space()->first_page()));
+  crash::AddCrashKey(id, "code_space",
+    reinterpret_cast<uintptr_t>(heap->code_space()->first_page()));
+}
+
 bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
                    StartupDeserializer* startup_deserializer) {
   TRACE_ISOLATE(init);
@@ -3527,6 +3541,7 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
     PrintF("[Initializing isolate from scratch took %0.3f ms]\n", ms);
   }
 
+  AddCrashKeysForIsolateAndHeapPointers(this);
   return true;
 }
 
