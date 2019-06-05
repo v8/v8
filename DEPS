@@ -57,9 +57,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c66b31df3e06f8b55b5bdc54df0d324f3a190852',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '388c0612c52790edffa42788c8a0000b0eced79c',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0183a1fe6c996f53917562e27d7bf9791b07dc49',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd2f31cc65deac117d0fc5926768630ee2be27115',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '9f0f47b1e410b137762f2e3699359f0dbfcdbc05',
   'v8/third_party/instrumented_libraries':
@@ -158,7 +158,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'fd813d1131850484e965a0279718be10f8aed48f',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '3344e16e55cf5479dad0c0d3f8015c28cc278a4b',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
