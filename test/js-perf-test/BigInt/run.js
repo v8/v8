@@ -6,6 +6,7 @@
 
 load('../base.js');
 load('to-boolean.js');
+load('add.js');
 
 
 var success = true;

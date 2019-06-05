@@ -50,14 +50,36 @@
       "path": ["BigInt"],
       "main": "run.js",
       "resources": [
-        "to-boolean.js"
+        "bigint-util.js",
+        "to-boolean.js",
+        "add.js"
       ],
       "results_regexp": "^%s\\-BigInt\\(Score\\): (.+)$",
       "tests": [
         { "name": "BigInt-ToBoolean" },
         { "name": "BigInt-BooleanConstructor" },
-        { "name": "BigInt-NewBooleanConstructor" }
-      ]
+        { "name": "BigInt-NewBooleanConstructor" },
+        { "name": "Add-TypeError" },
+        { "name": "Add-Zero" },
+        { "name": "Add-SameSign-32" },
+        { "name": "Add-DifferentSign-32" },
+        { "name": "Add-SameSign-64" },
+        { "name": "Add-DifferentSign-64" },
+        { "name": "Add-SameSign-128" },
+        { "name": "Add-DifferentSign-128" },
+        { "name": "Add-SameSign-256" },
+        { "name": "Add-DifferentSign-256" },
+        { "name": "Add-SameSign-512" },
+        { "name": "Add-DifferentSign-512" },
+        { "name": "Add-SameSign-1024" },
+        { "name": "Add-DifferentSign-1024" },
+        { "name": "Add-SameSign-2048" },
+        { "name": "Add-DifferentSign-2048" },
+        { "name": "Add-SameSign-4096" },
+        { "name": "Add-DifferentSign-4096" },
+        { "name": "Add-SameSign-8192" },
+        { "name": "Add-DifferentSign-8192" }
+    ]
     },
     {
       "name": "BigInt-Jitless",
