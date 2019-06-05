@@ -1244,9 +1244,7 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
           }
           case IrOpcode::kStoreField: {
             FieldAccess access = FieldAccessOf(current->op());
-            if (access.constness == PropertyConstness::kMutable) {
-              state = ComputeLoopStateForStoreField(current, state, access);
-            }
+            state = ComputeLoopStateForStoreField(current, state, access);
             break;
           }
           case IrOpcode::kStoreElement: {
