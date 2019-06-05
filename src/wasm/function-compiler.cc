@@ -113,6 +113,42 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier(
 }
 
 WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
+    WasmEngine* engine, CompilationEnv* env,
+    const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
+    Counters* counters, WasmFeatures* detected) {
+  WasmCompilationResult result;
+  if (func_index_ < static_cast<int>(env->module->num_imported_functions)) {
+    result = ExecuteImportWrapperCompilation(engine, env);
+  } else {
+    result = ExecuteFunctionCompilation(engine, env, wire_bytes_storage,
+                                        counters, detected);
+  }
+
+  if (result.succeeded()) {
+    counters->wasm_generated_code_size()->Increment(
+        result.code_desc.instr_size);
+    counters->wasm_reloc_size()->Increment(result.code_desc.reloc_size);
+  }
+
+  result.func_index = func_index_;
+  result.requested_tier = tier_;
+
+  return result;
+}
+
+WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
+    WasmEngine* engine, CompilationEnv* env) {
+  FunctionSig* sig = env->module->functions[func_index_].sig;
+  // Assume the wrapper is going to be a JS function with matching arity at
+  // instantiation time.
+  auto kind = compiler::kDefaultImportCallKind;
+  bool source_positions = env->module->origin == kAsmJsOrigin;
+  WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
+      engine, env, kind, sig, source_positions);
+  return result;
+}
+
+WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     WasmEngine* wasm_engine, CompilationEnv* env,
     const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
     Counters* counters, WasmFeatures* detected) {
@@ -167,15 +203,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       break;
   }
 
-  result.func_index = func_index_;
-  result.requested_tier = tier_;
-
-  if (result.succeeded()) {
-    counters->wasm_generated_code_size()->Increment(
-        result.code_desc.instr_size);
-    counters->wasm_reloc_size()->Increment(result.code_desc.reloc_size);
-  }
-
   return result;
 }
 
@@ -190,6 +217,8 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
                              wire_bytes.start() + function->code.offset(),
                              wire_bytes.start() + function->code.end_offset()};
 
+  DCHECK_LE(native_module->num_imported_functions(), function->func_index);
+  DCHECK_LT(function->func_index, native_module->num_functions());
   WasmCompilationUnit unit(function->func_index, tier);
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = unit.ExecuteCompilation(

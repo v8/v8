@@ -103,13 +103,19 @@ enum class WasmImportCallKind : uint8_t {
   kUseCallBuiltin
 };
 
+// TODO(wasm): There should be only one import kind for sloppy and strict in
+// order to reduce wrapper cache misses. The mode can be checked at runtime
+// instead.
+constexpr WasmImportCallKind kDefaultImportCallKind =
+    WasmImportCallKind::kJSFunctionArityMatchSloppy;
+
 V8_EXPORT_PRIVATE WasmImportCallKind
 GetWasmImportCallKind(Handle<JSReceiver> callable, wasm::FunctionSig* sig,
                       bool has_bigint_feature);
 
 // Compiles an import call wrapper, which allows WASM to call imports.
-V8_EXPORT_PRIVATE wasm::WasmCode* CompileWasmImportCallWrapper(
-    wasm::WasmEngine*, wasm::NativeModule*, WasmImportCallKind,
+V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
+    wasm::WasmEngine*, wasm::CompilationEnv* env, WasmImportCallKind,
     wasm::FunctionSig*, bool source_positions);
 
 // Compiles a host call wrapper, which allows WASM to call host functions.

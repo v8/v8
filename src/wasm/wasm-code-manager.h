@@ -176,7 +176,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
-  static constexpr uint32_t kAnonymousFuncIndex = 0xffffffff;
   STATIC_ASSERT(kAnonymousFuncIndex > kV8MaxWasmFunctions);
 
  private:
@@ -269,6 +268,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   DISALLOW_COPY_AND_ASSIGN(WasmCode);
 };
+
+WasmCode::Kind GetCodeKind(const WasmCompilationResult& result);
 
 // Return a textual description of the kind.
 const char* GetWasmCodeKindAsString(WasmCode::Kind);

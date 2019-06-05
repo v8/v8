@@ -43,6 +43,12 @@ struct WasmCompilationResult {
  public:
   MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmCompilationResult);
 
+  enum Kind : int8_t {
+    kFunction,
+    kWasmToJsWrapper,
+    kInterpreterEntry,
+  };
+
   bool succeeded() const { return code_desc.buffer != nullptr; }
   bool failed() const { return !succeeded(); }
   operator bool() const { return succeeded(); }
@@ -53,9 +59,10 @@ struct WasmCompilationResult {
   uint32_t tagged_parameter_slots = 0;
   OwnedVector<byte> source_positions;
   OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions;
-  int func_index;
+  int func_index = static_cast<int>(kAnonymousFuncIndex);
   ExecutionTier requested_tier;
   ExecutionTier result_tier;
+  Kind kind = kFunction;
 };
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {
@@ -77,6 +84,14 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
                                   ExecutionTier);
 
  private:
+  WasmCompilationResult ExecuteFunctionCompilation(
+      WasmEngine* wasm_engine, CompilationEnv* env,
+      const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
+      Counters* counters, WasmFeatures* detected);
+
+  WasmCompilationResult ExecuteImportWrapperCompilation(WasmEngine* engine,
+                                                        CompilationEnv* env);
+
   int func_index_;
   ExecutionTier tier_;
 };

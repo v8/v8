@@ -6103,10 +6103,9 @@ wasm::WasmOpcode GetMathIntrinsicOpcode(WasmImportCallKind kind,
 #undef CASE
 }
 
-wasm::WasmCode* CompileWasmMathIntrinsic(wasm::WasmEngine* wasm_engine,
-                                         wasm::NativeModule* native_module,
-                                         WasmImportCallKind kind,
-                                         wasm::FunctionSig* sig) {
+wasm::WasmCompilationResult CompileWasmMathIntrinsic(
+    wasm::WasmEngine* wasm_engine, WasmImportCallKind kind,
+    wasm::FunctionSig* sig) {
   DCHECK_EQ(1, sig->return_count());
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
@@ -6125,7 +6124,7 @@ wasm::WasmCode* CompileWasmMathIntrinsic(wasm::WasmEngine* wasm_engine,
           InstructionSelector::AlignmentRequirements()));
 
   wasm::CompilationEnv env(
-      native_module->module(), wasm::UseTrapHandler::kNoTrapHandler,
+      nullptr, wasm::UseTrapHandler::kNoTrapHandler,
       wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport,
       wasm::kAllWasmFeatures, wasm::LowerSimd::kNoLowerSimd);
 
@@ -6167,21 +6166,12 @@ wasm::WasmCode* CompileWasmMathIntrinsic(wasm::WasmEngine* wasm_engine,
       wasm_engine, call_descriptor, mcgraph, Code::WASM_FUNCTION,
       wasm::WasmCode::kFunction, debug_name, WasmStubAssemblerOptions(),
       source_positions);
-  std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
-      wasm::WasmCode::kAnonymousFuncIndex, result.code_desc,
-      result.frame_slot_count, result.tagged_parameter_slots,
-      std::move(result.protected_instructions),
-      std::move(result.source_positions), wasm::WasmCode::kFunction,
-      wasm::ExecutionTier::kNone);
-  // TODO(titzer): add counters for math intrinsic code size / allocation
-  return native_module->PublishCode(std::move(wasm_code));
+  return result;
 }
 
-wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine* wasm_engine,
-                                             wasm::NativeModule* native_module,
-                                             WasmImportCallKind kind,
-                                             wasm::FunctionSig* sig,
-                                             bool source_positions) {
+wasm::WasmCompilationResult CompileWasmImportCallWrapper(
+    wasm::WasmEngine* wasm_engine, wasm::CompilationEnv* env,
+    WasmImportCallKind kind, wasm::FunctionSig* sig, bool source_positions) {
   DCHECK_NE(WasmImportCallKind::kLinkError, kind);
   DCHECK_NE(WasmImportCallKind::kWasmToWasm, kind);
 
@@ -6189,7 +6179,7 @@ wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine* wasm_engine,
   if (FLAG_wasm_math_intrinsics &&
       kind >= WasmImportCallKind::kFirstMathIntrinsic &&
       kind <= WasmImportCallKind::kLastMathIntrinsic) {
-    return CompileWasmMathIntrinsic(wasm_engine, native_module, kind, sig);
+    return CompileWasmMathIntrinsic(wasm_engine, kind, sig);
   }
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
@@ -6214,7 +6204,7 @@ wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine* wasm_engine,
 
   WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, source_position_table,
                                   StubCallMode::kCallWasmRuntimeStub,
-                                  native_module->enabled_features());
+                                  env->enabled_features);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildWasmImportCallWrapper(kind);
@@ -6232,13 +6222,8 @@ wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine* wasm_engine,
       wasm_engine, incoming, &jsgraph, Code::WASM_TO_JS_FUNCTION,
       wasm::WasmCode::kWasmToJsWrapper, func_name, WasmStubAssemblerOptions(),
       source_position_table);
-  std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
-      wasm::WasmCode::kAnonymousFuncIndex, result.code_desc,
-      result.frame_slot_count, result.tagged_parameter_slots,
-      std::move(result.protected_instructions),
-      std::move(result.source_positions), wasm::WasmCode::kWasmToJsWrapper,
-      wasm::ExecutionTier::kNone);
-  return native_module->PublishCode(std::move(wasm_code));
+  result.kind = wasm::WasmCompilationResult::kWasmToJsWrapper;
+  return result;
 }
 
 wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
@@ -6290,9 +6275,8 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
       wasm::WasmCode::kWasmToCapiWrapper, debug_name,
       WasmStubAssemblerOptions(), source_positions);
   std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
-      wasm::WasmCode::kAnonymousFuncIndex, result.code_desc,
-      result.frame_slot_count, result.tagged_parameter_slots,
-      std::move(result.protected_instructions),
+      wasm::kAnonymousFuncIndex, result.code_desc, result.frame_slot_count,
+      result.tagged_parameter_slots, std::move(result.protected_instructions),
       std::move(result.source_positions), wasm::WasmCode::kWasmToCapiWrapper,
       wasm::ExecutionTier::kNone);
   return native_module->PublishCode(std::move(wasm_code));
@@ -6338,6 +6322,7 @@ wasm::WasmCompilationResult CompileWasmInterpreterEntry(
       wasm::WasmCode::kInterpreterEntry, func_name.begin(),
       WasmStubAssemblerOptions());
   result.result_tier = wasm::ExecutionTier::kInterpreter;
+  result.kind = wasm::WasmCompilationResult::kInterpreterEntry;
 
   return result;
 }

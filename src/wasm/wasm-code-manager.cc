@@ -822,7 +822,7 @@ WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
   DCHECK_NE(kind, WasmCode::Kind::kInterpreterEntry);
   std::unique_ptr<WasmCode> new_code{new WasmCode{
       this,                                     // native_module
-      WasmCode::kAnonymousFuncIndex,            // index
+      kAnonymousFuncIndex,                      // index
       dst_code_bytes,                           // instructions
       stack_slots,                              // stack_slots
       0,                                        // tagged_parameter_slots
@@ -928,27 +928,26 @@ WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
   return PublishCodeLocked(std::move(code));
 }
 
-namespace {
-WasmCode::Kind GetCodeKindForExecutionTier(ExecutionTier tier) {
-  switch (tier) {
-    case ExecutionTier::kInterpreter:
+WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {
+  switch (result.kind) {
+    case WasmCompilationResult::kWasmToJsWrapper:
+      return WasmCode::Kind::kWasmToJsWrapper;
+    case WasmCompilationResult::kInterpreterEntry:
       return WasmCode::Kind::kInterpreterEntry;
-    case ExecutionTier::kLiftoff:
-    case ExecutionTier::kTurbofan:
+    case WasmCompilationResult::kFunction:
       return WasmCode::Kind::kFunction;
-    case ExecutionTier::kNone:
+    default:
       UNREACHABLE();
   }
 }
-}  // namespace
 
 WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
   // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
   DCHECK(!allocation_mutex_.TryLock());
 
-  if (!code->IsAnonymous()) {
+  if (!code->IsAnonymous() &&
+      code->index() >= module_->num_imported_functions) {
     DCHECK_LT(code->index(), num_functions());
-    DCHECK_LE(module_->num_imported_functions, code->index());
 
     // Assume an order of execution tiers that represents the quality of their
     // generated code.
@@ -1054,7 +1053,7 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {
   ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
   std::unique_ptr<WasmCode> code{new WasmCode{
       this,                                     // native_module
-      WasmCode::kAnonymousFuncIndex,            // index
+      kAnonymousFuncIndex,                      // index
       code_space,                               // instructions
       0,                                        // stack_slots
       0,                                        // tagged_parameter_slots
@@ -1414,9 +1413,8 @@ std::vector<WasmCode*> NativeModule::AddCompiledCode(
     generated_code.emplace_back(AddCodeWithCodeSpace(
         result.func_index, result.code_desc, result.frame_slot_count,
         result.tagged_parameter_slots, std::move(result.protected_instructions),
-        std::move(result.source_positions),
-        GetCodeKindForExecutionTier(result.result_tier), result.result_tier,
-        this_code_space));
+        std::move(result.source_positions), GetCodeKind(result),
+        result.result_tier, this_code_space));
   }
   DCHECK_EQ(0, code_space.size());
 
