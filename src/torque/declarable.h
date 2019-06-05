@@ -183,15 +183,9 @@ class Namespace : public Scope {
   const std::string& name() const { return name_; }
   bool IsDefaultNamespace() const;
   bool IsTestNamespace() const;
-  std::ostream& source_stream() { return source_stream_; }
-  std::ostream& header_stream() { return header_stream_; }
-  std::string source() { return source_stream_.str(); }
-  std::string header() { return header_stream_.str(); }
 
  private:
   std::string name_;
-  std::stringstream header_stream_;
-  std::stringstream source_stream_;
 };
 
 inline Namespace* CurrentNamespace() {

@@ -31,7 +31,7 @@ void ReadAndParseTorqueFile(const std::string& path) {
   CurrentSourceFile::Scope source_id_scope(source_id);
 
   // path might be either a normal file path or an encoded URI.
-  auto maybe_content = ReadFile(path);
+  auto maybe_content = ReadFile(SourceFileMap::AbsolutePath(source_id));
   if (!maybe_content) {
     if (auto maybe_path = FileUriDecode(path)) {
       maybe_content = ReadFile(*maybe_path);
@@ -72,9 +72,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   ImplementationVisitor implementation_visitor;
   implementation_visitor.SetDryRun(output_directory.length() == 0);
 
-  for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
-    implementation_visitor.BeginNamespaceFile(n);
-  }
+  implementation_visitor.BeginCSAFiles();
 
   implementation_visitor.VisitAllDeclarables();
 
@@ -86,10 +84,8 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   implementation_visitor.GenerateExportedMacrosAssembler(output_directory);
   implementation_visitor.GenerateCSATypes(output_directory);
 
-  for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
-    implementation_visitor.EndNamespaceFile(n);
-    implementation_visitor.GenerateImplementation(output_directory, n);
-  }
+  implementation_visitor.EndCSAFiles();
+  implementation_visitor.GenerateImplementation(output_directory);
 
   if (GlobalContext::collect_language_server_data()) {
     LanguageServerData::SetGlobalContext(std::move(GlobalContext::Get()));
@@ -101,8 +97,9 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
 
 TorqueCompilerResult CompileTorque(const std::string& source,
                                    TorqueCompilerOptions options) {
-  SourceFileMap::Scope source_map_scope;
-  CurrentSourceFile::Scope no_file_scope(SourceFileMap::AddSource("<torque>"));
+  SourceFileMap::Scope source_map_scope("");
+  CurrentSourceFile::Scope no_file_scope(
+      SourceFileMap::AddSource("dummy-filename.tq"));
   CurrentAst::Scope ast_scope;
   TorqueMessages::Scope messages_scope;
   LanguageServerData::Scope server_data_scope;
@@ -125,7 +122,7 @@ TorqueCompilerResult CompileTorque(const std::string& source,
 
 TorqueCompilerResult CompileTorque(std::vector<std::string> files,
                                    TorqueCompilerOptions options) {
-  SourceFileMap::Scope source_map_scope;
+  SourceFileMap::Scope source_map_scope(options.v8_root);
   CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
   CurrentAst::Scope ast_scope;
   TorqueMessages::Scope messages_scope;
@@ -133,7 +130,9 @@ TorqueCompilerResult CompileTorque(std::vector<std::string> files,
 
   TorqueCompilerResult result;
   try {
-    for (const auto& path : files) ReadAndParseTorqueFile(path);
+    for (const auto& path : files) {
+      ReadAndParseTorqueFile(path);
+    }
     CompileCurrentAst(options);
   } catch (TorqueAbortCompilation&) {
     // Do nothing. The relevant TorqueMessage is part of the

@@ -69,7 +69,7 @@ void ResetCompilationErrorDiagnostics(MessageWriter writer) {
     PublishDiagnosticsNotification notification;
     notification.set_method("textDocument/publishDiagnostics");
 
-    std::string error_file = SourceFileMap::GetSource(source);
+    std::string error_file = SourceFileMap::AbsolutePath(source);
     notification.params().set_uri(error_file);
     // Trigger empty array creation.
     USE(notification.params().diagnostics_size());
@@ -115,7 +115,7 @@ class DiagnosticCollector {
     notification.set_method("textDocument/publishDiagnostics");
 
     std::string file =
-        id.IsValid() ? SourceFileMap::GetSource(id) : "<unknown>";
+        id.IsValid() ? SourceFileMap::AbsolutePath(id) : "<unknown>";
     notification.params().set_uri(file);
     return notification;
   }
@@ -164,7 +164,7 @@ void SendCompilationDiagnostics(const TorqueCompilerResult& result,
 
 void CompilationFinished(TorqueCompilerResult result, MessageWriter writer) {
   LanguageServerData::Get() = std::move(result.language_server_data);
-  SourceFileMap::Get() = result.source_file_map;
+  SourceFileMap::Get() = *result.source_file_map;
 
   SendCompilationDiagnostics(result, writer);
 }

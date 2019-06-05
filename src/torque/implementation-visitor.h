@@ -370,16 +370,18 @@ class ImplementationVisitor {
   const Type* Visit(DebugStatement* stmt);
   const Type* Visit(AssertStatement* stmt);
 
-  void BeginNamespaceFile(Namespace* nspace);
-  void EndNamespaceFile(Namespace* nspace);
+  void BeginCSAFiles();
+  void EndCSAFiles();
 
-  void GenerateImplementation(const std::string& dir, Namespace* nspace);
+  void GenerateImplementation(const std::string& dir);
 
   DECLARE_CONTEXTUAL_VARIABLE(ValueBindingsManager,
                               BindingsManager<LocalValue>);
   DECLARE_CONTEXTUAL_VARIABLE(LabelBindingsManager,
                               BindingsManager<LocalLabel>);
   DECLARE_CONTEXTUAL_VARIABLE(CurrentCallable, Callable*);
+  DECLARE_CONTEXTUAL_VARIABLE(CurrentFileStreams,
+                              GlobalContext::PerFileStreams*);
   DECLARE_CONTEXTUAL_VARIABLE(CurrentReturnValue, base::Optional<VisitResult>);
 
   // A BindingsManagersScope has to be active for local bindings to be created.
@@ -566,20 +568,16 @@ class ImplementationVisitor {
   std::string ExternalParameterName(const std::string& name);
 
   std::ostream& source_out() {
-    Callable* callable = CurrentCallable::Get();
-    if (!callable || callable->ShouldGenerateExternalCode()) {
-      return CurrentNamespace()->source_stream();
-    } else {
-      return null_stream_;
+    if (auto* streams = CurrentFileStreams::Get()) {
+      return streams->csa_ccfile;
     }
+    return null_stream_;
   }
   std::ostream& header_out() {
-    Callable* callable = CurrentCallable::Get();
-    if (!callable || callable->ShouldGenerateExternalCode()) {
-      return CurrentNamespace()->header_stream();
-    } else {
-      return null_stream_;
+    if (auto* streams = CurrentFileStreams::Get()) {
+      return streams->csa_headerfile;
     }
+    return null_stream_;
   }
   CfgAssembler& assembler() { return *assembler_; }
 

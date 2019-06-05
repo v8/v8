@@ -61,7 +61,7 @@ TEST(LanguageServerMessage,
 }
 
 TEST(LanguageServerMessage, GotoDefinitionUnkownFile) {
-  SourceFileMap::Scope source_file_map_scope;
+  SourceFileMap::Scope source_file_map_scope("");
 
   GotoDefinitionRequest request;
   request.set_id(42);
@@ -80,7 +80,7 @@ TEST(LanguageServerMessage, GotoDefinitionUnkownFile) {
 }
 
 TEST(LanguageServerMessage, GotoDefinition) {
-  SourceFileMap::Scope source_file_map_scope;
+  SourceFileMap::Scope source_file_map_scope("");
   SourceId test_id = SourceFileMap::AddSource("file://test.tq");
   SourceId definition_id = SourceFileMap::AddSource("file://base.tq");
 
@@ -136,7 +136,7 @@ TEST(LanguageServerMessage, CompilationErrorSendsDiagnostics) {
   DiagnosticsFiles::Scope diagnostic_files_scope;
   LanguageServerData::Scope server_data_scope;
   TorqueMessages::Scope messages_scope;
-  SourceFileMap::Scope source_file_map_scope;
+  SourceFileMap::Scope source_file_map_scope("");
 
   TorqueCompilerResult result;
   { Error("compilation failed somehow"); }
@@ -165,8 +165,8 @@ TEST(LanguageServerMessage, LintErrorSendsDiagnostics) {
   DiagnosticsFiles::Scope diagnostic_files_scope;
   TorqueMessages::Scope messages_scope;
   LanguageServerData::Scope server_data_scope;
-  SourceFileMap::Scope sourc_file_map_scope;
-  SourceId test_id = SourceFileMap::AddSource("test.tq");
+  SourceFileMap::Scope sourc_file_map_scope("");
+  SourceId test_id = SourceFileMap::AddSource("file://test.tq");
 
   // No compilation errors but two lint warnings.
   {
@@ -186,7 +186,7 @@ TEST(LanguageServerMessage, LintErrorSendsDiagnostics) {
 
     EXPECT_EQ(notification.method(), "textDocument/publishDiagnostics");
     ASSERT_FALSE(notification.IsNull("params"));
-    EXPECT_EQ(notification.params().uri(), "test.tq");
+    EXPECT_EQ(notification.params().uri(), "file://test.tq");
 
     ASSERT_EQ(notification.params().diagnostics_size(), static_cast<size_t>(2));
     Diagnostic diagnostic1 = notification.params().diagnostics(0);
@@ -204,7 +204,7 @@ TEST(LanguageServerMessage, LintErrorSendsDiagnostics) {
 
 TEST(LanguageServerMessage, CleanCompileSendsNoDiagnostics) {
   LanguageServerData::Scope server_data_scope;
-  SourceFileMap::Scope sourc_file_map_scope;
+  SourceFileMap::Scope sourc_file_map_scope("");
 
   TorqueCompilerResult result;
   result.source_file_map = SourceFileMap::Get();
@@ -216,12 +216,12 @@ TEST(LanguageServerMessage, CleanCompileSendsNoDiagnostics) {
 
 TEST(LanguageServerMessage, NoSymbolsSendsEmptyResponse) {
   LanguageServerData::Scope server_data_scope;
-  SourceFileMap::Scope sourc_file_map_scope;
+  SourceFileMap::Scope sourc_file_map_scope("");
 
   DocumentSymbolRequest request;
   request.set_id(42);
   request.set_method("textDocument/documentSymbol");
-  request.params().textDocument().set_uri("test.tq");
+  request.params().textDocument().set_uri("file://test.tq");
 
   bool writer_called = false;
   HandleMessage(request.GetJsonValue(), [&](JsonValue& raw_response) {

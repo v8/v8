@@ -248,6 +248,15 @@ std::string DashifyString(const std::string& underscore_string) {
   return result;
 }
 
+std::string UnderlinifyPath(std::string path) {
+  std::replace(path.begin(), path.end(), '-', '_');
+  std::replace(path.begin(), path.end(), '/', '_');
+  std::replace(path.begin(), path.end(), '\\', '_');
+  std::replace(path.begin(), path.end(), '.', '_');
+  transform(path.begin(), path.end(), path.begin(), ::toupper);
+  return path;
+}
+
 void ReplaceFileContentsIfDifferent(const std::string& file_path,
                                     const std::string& contents) {
   std::ifstream old_contents_stream(file_path.c_str());

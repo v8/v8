@@ -241,7 +241,7 @@ class Location : public NestedJsonAccessor {
   JSON_OBJECT_ACCESSORS(Range, range)
 
   void SetTo(SourcePosition position) {
-    set_uri(SourceFileMap::GetSource(position.source));
+    set_uri(SourceFileMap::AbsolutePath(position.source));
     range().start().set_line(position.start.line);
     range().start().set_character(position.start.column);
     range().end().set_line(position.end.line);

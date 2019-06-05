@@ -21,7 +21,7 @@ int WrappedMain(int argc, const char** argv) {
   Logger::Scope log_scope;
   TorqueFileList::Scope files_scope;
   LanguageServerData::Scope server_data_scope;
-  SourceFileMap::Scope source_file_map_scope;
+  SourceFileMap::Scope source_file_map_scope("");
   DiagnosticsFiles::Scope diagnostics_files_scope;
 
   for (int i = 1; i < argc; ++i) {

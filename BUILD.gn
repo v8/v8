@@ -990,57 +990,6 @@ if (!v8_enable_i18n_support) {
   torque_files -= [ "src/objects/intl-objects.tq" ]
 }
 
-torque_namespaces = [
-  "arguments",
-  "array",
-  "array-copywithin",
-  "array-filter",
-  "array-find",
-  "array-findindex",
-  "array-foreach",
-  "array-join",
-  "array-map",
-  "array-of",
-  "array-reverse",
-  "array-shift",
-  "array-slice",
-  "array-splice",
-  "array-unshift",
-  "array-lastindexof",
-  "base",
-  "boolean",
-  "collections",
-  "data-view",
-  "extras-utils",
-  "growable-fixed-array",
-  "internal-coverage",
-  "iterator",
-  "math",
-  "object",
-  "proxy",
-  "regexp",
-  "regexp-replace",
-  "string",
-  "string-html",
-  "string-iterator",
-  "string-repeat",
-  "string-slice",
-  "string-substring",
-  "test",
-  "typed-array",
-  "typed-array-createtypedarray",
-  "typed-array-every",
-  "typed-array-filter",
-  "typed-array-find",
-  "typed-array-findindex",
-  "typed-array-foreach",
-  "typed-array-reduce",
-  "typed-array-reduceright",
-  "typed-array-slice",
-  "typed-array-some",
-  "typed-array-subarray",
-]
-
 action("run_torque") {
   visibility = [
     ":*",
@@ -1069,10 +1018,11 @@ action("run_torque") {
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.h",
     "$target_gen_dir/torque-generated/csa-types-tq.h",
   ]
-  foreach(namespace, torque_namespaces) {
+  foreach(file, torque_files) {
+    filetq = string_replace(file, ".tq", "-tq-csa")
     outputs += [
-      "$target_gen_dir/torque-generated/builtins-$namespace-gen-tq.cc",
-      "$target_gen_dir/torque-generated/builtins-$namespace-gen-tq.h",
+      "$target_gen_dir/torque-generated/$filetq.cc",
+      "$target_gen_dir/torque-generated/$filetq.h",
     ]
   }
 
@@ -1082,11 +1032,10 @@ action("run_torque") {
                        root_build_dir),
     "-o",
     rebase_path("$target_gen_dir/torque-generated", root_build_dir),
+    "-v8-root",
+    rebase_path(".", root_build_dir),
   ]
-
-  foreach(file, torque_files) {
-    args += [ rebase_path(file, root_build_dir) ]
-  }
+  args += torque_files
 }
 
 group("v8_maybe_icu") {
@@ -1114,10 +1063,11 @@ v8_source_set("torque_generated_initializers") {
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.cc",
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.h",
   ]
-  foreach(namespace, torque_namespaces) {
+  foreach(file, torque_files) {
+    filetq = string_replace(file, ".tq", "-tq-csa")
     sources += [
-      "$target_gen_dir/torque-generated/builtins-$namespace-gen-tq.cc",
-      "$target_gen_dir/torque-generated/builtins-$namespace-gen-tq.h",
+      "$target_gen_dir/torque-generated/$filetq.cc",
+      "$target_gen_dir/torque-generated/$filetq.h",
     ]
   }
 

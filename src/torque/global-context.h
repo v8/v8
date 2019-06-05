@@ -82,6 +82,14 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   static Ast* ast() { return &Get().ast_; }
   static size_t FreshId() { return Get().fresh_id_++; }
 
+  struct PerFileStreams {
+    std::stringstream csa_headerfile;
+    std::stringstream csa_ccfile;
+  };
+  static PerFileStreams& GeneratedPerFile(SourceId file) {
+    return Get().generated_per_file_[file];
+  }
+
  private:
   bool collect_language_server_data_;
   bool force_assert_statements_;
@@ -89,6 +97,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
   std::vector<std::string> cpp_includes_;
+  std::map<SourceId, PerFileStreams> generated_per_file_;
   GlobalClassList classes_;
   size_t fresh_id_ = 0;
 

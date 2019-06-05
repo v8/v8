@@ -19,7 +19,6 @@
 #include "src/strings/char-predicates.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
-#include "torque-generated/builtins-test-gen-tq.h"
 
 namespace v8 {
 namespace internal {

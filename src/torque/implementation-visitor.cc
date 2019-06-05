@@ -48,61 +48,62 @@ const Type* ImplementationVisitor::Visit(Statement* stmt) {
   return result;
 }
 
-void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
-  std::ostream& source = nspace->source_stream();
-  std::ostream& header = nspace->header_stream();
+void ImplementationVisitor::BeginCSAFiles() {
+  for (SourceId file : SourceFileMap::AllSources()) {
+    std::ostream& source = GlobalContext::GeneratedPerFile(file).csa_ccfile;
+    std::ostream& header = GlobalContext::GeneratedPerFile(file).csa_headerfile;
 
-  for (const std::string& include_path : GlobalContext::CppIncludes()) {
-    source << "#include " << StringLiteralQuote(include_path) << "\n";
+    for (const std::string& include_path : GlobalContext::CppIncludes()) {
+      source << "#include " << StringLiteralQuote(include_path) << "\n";
+    }
+
+    for (SourceId file : SourceFileMap::AllSources()) {
+      source << "#include \"torque-generated/" +
+                    SourceFileMap::PathFromV8RootWithoutExtension(file) +
+                    "-tq-csa.h\"\n";
+    }
+    source << "\n";
+
+    source << "namespace v8 {\n"
+           << "namespace internal {\n"
+           << "\n";
+
+    std::string headerDefine =
+        "V8_GEN_TORQUE_GENERATED_" +
+        UnderlinifyPath(SourceFileMap::PathFromV8Root(file)) + "_H_";
+    header << "#ifndef " << headerDefine << "\n";
+    header << "#define " << headerDefine << "\n\n";
+    header << "#include \"src/compiler/code-assembler.h\"\n";
+    header << "#include \"src/codegen/code-stub-assembler.h\"\n";
+    header << "#include \"src/utils/utils.h\"\n";
+    header << "#include \"torque-generated/field-offsets-tq.h\"\n";
+    header << "#include \"torque-generated/csa-types-tq.h\"\n";
+    header << "\n";
+
+    header << "namespace v8 {\n"
+           << "namespace internal {\n"
+           << "\n";
   }
-
-  for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
-    source << "#include \"torque-generated/builtins-" +
-                  DashifyString(n->name()) + "-gen-tq.h\"\n";
-  }
-  source << "\n";
-
-  source << "namespace v8 {\n"
-         << "namespace internal {\n"
-         << "\n";
-
-  std::string upper_name(nspace->name());
-  transform(upper_name.begin(), upper_name.end(), upper_name.begin(),
-            ::toupper);
-  std::string headerDefine =
-      "V8_GEN_TORQUE_GENERATED_" + upper_name + "_NAMESPACE_TQ_H_";
-  header << "#ifndef " << headerDefine << "\n";
-  header << "#define " << headerDefine << "\n\n";
-  header << "#include \"src/compiler/code-assembler.h\"\n";
-  header << "#include \"src/codegen/code-stub-assembler.h\"\n";
-  header << "#include \"src/utils/utils.h\"\n";
-  header << "#include \"torque-generated/field-offsets-tq.h\"\n";
-  header << "#include \"torque-generated/csa-types-tq.h\"\n";
-  header << "\n";
-
-  header << "namespace v8 {\n"
-         << "namespace internal {\n"
-         << "\n";
 }
 
-void ImplementationVisitor::EndNamespaceFile(Namespace* nspace) {
-  std::ostream& source = nspace->source_stream();
-  std::ostream& header = nspace->header_stream();
+void ImplementationVisitor::EndCSAFiles() {
+  for (SourceId file : SourceFileMap::AllSources()) {
+    std::ostream& source = GlobalContext::GeneratedPerFile(file).csa_ccfile;
+    std::ostream& header = GlobalContext::GeneratedPerFile(file).csa_headerfile;
 
-  std::string upper_name(nspace->name());
-  transform(upper_name.begin(), upper_name.end(), upper_name.begin(),
-            ::toupper);
-  std::string headerDefine =
-      "V8_GEN_TORQUE_GENERATED_" + upper_name + "_NAMESPACE_V8_H_";
+    std::string headerDefine =
+        "V8_GEN_TORQUE_GENERATED_" +
+        UnderlinifyPath(SourceFileMap::PathFromV8Root(file)) + "_H_";
 
-  source << "}  // namespace internal\n"
-         << "}  // namespace v8\n"
-         << "\n";
+    source << "}  // namespace internal\n"
+           << "}  // namespace v8\n"
+           << "\n";
 
-  header << "}  // namespace internal\n"
-         << "}  // namespace v8\n"
-         << "\n";
-  header << "#endif  // " << headerDefine << "\n";
+    header << "}  // namespace internal\n"
+           << "}  // namespace v8\n"
+           << "\n";
+    header << "#endif  // " << headerDefine << "\n";
+  }
 }
 
 void ImplementationVisitor::Visit(NamespaceConstant* decl) {
@@ -395,14 +396,14 @@ std::string AddParameter(size_t i, Builtin* builtin,
 void ImplementationVisitor::Visit(Builtin* builtin) {
   if (builtin->IsExternal()) return;
   CurrentScope::Scope current_scope(builtin);
+  CurrentCallable::Scope current_callable(builtin);
+  CurrentReturnValue::Scope current_return_value;
+
   const std::string& name = builtin->ExternalName();
   const Signature& signature = builtin->signature();
   source_out() << "TF_BUILTIN(" << name << ", CodeStubAssembler) {\n"
                << "  compiler::CodeAssemblerState* state_ = state();"
                << "  compiler::CodeAssembler ca_(state());\n";
-
-  CurrentCallable::Scope current_callable(builtin);
-  CurrentReturnValue::Scope current_return_value;
 
   Stack<const Type*> parameter_types;
   Stack<std::string> parameters;
@@ -1391,17 +1392,21 @@ VisitResult ImplementationVisitor::Visit(SpreadExpression* expr) {
       "initialization expressions");
 }
 
-void ImplementationVisitor::GenerateImplementation(const std::string& dir,
-                                                   Namespace* nspace) {
-  std::string new_source(nspace->source());
-  std::string base_file_name =
-      "builtins-" + DashifyString(nspace->name()) + "-gen-tq";
+void ImplementationVisitor::GenerateImplementation(const std::string& dir) {
+  for (SourceId file : SourceFileMap::AllSources()) {
+    std::string path_from_root =
+        SourceFileMap::PathFromV8RootWithoutExtension(file);
 
-  std::string source_file_name = dir + "/" + base_file_name + ".cc";
-  WriteFile(source_file_name, new_source);
-  std::string new_header(nspace->header());
-  std::string header_file_name = dir + "/" + base_file_name + ".h";
-  WriteFile(header_file_name, new_header);
+    std::string new_source(
+        GlobalContext::GeneratedPerFile(file).csa_ccfile.str());
+
+    std::string source_file_name = dir + "/" + path_from_root + "-tq-csa.cc";
+    WriteFile(source_file_name, new_source);
+    std::string new_header(
+        GlobalContext::GeneratedPerFile(file).csa_headerfile.str());
+    std::string header_file_name = dir + "/" + path_from_root + "-tq-csa.h";
+    WriteFile(header_file_name, new_header);
+  }
 }
 
 void ImplementationVisitor::GenerateMacroFunctionDeclaration(
@@ -2459,6 +2464,7 @@ std::string ImplementationVisitor::ExternalParameterName(
 DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::ValueBindingsManager)
 DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::LabelBindingsManager)
 DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentCallable)
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentFileStreams)
 DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentReturnValue)
 
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
@@ -2519,6 +2525,12 @@ void ImplementationVisitor::VisitAllDeclarables() {
 void ImplementationVisitor::Visit(Declarable* declarable) {
   CurrentScope::Scope current_scope(declarable->ParentScope());
   CurrentSourcePosition::Scope current_source_position(declarable->Position());
+  CurrentFileStreams::Scope current_file_streams(
+      &GlobalContext::GeneratedPerFile(declarable->Position().source));
+  if (Callable* callable = Callable::DynamicCast(declarable)) {
+    if (!callable->ShouldGenerateExternalCode())
+      CurrentFileStreams::Get() = nullptr;
+  }
   switch (declarable->kind()) {
     case Declarable::kExternMacro:
       return Visit(ExternMacro::cast(declarable));
@@ -3409,9 +3421,11 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     h_contents << "#include \"src/execution/frames.h\"\n";
     h_contents << "#include \"torque-generated/csa-types-tq.h\"\n";
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
-    for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
-      cc_contents << "#include \"torque-generated/builtins-" +
-                         DashifyString(n->name()) + "-gen-tq.h\"\n";
+
+    for (SourceId file : SourceFileMap::AllSources()) {
+      cc_contents << "#include \"torque-generated/" +
+                         SourceFileMap::PathFromV8RootWithoutExtension(file) +
+                         "-tq-csa.h\"\n";
     }
 
     NamespaceScope h_namespaces(h_contents, {"v8", "internal"});

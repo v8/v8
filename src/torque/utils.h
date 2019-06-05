@@ -95,6 +95,7 @@ template <class... Args>
 std::string CapifyStringWithUnderscores(const std::string& camellified_string);
 std::string CamelifyString(const std::string& underscore_string);
 std::string DashifyString(const std::string& underscore_string);
+std::string UnderlinifyPath(std::string path);
 
 void ReplaceFileContentsIfDifferent(const std::string& file_path,
                                     const std::string& contents);
@@ -344,6 +345,15 @@ class NullOStream : public std::ostream {
  private:
   NullStreambuf buffer_;
 };
+
+inline bool StringStartsWith(const std::string& s, const std::string& prefix) {
+  if (s.size() < prefix.size()) return false;
+  return s.substr(0, prefix.size()) == prefix;
+}
+inline bool StringEndsWith(const std::string& s, const std::string& suffix) {
+  if (s.size() < suffix.size()) return false;
+  return s.substr(s.size() - suffix.size()) == suffix;
+}
 
 }  // namespace torque
 }  // namespace internal
