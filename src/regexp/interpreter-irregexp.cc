@@ -165,28 +165,30 @@ IrregexpInterpreter::Result HandleInterrupts(Isolate* isolate,
 
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed()) {
-    // A real stack overflow.
-    return StackOverflow(isolate);
+    return StackOverflow(isolate);  // A real stack overflow.
   }
 
-  const bool was_one_byte =
-      String::IsOneByteRepresentationUnderneath(*subject_string);
+  // Handle interrupts if any exist.
+  if (check.InterruptRequested()) {
+    const bool was_one_byte =
+        String::IsOneByteRepresentationUnderneath(*subject_string);
 
-  Object result;
-  {
-    AllowHeapAllocation yes_gc;
-    result = isolate->stack_guard()->HandleInterrupts();
-  }
+    Object result;
+    {
+      AllowHeapAllocation yes_gc;
+      result = isolate->stack_guard()->HandleInterrupts();
+    }
 
-  if (result.IsException(isolate)) {
-    return IrregexpInterpreter::EXCEPTION;
-  }
+    if (result.IsException(isolate)) {
+      return IrregexpInterpreter::EXCEPTION;
+    }
 
-  // If we changed between a LATIN1 and a UC16 string, we need to restart
-  // regexp matching with the appropriate template instantiation of RawMatch.
-  if (String::IsOneByteRepresentationUnderneath(*subject_string) !=
-      was_one_byte) {
-    return IrregexpInterpreter::RETRY;
+    // If we changed between a LATIN1 and a UC16 string, we need to restart
+    // regexp matching with the appropriate template instantiation of RawMatch.
+    if (String::IsOneByteRepresentationUnderneath(*subject_string) !=
+        was_one_byte) {
+      return IrregexpInterpreter::RETRY;
+    }
   }
 
   return IrregexpInterpreter::SUCCESS;
