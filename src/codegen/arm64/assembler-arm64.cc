@@ -543,7 +543,6 @@ void Assembler::Reset() {
   constpool_.Clear();
   next_constant_pool_check_ = 0;
   next_veneer_pool_check_ = kMaxInt;
-  no_const_pool_before_ = 0;
 }
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
@@ -882,18 +881,13 @@ void Assembler::EndBlockConstPool() {
   if (--const_pool_blocked_nesting_ == 0) {
     // Check the constant pool hasn't been blocked for too long.
     DCHECK(pc_offset() < constpool_.MaxPcOffset());
-    // Two cases:
-    //  * no_const_pool_before_ >= next_constant_pool_check_ and the emission is
-    //    still blocked
-    //  * no_const_pool_before_ < next_constant_pool_check_ and the next emit
-    //    will trigger a check.
-    next_constant_pool_check_ = no_const_pool_before_;
+    // Trigger a check after the pool gets unblocked.
+    next_constant_pool_check_ = 0;
   }
 }
 
 bool Assembler::is_const_pool_blocked() const {
-  return (const_pool_blocked_nesting_ > 0) ||
-         (pc_offset() < no_const_pool_before_);
+  return (const_pool_blocked_nesting_ > 0);
 }
 
 bool Assembler::IsConstantPoolAt(Instruction* instr) {
@@ -1508,8 +1502,8 @@ void Assembler::ldr(const CPURegister& rt, const Immediate& imm) {
   // Currently we only support 64-bit literals.
   DCHECK(rt.Is64Bits());
 
+  BlockPoolsScope no_pool_before_ldr_pcrel_instr(this);
   RecordRelocInfo(imm.rmode(), imm.value());
-  BlockConstPoolFor(1);
   // The load will be patched when the constpool is emitted, patching code
   // expect a load literal with offset 0.
   ldr_pcrel(rt, 0);
@@ -3679,6 +3673,7 @@ void Assembler::dup(const VRegister& vd, const VRegister& vn, int vn_index) {
 }
 
 void Assembler::dcptr(Label* label) {
+  BlockPoolsScope no_pool_inbetween(this);
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
   if (label->is_bound()) {
     // The label is bound, so it does not need to be updated and the internal
@@ -4492,16 +4487,16 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else if (constant_pool_mode == NEEDS_POOL_ENTRY) {
-    bool new_constpool_entry = constpool_.RecordEntry(data, rmode);
-    // Make sure the constant pool is not emitted in place of the next
-    // instruction for which we just recorded relocation info.
-    BlockConstPoolFor(1);
-    if (!new_constpool_entry) return;
+    if (!constpool_.RecordEntry(data, rmode)) return;
   }
   // For modes that cannot use the constant pool, a different sequence of
   // instructions will be emitted by this function's caller.
 
   if (!ShouldRecordRelocInfo(rmode)) return;
+
+  // Callers should ensure that constant pool emission is blocked until the
+  // instruction the reloc info is associated with has been emitted.
+  DCHECK(is_const_pool_blocked());
 
   // We do not try to reuse pool constants.
   RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code());
@@ -4511,39 +4506,28 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
 }
 
 void Assembler::near_jump(int offset, RelocInfo::Mode rmode) {
+  BlockPoolsScope no_pool_before_b_instr(this);
   if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
   b(offset);
 }
 
 void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
+  BlockPoolsScope no_pool_before_bl_instr(this);
   if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
   bl(offset);
 }
 
 void Assembler::near_call(HeapObjectRequest request) {
+  BlockPoolsScope no_pool_before_bl_instr(this);
   RequestHeapObject(request);
   int index = AddCodeTarget(Handle<Code>());
   RecordRelocInfo(RelocInfo::CODE_TARGET, index, NO_POOL_ENTRY);
   bl(index);
 }
 
-void Assembler::BlockConstPoolFor(int instructions) {
-  int pc_limit = pc_offset() + instructions * kInstrSize;
-  if (no_const_pool_before_ < pc_limit) {
-    no_const_pool_before_ = pc_limit;
-    // Make sure the pool won't be blocked for too long.
-    DCHECK(pc_limit < constpool_.MaxPcOffset());
-  }
-
-  if (next_constant_pool_check_ < no_const_pool_before_) {
-    next_constant_pool_check_ = no_const_pool_before_;
-  }
-}
-
 void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // Some short sequence of instruction mustn't be broken up by constant pool
-  // emission, such sequences are protected by calls to BlockConstPoolFor and
-  // BlockConstPoolScope.
+  // emission, such sequences are protected by a BlockConstPoolScope.
   if (is_const_pool_blocked()) {
     // Something is wrong if emission is forced and blocked at the same time.
     DCHECK(!force_emit);
@@ -4601,6 +4585,7 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 }
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
+  Assembler::BlockPoolsScope block_pools(this);
   RelocInfo rinfo(reinterpret_cast<Address>(buffer_start_) + location_offset,
                   RelocInfo::VENEER_POOL, static_cast<intptr_t>(size), Code());
   reloc_info_writer.Write(&rinfo);
@@ -4713,6 +4698,7 @@ int Assembler::buffer_space() const {
 void Assembler::RecordConstPool(int size) {
   // We only need this for debugger support, to correctly compute offsets in the
   // code.
+  Assembler::BlockPoolsScope block_pools(this);
   RecordRelocInfo(RelocInfo::CONST_POOL, static_cast<intptr_t>(size));
 }
 

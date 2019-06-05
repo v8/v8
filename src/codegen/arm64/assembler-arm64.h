@@ -2622,10 +2622,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Verify that a label's link chain is intact.
   void CheckLabelLinkChain(Label const* label);
 
-  // Postpone the generation of the constant pool for the specified number of
-  // instructions.
-  void BlockConstPoolFor(int instructions);
-
   // Set how far from current pc the next constant pool check will be.
   void SetNextConstPoolCheckIn(int instructions) {
     next_constant_pool_check_ = pc_offset() + instructions * kInstrSize;
@@ -2690,7 +2686,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
-  int no_const_pool_before_;        // Block emission before this pc offset.
 
   // Emission of the veneer pools may be blocked in some code sequences.
   int veneer_pool_blocked_nesting_;  // Block emission if this is not zero.
@@ -2846,7 +2841,12 @@ class PatchingAssembler : public Assembler {
 
 class EnsureSpace {
  public:
-  explicit EnsureSpace(Assembler* assembler) { assembler->CheckBufferSpace(); }
+  explicit EnsureSpace(Assembler* assembler) : block_pools_scope_(assembler) {
+    assembler->CheckBufferSpace();
+  }
+
+ private:
+  Assembler::BlockPoolsScope block_pools_scope_;
 };
 
 }  // namespace internal
