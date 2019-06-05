@@ -340,6 +340,7 @@ class TranslatedState {
   int CreateNextTranslatedValue(int frame_index, TranslationIterator* iterator,
                                 FixedArray literal_array, Address fp,
                                 RegisterValues* registers, FILE* trace_file);
+  Address DecompressIfNeeded(intptr_t value);
   Address ComputeArgumentsPosition(Address input_frame_pointer,
                                    CreateArgumentsType type, int* length);
   void CreateArgumentsElementsTranslatedValues(int frame_index,

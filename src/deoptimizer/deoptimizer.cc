@@ -3023,12 +3023,7 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       intptr_t value = registers->GetRegister(input_reg);
-#if defined(V8_COMPRESS_POINTERS)
-      Address uncompressed_value = DecompressTaggedAny(
-          isolate()->isolate_root(), static_cast<uint32_t>(value));
-#else
-      Address uncompressed_value = value;
-#endif
+      Address uncompressed_value = DecompressIfNeeded(value);
       if (trace_file != nullptr) {
         PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", uncompressed_value,
                converter.NameOfCPURegister(input_reg));
@@ -3151,12 +3146,7 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset =
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
-#if defined(V8_COMPRESS_POINTERS)
-      Address uncompressed_value = DecompressTaggedAny(
-          isolate()->isolate_root(), static_cast<uint32_t>(value));
-#else
-      Address uncompressed_value = value;
-#endif
+      Address uncompressed_value = DecompressIfNeeded(value);
       if (trace_file != nullptr) {
         PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ",
                uncompressed_value, slot_offset < 0 ? '-' : '+',
@@ -3268,6 +3258,15 @@ int TranslatedState::CreateNextTranslatedValue(
   }
 
   FATAL("We should never get here - unexpected deopt info.");
+}
+
+Address TranslatedState::DecompressIfNeeded(intptr_t value) {
+  if (COMPRESS_POINTERS_BOOL) {
+    return DecompressTaggedAny(isolate()->isolate_root(),
+                               static_cast<uint32_t>(value));
+  } else {
+    return value;
+  }
 }
 
 TranslatedState::TranslatedState(const JavaScriptFrame* frame) {
