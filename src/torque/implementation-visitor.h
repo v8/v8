@@ -365,7 +365,6 @@ class ImplementationVisitor {
   const Type* Visit(VarDeclarationStatement* stmt);
   const Type* Visit(VarDeclarationStatement* stmt,
                     BlockBindings<LocalValue>* block_bindings);
-  const Type* Visit(ForOfLoopStatement* stmt);
   const Type* Visit(BlockStatement* block);
   const Type* Visit(ExpressionStatement* stmt);
   const Type* Visit(DebugStatement* stmt);

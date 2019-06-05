@@ -170,14 +170,6 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<ParameterList>::id =
     ParseResultTypeId::kParameterList;
 template <>
-V8_EXPORT_PRIVATE const ParseResultTypeId
-    ParseResultHolder<RangeExpression>::id =
-        ParseResultTypeId::kRangeExpression;
-template <>
-V8_EXPORT_PRIVATE const ParseResultTypeId
-    ParseResultHolder<base::Optional<RangeExpression>>::id =
-        ParseResultTypeId::kOptionalRangeExpression;
-template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<TypeList>::id =
     ParseResultTypeId::kTypeList;
 template <>
@@ -1079,19 +1071,6 @@ base::Optional<ParseResult> MakeTryLabelExpression(
   return ParseResult{result};
 }
 
-base::Optional<ParseResult> MakeForOfLoopStatement(
-    ParseResultIterator* child_results) {
-  auto var_decl = child_results->NextAs<Statement*>();
-  CheckNotDeferredStatement(var_decl);
-  auto iterable = child_results->NextAs<Expression*>();
-  auto range = child_results->NextAs<base::Optional<RangeExpression>>();
-  auto body = child_results->NextAs<Statement*>();
-  CheckNotDeferredStatement(body);
-  Statement* result =
-      MakeNode<ForOfLoopStatement>(var_decl, iterable, range, body);
-  return ParseResult{result};
-}
-
 base::Optional<ParseResult> MakeForLoopStatement(
     ParseResultIterator* child_results) {
   auto var_decl = child_results->NextAs<base::Optional<Statement*>>();
@@ -1130,14 +1109,6 @@ base::Optional<ParseResult> MakeCatchBlock(ParseResultIterator* child_results) {
   parameters.has_varargs = false;
   LabelBlock* result = MakeNode<LabelBlock>(MakeNode<Identifier>("_catch"),
                                             std::move(parameters), body);
-  return ParseResult{result};
-}
-
-base::Optional<ParseResult> MakeRangeExpression(
-    ParseResultIterator* child_results) {
-  auto begin = child_results->NextAs<base::Optional<Expression*>>();
-  auto end = child_results->NextAs<base::Optional<Expression*>>();
-  RangeExpression result = {begin, end};
   return ParseResult{result};
 }
 
@@ -1753,12 +1724,6 @@ struct TorqueGrammar : Grammar {
   // Result: ExpressionWithSource
   Symbol expressionWithSource = {Rule({expression}, MakeExpressionWithSource)};
 
-  // Result: RangeExpression
-  Symbol rangeSpecifier = {
-      Rule({Token("["), Optional<Expression*>(expression), Token(":"),
-            Optional<Expression*>(expression), Token("]")},
-           MakeRangeExpression)};
-
   Symbol* optionalTypeSpecifier =
       Optional<TypeExpression*>(Sequence({Token(":"), &type}));
 
@@ -1811,9 +1776,6 @@ struct TorqueGrammar : Grammar {
            MakeAssertStatement),
       Rule({Token("while"), Token("("), expression, Token(")"), &statement},
            MakeWhileStatement),
-      Rule({Token("for"), Token("("), &varDeclaration, Token("of"), expression,
-            Optional<RangeExpression>(&rangeSpecifier), Token(")"), &statement},
-           MakeForOfLoopStatement),
       Rule({Token("for"), Token("("),
             Optional<Statement*>(&varDeclarationWithInitialization), Token(";"),
             Optional<Expression*>(expression), Token(";"),

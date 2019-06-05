@@ -70,8 +70,6 @@ enum class ParseResultHolderBase::TypeId {
   kStdVectorOfExpressionPtr,
   kExpressionWithSource,
   kParameterList,
-  kRangeExpression,
-  kOptionalRangeExpression,
   kTypeList,
   kOptionalTypeList,
   kLabelAndTypes,

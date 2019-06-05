@@ -52,7 +52,6 @@ namespace torque {
   V(IfStatement)                        \
   V(WhileStatement)                     \
   V(ForLoopStatement)                   \
-  V(ForOfLoopStatement)                 \
   V(BreakStatement)                     \
   V(ContinueStatement)                  \
   V(ReturnStatement)                    \
@@ -602,31 +601,6 @@ struct ForLoopStatement : Statement {
   base::Optional<VarDeclarationStatement*> var_declaration;
   base::Optional<Expression*> test;
   base::Optional<Statement*> action;
-  Statement* body;
-};
-
-struct RangeExpression {
-  base::Optional<Expression*> begin;
-  base::Optional<Expression*> end;
-};
-
-struct ForOfLoopStatement : Statement {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(ForOfLoopStatement)
-  ForOfLoopStatement(SourcePosition pos, Statement* decl, Expression* iterable,
-                     base::Optional<RangeExpression> range, Statement* body)
-      : Statement(kKind, pos),
-        var_declaration(VarDeclarationStatement::cast(decl)),
-        iterable(iterable),
-        body(body) {
-    if (range) {
-      begin = range->begin;
-      end = range->end;
-    }
-  }
-  VarDeclarationStatement* var_declaration;
-  Expression* iterable;
-  base::Optional<Expression*> begin;
-  base::Optional<Expression*> end;
   Statement* body;
 };
 
