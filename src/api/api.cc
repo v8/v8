@@ -987,22 +987,6 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
   }
 }
 
-void SetResourceConstraints(i::Isolate* isolate,
-                            const ResourceConstraints& constraints) {
-  size_t semi_space_size = constraints.max_semi_space_size_in_kb();
-  size_t old_space_size = constraints.max_old_space_size();
-  size_t code_range_size = constraints.code_range_size();
-  if (semi_space_size != 0 || old_space_size != 0 || code_range_size != 0) {
-    isolate->heap()->ConfigureHeap(semi_space_size, old_space_size,
-                                   code_range_size);
-  }
-
-  if (constraints.stack_limit() != nullptr) {
-    uintptr_t limit = reinterpret_cast<uintptr_t>(constraints.stack_limit());
-    isolate->stack_guard()->SetStackLimit(limit);
-  }
-}
-
 i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
   LOG_API(isolate, Persistent, New);
   i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
@@ -7820,7 +7804,12 @@ void Isolate::Initialize(Isolate* isolate,
   i_isolate->set_api_external_references(params.external_references);
   i_isolate->set_allow_atomics_wait(params.allow_atomics_wait);
 
-  SetResourceConstraints(i_isolate, params.constraints);
+  i_isolate->heap()->ConfigureHeap(params.constraints);
+  if (params.constraints.stack_limit() != nullptr) {
+    uintptr_t limit =
+        reinterpret_cast<uintptr_t>(params.constraints.stack_limit());
+    i_isolate->stack_guard()->SetStackLimit(limit);
+  }
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(isolate);
   if (!i::Snapshot::Initialize(i_isolate)) {

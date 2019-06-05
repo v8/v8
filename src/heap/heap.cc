@@ -4279,86 +4279,84 @@ void Heap::IterateBuiltins(RootVisitor* v) {
 // TODO(1236194): Since the heap size is configurable on the command line
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
-void Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
-                         size_t max_old_generation_size_in_mb,
-                         size_t code_range_size_in_mb) {
-  // Overwrite default configuration.
-  if (max_semi_space_size_in_kb != 0) {
-    max_semi_space_size_ =
-        RoundUp<Page::kPageSize>(max_semi_space_size_in_kb * KB);
-  }
-  if (max_old_generation_size_in_mb != 0) {
-    max_old_generation_size_ = max_old_generation_size_in_mb * MB;
-  }
-
-  // If max space size flags are specified overwrite the configuration.
-  if (FLAG_max_semi_space_size > 0) {
-    max_semi_space_size_ = static_cast<size_t>(FLAG_max_semi_space_size) * MB;
-  }
-  if (FLAG_max_old_space_size > 0) {
-    max_old_generation_size_ =
-        static_cast<size_t>(FLAG_max_old_space_size) * MB;
-  }
-
-  if (Page::kPageSize > MB) {
-    max_semi_space_size_ = RoundUp<Page::kPageSize>(max_semi_space_size_);
-    max_old_generation_size_ =
-        RoundUp<Page::kPageSize>(max_old_generation_size_);
-  }
-
-  if (FLAG_stress_compaction) {
-    // This will cause more frequent GCs when stressing.
-    max_semi_space_size_ = MB;
-  }
-
-  // The new space size must be a power of two to support single-bit testing
-  // for containment.
-  max_semi_space_size_ = static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
-      static_cast<uint64_t>(max_semi_space_size_)));
-
-  if (max_semi_space_size_ == kMaxSemiSpaceSize) {
-    // Start with at least 1*MB semi-space on machines with a lot of memory.
-    initial_semispace_size_ =
-        Max(initial_semispace_size_, static_cast<size_t>(1 * MB));
-  }
-
-  if (FLAG_min_semi_space_size > 0) {
-    size_t initial_semispace_size =
-        static_cast<size_t>(FLAG_min_semi_space_size) * MB;
-    if (initial_semispace_size > max_semi_space_size_) {
-      initial_semispace_size_ = max_semi_space_size_;
-      if (FLAG_trace_gc) {
-        PrintIsolate(isolate_,
-                     "Min semi-space size cannot be more than the maximum "
-                     "semi-space size of %zu MB\n",
-                     max_semi_space_size_ / MB);
-      }
-    } else {
-      initial_semispace_size_ =
-          RoundUp<Page::kPageSize>(initial_semispace_size);
+void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
+  // Initialize  max_semi_space_size_.
+  {
+    if (constraints.max_semi_space_size_in_kb() > 0) {
+      max_semi_space_size_ = constraints.max_semi_space_size_in_kb() * KB;
     }
+    if (FLAG_max_semi_space_size > 0) {
+      max_semi_space_size_ = static_cast<size_t>(FLAG_max_semi_space_size) * MB;
+    }
+    if (FLAG_stress_compaction) {
+      // This will cause more frequent GCs when stressing.
+      max_semi_space_size_ = MB;
+    }
+    // The new space size must be a power of two to support single-bit testing
+    // for containment.
+    // TODO(ulan): Rounding to a power of 2 is not longer needed. Remove it.
+    max_semi_space_size_ =
+        static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
+            static_cast<uint64_t>(max_semi_space_size_)));
+    max_semi_space_size_ = Max(max_semi_space_size_, kMinSemiSpaceSize);
+    max_semi_space_size_ = RoundDown<Page::kPageSize>(max_semi_space_size_);
   }
 
-  initial_semispace_size_ = Min(initial_semispace_size_, max_semi_space_size_);
+  // Initialize max_old_generation_size_.
+  {
+    if (constraints.max_old_space_size() > 0) {
+      max_old_generation_size_ = constraints.max_old_space_size() * MB;
+    }
+    if (FLAG_max_old_space_size > 0) {
+      max_old_generation_size_ =
+          static_cast<size_t>(FLAG_max_old_space_size) * MB;
+    }
+    int paged_space_count =
+        LAST_GROWABLE_PAGED_SPACE - FIRST_GROWABLE_PAGED_SPACE + 1;
+    max_old_generation_size_ =
+        Max(max_old_generation_size_,
+            static_cast<size_t>(paged_space_count * Page::kPageSize));
+    max_old_generation_size_ =
+        RoundDown<Page::kPageSize>(max_old_generation_size_);
+  }
+
+  // Initialize initial_semispace_size_.
+  {
+    if (max_semi_space_size_ == kMaxSemiSpaceSize) {
+      // Start with at least 1*MB semi-space on machines with a lot of memory.
+      initial_semispace_size_ =
+          Max(initial_semispace_size_, static_cast<size_t>(1 * MB));
+    }
+    if (FLAG_min_semi_space_size > 0) {
+      initial_semispace_size_ =
+          static_cast<size_t>(FLAG_min_semi_space_size) * MB;
+    }
+    initial_semispace_size_ =
+        Min(initial_semispace_size_, max_semi_space_size_);
+    initial_semispace_size_ =
+        RoundDown<Page::kPageSize>(initial_semispace_size_);
+  }
+
+  // Initialize initial_old_space_size_.
+  {
+    initial_old_generation_size_ = kMaxInitialOldGenerationSize;
+    if (FLAG_initial_old_space_size > 0) {
+      initial_old_generation_size_ =
+          static_cast<size_t>(FLAG_initial_old_space_size) * MB;
+      old_generation_size_configured_ = true;
+    }
+    initial_old_generation_size_ =
+        Min(initial_old_generation_size_, max_old_generation_size_);
+    initial_old_generation_size_ =
+        RoundDown<Page::kPageSize>(initial_old_generation_size_);
+  }
 
   if (FLAG_semi_space_growth_factor < 2) {
     FLAG_semi_space_growth_factor = 2;
   }
 
-  // The old generation is paged and needs at least one page for each space.
-  int paged_space_count =
-      LAST_GROWABLE_PAGED_SPACE - FIRST_GROWABLE_PAGED_SPACE + 1;
-  initial_max_old_generation_size_ = max_old_generation_size_ =
-      Max(static_cast<size_t>(paged_space_count * Page::kPageSize),
-          max_old_generation_size_);
-
-  if (FLAG_initial_old_space_size > 0) {
-    initial_old_generation_size_ = FLAG_initial_old_space_size * MB;
-  } else {
-    initial_old_generation_size_ =
-        Min(max_old_generation_size_, kMaxInitialOldGenerationSize);
-  }
   old_generation_allocation_limit_ = initial_old_generation_size_;
+  initial_max_old_generation_size_ = max_old_generation_size_;
 
   // We rely on being able to allocate new arrays in paged spaces.
   DCHECK(kMaxRegularHeapObjectSize >=
@@ -4366,11 +4364,10 @@ void Heap::ConfigureHeap(size_t max_semi_space_size_in_kb,
           FixedArray::SizeFor(JSArray::kInitialMaxFastElementArray) +
           AllocationMemento::kSize));
 
-  code_range_size_ = code_range_size_in_mb * MB;
+  code_range_size_ = constraints.code_range_size() * MB;
 
   configured_ = true;
 }
-
 
 void Heap::AddToRingBuffer(const char* string) {
   size_t first_part =
@@ -4395,7 +4392,10 @@ void Heap::GetFromRingBuffer(char* buffer) {
   memcpy(buffer + copied, trace_ring_buffer_, ring_buffer_end_);
 }
 
-void Heap::ConfigureHeapDefault() { ConfigureHeap(0, 0, 0); }
+void Heap::ConfigureHeapDefault() {
+  v8::ResourceConstraints constraints;
+  ConfigureHeap(constraints);
+}
 
 void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->start_marker = HeapStats::kStartMarker;
