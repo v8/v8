@@ -112,7 +112,7 @@ void Interpreter::IterateDispatchTable(RootVisitor* v) {
       CHECK(code_entry == kNullAddress ||
             InstructionStream::PcIsOffHeap(isolate_, code_entry));
     }
-#endif  // ENABLE_SLOW_DCHECKS
+#endif  // DEBUG
     return;
   }
 
