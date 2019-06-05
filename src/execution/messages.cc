@@ -547,16 +547,12 @@ void AppendFileLocation(Isolate* isolate, StackFrameBase* call_site,
   int line_number = call_site->GetLineNumber();
   if (line_number != StackFrameBase::kNone) {
     builder->AppendCharacter(':');
-    Handle<String> line_string = isolate->factory()->NumberToString(
-        handle(Smi::FromInt(line_number), isolate), isolate);
-    builder->AppendString(line_string);
+    builder->AppendInt(line_number);
 
     int column_number = call_site->GetColumnNumber();
     if (column_number != StackFrameBase::kNone) {
       builder->AppendCharacter(':');
-      Handle<String> column_string = isolate->factory()->NumberToString(
-          handle(Smi::FromInt(column_number), isolate), isolate);
-      builder->AppendString(column_string);
+      builder->AppendInt(column_number);
     }
   }
 }
@@ -656,9 +652,7 @@ void JSStackFrame::ToString(IncrementalStringBuilder& builder) {
     // For `Promise.all(iterable)` frames we interpret the {offset_}
     // as the element index into `iterable` where the error occurred.
     builder.AppendCString("Promise.all (index ");
-    Handle<String> index_string = isolate_->factory()->NumberToString(
-        handle(Smi::FromInt(offset_), isolate_), isolate_);
-    builder.AppendString(index_string);
+    builder.AppendInt(offset_);
     builder.AppendCString(")");
     return;
   }
@@ -771,13 +765,10 @@ void WasmStackFrame::ToString(IncrementalStringBuilder& builder) {
   }
 
   builder.AppendCString("wasm-function[");
-
-  char buffer[16];
-  SNPrintF(ArrayVector(buffer), "%u]", wasm_func_index_);
-  builder.AppendCString(buffer);
-
-  SNPrintF(ArrayVector(buffer), ":%d", GetPosition());
-  builder.AppendCString(buffer);
+  DCHECK(wasm_func_index_ <= kMaxInt);
+  builder.AppendInt(static_cast<int>(wasm_func_index_));
+  builder.AppendCString("]:");
+  builder.AppendInt(GetPosition());
 
   if (has_name) builder.AppendCString(")");
 

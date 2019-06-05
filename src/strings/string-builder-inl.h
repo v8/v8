@@ -147,6 +147,13 @@ class IncrementalStringBuilder {
     }
   }
 
+  V8_INLINE void AppendInt(int i) {
+    char buffer[kIntToCStringBufferSize];
+    const char* str =
+        IntToCString(i, Vector<char>(buffer, kIntToCStringBufferSize));
+    AppendCString(str);
+  }
+
   V8_INLINE bool CurrentPartCanFit(int length) {
     return part_length_ - current_index_ > length;
   }
@@ -280,6 +287,7 @@ class IncrementalStringBuilder {
   static const int kInitialPartLength = 32;
   static const int kMaxPartLength = 16 * 1024;
   static const int kPartLengthGrowthFactor = 2;
+  static const int kIntToCStringBufferSize = 100;
 
   Isolate* isolate_;
   String::Encoding encoding_;
