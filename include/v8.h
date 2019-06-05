@@ -6405,7 +6405,19 @@ V8_INLINE Local<Boolean> False(Isolate* isolate);
  */
 class V8_EXPORT ResourceConstraints {
  public:
-  ResourceConstraints();
+  /**
+   * Configures the constraints with reasonable default values based on the
+   * provided heap size limit. The heap size includes both the young and
+   * the old generation.
+   *
+   * \param maximum_heap_size_in_bytes The hard limit for the heap size.
+   *    When the heap size approaches this limit, V8 will perform series of
+   *    garbage collections and invoke the NearHeapLimitCallback.
+   *    If the garbage collections do not help and the callback does not
+   * increase the limit, then V8 will crash with V8::FatalProcessOutOfMemory.
+   */
+  void ConfigureDefaultsFromHeapSize(size_t initial_heap_size_in_bytes,
+                                     size_t maximum_heap_size_in_bytes);
 
   /**
    * Configures the constraints with reasonable default values based on the
@@ -6419,26 +6431,81 @@ class V8_EXPORT ResourceConstraints {
   void ConfigureDefaults(uint64_t physical_memory,
                          uint64_t virtual_memory_limit);
 
-  // Returns the max semi-space size in KB.
-  size_t max_semi_space_size_in_kb() const {
-    return max_semi_space_size_in_kb_;
-  }
-
-  // Sets the max semi-space size in KB.
-  void set_max_semi_space_size_in_kb(size_t limit_in_kb) {
-    max_semi_space_size_in_kb_ = limit_in_kb;
-  }
-
-  size_t max_old_space_size() const { return max_old_space_size_; }
-  void set_max_old_space_size(size_t limit_in_mb) {
-    max_old_space_size_ = limit_in_mb;
-  }
+  /**
+   * The address beyond which the VM's stack may not grow.
+   */
   uint32_t* stack_limit() const { return stack_limit_; }
-  // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
-  size_t code_range_size() const { return code_range_size_; }
-  void set_code_range_size(size_t limit_in_mb) {
-    code_range_size_ = limit_in_mb;
+
+  /**
+   * The amount of virtual memory reserved for generated code. This is relevant
+   * for 64-bit architectures that rely on code range for calls in code.
+   */
+  size_t code_range_size_in_bytes() const { return code_range_size_; }
+  void set_code_range_size_in_bytes(size_t limit) { code_range_size_ = limit; }
+
+  /**
+   * The maximum size of the old generation.
+   * When the old generation approaches this limit, V8 will perform series of
+   * garbage collections and invoke the NearHeapLimitCallback.
+   * If the garbage collections do not help and the callback does not
+   * increase the limit, then V8 will crash with V8::FatalProcessOutOfMemory.
+   */
+  size_t max_old_generation_size_in_bytes() const {
+    return max_old_generation_size_;
+  }
+  void set_max_old_generation_size_in_bytes(size_t limit) {
+    max_old_generation_size_ = limit;
+  }
+
+  /**
+   * The maximum size of the young generation, which consists of two semi-spaces
+   * and a large object space. This affects frequency of Scavenge garbage
+   * collections and should be typically much smaller that the old generation.
+   */
+  size_t max_young_generation_size_in_bytes() const {
+    return max_young_generation_size_;
+  }
+  void set_max_young_generation_size_in_bytes(size_t limit) {
+    max_young_generation_size_ = limit;
+  }
+
+  size_t initial_old_generation_size_in_bytes() const {
+    return initial_old_generation_size_;
+  }
+  void set_initial_old_generation_size_in_bytes(size_t initial_size) {
+    initial_old_generation_size_ = initial_size;
+  }
+
+  size_t initial_young_generation_size_in_bytes() const {
+    return initial_young_generation_size_;
+  }
+  void set_initial_young_generation_size_in_bytes(size_t initial_size) {
+    initial_young_generation_size_ = initial_size;
+  }
+
+  /**
+   * Deprecated functions. Do not use in new code.
+   */
+  V8_DEPRECATE_SOON("Use code_range_size_in_bytes.",
+                    size_t code_range_size() const) {
+    return code_range_size_ / kMB;
+  }
+  V8_DEPRECATE_SOON("Use set_code_range_size_in_bytes.",
+                    void set_code_range_size(size_t limit_in_mb)) {
+    code_range_size_ = limit_in_mb * kMB;
+  }
+  V8_DEPRECATE_SOON("Use max_young_generation_size_in_bytes.",
+                    size_t max_semi_space_size_in_kb() const);
+  V8_DEPRECATE_SOON("Use set_max_young_generation_size_in_bytes.",
+                    void set_max_semi_space_size_in_kb(size_t limit_in_kb));
+  V8_DEPRECATE_SOON("Use max_old_generation_size_in_bytes.",
+                    size_t max_old_space_size() const) {
+    return max_old_generation_size_ / kMB;
+  }
+  V8_DEPRECATE_SOON("Use set_max_old_generation_size_in_bytes.",
+                    void set_max_old_space_size(size_t limit_in_mb)) {
+    max_old_generation_size_ = limit_in_mb * kMB;
   }
   V8_DEPRECATE_SOON("Zone does not pool memory any more.",
                     size_t max_zone_pool_size() const) {
@@ -6450,14 +6517,14 @@ class V8_EXPORT ResourceConstraints {
   }
 
  private:
-  // max_semi_space_size_ is in KB
-  size_t max_semi_space_size_in_kb_;
-
-  // The remaining limits are in MB
-  size_t max_old_space_size_;
-  uint32_t* stack_limit_;
-  size_t code_range_size_;
-  size_t max_zone_pool_size_;
+  static constexpr size_t kMB = 1048576u;
+  size_t code_range_size_ = 0;
+  size_t max_old_generation_size_ = 0;
+  size_t max_young_generation_size_ = 0;
+  size_t max_zone_pool_size_ = 0;
+  size_t initial_old_generation_size_ = 0;
+  size_t initial_young_generation_size_ = 0;
+  uint32_t* stack_limit_ = nullptr;
 };
 
 

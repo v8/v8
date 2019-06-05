@@ -251,12 +251,14 @@ class Heap {
       256 * MB * kPointerMultiplier;
 
   // These constants control heap configuration based on the physical memory.
-  static const size_t kPhysicalMemoryToOldSpaceRatio = 4;
-  static const size_t kOldSpaceToSemiSpaceRatio = 128;
-  static const size_t kOldSpaceToSemiSpaceRatioLowMemory = 256;
-  static const size_t kLowMemory = 512 * MB;
-  static const size_t kMinSemiSpaceSize = 512 * KB * kPointerMultiplier;
-  static const size_t kMaxSemiSpaceSize = 8192 * KB * kPointerMultiplier;
+  static constexpr size_t kPhysicalMemoryToOldGenerationRatio = 4;
+  static constexpr size_t kOldGenerationToSemiSpaceRatio = 128;
+  static constexpr size_t kOldGenerationToSemiSpaceRatioLowMemory = 256;
+  static constexpr size_t kOldGenerationLowMemory =
+      128 * MB * kPointerMultiplier;
+  static constexpr size_t kNewLargeObjectSpaceToSemiSpaceRatio = 1;
+  static constexpr size_t kMinSemiSpaceSize = 512 * KB * kPointerMultiplier;
+  static constexpr size_t kMaxSemiSpaceSize = 8192 * KB * kPointerMultiplier;
 
   STATIC_ASSERT(kMinSemiSpaceSize % (1 << kPageSizeBits) == 0);
   STATIC_ASSERT(kMaxSemiSpaceSize % (1 << kPageSizeBits) == 0);
@@ -575,7 +577,7 @@ class Heap {
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
 
-  int64_t external_memory_hard_limit() { return MaxOldGenerationSize() / 2; }
+  int64_t external_memory_hard_limit() { return max_old_generation_size_ / 2; }
 
   V8_INLINE int64_t external_memory();
   V8_INLINE void update_external_memory(int64_t delta);
@@ -1041,9 +1043,21 @@ class Heap {
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
   size_t MaxOldGenerationSize() { return max_old_generation_size_; }
 
-  V8_EXPORT_PRIVATE static void ComputeMaxSpaceSizes(uint64_t physical_memory,
-                                                     size_t* old_space_size,
-                                                     size_t* semi_space_size);
+  V8_EXPORT_PRIVATE static size_t HeapSizeFromPhysicalMemory(
+      uint64_t physical_memory);
+  V8_EXPORT_PRIVATE static void GenerationSizesFromHeapSize(
+      size_t heap_size, size_t* young_generation_size,
+      size_t* old_generation_size);
+  V8_EXPORT_PRIVATE static size_t YoungGenerationSizeFromOldGenerationSize(
+      size_t old_generation_size);
+  V8_EXPORT_PRIVATE static size_t YoungGenerationSizeFromSemiSpaceSize(
+      size_t semi_space_size);
+  V8_EXPORT_PRIVATE static size_t SemiSpaceSizeFromYoungGenerationSize(
+      size_t young_generation_size);
+  V8_EXPORT_PRIVATE static size_t MinYoungGenerationSize();
+  V8_EXPORT_PRIVATE static size_t MinOldGenerationSize();
+  V8_EXPORT_PRIVATE static size_t MaxOldGenerationSize(
+      uint64_t physical_memory);
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.

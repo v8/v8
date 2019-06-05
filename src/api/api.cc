@@ -963,28 +963,57 @@ Extension::Extension(const char* name, const char* source, int dep_count,
   CHECK(source != nullptr || source_length_ == 0);
 }
 
-ResourceConstraints::ResourceConstraints()
-    : max_semi_space_size_in_kb_(0),
-      max_old_space_size_(0),
-      stack_limit_(nullptr),
-      code_range_size_(0),
-      max_zone_pool_size_(0) {}
+void ResourceConstraints::ConfigureDefaultsFromHeapSize(
+    size_t initial_heap_size_in_bytes, size_t maximum_heap_size_in_bytes) {
+  CHECK_LE(initial_heap_size_in_bytes, maximum_heap_size_in_bytes);
+  if (maximum_heap_size_in_bytes == 0) {
+    return;
+  }
+  size_t young_generation, old_generation;
+  i::Heap::GenerationSizesFromHeapSize(maximum_heap_size_in_bytes,
+                                       &young_generation, &old_generation);
+  set_max_young_generation_size_in_bytes(
+      i::Max(young_generation, i::Heap::MinYoungGenerationSize()));
+  set_max_old_generation_size_in_bytes(
+      i::Max(old_generation, i::Heap::MinOldGenerationSize()));
+  if (initial_heap_size_in_bytes > 0) {
+    i::Heap::GenerationSizesFromHeapSize(initial_heap_size_in_bytes,
+                                         &young_generation, &old_generation);
+    // We do not set lower bounds for the initial sizes.
+    set_initial_young_generation_size_in_bytes(young_generation);
+    set_initial_old_generation_size_in_bytes(old_generation);
+  }
+  if (i::kRequiresCodeRange) {
+    set_code_range_size_in_bytes(
+        i::Min(i::kMaximalCodeRangeSize, maximum_heap_size_in_bytes));
+  }
+}
 
 void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                                             uint64_t virtual_memory_limit) {
-  size_t old_space_size, semi_space_size;
-  i::Heap::ComputeMaxSpaceSizes(physical_memory, &old_space_size,
-                                &semi_space_size);
-  set_max_semi_space_size_in_kb(semi_space_size / i::KB);
-  set_max_old_space_size(old_space_size / i::MB);
+  size_t heap_size = i::Heap::HeapSizeFromPhysicalMemory(physical_memory);
+  size_t young_generation, old_generation;
+  i::Heap::GenerationSizesFromHeapSize(heap_size, &young_generation,
+                                       &old_generation);
+  set_max_young_generation_size_in_bytes(young_generation);
+  set_max_old_generation_size_in_bytes(old_generation);
 
   if (virtual_memory_limit > 0 && i::kRequiresCodeRange) {
-    // Reserve no more than 1/8 of the memory for the code range, but at most
-    // kMaximalCodeRangeSize.
-    set_code_range_size(
-        i::Min(i::kMaximalCodeRangeSize / i::MB,
-               static_cast<size_t>((virtual_memory_limit >> 3) / i::MB)));
+    set_code_range_size_in_bytes(
+        i::Min(i::kMaximalCodeRangeSize,
+               static_cast<size_t>(virtual_memory_limit / 8)));
   }
+}
+
+size_t ResourceConstraints::max_semi_space_size_in_kb() const {
+  return i::Heap::SemiSpaceSizeFromYoungGenerationSize(
+             max_young_generation_size_) /
+         i::KB;
+}
+
+void ResourceConstraints::set_max_semi_space_size_in_kb(size_t limit_in_kb) {
+  set_max_young_generation_size_in_bytes(
+      i::Heap::YoungGenerationSizeFromSemiSpaceSize(limit_in_kb * i::KB));
 }
 
 i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {

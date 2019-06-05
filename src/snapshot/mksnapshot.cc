@@ -259,13 +259,13 @@ int main(int argc, char** argv) {
         // Set code range such that relative jumps for builtins to
         // builtin calls in the snapshot are possible.
         i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-        size_t code_range_size =
+        size_t code_range_size_mb =
             i::kMaximalCodeRangeSize == 0
                 ? i::kMaxPCRelativeCodeRangeInMB
                 : std::min(i::kMaximalCodeRangeSize / i::MB,
                            i::kMaxPCRelativeCodeRangeInMB);
         v8::ResourceConstraints constraints;
-        constraints.set_code_range_size(code_range_size);
+        constraints.set_code_range_size_in_bytes(code_range_size_mb * i::MB);
         i_isolate->heap()->ConfigureHeap(constraints);
         // The isolate contains data from builtin compilation that needs
         // to be written out if builtins are embedded.

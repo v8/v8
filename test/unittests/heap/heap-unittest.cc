@@ -19,37 +19,75 @@ namespace internal {
 using HeapTest = TestWithIsolate;
 using HeapWithPointerCompressionTest = TestWithIsolateAndPointerCompression;
 
-TEST(Heap, MaxSpaceSizes) {
+TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
   const size_t MB = static_cast<size_t>(i::MB);
   const size_t KB = static_cast<size_t>(i::KB);
   const size_t pm = i::Heap::kPointerMultiplier;
-  size_t old_space, semi_space;
+  ASSERT_EQ(3 * 512u * pm * KB,
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(128u * pm * MB));
+  ASSERT_EQ(3 * 2048u * pm * KB,
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(256u * pm * MB));
+  ASSERT_EQ(3 * 4096u * pm * KB,
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(512u * pm * MB));
+  ASSERT_EQ(3 * 8192u * pm * KB,
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(1024u * pm * MB));
+}
 
-  i::Heap::ComputeMaxSpaceSizes(0u, &old_space, &semi_space);
-  ASSERT_EQ(128u * pm * MB, old_space);
-  ASSERT_EQ(512u * pm * KB, semi_space);
+TEST(Heap, GenerationSizesFromHeapSize) {
+  const size_t MB = static_cast<size_t>(i::MB);
+  const size_t KB = static_cast<size_t>(i::KB);
+  const size_t pm = i::Heap::kPointerMultiplier;
+  size_t old, young;
 
-  i::Heap::ComputeMaxSpaceSizes(512u * MB, &old_space, &semi_space);
-  ASSERT_EQ(128u * pm * MB, old_space);
-  ASSERT_EQ(512u * pm * KB, semi_space);
+  i::Heap::GenerationSizesFromHeapSize(1 * KB, &young, &old);
+  ASSERT_EQ(0u, old);
+  ASSERT_EQ(0u, young);
 
-  i::Heap::ComputeMaxSpaceSizes(1024u * MB, &old_space, &semi_space);
-  ASSERT_EQ(256u * pm * MB, old_space);
-  ASSERT_EQ(2048u * pm * KB, semi_space);
+  i::Heap::GenerationSizesFromHeapSize(1 * KB + 3 * 512u * pm * KB, &young,
+                                       &old);
+  ASSERT_EQ(1 * KB, old);
+  ASSERT_EQ(3 * 512u * pm * KB, young);
 
-  i::Heap::ComputeMaxSpaceSizes(2048u * MB, &old_space, &semi_space);
-  ASSERT_EQ(512u * pm * MB, old_space);
-  ASSERT_EQ(4096u * pm * KB, semi_space);
+  i::Heap::GenerationSizesFromHeapSize(128 * pm * MB + 3 * 512 * pm * KB,
+                                       &young, &old);
+  ASSERT_EQ(128u * pm * MB, old);
+  ASSERT_EQ(3 * 512u * pm * KB, young);
 
-  i::Heap::ComputeMaxSpaceSizes(static_cast<uint64_t>(4096u) * MB, &old_space,
-                                &semi_space);
-  ASSERT_EQ(1024u * pm * MB, old_space);
-  ASSERT_EQ(8192u * pm * KB, semi_space);
+  i::Heap::GenerationSizesFromHeapSize(256u * pm * MB + 3 * 2048 * pm * KB,
+                                       &young, &old);
+  ASSERT_EQ(256u * pm * MB, old);
+  ASSERT_EQ(3 * 2048u * pm * KB, young);
 
-  i::Heap::ComputeMaxSpaceSizes(static_cast<uint64_t>(8192u) * MB, &old_space,
-                                &semi_space);
-  ASSERT_EQ(1024u * pm * MB, old_space);
-  ASSERT_EQ(8192u * pm * KB, semi_space);
+  i::Heap::GenerationSizesFromHeapSize(512u * pm * MB + 3 * 4096 * pm * KB,
+                                       &young, &old);
+  ASSERT_EQ(512u * pm * MB, old);
+  ASSERT_EQ(3 * 4096u * pm * KB, young);
+
+  i::Heap::GenerationSizesFromHeapSize(1024u * pm * MB + 3 * 8192 * pm * KB,
+                                       &young, &old);
+  ASSERT_EQ(1024u * pm * MB, old);
+  ASSERT_EQ(3 * 8192u * pm * KB, young);
+}
+
+TEST(Heap, HeapSizeFromPhysicalMemory) {
+  const size_t MB = static_cast<size_t>(i::MB);
+  const size_t pm = i::Heap::kPointerMultiplier;
+
+  // The expected value is old_generation_size + 3 * semi_space_size.
+  ASSERT_EQ(128 * pm * MB + 3 * 512 * pm * KB,
+            i::Heap::HeapSizeFromPhysicalMemory(0u));
+  ASSERT_EQ(128 * pm * MB + 3 * 512 * pm * KB,
+            i::Heap::HeapSizeFromPhysicalMemory(512u * MB));
+  ASSERT_EQ(256 * pm * MB + 3 * 2048 * pm * KB,
+            i::Heap::HeapSizeFromPhysicalMemory(1024u * MB));
+  ASSERT_EQ(512 * pm * MB + 3 * 4096 * pm * KB,
+            i::Heap::HeapSizeFromPhysicalMemory(2048u * MB));
+  ASSERT_EQ(
+      1024 * pm * MB + 3 * 8192 * pm * KB,
+      i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(4096u) * MB));
+  ASSERT_EQ(
+      1024 * pm * MB + 3 * 8192 * pm * KB,
+      i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(8192u) * MB));
 }
 
 TEST_F(HeapTest, ASLR) {

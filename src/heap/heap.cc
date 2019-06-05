@@ -207,13 +207,69 @@ size_t Heap::MaxReserved() {
                              max_old_generation_size_);
 }
 
-void Heap::ComputeMaxSpaceSizes(uint64_t physical_memory,
-                                size_t* old_space_size,
-                                size_t* semi_space_size) {
-  // Compute the old space size and cap it.
-  uint64_t old_space =
-      physical_memory / kPhysicalMemoryToOldSpaceRatio * kPointerMultiplier;
-  uint64_t max_size = V8HeapTrait::kMaxSize;
+size_t Heap::YoungGenerationSizeFromOldGenerationSize(size_t old_generation) {
+  // Compute the semi space size and cap it.
+  size_t ratio = old_generation <= kOldGenerationLowMemory
+                     ? kOldGenerationToSemiSpaceRatioLowMemory
+                     : kOldGenerationToSemiSpaceRatio;
+  size_t semi_space = old_generation / ratio;
+  semi_space = Min<size_t>(semi_space, kMaxSemiSpaceSize);
+  semi_space = Max<size_t>(semi_space, kMinSemiSpaceSize);
+  semi_space = RoundUp(semi_space, Page::kPageSize);
+  return YoungGenerationSizeFromSemiSpaceSize(semi_space);
+}
+
+size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
+  // Compute the old generation size and cap it.
+  uint64_t old_generation = physical_memory /
+                            kPhysicalMemoryToOldGenerationRatio *
+                            kPointerMultiplier;
+  old_generation =
+      Min<uint64_t>(old_generation, MaxOldGenerationSize(physical_memory));
+  old_generation = Max<uint64_t>(old_generation, V8HeapTrait::kMinSize);
+  old_generation = RoundUp(old_generation, Page::kPageSize);
+
+  size_t young_generation = YoungGenerationSizeFromOldGenerationSize(
+      static_cast<size_t>(old_generation));
+  return static_cast<size_t>(old_generation) + young_generation;
+}
+
+void Heap::GenerationSizesFromHeapSize(size_t heap_size,
+                                       size_t* young_generation_size,
+                                       size_t* old_generation_size) {
+  // Initialize values for the case when the given heap size is too small.
+  *young_generation_size = 0;
+  *old_generation_size = 0;
+  // Binary search for the largest old generation size that fits to the given
+  // heap limit considering the correspondingly sized young generation.
+  size_t lower = 0, upper = heap_size;
+  while (lower + 1 < upper) {
+    size_t old_generation = lower + (upper - lower) / 2;
+    size_t young_generation =
+        YoungGenerationSizeFromOldGenerationSize(old_generation);
+    if (old_generation + young_generation <= heap_size) {
+      // This size configuration fits into the given heap limit.
+      *young_generation_size = young_generation;
+      *old_generation_size = old_generation;
+      lower = old_generation;
+    } else {
+      upper = old_generation;
+    }
+  }
+}
+
+size_t Heap::MinYoungGenerationSize() {
+  return YoungGenerationSizeFromSemiSpaceSize(kMinSemiSpaceSize);
+}
+
+size_t Heap::MinOldGenerationSize() {
+  size_t paged_space_count =
+      LAST_GROWABLE_PAGED_SPACE - FIRST_GROWABLE_PAGED_SPACE + 1;
+  return paged_space_count * Page::kPageSize;
+}
+
+size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
+  size_t max_size = V8HeapTrait::kMaxSize;
   // Finch experiment: Increase the heap size from 2GB to 4GB for 64-bit
   // systems with physical memory bigger than 16GB.
   constexpr bool x64_bit = Heap::kPointerMultiplier >= 2;
@@ -222,22 +278,16 @@ void Heap::ComputeMaxSpaceSizes(uint64_t physical_memory,
     DCHECK_EQ(max_size / GB, 2);
     max_size *= 2;
   }
-  old_space = Min<uint64_t>(old_space, max_size);
-  old_space = Max<uint64_t>(old_space, V8HeapTrait::kMinSize);
-  old_space = RoundUp(old_space, Page::kPageSize);
+  return max_size;
+}
 
-  // Compute the semi space size and cap it.
-  size_t ratio = physical_memory <= kLowMemory
-                     ? kOldSpaceToSemiSpaceRatioLowMemory
-                     : kOldSpaceToSemiSpaceRatio;
-  uint64_t semi_space = old_space / ratio;
-  semi_space = Min<uint64_t>(semi_space, kMaxSemiSpaceSize);
-  semi_space = Max<uint64_t>(semi_space, kMinSemiSpaceSize);
-  semi_space = RoundUp(semi_space, Page::kPageSize);
+size_t Heap::YoungGenerationSizeFromSemiSpaceSize(size_t semi_space_size) {
+  return semi_space_size * (2 + kNewLargeObjectSpaceToSemiSpaceRatio);
+}
 
-  // Write the results back.
-  *old_space_size = static_cast<size_t>(old_space);
-  *semi_space_size = static_cast<size_t>(semi_space);
+size_t Heap::SemiSpaceSizeFromYoungGenerationSize(
+    size_t young_generation_size) {
+  return young_generation_size / (2 + kNewLargeObjectSpaceToSemiSpaceRatio);
 }
 
 size_t Heap::Capacity() {
@@ -325,7 +375,7 @@ size_t Heap::Available() {
 
 bool Heap::CanExpandOldGeneration(size_t size) {
   if (force_oom_) return false;
-  if (OldGenerationCapacity() + size > MaxOldGenerationSize()) return false;
+  if (OldGenerationCapacity() + size > max_old_generation_size_) return false;
   // The OldGenerationCapacity does not account compaction spaces used
   // during evacuation. Ensure that expanding the old generation does push
   // the total allocated memory size over the maximum heap size.
@@ -1288,7 +1338,8 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
 
   set_current_gc_flags(kNoGCFlags);
   new_space_->Shrink();
-  new_lo_space_->SetCapacity(new_space_->Capacity());
+  new_lo_space_->SetCapacity(new_space_->Capacity() *
+                             kNewLargeObjectSpaceToSemiSpaceRatio);
   UncommitFromSpace();
   EagerlyFreeExternalMemory();
 
@@ -4276,14 +4327,12 @@ void Heap::IterateBuiltins(RootVisitor* v) {
 #endif  // V8_EMBEDDED_BUILTINS
 }
 
-// TODO(1236194): Since the heap size is configurable on the command line
-// and through the API, we should gracefully handle the case that the heap
-// size is not big enough to fit all the initial objects.
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
   // Initialize  max_semi_space_size_.
   {
-    if (constraints.max_semi_space_size_in_kb() > 0) {
-      max_semi_space_size_ = constraints.max_semi_space_size_in_kb() * KB;
+    if (constraints.max_young_generation_size_in_bytes() > 0) {
+      max_semi_space_size_ = SemiSpaceSizeFromYoungGenerationSize(
+          constraints.max_young_generation_size_in_bytes());
     }
     if (FLAG_max_semi_space_size > 0) {
       max_semi_space_size_ = static_cast<size_t>(FLAG_max_semi_space_size) * MB;
@@ -4304,18 +4353,15 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
 
   // Initialize max_old_generation_size_.
   {
-    if (constraints.max_old_space_size() > 0) {
-      max_old_generation_size_ = constraints.max_old_space_size() * MB;
+    if (constraints.max_old_generation_size_in_bytes() > 0) {
+      max_old_generation_size_ = constraints.max_old_generation_size_in_bytes();
     }
     if (FLAG_max_old_space_size > 0) {
       max_old_generation_size_ =
           static_cast<size_t>(FLAG_max_old_space_size) * MB;
     }
-    int paged_space_count =
-        LAST_GROWABLE_PAGED_SPACE - FIRST_GROWABLE_PAGED_SPACE + 1;
     max_old_generation_size_ =
-        Max(max_old_generation_size_,
-            static_cast<size_t>(paged_space_count * Page::kPageSize));
+        Max(max_old_generation_size_, MinOldGenerationSize());
     max_old_generation_size_ =
         RoundDown<Page::kPageSize>(max_old_generation_size_);
   }
@@ -4326,6 +4372,10 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       // Start with at least 1*MB semi-space on machines with a lot of memory.
       initial_semispace_size_ =
           Max(initial_semispace_size_, static_cast<size_t>(1 * MB));
+    }
+    if (constraints.initial_young_generation_size_in_bytes() > 0) {
+      initial_semispace_size_ = SemiSpaceSizeFromYoungGenerationSize(
+          constraints.initial_young_generation_size_in_bytes());
     }
     if (FLAG_min_semi_space_size > 0) {
       initial_semispace_size_ =
@@ -4340,6 +4390,11 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
   // Initialize initial_old_space_size_.
   {
     initial_old_generation_size_ = kMaxInitialOldGenerationSize;
+    if (constraints.initial_old_generation_size_in_bytes() > 0) {
+      initial_old_generation_size_ =
+          constraints.initial_old_generation_size_in_bytes();
+      old_generation_size_configured_ = true;
+    }
     if (FLAG_initial_old_space_size > 0) {
       initial_old_generation_size_ =
           static_cast<size_t>(FLAG_initial_old_space_size) * MB;
@@ -4364,7 +4419,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
           FixedArray::SizeFor(JSArray::kInitialMaxFastElementArray) +
           AllocationMemento::kSize));
 
-  code_range_size_ = constraints.code_range_size() * MB;
+  code_range_size_ = constraints.code_range_size_in_bytes();
 
   configured_ = true;
 }

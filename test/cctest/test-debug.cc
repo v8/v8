@@ -4047,7 +4047,7 @@ size_t NearHeapLimitCallback(void* data, size_t current_heap_limit,
 UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  create_params.constraints.set_max_old_space_size(10);
+  create_params.constraints.set_max_old_generation_size_in_bytes(10 * i::MB);
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   {
