@@ -37,6 +37,8 @@ namespace proxy {
   generates 'MessageTemplate::kProxyTrapReturnedFalsishFor';
   const kProxyPrivate: constexpr MessageTemplate
   generates 'MessageTemplate::kProxyPrivate';
+  const kProxyIsExtensibleInconsistent: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyIsExtensibleInconsistent';
 
   const kProxyGet: constexpr int31
   generates 'JSProxy::AccessKind::kGet';

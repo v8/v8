@@ -1452,7 +1452,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kObjectSetPrototypeOf, 2, false);
 
     SimpleInstallFunction(isolate_, object_function, "isExtensible",
-                          Builtins::kObjectIsExtensible, 1, false);
+                          Builtins::kObjectIsExtensible, 1, true);
     SimpleInstallFunction(isolate_, object_function, "isFrozen",
                           Builtins::kObjectIsFrozen, 1, false);
 

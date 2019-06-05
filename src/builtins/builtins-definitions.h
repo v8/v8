@@ -729,7 +729,6 @@ namespace internal {
   CPP(ObjectGetPrototypeOf)                                                    \
   CPP(ObjectSetPrototypeOf)                                                    \
   TFJ(ObjectIs, 2, kReceiver, kLeft, kRight)                                   \
-  CPP(ObjectIsExtensible)                                                      \
   CPP(ObjectIsFrozen)                                                          \
   CPP(ObjectIsSealed)                                                          \
   TFJ(ObjectKeys, 1, kReceiver, kObject)                                       \

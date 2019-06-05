@@ -332,18 +332,6 @@ BUILTIN(ObjectGetOwnPropertySymbols) {
   return GetOwnPropertyKeys(isolate, args, SKIP_STRINGS);
 }
 
-// ES6 section 19.1.2.11 Object.isExtensible ( O )
-BUILTIN(ObjectIsExtensible) {
-  HandleScope scope(isolate);
-  Handle<Object> object = args.atOrUndefined(isolate, 1);
-  Maybe<bool> result =
-      object->IsJSReceiver()
-          ? JSReceiver::IsExtensible(Handle<JSReceiver>::cast(object))
-          : Just(false);
-  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
-}
-
 // ES6 section 19.1.2.12 Object.isFrozen ( O )
 BUILTIN(ObjectIsFrozen) {
   HandleScope scope(isolate);

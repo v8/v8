@@ -502,6 +502,19 @@ RUNTIME_FUNCTION(Runtime_ObjectEntriesSkipFastPath) {
   return *isolate->factory()->NewJSArrayWithElements(entries);
 }
 
+RUNTIME_FUNCTION(Runtime_ObjectIsExtensible) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+
+  Maybe<bool> result =
+      object->IsJSReceiver()
+          ? JSReceiver::IsExtensible(Handle<JSReceiver>::cast(object))
+          : Just(false);
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
 RUNTIME_FUNCTION(Runtime_GetProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

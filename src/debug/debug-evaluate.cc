@@ -312,6 +312,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ObjectValuesSkipFastPath)                 \
   V(ObjectGetOwnPropertyNames)                \
   V(ObjectGetOwnPropertyNamesTryFast)         \
+  V(ObjectIsExtensible)                       \
   V(RegExpInitializeAndCompile)               \
   V(StackGuard)                               \
   V(StringAdd)                                \
@@ -959,6 +960,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtins::Name caller,
     case Builtins::kOrdinaryToPrimitive_String:
     case Builtins::kParseInt:
     case Builtins::kProxyHasProperty:
+    case Builtins::kProxyIsExtensible:
     case Builtins::kRecordWrite:
     case Builtins::kStringAdd_CheckNone:
     case Builtins::kStringEqual:

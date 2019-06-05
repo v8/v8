@@ -1,0 +1,26 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace runtime {
+  extern transitioning runtime
+  ObjectIsExtensible(implicit context: Context)(Object): Object;
+}  // namespace runtime
+
+namespace object {
+  transitioning macro
+  ObjectIsExtensible(implicit context: Context)(object: Object): Object {
+    const objectJSReceiver = Cast<JSReceiver>(object) otherwise return False;
+    const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
+        otherwise return runtime::ObjectIsExtensible(objectJSReceiver);
+    return proxy::ProxyIsExtensible(objectJSProxy);
+  }
+}  // namespace object
+
+namespace object_isextensible {
+  // ES6 section 19.1.2.11 Object.isExtensible ( O )
+  transitioning javascript builtin ObjectIsExtensible(
+      implicit context: Context)(receiver: Object, object: Object): Object {
+    return object::ObjectIsExtensible(object);
+  }
+}  // namespace object-isextensible

@@ -30,6 +30,8 @@
 // Flags: --allow-natives-syntax
 
 
+assertFalse(Object.isExtensible());
+
 var obj1 = {};
 // Extensible defaults to true.
 assertTrue(Object.isExtensible(obj1));
