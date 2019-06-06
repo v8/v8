@@ -3219,15 +3219,16 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
 
 // Build the iteration finalizer called in the finally block of an iteration
 // protocol execution. This closes the iterator if needed, and suppresses any
-// exception it throws if necessary.
+// exception it throws if necessary, including the exception when the return
+// method is not callable.
 //
 // In pseudo-code, this builds:
 //
 // if (!done) {
 //   let method = iterator.return
 //   if (method !== null && method !== undefined) {
-//     if (typeof(method) !== "function") throw TypeError
 //     try {
+//       if (typeof(method) !== "function") throw TypeError
 //       let return_val = method.call(iterator)
 //       if (!%IsObject(return_val)) throw TypeError
 //     } catch (e) {
@@ -3259,33 +3260,35 @@ void BytecodeGenerator::BuildFinalizeIteration(
       .JumpIfUndefined(iterator_is_done.New())
       .JumpIfNull(iterator_is_done.New());
 
-  //     if (typeof(method) !== "function") throw TypeError
-  BytecodeLabel if_callable;
-  builder()
-      ->CompareTypeOf(TestTypeOfFlags::LiteralFlag::kFunction)
-      .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &if_callable);
-  {
-    // throw %NewTypeError(kReturnMethodNotCallable)
-    RegisterAllocationScope register_scope(this);
-    RegisterList new_type_error_args = register_allocator()->NewRegisterList(2);
-    builder()
-        ->LoadLiteral(Smi::FromEnum(MessageTemplate::kReturnMethodNotCallable))
-        .StoreAccumulatorInRegister(new_type_error_args[0])
-        .LoadLiteral(ast_string_constants()->empty_string())
-        .StoreAccumulatorInRegister(new_type_error_args[1])
-        .CallRuntime(Runtime::kNewTypeError, new_type_error_args)
-        .Throw();
-  }
-  builder()->Bind(&if_callable);
-
   {
     RegisterAllocationScope register_scope(this);
     BuildTryCatch(
         // try {
+        //   if (typeof(method) !== "function") throw TypeError
         //   let return_val = method.call(iterator)
         //   if (!%IsObject(return_val)) throw TypeError
         // }
         [&]() {
+          BytecodeLabel if_callable;
+          builder()
+              ->CompareTypeOf(TestTypeOfFlags::LiteralFlag::kFunction)
+              .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &if_callable);
+          {
+            // throw %NewTypeError(kReturnMethodNotCallable)
+            RegisterAllocationScope register_scope(this);
+            RegisterList new_type_error_args =
+                register_allocator()->NewRegisterList(2);
+            builder()
+                ->LoadLiteral(
+                    Smi::FromEnum(MessageTemplate::kReturnMethodNotCallable))
+                .StoreAccumulatorInRegister(new_type_error_args[0])
+                .LoadLiteral(ast_string_constants()->empty_string())
+                .StoreAccumulatorInRegister(new_type_error_args[1])
+                .CallRuntime(Runtime::kNewTypeError, new_type_error_args)
+                .Throw();
+          }
+          builder()->Bind(&if_callable);
+
           RegisterList args(iterator.object());
           builder()->CallProperty(
               method, args, feedback_index(feedback_spec()->AddCallICSlot()));
