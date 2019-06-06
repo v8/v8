@@ -280,6 +280,8 @@ bool WasmMemoryTracker::FreeWasmMemory(Isolate* isolate,
 
 void WasmMemoryTracker::RegisterWasmMemoryAsShared(
     Handle<WasmMemoryObject> object, Isolate* isolate) {
+  // Only register with the tracker if shared grow is enabled.
+  if (!FLAG_wasm_grow_shared_memory) return;
   const void* backing_store = object->array_buffer().backing_store();
   // TODO(V8:8810): This should be a DCHECK, currently some tests do not
   // use a full WebAssembly.Memory, and fail on registering so return early.
