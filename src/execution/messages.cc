@@ -769,7 +769,11 @@ void WasmStackFrame::ToString(IncrementalStringBuilder& builder) {
   DCHECK(wasm_func_index_ <= kMaxInt);
   builder.AppendInt(static_cast<int>(wasm_func_index_));
   builder.AppendCString("]:");
-  builder.AppendInt(GetPosition());
+
+  int function_offset = module_object->GetFunctionOffset(wasm_func_index_);
+  char buffer[16];
+  SNPrintF(ArrayVector(buffer), "0x%x", function_offset + GetPosition());
+  builder.AppendCString(buffer);
 
   if (has_name) builder.AppendCString(")");
 
