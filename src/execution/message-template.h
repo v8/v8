@@ -495,7 +495,7 @@ namespace internal {
   T(UnexpectedSuper, "'super' keyword unexpected here")                        \
   T(UnexpectedNewTarget, "new.target expression is not allowed here")          \
   T(UnexpectedTemplateString, "Unexpected template string")                    \
-  T(UnexpectedToken, "Unexpected token %")                                     \
+  T(UnexpectedToken, "Unexpected token '%'")                                   \
   T(UnexpectedTokenUnaryExponentiation,                                        \
     "Unary operator used immediately before exponentiation expression. "       \
     "Parenthesis must be used to disambiguate operator precedence")            \

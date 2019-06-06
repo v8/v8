@@ -4701,10 +4701,10 @@ TEST(ImportExpressionSuccess) {
   // context.
   // For example, a top level "import(" is parsed as an
   // import declaration. The parser parses the import token correctly
-  // and then shows an "Unexpected token (" error message. The
+  // and then shows an "Unexpected token '('" error message. The
   // preparser does not understand the import keyword (this test is
   // run without kAllowHarmonyDynamicImport flag), so this results in
-  // an "Unexpected token import" error.
+  // an "Unexpected token 'import'" error.
   RunParserSyncTest(context_data, data, kError);
   RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
                           nullptr, 0, true, true);
@@ -4772,7 +4772,7 @@ TEST(ImportExpressionErrors) {
     // as an import declaration. The parser parses the import token
     // correctly and then shows an "Unexpected end of input" error
     // message because of the '{'. The preparser shows an "Unexpected
-    // token {" because it's not a valid token in a CallExpression.
+    // token '{'" because it's not a valid token in a CallExpression.
     RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                             arraysize(flags), nullptr, 0, true, true);
   }
