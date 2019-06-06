@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/refs-map.h"
 #include "src/handles/handles.h"
+#include "src/ic/call-optimization.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
@@ -147,6 +148,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
   ObjectData* data_;  // Should be used only by object() getters.
 
  private:
+  friend class FunctionTemplateInfoRef;
   friend class JSArrayData;
   friend class JSGlobalProxyRef;
   friend class JSGlobalProxyData;
@@ -430,15 +432,6 @@ class FeedbackVectorRef : public HeapObjectRef {
   void SerializeSlots();
 };
 
-class FunctionTemplateInfoRef : public HeapObjectRef {
- public:
-  using HeapObjectRef::HeapObjectRef;
-  Handle<FunctionTemplateInfo> object() const;
-
-  void Serialize();
-  ObjectRef call_code() const;
-};
-
 class CallHandlerInfoRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
@@ -542,6 +535,30 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
 };
 
+struct HolderLookupResult {
+  HolderLookupResult(CallOptimization::HolderLookup lookup_ =
+                         CallOptimization::kHolderNotFound,
+                     base::Optional<JSObjectRef> holder_ = base::nullopt)
+      : lookup(lookup_), holder(holder_) {}
+  CallOptimization::HolderLookup lookup;
+  base::Optional<JSObjectRef> holder;
+};
+
+class FunctionTemplateInfoRef : public HeapObjectRef {
+ public:
+  using HeapObjectRef::HeapObjectRef;
+  Handle<FunctionTemplateInfo> object() const;
+
+  void Serialize();
+  ObjectRef call_code() const;
+  bool is_signature_undefined() const;
+  bool accept_any_receiver() const;
+  bool has_call_code() const;
+
+  HolderLookupResult LookupHolderOfExpectedType(MapRef receiver_map,
+                                                bool serialize);
+};
+
 class FixedArrayBaseRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
@@ -627,6 +644,9 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
 
   bool IsSerializedForCompilation(FeedbackVectorRef feedback) const;
   void SetSerializedForCompilation(FeedbackVectorRef feedback);
+
+  void SerializeFunctionTemplateInfo();
+  base::Optional<FunctionTemplateInfoRef> function_template_info() const;
 };
 
 class StringRef : public NameRef {
