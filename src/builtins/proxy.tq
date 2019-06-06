@@ -15,8 +15,7 @@ namespace proxy {
 
   macro IsRevokedProxy(implicit context: Context)(o: JSReceiver): bool {
     const proxy: JSProxy = Cast<JSProxy>(o) otherwise return false;
-    const handler: JSReceiver =
-        Cast<JSReceiver>(proxy.handler) otherwise return true;
+    Cast<JSReceiver>(proxy.handler) otherwise return true;
     return false;
   }
 

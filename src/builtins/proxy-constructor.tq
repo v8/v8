@@ -13,7 +13,7 @@ namespace proxy {
   // https://tc39.github.io/ecma262/#sec-proxy-constructor
   transitioning javascript builtin
   ProxyConstructor(implicit context: Context)(
-      receiver: Object, target: Object, handler: Object): JSProxy {
+      _receiver: Object, target: Object, handler: Object): JSProxy {
     try {
       // 1. If NewTarget is undefined, throw a TypeError exception.
       const newTarget: Object = GetProxyConstructorJSNewTarget();

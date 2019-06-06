@@ -75,7 +75,7 @@ namespace string {
       GenerateStringAt(receiver, position, 'String.prototype.charAt')
           otherwise IfInBounds, IfOutOfBounds;
     }
-    label IfInBounds(string: String, index: intptr, length: intptr) {
+    label IfInBounds(string: String, index: intptr, _length: intptr) {
       const code: int32 = StringCharCodeAt(string, index);
       return StringFromSingleCharCode(code);
     }
@@ -91,7 +91,7 @@ namespace string {
       GenerateStringAt(receiver, position, 'String.prototype.charCodeAt')
           otherwise IfInBounds, IfOutOfBounds;
     }
-    label IfInBounds(string: String, index: intptr, length: intptr) {
+    label IfInBounds(string: String, index: intptr, _length: intptr) {
       const code: int32 = StringCharCodeAt(string, index);
       return Convert<Smi>(code);
     }

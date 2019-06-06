@@ -411,12 +411,12 @@ macro NewJSArray(implicit context: Context)(): JSArray {
 }
 
 struct HoleIterator {
-  Next(): Object labels NoMore() {
+  Next(): Object labels _NoMore {
     return Hole;
   }
 }
 
-macro NewJSArray(implicit context: Context)(map: Map, length: Smi): JSArray {
+macro NewJSArray(implicit context: Context)(_map: Map, length: Smi): JSArray {
   const map = GetFastPackedSmiElementsJSArrayMap();
   const i = HoleIterator{};
   const elements = new FixedArray{map, length, objects: ...i};
@@ -1770,7 +1770,7 @@ macro Cast<A: type>(o: HeapObject): A
     labels CastError;
 
 Cast<HeapObject>(o: HeapObject): HeapObject
-    labels CastError {
+labels _CastError {
   return o;
 }
 
@@ -1972,24 +1972,24 @@ Cast<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
     FastJSArrayForCopy
     labels CastError {
   if (IsArraySpeciesProtectorCellInvalid()) goto CastError;
-  const a: FastJSArray = Cast<FastJSArray>(o) otherwise CastError;
-  return %RawDownCast<FastJSArrayForCopy>(o);
+  const a = Cast<FastJSArray>(o) otherwise CastError;
+  return %RawDownCast<FastJSArrayForCopy>(a);
 }
 
 Cast<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
     o: HeapObject): FastJSArrayWithNoCustomIteration
     labels CastError {
   if (IsArrayIteratorProtectorCellInvalid()) goto CastError;
-  const a: FastJSArray = Cast<FastJSArray>(o) otherwise CastError;
-  return %RawDownCast<FastJSArrayWithNoCustomIteration>(o);
+  const a = Cast<FastJSArray>(o) otherwise CastError;
+  return %RawDownCast<FastJSArrayWithNoCustomIteration>(a);
 }
 
 Cast<FastJSArrayForReadWithNoCustomIteration>(implicit context: Context)(
     o: HeapObject): FastJSArrayForReadWithNoCustomIteration
     labels CastError {
   if (IsArrayIteratorProtectorCellInvalid()) goto CastError;
-  const a: FastJSArrayForRead = Cast<FastJSArrayForRead>(o) otherwise CastError;
-  return %RawDownCast<FastJSArrayForReadWithNoCustomIteration>(o);
+  const a = Cast<FastJSArrayForRead>(o) otherwise CastError;
+  return %RawDownCast<FastJSArrayForReadWithNoCustomIteration>(a);
 }
 
 Cast<JSReceiver>(implicit context: Context)(o: HeapObject): JSReceiver

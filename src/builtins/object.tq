@@ -20,7 +20,7 @@ namespace object {
 namespace object_isextensible {
   // ES6 section 19.1.2.11 Object.isExtensible ( O )
   transitioning javascript builtin ObjectIsExtensible(
-      implicit context: Context)(receiver: Object, object: Object): Object {
+      implicit context: Context)(_receiver: Object, object: Object): Object {
     return object::ObjectIsExtensible(object);
   }
 }  // namespace object-isextensible

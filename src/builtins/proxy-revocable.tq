@@ -17,7 +17,7 @@ namespace proxy {
   // https://tc39.github.io/ecma262/#sec-proxy.revocable
   transitioning javascript builtin
   ProxyRevocable(
-      context: Context, receiver: Object, target: Object,
+      context: Context, _receiver: Object, target: Object,
       handler: Object): JSProxyRevocableResult {
     try {
       const targetJSReceiver =

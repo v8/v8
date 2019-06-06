@@ -15,8 +15,13 @@ namespace internal {
 namespace torque {
 
 static constexpr const char* const kFromConstexprMacroName = "FromConstexpr";
-static constexpr const char* kTrueLabelName = "_True";
-static constexpr const char* kFalseLabelName = "_False";
+static constexpr const char* kTrueLabelName = "__True";
+static constexpr const char* kFalseLabelName = "__False";
+static constexpr const char* kMacroEndLabelName = "__macro_end";
+static constexpr const char* kBreakLabelName = "__break";
+static constexpr const char* kContinueLabelName = "__continue";
+static constexpr const char* kCatchLabelName = "__catch";
+static constexpr const char* kNextCaseLabelName = "__NextCase";
 
 template <class T>
 std::vector<T*> FilterDeclarables(const std::vector<Declarable*> list) {

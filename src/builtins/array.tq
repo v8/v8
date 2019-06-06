@@ -33,12 +33,13 @@ namespace array {
   }
 
   macro IsJSArray(implicit context: Context)(o: Object): bool {
-    try {
-      const array: JSArray = Cast<JSArray>(o) otherwise NotArray;
-      return true;
-    }
-    label NotArray {
-      return false;
+    typeswitch (o) {
+      case (JSArray): {
+        return true;
+      }
+      case (Object): {
+        return false;
+      }
     }
   }
 

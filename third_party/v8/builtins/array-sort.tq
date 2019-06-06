@@ -389,8 +389,8 @@ namespace array {
   }
 
   CanUseSameAccessor<GenericElementsAccessor>(
-      context: Context, receiver: JSReceiver, initialReceiverMap: Object,
-      initialReceiverLength: Number): Boolean {
+      _context: Context, _receiver: JSReceiver, _initialReceiverMap: Object,
+      _initialReceiverLength: Number): Boolean {
     // Do nothing. We are already on the slow path.
     return True;
   }

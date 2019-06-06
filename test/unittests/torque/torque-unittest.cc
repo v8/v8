@@ -213,6 +213,82 @@ TEST(Torque, ConstexprLetBindingDoesNotCrash) {
       HasSubstr("Use 'const' instead of 'let' for variable 'foo'"));
 }
 
+TEST(Torque, DoubleUnderScorePrefixIllegalForIdentifiers) {
+  ExpectFailingCompilation(R"(
+    macro Foo() {
+      let __x;
+    }
+  )",
+                           HasSubstr("Lexer Error"));
+}
+
+TEST(Torque, UnusedLetBindingLintError) {
+  ExpectFailingCompilation(R"(
+    macro Foo(y: Smi) {
+      let x: Smi = y;
+    }
+  )",
+                           HasSubstr("Variable 'x' is never used."));
+}
+
+TEST(Torque, UnderscorePrefixSilencesUnusedWarning) {
+  ExpectSuccessfulCompilation(R"(
+    macro Foo(y: Smi) {
+      let _x: Smi = y;
+    }
+  )");
+}
+
+TEST(Torque, UsingUnderscorePrefixedIdentifierError) {
+  ExpectFailingCompilation(R"(
+    macro Foo(y: Smi) {
+      let _x: Smi = y;
+      check(_x == y);
+    }
+  )",
+                           HasSubstr("Trying to reference '_x'"));
+}
+
+TEST(Torque, UnusedArgumentLintError) {
+  ExpectFailingCompilation(R"(
+    macro Foo(x: Smi) {}
+  )",
+                           HasSubstr("Variable 'x' is never used."));
+}
+
+TEST(Torque, UsingUnderscorePrefixedArgumentSilencesWarning) {
+  ExpectSuccessfulCompilation(R"(
+    macro Foo(_y: Smi) {}
+  )");
+}
+
+TEST(Torque, UnusedLabelLintError) {
+  ExpectFailingCompilation(R"(
+    macro Foo() labels Bar {}
+  )",
+                           HasSubstr("Label 'Bar' is never used."));
+}
+
+TEST(Torque, UsingUnderScorePrefixLabelSilencesWarning) {
+  ExpectSuccessfulCompilation(R"(
+    macro Foo() labels _Bar {}
+  )");
+}
+
+TEST(Torque, NoUnusedWarningForImplicitArguments) {
+  ExpectSuccessfulCompilation(R"(
+    macro Foo(implicit c: Context, r: JSReceiver)() {}
+  )");
+}
+
+TEST(Torque, NoUnusedWarningForVariablesOnlyUsedInAsserts) {
+  ExpectSuccessfulCompilation(R"(
+    macro Foo(x: bool) {
+      assert(x);
+    }
+  )");
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

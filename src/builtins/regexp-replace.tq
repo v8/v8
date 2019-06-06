@@ -72,8 +72,7 @@ namespace regexp_replace {
 
   transitioning macro
   RegExpReplaceCallableWithExplicitCaptures(implicit context: Context)(
-      matchesElements: FixedArray, matchesLength: intptr, string: String,
-      replaceFn: Callable) {
+      matchesElements: FixedArray, matchesLength: intptr, replaceFn: Callable) {
     for (let i: intptr = 0; i < matchesLength; i++) {
       const elArray =
           Cast<JSArray>(matchesElements.objects[i]) otherwise continue;
@@ -124,7 +123,7 @@ namespace regexp_replace {
           matchesElements, matchesLengthInt, string, replaceFn);
     } else {
       RegExpReplaceCallableWithExplicitCaptures(
-          matchesElements, matchesLengthInt, string, replaceFn);
+          matchesElements, matchesLengthInt, replaceFn);
     }
 
     return StringBuilderConcat(matches, matchesLength, string);

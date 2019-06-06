@@ -524,9 +524,9 @@ std::string CSAGenerator::PreCallableExceptionPreparation(
   if (catch_block) {
     catch_name = FreshCatchName();
     out_ << "    compiler::CodeAssemblerExceptionHandlerLabel " << catch_name
-         << "_label(&ca_, compiler::CodeAssemblerLabel::kDeferred);\n";
+         << "__label(&ca_, compiler::CodeAssemblerLabel::kDeferred);\n";
     out_ << "    { compiler::CodeAssemblerScopedExceptionHandler s(&ca_, &"
-         << catch_name << "_label);\n";
+         << catch_name << "__label);\n";
   }
   return catch_name;
 }
@@ -537,7 +537,7 @@ void CSAGenerator::PostCallableExceptionPreparation(
   if (catch_block) {
     std::string block_name = BlockName(*catch_block);
     out_ << "    }\n";
-    out_ << "    if (" << catch_name << "_label.is_used()) {\n";
+    out_ << "    if (" << catch_name << "__label.is_used()) {\n";
     out_ << "      compiler::CodeAssemblerLabel " << catch_name
          << "_skip(&ca_);\n";
     if (!return_type->IsNever()) {
@@ -545,7 +545,7 @@ void CSAGenerator::PostCallableExceptionPreparation(
     }
     out_ << "      compiler::TNode<Object> " << catch_name
          << "_exception_object;\n";
-    out_ << "      ca_.Bind(&" << catch_name << "_label, &" << catch_name
+    out_ << "      ca_.Bind(&" << catch_name << "__label, &" << catch_name
          << "_exception_object);\n";
     out_ << "      ca_.Goto(&" << block_name;
     for (size_t i = 0; i < stack->Size(); ++i) {

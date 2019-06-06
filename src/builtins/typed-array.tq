@@ -201,7 +201,7 @@ namespace typed_array {
   }
 
   builtin LoadFixedElement<T: type>(
-      context: Context, array: JSTypedArray, index: Smi): Object {
+      _context: Context, array: JSTypedArray, index: Smi): Object {
     return LoadFixedTypedArrayElementAsTagged(
         array.data_ptr, index, KindForArrayType<T>(), SMI_PARAMETERS);
   }

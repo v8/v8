@@ -58,7 +58,7 @@ namespace array_filter {
   }
 
   transitioning builtin ArrayFilterLoopContinuation(implicit context: Context)(
-      receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
       array: JSReceiver, o: JSReceiver, initialK: Number, length: Number,
       initialTo: Number): Object {
     let to: Number = initialTo;

@@ -51,9 +51,9 @@ namespace array {
   }
 
   transitioning builtin ArrayEveryLoopContinuation(implicit context: Context)(
-      receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
-      array: Object, o: JSReceiver, initialK: Number, length: Number,
-      initialTo: Object): Object {
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      _array: Object, o: JSReceiver, initialK: Number, length: Number,
+      _initialTo: Object): Object {
     // 5. Let k be 0.
     // 6. Repeat, while k < len
     for (let k: Number = initialK; k < length; k++) {

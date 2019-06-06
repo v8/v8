@@ -54,8 +54,7 @@ namespace array_splice {
   macro FastSplice<FixedArrayType: type, ElementType: type>(implicit context:
                                                                   Context)(
       args: Arguments, a: JSArray, length: Smi, newLength: Smi,
-      lengthDelta: Smi, actualStart: Smi, insertCount: Smi,
-      actualDeleteCount: Smi): void labels Bailout {
+      actualStart: Smi, insertCount: Smi, actualDeleteCount: Smi): void {
     // Make sure elements are writable.
     array::EnsureWriteableFastElements(a);
 
@@ -168,12 +167,12 @@ namespace array_splice {
 
     if (IsFastSmiOrTaggedElementsKind(elementsKind)) {
       FastSplice<FixedArray, Object>(
-          args, a, length, newLength, lengthDelta, actualStart, insertCount,
-          actualDeleteCount) otherwise Bailout;
+          args, a, length, newLength, actualStart, insertCount,
+          actualDeleteCount);
     } else {
       FastSplice<FixedDoubleArray, Number>(
-          args, a, length, newLength, lengthDelta, actualStart, insertCount,
-          actualDeleteCount) otherwise Bailout;
+          args, a, length, newLength, actualStart, insertCount,
+          actualDeleteCount);
     }
 
     return deletedResult;
@@ -301,8 +300,6 @@ namespace array_splice {
       context: Context, arguments: Arguments, o: JSReceiver, len: Number,
       actualStart: Number, insertCount: Smi,
       actualDeleteCount: Number): Object {
-    const affected: Number = len - actualStart - actualDeleteCount;
-
     // 9. Let A be ? ArraySpeciesCreate(O, actualDeleteCount).
     const a: JSReceiver = ArraySpeciesCreate(context, o, actualDeleteCount);
     const itemCount: Number = insertCount;

@@ -103,8 +103,8 @@ namespace array_join {
   }
 
   CannotUseSameArrayAccessor<JSTypedArray>(implicit context: Context)(
-      loadFn: LoadJoinElementFn, receiver: JSReceiver, initialMap: Map,
-      initialLen: Number): never
+      _loadFn: LoadJoinElementFn, receiver: JSReceiver, _initialMap: Map,
+      _initialLen: Number): never
       labels Cannot, Can {
     const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
     if (IsDetachedBuffer(typedArray.buffer)) goto Cannot;
@@ -246,7 +246,7 @@ namespace array_join {
         case (nofSeparators: Number): {
           return StringRepeat(context, sep, nofSeparators);
         }
-        case (obj: Object): {
+        case (Object): {
           unreachable;
         }
       }

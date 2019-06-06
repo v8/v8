@@ -180,12 +180,16 @@ bool IsMachineType(const std::string& s) {
 
 bool IsLowerCamelCase(const std::string& s) {
   if (s.empty()) return false;
-  return islower(s[0]) && !ContainsUnderscore(s);
+  size_t start = 0;
+  if (s[0] == '_') start = 1;
+  return islower(s[start]) && !ContainsUnderscore(s.substr(start));
 }
 
 bool IsUpperCamelCase(const std::string& s) {
   if (s.empty()) return false;
-  return isupper(s[0]) && !ContainsUnderscore(s);
+  size_t start = 0;
+  if (s[0] == '_') start = 1;
+  return isupper(s[start]) && !ContainsUnderscore(s.substr(1));
 }
 
 bool IsSnakeCase(const std::string& s) {

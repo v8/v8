@@ -25,8 +25,8 @@ namespace array_findindex {
 
   transitioning javascript builtin
   ArrayFindIndexLoopLazyDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
-      length: Object, result: Object): Object {
+      _receiver: Object, _callback: Object, _thisArg: Object, _initialK: Object,
+      _length: Object, _result: Object): Object {
     // This deopt continuation point is never actually called, it just
     // exists to make stack traces correct from a ThrowTypeError if the
     // callback was found to be non-callable.
@@ -64,7 +64,7 @@ namespace array_findindex {
 
   transitioning builtin ArrayFindIndexLoopContinuation(implicit context:
                                                            Context)(
-      receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
       o: JSReceiver, initialK: Number, length: Number): Number {
     // 5. Let k be 0.
     // 6. Repeat, while k < len

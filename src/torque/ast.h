@@ -142,6 +142,12 @@ struct AstNodeClassCheck {
 struct Expression : AstNode {
   Expression(Kind kind, SourcePosition pos) : AstNode(kind, pos) {}
   DEFINE_AST_NODE_INNER_BOILERPLATE(Expression)
+
+  using VisitCallback = std::function<void(Expression*)>;
+  virtual void VisitAllSubExpressions(VisitCallback callback) {
+    // TODO(szuend): Hoist this up to AstNode and make it a
+    //               general Ast visitor.
+  }
 };
 
 struct LocationExpression : Expression {
@@ -226,6 +232,11 @@ struct IdentifierExpression : LocationExpression {
                        std::vector<TypeExpression*> args = {})
       : IdentifierExpression(pos, {}, name, std::move(args)) {}
   bool IsThis() const { return name->value == kThisParameterName; }
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    callback(this);
+  }
+
   std::vector<std::string> namespace_qualification;
   Identifier* name;
   std::vector<TypeExpression*> generic_arguments;
@@ -240,6 +251,14 @@ struct IntrinsicCallExpression : Expression {
         name(std::move(name)),
         generic_arguments(std::move(generic_arguments)),
         arguments(std::move(arguments)) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    for (auto argument : arguments) {
+      argument->VisitAllSubExpressions(callback);
+    }
+    callback(this);
+  }
+
   std::string name;
   std::vector<TypeExpression*> generic_arguments;
   std::vector<Expression*> arguments;
@@ -256,6 +275,16 @@ struct CallMethodExpression : Expression {
         method(method),
         arguments(std::move(arguments)),
         labels(std::move(labels)) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    target->VisitAllSubExpressions(callback);
+    method->VisitAllSubExpressions(callback);
+    for (auto argument : arguments) {
+      argument->VisitAllSubExpressions(callback);
+    }
+    callback(this);
+  }
+
   Expression* target;
   IdentifierExpression* method;
   std::vector<Expression*> arguments;
@@ -271,6 +300,15 @@ struct CallExpression : Expression {
         callee(callee),
         arguments(std::move(arguments)),
         labels(std::move(labels)) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    callee->VisitAllSubExpressions(callback);
+    for (auto argument : arguments) {
+      argument->VisitAllSubExpressions(callback);
+    }
+    callback(this);
+  }
+
   IdentifierExpression* callee;
   std::vector<Expression*> arguments;
   std::vector<Identifier*> labels;
@@ -288,6 +326,14 @@ struct StructExpression : Expression {
       : Expression(kKind, pos),
         type(type),
         initializers(std::move(initializers)) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    for (auto& initializer : initializers) {
+      initializer.expression->VisitAllSubExpressions(callback);
+    }
+    callback(this);
+  }
+
   TypeExpression* type;
   std::vector<NameAndExpression> initializers;
 };
@@ -296,6 +342,13 @@ struct LogicalOrExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(LogicalOrExpression)
   LogicalOrExpression(SourcePosition pos, Expression* left, Expression* right)
       : Expression(kKind, pos), left(left), right(right) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    left->VisitAllSubExpressions(callback);
+    right->VisitAllSubExpressions(callback);
+    callback(this);
+  }
+
   Expression* left;
   Expression* right;
 };
@@ -304,6 +357,13 @@ struct LogicalAndExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(LogicalAndExpression)
   LogicalAndExpression(SourcePosition pos, Expression* left, Expression* right)
       : Expression(kKind, pos), left(left), right(right) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    left->VisitAllSubExpressions(callback);
+    right->VisitAllSubExpressions(callback);
+    callback(this);
+  }
+
   Expression* left;
   Expression* right;
 };
@@ -312,6 +372,12 @@ struct SpreadExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(SpreadExpression)
   SpreadExpression(SourcePosition pos, Expression* spreadee)
       : Expression(kKind, pos), spreadee(spreadee) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    spreadee->VisitAllSubExpressions(callback);
+    callback(this);
+  }
+
   Expression* spreadee;
 };
 
@@ -323,6 +389,14 @@ struct ConditionalExpression : Expression {
         condition(condition),
         if_true(if_true),
         if_false(if_false) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    condition->VisitAllSubExpressions(callback);
+    if_true->VisitAllSubExpressions(callback);
+    if_false->VisitAllSubExpressions(callback);
+    callback(this);
+  }
+
   Expression* condition;
   Expression* if_true;
   Expression* if_false;
@@ -332,6 +406,11 @@ struct StringLiteralExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(StringLiteralExpression)
   StringLiteralExpression(SourcePosition pos, std::string literal)
       : Expression(kKind, pos), literal(std::move(literal)) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    callback(this);
+  }
+
   std::string literal;
 };
 
@@ -339,6 +418,11 @@ struct NumberLiteralExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(NumberLiteralExpression)
   NumberLiteralExpression(SourcePosition pos, std::string name)
       : Expression(kKind, pos), number(std::move(name)) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    callback(this);
+  }
+
   std::string number;
 };
 
@@ -347,6 +431,13 @@ struct ElementAccessExpression : LocationExpression {
   ElementAccessExpression(SourcePosition pos, Expression* array,
                           Expression* index)
       : LocationExpression(kKind, pos), array(array), index(index) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    array->VisitAllSubExpressions(callback);
+    index->VisitAllSubExpressions(callback);
+    callback(this);
+  }
+
   Expression* array;
   Expression* index;
 };
@@ -356,6 +447,12 @@ struct FieldAccessExpression : LocationExpression {
   FieldAccessExpression(SourcePosition pos, Expression* object,
                         Identifier* field)
       : LocationExpression(kKind, pos), object(object), field(field) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    object->VisitAllSubExpressions(callback);
+    callback(this);
+  }
+
   Expression* object;
   Identifier* field;
 };
@@ -364,6 +461,12 @@ struct DereferenceExpression : LocationExpression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(DereferenceExpression)
   DereferenceExpression(SourcePosition pos, Expression* reference)
       : LocationExpression(kKind, pos), reference(reference) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    reference->VisitAllSubExpressions(callback);
+    callback(this);
+  }
+
   Expression* reference;
 };
 
@@ -378,6 +481,13 @@ struct AssignmentExpression : Expression {
         location(location),
         op(std::move(op)),
         value(value) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    location->VisitAllSubExpressions(callback);
+    value->VisitAllSubExpressions(callback);
+    callback(this);
+  }
+
   Expression* location;
   base::Optional<std::string> op;
   Expression* value;
@@ -390,6 +500,12 @@ struct IncrementDecrementExpression : Expression {
   IncrementDecrementExpression(SourcePosition pos, Expression* location,
                                IncrementDecrementOperator op, bool postfix)
       : Expression(kKind, pos), location(location), op(op), postfix(postfix) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    location->VisitAllSubExpressions(callback);
+    callback(this);
+  }
+
   Expression* location;
   IncrementDecrementOperator op;
   bool postfix;
@@ -407,6 +523,12 @@ struct AssumeTypeImpossibleExpression : Expression {
       : Expression(kKind, pos),
         excluded_type(excluded_type),
         expression(expression) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    expression->VisitAllSubExpressions(callback);
+    callback(this);
+  }
+
   TypeExpression* excluded_type;
   Expression* expression;
 };
@@ -418,6 +540,14 @@ struct NewExpression : Expression {
       : Expression(kKind, pos),
         type(type),
         initializers(std::move(initializers)) {}
+
+  void VisitAllSubExpressions(VisitCallback callback) override {
+    for (auto& initializer : initializers) {
+      initializer.expression->VisitAllSubExpressions(callback);
+    }
+    callback(this);
+  }
+
   TypeExpression* type;
   std::vector<NameAndExpression> initializers;
 };

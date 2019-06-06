@@ -23,7 +23,7 @@ namespace array_foreach {
   transitioning javascript builtin
   ArrayForEachLoopLazyDeoptContinuation(implicit context: Context)(
       receiver: Object, callback: Object, thisArg: Object, initialK: Object,
-      length: Object, result: Object): Object {
+      length: Object, _result: Object): Object {
     // All continuation points in the optimized forEach implemntation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -38,9 +38,9 @@ namespace array_foreach {
   }
 
   transitioning builtin ArrayForEachLoopContinuation(implicit context: Context)(
-      receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
-      array: Object, o: JSReceiver, initialK: Number, len: Number,
-      to: Object): Object {
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      _array: Object, o: JSReceiver, initialK: Number, len: Number,
+      _to: Object): Object {
     // variables {array} and {to} are ignored.
 
     // 5. Let k be 0.

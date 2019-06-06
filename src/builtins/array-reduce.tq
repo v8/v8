@@ -63,7 +63,7 @@ namespace array {
   }
 
   transitioning builtin ArrayReduceLoopContinuation(implicit context: Context)(
-      receiver: JSReceiver, callbackfn: Callable, initialAccumulator: Object,
+      _receiver: JSReceiver, callbackfn: Callable, initialAccumulator: Object,
       o: JSReceiver, initialK: Number, length: Number): Object {
     let accumulator = initialAccumulator;
 
@@ -110,7 +110,7 @@ namespace array {
       labels Bailout(Number, Object) {
     const k = 0;
     let accumulator = initialAccumulator;
-    const smiLen = Cast<Smi>(len) otherwise goto Bailout(k, accumulator);
+    Cast<Smi>(len) otherwise goto Bailout(k, accumulator);
     let fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k, accumulator);
     let fastOW = NewFastJSArrayWitness(fastO);
 

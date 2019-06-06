@@ -171,7 +171,15 @@ template <class T>
 class BindingsManager {
  public:
   base::Optional<Binding<T>*> TryLookup(const std::string& name) {
-    return current_bindings_[name];
+    if (name.length() >= 2 && name[0] == '_' && name[1] != '_') {
+      Error("Trying to reference '", name, "' which is marked as unused.")
+          .Throw();
+    }
+    auto binding = current_bindings_[name];
+    if (binding) {
+      (*binding)->SetUsed();
+    }
+    return binding;
   }
 
  private:
@@ -188,7 +196,8 @@ class Binding : public T {
       : T(std::forward<Args>(args)...),
         manager_(manager),
         name_(name),
-        previous_binding_(this) {
+        previous_binding_(this),
+        used_(false) {
     std::swap(previous_binding_, manager_->current_bindings_[name]);
   }
   template <class... Args>
@@ -196,16 +205,29 @@ class Binding : public T {
       : Binding(manager, name->value, std::forward<Args>(args)...) {
     declaration_position_ = name->pos;
   }
-  ~Binding() { manager_->current_bindings_[name_] = previous_binding_; }
+  ~Binding() {
+    manager_->current_bindings_[name_] = previous_binding_;
+    if (!used_ && name_.length() > 0 && name_[0] != '_') {
+      Lint(BindingTypeString(), "'", name_,
+           "' is never used. Prefix with '_' if this is intentional.")
+          .Position(declaration_position_);
+    }
+  }
+
+  std::string BindingTypeString() const { return ""; }
 
   const std::string& name() const { return name_; }
   SourcePosition declaration_position() const { return declaration_position_; }
+
+  bool Used() const { return used_; }
+  void SetUsed() { used_ = true; }
 
  private:
   BindingsManager<T>* manager_;
   const std::string name_;
   base::Optional<Binding*> previous_binding_;
   SourcePosition declaration_position_ = CurrentSourcePosition::Get();
+  bool used_;
   DISALLOW_COPY_AND_ASSIGN(Binding);
 };
 
@@ -213,16 +235,20 @@ template <class T>
 class BlockBindings {
  public:
   explicit BlockBindings(BindingsManager<T>* manager) : manager_(manager) {}
-  void Add(std::string name, T value) {
+  void Add(std::string name, T value, bool mark_as_used = false) {
     ReportErrorIfAlreadyBound(name);
-    bindings_.push_back(base::make_unique<Binding<T>>(manager_, std::move(name),
-                                                      std::move(value)));
+    auto binding =
+        base::make_unique<Binding<T>>(manager_, name, std::move(value));
+    if (mark_as_used) binding->SetUsed();
+    bindings_.push_back(std::move(binding));
   }
 
-  void Add(const Identifier* name, T value) {
+  void Add(const Identifier* name, T value, bool mark_as_used = false) {
     ReportErrorIfAlreadyBound(name->value);
-    bindings_.push_back(
-        base::make_unique<Binding<T>>(manager_, name, std::move(value)));
+    auto binding =
+        base::make_unique<Binding<T>>(manager_, name, std::move(value));
+    if (mark_as_used) binding->SetUsed();
+    bindings_.push_back(std::move(binding));
   }
 
   std::vector<Binding<T>*> bindings() const {
@@ -263,6 +289,15 @@ struct LocalLabel {
                       std::vector<const Type*> parameter_types = {})
       : block(block), parameter_types(std::move(parameter_types)) {}
 };
+
+template <>
+inline std::string Binding<LocalValue>::BindingTypeString() const {
+  return "Variable ";
+}
+template <>
+inline std::string Binding<LocalLabel>::BindingTypeString() const {
+  return "Label ";
+}
 
 struct Arguments {
   VisitResultVector parameters;
@@ -464,9 +499,9 @@ class ImplementationVisitor {
   class BreakContinueActivator {
    public:
     BreakContinueActivator(Block* break_block, Block* continue_block)
-        : break_binding_{&LabelBindingsManager::Get(), "_break",
+        : break_binding_{&LabelBindingsManager::Get(), kBreakLabelName,
                          LocalLabel{break_block}},
-          continue_binding_{&LabelBindingsManager::Get(), "_continue",
+          continue_binding_{&LabelBindingsManager::Get(), kContinueLabelName,
                             LocalLabel{continue_block}} {}
 
    private:

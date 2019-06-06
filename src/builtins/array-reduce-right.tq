@@ -64,8 +64,8 @@ namespace array {
 
   transitioning builtin ArrayReduceRightLoopContinuation(implicit context:
                                                              Context)(
-      receiver: JSReceiver, callbackfn: Callable, initialAccumulator: Object,
-      o: JSReceiver, initialK: Number, length: Number): Object {
+      _receiver: JSReceiver, callbackfn: Callable, initialAccumulator: Object,
+      o: JSReceiver, initialK: Number, _length: Number): Object {
     let accumulator = initialAccumulator;
 
     // 8b and 9. Repeat, while k >= 0

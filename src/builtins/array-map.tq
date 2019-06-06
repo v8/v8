@@ -55,7 +55,7 @@ namespace array_map {
   }
 
   transitioning builtin ArrayMapLoopContinuation(implicit context: Context)(
-      receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
       array: JSReceiver, o: JSReceiver, initialK: Number,
       length: Number): Object {
     // 6. Let k be 0.
@@ -226,7 +226,7 @@ namespace array_map {
   macro FastMapSpeciesCreate(implicit context: Context)(
       receiver: JSReceiver, length: Number): JSArray labels Bailout {
     if (IsArraySpeciesProtectorCellInvalid()) goto Bailout;
-    const o = Cast<FastJSArray>(receiver) otherwise Bailout;
+    Cast<FastJSArray>(receiver) otherwise Bailout;
     const smiLength = Cast<Smi>(length) otherwise Bailout;
     const newMap: Map =
         LoadJSArrayElementsMap(PACKED_SMI_ELEMENTS, LoadNativeContext(context));

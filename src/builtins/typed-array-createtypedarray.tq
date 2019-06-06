@@ -126,8 +126,7 @@ namespace typed_array_createtypedarray {
   // 22.2.4.4 TypedArray ( object )
   // ES #sec-typedarray-object
   transitioning macro ConstructByIterable(implicit context: Context)(
-      typedArray: JSTypedArray, iterable: JSReceiver, iteratorFn: Callable,
-      elementsInfo: typed_array::TypedArrayElementsInfo): never
+      iterable: JSReceiver, iteratorFn: Callable): never
       labels IfConstructByArrayLike(HeapObject, Object, JSReceiver) {
     const array: JSArray =
         IterableToListMayPreserveHoles(context, iterable, iteratorFn);
@@ -137,8 +136,7 @@ namespace typed_array_createtypedarray {
   // 22.2.4.3 TypedArray ( typedArray )
   // ES #sec-typedarray-typedarray
   transitioning macro ConstructByTypedArray(implicit context: Context)(
-      typedArray: JSTypedArray, srcTypedArray: JSTypedArray,
-      elementsInfo: typed_array::TypedArrayElementsInfo): never
+      srcTypedArray: JSTypedArray): never
       labels IfConstructByArrayLike(HeapObject, Object, JSReceiver) {
     let bufferConstructor: JSReceiver = GetArrayBufferFunction();
     const srcBuffer: JSArrayBuffer = srcTypedArray.buffer;
@@ -242,16 +240,15 @@ namespace typed_array_createtypedarray {
     }
   }
 
-  transitioning macro ConstructByJSReceiver(implicit context: Context)(
-      array: JSTypedArray, obj: JSReceiver,
-      elementsInfo: typed_array::TypedArrayElementsInfo): never
+  transitioning macro ConstructByJSReceiver(implicit context:
+                                                Context)(obj: JSReceiver): never
       labels IfConstructByArrayLike(HeapObject, Object, JSReceiver) {
     try {
       const iteratorMethod: Object =
           GetIteratorMethod(obj) otherwise IfIteratorUndefined;
       const iteratorFn: Callable = Cast<Callable>(iteratorMethod)
           otherwise ThrowTypeError(kIteratorSymbolNonCallable);
-      ConstructByIterable(array, obj, iteratorFn, elementsInfo)
+      ConstructByIterable(obj, iteratorFn)
           otherwise IfConstructByArrayLike;
     }
     label IfIteratorUndefined {
@@ -299,12 +296,10 @@ namespace typed_array_createtypedarray {
           ConstructByArrayBuffer(array, buffer, arg2, arg3, elementsInfo);
         }
         case (typedArray: JSTypedArray): {
-          ConstructByTypedArray(array, typedArray, elementsInfo)
-              otherwise IfConstructByArrayLike;
+          ConstructByTypedArray(typedArray) otherwise IfConstructByArrayLike;
         }
         case (obj: JSReceiver): {
-          ConstructByJSReceiver(array, obj, elementsInfo)
-              otherwise IfConstructByArrayLike;
+          ConstructByJSReceiver(obj) otherwise IfConstructByArrayLike;
         }
         // The first argument was a number or fell through and is treated as
         // a number. https://tc39.github.io/ecma262/#sec-typedarray-length
