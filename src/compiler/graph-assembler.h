@@ -225,6 +225,7 @@ class GraphAssembler {
   Node* ToNumber(Node* value);
   Node* BitcastWordToTagged(Node* value);
   Node* BitcastTaggedToWord(Node* value);
+  Node* BitcastTaggedSignedToWord(Node* value);
   Node* Allocate(AllocationType allocation, Node* size);
   Node* LoadField(FieldAccess const&, Node* object);
   Node* LoadElement(ElementAccess const&, Node* object, Node* index);

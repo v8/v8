@@ -732,6 +732,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* BitcastTaggedToWord(Node* a) {
       return AddNode(machine()->BitcastTaggedToWord(), a);
   }
+  Node* BitcastTaggedSignedToWord(Node* a) {
+    return AddNode(machine()->BitcastTaggedSignedToWord(), a);
+  }
   Node* BitcastMaybeObjectToWord(Node* a) {
       return AddNode(machine()->BitcastMaybeObjectToWord(), a);
   }

@@ -632,6 +632,7 @@
   V(Word64ReverseBytes)                     \
   V(Int64AbsWithOverflow)                   \
   V(BitcastTaggedToWord)                    \
+  V(BitcastTaggedSignedToWord)              \
   V(BitcastWordToTagged)                    \
   V(BitcastWordToTaggedSigned)              \
   V(TruncateFloat64ToWord32)                \

@@ -614,6 +614,7 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(Float64ExtractLowWord32, Word32T, Float64T)                \
   V(Float64ExtractHighWord32, Word32T, Float64T)               \
   V(BitcastTaggedToWord, IntPtrT, Object)                      \
+  V(BitcastTaggedSignedToWord, IntPtrT, Smi)                   \
   V(BitcastMaybeObjectToWord, IntPtrT, MaybeObject)            \
   V(BitcastWordToTagged, Object, WordT)                        \
   V(BitcastWordToTaggedSigned, Smi, WordT)                     \
@@ -1194,6 +1195,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<ResType> name(SloppyTNode<ArgType> a);
   CODE_ASSEMBLER_UNARY_OP_LIST(DECLARE_CODE_ASSEMBLER_UNARY_OP)
 #undef DECLARE_CODE_ASSEMBLER_UNARY_OP
+
+  template <class Dummy = void>
+  TNode<IntPtrT> BitcastTaggedToWord(TNode<Smi> node) {
+    static_assert(sizeof(Dummy) < 0,
+                  "Should use BitcastTaggedSignedToWord instead.");
+  }
 
   // Changes a double to an inptr_t for pointer arithmetic outside of Smi range.
   // Assumes that the double can be exactly represented as an int.

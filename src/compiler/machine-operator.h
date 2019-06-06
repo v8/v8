@@ -295,8 +295,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint64LessThanOrEqual();
   const Operator* Uint64Mod();
 
-  // This operator reinterprets the bits of a tagged pointer as word.
+  // This operator reinterprets the bits of a tagged pointer as a word.
   const Operator* BitcastTaggedToWord();
+
+  // This operator reinterprets the bits of a Smi as a word.
+  const Operator* BitcastTaggedSignedToWord();
 
   // This operator reinterprets the bits of a tagged MaybeObject pointer as
   // word.
