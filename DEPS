@@ -57,9 +57,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '388c0612c52790edffa42788c8a0000b0eced79c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '03613cf772e4c5bced8c87f8975c0eb154875170',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd2f31cc65deac117d0fc5926768630ee2be27115',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8a37389368143a44c4acd48117be68a4c3214e5b',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '9f0f47b1e410b137762f2e3699359f0dbfcdbc05',
   'v8/third_party/instrumented_libraries':
@@ -158,7 +158,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '3344e16e55cf5479dad0c0d3f8015c28cc278a4b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd71ff5db15ed986fd91ef07ff966c87a3067aacd',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -170,13 +170,13 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'f5edb4f542e155c75bc4b516f227911d99ec167c',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '31200def0dec8a624c861f919e86e4444e6e6ee7',
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'b41863e42637544c2941b574c7877d3e1f663e25',
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'v8/tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '779c4f0f8488c64587b75dbb001d18c3c0c4cda9',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '9b1b0ed1f31dd42b128ae88ce50c2ab1f87ebaeb',
   'v8/test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'v8/test/mozilla/data':
