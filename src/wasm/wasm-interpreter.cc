@@ -582,7 +582,7 @@ inline float ExecuteF32UConvertI64(uint64_t a, TrapReason* trap) {
 }
 
 inline float ExecuteF32ConvertF64(double a, TrapReason* trap) {
-  return static_cast<float>(a);
+  return DoubleToFloat32(a);
 }
 
 inline Float32 ExecuteF32ReinterpretI32(int32_t a, TrapReason* trap) {

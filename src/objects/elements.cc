@@ -3629,10 +3629,7 @@ Handle<Object> TypedElementsAccessor<UINT32_ELEMENTS, uint32_t>::ToHandle(
 // static
 template <>
 float TypedElementsAccessor<FLOAT32_ELEMENTS, float>::FromScalar(double value) {
-  using limits = std::numeric_limits<float>;
-  if (value > limits::max()) return limits::infinity();
-  if (value < limits::lowest()) return -limits::infinity();
-  return static_cast<float>(value);
+  return DoubleToFloat32(value);
 }
 
 // static

@@ -1322,7 +1322,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
         v8::Local<v8::Number> number_value;
         if (!value->ToNumber(context).ToLocal(&number_value)) return;
         if (!number_value->NumberValue(context).To(&f64_value)) return;
-        f32_value = static_cast<float>(f64_value);
+        f32_value = i::DoubleToFloat32(f64_value);
       }
       global_obj->SetF32(f32_value);
       break;
@@ -1924,7 +1924,7 @@ void WebAssemblyGlobalSetValue(
     case i::wasm::kWasmF32: {
       double f64_value = 0;
       if (!args[0]->NumberValue(context).To(&f64_value)) return;
-      receiver->SetF32(static_cast<float>(f64_value));
+      receiver->SetF32(i::DoubleToFloat32(f64_value));
       break;
     }
     case i::wasm::kWasmF64: {
