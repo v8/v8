@@ -4601,7 +4601,7 @@ void Genesis::InstallInternalPackedArray(Handle<JSObject> target,
   }
 
   JSObject::NormalizeProperties(
-      prototype, KEEP_INOBJECT_PROPERTIES, 6,
+      isolate(), prototype, KEEP_INOBJECT_PROPERTIES, 6,
       "OptimizeInternalPackedArrayPrototypeForAdding");
   InstallInternalPackedArrayFunction(prototype, "push");
   InstallInternalPackedArrayFunction(prototype, "pop");

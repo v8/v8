@@ -609,7 +609,7 @@ class JSObject : public JSReceiver {
   // added this number can be indicated to have the backing store allocated to
   // an initial capacity for holding these properties.
   V8_EXPORT_PRIVATE static void NormalizeProperties(
-      Handle<JSObject> object, PropertyNormalizationMode mode,
+      Isolate* isolate, Handle<JSObject> object, PropertyNormalizationMode mode,
       int expected_additional_properties, const char* reason);
 
   // Convert and update the elements backing store to be a

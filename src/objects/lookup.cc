@@ -723,8 +723,8 @@ void LookupIterator::Delete() {
         is_prototype_map ? KEEP_INOBJECT_PROPERTIES : CLEAR_INOBJECT_PROPERTIES;
 
     if (holder->HasFastProperties()) {
-      JSObject::NormalizeProperties(Handle<JSObject>::cast(holder), mode, 0,
-                                    "DeletingProperty");
+      JSObject::NormalizeProperties(isolate_, Handle<JSObject>::cast(holder),
+                                    mode, 0, "DeletingProperty");
       ReloadPropertyInformation<false>();
     }
     JSReceiver::DeleteNormalizedProperty(holder, number_);
@@ -839,7 +839,7 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
     }
 
     // Normalize object to make this operation simple.
-    JSObject::NormalizeProperties(receiver, mode, 0,
+    JSObject::NormalizeProperties(isolate_, receiver, mode, 0,
                                   "TransitionToAccessorPair");
 
     JSObject::SetNormalizedProperty(receiver, name_, pair, details);

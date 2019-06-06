@@ -874,7 +874,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   // Create the properties in the namespace object. Transition the object
   // to dictionary mode so that property addition is faster.
   PropertyAttributes attr = DONT_DELETE;
-  JSObject::NormalizeProperties(ns, CLEAR_INOBJECT_PROPERTIES,
+  JSObject::NormalizeProperties(isolate, ns, CLEAR_INOBJECT_PROPERTIES,
                                 static_cast<int>(names.size()),
                                 "JSModuleNamespace");
   for (const auto& name : names) {

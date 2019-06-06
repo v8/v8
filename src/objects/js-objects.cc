@@ -3264,13 +3264,12 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
   return GetPropertyAttributesWithInterceptorInternal(it, it->GetInterceptor());
 }
 
-void JSObject::NormalizeProperties(Handle<JSObject> object,
+void JSObject::NormalizeProperties(Isolate* isolate, Handle<JSObject> object,
                                    PropertyNormalizationMode mode,
                                    int expected_additional_properties,
                                    const char* reason) {
   if (!object->HasFastProperties()) return;
 
-  Isolate* isolate = object->GetIsolate();
   Handle<Map> map(object->map(), isolate);
   Handle<Map> new_map = Map::Normalize(isolate, map, mode, reason);
 
@@ -3848,7 +3847,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   } else {
     DCHECK(old_map->is_dictionary_map() || !old_map->is_prototype_map());
     // Slow path: need to normalize properties for safety
-    NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0,
+    NormalizeProperties(isolate, object, CLEAR_INOBJECT_PROPERTIES, 0,
                         "SlowPreventExtensions");
 
     // Create a new map, since other objects with this map may be extensible.
@@ -4176,10 +4175,11 @@ static bool PrototypeBenefitsFromNormalization(Handle<JSObject> object) {
 // static
 void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
                                    bool enable_setup_mode) {
+  Isolate* isolate = object->GetIsolate();
   if (object->IsJSGlobalObject()) return;
   if (enable_setup_mode && PrototypeBenefitsFromNormalization(object)) {
     // First normalize to ensure all JSFunctions are DATA_CONSTANT.
-    JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0,
+    JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "NormalizeAsPrototype");
   }
   if (object->map().is_prototype_map()) {
@@ -4188,7 +4188,6 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
       JSObject::MigrateSlowToFast(object, 0, "OptimizeAsPrototype");
     }
   } else {
-    Isolate* isolate = object->GetIsolate();
     Handle<Map> new_map =
         Map::Copy(isolate, handle(object->map(), isolate), "CopyAsPrototype");
     JSObject::MigrateToMap(isolate, object, new_map);

@@ -1109,7 +1109,8 @@ TEST(TryHasOwnProperty) {
         factory->NewFunctionForTest(factory->empty_string());
     Handle<JSObject> object = factory->NewJSObject(function);
     AddProperties(object, names, arraysize(names));
-    JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0, "test");
+    JSObject::NormalizeProperties(isolate, object, CLEAR_INOBJECT_PROPERTIES, 0,
+                                  "test");
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
     CHECK(JSObject::DeleteProperty(object, deleted_property_name,
@@ -1316,7 +1317,8 @@ TEST(TryGetOwnProperty) {
     Handle<JSObject> object = factory->NewJSObject(function);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
                   rand_gen.NextInt());
-    JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0, "test");
+    JSObject::NormalizeProperties(isolate, object, CLEAR_INOBJECT_PROPERTIES, 0,
+                                  "test");
 
     JSObject::AddProperty(isolate, object, deleted_property_name, object, NONE);
     CHECK(JSObject::DeleteProperty(object, deleted_property_name,
@@ -1685,7 +1687,7 @@ TEST(AllocateJSObjectFromMap) {
     Handle<JSObject> object = Handle<JSObject>::cast(
         v8::Utils::OpenHandle(*CompileRun("var object = {a:1,b:2, 1:1, 2:2}; "
                                           "object")));
-    JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0,
+    JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "Normalize");
     Handle<JSObject> result = Handle<JSObject>::cast(
         ft.Call(handle(object->map(), isolate),

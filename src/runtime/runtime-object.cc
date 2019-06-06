@@ -440,8 +440,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   // Conservative upper limit to prevent fuzz tests from going OOM.
   if (properties > 100000) return isolate->ThrowIllegalOperation();
   if (object->HasFastProperties() && !object->IsJSGlobalProxy()) {
-    JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, properties,
-                                  "OptimizeForAdding");
+    JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES,
+                                  properties, "OptimizeForAdding");
   }
   return *object;
 }
