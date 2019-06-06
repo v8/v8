@@ -4914,12 +4914,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control) {
     MachineOperatorBuilder* machine = mcgraph()->machine();
     CommonOperatorBuilder* common = mcgraph()->common();
-    Node* target = (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
-                       ? mcgraph()->RelocatableIntPtrConstant(
-                             wasm::WasmCode::kWasmAllocateHeapNumber,
-                             RelocInfo::WASM_STUB_CALL)
-                       : jsgraph()->HeapConstant(
-                             BUILTIN_CODE(isolate_, AllocateHeapNumber));
+    Node* target =
+        (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
+            ? mcgraph()->RelocatableIntPtrConstant(
+                  wasm::WasmCode::kWasmAllocateHeapNumber,
+                  RelocInfo::WASM_STUB_CALL)
+            : BuildLoadBuiltinFromInstance(Builtins::kAllocateHeapNumber);
     if (!allocate_heap_number_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           mcgraph()->zone(), AllocateHeapNumberDescriptor(), 0,
@@ -5096,7 +5096,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
             ? mcgraph()->RelocatableIntPtrConstant(
                   wasm::WasmCode::kWasmToNumber, RelocInfo::WASM_STUB_CALL)
-            : jsgraph()->HeapConstant(BUILTIN_CODE(isolate_, ToNumber));
+            : BuildLoadBuiltinFromInstance(Builtins::kToNumber);
 
     Node* result = SetEffect(
         graph()->NewNode(mcgraph()->common()->Call(call_descriptor), stub_code,
@@ -5196,7 +5196,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
             ? mcgraph()->RelocatableIntPtrConstant(
                   wasm::WasmCode::kWasmI64ToBigInt, RelocInfo::WASM_STUB_CALL)
-            : jsgraph()->HeapConstant(BUILTIN_CODE(isolate_, I64ToBigInt));
+            : BuildLoadBuiltinFromInstance(Builtins::kI64ToBigInt);
 
     return SetEffect(
         SetControl(graph()->NewNode(mcgraph()->common()->Call(call_descriptor),
@@ -5218,7 +5218,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
             ? mcgraph()->RelocatableIntPtrConstant(
                   wasm::WasmCode::kWasmBigIntToI64, RelocInfo::WASM_STUB_CALL)
-            : jsgraph()->HeapConstant(BUILTIN_CODE(isolate_, BigIntToI64));
+            : BuildLoadBuiltinFromInstance(Builtins::kBigIntToI64);
 
     return SetEffect(SetControl(
         graph()->NewNode(mcgraph()->common()->Call(call_descriptor), target,
