@@ -9,9 +9,11 @@ load('bigint-util.js');
 const TEST_ITERATIONS = 1000;
 const SLOW_TEST_ITERATIONS = 50;
 const BITS_CASES = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192];
+const RANDOM_BIGINTS_MAX_BITS = 64 * 100;
 
 let initial_sum = 0n;
 let a = 0n;
+let random_bigints = [];
 
 // This dummy ensures that the feedback for benchmark.run() in the Measure
 // function from base.js is not monomorphic, thereby preventing the benchmarks
@@ -47,6 +49,12 @@ BITS_CASES.forEach((d) => {
       TestAddDifferentSign, () => SetUpTestAddDifferentSign(d))
   ]);
 });
+
+
+new BenchmarkSuite('Add-Random', [1000], [
+  new Benchmark('Add-Random', true, false, 0, TestAddRandom,
+    SetUpTestAddRandom)
+]);
 
 
 function SetUpTestAddTypeError() {
@@ -111,6 +119,28 @@ function TestAddDifferentSign() {
 
   for (let i = 0; i < TEST_ITERATIONS; ++i) {
     sum = a + sum;
+  }
+
+  return sum;
+}
+
+
+function SetUpTestAddRandom() {
+  random_bigints = [];
+  // RandomBigIntWithBits needs multiples of 4 bits.
+  const max_in_4bits = RANDOM_BIGINTS_MAX_BITS / 4;
+  for (let i = 0; i < TEST_ITERATIONS; ++i) {
+    const bits = Math.floor(Math.random() * max_in_4bits) * 4;
+    const bigint = RandomBigIntWithBits(bits);
+    random_bigints.push(Math.random() < 0.5 ? -bigint : bigint);
+  }
+}
+
+function TestAddRandom() {
+  let sum = 0n;
+
+  for (let i = 0; i < TEST_ITERATIONS; ++i) {
+    sum = random_bigints[i] + sum;
   }
 
   return sum;

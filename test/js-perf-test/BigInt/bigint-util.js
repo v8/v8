@@ -20,6 +20,7 @@ function SmallRandomBigIntWithBits(bits) {
     return 0n;
   }
 
+  // Make sure it does not start with four 0-bits.
   let s = "0x" + RandomHexDigit(false);
   bits -= 4;
   // Digits are at least 32 bits long, so we round down to the next smaller
@@ -41,6 +42,24 @@ function MaxBigIntWithBits(bits) {
   let s = "0x";
   for (; bits > 0; bits -= 4) {
     s += "F";
+  }
+  return BigInt(s);
+}
+
+
+// Generates a random BigInt between 2^(bits-4) and 2^bits-1 (for bits > 0).
+function RandomBigIntWithBits(bits) {
+  console.assert(bits % 4 === 0);
+  if (bits <= 0) {
+    return 0n;
+  }
+
+  // Make sure it does not start with four 0-bits.
+  let s = "0x" + RandomHexDigit(false);
+  bits -= 4;
+  // Randomly generate remaining bits.
+  for (; bits > 0; bits -= 4) {
+    s += RandomHexDigit(true);
   }
   return BigInt(s);
 }
