@@ -88,6 +88,10 @@ class SmallVector {
     DCHECK_NE(0, size());
     return end_[-1];
   }
+  const T& back() const {
+    DCHECK_NE(0, size());
+    return end_[-1];
+  }
 
   T& operator[](size_t index) {
     DCHECK_GT(size(), index);
