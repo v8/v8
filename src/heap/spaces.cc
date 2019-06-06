@@ -3108,10 +3108,20 @@ FreeSpace FreeList::Allocate(size_t size_in_bytes, size_t* node_size) {
   }
 
   if (node.is_null() && type != kHuge) {
-    // We didn't find anything in the huge list. Now search the best fitting
-    // free list for a node that has at least the requested size.
+    // We didn't find anything in the huge list.
     type = SelectFreeListCategoryType(size_in_bytes);
-    node = TryFindNodeIn(type, size_in_bytes, node_size);
+
+    if (type == kTiniest) {
+      // For this tiniest object, the tiny list hasn't been searched yet.
+      // Now searching the tiny list.
+      node = FindNodeIn(kTiny, size_in_bytes, node_size);
+    }
+
+    if (node.is_null()) {
+      // Now search the best fitting free list for a node that has at least the
+      // requested size.
+      node = TryFindNodeIn(type, size_in_bytes, node_size);
+    }
   }
 
   if (!node.is_null()) {
