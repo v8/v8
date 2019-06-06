@@ -212,74 +212,49 @@ namespace data_view {
     return Convert<Number>(result);
   }
 
-  extern macro AllocateBigInt(intptr): BigInt;
-  extern macro StoreBigIntBitfield(BigInt, uint32): void;
-  extern macro StoreBigIntDigit(BigInt, constexpr int31, uintptr): void;
-  extern macro DataViewBuiltinsAssembler::DataViewEncodeBigIntBits(
-      constexpr bool, constexpr int31): uint32;
-
-  const kPositiveBigInt: constexpr bool = false;
-  const kNegativeBigInt: constexpr bool = true;
   const kZeroDigitBigInt: constexpr int31 = 0;
   const kOneDigitBigInt: constexpr int31 = 1;
   const kTwoDigitBigInt: constexpr int31 = 2;
 
-  macro CreateEmptyBigInt(isPositive: bool, length: constexpr int31): BigInt {
-    // Allocate a BigInt with the desired length (number of digits).
-    let result: BigInt = AllocateBigInt(length);
-
-    // Write the desired sign and length to the BigInt bitfield.
-    if (isPositive) {
-      StoreBigIntBitfield(
-          result, DataViewEncodeBigIntBits(kPositiveBigInt, length));
-    } else {
-      StoreBigIntBitfield(
-          result, DataViewEncodeBigIntBits(kNegativeBigInt, length));
-    }
-
-    return result;
-  }
-
   // Create a BigInt on a 64-bit architecture from two 32-bit values.
-  macro MakeBigIntOn64Bit(
+  macro MakeBigIntOn64Bit(implicit context: Context)(
       lowWord: uint32, highWord: uint32, signed: constexpr bool): BigInt {
     // 0n is represented by a zero-length BigInt.
     if (lowWord == 0 && highWord == 0) {
-      return AllocateBigInt(kZeroDigitBigInt);
+      return Convert<BigInt>(bigint::AllocateBigInt(kZeroDigitBigInt));
     }
 
-    let isPositive: bool = true;
+    let sign: uint32 = bigint::kPositiveSign;
     let highPart: intptr = Signed(Convert<uintptr>(highWord));
     let lowPart: intptr = Signed(Convert<uintptr>(lowWord));
     let rawValue: intptr = (highPart << 32) + lowPart;
 
     if constexpr (signed) {
       if (rawValue < 0) {
-        isPositive = false;
+        sign = bigint::kNegativeSign;
         // We have to store the absolute value of rawValue in the digit.
         rawValue = 0 - rawValue;
       }
     }
 
     // Allocate the BigInt and store the absolute value.
-    let result: BigInt = CreateEmptyBigInt(isPositive, kOneDigitBigInt);
-
-    StoreBigIntDigit(result, 0, Unsigned(rawValue));
-
-    return result;
+    let result: MutableBigInt =
+        bigint::AllocateEmptyBigInt(sign, kOneDigitBigInt);
+    bigint::StoreBigIntDigit(result, 0, Unsigned(rawValue));
+    return Convert<BigInt>(result);
   }
 
   // Create a BigInt on a 32-bit architecture from two 32-bit values.
-  macro MakeBigIntOn32Bit(
+  macro MakeBigIntOn32Bit(implicit context: Context)(
       lowWord: uint32, highWord: uint32, signed: constexpr bool): BigInt {
     // 0n is represented by a zero-length BigInt.
     if (lowWord == 0 && highWord == 0) {
-      return AllocateBigInt(kZeroDigitBigInt);
+      return Convert<BigInt>(bigint::AllocateBigInt(kZeroDigitBigInt));
     }
 
     // On a 32-bit platform, we might need 1 or 2 digits to store the number.
     let needTwoDigits: bool = false;
-    let isPositive: bool = true;
+    let sign: uint32 = bigint::kPositiveSign;
 
     // We need to do some math on lowWord and highWord,
     // so Convert them to int32.
@@ -293,7 +268,7 @@ namespace data_view {
       if constexpr (signed) {
         // If highPart < 0, the number is always negative.
         if (highPart < 0) {
-          isPositive = false;
+          sign = bigint::kNegativeSign;
 
           // We have to compute the absolute value by hand.
           // There will be a negative carry from the low word
@@ -322,25 +297,23 @@ namespace data_view {
     }
 
     // Allocate the BigInt with the right sign and length.
-    let result: BigInt;
+    let result: MutableBigInt;
     if (needTwoDigits) {
-      result = CreateEmptyBigInt(isPositive, kTwoDigitBigInt);
+      result = bigint::AllocateEmptyBigInt(sign, kTwoDigitBigInt);
     } else {
-      result = CreateEmptyBigInt(isPositive, kOneDigitBigInt);
+      result = bigint::AllocateEmptyBigInt(sign, kOneDigitBigInt);
     }
 
     // Finally, write the digit(s) to the BigInt.
-    StoreBigIntDigit(result, 0, Unsigned(Convert<intptr>(lowPart)));
-
+    bigint::StoreBigIntDigit(result, 0, Unsigned(Convert<intptr>(lowPart)));
     if (needTwoDigits) {
-      StoreBigIntDigit(result, 1, Unsigned(Convert<intptr>(highPart)));
+      bigint::StoreBigIntDigit(result, 1, Unsigned(Convert<intptr>(highPart)));
     }
-
-    return result;
+    return Convert<BigInt>(result);
   }
 
-  macro MakeBigInt(lowWord: uint32, highWord: uint32, signed: constexpr bool):
-      BigInt {
+  macro MakeBigInt(implicit context: Context)(
+      lowWord: uint32, highWord: uint32, signed: constexpr bool): BigInt {
     // A BigInt digit has the platform word size, so we only need one digit
     // on 64-bit platforms but may need two on 32-bit.
     if constexpr (Is64()) {
@@ -350,7 +323,7 @@ namespace data_view {
     }
   }
 
-  macro LoadDataViewBigInt(
+  macro LoadDataViewBigInt(implicit context: Context)(
       buffer: JSArrayBuffer, offset: uintptr, requestedLittleEndian: bool,
       signed: constexpr bool): BigInt {
     let dataPointer: RawPtr = buffer.backing_store;
@@ -612,11 +585,10 @@ namespace data_view {
     }
   }
 
-  extern macro DataViewBuiltinsAssembler::DataViewDecodeBigIntLength(BigInt):
+  extern macro DataViewBuiltinsAssembler::DataViewDecodeBigIntLength(
+      BigIntBase): uint32;
+  extern macro DataViewBuiltinsAssembler::DataViewDecodeBigIntSign(BigIntBase):
       uint32;
-  extern macro DataViewBuiltinsAssembler::DataViewDecodeBigIntSign(BigInt):
-      uint32;
-  extern macro LoadBigIntDigit(BigInt, constexpr int31): uintptr;
 
   // We might get here a BigInt that is bigger than 64 bits, but we're only
   // interested in the 64 lowest ones. This means the lowest BigInt digit
@@ -636,13 +608,13 @@ namespace data_view {
     if (length != 0) {
       if constexpr (Is64()) {
         // There is always exactly 1 BigInt digit to load in this case.
-        let value: uintptr = LoadBigIntDigit(bigIntValue, 0);
+        let value: uintptr = bigint::LoadBigIntDigit(bigIntValue, 0);
         lowWord = Convert<uint32>(value);  // Truncates value to 32 bits.
         highWord = Convert<uint32>(value >>> 32);
       } else {  // There might be either 1 or 2 BigInt digits we need to load.
-        lowWord = Convert<uint32>(LoadBigIntDigit(bigIntValue, 0));
+        lowWord = Convert<uint32>(bigint::LoadBigIntDigit(bigIntValue, 0));
         if (length >= 2) {  // Only load the second digit if there is one.
-          highWord = Convert<uint32>(LoadBigIntDigit(bigIntValue, 1));
+          highWord = Convert<uint32>(bigint::LoadBigIntDigit(bigIntValue, 1));
         }
       }
     }

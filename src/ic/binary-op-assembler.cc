@@ -183,8 +183,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
   BIND(&bigint);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kBigInt));
-    var_result.Bind(CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
-                                SmiConstant(Operation::kAdd)));
+    var_result.Bind(CallBuiltin(Builtins::kBigIntAdd, context, lhs, rhs));
     Goto(&end);
   }
 
@@ -363,8 +362,12 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   BIND(&if_bigint);
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kBigInt));
-    var_result.Bind(CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
-                                SmiConstant(op)));
+    if (op == Operation::kAdd) {
+      var_result.Bind(CallBuiltin(Builtins::kBigIntAdd, context, lhs, rhs));
+    } else {
+      var_result.Bind(CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
+                                  SmiConstant(op)));
+    }
     Goto(&end);
   }
 

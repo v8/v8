@@ -149,6 +149,12 @@ class StatsCounter;
   V(libc_memmove_function, "libc_memmove")                                    \
   V(libc_memset_function, "libc_memset")                                      \
   V(mod_two_doubles_operation, "mod_two_doubles")                             \
+  V(mutable_big_int_absolute_add_and_canonicalize_function,                   \
+    "MutableBigInt_AbsoluteAddAndCanonicalize")                               \
+  V(mutable_big_int_absolute_compare_function,                                \
+    "MutableBigInt_AbsoluteCompare")                                          \
+  V(mutable_big_int_absolute_sub_and_canonicalize_function,                   \
+    "MutableBigInt_AbsoluteSubAndCanonicalize")                               \
   V(new_deoptimizer_function, "Deoptimizer::New()")                           \
   V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                 \
   V(printf_function, "printf")                                                \

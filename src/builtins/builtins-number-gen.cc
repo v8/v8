@@ -538,8 +538,8 @@ TF_BUILTIN(Add, AddStubAssembler) {
 
   BIND(&do_bigint_add);
   {
-    Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
-                       var_right.value(), SmiConstant(Operation::kAdd)));
+    TailCallBuiltin(Builtins::kBigIntAdd, context, var_left.value(),
+                    var_right.value());
   }
 
   BIND(&do_double_add);

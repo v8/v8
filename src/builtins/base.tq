@@ -86,7 +86,6 @@ extern class Oddball extends HeapObject {
 
 extern class HeapNumber extends HeapObject { value: float64; }
 type Number = Smi | HeapNumber;
-type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
 
 @abstract
@@ -1038,6 +1037,10 @@ const kSymbolToString: constexpr MessageTemplate
     generates 'MessageTemplate::kSymbolToString';
 const kPropertyNotFunction: constexpr MessageTemplate
     generates 'MessageTemplate::kPropertyNotFunction';
+const kBigIntMaxLength: constexpr intptr
+    generates 'BigInt::kMaxLength';
+const kBigIntTooBig: constexpr MessageTemplate
+    generates 'MessageTemplate::kBigIntTooBig';
 
 const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
@@ -1894,6 +1897,11 @@ Cast<HeapNumber>(o: HeapObject): HeapNumber
   goto CastError;
 }
 
+Cast<BigInt>(o: HeapObject): BigInt labels CastError {
+  if (IsBigInt(o)) return %RawDownCast<BigInt>(o);
+  goto CastError;
+}
+
 Cast<JSRegExp>(o: HeapObject): JSRegExp
     labels CastError {
   if (IsJSRegExp(o)) return %RawDownCast<JSRegExp>(o);
@@ -2182,6 +2190,9 @@ Convert<Number, int32>(i: int32): Number {
 }
 Convert<intptr, int32>(i: int32): intptr {
   return ChangeInt32ToIntPtr(i);
+}
+Convert<intptr, uint32>(i: uint32): intptr {
+  return Signed(ChangeUint32ToWord(i));
 }
 Convert<Smi, int32>(i: int32): Smi {
   return SmiFromInt32(i);
@@ -2750,6 +2761,7 @@ extern macro IsJSReceiver(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;
 extern macro IsHeapNumber(HeapObject): bool;
+extern macro IsBigInt(HeapObject): bool;
 extern macro IsFixedArray(HeapObject): bool;
 extern macro IsName(HeapObject): bool;
 extern macro IsPrivateSymbol(HeapObject): bool;
