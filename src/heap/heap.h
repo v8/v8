@@ -1818,9 +1818,15 @@ class Heap {
   size_t code_range_size_ = 0;
   size_t max_semi_space_size_ = 8 * (kSystemPointerSize / 4) * MB;
   size_t initial_semispace_size_ = kMinSemiSpaceSize;
+  // Full garbage collections can be skipped if the old generation size
+  // is below this threshold.
+  size_t min_old_generation_size_ = 0;
+  // If the old generation size exceeds this limit, then V8 will
+  // crash with out-of-memory error.
   size_t max_old_generation_size_ = 700ul * (kSystemPointerSize / 4) * MB;
-  // TODO(mlippautz): Clarify whether this should be take some embedder
+  // TODO(mlippautz): Clarify whether this should take some embedder
   // configurable limit into account.
+  size_t min_global_memory_size_ = 0;
   size_t max_global_memory_size_ =
       Min(static_cast<uint64_t>(std::numeric_limits<size_t>::max()),
           static_cast<uint64_t>(max_old_generation_size_) * 2);

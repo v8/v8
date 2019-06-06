@@ -2058,14 +2058,16 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
 
     old_generation_allocation_limit_ =
         MemoryController<V8HeapTrait>::CalculateAllocationLimit(
-            this, old_gen_size, max_old_generation_size_, new_space_capacity,
-            v8_growing_factor, mode);
+            this, old_gen_size, min_old_generation_size_,
+            max_old_generation_size_, new_space_capacity, v8_growing_factor,
+            mode);
     if (UseGlobalMemoryScheduling()) {
       DCHECK_GT(global_growing_factor, 0);
       global_allocation_limit_ =
           MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
-              this, GlobalSizeOfObjects(), max_global_memory_size_,
-              new_space_capacity, global_growing_factor, mode);
+              this, GlobalSizeOfObjects(), min_global_memory_size_,
+              max_global_memory_size_, new_space_capacity,
+              global_growing_factor, mode);
     }
     CheckIneffectiveMarkCompact(
         old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
@@ -2073,8 +2075,9 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
              old_generation_size_configured_) {
     size_t new_old_generation_limit =
         MemoryController<V8HeapTrait>::CalculateAllocationLimit(
-            this, old_gen_size, max_old_generation_size_, new_space_capacity,
-            v8_growing_factor, mode);
+            this, old_gen_size, min_old_generation_size_,
+            max_old_generation_size_, new_space_capacity, v8_growing_factor,
+            mode);
     if (new_old_generation_limit < old_generation_allocation_limit_) {
       old_generation_allocation_limit_ = new_old_generation_limit;
     }
@@ -2082,8 +2085,9 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
       DCHECK_GT(global_growing_factor, 0);
       size_t new_global_limit =
           MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
-              this, GlobalSizeOfObjects(), max_global_memory_size_,
-              new_space_capacity, global_growing_factor, mode);
+              this, GlobalSizeOfObjects(), min_global_memory_size_,
+              max_global_memory_size_, new_space_capacity,
+              global_growing_factor, mode);
       if (new_global_limit < global_allocation_limit_) {
         global_allocation_limit_ = new_global_limit;
       }
@@ -4401,9 +4405,15 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       old_generation_size_configured_ = true;
     }
     initial_old_generation_size_ =
-        Min(initial_old_generation_size_, max_old_generation_size_);
+        Min(initial_old_generation_size_, max_old_generation_size_ / 2);
     initial_old_generation_size_ =
         RoundDown<Page::kPageSize>(initial_old_generation_size_);
+  }
+
+  if (old_generation_size_configured_) {
+    // If the embedder pre-configures the initial old generation size,
+    // then allow V8 to skip full GCs below that threshold.
+    min_old_generation_size_ = initial_old_generation_size_;
   }
 
   if (FLAG_semi_space_growth_factor < 2) {

@@ -126,8 +126,9 @@ size_t MemoryController<Trait>::MinimumAllocationLimitGrowingStep(
 
 template <typename Trait>
 size_t MemoryController<Trait>::CalculateAllocationLimit(
-    Heap* heap, size_t current_size, size_t max_size, size_t new_space_capacity,
-    double factor, Heap::HeapGrowingMode growing_mode) {
+    Heap* heap, size_t current_size, size_t min_size, size_t max_size,
+    size_t new_space_capacity, double factor,
+    Heap::HeapGrowingMode growing_mode) {
   switch (growing_mode) {
     case Heap::HeapGrowingMode::kConservative:
     case Heap::HeapGrowingMode::kSlow:
@@ -155,9 +156,11 @@ size_t MemoryController<Trait>::CalculateAllocationLimit(
           static_cast<uint64_t>(current_size) +
               MinimumAllocationLimitGrowingStep(growing_mode)) +
       new_space_capacity;
+  const uint64_t limit_above_min_size = Max<uint64_t>(limit, min_size);
   const uint64_t halfway_to_the_max =
       (static_cast<uint64_t>(current_size) + max_size) / 2;
-  const size_t result = static_cast<size_t>(Min(limit, halfway_to_the_max));
+  const size_t result =
+      static_cast<size_t>(Min(limit_above_min_size, halfway_to_the_max));
   if (FLAG_trace_gc_verbose) {
     Isolate::FromHeap(heap)->PrintWithTimestamp(
         "[%s] Limit: old size: %zu KB, new limit: %zu KB (%.1f)\n",

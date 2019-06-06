@@ -76,26 +76,36 @@ TEST_F(MemoryControllerTest, OldGenerationAllocationLimit) {
 
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
             V8Controller::CalculateAllocationLimit(
-                heap, old_gen_size, max_old_generation_size, new_space_capacity,
-                factor, Heap::HeapGrowingMode::kDefault));
+                heap, old_gen_size, 0u, max_old_generation_size,
+                new_space_capacity, factor, Heap::HeapGrowingMode::kDefault));
 
   factor = Min(factor, V8HeapTrait::kConservativeGrowingFactor);
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
             V8Controller::CalculateAllocationLimit(
-                heap, old_gen_size, max_old_generation_size, new_space_capacity,
-                factor, Heap::HeapGrowingMode::kSlow));
+                heap, old_gen_size, 0u, max_old_generation_size,
+                new_space_capacity, factor, Heap::HeapGrowingMode::kSlow));
 
   factor = Min(factor, V8HeapTrait::kConservativeGrowingFactor);
-  EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
-            V8Controller::CalculateAllocationLimit(
-                heap, old_gen_size, max_old_generation_size, new_space_capacity,
-                factor, Heap::HeapGrowingMode::kConservative));
+  EXPECT_EQ(
+      static_cast<size_t>(old_gen_size * factor + new_space_capacity),
+      V8Controller::CalculateAllocationLimit(
+          heap, old_gen_size, 0u, max_old_generation_size, new_space_capacity,
+          factor, Heap::HeapGrowingMode::kConservative));
 
   factor = V8HeapTrait::kMinGrowingFactor;
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
             V8Controller::CalculateAllocationLimit(
-                heap, old_gen_size, max_old_generation_size, new_space_capacity,
-                factor, Heap::HeapGrowingMode::kMinimal));
+                heap, old_gen_size, 0u, max_old_generation_size,
+                new_space_capacity, factor, Heap::HeapGrowingMode::kMinimal));
+
+  factor = V8HeapTrait::kMinGrowingFactor;
+  size_t min_old_generation_size =
+      2 * static_cast<size_t>(old_gen_size * factor + new_space_capacity);
+  EXPECT_EQ(
+      min_old_generation_size,
+      V8Controller::CalculateAllocationLimit(
+          heap, old_gen_size, min_old_generation_size, max_old_generation_size,
+          new_space_capacity, factor, Heap::HeapGrowingMode::kMinimal));
 }
 
 }  // namespace internal
