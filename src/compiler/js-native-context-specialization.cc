@@ -2025,9 +2025,7 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
                                       ConvertReceiverMode::kNotNullOrUndefined),
         target, receiver, context, frame_state, *effect, *control);
   } else {
-    // TODO(mslekova): Move this to the serialization of property loads.
-    FunctionTemplateInfoRef function_template_info =
-        constant.AsFunctionTemplateInfo();
+    auto function_template_info = constant.AsFunctionTemplateInfo();
     function_template_info.Serialize();
     Node* holder =
         access_info.holder().is_null()
@@ -2035,7 +2033,6 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
             : jsgraph()->Constant(access_info.holder().ToHandleChecked());
     SharedFunctionInfoRef shared_info(
         broker(), frame_info.shared_info().ToHandleChecked());
-
     value = InlineApiCall(receiver, holder, frame_state, nullptr, effect,
                           control, shared_info, function_template_info);
   }
@@ -2065,7 +2062,6 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
                                       ConvertReceiverMode::kNotNullOrUndefined),
         target, receiver, value, context, frame_state, *effect, *control);
   } else {
-    // TODO(mslekova): Move this to the serialization of property stores.
     auto function_template_info = constant.AsFunctionTemplateInfo();
     function_template_info.Serialize();
     Node* holder =

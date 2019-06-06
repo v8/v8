@@ -122,10 +122,7 @@ bool MapInference::RelyOnMapsHelper(CompilationDependencies* dependencies,
                                     const VectorSlotPair& feedback) {
   if (Safe()) return true;
 
-  auto is_stable = [this](Handle<Map> map) {
-    MapRef map_ref(broker_, map);
-    return map_ref.is_stable();
-  };
+  auto is_stable = [](Handle<Map> map) { return map->is_stable(); };
   if (dependencies != nullptr &&
       std::all_of(maps_.cbegin(), maps_.cend(), is_stable)) {
     for (Handle<Map> map : maps_) {

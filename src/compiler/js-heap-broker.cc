@@ -121,10 +121,6 @@ class PropertyCellData : public HeapObjectData {
   ObjectData* value_ = nullptr;
 };
 
-// TODO(mslekova): Once we have real-world usage data, we might want to
-// reimplement this as sorted vector instead, to reduce the memory overhead.
-typedef ZoneMap<MapData*, HolderLookupResult> KnownReceiversMap;
-
 class FunctionTemplateInfoData : public HeapObjectData {
  public:
   FunctionTemplateInfoData(JSHeapBroker* broker, ObjectData** storage,
@@ -132,19 +128,10 @@ class FunctionTemplateInfoData : public HeapObjectData {
 
   void Serialize(JSHeapBroker* broker);
   ObjectData* call_code() const { return call_code_; }
-  bool is_signature_undefined() const { return is_signature_undefined_; }
-  bool accept_any_receiver() const { return accept_any_receiver_; }
-  bool has_call_code() const { return has_call_code_; }
-  KnownReceiversMap& known_receivers() { return known_receivers_; }
 
  private:
   bool serialized_ = false;
   ObjectData* call_code_ = nullptr;
-  bool is_signature_undefined_ = false;
-  bool accept_any_receiver_ = false;
-  bool has_call_code_ = false;
-
-  KnownReceiversMap known_receivers_;
 };
 
 class CallHandlerInfoData : public HeapObjectData {
@@ -167,16 +154,7 @@ class CallHandlerInfoData : public HeapObjectData {
 FunctionTemplateInfoData::FunctionTemplateInfoData(
     JSHeapBroker* broker, ObjectData** storage,
     Handle<FunctionTemplateInfo> object)
-    : HeapObjectData(broker, storage, object),
-      known_receivers_(broker->zone()) {
-  auto function_template_info = Handle<FunctionTemplateInfo>::cast(object);
-  is_signature_undefined_ =
-      function_template_info->signature().IsUndefined(broker->isolate());
-  accept_any_receiver_ = function_template_info->accept_any_receiver();
-
-  CallOptimization call_optimization(broker->isolate(), object);
-  has_call_code_ = call_optimization.is_simple_api_call();
-}
+    : HeapObjectData(broker, storage, object) {}
 
 CallHandlerInfoData::CallHandlerInfoData(JSHeapBroker* broker,
                                          ObjectData** storage,
@@ -1399,10 +1377,6 @@ class SharedFunctionInfoData : public HeapObjectData {
   void SetSerializedForCompilation(JSHeapBroker* broker,
                                    FeedbackVectorRef feedback);
   bool IsSerializedForCompilation(FeedbackVectorRef feedback) const;
-  void SerializeFunctionTemplateInfo(JSHeapBroker* broker);
-  FunctionTemplateInfoData* function_template_info() const {
-    return function_template_info_;
-  }
 #define DECL_ACCESSOR(type, name) \
   type name() const { return name##_; }
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
@@ -1417,7 +1391,6 @@ class SharedFunctionInfoData : public HeapObjectData {
 #define DECL_MEMBER(type, name) type const name##_;
   BROKER_SFI_FIELDS(DECL_MEMBER)
 #undef DECL_MEMBER
-  FunctionTemplateInfoData* function_template_info_;
 };
 
 SharedFunctionInfoData::SharedFunctionInfoData(
@@ -1435,8 +1408,7 @@ SharedFunctionInfoData::SharedFunctionInfoData(
 #define INIT_MEMBER(type, name) , name##_(object->name())
           BROKER_SFI_FIELDS(INIT_MEMBER)
 #undef INIT_MEMBER
-      ,
-      function_template_info_(nullptr) {
+{
   DCHECK_EQ(HasBuiltinId_, builtin_id_ != Builtins::kNoBuiltinId);
   DCHECK_EQ(HasBytecodeArray_, GetBytecodeArray_ != nullptr);
 }
@@ -1446,18 +1418,6 @@ void SharedFunctionInfoData::SetSerializedForCompilation(
   CHECK(serialized_for_compilation_.insert(feedback.object()).second);
   TRACE(broker, "Set function " << this << " with " << feedback
                                 << " as serialized for compilation");
-}
-
-void SharedFunctionInfoData::SerializeFunctionTemplateInfo(
-    JSHeapBroker* broker) {
-  if (function_template_info_) return;
-
-  function_template_info_ =
-      broker
-          ->GetOrCreateData(handle(
-              Handle<SharedFunctionInfo>::cast(object())->function_data(),
-              broker->isolate()))
-          ->AsFunctionTemplateInfo();
 }
 
 bool SharedFunctionInfoData::IsSerializedForCompilation(
@@ -2703,100 +2663,6 @@ BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
 
 BIMODAL_ACCESSOR(FunctionTemplateInfo, Object, call_code)
 
-bool FunctionTemplateInfoRef::is_signature_undefined() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleDereference allow_handle_dereference;
-    AllowHandleAllocation allow_handle_allocation;
-
-    return object()->signature().IsUndefined(broker()->isolate());
-  }
-  return data()->AsFunctionTemplateInfo()->is_signature_undefined();
-}
-
-bool FunctionTemplateInfoRef::has_call_code() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleDereference allow_handle_dereference;
-    AllowHandleAllocation allow_handle_allocation;
-
-    CallOptimization call_optimization(broker()->isolate(), object());
-    return call_optimization.is_simple_api_call();
-  }
-  return data()->AsFunctionTemplateInfo()->has_call_code();
-}
-
-BIMODAL_ACCESSOR_C(FunctionTemplateInfo, bool, accept_any_receiver)
-
-HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
-    MapRef receiver_map, bool serialize) {
-  const HolderLookupResult not_found;
-
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleDereference allow_handle_dereference;
-    AllowHandleAllocation allow_handle_allocation;
-
-    CallOptimization call_optimization(broker()->isolate(), object());
-    Handle<Map> receiver_map_ref(receiver_map.object());
-    if (!receiver_map_ref->IsJSReceiverMap() ||
-        (receiver_map_ref->is_access_check_needed() &&
-         !object()->accept_any_receiver())) {
-      return not_found;
-    }
-
-    HolderLookupResult result;
-    Handle<JSObject> holder = call_optimization.LookupHolderOfExpectedType(
-        receiver_map_ref, &result.lookup);
-
-    switch (result.lookup) {
-      case CallOptimization::kHolderFound: {
-        result.holder = JSObjectRef(broker(), holder);
-        break;
-      }
-      default: {
-        DCHECK_EQ(result.holder, base::nullopt);
-      }
-    }
-    return result;
-  }
-
-  FunctionTemplateInfoData* fti_data = data()->AsFunctionTemplateInfo();
-  KnownReceiversMap::iterator lookup_it =
-      fti_data->known_receivers().find(receiver_map.data()->AsMap());
-  if (lookup_it != fti_data->known_receivers().cend()) {
-    return lookup_it->second;
-  }
-  if (!serialize) {
-    TRACE_BROKER_MISSING(broker(),
-                         "holder for receiver with map " << receiver_map);
-    return not_found;
-  }
-  if (!receiver_map.IsJSReceiverMap() ||
-      (receiver_map.is_access_check_needed() && !accept_any_receiver())) {
-    fti_data->known_receivers().insert(
-        {receiver_map.data()->AsMap(), not_found});
-    return not_found;
-  }
-
-  HolderLookupResult result;
-  CallOptimization call_optimization(broker()->isolate(), object());
-  Handle<JSObject> holder = call_optimization.LookupHolderOfExpectedType(
-      receiver_map.object(), &result.lookup);
-
-  switch (result.lookup) {
-    case CallOptimization::kHolderFound: {
-      result.holder = JSObjectRef(broker(), holder);
-      fti_data->known_receivers().insert(
-          {receiver_map.data()->AsMap(), result});
-      break;
-    }
-    default: {
-      DCHECK_EQ(result.holder, base::nullopt);
-      fti_data->known_receivers().insert(
-          {receiver_map.data()->AsMap(), result});
-    }
-  }
-  return result;
-}
-
 BIMODAL_ACCESSOR(CallHandlerInfo, Object, data)
 
 BIMODAL_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
@@ -3270,24 +3136,6 @@ void SharedFunctionInfoRef::SetSerializedForCompilation(
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsSharedFunctionInfo()->SetSerializedForCompilation(broker(),
                                                               feedback);
-}
-
-void SharedFunctionInfoRef::SerializeFunctionTemplateInfo() {
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-
-  data()->AsSharedFunctionInfo()->SerializeFunctionTemplateInfo(broker());
-}
-
-base::Optional<FunctionTemplateInfoRef>
-SharedFunctionInfoRef::function_template_info() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    return FunctionTemplateInfoRef(
-        broker(), handle(object()->function_data(), broker()->isolate()));
-  }
-  FunctionTemplateInfoData* function_template_info =
-      data()->AsSharedFunctionInfo()->function_template_info();
-  if (!function_template_info) return base::nullopt;
-  return FunctionTemplateInfoRef(broker(), function_template_info);
 }
 
 bool SharedFunctionInfoRef::IsSerializedForCompilation(

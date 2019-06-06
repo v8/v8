@@ -320,10 +320,6 @@ class SerializerForBackgroundCompilation {
   void ProcessCallVarArgs(interpreter::BytecodeArrayIterator* iterator,
                           ConvertReceiverMode receiver_mode,
                           bool with_spread = false);
-  void ProcessApiCall(Handle<SharedFunctionInfo> target,
-                      const HintsVector& arguments);
-  void ProcessReceiverMapForApiCall(FunctionTemplateInfoRef& target,
-                                    Handle<Map> receiver);
 
   void ProcessJump(interpreter::BytecodeArrayIterator* iterator);
 
