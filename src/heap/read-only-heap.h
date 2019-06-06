@@ -44,7 +44,8 @@ class ReadOnlyHeap final {
   // Gets read-only roots from an appropriate root list: shared read-only root
   // list if the shared read-only heap has been initialized or the isolate
   // specific roots table.
-  V8_EXPORT_PRIVATE static ReadOnlyRoots GetReadOnlyRoots(HeapObject object);
+  V8_EXPORT_PRIVATE inline static ReadOnlyRoots GetReadOnlyRoots(
+      HeapObject object);
 
   // Clears any shared read-only heap artifacts for testing, forcing read-only
   // heap to be re-created on next set up.
@@ -77,6 +78,8 @@ class ReadOnlyHeap final {
 
 #ifdef V8_SHARED_RO_HEAP
   Address read_only_roots_[kEntriesCount];
+
+  V8_EXPORT_PRIVATE static ReadOnlyHeap* shared_ro_heap_;
 #endif
 
   explicit ReadOnlyHeap(ReadOnlySpace* ro_space) : read_only_space_(ro_space) {}

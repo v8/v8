@@ -2264,6 +2264,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/objects-visiting-inl.h",
     "src/heap/objects-visiting.cc",
     "src/heap/objects-visiting.h",
+    "src/heap/read-only-heap-inl.h",
     "src/heap/read-only-heap.cc",
     "src/heap/read-only-heap.h",
     "src/heap/remembered-set.h",

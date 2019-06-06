@@ -20,6 +20,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/read-only-heap-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/double.h"
 #include "src/objects/bigint.h"
