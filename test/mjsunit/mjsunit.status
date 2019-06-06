@@ -819,6 +819,9 @@
   'code-coverage-ad-hoc': [SKIP],
   'code-coverage-precise': [SKIP],
 
+  # Flaky under GC stress (sometimes precludes the tested optimization)
+  'compiler/load-elimination-const-field': [SKIP],
+
   # Passes incompatible arguments.
   'd8/d8-arguments': [SKIP],
 
