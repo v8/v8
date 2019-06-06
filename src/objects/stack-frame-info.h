@@ -113,6 +113,14 @@ class StackTraceFrame : public Struct {
   static void InitializeFrameInfo(Handle<StackTraceFrame> frame);
 };
 
+// Small helper that retrieves the FrameArray from a stack-trace
+// consisting of a FixedArray of StackTraceFrame objects.
+// This helper is only temporary until all FrameArray use-sites have
+// been converted to use StackTraceFrame and StackFrameInfo objects.
+V8_EXPORT_PRIVATE
+Handle<FrameArray> GetFrameArrayFromStackTrace(Isolate* isolate,
+                                               Handle<FixedArray> stack_trace);
+
 }  // namespace internal
 }  // namespace v8
 

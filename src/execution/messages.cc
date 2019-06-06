@@ -14,6 +14,7 @@
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/keys.h"
+#include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -905,8 +906,7 @@ StackFrameBase* FrameArrayIterator::Frame() {
 namespace {
 
 MaybeHandle<Object> ConstructCallSite(Isolate* isolate,
-                                      Handle<FrameArray> frame_array,
-                                      int frame_index) {
+                                      Handle<StackTraceFrame> frame) {
   Handle<JSFunction> target =
       handle(isolate->native_context()->callsite_function(), isolate);
 
@@ -914,6 +914,14 @@ MaybeHandle<Object> ConstructCallSite(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, obj,
       JSObject::New(target, target, Handle<AllocationSite>::null()), Object);
+
+  // TODO(szuend): Introduce a new symbol "call_site_frame_symbol" and set
+  //               it to the StackTraceFrame. The CallSite API builtins can then
+  //               be implemented using StackFrameInfo objects.
+
+  Handle<FrameArray> frame_array(FrameArray::cast(frame->frame_array()),
+                                 isolate);
+  int frame_index = frame->frame_index();
 
   Handle<Symbol> key = isolate->factory()->call_site_frame_array_symbol();
   RETURN_ON_EXCEPTION(isolate,
@@ -934,14 +942,16 @@ MaybeHandle<Object> ConstructCallSite(Isolate* isolate,
 // Convert the raw frames as written by Isolate::CaptureSimpleStackTrace into
 // a JSArray of JSCallSite objects.
 MaybeHandle<JSArray> GetStackFrames(Isolate* isolate,
-                                    Handle<FrameArray> elems) {
-  const int frame_count = elems->FrameCount();
+                                    Handle<FixedArray> elems) {
+  const int frame_count = elems->length();
 
   Handle<FixedArray> frames = isolate->factory()->NewFixedArray(frame_count);
   for (int i = 0; i < frame_count; i++) {
     Handle<Object> site;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, site,
-                               ConstructCallSite(isolate, elems, i), JSArray);
+    Handle<StackTraceFrame> frame(StackTraceFrame::cast(elems->get(i)),
+                                  isolate);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, site, ConstructCallSite(isolate, frame),
+                               JSArray);
     frames->set(i, *site);
   }
 
@@ -1004,7 +1014,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
                                                  Handle<JSObject> error,
                                                  Handle<Object> raw_stack) {
   DCHECK(raw_stack->IsFixedArray());
-  Handle<FrameArray> elems = Handle<FrameArray>::cast(raw_stack);
+  Handle<FixedArray> elems = Handle<FixedArray>::cast(raw_stack);
 
   const bool in_recursion = isolate->formatting_stack_trace();
   if (!in_recursion) {
@@ -1071,7 +1081,9 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
 
   wasm::WasmCodeRefScope wasm_code_ref_scope;
 
-  for (FrameArrayIterator it(isolate, elems); it.HasFrame(); it.Advance()) {
+  Handle<FrameArray> frame_array = GetFrameArrayFromStackTrace(isolate, elems);
+  for (FrameArrayIterator it(isolate, frame_array); it.HasFrame();
+       it.Advance()) {
     builder.AppendCString("\n    at ");
 
     StackFrameBase* frame = it.Frame();

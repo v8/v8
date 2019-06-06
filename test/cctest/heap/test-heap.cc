@@ -3444,10 +3444,10 @@ void DetailedErrorStackTraceTest(const char* src,
   Isolate* isolate = CcTest::i_isolate();
   Handle<Name> key = isolate->factory()->stack_trace_symbol();
 
-  Handle<FrameArray> stack_trace(Handle<FrameArray>::cast(
+  Handle<FixedArray> stack_trace(Handle<FixedArray>::cast(
       Object::GetProperty(isolate, exception, key).ToHandleChecked()));
 
-  test(stack_trace);
+  test(GetFrameArrayFromStackTrace(isolate, stack_trace));
 }
 
 // * Test interpreted function error

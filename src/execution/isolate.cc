@@ -737,15 +737,19 @@ class FrameArrayBuilder {
   }
 
   // Creates a StackTraceFrame object for each frame in the FrameArray.
-  Handle<FixedArray> GetElementsAsStackTraceFrameArray() {
+  Handle<FixedArray> GetElementsAsStackTraceFrameArray(
+      bool enable_frame_caching) {
     elements_->ShrinkToFit(isolate_);
     const int frame_count = elements_->FrameCount();
     Handle<FixedArray> stack_trace =
         isolate_->factory()->NewFixedArray(frame_count);
 
     for (int i = 0; i < frame_count; ++i) {
-      // Caching stack frames only happens for non-Wasm frames.
-      if (!elements_->IsAnyWasmFrame(i)) {
+      // Caching stack frames only happens for user JS frames.
+      const bool cache_frame =
+          enable_frame_caching && !elements_->IsAnyWasmFrame(i) &&
+          elements_->Function(i).shared().IsUserJavaScript();
+      if (cache_frame) {
         MaybeHandle<StackTraceFrame> maybe_frame =
             StackFrameCacheHelper::LookupCachedFrame(
                 isolate_, handle(elements_->Code(i), isolate_),
@@ -761,7 +765,7 @@ class FrameArrayBuilder {
           isolate_->factory()->NewStackTraceFrame(elements_, i);
       stack_trace->set(i, *frame);
 
-      if (!elements_->IsAnyWasmFrame(i)) {
+      if (cache_frame) {
         StackFrameCacheHelper::CacheFrameAndUpdateCache(
             isolate_, handle(elements_->Code(i), isolate_),
             Smi::ToInt(elements_->Offset(i)), frame);
@@ -974,9 +978,7 @@ struct CaptureStackTraceOptions {
   bool capture_builtin_exit_frames;
   bool capture_only_frames_subject_to_debugging;
   bool async_stack_trace;
-
-  enum CaptureResult { RAW_FRAME_ARRAY, STACK_TRACE_FRAME_ARRAY };
-  CaptureResult capture_result;
+  bool enable_frame_caching;
 };
 
 Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
@@ -1106,10 +1108,8 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
   }
 
   // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
-  if (options.capture_result == CaptureStackTraceOptions::RAW_FRAME_ARRAY) {
-    return builder.GetElements();
-  }
-  return builder.GetElementsAsStackTraceFrameArray();
+  return builder.GetElementsAsStackTraceFrameArray(
+      options.enable_frame_caching);
 }
 
 }  // namespace
@@ -1127,7 +1127,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
   options.async_stack_trace = FLAG_async_stack_traces;
   options.filter_mode = FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = false;
-  options.capture_result = CaptureStackTraceOptions::RAW_FRAME_ARRAY;
+  options.enable_frame_caching = false;
 
   return CaptureStackTrace(this, caller, options);
 }
@@ -1223,7 +1223,7 @@ Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
           ? FrameArrayBuilder::ALL
           : FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = true;
-  options.capture_result = CaptureStackTraceOptions::STACK_TRACE_FRAME_ARRAY;
+  options.enable_frame_caching = true;
 
   return Handle<FixedArray>::cast(
       CaptureStackTrace(this, factory()->undefined_value(), options));
@@ -2114,7 +2114,8 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       JSReceiver::GetDataProperty(Handle<JSObject>::cast(exception), key);
   if (!property->IsFixedArray()) return false;
 
-  Handle<FrameArray> elements = Handle<FrameArray>::cast(property);
+  Handle<FrameArray> elements =
+      GetFrameArrayFromStackTrace(this, Handle<FixedArray>::cast(property));
 
   const int frame_count = elements->FrameCount();
   for (int i = 0; i < frame_count; i++) {

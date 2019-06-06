@@ -137,5 +137,20 @@ void StackTraceFrame::InitializeFrameInfo(Handle<StackTraceFrame> frame) {
   frame->set_frame_index(-1);
 }
 
+Handle<FrameArray> GetFrameArrayFromStackTrace(Isolate* isolate,
+                                               Handle<FixedArray> stack_trace) {
+  // For the empty case, a empty FrameArray needs to be allocated so the rest
+  // of the code doesn't has to be special cased everywhere.
+  if (stack_trace->length() == 0) {
+    return isolate->factory()->NewFrameArray(0);
+  }
+
+  // Retrieve the FrameArray from the first StackTraceFrame.
+  DCHECK_GT(stack_trace->length(), 0);
+  Handle<StackTraceFrame> frame(StackTraceFrame::cast(stack_trace->get(0)),
+                                isolate);
+  return handle(FrameArray::cast(frame->frame_array()), isolate);
+}
+
 }  // namespace internal
 }  // namespace v8
