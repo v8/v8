@@ -1,0 +1,17 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace reflect {
+
+  const kCalledOnNonObject: constexpr MessageTemplate
+  generates 'MessageTemplate::kCalledOnNonObject';
+
+  // ES6 section 26.1.10 Reflect.isExtensible
+  transitioning javascript builtin ReflectIsExtensible(
+      implicit context: Context)(receiver: Object, object: Object): Object {
+    const objectJSReceiver = Cast<JSReceiver>(object)
+        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.isExtensible');
+    return object::ObjectIsExtensible(objectJSReceiver);
+  }
+}  // namespace reflect

@@ -136,25 +136,6 @@ BUILTIN(ReflectGetPrototypeOf) {
                            JSReceiver::GetPrototype(isolate, receiver));
 }
 
-// ES6 section 26.1.10 Reflect.isExtensible
-BUILTIN(ReflectIsExtensible) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Handle<Object> target = args.at(1);
-
-  if (!target->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "Reflect.isExtensible")));
-  }
-
-  Maybe<bool> result =
-      JSReceiver::IsExtensible(Handle<JSReceiver>::cast(target));
-  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return *isolate->factory()->ToBoolean(result.FromJust());
-}
-
 // ES6 section 26.1.11 Reflect.ownKeys
 BUILTIN(ReflectOwnKeys) {
   HandleScope scope(isolate);
