@@ -265,6 +265,11 @@ class Hints {
   void Clear();
   bool IsEmpty() const;
 
+#ifdef ENABLE_SLOW_DCHECKS
+  bool Includes(Hints const& other) const;
+  bool Equals(Hints const& other) const;
+#endif
+
  private:
   ConstantsSet constants_;
   MapsSet maps_;

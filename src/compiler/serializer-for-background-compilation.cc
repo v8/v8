@@ -32,6 +32,25 @@ CompilationSubject::CompilationSubject(Handle<JSFunction> closure,
 Hints::Hints(Zone* zone)
     : constants_(zone), maps_(zone), function_blueprints_(zone) {}
 
+#ifdef ENABLE_SLOW_DCHECKS
+namespace {
+template <typename K, typename Compare>
+bool SetIncludes(ZoneSet<K, Compare> const& lhs,
+                 ZoneSet<K, Compare> const& rhs) {
+  return std::all_of(rhs.cbegin(), rhs.cend(),
+                     [&](K const& x) { return lhs.find(x) != lhs.cend(); });
+}
+}  // namespace
+bool Hints::Includes(Hints const& other) const {
+  return SetIncludes(constants(), other.constants()) &&
+         SetIncludes(function_blueprints(), other.function_blueprints()) &&
+         SetIncludes(maps(), other.maps());
+}
+bool Hints::Equals(Hints const& other) const {
+  return this->Includes(other) && other.Includes(*this);
+}
+#endif
+
 const ConstantsSet& Hints::constants() const { return constants_; }
 
 const MapsSet& Hints::maps() const { return maps_; }
@@ -93,17 +112,17 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
   Environment(Zone* zone, Isolate* isolate, CompilationSubject function,
               base::Optional<Hints> new_target, const HintsVector& arguments);
 
-  bool IsDead() const { return environment_hints_.empty(); }
+  bool IsDead() const { return ephemeral_hints_.empty(); }
 
   void Kill() {
     DCHECK(!IsDead());
-    environment_hints_.clear();
+    ephemeral_hints_.clear();
     DCHECK(IsDead());
   }
 
   void Revive() {
     DCHECK(IsDead());
-    environment_hints_.resize(environment_hints_size(), Hints(zone()));
+    ephemeral_hints_.resize(ephemeral_hints_size(), Hints(zone()));
     DCHECK(!IsDead());
   }
 
@@ -112,23 +131,24 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
 
   FunctionBlueprint function() const { return function_; }
 
+  Hints const& closure_hints() const { return closure_hints_; }
+  Hints const& return_value_hints() const { return return_value_hints_; }
+  Hints& return_value_hints() { return return_value_hints_; }
+
   Hints& accumulator_hints() {
-    CHECK_LT(accumulator_index(), environment_hints_.size());
-    return environment_hints_[accumulator_index()];
+    CHECK_LT(accumulator_index(), ephemeral_hints_.size());
+    return ephemeral_hints_[accumulator_index()];
   }
   Hints& register_hints(interpreter::Register reg) {
+    if (reg.is_function_closure()) return closure_hints_;
     int local_index = RegisterToLocalIndex(reg);
-    CHECK_LT(local_index, environment_hints_.size());
-    return environment_hints_[local_index];
+    CHECK_LT(local_index, ephemeral_hints_.size());
+    return ephemeral_hints_[local_index];
   }
-  Hints& return_value_hints() { return return_value_hints_; }
 
   // Clears all hints except those for the return value and the closure.
   void ClearEphemeralHints() {
-    DCHECK_EQ(environment_hints_.size(), function_closure_index() + 1);
-    for (int i = 0; i < function_closure_index(); ++i) {
-      environment_hints_[i].Clear();
-    }
+    for (auto& hints : ephemeral_hints_) hints.Clear();
   }
 
   // Appends the hints for the given register range to {dst} (in order).
@@ -151,17 +171,17 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
   int const parameter_count_;
   int const register_count_;
 
-  // environment_hints_ contains hints for the contents of the registers,
+  Hints closure_hints_;
+  Hints return_value_hints_;
+
+  // ephemeral_hints_ contains hints for the contents of the registers,
   // the accumulator and the parameters. The layout is as follows:
-  // [ parameters | registers | accumulator | context | closure ]
+  // [ parameters | registers | accumulator | context ]
   // The first parameter is the receiver.
-  HintsVector environment_hints_;
+  HintsVector ephemeral_hints_;
   int accumulator_index() const { return parameter_count() + register_count(); }
   int current_context_index() const { return accumulator_index() + 1; }
-  int function_closure_index() const { return current_context_index() + 1; }
-  int environment_hints_size() const { return function_closure_index() + 1; }
-
-  Hints return_value_hints_;
+  int ephemeral_hints_size() const { return current_context_index() + 1; }
 };
 
 SerializerForBackgroundCompilation::Environment::Environment(
@@ -170,14 +190,14 @@ SerializerForBackgroundCompilation::Environment::Environment(
       function_(function.blueprint()),
       parameter_count_(function_.shared->GetBytecodeArray().parameter_count()),
       register_count_(function_.shared->GetBytecodeArray().register_count()),
-      environment_hints_(environment_hints_size(), Hints(zone), zone),
-      return_value_hints_(zone) {
+      closure_hints_(zone),
+      return_value_hints_(zone),
+      ephemeral_hints_(ephemeral_hints_size(), Hints(zone), zone) {
   Handle<JSFunction> closure;
   if (function.closure().ToHandle(&closure)) {
-    environment_hints_[function_closure_index()].AddConstant(closure);
+    closure_hints_.AddConstant(closure);
   } else {
-    environment_hints_[function_closure_index()].AddFunctionBlueprint(
-        function.blueprint());
+    closure_hints_.AddFunctionBlueprint(function.blueprint());
   }
 }
 
@@ -189,14 +209,14 @@ SerializerForBackgroundCompilation::Environment::Environment(
   // the parameter_count.
   size_t param_count = static_cast<size_t>(parameter_count());
   for (size_t i = 0; i < std::min(arguments.size(), param_count); ++i) {
-    environment_hints_[i] = arguments[i];
+    ephemeral_hints_[i] = arguments[i];
   }
 
   // Pad the rest with "undefined".
   Hints undefined_hint(zone);
   undefined_hint.AddConstant(isolate->factory()->undefined_value());
   for (size_t i = arguments.size(); i < param_count; ++i) {
-    environment_hints_[i] = undefined_hint;
+    ephemeral_hints_[i] = undefined_hint;
   }
 
   interpreter::Register new_target_reg =
@@ -217,16 +237,20 @@ void SerializerForBackgroundCompilation::Environment::Merge(
   CHECK_EQ(parameter_count(), other->parameter_count());
   CHECK_EQ(register_count(), other->register_count());
 
+  SLOW_DCHECK(closure_hints_.Equals(other->closure_hints_));
+
   if (IsDead()) {
-    environment_hints_ = other->environment_hints_;
+    ephemeral_hints_ = other->ephemeral_hints_;
+    SLOW_DCHECK(return_value_hints_.Includes(other->return_value_hints_));
     CHECK(!IsDead());
     return;
   }
-  CHECK_EQ(environment_hints_.size(), other->environment_hints_.size());
 
-  for (size_t i = 0; i < environment_hints_.size(); ++i) {
-    environment_hints_[i].Add(other->environment_hints_[i]);
+  CHECK_EQ(ephemeral_hints_.size(), other->ephemeral_hints_.size());
+  for (size_t i = 0; i < ephemeral_hints_.size(); ++i) {
+    ephemeral_hints_[i].Add(other->ephemeral_hints_[i]);
   }
+
   return_value_hints_.Add(other->return_value_hints_);
 }
 
@@ -239,43 +263,30 @@ std::ostream& operator<<(
     output_stream << "dead\n";
   } else {
     output_stream << "alive\n";
-    for (size_t i = 0; i << env.parameter_count(); ++i) {
-      Hints const& hints = env.environment_hints_[i];
+    for (int i = 0; i < static_cast<int>(env.ephemeral_hints_.size()); ++i) {
+      Hints const& hints = env.ephemeral_hints_[i];
       if (!hints.IsEmpty()) {
-        output_stream << "Hints for a" << i << ":\n" << hints;
-      }
-    }
-    for (size_t i = 0; i << env.register_count(); ++i) {
-      Hints const& hints = env.environment_hints_[env.parameter_count() + i];
-      if (!hints.IsEmpty()) {
-        output_stream << "Hints for r" << i << ":\n" << hints;
-      }
-    }
-    {
-      Hints const& hints = env.environment_hints_[env.accumulator_index()];
-      if (!hints.IsEmpty()) {
-        output_stream << "Hints for <accumulator>:\n" << hints;
-      }
-    }
-    {
-      Hints const& hints = env.environment_hints_[env.function_closure_index()];
-      if (!hints.IsEmpty()) {
-        output_stream << "Hints for <closure>:\n" << hints;
-      }
-    }
-    {
-      Hints const& hints = env.environment_hints_[env.current_context_index()];
-      if (!hints.IsEmpty()) {
-        output_stream << "Hints for <context>:\n" << hints;
+        if (i < env.parameter_count()) {
+          output_stream << "Hints for a" << i << ":\n";
+        } else if (i < env.parameter_count() + env.register_count()) {
+          output_stream << "Hints for r" << i << ":\n";
+        } else if (i == env.accumulator_index()) {
+          output_stream << "Hints for <accumulator>:\n";
+        } else if (i == env.current_context_index()) {
+          output_stream << "Hints for <context>:\n";
+        } else {
+          UNREACHABLE();
+        }
+        output_stream << hints;
       }
     }
   }
 
-  {
-    Hints const& hints = env.return_value_hints_;
-    if (!hints.IsEmpty()) {
-      output_stream << "Hints for {return value}:\n" << hints;
-    }
+  if (!env.closure_hints().IsEmpty()) {
+    output_stream << "Hints for <closure>:\n" << env.closure_hints();
+  }
+  if (!env.return_value_hints().IsEmpty()) {
+    output_stream << "Hints for {return value}:\n" << env.return_value_hints();
   }
 
   out << output_stream.str();
@@ -286,10 +297,10 @@ int SerializerForBackgroundCompilation::Environment::RegisterToLocalIndex(
     interpreter::Register reg) const {
   // TODO(mslekova): We also want to gather hints for the context.
   if (reg.is_current_context()) return current_context_index();
-  if (reg.is_function_closure()) return function_closure_index();
   if (reg.is_parameter()) {
     return reg.ToParameterIndex(parameter_count());
   } else {
+    DCHECK(!reg.is_function_closure());
     return parameter_count() + reg.index();
   }
 }
