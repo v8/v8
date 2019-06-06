@@ -244,6 +244,7 @@ enum ContextLookupFlags {
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
   V(REGEXP_PROTOTYPE_INDEX, JSObject, regexp_prototype)                        \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
+  V(SCRIPT_EXECUTION_CALLBACK_INDEX, Object, script_execution_callback)        \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \
   V(SERIALIZED_OBJECTS, FixedArray, serialized_objects)                        \
   V(SET_VALUE_ITERATOR_MAP_INDEX, Map, set_value_iterator_map)                 \

@@ -235,6 +235,22 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     return isolate->factory()->undefined_value();
   }
 
+  if (params.execution_target == Execution::Target::kCallable) {
+    Handle<Context> context = isolate->native_context();
+    if (!context->script_execution_callback().IsUndefined(isolate)) {
+      v8::Context::AbortScriptExecutionCallback callback =
+          v8::ToCData<v8::Context::AbortScriptExecutionCallback>(
+              context->script_execution_callback());
+      v8::Isolate* api_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+      v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+      callback(api_isolate, api_context);
+      DCHECK(!isolate->has_scheduled_exception());
+      // Always throw an exception to abort execution, if callback exists.
+      isolate->ThrowIllegalOperation();
+      return MaybeHandle<Object>();
+    }
+  }
+
   // Placeholder for return value.
   Object value;
 

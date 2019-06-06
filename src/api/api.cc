@@ -5920,6 +5920,19 @@ void Context::SetErrorMessageForCodeGenerationFromStrings(Local<String> error) {
   context->set_error_message_for_code_gen_from_strings(*error_handle);
 }
 
+void Context::SetAbortScriptExecution(
+    Context::AbortScriptExecutionCallback callback) {
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
+  if (callback == nullptr) {
+    context->set_script_execution_callback(
+        i::ReadOnlyRoots(isolate).undefined_value());
+  } else {
+    SET_FIELD_WRAPPED(isolate, context, set_script_execution_callback,
+                      callback);
+  }
+}
+
 namespace {
 i::Address* GetSerializedDataFromFixedArray(i::Isolate* isolate,
                                             i::FixedArray list, size_t index) {

@@ -10715,6 +10715,63 @@ static void GlobalObjectInstancePropertiesGet(
   ApiTestFuzzer::Fuzz();
 }
 
+static int script_execution_count = 0;
+static void ScriptExecutionCallback(v8::Isolate* isolate,
+                                    Local<Context> context) {
+  script_execution_count++;
+}
+
+THREADED_TEST(ContextScriptExecutionCallback) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext context;
+
+  {
+    v8::TryCatch try_catch(isolate);
+    script_execution_count = 0;
+    ExpectTrue("1 + 1 == 2");
+    CHECK_EQ(0, script_execution_count);
+    CHECK(!try_catch.HasCaught());
+  }
+
+  context->SetAbortScriptExecution(ScriptExecutionCallback);
+
+  {  // Function binding does not trigger callback.
+    v8::Local<v8::FunctionTemplate> function_template =
+        v8::FunctionTemplate::New(isolate, DummyCallHandler);
+    v8::Local<v8::Function> function =
+        function_template->GetFunction(context.local()).ToLocalChecked();
+
+    v8::TryCatch try_catch(isolate);
+    script_execution_count = 0;
+
+    CHECK_EQ(13.4,
+             function->Call(context.local(), v8::Undefined(isolate), 0, nullptr)
+                 .ToLocalChecked()
+                 ->NumberValue(context.local())
+                 .FromJust());
+    CHECK_EQ(0, script_execution_count);
+    CHECK(!try_catch.HasCaught());
+  }
+
+  {  // Script execution triggers callback.
+    v8::TryCatch try_catch(isolate);
+    script_execution_count = 0;
+    CHECK(CompileRun(context.local(), "2 + 2 == 4").IsEmpty());
+    CHECK_EQ(1, script_execution_count);
+    CHECK(try_catch.HasCaught());
+  }
+
+  context->SetAbortScriptExecution(nullptr);
+
+  {  // Script execution no longer triggers callback.
+    v8::TryCatch try_catch(isolate);
+    script_execution_count = 0;
+    ExpectTrue("2 + 2 == 4");
+    CHECK_EQ(0, script_execution_count);
+    CHECK(!try_catch.HasCaught());
+  }
+}
 
 THREADED_TEST(GlobalObjectInstanceProperties) {
   v8::Isolate* isolate = CcTest::isolate();
