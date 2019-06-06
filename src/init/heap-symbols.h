@@ -31,11 +31,13 @@
   V(_, era_string, "era")                                           \
   V(_, first_string, "first")                                       \
   V(_, format_string, "format")                                     \
+  V(_, fractionalSecond_string, "fractionalSecond")                 \
   V(_, except_zero_string, "except-zero")                           \
   V(_, exponentInteger_string, "exponentInteger")                   \
   V(_, exponentMinusSign_string, "exponentMinusSign")               \
   V(_, exponentSeparator_string, "exponentSeparator")               \
   V(_, fraction_string, "fraction")                                 \
+  V(_, fractionalSecondDigits_string, "fractionalSecondDigits")     \
   V(_, full_string, "full")                                         \
   V(_, granularity_string, "granularity")                           \
   V(_, grapheme_string, "grapheme")                                 \

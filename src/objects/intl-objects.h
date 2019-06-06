@@ -126,6 +126,10 @@ class Intl {
       Isolate* isolate, Handle<JSReceiver> options, const char* property,
       const char* service, bool* result);
 
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<int> GetNumberOption(
+      Isolate* isolate, Handle<JSReceiver> options, Handle<String> property,
+      int min, int max, int fallback);
+
   // Canonicalize the locale.
   // https://tc39.github.io/ecma402/#sec-canonicalizelanguagetag,
   // including type check and structural validity check.

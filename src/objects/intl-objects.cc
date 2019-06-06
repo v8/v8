@@ -1117,10 +1117,12 @@ Maybe<int> DefaultNumberOption(Isolate* isolate, Handle<Object> value, int min,
   return Just(FastD2I(floor(value_num->Number())));
 }
 
+}  // namespace
+
 // ecma402/#sec-getnumberoption
-Maybe<int> GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
-                           Handle<String> property, int min, int max,
-                           int fallback) {
+Maybe<int> Intl::GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
+                                 Handle<String> property, int min, int max,
+                                 int fallback) {
   // 1. Let value be ? Get(options, property).
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -1131,25 +1133,17 @@ Maybe<int> GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
   return DefaultNumberOption(isolate, value, min, max, fallback, property);
 }
 
-Maybe<int> GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
-                           const char* property, int min, int max,
-                           int fallback) {
-  Handle<String> property_str =
-      isolate->factory()->NewStringFromAsciiChecked(property);
-  return GetNumberOption(isolate, options, property_str, min, max, fallback);
-}
-
-}  // namespace
-
 Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
     Isolate* isolate, Handle<JSReceiver> options, int mnfd_default,
     int mxfd_default) {
+  Factory* factory = isolate->factory();
   Intl::NumberFormatDigitOptions digit_options;
 
   // 5. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21,
   // 1).
   int mnid;
-  if (!GetNumberOption(isolate, options, "minimumIntegerDigits", 1, 21, 1)
+  if (!Intl::GetNumberOption(isolate, options,
+                             factory->minimumIntegerDigits_string(), 1, 21, 1)
            .To(&mnid)) {
     return Nothing<NumberFormatDigitOptions>();
   }
@@ -1157,8 +1151,9 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // 6. Let mnfd be ? GetNumberOption(options, "minimumFractionDigits", 0, 20,
   // mnfdDefault).
   int mnfd;
-  if (!GetNumberOption(isolate, options, "minimumFractionDigits", 0, 20,
-                       mnfd_default)
+  if (!Intl::GetNumberOption(isolate, options,
+                             factory->minimumFractionDigits_string(), 0, 20,
+                             mnfd_default)
            .To(&mnfd)) {
     return Nothing<NumberFormatDigitOptions>();
   }
@@ -1169,24 +1164,23 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // 8. Let mxfd be ? GetNumberOption(options,
   // "maximumFractionDigits", mnfd, 20, mxfdActualDefault).
   int mxfd;
-  if (!GetNumberOption(isolate, options, "maximumFractionDigits", mnfd, 20,
-                       mxfd_actual_default)
+  if (!Intl::GetNumberOption(isolate, options,
+                             factory->maximumFractionDigits_string(), mnfd, 20,
+                             mxfd_actual_default)
            .To(&mxfd)) {
     return Nothing<NumberFormatDigitOptions>();
   }
 
   // 9.  Let mnsd be ? Get(options, "minimumSignificantDigits").
   Handle<Object> mnsd_obj;
-  Handle<String> mnsd_str =
-      isolate->factory()->minimumSignificantDigits_string();
+  Handle<String> mnsd_str = factory->minimumSignificantDigits_string();
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mnsd_obj, JSReceiver::GetProperty(isolate, options, mnsd_str),
       Nothing<NumberFormatDigitOptions>());
 
   // 10. Let mxsd be ? Get(options, "maximumSignificantDigits").
   Handle<Object> mxsd_obj;
-  Handle<String> mxsd_str =
-      isolate->factory()->maximumSignificantDigits_string();
+  Handle<String> mxsd_str = factory->maximumSignificantDigits_string();
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mxsd_obj, JSReceiver::GetProperty(isolate, options, mxsd_str),
       Nothing<NumberFormatDigitOptions>());
