@@ -915,6 +915,9 @@ class Isolate final : private HiddenFactory {
   static size_t isolate_root_bias() {
     return OFFSET_OF(Isolate, isolate_data_) + IsolateData::kIsolateRootBias;
   }
+  static Isolate* FromRoot(Address isolate_root) {
+    return reinterpret_cast<Isolate*>(isolate_root - isolate_root_bias());
+  }
 
   RootsTable& roots_table() { return isolate_data()->roots(); }
 

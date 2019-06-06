@@ -221,19 +221,35 @@ inline WriteBarrierMode GetWriteBarrierModeForObject(
   return UPDATE_WRITE_BARRIER;
 }
 
-inline bool ObjectInYoungGeneration(const Object object) {
+inline bool ObjectInYoungGeneration(Object object) {
   if (object.IsSmi()) return false;
   return heap_internals::MemoryChunk::FromHeapObject(HeapObject::cast(object))
       ->InYoungGeneration();
 }
 
-inline Heap* GetHeapFromWritableObject(const HeapObject object) {
+inline Heap* GetHeapFromWritableObject(HeapObject object) {
+#ifdef V8_COMPRESS_POINTERS
+  return GetIsolateFromWritableObject(object)->heap();
+#else
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   return chunk->GetHeap();
+#endif  // V8_COMPRESS_POINTERS
+}
+
+inline Isolate* GetIsolateFromWritableObject(HeapObject object) {
+#ifdef V8_COMPRESS_POINTERS
+  return Isolate::FromRoot(GetIsolateRoot(object.ptr()));
+#else
+  return Isolate::FromHeap(GetHeapFromWritableObject(object));
+#endif  // V8_COMPRESS_POINTERS
 }
 
 inline bool GetIsolateFromWritableObject(HeapObject obj, Isolate** isolate) {
+#ifdef V8_COMPRESS_POINTERS
+  *isolate = GetIsolateFromWritableObject(obj);
+  return true;
+#else
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(obj);
   if (chunk->InReadOnlySpace()) {
@@ -242,6 +258,7 @@ inline bool GetIsolateFromWritableObject(HeapObject obj, Isolate** isolate) {
   }
   *isolate = Isolate::FromHeap(chunk->GetHeap());
   return true;
+#endif  // V8_COMPRESS_POINTERS
 }
 
 }  // namespace internal

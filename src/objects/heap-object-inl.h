@@ -31,7 +31,7 @@ Heap* NeverReadOnlySpaceObject::GetHeap(const HeapObject object) {
 
 // static
 Isolate* NeverReadOnlySpaceObject::GetIsolate(const HeapObject object) {
-  return Isolate::FromHeap(GetHeap(object));
+  return GetIsolateFromWritableObject(object);
 }
 
 }  // namespace internal
