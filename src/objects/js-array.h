@@ -132,7 +132,8 @@ class JSArray : public JSObject {
   OBJECT_CONSTRUCTORS(JSArray, JSObject);
 };
 
-Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
+Handle<Object> CacheInitialJSArrayMaps(Isolate* isolate,
+                                       Handle<Context> native_context,
                                        Handle<Map> initial_map);
 
 // The JSArrayIterator describes JavaScript Array Iterators Objects, as

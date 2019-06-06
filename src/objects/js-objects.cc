@@ -4991,7 +4991,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
           native_context->get(Context::ARRAY_FUNCTION_INDEX), isolate);
       if (array_function->IsJSFunction() &&
           *function == JSFunction::cast(*array_function)) {
-        CacheInitialJSArrayMaps(native_context, new_map);
+        CacheInitialJSArrayMaps(isolate, native_context, new_map);
       }
     }
 

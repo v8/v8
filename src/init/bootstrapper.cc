@@ -1636,7 +1636,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallSpeciesGetter(isolate_, array_function);
 
     // Cache the array maps, needed by ArrayConstructorStub
-    CacheInitialJSArrayMaps(native_context(), initial_map);
+    CacheInitialJSArrayMaps(isolate_, native_context(), initial_map);
 
     // Set up %ArrayPrototype%.
     // The %ArrayPrototype% has TERMINAL_FAST_ELEMENTS_KIND in order to ensure

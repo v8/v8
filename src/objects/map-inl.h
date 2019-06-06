@@ -692,13 +692,10 @@ HeapObject Map::GetBackPointer() const {
   return GetReadOnlyRoots().undefined_value();
 }
 
-Map Map::ElementsTransitionMap() {
+Map Map::ElementsTransitionMap(Isolate* isolate) {
   DisallowHeapAllocation no_gc;
-  // TODO(delphick): While it's safe to pass nullptr for Isolate* here as
-  // SearchSpecial doesn't need it, this is really ugly. Perhaps factor out a
-  // base class for methods not requiring an Isolate?
-  return TransitionsAccessor(nullptr, *this, &no_gc)
-      .SearchSpecial(GetReadOnlyRoots().elements_transition_symbol());
+  return TransitionsAccessor(isolate, *this, &no_gc)
+      .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
 }
 
 Object Map::prototype_info() const {

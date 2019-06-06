@@ -1234,9 +1234,9 @@ Map Map::FindElementsKindTransitionedMap(Isolate* isolate,
     // Starting from the next existing elements kind transition try to
     // replay the property transitions that does not involve instance rewriting
     // (ElementsTransitionAndStoreStub does not support that).
-    for (root_map = root_map.ElementsTransitionMap();
+    for (root_map = root_map.ElementsTransitionMap(isolate);
          !root_map.is_null() && root_map.has_fast_elements();
-         root_map = root_map.ElementsTransitionMap()) {
+         root_map = root_map.ElementsTransitionMap(isolate)) {
       // If root_map's elements kind doesn't match any of the elements kind in
       // the candidates there is no need to do any additional work.
       if (!HasElementsKind(candidates, root_map.elements_kind())) continue;
@@ -1263,7 +1263,7 @@ static Map FindClosestElementsTransition(Isolate* isolate, Map map,
 
   ElementsKind kind = map.elements_kind();
   while (kind != to_kind) {
-    Map next_map = current_map.ElementsTransitionMap();
+    Map next_map = current_map.ElementsTransitionMap(isolate);
     if (next_map.is_null()) return current_map;
     kind = next_map.elements_kind();
     current_map = next_map;
@@ -1869,7 +1869,7 @@ Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, Handle<Map> map,
     DCHECK_EQ(map->FindRootMap(isolate).NumberOfOwnDescriptors(),
               map->NumberOfOwnDescriptors());
 
-    maybe_elements_transition_map = map->ElementsTransitionMap();
+    maybe_elements_transition_map = map->ElementsTransitionMap(isolate);
     DCHECK(
         maybe_elements_transition_map.is_null() ||
         (maybe_elements_transition_map.elements_kind() == DICTIONARY_ELEMENTS &&
