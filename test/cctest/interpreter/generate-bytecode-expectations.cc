@@ -297,8 +297,8 @@ void ProgramOptions::UpdateFromHeader(std::istream& stream) {
       oneshot_opt_ = ParseBoolean(line.c_str() + strlen(kOneshotOpt));
     } else if (line.compare(0, 17, "async iteration: ") == 0) {
       async_iteration_ = ParseBoolean(line.c_str() + 17);
-    } else if (line.compare(0, 16, "private methods: ") == 0) {
-      private_methods_ = ParseBoolean(line.c_str() + 16);
+    } else if (line.compare(0, 17, "private methods: ") == 0) {
+      private_methods_ = ParseBoolean(line.c_str() + 17);
     } else if (line == "---") {
       break;
     } else if (line.empty()) {
