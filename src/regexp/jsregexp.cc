@@ -32,6 +32,7 @@
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
+#include "unicode/locid.h"
 #include "unicode/uniset.h"
 #include "unicode/utypes.h"
 #endif  // V8_INTL_SUPPORT
@@ -5948,9 +5949,10 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
       if (top > String::kMaxOneByteCharCode) top = String::kMaxOneByteCharCode;
     }
     already_added.add(bottom, top);
+    icu::Locale locale = icu::Locale::getRoot();
     while (bottom <= top) {
       icu::UnicodeString upper(bottom);
-      upper.toUpper();
+      upper.toUpper(locale);
       icu::UnicodeSet expanded(bottom, bottom);
       expanded.closeOver(USET_CASE_INSENSITIVE);
       for (int32_t i = 0; i < expanded.getRangeCount(); i++) {
@@ -5958,7 +5960,7 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
         UChar32 end = expanded.getRangeEnd(i);
         while (start <= end) {
           icu::UnicodeString upper2(start);
-          upper2.toUpper();
+          upper2.toUpper(locale);
           // Only add if the upper case are the same.
           if (upper[0] == upper2[0]) {
             others.add(start);

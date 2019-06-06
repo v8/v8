@@ -48,6 +48,10 @@
 #include "src/utils/utils.h"
 #include "src/wasm/wasm-engine.h"
 
+#ifdef V8_INTL_SUPPORT
+#include "unicode/locid.h"
+#endif  // V8_INTL_SUPPORT
+
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #else
@@ -2826,6 +2830,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strncmp(argv[i], "--icu-data-file=", 16) == 0) {
       options.icu_data_file = argv[i] + 16;
       argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--icu-locale=", 13) == 0) {
+      options.icu_locale = argv[i] + 13;
+      argv[i] = nullptr;
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
     } else if (strncmp(argv[i], "--natives_blob=", 15) == 0) {
       options.natives_blob = argv[i] + 15;
@@ -3325,7 +3332,16 @@ void Shell::CleanupWorkers() {
 int Shell::Main(int argc, char* argv[]) {
   v8::base::EnsureConsoleOutput();
   if (!SetOptions(argc, argv)) return 1;
+
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
+
+#ifdef V8_INTL_SUPPORT
+  if (options.icu_locale != nullptr) {
+    icu::Locale locale(options.icu_locale);
+    UErrorCode error_code = U_ZERO_ERROR;
+    icu::Locale::setDefault(locale, error_code);
+  }
+#endif  // V8_INTL_SUPPORT
 
   v8::platform::InProcessStackDumping in_process_stack_dumping =
       options.disable_in_process_stack_traces
