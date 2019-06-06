@@ -12,7 +12,7 @@ per-file .gn=file://INFRA_OWNERS
 per-file .vpython=file://INFRA_OWNERS
 per-file .ycm_extra_conf.py=file://INFRA_OWNERS
 per-file BUILD.gn=file://INFRA_OWNERS
-per-file DEPS=file://INFRA_OWNERS
+per-file *DEPS=file://INFRA_OWNERS
 per-file PRESUBMIT=file://INFRA_OWNERS
 per-file codereview.settings=file://INFRA_OWNERS
 
