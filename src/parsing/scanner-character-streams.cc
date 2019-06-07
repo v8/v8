@@ -607,13 +607,10 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
     size_t max_buffer = max_buffer_end - output_cursor;
     int max_length = static_cast<int>(Min(remaining, max_buffer));
     DCHECK_EQ(state, unibrow::Utf8::State::kAccept);
-    const uint8_t* read_end = cursor + max_length;
-    for (; cursor < read_end; cursor++) {
-      uint8_t c = *cursor;
-      DCHECK_EQ(unibrow::Utf8::kMaxOneByteChar, 0x7F);
-      if (c > unibrow::Utf8::kMaxOneByteChar) break;
-      *(output_cursor++) = c;
-    }
+    int ascii_length = NonAsciiStart(cursor, max_length);
+    CopyChars(output_cursor, cursor, ascii_length);
+    cursor += ascii_length;
+    output_cursor += ascii_length;
   }
 
   current_.pos.bytes = chunk.start.bytes + (cursor - chunk.data);
