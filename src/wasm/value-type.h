@@ -178,7 +178,7 @@ class StoreType {
 // A collection of ValueType-related static methods.
 class V8_EXPORT_PRIVATE ValueTypes {
  public:
-  static inline bool IsSubType(ValueType expected, ValueType actual) {
+  static inline bool IsSubType(ValueType actual, ValueType expected) {
     return (expected == actual) ||
            (expected == kWasmAnyRef && actual == kWasmNullRef) ||
            (expected == kWasmAnyRef && actual == kWasmAnyFunc) ||

@@ -808,8 +808,8 @@ class ModuleDecoderImpl : public Decoder {
           errorf(pos, "out of bounds table index %u", table_index);
           break;
         }
-        if (!ValueTypes::IsSubType(module_->tables[table_index].type,
-                                   kWasmAnyFunc)) {
+        if (!ValueTypes::IsSubType(kWasmAnyFunc,
+                                   module_->tables[table_index].type)) {
           errorf(pos,
                  "Invalid element segment. Table %u is not of type AnyFunc",
                  table_index);
@@ -817,7 +817,7 @@ class ModuleDecoderImpl : public Decoder {
         }
       } else {
         ValueType type = consume_reference_type();
-        if (!ValueTypes::IsSubType(type, kWasmAnyFunc)) {
+        if (!ValueTypes::IsSubType(kWasmAnyFunc, type)) {
           error(pc_ - 1, "invalid element segment type");
           break;
         }
@@ -1269,7 +1269,7 @@ class ModuleDecoderImpl : public Decoder {
                ValueTypes::TypeName(module->globals[other_index].type));
       }
     } else {
-      if (!ValueTypes::IsSubType(global->type, TypeOf(module, global->init))) {
+      if (!ValueTypes::IsSubType(TypeOf(module, global->init), global->type)) {
         errorf(pos, "type error in global initialization, expected %s, got %s",
                ValueTypes::TypeName(global->type),
                ValueTypes::TypeName(TypeOf(module, global->init)));

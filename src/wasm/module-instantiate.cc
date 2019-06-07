@@ -1068,7 +1068,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     return false;
   }
 
-  bool is_sub_type = ValueTypes::IsSubType(global.type, global_object->type());
+  bool is_sub_type = ValueTypes::IsSubType(global_object->type(), global.type);
   bool is_same_type = global_object->type() == global.type;
   bool valid_type = global.mutability ? is_same_type : is_sub_type;
 

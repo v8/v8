@@ -1926,7 +1926,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           auto fval = Pop();
           auto tval = Pop(0, fval.type);
           ValueType type = tval.type == kWasmVar ? fval.type : tval.type;
-          if (ValueTypes::IsSubType(kWasmAnyRef, type)) {
+          if (ValueTypes::IsSubType(type, kWasmAnyRef)) {
             this->error(
                 "select without type is only valid for value type inputs");
             break;
@@ -2823,7 +2823,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   V8_INLINE Value Pop(int index, ValueType expected) {
     auto val = Pop();
-    if (!VALIDATE(ValueTypes::IsSubType(expected, val.type) ||
+    if (!VALIDATE(ValueTypes::IsSubType(val.type, expected) ||
                   val.type == kWasmVar || expected == kWasmVar)) {
       this->errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
                    SafeOpcodeNameAt(this->pc_), index,
@@ -2870,7 +2870,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (uint32_t i = 0; i < merge->arity; ++i) {
       Value& val = stack_values[i];
       Value& old = (*merge)[i];
-      if (ValueTypes::IsSubType(old.type, val.type)) continue;
+      if (ValueTypes::IsSubType(val.type, old.type)) continue;
       // If {val.type} is polymorphic, which results from unreachable, make
       // it more specific by using the merge value's expected type.
       // If it is not polymorphic, this is a type error.
@@ -2941,7 +2941,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (uint32_t i = 0; i < num_returns; ++i) {
       auto& val = stack_values[i];
       ValueType expected_type = this->sig_->GetReturn(i);
-      if (ValueTypes::IsSubType(expected_type, val.type)) continue;
+      if (ValueTypes::IsSubType(val.type, expected_type)) continue;
       // If {val.type} is polymorphic, which results from unreachable,
       // make it more specific by using the return's expected type.
       // If it is not polymorphic, this is a type error.
