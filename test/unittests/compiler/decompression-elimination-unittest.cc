@@ -3,11 +3,14 @@
 // found in the LICENSE file.
 
 #include "src/compiler/decompression-elimination.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "test/unittests/compiler/graph-reducer-unittest.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
+#include "testing/gmock-support.h"
 
+using testing::_;
 using testing::StrictMock;
 
 namespace v8 {
@@ -24,11 +27,28 @@ class DecompressionEliminationTest : public GraphTest {
   ~DecompressionEliminationTest() override = default;
 
  protected:
-  Reduction Reduce(Node* node) {
-    StrictMock<MockAdvancedReducerEditor> editor;
-    DecompressionElimination decompression_elimination(&editor, graph(),
+  Reduction Reduce(StrictMock<MockAdvancedReducerEditor>* editor, Node* node) {
+    DecompressionElimination decompression_elimination(editor, graph(),
                                                        machine(), common());
     return decompression_elimination.Reduce(node);
+  }
+  Reduction Reduce(Node* node) {
+    StrictMock<MockAdvancedReducerEditor> editor;
+    return Reduce(&editor, node);
+  }
+  Node* GetUniqueValueUse(Node* node) {
+    Node* value_use = nullptr;
+    for (Edge edge : node->use_edges()) {
+      if (NodeProperties::IsValueEdge(edge)) {
+        if (value_use) {
+          return nullptr;
+        } else {
+          value_use = edge.from();
+        }
+      }
+    }
+    // Return the value use of node after the reduction, if there is exactly one
+    return value_use;
   }
   MachineOperatorBuilder* machine() { return &machine_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
@@ -422,9 +442,13 @@ TEST_F(DecompressionEliminationTest, PhiOneDecompress) {
         change_to_tagged, control);
 
     // Reduce
-    Reduction r = Reduce(phi);
+    StrictMock<MockAdvancedReducerEditor> editor;
+    EXPECT_CALL(editor, ReplaceWithValue(phi, _, _, _));
+    Reduction r = Reduce(&editor, phi);
     ASSERT_TRUE(r.Changed());
-    EXPECT_EQ(opcodes[i], r.replacement()->opcode());
+    Node* decompress = GetUniqueValueUse(phi);
+    EXPECT_NE(nullptr, decompress);
+    EXPECT_EQ(opcodes[i], decompress->opcode());
   }
 }
 
@@ -483,9 +507,13 @@ TEST_F(DecompressionEliminationTest, PhiThreeDecompressSameRepresentation) {
         change_to_tagged1, change_to_tagged2, change_to_tagged3, control);
 
     // Reduce
-    Reduction r = Reduce(phi);
+    StrictMock<MockAdvancedReducerEditor> editor;
+    EXPECT_CALL(editor, ReplaceWithValue(phi, _, _, _));
+    Reduction r = Reduce(&editor, phi);
     ASSERT_TRUE(r.Changed());
-    EXPECT_EQ(opcodes[i], r.replacement()->opcode());
+    Node* decompress = GetUniqueValueUse(phi);
+    EXPECT_NE(nullptr, decompress);
+    EXPECT_EQ(opcodes[i], decompress->opcode());
   }
 }
 
@@ -540,9 +568,13 @@ TEST_F(DecompressionEliminationTest, PhiThreeDecompressOneAnyRepresentation) {
         change_to_tagged1, change_to_tagged2, change_to_tagged3, control);
 
     // Reduce
-    Reduction r = Reduce(phi);
+    StrictMock<MockAdvancedReducerEditor> editor;
+    EXPECT_CALL(editor, ReplaceWithValue(phi, _, _, _));
+    Reduction r = Reduce(&editor, phi);
     ASSERT_TRUE(r.Changed());
-    EXPECT_EQ(IrOpcode::kChangeCompressedToTagged, r.replacement()->opcode());
+    Node* decompress = GetUniqueValueUse(phi);
+    EXPECT_NE(nullptr, decompress);
+    EXPECT_EQ(IrOpcode::kChangeCompressedToTagged, decompress->opcode());
   }
 }
 
@@ -641,9 +673,13 @@ TEST_F(DecompressionEliminationTest, PhiTwoDecompressesOneSignedOnePointer) {
       change_to_tagged1, change_to_tagged2, control);
 
   // Reduce
-  Reduction r = Reduce(phi);
+  StrictMock<MockAdvancedReducerEditor> editor;
+  EXPECT_CALL(editor, ReplaceWithValue(phi, _, _, _));
+  Reduction r = Reduce(&editor, phi);
   ASSERT_TRUE(r.Changed());
-  EXPECT_EQ(IrOpcode::kChangeCompressedToTagged, r.replacement()->opcode());
+  Node* decompress = GetUniqueValueUse(phi);
+  EXPECT_NE(nullptr, decompress);
+  EXPECT_EQ(IrOpcode::kChangeCompressedToTagged, decompress->opcode());
 }
 
 // -----------------------------------------------------------------------------

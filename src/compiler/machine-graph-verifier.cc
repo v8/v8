@@ -702,6 +702,7 @@ class MachineRepresentationChecker {
           case IrOpcode::kThrow:
           case IrOpcode::kTypedStateValues:
           case IrOpcode::kFrameState:
+          case IrOpcode::kStaticAssert:
             break;
           default:
             if (node->op()->ValueInputCount() != 0) {

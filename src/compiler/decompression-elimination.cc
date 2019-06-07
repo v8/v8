@@ -131,7 +131,10 @@ Reduction DecompressionElimination::ReducePhi(Node* node) {
 
   // Add a decompress after the Phi. To do this, we need to replace the Phi with
   // "Phi <- Decompress".
-  return Replace(graph()->NewNode(op, node));
+  Node* decompress = graph()->NewNode(op, node);
+  ReplaceWithValue(node, decompress);
+  decompress->ReplaceInput(0, node);
+  return Changed(node);
 }
 
 Reduction DecompressionElimination::ReduceTypedStateValues(Node* node) {
