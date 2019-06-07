@@ -2595,8 +2595,8 @@ namespace {
 //     to temporarily store the inobject properties.
 //   * If there are properties left in the backing store, install the backing
 //     store.
-void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
-  Isolate* isolate = object->GetIsolate();
+void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
+                       Handle<Map> new_map) {
   Handle<Map> old_map(object->map(), isolate);
   // In case of a regular transition.
   if (new_map->GetBackPointer() == *old_map) {
@@ -2818,7 +2818,8 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   object->synchronized_set_map(*new_map);
 }
 
-void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
+void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
+                       Handle<Map> new_map,
                        int expected_additional_properties) {
   // The global object is always normalized.
   DCHECK(!object->IsJSGlobalObject());
@@ -2828,7 +2829,6 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
   DCHECK_IMPLIES(new_map->is_prototype_map(),
                  Map::IsPrototypeChainInvalidated(*new_map));
 
-  Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
   Handle<Map> map(object->map(), isolate);
 
@@ -2932,11 +2932,12 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
 
 }  // namespace
 
-void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
+void JSObject::MigrateToMap(Isolate* isolate, Handle<JSObject> object,
+                            Handle<Map> new_map,
                             int expected_additional_properties) {
   if (object->map() == *new_map) return;
-  Handle<Map> old_map(object->map(), object->GetIsolate());
-  NotifyMapChange(old_map, new_map, object->GetIsolate());
+  Handle<Map> old_map(object->map(), isolate);
+  NotifyMapChange(old_map, new_map, isolate);
 
   if (old_map->is_dictionary_map()) {
     // For slow-to-fast migrations JSObject::MigrateSlowToFast()
@@ -2946,7 +2947,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
     // Slow-to-slow migration is trivial.
     object->synchronized_set_map(*new_map);
   } else if (!new_map->is_dictionary_map()) {
-    MigrateFastToFast(object, new_map);
+    MigrateFastToFast(isolate, object, new_map);
     if (old_map->is_prototype_map()) {
       DCHECK(!old_map->is_stable());
       DCHECK(new_map->is_stable());
@@ -2958,13 +2959,12 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
       old_map->set_owns_descriptors(false);
       DCHECK(old_map->is_abandoned_prototype_map());
       // Ensure that no transition was inserted for prototype migrations.
-      DCHECK_EQ(0, TransitionsAccessor(object->GetIsolate(), old_map)
-                       .NumberOfTransitions());
+      DCHECK_EQ(0, TransitionsAccessor(isolate, old_map).NumberOfTransitions());
       DCHECK(new_map->GetBackPointer().IsUndefined());
       DCHECK(object->map() != *old_map);
     }
   } else {
-    MigrateFastToSlow(object, new_map, expected_additional_properties);
+    MigrateFastToSlow(isolate, object, new_map, expected_additional_properties);
   }
 
   // Careful: Don't allocate here!
@@ -2978,11 +2978,11 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
 void JSObject::ForceSetPrototype(Handle<JSObject> object,
                                  Handle<HeapObject> proto) {
   // object.__proto__ = proto;
-  Handle<Map> old_map = Handle<Map>(object->map(), object->GetIsolate());
-  Handle<Map> new_map =
-      Map::Copy(object->GetIsolate(), old_map, "ForceSetPrototype");
-  Map::SetPrototype(object->GetIsolate(), new_map, proto);
-  JSObject::MigrateToMap(object, new_map);
+  Isolate* isolate = object->GetIsolate();
+  Handle<Map> old_map = Handle<Map>(object->map(), isolate);
+  Handle<Map> new_map = Map::Copy(isolate, old_map, "ForceSetPrototype");
+  Map::SetPrototype(isolate, new_map, proto);
+  JSObject::MigrateToMap(isolate, object, new_map);
 }
 
 Maybe<bool> JSObject::SetPropertyWithInterceptor(
@@ -3069,16 +3069,17 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
 }
 
 void JSObject::MigrateInstance(Handle<JSObject> object) {
-  Handle<Map> original_map(object->map(), object->GetIsolate());
-  Handle<Map> map = Map::Update(object->GetIsolate(), original_map);
+  Isolate* isolate = object->GetIsolate();
+  Handle<Map> original_map(object->map(), isolate);
+  Handle<Map> map = Map::Update(isolate, original_map);
   map->set_is_migration_target(true);
-  MigrateToMap(object, map);
+  JSObject::MigrateToMap(isolate, object, map);
   if (FLAG_trace_migration) {
     object->PrintInstanceMigration(stdout, *original_map, *map);
   }
 #if VERIFY_HEAP
   if (FLAG_verify_heap) {
-    object->JSObjectVerify(object->GetIsolate());
+    object->JSObjectVerify(isolate);
   }
 #endif
 }
@@ -3092,7 +3093,7 @@ bool JSObject::TryMigrateInstance(Handle<JSObject> object) {
   if (!Map::TryUpdate(isolate, original_map).ToHandle(&new_map)) {
     return false;
   }
-  JSObject::MigrateToMap(object, new_map);
+  JSObject::MigrateToMap(isolate, object, new_map);
   if (FLAG_trace_migration && *original_map != object->map()) {
     object->PrintInstanceMigration(stdout, *original_map, object->map());
   }
@@ -3269,10 +3270,12 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
                                    const char* reason) {
   if (!object->HasFastProperties()) return;
 
-  Handle<Map> map(object->map(), object->GetIsolate());
-  Handle<Map> new_map = Map::Normalize(object->GetIsolate(), map, mode, reason);
+  Isolate* isolate = object->GetIsolate();
+  Handle<Map> map(object->map(), isolate);
+  Handle<Map> new_map = Map::Normalize(isolate, map, mode, reason);
 
-  MigrateToMap(object, new_map, expected_additional_properties);
+  JSObject::MigrateToMap(isolate, object, new_map,
+                         expected_additional_properties);
 }
 
 void JSObject::MigrateSlowToFast(Handle<JSObject> object,
@@ -3475,7 +3478,7 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
                                        : DICTIONARY_ELEMENTS;
   Handle<Map> new_map = JSObject::GetElementsTransitionMap(object, target_kind);
   // Set the new map first to satify the elements type assert in set_elements().
-  JSObject::MigrateToMap(object, new_map);
+  JSObject::MigrateToMap(isolate, object, new_map);
 
   if (is_sloppy_arguments) {
     SloppyArgumentsElements::cast(object->elements())
@@ -3710,7 +3713,7 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
       Map::Copy(isolate, handle(object->map(), isolate), "PreventExtensions");
 
   new_map->set_is_extensible(false);
-  JSObject::MigrateToMap(object, new_map);
+  JSObject::MigrateToMap(isolate, object, new_map);
   DCHECK(!object->map().is_extensible());
 
   return Just(true);
@@ -3836,12 +3839,12 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
            transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS ||
            transition_map->has_frozen_or_sealed_elements());
     DCHECK(!transition_map->is_extensible());
-    JSObject::MigrateToMap(object, transition_map);
+    JSObject::MigrateToMap(isolate, object, transition_map);
   } else if (transitions.CanHaveMoreTransitions()) {
     // Create a new descriptor array with the appropriate property attributes
     Handle<Map> new_map = Map::CopyForPreventExtensions(
         isolate, old_map, attrs, transition_marker, "CopyForPreventExtensions");
-    JSObject::MigrateToMap(object, new_map);
+    JSObject::MigrateToMap(isolate, object, new_map);
   } else {
     DCHECK(old_map->is_dictionary_map() || !old_map->is_prototype_map());
     // Slow path: need to normalize properties for safety
@@ -3860,7 +3863,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
               : DICTIONARY_ELEMENTS;
       new_map->set_elements_kind(new_kind);
     }
-    JSObject::MigrateToMap(object, new_map);
+    JSObject::MigrateToMap(isolate, object, new_map);
 
     if (attrs != NONE) {
       ReadOnlyRoots roots(isolate);
@@ -4185,10 +4188,10 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
       JSObject::MigrateSlowToFast(object, 0, "OptimizeAsPrototype");
     }
   } else {
-    Handle<Map> new_map = Map::Copy(object->GetIsolate(),
-                                    handle(object->map(), object->GetIsolate()),
-                                    "CopyAsPrototype");
-    JSObject::MigrateToMap(object, new_map);
+    Isolate* isolate = object->GetIsolate();
+    Handle<Map> new_map =
+        Map::Copy(isolate, handle(object->map(), isolate), "CopyAsPrototype");
+    JSObject::MigrateToMap(isolate, object, new_map);
     object->map().set_is_prototype_map(true);
 
     // Replace the pointer to the exact constructor with the Object function
@@ -4447,7 +4450,7 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
   Handle<Map> new_map =
       Map::TransitionToPrototype(isolate, map, Handle<HeapObject>::cast(value));
   DCHECK(new_map->prototype() == *value);
-  JSObject::MigrateToMap(real_receiver, new_map);
+  JSObject::MigrateToMap(isolate, real_receiver, new_map);
 
   DCHECK(size == object->Size());
   return Just(true);
@@ -4654,14 +4657,15 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
   DCHECK_NE(TERMINAL_FAST_ELEMENTS_KIND, from_kind);
 
   UpdateAllocationSite(object, to_kind);
-  if (object->elements() == object->GetReadOnlyRoots().empty_fixed_array() ||
+  Isolate* isolate = object->GetIsolate();
+  if (object->elements() == ReadOnlyRoots(isolate).empty_fixed_array() ||
       IsDoubleElementsKind(from_kind) == IsDoubleElementsKind(to_kind)) {
     // No change is needed to the elements() buffer, the transition
     // only requires a map change.
     Handle<Map> new_map = GetElementsTransitionMap(object, to_kind);
-    MigrateToMap(object, new_map);
+    JSObject::MigrateToMap(isolate, object, new_map);
     if (FLAG_trace_elements_transitions) {
-      Handle<FixedArrayBase> elms(object->elements(), object->GetIsolate());
+      Handle<FixedArrayBase> elms(object->elements(), isolate);
       PrintElementsTransition(stdout, object, from_kind, elms, to_kind, elms);
     }
   } else {
@@ -5030,7 +5034,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     Handle<Map> new_map =
         Map::Copy(isolate, handle(function->map(), isolate), "SetPrototype");
 
-    JSObject::MigrateToMap(function, new_map);
+    JSObject::MigrateToMap(isolate, function, new_map);
     new_map->SetConstructor(*value);
     new_map->set_has_non_instance_prototype(true);
 

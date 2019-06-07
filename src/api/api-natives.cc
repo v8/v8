@@ -128,7 +128,7 @@ void DisableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   // Copy map so it won't interfere constructor's initial map.
   Handle<Map> new_map = Map::Copy(isolate, old_map, "DisableAccessChecks");
   new_map->set_is_access_check_needed(false);
-  JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
+  JSObject::MigrateToMap(isolate, Handle<JSObject>::cast(object), new_map);
 }
 
 void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
@@ -137,7 +137,7 @@ void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   Handle<Map> new_map = Map::Copy(isolate, old_map, "EnableAccessChecks");
   new_map->set_is_access_check_needed(true);
   new_map->set_may_have_interesting_symbols(true);
-  JSObject::MigrateToMap(object, new_map);
+  JSObject::MigrateToMap(isolate, object, new_map);
 }
 
 class AccessCheckDisableScope {

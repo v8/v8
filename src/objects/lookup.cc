@@ -498,7 +498,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     return;
   }
 
-  JSObject::MigrateToMap(holder_obj, new_map);
+  JSObject::MigrateToMap(isolate_, holder_obj, new_map);
   ReloadPropertyInformation<false>();
 }
 
@@ -532,7 +532,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     new_map =
         Map::PrepareForDataProperty(isolate(), new_map, descriptor_number(),
                                     PropertyConstness::kMutable, value);
-    JSObject::MigrateToMap(holder_obj, new_map);
+    JSObject::MigrateToMap(isolate_, holder_obj, new_map);
     ReloadPropertyInformation<false>();
   }
 
@@ -674,7 +674,8 @@ void LookupIterator::ApplyTransitionToDataProperty(
   }
 
   if (!receiver->IsJSProxy()) {
-    JSObject::MigrateToMap(Handle<JSObject>::cast(receiver), transition);
+    JSObject::MigrateToMap(isolate_, Handle<JSObject>::cast(receiver),
+                           transition);
   }
 
   if (simple_transition) {
@@ -761,7 +762,7 @@ void LookupIterator::TransitionToAccessorProperty(
     Handle<Map> new_map = Map::TransitionToAccessorProperty(
         isolate_, old_map, name_, descriptor, getter, setter, attributes);
     bool simple_transition = new_map->GetBackPointer() == receiver->map();
-    JSObject::MigrateToMap(receiver, new_map);
+    JSObject::MigrateToMap(isolate_, receiver, new_map);
 
     if (simple_transition) {
       int number = new_map->LastAdded();

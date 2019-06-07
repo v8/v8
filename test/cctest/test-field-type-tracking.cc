@@ -521,7 +521,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   // that the data property is uninitialized.
   Factory* factory = isolate->factory();
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map);
-  JSObject::MigrateToMap(obj, prepared_map);
+  JSObject::MigrateToMap(isolate, obj, prepared_map);
   FieldIndex index = FieldIndex::ForDescriptor(*prepared_map, 0);
   CHECK(obj->RawFastPropertyAt(index).IsUninitialized(isolate));
 #ifdef VERIFY_HEAP

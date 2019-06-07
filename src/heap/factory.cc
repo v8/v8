@@ -2755,7 +2755,7 @@ Handle<JSObject> Factory::NewJSObjectWithNullProto(AllocationType allocation) {
   Handle<Map> new_map = Map::Copy(
       isolate(), Handle<Map>(result->map(), isolate()), "ObjectWithNullProto");
   Map::SetPrototype(isolate(), new_map, null_value());
-  JSObject::MigrateToMap(result, new_map);
+  JSObject::MigrateToMap(isolate(), result, new_map);
   return result;
 }
 
@@ -2910,7 +2910,7 @@ Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
     DCHECK(elements->IsNumberDictionary());
     object_map =
         JSObject::GetElementsTransitionMap(object, DICTIONARY_ELEMENTS);
-    JSObject::MigrateToMap(object, object_map);
+    JSObject::MigrateToMap(isolate(), object, object_map);
     object->set_elements(*elements);
   }
   return object;

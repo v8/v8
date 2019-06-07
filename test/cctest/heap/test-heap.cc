@@ -4924,7 +4924,7 @@ TEST(Regress388880) {
 
   // Now everything is set up for crashing in JSObject::MigrateFastToFast()
   // when it calls heap->AdjustLiveBytes(...).
-  JSObject::MigrateToMap(o, map2);
+  JSObject::MigrateToMap(isolate, o, map2);
 }
 
 

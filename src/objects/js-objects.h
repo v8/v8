@@ -596,7 +596,7 @@ class JSObject : public JSReceiver {
   // |expected_additional_properties| is only used for fast-to-slow transitions
   // and ignored otherwise.
   V8_EXPORT_PRIVATE static void MigrateToMap(
-      Handle<JSObject> object, Handle<Map> new_map,
+      Isolate* isolate, Handle<JSObject> object, Handle<Map> new_map,
       int expected_additional_properties = 0);
 
   // Forces a prototype without any of the checks that the regular SetPrototype
