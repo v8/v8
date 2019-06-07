@@ -899,8 +899,10 @@ const Operator* JSOperatorBuilder::ConstructForwardVarargs(
       parameters);  // parameter
 }
 
+// Note: frequency is taken by reference to work around a GCC bug
+// on AIX (v8:8193).
 const Operator* JSOperatorBuilder::Construct(uint32_t arity,
-                                             CallFrequency frequency,
+                                             CallFrequency const& frequency,
                                              VectorSlotPair const& feedback) {
   ConstructParameters parameters(arity, frequency, feedback);
   return new (zone()) Operator1<ConstructParameters>(   // --
@@ -921,7 +923,8 @@ const Operator* JSOperatorBuilder::ConstructWithArrayLike(
 }
 
 const Operator* JSOperatorBuilder::ConstructWithSpread(
-    uint32_t arity, CallFrequency frequency, VectorSlotPair const& feedback) {
+    uint32_t arity, CallFrequency const& frequency,
+    VectorSlotPair const& feedback) {
   ConstructParameters parameters(arity, frequency, feedback);
   return new (zone()) Operator1<ConstructParameters>(             // --
       IrOpcode::kJSConstructWithSpread, Operator::kNoProperties,  // opcode

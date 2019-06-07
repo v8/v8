@@ -768,11 +768,11 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* ConstructForwardVarargs(size_t arity, uint32_t start_index);
   const Operator* Construct(uint32_t arity,
-                            CallFrequency frequency = CallFrequency(),
+                            CallFrequency const& frequency = CallFrequency(),
                             VectorSlotPair const& feedback = VectorSlotPair());
   const Operator* ConstructWithArrayLike(CallFrequency frequency);
   const Operator* ConstructWithSpread(
-      uint32_t arity, CallFrequency frequency = CallFrequency(),
+      uint32_t arity, CallFrequency const& frequency = CallFrequency(),
       VectorSlotPair const& feedback = VectorSlotPair());
 
   const Operator* LoadProperty(VectorSlotPair const& feedback);
