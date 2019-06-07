@@ -2583,10 +2583,9 @@ static bool CanFastCloneObject(Handle<Map> map) {
   return true;
 }
 
-static Handle<Map> FastCloneObjectMap(Isolate* isolate,
-                                      Handle<HeapObject> source, int flags) {
-  Handle<Map> source_map(source->map(), isolate);
-  SLOW_DCHECK(source->IsNullOrUndefined() || CanFastCloneObject(source_map));
+static Handle<Map> FastCloneObjectMap(Isolate* isolate, Handle<Map> source_map,
+                                      int flags) {
+  SLOW_DCHECK(CanFastCloneObject(source_map));
   Handle<JSFunction> constructor(isolate->native_context()->object_function(),
                                  isolate);
   DCHECK(constructor->has_initial_map());
@@ -2611,9 +2610,10 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate,
     Map::SetPrototype(isolate, map, isolate->factory()->null_value());
   }
 
-  if (source->IsNullOrUndefined() || !source_map->NumberOfOwnDescriptors()) {
+  if (source_map->NumberOfOwnDescriptors() == 0) {
     return map;
   }
+  DCHECK(!source_map->IsNullOrUndefinedMap());
 
   if (map.is_identical_to(initial_map)) {
     map = Map::Copy(isolate, map, "InitializeClonedDescriptors");
@@ -2638,7 +2638,7 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate,
 }
 
 static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
-                                                 Handle<HeapObject> source,
+                                                 Handle<Object> source,
                                                  int flags) {
   Handle<JSObject> new_object;
   if (flags & ObjectLiteral::kHasNullPrototype) {
@@ -2662,35 +2662,31 @@ static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<HeapObject> source = args.at<HeapObject>(0);
+  Handle<Object> source = args.at<Object>(0);
   int flags = args.smi_at(1);
 
-  MigrateDeprecated(source);
+  if (MigrateDeprecated(source)) {
+    FeedbackSlot slot = FeedbackVector::ToSlot(args.smi_at(2));
+    Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
+    if (maybe_vector->IsFeedbackVector()) {
+      FeedbackNexus nexus(Handle<FeedbackVector>::cast(maybe_vector), slot);
+      if (!source->IsSmi() && !nexus.IsMegamorphic()) {
+        Handle<Map> source_map(Handle<HeapObject>::cast(source)->map(),
+                               isolate);
+        if (CanFastCloneObject(source_map)) {
+          Handle<Map> target_map =
+              FastCloneObjectMap(isolate, source_map, flags);
+          nexus.ConfigureCloneObject(source_map, target_map);
+          return *target_map;
+        }
 
-  FeedbackSlot slot = FeedbackVector::ToSlot(args.smi_at(2));
-  Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
-  if (maybe_vector->IsUndefined()) {
-    RETURN_RESULT_OR_FAILURE(isolate,
-                             CloneObjectSlowPath(isolate, source, flags));
+        nexus.ConfigureMegamorphic();
+      }
+    }
   }
 
-  DCHECK(maybe_vector->IsFeedbackVector());
-  Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(maybe_vector);
-
-  FeedbackNexus nexus(vector, slot);
-  Handle<Map> source_map(source->map(), isolate);
-
-  if (!CanFastCloneObject(source_map) || nexus.IsMegamorphic()) {
-    // Migrate to slow mode if needed.
-    nexus.ConfigureMegamorphic();
-    RETURN_RESULT_OR_FAILURE(isolate,
-                             CloneObjectSlowPath(isolate, source, flags));
-  }
-
-  Handle<Map> result_map = FastCloneObjectMap(isolate, source, flags);
-  nexus.ConfigureCloneObject(source_map, result_map);
-
-  return *result_map;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           CloneObjectSlowPath(isolate, source, flags));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {

@@ -2366,13 +2366,6 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     RegisterAllocationScope register_scope(this);
     Expression* property = expr->properties()->first()->value();
     Register from_value = VisitForRegisterValue(property);
-
-    BytecodeLabels clone_object(zone());
-    builder()->JumpIfUndefined(clone_object.New());
-    builder()->JumpIfNull(clone_object.New());
-    builder()->ToObject(from_value);
-
-    clone_object.Bind(builder());
     int clone_index = feedback_index(feedback_spec()->AddCloneObjectSlot());
     builder()->CloneObject(from_value, flags, clone_index);
     builder()->StoreAccumulatorInRegister(literal);

@@ -3640,7 +3640,7 @@ void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
 
 void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   using Descriptor = CloneObjectWithVectorDescriptor;
-  TNode<HeapObject> source = CAST(Parameter(Descriptor::kSource));
+  TNode<Object> source = CAST(Parameter(Descriptor::kSource));
   TNode<Smi> flags = CAST(Parameter(Descriptor::kFlags));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
@@ -3672,28 +3672,16 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   }
 
   ReturnIf(IsNullOrUndefined(source), result);
+  source = ToObject_Inline(context, source);
 
-  CSA_ASSERT(this, IsJSReceiver(source));
+  Label call_runtime(this, Label::kDeferred), done(this);
 
-  Label call_runtime(this, Label::kDeferred);
-  Label done(this);
-
-  TNode<Map> map = LoadMap(source);
-  TNode<Int32T> type = LoadMapInstanceType(map);
-  {
-    Label cont(this);
-    GotoIf(IsJSObjectInstanceType(type), &cont);
-    GotoIf(InstanceTypeEqual(type, JS_PROXY_TYPE), &call_runtime);
-    GotoIfNot(IsStringInstanceType(type), &done);
-    Branch(SmiEqual(LoadStringLengthAsSmi(CAST(source)), SmiConstant(0)), &done,
-           &call_runtime);
-    BIND(&cont);
-  }
-
+  TNode<Map> source_map = LoadMap(CAST(source));
+  GotoIfNot(IsJSObjectMap(source_map), &call_runtime);
   GotoIfNot(IsEmptyFixedArray(LoadElements(CAST(source))), &call_runtime);
 
   ForEachEnumerableOwnProperty(
-      context, map, CAST(source), kPropertyAdditionOrder,
+      context, source_map, CAST(source), kPropertyAdditionOrder,
       [=](TNode<Name> key, TNode<Object> value) {
         SetPropertyInLiteral(context, result, key, value);
       },
@@ -3710,17 +3698,17 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
 
 void AccessorAssembler::GenerateCloneObjectIC() {
   using Descriptor = CloneObjectWithVectorDescriptor;
-  TNode<HeapObject> source = CAST(Parameter(Descriptor::kSource));
-  Node* flags = Parameter(Descriptor::kFlags);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Object> source = CAST(Parameter(Descriptor::kSource));
+  TNode<Smi> flags = CAST(Parameter(Descriptor::kFlags));
+  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<HeapObject> vector = CAST(Parameter(Descriptor::kVector));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TVARIABLE(MaybeObject, var_handler);
-  Label if_handler(this, &var_handler);
-  Label miss(this, Label::kDeferred), try_polymorphic(this, Label::kDeferred),
+  Label if_handler(this, &var_handler), miss(this, Label::kDeferred),
+      try_polymorphic(this, Label::kDeferred),
       try_megamorphic(this, Label::kDeferred), slow(this, Label::kDeferred);
 
-  TNode<Map> source_map = LoadMap(UncheckedCast<HeapObject>(source));
+  TNode<Map> source_map = LoadReceiverMap(source);
   GotoIf(IsDeprecatedMap(source_map), &miss);
 
   GotoIf(IsUndefined(vector), &slow);
@@ -3740,6 +3728,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
 
     Label allocate_object(this);
     GotoIf(IsNullOrUndefined(source), &allocate_object);
+    CSA_SLOW_ASSERT(this, IsJSObjectMap(source_map));
     CSA_SLOW_ASSERT(this, IsJSObjectMap(result_map));
 
     // The IC fast case should only be taken if the result map a compatible
@@ -3753,7 +3742,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     // either an Smi, or a PropertyArray.
     // FIXME: Make a CSA macro for this
     TNode<Object> source_properties =
-        LoadObjectField(source, JSObject::kPropertiesOrHashOffset);
+        LoadObjectField(CAST(source), JSObject::kPropertiesOrHashOffset);
     {
       GotoIf(TaggedIsSmi(source_properties), &allocate_object);
       GotoIf(IsEmptyFixedArray(source_properties), &allocate_object);
@@ -3803,7 +3792,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
               TimesTaggedSize(UncheckedCast<IntPtrT>(field_index));
 
           if (may_use_mutable_heap_numbers) {
-            TNode<Object> field = LoadObjectField(source, field_offset);
+            TNode<Object> field = LoadObjectField(CAST(source), field_offset);
             field = CloneIfMutablePrimitive(field);
             TNode<IntPtrT> result_offset =
                 IntPtrAdd(field_offset, field_offset_difference);
@@ -3811,7 +3800,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
           } else {
             // Copy fields as raw data.
             TNode<IntPtrT> field =
-                LoadObjectField<IntPtrT>(source, field_offset);
+                LoadObjectField<IntPtrT>(CAST(source), field_offset);
             TNode<IntPtrT> result_offset =
                 IntPtrAdd(field_offset, field_offset_difference);
             StoreObjectFieldNoWriteBarrier(object, result_offset, field);
