@@ -365,14 +365,6 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(
   }
 }
 
-std::unique_ptr<StringBuffer> V8InspectorSessionImpl::stateJSON() {
-  std::vector<uint8_t> json;
-  IPEStatus status = ConvertCBORToJSON(SpanFrom(state()), &json);
-  DCHECK(status.ok());
-  USE(status);
-  return v8::base::make_unique<BinaryStringBuffer>(std::move(json));
-}
-
 std::vector<uint8_t> V8InspectorSessionImpl::state() {
   std::vector<uint8_t> out;
   m_state->writeBinary(&out);
