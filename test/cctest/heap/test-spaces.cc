@@ -794,6 +794,49 @@ HEAP_TEST(AllocateObjTinyFreeList) {
   CHECK_EQ(tiny_obj_page, tiniest_obj_page);
 }
 
+HEAP_TEST(EmptyFreeListCategoriesRemoved) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  heap::SealCurrentObjects(CcTest::heap());
+
+  // The maximum size for a Tiny FixedArray.
+  // (there is no specific reason for using Tiny rather than any other category)
+  constexpr size_t tiny_obj_size =
+      (FreeList::kTinyListMax - FixedArray::kHeaderSize) / kTaggedSize;
+
+  Page* tiny_obj_page;
+  {
+    // Allocate a Tiny object that will be destroyed later.
+    HandleScope tiny_scope(isolate);
+    Handle<FixedArray> tiny_obj = isolate->factory()->NewFixedArray(
+        static_cast<int>(tiny_obj_size), AllocationType::kOld);
+    tiny_obj_page = Page::FromHeapObject(*tiny_obj);
+  }
+
+  // Fill up the page entirely.
+  PagedSpace* old_space = CcTest::heap()->old_space();
+  int space_remaining =
+      static_cast<int>(*old_space->allocation_limit_address() -
+                       *old_space->allocation_top_address());
+  std::vector<Handle<FixedArray>> handles = heap::CreatePadding(
+      old_space->heap(), space_remaining, AllocationType::kOld);
+
+  // Call gc to reclaim |tiny_obj| (since its HandleScope went out of scope).
+  CcTest::CollectAllGarbage();
+  isolate->heap()->mark_compact_collector()->EnsureSweepingCompleted();
+  isolate->heap()->old_space()->FreeLinearAllocationArea();
+
+  // Allocates a new tiny_obj, which should take the place of the old one.
+  Handle<FixedArray> tiny_obj = isolate->factory()->NewFixedArray(
+      static_cast<int>(tiny_obj_size), AllocationType::kOld);
+  CHECK_EQ(tiny_obj_page, Page::FromHeapObject(*tiny_obj));
+
+  // The Tiny FreeListCategory should now be empty
+  CHECK_NULL(isolate->heap()->old_space()->free_list()->categories_[kTiny]);
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

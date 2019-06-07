@@ -2934,7 +2934,8 @@ FreeSpace FreeListCategory::PickNodeFromList(size_t minimum_size,
                                              size_t* node_size) {
   DCHECK(page()->CanAllocate());
   FreeSpace node = top();
-  if (node.is_null() || static_cast<size_t>(node.Size()) < minimum_size) {
+  DCHECK(!node.is_null());
+  if (static_cast<size_t>(node.Size()) < minimum_size) {
     *node_size = 0;
     return FreeSpace();
   }
@@ -3053,19 +3054,25 @@ FreeSpace FreeList::FindNodeIn(FreeListCategoryType type, size_t minimum_size,
     node = current->PickNodeFromList(minimum_size, node_size);
     if (!node.is_null()) {
       DCHECK(IsVeryLong() || Available() == SumFreeLists());
+      if (current->is_empty()) {
+        RemoveCategory(current);
+      }
       return node;
     }
-    RemoveCategory(current);
   }
   return node;
 }
 
 FreeSpace FreeList::TryFindNodeIn(FreeListCategoryType type,
                                   size_t minimum_size, size_t* node_size) {
-  if (categories_[type] == nullptr) return FreeSpace();
-  FreeSpace node = categories_[type]->PickNodeFromList(minimum_size, node_size);
+  FreeListCategory* category = categories_[type];
+  if (category == nullptr) return FreeSpace();
+  FreeSpace node = category->PickNodeFromList(minimum_size, node_size);
   if (!node.is_null()) {
     DCHECK(IsVeryLong() || Available() == SumFreeLists());
+  }
+  if (category->is_empty()) {
+    RemoveCategory(category);
   }
   return node;
 }
@@ -3080,10 +3087,10 @@ FreeSpace FreeList::SearchForNodeInList(FreeListCategoryType type,
     node = current->SearchForNodeInList(minimum_size, node_size);
     if (!node.is_null()) {
       DCHECK(IsVeryLong() || Available() == SumFreeLists());
+      if (current->is_empty()) {
+        RemoveCategory(current);
+      }
       return node;
-    }
-    if (current->is_empty()) {
-      RemoveCategory(current);
     }
   }
   return node;
