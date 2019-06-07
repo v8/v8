@@ -411,7 +411,11 @@ export class GraphView extends PhaseView {
 
   toggleHideDead(view: GraphView) {
     view.state.hideDead = !view.state.hideDead;
-    if (view.state.hideDead) view.hideDead();
+    if (view.state.hideDead) {
+      view.hideDead();
+    } else {
+      view.showDead();
+    }
     const element = document.getElementById('toggle-hide-dead');
     element.classList.toggle('button-input-toggled', view.state.hideDead);
   }
@@ -421,6 +425,15 @@ export class GraphView extends PhaseView {
       if (!n.isLive()) {
         n.visible = false;
         this.state.selection.select([n], false);
+      }
+    }
+    this.updateGraphVisibility();
+  }
+
+  showDead() {
+    for (const n of this.graph.nodes()) {
+      if (!n.isLive()) {
+        n.visible = true;
       }
     }
     this.updateGraphVisibility();
