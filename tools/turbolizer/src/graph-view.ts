@@ -242,17 +242,17 @@ export class GraphView extends PhaseView {
       partial(this.layoutAction, this)));
     this.toolbox.appendChild(createImgInput("show-all", "show all nodes",
       partial(this.showAllAction, this)));
-    this.toolbox.appendChild(createImgInput("show-control", "show all nodes",
+    this.toolbox.appendChild(createImgInput("show-control", "show only control nodes",
       partial(this.showControlAction, this)));
-    this.toolbox.appendChild(createImgInput("toggle-hide-dead", "show only live nodes",
+    this.toolbox.appendChild(createImgInput("toggle-hide-dead", "toggle hide dead nodes",
       partial(this.toggleHideDead, this)));
-    this.toolbox.appendChild(createImgInput("hide-unselected", "show only live nodes",
+    this.toolbox.appendChild(createImgInput("hide-unselected", "hide unselected",
       partial(this.hideUnselectedAction, this)));
-    this.toolbox.appendChild(createImgInput("hide-selected", "show only live nodes",
+    this.toolbox.appendChild(createImgInput("hide-selected", "hide selected",
       partial(this.hideSelectedAction, this)));
-    this.toolbox.appendChild(createImgInput("zoom-selection", "show only live nodes",
+    this.toolbox.appendChild(createImgInput("zoom-selection", "zoom selection",
       partial(this.zoomSelectionAction, this)));
-    this.toolbox.appendChild(createImgInput("toggle-types", "show only live nodes",
+    this.toolbox.appendChild(createImgInput("toggle-types", "toggle types",
       partial(this.toggleTypesAction, this)));
 
     this.phaseName = data.name;
