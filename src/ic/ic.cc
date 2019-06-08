@@ -368,9 +368,6 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
 #endif
 
   isolate->runtime_profiler()->NotifyICChanged();
-  // TODO(2029): When an optimized function is patched, it would
-  // be nice to propagate the corresponding type information to its
-  // unoptimized version for the benefit of later inlining.
 }
 
 static bool MigrateDeprecated(Handle<Object> object) {
