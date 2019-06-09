@@ -3019,7 +3019,7 @@ void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind,
     GotoIfNotNumber(value, bailout);
   }
   if (IsDoubleElementsKind(kind)) {
-    value = ChangeNumberToFloat64(value);
+    value = ChangeNumberToFloat64(CAST(value));
   }
   StoreElement(elements, kind, index, value, mode);
 }
@@ -5750,10 +5750,7 @@ TNode<Uint32T> CodeStubAssembler::ChangeNumberToUint32(TNode<Number> value) {
   return var_result.value();
 }
 
-TNode<Float64T> CodeStubAssembler::ChangeNumberToFloat64(
-    SloppyTNode<Number> value) {
-  // TODO(tebbi): Remove assert once argument is TNode instead of SloppyTNode.
-  CSA_SLOW_ASSERT(this, IsNumber(value));
+TNode<Float64T> CodeStubAssembler::ChangeNumberToFloat64(TNode<Number> value) {
   TVARIABLE(Float64T, result);
   Label smi(this);
   Label done(this, &result);

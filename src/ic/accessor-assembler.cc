@@ -1207,7 +1207,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           &double_rep, &tagged_rep);
       BIND(&double_rep);
       {
-        TNode<Float64T> double_value = ChangeNumberToFloat64(value);
+        TNode<Float64T> double_value = ChangeNumberToFloat64(CAST(value));
         if (FLAG_unbox_double_fields) {
           if (do_transitioning_store) {
             StoreMap(object, object_map);
@@ -1275,7 +1275,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
                                 Int32Constant(Representation::kDouble)),
                  &cont);
           {
-            Node* double_value = ChangeNumberToFloat64(value);
+            Node* double_value = ChangeNumberToFloat64(CAST(value));
             Node* mutable_heap_number =
                 AllocateMutableHeapNumberWithValue(double_value);
             var_value.Bind(mutable_heap_number);
@@ -1301,7 +1301,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
         {
           Node* mutable_heap_number =
               LoadPropertyArrayElement(properties, backing_store_index);
-          TNode<Float64T> double_value = ChangeNumberToFloat64(value);
+          TNode<Float64T> double_value = ChangeNumberToFloat64(CAST(value));
 
           Label if_mutable(this);
           GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);

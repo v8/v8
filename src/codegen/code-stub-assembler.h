@@ -2103,7 +2103,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> ChangeUint32ToTagged(SloppyTNode<Uint32T> value);
   TNode<Number> ChangeUintPtrToTagged(TNode<UintPtrT> value);
   TNode<Uint32T> ChangeNumberToUint32(TNode<Number> value);
-  TNode<Float64T> ChangeNumberToFloat64(SloppyTNode<Number> value);
+  TNode<Float64T> ChangeNumberToFloat64(TNode<Number> value);
   TNode<UintPtrT> TryNumberToUintPtr(TNode<Number> value, Label* if_negative);
   TNode<UintPtrT> ChangeNonnegativeNumberToUintPtr(TNode<Number> value) {
     return TryNumberToUintPtr(value, nullptr);
