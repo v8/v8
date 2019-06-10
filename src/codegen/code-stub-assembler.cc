@@ -6443,7 +6443,7 @@ TNode<BoolT> CodeStubAssembler::IsFixedArrayWithKind(
   if (IsDoubleElementsKind(kind)) {
     return IsFixedDoubleArray(object);
   } else {
-    DCHECK(IsSmiOrObjectElementsKind(kind));
+    DCHECK(IsSmiOrObjectElementsKind(kind) || IsSealedElementsKind(kind));
     return IsFixedArraySubclass(object);
   }
 }
@@ -10674,9 +10674,8 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     BIND(&done);
     return;
   }
-  DCHECK(
-      IsFastElementsKind(elements_kind) ||
-      IsInRange(elements_kind, PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS));
+  DCHECK(IsFastElementsKind(elements_kind) ||
+         IsSealedElementsKind(elements_kind));
 
   Node* length = SelectImpl(
       IsJSArray(object), [=]() { return LoadJSArrayLength(object); },
@@ -10693,18 +10692,24 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     value = TryTaggedToFloat64(value, bailout);
   }
 
-  if (IsGrowStoreMode(store_mode) &&
-      !(IsInRange(elements_kind, PACKED_SEALED_ELEMENTS,
-                  HOLEY_SEALED_ELEMENTS))) {
+  if (IsGrowStoreMode(store_mode) && !IsSealedElementsKind(elements_kind)) {
     elements = CheckForCapacityGrow(object, elements, elements_kind, length,
                                     intptr_key, parameter_mode, bailout);
   } else {
     GotoIfNot(UintPtrLessThan(intptr_key, length), bailout);
   }
 
+  // Cannot store to a hole in holey sealed elements so bailout.
+  if (elements_kind == HOLEY_SEALED_ELEMENTS) {
+    TNode<Object> target_value =
+        LoadFixedArrayElement(CAST(elements), intptr_key);
+    GotoIf(IsTheHole(target_value), bailout);
+  }
+
   // If we didn't grow {elements}, it might still be COW, in which case we
   // copy it now.
-  if (!IsSmiOrObjectElementsKind(elements_kind)) {
+  if (!(IsSmiOrObjectElementsKind(elements_kind) ||
+        IsSealedElementsKind(elements_kind))) {
     CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
   } else if (IsCOWHandlingStoreMode(store_mode)) {
     elements = CopyElementsOnWrite(object, elements, elements_kind, length,
