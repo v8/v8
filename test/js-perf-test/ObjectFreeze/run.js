@@ -5,6 +5,7 @@ load('../base.js');
 load('tagged-template.js');
 load('array-indexof-includes.js');
 load('spread-call.js');
+load('has-own-property.js');
 
 function PrintResult(name, result) {
   console.log(name);
