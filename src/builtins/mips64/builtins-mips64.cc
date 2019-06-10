@@ -62,7 +62,6 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
-  //  -- a0 : argument count (preserved for callee)
   //  -- a1 : target function (preserved for callee)
   //  -- a3 : new target (preserved for callee)
   // -----------------------------------
@@ -70,13 +69,11 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Push a copy of the function onto the stack.
     // Push a copy of the target function and the new target.
-    __ SmiTag(a0);
-    __ Push(a0, a1, a3, a1);
+    __ Push(a1, a3, a1);
 
     __ CallRuntime(function_id, 1);
     // Restore target function and new target.
-    __ Pop(a0, a1, a3);
-    __ SmiUntag(a0);
+    __ Pop(a1, a3);
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
@@ -870,13 +867,11 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
                                            Register scratch1, Register scratch2,
                                            Register scratch3) {
   // ----------- S t a t e -------------
-  //  -- a0 : argument count (preserved for callee if needed, and caller)
   //  -- a3 : new target (preserved for callee if needed, and caller)
   //  -- a1 : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
   // -----------------------------------
-  DCHECK(
-      !AreAliased(feedback_vector, a0, a1, a3, scratch1, scratch2, scratch3));
+  DCHECK(!AreAliased(feedback_vector, a1, a3, scratch1, scratch2, scratch3));
 
   Label optimized_code_slot_is_weak_ref, fallthrough;
 
@@ -1052,15 +1047,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Ld(feedback_vector,
         FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ Ld(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+
+  Label push_stack_frame;
+  // Check if feedback vector is valid. If valid, check for optimized code
+  // and update invocation count. Otherwise, setup the stack frame.
+  __ Ld(a4, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
+  __ Lhu(a4, FieldMemOperand(a4, Map::kInstanceTypeOffset));
+  __ Branch(&push_stack_frame, ne, a4, Operand(FEEDBACK_VECTOR_TYPE));
+
   // Read off the optimized code slot in the feedback vector, and if there
   // is optimized code or an optimization marker, call that instead.
   MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, a4, t3, a5);
-
-  // Open a frame scope to indicate that there is a frame on the stack.  The
-  // MANUAL indicates that the scope shouldn't actually generate code to set up
-  // the frame (that is done below).
-  FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ PushStandardFrame(closure);
 
   // Increment invocation count for the function.
   __ Lw(a4, FieldMemOperand(feedback_vector,
@@ -1068,6 +1065,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Addu(a4, a4, Operand(1));
   __ Sw(a4, FieldMemOperand(feedback_vector,
                             FeedbackVector::kInvocationCountOffset));
+
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // MANUAL indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done below).
+  __ bind(&push_stack_frame);
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  __ PushStandardFrame(closure);
 
   // Reset code age.
   DCHECK_EQ(0, BytecodeArray::kNoAgeBytecodeAge);
