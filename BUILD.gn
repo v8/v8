@@ -962,6 +962,7 @@ torque_files = [
   "src/builtins/proxy-revoke.tq",
   "src/builtins/proxy-set-property.tq",
   "src/builtins/proxy.tq",
+  "src/builtins/reflect.tq",
   "src/builtins/regexp-replace.tq",
   "src/builtins/regexp.tq",
   "src/builtins/string.tq",
@@ -3287,15 +3288,15 @@ v8_source_set("v8_crash_keys") {
       "//components/crash/core/common:crash_key",
     ]
     sources = [
-          "src/diagnostics/crash-key.cc",
+      "src/diagnostics/crash-key.cc",
     ]
   } else {
     sources = [
-          "src/diagnostics/crash-key-noop.cc",
+      "src/diagnostics/crash-key-noop.cc",
     ]
   }
 
-configs = [ ":internal_config" ]
+  configs = [ ":internal_config" ]
 }
 
 group("v8_base") {
