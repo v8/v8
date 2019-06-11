@@ -76,18 +76,6 @@ namespace typed_array {
   type LoadFn = builtin(Context, JSTypedArray, Smi) => Object;
   type StoreFn = builtin(Context, JSTypedArray, Smi, Object) => Object;
 
-  // These UnsafeCast specializations are necessary becuase there is no
-  // way to definitively test whether an Object is a Torque function
-  // with a specific signature, and the default UnsafeCast implementation
-  // would try to check this through an assert(Is<>), so the test
-  // is bypassed in this specialization.
-  UnsafeCast<LoadFn>(implicit context: Context)(o: Object): LoadFn {
-    return %RawDownCast<LoadFn>(o);
-  }
-  UnsafeCast<StoreFn>(implicit context: Context)(o: Object): StoreFn {
-    return %RawDownCast<StoreFn>(o);
-  }
-
   // AttachedJSTypedArray guards that the array's buffer is not detached.
   transient type AttachedJSTypedArray extends JSTypedArray;
 

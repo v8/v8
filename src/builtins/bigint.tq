@@ -44,6 +44,9 @@ namespace bigint {
       MutableBigInt, intptr, uintptr): void;
   extern macro CodeStubAssembler::LoadBigIntDigit(BigIntBase, intptr): uintptr;
 
+  @export  // Silence unused warning.
+           // TODO(szuend): Remove @export once macros that are only used in
+           //               asserts are no longer detected as unused.
   macro IsCanonicalized(bigint: BigIntBase): bool {
     const length = ReadBigIntLength(bigint);
 
@@ -56,10 +59,6 @@ namespace bigint {
 
   macro InvertSign(sign: uint32): uint32 {
     return sign == kPositiveSign ? kNegativeSign : kPositiveSign;
-  }
-
-  macro WriteBigIntSign(bigint: MutableBigInt, sign: uint32): void {
-    WriteBigIntSignAndLength(bigint, sign, ReadBigIntLength(bigint));
   }
 
   macro AllocateEmptyBigInt(implicit context: Context)(

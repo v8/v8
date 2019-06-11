@@ -76,6 +76,8 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
 
   implementation_visitor.VisitAllDeclarables();
 
+  ReportAllUnusedMacros();
+
   implementation_visitor.GenerateBuiltinDefinitions(output_directory);
   implementation_visitor.GenerateClassFieldOffsets(output_directory);
   implementation_visitor.GeneratePrintDefinitions(output_directory);

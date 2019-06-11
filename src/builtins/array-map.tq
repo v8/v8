@@ -220,19 +220,6 @@ namespace array_map {
     return vector.CreateJSArray(len);
   }
 
-  // Bails out if the slow path needs to be taken.
-  // It's useful to structure it this way, because the consequences of
-  // using the slow path on species creation are interesting to the caller.
-  macro FastMapSpeciesCreate(implicit context: Context)(
-      receiver: JSReceiver, length: Number): JSArray labels Bailout {
-    if (IsArraySpeciesProtectorCellInvalid()) goto Bailout;
-    Cast<FastJSArray>(receiver) otherwise Bailout;
-    const smiLength = Cast<Smi>(length) otherwise Bailout;
-    const newMap: Map =
-        LoadJSArrayElementsMap(PACKED_SMI_ELEMENTS, LoadNativeContext(context));
-    return AllocateJSArray(PACKED_SMI_ELEMENTS, newMap, smiLength, smiLength);
-  }
-
   // https://tc39.github.io/ecma262/#sec-array.prototype.map
   transitioning javascript builtin
   ArrayMap(implicit context: Context)(receiver: Object, ...arguments): Object {

@@ -312,16 +312,23 @@ class Macro : public Callable {
     return Callable::ShouldBeInlined();
   }
 
+  void SetUsed() { used_ = true; }
+  bool IsUsed() const { return used_; }
+
  protected:
   Macro(Declarable::Kind kind, std::string external_name,
         std::string readable_name, const Signature& signature,
         bool transitioning, base::Optional<Statement*> body)
       : Callable(kind, std::move(external_name), std::move(readable_name),
-                 signature, transitioning, body) {
+                 signature, transitioning, body),
+        used_(false) {
     if (signature.parameter_types.var_args) {
       ReportError("Varargs are not supported for macros.");
     }
   }
+
+ private:
+  bool used_;
 };
 
 class ExternMacro : public Macro {

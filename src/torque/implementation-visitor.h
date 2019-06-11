@@ -677,6 +677,8 @@ class ImplementationVisitor {
   bool is_dry_run_;
 };
 
+void ReportAllUnusedMacros();
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

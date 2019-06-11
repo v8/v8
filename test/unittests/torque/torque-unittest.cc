@@ -129,6 +129,7 @@ TEST(Torque, ClassDefinition) {
       i: uintptr;
     }
 
+    @export
     macro TestClassWithAllTypesLoadsAndStores(
         t: TestClassWithAllTypes, r: RawPtr, v1: int8, v2: uint8, v3: int16,
         v4: uint16, v5: int32, v6: uint32, v7: intptr, v8: uintptr) {
@@ -210,13 +211,13 @@ TEST(Torque, ConditionalFields) {
 
 TEST(Torque, ConstexprLetBindingDoesNotCrash) {
   ExpectFailingCompilation(
-      R"(macro FooBar() { let foo = 0; check(foo >= 0); })",
+      R"(@export macro FooBar() { let foo = 0; check(foo >= 0); })",
       HasSubstr("Use 'const' instead of 'let' for variable 'foo'"));
 }
 
 TEST(Torque, DoubleUnderScorePrefixIllegalForIdentifiers) {
   ExpectFailingCompilation(R"(
-    macro Foo() {
+    @export macro Foo() {
       let __x;
     }
   )",
@@ -225,7 +226,7 @@ TEST(Torque, DoubleUnderScorePrefixIllegalForIdentifiers) {
 
 TEST(Torque, UnusedLetBindingLintError) {
   ExpectFailingCompilation(R"(
-    macro Foo(y: Smi) {
+    @export macro Foo(y: Smi) {
       let x: Smi = y;
     }
   )",
@@ -234,7 +235,7 @@ TEST(Torque, UnusedLetBindingLintError) {
 
 TEST(Torque, UnderscorePrefixSilencesUnusedWarning) {
   ExpectSuccessfulCompilation(R"(
-    macro Foo(y: Smi) {
+    @export macro Foo(y: Smi) {
       let _x: Smi = y;
     }
   )");
@@ -242,7 +243,7 @@ TEST(Torque, UnderscorePrefixSilencesUnusedWarning) {
 
 TEST(Torque, UsingUnderscorePrefixedIdentifierError) {
   ExpectFailingCompilation(R"(
-    macro Foo(y: Smi) {
+    @export macro Foo(y: Smi) {
       let _x: Smi = y;
       check(_x == y);
     }
@@ -252,39 +253,39 @@ TEST(Torque, UsingUnderscorePrefixedIdentifierError) {
 
 TEST(Torque, UnusedArgumentLintError) {
   ExpectFailingCompilation(R"(
-    macro Foo(x: Smi) {}
+    @export macro Foo(x: Smi) {}
   )",
                            HasSubstr("Variable 'x' is never used."));
 }
 
 TEST(Torque, UsingUnderscorePrefixedArgumentSilencesWarning) {
   ExpectSuccessfulCompilation(R"(
-    macro Foo(_y: Smi) {}
+    @export macro Foo(_y: Smi) {}
   )");
 }
 
 TEST(Torque, UnusedLabelLintError) {
   ExpectFailingCompilation(R"(
-    macro Foo() labels Bar {}
+    @export macro Foo() labels Bar {}
   )",
                            HasSubstr("Label 'Bar' is never used."));
 }
 
 TEST(Torque, UsingUnderScorePrefixLabelSilencesWarning) {
   ExpectSuccessfulCompilation(R"(
-    macro Foo() labels _Bar {}
+    @export macro Foo() labels _Bar {}
   )");
 }
 
 TEST(Torque, NoUnusedWarningForImplicitArguments) {
   ExpectSuccessfulCompilation(R"(
-    macro Foo(implicit c: Context, r: JSReceiver)() {}
+    @export macro Foo(implicit c: Context, r: JSReceiver)() {}
   )");
 }
 
 TEST(Torque, NoUnusedWarningForVariablesOnlyUsedInAsserts) {
   ExpectSuccessfulCompilation(R"(
-    macro Foo(x: bool) {
+    @export macro Foo(x: bool) {
       assert(x);
     }
   )");
@@ -297,7 +298,7 @@ TEST(Torque, ImportNonExistentFile) {
 
 TEST(Torque, LetShouldBeConstLintError) {
   ExpectFailingCompilation(R"(
-    macro Foo(y: Smi): Smi {
+    @export macro Foo(y: Smi): Smi {
       let x: Smi = y;
       return x;
     })",
@@ -307,7 +308,7 @@ TEST(Torque, LetShouldBeConstLintError) {
 TEST(Torque, LetShouldBeConstIsSkippedForStructs) {
   ExpectSuccessfulCompilation(R"(
     struct Foo{ a: Smi; }
-    macro Bar(x: Smi): Foo {
+    @export macro Bar(x: Smi): Foo {
       let foo = Foo{a: x};
       return foo;
     }

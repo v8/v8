@@ -11,11 +11,7 @@ namespace test {
     }
   }
 
-  macro ElementsKindTestHelper2(kind: constexpr ElementsKind): bool {
-    return ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS));
-  }
-
-  macro ElementsKindTestHelper3(kind: constexpr ElementsKind): constexpr bool {
+  macro ElementsKindTestHelper2(kind: constexpr ElementsKind): constexpr bool {
     return ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS));
   }
 
@@ -48,10 +44,10 @@ namespace test {
 
   @export
   macro TestConstexprReturn() {
-    check(FromConstexpr<bool>(ElementsKindTestHelper3(UINT8_ELEMENTS)));
-    check(FromConstexpr<bool>(ElementsKindTestHelper3(UINT16_ELEMENTS)));
-    check(!FromConstexpr<bool>(ElementsKindTestHelper3(UINT32_ELEMENTS)));
-    check(FromConstexpr<bool>(!ElementsKindTestHelper3(UINT32_ELEMENTS)));
+    check(FromConstexpr<bool>(ElementsKindTestHelper2(UINT8_ELEMENTS)));
+    check(FromConstexpr<bool>(ElementsKindTestHelper2(UINT16_ELEMENTS)));
+    check(!FromConstexpr<bool>(ElementsKindTestHelper2(UINT32_ELEMENTS)));
+    check(FromConstexpr<bool>(!ElementsKindTestHelper2(UINT32_ELEMENTS)));
   }
 
   @export
@@ -344,6 +340,7 @@ namespace test {
   Foo(TestStructA) {
     goto Foo(TestStruct2());
   }
+  @export  // Silence unused warning.
   macro CallTestStructInLabel(implicit context: Context)() {
     try {
       TestStructInLabel() otherwise Foo;
@@ -787,7 +784,7 @@ namespace test {
   @export
   macro TestNew(implicit context: Context)() {
     const f: JSArray = NewJSArray();
-    assert(f.IsEmpty());
+    check(f.IsEmpty());
     f.length = 0;
   }
 
@@ -812,15 +809,15 @@ namespace test {
   macro TestStructConstructor(implicit context: Context)() {
     // Test default constructor
     let a: TestOuter = TestOuter{a: 5, b: TestInner{x: 6, y: 7}, c: 8};
-    assert(a.a == 5);
-    assert(a.b.x == 6);
-    assert(a.b.y == 7);
-    assert(a.c == 8);
+    check(a.a == 5);
+    check(a.b.x == 6);
+    check(a.b.y == 7);
+    check(a.c == 8);
     a.b.x = 1;
-    assert(a.b.x == 1);
+    check(a.b.x == 1);
     a.b.SetX(2);
-    assert(a.b.x == 2);
-    assert(a.b.GetX() == 2);
+    check(a.b.x == 2);
+    check(a.b.GetX() == 2);
   }
 
   class InternalClass {
@@ -862,6 +859,9 @@ namespace test {
     let y = StructWithConst{a: Null, b: 1};
     y.a = Undefined;
     const _copy = x;
+
+    check(x.TestMethod1() == 1);
+    check(x.TestMethod2() == Null);
   }
 
   struct TestIterator {
@@ -924,5 +924,4 @@ namespace test {
     const v2 = (box.unrelated == 0) ? box.value : box.value;
     StaticAssert(WordEqual(v1, v2));
   }
-
 }
