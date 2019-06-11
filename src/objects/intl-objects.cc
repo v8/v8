@@ -53,9 +53,8 @@ namespace v8 {
 namespace internal {
 
 namespace {
-inline bool IsASCIIUpper(uint16_t ch) { return ch >= 'A' && ch <= 'Z'; }
 
-const uint8_t kToLower[256] = {
+constexpr uint8_t kToLower[256] = {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
     0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23,
@@ -80,20 +79,17 @@ const uint8_t kToLower[256] = {
     0xFC, 0xFD, 0xFE, 0xFF,
 };
 
-inline uint16_t ToLatin1Lower(uint16_t ch) {
+inline constexpr uint16_t ToLatin1Lower(uint16_t ch) {
   return static_cast<uint16_t>(kToLower[ch]);
 }
 
-inline uint16_t ToASCIIUpper(uint16_t ch) {
-  return ch & ~((ch >= 'a' && ch <= 'z') << 5);
-}
-
 // Does not work for U+00DF (sharp-s), U+00B5 (micron), U+00FF.
-inline uint16_t ToLatin1Upper(uint16_t ch) {
+inline constexpr uint16_t ToLatin1Upper(uint16_t ch) {
+#if V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
   DCHECK(ch != 0xDF && ch != 0xB5 && ch != 0xFF);
+#endif
   return ch &
-         ~(((ch >= 'a' && ch <= 'z') || (((ch & 0xE0) == 0xE0) && ch != 0xF7))
-           << 5);
+         ~((IsAsciiLower(ch) || (((ch & 0xE0) == 0xE0) && ch != 0xF7)) << 5);
 }
 
 template <typename Char>
@@ -105,7 +101,7 @@ bool ToUpperFastASCII(const Vector<const Char>& src,
   for (auto it = src.begin(); it != src.end(); ++it) {
     uint16_t ch = static_cast<uint16_t>(*it);
     ored |= ch;
-    result->SeqOneByteStringSet(index++, ToASCIIUpper(ch));
+    result->SeqOneByteStringSet(index++, ToAsciiUpper(ch));
   }
   return !(ored & ~0x7F);
 }
@@ -156,7 +152,7 @@ void ToUpperWithSharpS(const Vector<const Char>& src,
 inline int FindFirstUpperOrNonAscii(String s, int length) {
   for (int index = 0; index < length; ++index) {
     uint16_t ch = s.Get(index);
-    if (V8_UNLIKELY(IsASCIIUpper(ch) || ch & ~0x7F)) {
+    if (V8_UNLIKELY(IsAsciiUpper(ch) || ch & ~0x7F)) {
       return index;
     }
   }
@@ -684,19 +680,10 @@ V8_WARN_UNUSED_RESULT Maybe<bool> Intl::GetBoolOption(
 
 namespace {
 
-char AsciiToLower(char c) {
-  if (c < 'A' || c > 'Z') {
-    return c;
-  }
-  return c | (1 << 5);
-}
-
-bool IsLowerAscii(char c) { return c >= 'a' && c < 'z'; }
-
 bool IsTwoLetterLanguage(const std::string& locale) {
   // Two letters, both in range 'a'-'z'...
-  return locale.length() == 2 && IsLowerAscii(locale[0]) &&
-         IsLowerAscii(locale[1]);
+  return locale.length() == 2 && IsAsciiLower(locale[0]) &&
+         IsAsciiLower(locale[1]);
 }
 
 bool IsDeprecatedLanguage(const std::string& locale) {
@@ -771,7 +758,7 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
 
   // Because per BCP 47 2.1.1 language tags are case-insensitive, lowercase
   // the input before any more check.
-  std::transform(locale.begin(), locale.end(), locale.begin(), AsciiToLower);
+  std::transform(locale.begin(), locale.end(), locale.begin(), ToAsciiLower);
 
   // ICU maps a few grandfathered tags to what looks like a regular language
   // tag even though IANA language tag registry does not have a preferred
