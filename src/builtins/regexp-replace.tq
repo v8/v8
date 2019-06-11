@@ -137,7 +137,7 @@ namespace regexp_replace {
     let result: String = kEmptyString;
     let lastMatchEnd: Smi = 0;
     let unicode: bool = false;
-    let replaceLength: Smi = replaceString.length_smi;
+    const replaceLength: Smi = replaceString.length_smi;
     const global: bool = regexp.global;
 
     if (global) {

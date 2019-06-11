@@ -19,6 +19,10 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+template <typename T>
+class Binding;
+struct LocalValue;
+
 // LocationReference is the representation of an l-value, so a value that might
 // allow for assignment. For uniformity, this class can also represent
 // unassignable temporaries. Assignable values fall in two categories:
@@ -27,10 +31,13 @@ namespace torque {
 class LocationReference {
  public:
   // An assignable stack range.
-  static LocationReference VariableAccess(VisitResult variable) {
+  static LocationReference VariableAccess(
+      VisitResult variable,
+      base::Optional<Binding<LocalValue>*> binding = base::nullopt) {
     DCHECK(variable.IsOnStack());
     LocationReference result;
     result.variable_ = std::move(variable);
+    result.binding_ = binding;
     return result;
   }
   // An unassignable value. {description} is only used for error messages.
@@ -146,6 +153,10 @@ class LocationReference {
     DCHECK(IsCallAccess());
     return *assign_function_;
   }
+  base::Optional<Binding<LocalValue>*> binding() const {
+    DCHECK(IsVariableAccess());
+    return binding_;
+  }
 
  private:
   base::Optional<VisitResult> variable_;
@@ -156,6 +167,7 @@ class LocationReference {
   base::Optional<std::string> assign_function_;
   VisitResultVector call_arguments_;
   base::Optional<std::string> index_field_;
+  base::Optional<Binding<LocalValue>*> binding_;
 
   LocationReference() = default;
 };
@@ -198,7 +210,8 @@ class Binding : public T {
         manager_(manager),
         name_(name),
         previous_binding_(this),
-        used_(false) {
+        used_(false),
+        written_(false) {
     std::swap(previous_binding_, manager_->current_bindings_[name]);
   }
   template <class... Args>
@@ -207,15 +220,23 @@ class Binding : public T {
     declaration_position_ = name->pos;
   }
   ~Binding() {
-    manager_->current_bindings_[name_] = previous_binding_;
-    if (!used_ && name_.length() > 0 && name_[0] != '_') {
+    if (!used_ && !SkipLintCheck()) {
       Lint(BindingTypeString(), "'", name_,
            "' is never used. Prefix with '_' if this is intentional.")
           .Position(declaration_position_);
     }
+
+    if (CheckWritten() && !written_ && !SkipLintCheck()) {
+      Lint(BindingTypeString(), "'", name_,
+           "' is never assigned to. Use 'const' instead of 'let'.")
+          .Position(declaration_position_);
+    }
+
+    manager_->current_bindings_[name_] = previous_binding_;
   }
 
-  std::string BindingTypeString() const { return ""; }
+  std::string BindingTypeString() const;
+  bool CheckWritten() const;
 
   const std::string& name() const { return name_; }
   SourcePosition declaration_position() const { return declaration_position_; }
@@ -223,12 +244,18 @@ class Binding : public T {
   bool Used() const { return used_; }
   void SetUsed() { used_ = true; }
 
+  bool Written() const { return written_; }
+  void SetWritten() { written_ = true; }
+
  private:
+  bool SkipLintCheck() const { return name_.length() > 0 && name_[0] == '_'; }
+
   BindingsManager<T>* manager_;
   const std::string name_;
   base::Optional<Binding*> previous_binding_;
   SourcePosition declaration_position_ = CurrentSourcePosition::Get();
   bool used_;
+  bool written_;
   DISALLOW_COPY_AND_ASSIGN(Binding);
 };
 
@@ -296,8 +323,18 @@ inline std::string Binding<LocalValue>::BindingTypeString() const {
   return "Variable ";
 }
 template <>
+inline bool Binding<LocalValue>::CheckWritten() const {
+  // Do the check only for non-const variables and non struct types.
+  auto binding = *manager_->current_bindings_[name_];
+  return !binding->is_const && !binding->value.type()->IsStructType();
+}
+template <>
 inline std::string Binding<LocalLabel>::BindingTypeString() const {
   return "Label ";
+}
+template <>
+inline bool Binding<LocalLabel>::CheckWritten() const {
+  return false;
 }
 
 struct Arguments {

@@ -185,7 +185,7 @@ namespace array_slice {
     // 10. Repeat, while k < final
     while (k < final) {
       // a. Let Pk be ! ToString(k).
-      let pK: Number = k;
+      const pK: Number = k;
 
       // b. Let kPresent be ? HasProperty(O, Pk).
       const fromPresent: Boolean = HasProperty(o, pK);

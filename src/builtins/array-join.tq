@@ -535,7 +535,7 @@ namespace array_join {
       sepObj: Object, locales: Object, options: Object): Object {
     // 3. If separator is undefined, let sep be the single-element String ",".
     // 4. Else, let sep be ? ToString(separator).
-    let sep: String =
+    const sep: String =
         sepObj == Undefined ? ',' : ToString_Inline(context, sepObj);
 
     // If the receiver is not empty and not already being joined, continue with

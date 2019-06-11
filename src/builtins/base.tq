@@ -2599,9 +2599,9 @@ LoadElementNoHole<FixedArray>(implicit context: Context)(
     a: JSArray, index: Smi): Object
     labels IfHole {
   try {
-    let elements: FixedArray =
+    const elements: FixedArray =
         Cast<FixedArray>(a.elements) otherwise Unexpected;
-    let e: Object = elements.objects[index];
+    const e: Object = elements.objects[index];
     if (e == Hole) {
       goto IfHole;
     }
@@ -2616,9 +2616,10 @@ LoadElementNoHole<FixedDoubleArray>(implicit context: Context)(
     a: JSArray, index: Smi): Object
     labels IfHole {
   try {
-    let elements: FixedDoubleArray =
+    const elements: FixedDoubleArray =
         Cast<FixedDoubleArray>(a.elements) otherwise Unexpected;
-    let e: float64 = LoadDoubleWithHoleCheck(elements, index) otherwise IfHole;
+    const e: float64 =
+        LoadDoubleWithHoleCheck(elements, index) otherwise IfHole;
     return AllocateHeapNumberWithValue(e);
   }
   label Unexpected {
@@ -2706,12 +2707,12 @@ struct FastJSArrayWitness {
   MoveElements(dst: intptr, src: intptr, length: intptr) {
     assert(this.arrayIsPushable);
     if (this.hasDoubles) {
-      let elements: FixedDoubleArray =
+      const elements: FixedDoubleArray =
           Cast<FixedDoubleArray>(this.unstable.elements)
           otherwise unreachable;
       TorqueMoveElements(elements, dst, src, length);
     } else {
-      let elements: FixedArray = Cast<FixedArray>(this.unstable.elements)
+      const elements: FixedArray = Cast<FixedArray>(this.unstable.elements)
           otherwise unreachable;
       if (this.hasSmis) {
         TorqueMoveElementsSmi(elements, dst, src, length);
@@ -2730,7 +2731,7 @@ struct FastJSArrayWitness {
 }
 
 macro NewFastJSArrayWitness(array: FastJSArray): FastJSArrayWitness {
-  let kind = array.map.elements_kind;
+  const kind = array.map.elements_kind;
   return FastJSArrayWitness{
     stable: array,
     unstable: array,
@@ -2782,7 +2783,7 @@ macro NumberIsNaN(number: Number): bool {
       return false;
     }
     case (hn: HeapNumber): {
-      let value: float64 = Convert<float64>(hn);
+      const value: float64 = Convert<float64>(hn);
       return value != value;
     }
   }
@@ -2806,7 +2807,7 @@ transitioning macro ToIndex(input: Object, context: Context): Number
     return 0;
   }
 
-  let value: Number = ToInteger_Inline(context, input, kTruncateMinusZero);
+  const value: Number = ToInteger_Inline(context, input, kTruncateMinusZero);
   if (value < 0 || value > kMaxSafeInteger) {
     goto RangeError;
   }
@@ -2928,7 +2929,7 @@ namespace runtime {
 transitioning builtin FastCreateDataProperty(implicit context: Context)(
     receiver: JSReceiver, key: Object, value: Object): Object {
   try {
-    let array = Cast<FastJSArray>(receiver) otherwise Slow;
+    const array = Cast<FastJSArray>(receiver) otherwise Slow;
     const index: Smi = Cast<Smi>(key) otherwise goto Slow;
     if (index < 0 || index > array.length) goto Slow;
     array::EnsureWriteableFastElements(array);

@@ -76,7 +76,7 @@ namespace array_splice {
               UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
         } else {
           // Grow.
-          let capacity: Smi = CalculateNewElementsCapacity(newLength);
+          const capacity: Smi = CalculateNewElementsCapacity(newLength);
           const newElements: FixedArrayType =
               Extract<FixedArrayType>(elements, 0, actualStart, capacity);
           a.elements = newElements;

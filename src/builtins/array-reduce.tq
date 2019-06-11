@@ -53,11 +53,11 @@ namespace array {
     // JSReceiver.
     const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
     const callbackfn = Cast<Callable>(callback) otherwise unreachable;
-    let numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberK = Cast<Number>(initialK) otherwise unreachable;
     const numberLength = Cast<Number>(length) otherwise unreachable;
 
     // The accumulator is the result from the callback call which just occured.
-    let r = ArrayReduceLoopContinuation(
+    const r = ArrayReduceLoopContinuation(
         jsreceiver, callbackfn, result, jsreceiver, numberK, numberLength);
     return r;
   }
@@ -111,7 +111,7 @@ namespace array {
     const k = 0;
     let accumulator = initialAccumulator;
     Cast<Smi>(len) otherwise goto Bailout(k, accumulator);
-    let fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k, accumulator);
+    const fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k, accumulator);
     let fastOW = NewFastJSArrayWitness(fastO);
 
     // Build a fast loop over the array.

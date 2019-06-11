@@ -67,7 +67,7 @@ namespace bigint {
     if (length > kBigIntMaxLength) {
       ThrowRangeError(kBigIntTooBig);
     }
-    let result: MutableBigInt = AllocateBigInt(length);
+    const result: MutableBigInt = AllocateBigInt(length);
 
     WriteBigIntSignAndLength(result, sign, length);
     return result;
@@ -93,7 +93,7 @@ namespace bigint {
       return resultSign == xsign ? x : BigIntUnaryMinus(x);
     }
 
-    let result = AllocateEmptyBigInt(resultSign, xlength);
+    const result = AllocateEmptyBigInt(resultSign, xlength);
     CppAbsoluteSubAndCanonicalize(result, x, y);
     return Convert<BigInt>(result);
   }

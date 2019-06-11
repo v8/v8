@@ -1830,7 +1830,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
         return LocationReference::Temporary(
             (*value)->value, "constant value " + expr->name->value);
       }
-      return LocationReference::VariableAccess((*value)->value);
+      return LocationReference::VariableAccess((*value)->value, *value);
     }
   }
 
@@ -1927,6 +1927,12 @@ void ImplementationVisitor::GenerateAssignToLocation(
         GenerateImplicitConvert(variable.type(), assignment_value);
     assembler().Poke(variable.stack_range(), converted_value.stack_range(),
                      variable.type());
+
+    // Local variables are detected by the existence of a binding. Assignment
+    // to local variables is recorded to support lint errors.
+    if (reference.binding()) {
+      (*reference.binding())->SetWritten();
+    }
   } else if (reference.IsIndexedFieldAccess()) {
     ReportError("assigning a value directly to an indexed field isn't allowed");
   } else if (reference.IsHeapReference()) {

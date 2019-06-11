@@ -126,8 +126,8 @@ namespace test {
 
   @export
   macro TestPartiallyUnusedLabel(): Boolean {
-    let r1: bool = CallLabelTestHelper4(true);
-    let r2: bool = CallLabelTestHelper4(false);
+    const r1: bool = CallLabelTestHelper4(true);
+    const r2: bool = CallLabelTestHelper4(false);
 
     if (r1 && !r2) {
       return True;
@@ -200,14 +200,15 @@ namespace test {
 
   @export
   macro TestTernaryOperator(x: Smi): Smi {
-    let b: bool = x < 0 ? true : false;
+    const b: bool = x < 0 ? true : false;
     return b ? x - 10 : x + 100;
   }
 
   @export
   macro TestFunctionPointerToGeneric(c: Context) {
-    let fptr1: builtin(Context, Smi) => Object = GenericBuiltinTest<Smi>;
-    let fptr2: builtin(Context, Object) => Object = GenericBuiltinTest<Object>;
+    const fptr1: builtin(Context, Smi) => Object = GenericBuiltinTest<Smi>;
+    const fptr2: builtin(Context, Object) => Object =
+        GenericBuiltinTest<Object>;
 
     check(fptr1(c, 0) == Null);
     check(fptr1(c, 1) == Null);
@@ -224,7 +225,7 @@ namespace test {
   @export
   macro TestUnsafeCast(implicit context: Context)(n: Number): Boolean {
     if (TaggedIsSmi(n)) {
-      let m: Smi = UnsafeCast<Smi>(n);
+      const m: Smi = UnsafeCast<Smi>(n);
 
       check(TestHelperPlus1(context, m) == 11);
       return True;
@@ -246,7 +247,7 @@ namespace test {
 
   @export
   macro TestMultilineAssert() {
-    let someVeryLongVariableNameThatWillCauseLineBreaks: Smi = 5;
+    const someVeryLongVariableNameThatWillCauseLineBreaks: Smi = 5;
     check(
         someVeryLongVariableNameThatWillCauseLineBreaks > 0 &&
         someVeryLongVariableNameThatWillCauseLineBreaks < 10);
@@ -313,7 +314,7 @@ namespace test {
     let a: TestStructA =
     TestStructA{indexes: UnsafeCast<FixedArray>(kEmptyFixedArray), i: 13, k: 5};
     let _b: TestStructA = a;
-    let c: TestStructA = TestStruct2();
+    const c: TestStructA = TestStruct2();
     a.i = TestStruct1(c);
     a.k = a.i;
     let d: TestStructB;
@@ -689,7 +690,7 @@ namespace test {
 
   @export
   macro TestQualifiedAccess(implicit context: Context)() {
-    let s: Smi = 0;
+    const s: Smi = 0;
     check(!array::IsJSArray(s));
   }
 
@@ -873,7 +874,7 @@ namespace test {
 
   @export
   macro TestNewFixedArrayFromSpread(implicit context: Context)(): Object {
-    const i = TestIterator{count: 5};
+    let i = TestIterator{count: 5};
     return new FixedArray{map: kFixedArrayMap, length: 5, objects: ...i};
   }
 

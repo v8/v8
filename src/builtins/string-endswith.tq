@@ -63,7 +63,7 @@ namespace string {
     const searchLength: Smi = searchStr.length_smi;
 
     // 10. Let start be end - searchLength.
-    let start = end - searchLength;
+    const start = end - searchLength;
 
     // 11. If start is less than 0, return false.
     if (start < 0) return False;

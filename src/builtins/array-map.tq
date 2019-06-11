@@ -94,7 +94,7 @@ namespace array_map {
     }
 
     CreateJSArray(implicit context: Context)(validLength: Smi): JSArray {
-      let length: Smi = this.fixedArray.length;
+      const length: Smi = this.fixedArray.length;
       assert(validLength <= length);
       let kind: ElementsKind = PACKED_SMI_ELEMENTS;
       if (!this.onlySmis) {
@@ -114,7 +114,7 @@ namespace array_map {
         kind = FastHoleyElementsKind(kind);
       }
 
-      let map: Map = LoadJSArrayElementsMap(kind, LoadNativeContext(context));
+      const map: Map = LoadJSArrayElementsMap(kind, LoadNativeContext(context));
       let a: JSArray;
 
       if (IsDoubleElementsKind(kind)) {

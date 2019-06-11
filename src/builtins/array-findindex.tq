@@ -46,7 +46,7 @@ namespace array_findindex {
     // JSReceiver.
     const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
     const callbackfn = Cast<Callable>(callback) otherwise unreachable;
-    let numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberK = Cast<Number>(initialK) otherwise unreachable;
     const numberLength = Cast<Number>(length) otherwise unreachable;
 
     // This custom lazy deopt point is right after the callback. find() needs

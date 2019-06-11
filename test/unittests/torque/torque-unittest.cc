@@ -295,6 +295,25 @@ TEST(Torque, ImportNonExistentFile) {
                            HasSubstr("File 'foo/bar.tq' not found."));
 }
 
+TEST(Torque, LetShouldBeConstLintError) {
+  ExpectFailingCompilation(R"(
+    macro Foo(y: Smi): Smi {
+      let x: Smi = y;
+      return x;
+    })",
+                           HasSubstr("Variable 'x' is never assigned to."));
+}
+
+TEST(Torque, LetShouldBeConstIsSkippedForStructs) {
+  ExpectSuccessfulCompilation(R"(
+    struct Foo{ a: Smi; }
+    macro Bar(x: Smi): Foo {
+      let foo = Foo{a: x};
+      return foo;
+    }
+  )");
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

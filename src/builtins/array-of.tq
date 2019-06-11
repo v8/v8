@@ -35,7 +35,7 @@ namespace array_of {
     // 7. Repeat, while k < len
     while (k < len) {
       // a. Let kValue be items[k].
-      let kValue: Object = items[Convert<intptr>(k)];
+      const kValue: Object = items[Convert<intptr>(k)];
 
       // b. Let Pk be ! ToString(k).
       // c. Perform ? CreateDataPropertyOrThrow(A, Pk, kValue).

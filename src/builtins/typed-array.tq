@@ -322,7 +322,7 @@ namespace typed_array {
     let loadfn: LoadFn;
     let storefn: StoreFn;
 
-    let elementsKind: ElementsKind = array.elements_kind;
+    const elementsKind: ElementsKind = array.elements_kind;
 
     if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
       if (elementsKind == INT32_ELEMENTS) {
