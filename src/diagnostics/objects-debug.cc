@@ -1798,11 +1798,7 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
   CHECK(nested_site().IsAllocationSite() || nested_site() == Smi::kZero);
 }
 
-void AllocationMemento::AllocationMementoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::AllocationMementoVerify(*this, isolate);
-  VerifyHeapPointer(isolate, allocation_site());
-  CHECK(!IsValid() || GetAllocationSite().IsAllocationSite());
-}
+USE_TORQUE_VERIFIER(AllocationMemento)
 
 void Script::ScriptVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ScriptVerify(*this, isolate);

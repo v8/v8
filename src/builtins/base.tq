@@ -1284,7 +1284,7 @@ extern class FeedbackCell extends Struct {
 
 type AllocationSite extends Struct;
 extern class AllocationMemento extends Struct {
-  @noVerifier allocation_site: AllocationSite;
+  allocation_site: AllocationSite;
 }
 
 extern class WasmModuleObject extends JSObject {
