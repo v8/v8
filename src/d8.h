@@ -330,6 +330,7 @@ class ShellOptions {
         code_cache_options(CodeCacheOptions::kNoProduceCache),
         isolate_sources(nullptr),
         icu_data_file(nullptr),
+        icu_locale(nullptr),
         natives_blob(nullptr),
         snapshot_blob(nullptr),
         trace_enabled(false),
@@ -362,6 +363,7 @@ class ShellOptions {
   CodeCacheOptions code_cache_options;
   SourceGroup* isolate_sources;
   const char* icu_data_file;
+  const char* icu_locale;
   const char* natives_blob;
   const char* snapshot_blob;
   bool trace_enabled;
