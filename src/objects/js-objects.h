@@ -431,11 +431,11 @@ class JSObject : public JSReceiver {
 
   // Migrates the given object to a map whose field representations are the
   // lowest upper bound of all known representations for that field.
-  static void MigrateInstance(Handle<JSObject> instance);
+  static void MigrateInstance(Isolate* isolate, Handle<JSObject> instance);
 
   // Migrates the given object only if the target map is already available,
   // or returns false if such a map is not yet available.
-  static bool TryMigrateInstance(Handle<JSObject> instance);
+  static bool TryMigrateInstance(Isolate* isolate, Handle<JSObject> instance);
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.

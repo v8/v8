@@ -194,15 +194,16 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
     return Just(!source->IsString() || String::cast(*source).length() == 0);
   }
 
+  Isolate* isolate = target->GetIsolate();
+
   // If the target is deprecated, the object will be updated on first store. If
   // the source for that store equals the target, this will invalidate the
   // cached representation of the source. Preventively upgrade the target.
   // Do this on each iteration since any property load could cause deprecation.
   if (target->map().is_deprecated()) {
-    JSObject::MigrateInstance(Handle<JSObject>::cast(target));
+    JSObject::MigrateInstance(isolate, Handle<JSObject>::cast(target));
   }
 
-  Isolate* isolate = target->GetIsolate();
   Handle<Map> map(JSReceiver::cast(*source).map(), isolate);
 
   if (!map->IsJSObjectMap()) return Just(false);
@@ -3068,8 +3069,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
   object->synchronized_set_map(*map);
 }
 
-void JSObject::MigrateInstance(Handle<JSObject> object) {
-  Isolate* isolate = object->GetIsolate();
+void JSObject::MigrateInstance(Isolate* isolate, Handle<JSObject> object) {
   Handle<Map> original_map(object->map(), isolate);
   Handle<Map> map = Map::Update(isolate, original_map);
   map->set_is_migration_target(true);
@@ -3085,8 +3085,7 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
 }
 
 // static
-bool JSObject::TryMigrateInstance(Handle<JSObject> object) {
-  Isolate* isolate = object->GetIsolate();
+bool JSObject::TryMigrateInstance(Isolate* isolate, Handle<JSObject> object) {
   DisallowDeoptimization no_deoptimization(isolate);
   Handle<Map> original_map(object->map(), isolate);
   Handle<Map> new_map;

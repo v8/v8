@@ -87,7 +87,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   }
 
   if (object->map().is_deprecated()) {
-    JSObject::MigrateInstance(object);
+    JSObject::MigrateInstance(isolate, object);
   }
 
   Handle<JSObject> copy;

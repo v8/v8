@@ -799,7 +799,7 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   // code where we can't handle lazy deopts for lack of a suitable bailout
   // ID. So we just try migration and signal failure if necessary,
   // which will also trigger a deopt.
-  if (!JSObject::TryMigrateInstance(js_object)) return Smi::kZero;
+  if (!JSObject::TryMigrateInstance(isolate, js_object)) return Smi::kZero;
   return *object;
 }
 

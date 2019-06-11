@@ -569,7 +569,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     if (map_prototype->map().is_deprecated()) {
       // Try to migrate the prototype object so we don't embed the deprecated
       // map into the optimized code.
-      JSObject::TryMigrateInstance(map_prototype);
+      JSObject::TryMigrateInstance(isolate(), map_prototype);
     }
     map = handle(map_prototype->map(), isolate());
     holder = map_prototype;

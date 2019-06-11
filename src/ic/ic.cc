@@ -318,13 +318,17 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
   isolate->runtime_profiler()->NotifyICChanged();
 }
 
-static bool MigrateDeprecated(Handle<Object> object) {
+namespace {
+
+bool MigrateDeprecated(Isolate* isolate, Handle<Object> object) {
   if (!object->IsJSObject()) return false;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
   if (!receiver->map().is_deprecated()) return false;
-  JSObject::MigrateInstance(Handle<JSObject>::cast(object));
+  JSObject::MigrateInstance(isolate, receiver);
   return true;
 }
+
+}  // namespace
 
 bool IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
   DCHECK_EQ(MEGAMORPHIC, new_state);
@@ -394,7 +398,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
                      object, name);
   }
 
-  if (MigrateDeprecated(object)) use_ic = false;
+  if (MigrateDeprecated(isolate(), object)) use_ic = false;
 
   if (state() != UNINITIALIZED) {
     JSObject::MakePrototypesFast(object, kStartAtReceiver, isolate());
@@ -1227,7 +1231,7 @@ MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(Handle<Object> object,
 
 MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
                                       Handle<Object> key) {
-  if (MigrateDeprecated(object)) {
+  if (MigrateDeprecated(isolate(), object)) {
     return RuntimeLoad(object, key);
   }
 
@@ -1387,7 +1391,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    StoreOrigin store_origin) {
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
-  if (MigrateDeprecated(object)) {
+  if (MigrateDeprecated(isolate(), object)) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result, Object::SetProperty(isolate(), object, name, value),
@@ -1955,7 +1959,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
                                         Handle<Object> value) {
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
-  if (MigrateDeprecated(object)) {
+  if (MigrateDeprecated(isolate(), object)) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
@@ -2091,7 +2095,8 @@ void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
   DCHECK(!array->map().IsMapInArrayPrototypeChain(isolate()));
   DCHECK(index->IsNumber());
 
-  if (!FLAG_use_ic || state() == NO_FEEDBACK || MigrateDeprecated(array)) {
+  if (!FLAG_use_ic || state() == NO_FEEDBACK ||
+      MigrateDeprecated(isolate(), array)) {
     StoreOwnElement(isolate(), array, index, value);
     TraceIC("StoreInArrayLiteralIC", index);
     return;
@@ -2598,7 +2603,7 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
   Handle<Object> source = args.at<Object>(0);
   int flags = args.smi_at(1);
 
-  if (MigrateDeprecated(source)) {
+  if (MigrateDeprecated(isolate, source)) {
     FeedbackSlot slot = FeedbackVector::ToSlot(args.smi_at(2));
     Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
     if (maybe_vector->IsFeedbackVector()) {

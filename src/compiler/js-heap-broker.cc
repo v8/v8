@@ -674,14 +674,15 @@ bool IsFastLiteralHelper(Handle<JSObject> boilerplate, int max_depth,
   DCHECK_GE(max_depth, 0);
   DCHECK_GE(*max_properties, 0);
 
+  Isolate* const isolate = boilerplate->GetIsolate();
+
   // Make sure the boilerplate map is not deprecated.
-  if (!JSObject::TryMigrateInstance(boilerplate)) return false;
+  if (!JSObject::TryMigrateInstance(isolate, boilerplate)) return false;
 
   // Check for too deep nesting.
   if (max_depth == 0) return false;
 
   // Check the elements.
-  Isolate* const isolate = boilerplate->GetIsolate();
   Handle<FixedArrayBase> elements(boilerplate->elements(), isolate);
   if (elements->length() > 0 &&
       elements->map() != ReadOnlyRoots(isolate).fixed_cow_array_map()) {
