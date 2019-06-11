@@ -550,3 +550,44 @@ newBenchmark("IsExtensibleWithTrap", {
     return value === true;
   }
 });
+
+// ----------------------------------------------------------------------------
+
+obj = {};
+value = false;
+
+newBenchmark("PreventExtensionsWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.preventExtensions(p);
+    }
+    return value;
+  },
+  teardown() {}
+});
+
+// ----------------------------------------------------------------------------
+
+obj = {};
+value = false;
+
+newBenchmark("PreventExtensionsWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      preventExtensions: function(target) {
+        Object.preventExtensions(target);
+        return true;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.preventExtensions(p);
+    }
+    return value;
+  },
+  teardown() {}
+});
