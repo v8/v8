@@ -795,6 +795,7 @@ HEAP_TEST(AllocateObjTinyFreeList) {
 }
 
 HEAP_TEST(EmptyFreeListCategoriesRemoved) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
