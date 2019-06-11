@@ -1018,9 +1018,10 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
 
   const bool in_recursion = isolate->formatting_stack_trace();
   if (!in_recursion) {
+    Handle<Context> error_context = error->GetCreationContext();
+    DCHECK(error_context->IsNativeContext());
+
     if (isolate->HasPrepareStackTraceCallback()) {
-      Handle<Context> error_context = error->GetCreationContext();
-      DCHECK(!error_context.is_null() && error_context->IsNativeContext());
       PrepareStackTraceScope scope(isolate);
 
       Handle<JSArray> sites;
@@ -1034,7 +1035,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
           Object);
       return result;
     } else {
-      Handle<JSFunction> global_error = isolate->error_function();
+      Handle<JSFunction> global_error =
+          handle(error_context->error_function(), isolate);
 
       // If there's a user-specified "prepareStackTrace" function, call it on
       // the frames and use its result.
