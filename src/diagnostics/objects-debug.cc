@@ -507,6 +507,7 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   CHECK(constant_pool().IsFixedArray());
   VerifyHeapPointer(isolate, constant_pool());
   CHECK(source_position_table().IsUndefined() ||
+        source_position_table().IsException() ||
         source_position_table().IsByteArray() ||
         source_position_table().IsSourcePositionTableWithFrameCache());
   CHECK(handler_table().IsByteArray());
