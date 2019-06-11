@@ -11,5 +11,7 @@ per-file v8-inspector.h=kozyatinskiy@chromium.org
 per-file v8-inspector-protocol.h=dgozman@chromium.org
 per-file v8-inspector-protocol.h=pfeldman@chromium.org
 per-file v8-inspector-protocol.h=kozyatinskiy@chromium.org
+per-file js_protocol.pdl=dgozman@chromium.org
+per-file js_protocol.pdl=pfeldman@chromium.org
 
 # COMPONENT: Blink>JavaScript>API

@@ -5,12 +5,6 @@ kozyatinskiy@chromium.org
 pfeldman@chromium.org
 yangguo@chromium.org
 
-# Changes to remote debugging protocol require devtools review to
-# ensure backwards compatibility and commitment to maintain.
-per-file js_protocol.pdl=set noparent
-per-file js_protocol.pdl=dgozman@chromium.org
-per-file js_protocol.pdl=pfeldman@chromium.org
-
 per-file PRESUBMIT.py=file://INFRA_OWNERS
 
 # COMPONENT: Platform>DevTools>JavaScript
