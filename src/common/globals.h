@@ -212,15 +212,6 @@ constexpr size_t kReservedCodeRangePages = 0;
 
 STATIC_ASSERT(kSystemPointerSize == (1 << kSystemPointerSizeLog2));
 
-// This macro is used for declaring and defining HeapObject getter methods that
-// are a bit more efficient for the pointer compression case than the default
-// parameterless getters because isolate root doesn't have to be computed from
-// arbitrary field address but it comes "for free" instead.
-// These alternatives are always defined (in order to avoid #ifdef mess but
-// are not supposed to be used when pointer compression is not enabled.
-#define ROOT_VALUE isolate_for_root
-#define ROOT_PARAM Isolate* const ROOT_VALUE
-
 #ifdef V8_COMPRESS_POINTERS
 static_assert(
     kSystemPointerSize == kInt64Size,
@@ -234,11 +225,6 @@ constexpr int kTaggedSizeLog2 = 2;
 using Tagged_t = int32_t;
 using AtomicTagged_t = base::Atomic32;
 
-#define DEFINE_ROOT_VALUE(isolate) ROOT_PARAM = isolate
-#define WITH_ROOT_PARAM(...) ROOT_PARAM, ##__VA_ARGS__
-#define WITH_ROOT_VALUE(...) ROOT_VALUE, ##__VA_ARGS__
-#define WITH_ROOT(isolate_for_root, ...) isolate_for_root, ##__VA_ARGS__
-
 #else
 
 constexpr int kTaggedSize = kSystemPointerSize;
@@ -248,11 +234,6 @@ constexpr int kTaggedSizeLog2 = kSystemPointerSizeLog2;
 // on V8 heap.
 using Tagged_t = Address;
 using AtomicTagged_t = base::AtomicWord;
-
-#define DEFINE_ROOT_VALUE(isolate)
-#define WITH_ROOT_PARAM(...) __VA_ARGS__
-#define WITH_ROOT_VALUE(...) __VA_ARGS__
-#define WITH_ROOT(isolate_for_root, ...) __VA_ARGS__
 
 #endif  // V8_COMPRESS_POINTERS
 

@@ -34,11 +34,6 @@ V8_INLINE Address GetIsolateRoot<Isolate*>(Isolate* isolate) {
   return isolate->isolate_root();
 }
 
-template <>
-V8_INLINE Address GetIsolateRoot<const Isolate*>(const Isolate* isolate) {
-  return isolate->isolate_root();
-}
-
 // Decompresses smi value.
 V8_INLINE Address DecompressTaggedSigned(Tagged_t raw_value) {
   // Current compression scheme requires |raw_value| to be sign-extended

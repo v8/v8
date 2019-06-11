@@ -17,17 +17,17 @@
 namespace v8 {
 namespace internal {
 
-Object StrongTaggedValue::ToObject(WITH_ROOT_PARAM(StrongTaggedValue object)) {
+Object StrongTaggedValue::ToObject(Isolate* isolate, StrongTaggedValue object) {
 #ifdef V8_COMPRESS_POINTERS
-  return Object(DecompressTaggedAny(ROOT_VALUE, object.ptr()));
+  return Object(DecompressTaggedAny(isolate, object.ptr()));
 #else
   return Object(object.ptr());
 #endif
 }
 
-MaybeObject TaggedValue::ToMaybeObject(WITH_ROOT_PARAM(TaggedValue object)) {
+MaybeObject TaggedValue::ToMaybeObject(Isolate* isolate, TaggedValue object) {
 #ifdef V8_COMPRESS_POINTERS
-  return MaybeObject(DecompressTaggedAny(ROOT_VALUE, object.ptr()));
+  return MaybeObject(DecompressTaggedAny(isolate, object.ptr()));
 #else
   return MaybeObject(object.ptr());
 #endif

@@ -972,7 +972,6 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
                          parameters_limit);
   }
 
-  DEFINE_ROOT_VALUE(isolate());
   // Visit pointer spill slots and locals.
   uint8_t* safepoint_bits = safepoint_entry.bits();
   for (unsigned index = 0; index < stack_slots; index++) {
@@ -992,7 +991,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       if (!HAS_SMI_TAG(compressed_value)) {
         // We don't need to update smi values.
         *spill_slot.location() =
-            DecompressTaggedPointer(ROOT_VALUE, compressed_value);
+            DecompressTaggedPointer(isolate(), compressed_value);
       }
 #endif
       v->VisitRootPointer(Root::kTop, nullptr, spill_slot);
