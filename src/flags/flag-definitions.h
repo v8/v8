@@ -289,6 +289,12 @@ DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 #define V8_ENABLE_RAW_HEAP_SNAPSHOTS_BOOL false
 #endif  // V8_ENABLE_RAW_HEAP_SNAPSHOTS
 
+#ifdef V8_ENABLE_DOUBLE_CONST_STORE_CHECK
+#define V8_ENABLE_DOUBLE_CONST_STORE_CHECK_BOOL true
+#else
+#define V8_ENABLE_DOUBLE_CONST_STORE_CHECK_BOOL false
+#endif
+
 #ifdef V8_LITE_MODE
 #define V8_LITE_BOOL true
 #else

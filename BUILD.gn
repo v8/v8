@@ -410,6 +410,7 @@ config("features") {
   if (v8_enable_test_features) {
     defines += [ "V8_ENABLE_ALLOCATION_TIMEOUT" ]
     defines += [ "V8_ENABLE_FORCE_SLOW_PATH" ]
+    defines += [ "V8_ENABLE_DOUBLE_CONST_STORE_CHECK" ]
   }
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]

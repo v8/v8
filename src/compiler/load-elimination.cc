@@ -923,20 +923,23 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
       FieldInfo const* lookup_result =
           state->LookupField(object, field_index, constness);
 
-      if (lookup_result && constness == PropertyConstness::kMutable) {
+      if (lookup_result && (constness == PropertyConstness::kMutable ||
+                            V8_ENABLE_DOUBLE_CONST_STORE_CHECK_BOOL)) {
         // At runtime, we should never encounter
         // - any store replacing existing info with a different, incompatible
         //   representation, nor
         // - two consecutive const stores.
         // However, we may see such code statically, so we guard against
         // executing it by emitting Unreachable.
-        // TODO(gsps): Re-enable the double const store check once we have
-        //   identified other FieldAccesses that should be marked mutable
-        //   instead of const (cf. JSCreateLowering::AllocateFastLiteral).
+        // TODO(gsps): Re-enable the double const store check even for
+        //   non-debug builds once we have identified other FieldAccesses
+        //   that should be marked mutable instead of const
+        //   (cf. JSCreateLowering::AllocateFastLiteral).
         bool incompatible_representation =
             !lookup_result->name.is_null() &&
             !IsCompatible(representation, lookup_result->representation);
-        if (incompatible_representation) {
+        if (incompatible_representation ||
+            constness == PropertyConstness::kConst) {
           Node* control = NodeProperties::GetControlInput(node);
           Node* unreachable =
               graph()->NewNode(common()->Unreachable(), effect, control);
