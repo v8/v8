@@ -9666,8 +9666,9 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   // clang-format off
   int32_t values[] = {
       // Handled by {if_isobjectorsmi}.
-      PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS, PACKED_ELEMENTS,
-          HOLEY_ELEMENTS,
+      PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS, PACKED_ELEMENTS, HOLEY_ELEMENTS,
+      PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
+      HOLEY_FROZEN_ELEMENTS,
       // Handled by {if_isdouble}.
       PACKED_DOUBLE_ELEMENTS, HOLEY_DOUBLE_ELEMENTS,
       // Handled by {if_isdictionary}.
@@ -9693,7 +9694,8 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   };
   Label* labels[] = {
       &if_isobjectorsmi, &if_isobjectorsmi, &if_isobjectorsmi,
-          &if_isobjectorsmi,
+      &if_isobjectorsmi, &if_isobjectorsmi, &if_isobjectorsmi,
+      &if_isobjectorsmi, &if_isobjectorsmi,
       &if_isdouble, &if_isdouble,
       &if_isdictionary,
       &if_isfaststringwrapper,
