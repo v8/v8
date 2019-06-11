@@ -26,8 +26,18 @@ class ZoneAllocator {
     using other = ZoneAllocator<O>;
   };
 
-#ifdef V8_CC_MSVC
-  // MSVS unfortunately requires the default constructor to be defined.
+#ifdef V8_OS_WIN
+  // The exported class ParallelMove derives from ZoneVector, which derives
+  // from std::vector.  On Windows, the semantics of dllexport mean that
+  // a class's superclasses that are not explicitly exported themselves get
+  // implicitly exported together with the subclass, and exporting a class
+  // exports all its functions -- including the std::vector() constructors
+  // that don't take an explicit allocator argument, which in turn reference
+  // the vector allocator's default constructor. So this constructor needs
+  // to exist for linking purposes, even if it's never called.
+  // Other fixes would be to disallow subclasses of ZoneVector (etc) to be
+  // exported, or using composition instead of inheritance for either
+  // ZoneVector and friends or for ParallelMove.
   ZoneAllocator() : ZoneAllocator(nullptr) { UNREACHABLE(); }
 #endif
   explicit ZoneAllocator(Zone* zone) : zone_(zone) {}
@@ -84,13 +94,6 @@ class RecyclingZoneAllocator : public ZoneAllocator<T> {
     using other = RecyclingZoneAllocator<O>;
   };
 
-#ifdef V8_CC_MSVC
-  // MSVS unfortunately requires the default constructor to be defined.
-  RecyclingZoneAllocator()
-      : ZoneAllocator(nullptr, nullptr), free_list_(nullptr) {
-    UNREACHABLE();
-  }
-#endif
   explicit RecyclingZoneAllocator(Zone* zone)
       : ZoneAllocator<T>(zone), free_list_(nullptr) {}
   template <typename U>
