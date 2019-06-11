@@ -64,6 +64,7 @@ TorqueCompilerResult TestCompileTorque(std::string source) {
   options.output_directory = "";
   options.collect_language_server_data = false;
   options.force_assert_statements = false;
+  options.v8_root = ".";
 
   source = kTestTorquePrelude + source;
   return CompileTorque(source, options);
@@ -287,6 +288,11 @@ TEST(Torque, NoUnusedWarningForVariablesOnlyUsedInAsserts) {
       assert(x);
     }
   )");
+}
+
+TEST(Torque, ImportNonExistentFile) {
+  ExpectFailingCompilation(R"(import "foo/bar.tq")",
+                           HasSubstr("File 'foo/bar.tq' not found."));
 }
 
 }  // namespace torque

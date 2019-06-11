@@ -781,6 +781,25 @@ base::Optional<ParseResult> MakeCppIncludeDeclaration(
   return ParseResult{result};
 }
 
+base::Optional<ParseResult> ProcessTorqueImportDeclaration(
+    ParseResultIterator* child_results) {
+  auto import_path = child_results->NextAs<std::string>();
+  if (!SourceFileMap::FileRelativeToV8RootExists(import_path)) {
+    Error("File '", import_path, "' not found.");
+  }
+
+  auto import_id = SourceFileMap::GetSourceId(import_path);
+  if (!import_id.IsValid()) {
+    // TODO(szuend): Instead of reporting and error. Queue the file up
+    //               for compilation.
+    Error("File '", import_path, "'is not part of the source set.").Throw();
+  }
+
+  CurrentAst::Get().DeclareImportForCurrentFile(import_id);
+
+  return base::nullopt;
+}
+
 base::Optional<ParseResult> MakeExternalBuiltin(
     ParseResultIterator* child_results) {
   auto transitioning = child_results->NextAs<bool>();
@@ -1886,7 +1905,9 @@ struct TorqueGrammar : Grammar {
             Token("}")},
            AsSingletonVector<Declaration*, MakeNamespaceDeclaration>())};
 
-  Symbol file = {Rule({&file, &namespaceDeclaration}, AddGlobalDeclarations),
+  Symbol file = {Rule({&file, Token("import"), &externalString},
+                      ProcessTorqueImportDeclaration),
+                 Rule({&file, &namespaceDeclaration}, AddGlobalDeclarations),
                  Rule({&file, &declaration}, AddGlobalDeclarations), Rule({})};
 };
 

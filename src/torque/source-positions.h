@@ -80,6 +80,7 @@ class V8_EXPORT_PRIVATE SourceFileMap : public ContextualClass<SourceFileMap> {
   static SourceId AddSource(std::string path);
   static SourceId GetSourceId(const std::string& path);
   static std::vector<SourceId> AllSources();
+  static bool FileRelativeToV8RootExists(const std::string& path);
 
  private:
   std::vector<std::string> sources_;

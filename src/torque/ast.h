@@ -6,7 +6,9 @@
 #define V8_TORQUE_AST_H_
 
 #include <iostream>
+#include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -198,9 +200,14 @@ class Ast {
     return result;
   }
 
+  void DeclareImportForCurrentFile(SourceId import_id) {
+    declared_imports_[CurrentSourcePosition::Get().source].insert(import_id);
+  }
+
  private:
   std::vector<Declaration*> declarations_;
   std::vector<std::unique_ptr<AstNode>> nodes_;
+  std::map<SourceId, std::set<SourceId>> declared_imports_;
 };
 
 static const char* const kThisParameterName = "this";

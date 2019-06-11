@@ -4,6 +4,7 @@
 
 #include "src/torque/source-positions.h"
 
+#include <fstream>
 #include "src/torque/utils.h"
 
 namespace v8 {
@@ -61,6 +62,13 @@ std::vector<SourceId> SourceFileMap::AllSources() {
     result.push_back(SourceId(i));
   }
   return result;
+}
+
+// static
+bool SourceFileMap::FileRelativeToV8RootExists(const std::string& path) {
+  const std::string file = Get().v8_root_ + "/" + path;
+  std::ifstream stream(file);
+  return stream.good();
 }
 
 }  // namespace torque

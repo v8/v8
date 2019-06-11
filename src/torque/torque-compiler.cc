@@ -97,7 +97,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
 
 TorqueCompilerResult CompileTorque(const std::string& source,
                                    TorqueCompilerOptions options) {
-  SourceFileMap::Scope source_map_scope("");
+  SourceFileMap::Scope source_map_scope(options.v8_root);
   CurrentSourceFile::Scope no_file_scope(
       SourceFileMap::AddSource("dummy-filename.tq"));
   CurrentAst::Scope ast_scope;
