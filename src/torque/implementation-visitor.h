@@ -10,6 +10,7 @@
 #include "src/base/macros.h"
 #include "src/torque/ast.h"
 #include "src/torque/cfg.h"
+#include "src/torque/declarations.h"
 #include "src/torque/global-context.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"

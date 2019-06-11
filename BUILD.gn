@@ -3305,6 +3305,7 @@ v8_source_set("torque_base") {
     "src/torque/declarations.h",
     "src/torque/earley-parser.cc",
     "src/torque/earley-parser.h",
+    "src/torque/global-context.cc",
     "src/torque/global-context.h",
     "src/torque/implementation-visitor.cc",
     "src/torque/implementation-visitor.h",
