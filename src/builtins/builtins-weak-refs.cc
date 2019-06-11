@@ -80,11 +80,29 @@ BUILTIN(FinalizationGroupUnregister) {
   HandleScope scope(isolate);
   const char* method_name = "FinalizationGroup.prototype.unregister";
 
+  // 1. Let finalizationGroup be the this value.
+  //
+  // 2. If Type(finalizationGroup) is not Object, throw a TypeError
+  //    exception.
+  //
+  // 3. If finalizationGroup does not have a [[Cells]] internal slot,
+  //    throw a TypeError exception.
   CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
 
-  Handle<Object> key = args.atOrUndefined(isolate, 1);
-  JSFinalizationGroup::Unregister(finalization_group, key, isolate);
-  return ReadOnlyRoots(isolate).undefined_value();
+  Handle<Object> unregister_token = args.atOrUndefined(isolate, 1);
+
+  // 4. If Type(unregisterToken) is not Object, throw a TypeError exception.
+  if (!unregister_token->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kWeakRefsUnregisterTokenMustBeObject,
+                     unregister_token));
+  }
+
+  bool success = JSFinalizationGroup::Unregister(
+      finalization_group, Handle<JSReceiver>::cast(unregister_token), isolate);
+
+  return *isolate->factory()->ToBoolean(success);
 }
 
 BUILTIN(FinalizationGroupCleanupSome) {

@@ -9,8 +9,12 @@ let cleanup_holdings_count = 0;
 let cleanup = function(iter) {
   for (holdings of iter) {
     assertEquals(holdings, "holdings");
+
+    // There's one more object with the same key that we haven't
+    // iterated over yet so we should be able to unregister the
+    // callback for that one.
     let success = fg.unregister(key);
-    assertFalse(success);
+    assertTrue(success);
 
     ++cleanup_holdings_count;
   }
@@ -24,7 +28,9 @@ let key = {"k": "this is the key"};
 
 (function() {
   let object = {};
+  let object2 = {};
   fg.register(object, "holdings", key);
+  fg.register(object2, "holdings", key);
 
   // object goes out of scope.
 })();

@@ -41,8 +41,9 @@ class JSFinalizationGroup : public JSObject {
                               Handle<JSReceiver> target,
                               Handle<Object> holdings, Handle<Object> key,
                               Isolate* isolate);
-  inline static void Unregister(Handle<JSFinalizationGroup> finalization_group,
-                                Handle<Object> key, Isolate* isolate);
+  inline static bool Unregister(Handle<JSFinalizationGroup> finalization_group,
+                                Handle<JSReceiver> unregister_token,
+                                Isolate* isolate);
 
   // Returns true if the cleared_cells list is non-empty.
   inline bool NeedsCleanup() const;

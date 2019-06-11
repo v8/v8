@@ -562,6 +562,8 @@ namespace internal {
   T(TraceEventPhaseError, "Trace event phase must be a number.")               \
   T(TraceEventIDError, "Trace event id must be a number.")                     \
   /* Weak refs */                                                              \
+  T(WeakRefsUnregisterTokenMustBeObject,                                       \
+    "unregisterToken ('%') must be an object")                                 \
   T(WeakRefsCleanupMustBeCallable,                                             \
     "FinalizationGroup: cleanup must be callable")                             \
   T(WeakRefsRegisterTargetMustBeObject,                                        \
