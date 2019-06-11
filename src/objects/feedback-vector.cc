@@ -374,6 +374,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
 }
 
 bool FeedbackVector::ClearSlots(Isolate* isolate) {
+  if (!shared_function_info().HasFeedbackMetadata()) return false;
   MaybeObject uninitialized_sentinel = MaybeObject::FromObject(
       FeedbackVector::RawUninitializedSentinel(isolate));
 

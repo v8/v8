@@ -202,10 +202,20 @@ Isolate* HeapProfiler::isolate() const { return heap()->isolate(); }
 void HeapProfiler::QueryObjects(Handle<Context> context,
                                 debug::QueryObjectPredicate* predicate,
                                 PersistentValueVector<v8::Object>* objects) {
+  {
+    CombinedHeapIterator function_heap_iterator(
+        heap(), HeapIterator::kFilterUnreachable);
+    for (HeapObject heap_obj = function_heap_iterator.Next();
+         !heap_obj.is_null(); heap_obj = function_heap_iterator.Next()) {
+      if (heap_obj.IsFeedbackVector()) {
+        FeedbackVector::cast(heap_obj).ClearSlots(isolate());
+      }
+    }
+  }
   // We should return accurate information about live objects, so we need to
   // collect all garbage first.
   heap()->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
-  CombinedHeapIterator heap_iterator(heap());
+  CombinedHeapIterator heap_iterator(heap(), HeapIterator::kFilterUnreachable);
   for (HeapObject heap_obj = heap_iterator.Next(); !heap_obj.is_null();
        heap_obj = heap_iterator.Next()) {
     if (!heap_obj.IsJSObject() || heap_obj.IsExternal(isolate())) continue;
