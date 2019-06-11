@@ -75,9 +75,15 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       break;
     case Code::BYTECODE_HANDLER:
       SetFlag(kCalledWithCodeStartRegister);
+      if (FLAG_turbo_splitting) {
+        MarkAsSplittingEnabled();
+      }
       break;
     case Code::BUILTIN:
     case Code::STUB:
+      if (FLAG_turbo_splitting) {
+        MarkAsSplittingEnabled();
+      }
 #if ENABLE_GDB_JIT_INTERFACE && DEBUG
       MarkAsSourcePositionsEnabled();
 #endif  // ENABLE_GDB_JIT_INTERFACE && DEBUG
