@@ -5963,7 +5963,15 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
           upper2.toUpper(locale);
           // Only add if the upper case are the same.
           if (upper[0] == upper2[0]) {
-            others.add(start);
+            // #sec-runtime-semantics-canonicalize-ch
+            // 3.g. If the numeric value of ch ≥ 128 and the numeric value of
+            // cu < 128, return ch.
+            if (bottom >= 128 && start < 128) {
+              others.add(bottom);
+            } else {
+              // 3.h. 3.h. 3.h. Return cu.
+              others.add(start);
+            }
           }
           start++;
         }
