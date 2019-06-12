@@ -300,15 +300,17 @@ namespace internal {
   I(HasProperty, 2, 1)                                          \
   F(InternalSetPrototype, 2, 1)                                 \
   I(IsJSReceiver, 1, 1)                                         \
+  F(JSReceiverPreventExtensionsDontThrow, 1, 1)                 \
+  F(JSReceiverPreventExtensionsThrow, 1, 1)                     \
   F(NewObject, 2, 1)                                            \
   F(ObjectCreate, 2, 1)                                         \
   F(ObjectEntries, 1, 1)                                        \
   F(ObjectEntriesSkipFastPath, 1, 1)                            \
-  F(ObjectHasOwnProperty, 2, 1)                                 \
-  F(ObjectKeys, 1, 1)                                           \
   F(ObjectGetOwnPropertyNames, 1, 1)                            \
   F(ObjectGetOwnPropertyNamesTryFast, 1, 1)                     \
+  F(ObjectHasOwnProperty, 2, 1)                                 \
   F(ObjectIsExtensible, 1, 1)                                   \
+  F(ObjectKeys, 1, 1)                                           \
   F(ObjectValues, 1, 1)                                         \
   F(ObjectValuesSkipFastPath, 1, 1)                             \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \

@@ -1423,7 +1423,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, object_function, "is", Builtins::kObjectIs,
                           2, true);
     SimpleInstallFunction(isolate_, object_function, "preventExtensions",
-                          Builtins::kObjectPreventExtensions, 1, false);
+                          Builtins::kObjectPreventExtensions, 1, true);
     SimpleInstallFunction(isolate_, object_function, "seal",
                           Builtins::kObjectSeal, 1, false);
 

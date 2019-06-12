@@ -959,6 +959,7 @@ torque_files = [
   "src/builtins/proxy-get-property.tq",
   "src/builtins/proxy-has-property.tq",
   "src/builtins/proxy-is-extensible.tq",
+  "src/builtins/proxy-prevent-extensions.tq",
   "src/builtins/proxy-revocable.tq",
   "src/builtins/proxy-revoke.tq",
   "src/builtins/proxy-set-property.tq",

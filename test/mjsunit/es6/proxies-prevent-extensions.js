@@ -173,6 +173,7 @@
   assertFalse(Reflect.preventExtensions(proxy));
   Object.preventExtensions(target);
   assertFalse(Reflect.preventExtensions(proxy));
+  assertThrows(() => { Object.preventExtensions(proxy) }, TypeError);
 })();
 
 

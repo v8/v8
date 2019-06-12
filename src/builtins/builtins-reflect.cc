@@ -158,25 +158,6 @@ BUILTIN(ReflectOwnKeys) {
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
-// ES6 section 26.1.12 Reflect.preventExtensions
-BUILTIN(ReflectPreventExtensions) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Handle<Object> target = args.at(1);
-
-  if (!target->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "Reflect.preventExtensions")));
-  }
-
-  Maybe<bool> result = JSReceiver::PreventExtensions(
-      Handle<JSReceiver>::cast(target), kDontThrow);
-  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return *isolate->factory()->ToBoolean(result.FromJust());
-}
-
 // ES6 section 26.1.13 Reflect.set
 BUILTIN(ReflectSet) {
   HandleScope scope(isolate);

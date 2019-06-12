@@ -5,6 +5,14 @@
 namespace runtime {
   extern transitioning runtime
   ObjectIsExtensible(implicit context: Context)(Object): Object;
+
+  extern transitioning runtime
+  JSReceiverPreventExtensionsThrow(implicit context: Context)(JSReceiver):
+      Object;
+
+  extern transitioning runtime
+  JSReceiverPreventExtensionsDontThrow(implicit context: Context)(JSReceiver):
+      Object;
 }  // namespace runtime
 
 namespace object {
@@ -15,6 +23,26 @@ namespace object {
         otherwise return runtime::ObjectIsExtensible(objectJSReceiver);
     return proxy::ProxyIsExtensible(objectJSProxy);
   }
+
+  transitioning macro
+  ObjectPreventExtensionsThrow(implicit context: Context)(object: Object):
+      Object {
+    const objectJSReceiver = Cast<JSReceiver>(object) otherwise return object;
+    const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
+        otherwise return runtime::JSReceiverPreventExtensionsThrow(
+        objectJSReceiver);
+    return proxy::ProxyPreventExtensions(objectJSProxy, True);
+  }
+
+  transitioning macro
+  ObjectPreventExtensionsDontThrow(implicit context: Context)(object: Object):
+      Object {
+    const objectJSReceiver = Cast<JSReceiver>(object) otherwise return False;
+    const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
+        otherwise return runtime::JSReceiverPreventExtensionsDontThrow(
+        objectJSReceiver);
+    return proxy::ProxyPreventExtensions(objectJSProxy, False);
+  }
 }  // namespace object
 
 namespace object_isextensible {
@@ -23,4 +51,12 @@ namespace object_isextensible {
       implicit context: Context)(_receiver: Object, object: Object): Object {
     return object::ObjectIsExtensible(object);
   }
-}  // namespace object-isextensible
+}  // namespace object_isextensible
+
+namespace object_preventextensions {
+  // ES6 section 19.1.2.11 Object.isExtensible ( O )
+  transitioning javascript builtin ObjectPreventExtensions(
+      implicit context: Context)(_receiver: Object, object: Object): Object {
+    return object::ObjectPreventExtensionsThrow(object);
+  }
+}  // namespace object_preventextensions

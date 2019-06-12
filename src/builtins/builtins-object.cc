@@ -391,18 +391,6 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
   return *descriptors;
 }
 
-// ES6 section 19.1.2.15 Object.preventExtensions ( O )
-BUILTIN(ObjectPreventExtensions) {
-  HandleScope scope(isolate);
-  Handle<Object> object = args.atOrUndefined(isolate, 1);
-  if (object->IsJSReceiver()) {
-    MAYBE_RETURN(JSReceiver::PreventExtensions(Handle<JSReceiver>::cast(object),
-                                               kThrowOnError),
-                 ReadOnlyRoots(isolate).exception());
-  }
-  return *object;
-}
-
 // ES6 section 19.1.2.17 Object.seal ( O )
 BUILTIN(ObjectSeal) {
   HandleScope scope(isolate);

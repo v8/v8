@@ -734,7 +734,6 @@ namespace internal {
   TFJ(ObjectKeys, 1, kReceiver, kObject)                                       \
   CPP(ObjectLookupGetter)                                                      \
   CPP(ObjectLookupSetter)                                                      \
-  CPP(ObjectPreventExtensions)                                                 \
   /* ES6 #sec-object.prototype.tostring */                                     \
   TFJ(ObjectPrototypeToString, 0, kReceiver)                                   \
   /* ES6 #sec-object.prototype.valueof */                                      \
@@ -828,7 +827,6 @@ namespace internal {
   CPP(ReflectGetPrototypeOf)                                                   \
   TFJ(ReflectHas, 2, kReceiver, kTarget, kKey)                                 \
   CPP(ReflectOwnKeys)                                                          \
-  CPP(ReflectPreventExtensions)                                                \
   CPP(ReflectSet)                                                              \
   CPP(ReflectSetPrototypeOf)                                                   \
                                                                                \
