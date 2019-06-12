@@ -793,3 +793,91 @@ function checkUndefined() {
 assertTrue(checkUndefined(...arr));
 assertTrue(checkUndefined(...[...arr]));
 assertTrue(checkUndefined.apply(this, [...arr]));
+
+//
+// Array.prototype.map
+//
+(function() {
+  var a = Object.freeze(['0','1','2','3','4']);
+
+  // Simple use.
+  var result = [1,2,3,4,5];
+  assertArrayEquals(result, a.map(function(n) { return Number(n) + 1; }));
+
+  // Use specified object as this object when calling the function.
+  var o = { delta: 42 }
+  result = [42,43,44,45,46];
+  assertArrayEquals(result, a.map(function(n) { return this.delta + Number(n); }, o));
+
+  // Modify original array.
+  b = Object.freeze(['0','1','2','3','4']);
+  result = [1,2,3,4,5];
+  assertArrayEquals(result,
+      b.map(function(n, index, array) {
+        array[index] = Number(n) + 1; return Number(n) + 1;
+      }));
+  assertArrayEquals(b, a);
+
+  // Only loop through initial part of array and elements are not
+  // added.
+  a = Object.freeze(['0','1','2','3','4']);
+  result = [1,2,3,4,5];
+  assertArrayEquals(result,
+      a.map(function(n, index, array) { assertThrows(() => { array.push(n) }); return Number(n) + 1; }));
+  assertArrayEquals(['0','1','2','3','4'], a);
+
+  // Respect holes.
+  a = new Array(20);
+  a[1] = '2';
+  Object.freeze(a);
+  a = Object.freeze(a).map(function(n) { return 2*Number(n); });
+
+  for (var i in a) {
+    assertEquals(4, a[i]);
+    assertEquals('1', i);
+  }
+
+  // Skip over missing properties.
+  a = {
+    "0": 1,
+    "2": 2,
+    length: 3
+  };
+  var received = [];
+  assertArrayEquals([2, , 4],
+      Array.prototype.map.call(Object.freeze(a), function(n) {
+        received.push(n);
+        return n * 2;
+      }));
+  assertArrayEquals([1, 2], received);
+
+  // Modify array prototype
+  a = ['1', , 2];
+  received = [];
+  assertThrows(() => {
+    Array.prototype.map.call(Object.freeze(a), function(n) {
+      a.__proto__ = null;
+      received.push(n);
+      return n * 2;
+    });
+  }, TypeError);
+  assertArrayEquals([], received);
+
+  // Create a new object in each function call when receiver is a
+  // primitive value. See ECMA-262, Annex C.
+  a = [];
+  Object.freeze(['1', '2']).map(function() { a.push(this) }, "");
+  assertTrue(a[0] !== a[1]);
+
+  // Do not create a new object otherwise.
+  a = [];
+  Object.freeze(['1', '2']).map(function() { a.push(this) }, {});
+  assertSame(a[0], a[1]);
+
+  // In strict mode primitive values should not be coerced to an object.
+  a = [];
+  Object.freeze(['1', '2']).map(function() { 'use strict'; a.push(this); }, "");
+  assertEquals("", a[0]);
+  assertEquals(a[0], a[1]);
+
+})();

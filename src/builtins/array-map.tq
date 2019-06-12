@@ -182,11 +182,11 @@ namespace array_map {
   }
 
   transitioning macro FastArrayMap(implicit context: Context)(
-      fastO: FastJSArray, len: Smi, callbackfn: Callable,
+      fastO: FastJSArrayForRead, len: Smi, callbackfn: Callable,
       thisArg: Object): JSArray
       labels Bailout(JSArray, Smi) {
     let k: Smi = 0;
-    let fastOW = NewFastJSArrayWitness(fastO);
+    let fastOW = NewFastJSArrayForReadWitness(fastO);
     let vector = NewVector(len);
 
     // Build a fast loop over the smi array.
@@ -245,7 +245,7 @@ namespace array_map {
       try {
         // 5. Let A be ? ArraySpeciesCreate(O, len).
         if (IsArraySpeciesProtectorCellInvalid()) goto SlowSpeciesCreate;
-        const o: FastJSArray = Cast<FastJSArray>(receiver)
+        const o: FastJSArrayForRead = Cast<FastJSArrayForRead>(receiver)
             otherwise SlowSpeciesCreate;
         const smiLength: Smi = Cast<Smi>(len)
             otherwise SlowSpeciesCreate;

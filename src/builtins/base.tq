@@ -2712,9 +2712,54 @@ macro NewFastJSArrayWitness(array: FastJSArray): FastJSArrayWitness {
     stable: array,
     unstable: array,
     map: array.map,
-    hasDoubles: !IsElementsKindLessThanOrEqual(kind, HOLEY_ELEMENTS),
+    hasDoubles: IsDoubleElementsKind(kind),
     hasSmis: IsElementsKindLessThanOrEqual(kind, HOLEY_SMI_ELEMENTS),
     arrayIsPushable: false
+  };
+}
+
+struct FastJSArrayForReadWitness {
+  Get(): FastJSArrayForRead {
+    return this.unstable;
+  }
+
+  Recheck() labels CastError {
+    if (this.stable.map != this.map) goto CastError;
+    // We don't need to check elements kind or whether the prototype
+    // has changed away from the default JSArray prototype, because
+    // if the map remains the same then those properties hold.
+    //
+    // However, we have to make sure there are no elements in the
+    // prototype chain.
+    if (IsNoElementsProtectorCellInvalid()) goto CastError;
+    this.unstable = %RawDownCast<FastJSArrayForRead>(this.stable);
+  }
+
+  LoadElementNoHole(implicit context: Context)(k: Smi): Object
+      labels FoundHole {
+    if (this.hasDoubles) {
+      return LoadElementNoHole<FixedDoubleArray>(this.unstable, k)
+          otherwise FoundHole;
+    } else {
+      return LoadElementNoHole<FixedArray>(this.unstable, k)
+          otherwise FoundHole;
+    }
+  }
+
+  const stable: JSArray;
+  unstable: FastJSArrayForRead;
+  const map: Map;
+  const hasDoubles: bool;
+}
+
+macro NewFastJSArrayForReadWitness(array: FastJSArrayForRead):
+    FastJSArrayForReadWitness {
+  const kind = array.map.elements_kind;
+  return FastJSArrayForReadWitness{
+    stable: array,
+    unstable: array,
+    map: array.map,
+    hasDoubles: IsDoubleElementsKind(kind)
   };
 }
 
