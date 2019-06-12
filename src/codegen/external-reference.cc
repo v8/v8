@@ -26,30 +26,10 @@
 #include "src/logging/log.h"
 #include "src/numbers/math-random.h"
 #include "src/objects/objects-inl.h"
+#include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/strings/string-search.h"
 #include "src/wasm/wasm-external-refs.h"
-
-// Include native regexp-macro-assembler.
-#if V8_TARGET_ARCH_IA32
-#include "src/regexp/ia32/regexp-macro-assembler-ia32.h"  // NOLINT
-#elif V8_TARGET_ARCH_X64
-#include "src/regexp/x64/regexp-macro-assembler-x64.h"  // NOLINT
-#elif V8_TARGET_ARCH_ARM64
-#include "src/regexp/arm64/regexp-macro-assembler-arm64.h"  // NOLINT
-#elif V8_TARGET_ARCH_ARM
-#include "src/regexp/arm/regexp-macro-assembler-arm.h"  // NOLINT
-#elif V8_TARGET_ARCH_PPC
-#include "src/regexp/ppc/regexp-macro-assembler-ppc.h"  // NOLINT
-#elif V8_TARGET_ARCH_MIPS
-#include "src/regexp/mips/regexp-macro-assembler-mips.h"  // NOLINT
-#elif V8_TARGET_ARCH_MIPS64
-#include "src/regexp/mips64/regexp-macro-assembler-mips64.h"  // NOLINT
-#elif V8_TARGET_ARCH_S390
-#include "src/regexp/s390/regexp-macro-assembler-s390.h"  // NOLINT
-#else  // Unknown architecture.
-#error "Unknown architecture."
-#endif  // Target architecture.
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"

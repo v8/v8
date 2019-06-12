@@ -38,8 +38,8 @@
 #include "src/objects/objects-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-interpreter.h"
+#include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
-#include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-parser.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-stream.h"
@@ -47,27 +47,6 @@
 #include "src/utils/ostreams.h"
 #include "src/utils/splay-tree-inl.h"
 #include "src/zone/zone-list-inl.h"
-
-#if V8_TARGET_ARCH_ARM
-#include "src/regexp/arm/regexp-macro-assembler-arm.h"
-#elif V8_TARGET_ARCH_ARM64
-#include "src/regexp/arm64/regexp-macro-assembler-arm64.h"
-#elif V8_TARGET_ARCH_S390
-#include "src/regexp/s390/regexp-macro-assembler-s390.h"
-#elif V8_TARGET_ARCH_PPC
-#include "src/regexp/ppc/regexp-macro-assembler-ppc.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/regexp/mips/regexp-macro-assembler-mips.h"
-#elif V8_TARGET_ARCH_MIPS64
-#include "src/regexp/mips64/regexp-macro-assembler-mips64.h"
-#elif V8_TARGET_ARCH_X64
-#include "src/regexp/x64/regexp-macro-assembler-x64.h"
-#elif V8_TARGET_ARCH_IA32
-#include "src/regexp/ia32/regexp-macro-assembler-ia32.h"
-#else
-#error Unknown architecture.
-#endif
-
 #include "test/cctest/cctest.h"
 
 namespace v8 {

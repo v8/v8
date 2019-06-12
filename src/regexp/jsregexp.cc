@@ -18,9 +18,9 @@
 #include "src/objects/elements.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/regexp-interpreter.h"
+#include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
 #include "src/regexp/regexp-macro-assembler-tracer.h"
-#include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-parser.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
@@ -36,26 +36,6 @@
 #include "unicode/uniset.h"
 #include "unicode/utypes.h"
 #endif  // V8_INTL_SUPPORT
-
-#if V8_TARGET_ARCH_IA32
-#include "src/regexp/ia32/regexp-macro-assembler-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "src/regexp/x64/regexp-macro-assembler-x64.h"
-#elif V8_TARGET_ARCH_ARM64
-#include "src/regexp/arm64/regexp-macro-assembler-arm64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "src/regexp/arm/regexp-macro-assembler-arm.h"
-#elif V8_TARGET_ARCH_PPC
-#include "src/regexp/ppc/regexp-macro-assembler-ppc.h"
-#elif V8_TARGET_ARCH_S390
-#include "src/regexp/s390/regexp-macro-assembler-s390.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/regexp/mips/regexp-macro-assembler-mips.h"
-#elif V8_TARGET_ARCH_MIPS64
-#include "src/regexp/mips64/regexp-macro-assembler-mips64.h"
-#else
-#error Unsupported target architecture.
-#endif
 
 namespace v8 {
 namespace internal {
