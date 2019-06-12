@@ -2603,7 +2603,7 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
   Handle<Object> source = args.at<Object>(0);
   int flags = args.smi_at(1);
 
-  if (!MigrateDeprecated(isolate, source)) {
+  if (MigrateDeprecated(isolate, source)) {
     FeedbackSlot slot = FeedbackVector::ToSlot(args.smi_at(2));
     Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
     if (maybe_vector->IsFeedbackVector()) {
