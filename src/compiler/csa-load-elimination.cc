@@ -13,20 +13,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
-
-base::Optional<size_t> ConstantOffsetOf(Node* node) {
-  DCHECK(node->opcode() == IrOpcode::kLoadFromObject ||
-         node->opcode() == IrOpcode::kStoreToObject);
-  IntPtrMatcher m(NodeProperties::GetValueInput(node, 1));
-  if (m.HasValue()) {
-    return m.Value();
-  }
-  return {};
-}
-
-}  // namespace
-
 Reduction CsaLoadElimination::Reduce(Node* node) {
   if (FLAG_trace_turbo_load_elimination) {
     if (node->op()->EffectInputCount() > 0) {
@@ -96,30 +82,30 @@ void CsaLoadElimination::AbstractState::Merge(AbstractState const* that,
 }
 
 CsaLoadElimination::AbstractState const*
-CsaLoadElimination::AbstractState::AddField(Node* object, size_t offset,
+CsaLoadElimination::AbstractState::AddField(Node* object, Node* offset,
                                             CsaLoadElimination::FieldInfo info,
                                             Zone* zone) const {
   AbstractState* that = new (zone) AbstractState(*this);
-  that->field_infos_.Set({offset, object}, info);
+  that->field_infos_.Set({object, offset}, info);
   return that;
 }
 
 CsaLoadElimination::FieldInfo CsaLoadElimination::AbstractState::Lookup(
-    Node* object, size_t offset) const {
+    Node* object, Node* offset) const {
   if (object->IsDead()) {
     return {};
   }
-  return field_infos_.Get({offset, object});
+  return field_infos_.Get({object, offset});
 }
 
 void CsaLoadElimination::AbstractState::Print() const {
   for (std::pair<Field, FieldInfo> entry : field_infos_) {
     Field field = entry.first;
-    size_t offset = field.first;
-    Node* node = field.second;
+    Node* object = field.first;
+    Node* offset = field.second;
     FieldInfo info = entry.second;
-    PrintF("    #%d+%zu:%s -> #%d:%s [repr=%s]\n", node->id(), offset,
-           node->op()->mnemonic(), info.value->id(),
+    PrintF("    #%d+#%d:%s -> #%d:%s [repr=%s]\n", object->id(), offset->id(),
+           object->op()->mnemonic(), info.value->id(),
            info.value->op()->mnemonic(),
            MachineReprToString(info.representation));
   }
@@ -128,27 +114,26 @@ void CsaLoadElimination::AbstractState::Print() const {
 Reduction CsaLoadElimination::ReduceLoadFromObject(Node* node,
                                                    ObjectAccess const& access) {
   Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* offset = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
-  if (base::Optional<size_t> offset = ConstantOffsetOf(node)) {
-    MachineRepresentation representation = access.machine_type.representation();
-    FieldInfo lookup_result = state->Lookup(object, offset.value());
-    if (!lookup_result.IsEmpty()) {
-      // Make sure we don't reuse values that were recorded with a different
-      // representation or resurrect dead {replacement} nodes.
-      Node* replacement = lookup_result.value;
-      if (CsaLoadEliminationIsCompatible(representation,
-                                         lookup_result.representation) &&
-          !replacement->IsDead()) {
-        ReplaceWithValue(node, replacement, effect);
-        return Replace(replacement);
-      }
+  MachineRepresentation representation = access.machine_type.representation();
+  FieldInfo lookup_result = state->Lookup(object, offset);
+  if (!lookup_result.IsEmpty()) {
+    // Make sure we don't reuse values that were recorded with a different
+    // representation or resurrect dead {replacement} nodes.
+    Node* replacement = lookup_result.value;
+    if (CsaLoadEliminationIsCompatible(representation,
+                                       lookup_result.representation) &&
+        !replacement->IsDead()) {
+      ReplaceWithValue(node, replacement, effect);
+      return Replace(replacement);
     }
-    FieldInfo info(node, representation);
-    state = state->AddField(object, offset.value(), info, zone());
   }
+  FieldInfo info(node, representation);
+  state = state->AddField(object, offset, info, zone());
 
   return UpdateState(node, state);
 }

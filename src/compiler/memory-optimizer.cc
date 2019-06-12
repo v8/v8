@@ -483,8 +483,6 @@ void MemoryOptimizer::VisitLoadFromObject(Node* node,
                                           AllocationState const* state) {
   DCHECK_EQ(IrOpcode::kLoadFromObject, node->opcode());
   ObjectAccess const& access = ObjectAccessOf(node->op());
-  Node* offset = node->InputAt(1);
-  node->ReplaceInput(1, __ IntSub(offset, __ IntPtrConstant(kHeapObjectTag)));
   NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
   EnqueueUses(node, state);
 }
@@ -494,9 +492,7 @@ void MemoryOptimizer::VisitStoreToObject(Node* node,
   DCHECK_EQ(IrOpcode::kStoreToObject, node->opcode());
   ObjectAccess const& access = ObjectAccessOf(node->op());
   Node* object = node->InputAt(0);
-  Node* offset = node->InputAt(1);
   Node* value = node->InputAt(2);
-  node->ReplaceInput(1, __ IntSub(offset, __ IntPtrConstant(kHeapObjectTag)));
   WriteBarrierKind write_barrier_kind = ComputeWriteBarrierKind(
       node, object, value, state, access.write_barrier_kind);
   NodeProperties::ChangeOp(

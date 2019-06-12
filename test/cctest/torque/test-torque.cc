@@ -498,7 +498,7 @@ TEST(TestStaticAssert) {
   ft.Call();
 }
 
-TEST(TestLoadEliminationNoWrite) {
+TEST(TestLoadEliminationFixedNoWrite) {
   CcTest::InitializeVM();
   Isolate* isolate(CcTest::i_isolate());
   i::HandleScope scope(isolate);
@@ -507,7 +507,23 @@ TEST(TestLoadEliminationNoWrite) {
   CodeAssemblerTester asm_tester(isolate);
   TestTorqueAssembler m(asm_tester.state());
   {
-    m.TestLoadEliminationNoWrite(
+    m.TestLoadEliminationFixedNoWrite(
+        m.UncheckedCast<Context>(m.HeapConstant(context)));
+    m.Return(m.UndefinedConstant());
+  }
+  asm_tester.GenerateCode();
+}
+
+TEST(TestLoadEliminationVariableNoWrite) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+  CodeAssemblerTester asm_tester(isolate);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestLoadEliminationVariableNoWrite(
         m.UncheckedCast<Context>(m.HeapConstant(context)));
     m.Return(m.UndefinedConstant());
   }

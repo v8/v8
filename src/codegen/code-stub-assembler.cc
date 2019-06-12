@@ -1952,8 +1952,14 @@ TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
                                                  parameter_mode, header_size);
   CSA_ASSERT(this, IsOffsetInBounds(offset, LoadArrayLength(array),
                                     array_header_size));
-  return UncheckedCast<MaybeObject>(
-      Load(MachineType::AnyTagged(), array, offset, needs_poisoning));
+  // TODO(gsps): Remove the Load case once LoadFromObject supports poisoning
+  if (needs_poisoning == LoadSensitivity::kSafe) {
+    return UncheckedCast<MaybeObject>(
+        LoadFromObject(MachineType::AnyTagged(), array, offset));
+  } else {
+    return UncheckedCast<MaybeObject>(
+        Load(MachineType::AnyTagged(), array, offset, needs_poisoning));
+  }
 }
 
 template TNode<MaybeObject>

@@ -913,15 +913,28 @@ namespace test {
     unrelated: Smi;
   }
 
-  builtin NewSmiBox(implicit c: Context)(value: Smi): SmiBox {
+  builtin NewSmiBox(implicit context: Context)(value: Smi): SmiBox {
     return new SmiBox{value, unrelated: 0};
   }
 
   @export
-  macro TestLoadEliminationNoWrite(implicit c: Context)() {
+  macro TestLoadEliminationFixedNoWrite(implicit context: Context)() {
     const box = NewSmiBox(123);
     const v1 = box.value;
     const v2 = (box.unrelated == 0) ? box.value : box.value;
     StaticAssert(WordEqual(v1, v2));
   }
+
+  @export
+  macro TestLoadEliminationVariableNoWrite(implicit context: Context)() {
+    const a = UnsafeCast<FixedArray>(kEmptyFixedArray);
+    const box = NewSmiBox(1);
+    const v1 = a.objects[box.value];
+    const u1 = a.objects[box.value + 2];
+    const v2 = a.objects[box.value];
+    const u2 = a.objects[box.value + 2];
+    StaticAssert(WordEqual(v1, v2));
+    StaticAssert(WordEqual(u1, u2));
+  }
+
 }

@@ -889,15 +889,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          std::is_convertible<TNode<T>, TNode<Object>>::value,
                          int>::type = 0>
   TNode<T> LoadReference(Reference reference) {
-    return CAST(LoadFromObject(MachineTypeOf<T>::value, reference.object,
-                               reference.offset));
+    TNode<IntPtrT> offset =
+        IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
+    return CAST(
+        LoadFromObject(MachineTypeOf<T>::value, reference.object, offset));
   }
   template <class T, typename std::enable_if<
                          std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
                          int>::type = 0>
   TNode<T> LoadReference(Reference reference) {
-    return UncheckedCast<T>(LoadFromObject(MachineTypeOf<T>::value,
-                                           reference.object, reference.offset));
+    TNode<IntPtrT> offset =
+        IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
+    return UncheckedCast<T>(
+        LoadFromObject(MachineTypeOf<T>::value, reference.object, offset));
   }
   template <class T, typename std::enable_if<
                          std::is_convertible<TNode<T>, TNode<Object>>::value,
@@ -910,15 +914,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     } else if (std::is_same<T, Map>::value) {
       write_barrier = StoreToObjectWriteBarrier::kMap;
     }
-    StoreToObject(rep, reference.object, reference.offset, value,
-                  write_barrier);
+    TNode<IntPtrT> offset =
+        IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
+    StoreToObject(rep, reference.object, offset, value, write_barrier);
   }
   template <class T, typename std::enable_if<
                          std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
                          int>::type = 0>
   void StoreReference(Reference reference, TNode<T> value) {
-    StoreToObject(MachineRepresentationOf<T>::value, reference.object,
-                  reference.offset, value, StoreToObjectWriteBarrier::kNone);
+    TNode<IntPtrT> offset =
+        IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
+    StoreToObject(MachineRepresentationOf<T>::value, reference.object, offset,
+                  value, StoreToObjectWriteBarrier::kNone);
   }
 
   // Tag a smi and store it.
