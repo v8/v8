@@ -49,8 +49,6 @@ class Immediate {
   RelocInfo::Mode rmode() const { return rmode_; }
 
  private:
-  V8_EXPORT_PRIVATE void InitializeHandle(Handle<HeapObject> value);
-
   int64_t value_;
   RelocInfo::Mode rmode_;
 };
@@ -84,9 +82,6 @@ class Operand {
   inline bool IsHeapObjectRequest() const;
   inline HeapObjectRequest heap_object_request() const;
   inline Immediate immediate_for_heap_object_request() const;
-
-  template <typename T>
-  inline explicit Operand(Handle<T> handle);
 
   // Implicit constructor for all int types, ExternalReference, and Smi.
   template <typename T>

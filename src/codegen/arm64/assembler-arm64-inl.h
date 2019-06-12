@@ -5,8 +5,11 @@
 #ifndef V8_CODEGEN_ARM64_ASSEMBLER_ARM64_INL_H_
 #define V8_CODEGEN_ARM64_ASSEMBLER_ARM64_INL_H_
 
+#include <type_traits>
+
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/assembler.h"
+#include "src/common/v8memory.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
@@ -22,8 +25,9 @@ void RelocInfo::apply(intptr_t delta) {
   // On arm64 only internal references and immediate branches need extra work.
   if (RelocInfo::IsInternalReference(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
-    intptr_t* p = reinterpret_cast<intptr_t*>(pc_);
-    *p += delta;  // Relocate entry.
+    intptr_t internal_ref = ReadUnalignedValue<intptr_t>(pc_);
+    internal_ref += delta;  // Relocate entry.
+    WriteUnalignedValue<intptr_t>(pc_, internal_ref);
   } else {
     Instruction* instr = reinterpret_cast<Instruction*>(pc_);
     if (instr->IsBranchAndLink() || instr->IsUnconditionalBranch()) {
@@ -193,7 +197,6 @@ inline VRegister CPURegister::Q() const {
 // Default initializer is for int types
 template <typename T>
 struct ImmediateInitializer {
-  static const bool kIsIntType = true;
   static inline RelocInfo::Mode rmode_for(T) { return RelocInfo::NONE; }
   static inline int64_t immediate_for(T t) {
     STATIC_ASSERT(sizeof(T) <= 8);
@@ -203,7 +206,6 @@ struct ImmediateInitializer {
 
 template <>
 struct ImmediateInitializer<Smi> {
-  static const bool kIsIntType = false;
   static inline RelocInfo::Mode rmode_for(Smi t) { return RelocInfo::NONE; }
   static inline int64_t immediate_for(Smi t) {
     return static_cast<int64_t>(t.ptr());
@@ -212,7 +214,6 @@ struct ImmediateInitializer<Smi> {
 
 template <>
 struct ImmediateInitializer<ExternalReference> {
-  static const bool kIsIntType = false;
   static inline RelocInfo::Mode rmode_for(ExternalReference t) {
     return RelocInfo::EXTERNAL_REFERENCE;
   }
@@ -222,9 +223,9 @@ struct ImmediateInitializer<ExternalReference> {
 };
 
 template <typename T>
-Immediate::Immediate(Handle<T> value) {
-  InitializeHandle(value);
-}
+Immediate::Immediate(Handle<T> handle)
+    : value_(static_cast<intptr_t>(handle.address())),
+      rmode_(RelocInfo::FULL_EMBEDDED_OBJECT) {}
 
 template <typename T>
 Immediate::Immediate(T t)
@@ -234,12 +235,8 @@ Immediate::Immediate(T t)
 template <typename T>
 Immediate::Immediate(T t, RelocInfo::Mode rmode)
     : value_(ImmediateInitializer<T>::immediate_for(t)), rmode_(rmode) {
-  STATIC_ASSERT(ImmediateInitializer<T>::kIsIntType);
+  STATIC_ASSERT(std::is_integral<T>::value);
 }
-
-// Operand.
-template <typename T>
-Operand::Operand(Handle<T> value) : immediate_(value), reg_(NoReg) {}
 
 template <typename T>
 Operand::Operand(T t) : immediate_(t), reg_(NoReg) {}
@@ -557,7 +554,7 @@ void Assembler::deserialization_set_special_target_at(Address location,
 
 void Assembler::deserialization_set_target_internal_reference_at(
     Address pc, Address target, RelocInfo::Mode mode) {
-  Memory<Address>(pc) = target;
+  WriteUnalignedValue<Address>(pc, target);
 }
 
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
@@ -673,7 +670,7 @@ void RelocInfo::set_target_external_reference(
 
 Address RelocInfo::target_internal_reference() {
   DCHECK(rmode_ == INTERNAL_REFERENCE);
-  return Memory<Address>(pc_);
+  return ReadUnalignedValue<Address>(pc_);
 }
 
 Address RelocInfo::target_internal_reference_address() {
@@ -705,7 +702,7 @@ void RelocInfo::WipeOut() {
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_) || IsOffHeapTarget(rmode_));
   if (IsInternalReference(rmode_)) {
-    Memory<Address>(pc_) = kNullAddress;
+    WriteUnalignedValue<Address>(pc_, kNullAddress);
   } else {
     Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
   }

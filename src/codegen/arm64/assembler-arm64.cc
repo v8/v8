@@ -283,11 +283,6 @@ bool AreConsecutive(const VRegister& reg1, const VRegister& reg2,
   return true;
 }
 
-void Immediate::InitializeHandle(Handle<HeapObject> handle) {
-  value_ = static_cast<intptr_t>(handle.address());
-  rmode_ = RelocInfo::FULL_EMBEDDED_OBJECT;
-}
-
 bool Operand::NeedsRelocation(const Assembler* assembler) const {
   RelocInfo::Mode rmode = immediate_.rmode();
 
@@ -4466,8 +4461,10 @@ void Assembler::GrowBuffer() {
 
   // Relocate internal references.
   for (auto pos : internal_reference_positions_) {
-    intptr_t* p = reinterpret_cast<intptr_t*>(buffer_start_ + pos);
-    *p += pc_delta;
+    Address address = reinterpret_cast<intptr_t>(buffer_start_) + pos;
+    intptr_t internal_ref = ReadUnalignedValue<intptr_t>(address);
+    internal_ref += pc_delta;
+    WriteUnalignedValue<intptr_t>(address, internal_ref);
   }
 
   // Pending relocation entries are also relative, no need to relocate.
