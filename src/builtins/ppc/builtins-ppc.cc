@@ -2967,13 +2967,22 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
     __ Move(scratch, thunk_ref);
     __ isel(eq, scratch, function_address, scratch);
   } else {
-    Label profiler_disabled;
-    Label end_profiler_check;
-    __ beq(&profiler_disabled);
-    __ Move(scratch, thunk_ref);
-    __ b(&end_profiler_check);
-    __ bind(&profiler_disabled);
-    __ mr(scratch, function_address);
+    Label profiler_enabled, end_profiler_check;
+    __ bne(&profiler_enabled);
+    __ Move(scratch, ExternalReference::address_of_runtime_stats_flag());
+    __ lbz(scratch, MemOperand(scratch, 0));
+    __ cmpi(scratch, Operand::Zero());
+    __ bne(&profiler_enabled);
+    {
+      // Call the api function directly.
+      __ mr(scratch, function_address);
+      __ b(&end_profiler_check);
+    }
+    __ bind(&profiler_enabled);
+    {
+      // Additional parameter is the address of the actual callback.
+      __ Move(scratch, thunk_ref);
+    }
     __ bind(&end_profiler_check);
   }
 
