@@ -4,13 +4,13 @@
 
 // A simple interpreter for the Irregexp byte code.
 
-#include "src/regexp/interpreter-irregexp.h"
+#include "src/regexp/regexp-interpreter.h"
 
 #include "src/ast/ast.h"
 #include "src/base/small-vector.h"
 #include "src/objects/objects-inl.h"
-#include "src/regexp/bytecodes-irregexp.h"
 #include "src/regexp/jsregexp.h"
+#include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/strings/unicode.h"
 #include "src/utils/utils.h"
@@ -34,7 +34,6 @@ static bool BackRefMatchesNoCase(Isolate* isolate, int from, int current,
              offset_a, offset_b, length, unicode ? nullptr : isolate) == 1;
 }
 
-
 static bool BackRefMatchesNoCase(Isolate* isolate, int from, int current,
                                  int len, Vector<const uint8_t> subject,
                                  bool unicode) {
@@ -56,28 +55,19 @@ static bool BackRefMatchesNoCase(Isolate* isolate, int from, int current,
   return true;
 }
 
-
 #ifdef DEBUG
-static void TraceInterpreter(const byte* code_base,
-                             const byte* pc,
-                             int stack_depth,
-                             int current_position,
-                             uint32_t current_char,
-                             int bytecode_length,
+static void TraceInterpreter(const byte* code_base, const byte* pc,
+                             int stack_depth, int current_position,
+                             uint32_t current_char, int bytecode_length,
                              const char* bytecode_name) {
   if (FLAG_trace_regexp_bytecodes) {
     bool printable = (current_char < 127 && current_char >= 32);
     const char* format =
-        printable ?
-        "pc = %02x, sp = %d, curpos = %d, curchar = %08x (%c), bc = %s" :
-        "pc = %02x, sp = %d, curpos = %d, curchar = %08x .%c., bc = %s";
-    PrintF(format,
-           pc - code_base,
-           stack_depth,
-           current_position,
-           current_char,
-           printable ? current_char : '.',
-           bytecode_name);
+        printable
+            ? "pc = %02x, sp = %d, curpos = %d, curchar = %08x (%c), bc = %s"
+            : "pc = %02x, sp = %d, curpos = %d, curchar = %08x .%c., bc = %s";
+    PrintF(format, pc - code_base, stack_depth, current_position, current_char,
+           printable ? current_char : '.', bytecode_name);
     for (int i = 0; i < bytecode_length; i++) {
       printf(", %02x", pc[i]);
     }
@@ -99,20 +89,17 @@ static void TraceInterpreter(const byte* code_base,
     TraceInterpreter(code_base, pc, backtrack_stack.sp(), current, \
                      current_char, BC_##name##_LENGTH, #name);
 #else
-#define BYTECODE(name)                                                      \
-  case BC_##name:
+#define BYTECODE(name) case BC_##name:
 #endif
-
 
 static int32_t Load32Aligned(const byte* pc) {
   DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 3);
-  return *reinterpret_cast<const int32_t *>(pc);
+  return *reinterpret_cast<const int32_t*>(pc);
 }
-
 
 static int32_t Load16Aligned(const byte* pc) {
   DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 1);
-  return *reinterpret_cast<const uint16_t *>(pc);
+  return *reinterpret_cast<const uint16_t*>(pc);
 }
 
 // A simple abstraction over the backtracking stack used by the interpreter.
@@ -292,12 +279,12 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate,
         break;
       }
       BYTECODE(POP_BT) {
-        IrregexpInterpreter::Result return_code = HandleInterrupts(
-            isolate, subject_string);
+        IrregexpInterpreter::Result return_code =
+            HandleInterrupts(isolate, subject_string);
         if (return_code != IrregexpInterpreter::SUCCESS) return return_code;
 
         UpdateCodeAndSubjectReferences(isolate, code_array, subject_string,
-            &code_base, &pc, &subject);
+                                       &code_base, &pc, &subject);
 
         pc = code_base + backtrack_stack.pop();
         break;
@@ -376,10 +363,8 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate,
           Char next1 = subject[pos + 1];
           Char next2 = subject[pos + 2];
           Char next3 = subject[pos + 3];
-          current_char = (subject[pos] |
-                          (next1 << 8) |
-                          (next2 << 16) |
-                          (next3 << 24));
+          current_char =
+              (subject[pos] | (next1 << 8) | (next2 << 16) | (next3 << 24));
           pc += BC_LOAD_4_CURRENT_CHARS_LENGTH;
         }
         break;
@@ -390,10 +375,8 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate,
         Char next1 = subject[pos + 1];
         Char next2 = subject[pos + 2];
         Char next3 = subject[pos + 3];
-        current_char = (subject[pos] |
-                        (next1 << 8) |
-                        (next2 << 16) |
-                        (next3 << 24));
+        current_char =
+            (subject[pos] | (next1 << 8) | (next2 << 16) | (next3 << 24));
         pc += BC_LOAD_4_CURRENT_CHARS_UNCHECKED_LENGTH;
         break;
       }

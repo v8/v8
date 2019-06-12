@@ -4,8 +4,8 @@
 
 // A simple interpreter for the Irregexp byte code.
 
-#ifndef V8_REGEXP_INTERPRETER_IRREGEXP_H_
-#define V8_REGEXP_INTERPRETER_IRREGEXP_H_
+#ifndef V8_REGEXP_REGEXP_INTERPRETER_H_
+#define V8_REGEXP_REGEXP_INTERPRETER_H_
 
 #include "src/regexp/jsregexp.h"
 
@@ -28,4 +28,4 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_REGEXP_INTERPRETER_IRREGEXP_H_
+#endif  // V8_REGEXP_REGEXP_INTERPRETER_H_

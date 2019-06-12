@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
-#ifndef V8_REGEXP_BYTECODES_IRREGEXP_H_
-#define V8_REGEXP_BYTECODES_IRREGEXP_H_
+#ifndef V8_REGEXP_REGEXP_BYTECODES_H_
+#define V8_REGEXP_REGEXP_BYTECODES_H_
 
 namespace v8 {
 namespace internal {
-
 
 const int BYTECODE_MASK = 0xff;
 // The first argument is packed in with the byte code in one word, but so it
@@ -71,8 +69,7 @@ const int BYTECODE_SHIFT = 8;
   V(ADVANCE_CP_AND_GOTO, 50, 8)           /* bc8 offset24 addr32 */            \
   V(SET_CURRENT_POSITION_FROM_END, 51, 4) /* bc8 idx24 */
 
-#define DECLARE_BYTECODES(name, code, length) \
-  static const int BC_##name = code;
+#define DECLARE_BYTECODES(name, code, length) static const int BC_##name = code;
 BYTECODE_ITERATOR(DECLARE_BYTECODES)
 #undef DECLARE_BYTECODES
 
@@ -84,4 +81,4 @@ BYTECODE_ITERATOR(DECLARE_BYTECODE_LENGTH)
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_REGEXP_BYTECODES_IRREGEXP_H_
+#endif  // V8_REGEXP_REGEXP_BYTECODES_H_
