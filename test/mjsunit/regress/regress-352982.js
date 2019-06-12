@@ -29,7 +29,8 @@
 
 function __f_4(i1) {
   return __v_3[i1] * __v_3[0];
-}
+};
+%PrepareFunctionForOptimization(__f_4);
 function __f_3(i1) {
   __f_4(i1);
   __f_4(i1 + 16);

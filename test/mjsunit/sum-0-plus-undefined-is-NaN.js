@@ -31,8 +31,10 @@
  * @fileoverview Test addition of 0 and undefined.
  */
 
-function sum(a, b) { return a + b; }
-
+function sum(a, b) {
+  return a + b;
+};
+%PrepareFunctionForOptimization(sum);
 function test(x, y, expectNaN) {
   for (var i = 0; i < 5; i++) {
     assertEquals(expectNaN, isNaN(sum(x, y)));

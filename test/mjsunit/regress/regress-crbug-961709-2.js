@@ -8,8 +8,8 @@ function foo() {
   const a = [];
   a[0] = 1;
   return a[0];
-}
-
+};
+%PrepareFunctionForOptimization(foo);
 %EnsureFeedbackVectorForFunction(foo);
 Object.setPrototypeOf(Array.prototype, new Int8Array());
 assertEquals(undefined, foo());
