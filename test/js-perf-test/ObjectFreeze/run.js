@@ -6,6 +6,7 @@ load('tagged-template.js');
 load('array-indexof-includes.js');
 load('spread-call.js');
 load('has-own-property.js');
+load('array-map.js');
 
 function PrintResult(name, result) {
   console.log(name);
