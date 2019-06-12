@@ -5765,7 +5765,7 @@ void Heap::AddDirtyJSFinalizationGroup(
   // for the root pointing to the first JSFinalizationGroup.
 }
 
-void Heap::AddKeepDuringJobTarget(Handle<JSReceiver> target) {
+void Heap::KeepDuringJob(Handle<JSReceiver> target) {
   DCHECK(FLAG_harmony_weak_refs);
   DCHECK(weak_refs_keep_during_job().IsUndefined() ||
          weak_refs_keep_during_job().IsOrderedHashSet());
@@ -5780,7 +5780,7 @@ void Heap::AddKeepDuringJobTarget(Handle<JSReceiver> target) {
   set_weak_refs_keep_during_job(*table);
 }
 
-void Heap::ClearKeepDuringJobSet() {
+void Heap::ClearKeptObjects() {
   set_weak_refs_keep_during_job(ReadOnlyRoots(isolate()).undefined_value());
 }
 

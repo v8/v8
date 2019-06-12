@@ -4177,7 +4177,7 @@ void Isolate::FireCallCompletedCallback(MicrotaskQueue* microtask_queue) {
     // set is still open (whether to clear it after every microtask or once
     // during a microtask checkpoint). See also
     // https://github.com/tc39/proposal-weakrefs/issues/39 .
-    heap()->ClearKeepDuringJobSet();
+    heap()->ClearKeptObjects();
   }
 
   if (call_completed_callbacks_.empty()) return;

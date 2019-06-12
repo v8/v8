@@ -176,7 +176,7 @@ BUILTIN(WeakRefConstructor) {
   }
   Handle<JSReceiver> target_receiver =
       handle(JSReceiver::cast(*target_object), isolate);
-  isolate->heap()->AddKeepDuringJobTarget(target_receiver);
+  isolate->heap()->KeepDuringJob(target_receiver);
 
   // TODO(marja): Realms.
 
@@ -196,9 +196,9 @@ BUILTIN(WeakRefDeref) {
   if (weak_ref->target().IsJSReceiver()) {
     Handle<JSReceiver> target =
         handle(JSReceiver::cast(weak_ref->target()), isolate);
-    // AddKeepDuringJobTarget might allocate and cause a GC, but it won't clear
+    // KeepDuringJob might allocate and cause a GC, but it won't clear
     // weak_ref since we hold a Handle to its target.
-    isolate->heap()->AddKeepDuringJobTarget(target);
+    isolate->heap()->KeepDuringJob(target);
   } else {
     DCHECK(weak_ref->target().IsUndefined(isolate));
   }
