@@ -820,26 +820,28 @@ struct FeedbackSource {
   };
 };
 
-#define TRACE_BROKER(broker, x)                                       \
-  do {                                                                \
-    if (FLAG_trace_heap_broker_verbose) broker->Trace() << x << '\n'; \
+#define TRACE_BROKER(broker, x)                                      \
+  do {                                                               \
+    if (broker->tracing_enabled() && FLAG_trace_heap_broker_verbose) \
+      broker->Trace() << x << '\n';                                  \
   } while (false)
 
 #define TRACE_BROKER_MISSING(broker, x)                             \
   do {                                                              \
-    if (FLAG_trace_heap_broker)                                     \
+    if (broker->tracing_enabled())                                  \
       broker->Trace() << __FUNCTION__ << ": missing " << x << '\n'; \
   } while (false)
 
 class V8_EXPORT_PRIVATE JSHeapBroker {
  public:
-  JSHeapBroker(Isolate* isolate, Zone* broker_zone);
+  JSHeapBroker(Isolate* isolate, Zone* broker_zone, bool tracing_enabled);
 
   void SetNativeContextRef();
   void SerializeStandardObjects();
 
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return current_zone_; }
+  bool tracing_enabled() const { return tracing_enabled_; }
   NativeContextRef native_context() const { return native_context_.value(); }
   PerIsolateCompilerCache* compiler_cache() const { return compiler_cache_; }
 
@@ -907,6 +909,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
                    FeedbackSource::Hash, FeedbackSource::Equal>
       feedback_;
+  bool tracing_enabled_;
 
   static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
   static const size_t kInitialRefsBucketCount = 1024;  // must be power of 2

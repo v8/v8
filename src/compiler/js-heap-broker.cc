@@ -1861,14 +1861,16 @@ ObjectRef ContextRef::get(int index) const {
   return ObjectRef(broker(), data()->AsContext()->GetSlot(index));
 }
 
-JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone)
+JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
+                           bool tracing_enabled)
     : isolate_(isolate),
       broker_zone_(broker_zone),
       current_zone_(broker_zone),
       refs_(new (zone())
                 RefsMap(kMinimalRefsBucketCount, AddressMatcher(), zone())),
       array_and_object_prototypes_(zone()),
-      feedback_(zone()) {
+      feedback_(zone()),
+      tracing_enabled_(tracing_enabled) {
   // Note that this initialization of the refs_ pointer with the minimal
   // initial capacity is redundant in the normal use case (concurrent
   // compilation enabled, standard objects to be serialized), as the map
