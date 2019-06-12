@@ -9,6 +9,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/vector-slot-pair.h"
 #include "src/handles/handles-inl.h"
+#include "src/ic/call-optimization.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects/code.h"
 #include "src/objects/shared-function-info-inl.h"
@@ -751,15 +752,28 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     if (!hint->IsJSFunction()) continue;
 
     Handle<JSFunction> function = Handle<JSFunction>::cast(hint);
-    if (!function->shared().IsInlineable() || !function->has_feedback_vector())
-      continue;
+    Handle<SharedFunctionInfo> shared(function->shared(), broker()->isolate());
+
+    if (shared->IsApiFunction()) {
+      ProcessApiCall(shared, arguments);
+      DCHECK(!shared->IsInlineable());
+    }
+
+    if (!shared->IsInlineable() || !function->has_feedback_vector()) continue;
 
     environment()->accumulator_hints().Add(RunChildSerializer(
         {function, broker()->isolate()}, new_target, arguments, with_spread));
   }
 
   for (auto hint : callee.function_blueprints()) {
-    if (!hint.shared->IsInlineable()) continue;
+    Handle<SharedFunctionInfo> shared = hint.shared;
+
+    if (shared->IsApiFunction()) {
+      ProcessApiCall(shared, arguments);
+      DCHECK(!shared->IsInlineable());
+    }
+
+    if (!shared->IsInlineable()) continue;
     environment()->accumulator_hints().Add(RunChildSerializer(
         CompilationSubject(hint), new_target, arguments, with_spread));
   }
@@ -785,6 +799,58 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
   environment()->ExportRegisterHints(first_reg, reg_count, arguments);
 
   ProcessCallOrConstruct(callee, base::nullopt, arguments, slot);
+}
+
+void SerializerForBackgroundCompilation::ProcessApiCall(
+    Handle<SharedFunctionInfo> target, const HintsVector& arguments) {
+  FunctionTemplateInfoRef target_template_info(
+      broker(), handle(target->function_data(), broker()->isolate()));
+  target_template_info.Serialize();
+
+  if (!target_template_info.has_call_code()) return;
+
+  SharedFunctionInfoRef target_ref(broker(), target);
+  target_ref.SerializeFunctionTemplateInfo();
+
+  if (target_template_info.accept_any_receiver() &&
+      target_template_info.is_signature_undefined())
+    return;
+
+  CHECK_GE(arguments.size(), 1);
+  Hints const& receiver_hints = arguments[0];
+  for (auto hint : receiver_hints.constants()) {
+    if (hint->IsUndefined()) {
+      // The receiver is the global proxy.
+      Handle<JSGlobalProxy> global_proxy =
+          broker()->native_context().global_proxy_object().object();
+      ProcessReceiverMapForApiCall(
+          target_template_info,
+          handle(global_proxy->map(), broker()->isolate()));
+      continue;
+    }
+
+    if (!hint->IsJSReceiver()) continue;
+    Handle<JSReceiver> receiver(Handle<JSReceiver>::cast(hint));
+
+    ProcessReceiverMapForApiCall(target_template_info,
+                                 handle(receiver->map(), broker()->isolate()));
+  }
+
+  for (auto receiver_map : receiver_hints.maps()) {
+    ProcessReceiverMapForApiCall(target_template_info, receiver_map);
+  }
+}
+
+void SerializerForBackgroundCompilation::ProcessReceiverMapForApiCall(
+    FunctionTemplateInfoRef& target, Handle<Map> receiver) {
+  if (receiver->is_access_check_needed()) {
+    return;
+  }
+
+  MapRef receiver_map(broker(), receiver);
+  TRACE_BROKER(broker(), "Serializing holder for target:" << target);
+
+  target.LookupHolderOfExpectedType(receiver_map, true);
 }
 
 void SerializerForBackgroundCompilation::ContributeToJumpTargetEnvironment(

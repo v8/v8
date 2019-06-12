@@ -2736,6 +2736,9 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
 Reduction JSCallReducer::ReduceCallApiFunction(
     Node* node, const SharedFunctionInfoRef& shared) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+
   CallParameters const& p = CallParametersOf(node->op());
   int const argc = static_cast<int>(p.arity()) - 2;
   Node* target = NodeProperties::GetValueInput(node, 0);
@@ -2750,78 +2753,21 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
 
+  if (!shared.function_template_info().has_value()) {
+    TRACE_BROKER_MISSING(
+        broker(), "FunctionTemplateInfo for function with SFI " << shared);
+    return NoChange();
+  }
+
   // See if we can optimize this API call to {shared}.
-  Handle<FunctionTemplateInfo> function_template_info(
-      FunctionTemplateInfo::cast(shared.object()->function_data()), isolate());
-  CallOptimization call_optimization(isolate(), function_template_info);
-  if (!call_optimization.is_simple_api_call()) return NoChange();
+  FunctionTemplateInfoRef function_template_info(
+      shared.function_template_info().value());
 
-  // Try to infer the {receiver} maps from the graph.
-  MapInference inference(broker(), receiver, effect);
-  if (inference.HaveMaps()) {
-    MapHandles const& receiver_maps = inference.GetMaps();
+  if (!function_template_info.has_call_code()) return NoChange();
 
-    // Check that all {receiver_maps} are actually JSReceiver maps and
-    // that the {function_template_info} accepts them without access
-    // checks (even if "access check needed" is set for {receiver}).
-    //
-    // Note that we don't need to know the concrete {receiver} maps here,
-    // meaning it's fine if the {receiver_maps} are unreliable, and we also
-    // don't need to install any stability dependencies, since the only
-    // relevant information regarding the {receiver} is the Map::constructor
-    // field on the root map (which is different from the JavaScript exposed
-    // "constructor" property) and that field cannot change.
-    //
-    // So if we know that {receiver} had a certain constructor at some point
-    // in the past (i.e. it had a certain map), then this constructor is going
-    // to be the same later, since this information cannot change with map
-    // transitions.
-    //
-    // The same is true for the instance type, e.g. we still know that the
-    // instance type is JSObject even if that information is unreliable, and
-    // the "access check needed" bit, which also cannot change later.
-    for (Handle<Map> map : receiver_maps) {
-      MapRef receiver_map(broker(), map);
-      if (!receiver_map.IsJSReceiverMap() ||
-          (receiver_map.is_access_check_needed() &&
-           !function_template_info->accept_any_receiver())) {
-        return inference.NoChange();
-      }
-    }
-
-    // See if we can constant-fold the compatible receiver checks.
-    CallOptimization::HolderLookup lookup;
-    Handle<JSObject> api_holder =
-        call_optimization.LookupHolderOfExpectedType(receiver_maps[0], &lookup);
-    if (lookup == CallOptimization::kHolderNotFound)
-      return inference.NoChange();
-    for (size_t i = 1; i < receiver_maps.size(); ++i) {
-      CallOptimization::HolderLookup lookupi;
-      Handle<JSObject> holderi = call_optimization.LookupHolderOfExpectedType(
-          receiver_maps[i], &lookupi);
-      if (lookup != lookupi) return inference.NoChange();
-      if (!api_holder.is_identical_to(holderi)) return inference.NoChange();
-    }
-
-    if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation &&
-        !inference.RelyOnMapsViaStability(dependencies())) {
-      // We were not able to make the receiver maps reliable without map checks
-      // but doing map checks would lead to deopt loops, so give up.
-      return inference.NoChange();
-    }
-
-    // TODO(neis): The maps were used in a way that does not actually require
-    // map checks or stability dependencies.
-    inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
-                                        control, p.feedback());
-
-    // Determine the appropriate holder for the {lookup}.
-    holder = lookup == CallOptimization::kHolderFound
-                 ? jsgraph()->HeapConstant(api_holder)
-                 : receiver;
-  } else if (function_template_info->accept_any_receiver() &&
-             function_template_info->signature().IsUndefined(isolate())) {
-    // We haven't found any {receiver_maps}, but we might still be able to
+  if (function_template_info.accept_any_receiver() &&
+      function_template_info.is_signature_undefined()) {
+    // We might be able to
     // optimize the API call depending on the {function_template_info}.
     // If the API function accepts any kind of {receiver}, we only need to
     // ensure that the {receiver} is actually a JSReceiver at this point,
@@ -2840,51 +2786,123 @@ Reduction JSCallReducer::ReduceCallApiFunction(
         graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
                          receiver, global_proxy, effect, control);
   } else {
-    // We don't have enough information to eliminate the access check
-    // and/or the compatible receiver check, so use the generic builtin
-    // that does those checks dynamically. This is still significantly
-    // faster than the generic call sequence.
-    Builtins::Name builtin_name =
-        !function_template_info->accept_any_receiver()
-            ? (function_template_info->signature().IsUndefined(isolate())
-                   ? Builtins::kCallFunctionTemplate_CheckAccess
-                   : Builtins::
-                         kCallFunctionTemplate_CheckAccessAndCompatibleReceiver)
-            : Builtins::kCallFunctionTemplate_CheckCompatibleReceiver;
+    // Try to infer the {receiver} maps from the graph.
+    MapInference inference(broker(), receiver, effect);
+    if (inference.HaveMaps()) {
+      MapHandles const& receiver_maps = inference.GetMaps();
+      MapRef first_receiver_map(broker(), receiver_maps[0]);
 
-    // The CallFunctionTemplate builtin requires the {receiver} to be
-    // an actual JSReceiver, so make sure we do the proper conversion
-    // first if necessary.
-    receiver = holder = effect =
-        graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
-                         receiver, global_proxy, effect, control);
+      // See if we can constant-fold the compatible receiver checks.
+      HolderLookupResult api_holder =
+          function_template_info.LookupHolderOfExpectedType(first_receiver_map,
+                                                            false);
+      if (api_holder.lookup == CallOptimization::kHolderNotFound)
+        return inference.NoChange();
 
-    Callable callable = Builtins::CallableFor(isolate(), builtin_name);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(),
-        argc + 1 /* implicit receiver */, CallDescriptor::kNeedsFrameState);
-    node->InsertInput(graph()->zone(), 0,
-                      jsgraph()->HeapConstant(callable.code()));
-    node->ReplaceInput(1, jsgraph()->HeapConstant(function_template_info));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(argc));
-    node->ReplaceInput(3, receiver);       // Update receiver input.
-    node->ReplaceInput(6 + argc, effect);  // Update effect input.
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-    return Changed(node);
+      // Check that all {receiver_maps} are actually JSReceiver maps and
+      // that the {function_template_info} accepts them without access
+      // checks (even if "access check needed" is set for {receiver}).
+      //
+      // Note that we don't need to know the concrete {receiver} maps here,
+      // meaning it's fine if the {receiver_maps} are unreliable, and we also
+      // don't need to install any stability dependencies, since the only
+      // relevant information regarding the {receiver} is the Map::constructor
+      // field on the root map (which is different from the JavaScript exposed
+      // "constructor" property) and that field cannot change.
+      //
+      // So if we know that {receiver} had a certain constructor at some point
+      // in the past (i.e. it had a certain map), then this constructor is going
+      // to be the same later, since this information cannot change with map
+      // transitions.
+      //
+      // The same is true for the instance type, e.g. we still know that the
+      // instance type is JSObject even if that information is unreliable, and
+      // the "access check needed" bit, which also cannot change later.
+      CHECK(first_receiver_map.IsJSReceiverMap());
+      CHECK(!first_receiver_map.is_access_check_needed() ||
+            function_template_info.accept_any_receiver());
+
+      for (size_t i = 1; i < receiver_maps.size(); ++i) {
+        MapRef receiver_map(broker(), receiver_maps[i]);
+        HolderLookupResult holder_i =
+            function_template_info.LookupHolderOfExpectedType(receiver_map,
+                                                              false);
+
+        if (api_holder.lookup != holder_i.lookup) return inference.NoChange();
+        if (!(api_holder.holder.has_value() && holder_i.holder.has_value()))
+          return inference.NoChange();
+        if (!api_holder.holder->equals(*holder_i.holder))
+          return inference.NoChange();
+
+        CHECK(receiver_map.IsJSReceiverMap());
+        CHECK(!receiver_map.is_access_check_needed() ||
+              function_template_info.accept_any_receiver());
+      }
+
+      if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation &&
+          !inference.RelyOnMapsViaStability(dependencies())) {
+        // We were not able to make the receiver maps reliable without map
+        // checks but doing map checks would lead to deopt loops, so give up.
+        return inference.NoChange();
+      }
+
+      // TODO(neis): The maps were used in a way that does not actually require
+      // map checks or stability dependencies.
+      inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                          control, p.feedback());
+
+      // Determine the appropriate holder for the {lookup}.
+      holder = api_holder.lookup == CallOptimization::kHolderFound
+                   ? jsgraph()->Constant(*api_holder.holder)
+                   : receiver;
+    } else {
+      // We don't have enough information to eliminate the access check
+      // and/or the compatible receiver check, so use the generic builtin
+      // that does those checks dynamically. This is still significantly
+      // faster than the generic call sequence.
+      Builtins::Name builtin_name;
+      if (function_template_info.accept_any_receiver()) {
+        builtin_name = Builtins::kCallFunctionTemplate_CheckCompatibleReceiver;
+      } else if (function_template_info.is_signature_undefined()) {
+        builtin_name = Builtins::kCallFunctionTemplate_CheckAccess;
+      } else {
+        builtin_name =
+            Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver;
+      }
+
+      // The CallFunctionTemplate builtin requires the {receiver} to be
+      // an actual JSReceiver, so make sure we do the proper conversion
+      // first if necessary.
+      receiver = holder = effect =
+          graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
+                           receiver, global_proxy, effect, control);
+
+      Callable callable = Builtins::CallableFor(isolate(), builtin_name);
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          graph()->zone(), callable.descriptor(),
+          argc + 1 /* implicit receiver */, CallDescriptor::kNeedsFrameState);
+      node->InsertInput(graph()->zone(), 0,
+                        jsgraph()->HeapConstant(callable.code()));
+      node->ReplaceInput(1, jsgraph()->Constant(function_template_info));
+      node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(argc));
+      node->ReplaceInput(3, receiver);       // Update receiver input.
+      node->ReplaceInput(6 + argc, effect);  // Update effect input.
+      NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
+      return Changed(node);
+    }
   }
 
   // TODO(turbofan): Consider introducing a JSCallApiCallback operator for
   // this and lower it during JSGenericLowering, and unify this with the
   // JSNativeContextSpecialization::InlineApiCall method a bit.
-  Handle<CallHandlerInfo> call_handler_info(
-      CallHandlerInfo::cast(function_template_info->call_code()), isolate());
-  Handle<Object> data(call_handler_info->data(), isolate());
+  CallHandlerInfoRef call_handler_info =
+      function_template_info.call_code().AsCallHandlerInfo();
   Callable call_api_callback = CodeFactory::CallApiCallback(isolate());
   CallInterfaceDescriptor cid = call_api_callback.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), cid, argc + 1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState);
-  ApiFunction api_function(v8::ToCData<Address>(call_handler_info->callback()));
+  ApiFunction api_function(call_handler_info.callback());
   ExternalReference function_reference = ExternalReference::Create(
       &api_function, ExternalReference::DIRECT_API_CALL);
 
@@ -2895,7 +2913,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
                     jsgraph()->HeapConstant(call_api_callback.code()));
   node->ReplaceInput(1, jsgraph()->ExternalConstant(function_reference));
   node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(argc));
-  node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(data));
+  node->InsertInput(graph()->zone(), 3,
+                    jsgraph()->Constant(call_handler_info.data()));
   node->InsertInput(graph()->zone(), 4, holder);
   node->ReplaceInput(5, receiver);       // Update receiver input.
   node->ReplaceInput(7 + argc, continuation_frame_state);
