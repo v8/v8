@@ -27,23 +27,9 @@ using TNode = compiler::TNode<T>;
 // -----------------------------------------------------------------------------
 // ES6 section 22.2 TypedArray Objects
 
-// Setup the TypedArray which is under construction.
-//  - Set the length.
-//  - Set the byte_offset.
-//  - Set the byte_length.
-//  - Set EmbedderFields to 0.
-void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
-                                                  TNode<UintPtrT> length,
-                                                  TNode<UintPtrT> byte_offset,
-                                                  TNode<UintPtrT> byte_length) {
-  StoreObjectFieldNoWriteBarrier(holder, JSTypedArray::kLengthOffset, length,
-                                 MachineType::PointerRepresentation());
-  StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kByteOffsetOffset,
-                                 byte_offset,
-                                 MachineType::PointerRepresentation());
-  StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kByteLengthOffset,
-                                 byte_length,
-                                 MachineType::PointerRepresentation());
+// Sets the embedder fields to 0 for a TypedArray which is under construction.
+void TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
+    TNode<JSTypedArray> holder) {
   for (int offset = JSTypedArray::kHeaderSize;
        offset < JSTypedArray::kSizeWithEmbedderFields; offset += kTaggedSize) {
     StoreObjectField(holder, offset, SmiConstant(0));
@@ -54,8 +40,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
 // elements.
 // TODO(bmeurer,v8:4153): Rename this and maybe fix up the implementation a bit.
 TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
-    TNode<Context> context, TNode<JSTypedArray> holder,
-    TNode<UintPtrT> byte_length) {
+    TNode<Context> context, TNode<UintPtrT> byte_length) {
   TNode<Context> native_context = LoadNativeContext(context);
   TNode<Map> map =
       CAST(LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX));
@@ -97,16 +82,6 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
        offset < JSArrayBuffer::kSizeWithEmbedderFields; offset += kTaggedSize) {
     StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));
   }
-
-  StoreObjectField(holder, JSTypedArray::kBufferOffset, buffer);
-
-  TNode<ByteArray> elements = AllocateByteArray(byte_length);
-  StoreObjectField(holder, JSTypedArray::kElementsOffset, elements);
-  StoreObjectField(holder, JSTypedArray::kBasePointerOffset, elements);
-  StoreObjectFieldNoWriteBarrier(
-      holder, JSTypedArray::kExternalPointerOffset,
-      PointerConstant(JSTypedArray::ExternalPointerForOnHeapArray()),
-      MachineType::PointerRepresentation());
   return buffer;
 }
 
@@ -228,7 +203,12 @@ TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
 TorqueStructTypedArrayElementsInfo
 TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
     TNode<JSTypedArray> typed_array) {
-  TNode<Int32T> elements_kind = LoadElementsKind(typed_array);
+  return GetTypedArrayElementsInfo(LoadMap(typed_array));
+}
+
+TorqueStructTypedArrayElementsInfo
+TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(TNode<Map> map) {
+  TNode<Int32T> elements_kind = LoadMapElementsKind(map);
   TVARIABLE(UintPtrT, var_size_log2);
   TVARIABLE(Map, var_map);
   ReadOnlyRoots roots(isolate());

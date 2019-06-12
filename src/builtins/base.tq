@@ -317,6 +317,16 @@ macro GetDerivedMap(implicit context: Context)(
   }
 }
 
+macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
+    JSObject {
+  let properties = kEmptyFixedArray;
+  if (IsDictionaryMap(map)) {
+    properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
+  }
+  return AllocateJSObjectFromMap(
+      map, properties, kEmptyFixedArray, kNone, kWithSlackTracking);
+}
+
 extern class JSFunction extends JSObject {
   shared_function_info: SharedFunctionInfo;
   context: Context;
@@ -633,30 +643,6 @@ extern class JSArrayBufferView extends JSObject {
 }
 
 extern class JSTypedArray extends JSArrayBufferView {
-  AttachOffHeapBuffer(buffer: JSArrayBuffer, byteOffset: uintptr): void {
-    const basePointer: Smi = 0;
-
-    // The max byteOffset is 8 * MaxSmi on the particular platform. 32 bit
-    // platforms are self-limiting, because we can't allocate an array bigger
-    // than our 32-bit arithmetic range anyway. 64 bit platforms could
-    // theoretically have an offset up to 2^35 - 1.
-    const backingStore = buffer.backing_store;
-    const externalPointer = backingStore + Convert<intptr>(byteOffset);
-
-    // Assert no overflow has occurred. Only assert if the mock array buffer
-    // allocator is NOT used. When the mock array buffer is used, impossibly
-    // large allocations are allowed that would erroneously cause an overflow
-    // and this assertion to fail.
-    assert(
-        IsMockArrayBufferAllocatorFlag() ||
-        Convert<uintptr>(externalPointer) >= Convert<uintptr>(backingStore));
-
-    this.elements = kEmptyByteArray;
-    this.buffer = buffer;
-    this.external_pointer = externalPointer;
-    this.base_pointer = basePointer;
-  }
-
   length: uintptr;
   external_pointer: RawPtr;
   base_pointer: ByteArray | Smi;
@@ -729,7 +715,7 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   function_template_rare_data: Object;
   shared_function_info: Object;
   flag: Smi;
-  @noVerifier length: Smi;
+  length: Smi;
   cached_property_name: Object;
 }
 
@@ -964,9 +950,9 @@ const kAllowLargeObjectAllocation: constexpr AllocationFlags
     generates 'CodeStubAssembler::kAllowLargeObjectAllocation';
 
 const kWithSlackTracking: constexpr SlackTrackingMode
-    generates 'SlackTrackingMode::kWithSlackTracking';
+    generates 'CodeStubAssembler::SlackTrackingMode::kWithSlackTracking';
 const kNoSlackTracking: constexpr SlackTrackingMode
-    generates 'SlackTrackingMode::kNoSlackTracking';
+    generates 'CodeStubAssembler::SlackTrackingMode::kNoSlackTracking';
 
 const kFixedDoubleArrays: constexpr ExtractFixedArrayFlags
     generates 'CodeStubAssembler::ExtractFixedArrayFlag::kFixedDoubleArrays';
@@ -1074,6 +1060,12 @@ const kStrictReadOnlyProperty: constexpr MessageTemplate
 
 const kString: constexpr PrimitiveType
     generates 'PrimitiveType::kString';
+
+const kExternalPointerForOnHeapArray: constexpr RawPtr
+    generates 'JSTypedArray::ExternalPointerForOnHeapArray()';
+
+const kNameDictionaryInitialCapacity:
+    constexpr int32 generates 'NameDictionary::kInitialCapacity';
 
 type Hole extends Oddball;
 type Null extends Oddball;
@@ -1237,9 +1229,9 @@ extern class AccessorInfo extends Struct {
   name: Object;
   flags: Smi;
   expected_receiver_type: Object;
-  @noVerifier setter: Foreign | Zero;
-  @noVerifier getter: Foreign | Zero;
-  @noVerifier js_getter: Foreign | Zero;
+  setter: Foreign | Zero;
+  getter: Foreign | Zero;
+  js_getter: Foreign | Zero;
   data: Object;
 }
 
@@ -1445,6 +1437,10 @@ extern macro ConstructWithTarget(implicit context: Context)(
     Constructor, JSReceiver, Object): JSReceiver;
 extern macro SpeciesConstructor(implicit context: Context)(
     Object, JSReceiver): JSReceiver;
+
+extern macro ConstructorBuiltinsAssembler::IsDictionaryMap(Map): bool;
+extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
+    NameDictionary;
 
 extern builtin ToObject(Context, Object): JSReceiver;
 extern macro ToObject_Inline(Context, Object): JSReceiver;
@@ -2062,6 +2058,7 @@ extern macro Int32Constant(constexpr ElementsKind): ElementsKind;
 extern macro IntPtrConstant(constexpr NativeContextSlot): NativeContextSlot;
 extern macro IntPtrConstant(constexpr ContextSlot): ContextSlot;
 extern macro IntPtrConstant(constexpr intptr): intptr;
+extern macro PointerConstant(constexpr RawPtr): RawPtr;
 extern macro SingleCharacterStringConstant(constexpr string): String;
 
 extern macro BitcastWordToTaggedSigned(intptr): Smi;

@@ -27,15 +27,12 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                                   const char* method_name,
                                                   IterationKind iteration_kind);
 
-  void SetupTypedArray(TNode<JSTypedArray> holder, TNode<UintPtrT> length,
-                       TNode<UintPtrT> byte_offset,
-                       TNode<UintPtrT> byte_length);
+  void SetupTypedArrayEmbedderFields(TNode<JSTypedArray> holder);
   void AttachBuffer(TNode<JSTypedArray> holder, TNode<JSArrayBuffer> buffer,
                     TNode<Map> map, TNode<Smi> length,
                     TNode<UintPtrT> byte_offset);
 
   TNode<JSArrayBuffer> AllocateEmptyOnHeapBuffer(TNode<Context> context,
-                                                 TNode<JSTypedArray> holder,
                                                  TNode<UintPtrT> byte_length);
 
   TNode<Map> LoadMapForType(TNode<JSTypedArray> array);
@@ -54,6 +51,7 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
 
   // Returns information (byte size and map) about a TypedArray's elements.
   ElementsInfo GetTypedArrayElementsInfo(TNode<JSTypedArray> typed_array);
+  ElementsInfo GetTypedArrayElementsInfo(TNode<Map> map);
 
   TNode<JSFunction> GetDefaultConstructor(TNode<Context> context,
                                           TNode<JSTypedArray> exemplar);

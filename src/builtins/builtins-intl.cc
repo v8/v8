@@ -351,21 +351,17 @@ Object DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
   Handle<JSFunction> target = args.target();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
 
-  Handle<JSObject> obj;
+  Handle<Map> map;
   // 2. Let result be OrdinaryCreateFromConstructor(NewTarget,
   //    "%<T>Prototype%").
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, obj,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<T> result = Handle<T>::cast(obj);
-  result->set_flags(0);
+      isolate, map, JSFunction::GetDerivedMap(isolate, target, new_target));
 
   Handle<Object> locales = args.atOrUndefined(isolate, 1);
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
-  // 3. Return Initialize<T>(t, locales, options).
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           T::Initialize(isolate, result, locales, options));
+  // 3. Return New<T>(t, locales, options).
+  RETURN_RESULT_OR_FAILURE(isolate, T::New(isolate, map, locales, options));
 }
 
 /**

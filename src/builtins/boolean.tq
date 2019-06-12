@@ -3,13 +3,6 @@
 // found in the LICENSE file.
 
 namespace boolean {
-  const kNameDictionaryInitialCapacity:
-      constexpr int32 generates 'NameDictionary::kInitialCapacity';
-
-  extern macro ConstructorBuiltinsAssembler::IsDictionaryMap(Map): bool;
-  extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
-      NameDictionary;
-
   // TODO(v8:9120): This is a workaround to get access to target and new.target
   // in javascript builtins. Requires cleanup once this is fully supported by
   // torque.
@@ -29,13 +22,8 @@ namespace boolean {
 
     const target = UnsafeCast<JSFunction>(Parameter(TARGET_INDEX));
     const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
-    let properties = kEmptyFixedArray;
-    if (IsDictionaryMap(map)) {
-      properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
-    }
 
-    const obj = UnsafeCast<JSValue>(AllocateJSObjectFromMap(
-        map, properties, kEmptyFixedArray, kNone, kWithSlackTracking));
+    const obj = UnsafeCast<JSValue>(AllocateFastOrSlowJSObjectFromMap(map));
     obj.value = value;
     return obj;
   }

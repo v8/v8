@@ -30,11 +30,11 @@ namespace internal {
 
 class JSSegmenter : public JSObject {
  public:
-  // Initializes segmenter object with properties derived from input
-  // locales and options.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegmenter> Initialize(
-      Isolate* isolate, Handle<JSSegmenter> segmenter_holder,
-      Handle<Object> locales, Handle<Object> options);
+  // Creates segmenter object with properties derived from input locales and
+  // options.
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegmenter> New(
+      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+      Handle<Object> options);
 
   V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSSegmenter> segmenter_holder);

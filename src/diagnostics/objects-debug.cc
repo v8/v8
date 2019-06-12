@@ -1536,6 +1536,7 @@ void JSArrayBuffer::JSArrayBufferVerify(Isolate* isolate) {
 
 void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSArrayBufferViewVerify(*this, isolate);
+  CHECK(buffer().IsJSArrayBuffer());
   CHECK_LE(byte_length(), JSArrayBuffer::kMaxByteLength);
   CHECK_LE(byte_offset(), JSArrayBuffer::kMaxByteLength);
 }
@@ -1873,6 +1874,8 @@ void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
 
 void JSListFormat::JSListFormatVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSListFormatVerify(*this, isolate);
+  CHECK(locale().IsString());
+  CHECK(icu_formatter().IsForeign());
   VerifySmiField(kFlagsOffset);
 }
 
@@ -1885,11 +1888,16 @@ void JSNumberFormat::JSNumberFormatVerify(Isolate* isolate) {
 
 void JSPluralRules::JSPluralRulesVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSPluralRulesVerify(*this, isolate);
+  CHECK(locale().IsString());
   VerifySmiField(kFlagsOffset);
+  CHECK(icu_plural_rules().IsForeign());
+  CHECK(icu_number_formatter().IsForeign());
 }
 
 void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSRelativeTimeFormatVerify(*this, isolate);
+  CHECK(locale().IsString());
+  CHECK(icu_formatter().IsForeign());
   VerifySmiField(kFlagsOffset);
 }
 
@@ -1900,6 +1908,8 @@ void JSSegmentIterator::JSSegmentIteratorVerify(Isolate* isolate) {
 
 void JSSegmenter::JSSegmenterVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSSegmenterVerify(*this, isolate);
+  CHECK(locale().IsString());
+  CHECK(icu_break_iterator().IsForeign());
   VerifySmiField(kFlagsOffset);
 }
 

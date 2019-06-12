@@ -351,10 +351,8 @@ struct ObjectLiteralHelper {
                   native_context, number_of_properties);
 
     Handle<JSObject> boilerplate =
-        map->is_dictionary_map()
-            ? isolate->factory()->NewSlowJSObjectFromMap(
-                  map, number_of_properties, allocation)
-            : isolate->factory()->NewJSObjectFromMap(map, allocation);
+        isolate->factory()->NewFastOrSlowJSObjectFromMap(
+            map, number_of_properties, allocation);
 
     // Normalize the elements of the boilerplate to save space if needed.
     if (!use_fast_elements) JSObject::NormalizeElements(boilerplate);

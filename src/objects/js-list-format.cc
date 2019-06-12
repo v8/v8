@@ -114,11 +114,9 @@ JSListFormat::Type get_type(const char* str) {
   UNREACHABLE();
 }
 
-MaybeHandle<JSListFormat> JSListFormat::Initialize(
-    Isolate* isolate, Handle<JSListFormat> list_format, Handle<Object> locales,
-    Handle<Object> input_options) {
-  list_format->set_flags(0);
-
+MaybeHandle<JSListFormat> JSListFormat::New(Isolate* isolate, Handle<Map> map,
+                                            Handle<Object> locales,
+                                            Handle<Object> input_options) {
   Handle<JSReceiver> options;
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
@@ -156,11 +154,8 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   Intl::ResolvedLocale r =
       Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales(),
                           requested_locales, matcher, {});
-
-  // 11. Set listFormat.[[Locale]] to r.[[Locale]].
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
-  list_format->set_locale(*locale_str);
 
   // 12. Let t be GetOption(options, "type", "string", «"conjunction",
   //    "disjunction", "unit"», "conjunction").
@@ -171,9 +166,6 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   MAYBE_RETURN(maybe_type, MaybeHandle<JSListFormat>());
   Type type_enum = maybe_type.FromJust();
 
-  // 13. Set listFormat.[[Type]] to t.
-  list_format->set_type(type_enum);
-
   // 14. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
@@ -181,9 +173,6 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
       {Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
   MAYBE_RETURN(maybe_style, MaybeHandle<JSListFormat>());
   Style style_enum = maybe_style.FromJust();
-
-  // 15. Set listFormat.[[Style]] to s.
-  list_format->set_style(style_enum);
 
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
@@ -198,7 +187,22 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   Handle<Managed<icu::ListFormatter>> managed_formatter =
       Managed<icu::ListFormatter>::FromRawPtr(isolate, 0, formatter);
 
+  // Now all properties are ready, so we can allocate the result object.
+  Handle<JSListFormat> list_format = Handle<JSListFormat>::cast(
+      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  DisallowHeapAllocation no_gc;
+  list_format->set_flags(0);
   list_format->set_icu_formatter(*managed_formatter);
+
+  // 11. Set listFormat.[[Locale]] to r.[[Locale]].
+  list_format->set_locale(*locale_str);
+
+  // 13. Set listFormat.[[Type]] to t.
+  list_format->set_type(type_enum);
+
+  // 15. Set listFormat.[[Style]] to s.
+  list_format->set_style(style_enum);
+
   return list_format;
 }
 

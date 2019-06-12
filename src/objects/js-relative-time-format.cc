@@ -54,11 +54,9 @@ JSRelativeTimeFormat::Numeric JSRelativeTimeFormat::getNumeric(
   UNREACHABLE();
 }
 
-MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
-    Isolate* isolate, Handle<JSRelativeTimeFormat> relative_time_format_holder,
-    Handle<Object> locales, Handle<Object> input_options) {
-  relative_time_format_holder->set_flags(0);
-
+MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
+    Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+    Handle<Object> input_options) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -125,7 +123,6 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
 
   Handle<String> locale_str = isolate->factory()->NewStringFromAsciiChecked(
       maybe_locale_str.FromJust().c_str());
-  relative_time_format_holder->set_locale(*locale_str);
 
   // 15. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
@@ -136,9 +133,6 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
   MAYBE_RETURN(maybe_style, MaybeHandle<JSRelativeTimeFormat>());
   Style style_enum = maybe_style.FromJust();
 
-  // 16. Set relativeTimeFormat.[[Style]] to s.
-  relative_time_format_holder->set_style(style_enum);
-
   // 17. Let numeric be ? GetOption(options, "numeric", "string",
   //                                «"always", "auto"», "always").
   Maybe<Numeric> maybe_numeric = Intl::GetStringOption<Numeric>(
@@ -146,9 +140,6 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
       {"always", "auto"}, {Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
   MAYBE_RETURN(maybe_numeric, MaybeHandle<JSRelativeTimeFormat>());
   Numeric numeric_enum = maybe_numeric.FromJust();
-
-  // 18. Set relativeTimeFormat.[[Numeric]] to numeric.
-  relative_time_format_holder->set_numeric(numeric_enum);
 
   // 19. Let relativeTimeFormat.[[NumberFormat]] be
   //     ? Construct(%NumberFormat%, « nfLocale, nfOptions »).
@@ -178,6 +169,21 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
   Handle<Managed<icu::RelativeDateTimeFormatter>> managed_formatter =
       Managed<icu::RelativeDateTimeFormatter>::FromRawPtr(isolate, 0,
                                                           icu_formatter);
+
+  // Now all properties are ready, so we can allocate the result object.
+  Handle<JSRelativeTimeFormat> relative_time_format_holder =
+      Handle<JSRelativeTimeFormat>::cast(
+          isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  DisallowHeapAllocation no_gc;
+  relative_time_format_holder->set_flags(0);
+
+  relative_time_format_holder->set_locale(*locale_str);
+
+  // 16. Set relativeTimeFormat.[[Style]] to s.
+  relative_time_format_holder->set_style(style_enum);
+
+  // 18. Set relativeTimeFormat.[[Numeric]] to numeric.
+  relative_time_format_holder->set_numeric(numeric_enum);
 
   // 21. Set relativeTimeFormat.[[InitializedRelativeTimeFormat]] to true.
   relative_time_format_holder->set_icu_formatter(*managed_formatter);

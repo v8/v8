@@ -1434,17 +1434,21 @@ static Local<FunctionTemplate> FunctionTemplateNew(
       i::FUNCTION_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::FunctionTemplateInfo> obj =
       i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
-  InitializeFunctionTemplate(obj);
-  obj->set_do_not_cache(do_not_cache);
-  int next_serial_number = i::FunctionTemplateInfo::kInvalidSerialNumber;
-  if (!do_not_cache) {
-    next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
+  {
+    // Disallow GC until all fields of obj have acceptable types.
+    i::DisallowHeapAllocation no_gc;
+    InitializeFunctionTemplate(obj);
+    obj->set_length(length);
+    obj->set_do_not_cache(do_not_cache);
+    int next_serial_number = i::FunctionTemplateInfo::kInvalidSerialNumber;
+    if (!do_not_cache) {
+      next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
+    }
+    obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   }
-  obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (callback != nullptr) {
     Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type);
   }
-  obj->set_length(length);
   obj->set_undetectable(false);
   obj->set_needs_access_check(false);
   obj->set_accept_any_receiver(true);

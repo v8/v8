@@ -65,6 +65,8 @@ namespace typed_array {
       implicit context: Context)(JSTypedArray): JSArrayBuffer;
   extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
       JSTypedArray): TypedArrayElementsInfo;
+  extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(Map):
+      TypedArrayElementsInfo;
   extern macro TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
       ElementsKind): bool;
   extern macro LoadFixedTypedArrayElementAsTagged(

@@ -1640,10 +1640,17 @@ Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
 Handle<AccessorInfo> Factory::NewAccessorInfo() {
   Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(
       NewStruct(ACCESSOR_INFO_TYPE, AllocationType::kOld));
+  DisallowHeapAllocation no_gc;
   info->set_name(*empty_string());
   info->set_flags(0);  // Must clear the flags, it was initialized as undefined.
   info->set_is_sloppy(true);
   info->set_initial_property_attributes(NONE);
+
+  // Clear some other fields that should not be undefined.
+  info->set_getter(Smi::kZero);
+  info->set_setter(Smi::kZero);
+  info->set_js_getter(Smi::kZero);
+
   return info;
 }
 
@@ -2886,12 +2893,14 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
   return js_obj;
 }
 
-Handle<JSObject> Factory::NewSlowJSObjectFromMap(Handle<Map> map, int capacity,
-                                                 AllocationType allocation) {
+Handle<JSObject> Factory::NewSlowJSObjectFromMap(
+    Handle<Map> map, int capacity, AllocationType allocation,
+    Handle<AllocationSite> allocation_site) {
   DCHECK(map->is_dictionary_map());
   Handle<NameDictionary> object_properties =
       NameDictionary::New(isolate(), capacity);
-  Handle<JSObject> js_object = NewJSObjectFromMap(map, allocation);
+  Handle<JSObject> js_object =
+      NewJSObjectFromMap(map, allocation, allocation_site);
   js_object->set_raw_properties_or_hash(*object_properties);
   return js_object;
 }

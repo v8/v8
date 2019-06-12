@@ -2003,13 +2003,9 @@ MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, initial_map,
       JSFunction::GetDerivedMap(isolate, constructor, new_target), JSObject);
-  Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(
-      initial_map, AllocationType::kYoung, site);
-  if (initial_map->is_dictionary_map()) {
-    Handle<NameDictionary> dictionary =
-        NameDictionary::New(isolate, NameDictionary::kInitialCapacity);
-    result->SetProperties(*dictionary);
-  }
+  Handle<JSObject> result = isolate->factory()->NewFastOrSlowJSObjectFromMap(
+      initial_map, NameDictionary::kInitialCapacity, AllocationType::kYoung,
+      site);
   isolate->counters()->constructed_objects()->Increment();
   isolate->counters()->constructed_objects_runtime()->Increment();
   return result;
@@ -2027,13 +2023,7 @@ MaybeHandle<JSObject> JSObject::ObjectCreate(Isolate* isolate,
       Map::GetObjectCreateMap(isolate, Handle<HeapObject>::cast(prototype));
 
   // Actually allocate the object.
-  Handle<JSObject> object;
-  if (map->is_dictionary_map()) {
-    object = isolate->factory()->NewSlowJSObjectFromMap(map);
-  } else {
-    object = isolate->factory()->NewJSObjectFromMap(map);
-  }
-  return object;
+  return isolate->factory()->NewFastOrSlowJSObjectFromMap(map);
 }
 
 void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
