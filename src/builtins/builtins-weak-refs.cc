@@ -91,14 +91,34 @@ BUILTIN(FinalizationGroupCleanupSome) {
   HandleScope scope(isolate);
   const char* method_name = "FinalizationGroup.prototype.cleanupSome";
 
+  // 1. Let finalizationGroup be the this value.
+  //
+  // 2. If Type(finalizationGroup) is not Object, throw a TypeError
+  //    exception.
+  //
+  // 3. If finalizationGroup does not have a [[Cells]] internal slot,
+  //    throw a TypeError exception.
   CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
 
-  // TODO(marja, gsathya): Add missing "cleanup" callback.
+  Handle<Object> callback(finalization_group->cleanup(), isolate);
+  Handle<Object> callback_obj = args.atOrUndefined(isolate, 1);
+
+  // 4. If callback is not undefined and IsCallable(callback) is
+  //    false, throw a TypeError exception.
+  if (!callback_obj->IsUndefined(isolate)) {
+    if (!callback_obj->IsCallable()) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate,
+          NewTypeError(MessageTemplate::kWeakRefsCleanupMustBeCallable));
+    }
+    callback = callback_obj;
+  }
 
   // Don't do set_scheduled_for_cleanup(false); we still have the microtask
   // scheduled and don't want to schedule another one in case the user never
   // executes microtasks.
-  JSFinalizationGroup::Cleanup(finalization_group, isolate);
+  JSFinalizationGroup::Cleanup(isolate, finalization_group, callback);
+
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

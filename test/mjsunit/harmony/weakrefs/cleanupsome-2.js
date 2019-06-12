@@ -7,10 +7,6 @@
 let cleanup_count = 0;
 let cleanup_holdings = [];
 let cleanup = function(iter) {
-  %AbortJS("shouldn't be called");
-}
-
-let cleanup2 = function(iter) {
   for (holdings of iter) {
     cleanup_holdings.push(holdings);
   }
@@ -22,15 +18,14 @@ let fg = new FinalizationGroup(cleanup);
   let o = {};
   fg.register(o, "holdings");
 
-  // cleanupSome won't do anything since there are no reclaimed targets.
-  fg.cleanupSome(cleanup2);
   assertEquals(0, cleanup_count);
 })();
 
 // GC will detect o as dead.
 gc();
 
-fg.cleanupSome(cleanup2);
+// passing no callback, should trigger cleanup function
+fg.cleanupSome();
 assertEquals(1, cleanup_count);
 assertEquals(1, cleanup_holdings.length);
 assertEquals("holdings", cleanup_holdings[0]);

@@ -138,3 +138,15 @@
   let rv = FinalizationGroup.prototype.cleanupSome.call(fg);
   assertEquals(undefined, rv);
 })();
+
+(function TestCleanupSomeWithNonCallableCallback() {
+  let fg = new FinalizationGroup(() => {});
+  assertThrows(() => fg.cleanupSome(1), TypeError);
+  assertThrows(() => fg.cleanupSome(1n), TypeError);
+  assertThrows(() => fg.cleanupSome(Symbol()), TypeError);
+  assertThrows(() => fg.cleanupSome({}), TypeError);
+  assertThrows(() => fg.cleanupSome('foo'), TypeError);
+  assertThrows(() => fg.cleanupSome(true), TypeError);
+  assertThrows(() => fg.cleanupSome(false), TypeError);
+  assertThrows(() => fg.cleanupSome(null), TypeError);
+})();

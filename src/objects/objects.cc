@@ -8112,7 +8112,9 @@ HashTable<NameDictionary, NameDictionaryShape>::Shrink(Isolate* isolate,
                                                        int additionalCapacity);
 
 void JSFinalizationGroup::Cleanup(
-    Handle<JSFinalizationGroup> finalization_group, Isolate* isolate) {
+    Isolate* isolate, Handle<JSFinalizationGroup> finalization_group,
+    Handle<Object> cleanup) {
+  DCHECK(cleanup->IsCallable());
   // It's possible that the cleared_cells list is empty, since
   // FinalizationGroup.unregister() removed all its elements before this task
   // ran. In that case, don't call the cleanup function.
@@ -8130,7 +8132,6 @@ void JSFinalizationGroup::Cleanup(
               Handle<AllocationSite>::null()));
       iterator->set_finalization_group(*finalization_group);
     }
-    Handle<Object> cleanup(finalization_group->cleanup(), isolate);
 
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     v8::Local<v8::Value> result;

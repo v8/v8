@@ -4310,7 +4310,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
 
     SimpleInstallFunction(isolate(), finalization_group_prototype,
                           "cleanupSome",
-                          Builtins::kFinalizationGroupCleanupSome, 0, false);
+                          Builtins::kFinalizationGroupCleanupSome, 1, false);
   }
   {
     // Create %WeakRefPrototype%

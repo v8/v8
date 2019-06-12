@@ -57,8 +57,9 @@ class JSFinalizationGroup : public JSObject {
 
   // Constructs an iterator for the WeakCells in the cleared_cells list and
   // calls the user's cleanup function.
-  static void Cleanup(Handle<JSFinalizationGroup> finalization_group,
-                      Isolate* isolate);
+  static void Cleanup(Isolate* isolate,
+                      Handle<JSFinalizationGroup> finalization_group,
+                      Handle<Object> callback);
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
