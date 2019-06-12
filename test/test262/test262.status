@@ -81,7 +81,7 @@
   'intl402/DateTimeFormat/numbering-system-calendar-options': ['--harmony-intl-add-calendar-numbering-system'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9319
-  'intl402/NumberFormat/prototype/resolvedOptions/order': ['--noharmony-intl-numberformat-unified'],
+  'intl402/NumberFormat/prototype/resolvedOptions/order': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9084
   'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
