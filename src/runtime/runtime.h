@@ -115,8 +115,9 @@ namespace internal {
   F(ClearStepping, 0, 1)                        \
   F(CollectGarbage, 1, 1)                       \
   F(DebugAsyncFunctionEntered, 1, 1)            \
-  F(DebugAsyncFunctionFinished, 2, 1)           \
   F(DebugAsyncFunctionSuspended, 1, 1)          \
+  F(DebugAsyncFunctionResumed, 1, 1)            \
+  F(DebugAsyncFunctionFinished, 2, 1)           \
   F(DebugBreakAtEntry, 1, 1)                    \
   F(DebugCollectCoverage, 0, 1)                 \
   F(DebugGetLoadedScriptIds, 0, 1)              \

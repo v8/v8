@@ -750,6 +750,23 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionEntered) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  isolate->PopPromise();
+  isolate->OnAsyncFunctionStateChanged(promise, debug::kAsyncFunctionSuspended);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionResumed) {
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  isolate->PushPromise(promise);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
@@ -761,14 +778,6 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
                                          debug::kAsyncFunctionFinished);
   }
   return *promise;
-}
-
-RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
-  DCHECK_EQ(1, args.length());
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  isolate->OnAsyncFunctionStateChanged(promise, debug::kAsyncFunctionSuspended);
-  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {

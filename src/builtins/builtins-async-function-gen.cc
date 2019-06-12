@@ -36,6 +36,21 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
   TNode<JSAsyncFunctionObject> async_function_object =
       CAST(LoadContextElement(context, Context::EXTENSION_INDEX));
 
+  // Push the promise for the {async_function_object} back onto the catch
+  // prediction stack to handle exceptions thrown after resuming from the
+  // await properly.
+  Label if_instrumentation(this, Label::kDeferred),
+      if_instrumentation_done(this);
+  Branch(IsDebugActive(), &if_instrumentation, &if_instrumentation_done);
+  BIND(&if_instrumentation);
+  {
+    TNode<JSPromise> promise = LoadObjectField<JSPromise>(
+        async_function_object, JSAsyncFunctionObject::kPromiseOffset);
+    CallRuntime(Runtime::kDebugAsyncFunctionResumed, context, promise);
+    Goto(&if_instrumentation_done);
+  }
+  BIND(&if_instrumentation_done);
+
   // Inline version of GeneratorPrototypeNext / GeneratorPrototypeReturn with
   // unnecessary runtime checks removed.
 
