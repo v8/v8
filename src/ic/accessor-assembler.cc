@@ -3753,8 +3753,6 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     ReturnIf(IsNullOrUndefined(source), object);
 
     // Lastly, clone any in-object properties.
-    // Determine the inobject property capacity of both objects, and copy the
-    // smaller number into the resulting object.
     TNode<IntPtrT> source_start =
         LoadMapInobjectPropertiesStartInWords(source_map);
     TNode<IntPtrT> source_size = LoadMapInstanceSizeInWords(source_map);
@@ -3763,35 +3761,48 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     TNode<IntPtrT> field_offset_difference =
         TimesTaggedSize(IntPtrSub(result_start, source_start));
 
-    // If MutableHeapNumbers may be present in-object, allocations may occur
-    // within this loop, thus the write barrier is required.
-    //
-    // TODO(caitp): skip the write barrier until the first MutableHeapNumber
-    // field is found
-    const bool may_use_mutable_heap_numbers = !FLAG_unbox_double_fields;
-
+    // Just copy the fields as raw data (pretending that there are no
+    // MutableHeapNumbers). This doesn't need write barriers.
     BuildFastLoop(
         source_start, source_size,
         [=](Node* field_index) {
           TNode<IntPtrT> field_offset =
               TimesTaggedSize(UncheckedCast<IntPtrT>(field_index));
-
-          if (may_use_mutable_heap_numbers) {
-            TNode<Object> field = LoadObjectField(CAST(source), field_offset);
-            field = CloneIfMutablePrimitive(field);
-            TNode<IntPtrT> result_offset =
-                IntPtrAdd(field_offset, field_offset_difference);
-            StoreObjectField(object, result_offset, field);
-          } else {
-            // Copy fields as raw data.
-            TNode<IntPtrT> field =
-                LoadObjectField<IntPtrT>(CAST(source), field_offset);
-            TNode<IntPtrT> result_offset =
-                IntPtrAdd(field_offset, field_offset_difference);
-            StoreObjectFieldNoWriteBarrier(object, result_offset, field);
-          }
+          TNode<IntPtrT> field =
+              LoadObjectField<IntPtrT>(CAST(source), field_offset);
+          TNode<IntPtrT> result_offset =
+              IntPtrAdd(field_offset, field_offset_difference);
+          StoreObjectFieldNoWriteBarrier(object, result_offset, field);
         },
         1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+
+    // If MutableHeapNumbers can occur, we need to go through the {object}
+    // again here and properly clone them. We use a second loop here to
+    // ensure that the GC (and heap verifier) always sees properly initialized
+    // objects, i.e. never hits undefined values in double fields.
+    if (!FLAG_unbox_double_fields) {
+      BuildFastLoop(
+          result_start, source_size,
+          [=](Node* field_index) {
+            TNode<IntPtrT> result_offset =
+                TimesTaggedSize(UncheckedCast<IntPtrT>(field_index));
+            TNode<Object> field = LoadObjectField(object, result_offset);
+            Label if_done(this), if_mutableheapnumber(this, Label::kDeferred);
+            GotoIf(TaggedIsSmi(field), &if_done);
+            Branch(IsMutableHeapNumber(CAST(field)), &if_mutableheapnumber,
+                   &if_done);
+            BIND(&if_mutableheapnumber);
+            {
+              TNode<Object> value = AllocateMutableHeapNumberWithValue(
+                  LoadHeapNumberValue(UncheckedCast<HeapNumber>(field)));
+              StoreObjectField(object, result_offset, value);
+              Goto(&if_done);
+            }
+            BIND(&if_done);
+          },
+          1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+    }
+
     Return(object);
   }
 
