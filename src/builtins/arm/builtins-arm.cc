@@ -2835,19 +2835,25 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   DCHECK(function_address == r1 || function_address == r2);
 
-  Label profiler_disabled;
-  Label end_profiler_check;
+  Label profiler_enabled, end_profiler_check;
   __ Move(r9, ExternalReference::is_profiling_address(isolate));
   __ ldrb(r9, MemOperand(r9, 0));
   __ cmp(r9, Operand(0));
-  __ b(eq, &profiler_disabled);
-
-  // Additional parameter is the address of the actual callback.
-  __ Move(r3, thunk_ref);
-  __ jmp(&end_profiler_check);
-
-  __ bind(&profiler_disabled);
-  __ Move(r3, function_address);
+  __ b(ne, &profiler_enabled);
+  __ Move(r9, ExternalReference::address_of_runtime_stats_flag());
+  __ ldrb(r9, MemOperand(r9, 0));
+  __ cmp(r9, Operand(0));
+  __ b(ne, &profiler_enabled);
+  {
+    // Call the api function directly.
+    __ Move(r3, function_address);
+    __ b(&end_profiler_check);
+  }
+  __ bind(&profiler_enabled);
+  {
+    // Additional parameter is the address of the actual callback.
+    __ Move(r3, thunk_ref);
+  }
   __ bind(&end_profiler_check);
 
   // Allocate HandleScope in callee-save registers.

@@ -3254,8 +3254,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Debug helpers
   Node* IsDebugActive();
 
-  TNode<BoolT> IsRuntimeCallStatsEnabled();
-
   // JSArrayBuffer helpers
   TNode<Uint32T> LoadJSArrayBufferBitField(TNode<JSArrayBuffer> array_buffer);
   TNode<RawPtrT> LoadJSArrayBufferBackingStore(

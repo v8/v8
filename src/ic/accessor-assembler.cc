@@ -184,18 +184,12 @@ void AccessorAssembler::HandleLoadCallbackProperty(const LoadICParameters* p,
   TNode<IntPtrT> descriptor =
       Signed(DecodeWord<LoadHandler::DescriptorBits>(handler_word));
 
-  Label runtime(this, Label::kDeferred);
   Callable callable = CodeFactory::ApiGetter(isolate());
   TNode<AccessorInfo> accessor_info =
       CAST(LoadDescriptorValue(LoadMap(holder), descriptor));
 
-  GotoIf(IsRuntimeCallStatsEnabled(), &runtime);
   exit_point->ReturnCallStub(callable, p->context, p->receiver, holder,
                              accessor_info);
-
-  BIND(&runtime);
-  exit_point->ReturnCallRuntime(Runtime::kLoadCallbackProperty, p->context,
-                                p->receiver, holder, accessor_info, p->name);
 }
 
 void AccessorAssembler::HandleLoadAccessor(
@@ -203,7 +197,6 @@ void AccessorAssembler::HandleLoadAccessor(
     TNode<WordT> handler_word, TNode<DataHandler> handler,
     TNode<IntPtrT> handler_kind, ExitPoint* exit_point) {
   Comment("api_getter");
-  Label runtime(this, Label::kDeferred);
   // Context is stored either in data2 or data3 field depending on whether
   // the access check is enabled for this handler or not.
   TNode<MaybeObject> maybe_context = Select<MaybeObject>(
@@ -215,39 +208,31 @@ void AccessorAssembler::HandleLoadAccessor(
   CSA_CHECK(this, IsNotCleared(maybe_context));
   TNode<Object> context = GetHeapObjectAssumeWeak(maybe_context);
 
-  GotoIf(IsRuntimeCallStatsEnabled(), &runtime);
-  {
-    TNode<Foreign> foreign = CAST(
-        LoadObjectField(call_handler_info, CallHandlerInfo::kJsCallbackOffset));
-    TNode<WordT> callback = TNode<WordT>::UncheckedCast(LoadObjectField(
-        foreign, Foreign::kForeignAddressOffset, MachineType::Pointer()));
-    TNode<Object> data =
-        LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
+  TNode<Foreign> foreign = CAST(
+      LoadObjectField(call_handler_info, CallHandlerInfo::kJsCallbackOffset));
+  TNode<WordT> callback = TNode<WordT>::UncheckedCast(LoadObjectField(
+      foreign, Foreign::kForeignAddressOffset, MachineType::Pointer()));
+  TNode<Object> data =
+      LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
 
-    VARIABLE(api_holder, MachineRepresentation::kTagged, p->receiver);
-    Label load(this);
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kApiGetter)),
-           &load);
+  VARIABLE(api_holder, MachineRepresentation::kTagged, p->receiver);
+  Label load(this);
+  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kApiGetter)),
+         &load);
 
-    CSA_ASSERT(
-        this,
-        WordEqual(handler_kind,
-                  IntPtrConstant(LoadHandler::kApiGetterHolderIsPrototype)));
+  CSA_ASSERT(
+      this,
+      WordEqual(handler_kind,
+                IntPtrConstant(LoadHandler::kApiGetterHolderIsPrototype)));
 
-    api_holder.Bind(LoadMapPrototype(LoadMap(p->receiver)));
-    Goto(&load);
+  api_holder.Bind(LoadMapPrototype(LoadMap(p->receiver)));
+  Goto(&load);
 
-    BIND(&load);
-    Callable callable = CodeFactory::CallApiCallback(isolate());
-    TNode<IntPtrT> argc = IntPtrConstant(0);
-    exit_point->Return(CallStub(callable, context, callback, argc, data,
-                                api_holder.value(), p->receiver));
-  }
-
-  BIND(&runtime);
-  exit_point->ReturnCallRuntime(Runtime::kLoadAccessorProperty, context,
-                                p->receiver, SmiTag(handler_kind),
-                                call_handler_info);
+  BIND(&load);
+  Callable callable = CodeFactory::CallApiCallback(isolate());
+  TNode<IntPtrT> argc = IntPtrConstant(0);
+  exit_point->Return(CallStub(callable, context, callback, argc, data,
+                              api_holder.value(), p->receiver));
 }
 
 void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,

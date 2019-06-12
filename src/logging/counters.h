@@ -941,7 +941,6 @@ class RuntimeCallTimer final {
   V(Invoke)                                    \
   V(InvokeApiFunction)                         \
   V(InvokeApiInterruptCallbacks)               \
-  V(InvokeFunctionCallback)                    \
   V(JS_Execution)                              \
   V(Map_SetPrototype)                          \
   V(Map_TransitionToAccessorProperty)          \

@@ -557,8 +557,6 @@ namespace internal {
   F(KeyedStoreIC_Miss, 5, 1)                 \
   F(StoreInArrayLiteralIC_Miss, 5, 1)        \
   F(KeyedStoreIC_Slow, 3, 1)                 \
-  F(LoadAccessorProperty, 4, 1)              \
-  F(LoadCallbackProperty, 4, 1)              \
   F(LoadElementWithInterceptor, 2, 1)        \
   F(LoadGlobalIC_Miss, 4, 1)                 \
   F(LoadGlobalIC_Slow, 3, 1)                 \

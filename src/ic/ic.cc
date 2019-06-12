@@ -2650,46 +2650,6 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   return *value;
 }
 
-RUNTIME_FUNCTION(Runtime_LoadCallbackProperty) {
-  Handle<JSObject> receiver = args.at<JSObject>(0);
-  Handle<JSObject> holder = args.at<JSObject>(1);
-  Handle<AccessorInfo> info = args.at<AccessorInfo>(2);
-  Handle<Name> name = args.at<Name>(3);
-  HandleScope scope(isolate);
-
-  DCHECK(info->IsCompatibleReceiver(*receiver));
-
-  PropertyCallbackArguments custom_args(isolate, info->data(), *receiver,
-                                        *holder, Just(kThrowOnError));
-  Handle<Object> result = custom_args.CallAccessorGetter(info, name);
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  if (result.is_null()) return ReadOnlyRoots(isolate).undefined_value();
-  return *result;
-}
-
-RUNTIME_FUNCTION(Runtime_LoadAccessorProperty) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 3);
-  Handle<JSObject> receiver = args.at<JSObject>(0);
-  int handler_kind = args.smi_at(1);
-  Handle<CallHandlerInfo> call_handler_info = args.at<CallHandlerInfo>(2);
-
-  Object holder = *receiver;
-  if (handler_kind == LoadHandler::kApiGetterHolderIsPrototype) {
-    holder = receiver->map().prototype();
-  } else {
-    DCHECK_EQ(handler_kind, LoadHandler::kApiGetter);
-  }
-
-  // Call the accessor without additional arguments.
-  FunctionCallbackArguments custom(isolate, call_handler_info->data(),
-                                   *receiver, holder, HeapObject(), nullptr, 0);
-  Handle<Object> result_handle = custom.Call(*call_handler_info);
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  if (result_handle.is_null()) return ReadOnlyRoots(isolate).undefined_value();
-  return *result_handle;
-}
-
 /**
  * Loads a property with an interceptor performing post interceptor
  * lookup if interceptor failed.

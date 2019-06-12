@@ -3002,21 +3002,24 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ movq(prev_limit_reg, Operand(base_reg, kLimitOffset));
   __ addl(Operand(base_reg, kLevelOffset), Immediate(1));
 
-  Label profiler_disabled;
-  Label end_profiler_check;
+  Label profiler_enabled, end_profiler_check;
   __ Move(rax, ExternalReference::is_profiling_address(isolate));
   __ cmpb(Operand(rax, 0), Immediate(0));
-  __ j(zero, &profiler_disabled);
-
-  // Third parameter is the address of the actual getter function.
-  __ Move(thunk_last_arg, function_address);
-  __ Move(rax, thunk_ref);
-  __ jmp(&end_profiler_check);
-
-  __ bind(&profiler_disabled);
-  // Call the api function!
-  __ Move(rax, function_address);
-
+  __ j(not_zero, &profiler_enabled);
+  __ Move(rax, ExternalReference::address_of_runtime_stats_flag());
+  __ cmpb(Operand(rax, 0), Immediate(0));
+  __ j(not_zero, &profiler_enabled);
+  {
+    // Call the api function directly.
+    __ Move(rax, function_address);
+    __ jmp(&end_profiler_check);
+  }
+  __ bind(&profiler_enabled);
+  {
+    // Third parameter is the address of the actual getter function.
+    __ Move(thunk_last_arg, function_address);
+    __ Move(rax, thunk_ref);
+  }
   __ bind(&end_profiler_check);
 
   // Call the api function!

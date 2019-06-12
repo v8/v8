@@ -10382,8 +10382,7 @@ void InvokeAccessorGetterCallback(
 void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             v8::FunctionCallback callback) {
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
-  RuntimeCallTimerScope timer(isolate,
-                              RuntimeCallCounterId::kInvokeFunctionCallback);
+  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kFunctionCallback);
   Address callback_address = reinterpret_cast<Address>(callback);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, callback_address);

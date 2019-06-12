@@ -3400,16 +3400,23 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   DCHECK(function_address.is(x1) || function_address.is(x2));
 
-  Label profiler_disabled;
-  Label end_profiler_check;
+  Label profiler_enabled, end_profiler_check;
   __ Mov(x10, ExternalReference::is_profiling_address(isolate));
   __ Ldrb(w10, MemOperand(x10));
-  __ Cbz(w10, &profiler_disabled);
-  __ Mov(x3, thunk_ref);
-  __ B(&end_profiler_check);
-
-  __ Bind(&profiler_disabled);
-  __ Mov(x3, function_address);
+  __ Cbnz(w10, &profiler_enabled);
+  __ Mov(x10, ExternalReference::address_of_runtime_stats_flag());
+  __ Ldrb(w10, MemOperand(x10));
+  __ Cbnz(w10, &profiler_enabled);
+  {
+    // Call the api function directly.
+    __ Mov(x3, function_address);
+    __ B(&end_profiler_check);
+  }
+  __ Bind(&profiler_enabled);
+  {
+    // Additional parameter is the address of the actual callback.
+    __ Mov(x3, thunk_ref);
+  }
   __ Bind(&end_profiler_check);
 
   // Save the callee-save registers we are going to use.

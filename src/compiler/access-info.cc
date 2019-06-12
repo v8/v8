@@ -445,9 +445,6 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     DCHECK_IMPLIES(lookup == CallOptimization::kHolderIsReceiver,
                    holder.is_null());
     DCHECK_IMPLIES(lookup == CallOptimization::kHolderFound, !holder.is_null());
-    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {
-      return PropertyAccessInfo::Invalid(zone());
-    }
   }
   if (access_mode == AccessMode::kLoad) {
     Handle<Name> cached_property_name;

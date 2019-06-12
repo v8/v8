@@ -3646,8 +3646,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       break;
   }
 
-  if (!TracingFlags::is_runtime_stats_enabled() &&
-      shared.object()->IsApiFunction()) {
+  if (shared.object()->IsApiFunction()) {
     return ReduceCallApiFunction(node, shared);
   }
   return NoChange();

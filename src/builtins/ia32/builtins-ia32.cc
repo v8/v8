@@ -3012,23 +3012,28 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ mov(esi, __ ExternalReferenceAsOperand(next_address, esi));
   __ mov(edi, __ ExternalReferenceAsOperand(limit_address, edi));
 
-  Label profiler_disabled;
-  Label end_profiler_check;
+  Label profiler_enabled, end_profiler_check;
   __ Move(eax, Immediate(ExternalReference::is_profiling_address(isolate)));
   __ cmpb(Operand(eax, 0), Immediate(0));
-  __ j(zero, &profiler_disabled);
-
-  // Additional parameter is the address of the actual getter function.
-  __ mov(thunk_last_arg, function_address);
-  // Call the api function.
-  __ Move(eax, Immediate(thunk_ref));
-  __ call(eax);
-  __ jmp(&end_profiler_check);
-
-  __ bind(&profiler_disabled);
-  // Call the api function.
-  __ call(function_address);
+  __ j(not_zero, &profiler_enabled);
+  __ Move(eax, Immediate(ExternalReference::address_of_runtime_stats_flag()));
+  __ cmpb(Operand(eax, 0), Immediate(0));
+  __ j(not_zero, &profiler_enabled);
+  {
+    // Call the api function directly.
+    __ mov(eax, function_address);
+    __ jmp(&end_profiler_check);
+  }
+  __ bind(&profiler_enabled);
+  {
+    // Additional parameter is the address of the actual getter function.
+    __ mov(thunk_last_arg, function_address);
+    __ Move(eax, Immediate(thunk_ref));
+  }
   __ bind(&end_profiler_check);
+
+  // Call the api function.
+  __ call(eax);
 
   Label prologue;
   // Load the value from ReturnValue
