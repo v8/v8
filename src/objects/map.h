@@ -138,22 +138,22 @@ using MapHandles = std::vector<Handle<Map>>;
 //      |          |   - has_prototype_slot (bit 7)              |
 //      +----------+---------------------------------------------+
 //      | Byte     | [bit_field2]                                |
-//      |          |   - is_extensible (bit 0)                   |
-//      |          |   - is_prototype_map (bit 1)                |
+//      |          |   - new_target_is_base (bit 0)              |
+//      |          |   - is_immutable_proto (bit 1)              |
 //      |          |   - unused bit (bit 2)                      |
 //      |          |   - elements_kind (bits 3..7)               |
 // +----+----------+---------------------------------------------+
 // | Int           | [bit_field3]                                |
 // |               |   - enum_length (bit 0..9)                  |
 // |               |   - number_of_own_descriptors (bit 10..19)  |
-// |               |   - is_dictionary_map (bit 20)              |
-// |               |   - owns_descriptors (bit 21)               |
-// |               |   - is_in_retained_map_list (bit 22)        |
-// |               |   - is_deprecated (bit 23)                  |
-// |               |   - is_unstable (bit 24)                    |
-// |               |   - is_migration_target (bit 25)            |
-// |               |   - is_immutable_proto (bit 26)             |
-// |               |   - new_target_is_base (bit 27)             |
+// |               |   - is_prototype_map (bit 20)               |
+// |               |   - is_dictionary_map (bit 21)              |
+// |               |   - owns_descriptors (bit 22)               |
+// |               |   - is_in_retained_map_list (bit 23)        |
+// |               |   - is_deprecated (bit 24)                  |
+// |               |   - is_unstable (bit 25)                    |
+// |               |   - is_migration_target (bit 26)            |
+// |               |   - is_extensible (bit 28)                  |
 // |               |   - may_have_interesting_symbols (bit 28)   |
 // |               |   - construction_counter (bit 29..31)       |
 // |               |                                             |
@@ -265,10 +265,10 @@ class Map : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(bit_field2, byte)
 
 // Bit positions for |bit_field2|.
-#define MAP_BIT_FIELD2_FIELDS(V, _) \
-  V(IsExtensibleBit, bool, 1, _)    \
-  V(IsPrototypeMapBit, bool, 1, _)  \
-  V(UnusedBit, bool, 1, _)          \
+#define MAP_BIT_FIELD2_FIELDS(V, _)      \
+  V(NewTargetIsBaseBit, bool, 1, _)      \
+  V(IsImmutablePrototypeBit, bool, 1, _) \
+  V(UnusedBit, bool, 1, _)               \
   V(ElementsKindBits, ElementsKind, 5, _)
 
   DEFINE_BIT_FIELDS(MAP_BIT_FIELD2_FIELDS)
@@ -287,14 +287,14 @@ class Map : public HeapObject {
 #define MAP_BIT_FIELD3_FIELDS(V, _)                               \
   V(EnumLengthBits, int, kDescriptorIndexBitCount, _)             \
   V(NumberOfOwnDescriptorsBits, int, kDescriptorIndexBitCount, _) \
+  V(IsPrototypeMapBit, bool, 1, _)                                \
   V(IsDictionaryMapBit, bool, 1, _)                               \
   V(OwnsDescriptorsBit, bool, 1, _)                               \
   V(IsInRetainedMapListBit, bool, 1, _)                           \
   V(IsDeprecatedBit, bool, 1, _)                                  \
   V(IsUnstableBit, bool, 1, _)                                    \
   V(IsMigrationTargetBit, bool, 1, _)                             \
-  V(IsImmutablePrototypeBit, bool, 1, _)                          \
-  V(NewTargetIsBaseBit, bool, 1, _)                               \
+  V(IsExtensibleBit, bool, 1, _)                                  \
   V(MayHaveInterestingSymbolsBit, bool, 1, _)                     \
   V(ConstructionCounterBits, int, 3, _)
 

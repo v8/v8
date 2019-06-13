@@ -127,7 +127,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
 
-  void InvalidateValidityCellIfPrototype(Node* map, Node* bitfield2 = nullptr);
+  void InvalidateValidityCellIfPrototype(Node* map, Node* bitfield3 = nullptr);
 
   void OverwriteExistingFastDataProperty(Node* object, Node* object_map,
                                          Node* descriptors,

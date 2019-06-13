@@ -74,20 +74,20 @@ BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_prototype_slot,
                     Map::HasPrototypeSlotBit)
 
 // |bit_field2| fields.
-BIT_FIELD_ACCESSORS(Map, bit_field2, is_extensible, Map::IsExtensibleBit)
-BIT_FIELD_ACCESSORS(Map, bit_field2, is_prototype_map, Map::IsPrototypeMapBit)
+BIT_FIELD_ACCESSORS(Map, bit_field2, new_target_is_base,
+                    Map::NewTargetIsBaseBit)
+BIT_FIELD_ACCESSORS(Map, bit_field2, is_immutable_proto,
+                    Map::IsImmutablePrototypeBit)
 
 // |bit_field3| fields.
 BIT_FIELD_ACCESSORS(Map, bit_field3, owns_descriptors, Map::OwnsDescriptorsBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, is_in_retained_map_list,
                     Map::IsInRetainedMapListBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_prototype_map, Map::IsPrototypeMapBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, is_migration_target,
                     Map::IsMigrationTargetBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, is_immutable_proto,
-                    Map::IsImmutablePrototypeBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, new_target_is_base,
-                    Map::NewTargetIsBaseBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_extensible, Map::IsExtensibleBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
                     Map::MayHaveInterestingSymbolsBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,

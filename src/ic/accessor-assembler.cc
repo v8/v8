@@ -2087,13 +2087,13 @@ void AccessorAssembler::NameDictionaryNegativeLookup(Node* object,
 }
 
 void AccessorAssembler::InvalidateValidityCellIfPrototype(Node* map,
-                                                          Node* bitfield2) {
+                                                          Node* bitfield3) {
   Label is_prototype(this), cont(this);
-  if (bitfield2 == nullptr) {
-    bitfield2 = LoadMapBitField2(map);
+  if (bitfield3 == nullptr) {
+    bitfield3 = LoadMapBitField3(map);
   }
 
-  Branch(IsSetWord32(bitfield2, Map::IsPrototypeMapBit::kMask), &is_prototype,
+  Branch(IsSetWord32(bitfield3, Map::IsPrototypeMapBit::kMask), &is_prototype,
          &cont);
 
   BIND(&is_prototype);

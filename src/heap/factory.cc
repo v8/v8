@@ -1977,15 +1977,15 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   // |layout_descriptor| are set.
   map.set_visitor_id(Map::GetVisitorId(map));
   map.set_bit_field(0);
-  map.set_bit_field2(Map::IsExtensibleBit::kMask);
+  map.set_bit_field2(Map::NewTargetIsBaseBit::encode(true));
   int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
                    Map::OwnsDescriptorsBit::encode(true) |
-                   Map::ConstructionCounterBits::encode(Map::kNoSlackTracking);
+                   Map::ConstructionCounterBits::encode(Map::kNoSlackTracking) |
+                   Map::IsExtensibleBit::encode(true);
   map.set_bit_field3(bit_field3);
   DCHECK(!map.is_in_retained_map_list());
   map.clear_padding();
   map.set_elements_kind(elements_kind);
-  map.set_new_target_is_base(true);
   isolate()->counters()->maps_created()->Increment();
   if (FLAG_trace_maps) LOG(isolate(), MapCreate(map));
   return map;

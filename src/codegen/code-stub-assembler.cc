@@ -2928,15 +2928,12 @@ TNode<Int32T> CodeStubAssembler::EnsureArrayPushable(TNode<Map> map,
   // Disallow pushing onto prototypes. It might be the JSArray prototype.
   // Disallow pushing onto non-extensible objects.
   Comment("Disallow pushing onto prototypes");
-  Node* bit_field2 = LoadMapBitField2(map);
-  int mask = Map::IsPrototypeMapBit::kMask | Map::IsExtensibleBit::kMask;
-  Node* test = Word32And(bit_field2, Int32Constant(mask));
-  GotoIf(Word32NotEqual(test, Int32Constant(Map::IsExtensibleBit::kMask)),
-         bailout);
+  GotoIfNot(IsExtensibleNonPrototypeMap(map), bailout);
 
   EnsureArrayLengthWritable(map, bailout);
 
-  TNode<Uint32T> kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
+  TNode<Uint32T> kind =
+      DecodeWord32<Map::ElementsKindBits>(LoadMapBitField2(map));
   return Signed(kind);
 }
 
@@ -6010,13 +6007,12 @@ TNode<BoolT> CodeStubAssembler::InstanceTypeEqual(
 
 TNode<BoolT> CodeStubAssembler::IsDictionaryMap(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  Node* bit_field3 = LoadMapBitField3(map);
-  return IsSetWord32<Map::IsDictionaryMapBit>(bit_field3);
+  return IsSetWord32<Map::IsDictionaryMapBit>(LoadMapBitField3(map));
 }
 
 TNode<BoolT> CodeStubAssembler::IsExtensibleMap(SloppyTNode<Map> map) {
   CSA_ASSERT(this, IsMap(map));
-  return IsSetWord32<Map::IsExtensibleBit>(LoadMapBitField2(map));
+  return IsSetWord32<Map::IsExtensibleBit>(LoadMapBitField3(map));
 }
 
 TNode<BoolT> CodeStubAssembler::IsFrozenOrSealedElementsKindMap(
@@ -6029,7 +6025,7 @@ TNode<BoolT> CodeStubAssembler::IsFrozenOrSealedElementsKindMap(
 TNode<BoolT> CodeStubAssembler::IsExtensibleNonPrototypeMap(TNode<Map> map) {
   int kMask = Map::IsExtensibleBit::kMask | Map::IsPrototypeMapBit::kMask;
   int kExpected = Map::IsExtensibleBit::kMask;
-  return Word32Equal(Word32And(LoadMapBitField2(map), Int32Constant(kMask)),
+  return Word32Equal(Word32And(LoadMapBitField3(map), Int32Constant(kMask)),
                      Int32Constant(kExpected));
 }
 
