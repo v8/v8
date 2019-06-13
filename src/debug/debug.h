@@ -12,6 +12,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/debug/interface-types.h"
 #include "src/execution/frames.h"
+#include "src/execution/interrupts-scope.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/objects/debug-objects.h"

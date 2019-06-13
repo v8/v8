@@ -23,6 +23,7 @@
 #include "src/execution/futex-emulation.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/messages.h"
+#include "src/execution/stack-guard.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
@@ -1984,65 +1985,6 @@ class StackLimitCheck {
       return result_value;                 \
     }                                      \
   } while (false)
-
-// Scope intercepts only interrupt which is part of its interrupt_mask and does
-// not affect other interrupts.
-class InterruptsScope {
- public:
-  enum Mode { kPostponeInterrupts, kRunInterrupts, kNoop };
-
-  virtual ~InterruptsScope() {
-    if (mode_ != kNoop) stack_guard_->PopInterruptsScope();
-  }
-
-  // Find the scope that intercepts this interrupt.
-  // It may be outermost PostponeInterruptsScope or innermost
-  // SafeForInterruptsScope if any.
-  // Return whether the interrupt has been intercepted.
-  bool Intercept(StackGuard::InterruptFlag flag);
-
-  InterruptsScope(Isolate* isolate, int intercept_mask, Mode mode)
-      : stack_guard_(isolate->stack_guard()),
-        intercept_mask_(intercept_mask),
-        intercepted_flags_(0),
-        mode_(mode) {
-    if (mode_ != kNoop) stack_guard_->PushInterruptsScope(this);
-  }
-
- private:
-  StackGuard* stack_guard_;
-  int intercept_mask_;
-  int intercepted_flags_;
-  Mode mode_;
-  InterruptsScope* prev_;
-
-  friend class StackGuard;
-};
-
-// Support for temporarily postponing interrupts. When the outermost
-// postpone scope is left the interrupts will be re-enabled and any
-// interrupts that occurred while in the scope will be taken into
-// account.
-class PostponeInterruptsScope : public InterruptsScope {
- public:
-  PostponeInterruptsScope(Isolate* isolate,
-                          int intercept_mask = StackGuard::ALL_INTERRUPTS)
-      : InterruptsScope(isolate, intercept_mask,
-                        InterruptsScope::kPostponeInterrupts) {}
-  ~PostponeInterruptsScope() override = default;
-};
-
-// Support for overriding PostponeInterruptsScope. Interrupt is not ignored if
-// innermost scope is SafeForInterruptsScope ignoring any outer
-// PostponeInterruptsScopes.
-class SafeForInterruptsScope : public InterruptsScope {
- public:
-  SafeForInterruptsScope(Isolate* isolate,
-                         int intercept_mask = StackGuard::ALL_INTERRUPTS)
-      : InterruptsScope(isolate, intercept_mask,
-                        InterruptsScope::kRunInterrupts) {}
-  ~SafeForInterruptsScope() override = default;
-};
 
 class StackTraceFailureMessage {
  public:
