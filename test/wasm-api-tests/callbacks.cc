@@ -180,6 +180,8 @@ TEST_F(WasmCapiTest, GC) {
   i::Isolate* isolate =
       reinterpret_cast<::wasm::StoreImpl*>(store())->i_isolate();
   own<Func*> stage4 = Func::make(store(), cpp_sig(), Stage4_GC, isolate);
+  EXPECT_EQ(cpp_sig()->params().size(), stage4->type()->params().size());
+  EXPECT_EQ(cpp_sig()->results().size(), stage4->type()->results().size());
   Extern* imports[] = {stage2(), stage4.get()};
   Val args[] = {Val::i32(42)};
   Val results[1];
