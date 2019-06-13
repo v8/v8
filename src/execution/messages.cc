@@ -770,9 +770,8 @@ void WasmStackFrame::ToString(IncrementalStringBuilder& builder) {
   builder.AppendInt(static_cast<int>(wasm_func_index_));
   builder.AppendCString("]:");
 
-  int function_offset = module_object->GetFunctionOffset(wasm_func_index_);
   char buffer[16];
-  SNPrintF(ArrayVector(buffer), "0x%x", function_offset + GetPosition());
+  SNPrintF(ArrayVector(buffer), "0x%x", GetModuleOffset());
   builder.AppendCString(buffer);
 
   if (has_name) builder.AppendCString(")");
@@ -785,6 +784,14 @@ int WasmStackFrame::GetPosition() const {
              ? offset_
              : FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
                    code_, offset_);
+}
+
+int WasmStackFrame::GetColumnNumber() { return GetModuleOffset(); }
+
+int WasmStackFrame::GetModuleOffset() const {
+  const int function_offset =
+      wasm_instance_->module_object().GetFunctionOffset(wasm_func_index_);
+  return function_offset + GetPosition();
 }
 
 Handle<Object> WasmStackFrame::Null() const {

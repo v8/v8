@@ -3661,10 +3661,9 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   int line = it.Frame()->GetLineNumber();
   if (is_wasm && line >= 0) line++;
 
-  // Column numbers are 1-based. For Wasm we use the position
-  // as the iterator does not currently provide a column number.
-  const int column =
-      is_wasm ? it.Frame()->GetPosition() + 1 : it.Frame()->GetColumnNumber();
+  // Column numbers are 1-based, for Wasm we need to adjust.
+  int column = it.Frame()->GetColumnNumber();
+  if (is_wasm && column >= 0) column++;
 
   const int script_id = it.Frame()->GetScriptId();
 

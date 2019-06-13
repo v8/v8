@@ -177,7 +177,7 @@ class WasmStackFrame : public StackFrameBase {
 
   int GetPosition() const override;
   int GetLineNumber() override { return wasm_func_index_; }
-  int GetColumnNumber() override { return kNone; }
+  int GetColumnNumber() override;
 
   int GetPromiseIndex() const override { return kNone; }
 
@@ -203,6 +203,8 @@ class WasmStackFrame : public StackFrameBase {
   int offset_;
 
  private:
+  int GetModuleOffset() const;
+
   WasmStackFrame() = default;
   void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
 
