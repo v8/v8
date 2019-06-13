@@ -893,6 +893,7 @@ class RuntimeCallTimer final {
   V(ArrayLengthSetter)                         \
   V(BoundFunctionLengthGetter)                 \
   V(BoundFunctionNameGetter)                   \
+  V(CodeGenerationFromStringsCallbacks)        \
   V(CompileAnalyse)                            \
   V(CompileBackgroundAnalyse)                  \
   V(CompileBackgroundCompileTask)              \

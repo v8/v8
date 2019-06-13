@@ -20265,6 +20265,21 @@ bool CodeGenerationDisallowed(Local<Context> context, Local<String> source) {
   return false;
 }
 
+v8::MaybeLocal<String> ModifyCodeGeneration(Local<Context> context,
+                                            Local<Value> source) {
+  // For testing purposes, deny all odd-length strings and replace '2' with '3'
+  String::Utf8Value utf8(context->GetIsolate(), source);
+  DCHECK(utf8.length());
+  if (utf8.length() == 0 || utf8.length() % 2 != 0)
+    return v8::MaybeLocal<String>();
+
+  for (char* i = *utf8; *i != '\0'; i++) {
+    if (*i == '2') *i = '3';
+  }
+  return String::NewFromUtf8(context->GetIsolate(), *utf8,
+                             v8::NewStringType::kNormal)
+      .ToLocalChecked();
+}
 
 THREADED_TEST(AllowCodeGenFromStrings) {
   LocalContext context;
@@ -20297,6 +20312,36 @@ THREADED_TEST(AllowCodeGenFromStrings) {
   CheckCodeGenerationDisallowed();
 }
 
+TEST(ModifyCodeGenFromStrings) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  context->AllowCodeGenerationFromStrings(false);
+  context->GetIsolate()->SetModifyCodeGenerationFromStringsCallback(
+      &ModifyCodeGeneration);
+
+  // Test 'allowed' case in different modes (direct eval, indirect eval,
+  // Function constructor, Function contructor with arguments).
+  Local<Value> result = CompileRun("eval('42')");
+  CHECK_EQ(43, result->Int32Value(context.local()).FromJust());
+
+  result = CompileRun("(function(e) { return e('42'); })(eval)");
+  CHECK_EQ(43, result->Int32Value(context.local()).FromJust());
+
+  result = CompileRun("var f = new Function('return 42;'); f()");
+  CHECK_EQ(43, result->Int32Value(context.local()).FromJust());
+
+  // Test 'disallowed' cases.
+  TryCatch try_catch(CcTest::isolate());
+  result = CompileRun("eval('123')");
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+
+  result = CompileRun("new Function('a', 'return 42;')(123)");
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+}
 
 TEST(SetErrorMessageForCodeGenFromStrings) {
   LocalContext context;

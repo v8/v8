@@ -1599,33 +1599,103 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   return result;
 }
 
-bool Compiler::CodeGenerationFromStringsAllowed(Isolate* isolate,
-                                                Handle<Context> context,
-                                                Handle<String> source) {
+// Check whether embedder allows code generation in this context.
+// (via v8::Isolate::SetAllowCodeGenerationFromStringsCallback)
+bool CodeGenerationFromStringsAllowed(Isolate* isolate, Handle<Context> context,
+                                      Handle<String> source) {
   DCHECK(context->allow_code_gen_from_strings().IsFalse(isolate));
-  // Check with callback if set.
+  DCHECK(isolate->allow_code_gen_callback());
+
+  // Callback set. Let it decide if code generation is allowed.
+  VMState<EXTERNAL> state(isolate);
+  RuntimeCallTimerScope timer(
+      isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
   AllowCodeGenerationFromStringsCallback callback =
       isolate->allow_code_gen_callback();
-  if (callback == nullptr) {
-    // No callback set and code generation disallowed.
-    return false;
-  } else {
-    // Callback set. Let it decide if code generation is allowed.
-    VMState<EXTERNAL> state(isolate);
-    return callback(v8::Utils::ToLocal(context), v8::Utils::ToLocal(source));
-  }
+  return callback(v8::Utils::ToLocal(context), v8::Utils::ToLocal(source));
 }
 
-MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
-    Handle<Context> context, Handle<String> source,
+// Check whether embedder allows code generation in this context.
+// (via v8::Isolate::SetModifyCodeGenerationFromStringsCallback)
+bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
+                                     Handle<i::Object>* source) {
+  DCHECK(context->allow_code_gen_from_strings().IsFalse(isolate));
+  DCHECK(isolate->modify_code_gen_callback());
+  DCHECK(source);
+
+  // Callback set. Run it, and use the return value as source, or block
+  // execution if it's not set.
+  VMState<EXTERNAL> state(isolate);
+  ModifyCodeGenerationFromStringsCallback modify_callback =
+      isolate->modify_code_gen_callback();
+  RuntimeCallTimerScope timer(
+      isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
+  MaybeLocal<v8::String> modified_source =
+      modify_callback(v8::Utils::ToLocal(context), v8::Utils::ToLocal(*source));
+  if (modified_source.IsEmpty()) return false;
+
+  // Use the new source (which might be the same as the old source) and return.
+  *source = Utils::OpenHandle(*modified_source.ToLocalChecked(), false);
+  return true;
+}
+
+// Run Embedder-mandated checks before generating code from a string.
+//
+// Returns a string to be used for compilation, or a flag that an object type
+// was encountered that is neither a string, nor something the embedder knows
+// how to handle.
+//
+// Returns: (assuming: std::tie(source, unknown_object))
+// - !source.is_null(): compilation allowed, source contains the source string.
+// - unknown_object is true: compilation allowed, but we don't know how to
+//                           deal with source_object.
+// - source.is_null() && !unknown_object: compilation should be blocked.
+//
+// - !source_is_null() and unknown_object can't be true at the same time.
+std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
+    Isolate* isolate, Handle<Context> context,
+    Handle<i::Object> source_object) {
+  Handle<String> source;
+  if (source_object->IsString()) source = Handle<String>::cast(source_object);
+
+  // Check if the context unconditionally allows code gen from strings.
+  // allow_code_gen_from_strings can be many things, so we'll always check
+  // against the 'false' literal, so that e.g. undefined and 'true' are treated
+  // the same.
+  if (!context->allow_code_gen_from_strings().IsFalse(isolate)) {
+    return {source, !source_object->IsString()};
+  }
+
+  // Check if the context allows code generation for this string.
+  // allow_code_gen_callback only allows proper strings.
+  // (I.e., let allow_code_gen_callback decide, if it has been set.)
+  if (isolate->allow_code_gen_callback()) {
+    if (source_object->IsString() &&
+        CodeGenerationFromStringsAllowed(isolate, context, source)) {
+      return {source, !source_object->IsString()};
+    }
+  }
+
+  // Check if the context wants to block or modify this source object.
+  // Double-check that we really have a string now.
+  // (Let modify_code_gen_callback decide, if it's been set.)
+  if (isolate->modify_code_gen_callback()) {
+    if (ModifyCodeGenerationFromStrings(isolate, context, &source_object) &&
+        source_object->IsString())
+      return {Handle<String>::cast(source_object), false};
+  }
+
+  return {MaybeHandle<String>(), !source_object->IsString()};
+}
+
+MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
+    Handle<Context> context, MaybeHandle<String> source,
     ParseRestriction restriction, int parameters_end_pos) {
   Isolate* const isolate = context->GetIsolate();
   Handle<Context> native_context(context->native_context(), isolate);
 
-  // Check if native context allows code generation from
-  // strings. Throw an exception if it doesn't.
-  if (native_context->allow_code_gen_from_strings().IsFalse(isolate) &&
-      !CodeGenerationFromStringsAllowed(isolate, native_context, source)) {
+  // Raise an EvalError if we did not receive a string.
+  if (source.is_null()) {
     Handle<Object> error_message =
         native_context->ErrorMessageForCodeGenerationFromStrings();
     THROW_NEW_ERROR(
@@ -1639,9 +1709,20 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
   int eval_position = kNoSourcePosition;
   Handle<SharedFunctionInfo> outer_info(
       native_context->empty_function().shared(), isolate);
-  return Compiler::GetFunctionFromEval(
-      source, outer_info, native_context, LanguageMode::kSloppy, restriction,
-      parameters_end_pos, eval_scope_position, eval_position);
+  return Compiler::GetFunctionFromEval(source.ToHandleChecked(), outer_info,
+                                       native_context, LanguageMode::kSloppy,
+                                       restriction, parameters_end_pos,
+                                       eval_scope_position, eval_position);
+}
+
+MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
+    Handle<Context> context, Handle<Object> source,
+    ParseRestriction restriction, int parameters_end_pos) {
+  Isolate* const isolate = context->GetIsolate();
+  Handle<Context> native_context(context->native_context(), isolate);
+  return GetFunctionFromValidatedString(
+      context, ValidateDynamicCompilationSource(isolate, context, source).first,
+      restriction, parameters_end_pos);
 }
 
 namespace {
