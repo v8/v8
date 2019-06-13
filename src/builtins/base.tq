@@ -513,7 +513,7 @@ extern class PrototypeInfo extends Struct {
   prototype_users: WeakArrayList | Zero;
   registry_slot: Smi;
   validity_cell: Object;
-  @noVerifier object_create_map: Smi | WeakArrayList;
+  @noVerifier object_create_map: Map | Undefined;
   bit_field: Smi;
 }
 
@@ -570,7 +570,17 @@ extern class JSBoundFunction extends JSObject {
   bound_arguments: FixedArray;
 }
 
-type Callable = JSFunction | JSBoundFunction | JSProxy;
+// Specialized types. The following two type definitions don't correspond to
+// actual C++ classes, but have Is... methods that check additional constraints.
+
+// A function built with InstantiateFunction for the public API.
+type CallableApiObject extends HeapObject;
+
+// A JSProxy with the callable bit set.
+type CallableJSProxy extends JSProxy;
+
+type Callable =
+    JSFunction | JSBoundFunction | CallableJSProxy | CallableApiObject;
 
 extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
     FixedArrayBase): intptr;
@@ -1147,7 +1157,7 @@ extern class PromiseReaction extends Struct {
 extern class PromiseReactionJobTask extends Microtask {
   argument: Object;
   context: Context;
-  @noVerifier handler: Callable | Undefined;
+  handler: Callable | Undefined;
   promise_or_capability: JSPromise | PromiseCapability | Undefined;
 }
 

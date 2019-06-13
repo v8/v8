@@ -892,7 +892,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<Map> ObjectLiteralMapFromCache(Handle<NativeContext> native_context,
                                         int number_of_properties);
 
-  Handle<LoadHandler> NewLoadHandler(int data_count);
+  Handle<LoadHandler> NewLoadHandler(
+      int data_count, AllocationType allocation = AllocationType::kOld);
   Handle<StoreHandler> NewStoreHandler(int data_count);
 
   Handle<RegExpMatchInfo> NewRegExpMatchInfo();

@@ -249,9 +249,16 @@ class ZoneForwardList;
 
 #define HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) V(HashTable)
 
+// Logical sub-types of heap objects that don't correspond to a C++ class but
+// represent some specialization in terms of additional constraints.
+#define HEAP_OBJECT_SPECIALIZED_TYPE_LIST(V) \
+  V(CallableApiObject)                       \
+  V(CallableJSProxy)
+
 #define HEAP_OBJECT_TYPE_LIST(V)    \
   HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
-  HEAP_OBJECT_TEMPLATE_TYPE_LIST(V)
+  HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) \
+  HEAP_OBJECT_SPECIALIZED_TYPE_LIST(V)
 
 #define ODDBALL_LIST(V)                 \
   V(Undefined, undefined_value)         \

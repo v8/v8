@@ -3802,7 +3802,8 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<NativeContext> context,
   return map;
 }
 
-Handle<LoadHandler> Factory::NewLoadHandler(int data_count) {
+Handle<LoadHandler> Factory::NewLoadHandler(int data_count,
+                                            AllocationType allocation) {
   Handle<Map> map;
   switch (data_count) {
     case 1:
@@ -3817,7 +3818,7 @@ Handle<LoadHandler> Factory::NewLoadHandler(int data_count) {
     default:
       UNREACHABLE();
   }
-  return handle(LoadHandler::cast(New(map, AllocationType::kOld)), isolate());
+  return handle(LoadHandler::cast(New(map, allocation)), isolate());
 }
 
 Handle<StoreHandler> Factory::NewStoreHandler(int data_count) {

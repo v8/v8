@@ -152,6 +152,16 @@ bool HeapObject::IsFunction() const {
 
 bool HeapObject::IsCallable() const { return map().is_callable(); }
 
+bool HeapObject::IsCallableJSProxy() const {
+  return IsCallable() && IsJSProxy();
+}
+
+bool HeapObject::IsCallableApiObject() const {
+  InstanceType type = map().instance_type();
+  return IsCallable() &&
+         (type == JS_API_OBJECT_TYPE || type == JS_SPECIAL_API_OBJECT_TYPE);
+}
+
 bool HeapObject::IsConstructor() const { return map().is_constructor(); }
 
 bool HeapObject::IsModuleInfo() const {

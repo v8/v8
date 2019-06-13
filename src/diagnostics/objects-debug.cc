@@ -1373,11 +1373,7 @@ void CallableTask::CallableTaskVerify(Isolate* isolate) {
 
 USE_TORQUE_VERIFIER(CallbackTask)
 
-void PromiseReactionJobTask::PromiseReactionJobTaskVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::PromiseReactionJobTaskVerify(*this, isolate);
-  VerifyHeapPointer(isolate, handler());
-  CHECK(handler().IsUndefined(isolate) || handler().IsCallable());
-}
+USE_TORQUE_VERIFIER(PromiseReactionJobTask)
 
 USE_TORQUE_VERIFIER(PromiseFulfillReactionJobTask)
 
