@@ -447,7 +447,7 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
   heap_stats.end_marker = &end_marker;
   if (isolate->heap()->HasBeenSetUp()) {
     // BUG(1718): Don't use the take_snapshot since we don't support
-    // HeapIterator here without doing a special GC.
+    // HeapObjectIterator here without doing a special GC.
     isolate->heap()->RecordStats(&heap_stats, false);
     char* first_newline = strchr(last_few_messages, '\n');
     if (first_newline == nullptr || first_newline[1] == '\0')
@@ -764,7 +764,7 @@ StartupData SnapshotCreator::CreateBlob(
     std::vector<i::Handle<i::SharedFunctionInfo>> sfis_to_clear;
 
     {  // Heap allocation is disallowed within this scope.
-      i::HeapIterator heap_iterator(isolate->heap());
+      i::HeapObjectIterator heap_iterator(isolate->heap());
       for (i::HeapObject current_obj = heap_iterator.Next();
            !current_obj.is_null(); current_obj = heap_iterator.Next()) {
         if (current_obj.IsSharedFunctionInfo()) {
@@ -810,7 +810,7 @@ StartupData SnapshotCreator::CreateBlob(
   i::SerializedHandleChecker handle_checker(isolate, &contexts);
   CHECK(handle_checker.CheckGlobalAndEternalHandles());
 
-  i::HeapIterator heap_iterator(isolate->heap());
+  i::HeapObjectIterator heap_iterator(isolate->heap());
   for (i::HeapObject current_obj = heap_iterator.Next(); !current_obj.is_null();
        current_obj = heap_iterator.Next()) {
     if (current_obj.IsJSFunction()) {
@@ -8307,7 +8307,7 @@ void Isolate::LowMemoryNotification() {
         i::GarbageCollectionReason::kLowMemoryNotification);
   }
   {
-    i::HeapIterator iterator(isolate->heap());
+    i::HeapObjectIterator iterator(isolate->heap());
     for (i::HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       if (obj.IsAbstractCode()) {

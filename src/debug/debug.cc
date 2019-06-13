@@ -1226,7 +1226,7 @@ void Debug::InstallDebugBreakTrampoline() {
   std::vector<Handle<JSFunction>> needs_compile;
   std::vector<Handle<AccessorPair>> needs_instantiate;
   {
-    HeapIterator iterator(isolate_->heap());
+    HeapObjectIterator iterator(isolate_->heap());
     for (HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       if (needs_to_clear_ic && obj.IsFeedbackVector()) {

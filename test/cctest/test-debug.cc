@@ -165,7 +165,7 @@ void CheckDebuggerUnloaded() {
   CcTest::CollectAllGarbage();
 
   // Iterate the heap and check that there are no debugger related objects left.
-  HeapIterator iterator(CcTest::heap());
+  HeapObjectIterator iterator(CcTest::heap());
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     CHECK(!obj.IsDebugInfo());
@@ -4264,7 +4264,7 @@ TEST(DebugEvaluateNoSideEffect) {
   i::Isolate* isolate = CcTest::i_isolate();
   std::vector<i::Handle<i::JSFunction>> all_functions;
   {
-    i::HeapIterator iterator(isolate->heap());
+    i::HeapObjectIterator iterator(isolate->heap());
     for (i::HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       if (!obj.IsJSFunction()) continue;

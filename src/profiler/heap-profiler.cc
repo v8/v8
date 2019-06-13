@@ -173,7 +173,8 @@ void HeapProfiler::UpdateObjectSizeEvent(Address addr, int size) {
 
 Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
   HeapObject object;
-  CombinedHeapIterator iterator(heap(), HeapIterator::kFilterUnreachable);
+  CombinedHeapObjectIterator iterator(heap(),
+                                      HeapObjectIterator::kFilterUnreachable);
   // Make sure that object with the given id is still reachable.
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
@@ -203,8 +204,8 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
                                 debug::QueryObjectPredicate* predicate,
                                 PersistentValueVector<v8::Object>* objects) {
   {
-    CombinedHeapIterator function_heap_iterator(
-        heap(), HeapIterator::kFilterUnreachable);
+    CombinedHeapObjectIterator function_heap_iterator(
+        heap(), HeapObjectIterator::kFilterUnreachable);
     for (HeapObject heap_obj = function_heap_iterator.Next();
          !heap_obj.is_null(); heap_obj = function_heap_iterator.Next()) {
       if (heap_obj.IsFeedbackVector()) {
@@ -215,7 +216,8 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
   // We should return accurate information about live objects, so we need to
   // collect all garbage first.
   heap()->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
-  CombinedHeapIterator heap_iterator(heap(), HeapIterator::kFilterUnreachable);
+  CombinedHeapObjectIterator heap_iterator(
+      heap(), HeapObjectIterator::kFilterUnreachable);
   for (HeapObject heap_obj = heap_iterator.Next(); !heap_obj.is_null();
        heap_obj = heap_iterator.Next()) {
     if (!heap_obj.IsJSObject() || heap_obj.IsExternal(isolate())) continue;

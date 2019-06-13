@@ -826,7 +826,8 @@ class FunctionDataMap : public ThreadVisitor {
 
   void Fill(Isolate* isolate, Address* restart_frame_fp) {
     {
-      HeapIterator iterator(isolate->heap(), HeapIterator::kFilterUnreachable);
+      HeapObjectIterator iterator(isolate->heap(),
+                                  HeapObjectIterator::kFilterUnreachable);
       for (HeapObject obj = iterator.Next(); !obj.is_null();
            obj = iterator.Next()) {
         if (obj.IsSharedFunctionInfo()) {

@@ -156,7 +156,7 @@ void MarkingVerifier::VerifyMarking(PagedSpace* space) {
 }
 
 void MarkingVerifier::VerifyMarking(LargeObjectSpace* lo_space) {
-  LargeObjectIterator it(lo_space);
+  LargeObjectSpaceObjectIterator it(lo_space);
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     if (IsBlackOrGrey(obj)) {
       obj.Iterate(this);
@@ -513,7 +513,7 @@ void MarkCompactCollector::CollectGarbage() {
 
 #ifdef VERIFY_HEAP
 void MarkCompactCollector::VerifyMarkbitsAreDirty(ReadOnlySpace* space) {
-  ReadOnlyHeapIterator iterator(space);
+  ReadOnlyHeapObjectIterator iterator(space);
   for (HeapObject object = iterator.Next(); !object.is_null();
        object = iterator.Next()) {
     CHECK(non_atomic_marking_state()->IsBlack(object));
@@ -536,7 +536,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
 }
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(LargeObjectSpace* space) {
-  LargeObjectIterator it(space);
+  LargeObjectSpaceObjectIterator it(space);
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     CHECK(non_atomic_marking_state()->IsWhite(obj));
     CHECK_EQ(0, non_atomic_marking_state()->live_bytes(
@@ -809,7 +809,7 @@ void MarkCompactCollector::Prepare() {
     StartCompaction();
   }
 
-  PagedSpaces spaces(heap());
+  PagedSpaceIterator spaces(heap());
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
     space->PrepareForMarkCompact();

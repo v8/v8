@@ -87,10 +87,10 @@ class ReadOnlyHeap final {
 };
 
 // This class enables iterating over all read-only heap objects.
-class V8_EXPORT_PRIVATE ReadOnlyHeapIterator {
+class V8_EXPORT_PRIVATE ReadOnlyHeapObjectIterator {
  public:
-  explicit ReadOnlyHeapIterator(ReadOnlyHeap* ro_heap);
-  explicit ReadOnlyHeapIterator(ReadOnlySpace* ro_space);
+  explicit ReadOnlyHeapObjectIterator(ReadOnlyHeap* ro_heap);
+  explicit ReadOnlyHeapObjectIterator(ReadOnlySpace* ro_space);
 
   HeapObject Next();
 

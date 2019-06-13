@@ -7,7 +7,7 @@
 namespace v8 {
 namespace internal {
 
-HeapObject CombinedHeapIterator::Next() {
+HeapObject CombinedHeapObjectIterator::Next() {
   HeapObject object = ro_heap_iterator_.Next();
   if (!object.is_null()) {
     return object;

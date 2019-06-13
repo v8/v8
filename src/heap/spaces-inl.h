@@ -42,9 +42,9 @@ PageRange::PageRange(Address start, Address limit)
 }
 
 // -----------------------------------------------------------------------------
-// SemiSpaceIterator
+// SemiSpaceObjectIterator
 
-HeapObject SemiSpaceIterator::Next() {
+HeapObject SemiSpaceObjectIterator::Next() {
   while (current_ != limit_) {
     if (Page::IsAlignedToPageSize(current_)) {
       Page* page = Page::FromAllocationAreaAddress(current_);
@@ -63,9 +63,9 @@ HeapObject SemiSpaceIterator::Next() {
 }
 
 // -----------------------------------------------------------------------------
-// HeapObjectIterator
+// PagedSpaceObjectIterator
 
-HeapObject HeapObjectIterator::Next() {
+HeapObject PagedSpaceObjectIterator::Next() {
   do {
     HeapObject next_obj = FromCurrentPage();
     if (!next_obj.is_null()) return next_obj;
@@ -73,7 +73,7 @@ HeapObject HeapObjectIterator::Next() {
   return HeapObject();
 }
 
-HeapObject HeapObjectIterator::FromCurrentPage() {
+HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
   while (cur_addr_ != cur_end_) {
     if (cur_addr_ == space_->top() && cur_addr_ != space_->limit()) {
       cur_addr_ = space_->limit();

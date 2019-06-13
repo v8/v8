@@ -2093,7 +2093,7 @@ class Heap {
   friend class ConcurrentMarking;
   friend class GCCallbacksScope;
   friend class GCTracer;
-  friend class HeapIterator;
+  friend class HeapObjectIterator;
   friend class IdleScavengeObserver;
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;
@@ -2258,9 +2258,9 @@ class VerifySmisVisitor : public RootVisitor {
 // Space iterator for iterating over all the paged spaces of the heap: Map
 // space, old space and code space. Returns each space in turn, and null when it
 // is done.
-class V8_EXPORT_PRIVATE PagedSpaces {
+class V8_EXPORT_PRIVATE PagedSpaceIterator {
  public:
-  explicit PagedSpaces(Heap* heap) : heap_(heap), counter_(OLD_SPACE) {}
+  explicit PagedSpaceIterator(Heap* heap) : heap_(heap), counter_(OLD_SPACE) {}
   PagedSpace* Next();
 
  private:
@@ -2281,28 +2281,29 @@ class V8_EXPORT_PRIVATE SpaceIterator : public Malloced {
   int current_space_;         // from enum AllocationSpace.
 };
 
-// A HeapIterator provides iteration over the entire non-read-only heap. It
-// aggregates the specific iterators for the different spaces as these can only
-// iterate over one space only.
+// A HeapObjectIterator provides iteration over the entire non-read-only heap.
+// It aggregates the specific iterators for the different spaces as these can
+// only iterate over one space only.
 //
-// HeapIterator ensures there is no allocation during its lifetime (using an
-// embedded DisallowHeapAllocation instance).
+// HeapObjectIterator ensures there is no allocation during its lifetime (using
+// an embedded DisallowHeapAllocation instance).
 //
-// HeapIterator can skip free list nodes (that is, de-allocated heap objects
-// that still remain in the heap). As implementation of free nodes filtering
-// uses GC marks, it can't be used during MS/MC GC phases. Also, it is forbidden
-// to interrupt iteration in this mode, as this will leave heap objects marked
-// (and thus, unusable).
+// HeapObjectIterator can skip free list nodes (that is, de-allocated heap
+// objects that still remain in the heap). As implementation of free nodes
+// filtering uses GC marks, it can't be used during MS/MC GC phases. Also, it is
+// forbidden to interrupt iteration in this mode, as this will leave heap
+// objects marked (and thus, unusable).
 //
-// See ReadOnlyHeapIterator if you need to iterate over read-only space objects,
-// or CombinedHeapIterator if you need to iterate over both heaps.
-class V8_EXPORT_PRIVATE HeapIterator {
+// See ReadOnlyHeapObjectIterator if you need to iterate over read-only space
+// objects, or CombinedHeapObjectIterator if you need to iterate over both
+// heaps.
+class V8_EXPORT_PRIVATE HeapObjectIterator {
  public:
   enum HeapObjectsFiltering { kNoFiltering, kFilterUnreachable };
 
-  explicit HeapIterator(Heap* heap,
-                        HeapObjectsFiltering filtering = kNoFiltering);
-  ~HeapIterator();
+  explicit HeapObjectIterator(Heap* heap,
+                              HeapObjectsFiltering filtering = kNoFiltering);
+  ~HeapObjectIterator();
 
   HeapObject Next();
 

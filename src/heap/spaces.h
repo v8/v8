@@ -1624,17 +1624,17 @@ class PageRange {
 // -----------------------------------------------------------------------------
 // Heap object iterator in new/old/map spaces.
 //
-// A HeapObjectIterator iterates objects from the bottom of the given space
-// to its top or from the bottom of the given page to its top.
+// A PagedSpaceObjectIterator iterates objects from the bottom of the given
+// space to its top or from the bottom of the given page to its top.
 //
 // If objects are allocated in the page during iteration the iterator may
 // or may not iterate over those objects.  The caller must create a new
 // iterator in order to be sure to visit these new objects.
-class V8_EXPORT_PRIVATE HeapObjectIterator : public ObjectIterator {
+class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
  public:
   // Creates a new object iterator in a given space.
-  explicit HeapObjectIterator(PagedSpace* space);
-  explicit HeapObjectIterator(Page* page);
+  explicit PagedSpaceObjectIterator(PagedSpace* space);
+  explicit PagedSpaceObjectIterator(Page* page);
 
   // Advance to the next object, skipping free spaces and other fillers and
   // skipping the special garbage section of which there is one per space.
@@ -1655,7 +1655,6 @@ class V8_EXPORT_PRIVATE HeapObjectIterator : public ObjectIterator {
   PageRange page_range_;
   PageRange::iterator current_page_;
 };
-
 
 // -----------------------------------------------------------------------------
 // A space has a circular list of pages. The next page can be accessed via
@@ -2580,19 +2579,18 @@ class SemiSpace : public Space {
   int pages_used_;
 
   friend class NewSpace;
-  friend class SemiSpaceIterator;
+  friend class SemiSpaceObjectIterator;
 };
 
-
-// A SemiSpaceIterator is an ObjectIterator that iterates over the active
+// A SemiSpaceObjectIterator is an ObjectIterator that iterates over the active
 // semispace of the heap's new space.  It iterates over the objects in the
 // semispace from a given start address (defaulting to the bottom of the
 // semispace) to the top of the semispace.  New objects allocated after the
 // iterator is created are not iterated.
-class SemiSpaceIterator : public ObjectIterator {
+class SemiSpaceObjectIterator : public ObjectIterator {
  public:
   // Create an iterator over the allocated objects in the given to-space.
-  explicit SemiSpaceIterator(NewSpace* space);
+  explicit SemiSpaceObjectIterator(NewSpace* space);
 
   inline HeapObject Next() override;
 
@@ -2849,7 +2847,7 @@ class V8_EXPORT_PRIVATE NewSpace
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
   bool SupportsInlineAllocation() override { return true; }
 
-  friend class SemiSpaceIterator;
+  friend class SemiSpaceObjectIterator;
 };
 
 class V8_EXPORT_PRIVATE PauseAllocationObserversScope {
@@ -3087,7 +3085,7 @@ class LargeObjectSpace : public Space {
   size_t objects_size_;  // size of objects
 
  private:
-  friend class LargeObjectIterator;
+  friend class LargeObjectSpaceObjectIterator;
 };
 
 class NewLargeObjectSpace : public LargeObjectSpace {
@@ -3143,9 +3141,9 @@ class CodeLargeObjectSpace : public LargeObjectSpace {
   std::unordered_map<Address, LargePage*> chunk_map_;
 };
 
-class LargeObjectIterator : public ObjectIterator {
+class LargeObjectSpaceObjectIterator : public ObjectIterator {
  public:
-  explicit LargeObjectIterator(LargeObjectSpace* space);
+  explicit LargeObjectSpaceObjectIterator(LargeObjectSpace* space);
 
   HeapObject Next() override;
 

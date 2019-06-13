@@ -1665,7 +1665,7 @@ static void AddFunctionAndCode(SharedFunctionInfo sfi, AbstractCode code_object,
 static int EnumerateCompiledFunctions(Heap* heap,
                                       Handle<SharedFunctionInfo>* sfis,
                                       Handle<AbstractCode>* code_objects) {
-  HeapIterator iterator(heap);
+  HeapObjectIterator iterator(heap);
   DisallowHeapAllocation no_gc;
   int compiled_funcs_count = 0;
 
@@ -1706,7 +1706,7 @@ static int EnumerateCompiledFunctions(Heap* heap,
 
 static int EnumerateWasmModuleObjects(
     Heap* heap, Handle<WasmModuleObject>* module_objects) {
-  HeapIterator iterator(heap);
+  HeapObjectIterator iterator(heap);
   DisallowHeapAllocation no_gc;
   int module_objects_count = 0;
 
@@ -1741,7 +1741,7 @@ void Logger::LogCompiledFunctions() {
 
 void Logger::LogAccessorCallbacks() {
   Heap* heap = isolate_->heap();
-  HeapIterator iterator(heap);
+  HeapObjectIterator iterator(heap);
   DisallowHeapAllocation no_gc;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
@@ -1769,7 +1769,7 @@ void Logger::LogAccessorCallbacks() {
 void Logger::LogAllMaps() {
   DisallowHeapAllocation no_gc;
   Heap* heap = isolate_->heap();
-  HeapIterator iterator(heap);
+  HeapObjectIterator iterator(heap);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (!obj.IsMap()) continue;
@@ -1999,7 +1999,7 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
 
 void ExistingCodeLogger::LogCodeObjects() {
   Heap* heap = isolate_->heap();
-  HeapIterator iterator(heap);
+  HeapObjectIterator iterator(heap);
   DisallowHeapAllocation no_gc;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {

@@ -3694,7 +3694,7 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
   std::vector<Handle<FeedbackVector>> vectors;
 
   {
-    HeapIterator heap_iterator(heap());
+    HeapObjectIterator heap_iterator(heap());
     for (HeapObject current_obj = heap_iterator.Next(); !current_obj.is_null();
          current_obj = heap_iterator.Next()) {
       if (!current_obj.IsFeedbackVector()) continue;

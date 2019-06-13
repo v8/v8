@@ -125,15 +125,15 @@ bool ReadOnlyHeap::read_only_object_cache_is_initialized() const {
   return read_only_object_cache_.size() > 0;
 }
 
-ReadOnlyHeapIterator::ReadOnlyHeapIterator(ReadOnlyHeap* ro_heap)
-    : ReadOnlyHeapIterator(ro_heap->read_only_space()) {}
+ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(ReadOnlyHeap* ro_heap)
+    : ReadOnlyHeapObjectIterator(ro_heap->read_only_space()) {}
 
-ReadOnlyHeapIterator::ReadOnlyHeapIterator(ReadOnlySpace* ro_space)
+ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(ReadOnlySpace* ro_space)
     : ro_space_(ro_space),
       current_page_(ro_space->first_page()),
       current_addr_(current_page_->area_start()) {}
 
-HeapObject ReadOnlyHeapIterator::Next() {
+HeapObject ReadOnlyHeapObjectIterator::Next() {
   if (current_page_ == nullptr) {
     return HeapObject();
   }

@@ -124,7 +124,8 @@ void StatisticsExtension::GetCounters(
               "amount_of_external_allocated_memory");
   args.GetReturnValue().Set(result);
 
-  HeapIterator iterator(reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
+  HeapObjectIterator iterator(
+      reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
   int reloc_info_total = 0;
   int source_position_table_total = 0;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
