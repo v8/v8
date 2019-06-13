@@ -2043,6 +2043,9 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     if (!old_receiver_map.is_null()) {
       if (is_arguments) {
         set_slow_stub_reason("arguments receiver");
+      } else if (object->IsJSArray() && IsGrowStoreMode(store_mode) &&
+                 JSArray::HasReadOnlyLength(Handle<JSArray>::cast(object))) {
+        set_slow_stub_reason("array has read only length");
       } else if (key_is_valid_index) {
         if (old_receiver_map->is_abandoned_prototype_map()) {
           set_slow_stub_reason("receiver with prototype map");
