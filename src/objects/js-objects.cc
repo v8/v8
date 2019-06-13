@@ -1828,6 +1828,13 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   int number_of_own_elements =
       object->GetElementsAccessor()->GetCapacity(*object, object->elements());
+
+  if (number_of_own_elements >
+      FixedArray::kMaxLength - number_of_own_descriptors) {
+    isolate->Throw(*isolate->factory()->NewRangeError(
+        MessageTemplate::kInvalidArrayLength));
+    return Nothing<bool>();
+  }
   Handle<FixedArray> values_or_entries = isolate->factory()->NewFixedArray(
       number_of_own_descriptors + number_of_own_elements);
   int count = 0;
