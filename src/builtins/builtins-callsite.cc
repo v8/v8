@@ -76,6 +76,9 @@ BUILTIN(CallSitePrototypeGetFunction) {
 
   StackFrameBase* frame = it.Frame();
   if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
+
+  isolate->CountUsage(v8::Isolate::kCallSiteAPIGetFunctionSloppyCall);
+
   return *frame->GetFunction();
 }
 
@@ -135,6 +138,9 @@ BUILTIN(CallSitePrototypeGetThis) {
 
   StackFrameBase* frame = it.Frame();
   if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
+
+  isolate->CountUsage(v8::Isolate::kCallSiteAPIGetThisSloppyCall);
+
   return *frame->GetReceiver();
 }
 
