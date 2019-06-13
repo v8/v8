@@ -583,7 +583,9 @@
         {"name": "SpreadCall"},
         {"name": "SpreadCallSpreadLiteral"},
         {"name": "HasOwnProperty"},
-        {"name": "ArrayMap"}
+        {"name": "ArrayMap"},
+        {"name": "ArrayReduce"},
+        {"name": "ArrayReduceRight"}
       ]
     },
     {
