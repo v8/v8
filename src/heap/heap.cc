@@ -547,7 +547,7 @@ void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {
     MEMBER("malloced_memory") << stats.malloced_memory() << ","
     MEMBER("external_memory") << stats.external_memory() << ","
     MEMBER("peak_malloced_memory") << stats.peak_malloced_memory() << ","
-    MEMBER("pages") << LIST(
+    MEMBER("spaces") << LIST(
       SpaceStatistics(RO_SPACE)      << "," <<
       SpaceStatistics(NEW_SPACE)     << "," <<
       SpaceStatistics(OLD_SPACE)     << "," <<
