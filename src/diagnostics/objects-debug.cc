@@ -1278,14 +1278,8 @@ void WeakCell::WeakCellVerify(Isolate* isolate) {
                 key_list_next().IsUndefined(isolate));
 
   CHECK(key_list_prev().IsWeakCell() || key_list_prev().IsUndefined(isolate));
-  if (key_list_prev().IsWeakCell()) {
-    CHECK_EQ(WeakCell::cast(key_list_prev()).key_list_next(), *this);
-  }
 
   CHECK(key_list_next().IsWeakCell() || key_list_next().IsUndefined(isolate));
-  if (key_list_next().IsWeakCell()) {
-    CHECK_EQ(WeakCell::cast(key_list_next()).key_list_prev(), *this);
-  }
 
   CHECK(finalization_group().IsUndefined(isolate) ||
         finalization_group().IsJSFinalizationGroup());
