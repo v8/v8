@@ -1618,12 +1618,12 @@ class SignatureHelper : public i::AllStatic {
     vec<ValType*> params = vec<ValType*>::make_uninitialized(param_arity);
 
     int i = 0;
-    for (; i < sig.length(); ++i) {
+    for (; i < result_arity; ++i) {
       results[i] = ValType::make(v8::wasm::v8_valtype_to_wasm(sig.get(i)));
     }
-    i++;
-    for (; i < param_arity; ++i) {
-      params[i] = ValType::make(v8::wasm::v8_valtype_to_wasm(sig.get(i)));
+    i++;  // Skip marker.
+    for (int p = 0; i < sig.length(); ++i, ++p) {
+      params[p] = ValType::make(v8::wasm::v8_valtype_to_wasm(sig.get(i)));
     }
     return FuncType::make(std::move(params), std::move(results));
   }
