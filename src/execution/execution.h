@@ -101,7 +101,6 @@ class V8_EXPORT_PRIVATE StackGuard final {
 
 #define V(NAME, Name, id)                                                    \
   inline bool Check##Name() { return CheckInterrupt(NAME); }                 \
-  inline bool CheckAndClear##Name() { return CheckAndClearInterrupt(NAME); } \
   inline void Request##Name() { RequestInterrupt(NAME); }                    \
   inline void Clear##Name() { ClearInterrupt(NAME); }
   INTERRUPT_LIST(V)
@@ -139,7 +138,7 @@ class V8_EXPORT_PRIVATE StackGuard final {
   bool CheckInterrupt(InterruptFlag flag);
   void RequestInterrupt(InterruptFlag flag);
   void ClearInterrupt(InterruptFlag flag);
-  bool CheckAndClearInterrupt(InterruptFlag flag);
+  int FetchAndClearInterrupts();
 
   // You should hold the ExecutionAccess lock when calling this method.
   bool has_pending_interrupts(const ExecutionAccess& lock) {
