@@ -540,10 +540,14 @@ class ContextData : public HeapObjectData {
     return search->second;
   }
 
+  void SerializeScopeInfo(JSHeapBroker* broker);
+  ScopeInfoData* scope_info() const { return scope_info_; }
+
  private:
   ZoneMap<int, ObjectData*> slots_;
   bool serialized_context_chain_ = false;
   ContextData* previous_ = nullptr;
+  ScopeInfoData* scope_info_ = nullptr;
 };
 
 ContextData::ContextData(JSHeapBroker* broker, ObjectData** storage,
@@ -572,6 +576,13 @@ void ContextData::SerializeSlot(JSHeapBroker* broker, int index) {
   CHECK(index >= 0 && index < context->length());
   ObjectData* odata = broker->GetOrCreateData(context->get(index));
   slots_.insert(std::make_pair(index, odata));
+}
+
+void ContextData::SerializeScopeInfo(JSHeapBroker* broker) {
+  TraceScope tracer(broker, this, "ContextData::SerializeScopeInfo");
+  TRACE(broker, "Serializing scope info");
+  Handle<Context> context = Handle<Context>::cast(object());
+  scope_info_ = broker->GetOrCreateData(context->scope_info())->AsScopeInfo();
 }
 
 class NativeContextData : public ContextData {
@@ -3349,6 +3360,26 @@ void ContextRef::SerializeSlot(int index) {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsContext()->SerializeSlot(broker(), index);
+}
+
+void ContextRef::SerializeScopeInfo() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsContext()->SerializeScopeInfo(broker());
+}
+
+base::Optional<ScopeInfoRef> ContextRef::scope_info() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference handle_dereference;
+    return ScopeInfoRef(broker(),
+                        handle(object()->scope_info(), broker()->isolate()));
+  }
+  ScopeInfoData* scope_info = data()->AsContext()->scope_info();
+  if (scope_info != nullptr) {
+    return ScopeInfoRef(broker(), scope_info);
+  }
+  return base::Optional<ScopeInfoRef>();
 }
 
 void NativeContextRef::Serialize() {

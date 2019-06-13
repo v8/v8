@@ -321,6 +321,11 @@ class ContextRef : public HeapObjectRef {
 
   void SerializeSlot(int index);
   ObjectRef get(int index) const;
+
+  // We only serialize the ScopeInfo if certain Promise
+  // builtins are called.
+  void SerializeScopeInfo();
+  base::Optional<ScopeInfoRef> scope_info() const;
 };
 
 #define BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V)                    \

@@ -757,6 +757,9 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     if (shared->IsApiFunction()) {
       ProcessApiCall(shared, arguments);
       DCHECK(!shared->IsInlineable());
+    } else if (shared->HasBuiltinId()) {
+      ProcessBuiltinCall(shared);
+      DCHECK(!shared->IsInlineable());
     }
 
     if (!shared->IsInlineable() || !function->has_feedback_vector()) continue;
@@ -770,6 +773,9 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
 
     if (shared->IsApiFunction()) {
       ProcessApiCall(shared, arguments);
+      DCHECK(!shared->IsInlineable());
+    } else if (shared->HasBuiltinId()) {
+      ProcessBuiltinCall(shared);
       DCHECK(!shared->IsInlineable());
     }
 
@@ -851,6 +857,24 @@ void SerializerForBackgroundCompilation::ProcessReceiverMapForApiCall(
   TRACE_BROKER(broker(), "Serializing holder for target:" << target);
 
   target.LookupHolderOfExpectedType(receiver_map, true);
+}
+
+void SerializerForBackgroundCompilation::ProcessBuiltinCall(
+    Handle<SharedFunctionInfo> target) {
+  DCHECK(target->HasBuiltinId());
+  int builtin_id = target->builtin_id();
+  switch (builtin_id) {
+    case Builtins::kPromiseConstructor:
+      TRACE_BROKER(broker(), "Found promise constructor");
+      broker()->native_context().SerializeScopeInfo();
+      break;
+    case Builtins::kPromisePrototypeFinally:
+      TRACE_BROKER(broker(), "Found promise prototype finally");
+      broker()->native_context().SerializeScopeInfo();
+      break;
+    default:
+      break;
+  }
 }
 
 void SerializerForBackgroundCompilation::ContributeToJumpTargetEnvironment(
