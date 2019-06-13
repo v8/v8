@@ -241,6 +241,9 @@
 
   # BUG(v8:9260)
   'tools/profviz': [SKIP],
+
+  # BUG(v8:9360)
+  'harmony/weakrefs/unregister-inside-cleanup5': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
