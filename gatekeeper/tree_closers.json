@@ -15,6 +15,7 @@
           "V8 Linux64 - fyi",
           "V8 Linux64 - gcov coverage",
           "V8 Linux64 - pointer compression",
+          "V8 Linux64 - pointer compression without dchecks",
           "V8 Linux64 TSAN - concurrent marking",
           "V8 Linux64 TSAN - isolates",
           "V8 Linux - arm - sim - lite",
