@@ -303,20 +303,20 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(code.address(), rmode, cond, mode);
 }
 
-void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
+void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 4);
   STATIC_ASSERT(kSmiShiftSize == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
-  // The builtin_pointer register contains the builtin index as a Smi.
+  // The builtin_index register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below.
-  mov(builtin_pointer,
-      Operand(builtin_pointer, LSL, kSystemPointerSizeLog2 - kSmiTagSize));
-  add(builtin_pointer, builtin_pointer,
+  mov(builtin_index,
+      Operand(builtin_index, LSL, kSystemPointerSizeLog2 - kSmiTagSize));
+  add(builtin_index, builtin_index,
       Operand(IsolateData::builtin_entry_table_offset()));
-  ldr(builtin_pointer, MemOperand(kRootRegister, builtin_pointer));
-  Call(builtin_pointer);
+  ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
+  Call(builtin_index);
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,

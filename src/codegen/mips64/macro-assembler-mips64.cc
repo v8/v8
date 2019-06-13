@@ -4274,18 +4274,18 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(code.address(), rmode, cond, rs, rt, bd);
 }
 
-void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
+void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 8);
   STATIC_ASSERT(kSmiShiftSize == 31);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
-  // The builtin_pointer register contains the builtin index as a Smi.
-  SmiUntag(builtin_pointer, builtin_pointer);
-  Dlsa(builtin_pointer, kRootRegister, builtin_pointer, kSystemPointerSizeLog2);
-  Ld(builtin_pointer,
-     MemOperand(builtin_pointer, IsolateData::builtin_entry_table_offset()));
-  Call(builtin_pointer);
+  // The builtin_index register contains the builtin index as a Smi.
+  SmiUntag(builtin_index, builtin_index);
+  Dlsa(builtin_index, kRootRegister, builtin_index, kSystemPointerSizeLog2);
+  Ld(builtin_index,
+     MemOperand(builtin_index, IsolateData::builtin_entry_table_offset()));
+  Call(builtin_index);
 }
 
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {

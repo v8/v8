@@ -170,7 +170,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallCodeObject(Register code_object) override;
   void JumpCodeObject(Register code_object) override;
 
-  void CallBuiltinPointer(Register builtin_pointer) override;
+  void CallBuiltinByIndex(Register builtin_index) override;
 
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi smi) { LoadSmiLiteral(dst, smi); }

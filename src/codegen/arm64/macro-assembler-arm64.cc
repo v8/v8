@@ -1925,24 +1925,23 @@ void TurboAssembler::Call(ExternalReference target) {
   Call(temp);
 }
 
-void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
+void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 8);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
-  // The builtin_pointer register contains the builtin index as a Smi.
+  // The builtin_index register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below.
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   STATIC_ASSERT(kSmiShiftSize == 0);
-  Lsl(builtin_pointer, builtin_pointer, kSystemPointerSizeLog2 - kSmiShift);
+  Lsl(builtin_index, builtin_index, kSystemPointerSizeLog2 - kSmiShift);
 #else
   STATIC_ASSERT(kSmiShiftSize == 31);
-  Asr(builtin_pointer, builtin_pointer, kSmiShift - kSystemPointerSizeLog2);
+  Asr(builtin_index, builtin_index, kSmiShift - kSystemPointerSizeLog2);
 #endif
-  Add(builtin_pointer, builtin_pointer,
-      IsolateData::builtin_entry_table_offset());
-  Ldr(builtin_pointer, MemOperand(kRootRegister, builtin_pointer));
-  Call(builtin_pointer);
+  Add(builtin_index, builtin_index, IsolateData::builtin_entry_table_offset());
+  Ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
+  Call(builtin_index);
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,

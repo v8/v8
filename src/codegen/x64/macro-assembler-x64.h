@@ -344,7 +344,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Call(ExternalReference ext);
   void Call(Label* target) { call(target); }
 
-  void CallBuiltinPointer(Register builtin_pointer) override;
+  void CallBuiltinByIndex(Register builtin_index) override;
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;
   void CallCodeObject(Register code_object) override;
