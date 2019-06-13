@@ -290,6 +290,35 @@ class DispatchTable : public ZoneObject {
   ZoneSplayTree<Config> tree_;
 };
 
+
+// Categorizes character ranges into BMP, non-BMP, lead, and trail surrogates.
+class UnicodeRangeSplitter {
+ public:
+  V8_EXPORT_PRIVATE UnicodeRangeSplitter(Zone* zone,
+                                         ZoneList<CharacterRange>* base);
+  void Call(uc32 from, DispatchTable::Entry entry);
+
+  ZoneList<CharacterRange>* bmp() { return bmp_; }
+  ZoneList<CharacterRange>* lead_surrogates() { return lead_surrogates_; }
+  ZoneList<CharacterRange>* trail_surrogates() { return trail_surrogates_; }
+  ZoneList<CharacterRange>* non_bmp() const { return non_bmp_; }
+
+ private:
+  static const int kBase = 0;
+  // Separate ranges into
+  static const int kBmpCodePoints = 1;
+  static const int kLeadSurrogates = 2;
+  static const int kTrailSurrogates = 3;
+  static const int kNonBmpCodePoints = 4;
+
+  Zone* zone_;
+  DispatchTable table_;
+  ZoneList<CharacterRange>* bmp_;
+  ZoneList<CharacterRange>* lead_surrogates_;
+  ZoneList<CharacterRange>* trail_surrogates_;
+  ZoneList<CharacterRange>* non_bmp_;
+};
+
 #define FOR_EACH_NODE_TYPE(VISIT)                                    \
   VISIT(End)                                                         \
   VISIT(Action)                                                      \

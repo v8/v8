@@ -37,7 +37,6 @@
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/jsregexp.h"
-#include "src/regexp/regexp-compiler.h"
 #include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-macro-assembler-irregexp.h"

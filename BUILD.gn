@@ -2683,8 +2683,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/regexp/regexp-ast.cc",
     "src/regexp/regexp-ast.h",
     "src/regexp/regexp-bytecodes.h",
-    "src/regexp/regexp-compiler-tonode.cc",
-    "src/regexp/regexp-compiler.h",
     "src/regexp/regexp-interpreter.cc",
     "src/regexp/regexp-interpreter.h",
     "src/regexp/regexp-macro-assembler-arch.h",
