@@ -770,6 +770,13 @@ DEFINE_BOOL(trace_idle_notification_verbose, false,
 DEFINE_BOOL(trace_gc_verbose, false,
             "print more details following each garbage collection")
 DEFINE_IMPLICATION(trace_gc_verbose, trace_gc)
+DEFINE_BOOL(trace_gc_freelists, false,
+            "prints details of each freelist before and after "
+            "each major garbage collection")
+DEFINE_BOOL(trace_gc_freelists_verbose, false,
+            "prints details of freelists of each page before and after "
+            "each major garbage collection")
+DEFINE_IMPLICATION(trace_gc_freelists_verbose, trace_gc_freelists)
 
 DEFINE_INT(trace_allocation_stack_interval, -1,
            "print stack trace after <n> free-list allocations")

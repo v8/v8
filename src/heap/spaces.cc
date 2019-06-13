@@ -3213,8 +3213,6 @@ void FreeList::PrintCategories(FreeListCategoryType type) {
   PrintF("null\n");
 }
 
-
-#ifdef DEBUG
 size_t FreeListCategory::SumFreeList() {
   size_t sum = 0;
   FreeSpace cur = top();
@@ -3240,6 +3238,7 @@ int FreeListCategory::FreeListLength() {
   return length;
 }
 
+#ifdef DEBUG
 bool FreeList::IsVeryLong() {
   int len = 0;
   for (int i = kFirstCategory; i < kNumberOfCategories; i++) {

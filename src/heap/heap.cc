@@ -5,6 +5,7 @@
 #include "src/heap/heap.h"
 
 #include <cinttypes>
+#include <iomanip>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -505,6 +506,76 @@ void Heap::PrintShortHeapStatistics() {
                external_memory_callback_() / KB);
   PrintIsolate(isolate_, "Total time spent in GC  : %.1f ms\n",
                total_gc_time_ms_);
+}
+
+void Heap::PrintFreeListsStats() {
+  DCHECK(FLAG_trace_gc_freelists);
+
+  if (FLAG_trace_gc_freelists_verbose) {
+    PrintIsolate(isolate_,
+                 "Freelists statistics per Page: "
+                 "[category: length || total free bytes]\n");
+  }
+
+  int categories_lengths[kNumberOfCategories] = {0};
+  size_t categories_sums[kNumberOfCategories] = {0};
+  unsigned int pageCnt = 0;
+
+  // This loops computes freelists lengths and sum.
+  // If FLAG_trace_gc_freelists_verbose is enabled, it also prints
+  // the stats of each FreeListCategory of each Page.
+  for (Page* page : *old_space()) {
+    std::ostringstream out_str;
+
+    if (FLAG_trace_gc_freelists_verbose) {
+      out_str << "Page " << std::setw(4) << pageCnt;
+    }
+
+    for (int cat = kFirstCategory; cat <= kLastCategory; cat++) {
+      FreeListCategory* free_list =
+          page->free_list_category(static_cast<FreeListCategoryType>(cat));
+      int length = free_list->FreeListLength();
+      size_t sum = free_list->SumFreeList();
+
+      if (FLAG_trace_gc_freelists_verbose) {
+        out_str << "[" << cat << ": " << std::setw(4) << length << " || "
+                << std::setw(6) << sum << " ]"
+                << (cat == kLastCategory ? "\n" : ", ");
+      }
+      categories_lengths[cat] += length;
+      categories_sums[cat] += sum;
+    }
+
+    if (FLAG_trace_gc_freelists_verbose) {
+      PrintIsolate(isolate_, "%s", out_str.str().c_str());
+    }
+
+    pageCnt++;
+  }
+
+  // Print statistics about old_space (pages, free/wasted/used memory...).
+  PrintIsolate(
+      isolate_,
+      "%d pages. Free space: %.1f MB (waste: %.2f). "
+      "Usage: %.1f/%.1f (MB) -> %.2f%%.\n",
+      pageCnt, static_cast<double>(old_space_->Available()) / MB,
+      static_cast<double>(old_space_->Waste()) / MB,
+      static_cast<double>(old_space_->Size()) / MB,
+      static_cast<double>(old_space_->Capacity()) / MB,
+      static_cast<double>(old_space_->Size()) / old_space_->Capacity() * 100);
+
+  // Print global statistics of each FreeListCategory (length & sum).
+  PrintIsolate(isolate_,
+               "FreeLists global statistics: "
+               "[category: length || total free KB]\n");
+  std::ostringstream out_str;
+  for (int cat = 0; cat <= kLastCategory; cat++) {
+    out_str << "[" << cat << ": " << categories_lengths[cat] << " || "
+            << std::fixed << std::setprecision(2)
+            << static_cast<double>(categories_sums[cat]) / KB << " KB]"
+            << (cat == kLastCategory ? "\n" : ", ");
+  }
+  PrintIsolate(isolate_, "%s", out_str.str().c_str());
 }
 
 void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {

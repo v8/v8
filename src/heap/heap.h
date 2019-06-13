@@ -483,6 +483,12 @@ class Heap {
   // Print short heap statistics.
   void PrintShortHeapStatistics();
 
+  // Print statistics of freelists of old_space:
+  //  with FLAG_trace_gc_freelists: summary of each FreeListCategory.
+  //  with FLAG_trace_gc_freelists_verbose: also prints the statistics of each
+  //  FreeListCategory of each page.
+  void PrintFreeListsStats();
+
   // Dump heap statistics in JSON format.
   void DumpJSONHeapStatistics(std::stringstream& stream);
 

@@ -188,10 +188,8 @@ class FreeListCategory {
 
   void set_free_list(FreeList* free_list) { free_list_ = free_list; }
 
-#ifdef DEBUG
   size_t SumFreeList();
   int FreeListLength();
-#endif
 
  private:
   // For debug builds we accurately compute free lists lengths up until

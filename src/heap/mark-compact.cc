@@ -567,6 +567,8 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
   heap()->code_space()->RefillFreeList();
   heap()->map_space()->RefillFreeList();
 
+  heap()->tracer()->NotifySweepingCompleted();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !evacuation()) {
     FullEvacuationVerifier verifier(heap());

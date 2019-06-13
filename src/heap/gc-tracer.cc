@@ -264,6 +264,12 @@ void GCTracer::Start(GarbageCollector collector,
     counters->scavenge_reason()->AddSample(static_cast<int>(gc_reason));
   } else {
     counters->mark_compact_reason()->AddSample(static_cast<int>(gc_reason));
+
+    if (FLAG_trace_gc_freelists) {
+      PrintIsolate(heap_->isolate(),
+                   "FreeLists statistics before collection:\n");
+      heap_->PrintFreeListsStats();
+    }
   }
 }
 
@@ -374,6 +380,14 @@ void GCTracer::Stop(GarbageCollector collector) {
     TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GC_Heap_Stats",
                          TRACE_EVENT_SCOPE_THREAD, "stats",
                          TRACE_STR_COPY(heap_stats.str().c_str()));
+  }
+}
+
+void GCTracer::NotifySweepingCompleted() {
+  if (FLAG_trace_gc_freelists) {
+    PrintIsolate(heap_->isolate(),
+                 "FreeLists statistics after sweeping completed:\n");
+    heap_->PrintFreeListsStats();
   }
 }
 
