@@ -48,7 +48,7 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   size_t request_size = size + (alignment - page_size);
 
   zx_handle_t vmo;
-  if (zx_vmo_create(request_size, ZX_VMO_NON_RESIZABLE, &vmo) != ZX_OK) {
+  if (zx_vmo_create(request_size, 0, &vmo) != ZX_OK) {
     return nullptr;
   }
   static const char kVirtualMemoryName[] = "v8-virtualmem";
