@@ -548,14 +548,16 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       case HeapObjectRequest::kHeapNumber: {
         Handle<HeapObject> object = isolate->factory()->NewHeapNumber(
             request.heap_number(), AllocationType::kOld);
-        set_target_address_at(pc, 0 /* unused */, object.address());
+        EmbeddedObjectIndex index = AddEmbeddedObject(object);
+        set_embedded_object_index_referenced_from(pc, index);
         break;
       }
       case HeapObjectRequest::kStringConstant: {
         const StringConstantBase* str = request.string();
         CHECK_NOT_NULL(str);
-        set_target_address_at(pc, 0 /* unused */,
-                              str->AllocateStringConstant(isolate).address());
+        EmbeddedObjectIndex index =
+            AddEmbeddedObject(str->AllocateStringConstant(isolate));
+        set_embedded_object_index_referenced_from(pc, index);
         break;
       }
     }
@@ -4484,6 +4486,10 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else if (constant_pool_mode == NEEDS_POOL_ENTRY) {
+    if (RelocInfo::IsEmbeddedObjectMode(rmode)) {
+      Handle<HeapObject> handle(reinterpret_cast<Address*>(data));
+      data = AddEmbeddedObject(handle);
+    }
     if (!constpool_.RecordEntry(data, rmode)) return;
   }
   // For modes that cannot use the constant pool, a different sequence of

@@ -272,8 +272,11 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   int AddCodeTarget(Handle<Code> target);
   Handle<Code> GetCodeTarget(intptr_t code_target_index) const;
 
-  int AddCompressedEmbeddedObject(Handle<HeapObject> object);
-  Handle<HeapObject> GetCompressedEmbeddedObject(intptr_t index) const;
+  // Add 'object' to the {embedded_objects_} vector and return the index at
+  // which it is stored.
+  using EmbeddedObjectIndex = size_t;
+  EmbeddedObjectIndex AddEmbeddedObject(Handle<HeapObject> object);
+  Handle<HeapObject> GetEmbeddedObject(EmbeddedObjectIndex index) const;
 
   // The buffer into which code and relocation info are generated.
   std::unique_ptr<AssemblerBuffer> buffer_;
@@ -321,12 +324,11 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // the code handle in the vector instead.
   std::vector<Handle<Code>> code_targets_;
 
-  // When pointer compression is enabled, we need to store indexes to this
-  // table in the code until we are ready to copy the code and embed the real
-  // object pointers. We don't need to do the same thing for non-compressed
-  // embedded objects, because we've got enough space (kPointerSize) in the
-  // code stream to just embed the address of the object handle.
-  std::vector<Handle<HeapObject>> compressed_embedded_objects_;
+  // If an assembler needs a small number to refer to a heap object handle
+  // (for example, because there are only 32bit available on a 64bit arch), the
+  // assembler adds the object into this vector using AddEmbeddedObject, and
+  // may then refer to the heap object using the handle's index in this vector.
+  std::vector<Handle<HeapObject>> embedded_objects_;
 
   const AssemblerOptions options_;
   uint64_t enabled_cpu_features_;

@@ -314,8 +314,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Returns the handle for the code object called at 'pc'.
   // This might need to be temporarily encoded as an offset into code_targets_.
   inline Handle<Code> code_target_object_handle_at(Address pc);
-
-  inline Handle<HeapObject> compressed_embedded_object_handle_at(Address pc);
+  inline EmbeddedObjectIndex embedded_object_index_referenced_from(Address pc);
+  inline void set_embedded_object_index_referenced_from(
+      Address p, EmbeddedObjectIndex index);
+  // Returns the handle for the heap object referenced at 'pc'.
+  inline Handle<HeapObject> target_object_handle_at(Address pc);
 
   // Returns the target address for a runtime function for the call encoded
   // at 'pc'.

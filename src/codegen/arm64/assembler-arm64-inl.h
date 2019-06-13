@@ -503,10 +503,24 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
   }
 }
 
-Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(Address pc) {
+AssemblerBase::EmbeddedObjectIndex
+Assembler::embedded_object_index_referenced_from(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
-  CHECK(!instr->IsLdrLiteralX());
-  return GetCompressedEmbeddedObject(ReadUnalignedValue<int32_t>(pc));
+  CHECK(instr->IsLdrLiteralX());
+  STATIC_ASSERT(sizeof(EmbeddedObjectIndex) == sizeof(intptr_t));
+  return Memory<EmbeddedObjectIndex>(target_pointer_address_at(pc));
+}
+
+void Assembler::set_embedded_object_index_referenced_from(
+    Address pc, EmbeddedObjectIndex data) {
+  Instruction* instr = reinterpret_cast<Instruction*>(pc);
+  CHECK(instr->IsLdrLiteralX());
+  Memory<EmbeddedObjectIndex>(target_pointer_address_at(pc)) = data;
+}
+
+Handle<HeapObject> Assembler::target_object_handle_at(Address pc) {
+  return GetEmbeddedObject(
+      Assembler::embedded_object_index_referenced_from(pc));
 }
 
 Address Assembler::runtime_entry_at(Address pc) {
@@ -637,8 +651,7 @@ HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   if (IsFullEmbeddedObject(rmode_)) {
-    return Handle<HeapObject>(reinterpret_cast<Address*>(
-        Assembler::target_address_at(pc_, constant_pool_)));
+    return origin->target_object_handle_at(pc_);
   } else {
     DCHECK(IsCodeTarget(rmode_));
     return origin->code_target_object_handle_at(pc_);

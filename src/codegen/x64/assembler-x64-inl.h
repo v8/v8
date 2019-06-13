@@ -246,7 +246,7 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
 }
 
 Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(Address pc) {
-  return GetCompressedEmbeddedObject(ReadUnalignedValue<int32_t>(pc));
+  return GetEmbeddedObject(ReadUnalignedValue<uint32_t>(pc));
 }
 
 Address Assembler::runtime_entry_at(Address pc) {

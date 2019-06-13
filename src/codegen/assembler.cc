@@ -226,16 +226,17 @@ int AssemblerBase::AddCodeTarget(Handle<Code> target) {
   }
 }
 
-int AssemblerBase::AddCompressedEmbeddedObject(Handle<HeapObject> object) {
-  int current = static_cast<int>(compressed_embedded_objects_.size());
-  compressed_embedded_objects_.push_back(object);
+AssemblerBase::EmbeddedObjectIndex AssemblerBase::AddEmbeddedObject(
+    Handle<HeapObject> object) {
+  EmbeddedObjectIndex current = embedded_objects_.size();
+  embedded_objects_.push_back(object);
   return current;
 }
 
-Handle<HeapObject> AssemblerBase::GetCompressedEmbeddedObject(
-    intptr_t index) const {
-  DCHECK_LT(static_cast<size_t>(index), compressed_embedded_objects_.size());
-  return compressed_embedded_objects_[index];
+Handle<HeapObject> AssemblerBase::GetEmbeddedObject(
+    EmbeddedObjectIndex index) const {
+  DCHECK_LT(index, embedded_objects_.size());
+  return embedded_objects_[index];
 }
 
 Handle<Code> AssemblerBase::GetCodeTarget(intptr_t code_target_index) const {

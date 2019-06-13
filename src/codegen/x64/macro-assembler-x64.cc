@@ -1468,8 +1468,9 @@ void TurboAssembler::Move(Register result, Handle<HeapObject> object,
     }
   }
   if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
-    int compressed_embedded_object_index = AddCompressedEmbeddedObject(object);
-    movl(result, Immediate(compressed_embedded_object_index, rmode));
+    EmbeddedObjectIndex index = AddEmbeddedObject(object);
+    DCHECK(is_uint32(index));
+    movl(result, Immediate(static_cast<int>(index), rmode));
   } else {
     DCHECK(RelocInfo::IsFullEmbeddedObject(rmode));
     movq(result, Immediate64(object.address(), rmode));
