@@ -65,7 +65,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
       out.functions[n] = m.Ref(broker()).AsJSFunction();
       JSFunctionRef function = out.functions[n].value();
       if (function.IsSerializedForCompilation()) {
-        out.bytecode[n] = function.shared().GetBytecodeArray(), isolate();
+        out.bytecode[n] = function.shared().GetBytecodeArray();
       }
     }
     out.num_functions = value_input_count;
@@ -221,6 +221,11 @@ void JSInliningHeuristic::Finalize() {
     Candidate candidate = *i;
     candidates_.erase(i);
 
+    // Make sure we don't try to inline dead candidate nodes.
+    if (candidate.node->IsDead()) {
+      continue;
+    }
+
     // Make sure we have some extra budget left, so that any small functions
     // exposed by this function would be given a chance to inline.
     double size_of_candidate =
@@ -231,11 +236,8 @@ void JSInliningHeuristic::Finalize() {
       continue;
     }
 
-    // Make sure we don't try to inline dead candidate nodes.
-    if (!candidate.node->IsDead()) {
-      Reduction const reduction = InlineCandidate(candidate, false);
-      if (reduction.Changed()) return;
-    }
+    Reduction const reduction = InlineCandidate(candidate, false);
+    if (reduction.Changed()) return;
   }
 }
 
