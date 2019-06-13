@@ -3782,10 +3782,11 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     // objects, i.e. never hits undefined values in double fields.
     if (!FLAG_unbox_double_fields) {
       BuildFastLoop(
-          result_start, source_size,
+          source_start, source_size,
           [=](Node* field_index) {
             TNode<IntPtrT> result_offset =
-                TimesTaggedSize(UncheckedCast<IntPtrT>(field_index));
+                IntPtrAdd(TimesTaggedSize(UncheckedCast<IntPtrT>(field_index)),
+                          field_offset_difference);
             TNode<Object> field = LoadObjectField(object, result_offset);
             Label if_done(this), if_mutableheapnumber(this, Label::kDeferred);
             GotoIf(TaggedIsSmi(field), &if_done);
