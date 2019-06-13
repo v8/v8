@@ -1946,7 +1946,17 @@ void VisitWord32Compare(InstructionSelector* selector, Node* node,
   // in those cases. Unfortunately, the solution is not complete because
   // it might skip cases where Word32 full compare is needed, so
   // basically it is a hack.
+  // When call to a host function in simulator, if the function return a
+  // int32 value, the simulator do not sign-extended to int64 because in
+  // simulator we do not know the function whether return a int32 or int64.
+  // so we need do a full word32 compare in this case.
+#ifndef USE_SIMULATOR
   if (IsNodeUnsigned(node->InputAt(0)) != IsNodeUnsigned(node->InputAt(1))) {
+#else
+  if (IsNodeUnsigned(node->InputAt(0)) != IsNodeUnsigned(node->InputAt(1)) ||
+      node->InputAt(0)->opcode() == IrOpcode::kCall ||
+      node->InputAt(1)->opcode() == IrOpcode::kCall ) {
+#endif
     VisitFullWord32Compare(selector, node, kMips64Cmp, cont);
   } else {
     VisitOptimizedWord32Compare(selector, node, kMips64Cmp, cont);
