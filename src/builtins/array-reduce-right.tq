@@ -111,9 +111,9 @@ namespace array {
       labels Bailout(Number, Object) {
     let accumulator = initialAccumulator;
     const smiLen = Cast<Smi>(len) otherwise goto Bailout(len - 1, accumulator);
-    const fastO =
-        Cast<FastJSArray>(o) otherwise goto Bailout(len - 1, accumulator);
-    let fastOW = NewFastJSArrayWitness(fastO);
+    const fastO = Cast<FastJSArrayForRead>(o)
+        otherwise goto Bailout(len - 1, accumulator);
+    let fastOW = NewFastJSArrayForReadWitness(fastO);
 
     // Build a fast loop over the array.
     for (let k: Smi = smiLen - 1; k >= 0; k--) {

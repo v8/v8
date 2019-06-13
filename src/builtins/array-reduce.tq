@@ -111,8 +111,9 @@ namespace array {
     const k = 0;
     let accumulator = initialAccumulator;
     Cast<Smi>(len) otherwise goto Bailout(k, accumulator);
-    const fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k, accumulator);
-    let fastOW = NewFastJSArrayWitness(fastO);
+    const fastO =
+        Cast<FastJSArrayForRead>(o) otherwise goto Bailout(k, accumulator);
+    let fastOW = NewFastJSArrayForReadWitness(fastO);
 
     // Build a fast loop over the array.
     for (let k: Smi = 0; k < len; k++) {
