@@ -76,10 +76,26 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
   Builtin::Kind kind = !javascript ? Builtin::kStub
                                    : varargs ? Builtin::kVarArgsJavaScript
                                              : Builtin::kFixedArgsJavaScript;
+  const Type* context_type =
+      Declarations::LookupGlobalType(CONTEXT_TYPE_STRING);
+  if (signature.types().size() == 0 ||
+      !(signature.types()[0] == context_type)) {
+    Error("First parameter to builtin ", decl->name, " must be of type ",
+          *context_type);
+  }
 
   if (varargs && !javascript) {
     Error("Rest parameters require ", decl->name,
           " to be a JavaScript builtin");
+  }
+
+  if (javascript) {
+    if (signature.types().size() >= 2 &&
+        !(signature.types()[1] ==
+          Declarations::LookupGlobalType(OBJECT_TYPE_STRING))) {
+      Error("Second parameter to javascript builtin ", decl->name, " is ",
+            *signature.types()[1], " but should be Object");
+    }
   }
 
   for (size_t i = 0; i < signature.types().size(); ++i) {
@@ -120,7 +136,8 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl,
                                const Signature& signature,
                                base::Optional<Statement*> body) {
   if (signature.parameter_types.types.size() == 0 ||
-      !(signature.parameter_types.types[0] == TypeOracle::GetContextType())) {
+      !(signature.parameter_types.types[0] ==
+        Declarations::LookupGlobalType(CONTEXT_TYPE_STRING))) {
     ReportError(
         "first parameter to runtime functions has to be the context and have "
         "type Context, but found type ",

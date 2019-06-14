@@ -203,14 +203,6 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(CONST_INT32_TYPE_STRING);
   }
 
-  static const Type* GetContextType() {
-    return Get().GetBuiltinType(CONTEXT_TYPE_STRING);
-  }
-
-  static const Type* GetJSFunctionType() {
-    return Get().GetBuiltinType(JS_FUNCTION_TYPE_STRING);
-  }
-
   static bool IsImplicitlyConvertableFrom(const Type* to, const Type* from) {
     for (Generic* from_constexpr :
          Declarations::LookupGeneric(kFromConstexprMacroName)) {

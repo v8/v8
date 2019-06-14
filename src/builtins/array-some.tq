@@ -4,9 +4,8 @@
 
 namespace array {
   transitioning javascript builtin
-  ArraySomeLoopEagerDeoptContinuation(
-      js-implicit context: Context, receiver: Object)(
-      callback: Object, thisArg: Object, initialK: Object,
+  ArraySomeLoopEagerDeoptContinuation(implicit context: Context)(
+      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
       length: Object): Object {
     // All continuation points in the optimized some implementation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -26,10 +25,9 @@ namespace array {
   }
 
   transitioning javascript builtin
-  ArraySomeLoopLazyDeoptContinuation(
-      js-implicit context: Context, receiver: Object)(
-      callback: Object, thisArg: Object, initialK: Object, length: Object,
-      result: Object): Object {
+  ArraySomeLoopLazyDeoptContinuation(implicit context: Context)(
+      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
+      length: Object, result: Object): Object {
     // All continuation points in the optimized some implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -111,8 +109,7 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.some
   transitioning javascript builtin
-  ArraySome(js-implicit context: Context, receiver: Object)(...arguments):
-      Object {
+  ArraySome(implicit context: Context)(receiver: Object, ...arguments): Object {
     try {
       if (IsNullOrUndefined(receiver)) {
         goto NullOrUndefinedError;

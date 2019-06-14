@@ -4,9 +4,8 @@
 
 namespace array_foreach {
   transitioning javascript builtin
-  ArrayForEachLoopEagerDeoptContinuation(
-      js-implicit context: Context, receiver: Object)(
-      callback: Object, thisArg: Object, initialK: Object,
+  ArrayForEachLoopEagerDeoptContinuation(implicit context: Context)(
+      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
       length: Object): Object {
     // All continuation points in the optimized forEach implemntation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -22,10 +21,9 @@ namespace array_foreach {
   }
 
   transitioning javascript builtin
-  ArrayForEachLoopLazyDeoptContinuation(
-      js-implicit context: Context, receiver: Object)(
-      callback: Object, thisArg: Object, initialK: Object, length: Object,
-      _result: Object): Object {
+  ArrayForEachLoopLazyDeoptContinuation(implicit context: Context)(
+      receiver: Object, callback: Object, thisArg: Object, initialK: Object,
+      length: Object, _result: Object): Object {
     // All continuation points in the optimized forEach implemntation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -92,8 +90,7 @@ namespace array_foreach {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.foreach
   transitioning javascript builtin
-  ArrayForEach(js-implicit context: Context, receiver: Object)(...arguments):
-      Object {
+  ArrayForEach(context: Context, receiver: Object, ...arguments): Object {
     try {
       if (IsNullOrUndefined(receiver)) {
         goto NullOrUndefinedError;

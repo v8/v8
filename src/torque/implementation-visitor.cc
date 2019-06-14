@@ -415,128 +415,61 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
 
   BlockBindings<LocalValue> parameter_bindings(&ValueBindingsManager::Get());
 
-  if (builtin->IsVarArgsJavaScript() || builtin->IsFixedArgsJavaScript()) {
-    if (builtin->IsVarArgsJavaScript()) {
-      DCHECK(signature.parameter_types.var_args);
-      if (signature.ExplicitCount() > 0) {
-        Error("Cannot mix explicit parameters with varargs.")
-            .Position(signature.parameter_names[signature.implicit_count]->pos);
-      }
+  // Context
+  const bool context_is_implicit = signature.implicit_count > 0;
+  std::string parameter0 =
+      AddParameter(0, builtin, &parameters, &parameter_types,
+                   &parameter_bindings, context_is_implicit);
+  source_out() << "  TNode<Context> " << parameter0
+               << " = UncheckedCast<Context>(Parameter("
+               << "Descriptor::kContext));\n";
+  source_out() << "  USE(" << parameter0 << ");\n";
 
-      source_out()
-          << "  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);\n";
-      source_out()
-          << "  TNode<IntPtrT> arguments_length(ChangeInt32ToIntPtr(argc));\n";
-      source_out() << "  TNode<RawPtrT> arguments_frame = "
-                      "UncheckedCast<RawPtrT>(LoadFramePointer());\n";
-      source_out() << "  TorqueStructArguments "
-                      "torque_arguments(GetFrameArguments(arguments_frame, "
-                      "arguments_length));\n";
-      source_out()
-          << "  CodeStubArguments arguments(this, torque_arguments);\n";
+  size_t first = 1;
+  if (builtin->IsVarArgsJavaScript()) {
+    DCHECK(signature.parameter_types.var_args);
+    source_out()
+        << "  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);\n";
+    std::string parameter1 = AddParameter(
+        1, builtin, &parameters, &parameter_types, &parameter_bindings, true);
+    source_out()
+        << "  TNode<IntPtrT> arguments_length(ChangeInt32ToIntPtr(argc));\n";
+    source_out() << "  TNode<RawPtrT> arguments_frame = "
+                    "UncheckedCast<RawPtrT>(LoadFramePointer());\n";
+    source_out() << "  TorqueStructArguments "
+                    "torque_arguments(GetFrameArguments(arguments_frame, "
+                    "arguments_length));\n";
+    source_out() << "  CodeStubArguments arguments(this, torque_arguments);\n";
 
-      parameters.Push("torque_arguments.frame");
-      parameters.Push("torque_arguments.base");
-      parameters.Push("torque_arguments.length");
-      const Type* arguments_type = TypeOracle::GetArgumentsType();
-      StackRange range = parameter_types.PushMany(LowerType(arguments_type));
-      parameter_bindings.Add(
-          *signature.arguments_variable,
-          LocalValue{true, VisitResult(arguments_type, range)}, true);
-    }
+    source_out() << "  TNode<Object> " << parameter1
+                 << " = arguments.GetReceiver();\n";
+    source_out() << "USE(" << parameter1 << ");\n";
+    parameters.Push("torque_arguments.frame");
+    parameters.Push("torque_arguments.base");
+    parameters.Push("torque_arguments.length");
+    const Type* arguments_type = TypeOracle::GetArgumentsType();
+    StackRange range = parameter_types.PushMany(LowerType(arguments_type));
+    parameter_bindings.Add(*signature.arguments_variable,
+                           LocalValue{true, VisitResult(arguments_type, range)},
+                           true);
 
-    for (size_t i = 0; i < signature.implicit_count; ++i) {
-      const std::string& param_name = signature.parameter_names[i]->value;
-      SourcePosition param_pos = signature.parameter_names[i]->pos;
-      std::string generated_name = AddParameter(
-          i, builtin, &parameters, &parameter_types, &parameter_bindings, true);
-      const Type* actual_type = signature.parameter_types.types[i];
-      const Type* expected_type;
-      if (param_name == "context") {
-        source_out() << "  TNode<Context> " << generated_name
-                     << " = UncheckedCast<Context>(Parameter("
-                     << "Descriptor::kContext));\n";
-        source_out() << "  USE(" << generated_name << ");\n";
-        expected_type = TypeOracle::GetContextType();
-      } else if (param_name == "receiver") {
-        source_out()
-            << "  TNode<Object> " << generated_name << " = "
-            << (builtin->IsVarArgsJavaScript()
-                    ? "arguments.GetReceiver()"
-                    : "UncheckedCast<Object>(Parameter(Descriptor::kReceiver))")
-            << ";\n";
-        source_out() << "USE(" << generated_name << ");\n";
-        expected_type = TypeOracle::GetObjectType();
-      } else if (param_name == "newTarget") {
-        source_out() << "  TNode<Object> " << generated_name
-                     << " = UncheckedCast<Object>(Parameter("
-                     << "Descriptor::kJSNewTarget));\n";
-        source_out() << "USE(" << generated_name << ");\n";
-        expected_type = TypeOracle::GetObjectType();
-      } else if (param_name == "target") {
-        source_out() << "  TNode<JSFunction> " << generated_name
-                     << " = UncheckedCast<JSFunction>(Parameter("
-                     << "Descriptor::kJSTarget));\n";
-        source_out() << "USE(" << generated_name << ");\n";
-        expected_type = TypeOracle::GetJSFunctionType();
-      } else {
-        Error(
-            "Unexpected implicit parameter \"", param_name,
-            "\" for JavaScript calling convention, "
-            "expected \"context\", \"receiver\", \"target\", or \"newTarget\"")
-            .Position(param_pos);
-        expected_type = actual_type;
-      }
-      if (actual_type != expected_type) {
-        Error("According to JavaScript calling convention, expected parameter ",
-              param_name, " to have type ", *expected_type, " but found type ",
-              *actual_type)
-            .Position(param_pos);
-      }
-    }
-
-    for (size_t i = signature.implicit_count;
-         i < signature.parameter_names.size(); ++i) {
-      const std::string& parameter_name = signature.parameter_names[i]->value;
-      const Type* type = signature.types()[i];
-      const bool mark_as_used = signature.implicit_count > i;
-      std::string var = AddParameter(i, builtin, &parameters, &parameter_types,
-                                     &parameter_bindings, mark_as_used);
-      source_out() << "  " << type->GetGeneratedTypeName() << " " << var
-                   << " = "
-                   << "UncheckedCast<" << type->GetGeneratedTNodeTypeName()
-                   << ">(Parameter(Descriptor::k"
-                   << CamelifyString(parameter_name) << "));\n";
-      source_out() << "  USE(" << var << ");\n";
-    }
-
-  } else {
-    DCHECK(builtin->IsStub());
-
-    // Context
-    const bool context_is_implicit = signature.implicit_count > 0;
-    std::string parameter0 =
-        AddParameter(0, builtin, &parameters, &parameter_types,
-                     &parameter_bindings, context_is_implicit);
-    source_out() << "  TNode<Context> " << parameter0
-                 << " = UncheckedCast<Context>(Parameter("
-                 << "Descriptor::kContext));\n";
-    source_out() << "  USE(" << parameter0 << ");\n";
-
-    for (size_t i = 1; i < signature.parameter_names.size(); ++i) {
-      const std::string& parameter_name = signature.parameter_names[i]->value;
-      const Type* type = signature.types()[i];
-      const bool mark_as_used = signature.implicit_count > i;
-      std::string var = AddParameter(i, builtin, &parameters, &parameter_types,
-                                     &parameter_bindings, mark_as_used);
-      source_out() << "  " << type->GetGeneratedTypeName() << " " << var
-                   << " = "
-                   << "UncheckedCast<" << type->GetGeneratedTNodeTypeName()
-                   << ">(Parameter(Descriptor::k"
-                   << CamelifyString(parameter_name) << "));\n";
-      source_out() << "  USE(" << var << ");\n";
-    }
+    first = 2;
   }
+
+  for (size_t i = 0; i < signature.parameter_names.size(); ++i) {
+    if (i < first) continue;
+    const std::string& parameter_name = signature.parameter_names[i]->value;
+    const Type* type = signature.types()[i];
+    const bool mark_as_used = signature.implicit_count > i;
+    std::string var = AddParameter(i, builtin, &parameters, &parameter_types,
+                                   &parameter_bindings, mark_as_used);
+    source_out() << "  " << type->GetGeneratedTypeName() << " " << var << " = "
+                 << "UncheckedCast<" << type->GetGeneratedTNodeTypeName()
+                 << ">(Parameter(Descriptor::k"
+                 << CamelifyString(parameter_name) << "));\n";
+    source_out() << "  USE(" << var << ");\n";
+  }
+
   assembler_ = CfgAssembler(parameter_types);
   const Type* body_result = Visit(*builtin->body());
   if (body_result != TypeOracle::GetNeverType()) {
