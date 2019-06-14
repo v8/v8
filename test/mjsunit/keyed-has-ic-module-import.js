@@ -64,6 +64,7 @@ var tests = {
 for (let test in tests) {
   %DeoptimizeFunction(testIn);
   %ClearFunctionFeedback(testIn);
+  %PrepareFunctionForOptimization(testIn);
   tests[test]();
   %OptimizeFunctionOnNextCall(testIn);
   tests[test]();

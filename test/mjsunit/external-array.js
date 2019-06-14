@@ -38,6 +38,7 @@ function f(a) {
   a[0] = 0;
   a[1] = 0;
 }
+%PrepareFunctionForOptimization(f);
 
 var a = new Int32Array(2);
 for (var i = 0; i < 5; i++) {
