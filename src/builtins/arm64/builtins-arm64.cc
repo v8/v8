@@ -1683,18 +1683,20 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
 
   if (java_script_builtin) __ SmiUntag(kJavaScriptCallArgCountRegister);
 
-  // Load builtin object.
+  // Load builtin index (stored as a Smi) and use it to get the builtin start
+  // address from the builtins table.
   UseScratchRegisterScope temps(masm);
   Register builtin = temps.AcquireX();
-  __ Ldr(builtin,
-         MemOperand(fp, BuiltinContinuationFrameConstants::kBuiltinOffset));
+  __ Ldr(
+      builtin,
+      MemOperand(fp, BuiltinContinuationFrameConstants::kBuiltinIndexOffset));
 
   // Restore fp, lr.
   __ Mov(sp, fp);
   __ Pop(fp, lr);
 
-  // Call builtin.
-  __ JumpCodeObject(builtin);
+  __ LoadEntryFromBuiltinIndex(builtin);
+  __ Jump(builtin);
 }
 }  // namespace
 

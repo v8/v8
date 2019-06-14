@@ -1509,13 +1509,16 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   __ ldr(fp, MemOperand(
                  sp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
 
+  // Load builtin index (stored as a Smi) and use it to get the builtin start
+  // address from the builtins table.
   UseScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  __ Pop(scratch);
+  Register builtin = temps.Acquire();
+  __ Pop(builtin);
   __ add(sp, sp,
          Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
   __ Pop(lr);
-  __ add(pc, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ LoadEntryFromBuiltinIndex(builtin);
+  __ bx(builtin);
 }
 }  // namespace
 

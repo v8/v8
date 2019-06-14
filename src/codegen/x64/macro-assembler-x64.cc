@@ -1608,7 +1608,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   call(code_object, rmode);
 }
 
-void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
+Operand TurboAssembler::EntryFromBuiltinIndexAsOperand(Register builtin_index) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   STATIC_ASSERT(kSmiShiftSize == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -1617,8 +1617,8 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   // The builtin_index register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below (we use times_4 instead
   // of times_8 since smis are already shifted by one).
-  Call(Operand(kRootRegister, builtin_index, times_4,
-               IsolateData::builtin_entry_table_offset()));
+  return Operand(kRootRegister, builtin_index, times_4,
+                 IsolateData::builtin_entry_table_offset());
 #else   // defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   STATIC_ASSERT(kSmiShiftSize == 31);
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -1626,9 +1626,13 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
 
   // The builtin_index register contains the builtin index as a Smi.
   SmiUntag(builtin_index, builtin_index);
-  Call(Operand(kRootRegister, builtin_index, times_8,
-               IsolateData::builtin_entry_table_offset()));
+  return Operand(kRootRegister, builtin_index, times_8,
+                 IsolateData::builtin_entry_table_offset());
 #endif  // defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+}
+
+void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
+  Call(EntryFromBuiltinIndexAsOperand(builtin_index));
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,

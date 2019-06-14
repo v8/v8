@@ -852,6 +852,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Generate an indirect call (for when a direct call's range is not adequate).
   void IndirectCall(Address target, RelocInfo::Mode rmode);
 
+  // Load the builtin given by the Smi in |builtin_index| into the same
+  // register.
+  void LoadEntryFromBuiltinIndex(Register builtin_index);
   void CallBuiltinByIndex(Register builtin_index) override;
 
   void LoadCodeObjectEntry(Register destination, Register code_object) override;

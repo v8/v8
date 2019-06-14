@@ -271,7 +271,7 @@ class BuiltinContinuationFrameConstants : public TypedFrameConstants {
       TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   static constexpr int kBuiltinContextOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
-  static constexpr int kBuiltinOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
+  static constexpr int kBuiltinIndexOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
 
   // The argument count is in the first allocatable register, stored below the
   // fixed part of the frame and therefore is not part of the fixed frame size.

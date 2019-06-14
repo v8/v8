@@ -1562,7 +1562,15 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
       kSystemPointerSize;
   __ popq(Operand(rsp, offsetToPC));
   __ Drop(offsetToPC / kSystemPointerSize);
-  __ addq(Operand(rsp, 0), Immediate(Code::kHeaderSize - kHeapObjectTag));
+
+  // Replace the builtin index Smi on the stack with the instruction start
+  // address of the builtin from the builtins table, and then Ret to this
+  // address
+  __ movq(kScratchRegister, Operand(rsp, 0));
+  __ movq(kScratchRegister,
+          __ EntryFromBuiltinIndexAsOperand(kScratchRegister));
+  __ movq(Operand(rsp, 0), kScratchRegister);
+
   __ Ret();
 }
 }  // namespace

@@ -1887,7 +1887,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   call(code_object, rmode);
 }
 
-void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
+void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 4);
   STATIC_ASSERT(kSmiShiftSize == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -1900,6 +1900,10 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   mov(builtin_index,
       Operand(kRootRegister, builtin_index, times_half_system_pointer_size,
               IsolateData::builtin_entry_table_offset()));
+}
+
+void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
+  LoadEntryFromBuiltinIndex(builtin_index);
   call(builtin_index);
 }
 

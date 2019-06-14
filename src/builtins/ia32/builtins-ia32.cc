@@ -1534,6 +1534,15 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                             BuiltinContinuationFrameConstants::kFixedFrameSize),
            eax);
   }
+
+  // Replace the builtin index Smi on the stack with the start address of the
+  // builtin loaded from the builtins table. The ret below will return to this
+  // address.
+  int offset_to_builtin_index = allocatable_register_count * kSystemPointerSize;
+  __ mov(eax, Operand(esp, offset_to_builtin_index));
+  __ LoadEntryFromBuiltinIndex(eax);
+  __ mov(Operand(esp, offset_to_builtin_index), eax);
+
   for (int i = allocatable_register_count - 1; i >= 0; --i) {
     int code = config->GetAllocatableGeneralCode(i);
     __ pop(Register::from_code(code));
@@ -1549,7 +1558,6 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
       kSystemPointerSize;
   __ pop(Operand(esp, offsetToPC));
   __ Drop(offsetToPC / kSystemPointerSize);
-  __ add(Operand(esp, 0), Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ ret(0);
 }
 }  // namespace

@@ -1925,7 +1925,7 @@ void TurboAssembler::Call(ExternalReference target) {
   Call(temp);
 }
 
-void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
+void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 8);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
@@ -1941,6 +1941,10 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
 #endif
   Add(builtin_index, builtin_index, IsolateData::builtin_entry_table_offset());
   Ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
+}
+
+void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
+  LoadEntryFromBuiltinIndex(builtin_index);
   Call(builtin_index);
 }
 

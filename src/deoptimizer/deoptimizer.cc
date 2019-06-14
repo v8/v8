@@ -1424,7 +1424,7 @@ Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
 //    +-------------------------+
 //    |         context         |<- this non-standard context slot contains
 //    +-------------------------+   the context, even for non-JS builtins.
-//    |     builtin address     |
+//    |      builtin index      |
 //    +-------------------------+
 //    | builtin input GPR reg0  |<- populated from deopt FrameState using
 //    +-------------------------+   the builtin's CallInterfaceDescriptor
@@ -1649,7 +1649,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
                                    "builtin JavaScript context\n");
 
   // The builtin to continue to.
-  frame_writer.PushRawObject(builtin, "builtin address\n");
+  frame_writer.PushRawObject(Smi::FromInt(builtin.builtin_index()),
+                             "builtin index\n");
 
   for (int i = 0; i < allocatable_register_count; ++i) {
     int code = config->GetAllocatableGeneralCode(i);
