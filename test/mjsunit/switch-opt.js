@@ -61,6 +61,7 @@
         break;
     }
   }
+  %PrepareFunctionForOptimization(f);
 
   function assertResult(r, label, b1, b2, b3) {
     f(label, b1, b2, b3);

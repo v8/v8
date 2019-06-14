@@ -41,6 +41,7 @@ function strictToBeInlined(n) {
 function nonstrictCallStrict(n) {
   strictToBeInlined(n);
 }
+%PrepareFunctionForOptimization(nonstrictCallStrict);
 
 (function testInlineStrictInNonStrict() {
   for (var i = 0; i <= MAX; i ++) {
