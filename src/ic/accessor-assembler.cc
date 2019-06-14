@@ -3768,8 +3768,8 @@ void AccessorAssembler::GenerateCloneObjectIC() {
         [=](Node* field_index) {
           TNode<IntPtrT> field_offset =
               TimesTaggedSize(UncheckedCast<IntPtrT>(field_index));
-          TNode<IntPtrT> field =
-              LoadObjectField<IntPtrT>(CAST(source), field_offset);
+          TNode<TaggedT> field =
+              LoadObjectField<TaggedT>(CAST(source), field_offset);
           TNode<IntPtrT> result_offset =
               IntPtrAdd(field_offset, field_offset_difference);
           StoreObjectFieldNoWriteBarrier(object, result_offset, field);

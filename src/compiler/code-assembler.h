@@ -147,6 +147,12 @@ struct Float64T : UntaggedT {
   static constexpr MachineType kMachineType = MachineType::Float64();
 };
 
+#ifdef V8_COMPRESS_POINTERS
+using TaggedT = Int32T;
+#else
+using TaggedT = IntPtrT;
+#endif
+
 // Result of a comparison operation.
 struct BoolT : Word32T {};
 
