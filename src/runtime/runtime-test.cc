@@ -280,6 +280,16 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
+  if (function->HasOptimizedCode()) {
+    DCHECK(function->IsOptimized() || function->ChecksOptimizationMarker());
+    // If function is already optimized, remove the bytecode array from the
+    // pending optimize for test table and return. It is OK if there is no
+    // entry in the table since if the function got optimized before executing
+    // %OptimizeFunctionOnNextCall the entry would have been removed.
+    RemoveBytecodeFromPendingOptimizeTable(isolate, function);
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
   // Check we called PrepareFunctionForOptimization and hold the bytecode
   // array to prevent it from getting flushed.
   // TODO(mythria): Enable this check once we add PrepareForOptimization in all
@@ -288,14 +298,6 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   //          isolate->heap()->pending_optimize_for_test_bytecode())
   //          ->Lookup(handle(function->shared(), isolate))
   //          ->IsTheHole());
-
-  if (function->HasOptimizedCode()) {
-    DCHECK(function->IsOptimized() || function->ChecksOptimizationMarker());
-    // If function is already optimized, remove the bytecode array from the
-    // pending optimize for test table and return.
-    RemoveBytecodeFromPendingOptimizeTable(isolate, function);
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
 
   ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
   if (args.length() == 2) {
