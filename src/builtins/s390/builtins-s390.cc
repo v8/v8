@@ -1582,12 +1582,14 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   __ LoadP(
       fp,
       MemOperand(sp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
+  // Load builtin index (stored as a Smi) and use it to get the builtin start
+  // address from the builtins table.
   __ Pop(ip);
   __ AddP(sp, sp,
           Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
   __ Pop(r0);
   __ LoadRR(r14, r0);
-  __ AddP(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ LoadEntryFromBuiltinIndex(ip);
   __ Jump(ip);
 }
 }  // namespace
