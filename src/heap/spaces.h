@@ -1954,11 +1954,6 @@ class FreeList {
   static const size_t kMediumAllocationMax = kSmallListMax;
   static const size_t kLargeAllocationMax = kMediumListMax;
 
-  // Walks all available categories for a given |type| and tries to retrieve
-  // a node. Returns nullptr if the category is empty.
-  FreeSpace FindNodeIn(FreeListCategoryType type, size_t minimum_size,
-                       size_t* node_size);
-
   // Tries to retrieve a node from the first category in a given |type|.
   // Returns nullptr if the category is empty or the top entry is smaller
   // than minimum_size.
