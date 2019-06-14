@@ -40,6 +40,7 @@ function f(n, x, b) {
   }
   return sum;
 }
+%PrepareFunctionForOptimization(f);
 
 f(10, o3);
 f(20, o3);
