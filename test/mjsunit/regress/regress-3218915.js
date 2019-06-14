@@ -37,6 +37,7 @@ function withCommaExpressionInConditional(x) {
   }
   return (y = x + 1, y > 1) ? 'medium' : 'small';
 }
+%PrepareFunctionForOptimization(withCommaExpressionInConditional);
 
 for (var i = 0; i < 5; i++) {
   withCommaExpressionInConditional(i);

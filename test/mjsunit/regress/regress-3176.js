@@ -16,6 +16,7 @@ function foo(a) {
   }
   return sum;
 }
+%PrepareFunctionForOptimization(foo);
 
 var a = new Int32Array(10);
 

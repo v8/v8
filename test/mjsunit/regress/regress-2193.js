@@ -40,7 +40,9 @@ function MakeClosure() {
 
 // Create two closures that share the same literal boilerplates.
 var closure1 = MakeClosure();
+%PrepareFunctionForOptimization(closure1);
 var closure2 = MakeClosure();
+%PrepareFunctionForOptimization(closure2);
 var expected = [1,2,3,3,4,5,6,7,8,9,bozo];
 
 // Make sure we generate optimized code for the first closure after

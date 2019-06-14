@@ -68,6 +68,7 @@ for (var i = 750; i < 3000; i++) {
 
 source += "x=1; return _0;"
 var f = new Function(source);
+%PrepareFunctionForOptimization(f);
 
 f();
 %OptimizeFunctionOnNextCall(f);

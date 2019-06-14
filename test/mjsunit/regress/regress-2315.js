@@ -30,6 +30,7 @@
 var foo = (function() {
   return eval("(function bar() { return 1; })");
 })();
+%PrepareFunctionForOptimization(foo);
 
 foo();
 foo();

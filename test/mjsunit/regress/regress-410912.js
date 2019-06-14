@@ -38,6 +38,7 @@ function __f_0(__v_1,__v_0,i) {
   __v_1.a = __v_0[i];
   gc();
 }
+%PrepareFunctionForOptimization(__f_0);
 try {
 __f_0(__v_1,__v_0,0);
 __f_0(__v_1,__v_0,0);

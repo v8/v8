@@ -36,6 +36,7 @@ function f() {
   a[i] = 1/y;
   assertFalse(isNaN(a[i]));
 }
+%PrepareFunctionForOptimization(f);
 
 f();
 f();
