@@ -25,8 +25,12 @@ V8_INLINE Address GetIsolateRoot(TOnHeapAddress on_heap_addr);
 
 template <>
 V8_INLINE Address GetIsolateRoot<Address>(Address on_heap_addr) {
+  // We subtract 1 here in order to let the compiler generate addition of 32-bit
+  // signed constant instead of 64-bit constant (the problem is that 2Gb looks
+  // like a negative 32-bit value). It's correct because we will never use
+  // leftmost address of V8 heap as |on_heap_addr|.
   return RoundDown<kPtrComprIsolateRootAlignment>(on_heap_addr +
-                                                  kPtrComprIsolateRootBias);
+                                                  kPtrComprIsolateRootBias - 1);
 }
 
 template <>

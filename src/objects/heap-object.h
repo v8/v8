@@ -9,6 +9,7 @@
 #include "src/roots/roots.h"
 
 #include "src/objects/objects.h"
+#include "src/objects/tagged-field.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -45,6 +46,10 @@ class HeapObject : public Object {
   // Set the map using release store
   inline void synchronized_set_map(Map value);
   inline void synchronized_set_map_word(MapWord map_word);
+  // Compare-and-swaps map word using release store, returns true if the map
+  // word was actually swapped.
+  inline bool synchronized_compare_and_swap_map_word(MapWord old_map_word,
+                                                     MapWord new_map_word);
 
   // Initialize the map immediately after the object is allocated.
   // Do not use this outside Heap.
@@ -190,6 +195,8 @@ class HeapObject : public Object {
 #undef HEAP_OBJECT_FIELDS
 
   STATIC_ASSERT(kMapOffset == Internals::kHeapObjectMapOffset);
+
+  using MapField = TaggedField<MapWord, HeapObject::kMapOffset>;
 
   inline Address GetFieldAddress(int field_offset) const;
 

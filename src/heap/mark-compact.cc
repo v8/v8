@@ -1366,8 +1366,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     if (map.visitor_id() == kVisitThinString) {
       HeapObject actual = ThinString::cast(object).unchecked_actual();
       if (MarkCompactCollector::IsOnEvacuationCandidate(actual)) return false;
-      object.map_slot().Relaxed_Store(
-          MapWord::FromForwardingAddress(actual).ToMap());
+      object.set_map_word(MapWord::FromForwardingAddress(actual));
       return true;
     }
     // TODO(mlippautz): Handle ConsString.

@@ -743,13 +743,13 @@ class MapWord {
   // View this map word as a forwarding address.
   inline HeapObject ToForwardingAddress();
 
-  static inline MapWord FromRawValue(uintptr_t value) { return MapWord(value); }
-
-  inline uintptr_t ToRawValue() { return value_; }
+  inline Address ptr() { return value_; }
 
  private:
   // HeapObject calls the private constructor and directly reads the value.
   friend class HeapObject;
+  template <typename TFieldType, int kFieldOffset>
+  friend class TaggedField;
 
   explicit MapWord(Address value) : value_(value) {}
 

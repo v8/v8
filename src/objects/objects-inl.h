@@ -38,6 +38,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi-inl.h"
+#include "src/objects/tagged-field-inl.h"
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/templates.h"
 #include "src/sanitizer/tsan.h"
@@ -709,23 +710,28 @@ void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
 }
 
 MapWordSlot HeapObject::map_slot() const {
-  return MapWordSlot(FIELD_ADDR(*this, kMapOffset));
+  return MapWordSlot(MapField::address(*this));
 }
 
-MapWord HeapObject::map_word() const {
-  return MapWord(map_slot().Relaxed_Load().ptr());
-}
+MapWord HeapObject::map_word() const { return MapField::Relaxed_Load(*this); }
 
 void HeapObject::set_map_word(MapWord map_word) {
-  map_slot().Relaxed_Store(Object(map_word.value_));
+  MapField::Relaxed_Store(*this, map_word);
 }
 
 MapWord HeapObject::synchronized_map_word() const {
-  return MapWord(map_slot().Acquire_Load().ptr());
+  return MapField::Acquire_Load(*this);
 }
 
 void HeapObject::synchronized_set_map_word(MapWord map_word) {
-  map_slot().Release_Store(Object(map_word.value_));
+  MapField::Release_Store(*this, map_word);
+}
+
+bool HeapObject::synchronized_compare_and_swap_map_word(MapWord old_map_word,
+                                                        MapWord new_map_word) {
+  Tagged_t result =
+      MapField::Release_CompareAndSwap(*this, old_map_word, new_map_word);
+  return result == static_cast<Tagged_t>(old_map_word.ptr());
 }
 
 int HeapObject::Size() const { return SizeFromMap(map()); }
