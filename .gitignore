@@ -26,7 +26,6 @@
 .ccls-cache
 .cpplint-cache
 .cproject
-.d8_history
 .gclient_entries
 .gdb_history
 .landmines
@@ -40,8 +39,6 @@
 /build
 /buildtools
 /check-header-includes
-/hydrogen.cfg
-/obj
 /out
 /out.gn
 /perf.data
@@ -88,13 +85,9 @@ GTAGS
 TAGS
 bsuite
 compile_commands.json
-!/test/mjsunit/d8
-d8_g
 gccauses
 gcsuspects
 gtags.files
-shell
-shell_g
 tags
 turbo*.cfg
 turbo*.dot
