@@ -41,6 +41,7 @@ function f(restIsArray, rest) {
 }
 %PrepareFunctionForOptimization(f);
 
+%PrepareFunctionForOptimization(f);
 f(false, 'b', 'c');
 f(false, 'b', 'c');
 f(false, 'b', 'c');

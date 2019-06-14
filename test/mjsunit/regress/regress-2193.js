@@ -48,6 +48,7 @@ var expected = [1,2,3,3,4,5,6,7,8,9,bozo];
 // Make sure we generate optimized code for the first closure after
 // warming it up properly so that the literals boilerplate is generated
 // and the optimized code uses CreateArrayLiteralShallow runtime call.
+%PrepareFunctionForOptimization(closure1);
 assertEquals(0, closure1(false));
 assertEquals(expected, closure1(true));
 %OptimizeFunctionOnNextCall(closure1);
@@ -55,6 +56,7 @@ assertEquals(expected, closure1(true));
 
 // Optimize the second closure, which should reuse the optimized code
 // from the first closure with the same literal boilerplates.
+%PrepareFunctionForOptimization(closure2);
 assertEquals(0, closure2(false));
 %OptimizeFunctionOnNextCall(closure2);
 assertEquals(expected, closure2(true));

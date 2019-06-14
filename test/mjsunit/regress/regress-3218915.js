@@ -39,6 +39,7 @@ function withCommaExpressionInConditional(x) {
 }
 %PrepareFunctionForOptimization(withCommaExpressionInConditional);
 
+%PrepareFunctionForOptimization(withCommaExpressionInConditional);
 for (var i = 0; i < 5; i++) {
   withCommaExpressionInConditional(i);
 }

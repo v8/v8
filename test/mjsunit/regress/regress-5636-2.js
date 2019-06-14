@@ -10,10 +10,10 @@ function f(n) {
   function g() {
     return x;
   };
-  %PrepareFunctionForOptimization(g);
   for (var i = 0; i < n; ++i) {
     var x = i;
     a[i] = g;
+    %PrepareFunctionForOptimization(g);
     %OptimizeFunctionOnNextCall(g);
     g();
   }

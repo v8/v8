@@ -38,6 +38,7 @@ function foo(x) {
 }
 %PrepareFunctionForOptimization(foo);
 
+%PrepareFunctionForOptimization(foo);
 foo(0);
 foo(0);
 %OptimizeFunctionOnNextCall(foo);

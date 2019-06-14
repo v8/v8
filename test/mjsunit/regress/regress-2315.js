@@ -32,6 +32,7 @@ var foo = (function() {
 })();
 %PrepareFunctionForOptimization(foo);
 
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 %OptimizeFunctionOnNextCall(foo);

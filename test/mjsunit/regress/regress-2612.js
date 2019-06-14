@@ -70,6 +70,7 @@ source += "x=1; return _0;"
 var f = new Function(source);
 %PrepareFunctionForOptimization(f);
 
+%PrepareFunctionForOptimization(f);
 f();
 %OptimizeFunctionOnNextCall(f);
 f();
