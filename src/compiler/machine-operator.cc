@@ -41,8 +41,7 @@ LoadRepresentation LoadRepresentationOf(Operator const* op) {
          IrOpcode::kWord64AtomicLoad == op->opcode() ||
          IrOpcode::kWord32AtomicPairLoad == op->opcode() ||
          IrOpcode::kPoisonedLoad == op->opcode() ||
-         IrOpcode::kUnalignedLoad == op->opcode() ||
-         IrOpcode::kLoadFromObject == op->opcode());
+         IrOpcode::kUnalignedLoad == op->opcode());
   return OpParameter<LoadRepresentation>(op);
 }
 

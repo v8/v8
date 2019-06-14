@@ -108,7 +108,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kLoad:
     case IrOpcode::kLoadElement:
     case IrOpcode::kLoadField:
-    case IrOpcode::kLoadFromObject:
     case IrOpcode::kPoisonedLoad:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
@@ -119,7 +118,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kStore:
     case IrOpcode::kStoreElement:
     case IrOpcode::kStoreField:
-    case IrOpcode::kStoreToObject:
     case IrOpcode::kTaggedPoisonOnSpeculation:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:

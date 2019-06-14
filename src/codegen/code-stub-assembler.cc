@@ -975,12 +975,9 @@ TNode<BoolT> CodeStubAssembler::TaggedIsSmi(TNode<MaybeObject> a) {
 }
 
 TNode<BoolT> CodeStubAssembler::TaggedIsNotSmi(SloppyTNode<Object> a) {
-  // Although BitcastTaggedSignedToWord is generally unsafe on HeapObjects, we
-  // can nonetheless use it to inspect the Smi tag. The assumption here is that
-  // the GC will not exchange Smis for HeapObjects or vice-versa.
-  TNode<IntPtrT> a_bitcast = BitcastTaggedSignedToWord(UncheckedCast<Smi>(a));
-  return WordNotEqual(WordAnd(a_bitcast, IntPtrConstant(kSmiTagMask)),
-                      IntPtrConstant(0));
+  return WordNotEqual(
+      WordAnd(BitcastTaggedToWord(a), IntPtrConstant(kSmiTagMask)),
+      IntPtrConstant(0));
 }
 
 TNode<BoolT> CodeStubAssembler::TaggedIsPositiveSmi(SloppyTNode<Object> a) {
@@ -1397,15 +1394,14 @@ Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,
 Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,
                                          int offset, MachineType type) {
   CSA_ASSERT(this, IsStrong(object));
-  return LoadFromObject(type, object, IntPtrConstant(offset - kHeapObjectTag));
+  return Load(type, object, IntPtrConstant(offset - kHeapObjectTag));
 }
 
 Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,
                                          SloppyTNode<IntPtrT> offset,
                                          MachineType type) {
   CSA_ASSERT(this, IsStrong(object));
-  return LoadFromObject(type, object,
-                        IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)));
+  return Load(type, object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)));
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(

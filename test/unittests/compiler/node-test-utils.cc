@@ -1119,7 +1119,6 @@ class IsStoreElementMatcher final : public TestNodeMatcher {
 LOAD_MATCHER(Load)
 LOAD_MATCHER(UnalignedLoad)
 LOAD_MATCHER(PoisonedLoad)
-LOAD_MATCHER(LoadFromObject)
 
 #define STORE_MATCHER(kStore)                                                 \
   class Is##kStore##Matcher final : public TestNodeMatcher {                  \
@@ -2036,16 +2035,6 @@ Matcher<Node*> IsUnalignedLoad(const Matcher<LoadRepresentation>& rep_matcher,
   return MakeMatcher(new IsUnalignedLoadMatcher(rep_matcher, base_matcher,
                                                 index_matcher, effect_matcher,
                                                 control_matcher));
-}
-
-Matcher<Node*> IsLoadFromObject(const Matcher<LoadRepresentation>& rep_matcher,
-                                const Matcher<Node*>& base_matcher,
-                                const Matcher<Node*>& index_matcher,
-                                const Matcher<Node*>& effect_matcher,
-                                const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsLoadFromObjectMatcher(rep_matcher, base_matcher,
-                                                 index_matcher, effect_matcher,
-                                                 control_matcher));
 }
 
 Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,

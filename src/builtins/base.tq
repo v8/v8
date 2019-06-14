@@ -3017,8 +3017,3 @@ transitioning macro ToStringImpl(context: Context, o: Object): String {
   }
   unreachable;
 }
-
-macro VerifiedUnreachable(): never {
-  StaticAssert(false);
-  unreachable;
-}

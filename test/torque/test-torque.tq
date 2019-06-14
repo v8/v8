@@ -937,34 +937,4 @@ namespace test {
     StaticAssert(WordEqual(u1, u2));
   }
 
-  @export
-  macro TestRedundantArrayElementCheck(implicit context: Context)(): Smi {
-    const a = kEmptyFixedArray;
-    for (let i: Smi = 0; i < a.length; i++) {
-      if (a.objects[i] == Hole) {
-        if (a.objects[i] == Hole) {
-          return -1;
-        } else {
-          StaticAssert(false);
-        }
-      }
-    }
-    return 1;
-  }
-
-  @export
-  macro TestRedundantSmiCheck(implicit context: Context)(): Smi {
-    const a = kEmptyFixedArray;
-    const x = a.objects[1];
-    typeswitch (x) {
-      case (Smi): {
-        Cast<Smi>(x) otherwise VerifiedUnreachable();
-        return -1;
-      }
-      case (Object): {
-      }
-    }
-    return 1;
-  }
-
 }
