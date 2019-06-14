@@ -101,6 +101,7 @@ check_test_base(a, 3, false);
 // Test that we deopt on failed bounds checks.
 var dictionary_map_array = new Int32Array(128);
 test_base(dictionary_map_array, 5, true);
+%PrepareFunctionForOptimization(test_base);
 test_base(dictionary_map_array, 6, true);
 test_base(dictionary_map_array, 5, false);
 test_base(dictionary_map_array, 6, false);
@@ -110,6 +111,7 @@ assertUnoptimized(test_base);
 
 // Forget about the dictionary_map_array's map.
 %ClearFunctionFeedback(test_base);
+%PrepareFunctionForOptimization(test_base);
 
 test_base(a, 5, true);
 test_base(a, 6, true);
@@ -170,6 +172,7 @@ function short_test(a, i) {
   a[i + 9] = 0;
   a[i - 10] = 0;
 }
+%PrepareFunctionForOptimization(short_test);
 short_test(short_a, 50);
 short_test(short_a, 50);
 %OptimizeFunctionOnNextCall(short_test);
