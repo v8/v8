@@ -43,7 +43,7 @@ class Interpreter {
   // Creates a compilation job which will generate bytecode for |literal|.
   // Additionally, if |eager_inner_literals| is not null, adds any eagerly
   // compilable inner FunctionLiterals to this list.
-  static UnoptimizedCompilationJob* NewCompilationJob(
+  static std::unique_ptr<UnoptimizedCompilationJob> NewCompilationJob(
       ParseInfo* parse_info, FunctionLiteral* literal,
       AccountingAllocator* allocator,
       std::vector<FunctionLiteral*>* eager_inner_literals);

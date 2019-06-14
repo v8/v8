@@ -41,9 +41,8 @@ class SourcePositionTable;
 class Pipeline : public AllStatic {
  public:
   // Returns a new compilation job for the given JavaScript function.
-  static OptimizedCompilationJob* NewCompilationJob(Isolate* isolate,
-                                                    Handle<JSFunction> function,
-                                                    bool has_script);
+  static std::unique_ptr<OptimizedCompilationJob> NewCompilationJob(
+      Isolate* isolate, Handle<JSFunction> function, bool has_script);
 
   // Run the pipeline for the WebAssembly compilation info.
   static void GenerateCodeForWasmFunction(

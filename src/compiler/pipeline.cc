@@ -2479,11 +2479,11 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 }
 
 // static
-OptimizedCompilationJob* Pipeline::NewCompilationJob(
+std::unique_ptr<OptimizedCompilationJob> Pipeline::NewCompilationJob(
     Isolate* isolate, Handle<JSFunction> function, bool has_script) {
   Handle<SharedFunctionInfo> shared =
       handle(function->shared(), function->GetIsolate());
-  return new PipelineCompilationJob(isolate, shared, function);
+  return base::make_unique<PipelineCompilationJob>(isolate, shared, function);
 }
 
 // static

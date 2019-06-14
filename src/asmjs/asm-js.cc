@@ -319,10 +319,10 @@ void AsmJsCompilationJob::RecordHistograms(Isolate* isolate) {
       translation_throughput);
 }
 
-UnoptimizedCompilationJob* AsmJs::NewCompilationJob(
+std::unique_ptr<UnoptimizedCompilationJob> AsmJs::NewCompilationJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
     AccountingAllocator* allocator) {
-  return new AsmJsCompilationJob(parse_info, literal, allocator);
+  return base::make_unique<AsmJsCompilationJob>(parse_info, literal, allocator);
 }
 
 namespace {

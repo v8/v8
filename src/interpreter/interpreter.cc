@@ -230,12 +230,12 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
   return SUCCEEDED;
 }
 
-UnoptimizedCompilationJob* Interpreter::NewCompilationJob(
+std::unique_ptr<UnoptimizedCompilationJob> Interpreter::NewCompilationJob(
     ParseInfo* parse_info, FunctionLiteral* literal,
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals) {
-  return new InterpreterCompilationJob(parse_info, literal, allocator,
-                                       eager_inner_literals);
+  return base::make_unique<InterpreterCompilationJob>(
+      parse_info, literal, allocator, eager_inner_literals);
 }
 
 void Interpreter::ForEachBytecode(
