@@ -71,7 +71,8 @@ function DefineLoadVar() {
       'var x;' +
       'function ' + name + '() {' +
       '  return x;' +
-      '};';
+      '};' +
+      (cfg.optimize ? '%PrepareFunctionForOptimization(' + name + ');' : '');
   return Realm.eval(test_realm, AddStrict(code, cfg));
 }
 
@@ -90,7 +91,8 @@ function DefineStoreVar() {
       'function ' + name + '(v) {' +
 //      '  %DebugPrint(g);' +
       '  return x = v;' +
-      '};';
+      '};' +
+      (cfg.optimize ? '%PrepareFunctionForOptimization(' + name + ');' : '');
   return Realm.eval(test_realm, AddStrict(code, cfg));
 }
 
