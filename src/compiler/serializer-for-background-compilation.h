@@ -324,7 +324,8 @@ class SerializerForBackgroundCompilation {
                       const HintsVector& arguments);
   void ProcessReceiverMapForApiCall(FunctionTemplateInfoRef& target,
                                     Handle<Map> receiver);
-  void ProcessBuiltinCall(Handle<SharedFunctionInfo> target);
+  void ProcessBuiltinCall(Handle<SharedFunctionInfo> target,
+                          const HintsVector& arguments);
 
   void ProcessJump(interpreter::BytecodeArrayIterator* iterator);
 

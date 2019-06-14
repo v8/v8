@@ -758,7 +758,7 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
       ProcessApiCall(shared, arguments);
       DCHECK(!shared->IsInlineable());
     } else if (shared->HasBuiltinId()) {
-      ProcessBuiltinCall(shared);
+      ProcessBuiltinCall(shared, arguments);
       DCHECK(!shared->IsInlineable());
     }
 
@@ -775,7 +775,7 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
       ProcessApiCall(shared, arguments);
       DCHECK(!shared->IsInlineable());
     } else if (shared->HasBuiltinId()) {
-      ProcessBuiltinCall(shared);
+      ProcessBuiltinCall(shared, arguments);
       DCHECK(!shared->IsInlineable());
     }
 
@@ -860,18 +860,42 @@ void SerializerForBackgroundCompilation::ProcessReceiverMapForApiCall(
 }
 
 void SerializerForBackgroundCompilation::ProcessBuiltinCall(
-    Handle<SharedFunctionInfo> target) {
+    Handle<SharedFunctionInfo> target, const HintsVector& arguments) {
   DCHECK(target->HasBuiltinId());
-  int builtin_id = target->builtin_id();
+  const int builtin_id = target->builtin_id();
   switch (builtin_id) {
-    case Builtins::kPromiseConstructor:
-      TRACE_BROKER(broker(), "Found promise constructor");
+    case Builtins::kPromiseConstructor: {
+      TRACE_BROKER(broker(), "Serializing data for builtin PromiseConstructor");
       broker()->native_context().SerializeScopeInfo();
       break;
-    case Builtins::kPromisePrototypeFinally:
-      TRACE_BROKER(broker(), "Found promise prototype finally");
+    }
+    case Builtins::kPromisePrototypeFinally: {
+      TRACE_BROKER(broker(),
+                   "Serializing data for builtin PromisePrototypeFinally");
       broker()->native_context().SerializeScopeInfo();
       break;
+    }
+    case Builtins::kPromisePrototypeThen: {
+      TRACE_BROKER(broker(),
+                   "Serializing data for builtin PromisePrototypeThen");
+      CHECK_GE(arguments.size(), 1);
+      Hints const& receiver_hints = arguments[0];
+      // We need to serialize the prototypes on each receiver map.
+      for (auto hint : receiver_hints.constants()) {
+        if (!hint->IsJSPromise()) continue;
+        Handle<JSReceiver> receiver(Handle<JSReceiver>::cast(hint));
+        MapRef receiver_mapref(broker(),
+                               handle(receiver->map(), broker()->isolate()));
+        receiver_mapref.SerializePrototype();
+      }
+      for (auto receiver_map : receiver_hints.maps()) {
+        if (!receiver_map->IsJSPromiseMap()) continue;
+        MapRef receiver_mapref(broker(), receiver_map);
+        receiver_mapref.SerializePrototype();
+      }
+
+      break;
+    }
     default:
       break;
   }

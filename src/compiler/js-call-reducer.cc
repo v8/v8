@@ -6022,6 +6022,8 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
 
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps()) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
@@ -6031,7 +6033,13 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
     if (!receiver_map.IsJSPromiseMap()) return inference.NoChange();
-    receiver_map.SerializePrototype();
+    if (!FLAG_concurrent_inlining) {
+      receiver_map.SerializePrototype();
+    } else if (!receiver_map.serialized_prototype()) {
+      TRACE_BROKER_MISSING(broker(),
+                           "Unserialized prototype for map " << receiver_map);
+      return inference.NoChange();
+    }
     if (!receiver_map.prototype().equals(
             native_context().promise_prototype())) {
       return inference.NoChange();
@@ -6084,6 +6092,8 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
 // ES section #sec-promise.resolve
 Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* value = node->op()->ValueInputCount() > 2
                     ? NodeProperties::GetValueInput(node, 2)
