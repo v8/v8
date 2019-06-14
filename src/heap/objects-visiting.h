@@ -91,7 +91,7 @@ class HeapVisitor : public ObjectVisitor {
   // Guard predicate for visiting the objects map pointer separately.
   V8_INLINE bool ShouldVisitMapPointer() { return true; }
   // A callback for visiting the map pointer in the object header.
-  V8_INLINE void VisitMapPointer(HeapObject host, MapWordSlot map_slot);
+  V8_INLINE void VisitMapPointer(HeapObject host);
   // If this predicate returns false, then the heap visitor will fail
   // in default Visit implemention for subclasses of JSObject.
   V8_INLINE bool AllowDefaultJSObjectVisit() { return true; }

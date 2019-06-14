@@ -32,7 +32,7 @@ class HeapObject : public Object {
   inline Map map() const;
   inline void set_map(Map value);
 
-  inline MapWordSlot map_slot() const;
+  inline ObjectSlot map_slot() const;
 
   // The no-write-barrier version.  This is OK if the object is white and in
   // new space, or if the value is an immortal immutable object, like the maps

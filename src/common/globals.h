@@ -648,7 +648,6 @@ struct SlotTraits;
 template <>
 struct SlotTraits<SlotLocation::kOffHeap> {
   using TObjectSlot = FullObjectSlot;
-  using TMapWordSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
 };
@@ -659,12 +658,10 @@ template <>
 struct SlotTraits<SlotLocation::kOnHeap> {
 #ifdef V8_COMPRESS_POINTERS
   using TObjectSlot = CompressedObjectSlot;
-  using TMapWordSlot = CompressedMapWordSlot;
   using TMaybeObjectSlot = CompressedMaybeObjectSlot;
   using THeapObjectSlot = CompressedHeapObjectSlot;
 #else
   using TObjectSlot = FullObjectSlot;
-  using TMapWordSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
 #endif
@@ -673,10 +670,6 @@ struct SlotTraits<SlotLocation::kOnHeap> {
 // An ObjectSlot instance describes a kTaggedSize-sized on-heap field ("slot")
 // holding Object value (smi or strong heap object).
 using ObjectSlot = SlotTraits<SlotLocation::kOnHeap>::TObjectSlot;
-
-// An MapWordSlot instance describes a kTaggedSize-sized on-heap field ("slot")
-// holding HeapObject (strong heap object) value or a forwarding pointer.
-using MapWordSlot = SlotTraits<SlotLocation::kOnHeap>::TMapWordSlot;
 
 // A MaybeObjectSlot instance describes a kTaggedSize-sized on-heap field
 // ("slot") holding MaybeObject (smi or weak heap object or strong heap object).

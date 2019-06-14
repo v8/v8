@@ -709,8 +709,8 @@ void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
   }
 }
 
-MapWordSlot HeapObject::map_slot() const {
-  return MapWordSlot(MapField::address(*this));
+ObjectSlot HeapObject::map_slot() const {
+  return ObjectSlot(MapField::address(*this));
 }
 
 MapWord HeapObject::map_word() const { return MapField::Relaxed_Load(*this); }

@@ -405,7 +405,7 @@ AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject object) {
     return AllocationMemento();
   }
   HeapObject candidate = HeapObject::FromAddress(memento_address);
-  MapWordSlot candidate_map_slot = candidate.map_slot();
+  ObjectSlot candidate_map_slot = candidate.map_slot();
   // This fast check may peek at an uninitialized word. However, the slow check
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.

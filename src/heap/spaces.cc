@@ -2987,17 +2987,14 @@ void FreeListCategory::Free(Address start, size_t size_in_bytes,
 
 
 void FreeListCategory::RepairFreeList(Heap* heap) {
+  Map free_space_map = ReadOnlyRoots(heap).free_space_map();
   FreeSpace n = top();
   while (!n.is_null()) {
-    MapWordSlot map_location = n.map_slot();
-    // We can't use .is_null() here because *map_location returns an
-    // Object (for which "is null" is not defined, as it would be
-    // indistinguishable from "is Smi(0)"). Only HeapObject has "is_null()".
-    if (map_location.contains_value(kNullAddress)) {
-      map_location.store(ReadOnlyRoots(heap).free_space_map());
+    ObjectSlot map_slot = n.map_slot();
+    if (map_slot.contains_value(kNullAddress)) {
+      map_slot.store(free_space_map);
     } else {
-      DCHECK(map_location.contains_value(
-          ReadOnlyRoots(heap).free_space_map().ptr()));
+      DCHECK(map_slot.contains_value(free_space_map.ptr()));
     }
     n = n.next();
   }

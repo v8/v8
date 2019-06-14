@@ -243,7 +243,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(weak_cell)) return 0;
 
     int size = WeakCell::BodyDescriptor::SizeOf(map, weak_cell);
-    VisitMapPointer(weak_cell, weak_cell.map_slot());
+    VisitMapPointer(weak_cell);
     WeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
     if (weak_cell.target().IsHeapObject()) {
       HeapObject target = HeapObject::cast(weak_cell.target());
@@ -302,13 +302,13 @@ class ConcurrentMarkingVisitor final
 
   int VisitSeqOneByteString(Map map, SeqOneByteString object) {
     if (!ShouldVisit(object)) return 0;
-    VisitMapPointer(object, object.map_slot());
+    VisitMapPointer(object);
     return SeqOneByteString::SizeFor(object.synchronized_length());
   }
 
   int VisitSeqTwoByteString(Map map, SeqTwoByteString object) {
     if (!ShouldVisit(object)) return 0;
-    VisitMapPointer(object, object.map_slot());
+    VisitMapPointer(object);
     return SeqTwoByteString::SizeFor(object.synchronized_length());
   }
 
@@ -363,7 +363,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(shared_info)) return 0;
 
     int size = SharedFunctionInfo::BodyDescriptor::SizeOf(map, shared_info);
-    VisitMapPointer(shared_info, shared_info.map_slot());
+    VisitMapPointer(shared_info);
     SharedFunctionInfo::BodyDescriptor::IterateBody(map, shared_info, size,
                                                     this);
 
@@ -381,7 +381,7 @@ class ConcurrentMarkingVisitor final
   int VisitBytecodeArray(Map map, BytecodeArray object) {
     if (!ShouldVisit(object)) return 0;
     int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
-    VisitMapPointer(object, object.map_slot());
+    VisitMapPointer(object);
     BytecodeArray::BodyDescriptor::IterateBody(map, object, size, this);
     if (!is_forced_gc_) {
       object.MakeOlder();
@@ -449,7 +449,7 @@ class ConcurrentMarkingVisitor final
 
   int VisitDescriptorArray(Map map, DescriptorArray array) {
     if (!ShouldVisit(array)) return 0;
-    VisitMapPointer(array, array.map_slot());
+    VisitMapPointer(array);
     int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
     VisitPointers(array, array.GetFirstPointerSlot(),
                   array.GetDescriptorSlot(0));
@@ -459,7 +459,7 @@ class ConcurrentMarkingVisitor final
 
   int VisitTransitionArray(Map map, TransitionArray array) {
     if (!ShouldVisit(array)) return 0;
-    VisitMapPointer(array, array.map_slot());
+    VisitMapPointer(array);
     int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
     TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);
     weak_objects_->transition_arrays.Push(task_id_, array);
@@ -623,7 +623,7 @@ class ConcurrentMarkingVisitor final
     // Left trimming marks the array black before over-writing the length.
     DCHECK(length.IsSmi());
     int size = T::SizeFor(Smi::ToInt(length));
-    VisitMapPointer(object, object.map_slot());
+    VisitMapPointer(object);
     T::BodyDescriptor::IterateBody(map, object, size, this);
     return size;
   }
@@ -648,7 +648,7 @@ class ConcurrentMarkingVisitor final
   template <typename T, typename TBodyDescriptor>
   const SlotSnapshot& MakeSlotSnapshot(Map map, T object, int size) {
     SlotSnapshottingVisitor visitor(&slot_snapshot_);
-    visitor.VisitPointer(object, ObjectSlot(object.map_slot().address()));
+    visitor.VisitPointer(object, object.map_slot());
     TBodyDescriptor::IterateBody(map, object, size, &visitor);
     return slot_snapshot_;
   }
