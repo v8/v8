@@ -1301,11 +1301,6 @@ const Operator* MachineOperatorBuilder::S8x16Shuffle(
                           2, 0, 0, 1, 0, 0, array);
 }
 
-const uint8_t* S8x16ShuffleOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kS8x16Shuffle, op->opcode());
-  return OpParameter<const uint8_t*>(op);
-}
-
 #undef PURE_BINARY_OP_LIST_32
 #undef PURE_BINARY_OP_LIST_64
 #undef MACHINE_PURE_OP_LIST

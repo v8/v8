@@ -112,9 +112,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op)
 
 MachineType AtomicOpType(Operator const* op) V8_WARN_UNUSED_RESULT;
 
-V8_EXPORT_PRIVATE const uint8_t* S8x16ShuffleOf(Operator const* op)
-    V8_WARN_UNUSED_RESULT;
-
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
