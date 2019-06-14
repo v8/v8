@@ -136,11 +136,6 @@ Node* ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(Node* proxy,
                                            proxy_context);
 }
 
-Node* ProxiesCodeStubAssembler::GetProxyConstructorJSNewTarget() {
-  return CodeAssembler::Parameter(static_cast<int>(
-      Builtin_ProxyConstructor_InterfaceDescriptor::kJSNewTarget));
-}
-
 TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   Node* argc = Parameter(Descriptor::kActualArgumentsCount);
   Node* argc_ptr = ChangeInt32ToIntPtr(argc);

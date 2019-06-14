@@ -669,6 +669,7 @@ struct Signature {
   base::Optional<std::string> arguments_variable;
   ParameterTypes parameter_types;
   size_t implicit_count;
+  size_t ExplicitCount() const { return types().size() - implicit_count; }
   const Type* return_type;
   LabelDeclarationVector labels;
   bool HasSameTypesAs(

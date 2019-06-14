@@ -557,7 +557,8 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.join
   transitioning javascript builtin
-  ArrayPrototypeJoin(context: Context, receiver: Object, ...arguments): Object {
+  ArrayPrototypeJoin(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     const separator: Object = arguments[0];
 
     // 1. Let O be ? ToObject(this value).
@@ -566,8 +567,8 @@ namespace array_join {
     // 2. Let len be ? ToLength(? Get(O, "length")).
     const len: Number = GetLengthProperty(o);
 
-    // Only handle valid array lengths. Although the spec allows larger values,
-    // this matches historical V8 behavior.
+    // Only handle valid array lengths. Although the spec allows larger
+    // values, this matches historical V8 behavior.
     if (len > kMaxArrayIndex + 1) ThrowTypeError(kInvalidArrayLength);
 
     return CycleProtectedArrayJoin<JSArray>(
@@ -576,7 +577,7 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.tolocalestring
   transitioning javascript builtin ArrayPrototypeToLocaleString(
-      context: Context, receiver: Object, ...arguments): Object {
+      js-implicit context: Context, receiver: Object)(...arguments): Object {
     const locales: Object = arguments[0];
     const options: Object = arguments[1];
 
@@ -586,8 +587,8 @@ namespace array_join {
     // 2. Let len be ? ToLength(? Get(O, "length")).
     const len: Number = GetLengthProperty(o);
 
-    // Only handle valid array lengths. Although the spec allows larger values,
-    // this matches historical V8 behavior.
+    // Only handle valid array lengths. Although the spec allows larger
+    // values, this matches historical V8 behavior.
     if (len > kMaxArrayIndex + 1) ThrowTypeError(kInvalidArrayLength);
 
     return CycleProtectedArrayJoin<JSArray>(
@@ -596,7 +597,7 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.tostring
   transitioning javascript builtin ArrayPrototypeToString(
-      context: Context, receiver: Object, ...arguments): Object {
+      js-implicit context: Context, receiver: Object)(...arguments): Object {
     // 1. Let array be ? ToObject(this value).
     const array: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -617,7 +618,7 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.join
   transitioning javascript builtin TypedArrayPrototypeJoin(
-      context: Context, receiver: Object, ...arguments): Object {
+      js-implicit context: Context, receiver: Object)(...arguments): Object {
     const separator: Object = arguments[0];
 
     // Spec: ValidateTypedArray is applied to the this value prior to evaluating
@@ -632,7 +633,7 @@ namespace array_join {
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.tolocalestring
   transitioning javascript builtin TypedArrayPrototypeToLocaleString(
-      context: Context, receiver: Object, ...arguments): Object {
+      js-implicit context: Context, receiver: Object)(...arguments): Object {
     const locales: Object = arguments[0];
     const options: Object = arguments[1];
 

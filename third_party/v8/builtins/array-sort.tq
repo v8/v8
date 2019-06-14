@@ -1369,7 +1369,8 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.sort
   transitioning javascript builtin
-  ArrayPrototypeSort(context: Context, receiver: Object, ...arguments): Object {
+  ArrayPrototypeSort(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.
     const comparefnObj: Object = arguments[0];

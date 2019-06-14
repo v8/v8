@@ -350,8 +350,8 @@ namespace array_splice {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.splice
   transitioning javascript builtin
-  ArrayPrototypeSplice(context: Context, receiver: Object, ...arguments):
-      Object {
+  ArrayPrototypeSplice(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     // 1. Let O be ? ToObject(this value).
     const o: JSReceiver = ToObject(context, receiver);
 

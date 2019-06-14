@@ -15,6 +15,7 @@
 #include "src/base/optional.h"
 #include "src/torque/constants.h"
 #include "src/torque/source-positions.h"
+#include "src/torque/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -559,14 +560,18 @@ struct NewExpression : Expression {
   std::vector<NameAndExpression> initializers;
 };
 
+enum class ImplicitKind { kNoImplicit, kJSImplicit, kImplicit };
+
 struct ParameterList {
   std::vector<Identifier*> names;
   std::vector<TypeExpression*> types;
-  size_t implicit_count;
-  bool has_varargs;
-  std::string arguments_variable;
+  ImplicitKind implicit_kind = ImplicitKind::kNoImplicit;
+  SourcePosition implicit_kind_pos = SourcePosition::Invalid();
+  size_t implicit_count = 0;
+  bool has_varargs = false;
+  std::string arguments_variable = "";
 
-  static ParameterList Empty() { return ParameterList{{}, {}, 0, false, ""}; }
+  static ParameterList Empty() { return {}; }
   std::vector<TypeExpression*> GetImplicitTypes() {
     return std::vector<TypeExpression*>(types.begin(),
                                         types.begin() + implicit_count);
@@ -821,6 +826,11 @@ struct NameAndTypeExpression {
   TypeExpression* type;
 };
 
+struct ImplicitParameters {
+  Identifier* kind;
+  std::vector<NameAndTypeExpression> parameters;
+};
+
 struct StructFieldExpression {
   NameAndTypeExpression name_and_type;
   bool const_qualified;
@@ -880,7 +890,12 @@ struct MacroDeclaration : CallableNode {
                    const LabelAndTypesVector& labels)
       : CallableNode(kind, pos, transitioning, std::move(name),
                      std::move(parameters), return_type, labels),
-        op(std::move(op)) {}
+        op(std::move(op)) {
+    if (parameters.implicit_kind == ImplicitKind::kJSImplicit) {
+      Error("Cannot use \"js-implicit\" with macros, use \"implicit\" instead.")
+          .Position(parameters.implicit_kind_pos);
+    }
+  }
   base::Optional<std::string> op;
 };
 
@@ -904,7 +919,11 @@ struct IntrinsicDeclaration : CallableNode {
   IntrinsicDeclaration(SourcePosition pos, std::string name,
                        ParameterList parameters, TypeExpression* return_type)
       : CallableNode(kKind, pos, false, std::move(name), std::move(parameters),
-                     return_type, {}) {}
+                     return_type, {}) {
+    if (parameters.implicit_kind != ImplicitKind::kNoImplicit) {
+      Error("Intinsics cannot have implicit parameters.");
+    }
+  }
 };
 
 struct TorqueMacroDeclaration : MacroDeclaration {
@@ -928,7 +947,21 @@ struct BuiltinDeclaration : CallableNode {
                      TypeExpression* return_type)
       : CallableNode(kind, pos, transitioning, std::move(name),
                      std::move(parameters), return_type, {}),
-        javascript_linkage(javascript_linkage) {}
+        javascript_linkage(javascript_linkage) {
+    if (parameters.implicit_kind == ImplicitKind::kJSImplicit &&
+        !javascript_linkage) {
+      Error(
+          "\"js-implicit\" is for implicit parameters passed according to the "
+          "JavaScript calling convention. Use \"implicit\" instead.");
+    }
+    if (parameters.implicit_kind == ImplicitKind::kImplicit &&
+        javascript_linkage) {
+      Error(
+          "The JavaScript calling convention implicitly passes a fixed set of "
+          "values. Use \"js-implicit\" to refer to those.")
+          .Position(parameters.implicit_kind_pos);
+    }
+  }
   bool javascript_linkage;
 };
 

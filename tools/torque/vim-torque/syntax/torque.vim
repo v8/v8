@@ -27,7 +27,7 @@ syn keyword torqueConditional if else typeswitch otherwise
 syn match torqueConstant /\v<[A-Z][A-Z0-9_]+>/
 syn match torqueConstant /\v<k[A-Z][A-Za-z0-9]*>/
 syn keyword torqueFunction macro builtin runtime intrinsic
-syn keyword torqueKeyword cast convert from_constexpr min max unsafe_cast
+syn keyword torqueKeyword cast convert from_constexpr min max unsafe_cast js-implicit implicit
 syn keyword torqueLabel case
 syn keyword torqueMatching try label catch
 syn keyword torqueModifier extern javascript constexpr transitioning transient weak export

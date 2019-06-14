@@ -4,8 +4,9 @@
 
 namespace array {
   transitioning javascript builtin
-  ArrayReducePreLoopEagerDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, length: Object): Object {
+  ArrayReducePreLoopEagerDeoptContinuation(
+      js-implicit context: Context,
+      receiver: Object)(callback: Object, length: Object): Object {
     // All continuation points in the optimized every implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
@@ -25,8 +26,9 @@ namespace array {
   }
 
   transitioning javascript builtin
-  ArrayReduceLoopEagerDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, initialK: Object, length: Object,
+  ArrayReduceLoopEagerDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, initialK: Object, length: Object,
       accumulator: Object): Object {
     // All continuation points in the optimized every implementation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -45,8 +47,9 @@ namespace array {
   }
 
   transitioning javascript builtin
-  ArrayReduceLoopLazyDeoptContinuation(implicit context: Context)(
-      receiver: Object, callback: Object, initialK: Object, length: Object,
+  ArrayReduceLoopLazyDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, initialK: Object, length: Object,
       result: Object): Object {
     // All continuation points in the optimized every implementation are
     // after the ToObject(O) call that ensures we are dealing with a
@@ -139,7 +142,7 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.reduce
   transitioning javascript builtin
-  ArrayReduce(implicit context: Context)(receiver: Object, ...arguments):
+  ArrayReduce(js-implicit context: Context, receiver: Object)(...arguments):
       Object {
     try {
       if (IsNullOrUndefined(receiver)) {
