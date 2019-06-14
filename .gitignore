@@ -39,6 +39,7 @@
 /build
 /buildtools
 /check-header-includes
+/Default/
 /out
 /out.gn
 /perf.data
@@ -63,6 +64,7 @@
 !/third_party/googletest
 /third_party/googletest/src
 !/third_party/v8
+!/third_party/wasm-api
 /tools/clang
 /tools/gcmole/gcmole-tools
 /tools/gcmole/gcmole-tools.tar.gz
@@ -74,6 +76,9 @@
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
 /tools/swarming_client
+/tools/turbolizer/build
+/tools/turbolizer/.rpt2_cache
+/tools/turbolizer/deploy
 /tools/visual_studio/Debug
 /tools/visual_studio/Release
 /v8.log.ll
@@ -88,14 +93,10 @@ compile_commands.json
 gccauses
 gcsuspects
 gtags.files
+node_modules
 tags
 turbo*.cfg
 turbo*.dot
 turbo*.json
 v8.ignition_dispatches_table.json
-/Default/
-node_modules
-tools/turbolizer/build
-tools/turbolizer/.rpt2_cache
-tools/turbolizer/deploy
 
