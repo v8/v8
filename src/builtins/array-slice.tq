@@ -122,8 +122,8 @@ namespace array_slice {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.slice
   transitioning javascript builtin
-  ArrayPrototypeSlice(context: Context, receiver: Object, ...arguments):
-      Object {
+  ArrayPrototypeSlice(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     // Handle array cloning case if the receiver is a fast array.
     if (arguments.length == 0) {
       typeswitch (receiver) {

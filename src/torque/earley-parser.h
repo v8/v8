@@ -53,6 +53,8 @@ enum class ParseResultHolderBase::TypeId {
   kLabelBlockPtr,
   kOptionalLabelBlockPtr,
   kNameAndTypeExpression,
+  kImplicitParameters,
+  kOptionalImplicitParameters,
   kNameAndExpression,
   kConditionalAnnotation,
   kOptionalConditionalAnnotation,

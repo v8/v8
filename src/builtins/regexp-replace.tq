@@ -208,7 +208,7 @@ namespace regexp_replace {
   }
 
   transitioning javascript builtin RegExpPrototypeReplace(
-      context: Context, receiver: Object, ...arguments): Object {
+      js-implicit context: Context, receiver: Object)(...arguments): Object {
     const methodName: constexpr string = 'RegExp.prototype.@@replace';
 
     // RegExpPrototypeReplace is a bit of a beast - a summary of dispatch logic:

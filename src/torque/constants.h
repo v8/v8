@@ -22,6 +22,7 @@ static const char* const BOOL_TYPE_STRING = "bool";
 static const char* const VOID_TYPE_STRING = "void";
 static const char* const ARGUMENTS_TYPE_STRING = "Arguments";
 static const char* const CONTEXT_TYPE_STRING = "Context";
+static const char* const JS_FUNCTION_TYPE_STRING = "JSFunction";
 static const char* const MAP_TYPE_STRING = "Map";
 static const char* const OBJECT_TYPE_STRING = "Object";
 static const char* const HEAP_OBJECT_TYPE_STRING = "HeapObject";

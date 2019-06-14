@@ -20,10 +20,6 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
   Node* AllocateProxy(Node* target, Node* handler, Node* context);
   Node* AllocateProxyRevokeFunction(Node* proxy, Node* context);
 
-  // Get JSNewTarget parameter for ProxyConstructor builtin (Torque).
-  // TODO(v8:9120): Remove this once torque support exists
-  Node* GetProxyConstructorJSNewTarget();
-
   Node* CheckGetSetTrapResult(Node* context, Node* target, Node* proxy,
                               Node* name, Node* trap_result,
                               JSProxy::AccessKind access_kind);
