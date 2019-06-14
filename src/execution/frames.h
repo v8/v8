@@ -172,10 +172,7 @@ class StackFrame {
   bool is_optimized() const { return type() == OPTIMIZED; }
   bool is_interpreted() const { return type() == INTERPRETED; }
   bool is_wasm_compiled() const { return type() == WASM_COMPILED; }
-  bool is_wasm_exit() const { return type() == WASM_EXIT; }
   bool is_wasm_compile_lazy() const { return type() == WASM_COMPILE_LAZY; }
-  bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
-  bool is_js_to_wasm() const { return type() == JS_TO_WASM; }
   bool is_wasm_interpreter_entry() const {
     return type() == WASM_INTERPRETER_ENTRY;
   }
