@@ -351,7 +351,8 @@ class PrimitiveValueMirror final : public ValueMirror {
             .setType(m_type)
             .setDescription(descriptionForPrimitiveType(context, m_value))
             .setOverflow(false)
-            .setProperties(protocol::Array<PropertyPreview>::create())
+            .setProperties(
+                v8::base::make_unique<protocol::Array<PropertyPreview>>())
             .build();
     if (m_value->IsNull())
       (*preview)->setSubtype(RemoteObject::SubtypeEnum::Null);
@@ -411,12 +412,14 @@ class NumberMirror final : public ValueMirror {
       v8::Local<v8::Context> context, int* nameLimit, int* indexLimit,
       std::unique_ptr<ObjectPreview>* preview) const override {
     bool unserializable = false;
-    *preview = ObjectPreview::create()
-                   .setType(RemoteObject::TypeEnum::Number)
-                   .setDescription(description(&unserializable))
-                   .setOverflow(false)
-                   .setProperties(protocol::Array<PropertyPreview>::create())
-                   .build();
+    *preview =
+        ObjectPreview::create()
+            .setType(RemoteObject::TypeEnum::Number)
+            .setDescription(description(&unserializable))
+            .setOverflow(false)
+            .setProperties(
+                v8::base::make_unique<protocol::Array<PropertyPreview>>())
+            .build();
   }
 
  private:
@@ -467,12 +470,14 @@ class BigIntMirror final : public ValueMirror {
                          int* indexLimit,
                          std::unique_ptr<protocol::Runtime::ObjectPreview>*
                              preview) const override {
-    *preview = ObjectPreview::create()
-                   .setType(RemoteObject::TypeEnum::Bigint)
-                   .setDescription(descriptionForBigInt(context, m_value))
-                   .setOverflow(false)
-                   .setProperties(protocol::Array<PropertyPreview>::create())
-                   .build();
+    *preview =
+        ObjectPreview::create()
+            .setType(RemoteObject::TypeEnum::Bigint)
+            .setDescription(descriptionForBigInt(context, m_value))
+            .setOverflow(false)
+            .setProperties(
+                v8::base::make_unique<protocol::Array<PropertyPreview>>())
+            .build();
   }
 
   v8::Local<v8::Value> v8Value() const override { return m_value; }
@@ -625,12 +630,14 @@ class FunctionMirror final : public ValueMirror {
   void buildEntryPreview(
       v8::Local<v8::Context> context, int* nameLimit, int* indexLimit,
       std::unique_ptr<ObjectPreview>* preview) const override {
-    *preview = ObjectPreview::create()
-                   .setType(RemoteObject::TypeEnum::Function)
-                   .setDescription(descriptionForFunction(context, m_value))
-                   .setOverflow(false)
-                   .setProperties(protocol::Array<PropertyPreview>::create())
-                   .build();
+    *preview =
+        ObjectPreview::create()
+            .setType(RemoteObject::TypeEnum::Function)
+            .setDescription(descriptionForFunction(context, m_value))
+            .setOverflow(false)
+            .setProperties(
+                v8::base::make_unique<protocol::Array<PropertyPreview>>())
+            .build();
   }
 
  private:
@@ -824,7 +831,7 @@ void getPrivatePropertiesForPreview(
       return;
     }
     --*nameLimit;
-    privateProperties->addItem(std::move(propertyPreview));
+    privateProperties->emplace_back(std::move(propertyPreview));
   }
 }
 
@@ -911,8 +918,7 @@ class ObjectMirror final : public ValueMirror {
       v8::Local<v8::Context> context, bool forEntry,
       bool generatePreviewForTable, int* nameLimit, int* indexLimit,
       std::unique_ptr<ObjectPreview>* result) const {
-    std::unique_ptr<protocol::Array<PropertyPreview>> properties =
-        protocol::Array<PropertyPreview>::create();
+    auto properties = v8::base::make_unique<protocol::Array<PropertyPreview>>();
     std::unique_ptr<protocol::Array<EntryPreview>> entriesPreview;
     bool overflow = false;
 
@@ -929,7 +935,7 @@ class ObjectMirror final : public ValueMirror {
         internalProperties[i].value->buildPropertyPreview(
             context, internalProperties[i].name, &propertyPreview);
         if (propertyPreview) {
-          properties->addItem(std::move(propertyPreview));
+          properties->emplace_back(std::move(propertyPreview));
         }
       }
 
@@ -959,7 +965,7 @@ class ObjectMirror final : public ValueMirror {
           if (valuePreview) {
             preview->setValuePreview(std::move(valuePreview));
           }
-          properties->addItem(std::move(preview));
+          properties->emplace_back(std::move(preview));
         }
       }
 
@@ -969,7 +975,8 @@ class ObjectMirror final : public ValueMirror {
         if (forEntry) {
           overflow = true;
         } else {
-          entriesPreview = protocol::Array<EntryPreview>::create();
+          entriesPreview =
+              v8::base::make_unique<protocol::Array<EntryPreview>>();
           for (const auto& entry : entries) {
             std::unique_ptr<ObjectPreview> valuePreview;
             entry.value->buildEntryPreview(context, nameLimit, indexLimit,
@@ -986,7 +993,7 @@ class ObjectMirror final : public ValueMirror {
                     .setValue(std::move(valuePreview))
                     .build();
             if (keyPreview) entryPreview->setKey(std::move(keyPreview));
-            entriesPreview->addItem(std::move(entryPreview));
+            entriesPreview->emplace_back(std::move(entryPreview));
           }
         }
       }
