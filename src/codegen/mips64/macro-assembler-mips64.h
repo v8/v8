@@ -236,6 +236,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Call(Label* target);
   void LoadAddress(Register dst, Label* target);
 
+  // Load the builtin given by the Smi in |builtin_index| into the same
+  // register.
+  void LoadEntryFromBuiltinIndex(Register builtin_index);
   void CallBuiltinByIndex(Register builtin_index) override;
 
   void LoadCodeObjectEntry(Register destination,

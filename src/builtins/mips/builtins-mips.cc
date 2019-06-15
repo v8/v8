@@ -1467,11 +1467,13 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   }
   __ lw(fp, MemOperand(
                 sp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
+  // Load builtin index (stored as a Smi) and use it to get the builtin start
+  // address from the builtins table.
   __ Pop(t0);
   __ Addu(sp, sp,
           Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
   __ Pop(ra);
-  __ Addu(t0, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ LoadEntryFromBuiltinIndex(t0);
   __ Jump(t0);
 }
 }  // namespace
