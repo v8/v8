@@ -868,6 +868,8 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       TRACE_BROKER(broker(), "Serializing data for builtin PromiseConstructor");
       // For JSCallReducer::ReducePromiseConstructor.
       broker()->native_context().SerializeScopeInfo();
+      broker()->native_context().SerializePromiseCapabilityDefaultResolveCode();
+      broker()->native_context().SerializePromiseCapabilityDefaultRejectCode();
       break;
     }
     case Builtins::kPromisePrototypeCatch: {

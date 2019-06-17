@@ -5579,6 +5579,7 @@ Node* JSCallReducer::CreateArtificialFrameState(
 
 Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
   ConstructParameters const& p = ConstructParametersOf(node->op());
   int arity = static_cast<int>(p.arity() - 2);
   // We only inline when we have the executor.
@@ -5602,6 +5603,13 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   // Check if we have the required scope_info.
   if (!native_context().scope_info().has_value()) {
     TRACE_BROKER_MISSING(broker(), "data for native context scope_info");
+    return NoChange();
+  }
+
+  // Check if we've captured the resolve and reject promise code objects.
+  if (!native_context().GetPromiseCapabilityDefaultResolveCode().has_value() ||
+      !native_context().GetPromiseCapabilityDefaultRejectCode().has_value()) {
+    TRACE_BROKER_MISSING(broker(), "data for native context promise functions");
     return NoChange();
   }
 
@@ -5667,19 +5675,22 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   // Allocate the closure for the resolve case.
   SharedFunctionInfoRef resolve_shared =
       native_context().promise_capability_default_resolve_shared_fun();
-  Node* resolve = effect = graph()->NewNode(
-      javascript()->CreateClosure(
-          resolve_shared.object(), factory()->many_closures_cell(),
-          handle(resolve_shared.object()->GetCode(), isolate())),
-      promise_context, effect, control);
+  Handle<Code> resolve_code =
+      native_context().GetPromiseCapabilityDefaultResolveCode()->object();
+  Node* resolve = effect =
+      graph()->NewNode(javascript()->CreateClosure(
+                           resolve_shared.object(),
+                           factory()->many_closures_cell(), resolve_code),
+                       promise_context, effect, control);
 
   // Allocate the closure for the reject case.
   SharedFunctionInfoRef reject_shared =
       native_context().promise_capability_default_reject_shared_fun();
+  Handle<Code> reject_code =
+      native_context().GetPromiseCapabilityDefaultRejectCode()->object();
   Node* reject = effect = graph()->NewNode(
-      javascript()->CreateClosure(
-          reject_shared.object(), factory()->many_closures_cell(),
-          handle(reject_shared.object()->GetCode(), isolate())),
+      javascript()->CreateClosure(reject_shared.object(),
+                                  factory()->many_closures_cell(), reject_code),
       promise_context, effect, control);
 
   const std::vector<Node*> checkpoint_parameters_continuation(
