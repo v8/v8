@@ -270,3 +270,26 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
     assertEquals(expected, type)
   });
 })();
+
+(function TestFunctionTableSetAndCall() {
+  let builder = new WasmModuleBuilder();
+  let fun1 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 7);
+  let fun2 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 9);
+  let fun3 = new WebAssembly.Function({parameters:[], results:["f64"]}, _ => 0);
+  let table = new WebAssembly.Table({element: "anyfunc", initial: 2});
+  let table_index = builder.addImportedTable("m", "table", 2);
+  let sig_index = builder.addType(kSig_i_v);
+  table.set(0, fun1);
+  builder.addFunction('main', kSig_i_i)
+      .addBody([
+        kExprGetLocal, 0,
+        kExprCallIndirect, sig_index, table_index
+      ])
+      .exportFunc();
+  let instance = builder.instantiate({ m: { table: table }});
+  assertEquals(7, instance.exports.main(0));
+  table.set(1, fun2);
+  assertEquals(9, instance.exports.main(1));
+  table.set(1, fun3);
+  assertTraps(kTrapFuncSigMismatch, () => instance.exports.main(1));
+})();

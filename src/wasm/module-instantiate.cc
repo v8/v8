@@ -919,15 +919,22 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     bool is_null;
     MaybeHandle<WasmInstanceObject> maybe_target_instance;
     int function_index;
+    MaybeHandle<WasmJSFunction> maybe_js_function;
     WasmTableObject::GetFunctionTableEntry(isolate_, table_object, i, &is_valid,
                                            &is_null, &maybe_target_instance,
-                                           &function_index);
+                                           &function_index, &maybe_js_function);
     if (!is_valid) {
       thrower_->LinkError("table import %d[%d] is not a wasm function",
                           import_index, i);
       return false;
     }
     if (is_null) continue;
+    Handle<WasmJSFunction> js_function;
+    if (maybe_js_function.ToHandle(&js_function)) {
+      WasmInstanceObject::ImportWasmJSFunctionIntoTable(isolate_, instance, i,
+                                                        js_function);
+      continue;
+    }
 
     Handle<WasmInstanceObject> target_instance =
         maybe_target_instance.ToHandleChecked();

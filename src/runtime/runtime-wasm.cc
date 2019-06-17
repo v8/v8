@@ -498,9 +498,10 @@ RUNTIME_FUNCTION(Runtime_WasmIndirectCallCheckSignatureAndGetTargetInstance) {
   bool is_null;
   MaybeHandle<WasmInstanceObject> maybe_target_instance;
   int function_index;
+  MaybeHandle<WasmJSFunction> maybe_js_function;
   WasmTableObject::GetFunctionTableEntry(
       isolate, table_obj, entry_index, &is_valid, &is_null,
-      &maybe_target_instance, &function_index);
+      &maybe_target_instance, &function_index, &maybe_js_function);
 
   CHECK(is_valid);
   if (is_null) {
@@ -510,6 +511,8 @@ RUNTIME_FUNCTION(Runtime_WasmIndirectCallCheckSignatureAndGetTargetInstance) {
     // performed before a signature, according to the spec.
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapFuncSigMismatch);
   }
+  // TODO(7742): Test and implement indirect calls for non-zero tables.
+  CHECK(maybe_js_function.is_null());
 
   // Now we do the signature check.
   Handle<WasmInstanceObject> target_instance =
@@ -555,15 +558,18 @@ RUNTIME_FUNCTION(Runtime_WasmIndirectCallGetTargetAddress) {
   bool is_null;
   MaybeHandle<WasmInstanceObject> maybe_target_instance;
   int function_index;
+  MaybeHandle<WasmJSFunction> maybe_js_function;
   WasmTableObject::GetFunctionTableEntry(
       isolate, table_obj, entry_index, &is_valid, &is_null,
-      &maybe_target_instance, &function_index);
+      &maybe_target_instance, &function_index, &maybe_js_function);
 
   CHECK(is_valid);
   // The null-check should already have been done in
   // Runtime_WasmIndirectCallCheckSignatureAndGetTargetInstance. That runtime
   // function should always be called first.
   CHECK(!is_null);
+  // TODO(7742): Test and implement indirect calls for non-zero tables.
+  CHECK(maybe_js_function.is_null());
 
   Handle<WasmInstanceObject> target_instance =
       maybe_target_instance.ToHandleChecked();
