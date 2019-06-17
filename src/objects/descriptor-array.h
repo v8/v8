@@ -74,7 +74,6 @@ class DescriptorArray : public HeapObject {
   // Accessors for fetching instance descriptor at descriptor number.
   inline Name GetKey(int descriptor_number) const;
   inline Object GetStrongValue(int descriptor_number);
-  inline void SetValue(int descriptor_number, Object value);
   inline MaybeObject GetValue(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
@@ -153,15 +152,13 @@ class DescriptorArray : public HeapObject {
                                           int16_t number_of_marked_descriptors);
 
   static constexpr int SizeFor(int number_of_all_descriptors) {
-    return offset(number_of_all_descriptors * kEntrySize);
+    return OffsetOfDescriptorAt(number_of_all_descriptors);
   }
   static constexpr int OffsetOfDescriptorAt(int descriptor) {
-    return offset(descriptor * kEntrySize);
+    return kHeaderSize + descriptor * kEntrySize * kTaggedSize;
   }
   inline ObjectSlot GetFirstPointerSlot();
   inline ObjectSlot GetDescriptorSlot(int descriptor);
-  inline ObjectSlot GetKeySlot(int descriptor);
-  inline MaybeObjectSlot GetValueSlot(int descriptor);
 
   static_assert(kEndOfStrongFieldsOffset == kStartOfWeakFieldsOffset,
                 "Weak fields follow strong fields.");
@@ -177,6 +174,10 @@ class DescriptorArray : public HeapObject {
   static const int kEntryDetailsIndex = 1;
   static const int kEntryValueIndex = 2;
   static const int kEntrySize = 3;
+
+  static const int kEntryKeyOffset = kEntryKeyIndex * kTaggedSize;
+  static const int kEntryDetailsOffset = kEntryDetailsIndex * kTaggedSize;
+  static const int kEntryValueOffset = kEntryValueIndex * kTaggedSize;
 
   // Print all the descriptors.
   void PrintDescriptors(std::ostream& os);
@@ -207,15 +208,20 @@ class DescriptorArray : public HeapObject {
     return (descriptor_number * kEntrySize) + kEntryValueIndex;
   }
 
+  using EntryKeyField = TaggedField<HeapObject, kEntryKeyOffset>;
+  using EntryDetailsField = TaggedField<Smi, kEntryDetailsOffset>;
+  using EntryValueField = TaggedField<MaybeObject, kEntryValueOffset>;
+
  private:
   DECL_INT16_ACCESSORS(filler16bits)
-  // Low-level per-element accessors.
-  static constexpr int offset(int index) {
-    return kHeaderSize + index * kTaggedSize;
-  }
-  inline int length() const;
-  inline MaybeObject get(int index) const;
-  inline void set(int index, MaybeObject value);
+
+  inline void SetKey(int descriptor_number, Name key);
+  inline void SetValue(int descriptor_number, MaybeObject value);
+  inline void SetDetails(int descriptor_number, PropertyDetails details);
+
+  //  inline int length() const;
+  //  inline MaybeObject get(int index) const;
+  //  inline void set(int index, MaybeObject value);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.

@@ -1942,11 +1942,13 @@ TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
   return LoadAndUntagWeakFixedArrayLength(array);
 }
 
-template <typename Array>
-TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
-    TNode<Array> array, int array_header_size, Node* index_node,
-    int additional_offset, ParameterMode parameter_mode,
-    LoadSensitivity needs_poisoning) {
+template <typename Array, typename T>
+TNode<T> CodeStubAssembler::LoadArrayElement(TNode<Array> array,
+                                             int array_header_size,
+                                             Node* index_node,
+                                             int additional_offset,
+                                             ParameterMode parameter_mode,
+                                             LoadSensitivity needs_poisoning) {
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(
                        ParameterToIntPtr(index_node, parameter_mode),
                        IntPtrConstant(0)));
@@ -1956,13 +1958,12 @@ TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
                                                  parameter_mode, header_size);
   CSA_ASSERT(this, IsOffsetInBounds(offset, LoadArrayLength(array),
                                     array_header_size));
+  constexpr MachineType machine_type = MachineTypeOf<T>::value;
   // TODO(gsps): Remove the Load case once LoadFromObject supports poisoning
   if (needs_poisoning == LoadSensitivity::kSafe) {
-    return UncheckedCast<MaybeObject>(
-        LoadFromObject(MachineType::AnyTagged(), array, offset));
+    return UncheckedCast<T>(LoadFromObject(machine_type, array, offset));
   } else {
-    return UncheckedCast<MaybeObject>(
-        Load(MachineType::AnyTagged(), array, offset, needs_poisoning));
+    return UncheckedCast<T>(Load(machine_type, array, offset, needs_poisoning));
   }
 }
 
@@ -8359,40 +8360,41 @@ TNode<IntPtrT> CodeStubAssembler::EntryToIndex(TNode<IntPtrT> entry,
                                                field_index));
 }
 
-TNode<MaybeObject> CodeStubAssembler::LoadDescriptorArrayElement(
-    TNode<DescriptorArray> object, Node* index, int additional_offset) {
-  return LoadArrayElement(object, DescriptorArray::kHeaderSize, index,
-                          additional_offset);
+template <typename T>
+TNode<T> CodeStubAssembler::LoadDescriptorArrayElement(
+    TNode<DescriptorArray> object, TNode<IntPtrT> index,
+    int additional_offset) {
+  return LoadArrayElement<DescriptorArray, T>(
+      object, DescriptorArray::kHeaderSize, index, additional_offset);
 }
 
 TNode<Name> CodeStubAssembler::LoadKeyByKeyIndex(
     TNode<DescriptorArray> container, TNode<IntPtrT> key_index) {
-  return CAST(LoadDescriptorArrayElement(container, key_index, 0));
+  return CAST(LoadDescriptorArrayElement<HeapObject>(container, key_index, 0));
 }
 
 TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
     TNode<DescriptorArray> container, TNode<IntPtrT> key_index) {
-  const int kKeyToDetails =
-      DescriptorArray::ToDetailsIndex(0) - DescriptorArray::ToKeyIndex(0);
-  return Unsigned(
-      LoadAndUntagToWord32ArrayElement(container, DescriptorArray::kHeaderSize,
-                                       key_index, kKeyToDetails * kTaggedSize));
+  const int kKeyToDetailsOffset =
+      DescriptorArray::kEntryDetailsOffset - DescriptorArray::kEntryKeyOffset;
+  return Unsigned(LoadAndUntagToWord32ArrayElement(
+      container, DescriptorArray::kHeaderSize, key_index, kKeyToDetailsOffset));
 }
 
 TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
     TNode<DescriptorArray> container, TNode<IntPtrT> key_index) {
-  const int kKeyToValue =
-      DescriptorArray::ToValueIndex(0) - DescriptorArray::ToKeyIndex(0);
-  return CAST(LoadDescriptorArrayElement(container, key_index,
-                                         kKeyToValue * kTaggedSize));
+  const int kKeyToValueOffset =
+      DescriptorArray::kEntryValueOffset - DescriptorArray::kEntryKeyOffset;
+  return LoadDescriptorArrayElement<Object>(container, key_index,
+                                            kKeyToValueOffset);
 }
 
 TNode<MaybeObject> CodeStubAssembler::LoadFieldTypeByKeyIndex(
     TNode<DescriptorArray> container, TNode<IntPtrT> key_index) {
-  const int kKeyToValue =
-      DescriptorArray::ToValueIndex(0) - DescriptorArray::ToKeyIndex(0);
-  return LoadDescriptorArrayElement(container, key_index,
-                                    kKeyToValue * kTaggedSize);
+  const int kKeyToValueOffset =
+      DescriptorArray::kEntryValueOffset - DescriptorArray::kEntryKeyOffset;
+  return LoadDescriptorArrayElement<MaybeObject>(container, key_index,
+                                                 kKeyToValueOffset);
 }
 
 TNode<IntPtrT> CodeStubAssembler::DescriptorEntryToIndex(
@@ -8403,14 +8405,14 @@ TNode<IntPtrT> CodeStubAssembler::DescriptorEntryToIndex(
 
 TNode<Name> CodeStubAssembler::LoadKeyByDescriptorEntry(
     TNode<DescriptorArray> container, TNode<IntPtrT> descriptor_entry) {
-  return CAST(LoadDescriptorArrayElement(
+  return CAST(LoadDescriptorArrayElement<HeapObject>(
       container, DescriptorEntryToIndex(descriptor_entry),
       DescriptorArray::ToKeyIndex(0) * kTaggedSize));
 }
 
 TNode<Name> CodeStubAssembler::LoadKeyByDescriptorEntry(
     TNode<DescriptorArray> container, int descriptor_entry) {
-  return CAST(LoadDescriptorArrayElement(
+  return CAST(LoadDescriptorArrayElement<HeapObject>(
       container, IntPtrConstant(0),
       DescriptorArray::ToKeyIndex(descriptor_entry) * kTaggedSize));
 }
@@ -8432,14 +8434,14 @@ TNode<Uint32T> CodeStubAssembler::LoadDetailsByDescriptorEntry(
 
 TNode<Object> CodeStubAssembler::LoadValueByDescriptorEntry(
     TNode<DescriptorArray> container, int descriptor_entry) {
-  return CAST(LoadDescriptorArrayElement(
+  return LoadDescriptorArrayElement<Object>(
       container, IntPtrConstant(0),
-      DescriptorArray::ToValueIndex(descriptor_entry) * kTaggedSize));
+      DescriptorArray::ToValueIndex(descriptor_entry) * kTaggedSize);
 }
 
 TNode<MaybeObject> CodeStubAssembler::LoadFieldTypeByDescriptorEntry(
     TNode<DescriptorArray> container, TNode<IntPtrT> descriptor_entry) {
-  return LoadDescriptorArrayElement(
+  return LoadDescriptorArrayElement<MaybeObject>(
       container, DescriptorEntryToIndex(descriptor_entry),
       DescriptorArray::ToValueIndex(0) * kTaggedSize);
 }

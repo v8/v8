@@ -181,19 +181,15 @@
   WEAK_ACCESSORS_CHECKED(holder, name, offset, true)
 
 // Getter that returns a Smi as an int and writes an int as a Smi.
-#define SMI_ACCESSORS_CHECKED(holder, name, offset, condition)             \
-  int holder::name() const {                                               \
-    DCHECK(condition);                                                     \
-    Smi value = TaggedField<Smi, offset>::load(*this);                     \
-    return value.value();                                                  \
-  }                                                                        \
-  void holder::set_##name(int value) {                                     \
-    DCHECK(condition);                                                     \
-    if (V8_CONCURRENT_MARKING_BOOL) {                                      \
-      TaggedField<Smi, offset>::Relaxed_Store(*this, Smi::FromInt(value)); \
-    } else {                                                               \
-      TaggedField<Smi, offset>::store(*this, Smi::FromInt(value));         \
-    }                                                                      \
+#define SMI_ACCESSORS_CHECKED(holder, name, offset, condition)   \
+  int holder::name() const {                                     \
+    DCHECK(condition);                                           \
+    Smi value = TaggedField<Smi, offset>::load(*this);           \
+    return value.value();                                        \
+  }                                                              \
+  void holder::set_##name(int value) {                           \
+    DCHECK(condition);                                           \
+    TaggedField<Smi, offset>::store(*this, Smi::FromInt(value)); \
   }
 
 #define SMI_ACCESSORS(holder, name, offset) \

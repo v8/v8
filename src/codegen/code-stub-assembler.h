@@ -1085,8 +1085,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Array is any array-like type that has a fixed header followed by
   // tagged elements.
-  template <typename Array>
-  TNode<MaybeObject> LoadArrayElement(
+  template <typename Array, typename T = MaybeObject>
+  TNode<T> LoadArrayElement(
       TNode<Array> array, int array_header_size, Node* index,
       int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
@@ -3600,9 +3600,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
  private:
   // Low-level accessors for Descriptor arrays.
-  TNode<MaybeObject> LoadDescriptorArrayElement(TNode<DescriptorArray> object,
-                                                Node* index,
-                                                int additional_offset = 0);
+  template <typename T>
+  TNode<T> LoadDescriptorArrayElement(TNode<DescriptorArray> object,
+                                      TNode<IntPtrT> index,
+                                      int additional_offset);
 };
 
 class V8_EXPORT_PRIVATE CodeStubArguments {

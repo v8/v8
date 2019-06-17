@@ -35,17 +35,21 @@ class TaggedField : public AllStatic {
   static constexpr bool kIsHeapObject =
       std::is_base_of<HeapObject, T>::value || std::is_same<MapWord, T>::value;
 
-  static inline Address address(HeapObject host);
+  static inline Address address(HeapObject host, int offset = 0);
 
-  static inline T load(HeapObject host);
-  static inline T load(Isolate* isolate, HeapObject host);
+  static inline T load(HeapObject host, int offset = 0);
+  static inline T load(Isolate* isolate, HeapObject host, int offset = 0);
 
   static inline void store(HeapObject host, T value);
+  static inline void store(HeapObject host, int offset, T value);
 
   static inline T Relaxed_Load(HeapObject host);
+  static inline T Relaxed_Load(HeapObject host, int offset);
   static inline T Relaxed_Load(Isolate* isolate, HeapObject host);
+  static inline T Relaxed_Load(Isolate* isolate, HeapObject host, int offset);
 
   static inline void Relaxed_Store(HeapObject host, T value);
+  static inline void Relaxed_Store(HeapObject host, int offset, T value);
 
   static inline T Acquire_Load(HeapObject host);
   static inline T Acquire_Load(Isolate* isolate, HeapObject host);
@@ -56,7 +60,7 @@ class TaggedField : public AllStatic {
                                                 T value);
 
  private:
-  static inline Tagged_t* location(HeapObject host);
+  static inline Tagged_t* location(HeapObject host, int offset = 0);
 
   template <typename TOnHeapAddress>
   static inline Address tagged_to_full(TOnHeapAddress on_heap_addr,

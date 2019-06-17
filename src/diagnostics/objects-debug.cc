@@ -789,16 +789,17 @@ void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
 void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::DescriptorArrayVerify(*this, isolate);
   for (int i = 0; i < number_of_all_descriptors(); i++) {
-    MaybeObject::VerifyMaybeObjectPointer(isolate, get(ToKeyIndex(i)));
-    MaybeObject::VerifyMaybeObjectPointer(isolate, get(ToDetailsIndex(i)));
-    MaybeObject::VerifyMaybeObjectPointer(isolate, get(ToValueIndex(i)));
+    MaybeObjectSlot slot(GetDescriptorSlot(i));
+    MaybeObject::VerifyMaybeObjectPointer(isolate, *(slot + kEntryKeyIndex));
+    MaybeObject::VerifyMaybeObjectPointer(isolate,
+                                          *(slot + kEntryDetailsIndex));
+    MaybeObject::VerifyMaybeObjectPointer(isolate, *(slot + kEntryValueIndex));
   }
   if (number_of_all_descriptors() == 0) {
-    Heap* heap = isolate->heap();
-    CHECK_EQ(ReadOnlyRoots(heap).empty_descriptor_array(), *this);
+    CHECK_EQ(ReadOnlyRoots(isolate).empty_descriptor_array(), *this);
     CHECK_EQ(0, number_of_all_descriptors());
     CHECK_EQ(0, number_of_descriptors());
-    CHECK_EQ(ReadOnlyRoots(heap).empty_enum_cache(), enum_cache());
+    CHECK_EQ(ReadOnlyRoots(isolate).empty_enum_cache(), enum_cache());
   } else {
     CHECK_LT(0, number_of_all_descriptors());
     CHECK_LE(number_of_descriptors(), number_of_all_descriptors());
@@ -806,7 +807,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
     // Check that properties with private symbols names are non-enumerable.
     for (int descriptor = 0; descriptor < number_of_descriptors();
          descriptor++) {
-      Object key = get(ToKeyIndex(descriptor))->cast<Object>();
+      Object key = *(GetDescriptorSlot(descriptor) + kEntryKeyIndex);
       // number_of_descriptors() may be out of sync with the actual descriptors
       // written during descriptor array construction.
       if (key.IsUndefined(isolate)) continue;
@@ -814,7 +815,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
       if (Name::cast(key).IsPrivate()) {
         CHECK_NE(details.attributes() & DONT_ENUM, 0);
       }
-      MaybeObject value = get(ToValueIndex(descriptor));
+      MaybeObject value = GetValue(descriptor);
       HeapObject heap_object;
       if (details.location() == kField) {
         CHECK(

@@ -2387,9 +2387,9 @@ void DescriptorArray::GeneralizeAllFields() {
     if (details.location() == kField) {
       DCHECK_EQ(kData, details.kind());
       details = details.CopyWithConstness(PropertyConstness::kMutable);
-      SetValue(i, FieldType::Any());
+      SetValue(i, MaybeObject::FromObject(FieldType::Any()));
     }
-    set(ToDetailsIndex(i), MaybeObject::FromObject(details.AsSmi()));
+    SetDetails(i, details);
   }
 }
 
@@ -4294,8 +4294,10 @@ bool DescriptorArray::IsEqualTo(DescriptorArray other) {
   if (number_of_all_descriptors() != other.number_of_all_descriptors()) {
     return false;
   }
-  for (int i = 0; i < number_of_all_descriptors(); ++i) {
-    if (get(i) != other.get(i)) return false;
+  for (int i = 0; i < number_of_descriptors(); ++i) {
+    if (GetKey(i) != other.GetKey(i)) return false;
+    if (GetDetails(i).AsSmi() != other.GetDetails(i).AsSmi()) return false;
+    if (GetValue(i) != other.GetValue(i)) return false;
   }
   return true;
 }
