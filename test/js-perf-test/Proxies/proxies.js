@@ -591,3 +591,37 @@ newBenchmark("PreventExtensionsWithTrap", {
   },
   teardown() {}
 });
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("GetPrototypeOfWithoutTrap", {
+  setup() {
+    p = new Proxy({}, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.getPrototypeOf(p);
+    }
+    return value;
+  },
+  teardown() {}
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("GetPrototypeOfWithTrap", {
+  setup() {
+    p = new Proxy({}, {
+      getPrototypeOf: function(target) {
+        return Array.prototype;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = Object.getPrototypeOf(p);
+    }
+    return value;
+  },
+  teardown() {}
+});
