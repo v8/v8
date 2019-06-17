@@ -13,6 +13,7 @@
   f("abc", "de", 1);
   %OptimizeFunctionOnNextCall(f);
   f("abc", "de", {});
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   f("abc", "de", {});
   assertOptimized(f);
@@ -27,6 +28,7 @@
   f("abc", "de", 1);
   %OptimizeFunctionOnNextCall(f);
   f("abc", {}, 1);
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   f("abc", {}, 1);
   assertOptimized(f);
@@ -39,8 +41,10 @@
   %PrepareFunctionForOptimization(f);
   f("abc", "de", 1);
   f("abc", "de", 1);
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   f({}, "de", 1);
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   f({}, "de", 1);
   assertOptimized(f);
@@ -55,6 +59,7 @@
   f("abc", 1);
   %OptimizeFunctionOnNextCall(f);
   f("abc", {});
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   f({}, {});
   assertOptimized(f);
@@ -69,6 +74,7 @@
   f("abc", 1);
   %OptimizeFunctionOnNextCall(f);
   f("abc", {});
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   f("abc", {});
   assertOptimized(f);
@@ -84,6 +90,7 @@
   f("abc", 1);
   %OptimizeFunctionOnNextCall(f);
   f("abc", {});
+  %PrepareFunctionForOptimization(f);
   %OptimizeFunctionOnNextCall(f);
   f("abc", {});
   assertOptimized(f);

@@ -60,6 +60,7 @@
        return v < 8;
      });
   }
+  %PrepareFunctionForOptimization(softyPlusEarlyExit);
   assertFalse(softyPlusEarlyExit(false));
   assertArrayEquals([1, 2, 3, 4, 5, 6, 7, 8], called_values);
   softyPlusEarlyExit(false);

@@ -613,6 +613,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   assertOptimized(g);
   deopt = true;
   g();
+  %PrepareFunctionForOptimization(g);
   assertOptimized(g);
   deopt = false;
   array = [11,'22',33,45,56,6,77,84,93,101];
@@ -648,6 +649,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   deopt = false;
   array = [11,'22',33,45,56,6,77,84,93,101];
   Object.preventExtensions(array);
+  %PrepareFunctionForOptimization(g);
   %OptimizeFunctionOnNextCall(g);
   g();
   assertUnoptimized(g);
@@ -692,6 +694,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   deopt = false;
   array = [11,'22',33,45,56,6,77,84,93,101];
   Object.preventExtensions(array);
+  %PrepareFunctionForOptimization(g);
   %OptimizeFunctionOnNextCall(g);
   g();
   assertUnoptimized(g);
@@ -745,6 +748,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -780,6 +784,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -815,6 +820,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -851,6 +857,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -910,6 +917,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -948,6 +956,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -1050,6 +1059,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   assertOptimized(g);
   deopt = true;
   g();
+  %PrepareFunctionForOptimization(g);
   deopt = false;
   array = [11,'22',33,45,56,6,77,84,93,101];
   Object.preventExtensions(array);
@@ -1105,6 +1115,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   done = true;
   assertEquals(null, g());
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -1140,6 +1151,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -1175,6 +1187,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -1211,6 +1224,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   done = true;
   assertEquals(null, g());
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -1269,6 +1283,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -1307,6 +1322,7 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();

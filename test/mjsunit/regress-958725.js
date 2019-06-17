@@ -20,5 +20,6 @@ function f(v3) {
 };
 %PrepareFunctionForOptimization(f);
 f(Object);
+%PrepareFunctionForOptimization(f);
 %OptimizeFunctionOnNextCall(f);
 f(Object);

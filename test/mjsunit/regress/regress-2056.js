@@ -59,4 +59,6 @@ for (i = 0; i < cases.length; ++i) {
   %OptimizeFunctionOnNextCall(do_max);
   assertEquals(c[3], do_min(c[0], c[1]));
   assertEquals(c[2], do_max(c[0], c[1]));
+  %PrepareFunctionForOptimization(do_min);
+  %PrepareFunctionForOptimization(do_max);
 }
