@@ -565,7 +565,7 @@ extern class SharedFunctionInfo extends HeapObject {
 }
 
 extern class JSBoundFunction extends JSObject {
-  bound_target_function: JSReceiver;
+  bound_target_function: Callable;
   bound_this: Object;
   bound_arguments: FixedArray;
 }
@@ -1313,8 +1313,8 @@ extern class WasmMemoryObject extends JSObject {
 }
 
 extern class WasmGlobalObject extends JSObject {
-  untagged_buffer: JSArrayBuffer;
-  tagged_buffer: FixedArray;
+  untagged_buffer: JSArrayBuffer | Undefined;
+  tagged_buffer: FixedArray | Undefined;
   offset: Smi;
   flags: Smi;
 }

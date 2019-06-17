@@ -789,19 +789,21 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
     backing_store->set(i, null);
   }
 
-  Handle<JSFunction> table_ctor(
-      isolate->native_context()->wasm_table_constructor(), isolate);
-  auto table_obj = Handle<WasmTableObject>::cast(
-      isolate->factory()->NewJSObject(table_ctor));
-
-  table_obj->set_raw_type(static_cast<int>(type));
-  table_obj->set_entries(*backing_store);
   Handle<Object> max;
   if (has_maximum) {
     max = isolate->factory()->NewNumberFromUint(maximum);
   } else {
     max = isolate->factory()->undefined_value();
   }
+
+  Handle<JSFunction> table_ctor(
+      isolate->native_context()->wasm_table_constructor(), isolate);
+  auto table_obj = Handle<WasmTableObject>::cast(
+      isolate->factory()->NewJSObject(table_ctor));
+  DisallowHeapAllocation no_gc;
+
+  table_obj->set_raw_type(static_cast<int>(type));
+  table_obj->set_entries(*backing_store);
   table_obj->set_maximum_length(*max);
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
@@ -1419,6 +1421,15 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
       isolate->native_context()->wasm_global_constructor(), isolate);
   auto global_obj = Handle<WasmGlobalObject>::cast(
       isolate->factory()->NewJSObject(global_ctor));
+  {
+    // Disallow GC until all fields have acceptable types.
+    DisallowHeapAllocation no_gc;
+
+    global_obj->set_flags(0);
+    global_obj->set_type(type);
+    global_obj->set_offset(offset);
+    global_obj->set_is_mutable(is_mutable);
+  }
 
   if (wasm::ValueTypes::IsReferenceType(type)) {
     DCHECK(maybe_untagged_buffer.is_null());
@@ -1451,10 +1462,6 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
 
     global_obj->set_untagged_buffer(*untagged_buffer);
   }
-  global_obj->set_flags(0);
-  global_obj->set_type(type);
-  global_obj->set_offset(offset);
-  global_obj->set_is_mutable(is_mutable);
 
   return global_obj;
 }

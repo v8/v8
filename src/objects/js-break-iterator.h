@@ -29,9 +29,9 @@ namespace internal {
 
 class JSV8BreakIterator : public JSObject {
  public:
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSV8BreakIterator> Initialize(
-      Isolate* isolate, Handle<JSV8BreakIterator> break_iterator,
-      Handle<Object> input_locales, Handle<Object> input_options);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSV8BreakIterator> New(
+      Isolate* isolate, Handle<Map> map, Handle<Object> input_locales,
+      Handle<Object> input_options);
 
   static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSV8BreakIterator> break_iterator);

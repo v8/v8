@@ -34,9 +34,9 @@ namespace internal {
 class JSNumberFormat : public JSObject {
  public:
   // ecma402/#sec-initializenumberformat
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> Initialize(
-      Isolate* isolate, Handle<JSNumberFormat> number_format,
-      Handle<Object> locales, Handle<Object> options);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> New(
+      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+      Handle<Object> options);
 
   // ecma402/#sec-unwrapnumberformat
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> UnwrapNumberFormat(

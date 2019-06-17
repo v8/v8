@@ -49,21 +49,24 @@ MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
   // 1. Let iterator be ObjectCreate(%SegmentIteratorPrototype%).
   Handle<Map> map = Handle<Map>(
       isolate->native_context()->intl_segment_iterator_map(), isolate);
-  Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
 
+  Handle<Managed<icu::BreakIterator>> managed_break_iterator =
+      Managed<icu::BreakIterator>::FromRawPtr(isolate, 0, break_iterator);
+  Managed<icu::UnicodeString> unicode_string =
+      Intl::SetTextToBreakIterator(isolate, text, break_iterator);
+
+  // Now all properties are ready, so we can allocate the result object.
+  Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
+  DisallowHeapAllocation no_gc;
   Handle<JSSegmentIterator> segment_iterator =
       Handle<JSSegmentIterator>::cast(result);
 
   segment_iterator->set_flags(0);
   segment_iterator->set_granularity(granularity);
   // 2. Let iterator.[[SegmentIteratorSegmenter]] be segmenter.
-  Handle<Managed<icu::BreakIterator>> managed_break_iterator =
-      Managed<icu::BreakIterator>::FromRawPtr(isolate, 0, break_iterator);
   segment_iterator->set_icu_break_iterator(*managed_break_iterator);
 
   // 3. Let iterator.[[SegmentIteratorString]] be string.
-  Managed<icu::UnicodeString> unicode_string =
-      Intl::SetTextToBreakIterator(isolate, text, break_iterator);
   segment_iterator->set_unicode_string(unicode_string);
 
   // 4. Let iterator.[[SegmentIteratorIndex]] be 0.

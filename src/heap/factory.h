@@ -1083,10 +1083,19 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<String> NumberToStringCacheSet(Handle<Object> number, int hash,
                                         const char* string, bool check_cache);
 
-  // Create a JSArray with no elements and no length.
-  Handle<JSArray> NewJSArray(
-      ElementsKind elements_kind,
+  // Creates a new JSArray with the given backing storage. Performs no
+  // verification of the backing storage because it may not yet be filled.
+  Handle<JSArray> NewJSArrayWithUnverifiedElements(
+      Handle<FixedArrayBase> elements, ElementsKind elements_kind, int length,
       AllocationType allocation = AllocationType::kYoung);
+
+  // Creates the backing storage for a JSArray. This handle must be discarded
+  // before returning the JSArray reference to code outside Factory, which might
+  // decide to left-trim the backing store. To avoid unnecessary HandleScopes,
+  // this method requires capacity greater than zero.
+  Handle<FixedArrayBase> NewJSArrayStorage(
+      ElementsKind elements_kind, int capacity,
+      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeHandle<String> name, MaybeHandle<HeapObject> maybe_function_data,

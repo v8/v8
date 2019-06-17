@@ -15,9 +15,9 @@
 namespace v8 {
 namespace internal {
 
-MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::Initialize(
-    Isolate* isolate, Handle<JSV8BreakIterator> break_iterator_holder,
-    Handle<Object> locales, Handle<Object> options_obj) {
+MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
+    Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+    Handle<Object> options_obj) {
   Factory* factory = isolate->factory();
 
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -96,8 +96,13 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::Initialize(
 
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
-  break_iterator_holder->set_locale(*locale_str);
 
+  // Now all properties are ready, so we can allocate the result object.
+  Handle<JSV8BreakIterator> break_iterator_holder =
+      Handle<JSV8BreakIterator>::cast(
+          isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  DisallowHeapAllocation no_gc;
+  break_iterator_holder->set_locale(*locale_str);
   break_iterator_holder->set_type(type_enum);
   break_iterator_holder->set_break_iterator(*managed_break_iterator);
   break_iterator_holder->set_unicode_string(*managed_unicode_string);

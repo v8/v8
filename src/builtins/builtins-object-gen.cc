@@ -1337,10 +1337,15 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(
       result, JSGeneratorObject::kParametersAndRegistersOffset,
       parameters_and_registers);
+  Node* resume_mode = SmiConstant(JSGeneratorObject::ResumeMode::kNext);
+  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kResumeModeOffset,
+                                 resume_mode);
   Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContinuationOffset,
                                  executing);
-  GotoIfNot(HasInstanceType(maybe_map, JS_ASYNC_GENERATOR_OBJECT_TYPE), &done);
+  GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(maybe_map),
+                              JS_ASYNC_GENERATOR_OBJECT_TYPE),
+            &done);
   StoreObjectFieldNoWriteBarrier(
       result, JSAsyncGeneratorObject::kIsAwaitingOffset, SmiConstant(0));
   Goto(&done);

@@ -445,10 +445,6 @@ void JSObject::InitializeBody(Map map, int start_offset,
   }
 }
 
-Object JSBoundFunction::raw_bound_target_function() const {
-  return READ_FIELD(*this, kBoundTargetFunctionOffset);
-}
-
 ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
           kBoundTargetFunctionOffset)
 ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)

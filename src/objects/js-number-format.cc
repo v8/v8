@@ -851,10 +851,10 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
 }
 
 // static
-MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
-    Isolate* isolate, Handle<JSNumberFormat> number_format,
-    Handle<Object> locales, Handle<Object> options_obj) {
-  number_format->set_flags(0);
+MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
+                                                Handle<Map> map,
+                                                Handle<Object> locales,
+                                                Handle<Object> options_obj) {
   Factory* factory = isolate->factory();
 
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -922,7 +922,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   // 9. Set numberFormat.[[Locale]] to r.[[locale]].
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
-  number_format->set_locale(*locale_str);
 
   // 11. Let dataLocale be r.[[dataLocale]].
 
@@ -1154,24 +1153,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   icu_number_formatter = JSNumberFormat::SetDigitOptionsToFormatter(
       icu_number_formatter, digit_options);
 
-  if (digit_options.minimum_significant_digits > 0) {
-    // Currenct ECMA 402 spec mandate to record (Min|Max)imumFractionDigits
-    // uncondictionally while the unified number proposal eventually will only
-    // record either (Min|Max)imumFractionDigits or
-    // (Min|Max)imumSignaficantDigits Since LocalizedNumberFormatter can only
-    // remember one set, and during 2019-1-17 ECMA402 meeting that the committee
-    // decide not to take a PR to address that prior to the unified number
-    // proposal, we have to add these two 5 bits int into flags to remember the
-    // (Min|Max)imumFractionDigits while (Min|Max)imumSignaficantDigits is
-    // present.
-    // TODO(ftang) remove the following two lines once we ship
-    // int-number-format-unified
-    number_format->set_minimum_fraction_digits(
-        digit_options.minimum_fraction_digits);
-    number_format->set_maximum_fraction_digits(
-        digit_options.maximum_fraction_digits);
-  }
-
   if (FLAG_harmony_intl_numberformat_unified) {
     // Let notation be ? GetOption(options, "notation", "string", « "standard",
     // "scientific",  "engineering", "compact" », "standard").
@@ -1254,6 +1235,32 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
           Managed<icu::number::LocalizedNumberFormatter>::FromRawPtr(
               isolate, 0,
               new icu::number::LocalizedNumberFormatter(icu_number_formatter));
+
+  // Now all properties are ready, so we can allocate the result object.
+  Handle<JSNumberFormat> number_format = Handle<JSNumberFormat>::cast(
+      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  DisallowHeapAllocation no_gc;
+  number_format->set_flags(0);
+  number_format->set_locale(*locale_str);
+
+  if (digit_options.minimum_significant_digits > 0) {
+    // The current ECMA 402 spec mandates recording (Min|Max)imumFractionDigits
+    // unconditionally, while the unified number proposal eventually will only
+    // record either (Min|Max)imumFractionDigits or
+    // (Min|Max)imumSignificantDigits. Since LocalizedNumberFormatter can only
+    // remember one set, and during 2019-1-17 ECMA402 meeting the committee
+    // decided not to take a PR to address that prior to the unified number
+    // proposal, we have to add these two 5-bit ints into flags to remember the
+    // (Min|Max)imumFractionDigits while (Min|Max)imumSignificantDigits is
+    // present.
+    // TODO(ftang) remove the following two lines once we ship
+    // int-number-format-unified
+    number_format->set_minimum_fraction_digits(
+        digit_options.minimum_fraction_digits);
+    number_format->set_maximum_fraction_digits(
+        digit_options.maximum_fraction_digits);
+  }
+
   number_format->set_icu_number_formatter(*managed_number_formatter);
   number_format->set_bound_format(*factory->undefined_value());
 

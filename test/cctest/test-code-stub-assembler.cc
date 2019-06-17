@@ -1654,6 +1654,15 @@ TEST(AllocateJSObjectFromMap) {
 
     Node* result = m.AllocateJSObjectFromMap(map, properties, elements);
 
+    CodeStubAssembler::Label done(&m);
+    m.GotoIfNot(m.IsJSArrayMap(map), &done);
+
+    // JS array verification requires the length field to be set.
+    m.StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset,
+                                     m.SmiConstant(0));
+    m.Goto(&done);
+
+    m.Bind(&done);
     m.Return(result);
   }
 

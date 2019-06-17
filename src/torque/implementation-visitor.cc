@@ -3403,16 +3403,6 @@ void GenerateClassFieldVerifier(const std::string& class_name,
       if (!type_check.empty()) type_check += " || ";
       type_check += strong_value + ".Is" + runtime_type + "()";
     }
-    // Many subtypes of JSObject can be verified in partially-initialized states
-    // where their fields are all undefined. We explicitly allow that here. For
-    // any such fields that should never be undefined, we can include extra code
-    // in the custom verifier functions for them.
-    // TODO(1240798): If Factory::InitializeJSObjectFromMap is updated to use
-    // correct initial values based on the type of the field, then make this
-    // check stricter too.
-    if (class_type.IsSubtypeOf(TypeOracle::GetJSObjectType())) {
-      type_check += " || " + strong_value + ".IsUndefined(isolate)";
-    }
     cc_contents << "    CHECK(" << type_check << ");\n";
   }
   cc_contents << "  }\n";

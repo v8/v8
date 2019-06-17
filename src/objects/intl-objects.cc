@@ -177,12 +177,11 @@ const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
 template <typename T>
 MaybeHandle<T> New(Isolate* isolate, Handle<JSFunction> constructor,
                    Handle<Object> locales, Handle<Object> options) {
-  Handle<JSObject> result;
+  Handle<Map> map;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      JSObject::New(constructor, constructor, Handle<AllocationSite>::null()),
-      T);
-  return T::Initialize(isolate, Handle<T>::cast(result), locales, options);
+      isolate, map,
+      JSFunction::GetDerivedMap(isolate, constructor, constructor), T);
+  return T::New(isolate, map, locales, options);
 }
 }  // namespace
 

@@ -956,13 +956,7 @@ void JSDate::JSDateVerify(Isolate* isolate) {
   }
 }
 
-void JSMessageObject::JSMessageObjectVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSMessageObjectVerify(*this, isolate);
-  VerifySmiField(kMessageTypeOffset);
-  VerifySmiField(kStartPositionOffset);
-  VerifySmiField(kEndPositionOffset);
-  VerifySmiField(kErrorLevelOffset);
-}
+USE_TORQUE_VERIFIER(JSMessageObject)
 
 USE_TORQUE_VERIFIER(Name)
 
@@ -1007,16 +1001,11 @@ USE_TORQUE_VERIFIER(ExternalString)
 void JSBoundFunction::JSBoundFunctionVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSBoundFunctionVerify(*this, isolate);
   CHECK(IsCallable());
-
-  if (!raw_bound_target_function().IsUndefined(isolate)) {
-    CHECK(bound_target_function().IsCallable());
-    CHECK_EQ(IsConstructor(), bound_target_function().IsConstructor());
-  }
+  CHECK_EQ(IsConstructor(), bound_target_function().IsConstructor());
 }
 
 void JSFunction::JSFunctionVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSFunctionVerify(*this, isolate);
-  CHECK(raw_feedback_cell().IsFeedbackCell());
   CHECK(code().IsCode());
   CHECK(map().is_callable());
   Handle<JSFunction> function(*this, isolate);
@@ -1196,7 +1185,6 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
   if (elements().length() == 0) {
     CHECK_EQ(elements(), ReadOnlyRoots(isolate).empty_fixed_array());
   }
-  if (!length().IsNumber()) return;
   // Verify that the length and the elements backing store are in sync.
   if (length().IsSmi() && (HasFastElements() || HasFrozenOrSealedElements())) {
     if (elements().length() > 0) {
@@ -1327,7 +1315,6 @@ void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
 
 void JSArrayIterator::JSArrayIteratorVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSArrayIteratorVerify(*this, isolate);
-  CHECK(iterated_object().IsJSReceiver());
 
   CHECK_GE(next_index().Number(), 0);
   CHECK_LE(next_index().Number(), kMaxSafeInteger);
@@ -1344,8 +1331,6 @@ void JSArrayIterator::JSArrayIteratorVerify(Isolate* isolate) {
 
 void JSStringIterator::JSStringIteratorVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSStringIteratorVerify(*this, isolate);
-  CHECK(string().IsString());
-
   CHECK_GE(index(), 0);
   CHECK_LE(index(), String::kMaxLength);
 }
@@ -1382,7 +1367,6 @@ USE_TORQUE_VERIFIER(PromiseReaction)
 
 void JSPromise::JSPromiseVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSPromiseVerify(*this, isolate);
-  VerifySmiField(kFlagsOffset);
   if (status() == Promise::kPending) {
     CHECK(reactions().IsSmi() || reactions().IsPromiseReaction());
   }
@@ -1498,11 +1482,7 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
   }
 }
 
-void JSRegExpStringIterator::JSRegExpStringIteratorVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSRegExpStringIteratorVerify(*this, isolate);
-  CHECK(iterating_string().IsString());
-  VerifySmiField(kFlagsOffset);
-}
+USE_TORQUE_VERIFIER(JSRegExpStringIterator)
 
 void JSProxy::JSProxyVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSProxyVerify(*this, isolate);
@@ -1527,7 +1507,6 @@ void JSArrayBuffer::JSArrayBufferVerify(Isolate* isolate) {
 
 void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSArrayBufferViewVerify(*this, isolate);
-  CHECK(buffer().IsJSArrayBuffer());
   CHECK_LE(byte_length(), JSArrayBuffer::kMaxByteLength);
   CHECK_LE(byte_offset(), JSArrayBuffer::kMaxByteLength);
 }
@@ -1687,31 +1666,15 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
         wrapper_code().kind() == Code::C_WASM_ENTRY);
 }
 
-void WasmModuleObject::WasmModuleObjectVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::WasmModuleObjectVerify(*this, isolate);
-  CHECK(managed_native_module().IsForeign());
-  CHECK(export_wrappers().IsFixedArray());
-  CHECK(script().IsScript());
-}
+USE_TORQUE_VERIFIER(WasmModuleObject)
 
-void WasmTableObject::WasmTableObjectVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::WasmTableObjectVerify(*this, isolate);
-  CHECK(elements().IsFixedArray());
-  VerifySmiField(kRawTypeOffset);
-}
+USE_TORQUE_VERIFIER(WasmTableObject)
 
-void WasmMemoryObject::WasmMemoryObjectVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::WasmMemoryObjectVerify(*this, isolate);
-  CHECK(array_buffer().IsJSArrayBuffer());
-  VerifySmiField(kMaximumPagesOffset);
-}
+USE_TORQUE_VERIFIER(WasmMemoryObject)
 
 USE_TORQUE_VERIFIER(WasmGlobalObject)
 
-void WasmExceptionObject::WasmExceptionObjectVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::WasmExceptionObjectVerify(*this, isolate);
-  CHECK(serialized_signature().IsByteArray());
-}
+USE_TORQUE_VERIFIER(WasmExceptionObject)
 
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::DataHandlerVerify(*this, isolate);
@@ -1858,51 +1821,21 @@ USE_TORQUE_VERIFIER(JSV8BreakIterator)
 
 USE_TORQUE_VERIFIER(JSCollator)
 
-void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSDateTimeFormatVerify(*this, isolate);
-  VerifySmiField(kFlagsOffset);
-}
+USE_TORQUE_VERIFIER(JSDateTimeFormat)
 
-void JSListFormat::JSListFormatVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSListFormatVerify(*this, isolate);
-  CHECK(locale().IsString());
-  CHECK(icu_formatter().IsForeign());
-  VerifySmiField(kFlagsOffset);
-}
+USE_TORQUE_VERIFIER(JSListFormat)
 
 USE_TORQUE_VERIFIER(JSLocale)
 
-void JSNumberFormat::JSNumberFormatVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSNumberFormatVerify(*this, isolate);
-  VerifySmiField(kFlagsOffset);
-}
+USE_TORQUE_VERIFIER(JSNumberFormat)
 
-void JSPluralRules::JSPluralRulesVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSPluralRulesVerify(*this, isolate);
-  CHECK(locale().IsString());
-  VerifySmiField(kFlagsOffset);
-  CHECK(icu_plural_rules().IsForeign());
-  CHECK(icu_number_formatter().IsForeign());
-}
+USE_TORQUE_VERIFIER(JSPluralRules)
 
-void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSRelativeTimeFormatVerify(*this, isolate);
-  CHECK(locale().IsString());
-  CHECK(icu_formatter().IsForeign());
-  VerifySmiField(kFlagsOffset);
-}
+USE_TORQUE_VERIFIER(JSRelativeTimeFormat)
 
-void JSSegmentIterator::JSSegmentIteratorVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSSegmentIteratorVerify(*this, isolate);
-  VerifySmiField(kFlagsOffset);
-}
+USE_TORQUE_VERIFIER(JSSegmentIterator)
 
-void JSSegmenter::JSSegmenterVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::JSSegmenterVerify(*this, isolate);
-  CHECK(locale().IsString());
-  CHECK(icu_break_iterator().IsForeign());
-  VerifySmiField(kFlagsOffset);
-}
+USE_TORQUE_VERIFIER(JSSegmenter)
 
 #endif  // V8_INTL_SUPPORT
 

@@ -2925,37 +2925,48 @@ Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
   return object;
 }
 
-Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
-                                    AllocationType allocation) {
-  NativeContext native_context = isolate()->raw_native_context();
-  Map map = native_context.GetInitialJSArrayMap(elements_kind);
-  if (map.is_null()) {
-    JSFunction array_function = native_context.array_function();
-    map = array_function.initial_map();
-  }
-  return Handle<JSArray>::cast(
-      NewJSObjectFromMap(handle(map, isolate()), allocation));
-}
-
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind, int length,
                                     int capacity,
                                     ArrayStorageAllocationMode mode,
                                     AllocationType allocation) {
-  Handle<JSArray> array = NewJSArray(elements_kind, allocation);
-  NewJSArrayStorage(array, length, capacity, mode);
-  return array;
+  DCHECK(capacity >= length);
+  if (capacity == 0) {
+    return NewJSArrayWithElements(empty_fixed_array(), elements_kind, length,
+                                  allocation);
+  }
+
+  HandleScope inner_scope(isolate());
+  Handle<FixedArrayBase> elms =
+      NewJSArrayStorage(elements_kind, capacity, mode);
+  return inner_scope.CloseAndEscape(NewJSArrayWithUnverifiedElements(
+      elms, elements_kind, length, allocation));
 }
 
 Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                                 ElementsKind elements_kind,
                                                 int length,
                                                 AllocationType allocation) {
-  DCHECK(length <= elements->length());
-  Handle<JSArray> array = NewJSArray(elements_kind, allocation);
+  Handle<JSArray> array = NewJSArrayWithUnverifiedElements(
+      elements, elements_kind, length, allocation);
+  JSObject::ValidateElements(*array);
+  return array;
+}
 
+Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
+    Handle<FixedArrayBase> elements, ElementsKind elements_kind, int length,
+    AllocationType allocation) {
+  DCHECK(length <= elements->length());
+  NativeContext native_context = isolate()->raw_native_context();
+  Map map = native_context.GetInitialJSArrayMap(elements_kind);
+  if (map.is_null()) {
+    JSFunction array_function = native_context.array_function();
+    map = array_function.initial_map();
+  }
+  Handle<JSArray> array = Handle<JSArray>::cast(
+      NewJSObjectFromMap(handle(map, isolate()), allocation));
+  DisallowHeapAllocation no_gc;
   array->set_elements(*elements);
   array->set_length(Smi::FromInt(length));
-  JSObject::ValidateElements(*array);
   return array;
 }
 
@@ -2970,8 +2981,17 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array, int length, int capacity,
   }
 
   HandleScope inner_scope(isolate());
+  Handle<FixedArrayBase> elms =
+      NewJSArrayStorage(array->GetElementsKind(), capacity, mode);
+
+  array->set_elements(*elms);
+  array->set_length(Smi::FromInt(length));
+}
+
+Handle<FixedArrayBase> Factory::NewJSArrayStorage(
+    ElementsKind elements_kind, int capacity, ArrayStorageAllocationMode mode) {
+  DCHECK_GT(capacity, 0);
   Handle<FixedArrayBase> elms;
-  ElementsKind elements_kind = array->GetElementsKind();
   if (IsDoubleElementsKind(elements_kind)) {
     if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
       elms = NewFixedDoubleArray(capacity);
@@ -2988,9 +3008,7 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array, int length, int capacity,
       elms = NewFixedArrayWithHoles(capacity);
     }
   }
-
-  array->set_elements(*elms);
-  array->set_length(Smi::FromInt(length));
+  return elms;
 }
 
 Handle<JSWeakMap> Factory::NewJSWeakMap() {

@@ -239,10 +239,9 @@ void SetCaseFirstOption(icu::Collator* icu_collator,
 }  // anonymous namespace
 
 // static
-MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
-                                               Handle<JSCollator> collator,
-                                               Handle<Object> locales,
-                                               Handle<Object> options_obj) {
+MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
+                                        Handle<Object> locales,
+                                        Handle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -465,6 +464,11 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
   Handle<Managed<icu::Collator>> managed_collator =
       Managed<icu::Collator>::FromUniquePtr(isolate, 0,
                                             std::move(icu_collator));
+
+  // Now all properties are ready, so we can allocate the result object.
+  Handle<JSCollator> collator = Handle<JSCollator>::cast(
+      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  DisallowHeapAllocation no_gc;
   collator->set_icu_collator(*managed_collator);
 
   // 29. Return collator.
