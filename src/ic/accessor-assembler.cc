@@ -2386,26 +2386,24 @@ void AccessorAssembler::TryProbeStubCacheTable(
   const int kMultiplier = sizeof(StubCache::Entry) >> Name::kHashShift;
   entry_offset = IntPtrMul(entry_offset, IntPtrConstant(kMultiplier));
 
-  // Check that the key in the entry matches the name.
   Node* key_base = ExternalConstant(
       ExternalReference::Create(stub_cache->key_reference(table)));
-  Node* entry_key = Load(MachineType::Pointer(), key_base, entry_offset);
-  GotoIf(WordNotEqual(name, entry_key), if_miss);
 
-  // Get the map entry from the cache.
-  DCHECK_EQ(kSystemPointerSize * 2,
-            stub_cache->map_reference(table).address() -
-                stub_cache->key_reference(table).address());
-  Node* entry_map =
-      Load(MachineType::Pointer(), key_base,
-           IntPtrAdd(entry_offset, IntPtrConstant(kSystemPointerSize * 2)));
-  GotoIf(WordNotEqual(map, entry_map), if_miss);
+  // Check that the key in the entry matches the name.
+  DCHECK_EQ(0, offsetof(StubCache::Entry, key));
+  Node* cached_key = Load(MachineType::TaggedPointer(), key_base, entry_offset);
+  GotoIf(WordNotEqual(name, cached_key), if_miss);
 
-  DCHECK_EQ(kSystemPointerSize, stub_cache->value_reference(table).address() -
-                                    stub_cache->key_reference(table).address());
+  // Check that the map in the entry matches.
+  Node* cached_map = Load(
+      MachineType::TaggedPointer(), key_base,
+      IntPtrAdd(entry_offset, IntPtrConstant(offsetof(StubCache::Entry, map))));
+  GotoIf(WordNotEqual(map, cached_map), if_miss);
+
   TNode<MaybeObject> handler = ReinterpretCast<MaybeObject>(
       Load(MachineType::AnyTagged(), key_base,
-           IntPtrAdd(entry_offset, IntPtrConstant(kSystemPointerSize))));
+           IntPtrAdd(entry_offset,
+                     IntPtrConstant(offsetof(StubCache::Entry, value)))));
 
   // We found the handler.
   *var_handler = handler;
