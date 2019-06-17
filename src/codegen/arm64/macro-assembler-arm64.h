@@ -1923,15 +1923,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 class InstructionAccurateScope {
  public:
   explicit InstructionAccurateScope(TurboAssembler* tasm, size_t count = 0)
-      : tasm_(tasm),
-        block_pool_(tasm, count * kInstrSize)
+      : tasm_(tasm)
 #ifdef DEBUG
         ,
         size_(count * kInstrSize)
 #endif
   {
-    tasm_->CheckVeneerPool(false, true, count * kInstrSize);
-    tasm_->StartBlockVeneerPool();
+    // Before blocking the const pool, see if it needs to be emitted.
+    tasm_->CheckConstPool(false, true);
+    tasm_->CheckVeneerPool(false, true);
+
+    tasm_->StartBlockPools();
 #ifdef DEBUG
     if (count != 0) {
       tasm_->bind(&start_);
@@ -1942,7 +1944,7 @@ class InstructionAccurateScope {
   }
 
   ~InstructionAccurateScope() {
-    tasm_->EndBlockVeneerPool();
+    tasm_->EndBlockPools();
 #ifdef DEBUG
     if (start_.is_bound()) {
       DCHECK(tasm_->SizeOfCodeGeneratedSince(&start_) == size_);
@@ -1953,7 +1955,6 @@ class InstructionAccurateScope {
 
  private:
   TurboAssembler* tasm_;
-  TurboAssembler::BlockConstPoolScope block_pool_;
 #ifdef DEBUG
   size_t size_;
   Label start_;

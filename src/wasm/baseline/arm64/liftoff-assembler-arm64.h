@@ -172,7 +172,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
   patching_assembler.PatchSubSp(bytes);
 }
 
-void LiftoffAssembler::FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
+void LiftoffAssembler::FinishCode() { CheckConstPool(true, false); }
 
 void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
