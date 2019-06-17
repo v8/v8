@@ -2108,7 +2108,11 @@ AsmType* AsmJsParser::ValidateCall() {
   // need to match the information stored at this point.
   base::Optional<TemporaryVariableScope> tmp;
   if (Check('[')) {
-    RECURSEn(EqualityExpression());
+    AsmType* index = nullptr;
+    RECURSEn(index = EqualityExpression());
+    if (!index->IsA(AsmType::Intish())) {
+      FAILn("Expected intish index");
+    }
     EXPECT_TOKENn('&');
     uint32_t mask = 0;
     if (!CheckForUnsigned(&mask)) {
