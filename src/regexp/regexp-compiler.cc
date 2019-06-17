@@ -10,6 +10,7 @@
 #include "src/regexp/jsregexp.h"  // TODO(jgruber): Only needed for IgnoreCase.
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-macro-assembler-tracer.h"
+#include "src/strings/unicode-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/splay-tree-inl.h"
 #include "src/zone/zone-list-inl.h"

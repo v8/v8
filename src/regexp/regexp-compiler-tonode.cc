@@ -4,6 +4,7 @@
 
 #include "src/regexp/regexp-compiler.h"
 
+#include "src/execution/isolate.h"
 #include "src/regexp/jsregexp.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/splay-tree-inl.h"
