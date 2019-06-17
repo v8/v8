@@ -6486,76 +6486,90 @@ TEST(ldr_literal) {
 #ifdef DEBUG
 // These tests rely on functions available in debug mode.
 enum LiteralPoolEmitOutcome { EmitExpected, NoEmitExpected };
+enum LiteralPoolEmissionAlignment { EmitAtUnaligned, EmitAtAligned };
 
-static void LdrLiteralRangeHelper(size_t range, LiteralPoolEmitOutcome outcome,
-                                  size_t prepadding = 0) {
+static void LdrLiteralRangeHelper(
+    size_t range, LiteralPoolEmitOutcome outcome,
+    LiteralPoolEmissionAlignment unaligned_emission) {
   SETUP_SIZE(static_cast<int>(range + 1024));
 
-  size_t code_size = 0;
-  const size_t pool_entries = 2;
-  const size_t kEntrySize = 8;
+  const size_t first_pool_entries = 2;
+  const size_t first_pool_size_bytes = first_pool_entries * kInt64Size;
 
   START();
   // Force a pool dump so the pool starts off empty.
-  __ CheckConstPool(true, true);
+  __ ForceConstantPoolEmissionWithJump();
   CHECK_CONSTANT_POOL_SIZE(0);
 
-  // Emit prepadding to influence alignment of the pool; we don't count this
-  // into code size.
-  for (size_t i = 0; i < prepadding; ++i) __ Nop();
+  // Emit prepadding to influence alignment of the pool.
+  bool currently_aligned = IsAligned(__ pc_offset(), kInt64Size);
+  if ((unaligned_emission == EmitAtUnaligned && currently_aligned) ||
+      (unaligned_emission == EmitAtAligned && !currently_aligned)) {
+    __ Nop();
+  }
 
+  int initial_pc_offset = __ pc_offset();
   __ Ldr(x0, isolate->factory()->undefined_value());
   __ Ldr(x1, isolate->factory()->the_hole_value());
-  code_size += 2 * kInstrSize;
-  CHECK_CONSTANT_POOL_SIZE(pool_entries * kEntrySize);
-
-  // Check that the requested range (allowing space for a branch over the pool)
-  // can be handled by this test.
-  CHECK_LE(code_size, range);
+  CHECK_CONSTANT_POOL_SIZE(first_pool_size_bytes);
 
   size_t expected_pool_size = 0;
 
 #if defined(_M_ARM64) && !defined(__clang__)
   auto PoolSizeAt = [pool_entries, kEntrySize](int pc_offset) {
 #else
-  auto PoolSizeAt = [](int pc_offset) {
+  auto PoolSizeAt = [unaligned_emission](int pc_offset) {
 #endif
     // To determine padding, consider the size of the prologue of the pool,
     // and the jump around the pool, which we always need.
     size_t prologue_size = 2 * kInstrSize + kInstrSize;
     size_t pc = pc_offset + prologue_size;
-    const size_t padding = IsAligned(pc, 8) ? 0 : 4;
-    return prologue_size + pool_entries * kEntrySize + padding;
+    const size_t padding = IsAligned(pc, kInt64Size) ? 0 : kInt32Size;
+    CHECK_EQ(padding == 0, unaligned_emission == EmitAtAligned);
+    return prologue_size + first_pool_size_bytes + padding;
   };
 
   int pc_offset_before_emission = -1;
-  // Emit NOPs up to 'range'.
-  while (code_size < range) {
+  bool pool_was_emitted = false;
+  while (__ pc_offset() - initial_pc_offset < static_cast<intptr_t>(range)) {
     pc_offset_before_emission = __ pc_offset() + kInstrSize;
     __ Nop();
-    code_size += kInstrSize;
+    if (__ GetConstantPoolEntriesSizeForTesting() == 0) {
+      pool_was_emitted = true;
+      break;
+    }
   }
-  CHECK_EQ(code_size, range);
 
   if (outcome == EmitExpected) {
-    CHECK_CONSTANT_POOL_SIZE(0);
+    if (!pool_was_emitted) {
+      FATAL(
+          "Pool was not emitted up to pc_offset %d which corresponds to a "
+          "distance to the first constant of %d bytes",
+          __ pc_offset(), __ pc_offset() - initial_pc_offset);
+    }
     // Check that the size of the emitted constant pool is as expected.
     expected_pool_size = PoolSizeAt(pc_offset_before_emission);
     CHECK_EQ(pc_offset_before_emission + expected_pool_size, __ pc_offset());
   } else {
     CHECK_EQ(outcome, NoEmitExpected);
-    CHECK_CONSTANT_POOL_SIZE(pool_entries * kEntrySize);
+    if (pool_was_emitted) {
+      FATAL("Pool was unexpectedly emitted at pc_offset %d ",
+            pc_offset_before_emission);
+    }
+    CHECK_CONSTANT_POOL_SIZE(first_pool_size_bytes);
     CHECK_EQ(pc_offset_before_emission, __ pc_offset());
   }
 
   // Force a pool flush to check that a second pool functions correctly.
-  __ CheckConstPool(true, true);
+  __ ForceConstantPoolEmissionWithJump();
   CHECK_CONSTANT_POOL_SIZE(0);
 
   // These loads should be after the pool (and will require a new one).
+  const int second_pool_entries = 2;
   __ Ldr(x4, isolate->factory()->true_value());
   __ Ldr(x5, isolate->factory()->false_value());
-  CHECK_CONSTANT_POOL_SIZE(pool_entries * kEntrySize);
+  CHECK_CONSTANT_POOL_SIZE(second_pool_entries * kInt64Size);
+
   END();
 
   if (outcome == EmitExpected) {
@@ -6566,9 +6580,12 @@ static void LdrLiteralRangeHelper(size_t range, LiteralPoolEmitOutcome outcome,
     Instruction* marker =
         reinterpret_cast<Instruction*>(pool_start + kInstrSize);
     CHECK(marker->IsLdrLiteralX());
-    const size_t padding =
-        IsAligned(pc_offset_before_emission + kInstrSize, kEntrySize) ? 0 : 1;
-    CHECK_EQ(pool_entries * 2 + 1 + padding, marker->ImmLLiteral());
+    size_t pool_data_start_offset = pc_offset_before_emission + kInstrSize;
+    size_t padding =
+        IsAligned(pool_data_start_offset, kInt64Size) ? 0 : kInt32Size;
+    size_t marker_size = kInstrSize;
+    CHECK_EQ((first_pool_size_bytes + marker_size + padding) / kInt32Size,
+             marker->ImmLLiteral());
   }
 
   RUN();
@@ -6582,28 +6599,34 @@ static void LdrLiteralRangeHelper(size_t range, LiteralPoolEmitOutcome outcome,
 
 TEST(ldr_literal_range_max_dist_emission_1) {
   INIT_V8();
-  LdrLiteralRangeHelper(MacroAssembler::GetApproxMaxDistToConstPoolForTesting(),
-                        EmitExpected);
+  LdrLiteralRangeHelper(
+      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() +
+          MacroAssembler::GetCheckConstPoolIntervalForTesting(),
+      EmitExpected, EmitAtAligned);
 }
 
 TEST(ldr_literal_range_max_dist_emission_2) {
   INIT_V8();
-  LdrLiteralRangeHelper(MacroAssembler::GetApproxMaxDistToConstPoolForTesting(),
-                        EmitExpected, 1);
+  LdrLiteralRangeHelper(
+      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() +
+          MacroAssembler::GetCheckConstPoolIntervalForTesting(),
+      EmitExpected, EmitAtUnaligned);
 }
 
 TEST(ldr_literal_range_max_dist_no_emission_1) {
   INIT_V8();
   LdrLiteralRangeHelper(
-      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() - kInstrSize,
-      NoEmitExpected);
+      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() -
+          MacroAssembler::GetCheckConstPoolIntervalForTesting(),
+      NoEmitExpected, EmitAtUnaligned);
 }
 
 TEST(ldr_literal_range_max_dist_no_emission_2) {
   INIT_V8();
   LdrLiteralRangeHelper(
-      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() - kInstrSize,
-      NoEmitExpected, 1);
+      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() -
+          MacroAssembler::GetCheckConstPoolIntervalForTesting(),
+      NoEmitExpected, EmitAtAligned);
 }
 
 #endif

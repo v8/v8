@@ -169,60 +169,6 @@ class MemOperand {
   unsigned shift_amount_;
 };
 
-class ConstPool {
- public:
-  explicit ConstPool(Assembler* assm) : assm_(assm), first_use_(-1) {}
-  // Returns true when we need to write RelocInfo and false when we do not.
-  bool RecordEntry(intptr_t data, RelocInfo::Mode mode);
-  int EntryCount() const { return static_cast<int>(entries_.size()); }
-  bool IsEmpty() const { return entries_.empty(); }
-  // Distance in bytes between the current pc and the first instruction
-  // using the pool. If there are no pending entries return kMaxInt.
-  int DistanceToFirstUse();
-  // Offset after which instructions using the pool will be out of range.
-  int MaxPcOffset();
-  // Maximum size the constant pool can be with current entries. It always
-  // includes alignment padding and branch over.
-  int WorstCaseSize();
-  // Size in bytes of the literal pool *if* it is emitted at the current
-  // pc. The size will include the branch over the pool if it was requested.
-  int SizeIfEmittedAtCurrentPc(bool require_jump);
-  // Emit the literal pool at the current pc with a branch over the pool if
-  // requested.
-  void Emit(bool require_jump);
-  // Discard any pending pool entries.
-  void Clear();
-
- private:
-  void EmitMarker();
-  void EmitGuard();
-  void EmitEntries();
-
-  using SharedEntryMap = std::map<uint64_t, int>;
-  // Adds a shared entry to entries_, using 'entry_map' to determine whether we
-  // already track this entry. Returns true if this is the first time we add
-  // this entry, false otherwise.
-  bool AddSharedEntry(SharedEntryMap& entry_map, uint64_t data, int offset);
-
-  Assembler* assm_;
-  // Keep track of the first instruction requiring a constant pool entry
-  // since the previous constant pool was emitted.
-  int first_use_;
-
-  // Map of data to index in entries_ for shared entries.
-  SharedEntryMap shared_entries_;
-
-  // Map of address of handle to index in entries_. We need to keep track of
-  // code targets separately from other shared entries, as they can be
-  // relocated.
-  SharedEntryMap handle_to_index_map_;
-
-  // Values, pc offset(s) of entries. Use a vector to preserve the order of
-  // insertion, as the serializer expects code target RelocInfo to point to
-  // constant pool addresses in an ascending order.
-  std::vector<std::pair<uint64_t, std::vector<int> > > entries_;
-};
-
 // -----------------------------------------------------------------------------
 // Assembler.
 
@@ -369,16 +315,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return SizeOfCodeGeneratedSince(label) / kInstrSize;
   }
 
-  // Prevent contant pool emission until EndBlockConstPool is called.
-  // Call to this function can be nested but must be followed by an equal
-  // number of calls to EndBlockConstpool.
-  void StartBlockConstPool();
-
-  // Resume constant pool emission. Need to be called as many time as
-  // StartBlockConstPool to have an effect.
-  void EndBlockConstPool();
-
-  bool is_const_pool_blocked() const;
   static bool IsConstantPoolAt(Instruction* instr);
   static int ConstantPoolSizeAt(Instruction* instr);
   // See Assembler::CheckConstPool for more info.
@@ -395,16 +331,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool is_veneer_pool_blocked() const {
     return veneer_pool_blocked_nesting_ > 0;
-  }
-
-  // Block/resume emission of constant pools and veneer pools.
-  void StartBlockPools() {
-    StartBlockConstPool();
-    StartBlockVeneerPool();
-  }
-  void EndBlockPools() {
-    EndBlockConstPool();
-    EndBlockVeneerPool();
   }
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
@@ -2118,8 +2044,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Code generation helpers --------------------------------------------------
 
-  bool IsConstPoolEmpty() const { return constpool_.IsEmpty(); }
-
   Instruction* pc() const { return Instruction::Cast(pc_); }
 
   Instruction* InstructionAt(ptrdiff_t offset) const {
@@ -2403,31 +2327,26 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // FP register type.
   inline static Instr FPType(VRegister fd);
 
-  // Class for scoping postponing the constant pool generation.
-  class BlockConstPoolScope {
-   public:
-    explicit BlockConstPoolScope(Assembler* assem) : assem_(assem) {
-      assem_->StartBlockConstPool();
-    }
-    ~BlockConstPoolScope() { assem_->EndBlockConstPool(); }
-
-   private:
-    Assembler* assem_;
-
-    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
-  };
-
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
 
-  // Check if is time to emit a constant pool.
-  void CheckConstPool(bool force_emit, bool require_jump);
+  void ForceConstantPoolEmissionWithoutJump() {
+    constpool_.Check(Emission::kForced, Jump::kOmitted);
+  }
+  void ForceConstantPoolEmissionWithJump() {
+    constpool_.Check(Emission::kForced, Jump::kRequired);
+  }
+  // Check if the const pool needs to be emitted while pretending that {margin}
+  // more bytes of instructions have already been emitted.
+  void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
+    constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
+  }
 
   // Returns true if we should emit a veneer as soon as possible for a branch
   // which can at most reach to specified pc.
   bool ShouldEmitVeneer(int max_reachable_pc,
-                        int margin = kVeneerDistanceMargin);
-  bool ShouldEmitVeneers(int margin = kVeneerDistanceMargin) {
+                        size_t margin = kVeneerDistanceMargin);
+  bool ShouldEmitVeneers(size_t margin = kVeneerDistanceMargin) {
     return ShouldEmitVeneer(unresolved_branches_first_limit(), margin);
   }
 
@@ -2441,23 +2360,31 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // If need_protection is true, the veneers are protected by a branch jumping
   // over the code.
   void EmitVeneers(bool force_emit, bool need_protection,
-                   int margin = kVeneerDistanceMargin);
+                   size_t margin = kVeneerDistanceMargin);
   void EmitVeneersGuard() { EmitPoolGuard(); }
   // Checks whether veneers need to be emitted at this point.
   // If force_emit is set, a veneer is generated for *all* unresolved branches.
   void CheckVeneerPool(bool force_emit, bool require_jump,
-                       int margin = kVeneerDistanceMargin);
+                       size_t margin = kVeneerDistanceMargin);
+
+  using BlockConstPoolScope = ConstantPool::BlockScope;
 
   class BlockPoolsScope {
    public:
-    explicit BlockPoolsScope(Assembler* assem) : assem_(assem) {
-      assem_->StartBlockPools();
+    explicit BlockPoolsScope(Assembler* assem)
+        : assem_(assem), block_const_pool_(assem) {
+      assem_->StartBlockVeneerPool();
     }
-    ~BlockPoolsScope() { assem_->EndBlockPools(); }
+
+    BlockPoolsScope(Assembler* assem, ConstantPool::PoolEmissionCheck check)
+        : assem_(assem), block_const_pool_(assem, check) {
+      assem_->StartBlockVeneerPool();
+    }
+    ~BlockPoolsScope() { assem_->EndBlockVeneerPool(); }
 
    private:
     Assembler* assem_;
-
+    BlockConstPoolScope block_const_pool_;
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
   };
 
@@ -2620,11 +2547,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Verify that a label's link chain is intact.
   void CheckLabelLinkChain(Label const* label);
 
-  // Set how far from current pc the next constant pool check will be.
-  void SetNextConstPoolCheckIn(int instructions) {
-    next_constant_pool_check_ = pc_offset() + instructions * kInstrSize;
-  }
-
   // Emit the instruction at pc_.
   void Emit(Instr instruction) {
     STATIC_ASSERT(sizeof(*pc_) == 1);
@@ -2652,39 +2574,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void CheckBufferSpace();
   void CheckBuffer();
 
-  // Pc offset of the next constant pool check.
-  int next_constant_pool_check_;
-
-  // Constant pool generation
-  // Pools are emitted in the instruction stream. They are emitted when:
-  //  * the distance to the first use is above a pre-defined distance or
-  //  * the numbers of entries in the pool is above a pre-defined size or
-  //  * code generation is finished
-  // If a pool needs to be emitted before code generation is finished a branch
-  // over the emitted pool will be inserted.
-
-  // Constants in the pool may be addresses of functions that gets relocated;
-  // if so, a relocation info entry is associated to the constant pool entry.
-
-  // Repeated checking whether the constant pool should be emitted is rather
-  // expensive. By default we only check again once a number of instructions
-  // has been generated. That also means that the sizing of the buffers is not
-  // an exact science, and that we rely on some slop to not overrun buffers.
-  static constexpr int kCheckConstPoolInterval = 128;
-
-  // Distance to first use after a which a pool will be emitted. Pool entries
-  // are accessed with pc relative load therefore this cannot be more than
-  // 1 * MB. Since constant pool emission checks are interval based this value
-  // is an approximation.
-  static constexpr int kApproxMaxDistToConstPool = 64 * KB;
-
-  // Number of pool entries after which a pool will be emitted. Since constant
-  // pool emission checks are interval based this value is an approximation.
-  static constexpr int kApproxMaxPoolEntryCount = 512;
-
-  // Emission of the constant pool may be blocked in some code sequences.
-  int const_pool_blocked_nesting_;  // Block emission if this is not zero.
-
   // Emission of the veneer pools may be blocked in some code sequences.
   int veneer_pool_blocked_nesting_;  // Block emission if this is not zero.
 
@@ -2698,16 +2587,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // are already bound.
   std::deque<int> internal_reference_positions_;
 
-  // Relocation info records are also used during code generation as temporary
-  // containers for constants and code target addresses until they are emitted
-  // to the constant pool. These pending relocation info records are temporarily
-  // stored in a separate buffer until a constant pool is emitted.
-  // If every instruction in a long sequence is accessing the pool, we need one
-  // pending relocation entry per instruction.
-
-  // The pending constant pool.
-  ConstPool constpool_;
-
  protected:
   // Code generation
   // The relocation writer's position is at least kGap bytes below the end of
@@ -2720,17 +2599,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  public:
 #ifdef DEBUG
   // Functions used for testing.
-  int GetConstantPoolEntriesSizeForTesting() const {
+  size_t GetConstantPoolEntriesSizeForTesting() const {
     // Do not include branch over the pool.
-    return constpool_.EntryCount() * kSystemPointerSize;
+    return constpool_.Entry32Count() * kInt32Size +
+           constpool_.Entry64Count() * kInt64Size;
   }
 
-  static constexpr int GetCheckConstPoolIntervalForTesting() {
-    return kCheckConstPoolInterval;
+  static size_t GetCheckConstPoolIntervalForTesting() {
+    return ConstantPool::kCheckInterval;
   }
 
-  static constexpr int GetApproxMaxDistToConstPoolForTesting() {
-    return kApproxMaxDistToConstPool;
+  static size_t GetApproxMaxDistToConstPoolForTesting() {
+    return ConstantPool::kApproxDistToPool64;
   }
 #endif
 
@@ -2772,7 +2652,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     DCHECK(!unresolved_branches_.empty());
     return unresolved_branches_.begin()->first;
   }
-  // This is similar to next_constant_pool_check_ and helps reduce the overhead
+  // This PC-offset of the next veneer pool check helps reduce the overhead
   // of checking for veneer pools.
   // It is maintained to the closest unresolved branch limit minus the maximum
   // veneer margin (or kMaxInt if there are no unresolved branches).
@@ -2797,8 +2677,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   int WriteCodeComments();
 
+  // The pending constant pool.
+  ConstantPool constpool_;
+
   friend class EnsureSpace;
-  friend class ConstPool;
+  friend class ConstantPool;
 };
 
 class PatchingAssembler : public Assembler {
@@ -2815,19 +2698,12 @@ class PatchingAssembler : public Assembler {
   PatchingAssembler(const AssemblerOptions& options, byte* start,
                     unsigned count)
       : Assembler(options,
-                  ExternalAssemblerBuffer(start, count * kInstrSize + kGap)) {
-    // Block constant pool emission.
-    StartBlockPools();
-  }
+                  ExternalAssemblerBuffer(start, count * kInstrSize + kGap)),
+        block_constant_pool_emission_scope(this) {}
 
   ~PatchingAssembler() {
-    // Const pool should still be blocked.
-    DCHECK(is_const_pool_blocked());
-    EndBlockPools();
     // Verify we have generated the number of instruction we expected.
     DCHECK_EQ(pc_offset() + kGap, buffer_->size());
-    // Verify no relocation information has been emitted.
-    DCHECK(IsConstPoolEmpty());
   }
 
   // See definition of PatchAdrFar() for details.
@@ -2835,6 +2711,9 @@ class PatchingAssembler : public Assembler {
   static constexpr int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 2;
   void PatchAdrFar(int64_t target_offset);
   void PatchSubSp(uint32_t immediate);
+
+ private:
+  BlockPoolsScope block_constant_pool_emission_scope;
 };
 
 class EnsureSpace {
