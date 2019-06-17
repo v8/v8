@@ -43,6 +43,8 @@ Reduction CsaLoadElimination::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kLoadFromObject:
       return ReduceLoadFromObject(node, ObjectAccessOf(node->op()));
+    case IrOpcode::kStoreToObject:
+      return ReduceStoreToObject(node, ObjectAccessOf(node->op()));
     case IrOpcode::kDebugBreak:
     case IrOpcode::kDebugAbort:
       // Avoid changing optimizations in the presence of debug instructions
@@ -61,15 +63,51 @@ Reduction CsaLoadElimination::Reduce(Node* node) {
   return NoChange();
 }
 
-namespace {
+namespace CsaLoadEliminationHelpers {
 
-bool CsaLoadEliminationIsCompatible(MachineRepresentation r1,
-                                    MachineRepresentation r2) {
+bool IsCompatible(MachineRepresentation r1, MachineRepresentation r2) {
   if (r1 == r2) return true;
   return IsAnyCompressedTagged(r1) && IsAnyCompressedTagged(r2);
 }
 
-}  // namespace
+bool ObjectMayAlias(Node* a, Node* b) {
+  if (a != b) {
+    if (b->opcode() == IrOpcode::kAllocate) {
+      std::swap(a, b);
+    }
+    if (a->opcode() == IrOpcode::kAllocate) {
+      switch (b->opcode()) {
+        case IrOpcode::kAllocate:
+        case IrOpcode::kHeapConstant:
+        case IrOpcode::kParameter:
+          return false;
+        default:
+          break;
+      }
+    }
+  }
+  return true;
+}
+
+bool OffsetMayAlias(Node* offset1, MachineRepresentation repr1, Node* offset2,
+                    MachineRepresentation repr2) {
+  IntPtrMatcher matcher1(offset1);
+  IntPtrMatcher matcher2(offset2);
+  // If either of the offsets is variable, accesses may alias
+  if (!matcher1.HasValue() || !matcher2.HasValue()) {
+    return true;
+  }
+  // Otherwise, we return whether accesses overlap
+  intptr_t start1 = matcher1.Value();
+  intptr_t end1 = start1 + ElementSizeInBytes(repr1);
+  intptr_t start2 = matcher2.Value();
+  intptr_t end2 = start2 + ElementSizeInBytes(repr2);
+  return !(end1 <= start2 || end2 <= start1);
+}
+
+}  // namespace CsaLoadEliminationHelpers
+
+namespace Helpers = CsaLoadEliminationHelpers;
 
 void CsaLoadElimination::AbstractState::Merge(AbstractState const* that,
                                               Zone* zone) {
@@ -79,6 +117,25 @@ void CsaLoadElimination::AbstractState::Merge(AbstractState const* that,
       field_infos_.Set(entry.first, empty_info);
     }
   }
+}
+
+CsaLoadElimination::AbstractState const*
+CsaLoadElimination::AbstractState::KillField(Node* kill_object,
+                                             Node* kill_offset,
+                                             MachineRepresentation kill_repr,
+                                             Zone* zone) const {
+  FieldInfo empty_info;
+  AbstractState* that = new (zone) AbstractState(*this);
+  for (std::pair<Field, FieldInfo> entry : that->field_infos_) {
+    Field field = entry.first;
+    MachineRepresentation field_repr = entry.second.representation;
+    if (Helpers::OffsetMayAlias(kill_offset, kill_repr, field.second,
+                                field_repr) &&
+        Helpers::ObjectMayAlias(kill_object, field.first)) {
+      that->field_infos_.Set(field, empty_info);
+    }
+  }
+  return that;
 }
 
 CsaLoadElimination::AbstractState const*
@@ -125,14 +182,29 @@ Reduction CsaLoadElimination::ReduceLoadFromObject(Node* node,
     // Make sure we don't reuse values that were recorded with a different
     // representation or resurrect dead {replacement} nodes.
     Node* replacement = lookup_result.value;
-    if (CsaLoadEliminationIsCompatible(representation,
-                                       lookup_result.representation) &&
+    if (Helpers::IsCompatible(representation, lookup_result.representation) &&
         !replacement->IsDead()) {
       ReplaceWithValue(node, replacement, effect);
       return Replace(replacement);
     }
   }
   FieldInfo info(node, representation);
+  state = state->AddField(object, offset, info, zone());
+
+  return UpdateState(node, state);
+}
+
+Reduction CsaLoadElimination::ReduceStoreToObject(Node* node,
+                                                  ObjectAccess const& access) {
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* offset = NodeProperties::GetValueInput(node, 1);
+  Node* value = NodeProperties::GetValueInput(node, 2);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+
+  FieldInfo info(value, access.machine_type.representation());
+  state = state->KillField(object, offset, info.representation, zone());
   state = state->AddField(object, offset, info, zone());
 
   return UpdateState(node, state);

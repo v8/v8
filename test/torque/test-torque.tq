@@ -918,15 +918,21 @@ namespace test {
   }
 
   @export
-  macro TestLoadEliminationFixedNoWrite(implicit context: Context)() {
+  macro TestLoadEliminationFixed(implicit context: Context)() {
     const box = NewSmiBox(123);
     const v1 = box.value;
+    box.unrelated = 999;
     const v2 = (box.unrelated == 0) ? box.value : box.value;
     StaticAssert(WordEqual(v1, v2));
+
+    box.value = 11;
+    const v3 = box.value;
+    const eleven: Smi = 11;
+    StaticAssert(WordEqual(v3, eleven));
   }
 
   @export
-  macro TestLoadEliminationVariableNoWrite(implicit context: Context)() {
+  macro TestLoadEliminationVariable(implicit context: Context)() {
     const a = UnsafeCast<FixedArray>(kEmptyFixedArray);
     const box = NewSmiBox(1);
     const v1 = a.objects[box.value];

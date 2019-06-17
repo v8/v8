@@ -68,9 +68,11 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
     }
     void Merge(AbstractState const* that, Zone* zone);
 
+    AbstractState const* KillField(Node* object, Node* offset,
+                                   MachineRepresentation repr,
+                                   Zone* zone) const;
     AbstractState const* AddField(Node* object, Node* offset, FieldInfo info,
                                   Zone* zone) const;
-    AbstractState const* KillAll(Zone* zone) const;
     FieldInfo Lookup(Node* object, Node* offset) const;
 
     void Print() const;
@@ -82,6 +84,7 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
   };
 
   Reduction ReduceLoadFromObject(Node* node, ObjectAccess const& access);
+  Reduction ReduceStoreToObject(Node* node, ObjectAccess const& access);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReduceStart(Node* node);
   Reduction ReduceCall(Node* node);
