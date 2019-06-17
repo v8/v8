@@ -213,15 +213,6 @@ int TextElement::length() const {
   UNREACHABLE();
 }
 
-DispatchTable* ChoiceNode::GetTable(bool ignore_case) {
-  if (table_ == nullptr) {
-    table_ = new (zone()) DispatchTable(zone());
-    DispatchTableConstructor cons(table_, ignore_case, zone());
-    cons.BuildTable(this);
-  }
-  return table_;
-}
-
 class RecursionCheck {
  public:
   explicit RecursionCheck(RegExpCompiler* compiler) : compiler_(compiler) {
@@ -3604,107 +3595,6 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
   on_success()->FillInBMInfo(isolate, offset, budget - 1, bm,
                              true);  // Not at start after a text node.
   if (initial_offset == 0) set_bm_info(not_at_start, bm);
-}
-
-// -------------------------------------------------------------------
-// Dispatch table construction
-
-void DispatchTableConstructor::VisitEnd(EndNode* that) {
-  AddRange(CharacterRange::Everything());
-}
-
-void DispatchTableConstructor::BuildTable(ChoiceNode* node) {
-  node->set_being_calculated(true);
-  ZoneList<GuardedAlternative>* alternatives = node->alternatives();
-  for (int i = 0; i < alternatives->length(); i++) {
-    set_choice_index(i);
-    alternatives->at(i).node()->Accept(this);
-  }
-  node->set_being_calculated(false);
-}
-
-class AddDispatchRange {
- public:
-  explicit AddDispatchRange(DispatchTableConstructor* constructor)
-      : constructor_(constructor) {}
-  void Call(uc32 from, DispatchTable::Entry entry);
-
- private:
-  DispatchTableConstructor* constructor_;
-};
-
-void AddDispatchRange::Call(uc32 from, DispatchTable::Entry entry) {
-  constructor_->AddRange(CharacterRange::Range(from, entry.to()));
-}
-
-void DispatchTableConstructor::VisitChoice(ChoiceNode* node) {
-  if (node->being_calculated()) return;
-  DispatchTable* table = node->GetTable(ignore_case_);
-  AddDispatchRange adder(this);
-  table->ForEach(&adder);
-}
-
-void DispatchTableConstructor::VisitBackReference(BackReferenceNode* that) {
-  // TODO(160): Find the node that we refer back to and propagate its start
-  // set back to here.  For now we just accept anything.
-  AddRange(CharacterRange::Everything());
-}
-
-void DispatchTableConstructor::VisitAssertion(AssertionNode* that) {
-  RegExpNode* target = that->on_success();
-  target->Accept(this);
-}
-
-static int CompareRangeByFrom(const CharacterRange* a,
-                              const CharacterRange* b) {
-  return Compare<uc16>(a->from(), b->from());
-}
-
-void DispatchTableConstructor::AddInverse(ZoneList<CharacterRange>* ranges) {
-  ranges->Sort(CompareRangeByFrom);
-  uc16 last = 0;
-  for (int i = 0; i < ranges->length(); i++) {
-    CharacterRange range = ranges->at(i);
-    if (last < range.from())
-      AddRange(CharacterRange::Range(last, range.from() - 1));
-    if (range.to() >= last) {
-      if (range.to() == String::kMaxCodePoint) {
-        return;
-      } else {
-        last = range.to() + 1;
-      }
-    }
-  }
-  AddRange(CharacterRange::Range(last, String::kMaxCodePoint));
-}
-
-void DispatchTableConstructor::VisitText(TextNode* that) {
-  TextElement elm = that->elements()->at(0);
-  switch (elm.text_type()) {
-    case TextElement::ATOM: {
-      uc16 c = elm.atom()->data()[0];
-      AddRange(CharacterRange::Range(c, c));
-      break;
-    }
-    case TextElement::CHAR_CLASS: {
-      RegExpCharacterClass* tree = elm.char_class();
-      ZoneList<CharacterRange>* ranges = tree->ranges(that->zone());
-      if (tree->is_negated()) {
-        AddInverse(ranges);
-      } else {
-        for (int i = 0; i < ranges->length(); i++) AddRange(ranges->at(i));
-      }
-      break;
-    }
-    default: {
-      UNIMPLEMENTED();
-    }
-  }
-}
-
-void DispatchTableConstructor::VisitAction(ActionNode* that) {
-  RegExpNode* target = that->on_success();
-  target->Accept(this);
 }
 
 // static

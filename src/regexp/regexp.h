@@ -103,8 +103,7 @@ class RegExp final : public AllStatic {
                                                   bool is_one_byte);
 
   V8_EXPORT_PRIVATE static void DotPrintForTesting(const char* label,
-                                                   RegExpNode* node,
-                                                   bool ignore_case);
+                                                   RegExpNode* node);
 
   static const int kRegExpTooLargeToOptimize = 20 * KB;
 };

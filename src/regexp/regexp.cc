@@ -598,9 +598,8 @@ Handle<RegExpMatchInfo> RegExp::SetLastMatchInfo(
 }
 
 // static
-void RegExp::DotPrintForTesting(const char* label, RegExpNode* node,
-                                bool ignore_case) {
-  DotPrinter::DotPrint(label, node, ignore_case);
+void RegExp::DotPrintForTesting(const char* label, RegExpNode* node) {
+  DotPrinter::DotPrint(label, node);
 }
 
 namespace {

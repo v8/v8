@@ -164,38 +164,6 @@ class DispatchTable : public ZoneObject {
   ZoneSplayTree<Config> tree_;
 };
 
-// Node visitor used to add the start set of the alternatives to the
-// dispatch table of a choice node.
-class V8_EXPORT_PRIVATE DispatchTableConstructor : public NodeVisitor {
- public:
-  DispatchTableConstructor(DispatchTable* table, bool ignore_case, Zone* zone)
-      : table_(table),
-        choice_index_(-1),
-        ignore_case_(ignore_case),
-        zone_(zone) {}
-
-  void BuildTable(ChoiceNode* node);
-
-  void AddRange(CharacterRange range) {
-    table()->AddRange(range, choice_index_, zone_);
-  }
-
-  void AddInverse(ZoneList<CharacterRange>* ranges);
-
-#define DECLARE_VISIT(Type) virtual void Visit##Type(Type##Node* that);
-  FOR_EACH_NODE_TYPE(DECLARE_VISIT)
-#undef DECLARE_VISIT
-
-  DispatchTable* table() { return table_; }
-  void set_choice_index(int value) { choice_index_ = value; }
-
- protected:
-  DispatchTable* table_;
-  int choice_index_;
-  bool ignore_case_;
-  Zone* zone_;
-};
-
 // Details of a quick mask-compare check that can look ahead in the
 // input stream.
 class QuickCheckDetails {

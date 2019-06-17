@@ -560,9 +560,7 @@ static void Execute(const char* input, bool multiline, bool unicode,
   RegExpNode* node = Compile(input, multiline, unicode, is_one_byte, &zone);
   USE(node);
 #ifdef DEBUG
-  if (dot_output) {
-    RegExp::DotPrintForTesting(input, node, false);
-  }
+  if (dot_output) RegExp::DotPrintForTesting(input, node);
 #endif  // DEBUG
 }
 
@@ -1430,43 +1428,6 @@ TEST(MacroAssembler) {
 
   CHECK(!IrregexpInterpreter::Match(isolate, array, f2_16, captures, 0));
   CHECK_EQ(42, captures[0]);
-}
-
-TEST(AddInverseToTable) {
-  static const int kLimit = 1000;
-  static const int kRangeCount = 16;
-  for (int t = 0; t < 10; t++) {
-    Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    ZoneList<CharacterRange>* ranges =
-        new(&zone) ZoneList<CharacterRange>(kRangeCount, &zone);
-    for (int i = 0; i < kRangeCount; i++) {
-      int from = PseudoRandom(t + 87, i + 25) % kLimit;
-      int to = from + (PseudoRandom(i + 87, t + 25) % (kLimit / 20));
-      if (to > kLimit) to = kLimit;
-      ranges->Add(CharacterRange::Range(from, to), &zone);
-    }
-    DispatchTable table(&zone);
-    DispatchTableConstructor cons(&table, false, &zone);
-    cons.set_choice_index(0);
-    cons.AddInverse(ranges);
-    for (int i = 0; i < kLimit; i++) {
-      bool is_on = false;
-      for (int j = 0; !is_on && j < kRangeCount; j++)
-        is_on = ranges->at(j).Contains(i);
-      OutSet* set = table.Get(i);
-      CHECK_EQ(is_on, set->Get(0) == false);
-    }
-  }
-  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  ZoneList<CharacterRange>* ranges =
-      new(&zone) ZoneList<CharacterRange>(1, &zone);
-  ranges->Add(CharacterRange::Range(0xFFF0, 0xFFFE), &zone);
-  DispatchTable table(&zone);
-  DispatchTableConstructor cons(&table, false, &zone);
-  cons.set_choice_index(0);
-  cons.AddInverse(ranges);
-  CHECK(!table.Get(0xFFFE)->Get(0));
-  CHECK(table.Get(0xFFFF)->Get(0));
 }
 
 #ifndef V8_INTL_SUPPORT

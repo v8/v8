@@ -18,8 +18,7 @@ namespace internal {
 
 class DotPrinterImpl : public NodeVisitor {
  public:
-  DotPrinterImpl(std::ostream& os, bool ignore_case)  // NOLINT
-      : os_(os), ignore_case_(ignore_case) {}
+  explicit DotPrinterImpl(std::ostream& os) : os_(os) {}
   void PrintNode(const char* label, RegExpNode* node);
   void Visit(RegExpNode* node);
   void PrintAttributes(RegExpNode* from);
@@ -29,7 +28,6 @@ class DotPrinterImpl : public NodeVisitor {
 #undef DECLARE_VISIT
  private:
   std::ostream& os_;
-  bool ignore_case_;
 };
 
 void DotPrinterImpl::PrintNode(const char* label, RegExpNode* node) {
@@ -153,22 +151,11 @@ void DotPrinterImpl::PrintAttributes(RegExpNode* that) {
       << " [style=dashed, color=grey, arrowhead=none];\n";
 }
 
-static const bool kPrintDispatchTable = false;
 void DotPrinterImpl::VisitChoice(ChoiceNode* that) {
-  if (kPrintDispatchTable) {
-    os_ << "  n" << that << " [shape=Mrecord, label=\"";
-    TableEntryHeaderPrinter header_printer(os_);
-    that->GetTable(ignore_case_)->ForEach(&header_printer);
-    os_ << "\"]\n";
-    PrintAttributes(that);
-    TableEntryBodyPrinter body_printer(os_, that);
-    that->GetTable(ignore_case_)->ForEach(&body_printer);
-  } else {
-    os_ << "  n" << that << " [shape=Mrecord, label=\"?\"];\n";
-    for (int i = 0; i < that->alternatives()->length(); i++) {
-      GuardedAlternative alt = that->alternatives()->at(i);
-      os_ << "  n" << that << " -> n" << alt.node();
-    }
+  os_ << "  n" << that << " [shape=Mrecord, label=\"?\"];\n";
+  for (int i = 0; i < that->alternatives()->length(); i++) {
+    GuardedAlternative alt = that->alternatives()->at(i);
+    os_ << "  n" << that << " -> n" << alt.node();
   }
   for (int i = 0; i < that->alternatives()->length(); i++) {
     GuardedAlternative alt = that->alternatives()->at(i);
@@ -326,11 +313,10 @@ void DispatchTable::Dump() {
 
 #endif  // DEBUG
 
-void DotPrinter::DotPrint(const char* label, RegExpNode* node,
-                          bool ignore_case) {
+void DotPrinter::DotPrint(const char* label, RegExpNode* node) {
 #ifdef DEBUG
   StdoutStream os;
-  DotPrinterImpl printer(os, ignore_case);
+  DotPrinterImpl printer(os);
   printer.PrintNode(label, node);
 #endif  // DEBUG
 }

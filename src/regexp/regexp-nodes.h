@@ -533,7 +533,6 @@ class ChoiceNode : public RegExpNode {
       : RegExpNode(zone),
         alternatives_(new (zone)
                           ZoneList<GuardedAlternative>(expected_size, zone)),
-        table_(nullptr),
         not_at_start_(false),
         being_calculated_(false) {}
   void Accept(NodeVisitor* visitor) override;
@@ -541,7 +540,6 @@ class ChoiceNode : public RegExpNode {
     alternatives()->Add(node, zone());
   }
   ZoneList<GuardedAlternative>* alternatives() { return alternatives_; }
-  DispatchTable* GetTable(bool ignore_case);
   void Emit(RegExpCompiler* compiler, Trace* trace) override;
   int EatsAtLeast(int still_to_find, int budget, bool not_at_start) override;
   int EatsAtLeastHelper(int still_to_find, int budget,
@@ -567,8 +565,8 @@ class ChoiceNode : public RegExpNode {
   ZoneList<GuardedAlternative>* alternatives_;
 
  private:
-  friend class DispatchTableConstructor;
   friend class Analysis;
+
   void GenerateGuard(RegExpMacroAssembler* macro_assembler, Guard* guard,
                      Trace* trace);
   int CalculatePreloadCharacters(RegExpCompiler* compiler, int eats_at_least);
@@ -588,7 +586,7 @@ class ChoiceNode : public RegExpNode {
   void EmitChoices(RegExpCompiler* compiler,
                    AlternativeGenerationList* alt_gens, int first_choice,
                    Trace* trace, PreloadState* preloads);
-  DispatchTable* table_;
+
   // If true, this node is never checked at the start of the input.
   // Allows a new trace to start with at_start() set to false.
   bool not_at_start_;

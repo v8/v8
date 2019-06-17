@@ -14,7 +14,7 @@ class RegExpNode;
 
 class DotPrinter final : public AllStatic {
  public:
-  static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
+  static void DotPrint(const char* label, RegExpNode* node);
 };
 
 }  // namespace internal
