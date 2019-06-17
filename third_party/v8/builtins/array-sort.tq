@@ -230,7 +230,7 @@ namespace array {
   transitioning builtin Load<ElementsAccessor: type>(
       context: Context, sortState: SortState, index: Smi): Object {
     const receiver = sortState.receiver;
-    if (!HasProperty_Inline(receiver, index)) return Hole;
+    if (!HasProperty_Inline(receiver, index)) return TheHole;
     return GetProperty(receiver, index);
   }
 
@@ -257,7 +257,7 @@ namespace array {
       return AllocateHeapNumberWithValue(value);
     }
     label IfHole {
-      return Hole;
+      return TheHole;
     }
   }
 
@@ -308,7 +308,7 @@ namespace array {
 
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
-    elements.objects[index] = Hole;
+    elements.objects[index] = TheHole;
     return kSuccess;
   }
 
@@ -318,7 +318,7 @@ namespace array {
 
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
-    elements.objects[index] = Hole;
+    elements.objects[index] = TheHole;
     return kSuccess;
   }
 
@@ -1297,7 +1297,7 @@ namespace array {
     for (let i: Smi = 0; i < receiverLength; ++i) {
       const element: Object = loadFn(context, sortState, i);
 
-      if (element == Hole) {
+      if (element == TheHole) {
         // Do nothing for holes. The result is that elements are
         // compacted at the front of the work array.
       } else if (element == Undefined) {
@@ -1330,7 +1330,7 @@ namespace array {
     //   1. Copy the sorted elements from the workarray to the receiver.
     //   2. Add {nOfUndefined} undefineds to the receiver.
     //   3. Depending on the backing store either delete properties or
-    //      set them to the Hole up to {sortState.sortLength}.
+    //      set them to the TheHole up to {sortState.sortLength}.
     let index: Smi = 0;
     for (; index < numberOfNonUndefined; ++index) {
       storeFn(context, sortState, index, workArray.objects[index]);

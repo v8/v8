@@ -63,7 +63,7 @@ namespace array_slice {
     for (let current: Smi = start; current < to; ++current) {
       const e: Object =
           sloppyElements.objects[current + kSloppyArgumentsParameterMapStart];
-      const newElement: Object = e != Hole ?
+      const newElement: Object = e != TheHole ?
           argumentsContext[UnsafeCast<Smi>(e)] :
           unmappedElements.objects[current];
       // It is safe to skip the write barrier here because resultElements was

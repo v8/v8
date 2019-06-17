@@ -163,6 +163,10 @@ bool HeapObject::IsCallableApiObject() const {
          (type == JS_API_OBJECT_TYPE || type == JS_SPECIAL_API_OBJECT_TYPE);
 }
 
+bool HeapObject::IsNonNullForeign() const {
+  return IsForeign() && Foreign::cast(*this).foreign_address() != kNullAddress;
+}
+
 bool HeapObject::IsConstructor() const { return map().is_constructor(); }
 
 bool HeapObject::IsModuleInfo() const {

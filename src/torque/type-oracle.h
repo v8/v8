@@ -135,6 +135,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(TAGGED_TYPE_STRING);
   }
 
+  static const Type* GetUninitializedType() {
+    return Get().GetBuiltinType(UNINITIALIZED_TYPE_STRING);
+  }
+
   static const Type* GetSmiType() {
     return Get().GetBuiltinType(SMI_TYPE_STRING);
   }

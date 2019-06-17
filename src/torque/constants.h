@@ -29,6 +29,7 @@ static const char* const HEAP_OBJECT_TYPE_STRING = "HeapObject";
 static const char* const JSOBJECT_TYPE_STRING = "JSObject";
 static const char* const SMI_TYPE_STRING = "Smi";
 static const char* const TAGGED_TYPE_STRING = "Tagged";
+static const char* const UNINITIALIZED_TYPE_STRING = "Uninitialized";
 static const char* const RAWPTR_TYPE_STRING = "RawPtr";
 static const char* const CONST_STRING_TYPE_STRING = "constexpr string";
 static const char* const STRING_TYPE_STRING = "String";

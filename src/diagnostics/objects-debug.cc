@@ -127,13 +127,6 @@ void MaybeObject::VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject p) {
   }
 }
 
-namespace {
-void VerifyForeignPointer(Isolate* isolate, HeapObject host, Object foreign) {
-  host.VerifyPointer(isolate, foreign);
-  CHECK(foreign.IsUndefined(isolate) || Foreign::IsNormalized(foreign));
-}
-}  // namespace
-
 void Smi::SmiVerify(Isolate* isolate) {
   CHECK(IsSmi());
   CHECK(!IsCallable());
@@ -523,6 +516,8 @@ void FeedbackVector::FeedbackVectorVerify(Isolate* isolate) {
   MaybeObject::VerifyMaybeObjectPointer(isolate, code);
   CHECK(code->IsSmi() || code->IsWeakOrCleared());
 }
+
+USE_TORQUE_VERIFIER(JSReceiver)
 
 bool JSObject::ElementsAreSafeToExamine() const {
   // If a GC was caused while constructing this object, the elements
@@ -1569,8 +1564,6 @@ void Module::ModuleVerify(Isolate* isolate) {
 
   CHECK_EQ(requested_modules().length(), info().module_requests().length());
 
-  CHECK(import_meta().IsTheHole(isolate) || import_meta().IsJSObject());
-
   CHECK_NE(hash(), 0);
 }
 
@@ -1702,12 +1695,7 @@ void StoreHandler::StoreHandlerVerify(Isolate* isolate) {
   // TODO(ishell): check handler integrity
 }
 
-void AccessorInfo::AccessorInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::AccessorInfoVerify(*this, isolate);
-  VerifyForeignPointer(isolate, *this, getter());
-  VerifyForeignPointer(isolate, *this, setter());
-  VerifyForeignPointer(isolate, *this, js_getter());
-}
+USE_TORQUE_VERIFIER(AccessorInfo)
 
 USE_TORQUE_VERIFIER(AccessorPair)
 
@@ -1722,16 +1710,7 @@ void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
                      .next_call_side_effect_free_call_handler_info_map());
 }
 
-void InterceptorInfo::InterceptorInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::InterceptorInfoVerify(*this, isolate);
-  VerifyForeignPointer(isolate, *this, getter());
-  VerifyForeignPointer(isolate, *this, setter());
-  VerifyForeignPointer(isolate, *this, query());
-  VerifyForeignPointer(isolate, *this, descriptor());
-  VerifyForeignPointer(isolate, *this, deleter());
-  VerifyForeignPointer(isolate, *this, enumerator());
-  VerifyForeignPointer(isolate, *this, definer());
-}
+USE_TORQUE_VERIFIER(InterceptorInfo)
 
 USE_TORQUE_VERIFIER(TemplateInfo)
 

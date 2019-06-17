@@ -20,7 +20,7 @@ syn region  torqueComment	   start="/\*"  end="\*/" contains=@Spell
 syn region  torqueStringS	   start=+'+  skip=+\\\\\|\\'+  end=+'\|$+
 
 syn keyword torqueAssert assert check debug unreachable
-syn keyword torqueAtom True False Undefined Hole Null
+syn keyword torqueAtom True False Undefined TheHole Null
 syn keyword torqueBoolean true false
 syn keyword torqueBranch break continue goto
 syn keyword torqueConditional if else typeswitch otherwise

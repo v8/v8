@@ -160,12 +160,10 @@ TEST(Torque, TypeDeclarationOrder) {
     type Baztype = Foo | FooType;
 
     @abstract
-    @noVerifier
     extern class Foo extends HeapObject {
       fooField: FooType;
     }
 
-    @noVerifier
     extern class Bar extends Foo {
       barField: Bartype;
       bazfield: Baztype;
@@ -181,7 +179,6 @@ TEST(Torque, ConditionalFields) {
   // This class should throw alignment errors if @if decorators aren't
   // working.
   ExpectSuccessfulCompilation(R"(
-  @noVerifier
   extern class PreprocessingTest extends HeapObject {
     @if(FALSE_FOR_TESTING) a: int8;
     @if(TRUE_FOR_TESTING) a: int16;
@@ -194,7 +191,6 @@ TEST(Torque, ConditionalFields) {
   }
   )");
   ExpectFailingCompilation(R"(
-  @noVerifier
   extern class PreprocessingTest extends HeapObject {
     @if(TRUE_FOR_TESTING) a: int8;
     @if(FALSE_FOR_TESTING) a: int16;

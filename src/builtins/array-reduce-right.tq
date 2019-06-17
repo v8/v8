@@ -22,7 +22,7 @@ namespace array {
     // the hole. The continuation stub will search for the initial non-hole
     // element, rightly throwing an exception if not found.
     return ArrayReduceRightLoopContinuation(
-        jsreceiver, callbackfn, Hole, jsreceiver, 0, numberLength);
+        jsreceiver, callbackfn, TheHole, jsreceiver, 0, numberLength);
   }
 
   transitioning javascript builtin
@@ -85,7 +85,7 @@ namespace array {
         // 8b iii and 9c i. Let kValue be ? Get(O, Pk).
         const value: Object = GetProperty(o, k);
 
-        if (accumulator == Hole) {
+        if (accumulator == TheHole) {
           // 8b iii 1.
           accumulator = value;
         } else {
@@ -102,7 +102,7 @@ namespace array {
     // 8c. if kPresent is false, throw a TypeError exception.
     // If the accumulator is discovered with the sentinel hole value,
     // this means kPresent is false.
-    if (accumulator == Hole) {
+    if (accumulator == TheHole) {
       ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduceRight');
     }
     return accumulator;
@@ -126,7 +126,7 @@ namespace array {
       if (k >= fastOW.Get().length) goto Bailout(k, accumulator);
 
       const value: Object = fastOW.LoadElementNoHole(k) otherwise continue;
-      if (accumulator == Hole) {
+      if (accumulator == TheHole) {
         accumulator = value;
       } else {
         accumulator = Call(
@@ -134,7 +134,7 @@ namespace array {
             fastOW.Get());
       }
     }
-    if (accumulator == Hole) {
+    if (accumulator == TheHole) {
       ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduceRight');
     }
     return accumulator;
@@ -165,7 +165,8 @@ namespace array {
       // exception. (This case is handled at the end of
       // ArrayReduceRightLoopContinuation).
 
-      const initialValue: Object = arguments.length > 1 ? arguments[1] : Hole;
+      const initialValue: Object =
+          arguments.length > 1 ? arguments[1] : TheHole;
 
       try {
         return FastArrayReduceRight(o, len, callbackfn, initialValue)

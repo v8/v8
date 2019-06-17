@@ -68,6 +68,7 @@ class JSReceiver : public HeapObject {
   static void DeleteNormalizedProperty(Handle<JSReceiver> object, int entry);
 
   DECL_CAST(JSReceiver)
+  DECL_VERIFIER(JSReceiver)
 
   // ES6 section 7.1.1 ToPrimitive
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ToPrimitive(

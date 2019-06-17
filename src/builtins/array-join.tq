@@ -37,7 +37,7 @@ namespace array_join {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedArray: FixedArray = UnsafeCast<FixedArray>(array.elements);
     const element: Object = fixedArray.objects[UnsafeCast<Smi>(k)];
-    return element == Hole ? kEmptyString : element;
+    return element == TheHole ? kEmptyString : element;
   }
 
   LoadJoinElement<array::FastDoubleElements>(
@@ -448,7 +448,7 @@ namespace array_join {
       const previouslyVisited: Object = stack.objects[i];
 
       // Add `receiver` to the first open slot
-      if (previouslyVisited == Hole) {
+      if (previouslyVisited == TheHole) {
         stack.objects[i] = receiver;
         return True;
       }
@@ -473,7 +473,7 @@ namespace array_join {
     try {
       const stack: FixedArray = LoadJoinStack()
           otherwise IfUninitialized;
-      if (stack.objects[0] == Hole) {
+      if (stack.objects[0] == TheHole) {
         stack.objects[0] = receiver;
       } else if (JoinStackPush(stack, receiver) == False)
         deferred {
@@ -504,7 +504,7 @@ namespace array_join {
             SetJoinStack(newStack);
           }
         else {
-          stack.objects[i] = Hole;
+          stack.objects[i] = TheHole;
         }
         return Undefined;
       }
@@ -521,7 +521,7 @@ namespace array_join {
     // Builtin call was not nested (receiver is the first entry) and
     // did not contain other nested arrays that expanded the stack.
     if (stack.objects[0] == receiver && len == kMinJoinStackSize) {
-      StoreFixedArrayElement(stack, 0, Hole, SKIP_WRITE_BARRIER);
+      StoreFixedArrayElement(stack, 0, TheHole, SKIP_WRITE_BARRIER);
     } else
       deferred {
         JoinStackPop(stack, receiver);

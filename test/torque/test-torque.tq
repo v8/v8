@@ -867,7 +867,7 @@ namespace test {
   struct TestIterator {
     Next(): Object labels NoMore {
       if (this.count-- == 0) goto NoMore;
-      return Hole;
+      return TheHole;
     }
     count: Smi;
   }
@@ -947,8 +947,8 @@ namespace test {
   macro TestRedundantArrayElementCheck(implicit context: Context)(): Smi {
     const a = kEmptyFixedArray;
     for (let i: Smi = 0; i < a.length; i++) {
-      if (a.objects[i] == Hole) {
-        if (a.objects[i] == Hole) {
+      if (a.objects[i] == TheHole) {
+        if (a.objects[i] == TheHole) {
           return -1;
         } else {
           StaticAssert(false);

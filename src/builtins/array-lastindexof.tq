@@ -12,7 +12,7 @@ namespace array_lastindexof {
       labels IfHole {
     const elements: FixedArray = UnsafeCast<FixedArray>(elements);
     const element: Object = elements.objects[index];
-    if (element == Hole) goto IfHole;
+    if (element == TheHole) goto IfHole;
     return element;
   }
 

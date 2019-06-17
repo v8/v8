@@ -32,6 +32,9 @@ type PositiveSmi extends Smi;
 // The Smi value zero, which is often used as null for HeapObject types.
 type Zero extends PositiveSmi;
 
+// A value with the size of Tagged which may contain arbitrary data.
+type Uninitialized extends Tagged;
+
 @abstract
 extern class HeapObject extends Tagged {
   map: Map;
@@ -210,6 +213,8 @@ extern class Map extends HeapObject {
   @ifnot(V8_DOUBLE_FIELDS_UNBOXING) layout_descriptor: void;
   dependent_code: DependentCode;
   prototype_validity_cell: Smi | Cell;
+  // TODO(v8:9108): Misusing "weak" keyword; type should be
+  //     Map | Weak<Map> | TransitionArray | PrototypeInfo | Smi.
   weak transitions_or_prototype_info: Map | TransitionArray |
       PrototypeInfo | Smi;
 }
@@ -276,9 +281,8 @@ intrinsic
 }
 
 @abstract
-@noVerifier
 extern class JSReceiver extends HeapObject {
-  properties_or_hash: FixedArrayBase | Smi;
+  properties_or_hash: FixedArrayBase | PropertyArray | Smi;
 }
 
 type Constructor extends JSReceiver;
@@ -286,7 +290,7 @@ type Constructor extends JSReceiver;
 @abstract
 @dirtyInstantiatedAbstractClass
 extern class JSObject extends JSReceiver {
-  @noVerifier elements: FixedArrayBase;
+  elements: FixedArrayBase;
 }
 
 macro NewJSObject(implicit context: Context)(): JSObject {
@@ -332,6 +336,8 @@ extern class JSFunction extends JSObject {
   context: Context;
   feedback_cell: FeedbackCell;
   weak code: Code;
+
+  // Space for the following field may or may not be allocated.
   @noVerifier weak prototype_or_initial_map: JSReceiver | Map;
 }
 
@@ -377,6 +383,7 @@ extern class JSSloppyArgumentsObject extends JSArgumentsObjectWithLength {
   callee: Object;
 }
 
+// Just a starting shape for JSObject; properties can move after initialization.
 @hasSameInstanceTypeAsParent
 @noVerifier
 extern class JSStrictArgumentsObject extends JSArgumentsObjectWithLength {
@@ -460,7 +467,7 @@ extern class Module extends Struct {
   dfs_ancestor_index: Smi;
   exception: Object;
   script: Script;
-  @noVerifier import_meta: Hole | JSObject;
+  import_meta: TheHole | JSObject;
 }
 
 @abstract
@@ -513,6 +520,7 @@ extern class PrototypeInfo extends Struct {
   prototype_users: WeakArrayList | Zero;
   registry_slot: Smi;
   validity_cell: Object;
+  // TODO(v8:9108): Should be Weak<Map> | Undefined.
   @noVerifier object_create_map: Map | Undefined;
   bit_field: Smi;
 }
@@ -537,7 +545,7 @@ extern class Script extends Struct {
 
 extern class EmbedderDataArray extends HeapObject { length: Smi; }
 
-type ScopeInfo extends Object generates 'TNode<ScopeInfo>';
+type ScopeInfo extends HeapObject generates 'TNode<ScopeInfo>';
 
 extern class PreparseData extends HeapObject {
   // TODO(v8:8983): Add declaration for variable-sized region.
@@ -570,8 +578,11 @@ extern class JSBoundFunction extends JSObject {
   bound_arguments: FixedArray;
 }
 
-// Specialized types. The following two type definitions don't correspond to
+// Specialized types. The following three type definitions don't correspond to
 // actual C++ classes, but have Is... methods that check additional constraints.
+
+// A Foreign object whose raw pointer is not allowed to be null.
+type NonNullForeign extends Foreign;
 
 // A function built with InstantiateFunction for the public API.
 type CallableApiObject extends HeapObject;
@@ -591,7 +602,7 @@ type NumberDictionary extends HeapObject
 
 extern class FreeSpace extends HeapObject {
   size: Smi;
-  @noVerifier next: FreeSpace;
+  next: FreeSpace | Uninitialized;
 }
 
 // %RawDownCast should *never* be used anywhere in Torque code except for
@@ -773,13 +784,13 @@ const UTF32:
 extern class Foreign extends HeapObject { foreign_address: RawPtr; }
 
 extern class InterceptorInfo extends Struct {
-  @noVerifier getter: Foreign | Zero;
-  @noVerifier setter: Foreign | Zero;
-  @noVerifier query: Foreign | Zero;
-  @noVerifier descriptor: Foreign | Zero;
-  @noVerifier deleter: Foreign | Zero;
-  @noVerifier enumerator: Foreign | Zero;
-  @noVerifier definer: Foreign | Zero;
+  getter: NonNullForeign | Zero | Undefined;
+  setter: NonNullForeign | Zero | Undefined;
+  query: NonNullForeign | Zero | Undefined;
+  descriptor: NonNullForeign | Zero | Undefined;
+  deleter: NonNullForeign | Zero | Undefined;
+  enumerator: NonNullForeign | Zero | Undefined;
+  definer: NonNullForeign | Zero | Undefined;
   data: Object;
   flags: Smi;
 }
@@ -803,6 +814,9 @@ extern class Cell extends HeapObject { value: Object; }
 extern class DataHandler extends Struct {
   smi_handler: Smi | Code;
   validity_cell: Smi | Cell;
+
+  // Space for the following fields may or may not be allocated.
+  // TODO(v8:9108): Misusing "weak" keyword; should be MaybeObject.
   @noVerifier weak data_1: Object;
   @noVerifier weak data_2: Object;
   @noVerifier weak data_3: Object;
@@ -1078,7 +1092,7 @@ const kExternalPointerForOnHeapArray: constexpr RawPtr
 const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
 
-type Hole extends Oddball;
+type TheHole extends Oddball;
 type Null extends Oddball;
 type Undefined extends Oddball;
 type True extends Oddball;
@@ -1088,7 +1102,7 @@ type Boolean = True | False;
 
 type NumberOrUndefined = Number | Undefined;
 
-extern macro TheHoleConstant(): Hole;
+extern macro TheHoleConstant(): TheHole;
 extern macro NullConstant(): Null;
 extern macro UndefinedConstant(): Undefined;
 extern macro TrueConstant(): True;
@@ -1099,7 +1113,7 @@ extern macro EmptyStringConstant(): EmptyString;
 extern macro LengthStringConstant(): String;
 extern macro NanConstant(): NaN;
 
-const Hole: Hole = TheHoleConstant();
+const TheHole: TheHole = TheHoleConstant();
 const Null: Null = NullConstant();
 const Undefined: Undefined = UndefinedConstant();
 const True: True = TrueConstant();
@@ -1240,9 +1254,9 @@ extern class AccessorInfo extends Struct {
   name: Object;
   flags: Smi;
   expected_receiver_type: Object;
-  setter: Foreign | Zero;
-  getter: Foreign | Zero;
-  js_getter: Foreign | Zero;
+  setter: NonNullForeign | Zero;
+  getter: NonNullForeign | Zero;
+  js_getter: NonNullForeign | Zero;
   data: Object;
 }
 
@@ -2589,7 +2603,7 @@ LoadElementNoHole<FixedArray>(implicit context: Context)(
     const elements: FixedArray =
         Cast<FixedArray>(a.elements) otherwise Unexpected;
     const e: Object = elements.objects[index];
-    if (e == Hole) {
+    if (e == TheHole) {
       goto IfHole;
     }
     return e;
@@ -2650,7 +2664,7 @@ struct FastJSArrayWitness {
     } else {
       const elements = Cast<FixedArray>(this.unstable.elements)
           otherwise unreachable;
-      StoreFixedArrayElement(elements, k, Hole);
+      StoreFixedArrayElement(elements, k, TheHole);
     }
   }
 

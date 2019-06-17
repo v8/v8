@@ -132,7 +132,7 @@ namespace array_map {
               elements.floats[i] = Convert<float64>(n);
             }
             case (h: HeapObject): {
-              assert(h == Hole);
+              assert(h == TheHole);
             }
           }
         }

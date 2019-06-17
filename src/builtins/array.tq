@@ -45,7 +45,7 @@ namespace array {
 
   macro LoadElementOrUndefined(a: FixedArray, i: Smi): Object {
     const e: Object = a.objects[i];
-    return e == Hole ? Undefined : e;
+    return e == TheHole ? Undefined : e;
   }
 
   macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi): NumberOrUndefined {
@@ -63,7 +63,7 @@ namespace array {
   }
 
   macro StoreArrayHole(elements: FixedArray, k: Smi): void {
-    elements.objects[k] = Hole;
+    elements.objects[k] = TheHole;
   }
 
   extern macro SetPropertyLength(implicit context: Context)(Object, Number);

@@ -3357,8 +3357,10 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   if (!f.generate_verify) return;
   const Type* field_type = f.name_and_type.type;
 
-  // We only verify tagged types, not raw numbers or pointers.
-  if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) return;
+  // We only verify tagged types, not raw numbers or pointers. Note that this
+  // must check against GetObjectType not GetTaggedType, because Uninitialized
+  // is a Tagged but should not be verified.
+  if (!field_type->IsSubtypeOf(TypeOracle::GetObjectType())) return;
 
   if (f.index) {
     if ((*f.index)->name_and_type.type != TypeOracle::GetSmiType()) {
