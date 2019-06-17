@@ -70,7 +70,6 @@ class CodeTracer;
 class CompilationCache;
 class CompilationStatistics;
 class CompilerDispatcher;
-class ContextSlotCache;
 class Counters;
 class Debug;
 class DeoptimizerData;
