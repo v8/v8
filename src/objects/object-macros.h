@@ -116,13 +116,18 @@
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                            set_condition)                             \
   type holder::name() const {                                         \
-    type value = type::cast(READ_FIELD(*this, offset));               \
+    type value = TaggedField<type, offset>::load(*this);              \
     DCHECK(get_condition);                                            \
     return value;                                                     \
   }                                                                   \
   void holder::set_##name(type value, WriteBarrierMode mode) {        \
     DCHECK(set_condition);                                            \
-    WRITE_FIELD(*this, offset, value);                                \
+    if (V8_CONCURRENT_MARKING_BOOL) {                                 \
+      TaggedField<type, offset>::Relaxed_Store(*this, value);         \
+    } else {                                                          \
+      TaggedField<type, offset>::store(*this, value);                 \
+    }                                                                 \
+    TaggedField<type, offset>::store(*this, value);                   \
     CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);            \
   }
 
@@ -135,13 +140,13 @@
 #define SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset,   \
                                         get_condition, set_condition) \
   type holder::name() const {                                         \
-    type value = type::cast(ACQUIRE_READ_FIELD(*this, offset));       \
+    type value = TaggedField<type, offset>::Acquire_Load(*this);      \
     DCHECK(get_condition);                                            \
     return value;                                                     \
   }                                                                   \
   void holder::set_##name(type value, WriteBarrierMode mode) {        \
     DCHECK(set_condition);                                            \
-    RELEASE_WRITE_FIELD(*this, offset, value);                        \
+    TaggedField<type, offset>::Release_Store(*this, value);           \
     CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);            \
   }
 
@@ -161,7 +166,11 @@
   }                                                                   \
   void holder::set_##name(MaybeObject value, WriteBarrierMode mode) { \
     DCHECK(set_condition);                                            \
-    WRITE_WEAK_FIELD(*this, offset, value);                           \
+    if (V8_CONCURRENT_MARKING_BOOL) {                                 \
+      TaggedField<MaybeObject, offset>::Relaxed_Store(*this, value);  \
+    } else {                                                          \
+      TaggedField<MaybeObject, offset>::store(*this, value);          \
+    }                                                                 \
     CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);       \
   }
 
@@ -172,36 +181,40 @@
   WEAK_ACCESSORS_CHECKED(holder, name, offset, true)
 
 // Getter that returns a Smi as an int and writes an int as a Smi.
-#define SMI_ACCESSORS_CHECKED(holder, name, offset, condition) \
-  int holder::name() const {                                   \
-    DCHECK(condition);                                         \
-    Object value = READ_FIELD(*this, offset);                  \
-    return Smi::ToInt(value);                                  \
-  }                                                            \
-  void holder::set_##name(int value) {                         \
-    DCHECK(condition);                                         \
-    WRITE_FIELD(*this, offset, Smi::FromInt(value));           \
+#define SMI_ACCESSORS_CHECKED(holder, name, offset, condition)             \
+  int holder::name() const {                                               \
+    DCHECK(condition);                                                     \
+    Smi value = TaggedField<Smi, offset>::load(*this);                     \
+    return value.value();                                                  \
+  }                                                                        \
+  void holder::set_##name(int value) {                                     \
+    DCHECK(condition);                                                     \
+    if (V8_CONCURRENT_MARKING_BOOL) {                                      \
+      TaggedField<Smi, offset>::Relaxed_Store(*this, Smi::FromInt(value)); \
+    } else {                                                               \
+      TaggedField<Smi, offset>::store(*this, Smi::FromInt(value));         \
+    }                                                                      \
   }
 
 #define SMI_ACCESSORS(holder, name, offset) \
   SMI_ACCESSORS_CHECKED(holder, name, offset, true)
 
-#define SYNCHRONIZED_SMI_ACCESSORS(holder, name, offset)     \
-  int holder::synchronized_##name() const {                  \
-    Object value = ACQUIRE_READ_FIELD(*this, offset);        \
-    return Smi::ToInt(value);                                \
-  }                                                          \
-  void holder::synchronized_set_##name(int value) {          \
-    RELEASE_WRITE_FIELD(*this, offset, Smi::FromInt(value)); \
+#define SYNCHRONIZED_SMI_ACCESSORS(holder, name, offset)                 \
+  int holder::synchronized_##name() const {                              \
+    Smi value = TaggedField<Smi, offset>::Acquire_Load(*this);           \
+    return value.value();                                                \
+  }                                                                      \
+  void holder::synchronized_set_##name(int value) {                      \
+    TaggedField<Smi, offset>::Release_Store(*this, Smi::FromInt(value)); \
   }
 
-#define RELAXED_SMI_ACCESSORS(holder, name, offset)          \
-  int holder::relaxed_read_##name() const {                  \
-    Object value = RELAXED_READ_FIELD(*this, offset);        \
-    return Smi::ToInt(value);                                \
-  }                                                          \
-  void holder::relaxed_write_##name(int value) {             \
-    RELAXED_WRITE_FIELD(*this, offset, Smi::FromInt(value)); \
+#define RELAXED_SMI_ACCESSORS(holder, name, offset)                      \
+  int holder::relaxed_read_##name() const {                              \
+    Smi value = TaggedField<Smi, offset>::Relaxed_Load(*this);           \
+    return value.value();                                                \
+  }                                                                      \
+  void holder::relaxed_write_##name(int value) {                         \
+    TaggedField<Smi, offset>::Relaxed_Store(*this, Smi::FromInt(value)); \
   }
 
 #define BOOL_GETTER(holder, field, name, offset) \
@@ -257,13 +270,9 @@
 #ifdef V8_CONCURRENT_MARKING
 #define WRITE_FIELD(p, offset, value) \
   ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
-#define WRITE_WEAK_FIELD(p, offset, value) \
-  MaybeObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
 #else
 #define WRITE_FIELD(p, offset, value) \
   ObjectSlot(FIELD_ADDR(p, offset)).store(value)
-#define WRITE_WEAK_FIELD(p, offset, value) \
-  MaybeObjectSlot(FIELD_ADDR(p, offset)).store(value)
 #endif
 
 #define RELEASE_WRITE_FIELD(p, offset, value) \

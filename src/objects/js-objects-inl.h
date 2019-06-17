@@ -130,10 +130,7 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject object) {
 
 ACCESSORS(JSReceiver, raw_properties_or_hash, Object, kPropertiesOrHashOffset)
 
-FixedArrayBase JSObject::elements() const {
-  Object array = READ_FIELD(*this, kElementsOffset);
-  return FixedArrayBase::cast(array);
-}
+ACCESSORS(JSObject, elements, FixedArrayBase, kElementsOffset)
 
 void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
   JSObject::ValidateElements(*object);
@@ -238,14 +235,9 @@ void JSObject::SetMapAndElements(Handle<JSObject> object, Handle<Map> new_map,
   object->set_elements(*value);
 }
 
-void JSObject::set_elements(FixedArrayBase value, WriteBarrierMode mode) {
-  WRITE_FIELD(*this, kElementsOffset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kElementsOffset, value, mode);
-}
-
 void JSObject::initialize_elements() {
   FixedArrayBase elements = map().GetInitialElements();
-  WRITE_FIELD(*this, kElementsOffset, elements);
+  set_elements(elements, SKIP_WRITE_BARRIER);
 }
 
 InterceptorInfo JSObject::GetIndexedInterceptor() {
