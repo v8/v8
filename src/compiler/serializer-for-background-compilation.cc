@@ -533,7 +533,7 @@ void SerializerForBackgroundCompilation::VisitLdaConstant(
     BytecodeArrayIterator* iterator) {
   environment()->accumulator_hints().Clear();
   environment()->accumulator_hints().AddConstant(
-      handle(iterator->GetConstantForIndexOperand(0), broker()->isolate()));
+      iterator->GetConstantForIndexOperand(0, broker()->isolate()));
 }
 
 void SerializerForBackgroundCompilation::VisitLdar(
@@ -560,9 +560,8 @@ void SerializerForBackgroundCompilation::VisitMov(
 
 void SerializerForBackgroundCompilation::VisitCreateClosure(
     BytecodeArrayIterator* iterator) {
-  Handle<SharedFunctionInfo> shared(
-      SharedFunctionInfo::cast(iterator->GetConstantForIndexOperand(0)),
-      broker()->isolate());
+  Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>::cast(
+      iterator->GetConstantForIndexOperand(0, broker()->isolate()));
 
   Handle<FeedbackCell> feedback_cell =
       environment()->function().feedback_vector->GetClosureFeedbackCell(
@@ -1242,8 +1241,8 @@ void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
     BytecodeArrayIterator* iterator, AccessMode mode) {
   Hints const& receiver =
       environment()->register_hints(iterator->GetRegisterOperand(0));
-  Handle<Name> name(Name::cast(iterator->GetConstantForIndexOperand(1)),
-                    broker()->isolate());
+  Handle<Name> name = Handle<Name>::cast(
+      iterator->GetConstantForIndexOperand(1, broker()->isolate()));
   FeedbackSlot slot = iterator->GetSlotOperand(2);
   ProcessNamedPropertyAccess(receiver, NameRef(broker(), name), slot, mode);
 }

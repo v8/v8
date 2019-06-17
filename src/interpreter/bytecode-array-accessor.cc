@@ -197,13 +197,22 @@ Runtime::FunctionId BytecodeArrayAccessor::GetIntrinsicIdOperand(
       static_cast<IntrinsicsHelper::IntrinsicId>(raw_id));
 }
 
-Object BytecodeArrayAccessor::GetConstantAtIndex(int index) const {
-  return bytecode_array()->constant_pool().get(index);
+Handle<Object> BytecodeArrayAccessor::GetConstantAtIndex(
+    int index, Isolate* isolate) const {
+  return handle(bytecode_array()->constant_pool().get(index), isolate);
 }
 
-Object BytecodeArrayAccessor::GetConstantForIndexOperand(
-    int operand_index) const {
-  return GetConstantAtIndex(GetIndexOperand(operand_index));
+bool BytecodeArrayAccessor::IsConstantAtIndexSmi(int index) const {
+  return bytecode_array()->constant_pool().get(index).IsSmi();
+}
+
+Smi BytecodeArrayAccessor::GetConstantAtIndexAsSmi(int index) const {
+  return Smi::cast(bytecode_array()->constant_pool().get(index));
+}
+
+Handle<Object> BytecodeArrayAccessor::GetConstantForIndexOperand(
+    int operand_index, Isolate* isolate) const {
+  return GetConstantAtIndex(GetIndexOperand(operand_index), isolate);
 }
 
 int BytecodeArrayAccessor::GetJumpTargetOffset() const {
@@ -215,7 +224,7 @@ int BytecodeArrayAccessor::GetJumpTargetOffset() const {
     }
     return GetAbsoluteOffset(relative_offset);
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
-    Smi smi = Smi::cast(GetConstantForIndexOperand(0));
+    Smi smi = GetConstantAtIndexAsSmi(GetIndexOperand(0));
     return GetAbsoluteOffset(smi.value());
   } else {
     UNREACHABLE();
@@ -315,19 +324,16 @@ bool JumpTableTargetOffsets::iterator::operator!=(
 }
 
 void JumpTableTargetOffsets::iterator::UpdateAndAdvanceToValid() {
-  if (table_offset_ >= table_end_) return;
-
-  Object current = accessor_->GetConstantAtIndex(table_offset_);
-  while (!current.IsSmi()) {
-    DCHECK(current.IsTheHole());
+  while (table_offset_ < table_end_ &&
+         !accessor_->IsConstantAtIndexSmi(table_offset_)) {
     ++table_offset_;
     ++index_;
-    if (table_offset_ >= table_end_) break;
-    current = accessor_->GetConstantAtIndex(table_offset_);
   }
+
   // Make sure we haven't reached the end of the table with a hole in current.
-  if (current.IsSmi()) {
-    current_ = Smi::cast(current);
+  if (table_offset_ < table_end_) {
+    DCHECK(accessor_->IsConstantAtIndexSmi(table_offset_));
+    current_ = accessor_->GetConstantAtIndexAsSmi(table_offset_);
   }
 }
 
