@@ -9,9 +9,9 @@
 #include "src/ast/ast.h"
 #include "src/base/small-vector.h"
 #include "src/objects/objects-inl.h"
-#include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-macro-assembler.h"
+#include "src/regexp/regexp.h"
 #include "src/strings/unicode.h"
 #include "src/utils/utils.h"
 

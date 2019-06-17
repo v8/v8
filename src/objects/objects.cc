@@ -104,7 +104,7 @@
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/parsing/preparse-data.h"
-#include "src/regexp/jsregexp.h"
+#include "src/regexp/regexp.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/strings/string-search.h"
 #include "src/strings/string-stream.h"
@@ -6341,8 +6341,8 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, escaped_source,
                              EscapeRegExpSource(isolate, source), JSRegExp);
 
-  RETURN_ON_EXCEPTION(
-      isolate, RegExpImpl::Compile(isolate, regexp, source, flags), JSRegExp);
+  RETURN_ON_EXCEPTION(isolate, RegExp::Compile(isolate, regexp, source, flags),
+                      JSRegExp);
 
   regexp->set_source(*escaped_source);
   regexp->set_flags(Smi::FromInt(flags));

@@ -63,7 +63,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/objects/transitions-inl.h"
-#include "src/regexp/jsregexp.h"
+#include "src/regexp/regexp.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "torque-generated/class-verifiers-tq.h"
@@ -1457,7 +1457,7 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       break;
     }
     case JSRegExp::IRREGEXP: {
-      bool is_native = RegExpImpl::UsesNativeRegExp();
+      bool is_native = RegExp::GeneratesNativeCode();
 
       FixedArray arr = FixedArray::cast(data());
       Object one_byte_data = arr.get(JSRegExp::kIrregexpLatin1CodeIndex);

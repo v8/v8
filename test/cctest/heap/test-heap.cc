@@ -56,7 +56,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/transitions.h"
-#include "src/regexp/jsregexp.h"
+#include "src/regexp/regexp.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
@@ -1510,8 +1510,8 @@ TEST(TestSizeOfRegExpCode) {
   LocalContext context;
 
   // Adjust source below and this check to match
-  // RegExpImple::kRegExpTooLargeToOptimize.
-  CHECK_EQ(i::RegExpImpl::kRegExpTooLargeToOptimize, 20 * KB);
+  // RegExp::kRegExpTooLargeToOptimize.
+  CHECK_EQ(i::RegExp::kRegExpTooLargeToOptimize, 20 * KB);
 
   // Compile a regexp that is much larger if we are using regexp optimizations.
   CompileRun(

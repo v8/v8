@@ -15,7 +15,7 @@
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/regexp-match-info.h"
-#include "src/regexp/regexp-macro-assembler.h"
+#include "src/regexp/regexp.h"
 
 namespace v8 {
 namespace internal {
@@ -550,19 +550,18 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     // We expect exactly one result since we force the called regexp to behave
     // as non-global.
     TNode<IntPtrT> int_result = ChangeInt32ToIntPtr(result);
+    GotoIf(
+        IntPtrEqual(int_result, IntPtrConstant(RegExp::kInternalRegExpSuccess)),
+        &if_success);
+    GotoIf(
+        IntPtrEqual(int_result, IntPtrConstant(RegExp::kInternalRegExpFailure)),
+        &if_failure);
     GotoIf(IntPtrEqual(int_result,
-                       IntPtrConstant(NativeRegExpMacroAssembler::SUCCESS)),
-           &if_success);
-    GotoIf(IntPtrEqual(int_result,
-                       IntPtrConstant(NativeRegExpMacroAssembler::FAILURE)),
-           &if_failure);
-    GotoIf(IntPtrEqual(int_result,
-                       IntPtrConstant(NativeRegExpMacroAssembler::EXCEPTION)),
+                       IntPtrConstant(RegExp::kInternalRegExpException)),
            &if_exception);
 
-    CSA_ASSERT(this,
-               IntPtrEqual(int_result,
-                           IntPtrConstant(NativeRegExpMacroAssembler::RETRY)));
+    CSA_ASSERT(this, IntPtrEqual(int_result,
+                                 IntPtrConstant(RegExp::kInternalRegExpRetry)));
     Goto(&runtime);
   }
 
@@ -1028,7 +1027,7 @@ TF_BUILTIN(RegExpPrototypeExecSlow, RegExpBuiltinsAssembler) {
 
 // Fast path stub for ATOM regexps. String matching is done by StringIndexOf,
 // and {match_info} is updated on success.
-// The slow path is implemented in RegExpImpl::AtomExec.
+// The slow path is implemented in RegExp::AtomExec.
 TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
   TNode<JSRegExp> regexp = CAST(Parameter(Descriptor::kRegExp));
   TNode<String> subject_string = CAST(Parameter(Descriptor::kString));

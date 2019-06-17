@@ -36,12 +36,12 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
-#include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-compiler.h"
 #include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
 #include "src/regexp/regexp-parser.h"
+#include "src/regexp/regexp.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-inl.h"
@@ -547,8 +547,8 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
                                .ToHandleChecked();
   Handle<String> sample_subject =
       isolate->factory()->NewStringFromUtf8(CStrVector("")).ToHandleChecked();
-  RegExpImpl::CompileForTesting(isolate, zone, &compile_data, flags, pattern,
-                                sample_subject, is_one_byte);
+  RegExp::CompileForTesting(isolate, zone, &compile_data, flags, pattern,
+                            sample_subject, is_one_byte);
   return compile_data.node;
 }
 
@@ -561,7 +561,7 @@ static void Execute(const char* input, bool multiline, bool unicode,
   USE(node);
 #ifdef DEBUG
   if (dot_output) {
-    RegExpImpl::DotPrintForTesting(input, node, false);
+    RegExp::DotPrintForTesting(input, node, false);
   }
 #endif  // DEBUG
 }

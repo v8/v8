@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_REGEXP_JSREGEXP_H_
-#define V8_REGEXP_JSREGEXP_H_
+#ifndef V8_REGEXP_REGEXP_H_
+#define V8_REGEXP_REGEXP_H_
 
 #include "src/objects/js-regexp.h"
 
@@ -48,10 +48,10 @@ struct RegExpCompileData {
   int register_count = 0;
 };
 
-class RegExpImpl final : public AllStatic {
+class RegExp final : public AllStatic {
  public:
   // Whether the irregexp engine generates native code or interpreter bytecode.
-  static bool UsesNativeRegExp() { return !FLAG_regexp_interpret_all; }
+  static bool GeneratesNativeCode() { return !FLAG_regexp_interpret_all; }
 
   // Parses the RegExp pattern and prepares the JSRegExp object with
   // generic data and choice of implementation - as well as what
@@ -67,7 +67,17 @@ class RegExpImpl final : public AllStatic {
       Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
       int index, Handle<RegExpMatchInfo> last_match_info);
 
-  enum IrregexpResult { RE_FAILURE = 0, RE_SUCCESS = 1, RE_EXCEPTION = -1 };
+  // Integral return values used throughout regexp code layers.
+  static constexpr int kInternalRegExpFailure = 0;
+  static constexpr int kInternalRegExpSuccess = 1;
+  static constexpr int kInternalRegExpException = -1;
+  static constexpr int kInternalRegExpRetry = -2;
+
+  enum IrregexpResult {
+    RE_FAILURE = kInternalRegExpFailure,
+    RE_SUCCESS = kInternalRegExpSuccess,
+    RE_EXCEPTION = kInternalRegExpException,
+  };
 
   // Prepare a RegExp for being executed one or more times (using
   // IrregexpExecOnce) on the subject.
@@ -97,71 +107,6 @@ class RegExpImpl final : public AllStatic {
                                                    bool ignore_case);
 
   static const int kRegExpTooLargeToOptimize = 20 * KB;
-
- private:
-  // Returns a string representation of a regular expression.
-  // Implements RegExp.prototype.toString, see ECMA-262 section 15.10.6.4.
-  // This function calls the garbage collector if necessary.
-  static Handle<String> ToString(Handle<Object> value);
-
-  // Prepares a JSRegExp object with Irregexp-specific data.
-  static void IrregexpInitialize(Isolate* isolate, Handle<JSRegExp> re,
-                                 Handle<String> pattern, JSRegExp::Flags flags,
-                                 int capture_register_count);
-
-  static void AtomCompile(Isolate* isolate, Handle<JSRegExp> re,
-                          Handle<String> pattern, JSRegExp::Flags flags,
-                          Handle<String> match_pattern);
-
-  static int AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
-                         Handle<String> subject, int index, int32_t* output,
-                         int output_size);
-
-  static Handle<Object> AtomExec(Isolate* isolate, Handle<JSRegExp> regexp,
-                                 Handle<String> subject, int index,
-                                 Handle<RegExpMatchInfo> last_match_info);
-
-  // Execute a regular expression on the subject, starting from index.
-  // If matching succeeds, return the number of matches.  This can be larger
-  // than one in the case of global regular expressions.
-  // The captures and subcaptures are stored into the registers vector.
-  // If matching fails, returns RE_FAILURE.
-  // If execution fails, sets a pending exception and returns RE_EXCEPTION.
-  static int IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
-                             Handle<String> subject, int index, int32_t* output,
-                             int output_size);
-
-  // Execute an Irregexp bytecode pattern.
-  // On a successful match, the result is a JSArray containing
-  // captured positions.  On a failure, the result is the null value.
-  // Returns an empty handle in case of an exception.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> IrregexpExec(
-      Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
-      int index, Handle<RegExpMatchInfo> last_match_info);
-
-  static bool CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
-                              Handle<String> sample_subject, bool is_one_byte);
-  static inline bool EnsureCompiledIrregexp(Isolate* isolate,
-                                            Handle<JSRegExp> re,
-                                            Handle<String> sample_subject,
-                                            bool is_one_byte);
-
-  // Returns true on success, false on failure.
-  static bool Compile(Isolate* isolate, Zone* zone, RegExpCompileData* input,
-                      JSRegExp::Flags flags, Handle<String> pattern,
-                      Handle<String> sample_subject, bool is_one_byte);
-
-  // For acting on the JSRegExp data FixedArray.
-  static int IrregexpMaxRegisterCount(FixedArray re);
-  static void SetIrregexpMaxRegisterCount(FixedArray re, int value);
-  static void SetIrregexpCaptureNameMap(FixedArray re,
-                                        Handle<FixedArray> value);
-  static int IrregexpNumberOfCaptures(FixedArray re);
-  static int IrregexpNumberOfRegisters(FixedArray re);
-  static ByteArray IrregexpByteCode(FixedArray re, bool is_one_byte);
-  static Code IrregexpNativeCode(FixedArray re, bool is_one_byte);
-
-  friend class RegExpGlobalCache;
 };
 
 // Uses a special global mode of irregexp-generated code to perform a global
@@ -230,4 +175,4 @@ class RegExpResultsCache final : public AllStatic {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_REGEXP_JSREGEXP_H_
+#endif  // V8_REGEXP_REGEXP_H_
