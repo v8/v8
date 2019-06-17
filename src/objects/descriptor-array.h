@@ -219,10 +219,6 @@ class DescriptorArray : public HeapObject {
   inline void SetValue(int descriptor_number, MaybeObject value);
   inline void SetDetails(int descriptor_number, PropertyDetails details);
 
-  //  inline int length() const;
-  //  inline MaybeObject get(int index) const;
-  //  inline void set(int index, MaybeObject value);
-
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
   void CopyFrom(int index, DescriptorArray src);
