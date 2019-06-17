@@ -20,6 +20,7 @@ var f2 = (function() {
   function f(a) { return a || g(); }
   return f;
 })();
+%PrepareFunctionForOptimization(f2);
 assertTrue(f2(true));
 %OptimizeFunctionOnNextCall(f2);
 assertTrue(f2(true));
