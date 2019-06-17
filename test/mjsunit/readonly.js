@@ -198,7 +198,6 @@ function TestAllScenarios(f) {
         if (strict === 0)
           Assign(o, i);
         else
-
           AssignStrict(o, i);
         assertEquals(i, o.a);
       }

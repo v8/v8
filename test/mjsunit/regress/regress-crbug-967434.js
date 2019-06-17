@@ -18,8 +18,8 @@ function f2(h, h_eval) {
   // site.
   o.x = h_eval;
 };
-%PrepareFunctionForOptimization(f2);
 function f3(h) {
+  %PrepareFunctionForOptimization(f2);
   f2(h, h());
   %OptimizeFunctionOnNextCall(f2);
   f2(h, h());
