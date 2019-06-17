@@ -2191,10 +2191,6 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
           // the raw characters pointer (as the string might have moved).
           chars = result->GetChars(no_gc);
         }
-        if (interrupt_check.InterruptRequested() &&
-            isolate->stack_guard()->HandleInterrupts().IsException(isolate)) {
-          return MaybeHandle<String>();
-        }
       }
     } while (nonzero_digit > 0);
     last_digit = rest->digit(0);
