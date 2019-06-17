@@ -7,7 +7,6 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
-#include "src/regexp/jsregexp.h"  // TODO(jgruber): Only needed for IgnoreCase.
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 #include "src/strings/unicode-inl.h"

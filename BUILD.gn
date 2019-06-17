@@ -2677,7 +2677,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/profiler/tick-sample.h",
     "src/profiler/tracing-cpu-profiler.cc",
     "src/profiler/tracing-cpu-profiler.h",
-    "src/regexp/jsregexp-inl.h",
     "src/regexp/jsregexp.cc",
     "src/regexp/jsregexp.h",
     "src/regexp/property-sequences.cc",

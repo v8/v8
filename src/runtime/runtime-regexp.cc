@@ -11,7 +11,8 @@
 #include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/regexp/jsregexp-inl.h"
+#include "src/objects/js-regexp-inl.h"
+#include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/strings/string-builder-inl.h"
@@ -638,7 +639,7 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithString(
     }
   }
 
-  RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
+  RegExpGlobalCache global_cache(regexp, subject, isolate);
   if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
 
   int32_t* current_match = global_cache.FetchNext();
@@ -703,7 +704,7 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithEmptyString(
     }
   }
 
-  RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
+  RegExpGlobalCache global_cache(regexp, subject, isolate);
   if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
 
   int32_t* current_match = global_cache.FetchNext();
@@ -1115,7 +1116,7 @@ static Object SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
     }
   }
 
-  RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
+  RegExpGlobalCache global_cache(regexp, subject, isolate);
   if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
 
   // Ensured in Runtime_RegExpExecMultiple.

@@ -547,8 +547,8 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
                                .ToHandleChecked();
   Handle<String> sample_subject =
       isolate->factory()->NewStringFromUtf8(CStrVector("")).ToHandleChecked();
-  RegExpEngine::Compile(isolate, zone, &compile_data, flags, pattern,
-                        sample_subject, is_one_byte);
+  RegExpImpl::CompileForTesting(isolate, zone, &compile_data, flags, pattern,
+                                sample_subject, is_one_byte);
   return compile_data.node;
 }
 
@@ -561,7 +561,7 @@ static void Execute(const char* input, bool multiline, bool unicode,
   USE(node);
 #ifdef DEBUG
   if (dot_output) {
-    RegExpEngine::DotPrint(input, node, false);
+    RegExpImpl::DotPrintForTesting(input, node, false);
   }
 #endif  // DEBUG
 }

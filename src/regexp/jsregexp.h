@@ -13,45 +13,45 @@ namespace internal {
 class RegExpNode;
 class RegExpTree;
 
-inline bool IgnoreCase(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kIgnoreCase) != 0;
-}
+// TODO(jgruber): Consider splitting between ParseData and CompileData.
+struct RegExpCompileData {
+  // The parsed AST as produced by the RegExpParser.
+  RegExpTree* tree = nullptr;
 
-inline bool IsUnicode(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kUnicode) != 0;
-}
+  // The compiled Node graph as produced by RegExpTree::ToNode methods.
+  RegExpNode* node = nullptr;
 
-inline bool IsSticky(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kSticky) != 0;
-}
+  // The generated code as produced by the compiler. Either a Code object (for
+  // irregexp native code) or a ByteArray (for irregexp bytecode).
+  Object code;
 
-inline bool IsGlobal(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kGlobal) != 0;
-}
+  // True, iff the pattern is a 'simple' atom with zero captures. In other
+  // words, the pattern consists of a string with no metacharacters and special
+  // regexp features, and can be implemented as a standard string search.
+  bool simple = true;
 
-inline bool DotAll(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kDotAll) != 0;
-}
+  // True, iff the pattern is anchored at the start of the string with '^'.
+  bool contains_anchor = false;
 
-inline bool Multiline(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kMultiline) != 0;
-}
+  // Only use if the pattern contains named captures. If so, this contains a
+  // mapping of capture names to capture indices.
+  Handle<FixedArray> capture_name_map;
 
-inline bool NeedsUnicodeCaseEquivalents(JSRegExp::Flags flags) {
-  // Both unicode and ignore_case flags are set. We need to use ICU to find
-  // the closure over case equivalents.
-  return IsUnicode(flags) && IgnoreCase(flags);
-}
+  // The error message. Only used if an error occurred during parsing or
+  // compilation.
+  Handle<String> error;
 
-class RegExpImpl final {
+  // The number of capture groups, without the global capture \0.
+  int capture_count = 0;
+
+  // The number of registers used by the generated code.
+  int register_count = 0;
+};
+
+class RegExpImpl final : public AllStatic {
  public:
   // Whether the irregexp engine generates native code or interpreter bytecode.
   static bool UsesNativeRegExp() { return !FLAG_regexp_interpret_all; }
-
-  // Returns a string representation of a regular expression.
-  // Implements RegExp.prototype.toString, see ECMA-262 section 15.10.6.4.
-  // This function calls the garbage collector if necessary.
-  static Handle<String> ToString(Handle<Object> value);
 
   // Parses the RegExp pattern and prepares the JSRegExp object with
   // generic data and choice of implementation - as well as what
@@ -66,6 +66,43 @@ class RegExpImpl final {
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Exec(
       Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
       int index, Handle<RegExpMatchInfo> last_match_info);
+
+  enum IrregexpResult { RE_FAILURE = 0, RE_SUCCESS = 1, RE_EXCEPTION = -1 };
+
+  // Prepare a RegExp for being executed one or more times (using
+  // IrregexpExecOnce) on the subject.
+  // This ensures that the regexp is compiled for the subject, and that
+  // the subject is flat.
+  // Returns the number of integer spaces required by IrregexpExecOnce
+  // as its "registers" argument.  If the regexp cannot be compiled,
+  // an exception is set as pending, and this function returns negative.
+  static int IrregexpPrepare(Isolate* isolate, Handle<JSRegExp> regexp,
+                             Handle<String> subject);
+
+  // Set last match info.  If match is nullptr, then setting captures is
+  // omitted.
+  static Handle<RegExpMatchInfo> SetLastMatchInfo(
+      Isolate* isolate, Handle<RegExpMatchInfo> last_match_info,
+      Handle<String> subject, int capture_count, int32_t* match);
+
+  V8_EXPORT_PRIVATE static bool CompileForTesting(Isolate* isolate, Zone* zone,
+                                                  RegExpCompileData* input,
+                                                  JSRegExp::Flags flags,
+                                                  Handle<String> pattern,
+                                                  Handle<String> sample_subject,
+                                                  bool is_one_byte);
+
+  V8_EXPORT_PRIVATE static void DotPrintForTesting(const char* label,
+                                                   RegExpNode* node,
+                                                   bool ignore_case);
+
+  static const int kRegExpTooLargeToOptimize = 20 * KB;
+
+ private:
+  // Returns a string representation of a regular expression.
+  // Implements RegExp.prototype.toString, see ECMA-262 section 15.10.6.4.
+  // This function calls the garbage collector if necessary.
+  static Handle<String> ToString(Handle<Object> value);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
   static void IrregexpInitialize(Isolate* isolate, Handle<JSRegExp> re,
@@ -83,18 +120,6 @@ class RegExpImpl final {
   static Handle<Object> AtomExec(Isolate* isolate, Handle<JSRegExp> regexp,
                                  Handle<String> subject, int index,
                                  Handle<RegExpMatchInfo> last_match_info);
-
-  enum IrregexpResult { RE_FAILURE = 0, RE_SUCCESS = 1, RE_EXCEPTION = -1 };
-
-  // Prepare a RegExp for being executed one or more times (using
-  // IrregexpExecOnce) on the subject.
-  // This ensures that the regexp is compiled for the subject, and that
-  // the subject is flat.
-  // Returns the number of integer spaces required by IrregexpExecOnce
-  // as its "registers" argument.  If the regexp cannot be compiled,
-  // an exception is set as pending, and this function returns negative.
-  static int IrregexpPrepare(Isolate* isolate, Handle<JSRegExp> regexp,
-                             Handle<String> subject);
 
   // Execute a regular expression on the subject, starting from index.
   // If matching succeeds, return the number of matches.  This can be larger
@@ -114,44 +139,17 @@ class RegExpImpl final {
       Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject,
       int index, Handle<RegExpMatchInfo> last_match_info);
 
-  // Set last match info.  If match is nullptr, then setting captures is
-  // omitted.
-  static Handle<RegExpMatchInfo> SetLastMatchInfo(
-      Isolate* isolate, Handle<RegExpMatchInfo> last_match_info,
-      Handle<String> subject, int capture_count, int32_t* match);
+  static bool CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
+                              Handle<String> sample_subject, bool is_one_byte);
+  static inline bool EnsureCompiledIrregexp(Isolate* isolate,
+                                            Handle<JSRegExp> re,
+                                            Handle<String> sample_subject,
+                                            bool is_one_byte);
 
-  class GlobalCache {
-   public:
-    GlobalCache(Handle<JSRegExp> regexp,
-                Handle<String> subject,
-                Isolate* isolate);
-
-    V8_INLINE ~GlobalCache();
-
-    // Fetch the next entry in the cache for global regexp match results.
-    // This does not set the last match info.  Upon failure, nullptr is
-    // returned. The cause can be checked with Result().  The previous result is
-    // still in available in memory when a failure happens.
-    V8_INLINE int32_t* FetchNext();
-
-    V8_INLINE int32_t* LastSuccessfulMatch();
-
-    V8_INLINE bool HasException() { return num_matches_ < 0; }
-
-   private:
-    int AdvanceZeroLength(int last_index);
-
-    int num_matches_;
-    int max_matches_;
-    int current_match_index_;
-    int registers_per_match_;
-    // Pointer to the last set of captures.
-    int32_t* register_array_;
-    int register_array_size_;
-    Handle<JSRegExp> regexp_;
-    Handle<String> subject_;
-    Isolate* isolate_;
-  };
+  // Returns true on success, false on failure.
+  static bool Compile(Isolate* isolate, Zone* zone, RegExpCompileData* input,
+                      JSRegExp::Flags flags, Handle<String> pattern,
+                      Handle<String> sample_subject, bool is_one_byte);
 
   // For acting on the JSRegExp data FixedArray.
   static int IrregexpMaxRegisterCount(FixedArray re);
@@ -163,68 +161,47 @@ class RegExpImpl final {
   static ByteArray IrregexpByteCode(FixedArray re, bool is_one_byte);
   static Code IrregexpNativeCode(FixedArray re, bool is_one_byte);
 
-  // Limit the space regexps take up on the heap.  In order to limit this we
-  // would like to keep track of the amount of regexp code on the heap.  This
-  // is not tracked, however.  As a conservative approximation we track the
-  // total regexp code compiled including code that has subsequently been freed
-  // and the total executable memory at any point.
-  static const size_t kRegExpExecutableMemoryLimit = 16 * MB;
-  static const size_t kRegExpCompiledLimit = 1 * MB;
-  static const int kRegExpTooLargeToOptimize = 20 * KB;
+  friend class RegExpGlobalCache;
+};
+
+// Uses a special global mode of irregexp-generated code to perform a global
+// search and return multiple results at once. As such, this is essentially an
+// iterator over multiple results (retrieved batch-wise in advance).
+class RegExpGlobalCache final {
+ public:
+  RegExpGlobalCache(Handle<JSRegExp> regexp, Handle<String> subject,
+                    Isolate* isolate);
+
+  ~RegExpGlobalCache();
+
+  // Fetch the next entry in the cache for global regexp match results.
+  // This does not set the last match info.  Upon failure, nullptr is
+  // returned. The cause can be checked with Result().  The previous result is
+  // still in available in memory when a failure happens.
+  int32_t* FetchNext();
+
+  int32_t* LastSuccessfulMatch();
+
+  bool HasException() { return num_matches_ < 0; }
 
  private:
-  static bool CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
-                              Handle<String> sample_subject, bool is_one_byte);
-  static inline bool EnsureCompiledIrregexp(Isolate* isolate,
-                                            Handle<JSRegExp> re,
-                                            Handle<String> sample_subject,
-                                            bool is_one_byte);
+  int AdvanceZeroLength(int last_index);
+
+  int num_matches_;
+  int max_matches_;
+  int current_match_index_;
+  int registers_per_match_;
+  // Pointer to the last set of captures.
+  int32_t* register_array_;
+  int register_array_size_;
+  Handle<JSRegExp> regexp_;
+  Handle<String> subject_;
+  Isolate* isolate_;
 };
 
-struct RegExpCompileData {
-  RegExpCompileData()
-      : tree(nullptr),
-        node(nullptr),
-        simple(true),
-        contains_anchor(false),
-        capture_count(0) {}
-  RegExpTree* tree;
-  RegExpNode* node;
-  bool simple;
-  bool contains_anchor;
-  Handle<FixedArray> capture_name_map;
-  Handle<String> error;
-  int capture_count;
-};
-
-class RegExpEngine final : public AllStatic {
- public:
-  struct CompilationResult {
-    explicit CompilationResult(const char* error_message)
-        : error_message(error_message) {}
-    CompilationResult(const char* error_message, Object code, int registers)
-        : error_message(error_message), code(code), num_registers(registers) {}
-
-    static CompilationResult RegExpTooBig() {
-      return CompilationResult("RegExp too big");
-    }
-
-    const char* const error_message = nullptr;
-    Object const code;
-    int const num_registers = 0;
-  };
-
-  V8_EXPORT_PRIVATE static CompilationResult Compile(
-      Isolate* isolate, Zone* zone, RegExpCompileData* input,
-      JSRegExp::Flags flags, Handle<String> pattern,
-      Handle<String> sample_subject, bool is_one_byte);
-
-  static bool TooMuchRegExpCode(Isolate* isolate, Handle<String> pattern);
-
-  V8_EXPORT_PRIVATE static void DotPrint(const char* label, RegExpNode* node,
-                                         bool ignore_case);
-};
-
+// Caches results for specific regexp queries on the isolate. At the time of
+// writing, this is used during global calls to RegExp.prototype.exec and
+// @@split.
 class RegExpResultsCache final : public AllStatic {
  public:
   enum ResultsCacheType { REGEXP_MULTIPLE_INDICES, STRING_SPLIT_SUBSTRINGS };
@@ -239,14 +216,15 @@ class RegExpResultsCache final : public AllStatic {
                     Handle<Object> key_pattern, Handle<FixedArray> value_array,
                     Handle<FixedArray> last_match_cache, ResultsCacheType type);
   static void Clear(FixedArray cache);
-  static const int kRegExpResultsCacheSize = 0x100;
+
+  static constexpr int kRegExpResultsCacheSize = 0x100;
 
  private:
-  static const int kArrayEntriesPerCacheEntry = 4;
-  static const int kStringOffset = 0;
-  static const int kPatternOffset = 1;
-  static const int kArrayOffset = 2;
-  static const int kLastMatchOffset = 3;
+  static constexpr int kStringOffset = 0;
+  static constexpr int kPatternOffset = 1;
+  static constexpr int kArrayOffset = 2;
+  static constexpr int kLastMatchOffset = 3;
+  static constexpr int kArrayEntriesPerCacheEntry = 4;
 };
 
 }  // namespace internal
