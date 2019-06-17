@@ -530,6 +530,36 @@ TEST(TestLoadEliminationVariableNoWrite) {
   asm_tester.GenerateCode();
 }
 
+TEST(TestRedundantArrayElementCheck) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+  CodeAssemblerTester asm_tester(isolate);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.Return(m.TestRedundantArrayElementCheck(
+        m.UncheckedCast<Context>(m.HeapConstant(context))));
+  }
+  asm_tester.GenerateCode();
+}
+
+TEST(TestRedundantSmiCheck) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+  CodeAssemblerTester asm_tester(isolate);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.Return(m.TestRedundantSmiCheck(
+        m.UncheckedCast<Context>(m.HeapConstant(context))));
+  }
+  asm_tester.GenerateCode();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
