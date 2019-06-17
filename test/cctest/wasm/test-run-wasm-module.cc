@@ -28,6 +28,8 @@ namespace internal {
 namespace wasm {
 namespace test_run_wasm_module {
 
+using base::ReadLittleEndianValue;
+using base::WriteLittleEndianValue;
 using testing::CompileAndInstantiateForTesting;
 
 namespace {

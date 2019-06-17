@@ -2901,7 +2901,7 @@ class TypedElementsAccessor
       // fields (external pointers, doubles and BigInt data) are only
       // kTaggedSize aligned so we have to use unaligned pointer friendly way of
       // accessing them in order to avoid undefined behavior in C++ code.
-      WriteUnalignedValue<ElementType>(
+      base::WriteUnalignedValue<ElementType>(
           reinterpret_cast<Address>(data_ptr + entry), value);
     } else {
       data_ptr[entry] = value;
@@ -2941,7 +2941,7 @@ class TypedElementsAccessor
       // fields (external pointers, doubles and BigInt data) are only
       // kTaggedSize aligned so we have to use unaligned pointer friendly way of
       // accessing them in order to avoid undefined behavior in C++ code.
-      result = ReadUnalignedValue<ElementType>(
+      result = base::ReadUnalignedValue<ElementType>(
           reinterpret_cast<Address>(data_ptr + entry));
     } else {
       result = data_ptr[entry];

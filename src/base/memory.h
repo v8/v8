@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMMON_V8MEMORY_H_
-#define V8_COMMON_V8MEMORY_H_
+#ifndef V8_BASE_MEMORY_H_
+#define V8_BASE_MEMORY_H_
 
 #include "src/base/macros.h"
-#include "src/common/globals.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
+
+using Address = uintptr_t;
+using byte = uint8_t;
 
 // Memory provides an interface to 'raw' memory. It encapsulates the casts
 // that typically are needed when incompatible pointer types are used.
@@ -37,22 +39,6 @@ template <typename V>
 static inline void WriteUnalignedValue(Address p, V value) {
   ASSERT_TRIVIALLY_COPYABLE(V);
   memcpy(reinterpret_cast<void*>(p), &value, sizeof(V));
-}
-
-static inline uint16_t ReadUnalignedUInt16(Address p) {
-  return ReadUnalignedValue<uint16_t>(p);
-}
-
-static inline void WriteUnalignedUInt16(Address p, uint16_t value) {
-  WriteUnalignedValue(p, value);
-}
-
-static inline uint32_t ReadUnalignedUInt32(Address p) {
-  return ReadUnalignedValue<uint32_t>(p);
-}
-
-static inline void WriteUnalignedUInt32(Address p, uint32_t value) {
-  WriteUnalignedValue(p, value);
 }
 
 template <typename V>
@@ -93,7 +79,7 @@ static inline void WriteLittleEndianValue(V* p, V value) {
   WriteLittleEndianValue<V>(reinterpret_cast<Address>(p), value);
 }
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
-#endif  // V8_COMMON_V8MEMORY_H_
+#endif  // V8_BASE_MEMORY_H_

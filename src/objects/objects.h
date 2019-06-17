@@ -15,6 +15,7 @@
 #include "src/base/build_config.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"
+#include "src/base/memory.h"
 #include "src/codegen/constants-arch.h"
 #include "src/common/assert-scope.h"
 #include "src/common/checks.h"
@@ -625,9 +626,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 #endif
     if (std::is_same<T, double>::value || v8_pointer_compression_unaligned) {
       // Bug(v8:8875) Double fields may be unaligned.
-      return ReadUnalignedValue<T>(field_address(offset));
+      return base::ReadUnalignedValue<T>(field_address(offset));
     } else {
-      return Memory<T>(field_address(offset));
+      return base::Memory<T>(field_address(offset));
     }
   }
 
@@ -642,9 +643,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 #endif
     if (std::is_same<T, double>::value || v8_pointer_compression_unaligned) {
       // Bug(v8:8875) Double fields may be unaligned.
-      WriteUnalignedValue<T>(field_address(offset), value);
+      base::WriteUnalignedValue<T>(field_address(offset), value);
     } else {
-      Memory<T>(field_address(offset)) = value;
+      base::Memory<T>(field_address(offset)) = value;
     }
   }
 

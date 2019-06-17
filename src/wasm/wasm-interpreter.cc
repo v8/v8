@@ -34,6 +34,11 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+using base::ReadLittleEndianValue;
+using base::ReadUnalignedValue;
+using base::WriteLittleEndianValue;
+using base::WriteUnalignedValue;
+
 #define TRACE(...)                                        \
   do {                                                    \
     if (FLAG_trace_wasm_interpreter) PrintF(__VA_ARGS__); \

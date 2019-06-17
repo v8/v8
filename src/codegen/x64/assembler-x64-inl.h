@@ -8,7 +8,7 @@
 #include "src/codegen/x64/assembler-x64.h"
 
 #include "src/base/cpu.h"
-#include "src/common/v8memory.h"
+#include "src/base/memory.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 

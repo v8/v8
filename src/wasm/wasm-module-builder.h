@@ -8,7 +8,7 @@
 #include "src/codegen/signature.h"
 #include "src/zone/zone-containers.h"
 
-#include "src/common/v8memory.h"
+#include "src/base/memory.h"
 #include "src/utils/vector.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
@@ -36,19 +36,19 @@ class ZoneBuffer : public ZoneObject {
 
   void write_u16(uint16_t x) {
     EnsureSpace(2);
-    WriteLittleEndianValue<uint16_t>(reinterpret_cast<Address>(pos_), x);
+    base::WriteLittleEndianValue<uint16_t>(reinterpret_cast<Address>(pos_), x);
     pos_ += 2;
   }
 
   void write_u32(uint32_t x) {
     EnsureSpace(4);
-    WriteLittleEndianValue<uint32_t>(reinterpret_cast<Address>(pos_), x);
+    base::WriteLittleEndianValue<uint32_t>(reinterpret_cast<Address>(pos_), x);
     pos_ += 4;
   }
 
   void write_u64(uint64_t x) {
     EnsureSpace(8);
-    WriteLittleEndianValue<uint64_t>(reinterpret_cast<Address>(pos_), x);
+    base::WriteLittleEndianValue<uint64_t>(reinterpret_cast<Address>(pos_), x);
     pos_ += 8;
   }
 

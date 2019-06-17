@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/common/v8memory.h"
+#include "src/base/memory.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
@@ -209,12 +209,13 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   // methods that could trigger a GC are being called.
   Address arg_buf_ptr = arg_buffer;
   for (int i = 0; i < num_params; ++i) {
-#define CASE_ARG_TYPE(type, ctype)                                          \
-  case wasm::type:                                                          \
-    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),       \
-              sizeof(ctype));                                               \
-    wasm_args[i] = wasm::WasmValue(ReadUnalignedValue<ctype>(arg_buf_ptr)); \
-    arg_buf_ptr += sizeof(ctype);                                           \
+#define CASE_ARG_TYPE(type, ctype)                                     \
+  case wasm::type:                                                     \
+    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),  \
+              sizeof(ctype));                                          \
+    wasm_args[i] =                                                     \
+        wasm::WasmValue(base::ReadUnalignedValue<ctype>(arg_buf_ptr)); \
+    arg_buf_ptr += sizeof(ctype);                                      \
     break;
     switch (sig->GetParam(i)) {
       CASE_ARG_TYPE(kWasmI32, uint32_t)
@@ -227,7 +228,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
       case wasm::kWasmExceptRef: {
         DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),
                   kSystemPointerSize);
-        Handle<Object> ref(ReadUnalignedValue<Object>(arg_buf_ptr), isolate);
+        Handle<Object> ref(base::ReadUnalignedValue<Object>(arg_buf_ptr),
+                           isolate);
         wasm_args[i] = wasm::WasmValue(ref);
         arg_buf_ptr += kSystemPointerSize;
         break;
@@ -259,12 +261,12 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   // also un-boxes reference types from handles into raw pointers.
   arg_buf_ptr = arg_buffer;
   for (int i = 0; i < num_returns; ++i) {
-#define CASE_RET_TYPE(type, ctype)                                     \
-  case wasm::type:                                                     \
-    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)), \
-              sizeof(ctype));                                          \
-    WriteUnalignedValue<ctype>(arg_buf_ptr, wasm_rets[i].to<ctype>()); \
-    arg_buf_ptr += sizeof(ctype);                                      \
+#define CASE_RET_TYPE(type, ctype)                                           \
+  case wasm::type:                                                           \
+    DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),       \
+              sizeof(ctype));                                                \
+    base::WriteUnalignedValue<ctype>(arg_buf_ptr, wasm_rets[i].to<ctype>()); \
+    arg_buf_ptr += sizeof(ctype);                                            \
     break;
     switch (sig->GetReturn(i)) {
       CASE_RET_TYPE(kWasmI32, uint32_t)
@@ -277,7 +279,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
       case wasm::kWasmExceptRef: {
         DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),
                   kSystemPointerSize);
-        WriteUnalignedValue<Object>(arg_buf_ptr, *wasm_rets[i].to_anyref());
+        base::WriteUnalignedValue<Object>(arg_buf_ptr,
+                                          *wasm_rets[i].to_anyref());
         arg_buf_ptr += kSystemPointerSize;
         break;
       }

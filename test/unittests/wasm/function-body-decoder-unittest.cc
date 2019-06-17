@@ -353,7 +353,7 @@ TEST_F(FunctionBodyDecoderTest, Float32Const) {
   byte code[] = {kExprF32Const, 0, 0, 0, 0};
   Address ptr = reinterpret_cast<Address>(code + 1);
   for (int i = 0; i < 30; i++) {
-    WriteLittleEndianValue<float>(ptr, i * -7.75f);
+    base::WriteLittleEndianValue<float>(ptr, i * -7.75f);
     ExpectValidates(sigs.f_ff(), code);
   }
 }
@@ -362,7 +362,7 @@ TEST_F(FunctionBodyDecoderTest, Float64Const) {
   byte code[] = {kExprF64Const, 0, 0, 0, 0, 0, 0, 0, 0};
   Address ptr = reinterpret_cast<Address>(code + 1);
   for (int i = 0; i < 30; i++) {
-    WriteLittleEndianValue<double>(ptr, i * 33.45);
+    base::WriteLittleEndianValue<double>(ptr, i * 33.45);
     ExpectValidates(sigs.d_dd(), code);
   }
 }

@@ -47,6 +47,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+using base::ReadLittleEndianValue;
+using base::WriteLittleEndianValue;
+
 constexpr uint32_t kMaxFunctions = 10;
 constexpr uint32_t kMaxGlobalsSize = 128;
 

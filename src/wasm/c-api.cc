@@ -1814,24 +1814,24 @@ i::Address FuncData::v8_callback(void* data, i::Address argv) {
   for (int i = 0; i < num_param_types; ++i) {
     switch (param_types[i]->kind()) {
       case I32:
-        params[i] = Val(i::ReadUnalignedValue<int32_t>(p));
+        params[i] = Val(v8::base::ReadUnalignedValue<int32_t>(p));
         p += 4;
         break;
       case I64:
-        params[i] = Val(i::ReadUnalignedValue<int64_t>(p));
+        params[i] = Val(v8::base::ReadUnalignedValue<int64_t>(p));
         p += 8;
         break;
       case F32:
-        params[i] = Val(i::ReadUnalignedValue<float32_t>(p));
+        params[i] = Val(v8::base::ReadUnalignedValue<float32_t>(p));
         p += 4;
         break;
       case F64:
-        params[i] = Val(i::ReadUnalignedValue<float64_t>(p));
+        params[i] = Val(v8::base::ReadUnalignedValue<float64_t>(p));
         p += 8;
         break;
       case ANYREF:
       case FUNCREF: {
-        i::Address raw = i::ReadUnalignedValue<i::Address>(p);
+        i::Address raw = v8::base::ReadUnalignedValue<i::Address>(p);
         p += sizeof(raw);
         if (raw == i::kNullAddress) {
           params[i] = Val(nullptr);
@@ -1864,27 +1864,28 @@ i::Address FuncData::v8_callback(void* data, i::Address argv) {
   for (int i = 0; i < num_result_types; ++i) {
     switch (result_types[i]->kind()) {
       case I32:
-        i::WriteUnalignedValue(p, results[i].i32());
+        v8::base::WriteUnalignedValue(p, results[i].i32());
         p += 4;
         break;
       case I64:
-        i::WriteUnalignedValue(p, results[i].i64());
+        v8::base::WriteUnalignedValue(p, results[i].i64());
         p += 8;
         break;
       case F32:
-        i::WriteUnalignedValue(p, results[i].f32());
+        v8::base::WriteUnalignedValue(p, results[i].f32());
         p += 4;
         break;
       case F64:
-        i::WriteUnalignedValue(p, results[i].f64());
+        v8::base::WriteUnalignedValue(p, results[i].f64());
         p += 8;
         break;
       case ANYREF:
       case FUNCREF: {
         if (results[i].ref() == nullptr) {
-          i::WriteUnalignedValue(p, i::kNullAddress);
+          v8::base::WriteUnalignedValue(p, i::kNullAddress);
         } else {
-          i::WriteUnalignedValue(p, impl(results[i].ref())->v8_object()->ptr());
+          v8::base::WriteUnalignedValue(
+              p, impl(results[i].ref())->v8_object()->ptr());
         }
         p += sizeof(i::Address);
         break;

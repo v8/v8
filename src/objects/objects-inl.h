@@ -15,8 +15,8 @@
 #include "src/objects/objects.h"
 
 #include "src/base/bits.h"
+#include "src/base/memory.h"
 #include "src/builtins/builtins.h"
-#include "src/common/v8memory.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"

@@ -69,7 +69,7 @@ class InputProvider {
   int NextInt32(int limit) {
     if (current_ + sizeof(uint32_t) > end_) return 0;
     int result =
-        ReadLittleEndianValue<int>(reinterpret_cast<Address>(current_));
+        base::ReadLittleEndianValue<int>(reinterpret_cast<Address>(current_));
     current_ += sizeof(uint32_t);
     return result % limit;
   }

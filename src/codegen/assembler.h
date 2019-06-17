@@ -37,6 +37,7 @@
 
 #include <forward_list>
 
+#include "src/base/memory.h"
 #include "src/codegen/code-comments.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/external-reference.h"
@@ -54,6 +55,10 @@ namespace v8 {
 class ApiFunction;
 
 namespace internal {
+
+using base::Memory;
+using base::ReadUnalignedValue;
+using base::WriteUnalignedValue;
 
 // Forward declarations.
 class EmbeddedData;

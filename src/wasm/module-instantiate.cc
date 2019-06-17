@@ -25,6 +25,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+using base::ReadLittleEndianValue;
+using base::WriteLittleEndianValue;
+
 namespace {
 byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
   return static_cast<byte*>(buffer.ToHandleChecked()->backing_store()) + offset;
