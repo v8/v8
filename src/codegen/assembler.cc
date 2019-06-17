@@ -64,8 +64,8 @@ AssemblerOptions AssemblerOptions::Default(
   // might be run on real hardware.
   options.enable_simulator_code = !serializer;
 #endif
-  options.inline_offheap_trampolines =
-      FLAG_embedded_builtins && !serializer && !generating_embedded_builtin;
+  options.inline_offheap_trampolines &=
+      !serializer && !generating_embedded_builtin;
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
   const base::AddressRegion& code_range =
       isolate->heap()->memory_allocator()->code_range();
