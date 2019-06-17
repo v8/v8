@@ -2521,6 +2521,31 @@ void BoyerMoorePositionInfo::Set(int character) {
   SetInterval(Interval(character, character));
 }
 
+namespace {
+
+ContainedInLattice AddRange(ContainedInLattice containment, const int* ranges,
+                            int ranges_length, Interval new_range) {
+  DCHECK_EQ(1, ranges_length & 1);
+  DCHECK_EQ(String::kMaxCodePoint + 1, ranges[ranges_length - 1]);
+  if (containment == kLatticeUnknown) return containment;
+  bool inside = false;
+  int last = 0;
+  for (int i = 0; i < ranges_length; inside = !inside, last = ranges[i], i++) {
+    // Consider the range from last to ranges[i].
+    // We haven't got to the new range yet.
+    if (ranges[i] <= new_range.from()) continue;
+    // New range is wholly inside last-ranges[i].  Note that new_range.to() is
+    // inclusive, but the values in ranges are not.
+    if (last <= new_range.from() && new_range.to() < ranges[i]) {
+      return Combine(containment, inside ? kLatticeIn : kLatticeOut);
+    }
+    return kLatticeUnknown;
+  }
+  return containment;
+}
+
+}  // namespace
+
 void BoyerMoorePositionInfo::SetInterval(const Interval& interval) {
   s_ = AddRange(s_, kSpaceRanges, kSpaceRangeCount, interval);
   w_ = AddRange(w_, kWordRanges, kWordRangeCount, interval);

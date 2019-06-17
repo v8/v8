@@ -277,9 +277,6 @@ inline ContainedInLattice Combine(ContainedInLattice a, ContainedInLattice b) {
   return static_cast<ContainedInLattice>(a | b);
 }
 
-ContainedInLattice AddRange(ContainedInLattice a, const int* ranges,
-                            int ranges_size, Interval new_range);
-
 class BoyerMoorePositionInfo : public ZoneObject {
  public:
   explicit BoyerMoorePositionInfo(Zone* zone)
