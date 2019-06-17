@@ -3467,6 +3467,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
           *empty_feedback_metadata(), SKIP_WRITE_BARRIER);
     }
     share->set_script_or_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
+    share->set_function_literal_id(kFunctionLiteralIdInvalid);
 #if V8_SFI_HAS_UNIQUE_ID
     share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
 #endif
