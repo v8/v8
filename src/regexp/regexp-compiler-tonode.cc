@@ -916,9 +916,102 @@ RegExpNode* RegExpCapture::ToNode(RegExpTree* body, int index,
   return ActionNode::StorePosition(start_reg, true, body_node);
 }
 
+namespace {
+
+class AssertionSequenceRewriter final {
+ public:
+  // TODO(jgruber): Consider moving this to a separate AST tree rewriter pass
+  // instead of sprinkling rewrites into the AST->Node conversion process.
+  static void MaybeRewrite(ZoneList<RegExpTree*>* terms, Zone* zone) {
+    AssertionSequenceRewriter rewriter(terms, zone);
+
+    static constexpr int kNoIndex = -1;
+    int from = kNoIndex;
+
+    for (int i = 0; i < terms->length(); i++) {
+      RegExpTree* t = terms->at(i);
+      if (from == kNoIndex && t->IsAssertion()) {
+        from = i;  // Start a sequence.
+      } else if (from != kNoIndex && !t->IsAssertion()) {
+        // Terminate and process the sequence.
+        if (i - from > 1) rewriter.Rewrite(from, i);
+        from = kNoIndex;
+      }
+    }
+
+    if (from != kNoIndex && terms->length() - from > 1) {
+      rewriter.Rewrite(from, terms->length());
+    }
+  }
+
+  // All assertions are zero width. A consecutive sequence of assertions is
+  // order-independent. There's two ways we can optimize here:
+  // 1. fold all identical assertions.
+  // 2. if any assertion combinations are known to fail (e.g. \b\B), the entire
+  //    sequence fails.
+  void Rewrite(int from, int to) {
+    DCHECK_GT(to, from + 1);
+
+    // Bitfield of all seen assertions.
+    uint32_t seen_assertions = 0;
+    STATIC_ASSERT(RegExpAssertion::LAST_TYPE < kUInt32Size * kBitsPerByte);
+
+    // Flags must match for folding.
+    JSRegExp::Flags flags = terms_->at(from)->AsAssertion()->flags();
+    bool saw_mismatched_flags = false;
+
+    for (int i = from; i < to; i++) {
+      RegExpAssertion* t = terms_->at(i)->AsAssertion();
+      if (t->flags() != flags) saw_mismatched_flags = true;
+      const uint32_t bit = 1 << t->assertion_type();
+
+      if ((seen_assertions & bit) && !saw_mismatched_flags) {
+        // Fold duplicates.
+        terms_->Set(i, new (zone_) RegExpEmpty());
+      }
+
+      seen_assertions |= bit;
+    }
+
+    // Collapse failures.
+    const uint32_t always_fails_mask =
+        1 << RegExpAssertion::BOUNDARY | 1 << RegExpAssertion::NON_BOUNDARY;
+    if ((seen_assertions & always_fails_mask) == always_fails_mask) {
+      ReplaceSequenceWithFailure(from, to);
+    }
+  }
+
+  void ReplaceSequenceWithFailure(int from, int to) {
+    // Replace the entire sequence with a single node that always fails.
+    // TODO(jgruber): Consider adding an explicit Fail kind. Until then, the
+    // negated '*' (everything) range serves the purpose.
+    ZoneList<CharacterRange>* ranges =
+        new (zone_) ZoneList<CharacterRange>(0, zone_);
+    RegExpCharacterClass* cc =
+        new (zone_) RegExpCharacterClass(zone_, ranges, JSRegExp::Flags());
+    terms_->Set(from, cc);
+
+    // Zero out the rest.
+    RegExpEmpty* empty = new (zone_) RegExpEmpty();
+    for (int i = from + 1; i < to; i++) terms_->Set(i, empty);
+  }
+
+ private:
+  AssertionSequenceRewriter(ZoneList<RegExpTree*>* terms, Zone* zone)
+      : zone_(zone), terms_(terms) {}
+
+  Zone* zone_;
+  ZoneList<RegExpTree*>* terms_;
+};
+
+}  // namespace
+
 RegExpNode* RegExpAlternative::ToNode(RegExpCompiler* compiler,
                                       RegExpNode* on_success) {
   ZoneList<RegExpTree*>* children = nodes();
+
+  AssertionSequenceRewriter::MaybeRewrite(children, compiler->zone());
+
   RegExpNode* current = on_success;
   if (compiler->read_backward()) {
     for (int i = 0; i < children->length(); i++) {
