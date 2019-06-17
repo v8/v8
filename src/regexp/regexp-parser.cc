@@ -11,6 +11,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/property-sequences.h"
+#include "src/regexp/regexp-macro-assembler.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"

@@ -2686,7 +2686,10 @@ v8_source_set("v8_base_without_compiler") {
     "src/regexp/regexp-ast.h",
     "src/regexp/regexp-bytecodes.h",
     "src/regexp/regexp-compiler-tonode.cc",
+    "src/regexp/regexp-compiler.cc",
     "src/regexp/regexp-compiler.h",
+    "src/regexp/regexp-dotprinter.cc",
+    "src/regexp/regexp-dotprinter.h",
     "src/regexp/regexp-interpreter.cc",
     "src/regexp/regexp-interpreter.h",
     "src/regexp/regexp-macro-assembler-arch.h",
@@ -2697,6 +2700,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/regexp/regexp-macro-assembler-tracer.h",
     "src/regexp/regexp-macro-assembler.cc",
     "src/regexp/regexp-macro-assembler.h",
+    "src/regexp/regexp-nodes.h",
     "src/regexp/regexp-parser.cc",
     "src/regexp/regexp-parser.h",
     "src/regexp/regexp-stack.cc",
@@ -2949,6 +2953,10 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/elements.cc",
     "src/objects/objects.cc",
     "src/parsing/parser.cc",
+
+    # Explicit template instantiation clash (these files are also very large).
+    "src/regexp/regexp-compiler-tonode.cc",
+    "src/regexp/regexp-compiler.cc",
   ]
 
   if (v8_current_cpu == "x86") {
