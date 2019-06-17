@@ -5812,6 +5812,31 @@ Reduction JSCallReducer::ReducePromiseInternalResolve(Node* node) {
   return Replace(value);
 }
 
+bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
+  if (!inference->HaveMaps()) return false;
+  MapHandles const& receiver_maps = inference->GetMaps();
+
+  // Check whether all {receiver_maps} are JSPromise maps and
+  // have the initial Promise.prototype as their [[Prototype]].
+  for (Handle<Map> map : receiver_maps) {
+    MapRef receiver_map(broker(), map);
+    if (!receiver_map.IsJSPromiseMap()) return false;
+    if (!FLAG_concurrent_inlining) {
+      receiver_map.SerializePrototype();
+    } else if (!receiver_map.serialized_prototype()) {
+      TRACE_BROKER_MISSING(broker(),
+                           "Unserialized prototype for map " << receiver_map);
+      return false;
+    }
+    if (!receiver_map.prototype().equals(
+            native_context().promise_prototype())) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // ES section #sec-promise.prototype.catch
 Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -5825,20 +5850,7 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return NoChange();
-  MapHandles const& receiver_maps = inference.GetMaps();
-
-  // Check whether all {receiver_maps} are JSPromise maps and
-  // have the initial Promise.prototype as their [[Prototype]].
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!receiver_map.IsJSPromiseMap()) return inference.NoChange();
-    receiver_map.SerializePrototype();
-    if (!receiver_map.prototype().equals(
-            native_context().promise_prototype())) {
-      return inference.NoChange();
-    }
-  }
+  if (!DoPromiseChecks(&inference)) return NoChange();
 
   if (!dependencies()->DependOnPromiseThenProtector())
     return inference.NoChange();
@@ -5878,20 +5890,8 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   }
 
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return NoChange();
+  if (!DoPromiseChecks(&inference)) return NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
-
-  // Check whether all {receiver_maps} are JSPromise maps and
-  // have the initial Promise.prototype as their [[Prototype]].
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!receiver_map.IsJSPromiseMap()) return inference.NoChange();
-    receiver_map.SerializePrototype();
-    if (!receiver_map.prototype().equals(
-            native_context().promise_prototype())) {
-      return inference.NoChange();
-    }
-  }
 
   // Check if we have the required scope_info.
   if (!native_context().scope_info().has_value()) {
@@ -6023,28 +6023,8 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
 
   DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
-
   MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps()) return NoChange();
-  MapHandles const& receiver_maps = inference.GetMaps();
-
-  // Check whether all {receiver_maps} are JSPromise maps and
-  // have the initial Promise.prototype as their [[Prototype]].
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!receiver_map.IsJSPromiseMap()) return inference.NoChange();
-    if (!FLAG_concurrent_inlining) {
-      receiver_map.SerializePrototype();
-    } else if (!receiver_map.serialized_prototype()) {
-      TRACE_BROKER_MISSING(broker(),
-                           "Unserialized prototype for map " << receiver_map);
-      return inference.NoChange();
-    }
-    if (!receiver_map.prototype().equals(
-            native_context().promise_prototype())) {
-      return inference.NoChange();
-    }
-  }
+  if (!DoPromiseChecks(&inference)) return inference.NoChange();
 
   if (!dependencies()->DependOnPromiseHookProtector())
     return inference.NoChange();

@@ -335,6 +335,7 @@ class SerializerForBackgroundCompilation {
                                   AccessMode mode);
   void ProcessNamedPropertyAccess(Hints const& receiver, NameRef const& name,
                                   FeedbackSlot slot, AccessMode mode);
+  void ProcessMapHintsForPromises(Hints const& receiver_hints);
 
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
   NamedAccessFeedback const* ProcessFeedbackMapsForNamedAccess(

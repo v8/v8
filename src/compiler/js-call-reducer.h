@@ -29,6 +29,7 @@ struct FieldAccess;
 class JSGraph;
 class JSHeapBroker;
 class JSOperatorBuilder;
+class MapInference;
 class NodeProperties;
 class SimplifiedOperatorBuilder;
 
@@ -190,6 +191,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceNumberParseInt(Node* node);
 
   Reduction ReduceNumberConstructor(Node* node);
+
+  // Helper to verify promise receiver maps are as expected.
+  bool DoPromiseChecks(MapInference* inference);
 
   // Returns the updated {to} node, and updates control and effect along the
   // way.

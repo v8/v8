@@ -866,38 +866,60 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
   switch (builtin_id) {
     case Builtins::kPromiseConstructor: {
       TRACE_BROKER(broker(), "Serializing data for builtin PromiseConstructor");
+      // For JSCallReducer::ReducePromiseConstructor.
       broker()->native_context().SerializeScopeInfo();
+      break;
+    }
+    case Builtins::kPromisePrototypeCatch: {
+      TRACE_BROKER(broker(),
+                   "Serializing data for builtin PromisePrototypeCatch");
+      // For JSCallReducer::ReducePromisePrototypeCatch.
+      broker()->native_context().SerializeScopeInfo();
+
+      CHECK_GE(arguments.size(), 1);
+      Hints const& receiver_hints = arguments[0];
+      ProcessMapHintsForPromises(receiver_hints);
       break;
     }
     case Builtins::kPromisePrototypeFinally: {
       TRACE_BROKER(broker(),
                    "Serializing data for builtin PromisePrototypeFinally");
+      // For JSCallReducer::ReducePromisePrototypeFinally.
       broker()->native_context().SerializeScopeInfo();
+
+      CHECK_GE(arguments.size(), 1);
+      Hints const& receiver_hints = arguments[0];
+      ProcessMapHintsForPromises(receiver_hints);
       break;
     }
     case Builtins::kPromisePrototypeThen: {
       TRACE_BROKER(broker(),
                    "Serializing data for builtin PromisePrototypeThen");
+      // For JSCallReducer::ReducePromisePrototypeThen.
       CHECK_GE(arguments.size(), 1);
       Hints const& receiver_hints = arguments[0];
-      // We need to serialize the prototypes on each receiver map.
-      for (auto hint : receiver_hints.constants()) {
-        if (!hint->IsJSPromise()) continue;
-        Handle<JSReceiver> receiver(Handle<JSReceiver>::cast(hint));
-        MapRef receiver_mapref(broker(),
-                               handle(receiver->map(), broker()->isolate()));
-        receiver_mapref.SerializePrototype();
-      }
-      for (auto receiver_map : receiver_hints.maps()) {
-        if (!receiver_map->IsJSPromiseMap()) continue;
-        MapRef receiver_mapref(broker(), receiver_map);
-        receiver_mapref.SerializePrototype();
-      }
-
+      ProcessMapHintsForPromises(receiver_hints);
       break;
     }
     default:
       break;
+  }
+}
+
+void SerializerForBackgroundCompilation::ProcessMapHintsForPromises(
+    Hints const& receiver_hints) {
+  // We need to serialize the prototypes on each receiver map.
+  for (auto hint : receiver_hints.constants()) {
+    if (!hint->IsJSPromise()) continue;
+    Handle<JSReceiver> receiver(Handle<JSReceiver>::cast(hint));
+    MapRef receiver_mapref(broker(),
+                           handle(receiver->map(), broker()->isolate()));
+    receiver_mapref.SerializePrototype();
+  }
+  for (auto receiver_map : receiver_hints.maps()) {
+    if (!receiver_map->IsJSPromiseMap()) continue;
+    MapRef receiver_mapref(broker(), receiver_map);
+    receiver_mapref.SerializePrototype();
   }
 }
 
