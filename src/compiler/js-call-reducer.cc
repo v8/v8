@@ -5580,6 +5580,7 @@ Node* JSCallReducer::CreateArtificialFrameState(
 Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   int arity = static_cast<int>(p.arity() - 2);
   // We only inline when we have the executor.
   if (arity < 1) return NoChange();
@@ -5665,21 +5666,13 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
       promise_context, jsgraph()->TrueConstant(), effect, control);
 
   // Allocate the closure for the resolve case.
-  SharedFunctionInfoRef resolve_shared =
-      native_context().promise_capability_default_resolve_shared_fun();
-  Node* resolve = effect = graph()->NewNode(
-      javascript()->CreateClosure(
-          resolve_shared.object(), factory()->many_closures_cell(),
-          handle(resolve_shared.object()->GetCode(), isolate())),
+  Node* resolve = effect = CreateClosureFromBuiltinSharedFunctionInfo(
+      native_context().promise_capability_default_resolve_shared_fun(),
       promise_context, effect, control);
 
   // Allocate the closure for the reject case.
-  SharedFunctionInfoRef reject_shared =
-      native_context().promise_capability_default_reject_shared_fun();
-  Node* reject = effect = graph()->NewNode(
-      javascript()->CreateClosure(
-          reject_shared.object(), factory()->many_closures_cell(),
-          handle(reject_shared.object()->GetCode(), isolate())),
+  Node* reject = effect = CreateClosureFromBuiltinSharedFunctionInfo(
+      native_context().promise_capability_default_reject_shared_fun(),
       promise_context, effect, control);
 
   const std::vector<Node*> checkpoint_parameters_continuation(
@@ -5875,10 +5868,22 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   return reduction.Changed() ? reduction : Changed(node);
 }
 
+Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
+    SharedFunctionInfoRef shared, Node* context, Node* effect, Node* control) {
+  DCHECK(shared.HasBuiltinId());
+  Callable const callable = Builtins::CallableFor(
+      isolate(), static_cast<Builtins::Name>(shared.builtin_id()));
+  return graph()->NewNode(
+      javascript()->CreateClosure(
+          shared.object(), factory()->many_closures_cell(), callable.code()),
+      context, effect, control);
+}
+
 // ES section #sec-promise.prototype.finally
 Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   int arity = static_cast<int>(p.arity() - 2);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* on_finally = arity >= 1 ? NodeProperties::GetValueInput(node, 2)
@@ -5941,22 +5946,14 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
         context, constructor, etrue, if_true);
 
     // Allocate the closure for the reject case.
-    SharedFunctionInfoRef catch_finally =
-        native_context().promise_catch_finally_shared_fun();
-    catch_true = etrue = graph()->NewNode(
-        javascript()->CreateClosure(
-            catch_finally.object(), factory()->many_closures_cell(),
-            handle(catch_finally.object()->GetCode(), isolate())),
-        context, etrue, if_true);
+    catch_true = etrue = CreateClosureFromBuiltinSharedFunctionInfo(
+        native_context().promise_catch_finally_shared_fun(), context, etrue,
+        if_true);
 
     // Allocate the closure for the fulfill case.
-    SharedFunctionInfoRef then_finally =
-        native_context().promise_then_finally_shared_fun();
-    then_true = etrue = graph()->NewNode(
-        javascript()->CreateClosure(
-            then_finally.object(), factory()->many_closures_cell(),
-            handle(then_finally.object()->GetCode(), isolate())),
-        context, etrue, if_true);
+    then_true = etrue = CreateClosureFromBuiltinSharedFunctionInfo(
+        native_context().promise_then_finally_shared_fun(), context, etrue,
+        if_true);
   }
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);

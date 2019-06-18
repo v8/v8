@@ -194,6 +194,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   // Helper to verify promise receiver maps are as expected.
   bool DoPromiseChecks(MapInference* inference);
+  Node* CreateClosureFromBuiltinSharedFunctionInfo(SharedFunctionInfoRef shared,
+                                                   Node* context, Node* effect,
+                                                   Node* control);
 
   // Returns the updated {to} node, and updates control and effect along the
   // way.
