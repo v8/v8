@@ -2371,12 +2371,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   class BlockPoolsScope {
    public:
-    explicit BlockPoolsScope(Assembler* assem)
-        : assem_(assem), block_const_pool_(assem) {
+    // Block veneer and constant pool. Emits pools if necessary to ensure that
+    // {margin} more bytes can be emitted without triggering pool emission.
+    explicit BlockPoolsScope(Assembler* assem, size_t margin = 0)
+        : assem_(assem), block_const_pool_(assem, margin) {
+      assem_->CheckVeneerPool(false, true, margin);
       assem_->StartBlockVeneerPool();
     }
 
-    BlockPoolsScope(Assembler* assem, ConstantPool::PoolEmissionCheck check)
+    BlockPoolsScope(Assembler* assem, PoolEmissionCheck check)
         : assem_(assem), block_const_pool_(assem, check) {
       assem_->StartBlockVeneerPool();
     }

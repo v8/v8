@@ -4418,7 +4418,7 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, size_t margin) {
 }
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
-  Assembler::BlockPoolsScope block_pools(this);
+  Assembler::BlockPoolsScope block_pools(this, PoolEmissionCheck::kSkip);
   RelocInfo rinfo(reinterpret_cast<Address>(buffer_start_) + location_offset,
                   RelocInfo::VENEER_POOL, static_cast<intptr_t>(size), Code());
   reloc_info_writer.Write(&rinfo);
@@ -4426,7 +4426,7 @@ void Assembler::RecordVeneerPool(int location_offset, int size) {
 
 void Assembler::EmitVeneers(bool force_emit, bool need_protection,
                             size_t margin) {
-  BlockPoolsScope scope(this, ConstantPool::PoolEmissionCheck::kSkip);
+  BlockPoolsScope scope(this, PoolEmissionCheck::kSkip);
   RecordComment("[ Veneers");
 
   // The exact size of the veneer pool must be recorded (see the comment at the

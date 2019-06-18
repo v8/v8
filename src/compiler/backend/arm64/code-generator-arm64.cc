@@ -2401,7 +2401,8 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ Add(temp, temp, Operand(input, UXTW, 2));
   __ Br(temp);
   {
-    TurboAssembler::BlockPoolsScope block_pools(tasm());
+    TurboAssembler::BlockPoolsScope block_pools(tasm(),
+                                                case_count * kInstrSize);
     __ Bind(&table);
     for (size_t index = 0; index < case_count; ++index) {
       __ B(GetLabel(i.InputRpo(index + 2)));

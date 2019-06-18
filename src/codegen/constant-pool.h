@@ -235,6 +235,7 @@ enum class Jump { kOmitted, kRequired };
 enum class Emission { kIfNeeded, kForced };
 enum class Alignment { kOmitted, kRequired };
 enum class RelocInfoStatus { kMustRecord, kMustOmitForDuplicate };
+enum class PoolEmissionCheck { kSkip };
 
 // Pools are emitted in the instruction stream, preferably after unconditional
 // jumps or after returns from functions (in dead code locations).
@@ -279,7 +280,6 @@ class ConstantPool {
   void SetNextCheckIn(size_t instructions);
 
   // Class for scoping postponing the constant pool generation.
-  enum class PoolEmissionCheck { kSkip };
   class V8_EXPORT_PRIVATE BlockScope {
    public:
     // BlockScope immediatelly emits the pool if necessary to ensure that
