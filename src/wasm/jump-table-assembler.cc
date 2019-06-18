@@ -103,7 +103,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 
 void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
   JumpToInstructionStream(builtin_target);
-  CheckConstPool(true, false);  // force emit of const pool
+  ForceConstantPoolEmissionWithoutJump();
 }
 
 void JumpTableAssembler::EmitJumpSlot(Address target) {

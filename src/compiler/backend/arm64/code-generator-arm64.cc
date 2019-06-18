@@ -2400,12 +2400,13 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ Adr(temp, &table);
   __ Add(temp, temp, Operand(input, UXTW, 2));
   __ Br(temp);
-  __ StartBlockPools();
-  __ Bind(&table);
-  for (size_t index = 0; index < case_count; ++index) {
-    __ B(GetLabel(i.InputRpo(index + 2)));
+  {
+    TurboAssembler::BlockPoolsScope block_pools(tasm());
+    __ Bind(&table);
+    for (size_t index = 0; index < case_count; ++index) {
+      __ B(GetLabel(i.InputRpo(index + 2)));
+    }
   }
-  __ EndBlockPools();
 }
 
 void CodeGenerator::FinishFrame(Frame* frame) {
@@ -2655,7 +2656,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   __ Ret();
 }
 
-void CodeGenerator::FinishCode() { __ CheckConstPool(true, false); }
+void CodeGenerator::FinishCode() { __ ForceConstantPoolEmissionWithoutJump(); }
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
