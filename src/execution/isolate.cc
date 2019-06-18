@@ -2249,7 +2249,7 @@ bool Isolate::IsExternalHandlerOnTop(Object exception) {
 }
 
 void Isolate::ReportPendingMessagesImpl(bool report_externally) {
-  Object exception = pending_exception();
+  Object exception_obj = pending_exception();
 
   // Clear the pending message object early to avoid endless recursion.
   Object message_obj = thread_local_top()->pending_message_obj_;
@@ -2257,7 +2257,7 @@ void Isolate::ReportPendingMessagesImpl(bool report_externally) {
 
   // For uncatchable exceptions we do nothing. If needed, the exception and the
   // message have already been propagated to v8::TryCatch.
-  if (!is_catchable_by_javascript(exception)) return;
+  if (!is_catchable_by_javascript(exception_obj)) return;
 
   // Determine whether the message needs to be reported to all message handlers
   // depending on whether and external v8::TryCatch or an internal JavaScript
@@ -2268,19 +2268,20 @@ void Isolate::ReportPendingMessagesImpl(bool report_externally) {
     should_report_exception = try_catch_handler()->is_verbose_;
   } else {
     // Report the exception if it isn't caught by JavaScript code.
-    should_report_exception = !IsJavaScriptHandlerOnTop(exception);
+    should_report_exception = !IsJavaScriptHandlerOnTop(exception_obj);
   }
 
   // Actually report the pending message to all message handlers.
   if (!message_obj.IsTheHole(this) && should_report_exception) {
     HandleScope scope(this);
     Handle<JSMessageObject> message(JSMessageObject::cast(message_obj), this);
+    Handle<Object> exception(exception_obj, this);
     Handle<Script> script(message->script(), this);
     // Clear the exception and restore it afterwards, otherwise
     // CollectSourcePositions will abort.
     clear_pending_exception();
     JSMessageObject::EnsureSourcePositionsAvailable(this, message);
-    set_pending_exception(exception);
+    set_pending_exception(*exception);
     int start_pos = message->GetStartPosition();
     int end_pos = message->GetEndPosition();
     MessageLocation location(script, start_pos, end_pos);
