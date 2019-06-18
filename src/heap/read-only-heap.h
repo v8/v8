@@ -5,10 +5,7 @@
 #ifndef V8_HEAP_READ_ONLY_HEAP_H_
 #define V8_HEAP_READ_ONLY_HEAP_H_
 
-#include <utility>
-
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
 #include "src/roots/roots.h"
@@ -64,8 +61,6 @@ class ReadOnlyHeap final {
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
  private:
-  using Checksum = std::pair<uint32_t, uint32_t>;
-
   // Creates a new read-only heap and attaches it to the provided isolate.
   static ReadOnlyHeap* CreateAndAttachToIsolate(Isolate* isolate);
   // Runs the read-only deserailizer and calls InitFromIsolate to complete
@@ -82,15 +77,10 @@ class ReadOnlyHeap final {
   std::vector<Object> read_only_object_cache_;
 
 #ifdef V8_SHARED_RO_HEAP
-#ifdef DEBUG
-  // The checksum of the blob the read-only heap was deserialized from, if any.
-  base::Optional<Checksum> read_only_blob_checksum_;
-#endif  // DEBUG
-
   Address read_only_roots_[kEntriesCount];
 
   V8_EXPORT_PRIVATE static ReadOnlyHeap* shared_ro_heap_;
-#endif  // V8_SHARED_RO_HEAP
+#endif
 
   explicit ReadOnlyHeap(ReadOnlySpace* ro_space) : read_only_space_(ro_space) {}
   DISALLOW_COPY_AND_ASSIGN(ReadOnlyHeap);

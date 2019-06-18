@@ -5,7 +5,6 @@
 #ifndef V8_SNAPSHOT_DESERIALIZER_H_
 #define V8_SNAPSHOT_DESERIALIZER_H_
 
-#include <utility>
 #include <vector>
 
 #include "src/objects/allocation-site.h"
@@ -40,9 +39,6 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   ~Deserializer() override;
 
   void SetRehashability(bool v) { can_rehash_ = v; }
-  std::pair<uint32_t, uint32_t> GetChecksum() const {
-    return source_.GetChecksum();
-  }
 
  protected:
   // Create a deserializer from a snapshot byte source.
