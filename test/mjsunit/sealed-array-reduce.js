@@ -614,6 +614,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   deopt = true;
   g();
   assertOptimized(g);
+  %PrepareFunctionForOptimization(g);
   deopt = false;
   array = [11,'22',33,45,56,6,77,84,93,101];
   Object.seal(array);
@@ -645,6 +646,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   deopt = true;
   g();
   assertOptimized(g);
+  %PrepareFunctionForOptimization(g);
   deopt = false;
   array = [11,'22',33,45,56,6,77,84,93,101];
   Object.seal(array);
@@ -689,6 +691,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   deopt = true;
   g();
   assertOptimized(g);
+  %PrepareFunctionForOptimization(g);
   deopt = false;
   array = [11,'22',33,45,56,6,77,84,93,101];
   Object.seal(array);
@@ -744,7 +747,10 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   done = true;
   assertEquals(null, g());
   assertOptimized(g);
+  %PrepareFunctionForOptimization(g);
+  %OptimizeFunctionOnNextCall(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -779,7 +785,10 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   done = true;
   assertEquals(null, g());
   assertOptimized(g);
+  %PrepareFunctionForOptimization(g);
   done = false;
+  %OptimizeFunctionOnNextCall(g);
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -815,6 +824,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -851,6 +861,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -910,6 +921,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -948,6 +960,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -1049,6 +1062,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   g();
   assertOptimized(g);
   deopt = true;
+  %PrepareFunctionForOptimization(g);
   g();
   deopt = false;
   array = [11,'22',33,45,56,6,77,84,93,101];
@@ -1105,6 +1119,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   done = true;
   assertEquals(null, g());
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -1140,6 +1155,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -1175,6 +1191,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -1211,6 +1228,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   done = true;
   assertEquals(null, g());
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -1269,6 +1287,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();
@@ -1307,6 +1326,7 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(null, g());
   assertOptimized(g);
   done = false;
+  %PrepareFunctionForOptimization(g);
   g(); g();
   %OptimizeFunctionOnNextCall(g);
   g();

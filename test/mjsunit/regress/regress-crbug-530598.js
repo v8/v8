@@ -10,6 +10,7 @@ var f1 = (function() {
   function f() { return g(); }
   return f;
 })();
+%PrepareFunctionForOptimization(f1);
 assertThrows("f1()");
 %OptimizeFunctionOnNextCall(f1);
 assertThrows("f1()");

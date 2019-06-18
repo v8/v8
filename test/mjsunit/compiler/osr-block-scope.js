@@ -28,10 +28,12 @@ function test(expected, func, depth) {
   for (var depth = 1; depth < 4; depth++) {
     var body = nest(orig, name, depth);
     func = eval("(" + body + ")");
-    %PrepareFunctionForOptimization(func);
 
+    %PrepareFunctionForOptimization(func);
     assertEquals(expected, func());
+    %PrepareFunctionForOptimization(func);
     assertEquals(expected, func());
+    %PrepareFunctionForOptimization(func);
     assertEquals(expected, func());
   }
 }
@@ -43,6 +45,7 @@ function foo() {
     for (var i = 0; i < 10; i++) {
       %OptimizeOsr();
       sum += i;
+      %PrepareFunctionForOptimization(foo);
     }
     result = sum;
   }
@@ -57,6 +60,7 @@ function bar() {
   for (var i = 0; i < 10; i++) {
     %OptimizeOsr();
     sum += i;
+    %PrepareFunctionForOptimization(bar);
   }
   return sum;
 }
@@ -87,6 +91,7 @@ function row() {
       %OptimizeOsr();
       sum = i;
       i = i + 1 | 0;
+      %PrepareFunctionForOptimization(row);
     }
   }
   return 11;
@@ -100,6 +105,7 @@ function nub() {
   while (i < 2) {
     %OptimizeOsr();
     i++;
+    %PrepareFunctionForOptimization(nub);
   }
   return i;
 }
@@ -115,6 +121,7 @@ function kub() {
     %OptimizeOsr();
     i++;
     result = x;
+    %PrepareFunctionForOptimization(kub);
   }
   return result;
 }
