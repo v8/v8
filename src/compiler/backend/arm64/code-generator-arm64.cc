@@ -2678,8 +2678,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (IsMaterializableFromRoot(src_object, &index)) {
         __ LoadRoot(dst, index);
       } else {
-        // TODO(v8:8977): Add the needed RelocInfo and make this mov on 32 bits
-        __ Mov(dst, src_object);
+        // TODO(v8:8977): Even though this mov happens on 32 bits (Note the
+        // .W()) and we are passing along the RelocInfo, we still haven't made
+        // the address embedded in the code-stream actually be compressed.
+        __ Mov(dst.W(),
+               Immediate(src_object, RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
       }
     } else {
       __ Mov(dst, g.ToImmediate(source));

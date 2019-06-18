@@ -200,6 +200,7 @@ struct ImmediateInitializer {
   static inline RelocInfo::Mode rmode_for(T) { return RelocInfo::NONE; }
   static inline int64_t immediate_for(T t) {
     STATIC_ASSERT(sizeof(T) <= 8);
+    STATIC_ASSERT(std::is_integral<T>::value || std::is_enum<T>::value);
     return t;
   }
 };
@@ -223,9 +224,10 @@ struct ImmediateInitializer<ExternalReference> {
 };
 
 template <typename T>
-Immediate::Immediate(Handle<T> handle)
-    : value_(static_cast<intptr_t>(handle.address())),
-      rmode_(RelocInfo::FULL_EMBEDDED_OBJECT) {}
+Immediate::Immediate(Handle<T> handle, RelocInfo::Mode mode)
+    : value_(static_cast<intptr_t>(handle.address())), rmode_(mode) {
+  DCHECK(RelocInfo::IsEmbeddedObjectMode(mode));
+}
 
 template <typename T>
 Immediate::Immediate(T t)
@@ -476,7 +478,7 @@ void Assembler::Unreachable() {
 
 Address Assembler::target_pointer_address_at(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
-  DCHECK(instr->IsLdrLiteralX());
+  DCHECK(instr->IsLdrLiteralX() || instr->IsLdrLiteralW());
   return reinterpret_cast<Address>(instr->ImmPCOffsetTarget());
 }
 
@@ -489,6 +491,13 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     return reinterpret_cast<Address>(instr->ImmPCOffsetTarget());
   }
+}
+
+Tagged_t Assembler::target_compressed_address_at(Address pc,
+                                                 Address constant_pool) {
+  Instruction* instr = reinterpret_cast<Instruction*>(pc);
+  CHECK(instr->IsLdrLiteralW());
+  return Memory<Tagged_t>(target_pointer_address_at(pc));
 }
 
 Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
@@ -506,16 +515,26 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
 AssemblerBase::EmbeddedObjectIndex
 Assembler::embedded_object_index_referenced_from(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
-  CHECK(instr->IsLdrLiteralX());
-  STATIC_ASSERT(sizeof(EmbeddedObjectIndex) == sizeof(intptr_t));
-  return Memory<EmbeddedObjectIndex>(target_pointer_address_at(pc));
+  if (instr->IsLdrLiteralX()) {
+    STATIC_ASSERT(sizeof(EmbeddedObjectIndex) == sizeof(intptr_t));
+    return Memory<EmbeddedObjectIndex>(target_pointer_address_at(pc));
+  } else {
+    DCHECK(instr->IsLdrLiteralW());
+    return Memory<uint32_t>(target_pointer_address_at(pc));
+  }
 }
 
 void Assembler::set_embedded_object_index_referenced_from(
     Address pc, EmbeddedObjectIndex data) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
-  CHECK(instr->IsLdrLiteralX());
-  Memory<EmbeddedObjectIndex>(target_pointer_address_at(pc)) = data;
+  if (instr->IsLdrLiteralX()) {
+    Memory<EmbeddedObjectIndex>(target_pointer_address_at(pc)) = data;
+  } else {
+    DCHECK(instr->IsLdrLiteralW());
+    DCHECK(is_uint32(data));
+    WriteUnalignedValue<uint32_t>(target_pointer_address_at(pc),
+                                  static_cast<uint32_t>(data));
+  }
 }
 
 Handle<HeapObject> Assembler::target_object_handle_at(Address pc) {
@@ -596,12 +615,21 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
   }
 }
 
+void Assembler::set_target_compressed_address_at(
+    Address pc, Address constant_pool, Tagged_t target,
+    ICacheFlushMode icache_flush_mode) {
+  Instruction* instr = reinterpret_cast<Instruction*>(pc);
+  CHECK(instr->IsLdrLiteralW());
+  Memory<Tagged_t>(target_pointer_address_at(pc)) = target;
+}
+
 int RelocInfo::target_address_size() {
   if (IsCodedSpecially()) {
     return Assembler::kSpecialTargetSize;
   } else {
-    DCHECK(reinterpret_cast<Instruction*>(pc_)->IsLdrLiteralX());
-    return kSystemPointerSize;
+    Instruction* instr = reinterpret_cast<Instruction*>(pc_);
+    DCHECK(instr->IsLdrLiteralX() || instr->IsLdrLiteralW());
+    return instr->IsLdrLiteralW() ? kTaggedSize : kSystemPointerSize;
   }
 }
 
@@ -640,17 +668,29 @@ Address RelocInfo::constant_pool_entry_address() {
 }
 
 HeapObject RelocInfo::target_object() {
-  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
-  return HeapObject::cast(
-      Object(Assembler::target_address_at(pc_, constant_pool_)));
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
+  if (IsCompressedEmbeddedObject(rmode_)) {
+    return HeapObject::cast(Object(DecompressTaggedAny(
+        host_.address(),
+        Assembler::target_compressed_address_at(pc_, constant_pool_))));
+  } else {
+    return HeapObject::cast(
+        Object(Assembler::target_address_at(pc_, constant_pool_)));
+  }
 }
 
 HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
-  return target_object();
+  if (IsCompressedEmbeddedObject(rmode_)) {
+    return HeapObject::cast(Object(DecompressTaggedAny(
+        isolate,
+        Assembler::target_compressed_address_at(pc_, constant_pool_))));
+  } else {
+    return target_object();
+  }
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
-  if (IsFullEmbeddedObject(rmode_)) {
+  if (IsEmbeddedObjectMode(rmode_)) {
     return origin->target_object_handle_at(pc_);
   } else {
     DCHECK(IsCodeTarget(rmode_));
@@ -661,9 +701,15 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
 void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
-  Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
-                                   icache_flush_mode);
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
+  if (IsCompressedEmbeddedObject(rmode_)) {
+    Assembler::set_target_compressed_address_at(
+        pc_, constant_pool_, CompressTagged(target.ptr()), icache_flush_mode);
+  } else {
+    DCHECK(IsFullEmbeddedObject(rmode_));
+    Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
+                                     icache_flush_mode);
+  }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null()) {
     WriteBarrierForCode(host(), this, target);
   }
@@ -711,11 +757,14 @@ Address RelocInfo::target_off_heap_target() {
 }
 
 void RelocInfo::WipeOut() {
-  DCHECK(IsFullEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
+  DCHECK(IsEmbeddedObjectMode(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_) || IsOffHeapTarget(rmode_));
   if (IsInternalReference(rmode_)) {
     WriteUnalignedValue<Address>(pc_, kNullAddress);
+  } else if (IsCompressedEmbeddedObject(rmode_)) {
+    Assembler::set_target_compressed_address_at(pc_, constant_pool_,
+                                                kNullAddress);
   } else {
     Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
   }

@@ -1284,9 +1284,6 @@ void Assembler::ldr(const CPURegister& rt, const Operand& operand) {
 }
 
 void Assembler::ldr(const CPURegister& rt, const Immediate& imm) {
-  // Currently we only support 64-bit literals.
-  DCHECK(rt.Is64Bits());
-
   BlockPoolsScope no_pool_before_ldr_pcrel_instr(this);
   RecordRelocInfo(imm.rmode(), imm.value());
   // The load will be patched when the constpool is emitted, patching code

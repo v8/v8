@@ -291,8 +291,7 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
           ExternalReference reference = bit_cast<ExternalReference>(addr);
           IndirectLoadExternalReference(rd, reference);
           return;
-        } else if (operand.ImmediateRMode() ==
-                   RelocInfo::FULL_EMBEDDED_OBJECT) {
+        } else if (RelocInfo::IsEmbeddedObjectMode(operand.ImmediateRMode())) {
           Handle<HeapObject> x(
               reinterpret_cast<Address*>(operand.ImmediateValue()));
           IndirectLoadConstant(rd, x);

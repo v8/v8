@@ -35,7 +35,8 @@ class SafepointTableBuilder;
 class Immediate {
  public:
   template <typename T>
-  inline explicit Immediate(Handle<T> handle);
+  inline explicit Immediate(
+      Handle<T> handle, RelocInfo::Mode mode = RelocInfo::FULL_EMBEDDED_OBJECT);
 
   // This is allowed to be an implicit constructor because Immediate is
   // a wrapper class that doesn't normally perform any type conversion.
@@ -253,8 +254,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   inline static Address target_address_at(Address pc, Address constant_pool);
+
+  // Read/Modify the code target address in the branch/call instruction at pc.
+  inline static Tagged_t target_compressed_address_at(Address pc,
+                                                      Address constant_pool);
   inline static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
+  inline static void set_target_compressed_address_at(
+      Address pc, Address constant_pool, Tagged_t target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Returns the handle for the code object called at 'pc'.
