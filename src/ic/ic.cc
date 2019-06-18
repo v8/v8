@@ -1935,13 +1935,9 @@ bool MayHaveTypedArrayInPrototypeChain(Handle<JSObject> object) {
 KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver, uint32_t index) {
   bool oob_access = IsOutOfBoundsAccess(receiver, index);
   // Don't consider this a growing store if the store would send the receiver to
-  // dictionary mode. Also make sure we don't consider this a growing store if
-  // there's any JSTypedArray in the {receiver}'s prototype chain, since that
-  // prototype is going to swallow all stores that are out-of-bounds for said
-  // prototype, and we just let the runtime deal with the complexity of this.
+  // dictionary mode.
   bool allow_growth = receiver->IsJSArray() && oob_access &&
-                      !receiver->WouldConvertToSlowElements(index) &&
-                      !MayHaveTypedArrayInPrototypeChain(receiver);
+                      !receiver->WouldConvertToSlowElements(index);
   if (allow_growth) {
     return STORE_AND_GROW_HANDLE_COW;
   }
@@ -2046,6 +2042,13 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
       } else if (object->IsJSArray() && IsGrowStoreMode(store_mode) &&
                  JSArray::HasReadOnlyLength(Handle<JSArray>::cast(object))) {
         set_slow_stub_reason("array has read only length");
+      } else if (object->IsJSArray() && MayHaveTypedArrayInPrototypeChain(
+                                            Handle<JSObject>::cast(object))) {
+        // Make sure we don't handle this in IC if there's any JSTypedArray in
+        // the {receiver}'s prototype chain, since that prototype is going to
+        // swallow all stores that are out-of-bounds for said prototype, and we
+        // just let the runtime deal with the complexity of this.
+        set_slow_stub_reason("typed array in the prototype chain of an Array");
       } else if (key_is_valid_index) {
         if (old_receiver_map->is_abandoned_prototype_map()) {
           set_slow_stub_reason("receiver with prototype map");
