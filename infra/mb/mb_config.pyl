@@ -203,6 +203,7 @@
       'v8_linux_verify_csa_rel_ng': 'release_x86_verify_csa',
       'v8_linux_nodcheck_rel_ng': 'release_x86_minimal_symbols',
       'v8_linux_dbg_ng': 'debug_x86_trybot',
+      'v8_linux_noi18n_compile_dbg': 'debug_x86_no_i18n',
       'v8_linux_noi18n_rel_ng': 'release_x86_no_i18n_trybot',
       'v8_linux_gc_stress_dbg': 'debug_x86_trybot',
       'v8_linux_nosnap_rel': 'release_x86_no_snap_trybot',
