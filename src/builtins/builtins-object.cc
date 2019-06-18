@@ -218,19 +218,6 @@ BUILTIN(ObjectFreeze) {
   return *object;
 }
 
-// ES section 19.1.2.9 Object.getPrototypeOf ( O )
-BUILTIN(ObjectGetPrototypeOf) {
-  HandleScope scope(isolate);
-  Handle<Object> object = args.atOrUndefined(isolate, 1);
-
-  Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Object::ToObject(isolate, object));
-
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           JSReceiver::GetPrototype(isolate, receiver));
-}
-
 // ES6 section 19.1.2.21 Object.setPrototypeOf ( O, proto )
 BUILTIN(ObjectSetPrototypeOf) {
   HandleScope scope(isolate);

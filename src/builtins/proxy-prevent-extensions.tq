@@ -38,7 +38,7 @@ namespace proxy {
       if (BranchIfToBooleanIsTrue(trapResult)) {
         const extensibleTarget: Object = object::ObjectIsExtensible(target);
         assert(extensibleTarget == True || extensibleTarget == False);
-        if (BranchIfToBooleanIsTrue(extensibleTarget)) {
+        if (extensibleTarget == True) {
           ThrowTypeError(kProxyPreventExtensionsExtensible);
         }
       } else {

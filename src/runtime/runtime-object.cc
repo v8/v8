@@ -537,6 +537,15 @@ RUNTIME_FUNCTION(Runtime_JSReceiverPreventExtensionsDontThrow) {
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
+RUNTIME_FUNCTION(Runtime_JSReceiverGetPrototypeOf) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSReceiver::GetPrototype(isolate, receiver));
+}
+
 RUNTIME_FUNCTION(Runtime_GetProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

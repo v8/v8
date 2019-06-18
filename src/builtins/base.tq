@@ -2833,6 +2833,8 @@ macro ToBoolean(obj: Object): bool {
   }
 }
 
+extern macro BranchIfSameValue(Object, Object): never labels Taken, NotTaken;
+
 transitioning macro ToIndex(input: Object, context: Context): Number
     labels RangeError {
   if (input == Undefined) {

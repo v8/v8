@@ -302,6 +302,7 @@ namespace internal {
   I(IsJSReceiver, 1, 1)                                         \
   F(JSReceiverPreventExtensionsDontThrow, 1, 1)                 \
   F(JSReceiverPreventExtensionsThrow, 1, 1)                     \
+  F(JSReceiverGetPrototypeOf, 1, 1)                             \
   F(NewObject, 2, 1)                                            \
   F(ObjectCreate, 2, 1)                                         \
   F(ObjectEntries, 1, 1)                                        \

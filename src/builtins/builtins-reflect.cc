@@ -119,23 +119,6 @@ BUILTIN(ReflectGetOwnPropertyDescriptor) {
   return *desc.ToObject(isolate);
 }
 
-// ES6 section 26.1.8 Reflect.getPrototypeOf
-BUILTIN(ReflectGetPrototypeOf) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Handle<Object> target = args.at(1);
-
-  if (!target->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "Reflect.getPrototypeOf")));
-  }
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(target);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           JSReceiver::GetPrototype(isolate, receiver));
-}
-
 // ES6 section 26.1.11 Reflect.ownKeys
 BUILTIN(ReflectOwnKeys) {
   HandleScope scope(isolate);

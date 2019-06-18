@@ -726,7 +726,6 @@ namespace internal {
   CPP(ObjectGetOwnPropertyDescriptors)                                         \
   TFJ(ObjectGetOwnPropertyNames, 1, kReceiver, kObject)                        \
   CPP(ObjectGetOwnPropertySymbols)                                             \
-  CPP(ObjectGetPrototypeOf)                                                    \
   CPP(ObjectSetPrototypeOf)                                                    \
   TFJ(ObjectIs, 2, kReceiver, kLeft, kRight)                                   \
   CPP(ObjectIsFrozen)                                                          \
@@ -824,7 +823,6 @@ namespace internal {
   CPP(ReflectDeleteProperty)                                                   \
   CPP(ReflectGet)                                                              \
   CPP(ReflectGetOwnPropertyDescriptor)                                         \
-  CPP(ReflectGetPrototypeOf)                                                   \
   TFJ(ReflectHas, 2, kReceiver, kTarget, kKey)                                 \
   CPP(ReflectOwnKeys)                                                          \
   CPP(ReflectSet)                                                              \

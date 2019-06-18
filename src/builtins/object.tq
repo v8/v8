@@ -13,6 +13,9 @@ namespace runtime {
   extern transitioning runtime
   JSReceiverPreventExtensionsDontThrow(implicit context: Context)(JSReceiver):
       Object;
+
+  extern transitioning runtime
+  JSReceiverGetPrototypeOf(implicit context: Context)(JSReceiver): Object;
 }  // namespace runtime
 
 namespace object {
@@ -43,6 +46,20 @@ namespace object {
         objectJSReceiver);
     return proxy::ProxyPreventExtensions(objectJSProxy, False);
   }
+
+  transitioning macro
+  ObjectGetPrototypeOf(implicit context: Context)(object: Object): Object {
+    const objectJSReceiver: JSReceiver = ToObject_Inline(context, object);
+    return object::JSReceiverGetPrototypeOf(objectJSReceiver);
+  }
+
+  transitioning macro
+  JSReceiverGetPrototypeOf(implicit context: Context)(object: JSReceiver):
+      Object {
+    const objectJSProxy = Cast<JSProxy>(object)
+        otherwise return runtime::JSReceiverGetPrototypeOf(object);
+    return proxy::ProxyGetPrototypeOf(objectJSProxy);
+  }
 }  // namespace object
 
 namespace object_isextensible {
@@ -60,3 +77,11 @@ namespace object_preventextensions {
     return object::ObjectPreventExtensionsThrow(object);
   }
 }  // namespace object_preventextensions
+
+namespace object_getprototypeof {
+  // ES6 section 19.1.2.9 Object.getPrototypeOf ( O )
+  transitioning javascript builtin ObjectGetPrototypeOf(
+      js-implicit context: Context)(_receiver: Object, object: Object): Object {
+    return object::ObjectGetPrototypeOf(object);
+  }
+}  // namespace object_getprototypeof

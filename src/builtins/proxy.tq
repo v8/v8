@@ -42,6 +42,10 @@ namespace proxy {
   generates 'MessageTemplate::kProxyPreventExtensionsExtensible';
   const kProxyTrapReturnedFalsish: constexpr MessageTemplate
   generates 'MessageTemplate::kProxyTrapReturnedFalsish';
+  const kProxyGetPrototypeOfInvalid: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyGetPrototypeOfInvalid';
+  const kProxyGetPrototypeOfNonExtensible: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyGetPrototypeOfNonExtensible';
 
   const kProxyGet: constexpr int31
   generates 'JSProxy::AccessKind::kGet';

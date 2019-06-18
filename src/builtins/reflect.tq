@@ -22,4 +22,12 @@ namespace reflect {
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.preventExtensions');
     return object::ObjectPreventExtensionsDontThrow(objectJSReceiver);
   }
+
+  // ES6 section 26.1.8 Reflect.getPrototypeOf
+  transitioning javascript builtin ReflectGetPrototypeOf(
+      js-implicit context: Context)(_receiver: Object, object: Object): Object {
+    const objectJSReceiver = Cast<JSReceiver>(object)
+        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.getPrototypeOf');
+    return object::JSReceiverGetPrototypeOf(objectJSReceiver);
+  }
 }  // namespace reflect
