@@ -1067,6 +1067,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(op, sizeof...(args) + 1, buffer);
   }
 
+  size_t NodeCount();
+
   void SetSourcePosition(const char* file, int line);
   SourcePositionTable* source_positions() { return source_positions_; }
 
