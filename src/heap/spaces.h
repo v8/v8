@@ -151,12 +151,14 @@ class FreeListCategory {
         page_(page),
         type_(kInvalidCategory),
         available_(0),
+        length_(0),
         prev_(nullptr),
         next_(nullptr) {}
 
   void Initialize(FreeListCategoryType type) {
     type_ = type;
     available_ = 0;
+    length_ = 0;
     prev_ = nullptr;
     next_ = nullptr;
   }
@@ -189,7 +191,7 @@ class FreeListCategory {
   void set_free_list(FreeList* free_list) { free_list_ = free_list; }
 
   size_t SumFreeList();
-  int FreeListLength();
+  int FreeListLength() { return length_; }
 
  private:
   // For debug builds we accurately compute free lists lengths up until
@@ -215,6 +217,9 @@ class FreeListCategory {
   // |available_|: Total available bytes in all blocks of this free list
   // category.
   size_t available_;
+
+  // |length_|: Total blocks in this free list category.
+  int length_;
 
   // |top_|: Points to the top FreeSpace in the free list category.
   FreeSpace top_;
@@ -561,6 +566,8 @@ class MemoryChunk {
   Address area_start() { return area_start_; }
   Address area_end() { return area_end_; }
   size_t area_size() { return static_cast<size_t>(area_end() - area_start()); }
+
+  int FreeListsLength();
 
   // Approximate amount of physical memory committed for this chunk.
   V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory();

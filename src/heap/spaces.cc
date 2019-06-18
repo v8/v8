@@ -2926,6 +2926,7 @@ void FreeListCategory::Reset() {
   set_prev(nullptr);
   set_next(nullptr);
   available_ = 0;
+  length_ = 0;
 }
 
 FreeSpace FreeListCategory::PickNodeFromList(size_t minimum_size,
@@ -2940,6 +2941,7 @@ FreeSpace FreeListCategory::PickNodeFromList(size_t minimum_size,
   set_top(node.next());
   *node_size = node.Size();
   available_ -= *node_size;
+  length_--;
   return node;
 }
 
@@ -2953,6 +2955,7 @@ FreeSpace FreeListCategory::SearchForNodeInList(size_t minimum_size,
     if (size >= minimum_size) {
       DCHECK_GE(available_, size);
       available_ -= size;
+      length_--;
       if (cur_node == top()) {
         set_top(cur_node.next());
       }
@@ -2978,6 +2981,7 @@ void FreeListCategory::Free(Address start, size_t size_in_bytes,
   free_space.set_next(top());
   set_top(free_space);
   available_ += size_in_bytes;
+  length_++;
   if ((mode == kLinkCategory) && (prev() == nullptr) && (next() == nullptr)) {
     owner()->AddCategory(this);
   }
@@ -3191,6 +3195,16 @@ void FreeList::PrintCategories(FreeListCategoryType type) {
   PrintF("null\n");
 }
 
+int MemoryChunk::FreeListsLength() {
+  int length = 0;
+  for (int cat = kFirstCategory; cat <= kLastCategory; cat++) {
+    if (categories_[cat] != nullptr) {
+      length += categories_[cat]->FreeListLength();
+    }
+  }
+  return length;
+}
+
 size_t FreeListCategory::SumFreeList() {
   size_t sum = 0;
   FreeSpace cur = top();
@@ -3203,17 +3217,6 @@ size_t FreeListCategory::SumFreeList() {
     cur = cur.next();
   }
   return sum;
-}
-
-int FreeListCategory::FreeListLength() {
-  int length = 0;
-  FreeSpace cur = top();
-  while (!cur.is_null()) {
-    length++;
-    cur = cur.next();
-    if (length == kVeryLongFreeList) return length;
-  }
-  return length;
 }
 
 #ifdef DEBUG
