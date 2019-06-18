@@ -4,9 +4,14 @@
 
 #include "src/wasm/function-compiler.h"
 
+#include "src/codegen/compiler.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/logging/counters.h"
+#include "src/logging/log.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 
@@ -206,6 +211,30 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
   return result;
 }
 
+namespace {
+bool must_record_function_compilation(Isolate* isolate) {
+  return isolate->logger()->is_listening_to_code_events() ||
+         isolate->is_profiling();
+}
+
+PRINTF_FORMAT(3, 4)
+void RecordWasmHeapStubCompilation(Isolate* isolate, Handle<Code> code,
+                                   const char* format, ...) {
+  DCHECK(must_record_function_compilation(isolate));
+
+  ScopedVector<char> buffer(128);
+  va_list arguments;
+  va_start(arguments, format);
+  int len = VSNPrintF(buffer, format, arguments);
+  CHECK_LT(0, len);
+  va_end(arguments);
+  Handle<String> name_str =
+      isolate->factory()->NewStringFromAsciiChecked(buffer.begin());
+  PROFILE(isolate, CodeCreateEvent(CodeEventListener::STUB_TAG,
+                                   AbstractCode::cast(*code), *name_str));
+}
+}  // namespace
+
 // static
 void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
                                               NativeModule* native_module,
@@ -231,6 +260,46 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
   } else {
     native_module->compilation_state()->SetError();
   }
+}
+
+JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(Isolate* isolate,
+                                                               FunctionSig* sig,
+                                                               bool is_import)
+    : job_(compiler::NewJSToWasmCompilationJob(isolate, sig, is_import)) {}
+
+JSToWasmWrapperCompilationUnit::~JSToWasmWrapperCompilationUnit() = default;
+
+void JSToWasmWrapperCompilationUnit::Prepare(Isolate* isolate) {
+  CompilationJob::Status status = job_->PrepareJob(isolate);
+  CHECK_EQ(status, CompilationJob::SUCCEEDED);
+}
+
+void JSToWasmWrapperCompilationUnit::Execute() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "CompileJSToWasmWrapper");
+  DCHECK_EQ(job_->state(), CompilationJob::State::kReadyToExecute);
+  CompilationJob::Status status = job_->ExecuteJob();
+  CHECK_EQ(status, CompilationJob::SUCCEEDED);
+}
+
+Handle<Code> JSToWasmWrapperCompilationUnit::Finalize(Isolate* isolate) {
+  CompilationJob::Status status = job_->FinalizeJob(isolate);
+  CHECK_EQ(status, CompilationJob::SUCCEEDED);
+  Handle<Code> code = job_->compilation_info()->code();
+  if (must_record_function_compilation(isolate)) {
+    RecordWasmHeapStubCompilation(
+        isolate, code, "%s", job_->compilation_info()->GetDebugName().get());
+  }
+  return code;
+}
+
+// static
+Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+    Isolate* isolate, FunctionSig* sig, bool is_import) {
+  // Run the compilation unit synchronously.
+  JSToWasmWrapperCompilationUnit unit(isolate, sig, is_import);
+  unit.Prepare(isolate);
+  unit.Execute();
+  return unit.Finalize(isolate);
 }
 
 }  // namespace wasm

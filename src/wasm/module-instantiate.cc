@@ -48,35 +48,8 @@ uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
   }
 }
 
-// Queue of import wrapper keys to compile for an instance.
-class ImportWrapperQueue {
- public:
-  // Removes an arbitrary cache key from the queue and returns it.
-  // If the queue is empty, returns nullopt.
-  // Thread-safe.
-  base::Optional<WasmImportWrapperCache::CacheKey> pop() {
-    base::Optional<WasmImportWrapperCache::CacheKey> key = base::nullopt;
-    base::LockGuard<base::Mutex> lock(&mutex_);
-    auto it = queue_.begin();
-    if (it != queue_.end()) {
-      key = *it;
-      queue_.erase(it);
-    }
-    return key;
-  }
-
-  // Add the given key to the queue.
-  // Not thread-safe.
-  void insert(const WasmImportWrapperCache::CacheKey& key) {
-    queue_.insert(key);
-  }
-
- private:
-  base::Mutex mutex_;
-  std::unordered_set<WasmImportWrapperCache::CacheKey,
-                     WasmImportWrapperCache::CacheKeyHash>
-      queue_;
-};
+using ImportWrapperQueue = WrapperQueue<WasmImportWrapperCache::CacheKey,
+                                        WasmImportWrapperCache::CacheKeyHash>;
 
 class CompileImportWrapperTask final : public CancelableTask {
  public:
@@ -550,9 +523,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
     auto& function = module_->functions[start_index];
-    Handle<Code> wrapper_code = compiler::CompileJSToWasmWrapper(
-                                    isolate_, function.sig, function.imported)
-                                    .ToHandleChecked();
+    Handle<Code> wrapper_code =
+        JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+            isolate_, function.sig, function.imported);
     // TODO(clemensh): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(

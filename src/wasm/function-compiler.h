@@ -18,6 +18,7 @@ namespace internal {
 
 class AssemblerBuffer;
 class Counters;
+class OptimizedCompilationJob;
 
 namespace wasm {
 
@@ -100,6 +101,24 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
 // efficiently pass it by value.
 ASSERT_TRIVIALLY_COPYABLE(WasmCompilationUnit);
 STATIC_ASSERT(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
+
+class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
+ public:
+  JSToWasmWrapperCompilationUnit(Isolate* isolate, FunctionSig* sig,
+                                 bool is_import);
+  ~JSToWasmWrapperCompilationUnit();
+
+  void Prepare(Isolate* isolate);
+  void Execute();
+  Handle<Code> Finalize(Isolate* isolate);
+
+  // Run a compilation unit synchronously.
+  static Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, FunctionSig* sig,
+                                             bool is_import);
+
+ private:
+  std::unique_ptr<OptimizedCompilationJob> job_;
+};
 
 }  // namespace wasm
 }  // namespace internal

@@ -1876,9 +1876,8 @@ WasmInstanceObject::GetOrCreateWasmExportedFunction(
     // The wrapper may not exist yet if no function in the exports section has
     // this signature. We compile it and store the wrapper in the module for
     // later use.
-    wrapper = compiler::CompileJSToWasmWrapper(isolate, function.sig,
-                                               function.imported)
-                  .ToHandleChecked();
+    wrapper = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+        isolate, function.sig, function.imported);
     module_object->export_wrappers().set(wrapper_index, *wrapper);
   }
   result = WasmExportedFunction::New(

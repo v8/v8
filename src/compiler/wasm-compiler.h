@@ -20,6 +20,7 @@
 namespace v8 {
 namespace internal {
 struct AssemblerOptions;
+class OptimizedCompilationJob;
 
 namespace compiler {
 // Forward declarations for some compiler data structures.
@@ -123,11 +124,9 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine*,
                                            wasm::NativeModule*,
                                            wasm::FunctionSig*, Address address);
 
-// Creates a code object calling a wasm function with the given signature,
-// callable from JS.
-V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(Isolate*,
-                                                           wasm::FunctionSig*,
-                                                           bool is_import);
+// Returns an OptimizedCompilationJob object for a JS to Wasm wrapper.
+std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
+    Isolate* isolate, wasm::FunctionSig* sig, bool is_import);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.

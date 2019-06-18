@@ -14,6 +14,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/compiler.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator.h"
@@ -4878,28 +4879,6 @@ void WasmGraphBuilder::RemoveBytecodePositionDecorator() {
 }
 
 namespace {
-bool must_record_function_compilation(Isolate* isolate) {
-  return isolate->logger()->is_listening_to_code_events() ||
-         isolate->is_profiling();
-}
-
-PRINTF_FORMAT(4, 5)
-void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
-                               Isolate* isolate, Handle<Code> code,
-                               const char* format, ...) {
-  DCHECK(must_record_function_compilation(isolate));
-
-  ScopedVector<char> buffer(128);
-  va_list arguments;
-  va_start(arguments, format);
-  int len = VSNPrintF(buffer, format, arguments);
-  CHECK_LT(0, len);
-  va_end(arguments);
-  Handle<String> name_str =
-      isolate->factory()->NewStringFromAsciiChecked(buffer.begin());
-  PROFILE(isolate, CodeCreateEvent(tag, AbstractCode::cast(*code), *name_str));
-}
-
 class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  public:
   WasmWrapperGraphBuilder(Zone* zone, JSGraph* jsgraph, wasm::FunctionSig* sig,
@@ -5901,27 +5880,25 @@ void AppendSignature(char* buffer, size_t max_name_len,
 
 }  // namespace
 
-MaybeHandle<Code> CompileJSToWasmWrapper(Isolate* isolate,
-                                         wasm::FunctionSig* sig,
-                                         bool is_import) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-               "CompileJSToWasmWrapper");
+std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
+    Isolate* isolate, wasm::FunctionSig* sig, bool is_import) {
   //----------------------------------------------------------------------------
   // Create the Graph.
   //----------------------------------------------------------------------------
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  Graph graph(&zone);
-  CommonOperatorBuilder common(&zone);
+  std::unique_ptr<Zone> zone =
+      base::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
+  Graph* graph = new (zone.get()) Graph(zone.get());
+  CommonOperatorBuilder common(zone.get());
   MachineOperatorBuilder machine(
-      &zone, MachineType::PointerRepresentation(),
+      zone.get(), MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
+  JSGraph jsgraph(isolate, graph, &common, nullptr, nullptr, &machine);
 
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(zone.get(), &jsgraph, sig, nullptr,
                                   StubCallMode::kCallCodeObject,
                                   wasm::WasmFeaturesFromIsolate(isolate));
   builder.set_control_ptr(&control);
@@ -5929,38 +5906,20 @@ MaybeHandle<Code> CompileJSToWasmWrapper(Isolate* isolate,
   builder.BuildJSToWasmWrapper(is_import);
 
   //----------------------------------------------------------------------------
-  // Run the compilation pipeline.
+  // Create the compilation job.
   //----------------------------------------------------------------------------
   static constexpr size_t kMaxNameLen = 128;
-  char debug_name[kMaxNameLen] = "js_to_wasm:";
-  AppendSignature(debug_name, kMaxNameLen, sig);
+  auto debug_name = std::unique_ptr<char[]>(new char[kMaxNameLen]);
+  memcpy(debug_name.get(), "js_to_wasm:", 12);
+  AppendSignature(debug_name.get(), kMaxNameLen, sig);
 
-  // Schedule and compile to machine code.
   int params = static_cast<int>(sig->parameter_count());
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
-      &zone, false, params + 1, CallDescriptor::kNoFlags);
+      zone.get(), false, params + 1, CallDescriptor::kNoFlags);
 
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmHeapStub(
-      isolate, incoming, &graph, Code::JS_TO_WASM_FUNCTION, debug_name,
-      WasmAssemblerOptions());
-  Handle<Code> code;
-  if (!maybe_code.ToHandle(&code)) {
-    return maybe_code;
-  }
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_opt_code) {
-    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    code->Disassemble(debug_name, os);
-  }
-#endif
-
-  if (must_record_function_compilation(isolate)) {
-    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code, "%s",
-                              debug_name);
-  }
-
-  return code;
+  return Pipeline::NewWasmHeapStubCompilationJob(
+      isolate, incoming, std::move(zone), graph, Code::JS_TO_WASM_FUNCTION,
+      std::move(debug_name), WasmAssemblerOptions());
 }
 
 WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
@@ -6328,19 +6287,20 @@ wasm::WasmCompilationResult CompileWasmInterpreterEntry(
 }
 
 MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  Graph graph(&zone);
-  CommonOperatorBuilder common(&zone);
+  std::unique_ptr<Zone> zone =
+      base::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
+  Graph* graph = new (zone.get()) Graph(zone.get());
+  CommonOperatorBuilder common(zone.get());
   MachineOperatorBuilder machine(
-      &zone, MachineType::PointerRepresentation(),
+      zone.get(), MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
+  JSGraph jsgraph(isolate, graph, &common, nullptr, nullptr, &machine);
 
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(zone.get(), &jsgraph, sig, nullptr,
                                   StubCallMode::kCallCodeObject,
                                   wasm::WasmFeaturesFromIsolate(isolate));
   builder.set_control_ptr(&control);
@@ -6349,28 +6309,27 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
 
   // Schedule and compile to machine code.
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
-      &zone, false, CWasmEntryParameters::kNumParameters + 1,
+      zone.get(), false, CWasmEntryParameters::kNumParameters + 1,
       CallDescriptor::kNoFlags);
 
   // Build a name in the form "c-wasm-entry:<params>:<returns>".
   static constexpr size_t kMaxNameLen = 128;
-  char debug_name[kMaxNameLen] = "c-wasm-entry:";
-  AppendSignature(debug_name, kMaxNameLen, sig);
+  auto debug_name = std::unique_ptr<char[]>(new char[kMaxNameLen]);
+  memcpy(debug_name.get(), "c-wasm-entry:", 14);
+  AppendSignature(debug_name.get(), kMaxNameLen, sig);
 
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmHeapStub(
-      isolate, incoming, &graph, Code::C_WASM_ENTRY, debug_name,
-      AssemblerOptions::Default(isolate));
-  Handle<Code> code;
-  if (!maybe_code.ToHandle(&code)) {
-    return maybe_code;
+  // Run the compilation job synchronously.
+  std::unique_ptr<OptimizedCompilationJob> job(
+      Pipeline::NewWasmHeapStubCompilationJob(
+          isolate, incoming, std::move(zone), graph, Code::C_WASM_ENTRY,
+          std::move(debug_name), AssemblerOptions::Default(isolate)));
+
+  if (job->PrepareJob(isolate) == CompilationJob::FAILED ||
+      job->ExecuteJob() == CompilationJob::FAILED ||
+      job->FinalizeJob(isolate) == CompilationJob::FAILED) {
+    return {};
   }
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_opt_code) {
-    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    code->Disassemble(debug_name, os);
-  }
-#endif
+  Handle<Code> code = job->compilation_info()->code();
 
   return code;
 }

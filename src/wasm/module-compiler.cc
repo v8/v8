@@ -23,7 +23,6 @@
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/identity-map.h"
-#include "src/wasm/js-to-wasm-wrapper-cache.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -2360,24 +2359,83 @@ void CompilationStateImpl::SetError() {
   callbacks_.clear();
 }
 
+namespace {
+using JSToWasmWrapperKey = std::pair<bool, FunctionSig>;
+using JSToWasmWrapperQueue =
+    WrapperQueue<JSToWasmWrapperKey, base::hash<JSToWasmWrapperKey>>;
+using JSToWasmWrapperUnitMap =
+    std::unordered_map<JSToWasmWrapperKey,
+                       std::unique_ptr<JSToWasmWrapperCompilationUnit>,
+                       base::hash<JSToWasmWrapperKey>>;
+
+class CompileJSToWasmWrapperTask final : public CancelableTask {
+ public:
+  CompileJSToWasmWrapperTask(CancelableTaskManager* task_manager,
+                             JSToWasmWrapperQueue* queue,
+                             JSToWasmWrapperUnitMap* compilation_units)
+      : CancelableTask(task_manager),
+        queue_(queue),
+        compilation_units_(compilation_units) {}
+
+  void RunInternal() override {
+    while (base::Optional<JSToWasmWrapperKey> key = queue_->pop()) {
+      JSToWasmWrapperCompilationUnit* unit = (*compilation_units_)[*key].get();
+      unit->Execute();
+    }
+  }
+
+ private:
+  JSToWasmWrapperQueue* const queue_;
+  JSToWasmWrapperUnitMap* const compilation_units_;
+};
+}  // namespace
+
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
                              Handle<FixedArray> export_wrappers) {
-  JSToWasmWrapperCache js_to_wasm_cache;
+  JSToWasmWrapperQueue queue;
+  JSToWasmWrapperUnitMap compilation_units;
 
+  // Prepare compilation units in the main thread.
+  for (auto exp : module->export_table) {
+    if (exp.kind != kExternalFunction) continue;
+    auto& function = module->functions[exp.index];
+    JSToWasmWrapperKey key(function.imported, *function.sig);
+    if (queue.insert(key)) {
+      auto unit = base::make_unique<JSToWasmWrapperCompilationUnit>(
+          isolate, function.sig, function.imported);
+      unit->Prepare(isolate);
+      compilation_units.emplace(key, std::move(unit));
+    }
+  }
+
+  // Execute compilation jobs in the background.
+  CancelableTaskManager task_manager;
+  const int max_background_tasks = GetMaxBackgroundTasks();
+  for (int i = 0; i < max_background_tasks; ++i) {
+    auto task = base::make_unique<CompileJSToWasmWrapperTask>(
+        &task_manager, &queue, &compilation_units);
+    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
+  }
+
+  // Work in the main thread too.
+  while (base::Optional<JSToWasmWrapperKey> key = queue.pop()) {
+    JSToWasmWrapperCompilationUnit* unit = compilation_units[*key].get();
+    unit->Execute();
+  }
+  task_manager.CancelAndWait();
+
+  // Finalize compilation jobs in the main thread.
   // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
   // optimization we keep the code space unlocked to avoid repeated unlocking
   // because many such wrapper are allocated in sequence below.
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-  for (auto exp : module->export_table) {
-    if (exp.kind != kExternalFunction) continue;
-    auto& function = module->functions[exp.index];
-    Handle<Code> wrapper_code = js_to_wasm_cache.GetOrCompileJSToWasmWrapper(
-        isolate, function.sig, function.imported);
-    int wrapper_index =
-        GetExportWrapperIndex(module, function.sig, function.imported);
-
-    export_wrappers->set(wrapper_index, *wrapper_code);
-    RecordStats(*wrapper_code, isolate->counters());
+  for (auto& pair : compilation_units) {
+    JSToWasmWrapperKey key = pair.first;
+    JSToWasmWrapperCompilationUnit* unit = pair.second.get();
+    Handle<Code> code = unit->Finalize(isolate);
+    int wrapper_index = GetExportWrapperIndex(module, &key.second, key.first);
+    export_wrappers->set(wrapper_index, *code);
+    RecordStats(*code, isolate->counters());
   }
 }
 

@@ -59,11 +59,11 @@ class Pipeline : public AllStatic {
       const char* debug_name, const AssemblerOptions& assembler_options,
       SourcePositionTable* source_positions = nullptr);
 
-  // Run the pipeline on a machine graph and generate code.
-  static MaybeHandle<Code> GenerateCodeForWasmHeapStub(
-      Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-      Code::Kind kind, const char* debug_name,
-      const AssemblerOptions& assembler_options,
+  // Returns a new compilation job for a wasm heap stub.
+  static std::unique_ptr<OptimizedCompilationJob> NewWasmHeapStubCompilationJob(
+      Isolate* isolate, CallDescriptor* call_descriptor,
+      std::unique_ptr<Zone> zone, Graph* graph, Code::Kind kind,
+      std::unique_ptr<char[]> debug_name, const AssemblerOptions& options,
       SourcePositionTable* source_positions = nullptr);
 
   // Run the pipeline on a machine graph and generate code.

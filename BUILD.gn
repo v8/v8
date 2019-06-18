@@ -2862,7 +2862,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/function-compiler.h",
     "src/wasm/graph-builder-interface.cc",
     "src/wasm/graph-builder-interface.h",
-    "src/wasm/js-to-wasm-wrapper-cache.h",
     "src/wasm/jump-table-assembler.cc",
     "src/wasm/jump-table-assembler.h",
     "src/wasm/leb-helper.h",
