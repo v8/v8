@@ -44,29 +44,20 @@ class HeapTester;
 class TestMemoryAllocatorScope;
 }  // namespace heap
 
-class ObjectBoilerplateDescription;
-class BytecodeArray;
-class CodeDataContainer;
-class DeoptimizationData;
-class HandlerTable;
 class IncrementalMarking;
 class JSArrayBuffer;
-class ExternalString;
 using v8::MemoryPressureLevel;
 
 class AllocationObserver;
 class ArrayBufferCollector;
-class ArrayBufferTracker;
 class CodeLargeObjectSpace;
 class ConcurrentMarking;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
 class GCTracer;
-class HeapController;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
 class HeapStats;
-class HistogramTimer;
 class Isolate;
 class JSFinalizationGroup;
 class LocalEmbedderHeapTracer;
@@ -86,7 +77,6 @@ class Space;
 class StoreBuffer;
 class StressScavengeObserver;
 class TimedHistogram;
-class TracePossibleWrapperReporter;
 class WeakObjectRetainer;
 
 enum ArrayStorageAllocationMode {
@@ -2126,9 +2116,6 @@ class Heap {
   // Used in cctest.
   friend class heap::HeapTester;
 
-  FRIEND_TEST(HeapControllerTest, OldGenerationAllocationLimit);
-  FRIEND_TEST(HeapTest, ExternalLimitDefault);
-  FRIEND_TEST(HeapTest, ExternalLimitStaysAboveDefaultForExplicitHandling);
   DISALLOW_COPY_AND_ASSIGN(Heap);
 };
 
