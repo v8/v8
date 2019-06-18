@@ -276,32 +276,32 @@ T Sqrt(T a) {
 
 #define TO_BYTE(val) static_cast<byte>(val)
 #define WASM_SIMD_OP(op) kSimdPrefix, TO_BYTE(op)
-#define WASM_SIMD_SPLAT(Type, x) x, WASM_SIMD_OP(kExpr##Type##Splat)
+#define WASM_SIMD_SPLAT(Type, ...) __VA_ARGS__, WASM_SIMD_OP(kExpr##Type##Splat)
 #define WASM_SIMD_UNOP(op, x) x, WASM_SIMD_OP(op)
 #define WASM_SIMD_BINOP(op, x, y) x, y, WASM_SIMD_OP(op)
 #define WASM_SIMD_SHIFT_OP(op, shift, x) x, WASM_SIMD_OP(op), TO_BYTE(shift)
 #define WASM_SIMD_CONCAT_OP(op, bytes, x, y) \
   x, y, WASM_SIMD_OP(op), TO_BYTE(bytes)
 #define WASM_SIMD_SELECT(format, x, y, z) x, y, z, WASM_SIMD_OP(kExprS128Select)
-#define WASM_SIMD_F32x4_SPLAT(x) x, WASM_SIMD_OP(kExprF32x4Splat)
+#define WASM_SIMD_F32x4_SPLAT(x) WASM_SIMD_SPLAT(F32x4, x)
 #define WASM_SIMD_F32x4_EXTRACT_LANE(lane, x) \
   x, WASM_SIMD_OP(kExprF32x4ExtractLane), TO_BYTE(lane)
 #define WASM_SIMD_F32x4_REPLACE_LANE(lane, x, y) \
   x, y, WASM_SIMD_OP(kExprF32x4ReplaceLane), TO_BYTE(lane)
 
-#define WASM_SIMD_I32x4_SPLAT(x) x, WASM_SIMD_OP(kExprI32x4Splat)
+#define WASM_SIMD_I32x4_SPLAT(x) WASM_SIMD_SPLAT(I32x4, x)
 #define WASM_SIMD_I32x4_EXTRACT_LANE(lane, x) \
   x, WASM_SIMD_OP(kExprI32x4ExtractLane), TO_BYTE(lane)
 #define WASM_SIMD_I32x4_REPLACE_LANE(lane, x, y) \
   x, y, WASM_SIMD_OP(kExprI32x4ReplaceLane), TO_BYTE(lane)
 
-#define WASM_SIMD_I16x8_SPLAT(x) x, WASM_SIMD_OP(kExprI16x8Splat)
+#define WASM_SIMD_I16x8_SPLAT(x) WASM_SIMD_SPLAT(I16x8, x)
 #define WASM_SIMD_I16x8_EXTRACT_LANE(lane, x) \
   x, WASM_SIMD_OP(kExprI16x8ExtractLane), TO_BYTE(lane)
 #define WASM_SIMD_I16x8_REPLACE_LANE(lane, x, y) \
   x, y, WASM_SIMD_OP(kExprI16x8ReplaceLane), TO_BYTE(lane)
 
-#define WASM_SIMD_I8x16_SPLAT(x) x, WASM_SIMD_OP(kExprI8x16Splat)
+#define WASM_SIMD_I8x16_SPLAT(x) WASM_SIMD_SPLAT(I8x16, x)
 #define WASM_SIMD_I8x16_EXTRACT_LANE(lane, x) \
   x, WASM_SIMD_OP(kExprI8x16ExtractLane), TO_BYTE(lane)
 #define WASM_SIMD_I8x16_REPLACE_LANE(lane, x, y) \
