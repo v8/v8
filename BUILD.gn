@@ -2929,7 +2929,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/zone/zone-list-inl.h",
     "src/zone/zone-segment.cc",
     "src/zone/zone-segment.h",
-    "src/zone/zone-splay-tree.h",
     "src/zone/zone.cc",
     "src/zone/zone.h",
   ]

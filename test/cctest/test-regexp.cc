@@ -46,7 +46,6 @@
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/splay-tree-inl.h"
 #include "src/zone/zone-list-inl.h"
 #include "test/cctest/cctest.h"
 
@@ -563,122 +562,6 @@ static void Execute(const char* input, bool multiline, bool unicode,
   if (dot_output) RegExp::DotPrintForTesting(input, node);
 #endif  // DEBUG
 }
-
-
-class TestConfig {
- public:
-  using Key = int;
-  using Value = int;
-  static const int kNoKey;
-  static int NoValue() { return 0; }
-  static inline int Compare(int a, int b) {
-    if (a < b)
-      return -1;
-    else if (a > b)
-      return 1;
-    else
-      return 0;
-  }
-};
-
-
-const int TestConfig::kNoKey = 0;
-
-
-static unsigned PseudoRandom(int i, int j) {
-  return ~(~((i * 781) ^ (j * 329)));
-}
-
-
-TEST(SplayTreeSimple) {
-  static const unsigned kLimit = 1000;
-  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  ZoneSplayTree<TestConfig> tree(&zone);
-  bool seen[kLimit];
-  for (unsigned i = 0; i < kLimit; i++) seen[i] = false;
-#define CHECK_MAPS_EQUAL() do {                                      \
-    for (unsigned k = 0; k < kLimit; k++)                            \
-      CHECK_EQ(seen[k], tree.Find(k, &loc));                         \
-  } while (false)
-  for (int i = 0; i < 50; i++) {
-    for (int j = 0; j < 50; j++) {
-      int next = PseudoRandom(i, j) % kLimit;
-      if (seen[next]) {
-        // We've already seen this one.  Check the value and remove
-        // it.
-        ZoneSplayTree<TestConfig>::Locator loc;
-        CHECK(tree.Find(next, &loc));
-        CHECK_EQ(next, loc.key());
-        CHECK_EQ(3 * next, loc.value());
-        tree.Remove(next);
-        seen[next] = false;
-        CHECK_MAPS_EQUAL();
-      } else {
-        // Check that it wasn't there already and then add it.
-        ZoneSplayTree<TestConfig>::Locator loc;
-        CHECK(!tree.Find(next, &loc));
-        CHECK(tree.Insert(next, &loc));
-        CHECK_EQ(next, loc.key());
-        loc.set_value(3 * next);
-        seen[next] = true;
-        CHECK_MAPS_EQUAL();
-      }
-      int val = PseudoRandom(j, i) % kLimit;
-      if (seen[val]) {
-        ZoneSplayTree<TestConfig>::Locator loc;
-        CHECK(tree.FindGreatestLessThan(val, &loc));
-        CHECK_EQ(loc.key(), val);
-        break;
-      }
-      val = PseudoRandom(i + j, i - j) % kLimit;
-      if (seen[val]) {
-        ZoneSplayTree<TestConfig>::Locator loc;
-        CHECK(tree.FindLeastGreaterThan(val, &loc));
-        CHECK_EQ(loc.key(), val);
-        break;
-      }
-    }
-  }
-}
-
-
-TEST(DispatchTableConstruction) {
-  // Initialize test data.
-  static const int kLimit = 1000;
-  static const int kRangeCount = 8;
-  static const int kRangeSize = 16;
-  uc16 ranges[kRangeCount][2 * kRangeSize];
-  for (int i = 0; i < kRangeCount; i++) {
-    Vector<uc16> range(ranges[i], 2 * kRangeSize);
-    for (int j = 0; j < 2 * kRangeSize; j++) {
-      range[j] = PseudoRandom(i + 25, j + 87) % kLimit;
-    }
-    std::sort(range.begin(), range.end());
-    for (int j = 1; j < 2 * kRangeSize; j++) {
-      CHECK(range[j-1] <= range[j]);
-    }
-  }
-  // Enter test data into dispatch table.
-  Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  DispatchTable table(&zone);
-  for (int i = 0; i < kRangeCount; i++) {
-    uc16* range = ranges[i];
-    for (int j = 0; j < 2 * kRangeSize; j += 2)
-      table.AddRange(CharacterRange::Range(range[j], range[j + 1]), i, &zone);
-  }
-  // Check that the table looks as we would expect
-  for (int p = 0; p < kLimit; p++) {
-    OutSet* outs = table.Get(p);
-    for (int j = 0; j < kRangeCount; j++) {
-      uc16* range = ranges[j];
-      bool is_on = false;
-      for (int k = 0; !is_on && (k < 2 * kRangeSize); k += 2)
-        is_on = (range[k] <= p && p <= range[k + 1]);
-      CHECK_EQ(is_on, outs->Get(j));
-    }
-  }
-}
-
 
 // Test of debug-only syntax.
 #ifdef DEBUG
@@ -1899,6 +1782,10 @@ TEST(UncachedExternalString) {
   CompileRun("var re = /y(.)/; re.test('ab');");
   ExpectString("external.substring(1).match(re)[1]", "z");
 }
+
+#undef CHECK_PARSE_ERROR
+#undef CHECK_SIMPLE
+#undef CHECK_MIN_MAX
 
 }  // namespace test_regexp
 }  // namespace internal

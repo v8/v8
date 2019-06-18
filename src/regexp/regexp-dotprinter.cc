@@ -6,7 +6,6 @@
 
 #include "src/regexp/regexp-compiler.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/splay-tree-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -60,54 +59,6 @@ void DotPrinterImpl::PrintOnFailure(RegExpNode* from, RegExpNode* on_failure) {
   os_ << "  n" << from << " -> n" << on_failure << " [style=dotted];\n";
   Visit(on_failure);
 }
-
-class TableEntryBodyPrinter {
- public:
-  TableEntryBodyPrinter(std::ostream& os, ChoiceNode* choice)  // NOLINT
-      : os_(os), choice_(choice) {}
-  void Call(uc16 from, DispatchTable::Entry entry) {
-    OutSet* out_set = entry.out_set();
-    for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
-      if (out_set->Get(i)) {
-        os_ << "    n" << choice() << ":s" << from << "o" << i << " -> n"
-            << choice()->alternatives()->at(i).node() << ";\n";
-      }
-    }
-  }
-
- private:
-  ChoiceNode* choice() { return choice_; }
-  std::ostream& os_;
-  ChoiceNode* choice_;
-};
-
-class TableEntryHeaderPrinter {
- public:
-  explicit TableEntryHeaderPrinter(std::ostream& os)  // NOLINT
-      : first_(true), os_(os) {}
-  void Call(uc16 from, DispatchTable::Entry entry) {
-    if (first_) {
-      first_ = false;
-    } else {
-      os_ << "|";
-    }
-    os_ << "{\\" << AsUC16(from) << "-\\" << AsUC16(entry.to()) << "|{";
-    OutSet* out_set = entry.out_set();
-    int priority = 0;
-    for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
-      if (out_set->Get(i)) {
-        if (priority > 0) os_ << "|";
-        os_ << "<s" << from << "o" << i << "> " << priority;
-        priority++;
-      }
-    }
-    os_ << "}}";
-  }
-
- private:
-  bool first_;
-  std::ostream& os_;
-};
 
 class AttributePrinter {
  public:
@@ -277,38 +228,6 @@ void DotPrinterImpl::VisitAction(ActionNode* that) {
   RegExpNode* successor = that->on_success();
   os_ << "  n" << that << " -> n" << successor << ";\n";
   Visit(successor);
-}
-
-class DispatchTableDumper {
- public:
-  explicit DispatchTableDumper(std::ostream& os) : os_(os) {}
-  void Call(uc16 key, DispatchTable::Entry entry);
-
- private:
-  std::ostream& os_;
-};
-
-void DispatchTableDumper::Call(uc16 key, DispatchTable::Entry entry) {
-  os_ << "[" << AsUC16(key) << "-" << AsUC16(entry.to()) << "]: {";
-  OutSet* set = entry.out_set();
-  bool first = true;
-  for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
-    if (set->Get(i)) {
-      if (first) {
-        first = false;
-      } else {
-        os_ << ", ";
-      }
-      os_ << i;
-    }
-  }
-  os_ << "}\n";
-}
-
-void DispatchTable::Dump() {
-  OFStream os(stderr);
-  DispatchTableDumper dumper(os);
-  tree()->ForEach(&dumper);
 }
 
 #endif  // DEBUG

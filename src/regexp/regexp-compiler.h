@@ -7,7 +7,6 @@
 
 #include "src/base/small-vector.h"
 #include "src/regexp/regexp-nodes.h"
-#include "src/zone/zone-splay-tree.h"
 
 namespace v8 {
 namespace internal {
@@ -102,67 +101,6 @@ class OutSet : public ZoneObject {
   ZoneList<unsigned>* remaining_;
   ZoneList<OutSet*>* successors_;
   friend class Trace;
-};
-
-// A mapping from integers, specified as ranges, to a set of integers.
-// Used for mapping character ranges to choices.
-class DispatchTable : public ZoneObject {
- public:
-  explicit DispatchTable(Zone* zone) : tree_(zone) {}
-
-  class Entry {
-   public:
-    Entry() : from_(0), to_(0), out_set_(nullptr) {}
-    Entry(uc32 from, uc32 to, OutSet* out_set)
-        : from_(from), to_(to), out_set_(out_set) {
-      DCHECK(from <= to);
-    }
-    uc32 from() { return from_; }
-    uc32 to() { return to_; }
-    void set_to(uc32 value) { to_ = value; }
-    void AddValue(int value, Zone* zone) {
-      out_set_ = out_set_->Extend(value, zone);
-    }
-    OutSet* out_set() { return out_set_; }
-
-   private:
-    uc32 from_;
-    uc32 to_;
-    OutSet* out_set_;
-  };
-
-  class Config {
-   public:
-    using Key = uc32;
-    using Value = Entry;
-    static const uc32 kNoKey;
-    static const Entry NoValue() { return Value(); }
-    static inline int Compare(uc32 a, uc32 b) {
-      if (a == b)
-        return 0;
-      else if (a < b)
-        return -1;
-      else
-        return 1;
-    }
-  };
-
-  V8_EXPORT_PRIVATE void AddRange(CharacterRange range, int value, Zone* zone);
-  V8_EXPORT_PRIVATE OutSet* Get(uc32 value);
-  void Dump();
-
-  template <typename Callback>
-  void ForEach(Callback* callback) {
-    return tree()->ForEach(callback);
-  }
-
- private:
-  // There can't be a static empty set since it allocates its
-  // successors in a zone and caches them.
-  OutSet* empty() { return &empty_; }
-  OutSet empty_;
-  ZoneSplayTree<Config>* tree() { return &tree_; }
-  ZoneSplayTree<Config> tree_;
 };
 
 // Details of a quick mask-compare check that can look ahead in the

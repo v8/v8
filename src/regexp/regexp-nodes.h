@@ -13,7 +13,6 @@ namespace internal {
 
 class AlternativeGenerationList;
 class BoyerMooreLookahead;
-class DispatchTable;
 class GreedyLoopState;
 class Label;
 class NodeVisitor;

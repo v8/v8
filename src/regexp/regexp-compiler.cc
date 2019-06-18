@@ -11,7 +11,6 @@
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/splay-tree-inl.h"
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
@@ -3317,106 +3316,6 @@ bool OutSet::Get(unsigned value) const {
   } else {
     return remaining_->Contains(value);
   }
-}
-
-const uc32 DispatchTable::Config::kNoKey = unibrow::Utf8::kBadChar;
-
-void DispatchTable::AddRange(CharacterRange full_range, int value, Zone* zone) {
-  CharacterRange current = full_range;
-  if (tree()->is_empty()) {
-    // If this is the first range we just insert into the table.
-    ZoneSplayTree<Config>::Locator loc;
-    bool inserted = tree()->Insert(current.from(), &loc);
-    DCHECK(inserted);
-    USE(inserted);
-    loc.set_value(
-        Entry(current.from(), current.to(), empty()->Extend(value, zone)));
-    return;
-  }
-  // First see if there is a range to the left of this one that
-  // overlaps.
-  ZoneSplayTree<Config>::Locator loc;
-  if (tree()->FindGreatestLessThan(current.from(), &loc)) {
-    Entry* entry = &loc.value();
-    // If we've found a range that overlaps with this one, and it
-    // starts strictly to the left of this one, we have to fix it
-    // because the following code only handles ranges that start on
-    // or after the start point of the range we're adding.
-    if (entry->from() < current.from() && entry->to() >= current.from()) {
-      // Snap the overlapping range in half around the start point of
-      // the range we're adding.
-      CharacterRange left =
-          CharacterRange::Range(entry->from(), current.from() - 1);
-      CharacterRange right = CharacterRange::Range(current.from(), entry->to());
-      // The left part of the overlapping range doesn't overlap.
-      // Truncate the whole entry to be just the left part.
-      entry->set_to(left.to());
-      // The right part is the one that overlaps.  We add this part
-      // to the map and let the next step deal with merging it with
-      // the range we're adding.
-      ZoneSplayTree<Config>::Locator loc;
-      bool inserted = tree()->Insert(right.from(), &loc);
-      DCHECK(inserted);
-      USE(inserted);
-      loc.set_value(Entry(right.from(), right.to(), entry->out_set()));
-    }
-  }
-  while (current.is_valid()) {
-    if (tree()->FindLeastGreaterThan(current.from(), &loc) &&
-        (loc.value().from() <= current.to()) &&
-        (loc.value().to() >= current.from())) {
-      Entry* entry = &loc.value();
-      // We have overlap.  If there is space between the start point of
-      // the range we're adding and where the overlapping range starts
-      // then we have to add a range covering just that space.
-      if (current.from() < entry->from()) {
-        ZoneSplayTree<Config>::Locator ins;
-        bool inserted = tree()->Insert(current.from(), &ins);
-        DCHECK(inserted);
-        USE(inserted);
-        ins.set_value(Entry(current.from(), entry->from() - 1,
-                            empty()->Extend(value, zone)));
-        current.set_from(entry->from());
-      }
-      DCHECK_EQ(current.from(), entry->from());
-      // If the overlapping range extends beyond the one we want to add
-      // we have to snap the right part off and add it separately.
-      if (entry->to() > current.to()) {
-        ZoneSplayTree<Config>::Locator ins;
-        bool inserted = tree()->Insert(current.to() + 1, &ins);
-        DCHECK(inserted);
-        USE(inserted);
-        ins.set_value(Entry(current.to() + 1, entry->to(), entry->out_set()));
-        entry->set_to(current.to());
-      }
-      DCHECK(entry->to() <= current.to());
-      // The overlapping range is now completely contained by the range
-      // we're adding so we can just update it and move the start point
-      // of the range we're adding just past it.
-      entry->AddValue(value, zone);
-      DCHECK(entry->to() + 1 > current.from());
-      current.set_from(entry->to() + 1);
-    } else {
-      // There is no overlap so we can just add the range
-      ZoneSplayTree<Config>::Locator ins;
-      bool inserted = tree()->Insert(current.from(), &ins);
-      DCHECK(inserted);
-      USE(inserted);
-      ins.set_value(
-          Entry(current.from(), current.to(), empty()->Extend(value, zone)));
-      break;
-    }
-  }
-}
-
-OutSet* DispatchTable::Get(uc32 value) {
-  ZoneSplayTree<Config>::Locator loc;
-  if (!tree()->FindGreatestLessThan(value, &loc)) return empty();
-  Entry* entry = &loc.value();
-  if (value <= entry->to())
-    return entry->out_set();
-  else
-    return empty();
 }
 
 // -------------------------------------------------------------------
