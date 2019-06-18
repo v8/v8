@@ -376,8 +376,16 @@ TEST(Word64) {
               TypeCache::Get()->kUint16, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeInt32ToInt64, MachineRepresentation::kWord32,
               Type::Signed32(), MachineRepresentation::kWord64);
+  CheckChange(
+      IrOpcode::kChangeInt32ToInt64, MachineRepresentation::kWord32,
+      Type::Signed32OrMinusZero(), MachineRepresentation::kWord64,
+      UseInfo(MachineRepresentation::kWord64, Truncation::Any(kIdentifyZeros)));
   CheckChange(IrOpcode::kChangeUint32ToUint64, MachineRepresentation::kWord32,
               Type::Unsigned32(), MachineRepresentation::kWord64);
+  CheckChange(
+      IrOpcode::kChangeUint32ToUint64, MachineRepresentation::kWord32,
+      Type::Unsigned32OrMinusZero(), MachineRepresentation::kWord64,
+      UseInfo(MachineRepresentation::kWord64, Truncation::Any(kIdentifyZeros)));
 
   CheckChange(IrOpcode::kTruncateInt64ToInt32, MachineRepresentation::kWord64,
               Type::Signed32(), MachineRepresentation::kWord32);

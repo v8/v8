@@ -1272,9 +1272,15 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
         jsgraph()->common()->DeadValue(MachineRepresentation::kWord64),
         unreachable);
   } else if (IsWord(output_rep)) {
-    if (output_type.Is(Type::Unsigned32())) {
+    if (output_type.Is(Type::Unsigned32OrMinusZero())) {
+      // uint32 -> uint64
+      CHECK_IMPLIES(output_type.Maybe(Type::MinusZero()),
+                    use_info.truncation().IdentifiesZeroAndMinusZero());
       op = machine()->ChangeUint32ToUint64();
-    } else if (output_type.Is(Type::Signed32())) {
+    } else if (output_type.Is(Type::Signed32OrMinusZero())) {
+      // int32 -> int64
+      CHECK_IMPLIES(output_type.Maybe(Type::MinusZero()),
+                    use_info.truncation().IdentifiesZeroAndMinusZero());
       op = machine()->ChangeInt32ToInt64();
     } else {
       return TypeError(node, output_rep, output_type,
