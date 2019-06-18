@@ -389,11 +389,6 @@ class NativeContextRef : public ContextRef {
   MapRef GetFunctionMapFromIndex(int index) const;
   MapRef GetInitialJSArrayMap(ElementsKind kind) const;
   base::Optional<JSFunctionRef> GetConstructorFunction(const MapRef& map) const;
-
-  void SerializePromiseCapabilityDefaultResolveCode();
-  base::Optional<CodeRef> GetPromiseCapabilityDefaultResolveCode() const;
-  void SerializePromiseCapabilityDefaultRejectCode();
-  base::Optional<CodeRef> GetPromiseCapabilityDefaultRejectCode() const;
 };
 
 class NameRef : public HeapObjectRef {

@@ -601,19 +601,11 @@ class NativeContextData : public ContextData {
                     Handle<NativeContext> object);
   void Serialize(JSHeapBroker* broker);
 
-  void SerializeResolveCode(JSHeapBroker* broker);
-  CodeData* resolve_code() const { return resolve_code_; }
-
-  void SerializeRejectCode(JSHeapBroker* broker);
-  CodeData* reject_code() const { return reject_code_; }
-
  private:
   bool serialized_ = false;
 #define DECL_MEMBER(type, name) type##Data* name##_ = nullptr;
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_MEMBER)
 #undef DECL_MEMBER
-  CodeData* resolve_code_ = nullptr;
-  CodeData* reject_code_ = nullptr;
   ZoneVector<MapData*> function_maps_;
 };
 
@@ -2949,52 +2941,6 @@ base::Optional<JSFunctionRef> NativeContextRef::GetConstructorFunction(
   }
 }
 
-void NativeContextRef::SerializePromiseCapabilityDefaultResolveCode() {
-  data()->AsNativeContext()->SerializeResolveCode(broker());
-}
-
-base::Optional<CodeRef>
-NativeContextRef::GetPromiseCapabilityDefaultResolveCode() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleDereference allow_handle_dereference;
-    AllowHandleAllocation allow_handle_allocation;
-
-    return CodeRef(
-        broker(),
-        handle(
-            promise_capability_default_resolve_shared_fun().object()->GetCode(),
-            broker()->isolate()));
-  }
-  CodeData* resolve_code = data()->AsNativeContext()->resolve_code();
-  if (resolve_code != nullptr) {
-    return CodeRef(broker(), resolve_code);
-  }
-  return base::Optional<CodeRef>();
-}
-
-void NativeContextRef::SerializePromiseCapabilityDefaultRejectCode() {
-  data()->AsNativeContext()->SerializeRejectCode(broker());
-}
-
-base::Optional<CodeRef>
-NativeContextRef::GetPromiseCapabilityDefaultRejectCode() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleDereference allow_handle_dereference;
-    AllowHandleAllocation allow_handle_allocation;
-
-    return CodeRef(
-        broker(),
-        handle(
-            promise_capability_default_reject_shared_fun().object()->GetCode(),
-            broker()->isolate()));
-  }
-  CodeData* reject_code = data()->AsNativeContext()->reject_code();
-  if (reject_code != nullptr) {
-    return CodeRef(broker(), reject_code);
-  }
-  return base::Optional<CodeRef>();
-}
-
 bool ObjectRef::IsNullOrUndefined() const {
   if (IsSmi()) return false;
   OddballType type = AsHeapObject().map().oddball_type();
@@ -3307,26 +3253,6 @@ void NativeContextData::Serialize(JSHeapBroker* broker) {
   for (int i = first; i <= last; ++i) {
     function_maps_.push_back(broker->GetOrCreateData(context->get(i))->AsMap());
   }
-}
-
-void NativeContextData::SerializeResolveCode(JSHeapBroker* broker) {
-  resolve_code_ =
-      broker
-          ->GetOrCreateData(
-              Handle<SharedFunctionInfo>::cast(
-                  promise_capability_default_resolve_shared_fun()->object())
-                  ->GetCode())
-          ->AsCode();
-}
-
-void NativeContextData::SerializeRejectCode(JSHeapBroker* broker) {
-  reject_code_ =
-      broker
-          ->GetOrCreateData(
-              Handle<SharedFunctionInfo>::cast(
-                  promise_capability_default_reject_shared_fun()->object())
-                  ->GetCode())
-          ->AsCode();
 }
 
 void JSFunctionRef::Serialize() {
