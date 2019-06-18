@@ -860,7 +860,7 @@ bool CompileLazy(Isolate* isolate, NativeModule* native_module,
   // During lazy compilation, we can only get compilation errors when
   // {--wasm-lazy-validation} is enabled. Otherwise, the module was fully
   // verified before starting its execution.
-  DCHECK_IMPLIES(result.failed(), FLAG_wasm_lazy_validation);
+  CHECK_IMPLIES(result.failed(), FLAG_wasm_lazy_validation);
   const WasmFunction* func = &module->functions[func_index];
   if (result.failed()) {
     ErrorThrower thrower(isolate, nullptr);
@@ -1129,9 +1129,12 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
                          NativeModule* native_module) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const bool lazy_module = IsLazyModule(wasm_module);
-  if (!FLAG_wasm_lazy_validation &&
+  if (!FLAG_wasm_lazy_validation && wasm_module->origin == kWasmOrigin &&
       MayCompriseLazyFunctions(wasm_module, native_module->enabled_features(),
                                lazy_module)) {
+    // Validate wasm modules for lazy compilation if requested. Never validate
+    // asm.js modules as these are valid by construction (additionally a CHECK
+    // will catch this during lazy compilation).
     ValidateSequentially(wasm_module, native_module, isolate->counters(),
                          isolate->allocator(), thrower, lazy_module,
                          kOnlyLazyFunctions);
