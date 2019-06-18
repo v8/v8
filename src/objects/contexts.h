@@ -367,6 +367,7 @@ class ScriptContextTable : public FixedArray {
     VariableMode mode;
     InitializationFlag init_flag;
     MaybeAssignedFlag maybe_assigned_flag;
+    RequiresBrandCheckFlag requires_brand_check;
   };
 
   inline int used() const;

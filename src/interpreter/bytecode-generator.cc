@@ -3149,6 +3149,13 @@ BytecodeGenerator::AssignmentLhsData::NamedSuperProperty(
 }
 // static
 BytecodeGenerator::AssignmentLhsData
+BytecodeGenerator::AssignmentLhsData::PrivateMethod(Register object,
+                                                    const AstRawString* name) {
+  return AssignmentLhsData(PRIVATE_METHOD, nullptr, RegisterList(), object,
+                           Register(), nullptr, name);
+}
+// static
+BytecodeGenerator::AssignmentLhsData
 BytecodeGenerator::AssignmentLhsData::KeyedSuperProperty(
     RegisterList super_property_args) {
   return AssignmentLhsData(KEYED_SUPER_PROPERTY, nullptr, super_property_args,
@@ -3177,6 +3184,13 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
       Register object = VisitForRegisterValue(property->obj());
       Register key = VisitForRegisterValue(property->key());
       return AssignmentLhsData::KeyedProperty(object, key);
+    }
+    case PRIVATE_METHOD: {
+      DCHECK(!property->IsSuperAccess());
+      AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
+      Register object = VisitForRegisterValue(property->obj());
+      const AstRawString* name = property->key()->AsVariableProxy()->raw_name();
+      return AssignmentLhsData::PrivateMethod(object, name);
     }
     case NAMED_SUPER_PROPERTY: {
       AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
@@ -3732,6 +3746,9 @@ void BytecodeGenerator::BuildAssignment(
                        lhs_data.super_property_args());
       break;
     }
+    case PRIVATE_METHOD:
+      // TODO(joyee): Throw TypeError because private methods are not writable.
+      UNREACHABLE();
   }
 }
 
@@ -3777,6 +3794,9 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
                              lhs_data.super_property_args().Truncate(3));
       break;
     }
+    case PRIVATE_METHOD:
+      // TODO(joyee): Throw TypeError because private methods are not writable.
+      UNREACHABLE();
   }
   BinaryOperation* binop = expr->AsCompoundAssignment()->binary_operation();
   FeedbackSlot slot = feedback_spec()->AddBinaryOpICSlot();
@@ -4234,6 +4254,8 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
     case KEYED_SUPER_PROPERTY:
       VisitKeyedSuperPropertyLoad(property, Register::invalid_value());
       break;
+    case PRIVATE_METHOD:
+      UNREACHABLE();  // TODO(joyee): implement private method access.
   }
 }
 
@@ -4338,7 +4360,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   // the semantics of the underlying call type.
   switch (call_type) {
     case Call::NAMED_PROPERTY_CALL:
-    case Call::KEYED_PROPERTY_CALL: {
+    case Call::KEYED_PROPERTY_CALL:
+    case Call::PRIVATE_CALL: {
       Property* property = callee_expr->AsProperty();
       VisitAndPushIntoRegisterList(property->obj(), &args);
       VisitPropertyLoadForRegister(args.last_register(), property, callee);
@@ -4674,6 +4697,7 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* unary) {
     // Delete of an object property is allowed both in sloppy
     // and strict modes.
     Property* property = expr->AsProperty();
+    DCHECK(!property->IsPrivateReference());
     Register object = VisitForRegisterValue(property->obj());
     VisitForAccumulatorValue(property->key());
     builder()->Delete(object, language_mode());
@@ -4781,6 +4805,10 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       builder()->CallRuntime(Runtime::kLoadKeyedFromSuper, load_super_args);
       break;
     }
+    case PRIVATE_METHOD: {
+      // TODO(joyee): Throw TypeError because private methods are not writable.
+      UNREACHABLE();
+    }
   }
 
   // Save result for postfix expressions.
@@ -4846,6 +4874,10 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
           ->StoreAccumulatorInRegister(super_property_args[3])
           .CallRuntime(Runtime::kStoreKeyedToSuper, super_property_args);
       break;
+    }
+    case PRIVATE_METHOD: {
+      // TODO(joyee): Throw TypeError because private methods are not writable.
+      UNREACHABLE();
     }
   }
 

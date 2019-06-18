@@ -84,6 +84,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                            Register object,
                                            const AstRawString* name);
     static AssignmentLhsData KeyedProperty(Register object, Register key);
+    static AssignmentLhsData PrivateMethod(Register object,
+                                           const AstRawString* name);
     static AssignmentLhsData NamedSuperProperty(
         RegisterList super_property_args);
     static AssignmentLhsData KeyedSuperProperty(
@@ -99,15 +101,16 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       return object_expr_;
     }
     Register object() const {
-      DCHECK(assign_type_ == NAMED_PROPERTY || assign_type_ == KEYED_PROPERTY);
+      DCHECK(assign_type_ == NAMED_PROPERTY || assign_type_ == KEYED_PROPERTY ||
+             assign_type_ == PRIVATE_METHOD);
       return object_;
     }
     Register key() const {
-      DCHECK_EQ(assign_type_, KEYED_PROPERTY);
+      DCHECK(assign_type_ == KEYED_PROPERTY);
       return key_;
     }
     const AstRawString* name() const {
-      DCHECK_EQ(assign_type_, NAMED_PROPERTY);
+      DCHECK(assign_type_ == NAMED_PROPERTY || assign_type_ == PRIVATE_METHOD);
       return name_;
     }
     RegisterList super_property_args() const {
@@ -135,7 +138,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     //
     // NON_PROPERTY: expr
     // NAMED_PROPERTY: object_expr, object, name
-    // KEYED_PROPERTY: object, key
+    // KEYED_PROPERTY, PRIVATE_METHOD: object, key
     // NAMED_SUPER_PROPERTY: super_property_args
     // KEYED_SUPER_PROPERT:  super_property_args
     Expression* expr_;

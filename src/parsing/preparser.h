@@ -144,10 +144,10 @@ class PreParserExpression {
                                ExpressionTypeField::encode(kThisExpression));
   }
 
-  static PreParserExpression ThisPropertyWithPrivateFieldKey() {
-    return PreParserExpression(TypeField::encode(kExpression) |
-                               ExpressionTypeField::encode(
-                                   kThisPropertyExpressionWithPrivateFieldKey));
+  static PreParserExpression ThisPrivateReference() {
+    return PreParserExpression(
+        TypeField::encode(kExpression) |
+        ExpressionTypeField::encode(kThisPrivateReferenceExpression));
   }
 
   static PreParserExpression ThisProperty() {
@@ -162,10 +162,10 @@ class PreParserExpression {
         ExpressionTypeField::encode(kPropertyExpression));
   }
 
-  static PreParserExpression PropertyWithPrivateFieldKey() {
+  static PreParserExpression PrivateReference() {
     return PreParserExpression(
         TypeField::encode(kExpression) |
-        ExpressionTypeField::encode(kPropertyExpressionWithPrivateFieldKey));
+        ExpressionTypeField::encode(kPrivateReferenceExpression));
   }
 
   static PreParserExpression Call() {
@@ -242,25 +242,23 @@ class PreParserExpression {
     return TypeField::decode(code_) == kExpression &&
            (ExpressionTypeField::decode(code_) == kThisPropertyExpression ||
             ExpressionTypeField::decode(code_) ==
-                kThisPropertyExpressionWithPrivateFieldKey);
+                kThisPrivateReferenceExpression);
   }
 
   bool IsProperty() const {
     return TypeField::decode(code_) == kExpression &&
            (ExpressionTypeField::decode(code_) == kPropertyExpression ||
             ExpressionTypeField::decode(code_) == kThisPropertyExpression ||
+            ExpressionTypeField::decode(code_) == kPrivateReferenceExpression ||
             ExpressionTypeField::decode(code_) ==
-                kPropertyExpressionWithPrivateFieldKey ||
-            ExpressionTypeField::decode(code_) ==
-                kThisPropertyExpressionWithPrivateFieldKey);
+                kThisPrivateReferenceExpression);
   }
 
-  bool IsPropertyWithPrivateFieldKey() const {
+  bool IsPrivateReference() const {
     return TypeField::decode(code_) == kExpression &&
-           (ExpressionTypeField::decode(code_) ==
-                kPropertyExpressionWithPrivateFieldKey ||
+           (ExpressionTypeField::decode(code_) == kPrivateReferenceExpression ||
             ExpressionTypeField::decode(code_) ==
-                kThisPropertyExpressionWithPrivateFieldKey);
+                kThisPrivateReferenceExpression);
   }
 
   bool IsCall() const {
@@ -332,9 +330,9 @@ class PreParserExpression {
   enum ExpressionType {
     kThisExpression,
     kThisPropertyExpression,
-    kThisPropertyExpressionWithPrivateFieldKey,
+    kThisPrivateReferenceExpression,
     kPropertyExpression,
-    kPropertyExpressionWithPrivateFieldKey,
+    kPrivateReferenceExpression,
     kCallExpression,
     kCallEvalExpression,
     kCallTaggedTemplateExpression,
@@ -573,9 +571,9 @@ class PreParserFactory {
                                   const PreParserExpression& key, int pos) {
     if (key.IsIdentifier() && key.AsIdentifier().IsPrivateName()) {
       if (obj.IsThis()) {
-        return PreParserExpression::ThisPropertyWithPrivateFieldKey();
+        return PreParserExpression::ThisPrivateReference();
       }
-      return PreParserExpression::PropertyWithPrivateFieldKey();
+      return PreParserExpression::PrivateReference();
     }
 
     if (obj.IsThis()) {
@@ -1045,9 +1043,8 @@ class PreParser : public ParserBase<PreParser> {
       TemplateLiteralState* state, int start, const PreParserExpression& tag) {
     return PreParserExpression::Default();
   }
-  V8_INLINE bool IsPropertyWithPrivateFieldKey(
-      const PreParserExpression& expression) {
-    return expression.IsPropertyWithPrivateFieldKey();
+  V8_INLINE bool IsPrivateReference(const PreParserExpression& expression) {
+    return expression.IsPrivateReference();
   }
   V8_INLINE void SetLanguageMode(Scope* scope, LanguageMode mode) {
     scope->SetLanguageMode(mode);
@@ -1103,9 +1100,10 @@ class PreParser : public ParserBase<PreParser> {
     // Don't bother actually binding the proxy.
   }
 
-  Variable* DeclarePrivateVariableName(const AstRawString* name,
-                                       ClassScope* scope, bool* was_added) {
-    return scope->DeclarePrivateName(name, was_added);
+  Variable* DeclarePrivateVariableName(
+      const AstRawString* name, ClassScope* scope,
+      RequiresBrandCheckFlag requires_brand_check, bool* was_added) {
+    return scope->DeclarePrivateName(name, requires_brand_check, was_added);
   }
 
   Variable* DeclareVariableName(const AstRawString* name, VariableMode mode,
@@ -1258,7 +1256,9 @@ class PreParser : public ParserBase<PreParser> {
       return;
     }
     bool was_added;
-    DeclarePrivateVariableName(property_name.string_, scope, &was_added);
+
+    DeclarePrivateVariableName(property_name.string_, scope,
+                               RequiresBrandCheck(kind), &was_added);
     if (!was_added) {
       Scanner::Location loc(property.position(), property.position() + 1);
       ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,

@@ -44,7 +44,7 @@ bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
     DCHECK(context.IsScriptContext());
     int slot_index = ScopeInfo::ContextSlotIndex(
         context.scope_info(), name, &result->mode, &result->init_flag,
-        &result->maybe_assigned_flag);
+        &result->maybe_assigned_flag, &result->requires_brand_check);
 
     if (slot_index >= 0) {
       result->context_index = i;
@@ -287,8 +287,10 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       VariableMode mode;
       InitializationFlag flag;
       MaybeAssignedFlag maybe_assigned_flag;
+      RequiresBrandCheckFlag requires_brand_check;
       int slot_index = ScopeInfo::ContextSlotIndex(scope_info, *name, &mode,
-                                                   &flag, &maybe_assigned_flag);
+                                                   &flag, &maybe_assigned_flag,
+                                                   &requires_brand_check);
       DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {

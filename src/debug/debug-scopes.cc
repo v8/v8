@@ -869,9 +869,10 @@ bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
   VariableMode mode;
   InitializationFlag flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  int slot_index =
-      ScopeInfo::ContextSlotIndex(context_->scope_info(), *variable_name, &mode,
-                                  &flag, &maybe_assigned_flag);
+  RequiresBrandCheckFlag requires_brand_check;
+  int slot_index = ScopeInfo::ContextSlotIndex(
+      context_->scope_info(), *variable_name, &mode, &flag,
+      &maybe_assigned_flag, &requires_brand_check);
   if (slot_index < 0) return false;
 
   context_->set(slot_index, *new_value);

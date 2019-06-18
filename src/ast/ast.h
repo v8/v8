@@ -205,6 +205,9 @@ class Expression : public AstNode {
   // True iff the expression is a valid reference expression.
   bool IsValidReferenceExpression() const;
 
+  // True iff the expression is a private name.
+  bool IsPrivateName() const;
+
   // Helpers for ToBoolean conversion.
   bool ToBooleanIsTrue() const;
   bool ToBooleanIsFalse() const;
@@ -1635,11 +1638,12 @@ class VariableProxy final : public Expression {
 // Otherwise, the assignment is to a non-property (a global, a local slot, a
 // parameter slot, or a destructuring pattern).
 enum AssignType {
-  NON_PROPERTY,
-  NAMED_PROPERTY,
-  KEYED_PROPERTY,
-  NAMED_SUPER_PROPERTY,
-  KEYED_SUPER_PROPERTY
+  NON_PROPERTY,          // destructuring
+  NAMED_PROPERTY,        // obj.key
+  KEYED_PROPERTY,        // obj[key]
+  NAMED_SUPER_PROPERTY,  // super.key
+  KEYED_SUPER_PROPERTY,  // super[key]
+  PRIVATE_METHOD         // obj.#key: #key is a private method
 };
 
 class Property final : public Expression {
@@ -1650,10 +1654,19 @@ class Property final : public Expression {
   Expression* key() const { return key_; }
 
   bool IsSuperAccess() { return obj()->IsSuperPropertyReference(); }
+  bool IsPrivateReference() const { return key()->IsPrivateName(); }
 
   // Returns the properties assign type.
   static AssignType GetAssignType(Property* property) {
     if (property == nullptr) return NON_PROPERTY;
+    if (property->IsPrivateReference()) {
+      DCHECK(!property->IsSuperAccess());
+      VariableProxy* proxy = property->key()->AsVariableProxy();
+      DCHECK_NOT_NULL(proxy);
+      Variable* var = proxy->var();
+      // Use KEYED_PROPERTY for private fields.
+      return var->requires_brand_check() ? PRIVATE_METHOD : KEYED_PROPERTY;
+    }
     bool super_access = property->IsSuperAccess();
     return (property->key()->IsPropertyName())
                ? (super_access ? NAMED_SUPER_PROPERTY : NAMED_PROPERTY)
@@ -1715,6 +1728,7 @@ class Call final : public Expression {
     KEYED_PROPERTY_CALL,
     NAMED_SUPER_PROPERTY_CALL,
     KEYED_SUPER_PROPERTY_CALL,
+    PRIVATE_CALL,
     SUPER_CALL,
     RESOLVED_PROPERTY_CALL,
     OTHER_CALL

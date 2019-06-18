@@ -41,7 +41,9 @@ class VariableMap : public ZoneHashMap {
   Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
                     VariableMode mode, VariableKind kind,
                     InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag, bool* was_added);
+                    MaybeAssignedFlag maybe_assigned_flag,
+                    RequiresBrandCheckFlag requires_brand_check,
+                    bool* was_added);
 
   V8_EXPORT_PRIVATE Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
@@ -556,7 +558,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                     MaybeAssignedFlag maybe_assigned_flag, bool* was_added) {
     Variable* result =
         variables_.Declare(zone, this, name, mode, kind, initialization_flag,
-                           maybe_assigned_flag, was_added);
+                           maybe_assigned_flag, kNoBrandCheck, was_added);
     if (*was_added) locals_.Add(result);
     return result;
   }
@@ -1174,7 +1176,9 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
 
   // Declare a private name in the private name map and add it to the
   // local variables of this scope.
-  Variable* DeclarePrivateName(const AstRawString* name, bool* was_added);
+  Variable* DeclarePrivateName(const AstRawString* name,
+                               RequiresBrandCheckFlag requires_brand_check,
+                               bool* was_added);
 
   void AddUnresolvedPrivateName(VariableProxy* proxy);
 

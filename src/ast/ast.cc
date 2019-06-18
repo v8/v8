@@ -132,6 +132,10 @@ bool Expression::ToBooleanIsFalse() const {
   return IsLiteral() && AsLiteral()->ToBooleanIsFalse();
 }
 
+bool Expression::IsPrivateName() const {
+  return IsVariableProxy() && AsVariableProxy()->IsPrivateName();
+}
+
 bool Expression::IsValidReferenceExpression() const {
   return IsProperty() ||
          (IsVariableProxy() && AsVariableProxy()->IsValidReferenceExpression());
@@ -832,6 +836,9 @@ Call::CallType Call::GetCallType() const {
 
   Property* property = expression()->AsProperty();
   if (property != nullptr) {
+    if (property->IsPrivateReference()) {
+      return PRIVATE_CALL;
+    }
     bool is_super = property->IsSuperAccess();
     if (property->key()->IsPropertyName()) {
       return is_super ? NAMED_SUPER_PROPERTY_CALL : NAMED_PROPERTY_CALL;

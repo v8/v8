@@ -624,6 +624,11 @@ class ParserBase {
     }
   }
 
+  RequiresBrandCheckFlag RequiresBrandCheck(ClassLiteralProperty::Kind kind) {
+    return kind == ClassLiteralProperty::Kind::FIELD ? kNoBrandCheck
+                                                     : kRequiresBrandCheck;
+  }
+
   const AstRawString* ClassFieldVariableName(AstValueFactory* ast_value_factory,
                                              int index) {
     std::string name = ".class-field-" + std::to_string(index);
@@ -2905,7 +2910,7 @@ ParserBase<Impl>::ParseUnaryOrPrefixExpression() {
         return impl()->FailureExpression();
       }
 
-      if (impl()->IsPropertyWithPrivateFieldKey(expression)) {
+      if (impl()->IsPrivateReference(expression)) {
         ReportMessage(MessageTemplate::kDeletePrivateField);
         return impl()->FailureExpression();
       }

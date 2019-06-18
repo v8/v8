@@ -2781,13 +2781,15 @@ Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name) {
   return proxy->var();
 }
 
-Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
-                                            const AstRawString* name) {
+Variable* Parser::CreatePrivateNameVariable(
+    ClassScope* scope, RequiresBrandCheckFlag requires_brand_check,
+    const AstRawString* name) {
   DCHECK_NOT_NULL(name);
   int begin = position();
   int end = end_position();
   bool was_added = false;
-  Variable* var = scope->DeclarePrivateName(name, &was_added);
+  Variable* var =
+      scope->DeclarePrivateName(name, requires_brand_check, &was_added);
   if (!was_added) {
     Scanner::Location loc(begin, end);
     ReportMessageAt(loc, MessageTemplate::kVarRedeclaration, var->raw_name());
@@ -2839,7 +2841,8 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
     }
   }
 
-  Variable* private_name_var = CreatePrivateNameVariable(scope, property_name);
+  Variable* private_name_var =
+      CreatePrivateNameVariable(scope, RequiresBrandCheck(kind), property_name);
   int pos = property->value()->position();
   if (pos == kNoSourcePosition) {
     pos = property->key()->position();
@@ -2946,16 +2949,6 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
 
   AddFunctionForNameInference(class_info->constructor);
   return class_literal;
-}
-
-bool Parser::IsPropertyWithPrivateFieldKey(Expression* expression) {
-  if (!expression->IsProperty()) return false;
-  Property* property = expression->AsProperty();
-
-  if (!property->key()->IsVariableProxy()) return false;
-  VariableProxy* key = property->key()->AsVariableProxy();
-
-  return key->IsPrivateName();
 }
 
 void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {

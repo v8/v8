@@ -297,8 +297,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                              VariableKind kind, int beg_pos, int end_pos,
                              ZonePtrList<const AstRawString>* names);
   Variable* CreateSyntheticContextVariable(const AstRawString* synthetic_name);
-  Variable* CreatePrivateNameVariable(ClassScope* scope,
-                                      const AstRawString* name);
+  Variable* CreatePrivateNameVariable(
+      ClassScope* scope, RequiresBrandCheckFlag requires_brand_check,
+      const AstRawString* name);
   FunctionLiteral* CreateInitializerFunction(
       const char* name, DeclarationScope* scope,
       ZonePtrList<ClassLiteral::Property>* fields);
@@ -372,8 +373,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     object_literal->CalculateEmitStore(main_zone());
     return object_literal;
   }
-
-  bool IsPropertyWithPrivateFieldKey(Expression* property);
 
   // Insert initializer statements for var-bindings shadowing parameter bindings
   // from a non-simple parameter list.
@@ -536,6 +535,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     DCHECK_NOT_NULL(expression);
     Property* property = expression->AsProperty();
     return property != nullptr && property->obj()->IsThisExpression();
+  }
+
+  // Returns true if the expression is of type "obj.#foo".
+  V8_INLINE static bool IsPrivateReference(Expression* expression) {
+    DCHECK_NOT_NULL(expression);
+    Property* property = expression->AsProperty();
+    return property != nullptr && property->IsPrivateReference();
   }
 
   // This returns true if the expression is an indentifier (wrapped
