@@ -1,5 +1,6 @@
 file://INFRA_OWNERS
 
+per-file *DEPS=file://COMMON_OWNERS
 per-file gen-postmortem-metadata.py=file://COMMON_OWNERS
 per-file v8heapconst.py=file://COMMON_OWNERS
 per-file whitespace.txt=file://COMMON_OWNERS
