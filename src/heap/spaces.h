@@ -392,8 +392,6 @@ class MemoryChunk {
       kReservationOffset + 3 * kSystemPointerSize;
   static const intptr_t kHeaderSentinelOffset =
       kHeapOffset + kSystemPointerSize;
-  static const intptr_t kOwnerOffset =
-      kHeaderSentinelOffset + kSystemPointerSize;
 
   static const size_t kHeaderSize =
       kSizeOffset               // NOLINT

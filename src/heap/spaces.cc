@@ -744,7 +744,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
 
   DCHECK_EQ(kFlagsOffset, OFFSET_OF(MemoryChunk, flags_));
   DCHECK_EQ(kHeapOffset, OFFSET_OF(MemoryChunk, heap_));
-  DCHECK_EQ(kOwnerOffset, OFFSET_OF(MemoryChunk, owner_));
 
   if (executable == EXECUTABLE) {
     chunk->SetFlag(IS_EXECUTABLE);
