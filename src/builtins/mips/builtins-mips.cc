@@ -2835,7 +2835,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ lb(t9, MemOperand(t9, 0));
   __ Branch(&profiler_enabled, ne, t9, Operand(zero_reg));
   __ li(t9, ExternalReference::address_of_runtime_stats_flag());
-  __ lb(t9, MemOperand(t9, 0));
+  __ lw(t9, MemOperand(t9, 0));
   __ Branch(&profiler_enabled, ne, t9, Operand(zero_reg));
   {
     // Call the api function directly.

@@ -3407,7 +3407,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ Ldrb(w10, MemOperand(x10));
   __ Cbnz(w10, &profiler_enabled);
   __ Mov(x10, ExternalReference::address_of_runtime_stats_flag());
-  __ Ldrb(w10, MemOperand(x10));
+  __ Ldrsw(w10, MemOperand(x10));
   __ Cbnz(w10, &profiler_enabled);
   {
     // Call the api function directly.

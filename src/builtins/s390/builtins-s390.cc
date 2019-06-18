@@ -3009,7 +3009,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   Label profiler_enabled, end_profiler_check;
   __ bne(&profiler_enabled, Label::kNear);
   __ Move(scratch, ExternalReference::address_of_runtime_stats_flag());
-  __ LoadlB(scratch, MemOperand(scratch, 0));
+  __ LoadlW(scratch, MemOperand(scratch, 0));
   __ CmpP(scratch, Operand::Zero());
   __ bne(&profiler_enabled, Label::kNear);
   {

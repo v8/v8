@@ -2844,7 +2844,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ cmp(r9, Operand(0));
   __ b(ne, &profiler_enabled);
   __ Move(r9, ExternalReference::address_of_runtime_stats_flag());
-  __ ldrb(r9, MemOperand(r9, 0));
+  __ ldr(r9, MemOperand(r9, 0));
   __ cmp(r9, Operand(0));
   __ b(ne, &profiler_enabled);
   {

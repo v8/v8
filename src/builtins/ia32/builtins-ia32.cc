@@ -3025,7 +3025,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ cmpb(Operand(eax, 0), Immediate(0));
   __ j(not_zero, &profiler_enabled);
   __ Move(eax, Immediate(ExternalReference::address_of_runtime_stats_flag()));
-  __ cmpb(Operand(eax, 0), Immediate(0));
+  __ cmp(Operand(eax, 0), Immediate(0));
   __ j(not_zero, &profiler_enabled);
   {
     // Call the api function directly.
