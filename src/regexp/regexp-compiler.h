@@ -5,12 +5,15 @@
 #ifndef V8_REGEXP_REGEXP_COMPILER_H_
 #define V8_REGEXP_REGEXP_COMPILER_H_
 
+#include <bitset>
+
 #include "src/base/small-vector.h"
 #include "src/regexp/regexp-nodes.h"
 
 namespace v8 {
 namespace internal {
 
+class DynamicBitSet;
 class Isolate;
 
 namespace regexp_compiler_constants {
@@ -74,34 +77,6 @@ inline bool NeedsUnicodeCaseEquivalents(JSRegExp::Flags flags) {
   // the closure over case equivalents.
   return IsUnicode(flags) && IgnoreCase(flags);
 }
-
-// A set of unsigned integers that behaves especially well on small
-// integers (< 32).  May do zone-allocation.
-class OutSet : public ZoneObject {
- public:
-  OutSet() : first_(0), remaining_(nullptr), successors_(nullptr) {}
-  OutSet* Extend(unsigned value, Zone* zone);
-  V8_EXPORT_PRIVATE bool Get(unsigned value) const;
-  static const unsigned kFirstLimit = 32;
-
- private:
-  // Destructively set a value in this set.  In most cases you want
-  // to use Extend instead to ensure that only one instance exists
-  // that contains the same values.
-  void Set(unsigned value, Zone* zone);
-
-  // The successors are a list of sets that contain the same values
-  // as this set and the one more value that is not present in this
-  // set.
-  ZoneList<OutSet*>* successors(Zone* zone) { return successors_; }
-
-  OutSet(uint32_t first, ZoneList<unsigned>* remaining)
-      : first_(first), remaining_(remaining), successors_(nullptr) {}
-  uint32_t first_;
-  ZoneList<unsigned>* remaining_;
-  ZoneList<OutSet*>* successors_;
-  friend class Trace;
-};
 
 // Details of a quick mask-compare check that can look ahead in the
 // input stream.
@@ -186,22 +161,10 @@ inline ContainedInLattice Combine(ContainedInLattice a, ContainedInLattice b) {
 
 class BoyerMoorePositionInfo : public ZoneObject {
  public:
-  explicit BoyerMoorePositionInfo(Zone* zone)
-      : map_(new (zone) ZoneList<bool>(kMapSize, zone)),
-        map_count_(0),
-        w_(kNotYet),
-        s_(kNotYet),
-        d_(kNotYet),
-        surrogate_(kNotYet) {
-    for (int i = 0; i < kMapSize; i++) {
-      map_->Add(false, zone);
-    }
-  }
+  bool at(int i) const { return map_[i]; }
 
-  bool& at(int i) { return map_->at(i); }
-
-  static const int kMapSize = 128;
-  static const int kMask = kMapSize - 1;
+  static constexpr int kMapSize = 128;
+  static constexpr int kMask = kMapSize - 1;
 
   int map_count() const { return map_count_; }
 
@@ -212,12 +175,12 @@ class BoyerMoorePositionInfo : public ZoneObject {
   bool is_word() { return w_ == kLatticeIn; }
 
  private:
-  ZoneList<bool>* map_;
-  int map_count_;                 // Number of set bits in the map.
-  ContainedInLattice w_;          // The \w character class.
-  ContainedInLattice s_;          // The \s character class.
-  ContainedInLattice d_;          // The \d character class.
-  ContainedInLattice surrogate_;  // Surrogate UTF-16 code units.
+  std::bitset<kMapSize> map_;
+  int map_count_ = 0;                       // Number of set bits in the map.
+  ContainedInLattice w_ = kNotYet;          // The \w character class.
+  ContainedInLattice s_ = kNotYet;          // The \s character class.
+  ContainedInLattice d_ = kNotYet;          // The \d character class.
+  ContainedInLattice surrogate_ = kNotYet;  // Surrogate UTF-16 code units.
 };
 
 class BoyerMooreLookahead : public ZoneObject {
@@ -414,14 +377,14 @@ class Trace {
   void AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler);
 
  private:
-  int FindAffectedRegisters(OutSet* affected_registers, Zone* zone);
+  int FindAffectedRegisters(DynamicBitSet* affected_registers, Zone* zone);
   void PerformDeferredActions(RegExpMacroAssembler* macro, int max_register,
-                              const OutSet& affected_registers,
-                              OutSet* registers_to_pop,
-                              OutSet* registers_to_clear, Zone* zone);
+                              const DynamicBitSet& affected_registers,
+                              DynamicBitSet* registers_to_pop,
+                              DynamicBitSet* registers_to_clear, Zone* zone);
   void RestoreAffectedRegisters(RegExpMacroAssembler* macro, int max_register,
-                                const OutSet& registers_to_pop,
-                                const OutSet& registers_to_clear);
+                                const DynamicBitSet& registers_to_pop,
+                                const DynamicBitSet& registers_to_clear);
   int cp_offset_;
   DeferredAction* actions_;
   Label* backtrack_;

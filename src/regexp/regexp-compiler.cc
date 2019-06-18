@@ -320,7 +320,41 @@ bool Trace::GetStoredPosition(int reg, int* cp_offset) {
   return false;
 }
 
-int Trace::FindAffectedRegisters(OutSet* affected_registers, Zone* zone) {
+// A (dynamically-sized) set of unsigned integers that behaves especially well
+// on small integers (< kFirstLimit). May do zone-allocation.
+class DynamicBitSet : public ZoneObject {
+ public:
+  V8_EXPORT_PRIVATE bool Get(unsigned value) const {
+    if (value < kFirstLimit) {
+      return (first_ & (1 << value)) != 0;
+    } else if (remaining_ == nullptr) {
+      return false;
+    } else {
+      return remaining_->Contains(value);
+    }
+  }
+
+  // Destructively set a value in this set.
+  void Set(unsigned value, Zone* zone) {
+    if (value < kFirstLimit) {
+      first_ |= (1 << value);
+    } else {
+      if (remaining_ == nullptr)
+        remaining_ = new (zone) ZoneList<unsigned>(1, zone);
+      if (remaining_->is_empty() || !remaining_->Contains(value))
+        remaining_->Add(value, zone);
+    }
+  }
+
+ private:
+  static constexpr unsigned kFirstLimit = 32;
+
+  uint32_t first_ = 0;
+  ZoneList<unsigned>* remaining_ = nullptr;
+};
+
+int Trace::FindAffectedRegisters(DynamicBitSet* affected_registers,
+                                 Zone* zone) {
   int max_register = RegExpCompiler::kNoRegister;
   for (DeferredAction* action = actions_; action != nullptr;
        action = action->next()) {
@@ -339,8 +373,8 @@ int Trace::FindAffectedRegisters(OutSet* affected_registers, Zone* zone) {
 
 void Trace::RestoreAffectedRegisters(RegExpMacroAssembler* assembler,
                                      int max_register,
-                                     const OutSet& registers_to_pop,
-                                     const OutSet& registers_to_clear) {
+                                     const DynamicBitSet& registers_to_pop,
+                                     const DynamicBitSet& registers_to_clear) {
   for (int reg = max_register; reg >= 0; reg--) {
     if (registers_to_pop.Get(reg)) {
       assembler->PopRegister(reg);
@@ -356,9 +390,10 @@ void Trace::RestoreAffectedRegisters(RegExpMacroAssembler* assembler,
 
 void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
                                    int max_register,
-                                   const OutSet& affected_registers,
-                                   OutSet* registers_to_pop,
-                                   OutSet* registers_to_clear, Zone* zone) {
+                                   const DynamicBitSet& affected_registers,
+                                   DynamicBitSet* registers_to_pop,
+                                   DynamicBitSet* registers_to_clear,
+                                   Zone* zone) {
   // The "+1" is to avoid a push_limit of zero if stack_limit_slack() is 1.
   const int push_limit = (assembler->stack_limit_slack() + 1) / 2;
 
@@ -502,7 +537,7 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   }
 
   // Generate deferred actions here along with code to undo them again.
-  OutSet affected_registers;
+  DynamicBitSet affected_registers;
 
   if (backtrack() != nullptr) {
     // Here we have a concrete backtrack location.  These are set up by choice
@@ -513,8 +548,8 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
 
   int max_register =
       FindAffectedRegisters(&affected_registers, compiler->zone());
-  OutSet registers_to_pop;
-  OutSet registers_to_clear;
+  DynamicBitSet registers_to_pop;
+  DynamicBitSet registers_to_clear;
   PerformDeferredActions(assembler, max_register, affected_registers,
                          &registers_to_pop, &registers_to_clear,
                          compiler->zone());
@@ -2540,15 +2575,15 @@ void BoyerMoorePositionInfo::SetInterval(const Interval& interval) {
   if (interval.to() - interval.from() >= kMapSize - 1) {
     if (map_count_ != kMapSize) {
       map_count_ = kMapSize;
-      for (int i = 0; i < kMapSize; i++) map_->at(i) = true;
+      for (int i = 0; i < kMapSize; i++) map_.set(i);
     }
     return;
   }
   for (int i = interval.from(); i <= interval.to(); i++) {
     int mod_character = (i & kMask);
-    if (!map_->at(mod_character)) {
+    if (!map_[mod_character]) {
       map_count_++;
-      map_->at(mod_character) = true;
+      map_.set(mod_character);
     }
     if (map_count_ == kMapSize) return;
   }
@@ -2558,7 +2593,7 @@ void BoyerMoorePositionInfo::SetAll() {
   s_ = w_ = d_ = kLatticeUnknown;
   if (map_count_ != kMapSize) {
     map_count_ = kMapSize;
-    for (int i = 0; i < kMapSize; i++) map_->at(i) = true;
+    map_.set();
   }
 }
 
@@ -2572,7 +2607,7 @@ BoyerMooreLookahead::BoyerMooreLookahead(int length, RegExpCompiler* compiler,
   }
   bitmaps_ = new (zone) ZoneList<BoyerMoorePositionInfo*>(length, zone);
   for (int i = 0; i < length; i++) {
-    bitmaps_->Add(new (zone) BoyerMoorePositionInfo(zone), zone);
+    bitmaps_->Add(new (zone) BoyerMoorePositionInfo(), zone);
   }
 }
 
@@ -3276,46 +3311,6 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     assembler->CheckNotInSurrogatePair(trace->cp_offset(), trace->backtrack());
   }
   on_success()->Emit(compiler, trace);
-}
-
-// -------------------------------------------------------------------
-// Splay tree
-
-OutSet* OutSet::Extend(unsigned value, Zone* zone) {
-  if (Get(value)) return this;
-  if (successors(zone) != nullptr) {
-    for (int i = 0; i < successors(zone)->length(); i++) {
-      OutSet* successor = successors(zone)->at(i);
-      if (successor->Get(value)) return successor;
-    }
-  } else {
-    successors_ = new (zone) ZoneList<OutSet*>(2, zone);
-  }
-  OutSet* result = new (zone) OutSet(first_, remaining_);
-  result->Set(value, zone);
-  successors(zone)->Add(result, zone);
-  return result;
-}
-
-void OutSet::Set(unsigned value, Zone* zone) {
-  if (value < kFirstLimit) {
-    first_ |= (1 << value);
-  } else {
-    if (remaining_ == nullptr)
-      remaining_ = new (zone) ZoneList<unsigned>(1, zone);
-    if (remaining_->is_empty() || !remaining_->Contains(value))
-      remaining_->Add(value, zone);
-  }
-}
-
-bool OutSet::Get(unsigned value) const {
-  if (value < kFirstLimit) {
-    return (first_ & (1 << value)) != 0;
-  } else if (remaining_ == nullptr) {
-    return false;
-  } else {
-    return remaining_->Contains(value);
-  }
 }
 
 // -------------------------------------------------------------------
