@@ -394,6 +394,39 @@ TEST_F(DecompressionEliminationTest,
 }
 
 // -----------------------------------------------------------------------------
+// Direct Compression & Decompression
+
+TEST_F(DecompressionEliminationTest, BasicCompressionDecompression) {
+  // Skip test if pointer compression is not enabled
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+
+  // Define variables
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  ElementAccess const access = {kTaggedBase, kTaggedSize, Type::Any(),
+                                MachineType::AnyTagged(), kNoWriteBarrier};
+
+  // Create the graph
+  Node* load = graph()->NewNode(simplified()->LoadElement(access), object,
+                                index, effect, control);
+  Node* changeToCompressed =
+      graph()->NewNode(machine()->ChangeTaggedToCompressed(), load);
+  Node* changeToTagged = graph()->NewNode(machine()->ChangeCompressedToTagged(),
+                                          changeToCompressed);
+  effect = graph()->NewNode(simplified()->StoreElement(access), object, index,
+                            changeToTagged, effect, control);
+
+  // Reduce
+  Reduction r = Reduce(changeToTagged);
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(load, r.replacement());
+}
+
+// -----------------------------------------------------------------------------
 // Phi
 
 TEST_F(DecompressionEliminationTest, PhiOneDecompress) {

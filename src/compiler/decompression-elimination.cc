@@ -77,6 +77,21 @@ Reduction DecompressionElimination::ReduceCompress(Node* node) {
   }
 }
 
+Reduction DecompressionElimination::ReduceDecompress(Node* node) {
+  DCHECK(IrOpcode::IsDecompressOpcode(node->opcode()));
+
+  DCHECK_EQ(node->InputCount(), 1);
+  Node* input_node = node->InputAt(0);
+  IrOpcode::Value input_opcode = input_node->opcode();
+  if (IrOpcode::IsCompressOpcode(input_opcode)) {
+    DCHECK(IsValidDecompress(input_opcode, node->opcode()));
+    DCHECK_EQ(input_node->InputCount(), 1);
+    return Replace(input_node->InputAt(0));
+  } else {
+    return NoChange();
+  }
+}
+
 Reduction DecompressionElimination::ReducePhi(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kPhi);
 
@@ -197,6 +212,10 @@ Reduction DecompressionElimination::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedSignedToCompressedSigned:
     case IrOpcode::kChangeTaggedPointerToCompressedPointer:
       return ReduceCompress(node);
+    case IrOpcode::kChangeCompressedToTagged:
+    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
+    case IrOpcode::kChangeCompressedPointerToTaggedPointer:
+      return ReduceDecompress(node);
     case IrOpcode::kPhi:
       return ReducePhi(node);
     case IrOpcode::kTypedStateValues:

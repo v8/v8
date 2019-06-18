@@ -48,6 +48,9 @@ class V8_EXPORT_PRIVATE DecompressionElimination final
   // Can be used for Any, Signed, and Pointer compressions.
   Reduction ReduceCompress(Node* node);
 
+  // Removes direct Compressions & Decompressions, analogously to ReduceCompress
+  Reduction ReduceDecompress(Node* node);
+
   // Replaces Phi's input decompressions with their input node, if and only if
   // all of the Phi's inputs are Decompress nodes.
   Reduction ReducePhi(Node* node);
