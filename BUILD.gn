@@ -2952,10 +2952,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/elements.cc",
     "src/objects/objects.cc",
     "src/parsing/parser.cc",
-
-    # Explicit template instantiation clash (these files are also very large).
-    "src/regexp/regexp-compiler-tonode.cc",
-    "src/regexp/regexp-compiler.cc",
   ]
 
   if (v8_current_cpu == "x86") {

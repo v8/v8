@@ -98,10 +98,12 @@ class SmallVector {
     return begin_[index];
   }
 
-  const T& operator[](size_t index) const {
+  const T& at(size_t index) const {
     DCHECK_GT(size(), index);
     return begin_[index];
   }
+
+  const T& operator[](size_t index) const { return at(index); }
 
   template <typename... Args>
   void emplace_back(Args&&... args) {

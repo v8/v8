@@ -7,7 +7,6 @@
 #include "src/execution/isolate.h"
 #include "src/regexp/regexp.h"
 #include "src/strings/unicode-inl.h"
-#include "src/utils/splay-tree-inl.h"
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
@@ -20,11 +19,6 @@ namespace v8 {
 namespace internal {
 
 using namespace regexp_compiler_constants;  // NOLINT(build/namespaces)
-
-// Explicit template instantiations.
-template class ZoneSplayTree<DispatchTable::Config>;
-template void DispatchTable::ForEach<UnicodeRangeSplitter>(
-    UnicodeRangeSplitter*);
 
 // -------------------------------------------------------------------
 // Tree to graph conversion
@@ -128,14 +122,7 @@ bool RegExpCharacterClass::is_standard(Zone* zone) {
   return false;
 }
 
-UnicodeRangeSplitter::UnicodeRangeSplitter(Zone* zone,
-                                           ZoneList<CharacterRange>* base)
-    : zone_(zone),
-      table_(zone),
-      bmp_(nullptr),
-      lead_surrogates_(nullptr),
-      trail_surrogates_(nullptr),
-      non_bmp_(nullptr) {
+UnicodeRangeSplitter::UnicodeRangeSplitter(ZoneList<CharacterRange>* base) {
   // The unicode range splitter categorizes given character ranges into:
   // - Code points from the BMP representable by one code unit.
   // - Code points outside the BMP that need to be split into surrogate pairs.
@@ -143,50 +130,75 @@ UnicodeRangeSplitter::UnicodeRangeSplitter(Zone* zone,
   // - Lone trail surrogates.
   // Lone surrogates are valid code points, even though no actual characters.
   // They require special matching to make sure we do not split surrogate pairs.
-  // We use the dispatch table to accomplish this. The base range is split up
-  // by the table by the overlay ranges, and the Call callback is used to
-  // filter and collect ranges for each category.
-  for (int i = 0; i < base->length(); i++) {
-    table_.AddRange(base->at(i), kBase, zone_);
-  }
-  // Add overlay ranges.
-  table_.AddRange(CharacterRange::Range(0, kLeadSurrogateStart - 1),
-                  kBmpCodePoints, zone_);
-  table_.AddRange(CharacterRange::Range(kLeadSurrogateStart, kLeadSurrogateEnd),
-                  kLeadSurrogates, zone_);
-  table_.AddRange(
-      CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd),
-      kTrailSurrogates, zone_);
-  table_.AddRange(
-      CharacterRange::Range(kTrailSurrogateEnd + 1, kNonBmpStart - 1),
-      kBmpCodePoints, zone_);
-  table_.AddRange(CharacterRange::Range(kNonBmpStart, kNonBmpEnd),
-                  kNonBmpCodePoints, zone_);
-  table_.ForEach(this);
+
+  for (int i = 0; i < base->length(); i++) AddRange(base->at(i));
 }
 
-void UnicodeRangeSplitter::Call(uc32 from, DispatchTable::Entry entry) {
-  OutSet* outset = entry.out_set();
-  if (!outset->Get(kBase)) return;
-  ZoneList<CharacterRange>** target = nullptr;
-  if (outset->Get(kBmpCodePoints)) {
-    target = &bmp_;
-  } else if (outset->Get(kLeadSurrogates)) {
-    target = &lead_surrogates_;
-  } else if (outset->Get(kTrailSurrogates)) {
-    target = &trail_surrogates_;
-  } else {
-    DCHECK(outset->Get(kNonBmpCodePoints));
-    target = &non_bmp_;
+void UnicodeRangeSplitter::AddRange(CharacterRange range) {
+  static constexpr uc32 kBmp1Start = 0;
+  static constexpr uc32 kBmp1End = kLeadSurrogateStart - 1;
+  static constexpr uc32 kBmp2Start = kTrailSurrogateEnd + 1;
+  static constexpr uc32 kBmp2End = kNonBmpStart - 1;
+
+  // Ends are all inclusive.
+  STATIC_ASSERT(kBmp1Start == 0);
+  STATIC_ASSERT(kBmp1Start < kBmp1End);
+  STATIC_ASSERT(kBmp1End + 1 == kLeadSurrogateStart);
+  STATIC_ASSERT(kLeadSurrogateStart < kLeadSurrogateEnd);
+  STATIC_ASSERT(kLeadSurrogateEnd + 1 == kTrailSurrogateStart);
+  STATIC_ASSERT(kTrailSurrogateStart < kTrailSurrogateEnd);
+  STATIC_ASSERT(kTrailSurrogateEnd + 1 == kBmp2Start);
+  STATIC_ASSERT(kBmp2Start < kBmp2End);
+  STATIC_ASSERT(kBmp2End + 1 == kNonBmpStart);
+  STATIC_ASSERT(kNonBmpStart < kNonBmpEnd);
+
+  static constexpr uc32 kStarts[] = {
+      kBmp1Start, kLeadSurrogateStart, kTrailSurrogateStart,
+      kBmp2Start, kNonBmpStart,
+  };
+
+  static constexpr uc32 kEnds[] = {
+      kBmp1End, kLeadSurrogateEnd, kTrailSurrogateEnd, kBmp2End, kNonBmpEnd,
+  };
+
+  CharacterRangeVector* const kTargets[] = {
+      &bmp_, &lead_surrogates_, &trail_surrogates_, &bmp_, &non_bmp_,
+  };
+
+  static constexpr int kCount = arraysize(kStarts);
+  STATIC_ASSERT(kCount == arraysize(kEnds));
+  STATIC_ASSERT(kCount == arraysize(kTargets));
+
+  for (int i = 0; i < kCount; i++) {
+    if (kStarts[i] > range.to()) break;
+    const uc32 from = std::max(kStarts[i], range.from());
+    const uc32 to = std::min(kEnds[i], range.to());
+    if (from > to) continue;
+    kTargets[i]->emplace_back(CharacterRange::Range(from, to));
   }
-  if (*target == nullptr)
-    *target = new (zone_) ZoneList<CharacterRange>(2, zone_);
-  (*target)->Add(CharacterRange::Range(entry.from(), entry.to()), zone_);
+}
+
+namespace {
+
+// Translates between new and old V8-isms (SmallVector, ZoneList).
+ZoneList<CharacterRange>* ToCanonicalZoneList(
+    const UnicodeRangeSplitter::CharacterRangeVector* v, Zone* zone) {
+  if (v->empty()) return nullptr;
+
+  ZoneList<CharacterRange>* result =
+      new (zone) ZoneList<CharacterRange>(static_cast<int>(v->size()), zone);
+  for (size_t i = 0; i < v->size(); i++) {
+    result->Add(v->at(i), zone);
+  }
+
+  CharacterRange::Canonicalize(result);
+  return result;
 }
 
 void AddBmpCharacters(RegExpCompiler* compiler, ChoiceNode* result,
                       RegExpNode* on_success, UnicodeRangeSplitter* splitter) {
-  ZoneList<CharacterRange>* bmp = splitter->bmp();
+  ZoneList<CharacterRange>* bmp =
+      ToCanonicalZoneList(splitter->bmp(), compiler->zone());
   if (bmp == nullptr) return;
   JSRegExp::Flags default_flags = JSRegExp::Flags();
   result->AddAlternative(GuardedAlternative(TextNode::CreateForCharacterRanges(
@@ -197,7 +209,8 @@ void AddBmpCharacters(RegExpCompiler* compiler, ChoiceNode* result,
 void AddNonBmpSurrogatePairs(RegExpCompiler* compiler, ChoiceNode* result,
                              RegExpNode* on_success,
                              UnicodeRangeSplitter* splitter) {
-  ZoneList<CharacterRange>* non_bmp = splitter->non_bmp();
+  ZoneList<CharacterRange>* non_bmp =
+      ToCanonicalZoneList(splitter->non_bmp(), compiler->zone());
   if (non_bmp == nullptr) return;
   DCHECK(!compiler->one_byte());
   Zone* zone = compiler->zone();
@@ -288,7 +301,8 @@ void AddLoneLeadSurrogates(RegExpCompiler* compiler, ChoiceNode* result,
                            RegExpNode* on_success,
                            UnicodeRangeSplitter* splitter) {
   JSRegExp::Flags default_flags = JSRegExp::Flags();
-  ZoneList<CharacterRange>* lead_surrogates = splitter->lead_surrogates();
+  ZoneList<CharacterRange>* lead_surrogates =
+      ToCanonicalZoneList(splitter->lead_surrogates(), compiler->zone());
   if (lead_surrogates == nullptr) return;
   Zone* zone = compiler->zone();
   // E.g. \ud801 becomes \ud801(?![\udc00-\udfff]).
@@ -316,7 +330,8 @@ void AddLoneTrailSurrogates(RegExpCompiler* compiler, ChoiceNode* result,
                             RegExpNode* on_success,
                             UnicodeRangeSplitter* splitter) {
   JSRegExp::Flags default_flags = JSRegExp::Flags();
-  ZoneList<CharacterRange>* trail_surrogates = splitter->trail_surrogates();
+  ZoneList<CharacterRange>* trail_surrogates =
+      ToCanonicalZoneList(splitter->trail_surrogates(), compiler->zone());
   if (trail_surrogates == nullptr) return;
   Zone* zone = compiler->zone();
   // E.g. \udc01 becomes (?<![\ud800-\udbff])\udc01
@@ -388,6 +403,8 @@ void AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges, Zone* zone) {
 #endif  // V8_INTL_SUPPORT
 }
 
+}  // namespace
+
 RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
                                          RegExpNode* on_success) {
   set_.Canonicalize();
@@ -414,7 +431,7 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
       return UnanchoredAdvance(compiler, on_success);
     } else {
       ChoiceNode* result = new (zone) ChoiceNode(2, zone);
-      UnicodeRangeSplitter splitter(zone, ranges);
+      UnicodeRangeSplitter splitter(ranges);
       AddBmpCharacters(compiler, result, on_success, &splitter);
       AddNonBmpSurrogatePairs(compiler, result, on_success, &splitter);
       AddLoneLeadSurrogates(compiler, result, on_success, &splitter);

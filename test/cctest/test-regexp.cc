@@ -1591,10 +1591,10 @@ TEST(CharacterRangeCaseIndependence) {
 #endif  // !V8_INTL_SUPPORT
 }
 
-
-static bool InClass(uc32 c, ZoneList<CharacterRange>* ranges) {
+static bool InClass(uc32 c,
+                    const UnicodeRangeSplitter::CharacterRangeVector* ranges) {
   if (ranges == nullptr) return false;
-  for (int i = 0; i < ranges->length(); i++) {
+  for (size_t i = 0; i < ranges->size(); i++) {
     CharacterRange range = ranges->at(i);
     if (range.from() <= c && c <= range.to())
       return true;
@@ -1602,13 +1602,12 @@ static bool InClass(uc32 c, ZoneList<CharacterRange>* ranges) {
   return false;
 }
 
-
 TEST(UnicodeRangeSplitter) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   ZoneList<CharacterRange>* base =
       new(&zone) ZoneList<CharacterRange>(1, &zone);
   base->Add(CharacterRange::Everything(), &zone);
-  UnicodeRangeSplitter splitter(&zone, base);
+  UnicodeRangeSplitter splitter(base);
   // BMP
   for (uc32 c = 0; c < 0xD800; c++) {
     CHECK(InClass(c, splitter.bmp()));

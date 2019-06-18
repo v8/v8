@@ -25,11 +25,6 @@ namespace internal {
 
 using namespace regexp_compiler_constants;  // NOLINT(build/namespaces)
 
-// Explicit template instantiations.
-template class ZoneSplayTree<DispatchTable::Config>;
-template void DispatchTable::ForEach<UnicodeRangeSplitter>(
-    UnicodeRangeSplitter*);
-
 // -------------------------------------------------------------------
 // Implementation of the Irregexp regular expression engine.
 //

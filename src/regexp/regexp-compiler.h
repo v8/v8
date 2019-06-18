@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_REGEXP_COMPILER_H_
 #define V8_REGEXP_REGEXP_COMPILER_H_
 
+#include "src/base/small-vector.h"
 #include "src/regexp/regexp-nodes.h"
 #include "src/zone/zone-splay-tree.h"
 
@@ -721,29 +722,27 @@ class RegExpCompiler {
 // Categorizes character ranges into BMP, non-BMP, lead, and trail surrogates.
 class UnicodeRangeSplitter {
  public:
-  V8_EXPORT_PRIVATE UnicodeRangeSplitter(Zone* zone,
-                                         ZoneList<CharacterRange>* base);
-  void Call(uc32 from, DispatchTable::Entry entry);
+  V8_EXPORT_PRIVATE UnicodeRangeSplitter(ZoneList<CharacterRange>* base);
 
-  ZoneList<CharacterRange>* bmp() { return bmp_; }
-  ZoneList<CharacterRange>* lead_surrogates() { return lead_surrogates_; }
-  ZoneList<CharacterRange>* trail_surrogates() { return trail_surrogates_; }
-  ZoneList<CharacterRange>* non_bmp() const { return non_bmp_; }
+  static constexpr int kInitialSize = 8;
+  using CharacterRangeVector = base::SmallVector<CharacterRange, kInitialSize>;
+
+  const CharacterRangeVector* bmp() const { return &bmp_; }
+  const CharacterRangeVector* lead_surrogates() const {
+    return &lead_surrogates_;
+  }
+  const CharacterRangeVector* trail_surrogates() const {
+    return &trail_surrogates_;
+  }
+  const CharacterRangeVector* non_bmp() const { return &non_bmp_; }
 
  private:
-  static const int kBase = 0;
-  // Separate ranges into
-  static const int kBmpCodePoints = 1;
-  static const int kLeadSurrogates = 2;
-  static const int kTrailSurrogates = 3;
-  static const int kNonBmpCodePoints = 4;
+  void AddRange(CharacterRange range);
 
-  Zone* zone_;
-  DispatchTable table_;
-  ZoneList<CharacterRange>* bmp_;
-  ZoneList<CharacterRange>* lead_surrogates_;
-  ZoneList<CharacterRange>* trail_surrogates_;
-  ZoneList<CharacterRange>* non_bmp_;
+  CharacterRangeVector bmp_;
+  CharacterRangeVector lead_surrogates_;
+  CharacterRangeVector trail_surrogates_;
+  CharacterRangeVector non_bmp_;
 };
 
 // We need to check for the following characters: 0x39C 0x3BC 0x178.
