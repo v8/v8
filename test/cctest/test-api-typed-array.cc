@@ -577,3 +577,85 @@ TEST(InternalFieldsOnDataView) {
              array->GetAlignedPointerFromInternalField(i));
   }
 }
+
+namespace {
+void TestOnHeapHasBuffer(const char* array_name, size_t elem_size) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  i::ScopedVector<char> source(128);
+  // Test on-heap sizes.
+  for (size_t size = 0; size <= i::JSTypedArray::kMaxSizeInHeap;
+       size += elem_size) {
+    size_t length = size / elem_size;
+    i::SNPrintF(source, "new %sArray(%zu)", array_name, length);
+    auto typed_array =
+        v8::Local<v8::TypedArray>::Cast(CompileRun(source.begin()));
+
+    CHECK_EQ(length, typed_array->Length());
+
+    // Should not (yet) have a buffer.
+    CHECK(!typed_array->HasBuffer());
+
+    // Get the buffer and check its length.
+    i::Handle<i::JSTypedArray> i_typed_array =
+        v8::Utils::OpenHandle(*typed_array);
+    auto i_array_buffer1 = i_typed_array->GetBuffer();
+    CHECK_EQ(size, i_array_buffer1->byte_length());
+    CHECK(typed_array->HasBuffer());
+
+    // Should have the same buffer each time.
+    auto i_array_buffer2 = i_typed_array->GetBuffer();
+    CHECK(i_array_buffer1.is_identical_to(i_array_buffer2));
+  }
+}
+
+void TestOffHeapHasBuffer(const char* array_name, size_t elem_size) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  i::ScopedVector<char> source(128);
+  // Test off-heap sizes.
+  size_t size = i::JSTypedArray::kMaxSizeInHeap;
+  for (int i = 0; i < 3; i++) {
+    size_t length = 1 + (size / elem_size);
+    i::SNPrintF(source, "new %sArray(%zu)", array_name, length);
+    auto typed_array =
+        v8::Local<v8::TypedArray>::Cast(CompileRun(source.begin()));
+    CHECK_EQ(length, typed_array->Length());
+
+    // Should already have a buffer.
+    CHECK(typed_array->HasBuffer());
+
+    // Get the buffer and check its length.
+    i::Handle<i::JSTypedArray> i_typed_array =
+        v8::Utils::OpenHandle(*typed_array);
+    auto i_array_buffer1 = i_typed_array->GetBuffer();
+    CHECK_EQ(length * elem_size, i_array_buffer1->byte_length());
+
+    size *= 2;
+  }
+}
+
+}  // namespace
+
+#define TEST_HAS_BUFFER(array_name, elem_size)    \
+  TEST(OnHeap_##array_name##Array_HasBuffer) {    \
+    TestOnHeapHasBuffer(#array_name, elem_size);  \
+  }                                               \
+  TEST(OffHeap_##array_name##_HasBuffer) {        \
+    TestOffHeapHasBuffer(#array_name, elem_size); \
+  }
+
+TEST_HAS_BUFFER(Uint8, 1)
+TEST_HAS_BUFFER(Int8, 1)
+TEST_HAS_BUFFER(Uint16, 2)
+TEST_HAS_BUFFER(Int16, 2)
+TEST_HAS_BUFFER(Uint32, 4)
+TEST_HAS_BUFFER(Int32, 4)
+TEST_HAS_BUFFER(Float32, 4)
+TEST_HAS_BUFFER(Float64, 8)
+
+#undef TEST_HAS_BUFFER

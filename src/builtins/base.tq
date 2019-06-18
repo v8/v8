@@ -1026,8 +1026,8 @@ const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
 const kArrayBufferMaxByteLength:
     constexpr uintptr generates 'JSArrayBuffer::kMaxByteLength';
-const V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP:
-    constexpr int31 generates 'V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP';
+const kMaxTypedArrayInHeap:
+    constexpr int31 generates 'JSTypedArray::kMaxSizeInHeap';
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
 const kSmiMaxValue: constexpr uintptr generates 'kSmiMaxValue';
 const kSmiMax: uintptr = kSmiMaxValue;

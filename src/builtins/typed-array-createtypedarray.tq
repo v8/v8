@@ -86,7 +86,7 @@ namespace typed_array_createtypedarray {
             defaultConstructor, bufferConstructor, byteLengthNum));
       }
 
-      if (byteLength > V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP) goto AllocateOffHeap;
+      if (byteLength > kMaxTypedArrayInHeap) goto AllocateOffHeap;
 
       const buffer = AllocateEmptyOnHeapBuffer(byteLength);
 

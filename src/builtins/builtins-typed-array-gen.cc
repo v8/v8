@@ -18,12 +18,6 @@ using compiler::Node;
 template <class T>
 using TNode = compiler::TNode<T>;
 
-// This is needed for gc_mole which will compile this file without the full set
-// of GN defined macros.
-#ifndef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
-#define V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP 64
-#endif
-
 // -----------------------------------------------------------------------------
 // ES6 section 22.2 TypedArray Objects
 
@@ -1006,8 +1000,6 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   ThrowTypeError(context, MessageTemplate::kDetachedOperation,
                  "%TypedArray%.from");
 }
-
-#undef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
 
 }  // namespace internal
 }  // namespace v8

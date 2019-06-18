@@ -33,12 +33,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// This is needed for gc_mole which will compile this file without the full set
-// of GN defined macros.
-#ifndef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
-#define V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP 64
-#endif
-
 namespace {
 
 bool HasNumberMaps(JSHeapBroker* broker, ZoneVector<Handle<Map>> const& maps) {
@@ -2587,7 +2581,7 @@ JSNativeContextSpecialization::BuildElementAccess(
       // for Chrome. Node and Electron both set this limit to 0. Setting
       // the base to Smi zero here allows the EffectControlLinearizer to
       // optimize away the tricky part of the access later.
-      if (V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP == 0) {
+      if (JSTypedArray::kMaxSizeInHeap == 0) {
         base_pointer = jsgraph()->ZeroConstant();
       } else {
         base_pointer = effect =
@@ -3360,8 +3354,6 @@ JSOperatorBuilder* JSNativeContextSpecialization::javascript() const {
 SimplifiedOperatorBuilder* JSNativeContextSpecialization::simplified() const {
   return jsgraph()->simplified();
 }
-
-#undef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
 
 }  // namespace compiler
 }  // namespace internal
