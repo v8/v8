@@ -237,17 +237,9 @@ namespace v8 {
 #define RETURN_ON_FAILED_EXECUTION_PRIMITIVE(T) \
   EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE(isolate, Nothing<T>())
 
-#define RETURN_TO_LOCAL_UNCHECKED(maybe_local, T) \
-  return maybe_local.FromMaybe(Local<T>());
-
 #define RETURN_ESCAPED(value) return handle_scope.Escape(value);
 
 namespace {
-
-Local<Context> ContextFromNeverReadOnlySpaceObject(
-    i::Handle<i::JSReceiver> obj) {
-  return reinterpret_cast<v8::Isolate*>(obj->GetIsolate())->GetCurrentContext();
-}
 
 class InternalEscapableScope : public v8::EscapableHandleScope {
  public:
@@ -3884,11 +3876,6 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
   return Just(true);
 }
 
-bool v8::Object::Set(v8::Local<Value> key, v8::Local<Value> value) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return Set(context, key, value).FromMaybe(false);
-}
-
 Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
                             v8::Local<Value> value) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
@@ -3900,11 +3887,6 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
                               .is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
-}
-
-bool v8::Object::Set(uint32_t index, v8::Local<Value> value) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return Set(context, index, value).FromMaybe(false);
 }
 
 Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
@@ -4124,11 +4106,6 @@ MaybeLocal<Value> v8::Object::Get(Local<v8::Context> context,
   RETURN_ESCAPED(Utils::ToLocal(result));
 }
 
-Local<Value> v8::Object::Get(v8::Local<Value> key) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(Get(context, key), Value);
-}
-
 MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
   PREPARE_FOR_EXECUTION(context, Object, Get, Value);
   auto self = Utils::OpenHandle(this);
@@ -4137,11 +4114,6 @@ MaybeLocal<Value> v8::Object::Get(Local<Context> context, uint32_t index) {
       !i::JSReceiver::GetElement(isolate, self, index).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(Utils::ToLocal(result));
-}
-
-Local<Value> v8::Object::Get(uint32_t index) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(Get(context, index), Value);
 }
 
 MaybeLocal<Value> v8::Object::GetPrivate(Local<Context> context,
@@ -10419,7 +10391,6 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
 #undef EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE
 #undef RETURN_ON_FAILED_EXECUTION
 #undef RETURN_ON_FAILED_EXECUTION_PRIMITIVE
-#undef RETURN_TO_LOCAL_UNCHECKED
 #undef RETURN_ESCAPED
 #undef SET_FIELD_WRAPPED
 #undef NEW_STRING
