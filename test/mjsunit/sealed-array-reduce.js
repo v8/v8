@@ -1414,11 +1414,18 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   function r(a) {
     return a.reduce((acc, i) => {acc[0]});
   };
+
+  // Hold on to the objects, otherwise their maps might be garbage
+  // collected and {r} will get deoptmized before the {assertOptimized}.
+  const object1 = Object.seal([[0]]);
+  const object2 = Object.seal([0,,]);
+  const object3 = Object.seal([,0,0]);
+
   %PrepareFunctionForOptimization(r);
-  assertEquals(r(Object.seal([[0]])), [0]);
-  assertEquals(r(Object.seal([[0]])), [0]);
-  assertEquals(r(Object.seal([0,,])), 0);
+  assertEquals(r(object1), [0]);
+  assertEquals(r(object1), [0]);
+  assertEquals(r(object2), 0);
   %OptimizeFunctionOnNextCall(r);
-  assertEquals(r(Object.seal([,0,0])), undefined);
+  assertEquals(r(object3), undefined);
   assertOptimized(r);
 })();
