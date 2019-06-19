@@ -70,10 +70,9 @@ namespace typed_array {
   extern macro TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
       ElementsKind): bool;
   extern macro LoadFixedTypedArrayElementAsTagged(
-      RawPtr, Smi, constexpr ElementsKind, constexpr ParameterMode): Object;
+      RawPtr, Smi, constexpr ElementsKind): Numeric;
   extern macro StoreJSTypedArrayElementFromTagged(
-      Context, JSTypedArray, Smi, Object, constexpr ElementsKind,
-      constexpr ParameterMode);
+      Context, JSTypedArray, Smi, Object, constexpr ElementsKind);
 
   type LoadFn = builtin(Context, JSTypedArray, Smi) => Object;
   type StoreFn = builtin(Context, JSTypedArray, Smi, Object) => Object;
@@ -193,15 +192,14 @@ namespace typed_array {
   builtin LoadFixedElement<T: type>(
       _context: Context, array: JSTypedArray, index: Smi): Object {
     return LoadFixedTypedArrayElementAsTagged(
-        array.data_ptr, index, KindForArrayType<T>(), SMI_PARAMETERS);
+        array.data_ptr, index, KindForArrayType<T>());
   }
 
   builtin StoreFixedElement<T: type>(
       context: Context, typedArray: JSTypedArray, index: Smi,
       value: Object): Object {
     StoreJSTypedArrayElementFromTagged(
-        context, typedArray, index, value, KindForArrayType<T>(),
-        SMI_PARAMETERS);
+        context, typedArray, index, value, KindForArrayType<T>());
     return Undefined;
   }
 

@@ -41,10 +41,10 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                            TNode<UintPtrT> byte_offset);
 
   // Returns true if kind is either UINT8_ELEMENTS or UINT8_CLAMPED_ELEMENTS.
-  TNode<Word32T> IsUint8ElementsKind(TNode<Word32T> kind);
+  TNode<BoolT> IsUint8ElementsKind(TNode<Word32T> kind);
 
   // Returns true if kind is either BIGINT64_ELEMENTS or BIGUINT64_ELEMENTS.
-  TNode<Word32T> IsBigInt64ElementsKind(TNode<Word32T> kind);
+  TNode<BoolT> IsBigInt64ElementsKind(TNode<Word32T> kind);
 
   // Returns the byte size of an element for a TypedArray elements kind.
   TNode<IntPtrT> GetTypedArrayElementSize(TNode<Word32T> elements_kind);

@@ -185,7 +185,7 @@ void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
     TNode<Int32T> instance_type = LoadMapInstanceType(prototype_map);
     GotoIf(IsCustomElementsReceiverInstanceType(instance_type),
            non_fast_elements);
-    Node* elements_kind = LoadMapElementsKind(prototype_map);
+    TNode<Int32T> elements_kind = LoadMapElementsKind(prototype_map);
     GotoIf(IsFastElementsKind(elements_kind), &loop_body);
     GotoIf(Word32Equal(elements_kind, Int32Constant(NO_ELEMENTS)), &loop_body);
     Goto(non_fast_elements);
@@ -500,7 +500,7 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
       if_grow(this), if_nonfast(this), if_typed_array(this),
       if_dictionary(this);
   Node* elements = LoadElements(receiver);
-  Node* elements_kind = LoadMapElementsKind(receiver_map);
+  TNode<Int32T> elements_kind = LoadMapElementsKind(receiver_map);
   Branch(IsFastElementsKind(elements_kind), &if_fast, &if_nonfast);
   BIND(&if_fast);
 

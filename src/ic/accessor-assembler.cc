@@ -1964,7 +1964,7 @@ void AccessorAssembler::EmitElementLoad(
     {
       Comment("typed elements");
       // Check if buffer has been detached.
-      Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
+      TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(CAST(object));
       GotoIf(IsDetachedBuffer(buffer), miss);
 
       // Bounds check.
@@ -1973,7 +1973,8 @@ void AccessorAssembler::EmitElementLoad(
       if (access_mode == LoadAccessMode::kHas) {
         exit_point->Return(TrueConstant());
       } else {
-        Node* backing_store = LoadJSTypedArrayBackingStore(CAST(object));
+        TNode<RawPtrT> backing_store =
+            LoadJSTypedArrayBackingStore(CAST(object));
 
         Label uint8_elements(this), int8_elements(this), uint16_elements(this),
             int16_elements(this), uint32_elements(this), int32_elements(this),
@@ -3640,7 +3641,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
       LoadObjectField(object_fn, JSFunction::kPrototypeOrInitialMapOffset));
   CSA_ASSERT(this, IsMap(initial_map));
 
-  TNode<JSObject> result = CAST(AllocateJSObjectFromMap(initial_map));
+  TNode<JSObject> result = AllocateJSObjectFromMap(initial_map);
 
   {
     Label did_set_proto_if_needed(this);
@@ -3708,8 +3709,8 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     // Handlers for the CloneObjectIC stub are weak references to the Map of
     // a result object.
     TNode<Map> result_map = CAST(var_handler.value());
-    TVARIABLE(Object, var_properties, EmptyFixedArrayConstant());
-    TVARIABLE(FixedArrayBase, var_elements, EmptyFixedArrayConstant());
+    TVARIABLE(HeapObject, var_properties, EmptyFixedArrayConstant());
+    TVARIABLE(FixedArray, var_elements, EmptyFixedArrayConstant());
 
     Label allocate_object(this);
     GotoIf(IsNullOrUndefined(source), &allocate_object);

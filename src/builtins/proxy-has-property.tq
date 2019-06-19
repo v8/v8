@@ -26,7 +26,7 @@ namespace proxy {
           Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
 
       // 5. Let target be O.[[ProxyTarget]].
-      const target = proxy.target;
+      const target = Cast<JSReceiver>(proxy.target) otherwise unreachable;
 
       // 6. Let trap be ? GetMethod(handler, "has").
       // 7. If trap is undefined, then (see 7.a below).
@@ -42,7 +42,8 @@ namespace proxy {
       if (BranchIfToBooleanIsTrue(trapResult)) {
         return True;
       }
-      return CheckHasTrapResult(target, proxy, name);
+      CheckHasTrapResult(target, proxy, name);
+      return False;
     }
     label TrapUndefined(target: Object) {
       // 7.a. Return ? target.[[HasProperty]](P).

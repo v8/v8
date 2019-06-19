@@ -56,7 +56,7 @@ namespace array_join {
     assert(!IsDetachedBuffer(typedArray.buffer));
     return typed_array::LoadFixedTypedArrayElementAsTagged(
         typedArray.data_ptr, UnsafeCast<Smi>(k),
-        typed_array::KindForArrayType<T>(), SMI_PARAMETERS);
+        typed_array::KindForArrayType<T>());
   }
 
   transitioning builtin ConvertToLocaleString(

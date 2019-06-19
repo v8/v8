@@ -314,8 +314,7 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
     out_ << ") = ";
   } else {
     if (results.size() == 1) {
-      out_ << results[0] << " = ca_.UncheckedCast<"
-           << return_type->GetGeneratedTNodeTypeName() << ">(";
+      out_ << results[0] << " = ";
     } else {
       DCHECK_EQ(0, results.size());
     }
@@ -330,7 +329,6 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
   if (needs_flattening) {
     out_ << ").Flatten();\n";
   } else {
-    if (results.size() == 1) out_ << ")";
     out_ << ");\n";
   }
   PostCallableExceptionPreparation(catch_name, return_type,

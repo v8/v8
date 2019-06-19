@@ -441,16 +441,16 @@ void CodeAssembler::Bind(Label* label, AssemblerDebugInfo debug_info) {
 }
 #endif  // DEBUG
 
-Node* CodeAssembler::LoadFramePointer() {
-  return raw_assembler()->LoadFramePointer();
+TNode<RawPtrT> CodeAssembler::LoadFramePointer() {
+  return UncheckedCast<RawPtrT>(raw_assembler()->LoadFramePointer());
 }
 
-Node* CodeAssembler::LoadParentFramePointer() {
-  return raw_assembler()->LoadParentFramePointer();
+TNode<RawPtrT> CodeAssembler::LoadParentFramePointer() {
+  return UncheckedCast<RawPtrT>(raw_assembler()->LoadParentFramePointer());
 }
 
-Node* CodeAssembler::LoadStackPointer() {
-  return raw_assembler()->LoadStackPointer();
+TNode<RawPtrT> CodeAssembler::LoadStackPointer() {
+  return UncheckedCast<RawPtrT>(raw_assembler()->LoadStackPointer());
 }
 
 TNode<Object> CodeAssembler::TaggedPoisonOnSpeculation(

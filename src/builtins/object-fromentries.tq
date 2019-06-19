@@ -47,7 +47,8 @@ namespace object {
       try {
         assert(!IsNullOrUndefined(i.object));
         while (true) {
-          const step: Object = iterator::IteratorStep(i, fastIteratorResultMap)
+          const step: JSReceiver =
+              iterator::IteratorStep(i, fastIteratorResultMap)
               otherwise return result;
           const iteratorValue: Object =
               iterator::IteratorValue(step, fastIteratorResultMap);

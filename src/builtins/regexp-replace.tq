@@ -22,7 +22,7 @@ namespace regexp_replace {
       String, JSRegExp, Callable): String;
 
   extern macro
-  RegExpBuiltinsAssembler::AdvanceStringIndexFast(String, Number, bool): Smi;
+  RegExpBuiltinsAssembler::AdvanceStringIndexFast(String, Smi, bool): Smi;
   extern macro
   RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResultFast(
       implicit context: Context)(JSReceiver, String):

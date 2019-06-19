@@ -169,13 +169,13 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
   Return(ChangeUintPtrToTagged(length));
 }
 
-TNode<Word32T> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
+TNode<BoolT> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
     TNode<Word32T> kind) {
   return Word32Or(Word32Equal(kind, Int32Constant(UINT8_ELEMENTS)),
                   Word32Equal(kind, Int32Constant(UINT8_CLAMPED_ELEMENTS)));
 }
 
-TNode<Word32T> TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
+TNode<BoolT> TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
     TNode<Word32T> kind) {
   return Word32Or(Word32Equal(kind, Int32Constant(BIGINT64_ELEMENTS)),
                   Word32Equal(kind, Int32Constant(BIGUINT64_ELEMENTS)));
@@ -268,10 +268,9 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::GetBuffer(
   Label call_runtime(this), done(this);
   TVARIABLE(Object, var_result);
 
-  TNode<Object> buffer = LoadObjectField(array, JSTypedArray::kBufferOffset);
+  TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array);
   GotoIf(IsDetachedBuffer(buffer), &call_runtime);
-  TNode<UintPtrT> backing_store = LoadObjectField<UintPtrT>(
-      CAST(buffer), JSArrayBuffer::kBackingStoreOffset);
+  TNode<RawPtrT> backing_store = LoadJSArrayBufferBackingStore(buffer);
   GotoIf(WordEqual(backing_store, IntPtrConstant(0)), &call_runtime);
   var_result = buffer;
   Goto(&done);
@@ -301,10 +300,10 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
     TNode<Context> context, TNode<JSTypedArray> source,
     TNode<JSTypedArray> target, TNode<IntPtrT> offset, Label* call_runtime,
     Label* if_source_too_large) {
-  CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(
-                       LoadObjectField(source, JSTypedArray::kBufferOffset))));
-  CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(
-                       LoadObjectField(target, JSTypedArray::kBufferOffset))));
+  CSA_ASSERT(this, Word32BinaryNot(
+                       IsDetachedBuffer(LoadJSArrayBufferViewBuffer(source))));
+  CSA_ASSERT(this, Word32BinaryNot(
+                       IsDetachedBuffer(LoadJSArrayBufferViewBuffer(target))));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(offset, IntPtrConstant(0)));
   CSA_ASSERT(this,
              IntPtrLessThanOrEqual(offset, IntPtrConstant(Smi::kMaxValue)));
@@ -748,8 +747,8 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
 
               // ToNumber/ToBigInt may execute JavaScript code, which could
               // detach the array's buffer.
-              Node* buffer =
-                  LoadObjectField(new_typed_array, JSTypedArray::kBufferOffset);
+              TNode<JSArrayBuffer> buffer =
+                  LoadJSArrayBufferViewBuffer(new_typed_array);
               GotoIf(IsDetachedBuffer(buffer), &if_detached);
 
               // GC may move backing store in ToNumber, thus load backing
@@ -971,8 +970,8 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
 
               // ToNumber/ToBigInt may execute JavaScript code, which could
               // detach the array's buffer.
-              Node* buffer = LoadObjectField(target_obj.value(),
-                                             JSTypedArray::kBufferOffset);
+              TNode<JSArrayBuffer> buffer =
+                  LoadJSArrayBufferViewBuffer(target_obj.value());
               GotoIf(IsDetachedBuffer(buffer), &if_detached);
 
               // GC may move backing store in map_fn, thus load backing

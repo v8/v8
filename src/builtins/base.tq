@@ -189,9 +189,7 @@ type LayoutDescriptor extends ByteArray
 type TransitionArray extends WeakFixedArray
     generates 'TNode<TransitionArray>';
 
-// InstanceType actually extends uint16, but a bunch of methods in
-// CodeStubAssembler expect a TNode<Int32T>, so keeping it signed for now.
-type InstanceType extends int16 constexpr 'InstanceType';
+type InstanceType extends uint16 constexpr 'InstanceType';
 
 extern class Map extends HeapObject {
   instance_size_in_words: uint8;
@@ -342,8 +340,8 @@ extern class JSFunction extends JSObject {
 }
 
 extern class JSProxy extends JSReceiver {
-  target: Object;
-  handler: Object;
+  target: JSReceiver | Null;
+  handler: JSReceiver | Null;
 }
 
 // Just a starting shape for JSObject; properties can move after initialization.
@@ -763,8 +761,6 @@ type LanguageMode extends Smi constexpr 'LanguageMode';
 type ExtractFixedArrayFlags
     generates 'TNode<Smi>'
     constexpr 'CodeStubAssembler::ExtractFixedArrayFlags';
-type ParameterMode
-    generates 'TNode<Int32T>' constexpr 'ParameterMode';
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
@@ -1127,11 +1123,6 @@ const false: constexpr bool generates 'false';
 
 const kStrict: constexpr LanguageMode generates 'LanguageMode::kStrict';
 const kSloppy: constexpr LanguageMode generates 'LanguageMode::kSloppy';
-
-const SMI_PARAMETERS: constexpr ParameterMode
-    generates 'CodeStubAssembler::SMI_PARAMETERS';
-const INTPTR_PARAMETERS: constexpr ParameterMode
-    generates 'CodeStubAssembler::INTPTR_PARAMETERS';
 
 const SKIP_WRITE_BARRIER:
     constexpr WriteBarrierMode generates 'SKIP_WRITE_BARRIER';
@@ -2059,7 +2050,7 @@ extern macro ChangeInt32ToIntPtr(int32): intptr;   // Sign-extends.
 extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
 extern macro LoadNativeContext(Context): NativeContext;
 extern macro TruncateFloat64ToFloat32(float64): float32;
-extern macro TruncateHeapNumberValueToWord32(Number): int32;
+extern macro TruncateHeapNumberValueToWord32(HeapNumber): int32;
 extern macro LoadJSArrayElementsMap(constexpr ElementsKind, Context): Map;
 extern macro LoadJSArrayElementsMap(ElementsKind, Context): Map;
 extern macro ChangeNonnegativeNumberToUintPtr(Number): uintptr;
@@ -2487,7 +2478,7 @@ extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 extern macro AllocateJSArray(Map, FixedArrayBase, Smi): JSArray;
 extern macro AllocateJSObjectFromMap(Map): JSObject;
 extern macro AllocateJSObjectFromMap(
-    Map, FixedArray, FixedArray, constexpr AllocationFlags,
+    Map, FixedArray | PropertyArray, FixedArray, constexpr AllocationFlags,
     constexpr SlackTrackingMode): JSObject;
 
 extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64

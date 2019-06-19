@@ -1986,12 +1986,12 @@ TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
 
     switch (encoding) {
       case UnicodeEncoding::UTF16:
-        var_result = Signed(Word32Or(
+        var_result = Word32Or(
 // Need to swap the order for big-endian platforms
 #if V8_TARGET_BIG_ENDIAN
-            Word32Shl(lead, Int32Constant(16)), trail));
+            Word32Shl(lead, Int32Constant(16)), trail);
 #else
-            Word32Shl(trail, Int32Constant(16)), lead));
+            Word32Shl(trail, Int32Constant(16)), lead);
 #endif
         break;
 
@@ -2002,8 +2002,8 @@ TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
             Int32Constant(0x10000 - (0xD800 << 10) - 0xDC00);
 
         // (lead << 10) + trail + SURROGATE_OFFSET
-        var_result = Signed(Int32Add(Word32Shl(lead, Int32Constant(10)),
-                                     Int32Add(trail, surrogate_offset)));
+        var_result = Int32Add(Word32Shl(lead, Int32Constant(10)),
+                              Int32Add(trail, surrogate_offset));
         break;
       }
     }

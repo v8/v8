@@ -17,15 +17,18 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
   explicit ProxiesCodeStubAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  Node* AllocateProxy(Node* target, Node* handler, Node* context);
-  Node* AllocateProxyRevokeFunction(Node* proxy, Node* context);
+  TNode<JSProxy> AllocateProxy(TNode<Context> context, TNode<JSReceiver> target,
+                               TNode<JSReceiver> handler);
+  TNode<JSFunction> AllocateProxyRevokeFunction(TNode<Context> context,
+                                                TNode<JSProxy> proxy);
 
-  Node* CheckGetSetTrapResult(Node* context, Node* target, Node* proxy,
-                              Node* name, Node* trap_result,
-                              JSProxy::AccessKind access_kind);
+  void CheckGetSetTrapResult(TNode<Context> context, TNode<JSReceiver> target,
+                             TNode<JSProxy> proxy, TNode<Name> name,
+                             TNode<Object> trap_result,
+                             JSProxy::AccessKind access_kind);
 
-  Node* CheckHasTrapResult(Node* context, Node* target, Node* proxy,
-                           Node* name);
+  void CheckHasTrapResult(TNode<Context> context, TNode<JSReceiver> target,
+                          TNode<JSProxy> proxy, TNode<Name> name);
 
  protected:
   enum ProxyRevokeFunctionContextSlot {

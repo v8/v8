@@ -40,7 +40,7 @@ namespace proxy {
           Cast<JSReceiver>(handler) otherwise ThrowProxyHandlerRevoked;
 
       // 5. Let target be O.[[ProxyTarget]].
-      const target = proxy.target;
+      const target = UnsafeCast<JSReceiver>(proxy.target);
 
       // 6. Let trap be ? GetMethod(handler, "set").
       // 7. If trap is undefined, then (see 7.a below).
@@ -64,7 +64,8 @@ namespace proxy {
       const trapResult = Call(
           context, trap, handlerJSReceiver, target, name, value, receiverValue);
       if (BranchIfToBooleanIsTrue(trapResult)) {
-        return CheckGetSetTrapResult(target, proxy, name, value, kProxySet);
+        CheckGetSetTrapResult(target, proxy, name, value, kProxySet);
+        return value;
       }
       ThrowTypeErrorIfStrict(
           SmiConstant(kProxyTrapReturnedFalsishFor), 'set', name);
