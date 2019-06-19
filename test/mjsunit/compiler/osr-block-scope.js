@@ -14,8 +14,13 @@ function nest(body, name, depth) {
     body = body + "}"
   }
 
-  return body.replace(new RegExp("function " + name + "\\(\\) {"),
-                      "function " + name + "_" + x + "() {\n" + header);
+  // Replace function name
+  var new_func = body.replace(new RegExp("function " + name + "\\(\\) {"),
+                  "function " + name + "_" + x + "() {\n" + header);
+
+  // Replace PrepareForOptimize
+  return new_func.replace(new RegExp("%PrepareFunctionForOptimization\\(" + name + "\\);"),
+                  "%PrepareFunctionForOptimization(" + name + "_" + x + ");");
 }
 
 function test(expected, func, depth) {

@@ -9,7 +9,6 @@ function foo(r) {
 }
 
 const resolution = Promise.resolve();
-%PrepareFunctionForOptimization(foo);
 foo(resolution);
 
 function bar() {
@@ -18,6 +17,7 @@ function bar() {
   } catch (e) {}
 }
 
+%PrepareFunctionForOptimization(bar);
 bar();
 bar();
 %OptimizeFunctionOnNextCall(bar);
