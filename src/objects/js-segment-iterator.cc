@@ -52,7 +52,7 @@ MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
 
   Handle<Managed<icu::BreakIterator>> managed_break_iterator =
       Managed<icu::BreakIterator>::FromRawPtr(isolate, 0, break_iterator);
-  Managed<icu::UnicodeString> unicode_string =
+  Handle<Managed<icu::UnicodeString>> unicode_string =
       Intl::SetTextToBreakIterator(isolate, text, break_iterator);
 
   // Now all properties are ready, so we can allocate the result object.
@@ -67,7 +67,7 @@ MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
   segment_iterator->set_icu_break_iterator(*managed_break_iterator);
 
   // 3. Let iterator.[[SegmentIteratorString]] be string.
-  segment_iterator->set_unicode_string(unicode_string);
+  segment_iterator->set_unicode_string(*unicode_string);
 
   // 4. Let iterator.[[SegmentIteratorIndex]] be 0.
   // step 4 is stored inside break_iterator.
