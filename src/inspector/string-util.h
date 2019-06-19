@@ -74,6 +74,10 @@ class StringUtil {
     return String16(data, length);
   }
 
+  static String fromUTF16LE(const uint16_t* data, size_t length) {
+    return String16::fromUTF16LE(data, length);
+  }
+
   static const uint8_t* CharactersLatin1(const String& s) { return nullptr; }
   static const uint8_t* CharactersUTF8(const String& s) { return nullptr; }
   static const uint16_t* CharactersUTF16(const String& s) {
