@@ -624,6 +624,16 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
     if (visitor(isolate_->factory()->this_string(), receiver)) return true;
   }
 
+  if (current_scope_->is_function_scope()) {
+    Variable* function_var =
+        current_scope_->AsDeclarationScope()->function_var();
+    if (function_var != nullptr) {
+      Handle<JSFunction> function = frame_inspector_->GetFunction();
+      Handle<String> name = function_var->name();
+      if (visitor(name, function)) return true;
+    }
+  }
+
   for (Variable* var : *current_scope_->locals()) {
     DCHECK(!var->is_this());
     if (ScopeInfo::VariableIsSynthetic(*var->name())) continue;
