@@ -3267,7 +3267,8 @@ void JSObject::NormalizeProperties(Isolate* isolate, Handle<JSObject> object,
   if (!object->HasFastProperties()) return;
 
   Handle<Map> map(object->map(), isolate);
-  Handle<Map> new_map = Map::Normalize(isolate, map, mode, reason);
+  Handle<Map> new_map =
+      Map::Normalize(isolate, map, map->elements_kind(), mode, reason);
 
   JSObject::MigrateToMap(isolate, object, new_map,
                          expected_additional_properties);

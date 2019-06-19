@@ -570,61 +570,6 @@ bool Map::HasOutOfObjectProperties() const {
   return GetInObjectProperties() < NumberOfFields();
 }
 
-Handle<Map> Map::CopyGeneralizeAllFields(Isolate* isolate, Handle<Map> map,
-                                         ElementsKind elements_kind,
-                                         int modify_index, PropertyKind kind,
-                                         PropertyAttributes attributes,
-                                         const char* reason) {
-  Handle<DescriptorArray> old_descriptors(map->instance_descriptors(), isolate);
-  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  Handle<DescriptorArray> descriptors = DescriptorArray::CopyUpTo(
-      isolate, old_descriptors, number_of_own_descriptors);
-  descriptors->GeneralizeAllFields();
-
-  Handle<LayoutDescriptor> new_layout_descriptor(
-      LayoutDescriptor::FastPointerLayout(), isolate);
-  Handle<Map> new_map = CopyReplaceDescriptors(
-      isolate, map, descriptors, new_layout_descriptor, OMIT_TRANSITION,
-      MaybeHandle<Name>(), reason, SPECIAL_TRANSITION);
-
-  // Unless the instance is being migrated, ensure that modify_index is a field.
-  if (modify_index >= 0) {
-    PropertyDetails details = descriptors->GetDetails(modify_index);
-    if (details.constness() != PropertyConstness::kMutable ||
-        details.location() != kField || details.attributes() != attributes) {
-      int field_index = details.location() == kField
-                            ? details.field_index()
-                            : new_map->NumberOfFields();
-      Descriptor d = Descriptor::DataField(
-          isolate, handle(descriptors->GetKey(modify_index), isolate),
-          field_index, attributes, Representation::Tagged());
-      descriptors->Replace(modify_index, &d);
-      if (details.location() != kField) {
-        new_map->AccountAddedPropertyField();
-      }
-    } else {
-      DCHECK(details.attributes() == attributes);
-    }
-
-    if (FLAG_trace_generalization) {
-      MaybeHandle<FieldType> field_type = FieldType::None(isolate);
-      if (details.location() == kField) {
-        field_type = handle(
-            map->instance_descriptors().GetFieldType(modify_index), isolate);
-      }
-      map->PrintGeneralization(
-          isolate, stdout, reason, modify_index,
-          new_map->NumberOfOwnDescriptors(), new_map->NumberOfOwnDescriptors(),
-          details.location() == kDescriptor, details.representation(),
-          Representation::Tagged(), details.constness(), details.constness(),
-          field_type, MaybeHandle<Object>(), FieldType::Any(isolate),
-          MaybeHandle<Object>());
-    }
-  }
-  new_map->set_elements_kind(elements_kind);
-  return new_map;
-}
-
 void Map::DeprecateTransitionTree(Isolate* isolate) {
   if (is_deprecated()) return;
   DisallowHeapAllocation no_gc;
@@ -1477,6 +1422,7 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> map, int instance_size,
 }
 
 Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
+                           ElementsKind new_elements_kind,
                            PropertyNormalizationMode mode, const char* reason) {
   DCHECK(!fast_map->is_dictionary_map());
 
@@ -1488,7 +1434,8 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
   if (use_cache) cache = Handle<NormalizedMapCache>::cast(maybe_cache);
 
   Handle<Map> new_map;
-  if (use_cache && cache->Get(fast_map, mode).ToHandle(&new_map)) {
+  if (use_cache &&
+      cache->Get(fast_map, new_elements_kind, mode).ToHandle(&new_map)) {
 #ifdef VERIFY_HEAP
     if (FLAG_verify_heap) new_map->DictionaryMapVerify(isolate);
 #endif
@@ -1498,6 +1445,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       // except for the code cache, which can contain some ICs which can be
       // applied to the shared map, dependent code and weak cell cache.
       Handle<Map> fresh = Map::CopyNormalized(isolate, fast_map, mode);
+      fresh->set_elements_kind(new_elements_kind);
 
       STATIC_ASSERT(Map::kPrototypeValidityCellOffset ==
                     Map::kDependentCodeOffset + kTaggedSize);
@@ -1529,6 +1477,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
 #endif
   } else {
     new_map = Map::CopyNormalized(isolate, fast_map, mode);
+    new_map->set_elements_kind(new_elements_kind);
     if (use_cache) {
       cache->Set(fast_map, new_map);
       isolate->counters()->maps_normalized()->Increment();
@@ -2203,16 +2152,16 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
 
 Handle<Map> Map::ReconfigureExistingProperty(Isolate* isolate, Handle<Map> map,
                                              int descriptor, PropertyKind kind,
-                                             PropertyAttributes attributes) {
+                                             PropertyAttributes attributes,
+                                             PropertyConstness constness) {
   // Dictionaries have to be reconfigured in-place.
   DCHECK(!map->is_dictionary_map());
 
   if (!map->GetBackPointer().IsMap()) {
     // There is no benefit from reconstructing transition tree for maps without
-    // back pointers.
-    return CopyGeneralizeAllFields(isolate, map, map->elements_kind(),
-                                   descriptor, kind, attributes,
-                                   "GenAll_AttributesMismatchProtoMap");
+    // back pointers, normalize and try to hit the map cache instead.
+    return Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES,
+                          "Normalize_AttributesMismatchProtoMap");
   }
 
   if (FLAG_trace_generalization) {
@@ -2222,7 +2171,7 @@ Handle<Map> Map::ReconfigureExistingProperty(Isolate* isolate, Handle<Map> map,
   MapUpdater mu(isolate, map);
   DCHECK_EQ(kData, kind);  // Only kData case is supported so far.
   Handle<Map> new_map = mu.ReconfigureToDataField(
-      descriptor, attributes, PropertyConstness::kConst, Representation::None(),
+      descriptor, attributes, constness, Representation::None(),
       FieldType::None(isolate));
   return new_map;
 }
@@ -2474,10 +2423,16 @@ bool Map::EquivalentToForElementsKindTransition(const Map other) const {
 }
 
 bool Map::EquivalentToForNormalization(const Map other,
+                                       ElementsKind elements_kind,
                                        PropertyNormalizationMode mode) const {
   int properties =
       mode == CLEAR_INOBJECT_PROPERTIES ? 0 : other.GetInObjectProperties();
-  return CheckEquivalent(*this, other) && bit_field2() == other.bit_field2() &&
+  // Make sure the elements_kind bits are in bit_field2.
+  DCHECK_EQ(this->elements_kind(), Map::ElementsKindBits::decode(bit_field2()));
+  int adjusted_bit_field2 =
+      Map::ElementsKindBits::update(bit_field2(), elements_kind);
+  return CheckEquivalent(*this, other) &&
+         adjusted_bit_field2 == other.bit_field2() &&
          GetInObjectProperties() == properties &&
          JSObject::GetEmbedderFieldCount(*this) ==
              JSObject::GetEmbedderFieldCount(other);
@@ -2668,6 +2623,7 @@ Handle<NormalizedMapCache> NormalizedMapCache::New(Isolate* isolate) {
 }
 
 MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
+                                         ElementsKind elements_kind,
                                          PropertyNormalizationMode mode) {
   DisallowHeapAllocation no_gc;
   MaybeObject value = WeakFixedArray::Get(GetIndex(fast_map));
@@ -2677,7 +2633,8 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
   }
 
   Map normalized_map = Map::cast(heap_object);
-  if (!normalized_map.EquivalentToForNormalization(*fast_map, mode)) {
+  if (!normalized_map.EquivalentToForNormalization(*fast_map, elements_kind,
+                                                   mode)) {
     return MaybeHandle<Map>();
   }
   return handle(normalized_map, GetIsolate());

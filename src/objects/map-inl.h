@@ -132,6 +132,16 @@ void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
   }
 }
 
+Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
+                           PropertyNormalizationMode mode, const char* reason) {
+  return Normalize(isolate, fast_map, fast_map->elements_kind(), mode, reason);
+}
+
+bool Map::EquivalentToForNormalization(const Map other,
+                                       PropertyNormalizationMode mode) const {
+  return EquivalentToForNormalization(other, elements_kind(), mode);
+}
+
 bool Map::IsUnboxedDoubleField(FieldIndex index) const {
   if (!FLAG_unbox_double_fields) return false;
   if (!index.is_inobject()) return false;

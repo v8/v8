@@ -306,6 +306,14 @@ class Expectations {
 
   bool Check(Map map) const { return Check(map, number_of_properties_); }
 
+  bool CheckNormalized(Map map) const {
+    CHECK(map.is_dictionary_map());
+    CHECK_EQ(elements_kind_, map.elements_kind());
+    // TODO(leszeks): Iterate over the key/value pairs of the map and compare
+    // them against the expected fields.
+    return true;
+  }
+
   //
   // Helper methods for initializing expectations and adding properties to
   // given |map|.
@@ -1053,8 +1061,8 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
-  Handle<Map> new_map =
-      Map::ReconfigureExistingProperty(isolate, map2, kSplitProp, kData, NONE);
+  Handle<Map> new_map = Map::ReconfigureExistingProperty(
+      isolate, map2, kSplitProp, kData, NONE, PropertyConstness::kConst);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -1141,8 +1149,8 @@ void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
-  Handle<Map> new_map =
-      Map::ReconfigureExistingProperty(isolate, map2, kSplitProp, kData, NONE);
+  Handle<Map> new_map = Map::ReconfigureExistingProperty(
+      isolate, map2, kSplitProp, kData, NONE, PropertyConstness::kConst);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -1399,22 +1407,17 @@ struct CheckUnrelated {
   }
 };
 
-
-// Checks that given |map| is NOT deprecated, and |new_map| is a result of
-// copy-generalize-all-representations.
-struct CheckCopyGeneralizeAllFields {
+// Checks that given |map| is NOT deprecated, and |new_map| is a result of going
+// dictionary mode.
+struct CheckNormalize {
   void Check(Isolate* isolate, Handle<Map> map, Handle<Map> new_map,
-             Expectations& expectations) {
+             const Expectations& expectations) {
     CHECK(!map->is_deprecated());
     CHECK_NE(*map, *new_map);
 
     CHECK(new_map->GetBackPointer().IsUndefined(isolate));
-    for (int i = 0; i < kPropCount; i++) {
-      expectations.GeneralizeField(i);
-    }
-
     CHECK(!new_map->is_deprecated());
-    CHECK(expectations.Check(*new_map));
+    CHECK(expectations.CheckNormalized(*new_map));
   }
 };
 
@@ -1497,8 +1500,8 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
-  Handle<Map> new_map =
-      Map::ReconfigureExistingProperty(isolate, map2, kSplitProp, kData, NONE);
+  Handle<Map> new_map = Map::ReconfigureExistingProperty(
+      isolate, map2, kSplitProp, kData, NONE, PropertyConstness::kConst);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -1671,8 +1674,8 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToAccFieldAfterTargetMap) {
       if (IS_ACCESSOR_FIELD_SUPPORTED) {
         expectations.SetAccessorField(property_index);
       } else {
-        // Currently we have a copy-generalize-all-representations case and
-        // ACCESSOR property becomes ACCESSOR_CONSTANT.
+        // Currently we have a normalize case and ACCESSOR property becomes
+        // ACCESSOR_CONSTANT.
         expectations.SetAccessorConstant(property_index, pair2_);
       }
     }
@@ -1680,11 +1683,11 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToAccFieldAfterTargetMap) {
 
   TestConfig config;
   if (IS_ACCESSOR_FIELD_SUPPORTED) {
-    CheckCopyGeneralizeAllFields checker;
+    CheckSameMap checker;
     TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
   } else {
-    // Currently we have a copy-generalize-all-representations case.
-    CheckCopyGeneralizeAllFields checker;
+    // Currently we have a normalize case.
+    CheckNormalize checker;
     TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
   }
 }
@@ -2083,17 +2086,12 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
   CHECK(!TransitionsAccessor(isolate, map2).CanHaveMoreTransitions());
 
   // Try to update |map|, since there is no place for propX transition at |map2|
-  // |map| should become "copy-generalized".
+  // |map| should become normalized.
   Handle<Map> updated_map = Map::Update(isolate, map);
-  CHECK(updated_map->GetBackPointer().IsUndefined(isolate));
 
-  for (int i = 0; i < kPropCount; i++) {
-    expectations.SetDataField(i, PropertyConstness::kMutable,
-                              Representation::Tagged(), any_type);
-  }
-  CHECK(expectations.Check(*updated_map));
+  CheckNormalize checker;
+  checker.Check(isolate, map2, updated_map, expectations);
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // A set of tests involving special transitions (such as elements kind
@@ -2502,7 +2500,8 @@ struct ReconfigureAsDataPropertyOperator {
     expectations.SetDataField(descriptor_, PropertyConstness::kMutable,
                               representation_, heap_type_);
     return Map::ReconfigureExistingProperty(isolate, map, descriptor_, kData,
-                                            attributes_);
+                                            attributes_,
+                                            PropertyConstness::kConst);
   }
 };
 
@@ -2519,7 +2518,8 @@ struct ReconfigureAsAccessorPropertyOperator {
                            Handle<Map> map) {
     expectations.SetAccessorField(descriptor_);
     return Map::ReconfigureExistingProperty(isolate, map, descriptor_,
-                                            kAccessor, attributes_);
+                                            kAccessor, attributes_,
+                                            PropertyConstness::kConst);
   }
 };
 

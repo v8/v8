@@ -542,8 +542,13 @@ class Map : public HeapObject {
 
   V8_EXPORT_PRIVATE static Handle<Map> Normalize(Isolate* isolate,
                                                  Handle<Map> map,
+                                                 ElementsKind new_elements_kind,
                                                  PropertyNormalizationMode mode,
                                                  const char* reason);
+
+  inline static Handle<Map> Normalize(Isolate* isolate, Handle<Map> fast_map,
+                                      PropertyNormalizationMode mode,
+                                      const char* reason);
 
   // Tells whether the map is used for JSObjects in dictionary mode (ie
   // normalized objects, ie objects for which HasFastProperties returns false).
@@ -739,7 +744,7 @@ class Map : public HeapObject {
       PropertyAttributes attributes);
   V8_EXPORT_PRIVATE static Handle<Map> ReconfigureExistingProperty(
       Isolate* isolate, Handle<Map> map, int descriptor, PropertyKind kind,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes, PropertyConstness constness);
 
   inline void AppendDescriptor(Isolate* isolate, Descriptor* desc);
 
@@ -833,12 +838,15 @@ class Map : public HeapObject {
 
   class BodyDescriptor;
 
-  // Compares this map to another to see if they describe equivalent objects.
+  // Compares this map to another to see if they describe equivalent objects,
+  // up to the given |elements_kind|.
   // If |mode| is set to CLEAR_INOBJECT_PROPERTIES, |other| is treated as if
   // it had exactly zero inobject properties.
   // The "shared" flags of both this map and |other| are ignored.
-  bool EquivalentToForNormalization(const Map other,
+  bool EquivalentToForNormalization(const Map other, ElementsKind elements_kind,
                                     PropertyNormalizationMode mode) const;
+  inline bool EquivalentToForNormalization(
+      const Map other, PropertyNormalizationMode mode) const;
 
   // Returns true if given field is unboxed double.
   inline bool IsUnboxedDoubleField(FieldIndex index) const;
@@ -929,14 +937,6 @@ class Map : public HeapObject {
   static Handle<Map> CopyNormalized(Isolate* isolate, Handle<Map> map,
                                     PropertyNormalizationMode mode);
 
-  // TODO(ishell): Move to MapUpdater.
-  static Handle<Map> CopyGeneralizeAllFields(Isolate* isolate, Handle<Map> map,
-                                             ElementsKind elements_kind,
-                                             int modify_index,
-                                             PropertyKind kind,
-                                             PropertyAttributes attributes,
-                                             const char* reason);
-
   void DeprecateTransitionTree(Isolate* isolate);
 
   void ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
@@ -983,6 +983,7 @@ class NormalizedMapCache : public WeakFixedArray {
   static Handle<NormalizedMapCache> New(Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Handle<Map> fast_map,
+                                             ElementsKind elements_kind,
                                              PropertyNormalizationMode mode);
   void Set(Handle<Map> fast_map, Handle<Map> normalized_map);
 

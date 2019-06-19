@@ -525,13 +525,18 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     ReloadPropertyInformation<true>();
   } else if (holder_obj->HasFastProperties()) {
     Handle<Map> old_map(holder_obj->map(), isolate_);
-    Handle<Map> new_map = Map::ReconfigureExistingProperty(
-        isolate_, old_map, descriptor_number(), i::kData, attributes);
     // Force mutable to avoid changing constant value by reconfiguring
     // kData -> kAccessor -> kData.
-    new_map =
-        Map::PrepareForDataProperty(isolate(), new_map, descriptor_number(),
-                                    PropertyConstness::kMutable, value);
+    Handle<Map> new_map = Map::ReconfigureExistingProperty(
+        isolate_, old_map, descriptor_number(), i::kData, attributes,
+        PropertyConstness::kMutable);
+    if (!new_map->is_dictionary_map()) {
+      // Make sure that the data property has a compatible representation.
+      // TODO(leszeks): Do this as part of ReconfigureExistingProperty.
+      new_map =
+          Map::PrepareForDataProperty(isolate(), new_map, descriptor_number(),
+                                      PropertyConstness::kMutable, value);
+    }
     JSObject::MigrateToMap(isolate_, holder_obj, new_map);
     ReloadPropertyInformation<false>();
   }
