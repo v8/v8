@@ -434,6 +434,7 @@ namespace internal {
   F(Abort, 1, 1)                              \
   F(AbortJS, 1, 1)                            \
   F(ClearFunctionFeedback, 1, 1)              \
+  F(CloneWasmModule, 1, 1)                    \
   F(CompleteInobjectSlackTracking, 1, 1)      \
   F(ConstructConsString, 2, 1)                \
   F(ConstructSlicedString, 2, 1)              \

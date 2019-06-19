@@ -1153,6 +1153,19 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   return *module_object;
 }
 
+// Create a new Module object using the same NativeModule.
+RUNTIME_FUNCTION(Runtime_CloneWasmModule) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_object, 0);
+
+  Handle<WasmModuleObject> new_module_object =
+      wasm::WasmEngine::GetWasmEngine()->ImportNativeModule(
+          isolate, module_object->shared_native_module());
+
+  return *new_module_object;
+}
+
 RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
   HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());

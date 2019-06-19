@@ -453,6 +453,9 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     DCHECK_EQ(1, native_modules_.count(native_module));
     native_modules_[native_module]->isolates.insert(isolate);
   }
+
+  // Finish the Wasm script now and make it public to the debugger.
+  isolate->debug()->OnAfterCompile(script);
   return module_object;
 }
 
