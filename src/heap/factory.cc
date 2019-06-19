@@ -1483,7 +1483,7 @@ Handle<ScriptContextTable> Factory::NewScriptContextTable() {
   return context_table;
 }
 
-Handle<Context> Factory::NewModuleContext(Handle<Module> module,
+Handle<Context> Factory::NewModuleContext(Handle<SourceTextModule> module,
                                           Handle<NativeContext> outer,
                                           Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
@@ -2570,9 +2570,10 @@ Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
                                          AllocationType::kOld);
 }
 
-Handle<ModuleInfo> Factory::NewModuleInfo() {
-  return NewFixedArrayWithMap<ModuleInfo>(
-      RootIndex::kModuleInfoMap, ModuleInfo::kLength, AllocationType::kOld);
+Handle<SourceTextModuleInfo> Factory::NewSourceTextModuleInfo() {
+  return NewFixedArrayWithMap<SourceTextModuleInfo>(
+      RootIndex::kModuleInfoMap, SourceTextModuleInfo::kLength,
+      AllocationType::kOld);
 }
 
 Handle<PreparseData> Factory::NewPreparseData(int data_length,
@@ -3047,9 +3048,10 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
   return Handle<JSGeneratorObject>::cast(NewJSObjectFromMap(map));
 }
 
-Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
-  Handle<ModuleInfo> module_info(code->scope_info().ModuleDescriptorInfo(),
-                                 isolate());
+Handle<SourceTextModule> Factory::NewSourceTextModule(
+    Handle<SharedFunctionInfo> code) {
+  Handle<SourceTextModuleInfo> module_info(
+      code->scope_info().ModuleDescriptorInfo(), isolate());
   Handle<ObjectHashTable> exports =
       ObjectHashTable::New(isolate(), module_info->RegularExportCount());
   Handle<FixedArray> regular_exports =
@@ -3062,8 +3064,10 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
                                    : empty_fixed_array();
 
   ReadOnlyRoots roots(isolate());
-  Handle<Module> module =
-      Handle<Module>::cast(NewStruct(MODULE_TYPE, AllocationType::kOld));
+  Handle<SourceTextModule> module(
+      SourceTextModule::cast(
+          New(source_text_module_map(), AllocationType::kOld)),
+      isolate());
   module->set_code(*code);
   module->set_exports(*exports);
   module->set_regular_exports(*regular_exports);

@@ -58,7 +58,9 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/lookup.h"
+#include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/string-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/utils.h"
@@ -25470,7 +25472,7 @@ TEST(ImportMeta) {
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
   i::Handle<i::Object> meta =
       i_isolate->RunHostInitializeImportMetaObjectCallback(
-          v8::Utils::OpenHandle(*module));
+          i::Handle<i::SourceTextModule>::cast(v8::Utils::OpenHandle(*module)));
   CHECK(meta->IsJSObject());
   Local<Object> meta_obj = Local<Object>::Cast(v8::Utils::ToLocal(meta));
   CHECK(meta_obj->Get(context.local(), v8_str("foo"))

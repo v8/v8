@@ -1354,7 +1354,8 @@ void BytecodeGenerator::VisitModuleNamespaceImports() {
   RegisterAllocationScope register_scope(this);
   Register module_request = register_allocator()->NewRegister();
 
-  ModuleDescriptor* descriptor = closure_scope()->AsModuleScope()->module();
+  SourceTextModuleDescriptor* descriptor =
+      closure_scope()->AsModuleScope()->module();
   for (auto entry : descriptor->namespace_imports()) {
     builder()
         ->LoadLiteral(Smi::FromInt(entry->module_request))

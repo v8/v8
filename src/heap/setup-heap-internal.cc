@@ -29,7 +29,6 @@
 #include "src/objects/lookup-cache.h"
 #include "src/objects/map.h"
 #include "src/objects/microtask.h"
-#include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table.h"
@@ -37,6 +36,7 @@
 #include "src/objects/script.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
+#include "src/objects/source-text-module.h"
 #include "src/objects/stack-frame-info.h"
 #include "src/objects/string.h"
 #include "src/objects/template-objects-inl.h"
@@ -485,7 +485,8 @@ bool Heap::CreateInitialMaps() {
                  uncompiled_data_with_preparse_data)
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kAlignedSize,
                  shared_function_info)
-
+    ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, SourceTextModule::kSize,
+                 source_text_module)
     ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
                  code_data_container)
 

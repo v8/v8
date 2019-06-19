@@ -343,6 +343,9 @@ VisitorId Map::GetVisitorId(Map map) {
     case STORE_HANDLER_TYPE:
       return kVisitDataHandler;
 
+    case SOURCE_TEXT_MODULE_TYPE:
+      return kVisitSourceTextModule;
+
     default:
       UNREACHABLE();
   }

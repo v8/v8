@@ -53,13 +53,14 @@ class JSSetIterator;
 class JSTypedArray;
 class JSWeakMap;
 class LoadHandler;
-class ModuleInfo;
 class NativeContext;
 class NewFunctionArgs;
 class PreparseData;
 class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
+class SourceTextModule;
+class SourceTextModuleInfo;
 class StackFrameInfo;
 class StackTraceFrame;
 class StoreHandler;
@@ -406,7 +407,7 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<ScriptContextTable> NewScriptContextTable();
 
   // Create a module context.
-  Handle<Context> NewModuleContext(Handle<Module> module,
+  Handle<Context> NewModuleContext(Handle<SourceTextModule> module,
                                    Handle<NativeContext> outer,
                                    Handle<ScopeInfo> scope_info);
 
@@ -688,7 +689,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<JSModuleNamespace> NewJSModuleNamespace();
 
-  Handle<Module> NewModule(Handle<SharedFunctionInfo> code);
+  Handle<SourceTextModule> NewSourceTextModule(Handle<SharedFunctionInfo> code);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer(
       SharedFlag shared, AllocationType allocation = AllocationType::kYoung);
@@ -768,7 +769,7 @@ class V8_EXPORT_PRIVATE Factory {
   // Create a serialized scope info.
   Handle<ScopeInfo> NewScopeInfo(int length);
 
-  Handle<ModuleInfo> NewModuleInfo();
+  Handle<SourceTextModuleInfo> NewSourceTextModuleInfo();
 
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 

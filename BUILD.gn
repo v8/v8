@@ -2590,6 +2590,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/slots-atomic-inl.h",
     "src/objects/slots-inl.h",
     "src/objects/slots.h",
+    "src/objects/source-text-module.cc",
+    "src/objects/source-text-module.h",
     "src/objects/stack-frame-info-inl.h",
     "src/objects/stack-frame-info.cc",
     "src/objects/stack-frame-info.h",

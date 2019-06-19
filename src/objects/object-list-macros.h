@@ -27,6 +27,7 @@ class FunctionLiteral;
 class FunctionTemplateInfo;
 class JSAsyncGeneratorObject;
 class JSGlobalProxy;
+class SourceTextModule;
 class JSPromise;
 class JSProxy;
 class JSProxyRevocableResult;
@@ -35,7 +36,7 @@ class LayoutDescriptor;
 class LookupIterator;
 class FieldType;
 class Module;
-class ModuleInfoEntry;
+class SourceTextModuleInfoEntry;
 class MutableHeapNumber;
 class ObjectHashTable;
 class ObjectTemplateInfo;
@@ -169,8 +170,8 @@ class ZoneForwardList;
   V(LoadHandler)                               \
   V(Map)                                       \
   V(MapCache)                                  \
+  V(Module)                                    \
   V(Microtask)                                 \
-  V(ModuleInfo)                                \
   V(MutableHeapNumber)                         \
   V(Name)                                      \
   V(NameDictionary)                            \
@@ -203,6 +204,8 @@ class ZoneForwardList;
   V(SmallOrderedHashMap)                       \
   V(SmallOrderedHashSet)                       \
   V(SmallOrderedNameDictionary)                \
+  V(SourceTextModule)                          \
+  V(SourceTextModuleInfo)                      \
   V(StoreHandler)                              \
   V(String)                                    \
   V(StringSet)                                 \

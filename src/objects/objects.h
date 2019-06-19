@@ -99,7 +99,7 @@
 //         - TemplateList
 //         - TransitionArray
 //         - ScopeInfo
-//         - ModuleInfo
+//         - SourceTextModuleInfo
 //         - ScriptContextTable
 //         - ClosureFeedbackCellArray
 //       - FixedDoubleArray
@@ -170,7 +170,8 @@
 //           - PromiseRejectReactionJobTask
 //         - PromiseResolveThenableJobTask
 //       - Module
-//       - ModuleInfoEntry
+//         - SourceTextModule
+//       - SourceTextModuleInfoEntry
 //     - FeedbackCell
 //     - FeedbackVector
 //     - PreparseData

@@ -2241,15 +2241,20 @@ Local<Value> Module::GetException() const {
 
 int Module::GetModuleRequestsLength() const {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
-  return self->info().module_requests().length();
+  return i::Handle<i::SourceTextModule>::cast(self)
+      ->info()
+      .module_requests()
+      .length();
 }
 
 Local<String> Module::GetModuleRequest(int i) const {
   CHECK_GE(i, 0);
   i::Handle<i::Module> self = Utils::OpenHandle(this);
+  CHECK(self->IsSourceTextModule());
   i::Isolate* isolate = self->GetIsolate();
-  i::Handle<i::FixedArray> module_requests(self->info().module_requests(),
-                                           isolate);
+  i::Handle<i::FixedArray> module_requests(
+      i::Handle<i::SourceTextModule>::cast(self)->info().module_requests(),
+      isolate);
   CHECK_LT(i, module_requests->length());
   return ToApiHandle<String>(i::handle(module_requests->get(i), isolate));
 }
@@ -2259,11 +2264,16 @@ Location Module::GetModuleRequestLocation(int i) const {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
   i::HandleScope scope(isolate);
+  CHECK(self->IsSourceTextModule());
   i::Handle<i::FixedArray> module_request_positions(
-      self->info().module_request_positions(), isolate);
+      i::Handle<i::SourceTextModule>::cast(self)
+          ->info()
+          .module_request_positions(),
+      isolate);
   CHECK_LT(i, module_request_positions->length());
   int position = i::Smi::ToInt(module_request_positions->get(i));
-  i::Handle<i::Script> script(self->script(), isolate);
+  i::Handle<i::Script> script(
+      i::Handle<i::SourceTextModule>::cast(self)->script(), isolate);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(script, position, &info, i::Script::WITH_OFFSET);
   return v8::Location(info.line, info.column);
@@ -2284,8 +2294,10 @@ Local<UnboundModuleScript> Module::GetUnboundModuleScript() {
       GetStatus() < kEvaluating, "v8::Module::GetUnboundScript",
       "v8::Module::GetUnboundScript must be used on an unevaluated module");
   i::Handle<i::Module> self = Utils::OpenHandle(this);
+  CHECK(self->IsSourceTextModule());
   return ToApiHandle<UnboundModuleScript>(i::Handle<i::SharedFunctionInfo>(
-      self->GetSharedFunctionInfo(), self->GetIsolate()));
+      i::Handle<i::SourceTextModule>::cast(self)->GetSharedFunctionInfo(),
+      self->GetIsolate()));
 }
 
 int Module::GetIdentityHash() const { return Utils::OpenHandle(this)->hash(); }
@@ -2430,7 +2442,7 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
   if (!maybe.ToLocal(&unbound)) return MaybeLocal<Module>();
 
   i::Handle<i::SharedFunctionInfo> shared = Utils::OpenHandle(*unbound);
-  return ToApiHandle<Module>(i_isolate->factory()->NewModule(shared));
+  return ToApiHandle<Module>(i_isolate->factory()->NewSourceTextModule(shared));
 }
 
 namespace {

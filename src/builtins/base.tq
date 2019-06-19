@@ -15,8 +15,8 @@
 #include 'src/objects/js-promise.h'
 #include 'src/objects/js-regexp-string-iterator.h'
 #include 'src/objects/js-weak-refs.h'
-#include 'src/objects/module.h'
 #include 'src/objects/objects.h'
+#include 'src/objects/source-text-module.h'
 #include 'src/objects/stack-frame-info.h'
 #include 'src/objects/template-objects.h'
 
@@ -451,21 +451,12 @@ extern class CallHandlerInfo extends Struct {
 type ModuleInfo extends FixedArray;
 type ObjectHashTable extends FixedArray;
 
-extern class Module extends Struct {
-  code: SharedFunctionInfo | JSFunction |
-      JSGeneratorObject | ModuleInfo;
+extern class Module extends HeapObject {
   exports: ObjectHashTable;
-  regular_exports: FixedArray;
-  regular_imports: FixedArray;
   hash: Smi;
   status: Smi;
   module_namespace: JSModuleNamespace | Undefined;
-  requested_modules: FixedArray;
-  dfs_index: Smi;
-  dfs_ancestor_index: Smi;
   exception: Object;
-  script: Script;
-  import_meta: TheHole | JSObject;
 }
 
 @abstract
@@ -1136,7 +1127,7 @@ extern class AsyncGeneratorRequest extends Struct {
   promise: JSPromise;
 }
 
-extern class ModuleInfoEntry extends Struct {
+extern class SourceTextModuleInfoEntry extends Struct {
   export_name: String | Undefined;
   local_name: String | Undefined;
   import_name: String | Undefined;

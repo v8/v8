@@ -169,7 +169,7 @@ bool HeapObject::IsNonNullForeign() const {
 
 bool HeapObject::IsConstructor() const { return map().is_constructor(); }
 
-bool HeapObject::IsModuleInfo() const {
+bool HeapObject::IsSourceTextModuleInfo() const {
   return map() == GetReadOnlyRoots().module_info_map();
 }
 

@@ -105,12 +105,12 @@ ScopeInfo Context::scope_info() {
   return ScopeInfo::cast(get(SCOPE_INFO_INDEX));
 }
 
-Module Context::module() {
+SourceTextModule Context::module() {
   Context current = *this;
   while (!current.IsModuleContext()) {
     current = current.previous();
   }
-  return Module::cast(current.extension());
+  return SourceTextModule::cast(current.extension());
 }
 
 JSGlobalObject Context::global_object() {
@@ -340,8 +340,8 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
           *index = cell_index;
           *variable_mode = mode;
           *init_flag = flag;
-          *attributes = ModuleDescriptor::GetCellIndexKind(cell_index) ==
-                                ModuleDescriptor::kExport
+          *attributes = SourceTextModuleDescriptor::GetCellIndexKind(
+                            cell_index) == SourceTextModuleDescriptor::kExport
                             ? GetAttributesForMode(mode)
                             : READ_ONLY;
           return handle(context->module(), isolate);

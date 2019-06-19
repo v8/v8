@@ -130,7 +130,7 @@ ModuleScope::ModuleScope(DeclarationScope* script_scope,
                          AstValueFactory* avfactory)
     : DeclarationScope(avfactory->zone(), script_scope, MODULE_SCOPE, kModule),
       module_descriptor_(new (avfactory->zone())
-                             ModuleDescriptor(avfactory->zone())) {
+                             SourceTextModuleDescriptor(avfactory->zone())) {
   set_language_mode(LanguageMode::kStrict);
   DeclareThis(avfactory);
 }

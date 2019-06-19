@@ -417,6 +417,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       SmallOrderedNameDictionary::cast(*this).SmallOrderedNameDictionaryVerify(
           isolate);
       break;
+    case SOURCE_TEXT_MODULE_TYPE:
+      SourceTextModule::cast(*this).SourceTextModuleVerify(isolate);
+      break;
     case CODE_DATA_CONTAINER_TYPE:
       CodeDataContainer::cast(*this).CodeDataContainerVerify(isolate);
       break;
@@ -1542,33 +1545,50 @@ void BigInt::BigIntVerify(Isolate* isolate) {
 
 USE_TORQUE_VERIFIER(JSModuleNamespace)
 
-void ModuleInfoEntry::ModuleInfoEntryVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ModuleInfoEntryVerify(*this, isolate);
+void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryVerify(
+    Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::SourceTextModuleInfoEntryVerify(*this,
+                                                                 isolate);
   CHECK_IMPLIES(import_name().IsString(), module_request() >= 0);
   CHECK_IMPLIES(export_name().IsString() && import_name().IsString(),
                 local_name().IsUndefined(isolate));
 }
 
-void Module::ModuleVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ModuleVerify(*this, isolate);
+static void ModuleVerify(Module module, Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::ModuleVerify(module, isolate);
 
-  CHECK((status() >= kEvaluating && code().IsModuleInfo()) ||
+  CHECK_EQ(module.status() == Module::kErrored,
+           !module.exception().IsTheHole(isolate));
+
+  CHECK(module.module_namespace().IsUndefined(isolate) ||
+        module.module_namespace().IsJSModuleNamespace());
+  if (module.module_namespace().IsJSModuleNamespace()) {
+    CHECK_LE(Module::kInstantiating, module.status());
+    CHECK_EQ(JSModuleNamespace::cast(module.module_namespace()).module(),
+             module);
+  }
+
+  CHECK_NE(module.hash(), 0);
+}
+
+void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
+  ModuleVerify(*this, isolate);
+
+  CHECK(IsSourceTextModule());
+
+  VerifyPointer(isolate, code());
+  VerifyPointer(isolate, requested_modules());
+  VerifyPointer(isolate, script());
+  VerifyPointer(isolate, import_meta());
+
+  CHECK((status() >= kEvaluating && code().IsSourceTextModuleInfo()) ||
         (status() == kInstantiated && code().IsJSGeneratorObject()) ||
         (status() == kInstantiating && code().IsJSFunction()) ||
         (code().IsSharedFunctionInfo()));
 
-  CHECK_EQ(status() == kErrored, !exception().IsTheHole(isolate));
-
-  CHECK(module_namespace().IsUndefined(isolate) ||
-        module_namespace().IsJSModuleNamespace());
-  if (module_namespace().IsJSModuleNamespace()) {
-    CHECK_LE(kInstantiating, status());
-    CHECK_EQ(JSModuleNamespace::cast(module_namespace()).module(), *this);
-  }
-
   CHECK_EQ(requested_modules().length(), info().module_requests().length());
 
-  CHECK_NE(hash(), 0);
+  CHECK(import_meta().IsTheHole(isolate) || import_meta().IsJSObject());
 }
 
 void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {

@@ -1310,7 +1310,7 @@ class ParserBase {
     return factory()->NewReturnStatement(expr, pos, end_pos);
   }
 
-  ModuleDescriptor* module() const {
+  SourceTextModuleDescriptor* module() const {
     return scope()->AsModuleScope()->module();
   }
   Scope* scope() const { return scope_; }

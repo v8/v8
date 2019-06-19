@@ -19,6 +19,7 @@
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/objects/source-text-module.h"
 #include "src/objects/transitions.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -1051,6 +1052,9 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
       return Op::template apply<DataHandler::BodyDescriptor>(p1, p2, p3, p4);
+    case SOURCE_TEXT_MODULE_TYPE:
+      return Op::template apply<SourceTextModule::BodyDescriptor>(p1, p2, p3,
+                                                                  p4);
     default:
       PrintF("Unknown type: %d\n", type);
       UNREACHABLE();

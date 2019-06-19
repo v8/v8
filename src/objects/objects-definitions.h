@@ -89,14 +89,13 @@ namespace internal {
   V(FUNCTION_TEMPLATE_RARE_DATA_TYPE)                    \
   V(INTERCEPTOR_INFO_TYPE)                               \
   V(INTERPRETER_DATA_TYPE)                               \
-  V(MODULE_INFO_ENTRY_TYPE)                              \
-  V(MODULE_TYPE)                                         \
   V(OBJECT_TEMPLATE_INFO_TYPE)                           \
   V(PROMISE_CAPABILITY_TYPE)                             \
   V(PROMISE_REACTION_TYPE)                               \
   V(PROTOTYPE_INFO_TYPE)                                 \
   V(SCRIPT_TYPE)                                         \
   V(SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE)         \
+  V(SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE)                  \
   V(STACK_FRAME_INFO_TYPE)                               \
   V(STACK_TRACE_FRAME_TYPE)                              \
   V(TEMPLATE_OBJECT_DESCRIPTION_TYPE)                    \
@@ -163,6 +162,7 @@ namespace internal {
   V(SMALL_ORDERED_HASH_MAP_TYPE)                         \
   V(SMALL_ORDERED_HASH_SET_TYPE)                         \
   V(SMALL_ORDERED_NAME_DICTIONARY_TYPE)                  \
+  V(SOURCE_TEXT_MODULE_TYPE)                             \
   V(STORE_HANDLER_TYPE)                                  \
   V(UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE)          \
   V(UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE)             \
@@ -308,8 +308,6 @@ namespace internal {
     function_template_rare_data)                                               \
   V(_, INTERCEPTOR_INFO_TYPE, InterceptorInfo, interceptor_info)               \
   V(_, INTERPRETER_DATA_TYPE, InterpreterData, interpreter_data)               \
-  V(_, MODULE_INFO_ENTRY_TYPE, ModuleInfoEntry, module_info_entry)             \
-  V(_, MODULE_TYPE, Module, module)                                            \
   V(_, OBJECT_TEMPLATE_INFO_TYPE, ObjectTemplateInfo, object_template_info)    \
   V(_, PROMISE_CAPABILITY_TYPE, PromiseCapability, promise_capability)         \
   V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)               \
@@ -317,6 +315,8 @@ namespace internal {
   V(_, SCRIPT_TYPE, Script, script)                                            \
   V(_, SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE,                            \
     SourcePositionTableWithFrameCache, source_position_table_with_frame_cache) \
+  V(_, SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, SourceTextModuleInfoEntry,          \
+    module_info_entry)                                                         \
   V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)                \
   V(_, STACK_TRACE_FRAME_TYPE, StackTraceFrame, stack_trace_frame)             \
   V(_, TEMPLATE_OBJECT_DESCRIPTION_TYPE, TemplateObjectDescription,            \

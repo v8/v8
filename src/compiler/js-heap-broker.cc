@@ -1478,9 +1478,10 @@ bool SharedFunctionInfoData::IsSerializedForCompilation(
          serialized_for_compilation_.end();
 }
 
-class ModuleData : public HeapObjectData {
+class SourceTextModuleData : public HeapObjectData {
  public:
-  ModuleData(JSHeapBroker* broker, ObjectData** storage, Handle<Module> object);
+  SourceTextModuleData(JSHeapBroker* broker, ObjectData** storage,
+                       Handle<SourceTextModule> object);
   void Serialize(JSHeapBroker* broker);
 
   CellData* GetCell(int cell_index) const;
@@ -1491,35 +1492,36 @@ class ModuleData : public HeapObjectData {
   ZoneVector<CellData*> exports_;
 };
 
-ModuleData::ModuleData(JSHeapBroker* broker, ObjectData** storage,
-                       Handle<Module> object)
+SourceTextModuleData::SourceTextModuleData(JSHeapBroker* broker,
+                                           ObjectData** storage,
+                                           Handle<SourceTextModule> object)
     : HeapObjectData(broker, storage, object),
       imports_(broker->zone()),
       exports_(broker->zone()) {}
 
-CellData* ModuleData::GetCell(int cell_index) const {
+CellData* SourceTextModuleData::GetCell(int cell_index) const {
   CHECK(serialized_);
   CellData* cell;
-  switch (ModuleDescriptor::GetCellIndexKind(cell_index)) {
-    case ModuleDescriptor::kImport:
-      cell = imports_.at(Module::ImportIndex(cell_index));
+  switch (SourceTextModuleDescriptor::GetCellIndexKind(cell_index)) {
+    case SourceTextModuleDescriptor::kImport:
+      cell = imports_.at(SourceTextModule::ImportIndex(cell_index));
       break;
-    case ModuleDescriptor::kExport:
-      cell = exports_.at(Module::ExportIndex(cell_index));
+    case SourceTextModuleDescriptor::kExport:
+      cell = exports_.at(SourceTextModule::ExportIndex(cell_index));
       break;
-    case ModuleDescriptor::kInvalid:
+    case SourceTextModuleDescriptor::kInvalid:
       UNREACHABLE();
   }
   CHECK_NOT_NULL(cell);
   return cell;
 }
 
-void ModuleData::Serialize(JSHeapBroker* broker) {
+void SourceTextModuleData::Serialize(JSHeapBroker* broker) {
   if (serialized_) return;
   serialized_ = true;
 
-  TraceScope tracer(broker, this, "ModuleData::Serialize");
-  Handle<Module> module = Handle<Module>::cast(object());
+  TraceScope tracer(broker, this, "SourceTextModuleData::Serialize");
+  Handle<SourceTextModule> module = Handle<SourceTextModule>::cast(object());
 
   // TODO(neis): We could be smarter and only serialize the cells we care about.
   // TODO(neis): Define a helper for serializing a FixedArray into a ZoneVector.
@@ -3029,14 +3031,14 @@ double MutableHeapNumberRef::value() const {
   return data()->AsMutableHeapNumber()->value();
 }
 
-CellRef ModuleRef::GetCell(int cell_index) const {
+CellRef SourceTextModuleRef::GetCell(int cell_index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return CellRef(broker(),
                    handle(object()->GetCell(cell_index), broker()->isolate()));
   }
-  return CellRef(broker(), data()->AsModule()->GetCell(cell_index));
+  return CellRef(broker(), data()->AsSourceTextModule()->GetCell(cell_index));
 }
 
 ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object)
@@ -3344,10 +3346,10 @@ bool MapRef::serialized_prototype() const {
   return data()->AsMap()->serialized_prototype();
 }
 
-void ModuleRef::Serialize() {
+void SourceTextModuleRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsModule()->Serialize(broker());
+  data()->AsSourceTextModule()->Serialize(broker());
 }
 
 void ContextRef::SerializeContextChain() {

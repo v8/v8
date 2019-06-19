@@ -98,6 +98,7 @@ class Symbol;
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
   V(Map, module_info_map, ModuleInfoMap)                                       \
   V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
+  V(Map, source_text_module_map, SourceTextModuleMap)                          \
   V(Map, name_dictionary_map, NameDictionaryMap)                               \
   V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
   V(Map, number_dictionary_map, NumberDictionaryMap)                           \

@@ -21,9 +21,9 @@
 #include "src/interpreter/interpreter-intrinsics-generator.h"
 #include "src/objects/cell.h"
 #include "src/objects/js-generator.h"
-#include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
+#include "src/objects/source-text-module.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -735,7 +735,7 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
   BIND(&if_export);
   {
     TNode<FixedArray> regular_exports =
-        CAST(LoadObjectField(module, Module::kRegularExportsOffset));
+        CAST(LoadObjectField(module, SourceTextModule::kRegularExportsOffset));
     // The actual array index is (cell_index - 1).
     Node* export_index = IntPtrSub(cell_index, IntPtrConstant(1));
     Node* cell = LoadFixedArrayElement(regular_exports, export_index);
@@ -746,7 +746,7 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
   BIND(&if_import);
   {
     TNode<FixedArray> regular_imports =
-        CAST(LoadObjectField(module, Module::kRegularImportsOffset));
+        CAST(LoadObjectField(module, SourceTextModule::kRegularImportsOffset));
     // The actual array index is (-cell_index - 1).
     Node* import_index = IntPtrSub(IntPtrConstant(-1), cell_index);
     Node* cell = LoadFixedArrayElement(regular_imports, import_index);
@@ -777,7 +777,7 @@ IGNITION_HANDLER(StaModuleVariable, InterpreterAssembler) {
   BIND(&if_export);
   {
     TNode<FixedArray> regular_exports =
-        CAST(LoadObjectField(module, Module::kRegularExportsOffset));
+        CAST(LoadObjectField(module, SourceTextModule::kRegularExportsOffset));
     // The actual array index is (cell_index - 1).
     Node* export_index = IntPtrSub(cell_index, IntPtrConstant(1));
     Node* cell = LoadFixedArrayElement(regular_exports, export_index);

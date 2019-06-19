@@ -1345,7 +1345,7 @@ Statement* Parser::ParseExportDeclaration() {
   }
   loc.end_pos = scanner()->location().end_pos;
 
-  ModuleDescriptor* descriptor = module();
+  SourceTextModuleDescriptor* descriptor = module();
   for (const AstRawString* name : names) {
     descriptor->AddExport(name, name, loc, zone());
   }

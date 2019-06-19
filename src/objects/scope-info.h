@@ -22,7 +22,7 @@ class Handle;
 class Isolate;
 template <typename T>
 class MaybeHandle;
-class ModuleInfo;
+class SourceTextModuleInfo;
 class Scope;
 class Zone;
 
@@ -113,7 +113,7 @@ class ScopeInfo : public FixedArray {
   int EndPosition() const;
   void SetPositionInfo(int start, int end);
 
-  ModuleInfo ModuleDescriptorInfo() const;
+  SourceTextModuleInfo ModuleDescriptorInfo() const;
 
   // Return the name of the given context local.
   String ContextLocalName(int var) const;
@@ -288,10 +288,10 @@ class ScopeInfo : public FixedArray {
   //    the scope belongs to a function or script.
   // 7. OuterScopeInfoIndex:
   //    The outer scope's ScopeInfo or the hole if there's none.
-  // 8. ModuleInfo, ModuleVariableCount, and ModuleVariables:
-  //    For a module scope, this part contains the ModuleInfo, the number of
-  //    MODULE-allocated variables, and the metadata of those variables.  For
-  //    non-module scopes it is empty.
+  // 8. SourceTextModuleInfo, ModuleVariableCount, and ModuleVariables:
+  //    For a module scope, this part contains the SourceTextModuleInfo, the
+  //    number of MODULE-allocated variables, and the metadata of those
+  //    variables.  For non-module scopes it is empty.
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;
   int ReceiverInfoIndex() const;

@@ -54,6 +54,7 @@ namespace internal {
   V(SmallOrderedHashMap, SmallOrderedHashMap)                             \
   V(SmallOrderedHashSet, SmallOrderedHashSet)                             \
   V(SmallOrderedNameDictionary, SmallOrderedNameDictionary)               \
+  V(SourceTextModule, SourceTextModule)                                   \
   V(Symbol, Symbol)                                                       \
   V(ThinString, ThinString)                                               \
   V(TransitionArray, TransitionArray)                                     \

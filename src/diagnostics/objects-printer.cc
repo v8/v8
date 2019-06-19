@@ -414,6 +414,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case SCOPE_INFO_TYPE:
       ScopeInfo::cast(*this).ScopeInfoPrint(os);
       break;
+    case SOURCE_TEXT_MODULE_TYPE:
+      SourceTextModule::cast(*this).SourceTextModulePrint(os);
+      break;
     case FEEDBACK_METADATA_TYPE:
       FeedbackMetadata::cast(*this).FeedbackMetadataPrint(os);
       break;
@@ -1730,8 +1733,9 @@ void AsyncGeneratorRequest::AsyncGeneratorRequestPrint(
   os << "\n";
 }
 
-void ModuleInfoEntry::ModuleInfoEntryPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "ModuleInfoEntry");
+void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryPrint(
+    std::ostream& os) {  // NOLINT
+  PrintHeader(os, "SourceTextModuleInfoEntry");
   os << "\n - export_name: " << Brief(export_name());
   os << "\n - local_name: " << Brief(local_name());
   os << "\n - import_name: " << Brief(import_name());
@@ -1742,16 +1746,28 @@ void ModuleInfoEntry::ModuleInfoEntryPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+static void PrintModuleFields(Module module, std::ostream& os) {
+  os << "\n - exports: " << Brief(module.exports());
+  os << "\n - status: " << module.status();
+  os << "\n - exception: " << Brief(module.exception());
+}
+
 void Module::ModulePrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "Module");
+  if (this->IsSourceTextModule()) {
+    SourceTextModule::cast(*this).SourceTextModulePrint(os);
+  } else {
+    UNREACHABLE();
+  }
+}
+
+void SourceTextModule::SourceTextModulePrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "SourceTextModule");
+  PrintModuleFields(*this, os);
   os << "\n - origin: " << Brief(script().GetNameOrSourceURL());
   os << "\n - code: " << Brief(code());
-  os << "\n - exports: " << Brief(exports());
   os << "\n - requested_modules: " << Brief(requested_modules());
   os << "\n - script: " << Brief(script());
   os << "\n - import_meta: " << Brief(import_meta());
-  os << "\n - status: " << status();
-  os << "\n - exception: " << Brief(exception());
   os << "\n";
 }
 

@@ -12,6 +12,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
+#include "src/objects/module-inl.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"

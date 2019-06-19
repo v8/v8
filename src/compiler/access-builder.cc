@@ -14,9 +14,9 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-generator.h"
-#include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/objects/source-text-module.h"
 
 namespace v8 {
 namespace internal {
@@ -626,7 +626,7 @@ FieldAccess AccessBuilder::ForMapPrototype() {
 // static
 FieldAccess AccessBuilder::ForModuleRegularExports() {
   FieldAccess access = {
-      kTaggedBase,           Module::kRegularExportsOffset,
+      kTaggedBase,           SourceTextModule::kRegularExportsOffset,
       Handle<Name>(),        MaybeHandle<Map>(),
       Type::OtherInternal(), MachineType::TypeCompressedTaggedPointer(),
       kPointerWriteBarrier};
@@ -636,7 +636,7 @@ FieldAccess AccessBuilder::ForModuleRegularExports() {
 // static
 FieldAccess AccessBuilder::ForModuleRegularImports() {
   FieldAccess access = {
-      kTaggedBase,           Module::kRegularImportsOffset,
+      kTaggedBase,           SourceTextModule::kRegularImportsOffset,
       Handle<Name>(),        MaybeHandle<Map>(),
       Type::OtherInternal(), MachineType::TypeCompressedTaggedPointer(),
       kPointerWriteBarrier};

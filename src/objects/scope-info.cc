@@ -45,8 +45,9 @@ bool ScopeInfo::Equals(ScopeInfo other) const {
         if (!ScopeInfo::cast(entry).Equals(ScopeInfo::cast(other_entry))) {
           return false;
         }
-      } else if (entry.IsModuleInfo()) {
-        if (!ModuleInfo::cast(entry).Equals(ModuleInfo::cast(other_entry))) {
+      } else if (entry.IsSourceTextModuleInfo()) {
+        if (!SourceTextModuleInfo::cast(entry).Equals(
+                SourceTextModuleInfo::cast(other_entry))) {
           return false;
         }
       } else {
@@ -333,8 +334,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
 
   // Module-specific information (only for module scopes).
   if (scope->is_module_scope()) {
-    Handle<ModuleInfo> module_info =
-        ModuleInfo::New(isolate, zone, scope->AsModuleScope()->module());
+    Handle<SourceTextModuleInfo> module_info = SourceTextModuleInfo::New(
+        isolate, zone, scope->AsModuleScope()->module());
     DCHECK_EQ(index, scope_info_handle->ModuleInfoIndex());
     scope_info_handle->set(index++, *module_info);
     DCHECK_EQ(index, scope_info_handle->ModuleVariableCountIndex());
@@ -656,9 +657,9 @@ ScopeInfo ScopeInfo::OuterScopeInfo() const {
   return ScopeInfo::cast(get(OuterScopeInfoIndex()));
 }
 
-ModuleInfo ScopeInfo::ModuleDescriptorInfo() const {
+SourceTextModuleInfo ScopeInfo::ModuleDescriptorInfo() const {
   DCHECK(scope_type() == MODULE_SCOPE);
-  return ModuleInfo::cast(get(ModuleInfoIndex()));
+  return SourceTextModuleInfo::cast(get(ModuleInfoIndex()));
 }
 
 String ScopeInfo::ContextLocalName(int var) const {
@@ -890,15 +891,13 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
-                                             Handle<Object> export_name,
-                                             Handle<Object> local_name,
-                                             Handle<Object> import_name,
-                                             int module_request, int cell_index,
-                                             int beg_pos, int end_pos) {
-  Handle<ModuleInfoEntry> result =
-      Handle<ModuleInfoEntry>::cast(isolate->factory()->NewStruct(
-          MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));
+Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
+    Isolate* isolate, Handle<Object> export_name, Handle<Object> local_name,
+    Handle<Object> import_name, int module_request, int cell_index, int beg_pos,
+    int end_pos) {
+  Handle<SourceTextModuleInfoEntry> result =
+      Handle<SourceTextModuleInfoEntry>::cast(isolate->factory()->NewStruct(
+          SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));
   result->set_export_name(*export_name);
   result->set_local_name(*local_name);
   result->set_import_name(*import_name);
@@ -909,8 +908,8 @@ Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
   return result;
 }
 
-Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
-                                   ModuleDescriptor* descr) {
+Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
+    Isolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr) {
   // Serialize module requests.
   int size = static_cast<int>(descr->module_requests().size());
   Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(size);
@@ -928,7 +927,8 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   {
     int i = 0;
     for (auto entry : descr->special_exports()) {
-      Handle<ModuleInfoEntry> serialized_entry = entry->Serialize(isolate);
+      Handle<SourceTextModuleInfoEntry> serialized_entry =
+          entry->Serialize(isolate);
       special_exports->set(i++, *serialized_entry);
     }
   }
@@ -939,7 +939,8 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   {
     int i = 0;
     for (auto entry : descr->namespace_imports()) {
-      Handle<ModuleInfoEntry> serialized_entry = entry->Serialize(isolate);
+      Handle<SourceTextModuleInfoEntry> serialized_entry =
+          entry->Serialize(isolate);
       namespace_imports->set(i++, *serialized_entry);
     }
   }
@@ -954,13 +955,14 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   {
     int i = 0;
     for (const auto& elem : descr->regular_imports()) {
-      Handle<ModuleInfoEntry> serialized_entry =
+      Handle<SourceTextModuleInfoEntry> serialized_entry =
           elem.second->Serialize(isolate);
       regular_imports->set(i++, *serialized_entry);
     }
   }
 
-  Handle<ModuleInfo> result = isolate->factory()->NewModuleInfo();
+  Handle<SourceTextModuleInfo> result =
+      isolate->factory()->NewSourceTextModuleInfo();
   result->set(kModuleRequestsIndex, *module_requests);
   result->set(kSpecialExportsIndex, *special_exports);
   result->set(kRegularExportsIndex, *regular_exports);
@@ -970,22 +972,22 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   return result;
 }
 
-int ModuleInfo::RegularExportCount() const {
+int SourceTextModuleInfo::RegularExportCount() const {
   DCHECK_EQ(regular_exports().length() % kRegularExportLength, 0);
   return regular_exports().length() / kRegularExportLength;
 }
 
-String ModuleInfo::RegularExportLocalName(int i) const {
+String SourceTextModuleInfo::RegularExportLocalName(int i) const {
   return String::cast(regular_exports().get(i * kRegularExportLength +
                                             kRegularExportLocalNameOffset));
 }
 
-int ModuleInfo::RegularExportCellIndex(int i) const {
+int SourceTextModuleInfo::RegularExportCellIndex(int i) const {
   return Smi::ToInt(regular_exports().get(i * kRegularExportLength +
                                           kRegularExportCellIndexOffset));
 }
 
-FixedArray ModuleInfo::RegularExportExportNames(int i) const {
+FixedArray SourceTextModuleInfo::RegularExportExportNames(int i) const {
   return FixedArray::cast(regular_exports().get(
       i * kRegularExportLength + kRegularExportExportNamesOffset));
 }

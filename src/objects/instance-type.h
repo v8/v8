@@ -150,14 +150,13 @@ enum InstanceType : uint16_t {
   FUNCTION_TEMPLATE_RARE_DATA_TYPE,
   INTERCEPTOR_INFO_TYPE,
   INTERPRETER_DATA_TYPE,
-  MODULE_INFO_ENTRY_TYPE,
-  MODULE_TYPE,
   OBJECT_TEMPLATE_INFO_TYPE,
   PROMISE_CAPABILITY_TYPE,
   PROMISE_REACTION_TYPE,
   PROTOTYPE_INFO_TYPE,
   SCRIPT_TYPE,
   SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE,
+  SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE,
   STACK_FRAME_INFO_TYPE,
   STACK_TRACE_FRAME_TYPE,
   TEMPLATE_OBJECT_DESCRIPTION_TYPE,
@@ -226,6 +225,7 @@ enum InstanceType : uint16_t {
   SMALL_ORDERED_HASH_MAP_TYPE,
   SMALL_ORDERED_HASH_SET_TYPE,
   SMALL_ORDERED_NAME_DICTIONARY_TYPE,
+  SOURCE_TEXT_MODULE_TYPE,
   STORE_HANDLER_TYPE,
   UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
   UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
@@ -443,6 +443,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(JSWeakSet, JS_WEAK_SET_TYPE)                                             \
   V(LoadHandler, LOAD_HANDLER_TYPE)                                          \
   V(Map, MAP_TYPE)                                                           \
+  V(Module, SOURCE_TEXT_MODULE_TYPE)                                         \
   V(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)                             \
   V(NameDictionary, NAME_DICTIONARY_TYPE)                                    \
   V(NativeContext, NATIVE_CONTEXT_TYPE)                                      \
@@ -462,6 +463,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)                        \
   V(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)                        \
   V(SmallOrderedNameDictionary, SMALL_ORDERED_NAME_DICTIONARY_TYPE)          \
+  V(SourceTextModule, SOURCE_TEXT_MODULE_TYPE)                               \
   V(StoreHandler, STORE_HANDLER_TYPE)                                        \
   V(StringTable, STRING_TABLE_TYPE)                                          \
   V(Symbol, SYMBOL_TYPE)                                                     \

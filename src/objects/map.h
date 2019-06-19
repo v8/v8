@@ -65,6 +65,7 @@ enum InstanceType : uint16_t;
   V(SmallOrderedHashMap)               \
   V(SmallOrderedHashSet)               \
   V(SmallOrderedNameDictionary)        \
+  V(SourceTextModule)                  \
   V(Struct)                            \
   V(Symbol)                            \
   V(ThinString)                        \

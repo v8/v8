@@ -7424,7 +7424,7 @@ TEST(EnumReserved) {
   RunModuleParserSyncTest(context_data, kErrorSources, kError);
 }
 
-static void CheckEntry(const i::ModuleDescriptor::Entry* entry,
+static void CheckEntry(const i::SourceTextModuleDescriptor::Entry* entry,
                        const char* export_name, const char* local_name,
                        const char* import_name, int module_request) {
   CHECK_NOT_NULL(entry);
@@ -7487,7 +7487,7 @@ TEST(ModuleParsingInternals) {
   CHECK(outer_scope->is_script_scope());
   CHECK_NULL(outer_scope->outer_scope());
   CHECK(module_scope->is_module_scope());
-  const i::ModuleDescriptor::Entry* entry;
+  const i::SourceTextModuleDescriptor::Entry* entry;
   i::Declaration::List* declarations = module_scope->declarations();
   CHECK_EQ(13, declarations->LengthForTest());
 
@@ -7572,7 +7572,7 @@ TEST(ModuleParsingInternals) {
   CHECK(declarations->AtForTest(12)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  i::ModuleDescriptor* descriptor = module_scope->module();
+  i::SourceTextModuleDescriptor* descriptor = module_scope->module();
   CHECK_NOT_NULL(descriptor);
 
   CHECK_EQ(5u, descriptor->module_requests().size());
