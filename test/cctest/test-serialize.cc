@@ -148,8 +148,10 @@ namespace {
 
 // Convenience wrapper around the convenience wrapper.
 v8::StartupData CreateSnapshotDataBlob(const char* embedded_source) {
-  return CreateSnapshotDataBlobInternal(
+  v8::StartupData data = CreateSnapshotDataBlobInternal(
       v8::SnapshotCreator::FunctionCodeHandling::kClear, embedded_source);
+  ReadOnlyHeap::ClearSharedHeapForTest();
+  return data;
 }
 
 }  // namespace
@@ -273,53 +275,6 @@ UNINITIALIZED_TEST(StartupSerializerOnce32K) {
   DisableAlwaysOpt();
   FLAG_serialization_chunk_size = 32 * KB;
   TestStartupSerializerOnceImpl();
-}
-
-UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
-  DisableAlwaysOpt();
-  v8::SnapshotCreator snapshot_creator;
-  v8::Isolate* isolate = snapshot_creator.GetIsolate();
-  {
-    v8::Isolate::Scope isolate_scope(isolate);
-    v8::HandleScope handle_scope(isolate);
-    Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
-    // Here is interesting retaining path:
-    // - FreeSpaceMap
-    // - Map for Map types itself
-    // - NullValue
-    // - Internalized one byte string
-    // - Map for Internalized one byte string
-    // - TheHoleValue
-    // - HeapNumber
-    // HeapNumber objects require kDoubleUnaligned on 32-bit
-    // platforms. So, without special measures we're risking to serialize
-    // object, requiring alignment before FreeSpaceMap is fully serialized.
-    v8::internal::Handle<Map> map(
-        ReadOnlyRoots(internal_isolate).one_byte_internalized_string_map(),
-        internal_isolate);
-    // Need to avoid DCHECKs inside SnapshotCreator.
-    snapshot_creator.SetDefaultContext(v8::Context::New(isolate));
-  }
-
-  v8::StartupData startup_data = snapshot_creator.CreateBlob(
-      v8::SnapshotCreator::FunctionCodeHandling::kKeep);
-
-  v8::Isolate::CreateParams params;
-  params.snapshot_blob = &startup_data;
-  params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  isolate = v8::Isolate::New(params);
-
-  {
-    v8::HandleScope handle_scope(isolate);
-    v8::Isolate::Scope isolate_scope(isolate);
-
-    v8::Local<v8::Context> env = v8::Context::New(isolate);
-    env->Enter();
-
-    SanityCheck(isolate);
-  }
-  isolate->Dispose();
-  delete[] startup_data.data;
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwice) {
@@ -811,6 +766,7 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
   DisableEmbeddedBlobRefcounting();
   v8::StartupData data1 =
       CreateSnapshotDataBlobInternal(function_code_handling, source);
+  ReadOnlyHeap::ClearSharedHeapForTest();
 
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
@@ -958,6 +914,7 @@ void TypedArrayTestHelper(
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
   }
 
+  ReadOnlyHeap::ClearSharedHeapForTest();
   v8::Isolate::CreateParams create_params;
   create_params.snapshot_blob = &blob;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -1085,6 +1042,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobDetachedArrayBuffer) {
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
   }
 
+  ReadOnlyHeap::ClearSharedHeapForTest();
   v8::Isolate::CreateParams create_params;
   create_params.snapshot_blob = &blob;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -1155,6 +1113,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
   }
 
+  ReadOnlyHeap::ClearSharedHeapForTest();
   v8::Isolate::CreateParams create_params;
   create_params.snapshot_blob = &blob;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -1208,6 +1167,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobTypedArrayNoEmbedderFieldCallback) {
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
   }
 
+  ReadOnlyHeap::ClearSharedHeapForTest();
   v8::Isolate::CreateParams create_params;
   create_params.snapshot_blob = &blob;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -2591,6 +2551,7 @@ UNINITIALIZED_TEST(SnapshotCreatorMultipleContexts) {
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
   }
 
+  ReadOnlyHeap::ClearSharedHeapForTest();
   v8::Isolate::CreateParams params;
   params.snapshot_blob = &blob;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -2729,6 +2690,7 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
 
   // Deserialize with the original external reference.
   {
+    ReadOnlyHeap::ClearSharedHeapForTest();
     v8::Isolate::CreateParams params;
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -2754,6 +2716,7 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
 
   // Deserialize with some other external reference.
   {
+    ReadOnlyHeap::ClearSharedHeapForTest();
     v8::Isolate::CreateParams params;
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -2802,6 +2765,7 @@ UNINITIALIZED_TEST(SnapshotCreatorShortExternalReferences) {
 
   // Deserialize with an incomplete list of external references.
   {
+    ReadOnlyHeap::ClearSharedHeapForTest();
     v8::Isolate::CreateParams params;
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -2862,6 +2826,7 @@ UNINITIALIZED_TEST(SnapshotCreatorNoExternalReferencesDefault) {
 
   // Deserialize with an incomplete list of external references.
   {
+    ReadOnlyHeap::ClearSharedHeapForTest();
     v8::Isolate::CreateParams params;
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -2911,6 +2876,7 @@ UNINITIALIZED_TEST(SnapshotCreatorPreparseDataAndNoOuterScope) {
 
   // Deserialize with an incomplete list of external references.
   {
+    ReadOnlyHeap::ClearSharedHeapForTest();
     v8::Isolate::CreateParams params;
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -2950,6 +2916,7 @@ UNINITIALIZED_TEST(SnapshotCreatorArrayJoinWithKeep) {
   DisableAlwaysOpt();
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob = CreateCustomSnapshotArrayJoinWithKeep();
+  ReadOnlyHeap::ClearSharedHeapForTest();
 
   // Deserialize with an incomplete list of external references.
   {
@@ -2977,6 +2944,7 @@ TEST(SnapshotCreatorNoExternalReferencesCustomFail1) {
 
   // Deserialize with an incomplete list of external references.
   {
+    ReadOnlyHeap::ClearSharedHeapForTest();
     v8::Isolate::CreateParams params;
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -3002,6 +2970,7 @@ TEST(SnapshotCreatorNoExternalReferencesCustomFail2) {
 
   // Deserialize with an incomplete list of external references.
   {
+    ReadOnlyHeap::ClearSharedHeapForTest();
     v8::Isolate::CreateParams params;
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -3120,6 +3089,7 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
   }
 
   {
+    ReadOnlyHeap::ClearSharedHeapForTest();
     v8::Isolate::CreateParams params;
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -3533,6 +3503,7 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
   }
 
   {
+    ReadOnlyHeap::ClearSharedHeapForTest();
     v8::Isolate::CreateParams params;
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -3667,6 +3638,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
     CHECK(!blob.CanBeRehashed());
   }
 
+  ReadOnlyHeap::ClearSharedHeapForTest();
   i::FLAG_hash_seed = 1337;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -3802,6 +3774,7 @@ UNINITIALIZED_TEST(WeakArraySerializationInSnapshot) {
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
   }
 
+  ReadOnlyHeap::ClearSharedHeapForTest();
   v8::Isolate::CreateParams create_params;
   create_params.snapshot_blob = &blob;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
