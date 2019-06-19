@@ -2840,8 +2840,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/utils/ostreams.cc",
     "src/utils/ostreams.h",
     "src/utils/pointer-with-payload.h",
-    "src/utils/splay-tree-inl.h",
-    "src/utils/splay-tree.h",
     "src/utils/utils-inl.h",
     "src/utils/utils.cc",
     "src/utils/utils.h",
