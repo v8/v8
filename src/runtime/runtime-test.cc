@@ -360,8 +360,10 @@ bool EnsureFeedbackVector(Handle<JSFunction> function) {
 RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
+  if (!args[0].IsJSFunction()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
   EnsureFeedbackVector(function);
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -369,6 +371,9 @@ RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
 RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
+  if (!args[0].IsJSFunction()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
   if (!EnsureFeedbackVector(function)) {
@@ -625,6 +630,9 @@ RUNTIME_FUNCTION(Runtime_GetCallable) {
 RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
+  if (!args[0].IsJSFunction()) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   function->ClearTypeFeedbackInfo();
   return ReadOnlyRoots(isolate).undefined_value();
