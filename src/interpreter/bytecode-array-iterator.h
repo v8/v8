@@ -14,7 +14,8 @@ namespace interpreter {
 class V8_EXPORT_PRIVATE BytecodeArrayIterator final
     : public BytecodeArrayAccessor {
  public:
-  explicit BytecodeArrayIterator(Handle<BytecodeArray> bytecode_array);
+  explicit BytecodeArrayIterator(AbstractBytecodeArray* array);
+  explicit BytecodeArrayIterator(Handle<BytecodeArray> array);
 
   void Advance();
   bool done() const;

@@ -16,6 +16,8 @@ namespace interpreter {
 class V8_EXPORT_PRIVATE BytecodeArrayRandomIterator final
     : public BytecodeArrayAccessor {
  public:
+  explicit BytecodeArrayRandomIterator(AbstractBytecodeArray* bytecode_array,
+                                       Zone* zone);
   explicit BytecodeArrayRandomIterator(Handle<BytecodeArray> bytecode_array,
                                        Zone* zone);
 
@@ -66,6 +68,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayRandomIterator final
   ZoneVector<int> offsets_;
   int current_index_;
 
+  void Initialize();
   void UpdateOffsetFromIndex();
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayRandomIterator);

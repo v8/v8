@@ -397,9 +397,10 @@ Hints SerializerForBackgroundCompilation::Run() {
 class ExceptionHandlerMatcher {
  public:
   explicit ExceptionHandlerMatcher(
-      BytecodeArrayIterator const& bytecode_iterator)
+      BytecodeArrayIterator const& bytecode_iterator,
+      Handle<BytecodeArray> bytecode_array)
       : bytecode_iterator_(bytecode_iterator) {
-    HandlerTable table(*bytecode_iterator_.bytecode_array());
+    HandlerTable table(*bytecode_array);
     for (int i = 0, n = table.NumberOfRangeEntries(); i < n; ++i) {
       handlers_.insert(table.GetRangeHandler(i));
     }
@@ -427,7 +428,7 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
       broker(), handle(environment()->function().shared->GetBytecodeArray(),
                        broker()->isolate()));
   BytecodeArrayIterator iterator(bytecode_array.object());
-  ExceptionHandlerMatcher handler_matcher(iterator);
+  ExceptionHandlerMatcher handler_matcher(iterator, bytecode_array.object());
 
   for (; !iterator.done(); iterator.Advance()) {
     IncorporateJumpTargetEnvironment(iterator.current_offset());
