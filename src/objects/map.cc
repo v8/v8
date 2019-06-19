@@ -2428,10 +2428,10 @@ bool Map::EquivalentToForNormalization(const Map other,
       mode == CLEAR_INOBJECT_PROPERTIES ? 0 : other.GetInObjectProperties();
   // Make sure the elements_kind bits are in bit_field2.
   DCHECK_EQ(this->elements_kind(), Map::ElementsKindBits::decode(bit_field2()));
-  int adjusted_bit_field2 =
-      Map::ElementsKindBits::update(bit_field2(), elements_kind);
+  int adjusted_other_bit_field2 =
+      Map::ElementsKindBits::update(other.bit_field2(), elements_kind);
   return CheckEquivalent(*this, other) &&
-         adjusted_bit_field2 == other.bit_field2() &&
+         bit_field2() == adjusted_other_bit_field2 &&
          GetInObjectProperties() == properties &&
          JSObject::GetEmbedderFieldCount(*this) ==
              JSObject::GetEmbedderFieldCount(other);
