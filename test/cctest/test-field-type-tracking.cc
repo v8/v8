@@ -2249,8 +2249,12 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
   };
   Factory* factory = isolate->factory();
   TestConfig configs[] = {
-      {FROZEN, factory->frozen_symbol(), HOLEY_FROZEN_ELEMENTS},
-      {SEALED, factory->sealed_symbol(), HOLEY_SEALED_ELEMENTS},
+      {FROZEN, factory->frozen_symbol(),
+       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
+                                               : DICTIONARY_ELEMENTS},
+      {SEALED, factory->sealed_symbol(),
+       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
+                                               : DICTIONARY_ELEMENTS},
       {NONE, factory->nonextensible_symbol(), DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
@@ -2311,8 +2315,12 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
   };
   Factory* factory = isolate->factory();
   TestConfig configs[] = {
-      {FROZEN, factory->frozen_symbol(), HOLEY_FROZEN_ELEMENTS},
-      {SEALED, factory->sealed_symbol(), HOLEY_SEALED_ELEMENTS},
+      {FROZEN, factory->frozen_symbol(),
+       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
+                                               : DICTIONARY_ELEMENTS},
+      {SEALED, factory->sealed_symbol(),
+       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
+                                               : DICTIONARY_ELEMENTS},
       {NONE, factory->nonextensible_symbol(), DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
