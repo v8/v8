@@ -2201,6 +2201,19 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
   }
 }
 
+void BytecodeGenerator::BuildThrowPrivateMethodWriteError(
+    const AstRawString* name) {
+  RegisterAllocationScope register_scope(this);
+  RegisterList args = register_allocator()->NewRegisterList(2);
+  builder()
+      ->LoadLiteral(Smi::FromEnum(MessageTemplate::kInvalidPrivateMethodWrite))
+      .StoreAccumulatorInRegister(args[0])
+      .LoadLiteral(name)
+      .StoreAccumulatorInRegister(args[1])
+      .CallRuntime(Runtime::kNewTypeError, args)
+      .Throw();
+}
+
 void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver) {
   RegisterList brand_args = register_allocator()->NewRegisterList(2);
   Variable* brand = info()->scope()->outer_scope()->AsClassScope()->brand();
@@ -3746,9 +3759,10 @@ void BytecodeGenerator::BuildAssignment(
                        lhs_data.super_property_args());
       break;
     }
-    case PRIVATE_METHOD:
-      // TODO(joyee): Throw TypeError because private methods are not writable.
-      UNREACHABLE();
+    case PRIVATE_METHOD: {
+      BuildThrowPrivateMethodWriteError(lhs_data.name());
+      break;
+    }
   }
 }
 
@@ -3794,9 +3808,10 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
                              lhs_data.super_property_args().Truncate(3));
       break;
     }
-    case PRIVATE_METHOD:
-      // TODO(joyee): Throw TypeError because private methods are not writable.
-      UNREACHABLE();
+    case PRIVATE_METHOD: {
+      BuildThrowPrivateMethodWriteError(lhs_data.name());
+      break;
+    }
   }
   BinaryOperation* binop = expr->AsCompoundAssignment()->binary_operation();
   FeedbackSlot slot = feedback_spec()->AddBinaryOpICSlot();
@@ -4254,8 +4269,23 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
     case KEYED_SUPER_PROPERTY:
       VisitKeyedSuperPropertyLoad(property, Register::invalid_value());
       break;
-    case PRIVATE_METHOD:
-      UNREACHABLE();  // TODO(joyee): implement private method access.
+    case PRIVATE_METHOD: {
+      Variable* private_name = property->key()->AsVariableProxy()->var();
+
+      // Perform the brand check.
+      DCHECK(private_name->requires_brand_check());
+      ClassScope* scope = private_name->scope()->AsClassScope();
+      Variable* brand = scope->brand();
+      BuildVariableLoadForAccumulatorValue(brand, HoleCheckMode::kElided);
+      builder()->SetExpressionPosition(property);
+      builder()->LoadKeyedProperty(
+          obj, feedback_index(feedback_spec()->AddKeyedLoadICSlot()));
+
+      // In the case of private methods, property->key() is the function to be
+      // loaded (stored in a context slot), so load this directly.
+      VisitForAccumulatorValue(property->key());
+      break;
+    }
   }
 }
 
@@ -4806,8 +4836,9 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     }
     case PRIVATE_METHOD: {
-      // TODO(joyee): Throw TypeError because private methods are not writable.
-      UNREACHABLE();
+      BuildThrowPrivateMethodWriteError(
+          property->key()->AsVariableProxy()->raw_name());
+      break;
     }
   }
 
@@ -4876,8 +4907,9 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     }
     case PRIVATE_METHOD: {
-      // TODO(joyee): Throw TypeError because private methods are not writable.
-      UNREACHABLE();
+      BuildThrowPrivateMethodWriteError(
+          property->key()->AsVariableProxy()->raw_name());
+      break;
     }
   }
 
