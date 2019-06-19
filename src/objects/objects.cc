@@ -5550,16 +5550,6 @@ void SharedFunctionInfo::EnsureSourcePositionsAvailable(
   }
 }
 
-bool BytecodeArray::IsBytecodeEqual(const BytecodeArray other) const {
-  if (length() != other.length()) return false;
-
-  for (int i = 0; i < length(); ++i) {
-    if (get(i) != other.get(i)) return false;
-  }
-
-  return true;
-}
-
 // static
 void JSArray::Initialize(Handle<JSArray> array, int capacity, int length) {
   DCHECK_GE(capacity, 0);
