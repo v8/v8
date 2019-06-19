@@ -1004,45 +1004,44 @@ bool Scanner::ScanRegExpPattern() {
   return true;
 }
 
-
-Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
+Maybe<v8::RegExp::Flags> Scanner::ScanRegExpFlags() {
   DCHECK_EQ(Token::REGEXP_LITERAL, next().token);
 
   // Scan regular expression flags.
   int flags = 0;
   while (IsIdentifierPart(c0_)) {
-    RegExp::Flags flag = RegExp::kNone;
+    v8::RegExp::Flags flag = v8::RegExp::kNone;
     switch (c0_) {
       case 'g':
-        flag = RegExp::kGlobal;
+        flag = v8::RegExp::kGlobal;
         break;
       case 'i':
-        flag = RegExp::kIgnoreCase;
+        flag = v8::RegExp::kIgnoreCase;
         break;
       case 'm':
-        flag = RegExp::kMultiline;
+        flag = v8::RegExp::kMultiline;
         break;
       case 's':
-        flag = RegExp::kDotAll;
+        flag = v8::RegExp::kDotAll;
         break;
       case 'u':
-        flag = RegExp::kUnicode;
+        flag = v8::RegExp::kUnicode;
         break;
       case 'y':
-        flag = RegExp::kSticky;
+        flag = v8::RegExp::kSticky;
         break;
       default:
-        return Nothing<RegExp::Flags>();
+        return Nothing<v8::RegExp::Flags>();
     }
     if (flags & flag) {
-      return Nothing<RegExp::Flags>();
+      return Nothing<v8::RegExp::Flags>();
     }
     Advance();
     flags |= flag;
   }
 
   next().location.end_pos = source_pos();
-  return Just(RegExp::Flags(flags));
+  return Just(v8::RegExp::Flags(flags));
 }
 
 const AstRawString* Scanner::CurrentSymbol(
