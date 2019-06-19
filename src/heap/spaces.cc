@@ -1376,6 +1376,10 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
     delete page_protection_change_mutex_;
     page_protection_change_mutex_ = nullptr;
   }
+  if (code_object_registry_ != nullptr) {
+    delete code_object_registry_;
+    code_object_registry_ = nullptr;
+  }
 
   ReleaseSlotSet<OLD_TO_NEW>();
   ReleaseSlotSet<OLD_TO_OLD>();
@@ -1385,7 +1389,6 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
 
   if (local_tracker_ != nullptr) ReleaseLocalTracker();
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
-  if (code_object_registry_ != nullptr) delete code_object_registry_;
 }
 
 void MemoryChunk::ReleaseAllAllocatedMemory() {
