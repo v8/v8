@@ -735,8 +735,6 @@ Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
   return graph()->NewNodeUnchecked(op, input_count, inputs);
 }
 
-size_t RawMachineAssembler::NodeCount() { return graph_->NodeCount(); }
-
 RawMachineLabel::~RawMachineLabel() {
 #if DEBUG
   if (bound_ == used_) return;

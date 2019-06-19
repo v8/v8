@@ -6523,9 +6523,8 @@ UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
     }
   }
   CHECK_LE(state.old_generation_capacity_at_oom, kOldGenerationLimit);
-  size_t size = std::max(state.old_generation_capacity_at_oom,
-                         state.memory_allocator_size_at_oom);
-  CHECK_LE(kOldGenerationLimit, size + state.new_space_capacity_at_oom +
+  CHECK_LE(kOldGenerationLimit, state.old_generation_capacity_at_oom +
+                                    state.new_space_capacity_at_oom +
                                     state.new_lo_space_size_at_oom +
                                     FixedArray::SizeFor(kFixedArrayLength));
   CHECK_LE(

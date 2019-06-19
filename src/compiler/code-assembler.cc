@@ -1206,13 +1206,6 @@ void CodeAssembler::HandleException(Node* node) {
   raw_assembler()->AddNode(raw_assembler()->common()->IfSuccess(), node);
 }
 
-std::string CodeAssembler::CSADebugHint() {
-  std::stringstream s;
-  s << "Run mksnapshot with --csa-trap-on-node=" << state()->name() << ","
-    << state()->raw_assembler_->NodeCount() << " to break in CSA code.";
-  return s.str();
-}
-
 namespace {
 template <size_t kMaxSize>
 class NodeArray {
