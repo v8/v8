@@ -5843,7 +5843,7 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   MapInference inference(broker(), receiver, effect);
-  if (!DoPromiseChecks(&inference)) return NoChange();
+  if (!DoPromiseChecks(&inference)) return inference.NoChange();
 
   if (!dependencies()->DependOnPromiseThenProtector())
     return inference.NoChange();
@@ -5895,7 +5895,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   }
 
   MapInference inference(broker(), receiver, effect);
-  if (!DoPromiseChecks(&inference)) return NoChange();
+  if (!DoPromiseChecks(&inference)) return inference.NoChange();
   MapHandles const& receiver_maps = inference.GetMaps();
 
   // Check if we have the required scope_info.

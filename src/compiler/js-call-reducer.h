@@ -193,7 +193,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceNumberConstructor(Node* node);
 
   // Helper to verify promise receiver maps are as expected.
+  // On bailout from a reduction, be sure to return inference.NoChange().
   bool DoPromiseChecks(MapInference* inference);
+
   Node* CreateClosureFromBuiltinSharedFunctionInfo(SharedFunctionInfoRef shared,
                                                    Node* context, Node* effect,
                                                    Node* control);
