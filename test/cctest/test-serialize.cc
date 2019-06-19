@@ -3565,6 +3565,7 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
           base::make_unique<v8::Extension>("new extension",
                                            "function i() { return 24; }"
                                            "function j() { return 25; }"
+                                           "let a = 26;"
                                            "try {"
                                            "  if (o.p == 7) o.p++;"
                                            "} catch {}");
@@ -3582,6 +3583,7 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
         ExpectInt32("i()", 24);
         ExpectInt32("j()", 25);
         ExpectInt32("o.p", 8);
+        ExpectInt32("a", 26);
         v8::TryCatch try_catch(isolate);
         CHECK(CompileRun("x").IsEmpty());
         CHECK(try_catch.HasCaught());
