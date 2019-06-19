@@ -5365,20 +5365,15 @@ Local<Value> Symbol::Name() const {
   i::Handle<i::Symbol> sym = Utils::OpenHandle(this);
 
   i::Isolate* isolate;
-  if (!i::GetIsolateFromWritableObject(*sym, &isolate)) {
-    // If the Symbol is in RO_SPACE, then its name must be too. Since RO_SPACE
-    // objects are immovable we can use the Handle(Address*) constructor with
-    // the address of the name field in the Symbol object without needing an
-    // isolate.
-#ifdef V8_COMPRESS_POINTERS
-    // Compressed fields can't serve as handle locations.
-    // TODO(ishell): get Isolate as a parameter.
-    isolate = i::Isolate::Current();
-#else
+  if (!i::GetIsolateFromHeapObject(*sym, &isolate)) {
+    // Symbol is in RO_SPACE, which means that its name is also in RO_SPACE.
+    // Since RO_SPACE objects are immovable we can use the Handle(Address*)
+    // constructor with the address of the name field in the Symbol object
+    // without needing an isolate.
+    DCHECK(!COMPRESS_POINTERS_BOOL);
     i::Handle<i::HeapObject> ro_name(reinterpret_cast<i::Address*>(
         sym->GetFieldAddress(i::Symbol::kNameOffset)));
     return Utils::ToLocal(ro_name);
-#endif
   }
 
   i::Handle<i::Object> name(sym->name(), isolate);
@@ -6238,8 +6233,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // It is safe to call GetIsolateFromWritableHeapObject because
   // SupportsExternalization already checked that the object is writable.
-  i::Isolate* isolate;
-  i::GetIsolateFromWritableObject(obj, &isolate);
+  i::Isolate* isolate = i::GetIsolateFromWritableObject(obj);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
 
   CHECK(resource && resource->data());
@@ -6266,8 +6260,7 @@ bool v8::String::MakeExternal(
 
   // It is safe to call GetIsolateFromWritableHeapObject because
   // SupportsExternalization already checked that the object is writable.
-  i::Isolate* isolate;
-  i::GetIsolateFromWritableObject(obj, &isolate);
+  i::Isolate* isolate = i::GetIsolateFromWritableObject(obj);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
 
   CHECK(resource && resource->data());

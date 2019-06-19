@@ -239,19 +239,21 @@ inline Heap* GetHeapFromWritableObject(HeapObject object) {
 
 inline Isolate* GetIsolateFromWritableObject(HeapObject object) {
 #ifdef V8_COMPRESS_POINTERS
-  return Isolate::FromRoot(GetIsolateRoot(object.ptr()));
+  Isolate* isolate = Isolate::FromRoot(GetIsolateRoot(object.ptr()));
+  DCHECK_NOT_NULL(isolate);
+  return isolate;
 #else
   return Isolate::FromHeap(GetHeapFromWritableObject(object));
 #endif  // V8_COMPRESS_POINTERS
 }
 
-inline bool GetIsolateFromWritableObject(HeapObject obj, Isolate** isolate) {
+inline bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
 #ifdef V8_COMPRESS_POINTERS
-  *isolate = GetIsolateFromWritableObject(obj);
+  *isolate = GetIsolateFromWritableObject(object);
   return true;
 #else
   heap_internals::MemoryChunk* chunk =
-      heap_internals::MemoryChunk::FromHeapObject(obj);
+      heap_internals::MemoryChunk::FromHeapObject(object);
   if (chunk->InReadOnlySpace()) {
     *isolate = nullptr;
     return false;
@@ -259,6 +261,12 @@ inline bool GetIsolateFromWritableObject(HeapObject obj, Isolate** isolate) {
   *isolate = Isolate::FromHeap(chunk->GetHeap());
   return true;
 #endif  // V8_COMPRESS_POINTERS
+}
+
+inline bool IsReadOnlyHeapObject(HeapObject object) {
+  heap_internals::MemoryChunk* chunk =
+      heap_internals::MemoryChunk::FromHeapObject(object);
+  return chunk->InReadOnlySpace();
 }
 
 }  // namespace internal

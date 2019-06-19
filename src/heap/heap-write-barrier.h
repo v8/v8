@@ -44,6 +44,13 @@ void MarkingBarrierForDescriptorArray(Heap* heap, HeapObject host,
 inline Heap* GetHeapFromWritableObject(HeapObject object);
 inline Isolate* GetIsolateFromWritableObject(HeapObject object);
 
+// Returns true if it succeeded to obtain isolate from given object.
+// If it fails then the object is definitely a read-only object but it may also
+// succeed for read only objects if pointer compression is enabled.
+inline bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate);
+
+inline bool IsReadOnlyHeapObject(HeapObject object);
+
 }  // namespace internal
 }  // namespace v8
 

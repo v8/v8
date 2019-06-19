@@ -2510,10 +2510,10 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
     layout_descriptor().ShortPrint(os);
   }
 
-  Isolate* isolate;
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
-  if (GetIsolateFromWritableObject(*this, &isolate)) {
+  if (!IsReadOnlyHeapObject(*this)) {
+    Isolate* isolate = GetIsolateFromWritableObject(*this);
     DisallowHeapAllocation no_gc;
     TransitionsAccessor transitions(isolate, *this, &no_gc);
     int nof_transitions = transitions.NumberOfTransitions();
