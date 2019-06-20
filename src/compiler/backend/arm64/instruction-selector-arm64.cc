@@ -1599,7 +1599,7 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
       // 32-bit operations will write their result in a W register (implicitly
       // clearing the top 32-bit of the corresponding X register) so the
       // zero-extension is a no-op.
-      Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+      EmitIdentity(node);
       return;
     }
     case IrOpcode::kLoad: {
@@ -1610,7 +1610,7 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
         case MachineRepresentation::kWord8:
         case MachineRepresentation::kWord16:
         case MachineRepresentation::kWord32:
-          Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+          EmitIdentity(node);
           return;
         default:
           break;
@@ -1665,10 +1665,9 @@ void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
 
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   Arm64OperandGenerator g(this);
-  Node* value = node->InputAt(0);
   // The top 32 bits in the 64-bit register will be undefined, and
   // must not be used by a dependent node.
-  Emit(kArchNop, g.DefineSameAsFirst(node), g.UseRegister(value));
+  EmitIdentity(node);
 }
 
 void InstructionSelector::VisitFloat64Mod(Node* node) {
