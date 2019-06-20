@@ -1424,32 +1424,6 @@ class ObjectLiteral final : public AggregateLiteral {
       : public BitField<bool, FastElementsField::kNext, 1> {};
 };
 
-
-// A map from property names to getter/setter pairs allocated in the zone.
-class AccessorTable
-    : public base::TemplateHashMap<Literal, ObjectLiteral::Accessors,
-                                   bool (*)(void*, void*),
-                                   ZoneAllocationPolicy> {
- public:
-  explicit AccessorTable(Zone* zone)
-      : base::TemplateHashMap<Literal, ObjectLiteral::Accessors,
-                              bool (*)(void*, void*), ZoneAllocationPolicy>(
-            Literal::Match, ZoneAllocationPolicy(zone)),
-        zone_(zone) {}
-
-  Iterator lookup(Literal* literal) {
-    Iterator it = find(literal, true, ZoneAllocationPolicy(zone_));
-    if (it->second == nullptr) {
-      it->second = new (zone_) ObjectLiteral::Accessors();
-    }
-    return it;
-  }
-
- private:
-  Zone* zone_;
-};
-
-
 // An array literal has a literals object that is used
 // for minimizing the work when constructing it at runtime.
 class ArrayLiteral final : public AggregateLiteral {
