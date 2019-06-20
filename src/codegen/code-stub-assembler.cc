@@ -2067,7 +2067,8 @@ TNode<BigInt> CodeStubAssembler::LoadFixedBigInt64ArrayElementAsTagged(
         Load(MachineType::UintPtr(), data_pointer, offset));
     TNode<IntPtrT> low = UncheckedCast<IntPtrT>(
         Load(MachineType::UintPtr(), data_pointer,
-             Int32Add(offset, Int32Constant(kSystemPointerSize))));
+             Int32Add(TruncateIntPtrToInt32(offset),
+                      Int32Constant(kSystemPointerSize))));
 #else
     TNode<IntPtrT> low = UncheckedCast<IntPtrT>(
         Load(MachineType::UintPtr(), data_pointer, offset));
@@ -2200,7 +2201,8 @@ CodeStubAssembler::LoadFixedBigUint64ArrayElementAsTagged(
         Load(MachineType::UintPtr(), data_pointer, offset));
     TNode<UintPtrT> low = UncheckedCast<UintPtrT>(
         Load(MachineType::UintPtr(), data_pointer,
-             Int32Add(offset, Int32Constant(kSystemPointerSize))));
+             Int32Add(TruncateIntPtrToInt32(offset),
+                      Int32Constant(kSystemPointerSize))));
 #else
     TNode<UintPtrT> low = UncheckedCast<UintPtrT>(
         Load(MachineType::UintPtr(), data_pointer, offset));
