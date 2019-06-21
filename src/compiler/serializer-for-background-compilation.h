@@ -341,7 +341,8 @@ class SerializerForBackgroundCompilation {
   NamedAccessFeedback const* ProcessFeedbackMapsForNamedAccess(
       const MapHandles& maps, AccessMode mode, NameRef const& name);
   ElementAccessFeedback const* ProcessFeedbackMapsForElementAccess(
-      const MapHandles& maps, AccessMode mode);
+      const MapHandles& maps, AccessMode mode,
+      KeyedAccessMode const& keyed_mode);
   void ProcessFeedbackForPropertyAccess(FeedbackSlot slot, AccessMode mode,
                                         base::Optional<NameRef> static_name);
   void ProcessMapForNamedPropertyAccess(MapRef const& map, NameRef const& name);

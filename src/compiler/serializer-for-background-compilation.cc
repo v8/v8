@@ -1075,9 +1075,10 @@ MapHandles GetRelevantReceiverMaps(Isolate* isolate, MapContainer const& maps) {
 
 ElementAccessFeedback const*
 SerializerForBackgroundCompilation::ProcessFeedbackMapsForElementAccess(
-    const MapHandles& maps, AccessMode mode) {
+    const MapHandles& maps, AccessMode mode,
+    KeyedAccessMode const& keyed_mode) {
   ElementAccessFeedback const* result =
-      broker()->ProcessFeedbackMapsForElementAccess(maps);
+      broker()->ProcessFeedbackMapsForElementAccess(maps, keyed_mode);
   for (ElementAccessFeedback::MapIterator it = result->all_maps(broker());
        !it.done(); it.advance()) {
     switch (mode) {
@@ -1145,8 +1146,10 @@ void SerializerForBackgroundCompilation::ProcessFeedbackForPropertyAccess(
       static_name.has_value() ? static_name : broker()->GetNameFeedback(nexus);
   if (name.has_value()) {
     processed = ProcessFeedbackMapsForNamedAccess(maps, mode, *name);
-  } else if (nexus.GetKeyType() == ELEMENT && nexus.ic_state() != MEGAMORPHIC) {
-    processed = ProcessFeedbackMapsForElementAccess(maps, mode);
+  } else if (nexus.GetKeyType() == ELEMENT) {
+    DCHECK_NE(nexus.ic_state(), MEGAMORPHIC);
+    processed = ProcessFeedbackMapsForElementAccess(
+        maps, mode, KeyedAccessMode::FromNexus(nexus));
   }
   broker()->SetFeedback(source, processed);
 }

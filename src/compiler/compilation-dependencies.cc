@@ -565,6 +565,11 @@ namespace {
 // This function expects to never see a JSProxy.
 void DependOnStablePrototypeChain(CompilationDependencies* deps, MapRef map,
                                   base::Optional<JSObjectRef> last_prototype) {
+  // TODO(neis): Remove heap access (SerializePrototype call).
+  AllowCodeDependencyChange dependency_change_;
+  AllowHandleAllocation handle_allocation_;
+  AllowHandleDereference handle_dereference_;
+  AllowHeapAllocation heap_allocation_;
   while (true) {
     map.SerializePrototype();
     HeapObjectRef proto = map.prototype();

@@ -127,7 +127,7 @@ class PropertyAccessInfo final {
   ZoneVector<Handle<Map>> const& receiver_maps() const {
     return receiver_maps_;
   }
-  Handle<Cell> export_cell() const;
+  CellRef export_cell(JSHeapBroker* broker) const;
 
  private:
   explicit PropertyAccessInfo(Zone* zone);

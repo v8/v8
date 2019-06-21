@@ -258,9 +258,9 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
   }
 }
 
-Handle<Cell> PropertyAccessInfo::export_cell() const {
+CellRef PropertyAccessInfo::export_cell(JSHeapBroker* broker) const {
   DCHECK_EQ(kModuleExport, kind_);
-  return Handle<Cell>::cast(constant_);
+  return ObjectRef(broker, constant_).AsCell();
 }
 
 AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
@@ -793,6 +793,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   unrecorded_dependencies.push_back(
       dependencies()->TransitionDependencyOffTheRecord(
           MapRef(broker(), transition_map)));
+  transition_map_ref.SerializeBackPointer();  // For BuildPropertyStore.
   // Transitioning stores *may* store to const fields. The resulting
   // DataConstant access infos can be distinguished from later, i.e. redundant,
   // stores to the same constant field by the presence of a transition map.

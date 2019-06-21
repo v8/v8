@@ -3492,10 +3492,67 @@ base::Optional<ObjectRef> GlobalAccessFeedback::GetConstantHint() const {
   return {};
 }
 
-ElementAccessFeedback::ElementAccessFeedback(Zone* zone)
+KeyedAccessMode KeyedAccessMode::FromNexus(FeedbackNexus const& nexus) {
+  if (IsKeyedLoadICKind(nexus.kind())) {
+    return KeyedAccessMode(AccessMode::kLoad, nexus.GetKeyedAccessLoadMode());
+  }
+  if (IsKeyedHasICKind(nexus.kind())) {
+    return KeyedAccessMode(AccessMode::kHas, nexus.GetKeyedAccessLoadMode());
+  }
+  if (IsKeyedStoreICKind(nexus.kind())) {
+    return KeyedAccessMode(AccessMode::kStore, nexus.GetKeyedAccessStoreMode());
+  }
+  if (IsStoreInArrayLiteralICKind(nexus.kind())) {
+    return KeyedAccessMode(AccessMode::kStoreInLiteral,
+                           nexus.GetKeyedAccessStoreMode());
+  }
+  UNREACHABLE();
+}
+
+AccessMode KeyedAccessMode::access_mode() const { return access_mode_; }
+
+bool KeyedAccessMode::IsLoad() const {
+  return access_mode_ == AccessMode::kLoad || access_mode_ == AccessMode::kHas;
+}
+bool KeyedAccessMode::IsStore() const {
+  return access_mode_ == AccessMode::kStore ||
+         access_mode_ == AccessMode::kStoreInLiteral;
+}
+
+KeyedAccessLoadMode KeyedAccessMode::load_mode() const {
+  CHECK(IsLoad());
+  return load_store_mode_.load_mode;
+}
+
+KeyedAccessStoreMode KeyedAccessMode::store_mode() const {
+  CHECK(IsStore());
+  return load_store_mode_.store_mode;
+}
+
+KeyedAccessMode::LoadStoreMode::LoadStoreMode(KeyedAccessLoadMode load_mode)
+    : load_mode(load_mode) {}
+KeyedAccessMode::LoadStoreMode::LoadStoreMode(KeyedAccessStoreMode store_mode)
+    : store_mode(store_mode) {}
+
+KeyedAccessMode::KeyedAccessMode(AccessMode access_mode,
+                                 KeyedAccessLoadMode load_mode)
+    : access_mode_(access_mode), load_store_mode_(load_mode) {
+  CHECK(!IsStore());
+  CHECK(IsLoad());
+}
+KeyedAccessMode::KeyedAccessMode(AccessMode access_mode,
+                                 KeyedAccessStoreMode store_mode)
+    : access_mode_(access_mode), load_store_mode_(store_mode) {
+  CHECK(!IsLoad());
+  CHECK(IsStore());
+}
+
+ElementAccessFeedback::ElementAccessFeedback(Zone* zone,
+                                             KeyedAccessMode const& keyed_mode)
     : ProcessedFeedback(kElementAccess),
       receiver_maps(zone),
-      transitions(zone) {}
+      transitions(zone),
+      keyed_mode(keyed_mode) {}
 
 ElementAccessFeedback::MapIterator::MapIterator(
     ElementAccessFeedback const& processed, JSHeapBroker* broker)
@@ -3568,7 +3625,7 @@ GlobalAccessFeedback const* JSHeapBroker::GetGlobalAccessFeedback(
 }
 
 ElementAccessFeedback const* JSHeapBroker::ProcessFeedbackMapsForElementAccess(
-    MapHandles const& maps) {
+    MapHandles const& maps, KeyedAccessMode const& keyed_mode) {
   DCHECK(!maps.empty());
 
   // Collect possible transition targets.
@@ -3582,7 +3639,8 @@ ElementAccessFeedback const* JSHeapBroker::ProcessFeedbackMapsForElementAccess(
     }
   }
 
-  ElementAccessFeedback* result = new (zone()) ElementAccessFeedback(zone());
+  ElementAccessFeedback* result =
+      new (zone()) ElementAccessFeedback(zone(), keyed_mode);
 
   // Separate the actual receiver maps and the possible transition sources.
   for (Handle<Map> map : maps) {
