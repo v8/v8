@@ -447,15 +447,29 @@ extern class CallHandlerInfo extends Struct {
   data: Object;
 }
 
-type ModuleInfo extends FixedArray;
 type ObjectHashTable extends FixedArray;
 
+@abstract
 extern class Module extends HeapObject {
   exports: ObjectHashTable;
   hash: Smi;
   status: Smi;
   module_namespace: JSModuleNamespace | Undefined;
   exception: Object;
+}
+
+type SourceTextModuleInfo extends FixedArray;
+
+extern class SourceTextModule extends Module {
+  code: SharedFunctionInfo | JSFunction |
+      JSGeneratorObject | SourceTextModuleInfo;
+  regular_exports: FixedArray;
+  regular_imports: FixedArray;
+  requested_modules: FixedArray;
+  script: Script;
+  import_meta: TheHole | JSObject;
+  dfs_index: Smi;
+  dfs_ancestor_index: Smi;
 }
 
 @abstract

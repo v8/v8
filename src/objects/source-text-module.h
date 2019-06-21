@@ -27,7 +27,7 @@ class SourceTextModule : public Module {
   // The code representing this module, or an abstraction thereof.
   // This is either a SharedFunctionInfo, a JSFunction, a JSGeneratorObject, or
   // a SourceTextModuleInfo, depending on the state (status) the module is in.
-  // See Module::ModuleVerify() for the precise invariant.
+  // See SourceTextModule::SourceTextModuleVerify() for the precise invariant.
   DECL_ACCESSORS(code, Object)
 
   // Arrays of cells corresponding to regular exports and regular imports.
@@ -73,20 +73,8 @@ class SourceTextModule : public Module {
       Isolate* isolate, Handle<SourceTextModule> module, int module_request);
 
   // Layout description.
-#define SOURCE_TEXT_MODULE_FIELDS(V)      \
-  V(kCodeOffset, kTaggedSize)             \
-  V(kRegularExportsOffset, kTaggedSize)   \
-  V(kRegularImportsOffset, kTaggedSize)   \
-  V(kRequestedModulesOffset, kTaggedSize) \
-  V(kScriptOffset, kTaggedSize)           \
-  V(kImportMetaOffset, kTaggedSize)       \
-  V(kDfsIndexOffset, kTaggedSize)         \
-  V(kDfsAncestorIndexOffset, kTaggedSize) \
-  /* Total size. */                       \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Module::kSize, SOURCE_TEXT_MODULE_FIELDS)
-#undef SOURCE_TEXT_MODULE_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(Module::kHeaderSize,
+                                TORQUE_GENERATED_SOURCE_TEXT_MODULE_FIELDS)
 
   using BodyDescriptor =
       SubclassBodyDescriptor<Module::BodyDescriptor,

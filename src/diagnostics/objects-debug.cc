@@ -1555,32 +1555,23 @@ void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryVerify(
                 local_name().IsUndefined(isolate));
 }
 
-static void ModuleVerify(Module module, Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ModuleVerify(module, isolate);
+void Module::ModuleVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::ModuleVerify(*this, isolate);
 
-  CHECK_EQ(module.status() == Module::kErrored,
-           !module.exception().IsTheHole(isolate));
+  CHECK_EQ(status() == Module::kErrored, !exception().IsTheHole(isolate));
 
-  CHECK(module.module_namespace().IsUndefined(isolate) ||
-        module.module_namespace().IsJSModuleNamespace());
-  if (module.module_namespace().IsJSModuleNamespace()) {
-    CHECK_LE(Module::kInstantiating, module.status());
-    CHECK_EQ(JSModuleNamespace::cast(module.module_namespace()).module(),
-             module);
+  CHECK(module_namespace().IsUndefined(isolate) ||
+        module_namespace().IsJSModuleNamespace());
+  if (module_namespace().IsJSModuleNamespace()) {
+    CHECK_LE(Module::kInstantiating, status());
+    CHECK_EQ(JSModuleNamespace::cast(module_namespace()).module(), *this);
   }
 
-  CHECK_NE(module.hash(), 0);
+  CHECK_NE(hash(), 0);
 }
 
 void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
-  ModuleVerify(*this, isolate);
-
-  CHECK(IsSourceTextModule());
-
-  VerifyPointer(isolate, code());
-  VerifyPointer(isolate, requested_modules());
-  VerifyPointer(isolate, script());
-  VerifyPointer(isolate, import_meta());
+  TorqueGeneratedClassVerifiers::SourceTextModuleVerify(*this, isolate);
 
   CHECK((status() >= kEvaluating && code().IsSourceTextModuleInfo()) ||
         (status() == kInstantiated && code().IsJSGeneratorObject()) ||
@@ -1588,8 +1579,6 @@ void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
         (code().IsSharedFunctionInfo()));
 
   CHECK_EQ(requested_modules().length(), info().module_requests().length());
-
-  CHECK(import_meta().IsTheHole(isolate) || import_meta().IsJSObject());
 }
 
 void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {

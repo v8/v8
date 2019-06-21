@@ -34,6 +34,7 @@ class Module : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_CAST(Module)
+  DECL_VERIFIER(Module)
   DECL_PRINTER(Module)
 
   // The complete export table, mapping an export name to its cell.
@@ -83,7 +84,8 @@ class Module : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
                                 TORQUE_GENERATED_MODULE_FIELDS)
 
-  using BodyDescriptor = FixedBodyDescriptor<kExportsOffset, kSize, kSize>;
+  using BodyDescriptor =
+      FixedBodyDescriptor<kExportsOffset, kHeaderSize, kHeaderSize>;
 
  protected:
   friend class Factory;
