@@ -624,14 +624,12 @@ TEST(ProfileNodeScriptId) {
 
   v8::Local<v8::Script> script_a =
       v8_compile(v8_str("function a() { startProfiling(); }\n"));
-  script_a->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
-      .ToLocalChecked();
+  script_a->Run(env).ToLocalChecked();
   v8::Local<v8::Script> script_b =
       v8_compile(v8_str("function b() { a(); }\n"
                         "b();\n"
                         "stopProfiling();\n"));
-  script_b->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
-      .ToLocalChecked();
+  script_b->Run(env).ToLocalChecked();
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();

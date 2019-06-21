@@ -1260,8 +1260,8 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
     v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
     v8::Context::Scope c_scope(context);
     v8::Local<v8::Value> result = CompileRun(source2);
-    v8::Maybe<bool> compare = v8_str("42")->Equals(
-        v8::Isolate::GetCurrent()->GetCurrentContext(), result);
+    v8::Maybe<bool> compare =
+        v8_str("42")->Equals(isolate->GetCurrentContext(), result);
     CHECK(compare.FromJust());
   }
   isolate->Dispose();
@@ -1929,10 +1929,10 @@ TEST(CodeSerializerThreeBigStrings) {
 
   v8::Maybe<int32_t> result =
       CompileRun("(a + b).length")
-          ->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext());
+          ->Int32Value(CcTest::isolate()->GetCurrentContext());
   CHECK_EQ(length_of_a + length_of_b, result.FromJust());
   result = CompileRun("(b + c).length")
-               ->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext());
+               ->Int32Value(CcTest::isolate()->GetCurrentContext());
   CHECK_EQ(length_of_b + length_of_c, result.FromJust());
   Heap* heap = isolate->heap();
   v8::Local<v8::String> result_str =

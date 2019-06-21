@@ -8847,17 +8847,16 @@ TEST(ApiUncaughtException) {
 static const char* script_resource_name = "ExceptionInNativeScript.js";
 static void ExceptionInNativeScriptTestListener(v8::Local<v8::Message> message,
                                                 v8::Local<Value>) {
+  v8::Isolate* isolate = message->GetIsolate();
   v8::Local<v8::Value> name_val = message->GetScriptOrigin().ResourceName();
   CHECK(!name_val.IsEmpty() && name_val->IsString());
-  v8::String::Utf8Value name(v8::Isolate::GetCurrent(),
+  v8::String::Utf8Value name(isolate,
                              message->GetScriptOrigin().ResourceName());
   CHECK_EQ(0, strcmp(script_resource_name, *name));
-  v8::Local<v8::Context> context =
-      v8::Isolate::GetCurrent()->GetCurrentContext();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   CHECK_EQ(3, message->GetLineNumber(context).FromJust());
   v8::String::Utf8Value source_line(
-      v8::Isolate::GetCurrent(),
-      message->GetSourceLine(context).ToLocalChecked());
+      isolate, message->GetSourceLine(context).ToLocalChecked());
   CHECK_EQ(0, strcmp("  new o.foo();", *source_line));
 }
 
@@ -12711,9 +12710,9 @@ TEST(ObjectProtoToStringES6) {
   Local<v8::Symbol> valueSymbol = v8_symbol("TestSymbol");
   Local<v8::Function> valueFunction =
       CompileRun("(function fn() {})").As<v8::Function>();
-  Local<v8::Object> valueObject = v8::Object::New(v8::Isolate::GetCurrent());
-  Local<v8::Primitive> valueNull = v8::Null(v8::Isolate::GetCurrent());
-  Local<v8::Primitive> valueUndef = v8::Undefined(v8::Isolate::GetCurrent());
+  Local<v8::Object> valueObject = v8::Object::New(isolate);
+  Local<v8::Primitive> valueNull = v8::Null(isolate);
+  Local<v8::Primitive> valueUndef = v8::Undefined(isolate);
 
 #define TEST_TOSTRINGTAG(type, tagValue, expected)                         \
   do {                                                                     \
@@ -18309,9 +18308,9 @@ TEST(RunTwoIsolatesOnSingleThread) {
   }
 
   {
-    v8::HandleScope scope(v8::Isolate::GetCurrent());
+    v8::HandleScope scope(isolate1);
     v8::Local<v8::Context> context =
-        v8::Local<v8::Context>::New(v8::Isolate::GetCurrent(), context1);
+        v8::Local<v8::Context>::New(isolate1, context1);
     v8::Context::Scope context_scope(context);
     ExpectString("function f() { return foo; }; f()", "isolate 1");
   }

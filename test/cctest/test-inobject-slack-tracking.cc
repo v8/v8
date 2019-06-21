@@ -28,8 +28,7 @@ static Handle<T> OpenHandle(v8::Local<v8::Value> value) {
 
 static inline v8::Local<v8::Value> Run(v8::Local<v8::Script> script) {
   v8::Local<v8::Value> result;
-  if (script->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
-          .ToLocal(&result)) {
+  if (script->Run(CcTest::isolate()->GetCurrentContext()).ToLocal(&result)) {
     return result;
   }
   return v8::Local<v8::Value>();

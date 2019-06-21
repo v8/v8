@@ -61,9 +61,8 @@ enum RegExpBuiltin {
 REGEXP_BUILTINS(CASE)
 #undef CASE
 
-v8::Local<v8::String> v8_str(const char* s) {
-  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), s,
-                                 v8::NewStringType::kNormal)
+v8::Local<v8::String> v8_str(v8::Isolate* isolate, const char* s) {
+  return v8::String::NewFromUtf8(isolate, s, v8::NewStringType::kNormal)
       .ToLocalChecked();
 }
 
@@ -71,7 +70,7 @@ v8::MaybeLocal<v8::Value> CompileRun(v8::Local<v8::Context> context,
                                      const char* source) {
   v8::Local<v8::Script> script;
   v8::MaybeLocal<v8::Script> maybe_script =
-      v8::Script::Compile(context, v8_str(source));
+      v8::Script::Compile(context, v8_str(context->GetIsolate(), source));
 
   if (!maybe_script.ToLocal(&script)) return v8::MaybeLocal<v8::Value>();
   return script->Run(context);

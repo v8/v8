@@ -49,8 +49,6 @@ static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
   return "UnknownIntrinsicIndex";
 }
 
-void AstNode::Print() { Print(Isolate::Current()); }
-
 void AstNode::Print(Isolate* isolate) {
   AllowHandleDereference allow_deref;
   AstPrinter::PrintOut(isolate, this);

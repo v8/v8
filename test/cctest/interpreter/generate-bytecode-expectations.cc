@@ -464,7 +464,7 @@ bool WriteExpectationsFile(const std::vector<std::string>& snippet_list,
 
 void PrintMessage(v8::Local<v8::Message> message, v8::Local<v8::Value>) {
   std::cerr << "INFO: "
-            << *v8::String::Utf8Value(v8::Isolate::GetCurrent(), message->Get())
+            << *v8::String::Utf8Value(message->GetIsolate(), message->Get())
             << '\n';
 }
 

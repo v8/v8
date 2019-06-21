@@ -1927,7 +1927,7 @@ static void PrintNonErrorsMessageCallback(Local<Message> message,
   auto ToCString = [](const v8::String::Utf8Value& value) {
     return *value ? *value : "<string conversion failed>";
   };
-  Isolate* isolate = Isolate::GetCurrent();
+  Isolate* isolate = message->GetIsolate();
   v8::String::Utf8Value msg(isolate, message->Get());
   const char* msg_string = ToCString(msg);
   // Print (filename):(line number): (message).

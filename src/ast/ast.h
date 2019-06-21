@@ -147,7 +147,6 @@ class AstNode: public ZoneObject {
   int position() const { return position_; }
 
 #ifdef DEBUG
-  void Print();
   void Print(Isolate* isolate);
 #endif  // DEBUG
 

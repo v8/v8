@@ -600,14 +600,11 @@ RUNTIME_FUNCTION(Runtime_GetUndetectable) {
 }
 
 static void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  double v1 = args[0]
-                  ->NumberValue(v8::Isolate::GetCurrent()->GetCurrentContext())
-                  .ToChecked();
-  double v2 = args[1]
-                  ->NumberValue(v8::Isolate::GetCurrent()->GetCurrentContext())
-                  .ToChecked();
-  args.GetReturnValue().Set(
-      v8::Number::New(v8::Isolate::GetCurrent(), v1 - v2));
+  double v1 =
+      args[0]->NumberValue(args.GetIsolate()->GetCurrentContext()).ToChecked();
+  double v2 =
+      args[1]->NumberValue(args.GetIsolate()->GetCurrentContext()).ToChecked();
+  args.GetReturnValue().Set(v8::Number::New(args.GetIsolate(), v1 - v2));
 }
 
 // Returns a callable object. The object returns the difference of its two
