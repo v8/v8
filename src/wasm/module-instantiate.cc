@@ -231,7 +231,7 @@ class InstanceBuilder {
   // and globals.
   void ProcessExports(Handle<WasmInstanceObject> instance);
 
-  void InitializeTables(Handle<WasmInstanceObject> instance);
+  void InitializeIndirectFunctionTable(Handle<WasmInstanceObject> instance);
 
   void LoadTableSegments(Handle<WasmInstanceObject> instance);
 
@@ -422,7 +422,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Initialize the indirect tables.
   //--------------------------------------------------------------------------
   if (table_count > 0) {
-    InitializeTables(instance);
+    InitializeIndirectFunctionTable(instance);
   }
 
   //--------------------------------------------------------------------------
@@ -1594,16 +1594,15 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   }
 }
 
-void InstanceBuilder::InitializeTables(Handle<WasmInstanceObject> instance) {
-  size_t table_count = module_->tables.size();
-  for (size_t index = 0; index < table_count; ++index) {
-    const WasmTable& table = module_->tables[index];
+void InstanceBuilder::InitializeIndirectFunctionTable(
+    Handle<WasmInstanceObject> instance) {
+  DCHECK_GT(module_->tables.size(), 0);
 
-    if (!instance->has_indirect_function_table() &&
-        table.type == kWasmAnyFunc) {
-      WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
-          instance, table.initial_size);
-    }
+  const WasmTable& table = module_->tables[0];
+
+  if (!instance->has_indirect_function_table() && table.type == kWasmAnyFunc) {
+    WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
+        instance, table.initial_size);
   }
 }
 
