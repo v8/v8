@@ -94,6 +94,16 @@ class WasmGCForegroundTask : public Task {
     DCHECK_NOT_NULL(isolate);
   }
 
+  ~WasmGCForegroundTask() {
+    // If the isolate is already shutting down, the platform can delete this
+    // task without ever executing it. For that case, we need to deregister the
+    // task from the engine to avoid UAF.
+    if (isolate_) {
+      WasmEngine* engine = isolate_->wasm_engine();
+      engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
+    }
+  }
+
   void Run() final {
     if (isolate_ == nullptr) return;  // cancelled.
     WasmEngine* engine = isolate_->wasm_engine();
@@ -105,6 +115,8 @@ class WasmGCForegroundTask : public Task {
     }
 #endif
     engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
+    // Cancel to signal to the destructor that this task executed.
+    Cancel();
   }
 
   void Cancel() { isolate_ = nullptr; }
