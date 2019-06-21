@@ -1717,6 +1717,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               fixed_array_map);
   }
 
+  TNode<Map> GetStructMap(InstanceType instance_type);
+
   TNode<FixedArray> AllocateUninitializedFixedArray(intptr_t capacity) {
     return UncheckedCast<FixedArray>(AllocateFixedArray(
         PACKED_ELEMENTS, IntPtrConstant(capacity), AllocationFlag::kNone));

@@ -256,9 +256,8 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
   } else if (instruction.intrinsic->ExternalName() == "%Allocate") {
     out_ << "ca_.UncheckedCast<" << return_type->GetGeneratedTNodeTypeName()
          << ">(CodeStubAssembler(state_).Allocate";
-  } else if (instruction.intrinsic->ExternalName() ==
-             "%AllocateInternalClass") {
-    out_ << "CodeStubAssembler(state_).AllocateUninitializedFixedArray";
+  } else if (instruction.intrinsic->ExternalName() == "%GetStructMap") {
+    out_ << "CodeStubAssembler(state_).GetStructMap";
   } else {
     ReportError("no built in intrinsic with name " +
                 instruction.intrinsic->ExternalName());
@@ -717,12 +716,8 @@ void CSAGenerator::EmitInstruction(
 
   out_ << "    compiler::TNode<IntPtrT> " << offset_name
        << " = ca_.IntPtrConstant(";
-  if (instruction.class_type->IsExtern()) {
     out_ << field.aggregate->GetGeneratedTNodeTypeName() << "::k"
          << CamelifyString(field.name_and_type.name) << "Offset";
-  } else {
-    out_ << "FixedArray::kHeaderSize + " << field.offset;
-  }
   out_ << ");\n"
        << "    USE(" << stack->Top() << ");\n";
 }

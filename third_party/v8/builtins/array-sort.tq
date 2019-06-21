@@ -14,7 +14,7 @@
 // https://github.com/python/cpython/blob/master/Objects/listsort.txt
 
 namespace array {
-  class SortState {
+  class SortState extends Struct {
     Compare(implicit context: Context)(x: Object, y: Object): Number {
       const sortCompare: CompareBuiltinFn = this.sortComparePtr;
       return sortCompare(context, this.userCmpFn, x, y);

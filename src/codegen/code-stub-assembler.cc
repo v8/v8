@@ -1473,6 +1473,12 @@ TNode<Float64T> CodeStubAssembler::LoadHeapNumberValue(
       object, HeapNumber::kValueOffset, MachineType::Float64()));
 }
 
+TNode<Map> CodeStubAssembler::GetStructMap(InstanceType instance_type) {
+  Handle<Map> map_handle(Map::GetStructMap(isolate(), instance_type),
+                         isolate());
+  return HeapConstant(map_handle);
+}
+
 TNode<Map> CodeStubAssembler::LoadMap(SloppyTNode<HeapObject> object) {
   return UncheckedCast<Map>(LoadObjectField(object, HeapObject::kMapOffset,
                                             MachineType::TaggedPointer()));

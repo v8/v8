@@ -73,6 +73,9 @@ class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
 class WasmDebugInfo;
 class Zone;
+#define MAKE_FORWARD_DECLARATION(V, NAME, Name, name) class Name;
+TORQUE_STRUCT_LIST_GENERATOR(MAKE_FORWARD_DECLARATION, UNUSED)
+#undef MAKE_FORWARD_DECLARATION
 
 template <typename T>
 class Signature;

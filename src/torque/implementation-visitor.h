@@ -174,7 +174,7 @@ class LocationReference {
 
 struct InitializerResults {
   std::vector<Identifier*> names;
-  NameValueMap field_value_map;
+  std::map<std::string, VisitResult> field_value_map;
 };
 
 template <class T>
@@ -352,9 +352,11 @@ class ImplementationVisitor {
   void GenerateClassFieldOffsets(const std::string& output_directory);
   void GeneratePrintDefinitions(const std::string& output_directory);
   void GenerateClassDefinitions(const std::string& output_directory);
+  void GenerateInstanceTypes(const std::string& output_directory);
   void GenerateClassVerifiers(const std::string& output_directory);
   void GenerateExportedMacrosAssembler(const std::string& output_directory);
   void GenerateCSATypes(const std::string& output_directory);
+  void GenerateCppForInternalClasses(const std::string& output_directory);
 
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);

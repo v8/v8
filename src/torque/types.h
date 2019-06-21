@@ -282,6 +282,8 @@ class V8_EXPORT_PRIVATE BuiltinPointerType final : public Type {
   }
   size_t function_pointer_type_id() const { return function_pointer_type_id_; }
 
+  std::vector<std::string> GetRuntimeTypes() const override { return {"Smi"}; }
+
  private:
   friend class TypeOracle;
   BuiltinPointerType(const Type* parent, TypeVector parameter_types,
@@ -526,10 +528,10 @@ class ClassType final : public AggregateType {
   std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsExtern() const { return flags_ & ClassFlag::kExtern; }
   bool ShouldGeneratePrint() const {
-    return flags_ & ClassFlag::kGeneratePrint;
+    return flags_ & ClassFlag::kGeneratePrint || !IsExtern();
   }
   bool ShouldGenerateVerify() const {
-    return flags_ & ClassFlag::kGenerateVerify;
+    return flags_ & ClassFlag::kGenerateVerify || !IsExtern();
   }
   bool IsTransient() const override { return flags_ & ClassFlag::kTransient; }
   bool IsAbstract() const { return flags_ & ClassFlag::kAbstract; }
@@ -540,7 +542,7 @@ class ClassType final : public AggregateType {
     return flags_ & ClassFlag::kHasSameInstanceTypeAsParent;
   }
   bool GenerateCppClassDefinitions() const {
-    return flags_ & ClassFlag::kGenerateCppClassDefinitions;
+    return flags_ & ClassFlag::kGenerateCppClassDefinitions || !IsExtern();
   }
   bool HasIndexedField() const override;
   size_t size() const { return size_; }
@@ -605,8 +607,6 @@ class VisitResult {
   base::Optional<std::string> constexpr_value_;
   base::Optional<StackRange> stack_range_;
 };
-
-using NameValueMap = std::map<std::string, VisitResult>;
 
 VisitResult ProjectStructField(VisitResult structure,
                                const std::string& fieldname);

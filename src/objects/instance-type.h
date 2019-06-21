@@ -11,6 +11,8 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
+#include "torque-generated/instance-types-tq.h"
+
 namespace v8 {
 namespace internal {
 
@@ -176,7 +178,11 @@ enum InstanceType : uint16_t {
   PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
   FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,  // LAST_MICROTASK_TYPE
 
-  ALLOCATION_SITE_TYPE,
+#define MAKE_TORQUE_INSTANCE_TYPE(V) V,
+  TORQUE_DEFINED_INSTANCE_TYPES(MAKE_TORQUE_INSTANCE_TYPE)
+#undef MAKE_TORQUE_INSTANCE_TYPE
+
+      ALLOCATION_SITE_TYPE,
   EMBEDDER_DATA_ARRAY_TYPE,
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE

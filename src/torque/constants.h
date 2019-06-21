@@ -18,6 +18,8 @@ static const char* const CONSTEXPR_TYPE_PREFIX = "constexpr ";
 static const char* const NEVER_TYPE_STRING = "never";
 static const char* const CONSTEXPR_BOOL_TYPE_STRING = "constexpr bool";
 static const char* const CONSTEXPR_INTPTR_TYPE_STRING = "constexpr intptr";
+static const char* const CONSTEXPR_INSTANCE_TYPE_TYPE_STRING =
+    "constexpr InstanceType";
 static const char* const BOOL_TYPE_STRING = "bool";
 static const char* const VOID_TYPE_STRING = "void";
 static const char* const ARGUMENTS_TYPE_STRING = "Arguments";

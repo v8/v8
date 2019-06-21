@@ -247,8 +247,7 @@ extern class DescriptorArray extends HeapObject {
 // than building the definition from C++.
 intrinsic %GetAllocationBaseSize<Class: type>(map: Map): intptr;
 intrinsic %Allocate<Class: type>(size: intptr): Class;
-intrinsic %AllocateInternalClass<Class: type>(slotCount: constexpr intptr):
-    Class;
+intrinsic %GetStructMap(instanceKind: constexpr InstanceType): Map;
 
 intrinsic %AddIndexedFieldSizeToObjectSize<T: type>(
     baseSize: intptr, indexSize: T, fieldSize: int32): intptr {

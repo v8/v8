@@ -1365,43 +1365,51 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
   InitializerResults initializer_results =
       VisitInitializerResults(class_type, expr->initializers);
 
-  // Output the code to generate an uninitialized object of the class size in
-  // the GC heap.
-  VisitResult allocate_result;
+  VisitResult object_map;
+  const Field& map_field = class_type->LookupField("map");
+  if (map_field.offset != 0) {
+    ReportError("class initializers must have a map as first parameter");
+  }
+  const std::map<std::string, VisitResult>& initializer_fields =
+      initializer_results.field_value_map;
+  auto it_object_map = initializer_fields.find(map_field.name_and_type.name);
   if (class_type->IsExtern()) {
-    const Field& map_field = class_type->LookupField("map");
-    if (map_field.offset != 0) {
-      ReportError(
-          "external classes initializers must have a map as first parameter");
-    }
-    NameValueMap initializer_fields = initializer_results.field_value_map;
-    if (initializer_fields.find(map_field.name_and_type.name) ==
-        initializer_fields.end()) {
+    if (it_object_map == initializer_fields.end()) {
       ReportError("Constructor for ", class_type->name(),
                   " needs Map argument!");
     }
-    VisitResult object_map = initializer_fields[map_field.name_and_type.name];
-    Arguments size_arguments;
-    size_arguments.parameters.push_back(object_map);
-    VisitResult object_size = GenerateCall("%GetAllocationBaseSize",
-                                           size_arguments, {class_type}, false);
-
-    object_size =
-        AddVariableObjectSize(object_size, class_type, initializer_results);
-
-    Arguments allocate_arguments;
-    allocate_arguments.parameters.push_back(object_size);
-    allocate_result =
-        GenerateCall("%Allocate", allocate_arguments, {class_type}, false);
-    DCHECK(allocate_result.IsOnStack());
+    object_map = it_object_map->second;
   } else {
-    Arguments allocate_arguments;
-    allocate_arguments.parameters.push_back(
-        VisitResult(TypeOracle::GetConstexprIntPtrType(),
-                    std::to_string(class_type->size() / kTaggedSize)));
-    allocate_result = GenerateCall("%AllocateInternalClass", allocate_arguments,
-                                   {class_type}, false);
+    if (it_object_map != initializer_fields.end()) {
+      ReportError(
+          "Constructor for ", class_type->name(),
+          " must not specify Map argument; it is automatically inserted.");
+    }
+    Arguments get_struct_map_arguments;
+    get_struct_map_arguments.parameters.push_back(
+        VisitResult(TypeOracle::GetConstexprInstanceTypeType(),
+                    CapifyStringWithUnderscores(class_type->name()) + "_TYPE"));
+    object_map =
+        GenerateCall("%GetStructMap", get_struct_map_arguments, {}, false);
+    CurrentSourcePosition::Scope current_pos(expr->pos);
+    initializer_results.names.insert(initializer_results.names.begin(),
+                                     MakeNode<Identifier>("map"));
+    initializer_results.field_value_map[map_field.name_and_type.name] =
+        object_map;
   }
+  Arguments size_arguments;
+  size_arguments.parameters.push_back(object_map);
+  VisitResult object_size = GenerateCall("%GetAllocationBaseSize",
+                                         size_arguments, {class_type}, false);
+
+  object_size =
+      AddVariableObjectSize(object_size, class_type, initializer_results);
+
+  Arguments allocate_arguments;
+  allocate_arguments.parameters.push_back(object_size);
+  VisitResult allocate_result =
+      GenerateCall("%Allocate", allocate_arguments, {class_type}, false);
+  DCHECK(allocate_result.IsOnStack());
 
   InitializeAggregate(class_type, allocate_result, initializer_results);
 
@@ -2929,8 +2937,80 @@ class MacroFieldOffsetsGenerator : public FieldOffsetsGenerator {
  private:
   std::ostream& out_;
 };
-
 }  // namespace
+
+void ImplementationVisitor::GenerateInstanceTypes(
+    const std::string& output_directory) {
+  std::stringstream header;
+  std::string file_name = "instance-types-tq.h";
+  {
+    IncludeGuardScope(header, file_name);
+
+    header << "#define TORQUE_DEFINED_INSTANCE_TYPES(V) \\\n";
+    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
+      const ClassType* type = ClassType::DynamicCast(alias->type());
+      if (type->IsExtern()) continue;
+      std::string type_name =
+          CapifyStringWithUnderscores(type->name()) + "_TYPE";
+      header << "  V(" << type_name << ") \\\n";
+    }
+    header << "\n\n";
+
+    header << "#define TORQUE_STRUCT_LIST_GENERATOR(V, _) \\\n";
+    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
+      const ClassType* type = ClassType::DynamicCast(alias->type());
+      if (type->IsExtern()) continue;
+      std::string type_name =
+          CapifyStringWithUnderscores(type->name()) + "_TYPE";
+      std::string variable_name = SnakeifyString(type->name());
+      header << "  V(_, " << type_name << ", " << type->name() << ", "
+             << variable_name << ") \\\n";
+    }
+    header << "\n";
+  }
+  std::string output_header_path = output_directory + "/" + file_name;
+  WriteFile(output_header_path, header.str());
+}
+
+void ImplementationVisitor::GenerateCppForInternalClasses(
+    const std::string& output_directory) {
+  std::stringstream header;
+  std::stringstream inl;
+  std::string base_name = "internal-class-definitions-tq";
+  {
+    IncludeGuardScope header_guard(header, base_name + ".h");
+    header << "#include \"src/objects/objects.h\"\n";
+    header << "#include \"src/objects/struct.h\"\n";
+    header << "#include \"src/objects/js-objects.h\"\n";
+    header << "#include \"src/utils/utils.h\"\n";
+    header << "#include \"torque-generated/class-definitions-tq.h\"\n";
+    IncludeObjectMacrosScope header_macros(header);
+    NamespaceScope header_namespaces(header, {"v8", "internal"});
+
+    IncludeGuardScope inl_guard(inl, base_name + "-inl.h");
+    inl << "#include \"torque-generated/" << base_name << ".h\"\n";
+    inl << "#include \"torque-generated/class-definitions-tq-inl.h\"\n";
+    IncludeObjectMacrosScope inl_macros(inl);
+    NamespaceScope inl_namespaces(inl, {"v8", "internal"});
+
+    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
+      const ClassType* type = ClassType::DynamicCast(alias->type());
+      if (type->IsExtern()) continue;
+      const ClassType* super = type->GetSuperClass();
+      std::string parent = "TorqueGenerated" + type->name() + "<" +
+                           type->name() + ", " + super->name() + ">";
+      header << "class " << type->name() << ": public " << parent << " {\n";
+      header << " public:\n";
+      header << "   TQ_OBJECT_CONSTRUCTORS(" << type->name() << ")\n";
+      header << "};\n\n";
+
+      inl << "TQ_OBJECT_CONSTRUCTORS_IMPL(" << type->name() << ")\n";
+    }
+  }
+  std::string dir_basename = output_directory + "/" + base_name;
+  WriteFile(dir_basename + ".h", header.str());
+  WriteFile(dir_basename + "-inl.h", inl.str());
+}
 
 void ImplementationVisitor::GenerateClassFieldOffsets(
     const std::string& output_directory) {
@@ -2941,7 +3021,6 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
 
     for (const TypeAlias* alias : GlobalContext::GetClasses()) {
       const ClassType* type = ClassType::DynamicCast(alias->type());
-      if (!type->IsExtern()) continue;
 
       // TODO(danno): Remove this once all classes use ClassFieldOffsetGenerator
       // to generate field offsets without the use of macros.
@@ -3273,14 +3352,18 @@ void ImplementationVisitor::GenerateClassDefinitions(
         << "#include \"torque-generated/class-definitions-tq.h\"\n\n";
     implementation << "#include \"torque-generated/class-verifiers-tq.h\"\n\n";
     implementation << "#include \"src/objects/struct-inl.h\"\n\n";
+    implementation
+        << "#include "
+           "\"torque-generated/internal-class-definitions-tq-inl.h\"\n\n";
     NamespaceScope implementation_namespaces(implementation,
                                              {"v8", "internal"});
 
     for (const TypeAlias* alias : GlobalContext::GetClasses()) {
       const ClassType* type = ClassType::DynamicCast(alias->type());
-      if (!type->GenerateCppClassDefinitions()) continue;
-      CppClassGenerator g(type, header, inline_header, implementation);
-      g.GenerateClass();
+      if (type->GenerateCppClassDefinitions()) {
+        CppClassGenerator g(type, header, inline_header, implementation);
+        g.GenerateClass();
+      }
     }
   }
   WriteFile(file_basename + ".h", header.str());
@@ -3320,6 +3403,8 @@ void ImplementationVisitor::GeneratePrintDefinitions(
 
     impl << "#include \"src/objects/objects.h\"\n\n";
     impl << "#include <iosfwd>\n\n";
+    impl << "#include "
+            "\"torque-generated/internal-class-definitions-tq-inl.h\"\n";
     impl << "#include \"src/objects/struct-inl.h\"\n\n";
     impl << "#include \"src/objects/template-objects-inl.h\"\n\n";
 
@@ -3329,7 +3414,7 @@ void ImplementationVisitor::GeneratePrintDefinitions(
       const ClassType* type = ClassType::DynamicCast(alias->type());
       if (!type->ShouldGeneratePrint()) continue;
 
-      if (type->IsExtern() && type->GenerateCppClassDefinitions()) {
+      if (type->GenerateCppClassDefinitions()) {
         const ClassType* super = type->GetSuperClass();
         std::string gen_name = "TorqueGenerated" + type->name();
         std::string gen_name_T =
@@ -3428,6 +3513,8 @@ void ImplementationVisitor::GenerateClassVerifiers(
       cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
     }
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
+    cc_contents << "#include "
+                   "\"torque-generated/internal-class-definitions-tq-inl.h\"\n";
 
     IncludeObjectMacrosScope object_macros(cc_contents);
 
@@ -3438,7 +3525,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
     h_contents << "class Isolate;\n";
     for (const TypeAlias* alias : GlobalContext::GetClasses()) {
       const ClassType* type = ClassType::DynamicCast(alias->type());
-      if (!type->IsExtern() || !type->ShouldGenerateVerify()) continue;
+      if (!type->ShouldGenerateVerify()) continue;
       h_contents << "class " << type->name() << ";\n";
     }
 
@@ -3450,7 +3537,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
     for (const TypeAlias* alias : GlobalContext::GetClasses()) {
       const ClassType* type = ClassType::DynamicCast(alias->type());
       std::string name = type->name();
-      if (!type->IsExtern() || !type->ShouldGenerateVerify()) continue;
+      if (!type->ShouldGenerateVerify()) continue;
 
       std::string method_name = name + "Verify";
 
@@ -3513,6 +3600,8 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     h_contents << "#include \"src/compiler/code-assembler.h\"\n";
     h_contents << "#include \"src/execution/frames.h\"\n";
     h_contents << "#include \"torque-generated/csa-types-tq.h\"\n";
+    h_contents
+        << "#include \"torque-generated/internal-class-definitions-tq.h\"\n";
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
 
     for (SourceId file : SourceFileMap::AllSources()) {

@@ -349,7 +349,7 @@ void ClassType::Finalize() const {
   TypeVisitor::VisitClassFieldsAndMethods(const_cast<ClassType*>(this),
                                           this->decl_);
   is_finalized_ = true;
-  if (GenerateCppClassDefinitions()) {
+  if (GenerateCppClassDefinitions() || !IsExtern()) {
     for (const Field& f : fields()) {
       if (f.is_weak) {
         Error("Generation of C++ class for Torque class ", name(),

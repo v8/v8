@@ -85,6 +85,21 @@ void Map::PrintReconfiguration(Isolate* isolate, FILE* file, int modify_index,
   os << "]\n";
 }
 
+Map Map::GetStructMap(Isolate* isolate, InstanceType type) {
+  Map map;
+  switch (type) {
+#define MAKE_CASE(TYPE, Name, name)            \
+  case TYPE:                                   \
+    map = ReadOnlyRoots(isolate).name##_map(); \
+    break;
+    STRUCT_LIST(MAKE_CASE)
+#undef MAKE_CASE
+    default:
+      UNREACHABLE();
+  }
+  return map;
+}
+
 VisitorId Map::GetVisitorId(Map map) {
   STATIC_ASSERT(kVisitorIdCount <= 256);
 

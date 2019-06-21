@@ -162,15 +162,24 @@ const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
     new_class = TypeOracle::GetClassType(super_type, decl->name->value,
                                          decl->flags, generates, decl, alias);
   } else {
-    if (decl->super) {
-      ReportError("Only extern classes can inherit.");
+    if (!decl->super) {
+      ReportError("Intern class ", decl->name->value,
+                  " must extend class Struct.");
+    }
+    const Type* super_type = TypeVisitor::ComputeType(*decl->super);
+    const ClassType* super_class = ClassType::DynamicCast(super_type);
+    const Type* struct_type = Declarations::LookupGlobalType("Struct");
+    if (!super_class || super_class != struct_type) {
+      ReportError("Intern class ", decl->name->value,
+                  " must extend class Struct.");
     }
     if (decl->generates) {
       ReportError("Only extern classes can specify a generated type.");
     }
-    new_class =
-        TypeOracle::GetClassType(TypeOracle::GetTaggedType(), decl->name->value,
-                                 decl->flags, "FixedArray", decl, alias);
+    new_class = TypeOracle::GetClassType(
+        super_type, decl->name->value,
+        decl->flags | ClassFlag::kGeneratePrint | ClassFlag::kGenerateVerify,
+        decl->name->value, decl, alias);
   }
   return new_class;
 }

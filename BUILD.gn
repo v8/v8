@@ -1024,6 +1024,7 @@ action("run_torque") {
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.cc",
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.h",
     "$target_gen_dir/torque-generated/csa-types-tq.h",
+    "$target_gen_dir/torque-generated/instance-types-tq.h",
   ]
   foreach(file, torque_files) {
     filetq = string_replace(file, ".tq", "-tq-csa")

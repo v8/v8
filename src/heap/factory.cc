@@ -1611,17 +1611,7 @@ Handle<Context> Factory::NewBuiltinContext(Handle<NativeContext> native_context,
 
 Handle<Struct> Factory::NewStruct(InstanceType type,
                                   AllocationType allocation) {
-  Map map;
-  switch (type) {
-#define MAKE_CASE(TYPE, Name, name) \
-  case TYPE:                        \
-    map = *name##_map();            \
-    break;
-    STRUCT_LIST(MAKE_CASE)
-#undef MAKE_CASE
-    default:
-      UNREACHABLE();
-  }
+  Map map = Map::GetStructMap(isolate(), type);
   int size = map.instance_size();
   HeapObject result = AllocateRawWithImmortalMap(size, allocation, map);
   Handle<Struct> str(Struct::cast(result), isolate());

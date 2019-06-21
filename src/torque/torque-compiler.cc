@@ -85,6 +85,8 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   implementation_visitor.GenerateClassVerifiers(output_directory);
   implementation_visitor.GenerateExportedMacrosAssembler(output_directory);
   implementation_visitor.GenerateCSATypes(output_directory);
+  implementation_visitor.GenerateInstanceTypes(output_directory);
+  implementation_visitor.GenerateCppForInternalClasses(output_directory);
 
   implementation_visitor.EndCSAFiles();
   implementation_visitor.GenerateImplementation(output_directory);

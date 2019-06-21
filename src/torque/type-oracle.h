@@ -107,6 +107,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(CONSTEXPR_INTPTR_TYPE_STRING);
   }
 
+  static const Type* GetConstexprInstanceTypeType() {
+    return Get().GetBuiltinType(CONSTEXPR_INSTANCE_TYPE_TYPE_STRING);
+  }
+
   static const Type* GetVoidType() {
     return Get().GetBuiltinType(VOID_TYPE_STRING);
   }

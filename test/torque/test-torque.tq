@@ -820,7 +820,7 @@ namespace test {
     check(a.b.GetX() == 2);
   }
 
-  class InternalClass {
+  class InternalClass extends Struct {
     Flip() labels NotASmi {
       const tmp = Cast<Smi>(this.b) otherwise NotASmi;
       this.b = this.a;
@@ -878,7 +878,7 @@ namespace test {
     return new FixedArray{map: kFixedArrayMap, length: 5, objects: ...i};
   }
 
-  class SmiPair {
+  class SmiPair extends Struct {
     GetA():&Smi {
       return & this.a;
     }
@@ -908,7 +908,7 @@ namespace test {
     StaticAssert(1 + 2 == 3);
   }
 
-  class SmiBox {
+  class SmiBox extends Struct {
     value: Smi;
     unrelated: Smi;
   }

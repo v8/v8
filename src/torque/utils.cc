@@ -246,6 +246,19 @@ std::string CamelifyString(const std::string& underscore_string) {
   return result;
 }
 
+std::string SnakeifyString(const std::string& camel_string) {
+  std::string result;
+  bool previousWasLower = false;
+  for (auto current : camel_string) {
+    if (previousWasLower && isupper(current)) {
+      result += "_";
+    }
+    result += tolower(current);
+    previousWasLower = (islower(current));
+  }
+  return result;
+}
+
 std::string DashifyString(const std::string& underscore_string) {
   std::string result = underscore_string;
   std::replace(result.begin(), result.end(), '_', '-');

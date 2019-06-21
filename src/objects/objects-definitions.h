@@ -7,6 +7,8 @@
 
 #include "src/init/heap-symbols.h"
 
+#include "torque-generated/instance-types-tq.h"
+
 namespace v8 {
 
 namespace internal {
@@ -114,6 +116,8 @@ namespace internal {
   V(PROMISE_REJECT_REACTION_JOB_TASK_TYPE)               \
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)              \
   V(FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE)            \
+                                                         \
+  TORQUE_DEFINED_INSTANCE_TYPES(V)                       \
                                                          \
   V(ALLOCATION_SITE_TYPE)                                \
   V(EMBEDDER_DATA_ARRAY_TYPE)                            \
@@ -347,14 +351,18 @@ namespace internal {
 #define STRUCT_LIST_ADAPTER(V, NAME, Name, name) V(NAME, Name, name)
 
 // Produces (NAME, Name, name) entries.
-#define STRUCT_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_LIST_ADAPTER, V)
+#define STRUCT_LIST(V)                          \
+  STRUCT_LIST_GENERATOR(STRUCT_LIST_ADAPTER, V) \
+  TORQUE_STRUCT_LIST_GENERATOR(STRUCT_LIST_ADAPTER, V)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_MAPS_LIST entry
 #define STRUCT_MAPS_LIST_ADAPTER(V, NAME, Name, name) \
   V(Map, name##_map, Name##Map)
 
 // Produces (Map, struct_name_map, StructNameMap) entries
-#define STRUCT_MAPS_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V)
+#define STRUCT_MAPS_LIST(V)                          \
+  STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V) \
+  TORQUE_STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V)
 
 //
 // The following macros define list of allocation size objects and list of
