@@ -1778,7 +1778,9 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
   // TODO(titzer): multiple tables in TableCopy
   CHECK_EQ(0, table_src_index);
   CHECK_EQ(0, table_dst_index);
-  auto max = instance->indirect_function_table_size();
+  auto table = handle(
+      WasmTableObject::cast(instance->tables().get(table_src_index)), isolate);
+  uint32_t max = static_cast<uint32_t>(table->entries().length());
   bool copy_backward = src < dst && dst - src < count;
   bool ok = ClampToBounds(dst, &count, max);
   // Use & instead of && so the clamp is not short-circuited.
@@ -1790,9 +1792,6 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
 
   if (dst == src || count == 0) return ok;  // no-op
 
-  // TODO(titzer): multiple tables in TableCopy
-  auto table = handle(
-      WasmTableObject::cast(instance->tables().get(table_src_index)), isolate);
   // Broadcast table copy operation to all instances that import this table.
   Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
   for (int i = 0; i < dispatch_tables->length();
