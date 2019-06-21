@@ -303,11 +303,17 @@ void HandlerBuiltinsAssembler::DispatchByElementsKind(
   Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
          arraysize(elements_kinds));
 
-#define ELEMENTS_KINDS_CASE(KIND) \
-  BIND(&if_##KIND);               \
-  {                               \
-    case_function(KIND);          \
-    Goto(&next);                  \
+#define ELEMENTS_KINDS_CASE(KIND)                                \
+  BIND(&if_##KIND);                                              \
+  {                                                              \
+    if (!FLAG_enable_sealed_frozen_elements_kind &&              \
+        IsFrozenOrSealedElementsKindUnchecked(KIND)) {           \
+      /* Disable support for frozen or sealed elements kinds. */ \
+      Unreachable();                                             \
+    } else {                                                     \
+      case_function(KIND);                                       \
+      Goto(&next);                                               \
+    }                                                            \
   }
   ELEMENTS_KINDS(ELEMENTS_KINDS_CASE)
 #undef ELEMENTS_KINDS_CASE
