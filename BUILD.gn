@@ -2151,6 +2151,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/diagnostics/code-tracer.h",
     "src/diagnostics/compilation-statistics.cc",
     "src/diagnostics/compilation-statistics.h",
+    "src/diagnostics/crash-key.h",
     "src/diagnostics/disasm.h",
     "src/diagnostics/disassembler.cc",
     "src/diagnostics/disassembler.h",
@@ -3292,10 +3293,33 @@ v8_source_set("v8_base_without_compiler") {
   }
 }
 
+v8_source_set("v8_crash_keys") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  # TODO(irinayat): crash_key brings dependency on //base and memory allocators,
+  # which causes linker errors picking up memory shims on Android. Figure out
+  # how to make this work so android could also collect crash keys.
+  if (build_with_chromium && !is_android) {
+    deps = [
+      "//components/crash/core/common:crash_key",
+    ]
+    sources = [
+          "src/diagnostics/crash-key.cc",
+    ]
+  } else {
+    sources = [
+          "src/diagnostics/crash-key-noop.cc",
+    ]
+  }
+
+configs = [ ":internal_config" ]
+}
+
 group("v8_base") {
   public_deps = [
     ":v8_base_without_compiler",
     ":v8_compiler",
+    ":v8_crash_keys",
   ]
 }
 
@@ -3777,6 +3801,7 @@ if (v8_use_snapshot && current_toolchain == v8_snapshot_toolchain) {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     sources = [
+      "src/diagnostics/crash-key-noop.cc",
       "src/snapshot/embedded/embedded-file-writer.cc",
       "src/snapshot/embedded/embedded-file-writer.h",
       "src/snapshot/embedded/platform-embedded-file-writer-aix.cc",
