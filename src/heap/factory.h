@@ -776,12 +776,11 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<UncompiledDataWithoutPreparseData>
   NewUncompiledDataWithoutPreparseData(Handle<String> inferred_name,
                                        int32_t start_position,
-                                       int32_t end_position,
-                                       int32_t function_literal_id);
+                                       int32_t end_position);
 
   Handle<UncompiledDataWithPreparseData> NewUncompiledDataWithPreparseData(
       Handle<String> inferred_name, int32_t start_position,
-      int32_t end_position, int32_t function_literal_id, Handle<PreparseData>);
+      int32_t end_position, Handle<PreparseData>);
 
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);

@@ -2093,7 +2093,6 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   UncompiledData uncompiled_data = UncompiledData::cast(compiled_data);
   UncompiledData::Initialize(
       uncompiled_data, inferred_name, start_position, end_position,
-      kFunctionLiteralIdInvalid,
       [](HeapObject object, ObjectSlot slot, HeapObject target) {
         RecordSlot(object, slot, target);
       });

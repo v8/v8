@@ -1119,13 +1119,11 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     UpdatePositions(isolate, sfi, diffs);
 
     sfi->set_script(*new_script);
-    if (sfi->HasUncompiledData()) {
-      sfi->uncompiled_data().set_function_literal_id(
-          mapping.second->function_literal_id());
-    }
+    sfi->set_function_literal_id(mapping.second->function_literal_id());
     new_script->shared_function_infos().Set(
         mapping.second->function_literal_id(), HeapObjectReference::Weak(*sfi));
-    DCHECK_EQ(sfi->FunctionLiteralId(), mapping.second->function_literal_id());
+    DCHECK_EQ(sfi->function_literal_id(),
+              mapping.second->function_literal_id());
 
     // Save the new start_position -> id mapping, so that we can recover it when
     // iterating over changed functions' constant pools.
@@ -1222,7 +1220,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     std::set<int> start_positions;
     for (SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
       DCHECK_EQ(sfi.script(), *new_script);
-      DCHECK_EQ(sfi.FunctionLiteralId(), it.CurrentIndex());
+      DCHECK_EQ(sfi.function_literal_id(), it.CurrentIndex());
       // Don't check the start position of the top-level function, as it can
       // overlap with a function in the script.
       if (sfi.is_toplevel()) {
@@ -1242,7 +1240,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
             SharedFunctionInfo::cast(constants.get(i));
         DCHECK_EQ(inner_sfi.script(), *new_script);
         DCHECK_EQ(inner_sfi, new_script->shared_function_infos()
-                                 .Get(inner_sfi.FunctionLiteralId())
+                                 .Get(inner_sfi.function_literal_id())
                                  ->GetHeapObject());
       }
     }

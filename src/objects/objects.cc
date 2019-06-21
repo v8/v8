@@ -4862,7 +4862,7 @@ const char* SharedFunctionInfo::kTraceScope =
 
 uint64_t SharedFunctionInfo::TraceID(FunctionLiteral* literal) const {
   int literal_id =
-      literal ? literal->function_literal_id() : FunctionLiteralId();
+      literal ? literal->function_literal_id() : function_literal_id();
   Script script = Script::cast(this->script());
   return (static_cast<uint64_t>(script.id() + 1) << 32) |
          (static_cast<uint64_t>(literal_id));
@@ -5141,7 +5141,6 @@ void SharedFunctionInfo::DiscardCompiled(
       handle(shared_info->inferred_name(), isolate);
   int start_position = shared_info->StartPosition();
   int end_position = shared_info->EndPosition();
-  int function_literal_id = shared_info->FunctionLiteralId();
 
   shared_info->DiscardCompiledMetadata(isolate);
 
@@ -5156,8 +5155,7 @@ void SharedFunctionInfo::DiscardCompiled(
     // validity checks, since we're performing the unusual task of decompiling.
     Handle<UncompiledData> data =
         isolate->factory()->NewUncompiledDataWithoutPreparseData(
-            inferred_name_val, start_position, end_position,
-            function_literal_id);
+            inferred_name_val, start_position, end_position);
     shared_info->set_function_data(*data);
   }
 }
@@ -5266,27 +5264,6 @@ bool SharedFunctionInfo::IsInlineable() {
 
 int SharedFunctionInfo::SourceSize() { return EndPosition() - StartPosition(); }
 
-int SharedFunctionInfo::FindIndexInScript() const {
-  DisallowHeapAllocation no_gc;
-
-  Object script_obj = script();
-  if (!script_obj.IsScript()) return kFunctionLiteralIdInvalid;
-
-  WeakFixedArray shared_info_list =
-      Script::cast(script_obj).shared_function_infos();
-  SharedFunctionInfo::ScriptIterator iterator(
-      Handle<WeakFixedArray>(reinterpret_cast<Address*>(&shared_info_list)));
-
-  for (SharedFunctionInfo shared = iterator.Next(); !shared.is_null();
-       shared = iterator.Next()) {
-    if (shared == *this) {
-      return iterator.CurrentIndex();
-    }
-  }
-
-  return kFunctionLiteralIdInvalid;
-}
-
 // Output the source code without any allocation in the heap.
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
   const SharedFunctionInfo s = v.value;
@@ -5357,6 +5334,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   shared_info->set_language_mode(lit->language_mode());
   shared_info->set_is_wrapped(lit->is_wrapped());
+  shared_info->set_function_literal_id(lit->function_literal_id());
   //  shared_info->set_kind(lit->kind());
   // FunctionKind must have already been set.
   DCHECK(lit->kind() == shared_info->kind());
@@ -5401,7 +5379,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
       Handle<UncompiledData> data =
           isolate->factory()->NewUncompiledDataWithPreparseData(
               lit->inferred_name(), lit->start_position(), lit->end_position(),
-              lit->function_literal_id(), preparse_data);
+              preparse_data);
       shared_info->set_uncompiled_data(*data);
       needs_position_info = false;
     }
@@ -5410,8 +5388,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   if (needs_position_info) {
     Handle<UncompiledData> data =
         isolate->factory()->NewUncompiledDataWithoutPreparseData(
-            lit->inferred_name(), lit->start_position(), lit->end_position(),
-            lit->function_literal_id());
+            lit->inferred_name(), lit->start_position(), lit->end_position());
     shared_info->set_uncompiled_data(*data);
   }
 }
@@ -5500,21 +5477,6 @@ int SharedFunctionInfo::EndPosition() const {
     return 0;
   }
   return kNoSourcePosition;
-}
-
-int SharedFunctionInfo::FunctionLiteralId() const {
-  // Fast path for the common case when the SFI is uncompiled and so the
-  // function literal id is already in the uncompiled data.
-  if (HasUncompiledData() && uncompiled_data().has_function_literal_id()) {
-    int id = uncompiled_data().function_literal_id();
-    // Make sure the id is what we should have found with the slow path.
-    DCHECK_EQ(id, FindIndexInScript());
-    return id;
-  }
-
-  // Otherwise, search for the function in the SFI's script's function list,
-  // and return its index in that list.
-  return FindIndexInScript();
 }
 
 void SharedFunctionInfo::SetPosition(int start_position, int end_position) {

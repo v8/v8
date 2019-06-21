@@ -2583,15 +2583,14 @@ Handle<PreparseData> Factory::NewPreparseData(int data_length,
 Handle<UncompiledDataWithoutPreparseData>
 Factory::NewUncompiledDataWithoutPreparseData(Handle<String> inferred_name,
                                               int32_t start_position,
-                                              int32_t end_position,
-                                              int32_t function_literal_id) {
+                                              int32_t end_position) {
   Handle<UncompiledDataWithoutPreparseData> result(
       UncompiledDataWithoutPreparseData::cast(New(
           uncompiled_data_without_preparse_data_map(), AllocationType::kOld)),
       isolate());
 
   UncompiledData::Initialize(*result, *inferred_name, start_position,
-                             end_position, function_literal_id);
+                             end_position);
   return result;
 }
 
@@ -2599,7 +2598,6 @@ Handle<UncompiledDataWithPreparseData>
 Factory::NewUncompiledDataWithPreparseData(Handle<String> inferred_name,
                                            int32_t start_position,
                                            int32_t end_position,
-                                           int32_t function_literal_id,
                                            Handle<PreparseData> preparse_data) {
   Handle<UncompiledDataWithPreparseData> result(
       UncompiledDataWithPreparseData::cast(
@@ -2607,8 +2605,7 @@ Factory::NewUncompiledDataWithPreparseData(Handle<String> inferred_name,
       isolate());
 
   UncompiledDataWithPreparseData::Initialize(
-      *result, *inferred_name, start_position, end_position,
-      function_literal_id, *preparse_data);
+      *result, *inferred_name, start_position, end_position, *preparse_data);
 
   return result;
 }

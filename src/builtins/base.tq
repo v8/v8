@@ -571,6 +571,7 @@ extern class SharedFunctionInfo extends HeapObject {
   expected_nof_properties: uint16;
   function_token_offset: int16;
   flags: int32;
+  function_literal_id: int32;
   @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
 }
 
