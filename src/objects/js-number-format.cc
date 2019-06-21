@@ -1505,8 +1505,18 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
   return result;
 }
 
+namespace {
+
+struct CheckNumberElements {
+  static const char* key() { return "NumberElements"; }
+  static const char* path() { return nullptr; }
+};
+
+}  // namespace
+
 const std::set<std::string>& JSNumberFormat::GetAvailableLocales() {
-  static base::LazyInstance<Intl::AvailableLocales<icu::NumberFormat>>::type
+  static base::LazyInstance<
+      Intl::AvailableLocales<icu::NumberFormat, CheckNumberElements>>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }

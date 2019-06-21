@@ -379,11 +379,20 @@ MaybeHandle<JSArray> JSListFormat::FormatListToParts(
                                    FormattedListToJSArray);
 }
 
+namespace {
+
+struct CheckListPattern {
+  static const char* key() { return "listPattern"; }
+  static const char* path() { return nullptr; }
+};
+
+}  // namespace
+
 const std::set<std::string>& JSListFormat::GetAvailableLocales() {
-  // Since ListFormatter does not have a method to list all supported
-  // locales, use the one in icu::Locale per comments in
-  // ICU FR at https://unicode-org.atlassian.net/browse/ICU-20015
-  return Intl::GetAvailableLocalesForLocale();
+  static base::LazyInstance<
+      Intl::AvailableLocales<icu::Locale, CheckListPattern>>::type
+      available_locales = LAZY_INSTANCE_INITIALIZER;
+  return available_locales.Pointer()->Get();
 }
 
 }  // namespace internal

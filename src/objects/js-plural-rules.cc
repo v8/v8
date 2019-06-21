@@ -289,13 +289,39 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
   return options;
 }
 
+namespace {
+
+class PluralRulesAvailableLocales {
+ public:
+  PluralRulesAvailableLocales() {
+    UErrorCode status = U_ZERO_ERROR;
+    std::unique_ptr<icu::StringEnumeration> locales(
+        icu::PluralRules::getAvailableLocales(status));
+    CHECK(U_SUCCESS(status));
+    int32_t len = 0;
+    const char* locale = nullptr;
+    while ((locale = locales->next(&len, status)) != nullptr &&
+           U_SUCCESS(status)) {
+      std::string str(locale);
+      if (len > 3) {
+        std::replace(str.begin(), str.end(), '_', '-');
+      }
+      set_.insert(std::move(str));
+    }
+  }
+  const std::set<std::string>& Get() const { return set_; }
+
+ private:
+  std::set<std::string> set_;
+};
+
+}  // namespace
+
 const std::set<std::string>& JSPluralRules::GetAvailableLocales() {
-  // TODO(ftang): For PluralRules, filter out locales that
-  // don't support PluralRules.
-  // PluralRules is missing an appropriate getAvailableLocales method,
-  // so we should filter from all locales, but it's not clear how; see
-  // https://ssl.icu-project.org/trac/ticket/12756
-  return Intl::GetAvailableLocalesForLocale();
+  static base::LazyInstance<PluralRulesAvailableLocales>::type
+      available_locales = LAZY_INSTANCE_INITIALIZER;
+  return available_locales.Pointer()->Get();
+  // return Intl::GetAvailableLocalesForLocale();
 }
 
 }  // namespace internal

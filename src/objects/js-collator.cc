@@ -15,7 +15,9 @@
 #include "unicode/locid.h"
 #include "unicode/strenum.h"
 #include "unicode/ucol.h"
+#include "unicode/udata.h"
 #include "unicode/uloc.h"
+#include "unicode/utypes.h"
 
 namespace v8 {
 namespace internal {
@@ -475,9 +477,20 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   return collator;
 }
 
+namespace {
+
+struct CheckColl {
+  static const char* key() { return nullptr; }
+#define U_ICUDATA_COLL U_ICUDATA_NAME U_TREE_SEPARATOR_STRING "coll"
+  static const char* path() { return U_ICUDATA_COLL; }
+#undef U_ICUDATA_COLL
+};
+
+}  // namespace
+
 const std::set<std::string>& JSCollator::GetAvailableLocales() {
-  static base::LazyInstance<Intl::AvailableLocales<icu::Collator>>::type
-      available_locales = LAZY_INSTANCE_INITIALIZER;
+  static base::LazyInstance<Intl::AvailableLocales<icu::Collator, CheckColl>>::
+      type available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }
 

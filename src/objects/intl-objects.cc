@@ -38,6 +38,7 @@
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
 #include "unicode/timezone.h"
+#include "unicode/ures.h"
 #include "unicode/ustring.h"
 #include "unicode/uvernum.h"  // U_ICU_VERSION_MAJOR_NUM
 
@@ -502,23 +503,59 @@ bool RemoveLocaleScriptTag(const std::string& icu_locale,
   return true;
 }
 
+bool ValidateResource(const icu::Locale locale, const char* path,
+                      const char* key) {
+  bool result = false;
+  UErrorCode status = U_ZERO_ERROR;
+  UResourceBundle* bundle = ures_open(path, locale.getName(), &status);
+  if (bundle != nullptr && status == U_ZERO_ERROR) {
+    if (key == nullptr) {
+      result = true;
+    } else {
+      UResourceBundle* key_bundle =
+          ures_getByKey(bundle, key, nullptr, &status);
+      result = key_bundle != nullptr && (status == U_ZERO_ERROR);
+      ures_close(key_bundle);
+    }
+  }
+  ures_close(bundle);
+  if (!result) {
+    if ((locale.getCountry()[0] != '\0') && (locale.getScript()[0] != '\0')) {
+      // Fallback to try without country.
+      std::string without_country(locale.getLanguage());
+      without_country = without_country.append("-").append(locale.getScript());
+      return ValidateResource(without_country.c_str(), path, key);
+    } else if ((locale.getCountry()[0] != '\0') ||
+               (locale.getScript()[0] != '\0')) {
+      // Fallback to try with only language.
+      std::string language(locale.getLanguage());
+      return ValidateResource(language.c_str(), path, key);
+    }
+  }
+  return result;
+}
+
 }  // namespace
 
 std::set<std::string> Intl::BuildLocaleSet(
-    const icu::Locale* icu_available_locales, int32_t count) {
+    const icu::Locale* icu_available_locales, int32_t count, const char* path,
+    const char* validate_key) {
   std::set<std::string> locales;
   for (int32_t i = 0; i < count; ++i) {
     std::string locale =
         Intl::ToLanguageTag(icu_available_locales[i]).FromJust();
+    if (path != nullptr || validate_key != nullptr) {
+      if (!ValidateResource(icu_available_locales[i], path, validate_key)) {
+        continue;
+      }
+    }
     locales.insert(locale);
-
     std::string shortened_locale;
     if (RemoveLocaleScriptTag(locale, &shortened_locale)) {
       std::replace(shortened_locale.begin(), shortened_locale.end(), '_', '-');
       locales.insert(shortened_locale);
     }
   }
-
   return locales;
 }
 
@@ -1908,8 +1945,18 @@ const std::set<std::string>& Intl::GetAvailableLocalesForLocale() {
   return available_locales.Pointer()->Get();
 }
 
+namespace {
+
+struct CheckCalendar {
+  static const char* key() { return "calendar"; }
+  static const char* path() { return nullptr; }
+};
+
+}  // namespace
+
 const std::set<std::string>& Intl::GetAvailableLocalesForDateFormat() {
-  static base::LazyInstance<Intl::AvailableLocales<icu::DateFormat>>::type
+  static base::LazyInstance<
+      Intl::AvailableLocales<icu::DateFormat, CheckCalendar>>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }

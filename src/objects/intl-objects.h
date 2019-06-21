@@ -49,7 +49,8 @@ class Intl {
   // script; eg, pa_Guru_IN (language=Panjabi, script=Gurmukhi, country-India)
   // would include pa_IN.
   static std::set<std::string> BuildLocaleSet(
-      const icu::Locale* icu_available_locales, int32_t count);
+      const icu::Locale* icu_available_locales, int32_t count, const char* path,
+      const char* validate_key);
 
   static Maybe<std::string> ToLanguageTag(const icu::Locale& locale);
 
@@ -281,20 +282,26 @@ class Intl {
 
   // A helper template to implement the GetAvailableLocales
   // Usage in src/objects/js-XXX.cc
-  //
   // const std::set<std::string>& JSXxx::GetAvailableLocales() {
   //   static base::LazyInstance<Intl::AvailableLocales<icu::YYY>>::type
   //       available_locales = LAZY_INSTANCE_INITIALIZER;
   //   return available_locales.Pointer()->Get();
   // }
-  template <typename T>
+
+  struct SkipResourceCheck {
+    static const char* key() { return nullptr; }
+    static const char* path() { return nullptr; }
+  };
+
+  template <typename T, typename C = SkipResourceCheck>
   class AvailableLocales {
    public:
     AvailableLocales() {
       int32_t num_locales = 0;
       const icu::Locale* icu_available_locales =
           T::getAvailableLocales(num_locales);
-      set = Intl::BuildLocaleSet(icu_available_locales, num_locales);
+      set = Intl::BuildLocaleSet(icu_available_locales, num_locales, C::path(),
+                                 C::key());
     }
     virtual ~AvailableLocales() {}
     const std::set<std::string>& Get() const { return set; }
