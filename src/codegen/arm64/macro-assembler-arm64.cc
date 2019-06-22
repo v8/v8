@@ -1865,7 +1865,9 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   }
 
   if (CanUseNearCallOrJump(rmode)) {
-    JumpHelper(static_cast<int64_t>(AddCodeTarget(code)), rmode, cond);
+    EmbeddedObjectIndex index = AddEmbeddedObject(code);
+    DCHECK(is_int32(index));
+    JumpHelper(static_cast<int64_t>(index), rmode, cond);
   } else {
     Jump(code.address(), rmode, cond);
   }
@@ -1911,7 +1913,9 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
   }
 
   if (CanUseNearCallOrJump(rmode)) {
-    near_call(AddCodeTarget(code), rmode);
+    EmbeddedObjectIndex index = AddEmbeddedObject(code);
+    DCHECK(is_int32(index));
+    near_call(static_cast<int32_t>(index), rmode);
   } else {
     IndirectCall(code.address(), rmode);
   }
