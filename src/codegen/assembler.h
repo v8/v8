@@ -36,6 +36,7 @@
 #define V8_CODEGEN_ASSEMBLER_H_
 
 #include <forward_list>
+#include <unordered_map>
 
 #include "src/base/memory.h"
 #include "src/codegen/code-comments.h"
@@ -334,6 +335,13 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // assembler adds the object into this vector using AddEmbeddedObject, and
   // may then refer to the heap object using the handle's index in this vector.
   std::vector<Handle<HeapObject>> embedded_objects_;
+
+  // Embedded objects are deduplicated based on handle location. This is a
+  // compromise that is almost as effective as deduplication based on actual
+  // heap object addresses maintains GC safety.
+  std::unordered_map<Handle<HeapObject>, EmbeddedObjectIndex,
+                     Handle<HeapObject>::hash, Handle<HeapObject>::equal_to>
+      embedded_objects_map_;
 
   const AssemblerOptions options_;
   uint64_t enabled_cpu_features_;
