@@ -2943,6 +2943,31 @@ TEST(StoreToConstantField_StoreIC) {
   TestStoreToConstantField_NaN(store_func_source, 2);
 }
 
+TEST(NormalizeToMigrationTarget) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  CHECK(
+      isolate->native_context()->normalized_map_cache().IsNormalizedMapCache());
+
+  Handle<Map> base_map = Map::Create(isolate, 4);
+
+  Handle<Map> existing_normalized_map = Map::Normalize(
+      isolate, base_map, PropertyNormalizationMode::CLEAR_INOBJECT_PROPERTIES,
+      "Test_NormalizeToMigrationTarget_ExistingMap");
+  existing_normalized_map->set_is_migration_target(true);
+
+  // Normalizing a second map should hit the normalized map cache, including it
+  // being OK for the new map to be a migration target.
+  CHECK(!base_map->is_migration_target());
+  Handle<Map> new_normalized_map = Map::Normalize(
+      isolate, base_map, PropertyNormalizationMode::CLEAR_INOBJECT_PROPERTIES,
+      "Test_NormalizeToMigrationTarget_NewMap");
+  CHECK_EQ(*existing_normalized_map, *new_normalized_map);
+  CHECK(new_normalized_map->is_migration_target());
+}
+
 }  // namespace test_field_type_tracking
 }  // namespace compiler
 }  // namespace internal

@@ -1472,8 +1472,12 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       // The IsInRetainedMapListBit might be different if the {new_map}
       // that we got from the {cache} was already embedded into optimized
       // code somewhere.
-      DCHECK_EQ(fresh->bit_field3() & ~IsInRetainedMapListBit::kMask,
-                new_map->bit_field3() & ~IsInRetainedMapListBit::kMask);
+      // The IsMigrationTargetBit might be different if the {new_map} from
+      // {cache} has already been marked as a migration target.
+      constexpr int ignored_bit_field3_bits =
+          IsInRetainedMapListBit::kMask | IsMigrationTargetBit::kMask;
+      DCHECK_EQ(fresh->bit_field3() & ~ignored_bit_field3_bits,
+                new_map->bit_field3() & ~ignored_bit_field3_bits);
       int offset = Map::kBitField3Offset + kInt32Size;
       DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address() + offset),
                           reinterpret_cast<void*>(new_map->address() + offset),
@@ -1499,9 +1503,9 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       cache->Set(fast_map, new_map);
       isolate->counters()->maps_normalized()->Increment();
     }
-    if (FLAG_trace_maps) {
-      LOG(isolate, MapEvent("Normalize", *fast_map, *new_map, reason));
-    }
+  }
+  if (FLAG_trace_maps) {
+    LOG(isolate, MapEvent("Normalize", *fast_map, *new_map, reason));
   }
   fast_map->NotifyLeafMapLayoutChange(isolate);
   return new_map;
