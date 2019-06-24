@@ -283,7 +283,7 @@ class JSObjectData : public HeapObjectData {
   bool cow_or_empty_elements_tenured() const;
 
  private:
-  void SerializeRecursive(JSHeapBroker* broker, int max_depths);
+  void SerializeRecursiveAsBoilerplate(JSHeapBroker* broker, int max_depths);
 
   FixedArrayBaseData* elements_ = nullptr;
   bool cow_or_empty_elements_tenured_ = false;
@@ -1663,7 +1663,7 @@ bool JSObjectData::cow_or_empty_elements_tenured() const {
 FixedArrayBaseData* JSObjectData::elements() const { return elements_; }
 
 void JSObjectData::SerializeAsBoilerplate(JSHeapBroker* broker) {
-  SerializeRecursive(broker, kMaxFastLiteralDepth);
+  SerializeRecursiveAsBoilerplate(broker, kMaxFastLiteralDepth);
 }
 
 void JSObjectData::SerializeElements(JSHeapBroker* broker) {
@@ -1766,11 +1766,13 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
                                      << contents.size() << " total)");
 }
 
-void JSObjectData::SerializeRecursive(JSHeapBroker* broker, int depth) {
+void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
+                                                   int depth) {
   if (serialized_as_boilerplate_) return;
   serialized_as_boilerplate_ = true;
 
-  TraceScope tracer(broker, this, "JSObjectData::SerializeRecursive");
+  TraceScope tracer(broker, this,
+                    "JSObjectData::SerializeRecursiveAsBoilerplate");
   Handle<JSObject> boilerplate = Handle<JSObject>::cast(object());
 
   // We only serialize boilerplates that pass the IsInlinableFastLiteral
@@ -1816,7 +1818,8 @@ void JSObjectData::SerializeRecursive(JSHeapBroker* broker, int depth) {
       Handle<Object> value(fast_elements->get(i), isolate);
       if (value->IsJSObject()) {
         ObjectData* value_data = broker->GetOrCreateData(value);
-        value_data->AsJSObject()->SerializeRecursive(broker, depth - 1);
+        value_data->AsJSObject()->SerializeRecursiveAsBoilerplate(broker,
+                                                                  depth - 1);
       }
     }
   } else {
@@ -1851,9 +1854,22 @@ void JSObjectData::SerializeRecursive(JSHeapBroker* broker, int depth) {
     } else {
       Handle<Object> value(boilerplate->RawFastPropertyAt(field_index),
                            isolate);
+      // In case of unboxed double fields we use a sentinel NaN value to mark
+      // uninitialized fields. A boilerplate value with such a field may migrate
+      // from its unboxed double to a tagged representation. In the process the
+      // raw double is converted to a heap number. The sentinel value carries no
+      // special meaning when it occurs in a heap number, so we would like to
+      // recover the uninitialized value.
+      // We check for the sentinel here, specifically, since migrations might
+      // have been triggered as part of boilerplate serialization.
+      if (value->IsHeapNumber() &&
+          HeapNumber::cast(*value).value_as_bits() == kHoleNanInt64) {
+        value = isolate->factory()->uninitialized_value();
+      }
       ObjectData* value_data = broker->GetOrCreateData(value);
       if (value->IsJSObject()) {
-        value_data->AsJSObject()->SerializeRecursive(broker, depth - 1);
+        value_data->AsJSObject()->SerializeRecursiveAsBoilerplate(broker,
+                                                                  depth - 1);
       }
       inobject_fields_.push_back(JSObjectField{value_data});
     }
