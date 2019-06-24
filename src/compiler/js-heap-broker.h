@@ -554,11 +554,13 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
   using HeapObjectRef::HeapObjectRef;
   Handle<FunctionTemplateInfo> object() const;
 
-  void Serialize();
-  ObjectRef call_code() const;
   bool is_signature_undefined() const;
   bool accept_any_receiver() const;
+  // The following returns true if the CallHandlerInfo is present.
   bool has_call_code() const;
+
+  void SerializeCallCode();
+  base::Optional<CallHandlerInfoRef> call_code() const;
 
   HolderLookupResult LookupHolderOfExpectedType(MapRef receiver_map,
                                                 bool serialize);

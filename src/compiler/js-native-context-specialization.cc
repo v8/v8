@@ -1969,14 +1969,6 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
                                       ConvertReceiverMode::kNotNullOrUndefined),
         target, receiver, context, frame_state, *effect, *control);
   } else {
-    auto function_template_info = constant.AsFunctionTemplateInfo();
-    {  // TODO(mslekova): Move this to the serialization of property loads.
-      AllowCodeDependencyChange dependency_change_;
-      AllowHandleAllocation handle_allocation_;
-      AllowHandleDereference handle_dereference_;
-      AllowHeapAllocation heap_allocation_;
-      function_template_info.Serialize();
-    }
     Node* holder = access_info.holder().is_null()
                        ? receiver
                        : jsgraph()->Constant(ObjectRef(
@@ -1984,8 +1976,9 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
     SharedFunctionInfoRef shared_info(
         broker(), frame_info.shared_info().ToHandleChecked());
 
-    value = InlineApiCall(receiver, holder, frame_state, nullptr, effect,
-                          control, shared_info, function_template_info);
+    value =
+        InlineApiCall(receiver, holder, frame_state, nullptr, effect, control,
+                      shared_info, constant.AsFunctionTemplateInfo());
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -2013,15 +2006,6 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
                                       ConvertReceiverMode::kNotNullOrUndefined),
         target, receiver, value, context, frame_state, *effect, *control);
   } else {
-    // TODO(mslekova): Move this to the serialization of property stores.
-    auto function_template_info = constant.AsFunctionTemplateInfo();
-    {  // TODO(mslekova): Remove this Serialize call.
-      AllowCodeDependencyChange dependency_change_;
-      AllowHandleAllocation handle_allocation_;
-      AllowHandleDereference handle_dereference_;
-      AllowHeapAllocation heap_allocation_;
-      function_template_info.Serialize();
-    }
     Node* holder = access_info.holder().is_null()
                        ? receiver
                        : jsgraph()->Constant(ObjectRef(
@@ -2029,7 +2013,7 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
     SharedFunctionInfoRef shared_info(
         broker(), frame_info.shared_info().ToHandleChecked());
     InlineApiCall(receiver, holder, frame_state, value, effect, control,
-                  shared_info, function_template_info);
+                  shared_info, constant.AsFunctionTemplateInfo());
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -2046,8 +2030,13 @@ Node* JSNativeContextSpecialization::InlineApiCall(
     Node* receiver, Node* holder, Node* frame_state, Node* value, Node** effect,
     Node** control, SharedFunctionInfoRef const& shared_info,
     FunctionTemplateInfoRef const& function_template_info) {
+  if (!function_template_info.call_code().has_value()) {
+    TRACE_BROKER_MISSING(broker(), "call code for function template info "
+                                       << function_template_info);
+    return nullptr;
+  }
   auto call_handler_info =
-      function_template_info.call_code().AsCallHandlerInfo();
+      function_template_info.call_code()->AsCallHandlerInfo();
 
   // Only setters have a value.
   int const argc = value == nullptr ? 0 : 1;

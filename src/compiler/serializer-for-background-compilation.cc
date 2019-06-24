@@ -811,9 +811,9 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
     Handle<SharedFunctionInfo> target, const HintsVector& arguments) {
   FunctionTemplateInfoRef target_template_info(
       broker(), handle(target->function_data(), broker()->isolate()));
-  target_template_info.Serialize();
-
   if (!target_template_info.has_call_code()) return;
+
+  target_template_info.SerializeCallCode();
 
   SharedFunctionInfoRef target_ref(broker(), target);
   target_ref.SerializeFunctionTemplateInfo();
@@ -1106,9 +1106,34 @@ SerializerForBackgroundCompilation::ProcessFeedbackMapsForNamedAccess(
     ProcessMapForNamedPropertyAccess(map_ref, name);
     AccessInfoFactory access_info_factory(broker(), dependencies(),
                                           broker()->zone());
-    access_infos.push_back(access_info_factory.ComputePropertyAccessInfo(
+    PropertyAccessInfo info(access_info_factory.ComputePropertyAccessInfo(
         map, name.object(), mode));
+    access_infos.push_back(info);
+
+    // TODO(turbofan): We want to take receiver hints into account as well,
+    // not only the feedback maps.
+    // For JSNativeContextSpecialization::InlinePropertySetterCall
+    // and InlinePropertyGetterCall.
+    if (info.IsAccessorConstant() && !info.constant().is_null()) {
+      if (info.constant()->IsJSFunction()) {
+        // For JSCallReducer::ReduceCallApiFunction.
+        Handle<SharedFunctionInfo> sfi(
+            handle(Handle<JSFunction>::cast(info.constant())->shared(),
+                   broker()->isolate()));
+        if (sfi->IsApiFunction()) {
+          FunctionTemplateInfoRef fti_ref(
+              broker(), handle(sfi->get_api_func_data(), broker()->isolate()));
+          fti_ref.SerializeCallCode();
+          ProcessReceiverMapForApiCall(fti_ref, map);
+        }
+      } else {
+        FunctionTemplateInfoRef fti_ref(
+            broker(), Handle<FunctionTemplateInfo>::cast(info.constant()));
+        fti_ref.SerializeCallCode();
+      }
+    }
   }
+
   DCHECK(!access_infos.empty());
   return new (broker()->zone()) NamedAccessFeedback(name, access_infos);
 }

@@ -2895,8 +2895,13 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   // TODO(turbofan): Consider introducing a JSCallApiCallback operator for
   // this and lower it during JSGenericLowering, and unify this with the
   // JSNativeContextSpecialization::InlineApiCall method a bit.
+  if (!function_template_info.call_code().has_value()) {
+    TRACE_BROKER_MISSING(broker(), "call code for function template info "
+                                       << function_template_info);
+    return NoChange();
+  }
   CallHandlerInfoRef call_handler_info =
-      function_template_info.call_code().AsCallHandlerInfo();
+      function_template_info.call_code()->AsCallHandlerInfo();
   Callable call_api_callback = CodeFactory::CallApiCallback(isolate());
   CallInterfaceDescriptor cid = call_api_callback.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(

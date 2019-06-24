@@ -130,16 +130,17 @@ class FunctionTemplateInfoData : public HeapObjectData {
   FunctionTemplateInfoData(JSHeapBroker* broker, ObjectData** storage,
                            Handle<FunctionTemplateInfo> object);
 
-  void Serialize(JSHeapBroker* broker);
-  ObjectData* call_code() const { return call_code_; }
   bool is_signature_undefined() const { return is_signature_undefined_; }
   bool accept_any_receiver() const { return accept_any_receiver_; }
   bool has_call_code() const { return has_call_code_; }
+
+  void SerializeCallCode(JSHeapBroker* broker);
+  CallHandlerInfoData* call_code() const { return call_code_; }
   KnownReceiversMap& known_receivers() { return known_receivers_; }
 
  private:
-  bool serialized_ = false;
-  ObjectData* call_code_ = nullptr;
+  bool serialized_call_code_ = false;
+  CallHandlerInfoData* call_code_ = nullptr;
   bool is_signature_undefined_ = false;
   bool accept_any_receiver_ = false;
   bool has_call_code_ = false;
@@ -203,17 +204,19 @@ void PropertyCellData::Serialize(JSHeapBroker* broker) {
   value_ = broker->GetOrCreateData(cell->value());
 }
 
-void FunctionTemplateInfoData::Serialize(JSHeapBroker* broker) {
-  if (serialized_) return;
-  serialized_ = true;
+void FunctionTemplateInfoData::SerializeCallCode(JSHeapBroker* broker) {
+  if (serialized_call_code_) return;
+  serialized_call_code_ = true;
 
-  TraceScope tracer(broker, this, "FunctionTemplateInfoData::Serialize");
+  TraceScope tracer(broker, this,
+                    "FunctionTemplateInfoData::SerializeCallCode");
   auto function_template_info = Handle<FunctionTemplateInfo>::cast(object());
   DCHECK_NULL(call_code_);
-  call_code_ = broker->GetOrCreateData(function_template_info->call_code());
+  call_code_ = broker->GetOrCreateData(function_template_info->call_code())
+                   ->AsCallHandlerInfo();
 
   if (call_code_->IsCallHandlerInfo()) {
-    call_code_->AsCallHandlerInfo()->Serialize(broker);
+    call_code_->Serialize(broker);
   }
 }
 
@@ -2717,7 +2720,16 @@ BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
 BIMODAL_ACCESSOR(PropertyCell, Object, value)
 BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
 
-BIMODAL_ACCESSOR(FunctionTemplateInfo, Object, call_code)
+base::Optional<CallHandlerInfoRef> FunctionTemplateInfoRef::call_code() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    return CallHandlerInfoRef(
+        broker(), handle(object()->call_code(), broker()->isolate()));
+  }
+  CallHandlerInfoData* call_code =
+      data()->AsFunctionTemplateInfo()->call_code();
+  if (!call_code) return base::nullopt;
+  return CallHandlerInfoRef(broker(), call_code);
+}
 
 bool FunctionTemplateInfoRef::is_signature_undefined() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
@@ -3413,10 +3425,10 @@ void PropertyCellRef::Serialize() {
   data()->AsPropertyCell()->Serialize(broker());
 }
 
-void FunctionTemplateInfoRef::Serialize() {
+void FunctionTemplateInfoRef::SerializeCallCode() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsFunctionTemplateInfo()->Serialize(broker());
+  data()->AsFunctionTemplateInfo()->SerializeCallCode(broker());
 }
 
 base::Optional<PropertyCellRef> JSGlobalProxyRef::GetPropertyCell(
