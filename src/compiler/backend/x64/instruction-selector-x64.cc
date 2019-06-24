@@ -907,9 +907,9 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
   if (m.left().Is(0)) {
     Emit(kX64Neg32, g.DefineSameAsFirst(node), g.UseRegister(m.right().node()));
   } else if (m.right().Is(0)) {
-    // TODO(jarin): We should be able to use {EmitIdentity} here
-    // (https://crbug.com/v8/7947).
-    Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(m.left().node()));
+    // {EmitIdentity} reuses the virtual register of the first input
+    // for the output. This is exactly what we want here.
+    EmitIdentity(node);
   } else if (m.right().HasValue() && g.CanBeImmediate(m.right().node())) {
     // Turn subtractions of constant values into immediate "leal" instructions
     // by negating the value.
