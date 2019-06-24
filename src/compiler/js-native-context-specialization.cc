@@ -1378,17 +1378,16 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceElementAccessOnString(
-    Node* node, Node* index, Node* value, AccessMode access_mode,
-    KeyedAccessLoadMode load_mode) {
+    Node* node, Node* index, Node* value, KeyedAccessMode const& keyed_mode) {
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
   // Strings are immutable in JavaScript.
-  if (access_mode == AccessMode::kStore) return NoChange();
+  if (keyed_mode.access_mode() == AccessMode::kStore) return NoChange();
 
   // `in` cannot be used on strings.
-  if (access_mode == AccessMode::kHas) return NoChange();
+  if (keyed_mode.access_mode() == AccessMode::kHas) return NoChange();
 
   // Ensure that the {receiver} is actually a String.
   receiver = effect = graph()->NewNode(
@@ -1400,7 +1399,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccessOnString(
   // Load the single character string from {receiver} or yield undefined
   // if the {index} is out of bounds (depending on the {load_mode}).
   value = BuildIndexedStringLoad(receiver, index, length, &effect, &control,
-                                 load_mode);
+                                 keyed_mode.load_mode());
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
@@ -1444,8 +1443,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
   if (HasOnlyStringMaps(broker(), processed.receiver_maps)) {
     DCHECK(processed.transitions.empty());
-    return ReduceElementAccessOnString(node, index, value, access_mode,
-                                       processed.keyed_mode.load_mode());
+    return ReduceElementAccessOnString(node, index, value,
+                                       processed.keyed_mode);
   }
 
   // Compute element access infos for the receiver maps.

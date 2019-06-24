@@ -117,8 +117,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                             AccessMode access_mode,
                                             KeyedAccessLoadMode load_mode);
   Reduction ReduceElementAccessOnString(Node* node, Node* index, Node* value,
-                                        AccessMode access_mode,
-                                        KeyedAccessLoadMode load_mode);
+                                        KeyedAccessMode const& keyed_mode);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
   Reduction ReduceJSToString(Node* node);
