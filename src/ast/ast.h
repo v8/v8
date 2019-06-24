@@ -2753,6 +2753,9 @@ class AstVisitor {
     return false;                                           \
   }                                                         \
                                                             \
+ protected:                                                 \
+  uintptr_t stack_limit() const { return stack_limit_; }    \
+                                                            \
  private:                                                   \
   void InitializeAstVisitor(Isolate* isolate) {             \
     stack_limit_ = isolate->stack_guard()->real_climit();   \
