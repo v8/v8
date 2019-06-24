@@ -640,10 +640,10 @@ class ConsString : public String {
 class ThinString : public String {
  public:
   // Actual string that this ThinString refers to.
-  inline String actual() const;
+  DECL_ACCESSORS(actual, String)
+
   inline HeapObject unchecked_actual() const;
-  inline void set_actual(String s,
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline HeapObject unchecked_actual(Isolate* isolate) const;
 
   V8_EXPORT_PRIVATE uint16_t Get(int index);
 

@@ -573,8 +573,10 @@ void ConsString::set_second(Isolate* isolate, String value,
 
 ACCESSORS(ThinString, actual, String, kActualOffset)
 
-HeapObject ThinString::unchecked_actual() const {
-  return HeapObject::unchecked_cast(READ_FIELD(*this, kActualOffset));
+ISOLATELESS_GETTER(ThinString, unchecked_actual, HeapObject)
+
+HeapObject ThinString::unchecked_actual(Isolate* isolate) const {
+  return TaggedField<HeapObject, kActualOffset>::load(isolate, *this);
 }
 
 bool ExternalString::is_uncached() const {

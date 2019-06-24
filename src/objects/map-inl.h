@@ -30,8 +30,11 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(Map, HeapObject)
 CAST_ACCESSOR(Map)
 
-DescriptorArray Map::instance_descriptors() const {
-  return TaggedField<DescriptorArray, kInstanceDescriptorsOffset>::load(*this);
+ISOLATELESS_GETTER(Map, instance_descriptors, DescriptorArray)
+
+DescriptorArray Map::instance_descriptors(Isolate* isolate) const {
+  return TaggedField<DescriptorArray, kInstanceDescriptorsOffset>::load(isolate,
+                                                                        *this);
 }
 
 SYNCHRONIZED_ACCESSORS(Map, synchronized_instance_descriptors, DescriptorArray,

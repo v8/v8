@@ -65,9 +65,10 @@
   inline uint8_t name() const;     \
   inline void set_##name(int value);
 
-#define DECL_ACCESSORS(name, type)   \
-  inline type name() const;          \
-  inline void set_##name(type value, \
+#define DECL_ACCESSORS(name, type)          \
+  inline type name() const;                 \
+  inline type name(Isolate* isolate) const; \
+  inline void set_##name(type value,        \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
 #define DECL_CAST(Type)                                 \
@@ -122,8 +123,9 @@
 
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                            set_condition)                             \
-  type holder::name() const {                                         \
-    type value = TaggedField<type, offset>::load(*this);              \
+  ISOLATELESS_GETTER(holder, name, type)                              \
+  type holder::name(Isolate* isolate) const {                         \
+    type value = TaggedField<type, offset>::load(isolate, *this);     \
     DCHECK(get_condition);                                            \
     return value;                                                     \
   }                                                                   \
@@ -143,17 +145,18 @@
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
 
-#define SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset,   \
-                                        get_condition, set_condition) \
-  type holder::name() const {                                         \
-    type value = TaggedField<type, offset>::Acquire_Load(*this);      \
-    DCHECK(get_condition);                                            \
-    return value;                                                     \
-  }                                                                   \
-  void holder::set_##name(type value, WriteBarrierMode mode) {        \
-    DCHECK(set_condition);                                            \
-    TaggedField<type, offset>::Release_Store(*this, value);           \
-    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);            \
+#define SYNCHRONIZED_ACCESSORS_CHECKED2(holder, name, type, offset,       \
+                                        get_condition, set_condition)     \
+  ISOLATELESS_GETTER(holder, name, type)                                  \
+  type holder::name(Isolate* isolate) const {                             \
+    type value = TaggedField<type, offset>::Acquire_Load(isolate, *this); \
+    DCHECK(get_condition);                                                \
+    return value;                                                         \
+  }                                                                       \
+  void holder::set_##name(type value, WriteBarrierMode mode) {            \
+    DCHECK(set_condition);                                                \
+    TaggedField<type, offset>::Release_Store(*this, value);               \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                \
   }
 
 #define SYNCHRONIZED_ACCESSORS_CHECKED(holder, name, type, offset, condition) \
@@ -165,8 +168,10 @@
 
 #define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,  \
                                 set_condition)                        \
-  MaybeObject holder::name() const {                                  \
-    MaybeObject value = READ_WEAK_FIELD(*this, offset);               \
+  ISOLATELESS_GETTER(holder, name, MaybeObject)                       \
+  MaybeObject holder::name(Isolate* isolate) const {                  \
+    MaybeObject value =                                               \
+        TaggedField<MaybeObject, offset>::load(isolate, *this);       \
     DCHECK(get_condition);                                            \
     return value;                                                     \
   }                                                                   \

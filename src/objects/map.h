@@ -588,7 +588,7 @@ class Map : public HeapObject {
 
   // [instance descriptors]: describes the object.
   inline DescriptorArray instance_descriptors() const;
-  inline DescriptorArray synchronized_instance_descriptors() const;
+  inline DescriptorArray instance_descriptors(Isolate* isolate) const;
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(Isolate* isolate,
                                                 DescriptorArray descriptors,
                                                 int number_of_own_descriptors);
@@ -966,13 +966,13 @@ class Map : public HeapObject {
       MaybeHandle<FieldType> new_field_type, MaybeHandle<Object> new_value);
 
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
-  inline void set_synchronized_instance_descriptors(
-      DescriptorArray array, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  DECL_ACCESSORS(synchronized_instance_descriptors, DescriptorArray)
 
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;
 
   friend class MapUpdater;
+  friend class ConcurrentMarkingVisitor;
 
   OBJECT_CONSTRUCTORS(Map, HeapObject);
 };
