@@ -2179,6 +2179,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/execution/interrupts-scope.h",
     "src/execution/isolate-data.h",
     "src/execution/isolate-inl.h",
+    "src/execution/isolate-utils.h",
     "src/execution/isolate.cc",
     "src/execution/isolate.h",
     "src/execution/message-template.h",
@@ -3304,15 +3305,15 @@ v8_source_set("v8_crash_keys") {
       "//components/crash/core/common:crash_key",
     ]
     sources = [
-          "src/diagnostics/crash-key.cc",
+      "src/diagnostics/crash-key.cc",
     ]
   } else {
     sources = [
-          "src/diagnostics/crash-key-noop.cc",
+      "src/diagnostics/crash-key-noop.cc",
     ]
   }
 
-configs = [ ":internal_config" ]
+  configs = [ ":internal_config" ]
 }
 
 group("v8_base") {

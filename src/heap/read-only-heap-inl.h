@@ -7,7 +7,7 @@
 
 #include "src/heap/read-only-heap.h"
 
-#include "src/heap/heap-write-barrier-inl.h"
+#include "src/execution/isolate-utils-inl.h"
 #include "src/roots/roots-inl.h"
 
 namespace v8 {

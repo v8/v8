@@ -7,9 +7,8 @@
 
 #include "src/objects/heap-object.h"
 
-#include "src/heap/heap-write-barrier-inl.h"
 // TODO(jkummerow): Get rid of this by moving NROSO::GetIsolate elsewhere.
-#include "src/execution/isolate.h"
+#include "src/execution/isolate-utils-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -25,12 +24,12 @@ HeapObject::HeapObject(Address ptr, AllowInlineSmiStorage allow_smi)
 }
 
 // static
-Heap* NeverReadOnlySpaceObject::GetHeap(const HeapObject object) {
+Heap* NeverReadOnlySpaceObject::GetHeap(HeapObject object) {
   return GetHeapFromWritableObject(object);
 }
 
 // static
-Isolate* NeverReadOnlySpaceObject::GetIsolate(const HeapObject object) {
+Isolate* NeverReadOnlySpaceObject::GetIsolate(HeapObject object) {
   return GetIsolateFromWritableObject(object);
 }
 

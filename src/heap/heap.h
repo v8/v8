@@ -361,8 +361,8 @@ class Heap {
   V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject object,
                                                         Address slot,
                                                         HeapObject value);
-  V8_EXPORT_PRIVATE void RecordEphemeronKeyWrite(EphemeronHashTable table,
-                                                 Address key_slot);
+  V8_EXPORT_PRIVATE inline void RecordEphemeronKeyWrite(
+      EphemeronHashTable table, Address key_slot);
   V8_EXPORT_PRIVATE static void EphemeronKeyWriteBarrierFromCode(
       Address raw_object, Address address, Isolate* isolate);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(

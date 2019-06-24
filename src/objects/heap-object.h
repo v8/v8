@@ -216,10 +216,10 @@ CAST_ACCESSOR(HeapObject)
 class NeverReadOnlySpaceObject {
  public:
   // The Heap the object was allocated in. Used also to access Isolate.
-  static inline Heap* GetHeap(const HeapObject object);
+  static inline Heap* GetHeap(HeapObject object);
 
   // Convenience method to get current isolate.
-  static inline Isolate* GetIsolate(const HeapObject object);
+  static inline Isolate* GetIsolate(HeapObject object);
 };
 
 }  // namespace internal

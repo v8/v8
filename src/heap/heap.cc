@@ -119,6 +119,12 @@ void Heap_MarkingBarrierForDescriptorArraySlow(Heap* heap, HeapObject host,
                                              number_of_own_descriptors);
 }
 
+void Heap_GenerationalEphemeronKeyBarrierSlow(Heap* heap,
+                                              EphemeronHashTable table,
+                                              Address slot) {
+  heap->RecordEphemeronKeyWrite(table, slot);
+}
+
 void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
   DCHECK_EQ(Smi::kZero, arguments_adaptor_deopt_pc_offset());
   set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
