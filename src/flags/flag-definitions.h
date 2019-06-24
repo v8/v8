@@ -241,7 +241,6 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   V(harmony_import_meta, "harmony import.meta property")                   \
   V(harmony_dynamic_import, "harmony dynamic import")                      \
   V(harmony_global, "harmony global")                                      \
-  V(harmony_object_from_entries, "harmony Object.fromEntries()")           \
   V(harmony_numeric_separator, "harmony numeric separator between digits") \
   V(harmony_promise_all_settled, "harmony Promise.allSettled")
 
