@@ -120,14 +120,14 @@ def process(filename, lint, should_format):
     print("error code " + str(rc) + " running clang-format. Exiting...")
     sys.exit(rc);
 
-  if lint:
-    if (output != original_input):
+  if (output != original_input):
+    if lint:
       print(filename + ' requires formatting', file=sys.stderr)
 
-  if should_format:
-    output_file = open(filename, 'w')
-    output_file.write(output);
-    output_file.close()
+    if should_format:
+      output_file = open(filename, 'w')
+      output_file.write(output);
+      output_file.close()
 
 def print_usage():
   print('format-torque -i file1[, file2[, ...]]')
