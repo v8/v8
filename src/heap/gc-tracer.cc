@@ -962,10 +962,9 @@ double GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
 }
 
 double GCTracer::EmbedderSpeedInBytesPerMillisecond() const {
-  if (recorded_embedder_speed_ != 0.0) {
-    return recorded_embedder_speed_;
-  }
-  return kConservativeSpeedInBytesPerMillisecond;
+  // Note: Returning 0 is ok here as callers check for whether embedder speeds
+  // have been recorded at all.
+  return recorded_embedder_speed_;
 }
 
 double GCTracer::ScavengeSpeedInBytesPerMillisecond(

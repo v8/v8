@@ -4660,7 +4660,7 @@ size_t Heap::GlobalMemoryAvailable() {
              ? GlobalSizeOfObjects() < global_allocation_limit_
                    ? global_allocation_limit_ - GlobalSizeOfObjects()
                    : 0
-             : 1;
+             : new_space_->Capacity() + 1;
 }
 
 // This function returns either kNoLimit, kSoftLimit, or kHardLimit.
@@ -4726,7 +4726,7 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   const size_t global_memory_available = GlobalMemoryAvailable();
 
   if (old_generation_space_available > new_space_->Capacity() &&
-      (global_memory_available > 0)) {
+      (global_memory_available > new_space_->Capacity())) {
     return IncrementalMarkingLimit::kNoLimit;
   }
   if (ShouldOptimizeForMemoryUsage()) {
