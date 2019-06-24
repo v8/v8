@@ -857,7 +857,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Constant pool (size = " << constant_pool().length() << ")\n";
 #ifdef OBJECT_PRINT
   if (constant_pool().length() > 0) {
-    constant_pool().Print();
+    constant_pool().Print(os);
   }
 #endif
 
