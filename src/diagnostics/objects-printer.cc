@@ -50,6 +50,7 @@
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/compiler/node.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/microtask-inl.h"
@@ -2828,4 +2829,8 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
     transitions.PrintTransitionTree();
 #endif
   }
+}
+
+V8_EXPORT_PRIVATE extern void _v8_internal_Node_Print(void* object) {
+  reinterpret_cast<i::compiler::Node*>(object)->Print();
 }

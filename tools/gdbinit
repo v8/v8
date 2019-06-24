@@ -65,6 +65,15 @@ Print the current JavaScript stack trace
 Usage: jst
 end
 
+# Print TurboFan graph node.
+define pn
+call _v8_internal_Node_Print((void*)($arg0))
+end
+document pn
+Print a v8 TurboFan graph node
+Usage: pn node_address
+end
+
 # Skip the JavaScript stack.
 define jss
 set $js_entry_sp=v8::internal::Isolate::Current()->thread_local_top()->js_entry_sp_

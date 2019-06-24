@@ -1,3 +1,4 @@
 include_rules = [
   "+components/crash/core/common/crash_key.h",
+  "+src/compiler/node.h",
 ]
