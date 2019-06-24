@@ -36,61 +36,45 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::IntPtrZero() {
 TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
     TNode<Context> context, TNode<Smi> length, TNode<Smi> index,
     TNode<String> input, TNode<FixedArray>* elements_out) {
-#ifdef DEBUG
-  TNode<Smi> max_length = SmiConstant(JSArray::kInitialMaxFastElementArray);
-  CSA_ASSERT(this, SmiLessThanOrEqual(length, max_length));
-#endif  // DEBUG
+  CSA_ASSERT(this, SmiLessThanOrEqual(
+                       length, SmiConstant(JSArray::kMaxFastArrayLength)));
+  CSA_ASSERT(this, SmiGreaterThan(length, SmiConstant(0)));
 
-  // Allocate the JSRegExpResult together with its elements fixed array.
-  // Initial preparations first.
+  // Allocate.
 
-  TNode<IntPtrT> length_intptr = SmiUntag(length);
   const ElementsKind elements_kind = PACKED_ELEMENTS;
+  TNode<Map> map = CAST(LoadContextElement(LoadNativeContext(context),
+                                           Context::REGEXP_RESULT_MAP_INDEX));
+  Node* no_allocation_site = nullptr;
+  TNode<IntPtrT> length_intptr = SmiUntag(length);
+  TNode<IntPtrT> capacity = length_intptr;
 
-  TNode<IntPtrT> elements_size = GetFixedArrayAllocationSize(
-      length_intptr, elements_kind, INTPTR_PARAMETERS);
-  TNode<IntPtrT> total_size =
-      IntPtrAdd(elements_size, IntPtrConstant(JSRegExpResult::kSize));
+  // Note: The returned `elements` may be in young large object space, but
+  // `array` is guaranteed to be in new space so we could skip write barriers
+  // below.
+  TNode<JSArray> array;
+  TNode<FixedArrayBase> elements;
+  std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
+      elements_kind, map, length, no_allocation_site, capacity,
+      INTPTR_PARAMETERS, kAllowLargeObjectAllocation, JSRegExpResult::kSize);
 
-  static const int kRegExpResultOffset = 0;
-  static const int kElementsOffset =
-      kRegExpResultOffset + JSRegExpResult::kSize;
+  // Finish result initialization.
 
-  // The folded allocation.
-
-  TNode<HeapObject> result = Allocate(total_size);
-  TNode<HeapObject> elements = InnerAllocate(result, kElementsOffset);
-
-  // Initialize the JSRegExpResult.
-
-  TNode<Context> native_context = LoadNativeContext(context);
-  TNode<Map> map = CAST(
-      LoadContextElement(native_context, Context::REGEXP_RESULT_MAP_INDEX));
-  StoreMapNoWriteBarrier(result, map);
-
-  StoreObjectFieldNoWriteBarrier(result, JSArray::kPropertiesOrHashOffset,
-                                 EmptyFixedArrayConstant());
-  StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset, elements);
-  StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset, length);
+  TNode<JSRegExpResult> result = CAST(array);
 
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kIndexOffset, index);
-  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kInputOffset, input);
+  // TODO(jgruber,tebbi): Could skip barrier but the MemoryOptimizer complains.
+  StoreObjectField(result, JSRegExpResult::kInputOffset, input);
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kGroupsOffset,
                                  UndefinedConstant());
 
-  // Initialize the elements.
-
-  DCHECK(!IsDoubleElementsKind(elements_kind));
-  const RootIndex map_index = RootIndex::kFixedArrayMap;
-  DCHECK(RootsTable::IsImmortalImmovable(map_index));
-  StoreMapNoWriteBarrier(elements, map_index);
-  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
+  // Finish elements initialization.
 
   FillFixedArrayWithValue(elements_kind, elements, IntPtrZero(), length_intptr,
                           RootIndex::kUndefinedValue);
 
   if (elements_out) *elements_out = CAST(elements);
-  return CAST(result);
+  return result;
 }
 
 TNode<Object> RegExpBuiltinsAssembler::RegExpCreate(
@@ -186,7 +170,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   TNode<JSRegExpResult> result = AllocateRegExpResult(
       context, num_results, start, string, &result_elements);
 
-  UnsafeStoreFixedArrayElement(result_elements, 0, first, SKIP_WRITE_BARRIER);
+  UnsafeStoreFixedArrayElement(result_elements, 0, first);
 
   // If no captures exist we can skip named capture handling as well.
   GotoIf(SmiEqual(num_results, SmiConstant(1)), &out);

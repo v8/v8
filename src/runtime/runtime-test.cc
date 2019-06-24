@@ -22,6 +22,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/smi.h"
 #include "src/snapshot/natives.h"
 #include "src/trap-handler/trap-handler.h"
@@ -924,8 +925,17 @@ RUNTIME_FUNCTION(Runtime_HaveSameMap) {
   return isolate->heap()->ToBoolean(obj1.map() == obj2.map());
 }
 
+RUNTIME_FUNCTION(Runtime_HasElementsInALargeObjectSpace) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(JSArray, array, 0);
+  FixedArrayBase elements = array.elements();
+  return isolate->heap()->ToBoolean(
+      isolate->heap()->new_lo_space()->Contains(elements) ||
+      isolate->heap()->lo_space()->Contains(elements));
+}
 
-RUNTIME_FUNCTION(Runtime_InNewSpace) {
+RUNTIME_FUNCTION(Runtime_InYoungGeneration) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);

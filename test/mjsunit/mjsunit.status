@@ -242,6 +242,9 @@
   # BUG(v8:9260)
   'tools/profviz': [SKIP],
 
+  # Test doesn't work on 32-bit architectures (it would require a
+  # regexp pattern with too many captures).
+  'regress/regress-976627': [FAIL, ['arch == x64 or arch == arm64', PASS]],
 }],  # ALWAYS
 
 ['novfp3 == True', {

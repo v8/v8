@@ -2275,7 +2275,7 @@ HEAP_TEST(Regress845060) {
   // Run the test (which allocates results) until the original string was
   // promoted to old space. Unmapping of from_space causes accesses to any
   // stale raw pointers to crash.
-  CompileRun("while (%InNewSpace(str)) { str.split(''); }");
+  CompileRun("while (%InYoungGeneration(str)) { str.split(''); }");
   CHECK(!Heap::InYoungGeneration(*v8::Utils::OpenHandle(*str)));
 }
 
