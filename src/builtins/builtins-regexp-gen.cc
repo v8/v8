@@ -1540,7 +1540,8 @@ TNode<Int32T> RegExpBuiltinsAssembler::FastFlagGetter(TNode<JSRegExp> regexp,
                                                       JSRegExp::Flag flag) {
   TNode<Smi> flags = CAST(LoadObjectField(regexp, JSRegExp::kFlagsOffset));
   TNode<Smi> mask = SmiConstant(flag);
-  return SmiToInt32(SmiShr(SmiAnd(flags, mask), JSRegExp::FlagShiftBits(flag)));
+  return SmiToInt32(SmiShr(SmiAnd(flags, mask), base::bits::CountTrailingZeros(
+                                                    static_cast<int>(flag))));
 }
 
 // Load through the GetProperty stub.

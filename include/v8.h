@@ -5313,6 +5313,8 @@ class V8_EXPORT RegExp : public Object {
     kDotAll = 1 << 5,
   };
 
+  static constexpr int kFlagCount = 6;
+
   /**
    * Creates a regular expression from the given pattern string and
    * the flags bit field. May throw a JavaScript exception as

@@ -1595,15 +1595,14 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
   }
 
   IdentifierT js_pattern = impl()->GetNextSymbol();
-  Maybe<v8::RegExp::Flags> flags = scanner()->ScanRegExpFlags();
+  Maybe<int> flags = scanner()->ScanRegExpFlags();
   if (flags.IsNothing()) {
     Next();
     ReportMessage(MessageTemplate::kMalformedRegExpFlags);
     return impl()->FailureExpression();
   }
-  int js_flags = flags.FromJust();
   Next();
-  return factory()->NewRegExpLiteral(js_pattern, js_flags, pos);
+  return factory()->NewRegExpLiteral(js_pattern, flags.FromJust(), pos);
 }
 
 template <typename Impl>

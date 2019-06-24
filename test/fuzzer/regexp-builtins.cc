@@ -242,7 +242,7 @@ std::string PickLimitForSplit(FuzzerArgs* args) {
 }
 
 std::string GenerateRandomFlags(FuzzerArgs* args) {
-  constexpr size_t kFlagCount = JSRegExp::FlagCount();
+  constexpr size_t kFlagCount = JSRegExp::kFlagCount;
   CHECK_EQ(JSRegExp::kDotAll, 1 << (kFlagCount - 1));
   STATIC_ASSERT((1 << kFlagCount) - 1 < 0xFF);
 
