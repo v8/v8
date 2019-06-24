@@ -14,6 +14,14 @@
 namespace v8 {
 namespace internal {
 
+inline Isolate* GetIsolateForPtrCompr(HeapObject object) {
+#ifdef V8_COMPRESS_POINTERS
+  return Isolate::FromRoot(GetIsolateRoot(object.ptr()));
+#else
+  return nullptr;
+#endif  // V8_COMPRESS_POINTERS
+}
+
 V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
 #ifdef V8_COMPRESS_POINTERS
   return GetIsolateFromWritableObject(object)->heap();

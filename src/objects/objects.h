@@ -267,9 +267,13 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   constexpr Object() : TaggedImpl(kNullAddress) {}
   explicit constexpr Object(Address ptr) : TaggedImpl(ptr) {}
 
-#define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
+#define IS_TYPE_FUNCTION_DECL(Type) \
+  V8_INLINE bool Is##Type() const;  \
+  V8_INLINE bool Is##Type(Isolate* isolate) const;
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+  IS_TYPE_FUNCTION_DECL(HashTableBase)
+  IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
 #undef IS_TYPE_FUNCTION_DECL
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
@@ -279,27 +283,23 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_INLINE bool Is##Type(ReadOnlyRoots roots) const; \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+  IS_TYPE_FUNCTION_DECL(NullOrUndefined, /* unused */)
 #undef IS_TYPE_FUNCTION_DECL
-
-  V8_INLINE bool IsNullOrUndefined(Isolate* isolate) const;
-  V8_INLINE bool IsNullOrUndefined(ReadOnlyRoots roots) const;
-  V8_INLINE bool IsNullOrUndefined() const;
 
   V8_INLINE bool IsZero() const;
   V8_INLINE bool IsNoSharedNameSentinel() const;
 
   enum class Conversion { kToNumber, kToNumeric };
 
-#define DECL_STRUCT_PREDICATE(NAME, Name, name) V8_INLINE bool Is##Name() const;
+#define DECL_STRUCT_PREDICATE(NAME, Name, name) \
+  V8_INLINE bool Is##Name() const;              \
+  V8_INLINE bool Is##Name(Isolate* isolate) const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 
   // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
   V8_INLINE
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsArray(Handle<Object> object);
-
-  V8_INLINE bool IsHashTableBase() const;
-  V8_INLINE bool IsSmallOrderedHashTable() const;
 
   // Extract the number.
   inline double Number() const;

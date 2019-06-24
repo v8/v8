@@ -166,7 +166,9 @@ class String : public Name {
   // two-byte.  Such strings may appear when the embedder prefers
   // two-byte external representations even for one-byte data.
   inline bool IsOneByteRepresentation() const;
+  inline bool IsOneByteRepresentation(Isolate* isolate) const;
   inline bool IsTwoByteRepresentation() const;
+  inline bool IsTwoByteRepresentation(Isolate* isolate) const;
 
   // Cons and slices have an encoding flag that may not represent the actual
   // encoding of the underlying string.  This is taken into account here.

@@ -111,6 +111,15 @@
     WriteField<uint8_t>(offset, value);                               \
   }
 
+// TODO(ishell): eventually isolate-less getters should not be used anymore.
+// For full pointer-mode the C++ compiler should optimize away unused isolate
+// parameter.
+#define ISOLATELESS_GETTER(holder, name, type)       \
+  type holder::name() const {                        \
+    Isolate* isolate = GetIsolateForPtrCompr(*this); \
+    return holder::name(isolate);                    \
+  }
+
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                            set_condition)                             \
   type holder::name() const {                                         \
@@ -236,9 +245,9 @@
     return instance_type == forinstancetype;            \
   }
 
-#define TYPE_CHECKER(type, ...)                                  \
-  bool HeapObject::Is##type() const {                            \
-    return InstanceTypeChecker::Is##type(map().instance_type()); \
+#define TYPE_CHECKER(type, ...)                                         \
+  bool HeapObject::Is##type(Isolate* isolate) const {                   \
+    return InstanceTypeChecker::Is##type(map(isolate).instance_type()); \
   }
 
 #define RELAXED_INT16_ACCESSORS(holder, name, offset) \

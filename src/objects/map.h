@@ -994,7 +994,7 @@ class NormalizedMapCache : public WeakFixedArray {
   DECL_VERIFIER(NormalizedMapCache)
 
  private:
-  friend bool HeapObject::IsNormalizedMapCache() const;
+  friend bool HeapObject::IsNormalizedMapCache(Isolate* isolate) const;
 
   static const int kEntries = 64;
 

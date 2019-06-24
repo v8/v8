@@ -147,16 +147,21 @@ STATIC_ASSERT((kExternalStringTag | kTwoByteStringTag) ==
 
 STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
 
-bool String::IsOneByteRepresentation() const {
-  uint32_t type = map().instance_type();
+ISOLATELESS_GETTER(String, IsOneByteRepresentation, bool)
+
+bool String::IsOneByteRepresentation(Isolate* isolate) const {
+  uint32_t type = map(isolate).instance_type();
   return (type & kStringEncodingMask) == kOneByteStringTag;
 }
 
-bool String::IsTwoByteRepresentation() const {
-  uint32_t type = map().instance_type();
+ISOLATELESS_GETTER(String, IsTwoByteRepresentation, bool)
+
+bool String::IsTwoByteRepresentation(Isolate* isolate) const {
+  uint32_t type = map(isolate).instance_type();
   return (type & kStringEncodingMask) == kTwoByteStringTag;
 }
 
+// static
 bool String::IsOneByteRepresentationUnderneath(String string) {
   while (true) {
     uint32_t type = string.map().instance_type();

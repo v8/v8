@@ -30,6 +30,7 @@ class HeapObject : public Object {
   // [map]: Contains a map which contains the object's reflective
   // information.
   inline Map map() const;
+  inline Map map(Isolate* isolate) const;
   inline void set_map(Map value);
 
   inline ObjectSlot map_slot() const;
@@ -59,6 +60,7 @@ class HeapObject : public Object {
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
   inline MapWord map_word() const;
+  inline MapWord map_word(Isolate* isolate) const;
   inline void set_map_word(MapWord map_word);
 
   // TODO(v8:7464): Once RO_SPACE is shared between isolates, this method can be
@@ -67,9 +69,16 @@ class HeapObject : public Object {
   // way that doesn't require passing Isolate/Heap down huge call chains or to
   // places where it might not be safe to access it.
   inline ReadOnlyRoots GetReadOnlyRoots() const;
+  // This version is intended to be used for the isolate values produced by
+  // i::GetIsolateForPtrCompr(HeapObject) function which may return nullptr.
+  inline ReadOnlyRoots GetReadOnlyRoots(Isolate* isolate) const;
 
-#define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
+#define IS_TYPE_FUNCTION_DECL(Type) \
+  V8_INLINE bool Is##Type() const;  \
+  V8_INLINE bool Is##Type(Isolate* isolate) const;
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+  IS_TYPE_FUNCTION_DECL(HashTableBase)
+  IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
 #undef IS_TYPE_FUNCTION_DECL
 
   bool IsExternal(Isolate* isolate) const;
@@ -81,13 +90,12 @@ class HeapObject : public Object {
   V8_INLINE bool Is##Type(ReadOnlyRoots roots) const; \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+  IS_TYPE_FUNCTION_DECL(NullOrUndefined, /* unused */)
 #undef IS_TYPE_FUNCTION_DECL
 
-  V8_INLINE bool IsNullOrUndefined(Isolate* isolate) const;
-  V8_INLINE bool IsNullOrUndefined(ReadOnlyRoots roots) const;
-  V8_INLINE bool IsNullOrUndefined() const;
-
-#define DECL_STRUCT_PREDICATE(NAME, Name, name) V8_INLINE bool Is##Name() const;
+#define DECL_STRUCT_PREDICATE(NAME, Name, name) \
+  V8_INLINE bool Is##Name() const;              \
+  V8_INLINE bool Is##Name(Isolate* isolate) const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 

@@ -788,8 +788,8 @@ int NormalizedMapCache::GetIndex(Handle<Map> map) {
   return map->Hash() % NormalizedMapCache::kEntries;
 }
 
-bool HeapObject::IsNormalizedMapCache() const {
-  if (!IsWeakFixedArray()) return false;
+bool HeapObject::IsNormalizedMapCache(Isolate* isolate) const {
+  if (!IsWeakFixedArray(isolate)) return false;
   if (WeakFixedArray::cast(*this).length() != NormalizedMapCache::kEntries) {
     return false;
   }

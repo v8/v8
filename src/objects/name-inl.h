@@ -44,8 +44,10 @@ void Symbol::set_is_private_name() {
   set_flags(Symbol::IsPrivateNameBit::update(flags(), true));
 }
 
-bool Name::IsUniqueName() const {
-  uint32_t type = map().instance_type();
+ISOLATELESS_GETTER(Name, IsUniqueName, bool)
+
+bool Name::IsUniqueName(Isolate* isolate) const {
+  uint32_t type = map(isolate).instance_type();
   bool result = (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
                 (kStringTag | kNotInternalizedTag);
   SLOW_DCHECK(result == HeapObject::IsUniqueName());
@@ -91,17 +93,23 @@ uint32_t Name::Hash() {
   return String::cast(*this).ComputeAndSetHash();
 }
 
-bool Name::IsInterestingSymbol() const {
-  return IsSymbol() && Symbol::cast(*this).is_interesting_symbol();
+ISOLATELESS_GETTER(Name, IsInterestingSymbol, bool)
+
+bool Name::IsInterestingSymbol(Isolate* isolate) const {
+  return IsSymbol(isolate) && Symbol::cast(*this).is_interesting_symbol();
 }
 
-bool Name::IsPrivate() {
-  return this->IsSymbol() && Symbol::cast(*this).is_private();
+ISOLATELESS_GETTER(Name, IsPrivate, bool)
+
+bool Name::IsPrivate(Isolate* isolate) const {
+  return this->IsSymbol(isolate) && Symbol::cast(*this).is_private();
 }
 
-bool Name::IsPrivateName() {
+ISOLATELESS_GETTER(Name, IsPrivateName, bool)
+
+bool Name::IsPrivateName(Isolate* isolate) const {
   bool is_private_name =
-      this->IsSymbol() && Symbol::cast(*this).is_private_name();
+      this->IsSymbol(isolate) && Symbol::cast(*this).is_private_name();
   DCHECK_IMPLIES(is_private_name, IsPrivate());
   return is_private_name;
 }

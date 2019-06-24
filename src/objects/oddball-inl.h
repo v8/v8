@@ -38,8 +38,8 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
   return Handle<Object>(input->to_number(), isolate);
 }
 
-bool HeapObject::IsBoolean() const {
-  return IsOddball() &&
+bool HeapObject::IsBoolean(Isolate* isolate) const {
+  return IsOddball(isolate) &&
          ((Oddball::cast(*this).kind() & Oddball::kNotBooleanMask) == 0);
 }
 

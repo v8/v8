@@ -66,30 +66,38 @@ int PropertyDetails::field_width_in_words() const {
   return representation().IsDouble() ? kDoubleSize / kTaggedSize : 1;
 }
 
-bool HeapObject::IsSloppyArgumentsElements() const {
-  return IsFixedArrayExact();
+bool HeapObject::IsSloppyArgumentsElements(Isolate* isolate) const {
+  return IsFixedArrayExact(isolate);
 }
 
-bool HeapObject::IsJSSloppyArgumentsObject() const {
-  return IsJSArgumentsObject();
+bool HeapObject::IsJSSloppyArgumentsObject(Isolate* isolate) const {
+  return IsJSArgumentsObject(isolate);
 }
 
-bool HeapObject::IsJSGeneratorObject() const {
-  return map().instance_type() == JS_GENERATOR_OBJECT_TYPE ||
-         IsJSAsyncFunctionObject() || IsJSAsyncGeneratorObject();
+bool HeapObject::IsJSGeneratorObject(Isolate* isolate) const {
+  return map(isolate).instance_type() == JS_GENERATOR_OBJECT_TYPE ||
+         IsJSAsyncFunctionObject(isolate) || IsJSAsyncGeneratorObject(isolate);
 }
 
-bool HeapObject::IsDataHandler() const {
-  return IsLoadHandler() || IsStoreHandler();
+bool HeapObject::IsDataHandler(Isolate* isolate) const {
+  return IsLoadHandler(isolate) || IsStoreHandler(isolate);
 }
 
-bool HeapObject::IsClassBoilerplate() const { return IsFixedArrayExact(); }
+bool HeapObject::IsClassBoilerplate(Isolate* isolate) const {
+  return IsFixedArrayExact(isolate);
+}
 
-#define IS_TYPE_FUNCTION_DEF(type_)                               \
-  bool Object::Is##type_() const {                                \
-    return IsHeapObject() && HeapObject::cast(*this).Is##type_(); \
-  }
+#define IS_TYPE_FUNCTION_DEF(type_)                                      \
+  bool Object::Is##type_() const {                                       \
+    return IsHeapObject() && HeapObject::cast(*this).Is##type_();        \
+  }                                                                      \
+  bool Object::Is##type_(Isolate* isolate) const {                       \
+    return IsHeapObject() && HeapObject::cast(*this).Is##type_(isolate); \
+  }                                                                      \
+  ISOLATELESS_GETTER(HeapObject, Is##type_, bool)
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
+IS_TYPE_FUNCTION_DEF(HashTableBase)
+IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
 #undef IS_TYPE_FUNCTION_DEF
 
 #define IS_TYPE_FUNCTION_DEF(Type, Value)                        \
@@ -142,123 +150,168 @@ bool HeapObject::IsNullOrUndefined() const {
   return IsNullOrUndefined(GetReadOnlyRoots());
 }
 
-bool HeapObject::IsUniqueName() const {
-  return IsInternalizedString() || IsSymbol();
+bool HeapObject::IsUniqueName(Isolate* isolate) const {
+  return IsInternalizedString(isolate) || IsSymbol(isolate);
 }
 
-bool HeapObject::IsFunction() const {
+bool HeapObject::IsFunction(Isolate* isolate) const {
   STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
-  return map().instance_type() >= FIRST_FUNCTION_TYPE;
+  return map(isolate).instance_type() >= FIRST_FUNCTION_TYPE;
 }
 
-bool HeapObject::IsCallable() const { return map().is_callable(); }
-
-bool HeapObject::IsCallableJSProxy() const {
-  return IsCallable() && IsJSProxy();
+bool HeapObject::IsCallable(Isolate* isolate) const {
+  return map(isolate).is_callable();
 }
 
-bool HeapObject::IsCallableApiObject() const {
-  InstanceType type = map().instance_type();
-  return IsCallable() &&
+bool HeapObject::IsCallableJSProxy(Isolate* isolate) const {
+  return IsCallable(isolate) && IsJSProxy(isolate);
+}
+
+bool HeapObject::IsCallableApiObject(Isolate* isolate) const {
+  InstanceType type = map(isolate).instance_type();
+  return IsCallable(isolate) &&
          (type == JS_API_OBJECT_TYPE || type == JS_SPECIAL_API_OBJECT_TYPE);
 }
 
-bool HeapObject::IsNonNullForeign() const {
-  return IsForeign() && Foreign::cast(*this).foreign_address() != kNullAddress;
+bool HeapObject::IsNonNullForeign(Isolate* isolate) const {
+  return IsForeign(isolate) &&
+         Foreign::cast(*this).foreign_address() != kNullAddress;
 }
 
-bool HeapObject::IsConstructor() const { return map().is_constructor(); }
-
-bool HeapObject::IsSourceTextModuleInfo() const {
-  return map() == GetReadOnlyRoots().module_info_map();
+bool HeapObject::IsConstructor(Isolate* isolate) const {
+  return map(isolate).is_constructor();
 }
 
-bool HeapObject::IsTemplateInfo() const {
-  return IsObjectTemplateInfo() || IsFunctionTemplateInfo();
+bool HeapObject::IsSourceTextModuleInfo(Isolate* isolate) const {
+  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
+  // i::GetIsolateForPtrCompr(HeapObject).
+  return map(isolate) == GetReadOnlyRoots(isolate).module_info_map();
 }
 
-bool HeapObject::IsConsString() const {
-  if (!IsString()) return false;
-  return StringShape(String::cast(*this)).IsCons();
+bool HeapObject::IsTemplateInfo(Isolate* isolate) const {
+  return IsObjectTemplateInfo(isolate) || IsFunctionTemplateInfo(isolate);
 }
 
-bool HeapObject::IsThinString() const {
-  if (!IsString()) return false;
-  return StringShape(String::cast(*this)).IsThin();
+bool HeapObject::IsConsString(Isolate* isolate) const {
+  if (!IsString(isolate)) return false;
+  return StringShape(String::cast(*this).map(isolate)).IsCons();
 }
 
-bool HeapObject::IsSlicedString() const {
-  if (!IsString()) return false;
-  return StringShape(String::cast(*this)).IsSliced();
+bool HeapObject::IsThinString(Isolate* isolate) const {
+  if (!IsString(isolate)) return false;
+  return StringShape(String::cast(*this).map(isolate)).IsThin();
 }
 
-bool HeapObject::IsSeqString() const {
-  if (!IsString()) return false;
-  return StringShape(String::cast(*this)).IsSequential();
+bool HeapObject::IsSlicedString(Isolate* isolate) const {
+  if (!IsString(isolate)) return false;
+  return StringShape(String::cast(*this).map(isolate)).IsSliced();
 }
 
-bool HeapObject::IsSeqOneByteString() const {
-  if (!IsString()) return false;
-  return StringShape(String::cast(*this)).IsSequential() &&
-         String::cast(*this).IsOneByteRepresentation();
+bool HeapObject::IsSeqString(Isolate* isolate) const {
+  if (!IsString(isolate)) return false;
+  return StringShape(String::cast(*this).map(isolate)).IsSequential();
 }
 
-bool HeapObject::IsSeqTwoByteString() const {
-  if (!IsString()) return false;
-  return StringShape(String::cast(*this)).IsSequential() &&
-         String::cast(*this).IsTwoByteRepresentation();
+bool HeapObject::IsSeqOneByteString(Isolate* isolate) const {
+  if (!IsString(isolate)) return false;
+  return StringShape(String::cast(*this).map(isolate)).IsSequential() &&
+         String::cast(*this).IsOneByteRepresentation(isolate);
 }
 
-bool HeapObject::IsExternalString() const {
-  if (!IsString()) return false;
-  return StringShape(String::cast(*this)).IsExternal();
+bool HeapObject::IsSeqTwoByteString(Isolate* isolate) const {
+  if (!IsString(isolate)) return false;
+  return StringShape(String::cast(*this).map(isolate)).IsSequential() &&
+         String::cast(*this).IsTwoByteRepresentation(isolate);
 }
 
-bool HeapObject::IsExternalOneByteString() const {
-  if (!IsString()) return false;
-  return StringShape(String::cast(*this)).IsExternal() &&
-         String::cast(*this).IsOneByteRepresentation();
+bool HeapObject::IsExternalString(Isolate* isolate) const {
+  if (!IsString(isolate)) return false;
+  return StringShape(String::cast(*this).map(isolate)).IsExternal();
 }
 
-bool HeapObject::IsExternalTwoByteString() const {
-  if (!IsString()) return false;
-  return StringShape(String::cast(*this)).IsExternal() &&
-         String::cast(*this).IsTwoByteRepresentation();
+bool HeapObject::IsExternalOneByteString(Isolate* isolate) const {
+  if (!IsString(isolate)) return false;
+  return StringShape(String::cast(*this).map(isolate)).IsExternal() &&
+         String::cast(*this).IsOneByteRepresentation(isolate);
 }
 
-bool Object::IsNumber() const { return IsSmi() || IsHeapNumber(); }
+bool HeapObject::IsExternalTwoByteString(Isolate* isolate) const {
+  if (!IsString(isolate)) return false;
+  return StringShape(String::cast(*this).map(isolate)).IsExternal() &&
+         String::cast(*this).IsTwoByteRepresentation(isolate);
+}
 
-bool Object::IsNumeric() const { return IsNumber() || IsBigInt(); }
+bool Object::IsNumber() const {
+  if (IsSmi()) return true;
+  HeapObject this_heap_object = HeapObject::cast(*this);
+  Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  return this_heap_object.IsHeapNumber(isolate);
+}
 
-bool HeapObject::IsFiller() const {
-  InstanceType instance_type = map().instance_type();
+bool Object::IsNumber(Isolate* isolate) const {
+  return IsSmi() || IsHeapNumber(isolate);
+}
+
+bool Object::IsNumeric() const {
+  if (IsSmi()) return true;
+  HeapObject this_heap_object = HeapObject::cast(*this);
+  Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  return this_heap_object.IsHeapNumber(isolate) ||
+         this_heap_object.IsBigInt(isolate);
+}
+
+bool Object::IsNumeric(Isolate* isolate) const {
+  return IsNumber(isolate) || IsBigInt(isolate);
+}
+
+bool HeapObject::IsFiller(Isolate* isolate) const {
+  InstanceType instance_type = map(isolate).instance_type();
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
 
-bool HeapObject::IsJSWeakCollection() const {
-  return IsJSWeakMap() || IsJSWeakSet();
+bool HeapObject::IsJSWeakCollection(Isolate* isolate) const {
+  return IsJSWeakMap(isolate) || IsJSWeakSet(isolate);
 }
 
-bool HeapObject::IsJSCollection() const { return IsJSMap() || IsJSSet(); }
-
-bool HeapObject::IsPromiseReactionJobTask() const {
-  return IsPromiseFulfillReactionJobTask() || IsPromiseRejectReactionJobTask();
+bool HeapObject::IsJSCollection(Isolate* isolate) const {
+  return IsJSMap(isolate) || IsJSSet(isolate);
 }
 
-bool HeapObject::IsFrameArray() const { return IsFixedArrayExact(); }
-
-bool HeapObject::IsArrayList() const {
-  return map() == GetReadOnlyRoots().array_list_map() ||
-         *this == GetReadOnlyRoots().empty_fixed_array();
+bool HeapObject::IsPromiseReactionJobTask(Isolate* isolate) const {
+  return IsPromiseFulfillReactionJobTask(isolate) ||
+         IsPromiseRejectReactionJobTask(isolate);
 }
 
-bool HeapObject::IsRegExpMatchInfo() const { return IsFixedArrayExact(); }
+bool HeapObject::IsFrameArray(Isolate* isolate) const {
+  return IsFixedArrayExact(isolate);
+}
 
-bool Object::IsLayoutDescriptor() const { return IsSmi() || IsByteArray(); }
+bool HeapObject::IsArrayList(Isolate* isolate) const {
+  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
+  // i::GetIsolateForPtrCompr(HeapObject).
+  ReadOnlyRoots roots = GetReadOnlyRoots(isolate);
+  return *this == roots.empty_fixed_array() ||
+         map(isolate) == roots.array_list_map();
+}
 
-bool HeapObject::IsDeoptimizationData() const {
+bool HeapObject::IsRegExpMatchInfo(Isolate* isolate) const {
+  return IsFixedArrayExact(isolate);
+}
+
+bool Object::IsLayoutDescriptor() const {
+  if (IsSmi()) return true;
+  HeapObject this_heap_object = HeapObject::cast(*this);
+  Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  return this_heap_object.IsByteArray(isolate);
+}
+
+bool Object::IsLayoutDescriptor(Isolate* isolate) const {
+  return IsSmi() || IsByteArray(isolate);
+}
+
+bool HeapObject::IsDeoptimizationData(Isolate* isolate) const {
   // Must be a fixed array.
-  if (!IsFixedArrayExact()) return false;
+  if (!IsFixedArrayExact(isolate)) return false;
 
   // There's no sure way to detect the difference between a fixed array and
   // a deoptimization data array.  Since this is used for asserts we can
@@ -271,83 +324,102 @@ bool HeapObject::IsDeoptimizationData() const {
   return length >= 0 && length % DeoptimizationData::kDeoptEntrySize == 0;
 }
 
-bool HeapObject::IsHandlerTable() const {
-  if (!IsFixedArrayExact()) return false;
+bool HeapObject::IsHandlerTable(Isolate* isolate) const {
+  if (!IsFixedArrayExact(isolate)) return false;
   // There's actually no way to see the difference between a fixed array and
   // a handler table array.
   return true;
 }
 
-bool HeapObject::IsTemplateList() const {
-  if (!IsFixedArrayExact()) return false;
+bool HeapObject::IsTemplateList(Isolate* isolate) const {
+  if (!IsFixedArrayExact(isolate)) return false;
   // There's actually no way to see the difference between a fixed array and
   // a template list.
   if (FixedArray::cast(*this).length() < 1) return false;
   return true;
 }
 
-bool HeapObject::IsDependentCode() const {
-  if (!IsWeakFixedArray()) return false;
+bool HeapObject::IsDependentCode(Isolate* isolate) const {
+  if (!IsWeakFixedArray(isolate)) return false;
   // There's actually no way to see the difference between a weak fixed array
   // and a dependent codes array.
   return true;
 }
 
-bool HeapObject::IsAbstractCode() const {
-  return IsBytecodeArray() || IsCode();
+bool HeapObject::IsAbstractCode(Isolate* isolate) const {
+  return IsBytecodeArray(isolate) || IsCode(isolate);
 }
 
-bool HeapObject::IsStringWrapper() const {
-  return IsJSValue() && JSValue::cast(*this).value().IsString();
+bool HeapObject::IsStringWrapper(Isolate* isolate) const {
+  return IsJSValue(isolate) && JSValue::cast(*this).value().IsString(isolate);
 }
 
-bool HeapObject::IsBooleanWrapper() const {
-  return IsJSValue() && JSValue::cast(*this).value().IsBoolean();
+bool HeapObject::IsBooleanWrapper(Isolate* isolate) const {
+  return IsJSValue(isolate) && JSValue::cast(*this).value().IsBoolean(isolate);
 }
 
-bool HeapObject::IsScriptWrapper() const {
-  return IsJSValue() && JSValue::cast(*this).value().IsScript();
+bool HeapObject::IsScriptWrapper(Isolate* isolate) const {
+  return IsJSValue(isolate) && JSValue::cast(*this).value().IsScript(isolate);
 }
 
-bool HeapObject::IsNumberWrapper() const {
-  return IsJSValue() && JSValue::cast(*this).value().IsNumber();
+bool HeapObject::IsNumberWrapper(Isolate* isolate) const {
+  return IsJSValue(isolate) && JSValue::cast(*this).value().IsNumber(isolate);
 }
 
-bool HeapObject::IsBigIntWrapper() const {
-  return IsJSValue() && JSValue::cast(*this).value().IsBigInt();
+bool HeapObject::IsBigIntWrapper(Isolate* isolate) const {
+  return IsJSValue(isolate) && JSValue::cast(*this).value().IsBigInt(isolate);
 }
 
-bool HeapObject::IsSymbolWrapper() const {
-  return IsJSValue() && JSValue::cast(*this).value().IsSymbol();
+bool HeapObject::IsSymbolWrapper(Isolate* isolate) const {
+  return IsJSValue(isolate) && JSValue::cast(*this).value().IsSymbol(isolate);
 }
 
-bool HeapObject::IsJSArrayBufferView() const {
-  return IsJSDataView() || IsJSTypedArray();
+bool HeapObject::IsJSArrayBufferView(Isolate* isolate) const {
+  return IsJSDataView(isolate) || IsJSTypedArray(isolate);
 }
 
-bool HeapObject::IsJSCollectionIterator() const {
-  return IsJSMapIterator() || IsJSSetIterator();
+bool HeapObject::IsJSCollectionIterator(Isolate* isolate) const {
+  return IsJSMapIterator(isolate) || IsJSSetIterator(isolate);
 }
 
-bool HeapObject::IsStringSet() const { return IsHashTable(); }
+bool HeapObject::IsStringSet(Isolate* isolate) const {
+  return IsHashTable(isolate);
+}
 
-bool HeapObject::IsObjectHashSet() const { return IsHashTable(); }
+bool HeapObject::IsObjectHashSet(Isolate* isolate) const {
+  return IsHashTable(isolate);
+}
 
-bool HeapObject::IsCompilationCacheTable() const { return IsHashTable(); }
+bool HeapObject::IsCompilationCacheTable(Isolate* isolate) const {
+  return IsHashTable(isolate);
+}
 
-bool HeapObject::IsMapCache() const { return IsHashTable(); }
+bool HeapObject::IsMapCache(Isolate* isolate) const {
+  return IsHashTable(isolate);
+}
 
-bool HeapObject::IsObjectHashTable() const { return IsHashTable(); }
+bool HeapObject::IsObjectHashTable(Isolate* isolate) const {
+  return IsHashTable(isolate);
+}
 
-bool Object::IsHashTableBase() const { return IsHashTable(); }
+bool HeapObject::IsHashTableBase(Isolate* isolate) const {
+  return IsHashTable(isolate);
+}
 
-bool Object::IsSmallOrderedHashTable() const {
-  return IsSmallOrderedHashSet() || IsSmallOrderedHashMap() ||
-         IsSmallOrderedNameDictionary();
+bool HeapObject::IsSmallOrderedHashTable(Isolate* isolate) const {
+  return IsSmallOrderedHashSet(isolate) || IsSmallOrderedHashMap(isolate) ||
+         IsSmallOrderedNameDictionary(isolate);
 }
 
 bool Object::IsPrimitive() const {
-  return IsSmi() || HeapObject::cast(*this).map().IsPrimitiveMap();
+  if (IsSmi()) return true;
+  HeapObject this_heap_object = HeapObject::cast(*this);
+  Isolate* isolate = GetIsolateForPtrCompr(this_heap_object);
+  return this_heap_object.map(isolate).IsPrimitiveMap();
+}
+
+bool Object::IsPrimitive(Isolate* isolate) const {
+  return IsSmi() || HeapObject::cast(*this).map(isolate).IsPrimitiveMap();
 }
 
 // static
@@ -359,19 +431,21 @@ Maybe<bool> Object::IsArray(Handle<Object> object) {
   return JSProxy::IsArray(Handle<JSProxy>::cast(object));
 }
 
-bool HeapObject::IsUndetectable() const { return map().is_undetectable(); }
+bool HeapObject::IsUndetectable(Isolate* isolate) const {
+  return map(isolate).is_undetectable();
+}
 
-bool HeapObject::IsAccessCheckNeeded() const {
-  if (IsJSGlobalProxy()) {
+bool HeapObject::IsAccessCheckNeeded(Isolate* isolate) const {
+  if (IsJSGlobalProxy(isolate)) {
     const JSGlobalProxy proxy = JSGlobalProxy::cast(*this);
     JSGlobalObject global = proxy.GetIsolate()->context().global_object();
     return proxy.IsDetachedFrom(global);
   }
-  return map().is_access_check_needed();
+  return map(isolate).is_access_check_needed();
 }
 
-bool HeapObject::IsStruct() const {
-  switch (map().instance_type()) {
+bool HeapObject::IsStruct(Isolate* isolate) const {
+  switch (map(isolate).instance_type()) {
 #define MAKE_STRUCT_CASE(TYPE, Name, name) \
   case TYPE:                               \
     return true;
@@ -394,10 +468,14 @@ bool HeapObject::IsStruct() const {
   }
 }
 
-#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                  \
-  bool Object::Is##Name() const {                                \
-    return IsHeapObject() && HeapObject::cast(*this).Is##Name(); \
-  }                                                              \
+#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                         \
+  bool Object::Is##Name() const {                                       \
+    return IsHeapObject() && HeapObject::cast(*this).Is##Name();        \
+  }                                                                     \
+  bool Object::Is##Name(Isolate* isolate) const {                       \
+    return IsHeapObject() && HeapObject::cast(*this).Is##Name(isolate); \
+  }                                                                     \
+  ISOLATELESS_GETTER(HeapObject, Is##Name, bool)                        \
   TYPE_CHECKER(Name)
 STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 #undef MAKE_STRUCT_PREDICATE
@@ -659,7 +737,19 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
   return ReadOnlyHeap::GetReadOnlyRoots(*this);
 }
 
-Map HeapObject::map() const { return map_word().ToMap(); }
+ReadOnlyRoots HeapObject::GetReadOnlyRoots(Isolate* isolate) const {
+#ifdef V8_COMPRESS_POINTERS
+  return ReadOnlyRoots(isolate);
+#else
+  return GetReadOnlyRoots();
+#endif
+}
+
+ISOLATELESS_GETTER(HeapObject, map, Map)
+
+Map HeapObject::map(Isolate* isolate) const {
+  return map_word(isolate).ToMap();
+}
 
 void HeapObject::set_map(Map value) {
   if (!value.is_null()) {
@@ -717,7 +807,11 @@ ObjectSlot HeapObject::map_slot() const {
   return ObjectSlot(MapField::address(*this));
 }
 
-MapWord HeapObject::map_word() const { return MapField::Relaxed_Load(*this); }
+ISOLATELESS_GETTER(HeapObject, map_word, MapWord)
+
+MapWord HeapObject::map_word(Isolate* isolate) const {
+  return MapField::Relaxed_Load(isolate, *this);
+}
 
 void HeapObject::set_map_word(MapWord map_word) {
   MapField::Relaxed_Store(*this, map_word);
