@@ -9,7 +9,8 @@
 
 #include "include/v8-internal.h"
 #include "src/common/ptr-compr-inl.h"
-#include "src/objects/heap-object-inl.h"
+#include "src/objects/maybe-object.h"
+#include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/tagged-impl-inl.h"
 #include "src/roots/roots-inl.h"

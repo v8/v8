@@ -212,16 +212,6 @@ class HeapObject : public Object {
 OBJECT_CONSTRUCTORS_IMPL(HeapObject, Object)
 CAST_ACCESSOR(HeapObject)
 
-// Helper class for objects that can never be in RO space.
-class NeverReadOnlySpaceObject {
- public:
-  // The Heap the object was allocated in. Used also to access Isolate.
-  static inline Heap* GetHeap(HeapObject object);
-
-  // Convenience method to get current isolate.
-  static inline Isolate* GetIsolate(HeapObject object);
-};
-
 }  // namespace internal
 }  // namespace v8
 

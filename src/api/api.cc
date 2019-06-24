@@ -3537,8 +3537,7 @@ MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
 }
 
 i::Isolate* i::IsolateFromNeverReadOnlySpaceObject(i::Address obj) {
-  return i::NeverReadOnlySpaceObject::GetIsolate(
-      i::HeapObject::cast(i::Object(obj)));
+  return i::GetIsolateFromWritableObject(i::HeapObject::cast(i::Object(obj)));
 }
 
 bool i::ShouldThrowOnError(i::Isolate* isolate) {

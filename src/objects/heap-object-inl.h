@@ -7,9 +7,6 @@
 
 #include "src/objects/heap-object.h"
 
-// TODO(jkummerow): Get rid of this by moving NROSO::GetIsolate elsewhere.
-#include "src/execution/isolate-utils-inl.h"
-
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -21,16 +18,6 @@ HeapObject::HeapObject(Address ptr, AllowInlineSmiStorage allow_smi)
   SLOW_DCHECK(
       (allow_smi == AllowInlineSmiStorage::kAllowBeingASmi && IsSmi()) ||
       IsHeapObject());
-}
-
-// static
-Heap* NeverReadOnlySpaceObject::GetHeap(HeapObject object) {
-  return GetHeapFromWritableObject(object);
-}
-
-// static
-Isolate* NeverReadOnlySpaceObject::GetIsolate(HeapObject object) {
-  return GetIsolateFromWritableObject(object);
 }
 
 }  // namespace internal
