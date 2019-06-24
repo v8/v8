@@ -38,7 +38,7 @@ class V8_EXPORT_PRIVATE DecompressionElimination final
   // elimination.
   bool IsReducibleConstantOpcode(IrOpcode::Value opcode);
 
-  // Get the new 32 bit node constant given the 64 bit one
+  // Get the new 32 bit node constant given the 64 bit one.
   Node* GetCompressedConstant(Node* constant);
 
   // Removes direct Decompressions & Compressions, going from
