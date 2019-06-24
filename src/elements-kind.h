@@ -154,6 +154,11 @@ inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
   return IsDoubleElementsKind(kind) || IsFixedFloatElementsKind(kind);
 }
 
+// This predicate is used for disabling respective functionality in builtins.
+inline bool IsFrozenOrSealedElementsKindUnchecked(ElementsKind kind) {
+  return IsInRange(kind, PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS);
+}
+
 inline bool IsPackedFrozenOrSealedElementsKind(ElementsKind kind) {
   DCHECK_IMPLIES(
       IsInRange(kind, PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS),
