@@ -4827,12 +4827,13 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                                      intptr_t value) {
   DCHECK(rmode != RelocInfo::CONST_POOL);
-  // We can share CODE_TARGETs because we don't patch the code objects anymore,
-  // and we make sure we emit only one reloc info for them (thus delta patching)
-  // will apply the delta only once. At the moment, we do not dedup code targets
-  // if they are wrapped in a heap object request (value == 0).
+  // We can share CODE_TARGETs and embedded objects, but we must make sure we
+  // only emit one reloc info for them (thus delta patching will apply the delta
+  // only once). At the moment, we do not deduplicate heap object request which
+  // are indicated by value == 0.
   bool sharing_ok = RelocInfo::IsShareableRelocMode(rmode) ||
-                    (rmode == RelocInfo::CODE_TARGET && value != 0);
+                    (rmode == RelocInfo::CODE_TARGET && value != 0) ||
+                    (RelocInfo::IsEmbeddedObjectMode(rmode) && value != 0);
   DCHECK_LT(pending_32_bit_constants_.size(), kMaxNumPending32Constants);
   if (pending_32_bit_constants_.empty()) {
     first_const_pool_32_use_ = position;
