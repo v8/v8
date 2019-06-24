@@ -283,8 +283,9 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result->set(4, *is_revoked_str);
     result->set(5, isolate->heap()->ToBoolean(js_proxy->IsRevoked()));
     return factory->NewJSArrayWithElements(result);
-  } else if (object->IsJSValue()) {
-    Handle<JSValue> js_value = Handle<JSValue>::cast(object);
+  } else if (object->IsJSPrimitiveWrapper()) {
+    Handle<JSPrimitiveWrapper> js_value =
+        Handle<JSPrimitiveWrapper>::cast(object);
 
     Handle<FixedArray> result = factory->NewFixedArray(2);
     Handle<String> primitive_value =

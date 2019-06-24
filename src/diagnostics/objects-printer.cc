@@ -272,8 +272,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_GLOBAL_OBJECT_TYPE:
       JSGlobalObject::cast(*this).JSGlobalObjectPrint(os);
       break;
-    case JS_VALUE_TYPE:
-      JSValue::cast(*this).JSValuePrint(os);
+    case JS_PRIMITIVE_WRAPPER_TYPE:
+      JSPrimitiveWrapper::cast(*this).JSPrimitiveWrapperPrint(os);
       break;
     case JS_DATE_TYPE:
       JSDate::cast(*this).JSDatePrint(os);
@@ -1196,8 +1196,8 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
   }
 }
 
-void JSValue::JSValuePrint(std::ostream& os) {  // NOLINT
-  JSObjectPrintHeader(os, *this, "JSValue");
+void JSPrimitiveWrapper::JSPrimitiveWrapperPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, *this, "JSPrimitiveWrapper");
   os << "\n - value: " << Brief(value());
   JSObjectPrintBody(os, *this);
 }

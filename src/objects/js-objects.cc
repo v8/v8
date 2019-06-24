@@ -375,8 +375,8 @@ String JSReceiver::class_name() {
     TYPED_ARRAYS(SWITCH_KIND)
 #undef SWITCH_KIND
   }
-  if (IsJSValue()) {
-    Object value = JSValue::cast(*this).value();
+  if (IsJSPrimitiveWrapper()) {
+    Object value = JSPrimitiveWrapper::cast(*this).value();
     if (value.IsBoolean()) return roots.Boolean_string();
     if (value.IsString()) return roots.String_string();
     if (value.IsNumber()) return roots.Number_string();
@@ -2070,8 +2070,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSBoundFunction::kSize;
     case JS_FUNCTION_TYPE:
       return JSFunction::GetHeaderSize(function_has_prototype_slot);
-    case JS_VALUE_TYPE:
-      return JSValue::kSize;
+    case JS_PRIMITIVE_WRAPPER_TYPE:
+      return JSPrimitiveWrapper::kSize;
     case JS_DATE_TYPE:
       return JSDate::kSize;
     case JS_ARRAY_TYPE:
@@ -2421,7 +2421,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     }
 
     // All other JSObjects are rather similar to each other (JSObject,
-    // JSGlobalProxy, JSGlobalObject, JSUndetectable, JSValue).
+    // JSGlobalProxy, JSGlobalObject, JSUndetectable, JSPrimitiveWrapper).
     default: {
       Map map_of_this = map();
       Heap* heap = GetHeap();
@@ -2455,9 +2455,9 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
           accumulator->Add("<JS%sObject", global_object ? "Global " : "");
         }
       }
-      if (IsJSValue()) {
+      if (IsJSPrimitiveWrapper()) {
         accumulator->Add(" value = ");
-        JSValue::cast(*this).value().ShortPrint(accumulator);
+        JSPrimitiveWrapper::cast(*this).value().ShortPrint(accumulator);
       }
       accumulator->Put('>');
       break;
@@ -3989,7 +3989,7 @@ bool JSObject::HasEnumerableElements() {
       return true;
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
-      if (String::cast(JSValue::cast(object).value()).length() > 0) {
+      if (String::cast(JSPrimitiveWrapper::cast(object).value()).length() > 0) {
         return true;
       }
       return object.elements().length() > 0;
@@ -5151,7 +5151,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_SET_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_TYPED_ARRAY_TYPE:
-    case JS_VALUE_TYPE:
+    case JS_PRIMITIVE_WRAPPER_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
     case WASM_GLOBAL_TYPE:

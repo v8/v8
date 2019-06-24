@@ -1036,7 +1036,7 @@ void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
     TNode<Int32T> prototype_instance_type = LoadMapInstanceType(prototype_map);
 
     // Pessimistically assume elements if a Proxy, Special API Object,
-    // or JSValue wrapper is found on the prototype chain. After this
+    // or JSPrimitiveWrapper wrapper is found on the prototype chain. After this
     // instance type check, it's not necessary to check for interceptors or
     // access checks.
     Label if_custom(this, Label::kDeferred), if_notcustom(this);
@@ -1045,11 +1045,12 @@ void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
 
     BIND(&if_custom);
     {
-      // For string JSValue wrappers we still support the checks as long
-      // as they wrap the empty string.
-      GotoIfNot(InstanceTypeEqual(prototype_instance_type, JS_VALUE_TYPE),
-                possibly_elements);
-      Node* prototype_value = LoadJSValueValue(prototype);
+      // For string JSPrimitiveWrapper wrappers we still support the checks as
+      // long as they wrap the empty string.
+      GotoIfNot(
+          InstanceTypeEqual(prototype_instance_type, JS_PRIMITIVE_WRAPPER_TYPE),
+          possibly_elements);
+      Node* prototype_value = LoadJSPrimitiveWrapperValue(prototype);
       Branch(IsEmptyString(prototype_value), &if_notcustom, possibly_elements);
     }
 
@@ -1710,7 +1711,8 @@ TNode<Object> CodeStubAssembler::LoadMapBackPointer(SloppyTNode<Map> map) {
 
 TNode<Uint32T> CodeStubAssembler::EnsureOnlyHasSimpleProperties(
     TNode<Map> map, TNode<Int32T> instance_type, Label* bailout) {
-  // This check can have false positives, since it applies to any JSValueType.
+  // This check can have false positives, since it applies to any
+  // JSPrimitiveWrapper type.
   GotoIf(IsCustomElementsReceiverInstanceType(instance_type), bailout);
 
   TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
@@ -1817,9 +1819,9 @@ Node* CodeStubAssembler::PointerToSeqStringData(Node* seq_string) {
       IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
 }
 
-Node* CodeStubAssembler::LoadJSValueValue(Node* object) {
-  CSA_ASSERT(this, IsJSValue(object));
-  return LoadObjectField(object, JSValue::kValueOffset);
+Node* CodeStubAssembler::LoadJSPrimitiveWrapperValue(Node* object) {
+  CSA_ASSERT(this, IsJSPrimitiveWrapper(object));
+  return LoadObjectField(object, JSPrimitiveWrapper::kValueOffset);
 }
 
 void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
@@ -5836,7 +5838,7 @@ TNode<Object> CodeStubAssembler::ToThisValue(TNode<Context> context,
                                              TNode<Object> value,
                                              PrimitiveType primitive_type,
                                              char const* method_name) {
-  // We might need to loop once due to JSValue unboxing.
+  // We might need to loop once due to JSPrimitiveWrapper unboxing.
   TVARIABLE(Object, var_value, value);
   Label loop(this, &var_value), done_loop(this),
       done_throw(this, Label::kDeferred);
@@ -5856,19 +5858,19 @@ TNode<Object> CodeStubAssembler::ToThisValue(TNode<Context> context,
     // Load the instance type of the {value}.
     TNode<Uint16T> value_instance_type = LoadMapInstanceType(value_map);
 
-    // Check if {value} is a JSValue.
-    Label if_valueisvalue(this, Label::kDeferred), if_valueisnotvalue(this);
-    Branch(InstanceTypeEqual(value_instance_type, JS_VALUE_TYPE),
-           &if_valueisvalue, &if_valueisnotvalue);
+    // Check if {value} is a JSPrimitiveWrapper.
+    Label if_valueiswrapper(this, Label::kDeferred), if_valueisnotwrapper(this);
+    Branch(InstanceTypeEqual(value_instance_type, JS_PRIMITIVE_WRAPPER_TYPE),
+           &if_valueiswrapper, &if_valueisnotwrapper);
 
-    BIND(&if_valueisvalue);
+    BIND(&if_valueiswrapper);
     {
       // Load the actual value from the {value}.
-      var_value = LoadObjectField(value, JSValue::kValueOffset);
+      var_value = LoadObjectField(value, JSPrimitiveWrapper::kValueOffset);
       Goto(&loop);
     }
 
-    BIND(&if_valueisnotvalue);
+    BIND(&if_valueisnotwrapper);
     {
       switch (primitive_type) {
         case PrimitiveType::kBoolean:
@@ -6353,17 +6355,18 @@ TNode<BoolT> CodeStubAssembler::IsMap(SloppyTNode<HeapObject> map) {
   return IsMetaMap(LoadMap(map));
 }
 
-TNode<BoolT> CodeStubAssembler::IsJSValueInstanceType(
+TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapperInstanceType(
     SloppyTNode<Int32T> instance_type) {
-  return InstanceTypeEqual(instance_type, JS_VALUE_TYPE);
+  return InstanceTypeEqual(instance_type, JS_PRIMITIVE_WRAPPER_TYPE);
 }
 
-TNode<BoolT> CodeStubAssembler::IsJSValue(SloppyTNode<HeapObject> object) {
-  return IsJSValueMap(LoadMap(object));
+TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapper(
+    SloppyTNode<HeapObject> object) {
+  return IsJSPrimitiveWrapperMap(LoadMap(object));
 }
 
-TNode<BoolT> CodeStubAssembler::IsJSValueMap(SloppyTNode<Map> map) {
-  return IsJSValueInstanceType(LoadMapInstanceType(map));
+TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapperMap(SloppyTNode<Map> map) {
+  return IsJSPrimitiveWrapperInstanceType(LoadMapInstanceType(map));
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSArrayInstanceType(
@@ -9544,15 +9547,15 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
     Node* accessor_info = value;
     CSA_ASSERT(this, IsAccessorInfo(value));
     CSA_ASSERT(this, TaggedIsNotSmi(receiver));
-    Label if_array(this), if_function(this), if_value(this);
+    Label if_array(this), if_function(this), if_wrapper(this);
 
     // Dispatch based on {receiver} instance type.
     Node* receiver_map = LoadMap(receiver);
     Node* receiver_instance_type = LoadMapInstanceType(receiver_map);
     GotoIf(IsJSArrayInstanceType(receiver_instance_type), &if_array);
     GotoIf(IsJSFunctionInstanceType(receiver_instance_type), &if_function);
-    Branch(IsJSValueInstanceType(receiver_instance_type), &if_value,
-           if_bailout);
+    Branch(IsJSPrimitiveWrapperInstanceType(receiver_instance_type),
+           &if_wrapper, if_bailout);
 
     // JSArray AccessorInfo case.
     BIND(&if_array);
@@ -9579,14 +9582,15 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
       Goto(&done);
     }
 
-    // JSValue AccessorInfo case.
-    BIND(&if_value);
+    // JSPrimitiveWrapper AccessorInfo case.
+    BIND(&if_wrapper);
     {
-      // We only deal with the "length" accessor on JSValue string wrappers.
+      // We only deal with the "length" accessor on JSPrimitiveWrapper string
+      // wrappers.
       GotoIfNot(IsLengthString(
                     LoadObjectField(accessor_info, AccessorInfo::kNameOffset)),
                 if_bailout);
-      Node* receiver_value = LoadJSValueValue(receiver);
+      Node* receiver_value = LoadJSPrimitiveWrapperValue(receiver);
       GotoIfNot(TaggedIsNotSmi(receiver_value), if_bailout);
       GotoIfNot(IsString(receiver_value), if_bailout);
       var_value.Bind(LoadStringLengthAsSmi(receiver_value));
@@ -9774,8 +9778,8 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
   BIND(&if_isfaststringwrapper);
   {
-    CSA_ASSERT(this, HasInstanceType(object, JS_VALUE_TYPE));
-    Node* string = LoadJSValueValue(object);
+    CSA_ASSERT(this, HasInstanceType(object, JS_PRIMITIVE_WRAPPER_TYPE));
+    Node* string = LoadJSPrimitiveWrapperValue(object);
     CSA_ASSERT(this, IsString(string));
     Node* length = LoadStringLengthAsWord(string);
     GotoIf(UintPtrLessThan(intptr_index, length), if_found);
@@ -9783,8 +9787,8 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
   BIND(&if_isslowstringwrapper);
   {
-    CSA_ASSERT(this, HasInstanceType(object, JS_VALUE_TYPE));
-    Node* string = LoadJSValueValue(object);
+    CSA_ASSERT(this, HasInstanceType(object, JS_PRIMITIVE_WRAPPER_TYPE));
+    Node* string = LoadJSPrimitiveWrapperValue(object);
     CSA_ASSERT(this, IsString(string));
     Node* length = LoadStringLengthAsWord(string);
     GotoIf(UintPtrLessThan(intptr_index, length), if_found);

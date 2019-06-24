@@ -965,7 +965,8 @@ bool KeyedLoadIC::CanChangeToAllowOutOfBounds(Handle<Map> receiver_map) {
 void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
                                     KeyedAccessLoadMode load_mode) {
   Handle<Map> receiver_map(receiver->map(), isolate());
-  DCHECK(receiver_map->instance_type() != JS_VALUE_TYPE);  // Checked by caller.
+  DCHECK(receiver_map->instance_type() !=
+         JS_PRIMITIVE_WRAPPER_TYPE);  // Checked by caller.
   MapHandles target_receiver_maps;
   TargetMaps(&target_receiver_maps);
 
@@ -976,8 +977,8 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
 
   for (Handle<Map> map : target_receiver_maps) {
     if (map.is_null()) continue;
-    if (map->instance_type() == JS_VALUE_TYPE) {
-      set_slow_stub_reason("JSValue");
+    if (map->instance_type() == JS_PRIMITIVE_WRAPPER_TYPE) {
+      set_slow_stub_reason("JSPrimitiveWrapper");
       return;
     }
     if (map->instance_type() == JS_PROXY_TYPE) {
@@ -1159,7 +1160,9 @@ namespace {
 bool ConvertKeyToIndex(Handle<Object> receiver, Handle<Object> key,
                        uint32_t* index, InlineCacheState state) {
   if (!FLAG_use_ic || state == NO_FEEDBACK) return false;
-  if (receiver->IsAccessCheckNeeded() || receiver->IsJSValue()) return false;
+  if (receiver->IsAccessCheckNeeded() || receiver->IsJSPrimitiveWrapper()) {
+    return false;
+  }
 
   // For regular JSReceiver or String receivers, the {key} must be a positive
   // array index.
@@ -1710,9 +1713,9 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   }
 
   for (Handle<Map> map : target_receiver_maps) {
-    if (!map.is_null() && map->instance_type() == JS_VALUE_TYPE) {
+    if (!map.is_null() && map->instance_type() == JS_PRIMITIVE_WRAPPER_TYPE) {
       DCHECK(!IsStoreInArrayLiteralICKind(kind()));
-      set_slow_stub_reason("JSValue");
+      set_slow_stub_reason("JSPrimitiveWrapper");
       return;
     }
   }

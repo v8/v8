@@ -263,7 +263,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSStringIterator::index() field.
   static FieldAccess ForJSStringIteratorIndex();
 
-  // Provides access to JSValue::value() field.
+  // Provides access to JSPrimitiveWrapper::value() field.
   static FieldAccess ForValue();
 
   // Provides access to Cell::value() field.

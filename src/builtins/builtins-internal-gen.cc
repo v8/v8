@@ -614,8 +614,9 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
     Label if_done(this), if_noelements(this),
         if_sourcenotjsobject(this, Label::kDeferred);
 
-    // JSValue wrappers for numbers don't have any enumerable own properties,
-    // so we can immediately skip the whole operation if {source} is a Smi.
+    // JSPrimitiveWrapper wrappers for numbers don't have any enumerable own
+    // properties, so we can immediately skip the whole operation if {source} is
+    // a Smi.
     GotoIf(TaggedIsSmi(source), &if_done);
 
     // Otherwise check if {source} is a proper JSObject, and if not, defer

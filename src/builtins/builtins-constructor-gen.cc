@@ -728,7 +728,7 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
       TNode<JSFunction> target = LoadTargetFromFrame();
       Node* result =
           CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
-      StoreObjectField(result, JSValue::kValueOffset, n_value);
+      StoreObjectField(result, JSPrimitiveWrapper::kValueOffset, n_value);
       args.PopAndReturn(result);
     }
   }
@@ -794,7 +794,7 @@ TF_BUILTIN(StringConstructor, ConstructorBuiltinsAssembler) {
 
       Node* result =
           CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
-      StoreObjectField(result, JSValue::kValueOffset, s_value);
+      StoreObjectField(result, JSPrimitiveWrapper::kValueOffset, s_value);
       args.PopAndReturn(result);
     }
   }

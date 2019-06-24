@@ -6388,10 +6388,11 @@ Local<v8::Value> v8::NumberObject::New(Isolate* isolate, double value) {
 
 double v8::NumberObject::ValueOf() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
-  i::Isolate* isolate = jsvalue->GetIsolate();
+  i::Handle<i::JSPrimitiveWrapper> js_primitive_wrapper =
+      i::Handle<i::JSPrimitiveWrapper>::cast(obj);
+  i::Isolate* isolate = js_primitive_wrapper->GetIsolate();
   LOG_API(isolate, NumberObject, NumberValue);
-  return jsvalue->value().Number();
+  return js_primitive_wrapper->value().Number();
 }
 
 Local<v8::Value> v8::BigIntObject::New(Isolate* isolate, int64_t value) {
@@ -6406,11 +6407,12 @@ Local<v8::Value> v8::BigIntObject::New(Isolate* isolate, int64_t value) {
 
 Local<v8::BigInt> v8::BigIntObject::ValueOf() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
-  i::Isolate* isolate = jsvalue->GetIsolate();
+  i::Handle<i::JSPrimitiveWrapper> js_primitive_wrapper =
+      i::Handle<i::JSPrimitiveWrapper>::cast(obj);
+  i::Isolate* isolate = js_primitive_wrapper->GetIsolate();
   LOG_API(isolate, BigIntObject, BigIntValue);
-  return Utils::ToLocal(
-      i::Handle<i::BigInt>(i::BigInt::cast(jsvalue->value()), isolate));
+  return Utils::ToLocal(i::Handle<i::BigInt>(
+      i::BigInt::cast(js_primitive_wrapper->value()), isolate));
 }
 
 Local<v8::Value> v8::BooleanObject::New(Isolate* isolate, bool value) {
@@ -6428,10 +6430,11 @@ Local<v8::Value> v8::BooleanObject::New(Isolate* isolate, bool value) {
 
 bool v8::BooleanObject::ValueOf() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
-  i::Isolate* isolate = jsvalue->GetIsolate();
+  i::Handle<i::JSPrimitiveWrapper> js_primitive_wrapper =
+      i::Handle<i::JSPrimitiveWrapper>::cast(obj);
+  i::Isolate* isolate = js_primitive_wrapper->GetIsolate();
   LOG_API(isolate, BooleanObject, BooleanValue);
-  return jsvalue->value().IsTrue(isolate);
+  return js_primitive_wrapper->value().IsTrue(isolate);
 }
 
 Local<v8::Value> v8::StringObject::New(Isolate* v8_isolate,
@@ -6447,11 +6450,12 @@ Local<v8::Value> v8::StringObject::New(Isolate* v8_isolate,
 
 Local<v8::String> v8::StringObject::ValueOf() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
-  i::Isolate* isolate = jsvalue->GetIsolate();
+  i::Handle<i::JSPrimitiveWrapper> js_primitive_wrapper =
+      i::Handle<i::JSPrimitiveWrapper>::cast(obj);
+  i::Isolate* isolate = js_primitive_wrapper->GetIsolate();
   LOG_API(isolate, StringObject, StringValue);
-  return Utils::ToLocal(
-      i::Handle<i::String>(i::String::cast(jsvalue->value()), isolate));
+  return Utils::ToLocal(i::Handle<i::String>(
+      i::String::cast(js_primitive_wrapper->value()), isolate));
 }
 
 Local<v8::Value> v8::SymbolObject::New(Isolate* isolate, Local<Symbol> value) {
@@ -6466,11 +6470,12 @@ Local<v8::Value> v8::SymbolObject::New(Isolate* isolate, Local<Symbol> value) {
 
 Local<v8::Symbol> v8::SymbolObject::ValueOf() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
-  i::Isolate* isolate = jsvalue->GetIsolate();
+  i::Handle<i::JSPrimitiveWrapper> js_primitive_wrapper =
+      i::Handle<i::JSPrimitiveWrapper>::cast(obj);
+  i::Isolate* isolate = js_primitive_wrapper->GetIsolate();
   LOG_API(isolate, SymbolObject, SymbolValue);
-  return Utils::ToLocal(
-      i::Handle<i::Symbol>(i::Symbol::cast(jsvalue->value()), isolate));
+  return Utils::ToLocal(i::Handle<i::Symbol>(
+      i::Symbol::cast(js_primitive_wrapper->value()), isolate));
 }
 
 MaybeLocal<v8::Value> v8::Date::New(Local<Context> context, double time) {

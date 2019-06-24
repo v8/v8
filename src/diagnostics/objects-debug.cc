@@ -291,8 +291,8 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
       JSAsyncGeneratorObject::cast(*this).JSAsyncGeneratorObjectVerify(isolate);
       break;
-    case JS_VALUE_TYPE:
-      JSValue::cast(*this).JSValueVerify(isolate);
+    case JS_PRIMITIVE_WRAPPER_TYPE:
+      JSPrimitiveWrapper::cast(*this).JSPrimitiveWrapperVerify(isolate);
       break;
     case JS_DATE_TYPE:
       JSDate::cast(*this).JSDateVerify(isolate);
@@ -924,7 +924,7 @@ void JSAsyncGeneratorObject::JSAsyncGeneratorObjectVerify(Isolate* isolate) {
   queue().HeapObjectVerify(isolate);
 }
 
-USE_TORQUE_VERIFIER(JSValue)
+USE_TORQUE_VERIFIER(JSPrimitiveWrapper)
 
 void JSDate::JSDateVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSDateVerify(*this, isolate);

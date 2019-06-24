@@ -109,7 +109,8 @@ bool Map::IsMostGeneralFieldType(Representation representation,
 }
 
 bool Map::CanHaveFastTransitionableElementsKind(InstanceType instance_type) {
-  return instance_type == JS_ARRAY_TYPE || instance_type == JS_VALUE_TYPE ||
+  return instance_type == JS_ARRAY_TYPE ||
+         instance_type == JS_PRIMITIVE_WRAPPER_TYPE ||
          instance_type == JS_ARGUMENTS_TYPE;
 }
 
@@ -381,7 +382,7 @@ void Map::CopyUnusedPropertyFields(Map map) {
 
 void Map::CopyUnusedPropertyFieldsAdjustedForInstanceSize(Map map) {
   int value = map.used_or_unused_instance_size_in_words();
-  if (value >= JSValue::kFieldsAdded) {
+  if (value >= JSPrimitiveWrapper::kFieldsAdded) {
     // Unused in-object fields. Adjust the offset from the object’s start
     // so it matches the distance to the object’s end.
     value += instance_size_in_words() - map.instance_size_in_words();

@@ -245,7 +245,7 @@ MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
         isolate);
   }
   Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
-  Handle<JSValue>::cast(result)->set_value(*object);
+  Handle<JSPrimitiveWrapper>::cast(result)->set_value(*object);
   return result;
 }
 

@@ -1233,22 +1233,22 @@ class JSGlobalObject : public JSObject {
 };
 
 // Representation for JS Wrapper objects, String, Number, Boolean, etc.
-class JSValue : public JSObject {
+class JSPrimitiveWrapper : public JSObject {
  public:
   // [value]: the object being wrapped.
   DECL_ACCESSORS(value, Object)
 
-  DECL_CAST(JSValue)
+  DECL_CAST(JSPrimitiveWrapper)
 
   // Dispatched behavior.
-  DECL_PRINTER(JSValue)
-  DECL_VERIFIER(JSValue)
+  DECL_PRINTER(JSPrimitiveWrapper)
+  DECL_VERIFIER(JSPrimitiveWrapper)
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSVALUE_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSPrimitiveWrapper::kHeaderSize,
+                                TORQUE_GENERATED_JSPRIMITIVE_WRAPPER_FIELDS)
 
-  OBJECT_CONSTRUCTORS(JSValue, JSObject);
+  OBJECT_CONSTRUCTORS(JSPrimitiveWrapper, JSObject);
 };
 
 class DateCache;

@@ -27,9 +27,9 @@ class JSArrayBuffer;
 class JSArrayBufferView;
 class JSDate;
 class JSMap;
+class JSPrimitiveWrapper;
 class JSRegExp;
 class JSSet;
-class JSValue;
 class MutableHeapNumber;
 class Object;
 class Oddball;
@@ -120,7 +120,8 @@ class ValueSerializer {
   Maybe<bool> WriteJSObjectSlow(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArray(Handle<JSArray> array) V8_WARN_UNUSED_RESULT;
   void WriteJSDate(JSDate date);
-  Maybe<bool> WriteJSValue(Handle<JSValue> value) V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteJSPrimitiveWrapper(Handle<JSPrimitiveWrapper> value)
+      V8_WARN_UNUSED_RESULT;
   void WriteJSRegExp(JSRegExp regexp);
   Maybe<bool> WriteJSMap(Handle<JSMap> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSet(Handle<JSSet> map) V8_WARN_UNUSED_RESULT;
@@ -264,7 +265,8 @@ class ValueDeserializer {
   MaybeHandle<JSArray> ReadSparseJSArray() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArray> ReadDenseJSArray() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSDate> ReadJSDate() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSValue> ReadJSValue(SerializationTag tag) V8_WARN_UNUSED_RESULT;
+  MaybeHandle<JSPrimitiveWrapper> ReadJSPrimitiveWrapper(SerializationTag tag)
+      V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSRegExp> ReadJSRegExp() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSMap> ReadJSMap() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSSet> ReadJSSet() V8_WARN_UNUSED_RESULT;

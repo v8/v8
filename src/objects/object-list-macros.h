@@ -140,6 +140,8 @@ class ZoneForwardList;
   V(JSDataView)                                \
   V(JSDate)                                    \
   V(JSError)                                   \
+  V(JSFinalizationGroup)                       \
+  V(JSFinalizationGroupCleanupIterator)        \
   V(JSFunction)                                \
   V(JSGeneratorObject)                         \
   V(JSGlobalObject)                            \
@@ -149,6 +151,7 @@ class ZoneForwardList;
   V(JSMessageObject)                           \
   V(JSModuleNamespace)                         \
   V(JSObject)                                  \
+  V(JSPrimitiveWrapper)                        \
   V(JSPromise)                                 \
   V(JSProxy)                                   \
   V(JSReceiver)                                \
@@ -160,11 +163,8 @@ class ZoneForwardList;
   V(JSSloppyArgumentsObject)                   \
   V(JSStringIterator)                          \
   V(JSTypedArray)                              \
-  V(JSValue)                                   \
-  V(JSWeakRef)                                 \
   V(JSWeakCollection)                          \
-  V(JSFinalizationGroup)                       \
-  V(JSFinalizationGroupCleanupIterator)        \
+  V(JSWeakRef)                                 \
   V(JSWeakMap)                                 \
   V(JSWeakSet)                                 \
   V(LoadHandler)                               \

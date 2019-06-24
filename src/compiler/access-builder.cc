@@ -847,7 +847,7 @@ FieldAccess AccessBuilder::ForJSStringIteratorIndex() {
 // static
 FieldAccess AccessBuilder::ForValue() {
   FieldAccess access = {
-      kTaggedBase,         JSValue::kValueOffset,
+      kTaggedBase,         JSPrimitiveWrapper::kValueOffset,
       Handle<Name>(),      MaybeHandle<Map>(),
       Type::NonInternal(), MachineType::TypeCompressedTagged(),
       kFullWriteBarrier};

@@ -351,27 +351,33 @@ bool HeapObject::IsAbstractCode(Isolate* isolate) const {
 }
 
 bool HeapObject::IsStringWrapper(Isolate* isolate) const {
-  return IsJSValue(isolate) && JSValue::cast(*this).value().IsString(isolate);
+  return IsJSPrimitiveWrapper(isolate) &&
+         JSPrimitiveWrapper::cast(*this).value().IsString(isolate);
 }
 
 bool HeapObject::IsBooleanWrapper(Isolate* isolate) const {
-  return IsJSValue(isolate) && JSValue::cast(*this).value().IsBoolean(isolate);
+  return IsJSPrimitiveWrapper(isolate) &&
+         JSPrimitiveWrapper::cast(*this).value().IsBoolean(isolate);
 }
 
 bool HeapObject::IsScriptWrapper(Isolate* isolate) const {
-  return IsJSValue(isolate) && JSValue::cast(*this).value().IsScript(isolate);
+  return IsJSPrimitiveWrapper(isolate) &&
+         JSPrimitiveWrapper::cast(*this).value().IsScript(isolate);
 }
 
 bool HeapObject::IsNumberWrapper(Isolate* isolate) const {
-  return IsJSValue(isolate) && JSValue::cast(*this).value().IsNumber(isolate);
+  return IsJSPrimitiveWrapper(isolate) &&
+         JSPrimitiveWrapper::cast(*this).value().IsNumber(isolate);
 }
 
 bool HeapObject::IsBigIntWrapper(Isolate* isolate) const {
-  return IsJSValue(isolate) && JSValue::cast(*this).value().IsBigInt(isolate);
+  return IsJSPrimitiveWrapper(isolate) &&
+         JSPrimitiveWrapper::cast(*this).value().IsBigInt(isolate);
 }
 
 bool HeapObject::IsSymbolWrapper(Isolate* isolate) const {
-  return IsJSValue(isolate) && JSValue::cast(*this).value().IsSymbol(isolate);
+  return IsJSPrimitiveWrapper(isolate) &&
+         JSPrimitiveWrapper::cast(*this).value().IsSymbol(isolate);
 }
 
 bool HeapObject::IsJSArrayBufferView(Isolate* isolate) const {

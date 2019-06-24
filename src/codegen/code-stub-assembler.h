@@ -1034,8 +1034,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint32T> LoadStringLengthAsWord32(SloppyTNode<String> string);
   // Loads a pointer to the sequential String char array.
   Node* PointerToSeqStringData(Node* seq_string);
-  // Load value field of a JSValue object.
-  Node* LoadJSValueValue(Node* object);
+  // Load value field of a JSPrimitiveWrapper object.
+  Node* LoadJSPrimitiveWrapperValue(Node* object);
 
   // Figures out whether the value of maybe_object is:
   // - a SMI (jump to "if_smi", "extracted" will be the SMI value)
@@ -2183,8 +2183,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   // Throws a TypeError for {method_name} if {value} is neither of the given
-  // {primitive_type} nor a JSValue wrapping a value of {primitive_type}, or
-  // returns the {value} (or wrapped value) otherwise.
+  // {primitive_type} nor a JSPrimitiveWrapper wrapping a value of
+  // {primitive_type}, or returns the {value} (or wrapped value) otherwise.
   TNode<Object> ToThisValue(TNode<Context> context, TNode<Object> value,
                             PrimitiveType primitive_type,
                             char const* method_name);
@@ -2286,9 +2286,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSTypedArrayInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSTypedArrayMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSTypedArray(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsJSValueInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsJSValueMap(SloppyTNode<Map> map);
-  TNode<BoolT> IsJSValue(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSPrimitiveWrapperInstanceType(
+      SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSPrimitiveWrapperMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsJSPrimitiveWrapper(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsMap(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsMutableHeapNumber(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsName(SloppyTNode<HeapObject> object);

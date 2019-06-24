@@ -224,7 +224,7 @@ Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
     // context, ensuring that we don't leak it into JS?
     Handle<JSFunction> constructor = isolate->string_function();
     Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
-    Handle<JSValue>::cast(result)->set_value(*receiver);
+    Handle<JSPrimitiveWrapper>::cast(result)->set_value(*receiver);
     return result;
   }
   auto root =

@@ -48,7 +48,7 @@ TF_BUILTIN(LoadIC_StringLength, CodeStubAssembler) {
 
 TF_BUILTIN(LoadIC_StringWrapperLength, CodeStubAssembler) {
   Node* value = Parameter(Descriptor::kReceiver);
-  Node* string = LoadJSValueValue(value);
+  Node* string = LoadJSPrimitiveWrapperValue(value);
   Return(LoadStringLengthAsSmi(string));
 }
 

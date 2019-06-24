@@ -363,7 +363,7 @@ macro NewJSProxyRevocableResult(implicit context: Context)(
 
 extern class JSGlobalProxy extends JSObject { native_context: Object; }
 
-extern class JSValue extends JSObject { value: Object; }
+extern class JSPrimitiveWrapper extends JSObject { value: Object; }
 
 extern class JSArgumentsObject extends JSObject {}
 
@@ -1914,9 +1914,9 @@ Cast<Map>(implicit context: Context)(o: HeapObject): Map
   goto CastError;
 }
 
-Cast<JSValue>(o: HeapObject): JSValue
+Cast<JSPrimitiveWrapper>(o: HeapObject): JSPrimitiveWrapper
     labels CastError {
-  if (IsJSValue(o)) return %RawDownCast<JSValue>(o);
+  if (IsJSPrimitiveWrapper(o)) return %RawDownCast<JSPrimitiveWrapper>(o);
   goto CastError;
 }
 
@@ -2814,7 +2814,7 @@ extern macro IsOddball(HeapObject): bool;
 extern macro IsSymbol(HeapObject): bool;
 extern macro IsJSArrayMap(Map): bool;
 extern macro IsExtensibleMap(Map): bool;
-extern macro IsJSValue(HeapObject): bool;
+extern macro IsJSPrimitiveWrapper(HeapObject): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 extern macro Typeof(Object): Object;
 

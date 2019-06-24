@@ -278,7 +278,7 @@ extras_accessors = [
 #
 expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
-    'JSObject', 'JSRegExp', 'JSValue', 'Map', 'Oddball', 'Script',
+    'JSObject', 'JSRegExp', 'JSPrimitiveWrapper', 'Map', 'Oddball', 'Script',
     'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo', 'JSPromise'
 ];
 

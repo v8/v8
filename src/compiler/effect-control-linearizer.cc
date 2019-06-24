@@ -5187,7 +5187,7 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
       __ GotoIf(check, &convert_to_object);
       __ Goto(&done_convert, value);
 
-      // Wrap the primitive {value} into a JSValue.
+      // Wrap the primitive {value} into a JSPrimitiveWrapper.
       __ Bind(&convert_to_object);
       Operator::Properties properties = Operator::kEliminatable;
       Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
@@ -5220,7 +5220,7 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
       __ GotoIf(check, &convert_to_object);
       __ Goto(&done_convert, value);
 
-      // Wrap the primitive {value} into a JSValue.
+      // Wrap the primitive {value} into a JSPrimitiveWrapper.
       __ Bind(&convert_to_object);
       __ GotoIf(__ WordEqual(value, __ UndefinedConstant()),
                 &convert_global_proxy);

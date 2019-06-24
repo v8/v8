@@ -50,22 +50,21 @@
 //         - JSCollection
 //           - JSSet
 //           - JSMap
-//         - JSStringIterator
-//         - JSSetIterator
-//         - JSMapIterator
-//         - JSWeakCollection
-//           - JSWeakMap
-//           - JSWeakSet
-//         - JSRegExp
+//         - JSDate
 //         - JSFunction
 //         - JSGeneratorObject
 //         - JSGlobalObject
 //         - JSGlobalProxy
-//         - JSValue
-//           - JSDate
+//         - JSMapIterator
 //         - JSMessageObject
 //         - JSModuleNamespace
-//         - JSV8BreakIterator     // If V8_INTL_SUPPORT enabled.
+//         - JSPrimitiveWrapper
+//         - JSRegExp
+//         - JSSetIterator
+//         - JSStringIterator
+//         - JSWeakCollection
+//           - JSWeakMap
+//           - JSWeakSet
 //         - JSCollator            // If V8_INTL_SUPPORT enabled.
 //         - JSDateTimeFormat      // If V8_INTL_SUPPORT enabled.
 //         - JSListFormat          // If V8_INTL_SUPPORT enabled.
@@ -73,8 +72,9 @@
 //         - JSNumberFormat        // If V8_INTL_SUPPORT enabled.
 //         - JSPluralRules         // If V8_INTL_SUPPORT enabled.
 //         - JSRelativeTimeFormat  // If V8_INTL_SUPPORT enabled.
-//         - JSSegmentIterator     // If V8_INTL_SUPPORT enabled.
 //         - JSSegmenter           // If V8_INTL_SUPPORT enabled.
+//         - JSSegmentIterator     // If V8_INTL_SUPPORT enabled.
+//         - JSV8BreakIterator     // If V8_INTL_SUPPORT enabled.
 //         - WasmExceptionObject
 //         - WasmGlobalObject
 //         - WasmInstanceObject

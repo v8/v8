@@ -4561,8 +4561,8 @@ TEST(GetPrivateFields) {
                                    .ToLocalChecked()
                                    ->ToObject(context)
                                    .ToLocalChecked());
-    Handle<v8::internal::JSValue> private_value =
-        Handle<v8::internal::JSValue>::cast(private_name);
+    Handle<v8::internal::JSPrimitiveWrapper> private_value =
+        Handle<v8::internal::JSPrimitiveWrapper>::cast(private_name);
     Handle<v8::internal::Symbol> priv_symbol(
         v8::internal::Symbol::cast(private_value->value()), isolate);
     CHECK(priv_symbol->is_private_name());
@@ -4590,8 +4590,8 @@ TEST(GetPrivateFields) {
                                    .ToLocalChecked()
                                    ->ToObject(context)
                                    .ToLocalChecked());
-    Handle<v8::internal::JSValue> private_value =
-        Handle<v8::internal::JSValue>::cast(private_name);
+    Handle<v8::internal::JSPrimitiveWrapper> private_value =
+        Handle<v8::internal::JSPrimitiveWrapper>::cast(private_name);
     Handle<v8::internal::Symbol> priv_symbol(
         v8::internal::Symbol::cast(private_value->value()), isolate);
     CHECK(priv_symbol->is_private_name());
@@ -4621,8 +4621,8 @@ TEST(GetPrivateFields) {
                                    .ToLocalChecked()
                                    ->ToObject(context)
                                    .ToLocalChecked());
-    Handle<v8::internal::JSValue> private_value =
-        Handle<v8::internal::JSValue>::cast(private_name);
+    Handle<v8::internal::JSPrimitiveWrapper> private_value =
+        Handle<v8::internal::JSPrimitiveWrapper>::cast(private_name);
     Handle<v8::internal::Symbol> priv_symbol(
         v8::internal::Symbol::cast(private_value->value()), isolate);
     CHECK(priv_symbol->is_private_name());

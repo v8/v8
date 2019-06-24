@@ -1785,15 +1785,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // --- N u m b e r ---
     Handle<JSFunction> number_fun = InstallFunction(
-        isolate_, global, "Number", JS_VALUE_TYPE, JSValue::kSize, 0,
-        isolate_->initial_object_prototype(), Builtins::kNumberConstructor);
+        isolate_, global, "Number", JS_PRIMITIVE_WRAPPER_TYPE,
+        JSPrimitiveWrapper::kSize, 0, isolate_->initial_object_prototype(),
+        Builtins::kNumberConstructor);
     number_fun->shared().DontAdaptArguments();
     number_fun->shared().set_length(1);
     InstallWithIntrinsicDefaultProto(isolate_, number_fun,
                                      Context::NUMBER_FUNCTION_INDEX);
 
     // Create the %NumberPrototype%
-    Handle<JSValue> prototype = Handle<JSValue>::cast(
+    Handle<JSPrimitiveWrapper> prototype = Handle<JSPrimitiveWrapper>::cast(
         factory->NewJSObject(number_fun, AllocationType::kOld));
     prototype->set_value(Smi::kZero);
     JSFunction::SetPrototype(number_fun, prototype);
@@ -1868,15 +1869,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // --- B o o l e a n ---
     Handle<JSFunction> boolean_fun = InstallFunction(
-        isolate_, global, "Boolean", JS_VALUE_TYPE, JSValue::kSize, 0,
-        isolate_->initial_object_prototype(), Builtins::kBooleanConstructor);
+        isolate_, global, "Boolean", JS_PRIMITIVE_WRAPPER_TYPE,
+        JSPrimitiveWrapper::kSize, 0, isolate_->initial_object_prototype(),
+        Builtins::kBooleanConstructor);
     boolean_fun->shared().DontAdaptArguments();
     boolean_fun->shared().set_length(1);
     InstallWithIntrinsicDefaultProto(isolate_, boolean_fun,
                                      Context::BOOLEAN_FUNCTION_INDEX);
 
     // Create the %BooleanPrototype%
-    Handle<JSValue> prototype = Handle<JSValue>::cast(
+    Handle<JSPrimitiveWrapper> prototype = Handle<JSPrimitiveWrapper>::cast(
         factory->NewJSObject(boolean_fun, AllocationType::kOld));
     prototype->set_value(ReadOnlyRoots(isolate_).false_value());
     JSFunction::SetPrototype(boolean_fun, prototype);
@@ -1894,8 +1896,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // --- S t r i n g ---
     Handle<JSFunction> string_fun = InstallFunction(
-        isolate_, global, "String", JS_VALUE_TYPE, JSValue::kSize, 0,
-        isolate_->initial_object_prototype(), Builtins::kStringConstructor);
+        isolate_, global, "String", JS_PRIMITIVE_WRAPPER_TYPE,
+        JSPrimitiveWrapper::kSize, 0, isolate_->initial_object_prototype(),
+        Builtins::kStringConstructor);
     string_fun->shared().DontAdaptArguments();
     string_fun->shared().set_length(1);
     InstallWithIntrinsicDefaultProto(isolate_, string_fun,
@@ -1928,7 +1931,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           false);
 
     // Create the %StringPrototype%
-    Handle<JSValue> prototype = Handle<JSValue>::cast(
+    Handle<JSPrimitiveWrapper> prototype = Handle<JSPrimitiveWrapper>::cast(
         factory->NewJSObject(string_fun, AllocationType::kOld));
     prototype->set_value(ReadOnlyRoots(isolate_).empty_string());
     JSFunction::SetPrototype(string_fun, prototype);
@@ -2089,9 +2092,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // --- S y m b o l ---
-    Handle<JSFunction> symbol_fun = InstallFunction(
-        isolate_, global, "Symbol", JS_VALUE_TYPE, JSValue::kSize, 0,
-        factory->the_hole_value(), Builtins::kSymbolConstructor);
+    Handle<JSFunction> symbol_fun =
+        InstallFunction(isolate_, global, "Symbol", JS_PRIMITIVE_WRAPPER_TYPE,
+                        JSPrimitiveWrapper::kSize, 0, factory->the_hole_value(),
+                        Builtins::kSymbolConstructor);
     symbol_fun->shared().set_length(0);
     symbol_fun->shared().DontAdaptArguments();
     native_context()->set_symbol_function(*symbol_fun);
@@ -3392,9 +3396,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- B i g I n t
-    Handle<JSFunction> bigint_fun = InstallFunction(
-        isolate_, global, "BigInt", JS_VALUE_TYPE, JSValue::kSize, 0,
-        factory->the_hole_value(), Builtins::kBigIntConstructor);
+    Handle<JSFunction> bigint_fun =
+        InstallFunction(isolate_, global, "BigInt", JS_PRIMITIVE_WRAPPER_TYPE,
+                        JSPrimitiveWrapper::kSize, 0, factory->the_hole_value(),
+                        Builtins::kBigIntConstructor);
     bigint_fun->shared().DontAdaptArguments();
     bigint_fun->shared().set_length(1);
     InstallWithIntrinsicDefaultProto(isolate_, bigint_fun,
@@ -4683,14 +4688,14 @@ bool Genesis::InstallNatives() {
                               "Bootstrapping");
 
   {
-    // Builtin function for OpaqueReference -- a JSValue-based object,
-    // that keeps its field isolated from JavaScript code. It may store
+    // Builtin function for OpaqueReference -- a JSPrimitiveWrapper-based
+    // object, that keeps its field isolated from JavaScript code. It may store
     // objects, that JavaScript code may not access.
     Handle<JSObject> prototype = factory()->NewJSObject(
         isolate()->object_function(), AllocationType::kOld);
-    Handle<JSFunction> opaque_reference_fun =
-        CreateFunction(isolate(), factory()->empty_string(), JS_VALUE_TYPE,
-                       JSValue::kSize, 0, prototype, Builtins::kIllegal);
+    Handle<JSFunction> opaque_reference_fun = CreateFunction(
+        isolate(), factory()->empty_string(), JS_PRIMITIVE_WRAPPER_TYPE,
+        JSPrimitiveWrapper::kSize, 0, prototype, Builtins::kIllegal);
     native_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
 

@@ -505,8 +505,9 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_DATE_TYPE:
       WriteJSDate(JSDate::cast(*receiver));
       return ThrowIfOutOfMemory();
-    case JS_VALUE_TYPE:
-      return WriteJSValue(Handle<JSValue>::cast(receiver));
+    case JS_PRIMITIVE_WRAPPER_TYPE:
+      return WriteJSPrimitiveWrapper(
+          Handle<JSPrimitiveWrapper>::cast(receiver));
     case JS_REGEXP_TYPE:
       WriteJSRegExp(JSRegExp::cast(*receiver));
       return ThrowIfOutOfMemory();
@@ -720,7 +721,8 @@ void ValueSerializer::WriteJSDate(JSDate date) {
   WriteDouble(date.value().Number());
 }
 
-Maybe<bool> ValueSerializer::WriteJSValue(Handle<JSValue> value) {
+Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
+    Handle<JSPrimitiveWrapper> value) {
   Object inner_value = value->value();
   if (inner_value.IsTrue(isolate_)) {
     WriteTag(SerializationTag::kTrueObject);
@@ -1238,7 +1240,7 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     case SerializationTag::kNumberObject:
     case SerializationTag::kBigIntObject:
     case SerializationTag::kStringObject:
-      return ReadJSValue(tag);
+      return ReadJSPrimitiveWrapper(tag);
     case SerializationTag::kRegExp:
       return ReadJSRegExp();
     case SerializationTag::kBeginJSMap:
@@ -1519,24 +1521,25 @@ MaybeHandle<JSDate> ValueDeserializer::ReadJSDate() {
   return date;
 }
 
-MaybeHandle<JSValue> ValueDeserializer::ReadJSValue(SerializationTag tag) {
+MaybeHandle<JSPrimitiveWrapper> ValueDeserializer::ReadJSPrimitiveWrapper(
+    SerializationTag tag) {
   uint32_t id = next_id_++;
-  Handle<JSValue> value;
+  Handle<JSPrimitiveWrapper> value;
   switch (tag) {
     case SerializationTag::kTrueObject:
-      value = Handle<JSValue>::cast(isolate_->factory()->NewJSObject(
+      value = Handle<JSPrimitiveWrapper>::cast(isolate_->factory()->NewJSObject(
           isolate_->boolean_function(), allocation_));
       value->set_value(ReadOnlyRoots(isolate_).true_value());
       break;
     case SerializationTag::kFalseObject:
-      value = Handle<JSValue>::cast(isolate_->factory()->NewJSObject(
+      value = Handle<JSPrimitiveWrapper>::cast(isolate_->factory()->NewJSObject(
           isolate_->boolean_function(), allocation_));
       value->set_value(ReadOnlyRoots(isolate_).false_value());
       break;
     case SerializationTag::kNumberObject: {
       double number;
-      if (!ReadDouble().To(&number)) return MaybeHandle<JSValue>();
-      value = Handle<JSValue>::cast(isolate_->factory()->NewJSObject(
+      if (!ReadDouble().To(&number)) return MaybeHandle<JSPrimitiveWrapper>();
+      value = Handle<JSPrimitiveWrapper>::cast(isolate_->factory()->NewJSObject(
           isolate_->number_function(), allocation_));
       Handle<Object> number_object =
           isolate_->factory()->NewNumber(number, allocation_);
@@ -1545,16 +1548,18 @@ MaybeHandle<JSValue> ValueDeserializer::ReadJSValue(SerializationTag tag) {
     }
     case SerializationTag::kBigIntObject: {
       Handle<BigInt> bigint;
-      if (!ReadBigInt().ToHandle(&bigint)) return MaybeHandle<JSValue>();
-      value = Handle<JSValue>::cast(isolate_->factory()->NewJSObject(
+      if (!ReadBigInt().ToHandle(&bigint))
+        return MaybeHandle<JSPrimitiveWrapper>();
+      value = Handle<JSPrimitiveWrapper>::cast(isolate_->factory()->NewJSObject(
           isolate_->bigint_function(), allocation_));
       value->set_value(*bigint);
       break;
     }
     case SerializationTag::kStringObject: {
       Handle<String> string;
-      if (!ReadString().ToHandle(&string)) return MaybeHandle<JSValue>();
-      value = Handle<JSValue>::cast(isolate_->factory()->NewJSObject(
+      if (!ReadString().ToHandle(&string))
+        return MaybeHandle<JSPrimitiveWrapper>();
+      value = Handle<JSPrimitiveWrapper>::cast(isolate_->factory()->NewJSObject(
           isolate_->string_function(), allocation_));
       value->set_value(*string);
       break;

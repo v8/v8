@@ -33,7 +33,7 @@ namespace internal {
 // HeapObject::Size, HeapObject::IterateBody, the typeof operator, and
 // Object::IsString.
 //
-// NOTE: Everything following JS_VALUE_TYPE is considered a
+// NOTE: Everything following JS_PRIMITIVE_WRAPPER_TYPE is considered a
 // JSObject for GC purposes. The first four entries here have typeof
 // 'object', whereas JS_FUNCTION_TYPE has typeof 'function'.
 //
@@ -178,7 +178,7 @@ namespace internal {
   V(JS_GLOBAL_PROXY_TYPE)                                \
   V(JS_MODULE_NAMESPACE_TYPE)                            \
   V(JS_SPECIAL_API_OBJECT_TYPE)                          \
-  V(JS_VALUE_TYPE)                                       \
+  V(JS_PRIMITIVE_WRAPPER_TYPE)                           \
   V(JS_API_OBJECT_TYPE)                                  \
   V(JS_OBJECT_TYPE)                                      \
                                                          \

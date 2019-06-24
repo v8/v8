@@ -287,7 +287,8 @@ void Accessors::StringLengthGetter(
   if (!value.IsString()) {
     // Not a string value. That means that we either got a String wrapper or
     // a Value with a String wrapper in its prototype chain.
-    value = JSValue::cast(*Utils::OpenHandle(*info.Holder())).value();
+    value =
+        JSPrimitiveWrapper::cast(*Utils::OpenHandle(*info.Holder())).value();
   }
   Object result = Smi::FromInt(String::cast(value).length());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));

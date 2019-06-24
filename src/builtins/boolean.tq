@@ -15,7 +15,8 @@ namespace boolean {
 
     const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
 
-    const obj = UnsafeCast<JSValue>(AllocateFastOrSlowJSObjectFromMap(map));
+    const obj =
+        UnsafeCast<JSPrimitiveWrapper>(AllocateFastOrSlowJSObjectFromMap(map));
     obj.value = value;
     return obj;
   }

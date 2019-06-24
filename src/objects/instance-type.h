@@ -252,7 +252,7 @@ enum InstanceType : uint16_t {
   // Like JS_API_OBJECT_TYPE, but requires access checks and/or has
   // interceptors.
   JS_SPECIAL_API_OBJECT_TYPE = 0x0410,  // LAST_SPECIAL_RECEIVER_TYPE
-  JS_VALUE_TYPE,                        // LAST_CUSTOM_ELEMENTS_RECEIVER
+  JS_PRIMITIVE_WRAPPER_TYPE,            // LAST_CUSTOM_ELEMENTS_RECEIVER
   // Like JS_OBJECT_TYPE, but created from API function.
   JS_API_OBJECT_TYPE = 0x0420,
   JS_OBJECT_TYPE,
@@ -355,7 +355,7 @@ enum InstanceType : uint16_t {
   // Boundary case for testing JSReceivers that may have elements while having
   // an empty fixed array as elements backing store. This is true for string
   // wrappers.
-  LAST_CUSTOM_ELEMENTS_RECEIVER = JS_VALUE_TYPE,
+  LAST_CUSTOM_ELEMENTS_RECEIVER = JS_PRIMITIVE_WRAPPER_TYPE,
 
   FIRST_SET_ITERATOR_TYPE = JS_SET_KEY_VALUE_ITERATOR_TYPE,
   LAST_SET_ITERATOR_TYPE = JS_SET_VALUE_ITERATOR_TYPE,
@@ -426,12 +426,16 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(JSDataView, JS_DATA_VIEW_TYPE)                                           \
   V(JSDate, JS_DATE_TYPE)                                                    \
   V(JSError, JS_ERROR_TYPE)                                                  \
+  V(JSFinalizationGroup, JS_FINALIZATION_GROUP_TYPE)                         \
+  V(JSFinalizationGroupCleanupIterator,                                      \
+    JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE)                             \
   V(JSFunction, JS_FUNCTION_TYPE)                                            \
   V(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)                                   \
   V(JSGlobalProxy, JS_GLOBAL_PROXY_TYPE)                                     \
   V(JSMap, JS_MAP_TYPE)                                                      \
   V(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)                                 \
   V(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)                             \
+  V(JSPrimitiveWrapper, JS_PRIMITIVE_WRAPPER_TYPE)                           \
   V(JSPromise, JS_PROMISE_TYPE)                                              \
   V(JSProxy, JS_PROXY_TYPE)                                                  \
   V(JSRegExp, JS_REGEXP_TYPE)                                                \
@@ -440,10 +444,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(JSSet, JS_SET_TYPE)                                                      \
   V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                               \
   V(JSTypedArray, JS_TYPED_ARRAY_TYPE)                                       \
-  V(JSValue, JS_VALUE_TYPE)                                                  \
-  V(JSFinalizationGroup, JS_FINALIZATION_GROUP_TYPE)                         \
-  V(JSFinalizationGroupCleanupIterator,                                      \
-    JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE)                             \
   V(JSWeakMap, JS_WEAK_MAP_TYPE)                                             \
   V(JSWeakRef, JS_WEAK_REF_TYPE)                                             \
   V(JSWeakSet, JS_WEAK_SET_TYPE)                                             \

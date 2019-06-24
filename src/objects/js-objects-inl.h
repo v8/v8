@@ -38,8 +38,8 @@ OBJECT_CONSTRUCTORS_IMPL(JSGlobalObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSGlobalProxy, JSObject)
 JSIteratorResult::JSIteratorResult(Address ptr) : JSObject(ptr) {}
 OBJECT_CONSTRUCTORS_IMPL(JSMessageObject, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSPrimitiveWrapper, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSStringIterator, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSValue, JSObject)
 
 NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
 
@@ -52,9 +52,9 @@ CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSIteratorResult)
 CAST_ACCESSOR(JSMessageObject)
 CAST_ACCESSOR(JSObject)
+CAST_ACCESSOR(JSPrimitiveWrapper)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSStringIterator)
-CAST_ACCESSOR(JSValue)
 
 MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
                                             Handle<JSReceiver> receiver,
@@ -700,7 +700,7 @@ void JSFunction::ResetIfBytecodeFlushed() {
   }
 }
 
-ACCESSORS(JSValue, value, Object, kValueOffset)
+ACCESSORS(JSPrimitiveWrapper, value, Object, kValueOffset)
 
 ACCESSORS(JSDate, value, Object, kValueOffset)
 ACCESSORS(JSDate, cache_stamp, Object, kCacheStampOffset)

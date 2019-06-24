@@ -202,7 +202,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
       return kOtherObject;
     case JS_ARRAY_TYPE:
       return kArray;
-    case JS_VALUE_TYPE:
+    case JS_PRIMITIVE_WRAPPER_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
 #ifdef V8_INTL_SUPPORT
