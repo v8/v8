@@ -1429,6 +1429,7 @@ void AsyncCompileJob::FinishCompile() {
     // TODO(wasm): compiling wrappers should be made async.
     CompileWrappers();
   }
+
   FinishModule();
 }
 
@@ -1468,6 +1469,21 @@ class AsyncCompileJob::CompilationStateCallback {
     switch (event) {
       case CompilationEvent::kFinishedBaselineCompilation:
         DCHECK(!last_event_.has_value());
+        // Sample compilation time (if a high-resolution clock is available;
+        // otherwise {job_->compile_start_time_} will be Null).
+        DCHECK_EQ(base::TimeTicks::IsHighResolution(),
+                  !job_->compile_start_time_.IsNull());
+        if (!job_->compile_start_time_.IsNull()) {
+          auto duration = base::TimeTicks::Now() - job_->compile_start_time_;
+          auto* comp_state = Impl(job_->native_module_->compilation_state());
+          auto* counters = comp_state->counters();
+          TimedHistogram* histogram =
+              job_->stream_
+                  ? counters->wasm_async_compile_wasm_module_time()
+                  : counters->wasm_streaming_compile_wasm_module_time();
+          histogram->AddSample(static_cast<int>(duration.InMilliseconds()));
+        }
+
         if (job_->DecrementAndCheckFinisherCount()) {
           job_->DoSync<CompileFinished>();
         }
@@ -1732,6 +1748,13 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     CompilationStateImpl* compilation_state =
         Impl(job->native_module_->compilation_state());
     compilation_state->AddCallback(CompilationStateCallback{job});
+
+    // Record current time as start time of asynchronous compilation.
+    DCHECK(job->compile_start_time_.IsNull());
+    if (base::TimeTicks::IsHighResolution()) {
+      job->compile_start_time_ = base::TimeTicks::Now();
+    }
+
     if (start_compilation_) {
       // TODO(ahaas): Try to remove the {start_compilation_} check when
       // streaming decoding is done in the background. If
