@@ -875,12 +875,6 @@ class BailoutId {
   int ToInt() const { return id_; }
 
   static BailoutId None() { return BailoutId(kNoneId); }
-  static BailoutId ScriptContext() { return BailoutId(kScriptContextId); }
-  static BailoutId FunctionContext() { return BailoutId(kFunctionContextId); }
-  static BailoutId FunctionEntry() { return BailoutId(kFunctionEntryId); }
-  static BailoutId Declarations() { return BailoutId(kDeclarationsId); }
-  static BailoutId FirstUsable() { return BailoutId(kFirstUsableId); }
-  static BailoutId StubEntry() { return BailoutId(kStubEntryId); }
 
   // Special bailout id support for deopting into the {JSConstructStub} stub.
   // The following hard-coded deoptimization points are supported by the stub:
@@ -905,25 +899,10 @@ class BailoutId {
   static const int kNoneId = -1;
 
   // Using 0 could disguise errors.
-  static const int kScriptContextId = 1;
-  static const int kFunctionContextId = 2;
-  static const int kFunctionEntryId = 3;
-
-  // This AST id identifies the point after the declarations have been visited.
-  // We need it to capture the environment effects of declarations that emit
-  // code (function declarations).
-  static const int kDeclarationsId = 4;
-
-  // Every FunctionState starts with this id.
-  static const int kFirstUsableId = 5;
-
-  // Every compiled stub starts with this id.
-  static const int kStubEntryId = 6;
-
   // Builtin continuations bailout ids start here. If you need to add a
   // non-builtin BailoutId, add it before this id so that this Id has the
   // highest number.
-  static const int kFirstBuiltinContinuationId = 7;
+  static const int kFirstBuiltinContinuationId = 1;
 
   int id_;
 };
