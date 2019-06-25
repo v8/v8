@@ -3375,6 +3375,9 @@ v8_source_set("torque_base") {
     ":v8_libbase",
   ]
 
+  # The use of exceptions for Torque in violation of the Chromium style-guide
+  # is justified by the fact that it is only used from the non-essential
+  # language server and can be removed anytime if it causes problems.
   configs = [
     ":internal_config",
     "//build/config/compiler:exceptions",
@@ -3417,6 +3420,9 @@ v8_source_set("torque_ls_base") {
     ":torque_base",
   ]
 
+  # The use of exceptions for Torque in violation of the Chromium style-guide
+  # is justified by the fact that it is only used from the non-essential
+  # language server and can be removed anytime if it causes problems.
   configs = [
     ":internal_config",
     "//build/config/compiler:exceptions",
@@ -3845,6 +3851,9 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "//build/win:default_exe_manifest",
     ]
 
+    # The use of exceptions for Torque in violation of the Chromium style-guide
+    # is justified by the fact that it is only used from the non-essential
+    # language server and can be removed anytime if it causes problems.
     configs = [
       ":internal_config",
       "//build/config/compiler:exceptions",
@@ -3875,6 +3884,9 @@ v8_executable("torque-language-server") {
     "//build/win:default_exe_manifest",
   ]
 
+  # The use of exceptions for Torque in violation of the Chromium style-guide
+  # is justified by the fact that it is only used from the non-essential
+  # language server and can be removed anytime if it causes problems.
   configs = [
     ":internal_config",
     "//build/config/compiler:exceptions",
