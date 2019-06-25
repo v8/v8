@@ -2001,6 +2001,11 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   HandleScope scope(job_->isolate_);
   SaveAndSwitchContext saved_context(job_->isolate_, *job_->native_context_);
 
+  // Record the size of the wire bytes. In synchronous and asynchronous
+  // (non-streaming) compilation, this happens in {DecodeWasmModule}.
+  auto* histogram = job_->isolate_->counters()->wasm_wasm_module_size_bytes();
+  histogram->AddSample(static_cast<int>(bytes.size()));
+
   bool needs_finish = job_->DecrementAndCheckFinisherCount();
   if (job_->native_module_ == nullptr) {
     // We are processing a WebAssembly module without code section. Create the
