@@ -492,37 +492,6 @@ Handle<Map> FastMapParameterOf(const Operator* op) {
   return Handle<Map>::null();
 }
 
-std::ostream& operator<<(std::ostream& os, BigIntOperationHint hint) {
-  switch (hint) {
-    case BigIntOperationHint::kBigInt:
-      return os << "BigInt";
-  }
-  UNREACHABLE();
-}
-
-size_t hash_value(BigIntOperationHint hint) {
-  return static_cast<uint8_t>(hint);
-}
-
-bool operator==(const BigIntOperationParameters& lhs,
-                const BigIntOperationParameters& rhs) {
-  return lhs.hint() == rhs.hint() && lhs.feedback() == rhs.feedback();
-}
-
-size_t hash_value(const BigIntOperationParameters& p) {
-  return base::hash_combine(p.hint(), p.feedback());
-}
-
-std::ostream& operator<<(std::ostream& os, const BigIntOperationParameters& p) {
-  return os << p.hint() << " " << p.feedback();
-}
-
-const BigIntOperationParameters& BigIntOperationParametersOf(
-    const Operator* op) {
-  DCHECK_EQ(IrOpcode::kSpeculativeBigIntAdd, op->opcode());
-  return OpParameter<BigIntOperationParameters>(op);
-}
-
 std::ostream& operator<<(std::ostream& os, NumberOperationHint hint) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
@@ -840,7 +809,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedTaggedToTaggedSigned, 1, 1)      \
   V(CheckedCompressedToTaggedPointer, 1, 1) \
   V(CheckedCompressedToTaggedSigned, 1, 1)  \
-  V(CheckedTaggedToBigInt, 1, 1)            \
   V(CheckedTaggedToCompressedPointer, 1, 1) \
   V(CheckedTaggedToCompressedSigned, 1, 1)  \
   V(CheckedUint32ToInt32, 1, 1)             \
@@ -1463,14 +1431,6 @@ const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
       IrOpcode::kCheckFloat64Hole, Operator::kFoldable | Operator::kNoThrow,
       "CheckFloat64Hole", 1, 1, 1, 1, 1, 0,
       CheckFloat64HoleParameters(mode, feedback));
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAdd(
-    BigIntOperationHint hint, const VectorSlotPair& feedback) {
-  return new (zone()) Operator1<BigIntOperationParameters>(
-      IrOpcode::kSpeculativeBigIntAdd, Operator::kFoldable | Operator::kNoThrow,
-      "SpeculativeBigIntAdd", 2, 1, 1, 1, 1, 0,
-      BigIntOperationParameters{hint, feedback});
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(

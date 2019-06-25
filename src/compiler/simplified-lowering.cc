@@ -444,7 +444,6 @@ class RepresentationSelector {
     break;                                                               \
   }
       SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_CASE)
-      SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(Name)                  \
@@ -2623,12 +2622,6 @@ class RepresentationSelector {
         ProcessInput(node, 1, UseInfo::AnyTagged());         // first
         ProcessInput(node, 2, UseInfo::AnyTagged());         // second
         SetOutput(node, MachineRepresentation::kTaggedPointer);
-        return;
-      }
-      case IrOpcode::kSpeculativeBigIntAdd: {
-        const auto& p = BigIntOperationParametersOf(node->op());
-        VisitBinop(node, UseInfo::CheckedBigIntAsTaggedPointer(p.feedback()),
-                   MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kStringConcat: {

@@ -1112,11 +1112,6 @@ SPECULATIVE_NUMBER_BINOP(NumberShiftRight)
 SPECULATIVE_NUMBER_BINOP(NumberShiftRightLogical)
 #undef SPECULATIVE_NUMBER_BINOP
 
-Type OperationTyper::SpeculativeBigIntAdd(Type lhs, Type rhs) {
-  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
-  return Type::BigInt();
-}
-
 Type OperationTyper::SpeculativeToNumber(Type type) {
   return ToNumber(Type::Intersect(type, Type::NumberOrOddball(), zone()));
 }

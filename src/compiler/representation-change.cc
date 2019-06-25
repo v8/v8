@@ -171,8 +171,7 @@ Node* RepresentationChanger::GetRepresentationFor(
                                               use_node, use_info);
     case MachineRepresentation::kTaggedPointer:
       DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
-             use_info.type_check() == TypeCheckKind::kHeapObject ||
-             use_info.type_check() == TypeCheckKind::kBigInt);
+             use_info.type_check() == TypeCheckKind::kHeapObject);
       return GetTaggedPointerRepresentationFor(node, output_rep, output_type,
                                                use_node, use_info);
     case MachineRepresentation::kTagged:
@@ -450,9 +449,6 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
     // TODO(turbofan): Consider adding a Bailout operator that just deopts
     // for TaggedSigned output representation.
     op = simplified()->CheckedTaggedToTaggedPointer(use_info.feedback());
-  } else if (IsAnyTagged(output_rep) &&
-             use_info.type_check() == TypeCheckKind::kBigInt) {
-    op = simplified()->CheckedTaggedToBigInt(use_info.feedback());
   } else if (output_rep == MachineRepresentation::kCompressedPointer) {
     op = machine()->ChangeCompressedPointerToTaggedPointer();
   } else if (CanBeCompressedSigned(output_rep) &&
@@ -816,14 +812,11 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     Node* use_node, UseInfo use_info) {
   NumberMatcher m(node);
   if (m.HasValue()) {
-    // BigInts are not used as number constants.
-    DCHECK(use_info.type_check() != TypeCheckKind::kBigInt);
     switch (use_info.type_check()) {
       case TypeCheckKind::kNone:
       case TypeCheckKind::kNumber:
       case TypeCheckKind::kNumberOrOddball:
         return jsgraph()->Float64Constant(m.Value());
-      case TypeCheckKind::kBigInt:
       case TypeCheckKind::kHeapObject:
       case TypeCheckKind::kSigned32:
       case TypeCheckKind::kSigned64:

@@ -44,25 +44,6 @@ bool BinaryOperationHintToNumberOperationHint(
   return false;
 }
 
-bool BinaryOperationHintToBigIntOperationHint(
-    BinaryOperationHint binop_hint, BigIntOperationHint* bigint_hint) {
-  switch (binop_hint) {
-    case BinaryOperationHint::kSignedSmall:
-    case BinaryOperationHint::kSignedSmallInputs:
-    case BinaryOperationHint::kSigned32:
-    case BinaryOperationHint::kNumber:
-    case BinaryOperationHint::kNumberOrOddball:
-    case BinaryOperationHint::kAny:
-    case BinaryOperationHint::kNone:
-    case BinaryOperationHint::kString:
-      return false;
-    case BinaryOperationHint::kBigInt:
-      *bigint_hint = BigIntOperationHint::kBigInt;
-      return true;
-  }
-  UNREACHABLE();
-}
-
 }  // namespace
 
 class JSSpeculativeBinopBuilder final {
@@ -90,11 +71,6 @@ class JSSpeculativeBinopBuilder final {
 
   bool GetBinaryNumberOperationHint(NumberOperationHint* hint) {
     return BinaryOperationHintToNumberOperationHint(GetBinaryOperationHint(),
-                                                    hint);
-  }
-
-  bool GetBinaryBigIntOperationHint(BigIntOperationHint* hint) {
-    return BinaryOperationHintToBigIntOperationHint(GetBinaryOperationHint(),
                                                     hint);
   }
 
@@ -162,17 +138,6 @@ class JSSpeculativeBinopBuilder final {
     UNREACHABLE();
   }
 
-  const Operator* SpeculativeBigIntOp(BigIntOperationHint hint,
-                                      const VectorSlotPair& feedback) {
-    switch (op_->opcode()) {
-      case IrOpcode::kJSAdd:
-        return simplified()->SpeculativeBigIntAdd(hint, feedback);
-      default:
-        break;
-    }
-    UNREACHABLE();
-  }
-
   const Operator* SpeculativeCompareOp(NumberOperationHint hint) {
     switch (op_->opcode()) {
       case IrOpcode::kJSEqual:
@@ -208,18 +173,6 @@ class JSSpeculativeBinopBuilder final {
     NumberOperationHint hint;
     if (GetBinaryNumberOperationHint(&hint)) {
       const Operator* op = SpeculativeNumberOp(hint);
-      Node* node = BuildSpeculativeOperation(op);
-      return node;
-    }
-    return nullptr;
-  }
-
-  Node* TryBuildBigIntBinop() {
-    BigIntOperationHint hint;
-    if (GetBinaryBigIntOperationHint(&hint)) {
-      FeedbackNexus nexus{feedback_vector(), slot_};
-      VectorSlotPair feedback{feedback_vector(), slot_, nexus.ic_state()};
-      const Operator* op = SpeculativeBigIntOp(hint, feedback);
       Node* node = BuildSpeculativeOperation(op);
       return node;
     }
@@ -391,11 +344,6 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
       JSSpeculativeBinopBuilder b(this, op, left, right, effect, control, slot);
       if (Node* node = b.TryBuildNumberBinop()) {
         return LoweringResult::SideEffectFree(node, node, control);
-      }
-      if (op->opcode() == IrOpcode::kJSAdd) {
-        if (Node* node = b.TryBuildBigIntBinop()) {
-          return LoweringResult::SideEffectFree(node, node, control);
-        }
       }
       break;
     }

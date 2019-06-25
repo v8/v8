@@ -47,11 +47,10 @@ class V8_EXPORT_PRIVATE OperationTyper {
   DECLARE_METHOD(ConvertReceiver)
 #undef DECLARE_METHOD
 
-// Numeric binary operators.
+// Number binary operators.
 #define DECLARE_METHOD(Name) Type Name(Type lhs, Type rhs);
   SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
-  SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
   // Comparison operators.

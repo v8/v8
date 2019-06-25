@@ -281,7 +281,6 @@
   V(CheckedTaggedToInt64)             \
   V(CheckedTaggedToTaggedSigned)      \
   V(CheckedTaggedToTaggedPointer)     \
-  V(CheckedTaggedToBigInt)            \
   V(CheckedCompressedToTaggedSigned)  \
   V(CheckedCompressedToTaggedPointer) \
   V(CheckedTaggedToCompressedSigned)  \
@@ -465,8 +464,6 @@
   V(RuntimeAbort)                       \
   V(DateNow)
 
-#define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) V(SpeculativeBigIntAdd)
-
 #define SIMPLIFIED_OP_LIST(V)                 \
   SIMPLIFIED_CHANGE_OP_LIST(V)                \
   SIMPLIFIED_CHECKED_OP_LIST(V)               \
@@ -475,7 +472,6 @@
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
   SIMPLIFIED_NUMBER_UNOP_LIST(V)              \
   SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V)  \
-  SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
   SIMPLIFIED_OTHER_OP_LIST(V)
 
 // Opcodes for Machine-level operators.

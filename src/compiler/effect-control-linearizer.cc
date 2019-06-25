@@ -101,7 +101,6 @@ class EffectControlLinearizer {
   Node* LowerCheckedTaggedToFloat64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedPointer(Node* node, Node* frame_state);
-  Node* LowerCheckedTaggedToBigInt(Node* node, Node* frame_state);
   Node* LowerCheckedCompressedToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedCompressedToTaggedPointer(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToCompressedSigned(Node* node, Node* frame_state);
@@ -162,7 +161,6 @@ class EffectControlLinearizer {
   Node* LowerStringEqual(Node* node);
   Node* LowerStringLessThan(Node* node);
   Node* LowerStringLessThanOrEqual(Node* node);
-  Node* LowerSpeculativeBigIntAdd(Node* node, Node* frame_state);
   Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
   Node* LowerCheckNotTaggedHole(Node* node, Node* frame_state);
   Node* LowerConvertTaggedHoleToUndefined(Node* node);
@@ -995,9 +993,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedTaggedToTaggedPointer:
       result = LowerCheckedTaggedToTaggedPointer(node, frame_state);
       break;
-    case IrOpcode::kCheckedTaggedToBigInt:
-      result = LowerCheckedTaggedToBigInt(node, frame_state);
-      break;
     case IrOpcode::kCheckedCompressedToTaggedSigned:
       result = LowerCheckedCompressedToTaggedSigned(node, frame_state);
       break;
@@ -1144,9 +1139,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kStringLessThanOrEqual:
       result = LowerStringLessThanOrEqual(node);
-      break;
-    case IrOpcode::kSpeculativeBigIntAdd:
-      result = LowerSpeculativeBigIntAdd(node, frame_state);
       break;
     case IrOpcode::kNumberIsFloat64Hole:
       result = LowerNumberIsFloat64Hole(node);
@@ -2659,25 +2651,6 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToTaggedPointer(
   return value;
 }
 
-Node* EffectControlLinearizer::LowerCheckedTaggedToBigInt(Node* node,
-                                                          Node* frame_state) {
-  Node* value = node->InputAt(0);
-  const CheckParameters& params = CheckParametersOf(node->op());
-
-  // Check for Smi.
-  Node* smi_check = ObjectIsSmi(value);
-  __ DeoptimizeIf(DeoptimizeReason::kSmi, params.feedback(), smi_check,
-                  frame_state);
-
-  // Check for BigInt.
-  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-  Node* bi_check = __ WordEqual(value_map, __ BigIntMapConstant());
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, params.feedback(),
-                     bi_check, frame_state);
-
-  return value;
-}
-
 Node* EffectControlLinearizer::LowerCheckedCompressedToTaggedSigned(
     Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
@@ -4108,29 +4081,6 @@ Node* EffectControlLinearizer::LowerStringLessThan(Node* node) {
 Node* EffectControlLinearizer::LowerStringLessThanOrEqual(Node* node) {
   return LowerStringComparison(
       Builtins::CallableFor(isolate(), Builtins::kStringLessThanOrEqual), node);
-}
-
-Node* EffectControlLinearizer::LowerSpeculativeBigIntAdd(Node* node,
-                                                         Node* frame_state) {
-  const auto& p = BigIntOperationParametersOf(node->op());
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kBigIntAddNoThrow);
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
-      Operator::kFoldable | Operator::kNoThrow);
-  Node* value =
-      __ Call(call_descriptor, jsgraph()->HeapConstant(callable.code()), lhs,
-              rhs, __ NoContextConstant());
-
-  // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
-  __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, p.feedback(),
-                  ObjectIsSmi(value), frame_state);
-
-  return value;
 }
 
 Node* EffectControlLinearizer::LowerCheckFloat64Hole(Node* node,
