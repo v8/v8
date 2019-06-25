@@ -39,7 +39,9 @@
         {"name": "PreventExtensionsWithoutTrap"},
         {"name": "PreventExtensionsWithTrap"},
         {"name": "GetPrototypeOfWithoutTrap"},
-        {"name": "GetPrototypeOfWithTrap"}
+        {"name": "GetPrototypeOfWithTrap"},
+        {"name": "SetPrototypeOfWithoutTrap"},
+        {"name": "SetPrototypeOfWithTrap"}
       ]
     },
     {
