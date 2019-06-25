@@ -49,6 +49,7 @@ CONFIGS = dict(
     '--liftoff',
     '--no-wasm-tier-up',
     '--no-use-ic',
+    '--no-lazy-feedback-allocation',
   ],
   ignition_turbo=[],
   ignition_turbo_no_ic=[
@@ -58,11 +59,13 @@ CONFIGS = dict(
     '--always-opt',
     '--no-liftoff',
     '--no-wasm-tier-up',
+    '--no-lazy-feedback-allocation'
   ],
   ignition_turbo_opt_eager=[
     '--always-opt',
     '--no-lazy',
     '--no-lazy-inner-functions',
+    '--no-lazy-feedback-allocation',
   ],
   jitless=[
     '--jitless',
@@ -73,6 +76,7 @@ CONFIGS = dict(
   slow_path_opt=[
     '--always-opt',
     '--force-slow-path',
+    '--no-lazy-feedback-allocation',
   ],
   trusted=[
     '--no-untrusted-code-mitigations',
@@ -80,6 +84,7 @@ CONFIGS = dict(
   trusted_opt=[
     '--always-opt',
     '--no-untrusted-code-mitigations',
+    '--no-lazy-feedback-allocation',
   ],
 )
 
