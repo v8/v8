@@ -475,11 +475,38 @@ enum class NumberOperationHint : uint8_t {
   kNumberOrOddball,    // Inputs were Number or Oddball, output was Number.
 };
 
+enum class BigIntOperationHint : uint8_t {
+  kBigInt,
+};
+
 size_t hash_value(NumberOperationHint);
+size_t hash_value(BigIntOperationHint);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, NumberOperationHint);
-
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BigIntOperationHint);
 V8_EXPORT_PRIVATE NumberOperationHint NumberOperationHintOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
+class BigIntOperationParameters {
+ public:
+  BigIntOperationParameters(BigIntOperationHint hint,
+                            const VectorSlotPair& feedback)
+      : hint_(hint), feedback_(feedback) {}
+
+  BigIntOperationHint hint() const { return hint_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
+
+ private:
+  BigIntOperationHint hint_;
+  VectorSlotPair feedback_;
+};
+
+size_t hash_value(const BigIntOperationParameters&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           const BigIntOperationParameters&);
+bool operator==(const BigIntOperationParameters& lhs,
+                const BigIntOperationParameters& rhs);
+const BigIntOperationParameters& BigIntOperationParametersOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
 class NumberOperationParameters {
@@ -653,6 +680,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeNumberLessThanOrEqual(NumberOperationHint hint);
   const Operator* SpeculativeNumberEqual(NumberOperationHint hint);
 
+  const Operator* SpeculativeBigIntAdd(BigIntOperationHint hint,
+                                       const VectorSlotPair& feedback);
+
   const Operator* ReferenceEqual();
   const Operator* SameValue();
   const Operator* SameValueNumbersOnly();
@@ -752,6 +782,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                        const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToTaggedPointer(const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToTaggedSigned(const VectorSlotPair& feedback);
+  const Operator* CheckedTaggedToBigInt(const VectorSlotPair& feedback);
   const Operator* CheckedCompressedToTaggedPointer(
       const VectorSlotPair& feedback);
   const Operator* CheckedCompressedToTaggedSigned(
