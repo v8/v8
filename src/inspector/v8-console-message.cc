@@ -427,9 +427,11 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     message->m_v8Size +=
         v8::debug::EstimatedValueSize(isolate, arguments.at(i));
   }
-  if (arguments.size())
-    message->m_message =
-        V8ValueStringBuilder::toString(arguments[0], v8Context);
+  for (size_t i = 0, num_args = arguments.size(); i < num_args; ++i) {
+    if (i) message->m_message += String16(" ");
+    message->m_message +=
+        V8ValueStringBuilder::toString(arguments[i], v8Context);
+  }
 
   v8::Isolate::MessageErrorLevel clientLevel = v8::Isolate::kMessageInfo;
   if (type == ConsoleAPIType::kDebug || type == ConsoleAPIType::kCount ||

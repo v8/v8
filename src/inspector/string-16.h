@@ -96,6 +96,10 @@ class String16 {
   inline String16 operator+(const String16& other) const {
     return String16(m_impl + other.m_impl);
   }
+  inline String16& operator+=(const String16& other) {
+    m_impl += other.m_impl;
+    return *this;
+  }
 
   // Defined later, since it uses the String16Builder.
   template <typename... T>
