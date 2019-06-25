@@ -13,6 +13,7 @@
 #include "src/utils/bit-vector.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
@@ -1988,39 +1989,38 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           auto key = Pop(0, kWasmI32);
           if (this->failed()) break;
           if (!this->Validate(this->pc_, imm, control_.size())) break;
-          int br_arity = 0;
+
+          // Cache the branch targets during the iteration, so that we can set
+          // all branch targets as reachable after the {CALL_INTERFACE} call.
           std::vector<bool> br_targets(control_.size());
 
+          // The result types of the br_table instruction. We have to check the
+          // stack against these types. Only needed during validation.
+          std::vector<ValueType> result_types;
+
           while (iterator.has_next()) {
-            const uint32_t i = iterator.cur_index();
+            const uint32_t index = iterator.cur_index();
             const byte* pos = iterator.pc();
             uint32_t target = iterator.next();
-            if (!VALIDATE(target < control_.size())) {
-              this->errorf(pos,
-                           "improper branch in br_table target %u (depth %u)",
-                           i, target);
-              break;
-            }
+            if (!VALIDATE(ValidateBrTableTarget(target, pos, index))) break;
             // Avoid redundant branch target checks.
             if (br_targets[target]) continue;
             br_targets[target] = true;
-            // Check that label types match up.
-            Control* c = control_at(target);
-            int arity = c->br_merge()->arity;
-            if (i == 0) {
-              if (V8_UNLIKELY(!control_.back().reachable())) {
-                if (!TypeCheckUnreachableMerge(*c->br_merge(), true)) break;
+
+            if (validate) {
+              if (index == 0) {
+                // With the first branch target, initialize the result types.
+                result_types = InitializeBrTableResultTypes(target);
+              } else if (!UpdateBrTableResultTypes(&result_types, target, pos,
+                                                   index)) {
+                break;
               }
-              br_arity = arity;
-            } else if (!VALIDATE(br_arity == arity)) {
-              this->errorf(pos,
-                           "inconsistent arity in br_table target %u"
-                           " (previous was %u, this one %u)",
-                           i, br_arity, arity);
             }
-            if (TypeCheckBranch(c, true) == kInvalidStack) break;
           }
-          if (this->failed()) break;
+
+          if (!VALIDATE(TypeCheckBrTable(result_types))) break;
+
+          DCHECK(this->ok());
 
           if (control_.back().reachable()) {
             CALL_INTERFACE(BrTable, imm, key);
@@ -2539,6 +2539,90 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     auto index = Pop(0, kWasmI32);
     CALL_INTERFACE_IF_REACHABLE(StoreMem, store, imm, index, value);
     return imm.length;
+  }
+
+  bool ValidateBrTableTarget(uint32_t target, const byte* pos, int index) {
+    if (!VALIDATE(target < this->control_.size())) {
+      this->errorf(pos, "improper branch in br_table target %u (depth %u)",
+                   index, target);
+      return false;
+    }
+    return true;
+  }
+
+  std::vector<ValueType> InitializeBrTableResultTypes(uint32_t target) {
+    auto* merge = control_at(target)->br_merge();
+    int br_arity = merge->arity;
+    std::vector<ValueType> result(br_arity);
+    for (int i = 0; i < br_arity; ++i) {
+      result[i] = (*merge)[i].type;
+    }
+    return result;
+  }
+
+  bool UpdateBrTableResultTypes(std::vector<ValueType>* result_types,
+                                uint32_t target, const byte* pos, int index) {
+    auto* merge = control_at(target)->br_merge();
+    int br_arity = merge->arity;
+    // First we check if the arities match.
+    if (br_arity != static_cast<int>(result_types->size())) {
+      this->errorf(pos,
+                   "inconsistent arity in br_table target %u (previous was "
+                   "%zu, this one is %u)",
+                   index, result_types->size(), br_arity);
+      return false;
+    }
+
+    for (int i = 0; i < br_arity; ++i) {
+      if (this->enabled_.anyref) {
+        // The expected type is the biggest common sub type of all targets.
+        (*result_types)[i] =
+            ValueTypes::CommonSubType((*result_types)[i], (*merge)[i].type);
+      } else {
+        // All target must have the same signature.
+        if ((*result_types)[i] != (*merge)[i].type) {
+          this->errorf(pos,
+                       "inconsistent type in br_table target %u (previous "
+                       "was %s, this one is %s)",
+                       index, ValueTypes::TypeName((*result_types)[i]),
+                       ValueTypes::TypeName((*merge)[i].type));
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  bool TypeCheckBrTable(const std::vector<ValueType>& result_types) {
+    int br_arity = static_cast<int>(result_types.size());
+    if (V8_LIKELY(control_.back().reachable())) {
+      int available =
+          static_cast<int>(stack_.size()) - control_.back().stack_depth;
+      // There have to be enough values on the stack.
+      if (available < br_arity) {
+        this->errorf(this->pc_,
+                     "expected %u elements on the stack for branch to "
+                     "@%d, found %u",
+                     br_arity, startrel(control_.back().pc), available);
+        return false;
+      }
+      Value* stack_values = &*(stack_.end() - br_arity);
+      // Type-check the topmost br_arity values on the stack.
+      for (int i = 0; i < br_arity; ++i) {
+        Value& val = stack_values[i];
+        if (!ValueTypes::IsSubType(val.type, result_types[i])) {
+          this->errorf(this->pc_,
+                       "type error in merge[%u] (expected %s, got %s)", i,
+                       ValueTypes::TypeName(result_types[i]),
+                       ValueTypes::TypeName(val.type));
+          return false;
+        }
+      }
+    } else {  // !control_.back().reachable()
+      // Pop values from the stack, accoring to the expected signature.
+      for (int i = 0; i < br_arity; ++i) Pop(i + 1, result_types[i]);
+    }
+    return this->ok();
   }
 
   uint32_t SimdExtractLane(WasmOpcode opcode, ValueType type) {

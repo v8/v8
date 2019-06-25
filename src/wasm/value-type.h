@@ -16,6 +16,16 @@ class Signature;
 
 namespace wasm {
 
+// Type lattice: For any two types connected by a line, the type at the bottom
+// is a subtype of the other type.
+//
+//                       AnyRef
+//                     /        \
+//               AnyFunc        ExceptRef
+//                     \        /
+// I32  I64  F32  F64    NullRef
+//  \    \    \    \   /
+//   ------------ Var (Bot)
 enum ValueType : uint8_t {
   kWasmStmt,
   kWasmI32,
@@ -191,12 +201,19 @@ class V8_EXPORT_PRIVATE ValueTypes {
   }
 
   static inline bool IsReferenceType(ValueType type) {
-    // This function assumes at the moment that it is never called with
-    // {kWasmNullRef}. If this assumption is wrong, it should be added to the
-    // result calculation below.
-    DCHECK_NE(type, kWasmNullRef);
     return type == kWasmAnyRef || type == kWasmAnyFunc ||
            type == kWasmExceptRef;
+  }
+
+  static inline ValueType CommonSubType(ValueType a, ValueType b) {
+    if (a == b) return a;
+    // The only sub type of any value type is {bot}.
+    if (!IsReferenceType(a) || !IsReferenceType(b)) return kWasmVar;
+    if (IsSubType(a, b)) return a;
+    if (IsSubType(b, a)) return b;
+    // {a} and {b} are not each other's subtype. The biggest sub-type of all
+    // reference types is {kWasmNullRef}.
+    return kWasmNullRef;
   }
 
   static byte MemSize(MachineType type) {
