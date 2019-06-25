@@ -508,6 +508,8 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
   SetNumberOfBuckets(num_buckets);
   SetNumberOfElements(0);
   SetNumberOfDeletedElements(0);
+  memset(reinterpret_cast<void*>(field_address(PaddingOffset())), 0,
+         PaddingSize());
 
   Address hashtable_start = GetHashTableStartAddress(capacity);
   memset(reinterpret_cast<byte*>(hashtable_start), kNotFound,

@@ -3647,6 +3647,17 @@ TNode<CollectionType> CodeStubAssembler::AllocateSmallOrderedHashTable(
   StoreMapNoWriteBarrier(table_obj, small_ordered_hash_map);
   TNode<CollectionType> table = UncheckedCast<CollectionType>(table_obj);
 
+  {
+    // This store overlaps with the header fields stored below.
+    // Since it happens first, it effectively still just zero-initializes the
+    // padding.
+    constexpr int offset =
+        RoundDown<kTaggedSize>(CollectionType::PaddingOffset());
+    STATIC_ASSERT(offset + kTaggedSize == CollectionType::PaddingOffset() +
+                                              CollectionType::PaddingSize());
+    StoreObjectFieldNoWriteBarrier(table, offset, SmiConstant(0));
+  }
+
   // Initialize the SmallOrderedHashTable fields.
   StoreObjectByteNoWriteBarrier(
       table, CollectionType::NumberOfBucketsOffset(),
