@@ -240,7 +240,7 @@ inline bool decode_local_type(uint8_t val, ValueType* result) {
       *result = kWasmExceptRef;
       return true;
     default:
-      *result = kWasmVar;
+      *result = kWasmBottom;
       return false;
   }
 }
@@ -297,20 +297,20 @@ struct BlockTypeImmediate {
   }
 
   uint32_t in_arity() const {
-    if (type != kWasmVar) return 0;
+    if (type != kWasmBottom) return 0;
     return static_cast<uint32_t>(sig->parameter_count());
   }
   uint32_t out_arity() const {
     if (type == kWasmStmt) return 0;
-    if (type != kWasmVar) return 1;
+    if (type != kWasmBottom) return 1;
     return static_cast<uint32_t>(sig->return_count());
   }
   ValueType in_type(uint32_t index) {
-    DCHECK_EQ(kWasmVar, type);
+    DCHECK_EQ(kWasmBottom, type);
     return sig->GetParam(index);
   }
   ValueType out_type(uint32_t index) {
-    if (type == kWasmVar) return sig->GetReturn(index);
+    if (type == kWasmBottom) return sig->GetReturn(index);
     DCHECK_NE(kWasmStmt, type);
     DCHECK_EQ(0, index);
     return type;
@@ -1122,7 +1122,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Complete(BlockTypeImmediate<validate>& imm) {
-    if (imm.type != kWasmVar) return true;
+    if (imm.type != kWasmBottom) return true;
     if (!VALIDATE(module_ && imm.sig_index < module_->signatures.size())) {
       return false;
     }
@@ -1658,7 +1658,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   ZoneVector<Control> control_;           // stack of blocks, loops, and ifs.
 
   static Value UnreachableValue(const uint8_t* pc) {
-    return Value{pc, kWasmVar};
+    return Value{pc, kWasmBottom};
   }
 
   bool CheckHasMemory() {
@@ -1926,7 +1926,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           auto cond = Pop(2, kWasmI32);
           auto fval = Pop();
           auto tval = Pop(0, fval.type);
-          ValueType type = tval.type == kWasmVar ? fval.type : tval.type;
+          ValueType type = tval.type == kWasmBottom ? fval.type : tval.type;
           if (ValueTypes::IsSubType(type, kWasmAnyRef)) {
             this->error(
                 "select without type is only valid for value type inputs");
@@ -2929,7 +2929,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   V8_INLINE Value Pop(int index, ValueType expected) {
     auto val = Pop();
     if (!VALIDATE(ValueTypes::IsSubType(val.type, expected) ||
-                  val.type == kWasmVar || expected == kWasmVar)) {
+                  val.type == kWasmBottom || expected == kWasmBottom)) {
       this->errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
                    SafeOpcodeNameAt(this->pc_), index,
                    ValueTypes::TypeName(expected), SafeOpcodeNameAt(val.pc),

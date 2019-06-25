@@ -717,7 +717,7 @@ class WasmGraphBuildingInterface {
       Value& val = stack_values[i];
       Value& old = (*merge)[i];
       DCHECK_NOT_NULL(val.node);
-      DCHECK(val.type == kWasmVar ||
+      DCHECK(val.type == kWasmBottom ||
              ValueTypes::MachineRepresentationFor(val.type) ==
                  ValueTypes::MachineRepresentationFor(old.type));
       old.node = first ? val.node

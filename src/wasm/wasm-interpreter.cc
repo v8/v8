@@ -821,7 +821,7 @@ class SideTable : public ZoneObject {
           bool is_loop = opcode == kExprLoop;
           BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
                                                        i.pc());
-          if (imm.type == kWasmVar) {
+          if (imm.type == kWasmBottom) {
             imm.sig = module->signatures[imm.sig_index];
           }
           TRACE("control @%u: %s, arity %d->%d\n", i.pc_offset(),
@@ -837,7 +837,7 @@ class SideTable : public ZoneObject {
         case kExprIf: {
           BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
                                                        i.pc());
-          if (imm.type == kWasmVar) {
+          if (imm.type == kWasmBottom) {
             imm.sig = module->signatures[imm.sig_index];
           }
           TRACE("control @%u: If, arity %d->%d\n", i.pc_offset(),
@@ -870,7 +870,7 @@ class SideTable : public ZoneObject {
         case kExprTry: {
           BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
                                                        i.pc());
-          if (imm.type == kWasmVar) {
+          if (imm.type == kWasmBottom) {
             imm.sig = module->signatures[imm.sig_index];
           }
           TRACE("control @%u: Try, arity %d->%d\n", i.pc_offset(),

@@ -20,12 +20,12 @@ namespace wasm {
 // is a subtype of the other type.
 //
 //                       AnyRef
-//                     /        \
-//               AnyFunc        ExceptRef
-//                     \        /
+//                       /    \
+//                 AnyFunc    ExceptRef
+//                       \    /
 // I32  I64  F32  F64    NullRef
-//  \    \    \    \   /
-//   ------------ Var (Bot)
+//   \    \    \    \    /
+//   ------------   Bottom
 enum ValueType : uint8_t {
   kWasmStmt,
   kWasmI32,
@@ -37,7 +37,7 @@ enum ValueType : uint8_t {
   kWasmAnyFunc,
   kWasmNullRef,
   kWasmExceptRef,
-  kWasmVar,
+  kWasmBottom,
 };
 
 using FunctionSig = Signature<ValueType>;
@@ -208,7 +208,7 @@ class V8_EXPORT_PRIVATE ValueTypes {
   static inline ValueType CommonSubType(ValueType a, ValueType b) {
     if (a == b) return a;
     // The only sub type of any value type is {bot}.
-    if (!IsReferenceType(a) || !IsReferenceType(b)) return kWasmVar;
+    if (!IsReferenceType(a) || !IsReferenceType(b)) return kWasmBottom;
     if (IsSubType(a, b)) return a;
     if (IsSubType(b, a)) return b;
     // {a} and {b} are not each other's subtype. The biggest sub-type of all
@@ -367,7 +367,7 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return 's';
       case kWasmStmt:
         return 'v';
-      case kWasmVar:
+      case kWasmBottom:
         return '*';
       default:
         return '?';
@@ -396,8 +396,8 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return "s128";
       case kWasmStmt:
         return "<stmt>";
-      case kWasmVar:
-        return "<var>";
+      case kWasmBottom:
+        return "<bot>";
       default:
         return "<unknown>";
     }

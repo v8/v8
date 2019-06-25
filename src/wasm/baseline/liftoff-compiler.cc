@@ -223,7 +223,7 @@ class LiftoffCompiler {
         return kAnyRef;
       case kWasmExceptRef:
         return kExceptionHandling;
-      case kWasmVar:
+      case kWasmBottom:
         return kMultiValue;
       default:
         return kOtherReason;
