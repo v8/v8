@@ -207,7 +207,7 @@ String16 String16::fromUTF16LE(const UChar* stringStart, size_t length) {
   builder.reserveCapacity(length);
   for (size_t i = 0; i < length; i++) {
     const UChar utf16be_char =
-        utf16le_str[i] << 8 | (utf16le_str[i] >> 8 & 0x00FF);
+        stringStart[i] << 8 | (stringStart[i] >> 8 & 0x00FF);
     builder.append(utf16be_char);
   }
   return builder.toString();

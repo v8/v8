@@ -67,14 +67,14 @@ TEST(WrapInsideWrapOnInterrupt) {
 }
 
 TEST(String16EndianTest) {
-  const char* utf8 =
-      "Hello, \xf0\x9f\x8c\x8e.";  // "Hello, earth." in utf8 encoding
+  const v8_inspector::UChar* expected =
+      reinterpret_cast<const v8_inspector::UChar*>(u"Hello, \U0001F30E.");
   const uint16_t* utf16le = reinterpret_cast<const uint16_t*>(
       "H\0e\0l\0l\0o\0,\0 \0\x3c\xd8\x0e\xdf.\0");  // Same text in UTF16LE
                                                     // encoding
 
   String16 utf16_str = String16::fromUTF16LE(utf16le, 10);
-  String16 utf8_str = String16::fromUTF8(utf8, strlen(utf8));
+  String16 expected_str = expected;
 
-  CHECK_EQ(utf16_str.utf8(), utf8_str.utf8());
+  CHECK_EQ(utf16_str, expected_str);
 }
