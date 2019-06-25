@@ -3296,7 +3296,18 @@ ParserBase<Impl>::ParseImportExpressions() {
 
     return impl()->ImportMetaExpression(pos);
   }
-  Expect(Token::LPAREN);
+
+  if (V8_UNLIKELY(peek() != Token::LPAREN)) {
+    if (!parsing_module_) {
+      impl()->ReportMessageAt(scanner()->location(),
+                              MessageTemplate::kImportOutsideModule);
+    } else {
+      ReportUnexpectedToken(Next());
+    }
+    return impl()->FailureExpression();
+  }
+
+  Consume(Token::LPAREN);
   if (peek() == Token::RPAREN) {
     impl()->ReportMessageAt(scanner()->location(),
                             MessageTemplate::kImportMissingSpecifier);
