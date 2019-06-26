@@ -1506,26 +1506,21 @@ void IndirectFunctionTableEntry::Set(int sig_id, Address call_target,
   instance_->indirect_function_table_refs().set(index_, ref);
 }
 
-Object IndirectFunctionTableEntry::object_ref() {
+Object IndirectFunctionTableEntry::object_ref() const {
   return instance_->indirect_function_table_refs().get(index_);
 }
 
-int IndirectFunctionTableEntry::sig_id() {
+int IndirectFunctionTableEntry::sig_id() const {
   return instance_->indirect_function_table_sig_ids()[index_];
 }
 
-Address IndirectFunctionTableEntry::target() {
+Address IndirectFunctionTableEntry::target() const {
   return instance_->indirect_function_table_targets()[index_];
 }
 
 void IndirectFunctionTableEntry::CopyFrom(
     const IndirectFunctionTableEntry& that) {
-  instance_->indirect_function_table_sig_ids()[index_] =
-      that.instance_->indirect_function_table_sig_ids()[that.index_];
-  instance_->indirect_function_table_targets()[index_] =
-      that.instance_->indirect_function_table_targets()[that.index_];
-  instance_->indirect_function_table_refs().set(
-      index_, that.instance_->indirect_function_table_refs().get(that.index_));
+  Set(that.sig_id(), that.target(), that.object_ref());
 }
 
 void ImportedFunctionEntry::SetWasmToJs(

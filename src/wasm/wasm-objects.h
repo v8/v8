@@ -71,9 +71,9 @@ class IndirectFunctionTableEntry {
 
   void CopyFrom(const IndirectFunctionTableEntry& that);
 
-  Object object_ref();
-  int sig_id();
-  Address target();
+  Object object_ref() const;
+  int sig_id() const;
+  Address target() const;
 
  private:
   Handle<WasmInstanceObject> const instance_;
