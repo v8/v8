@@ -29,8 +29,7 @@ class HeapObject : public Object {
 
   // [map]: Contains a map which contains the object's reflective
   // information.
-  inline Map map() const;
-  inline Map map(Isolate* isolate) const;
+  DECL_GETTER(map, Map)
   inline void set_map(Map value);
 
   inline ObjectSlot map_slot() const;
@@ -59,8 +58,7 @@ class HeapObject : public Object {
 
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
-  inline MapWord map_word() const;
-  inline MapWord map_word(Isolate* isolate) const;
+  DECL_GETTER(map_word, MapWord)
   inline void set_map_word(MapWord map_word);
 
   // TODO(v8:7464): Once RO_SPACE is shared between isolates, this method can be

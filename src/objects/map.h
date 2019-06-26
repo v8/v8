@@ -576,19 +576,18 @@ class Map : public HeapObject {
   // Returns null_value if there's neither a constructor function nor a
   // FunctionTemplateInfo available.
   DECL_ACCESSORS(constructor_or_backpointer, Object)
-  inline Object GetConstructor() const;
-  inline FunctionTemplateInfo GetFunctionTemplateInfo() const;
+  DECL_GETTER(GetConstructor, Object)
+  DECL_GETTER(GetFunctionTemplateInfo, FunctionTemplateInfo)
   inline void SetConstructor(Object constructor,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with the constructor (see above).
-  inline HeapObject GetBackPointer() const;
-  inline void SetBackPointer(Object value,
+  DECL_GETTER(GetBackPointer, HeapObject)
+  inline void SetBackPointer(HeapObject value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [instance descriptors]: describes the object.
-  inline DescriptorArray instance_descriptors() const;
-  inline DescriptorArray instance_descriptors(Isolate* isolate) const;
+  DECL_GETTER(instance_descriptors, DescriptorArray)
   V8_EXPORT_PRIVATE void SetInstanceDescriptors(Isolate* isolate,
                                                 DescriptorArray descriptors,
                                                 int number_of_own_descriptors);

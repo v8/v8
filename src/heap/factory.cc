@@ -2338,7 +2338,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   Handle<JSFunction> function(JSFunction::cast(New(map, allocation)),
                               isolate());
 
-  function->initialize_properties();
+  function->initialize_properties(isolate());
   function->initialize_elements();
   function->set_shared(*info);
   function->set_code(info->GetCode());
@@ -3292,7 +3292,7 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<JSReceiver> target,
   DCHECK(map->prototype().IsNull(isolate()));
   Handle<JSProxy> result(JSProxy::cast(New(map, AllocationType::kYoung)),
                          isolate());
-  result->initialize_properties();
+  result->initialize_properties(isolate());
   result->set_target(*target);
   result->set_handler(*handler);
   return result;

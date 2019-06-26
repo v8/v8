@@ -201,7 +201,7 @@ class ElementsAccessor {
                             uint32_t destination_start, int copy_size) = 0;
 
  private:
-  static ElementsAccessor** elements_accessors_;
+  V8_EXPORT_PRIVATE static ElementsAccessor** elements_accessors_;
 
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };

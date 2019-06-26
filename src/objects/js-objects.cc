@@ -4480,10 +4480,6 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
       object, args->slot_at(first_arg + arg_count - 1), arg_count, mode);
 }
 
-ElementsAccessor* JSObject::GetElementsAccessor() {
-  return ElementsAccessor::ForKind(GetElementsKind());
-}
-
 void JSObject::ValidateElements(JSObject object) {
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {

@@ -686,27 +686,30 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 #endif
 }
 
-HeapObject Map::GetBackPointer() const {
-  Object object = constructor_or_backpointer();
-  if (object.IsMap()) {
+DEF_GETTER(Map, GetBackPointer, HeapObject) {
+  Object object = constructor_or_backpointer(isolate);
+  if (object.IsMap(isolate)) {
     return Map::cast(object);
   }
-  return GetReadOnlyRoots().undefined_value();
+  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
+  // i::GetIsolateForPtrCompr(HeapObject).
+  return GetReadOnlyRoots(isolate).undefined_value();
 }
 
-Map Map::ElementsTransitionMap(Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
-  return TransitionsAccessor(isolate, *this, &no_gc)
-      .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
-}
-
-void Map::SetBackPointer(Object value, WriteBarrierMode mode) {
+void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
   CHECK_GE(instance_type(), FIRST_JS_RECEIVER_TYPE);
   CHECK(value.IsMap());
   CHECK(GetBackPointer().IsUndefined());
   CHECK_IMPLIES(value.IsMap(), Map::cast(value).GetConstructor() ==
                                    constructor_or_backpointer());
   set_constructor_or_backpointer(value, mode);
+}
+
+// static
+Map Map::ElementsTransitionMap(Isolate* isolate) {
+  DisallowHeapAllocation no_gc;
+  return TransitionsAccessor(isolate, *this, &no_gc)
+      .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
 }
 
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
@@ -721,23 +724,24 @@ bool Map::IsPrototypeValidityCellValid() const {
   return value == Smi::FromInt(Map::kPrototypeChainValid);
 }
 
-Object Map::GetConstructor() const {
-  Object maybe_constructor = constructor_or_backpointer();
+DEF_GETTER(Map, GetConstructor, Object) {
+  Object maybe_constructor = constructor_or_backpointer(isolate);
   // Follow any back pointers.
-  while (maybe_constructor.IsMap()) {
+  while (maybe_constructor.IsMap(isolate)) {
     maybe_constructor =
-        Map::cast(maybe_constructor).constructor_or_backpointer();
+        Map::cast(maybe_constructor).constructor_or_backpointer(isolate);
   }
   return maybe_constructor;
 }
 
-FunctionTemplateInfo Map::GetFunctionTemplateInfo() const {
-  Object constructor = GetConstructor();
-  if (constructor.IsJSFunction()) {
-    DCHECK(JSFunction::cast(constructor).shared().IsApiFunction());
-    return JSFunction::cast(constructor).shared().get_api_func_data();
+DEF_GETTER(Map, GetFunctionTemplateInfo, FunctionTemplateInfo) {
+  Object constructor = GetConstructor(isolate);
+  if (constructor.IsJSFunction(isolate)) {
+    // TODO(ishell): IsApiFunction(isolate) and get_api_func_data(isolate)
+    DCHECK(JSFunction::cast(constructor).shared(isolate).IsApiFunction());
+    return JSFunction::cast(constructor).shared(isolate).get_api_func_data();
   }
-  DCHECK(constructor.IsFunctionTemplateInfo());
+  DCHECK(constructor.IsFunctionTemplateInfo(isolate));
   return FunctionTemplateInfo::cast(constructor);
 }
 

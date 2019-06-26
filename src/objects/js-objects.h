@@ -27,16 +27,16 @@ class JSReceiver : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   // Returns true if there is no slow (ie, dictionary) backing store.
-  inline bool HasFastProperties() const;
+  DECL_GETTER(HasFastProperties, bool)
 
   // Returns the properties array backing store if it
   // exists. Otherwise, returns an empty_property_array when there's a
   // Smi (hash code) or an empty_fixed_array for a fast properties
   // map.
-  inline PropertyArray property_array() const;
+  DECL_GETTER(property_array, PropertyArray)
 
   // Gets slow properties for non-global objects.
-  inline NameDictionary property_dictionary() const;
+  DECL_GETTER(property_dictionary, NameDictionary)
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
@@ -62,7 +62,7 @@ class JSReceiver : public HeapObject {
   // above typed getters and setters to access the properties.
   DECL_ACCESSORS(raw_properties_or_hash, Object)
 
-  inline void initialize_properties();
+  inline void initialize_properties(Isolate* isolate);
 
   // Deletes an existing named property in a normalized object.
   static void DeleteNormalizedProperty(Handle<JSReceiver> object, int entry);
@@ -311,58 +311,60 @@ class JSObject : public JSReceiver {
   inline void initialize_elements();
   static inline void SetMapAndElements(Handle<JSObject> object, Handle<Map> map,
                                        Handle<FixedArrayBase> elements);
-  inline ElementsKind GetElementsKind() const;
-  V8_EXPORT_PRIVATE ElementsAccessor* GetElementsAccessor();
+  DECL_GETTER(GetElementsKind, ElementsKind)
+  DECL_GETTER(GetElementsAccessor, ElementsAccessor*)
+
   // Returns true if an object has elements of PACKED_SMI_ELEMENTS or
   // HOLEY_SMI_ELEMENTS ElementsKind.
-  inline bool HasSmiElements();
+  DECL_GETTER(HasSmiElements, bool)
   // Returns true if an object has elements of PACKED_ELEMENTS or
   // HOLEY_ELEMENTS ElementsKind.
-  inline bool HasObjectElements();
+  DECL_GETTER(HasObjectElements, bool)
   // Returns true if an object has elements of PACKED_SMI_ELEMENTS,
   // HOLEY_SMI_ELEMENTS, PACKED_ELEMENTS, or HOLEY_ELEMENTS.
-  inline bool HasSmiOrObjectElements();
+  DECL_GETTER(HasSmiOrObjectElements, bool)
   // Returns true if an object has any of the "fast" elements kinds.
-  inline bool HasFastElements();
+  DECL_GETTER(HasFastElements, bool)
   // Returns true if an object has any of the PACKED elements kinds.
-  inline bool HasFastPackedElements();
+  DECL_GETTER(HasFastPackedElements, bool)
   // Returns true if an object has elements of PACKED_DOUBLE_ELEMENTS or
   // HOLEY_DOUBLE_ELEMENTS ElementsKind.
-  inline bool HasDoubleElements();
+  DECL_GETTER(HasDoubleElements, bool)
   // Returns true if an object has elements of HOLEY_SMI_ELEMENTS,
   // HOLEY_DOUBLE_ELEMENTS, or HOLEY_ELEMENTS ElementsKind.
-  inline bool HasHoleyElements();
-  inline bool HasSloppyArgumentsElements();
-  inline bool HasStringWrapperElements();
-  inline bool HasDictionaryElements();
+  DECL_GETTER(HasHoleyElements, bool)
+  DECL_GETTER(HasSloppyArgumentsElements, bool)
+  DECL_GETTER(HasStringWrapperElements, bool)
+  DECL_GETTER(HasDictionaryElements, bool)
 
   // Returns true if an object has elements of PACKED_ELEMENTS
-  inline bool HasPackedElements();
-  inline bool HasFrozenOrSealedElements();
-  inline bool HasSealedElements();
+  DECL_GETTER(HasPackedElements, bool)
+  DECL_GETTER(HasFrozenOrSealedElements, bool)
+  DECL_GETTER(HasSealedElements, bool)
 
-  inline bool HasTypedArrayElements();
+  DECL_GETTER(HasTypedArrayElements, bool)
 
-  inline bool HasFixedUint8ClampedElements();
-  inline bool HasFixedArrayElements();
-  inline bool HasFixedInt8Elements();
-  inline bool HasFixedUint8Elements();
-  inline bool HasFixedInt16Elements();
-  inline bool HasFixedUint16Elements();
-  inline bool HasFixedInt32Elements();
-  inline bool HasFixedUint32Elements();
-  inline bool HasFixedFloat32Elements();
-  inline bool HasFixedFloat64Elements();
-  inline bool HasFixedBigInt64Elements();
-  inline bool HasFixedBigUint64Elements();
+  DECL_GETTER(HasFixedUint8ClampedElements, bool)
+  DECL_GETTER(HasFixedArrayElements, bool)
+  DECL_GETTER(HasFixedInt8Elements, bool)
+  DECL_GETTER(HasFixedUint8Elements, bool)
+  DECL_GETTER(HasFixedInt16Elements, bool)
+  DECL_GETTER(HasFixedUint16Elements, bool)
+  DECL_GETTER(HasFixedInt32Elements, bool)
+  DECL_GETTER(HasFixedUint32Elements, bool)
+  DECL_GETTER(HasFixedFloat32Elements, bool)
+  DECL_GETTER(HasFixedFloat64Elements, bool)
+  DECL_GETTER(HasFixedBigInt64Elements, bool)
+  DECL_GETTER(HasFixedBigUint64Elements, bool)
 
-  inline bool HasFastArgumentsElements();
-  inline bool HasSlowArgumentsElements();
-  inline bool HasFastStringWrapperElements();
-  inline bool HasSlowStringWrapperElements();
+  DECL_GETTER(HasFastArgumentsElements, bool)
+  DECL_GETTER(HasSlowArgumentsElements, bool)
+  DECL_GETTER(HasFastStringWrapperElements, bool)
+  DECL_GETTER(HasSlowStringWrapperElements, bool)
   bool HasEnumerableElements();
 
-  inline NumberDictionary element_dictionary();  // Gets slow elements.
+  // Gets slow elements.
+  DECL_GETTER(element_dictionary, NumberDictionary)
 
   // Requires: HasFastElements().
   static void EnsureWritableFastElements(Handle<JSObject> object);
@@ -547,8 +549,8 @@ class JSObject : public JSReceiver {
 
   // Lookup interceptors are used for handling properties controlled by host
   // objects.
-  inline bool HasNamedInterceptor();
-  inline bool HasIndexedInterceptor();
+  DECL_GETTER(HasNamedInterceptor, bool)
+  DECL_GETTER(HasIndexedInterceptor, bool)
 
   // Support functions for v8 api (needed for correct interceptor behavior).
   V8_WARN_UNUSED_RESULT static Maybe<bool> HasRealNamedProperty(
@@ -728,7 +730,7 @@ class JSObject : public JSReceiver {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine() const;
+  V8_EXPORT_PRIVATE bool ElementsAreSafeToExamine(Isolate* isolate) const;
 #endif
 
   Object SlowReverseLookup(Object value);
@@ -1080,13 +1082,14 @@ class JSFunction : public JSObject {
   inline bool NeedsResetDueToFlushedBytecode();
   inline void ResetIfBytecodeFlushed();
 
-  inline bool has_prototype_slot() const;
+  DECL_GETTER(has_prototype_slot, bool)
 
   // The initial map for an object created by this constructor.
-  inline Map initial_map();
+  DECL_GETTER(initial_map, Map)
+
   static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                             Handle<HeapObject> prototype);
-  inline bool has_initial_map();
+  DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
       Handle<JSFunction> function);
 
@@ -1101,12 +1104,12 @@ class JSFunction : public JSObject {
   // function has an initial map the prototype is set on the initial
   // map. Otherwise, the prototype is put in the initial map field
   // until an initial map is needed.
-  inline bool has_prototype();
-  inline bool has_instance_prototype();
-  inline Object prototype();
-  inline HeapObject instance_prototype();
-  inline bool has_prototype_property();
-  inline bool PrototypeRequiresRuntimeLookup();
+  DECL_GETTER(has_prototype, bool)
+  DECL_GETTER(has_instance_prototype, bool)
+  DECL_GETTER(prototype, Object)
+  DECL_GETTER(instance_prototype, HeapObject)
+  DECL_GETTER(has_prototype_property, bool)
+  DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
   static void SetPrototype(Handle<JSFunction> function, Handle<Object> value);
 
   // Returns if this function has been compiled to native code yet.
@@ -1207,7 +1210,7 @@ class JSGlobalObject : public JSObject {
   DECL_ACCESSORS(global_proxy, JSGlobalProxy)
 
   // Gets global object properties.
-  inline GlobalDictionary global_dictionary();
+  DECL_GETTER(global_dictionary, GlobalDictionary)
   inline void set_global_dictionary(GlobalDictionary dictionary);
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,

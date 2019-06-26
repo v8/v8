@@ -523,10 +523,11 @@ void FeedbackVector::FeedbackVectorVerify(Isolate* isolate) {
 
 USE_TORQUE_VERIFIER(JSReceiver)
 
-bool JSObject::ElementsAreSafeToExamine() const {
+bool JSObject::ElementsAreSafeToExamine(Isolate* isolate) const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
-  return elements() != GetReadOnlyRoots().one_pointer_filler_map();
+  return elements(isolate) !=
+         GetReadOnlyRoots(isolate).one_pointer_filler_map();
 }
 
 namespace {
@@ -632,7 +633,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
 
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
-  if (ElementsAreSafeToExamine()) {
+  if (ElementsAreSafeToExamine(isolate)) {
     CHECK_EQ((map().has_fast_smi_or_object_elements() ||
               map().has_frozen_or_sealed_elements() ||
               (elements() == GetReadOnlyRoots().empty_fixed_array()) ||
@@ -1182,7 +1183,7 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSArrayVerify(*this, isolate);
   // If a GC was caused while constructing this array, the elements
   // pointer may point to a one pointer filler map.
-  if (!ElementsAreSafeToExamine()) return;
+  if (!ElementsAreSafeToExamine(isolate)) return;
   if (elements().IsUndefined(isolate)) return;
   CHECK(elements().IsFixedArray() || elements().IsFixedDoubleArray());
   if (elements().length() == 0) {

@@ -8,6 +8,7 @@
 #include "src/objects/js-objects.h"
 
 #include "src/heap/heap-write-barrier.h"
+#include "src/objects/elements.h"
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/feedback-vector.h"
@@ -553,7 +554,8 @@ void JSFunction::set_code_no_write_barrier(Code value) {
   RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
 }
 
-SharedFunctionInfo JSFunction::shared() const {
+// TODO(ishell): Why relaxed read but release store?
+DEF_GETTER(JSFunction, shared, SharedFunctionInfo) {
   return SharedFunctionInfo::cast(
       RELAXED_READ_FIELD(*this, kSharedFunctionInfoOffset));
 }
@@ -617,56 +619,64 @@ void JSFunction::set_context(Object value) {
 ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map, Object,
                   kPrototypeOrInitialMapOffset, map().has_prototype_slot())
 
-bool JSFunction::has_prototype_slot() const {
-  return map().has_prototype_slot();
+DEF_GETTER(JSFunction, has_prototype_slot, bool) {
+  return map(isolate).has_prototype_slot();
 }
 
-Map JSFunction::initial_map() { return Map::cast(prototype_or_initial_map()); }
-
-bool JSFunction::has_initial_map() {
-  DCHECK(has_prototype_slot());
-  return prototype_or_initial_map().IsMap();
+DEF_GETTER(JSFunction, initial_map, Map) {
+  return Map::cast(prototype_or_initial_map(isolate));
 }
 
-bool JSFunction::has_instance_prototype() {
-  DCHECK(has_prototype_slot());
-  return has_initial_map() || !prototype_or_initial_map().IsTheHole();
+DEF_GETTER(JSFunction, has_initial_map, bool) {
+  DCHECK(has_prototype_slot(isolate));
+  return prototype_or_initial_map(isolate).IsMap(isolate);
 }
 
-bool JSFunction::has_prototype() {
-  DCHECK(has_prototype_slot());
-  return map().has_non_instance_prototype() || has_instance_prototype();
+DEF_GETTER(JSFunction, has_instance_prototype, bool) {
+  DCHECK(has_prototype_slot(isolate));
+  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
+  // i::GetIsolateForPtrCompr(HeapObject).
+  return has_initial_map(isolate) ||
+         !prototype_or_initial_map(isolate).IsTheHole(
+             GetReadOnlyRoots(isolate));
 }
 
-bool JSFunction::has_prototype_property() {
-  return (has_prototype_slot() && IsConstructor()) ||
-         IsGeneratorFunction(shared().kind());
+DEF_GETTER(JSFunction, has_prototype, bool) {
+  DCHECK(has_prototype_slot(isolate));
+  return map(isolate).has_non_instance_prototype() ||
+         has_instance_prototype(isolate);
 }
 
-bool JSFunction::PrototypeRequiresRuntimeLookup() {
-  return !has_prototype_property() || map().has_non_instance_prototype();
+DEF_GETTER(JSFunction, has_prototype_property, bool) {
+  return (has_prototype_slot(isolate) && IsConstructor(isolate)) ||
+         IsGeneratorFunction(shared(isolate).kind());
 }
 
-HeapObject JSFunction::instance_prototype() {
-  DCHECK(has_instance_prototype());
-  if (has_initial_map()) return initial_map().prototype();
+DEF_GETTER(JSFunction, PrototypeRequiresRuntimeLookup, bool) {
+  return !has_prototype_property(isolate) ||
+         map(isolate).has_non_instance_prototype();
+}
+
+DEF_GETTER(JSFunction, instance_prototype, HeapObject) {
+  DCHECK(has_instance_prototype(isolate));
+  if (has_initial_map(isolate)) return initial_map(isolate).prototype(isolate);
   // When there is no initial map and the prototype is a JSReceiver, the
   // initial map field is used for the prototype field.
-  return HeapObject::cast(prototype_or_initial_map());
+  return HeapObject::cast(prototype_or_initial_map(isolate));
 }
 
-Object JSFunction::prototype() {
-  DCHECK(has_prototype());
+DEF_GETTER(JSFunction, prototype, Object) {
+  DCHECK(has_prototype(isolate));
   // If the function's prototype property has been set to a non-JSReceiver
   // value, that value is stored in the constructor field of the map.
-  if (map().has_non_instance_prototype()) {
-    Object prototype = map().GetConstructor();
+  if (map(isolate).has_non_instance_prototype()) {
+    Object prototype = map(isolate).GetConstructor(isolate);
     // The map must have a prototype in that field, not a back pointer.
-    DCHECK(!prototype.IsMap());
-    DCHECK(!prototype.IsFunctionTemplateInfo());
+    DCHECK(!prototype.IsMap(isolate));
+    DCHECK(!prototype.IsFunctionTemplateInfo(isolate));
     return prototype;
   }
-  return instance_prototype();
+  return instance_prototype(isolate);
 }
 
 bool JSFunction::is_compiled() const {
@@ -744,119 +754,134 @@ SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
 SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
 
-ElementsKind JSObject::GetElementsKind() const {
-  ElementsKind kind = map().elements_kind();
+DEF_GETTER(JSObject, GetElementsKind, ElementsKind) {
+  ElementsKind kind = map(isolate).elements_kind();
 #if VERIFY_HEAP && DEBUG
-  FixedArrayBase fixed_array =
-      FixedArrayBase::unchecked_cast(READ_FIELD(*this, kElementsOffset));
+  FixedArrayBase fixed_array = FixedArrayBase::unchecked_cast(
+      TaggedField<HeapObject, kElementsOffset>::load(isolate, *this));
 
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
-  if (ElementsAreSafeToExamine()) {
-    Map map = fixed_array.map();
+  if (ElementsAreSafeToExamine(isolate)) {
+    Map map = fixed_array.map(isolate);
     if (IsSmiOrObjectElementsKind(kind)) {
-      DCHECK(map == GetReadOnlyRoots().fixed_array_map() ||
-             map == GetReadOnlyRoots().fixed_cow_array_map());
+      DCHECK(map == GetReadOnlyRoots(isolate).fixed_array_map() ||
+             map == GetReadOnlyRoots(isolate).fixed_cow_array_map());
     } else if (IsDoubleElementsKind(kind)) {
-      DCHECK(fixed_array.IsFixedDoubleArray() ||
-             fixed_array == GetReadOnlyRoots().empty_fixed_array());
+      DCHECK(fixed_array.IsFixedDoubleArray(isolate) ||
+             fixed_array == GetReadOnlyRoots(isolate).empty_fixed_array());
     } else if (kind == DICTIONARY_ELEMENTS) {
-      DCHECK(fixed_array.IsFixedArray());
-      DCHECK(fixed_array.IsNumberDictionary());
+      DCHECK(fixed_array.IsFixedArray(isolate));
+      DCHECK(fixed_array.IsNumberDictionary(isolate));
     } else {
       DCHECK(kind > DICTIONARY_ELEMENTS || IsFrozenOrSealedElementsKind(kind));
     }
-    DCHECK(!IsSloppyArgumentsElementsKind(kind) ||
-           (elements().IsFixedArray() && elements().length() >= 2));
+    DCHECK(
+        !IsSloppyArgumentsElementsKind(kind) ||
+        (elements(isolate).IsFixedArray() && elements(isolate).length() >= 2));
   }
 #endif
   return kind;
 }
 
-bool JSObject::HasObjectElements() {
-  return IsObjectElementsKind(GetElementsKind());
+DEF_GETTER(JSObject, GetElementsAccessor, ElementsAccessor*) {
+  return ElementsAccessor::ForKind(GetElementsKind(isolate));
 }
 
-bool JSObject::HasSmiElements() { return IsSmiElementsKind(GetElementsKind()); }
-
-bool JSObject::HasSmiOrObjectElements() {
-  return IsSmiOrObjectElementsKind(GetElementsKind());
+DEF_GETTER(JSObject, HasObjectElements, bool) {
+  return IsObjectElementsKind(GetElementsKind(isolate));
 }
 
-bool JSObject::HasDoubleElements() {
-  return IsDoubleElementsKind(GetElementsKind());
+DEF_GETTER(JSObject, HasSmiElements, bool) {
+  return IsSmiElementsKind(GetElementsKind(isolate));
 }
 
-bool JSObject::HasHoleyElements() {
-  return IsHoleyElementsKind(GetElementsKind());
+DEF_GETTER(JSObject, HasSmiOrObjectElements, bool) {
+  return IsSmiOrObjectElementsKind(GetElementsKind(isolate));
 }
 
-bool JSObject::HasFastElements() {
-  return IsFastElementsKind(GetElementsKind());
+DEF_GETTER(JSObject, HasDoubleElements, bool) {
+  return IsDoubleElementsKind(GetElementsKind(isolate));
 }
 
-bool JSObject::HasFastPackedElements() {
-  return IsFastPackedElementsKind(GetElementsKind());
+DEF_GETTER(JSObject, HasHoleyElements, bool) {
+  return IsHoleyElementsKind(GetElementsKind(isolate));
 }
 
-bool JSObject::HasDictionaryElements() {
-  return GetElementsKind() == DICTIONARY_ELEMENTS;
+DEF_GETTER(JSObject, HasFastElements, bool) {
+  return IsFastElementsKind(GetElementsKind(isolate));
 }
 
-bool JSObject::HasPackedElements() {
-  return GetElementsKind() == PACKED_ELEMENTS;
+DEF_GETTER(JSObject, HasFastPackedElements, bool) {
+  return IsFastPackedElementsKind(GetElementsKind(isolate));
 }
 
-bool JSObject::HasFrozenOrSealedElements() {
-  return IsFrozenOrSealedElementsKind(GetElementsKind());
+DEF_GETTER(JSObject, HasDictionaryElements, bool) {
+  return GetElementsKind(isolate) == DICTIONARY_ELEMENTS;
 }
 
-bool JSObject::HasSealedElements() {
-  return IsSealedElementsKind(GetElementsKind());
+DEF_GETTER(JSObject, HasPackedElements, bool) {
+  return GetElementsKind(isolate) == PACKED_ELEMENTS;
 }
 
-bool JSObject::HasFastArgumentsElements() {
-  return GetElementsKind() == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
+DEF_GETTER(JSObject, HasFrozenOrSealedElements, bool) {
+  return IsFrozenOrSealedElementsKind(GetElementsKind(isolate));
 }
 
-bool JSObject::HasSlowArgumentsElements() {
-  return GetElementsKind() == SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
+DEF_GETTER(JSObject, HasSealedElements, bool) {
+  return IsSealedElementsKind(GetElementsKind(isolate));
 }
 
-bool JSObject::HasSloppyArgumentsElements() {
-  return IsSloppyArgumentsElementsKind(GetElementsKind());
+DEF_GETTER(JSObject, HasFastArgumentsElements, bool) {
+  return GetElementsKind(isolate) == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
 }
 
-bool JSObject::HasStringWrapperElements() {
-  return IsStringWrapperElementsKind(GetElementsKind());
+DEF_GETTER(JSObject, HasSlowArgumentsElements, bool) {
+  return GetElementsKind(isolate) == SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
 }
 
-bool JSObject::HasFastStringWrapperElements() {
-  return GetElementsKind() == FAST_STRING_WRAPPER_ELEMENTS;
+DEF_GETTER(JSObject, HasSloppyArgumentsElements, bool) {
+  return IsSloppyArgumentsElementsKind(GetElementsKind(isolate));
 }
 
-bool JSObject::HasSlowStringWrapperElements() {
-  return GetElementsKind() == SLOW_STRING_WRAPPER_ELEMENTS;
+DEF_GETTER(JSObject, HasStringWrapperElements, bool) {
+  return IsStringWrapperElementsKind(GetElementsKind(isolate));
 }
 
-bool JSObject::HasTypedArrayElements() {
-  DCHECK(!elements().is_null());
-  return map().has_typed_array_elements();
+DEF_GETTER(JSObject, HasFastStringWrapperElements, bool) {
+  return GetElementsKind(isolate) == FAST_STRING_WRAPPER_ELEMENTS;
+}
+
+DEF_GETTER(JSObject, HasSlowStringWrapperElements, bool) {
+  return GetElementsKind(isolate) == SLOW_STRING_WRAPPER_ELEMENTS;
+}
+
+DEF_GETTER(JSObject, HasTypedArrayElements, bool) {
+  DCHECK(!elements(isolate).is_null());
+  return map(isolate).has_typed_array_elements();
 }
 
 #define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype) \
-  bool JSObject::HasFixed##Type##Elements() {               \
-    return map().elements_kind() == TYPE##_ELEMENTS;        \
+  DEF_GETTER(JSObject, HasFixed##Type##Elements, bool) {    \
+    return map(isolate).elements_kind() == TYPE##_ELEMENTS; \
   }
 
 TYPED_ARRAYS(FIXED_TYPED_ELEMENTS_CHECK)
 
 #undef FIXED_TYPED_ELEMENTS_CHECK
 
-bool JSObject::HasNamedInterceptor() { return map().has_named_interceptor(); }
+DEF_GETTER(JSObject, HasNamedInterceptor, bool) {
+  return map(isolate).has_named_interceptor();
+}
 
-bool JSObject::HasIndexedInterceptor() {
-  return map().has_indexed_interceptor();
+DEF_GETTER(JSObject, HasIndexedInterceptor, bool) {
+  return map(isolate).has_indexed_interceptor();
+}
+
+DEF_GETTER(JSGlobalObject, global_dictionary, GlobalDictionary) {
+  DCHECK(!HasFastProperties(isolate));
+  DCHECK(IsJSGlobalObject(isolate));
+  return GlobalDictionary::cast(raw_properties_or_hash(isolate));
 }
 
 void JSGlobalObject::set_global_dictionary(GlobalDictionary dictionary) {
@@ -864,22 +889,17 @@ void JSGlobalObject::set_global_dictionary(GlobalDictionary dictionary) {
   set_raw_properties_or_hash(dictionary);
 }
 
-GlobalDictionary JSGlobalObject::global_dictionary() {
-  DCHECK(!HasFastProperties());
-  DCHECK(IsJSGlobalObject());
-  return GlobalDictionary::cast(raw_properties_or_hash());
+DEF_GETTER(JSObject, element_dictionary, NumberDictionary) {
+  DCHECK(HasDictionaryElements(isolate) ||
+         HasSlowStringWrapperElements(isolate));
+  return NumberDictionary::cast(elements(isolate));
 }
 
-NumberDictionary JSObject::element_dictionary() {
-  DCHECK(HasDictionaryElements() || HasSlowStringWrapperElements());
-  return NumberDictionary::cast(elements());
-}
-
-void JSReceiver::initialize_properties() {
-  ReadOnlyRoots roots = GetReadOnlyRoots();
+void JSReceiver::initialize_properties(Isolate* isolate) {
+  ReadOnlyRoots roots(isolate);
   DCHECK(!ObjectInYoungGeneration(roots.empty_fixed_array()));
   DCHECK(!ObjectInYoungGeneration(roots.empty_property_dictionary()));
-  if (map().is_dictionary_map()) {
+  if (map(isolate).is_dictionary_map()) {
     WRITE_FIELD(*this, kPropertiesOrHashOffset,
                 roots.empty_property_dictionary());
   } else {
@@ -887,36 +907,36 @@ void JSReceiver::initialize_properties() {
   }
 }
 
-bool JSReceiver::HasFastProperties() const {
-  DCHECK(raw_properties_or_hash().IsSmi() ||
-         ((raw_properties_or_hash().IsGlobalDictionary() ||
-           raw_properties_or_hash().IsNameDictionary()) ==
-          map().is_dictionary_map()));
-  return !map().is_dictionary_map();
+DEF_GETTER(JSReceiver, HasFastProperties, bool) {
+  DCHECK(raw_properties_or_hash(isolate).IsSmi() ||
+         ((raw_properties_or_hash(isolate).IsGlobalDictionary(isolate) ||
+           raw_properties_or_hash(isolate).IsNameDictionary(isolate)) ==
+          map(isolate).is_dictionary_map()));
+  return !map(isolate).is_dictionary_map();
 }
 
-NameDictionary JSReceiver::property_dictionary() const {
-  DCHECK(!IsJSGlobalObject());
-  DCHECK(!HasFastProperties());
-
-  Object prop = raw_properties_or_hash();
+DEF_GETTER(JSReceiver, property_dictionary, NameDictionary) {
+  DCHECK(!IsJSGlobalObject(isolate));
+  DCHECK(!HasFastProperties(isolate));
+  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
+  // i::GetIsolateForPtrCompr(HeapObject).
+  Object prop = raw_properties_or_hash(isolate);
   if (prop.IsSmi()) {
-    return GetReadOnlyRoots().empty_property_dictionary();
+    return GetReadOnlyRoots(isolate).empty_property_dictionary();
   }
-
   return NameDictionary::cast(prop);
 }
 
 // TODO(gsathya): Pass isolate directly to this function and access
 // the heap from this.
-PropertyArray JSReceiver::property_array() const {
-  DCHECK(HasFastProperties());
-
-  Object prop = raw_properties_or_hash();
-  if (prop.IsSmi() || prop == GetReadOnlyRoots().empty_fixed_array()) {
-    return GetReadOnlyRoots().empty_property_array();
+DEF_GETTER(JSReceiver, property_array, PropertyArray) {
+  DCHECK(HasFastProperties(isolate));
+  // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
+  // i::GetIsolateForPtrCompr(HeapObject).
+  Object prop = raw_properties_or_hash(isolate);
+  if (prop.IsSmi() || prop == GetReadOnlyRoots(isolate).empty_fixed_array()) {
+    return GetReadOnlyRoots(isolate).empty_property_array();
   }
-
   return PropertyArray::cast(prop);
 }
 
