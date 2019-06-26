@@ -4121,9 +4121,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       if (source->IsRegister()) {
         Register src = g.ToRegister(source);
         Register dst = g.ToRegister(destination);
-        __ movq(kScratchRegister, src);
-        __ movq(src, dst);
-        __ movq(dst, kScratchRegister);
+        __ xchgq(src, dst);
       } else {
         DCHECK(source->IsFPRegister());
         XMMRegister src = g.ToDoubleRegister(source);
