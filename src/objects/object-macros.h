@@ -254,35 +254,30 @@
 
 #define FIELD_ADDR(p, offset) ((p).ptr() + offset - kHeapObjectTag)
 
-#define READ_FIELD(p, offset) (*ObjectSlot(FIELD_ADDR(p, offset)))
+#define READ_FIELD(p, offset) TaggedField<Object>::load(p, offset)
 
-#define READ_WEAK_FIELD(p, offset) (*MaybeObjectSlot(FIELD_ADDR(p, offset)))
+#define READ_WEAK_FIELD(p, offset) TaggedField<MaybeObject>::load(p, offset)
 
 #define ACQUIRE_READ_FIELD(p, offset) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Acquire_Load()
+  TaggedField<Object>::Acquire_Load(p, offset)
 
 #define RELAXED_READ_FIELD(p, offset) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Load()
+  TaggedField<Object>::Relaxed_Load(p, offset)
 
 #define RELAXED_READ_WEAK_FIELD(p, offset) \
-  MaybeObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Load()
+  TaggedField<MaybeObject>::Relaxed_Load(p, offset)
 
-#ifdef V8_CONCURRENT_MARKING
 #define WRITE_FIELD(p, offset, value) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
-#else
-#define WRITE_FIELD(p, offset, value) \
-  ObjectSlot(FIELD_ADDR(p, offset)).store(value)
-#endif
+  TaggedField<Object>::store(p, offset, value)
 
 #define RELEASE_WRITE_FIELD(p, offset, value) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Release_Store(value)
+  TaggedField<Object>::Release_Store(p, offset, value)
 
 #define RELAXED_WRITE_FIELD(p, offset, value) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
+  TaggedField<Object>::Relaxed_Store(p, offset, value)
 
 #define RELAXED_WRITE_WEAK_FIELD(p, offset, value) \
-  MaybeObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
+  TaggedField<MaybeObject>::Relaxed_Store(p, offset, value)
 
 #define WRITE_BARRIER(object, offset, value)                       \
   do {                                                             \

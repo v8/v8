@@ -118,16 +118,16 @@ void TaggedField<T, kFieldOffset>::Relaxed_Store(HeapObject host, int offset,
 
 // static
 template <typename T, int kFieldOffset>
-T TaggedField<T, kFieldOffset>::Acquire_Load(HeapObject host) {
-  AtomicTagged_t value = AsAtomicTagged::Acquire_Load(location(host));
+T TaggedField<T, kFieldOffset>::Acquire_Load(HeapObject host, int offset) {
+  AtomicTagged_t value = AsAtomicTagged::Acquire_Load(location(host, offset));
   return T(tagged_to_full(host.ptr(), value));
 }
 
 // static
 template <typename T, int kFieldOffset>
-T TaggedField<T, kFieldOffset>::Acquire_Load(Isolate* isolate,
-                                             HeapObject host) {
-  AtomicTagged_t value = AsAtomicTagged::Acquire_Load(location(host));
+T TaggedField<T, kFieldOffset>::Acquire_Load(Isolate* isolate, HeapObject host,
+                                             int offset) {
+  AtomicTagged_t value = AsAtomicTagged::Acquire_Load(location(host, offset));
   return T(tagged_to_full(isolate, value));
 }
 
@@ -135,6 +135,14 @@ T TaggedField<T, kFieldOffset>::Acquire_Load(Isolate* isolate,
 template <typename T, int kFieldOffset>
 void TaggedField<T, kFieldOffset>::Release_Store(HeapObject host, T value) {
   AsAtomicTagged::Release_Store(location(host), full_to_tagged(value.ptr()));
+}
+
+// static
+template <typename T, int kFieldOffset>
+void TaggedField<T, kFieldOffset>::Release_Store(HeapObject host, int offset,
+                                                 T value) {
+  AsAtomicTagged::Release_Store(location(host, offset),
+                                full_to_tagged(value.ptr()));
 }
 
 // static

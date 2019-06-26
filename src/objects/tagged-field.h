@@ -18,7 +18,7 @@ namespace internal {
 // For full-pointer mode this type adds no overhead but when pointer
 // compression is enabled such class allows us to use proper decompression
 // function depending on the field type.
-template <typename T, int kFieldOffset>
+template <typename T, int kFieldOffset = 0>
 class TaggedField : public AllStatic {
  public:
   static_assert(std::is_base_of<Object, T>::value ||
@@ -50,10 +50,12 @@ class TaggedField : public AllStatic {
   static inline void Relaxed_Store(HeapObject host, T value);
   static inline void Relaxed_Store(HeapObject host, int offset, T value);
 
-  static inline T Acquire_Load(HeapObject host);
-  static inline T Acquire_Load(Isolate* isolate, HeapObject host);
+  static inline T Acquire_Load(HeapObject host, int offset = 0);
+  static inline T Acquire_Load(Isolate* isolate, HeapObject host,
+                               int offset = 0);
 
   static inline void Release_Store(HeapObject host, T value);
+  static inline void Release_Store(HeapObject host, int offset, T value);
 
   static inline Tagged_t Release_CompareAndSwap(HeapObject host, T old,
                                                 T value);
