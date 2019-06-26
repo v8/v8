@@ -272,6 +272,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(I8x16Splat, 0xfd04, s_i)             \
   V(I16x8Splat, 0xfd08, s_i)             \
   V(I32x4Splat, 0xfd0c, s_i)             \
+  V(I64x2Splat, 0xfd0f, s_l)             \
   V(F32x4Splat, 0xfd12, s_f)             \
   V(I8x16Eq, 0xfd18, s_ss)               \
   V(I8x16Ne, 0xfd19, s_ss)               \
@@ -560,6 +561,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(s_f, kWasmS128, kWasmF32)              \
   V(s_ss, kWasmS128, kWasmS128, kWasmS128) \
   V(s_i, kWasmS128, kWasmI32)              \
+  V(s_l, kWasmS128, kWasmI64)              \
   V(s_si, kWasmS128, kWasmS128, kWasmI32)  \
   V(i_s, kWasmI32, kWasmS128)              \
   V(v_is, kWasmStmt, kWasmI32, kWasmS128)  \

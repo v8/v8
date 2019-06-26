@@ -2883,6 +2883,18 @@ void Assembler::movd(Register dst, XMMRegister src) {
 }
 
 void Assembler::movq(XMMRegister dst, Register src) {
+  // Mixing AVX and non-AVX is expensive, catch those cases
+  DCHECK(!IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x6E);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::movq(XMMRegister dst, Operand src) {
+  // Mixing AVX and non-AVX is expensive, catch those cases
   DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0x66);
@@ -2893,6 +2905,7 @@ void Assembler::movq(XMMRegister dst, Register src) {
 }
 
 void Assembler::movq(Register dst, XMMRegister src) {
+  // Mixing AVX and non-AVX is expensive, catch those cases
   DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0x66);
@@ -2903,6 +2916,7 @@ void Assembler::movq(Register dst, XMMRegister src) {
 }
 
 void Assembler::movq(XMMRegister dst, XMMRegister src) {
+  // Mixing AVX and non-AVX is expensive, catch those cases
   DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   if (dst.low_bits() == 4) {

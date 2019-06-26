@@ -2134,6 +2134,7 @@ class ThreadImpl {
     Push(WasmValue(Simd128(s)));                \
     return true;                                \
   }
+      SPLAT_CASE(I64x2, int2, int64_t, 2)
       SPLAT_CASE(I32x4, int4, int32_t, 4)
       SPLAT_CASE(F32x4, float4, float, 4)
       SPLAT_CASE(I16x8, int8, int32_t, 8)

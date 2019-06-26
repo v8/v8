@@ -2400,6 +2400,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cmpleps(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
+    case kX64I64x2Splat: {
+      XMMRegister dst = i.OutputSimd128Register();
+      if (instr->InputAt(0)->IsRegister()) {
+        __ movq(dst, i.InputRegister(0));
+      } else {
+        __ movq(dst, i.InputOperand(0));
+      }
+      __ pshufd(dst, dst, 0x44);
+      break;
+    }
     case kX64I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (instr->InputAt(0)->IsRegister()) {

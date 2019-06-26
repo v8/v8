@@ -289,6 +289,7 @@ T Sqrt(T a) {
 #define WASM_SIMD_F32x4_REPLACE_LANE(lane, x, y) \
   x, y, WASM_SIMD_OP(kExprF32x4ReplaceLane), TO_BYTE(lane)
 
+#define WASM_SIMD_I64x2_SPLAT(x) WASM_SIMD_SPLAT(I64x2, x)
 #define WASM_SIMD_I32x4_SPLAT(x) WASM_SIMD_SPLAT(I32x4, x)
 #define WASM_SIMD_I32x4_EXTRACT_LANE(lane, x) \
   x, WASM_SIMD_OP(kExprI32x4ExtractLane), TO_BYTE(lane)
@@ -679,6 +680,26 @@ WASM_SIMD_TEST(F32x4Lt) {
 WASM_SIMD_TEST(F32x4Le) {
   RunF32x4CompareOpTest(execution_tier, lower_simd, kExprF32x4Le, LessEqual);
 }
+
+#if V8_TARGET_ARCH_X64
+WASM_SIMD_TEST(I64x2Splat) {
+  WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
+  // Set up a global to hold output vector.
+  int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
+  byte param1 = 0;
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(param1))),
+        WASM_ONE);
+
+  FOR_INT64_INPUTS(x) {
+    r.Call(x);
+    int64_t expected = x;
+    for (int i = 0; i < 2; i++) {
+      int64_t actual = ReadLittleEndianValue<int64_t>(&g[i]);
+      CHECK_EQ(actual, expected);
+    }
+  }
+}
+#endif  // V8_TARGET_ARCH_X64
 
 WASM_SIMD_TEST(I32x4Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);

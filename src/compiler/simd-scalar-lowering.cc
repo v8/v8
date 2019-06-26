@@ -16,6 +16,7 @@ namespace internal {
 namespace compiler {
 
 namespace {
+static const int kNumLanes64 = 2;
 static const int kNumLanes32 = 4;
 static const int kNumLanes16 = 8;
 static const int kNumLanes8 = 16;
@@ -75,6 +76,8 @@ void SimdScalarLowering::LowerGraph() {
     }
   }
 }
+
+#define FOREACH_INT64X2_OPCODE(V) V(I64x2Splat)
 
 #define FOREACH_INT32X4_OPCODE(V) \
   V(I32x4Splat)                   \
@@ -208,6 +211,8 @@ void SimdScalarLowering::LowerGraph() {
 
 MachineType SimdScalarLowering::MachineTypeFrom(SimdType simdType) {
   switch (simdType) {
+    case SimdType::kInt64x2:
+      return MachineType::Int64();
     case SimdType::kFloat32x4:
       return MachineType::Float32();
     case SimdType::kInt32x4:
@@ -223,6 +228,10 @@ MachineType SimdScalarLowering::MachineTypeFrom(SimdType simdType) {
 void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
   switch (node->opcode()) {
 #define CASE_STMT(name) case IrOpcode::k##name:
+    FOREACH_INT64X2_OPCODE(CASE_STMT) {
+      replacements_[node->id()].type = SimdType::kInt64x2;
+      break;
+    }
     FOREACH_INT32X4_OPCODE(CASE_STMT)
     case IrOpcode::kReturn:
     case IrOpcode::kParameter:
@@ -326,7 +335,9 @@ static int GetReturnCountAfterLoweringSimd128(
 
 int SimdScalarLowering::NumLanes(SimdType type) {
   int num_lanes = 0;
-  if (type == SimdType::kFloat32x4 || type == SimdType::kInt32x4) {
+  if (type == SimdType::kInt64x2) {
+    num_lanes = kNumLanes64;
+  } else if (type == SimdType::kFloat32x4 || type == SimdType::kInt32x4) {
     num_lanes = kNumLanes32;
   } else if (type == SimdType::kInt16x8) {
     num_lanes = kNumLanes16;
@@ -1223,6 +1234,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
       LowerUnaryOp(node, SimdType::kInt32x4, machine()->RoundUint32ToFloat32());
       break;
     }
+    case IrOpcode::kI64x2Splat:
     case IrOpcode::kI32x4Splat:
     case IrOpcode::kF32x4Splat:
     case IrOpcode::kI16x8Splat:

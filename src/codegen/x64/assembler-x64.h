@@ -969,6 +969,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movd(XMMRegister dst, Operand src);
   void movd(Register dst, XMMRegister src);
   void movq(XMMRegister dst, Register src);
+  void movq(XMMRegister dst, Operand src);
   void movq(Register dst, XMMRegister src);
   void movq(XMMRegister dst, XMMRegister src);
 

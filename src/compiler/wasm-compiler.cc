@@ -4055,6 +4055,8 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprF32x4Ge:
       return graph()->NewNode(mcgraph()->machine()->F32x4Le(), inputs[1],
                               inputs[0]);
+    case wasm::kExprI64x2Splat:
+      return graph()->NewNode(mcgraph()->machine()->I64x2Splat(), inputs[0]);
     case wasm::kExprI32x4Splat:
       return graph()->NewNode(mcgraph()->machine()->I32x4Splat(), inputs[0]);
     case wasm::kExprI32x4SConvertF32x4:

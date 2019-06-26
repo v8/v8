@@ -262,6 +262,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(F32x4Ne, Operator::kCommutative, 2, 0, 1)                                 \
   V(F32x4Lt, Operator::kNoProperties, 2, 0, 1)                                \
   V(F32x4Le, Operator::kNoProperties, 2, 0, 1)                                \
+  V(I64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
   V(I32x4Splat, Operator::kNoProperties, 1, 0, 1)                             \
   V(I32x4SConvertF32x4, Operator::kNoProperties, 1, 0, 1)                     \
   V(I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)                  \
