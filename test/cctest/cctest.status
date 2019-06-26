@@ -201,6 +201,12 @@
 }],  # 'no_snap == True'
 
 ##############################################################################
+['no_snap == True and system != windows and mode == debug', {
+  # BUG(v8:9400).
+  'test-heap/Regress615489': [SKIP],
+}], # 'no_snap == True and system != windows and mode == debug'
+
+##############################################################################
 # TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
 # section to not overwrite the expectations for TestThatAlwaysFails.
 ['no_snap == True and system == windows', {
