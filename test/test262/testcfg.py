@@ -53,7 +53,6 @@ FEATURE_FLAGS = {
   'Intl.DateTimeFormat-quarter': '--harmony-intl-dateformat-quarter',
   'Intl.DateTimeFormat-fractionalSecondDigits': '--harmony-intl-dateformat-fractional-second-digits',
   'Symbol.prototype.description': '--harmony-symbol-description',
-  'globalThis': '--harmony-global',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
   'BigInt': '--harmony-intl-bigint',
   'Promise.allSettled': '--harmony-promise-all-settled',

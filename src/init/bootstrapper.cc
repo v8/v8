@@ -2696,6 +2696,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   Handle<EmbedderDataArray> embedder_data = factory->NewEmbedderDataArray(0);
   native_context()->set_embedder_data(*embedder_data);
 
+  {  // -- g l o b a l T h i s
+    Handle<JSGlobalProxy> global_proxy(native_context()->global_proxy(),
+                                       isolate_);
+    JSObject::AddProperty(isolate_, global, factory->globalThis_string(),
+                          global_proxy, DONT_ENUM);
+  }
+
   {  // -- J S O N
     Handle<JSObject> json_object =
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
@@ -4251,17 +4258,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_numberformat_unified)
 #endif  // V8_INTL_SUPPORT
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
-
-void Genesis::InitializeGlobal_harmony_global() {
-  if (!FLAG_harmony_global) return;
-
-  Factory* factory = isolate()->factory();
-  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-  Handle<JSGlobalProxy> global_proxy(native_context()->global_proxy(),
-                                     isolate());
-  JSObject::AddProperty(isolate_, global, factory->globalThis_string(),
-                        global_proxy, DONT_ENUM);
-}
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   if (!FLAG_harmony_sharedarraybuffer) return;
