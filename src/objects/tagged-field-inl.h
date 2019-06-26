@@ -70,20 +70,21 @@ T TaggedField<T, kFieldOffset>::load(Isolate* isolate, HeapObject host,
 // static
 template <typename T, int kFieldOffset>
 void TaggedField<T, kFieldOffset>::store(HeapObject host, T value) {
+#ifdef V8_CONCURRENT_MARKING
+  Relaxed_Store(host, value);
+#else
   *location(host) = full_to_tagged(value.ptr());
+#endif
 }
 
 // static
 template <typename T, int kFieldOffset>
 void TaggedField<T, kFieldOffset>::store(HeapObject host, int offset, T value) {
+#ifdef V8_CONCURRENT_MARKING
+  Relaxed_Store(host, offset, value);
+#else
   *location(host, offset) = full_to_tagged(value.ptr());
-}
-
-// static
-template <typename T, int kFieldOffset>
-T TaggedField<T, kFieldOffset>::Relaxed_Load(HeapObject host) {
-  AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location(host));
-  return T(tagged_to_full(host.ptr(), value));
+#endif
 }
 
 // static
@@ -91,14 +92,6 @@ template <typename T, int kFieldOffset>
 T TaggedField<T, kFieldOffset>::Relaxed_Load(HeapObject host, int offset) {
   AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location(host, offset));
   return T(tagged_to_full(host.ptr(), value));
-}
-
-// static
-template <typename T, int kFieldOffset>
-T TaggedField<T, kFieldOffset>::Relaxed_Load(Isolate* isolate,
-                                             HeapObject host) {
-  AtomicTagged_t value = AsAtomicTagged::Relaxed_Load(location(host));
-  return T(tagged_to_full(isolate, value));
 }
 
 // static

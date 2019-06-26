@@ -43,10 +43,9 @@ class TaggedField : public AllStatic {
   static inline void store(HeapObject host, T value);
   static inline void store(HeapObject host, int offset, T value);
 
-  static inline T Relaxed_Load(HeapObject host);
-  static inline T Relaxed_Load(HeapObject host, int offset);
-  static inline T Relaxed_Load(Isolate* isolate, HeapObject host);
-  static inline T Relaxed_Load(Isolate* isolate, HeapObject host, int offset);
+  static inline T Relaxed_Load(HeapObject host, int offset = 0);
+  static inline T Relaxed_Load(Isolate* isolate, HeapObject host,
+                               int offset = 0);
 
   static inline void Relaxed_Store(HeapObject host, T value);
   static inline void Relaxed_Store(HeapObject host, int offset, T value);
