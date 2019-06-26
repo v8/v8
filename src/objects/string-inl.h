@@ -147,16 +147,12 @@ STATIC_ASSERT((kExternalStringTag | kTwoByteStringTag) ==
 
 STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
 
-ISOLATELESS_GETTER(String, IsOneByteRepresentation, bool)
-
-bool String::IsOneByteRepresentation(Isolate* isolate) const {
+DEF_GETTER(String, IsOneByteRepresentation, bool) {
   uint32_t type = map(isolate).instance_type();
   return (type & kStringEncodingMask) == kOneByteStringTag;
 }
 
-ISOLATELESS_GETTER(String, IsTwoByteRepresentation, bool)
-
-bool String::IsTwoByteRepresentation(Isolate* isolate) const {
+DEF_GETTER(String, IsTwoByteRepresentation, bool) {
   uint32_t type = map(isolate).instance_type();
   return (type & kStringEncodingMask) == kTwoByteStringTag;
 }
@@ -573,9 +569,7 @@ void ConsString::set_second(Isolate* isolate, String value,
 
 ACCESSORS(ThinString, actual, String, kActualOffset)
 
-ISOLATELESS_GETTER(ThinString, unchecked_actual, HeapObject)
-
-HeapObject ThinString::unchecked_actual(Isolate* isolate) const {
+DEF_GETTER(ThinString, unchecked_actual, HeapObject) {
   return TaggedField<HeapObject, kActualOffset>::load(isolate, *this);
 }
 

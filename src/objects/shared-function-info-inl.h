@@ -105,7 +105,7 @@ CAST_ACCESSOR(UncompiledDataWithPreparseData)
 ACCESSORS(UncompiledDataWithPreparseData, preparse_data, PreparseData,
           kPreparseDataOffset)
 
-bool HeapObject::IsUncompiledData(Isolate* isolate) const {
+DEF_GETTER(HeapObject, IsUncompiledData, bool) {
   return IsUncompiledDataWithoutPreparseData(isolate) ||
          IsUncompiledDataWithPreparseData(isolate);
 }

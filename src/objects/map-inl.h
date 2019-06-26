@@ -30,9 +30,7 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(Map, HeapObject)
 CAST_ACCESSOR(Map)
 
-ISOLATELESS_GETTER(Map, instance_descriptors, DescriptorArray)
-
-DescriptorArray Map::instance_descriptors(Isolate* isolate) const {
+DEF_GETTER(Map, instance_descriptors, DescriptorArray) {
   return TaggedField<DescriptorArray, kInstanceDescriptorsOffset>::load(isolate,
                                                                         *this);
 }
@@ -792,7 +790,7 @@ int NormalizedMapCache::GetIndex(Handle<Map> map) {
   return map->Hash() % NormalizedMapCache::kEntries;
 }
 
-bool HeapObject::IsNormalizedMapCache(Isolate* isolate) const {
+DEF_GETTER(HeapObject, IsNormalizedMapCache, bool) {
   if (!IsWeakFixedArray(isolate)) return false;
   if (WeakFixedArray::cast(*this).length() != NormalizedMapCache::kEntries) {
     return false;
