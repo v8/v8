@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_EXECUTION_MESSAGE_TEMPLATE_H_
-#define V8_EXECUTION_MESSAGE_TEMPLATE_H_
+#ifndef V8_COMMON_MESSAGE_TEMPLATE_H_
+#define V8_COMMON_MESSAGE_TEMPLATE_H_
 
 #include "src/base/logging.h"
 
@@ -592,4 +592,4 @@ inline MessageTemplate MessageTemplateFromInt(int message_id) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_EXECUTION_MESSAGE_TEMPLATE_H_
+#endif  // V8_COMMON_MESSAGE_TEMPLATE_H_

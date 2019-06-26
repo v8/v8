@@ -11,7 +11,7 @@
 #include "include/v8.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/handles/maybe-handles.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/vector.h"

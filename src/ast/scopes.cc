@@ -9,7 +9,7 @@
 #include "src/ast/ast.h"
 #include "src/base/optional.h"
 #include "src/builtins/accessors.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/module-inl.h"

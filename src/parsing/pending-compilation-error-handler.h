@@ -9,7 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/common/globals.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/handles/handles.h"
 
 namespace v8 {

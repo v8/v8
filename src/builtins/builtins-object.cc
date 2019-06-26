@@ -5,7 +5,7 @@
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/logging/counters.h"
 #include "src/objects/keys.h"

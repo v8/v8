@@ -4,9 +4,9 @@
 
 #include <functional>
 
+#include "src/common/message-template.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/message-template.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"

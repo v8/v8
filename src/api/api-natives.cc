@@ -5,8 +5,8 @@
 #include "src/api/api-natives.h"
 
 #include "src/api/api-inl.h"
+#include "src/common/message-template.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/message-template.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/lookup.h"

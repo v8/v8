@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/base/memory.h"
+#include "src/common/message-template.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frame-constants.h"
-#include "src/execution/message-template.h"
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"

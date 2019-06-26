@@ -19,7 +19,7 @@
 #include "src/codegen/constants-arch.h"
 #include "src/common/assert-scope.h"
 #include "src/common/checks.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/flags/flags.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-index.h"

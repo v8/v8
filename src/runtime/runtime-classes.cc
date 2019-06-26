@@ -8,10 +8,10 @@
 #include <limits>
 
 #include "src/builtins/accessors.h"
+#include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/message-template.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/elements.h"

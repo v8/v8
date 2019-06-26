@@ -7,8 +7,8 @@
 
 #include <vector>
 
+#include "src/common/message-template.h"
 #include "src/execution/isolate.h"
-#include "src/execution/message-template.h"
 #include "src/heap/factory.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects/feedback-vector.h"

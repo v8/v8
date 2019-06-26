@@ -6,7 +6,7 @@
 #define V8_WASM_WASM_OPCODES_H_
 
 #include "src/common/globals.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-constants.h"
 

@@ -11,7 +11,7 @@
 
 #include "src/base/logging.h"
 #include "src/common/globals.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/parsing/literal-buffer.h"
 #include "src/parsing/token.h"
 #include "src/strings/char-predicates.h"

@@ -4,10 +4,10 @@
 
 #include "src/objects/elements.h"
 
+#include "src/common/message-template.h"
 #include "src/execution/arguments.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/message-template.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For MaxNumberToStringCacheSize.
 #include "src/heap/heap-write-barrier-inl.h"

@@ -16,7 +16,7 @@
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/function-kind.h"

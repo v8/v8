@@ -7,7 +7,7 @@
 
 #include "src/base/optional.h"
 #include "src/codegen/code-stub-assembler.h"
-#include "src/execution/message-template.h"
+#include "src/common/message-template.h"
 
 namespace v8 {
 namespace internal {
