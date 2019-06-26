@@ -264,7 +264,7 @@ TEST(SerializeUnconditionalJump) {
       "function f() {"
       "  function p() {};"
       "  function q() {};"
-      "  if (a) g(q);"
+      "  if (a) q();"
       "  else g(p);"
       "  return p;"
       "};"

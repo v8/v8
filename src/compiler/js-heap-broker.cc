@@ -531,7 +531,6 @@ class ContextData : public HeapObjectData {
   void SerializeContextChain(JSHeapBroker* broker);
 
   ContextData* previous() const {
-    CHECK(serialized_context_chain_);
     return previous_;
   }
 
@@ -539,8 +538,10 @@ class ContextData : public HeapObjectData {
 
   ObjectData* GetSlot(int index) {
     auto search = slots_.find(index);
-    CHECK(search != slots_.end());
-    return search->second;
+    if (search != slots_.end()) {
+      return search->second;
+    }
+    return nullptr;
   }
 
   void SerializeScopeInfo(JSHeapBroker* broker);
@@ -548,7 +549,6 @@ class ContextData : public HeapObjectData {
 
  private:
   ZoneMap<int, ObjectData*> slots_;
-  bool serialized_context_chain_ = false;
   ContextData* previous_ = nullptr;
   ScopeInfoData* scope_info_ = nullptr;
 };
@@ -558,15 +558,12 @@ ContextData::ContextData(JSHeapBroker* broker, ObjectData** storage,
     : HeapObjectData(broker, storage, object), slots_(broker->zone()) {}
 
 void ContextData::SerializeContextChain(JSHeapBroker* broker) {
-  if (serialized_context_chain_) return;
-  serialized_context_chain_ = true;
+  if (previous_ != nullptr) return;
 
-  TraceScope tracer(broker, this, "ContextData::SerializeContextChain");
   Handle<Context> context = Handle<Context>::cast(object());
-
-  DCHECK_NULL(previous_);
   // Context::previous DCHECK-fails when called on the native context.
   if (!context->IsNativeContext()) {
+    TraceScope tracer(broker, this, "ContextData::SerializeContextChain");
     previous_ = broker->GetOrCreateData(context->previous())->AsContext();
     previous_->SerializeContextChain(broker);
   }
@@ -574,7 +571,7 @@ void ContextData::SerializeContextChain(JSHeapBroker* broker) {
 
 void ContextData::SerializeSlot(JSHeapBroker* broker, int index) {
   TraceScope tracer(broker, this, "ContextData::SerializeSlot");
-  TRACE(broker, "Serializing script context slot " << index);
+  TRACE(broker, "Serializing context slot " << index);
   Handle<Context> context = Handle<Context>::cast(object());
   CHECK(index >= 0 && index < context->length());
   ObjectData* odata = broker->GetOrCreateData(context->get(index));
@@ -1896,25 +1893,39 @@ bool ObjectRef::equals(const ObjectRef& other) const {
 
 Isolate* ObjectRef::isolate() const { return broker()->isolate(); }
 
-ContextRef ContextRef::previous() const {
+ContextRef ContextRef::previous(size_t* depth) const {
+  DCHECK_NOT_NULL(depth);
+  DCHECK_GE(*depth, 0);
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
-    return ContextRef(broker(),
-                      handle(object()->previous(), broker()->isolate()));
+    Context current = *object();
+    while (*depth != 0) {
+      current = current.previous();
+      (*depth)--;
+    }
+    return ContextRef(broker(), handle(current, broker()->isolate()));
   }
-  return ContextRef(broker(), data()->AsContext()->previous());
+  ContextData* current = this->data()->AsContext();
+  while (*depth != 0 && current->previous() != nullptr) {
+    current = current->previous();
+    (*depth)--;
+  }
+  return ContextRef(broker(), current);
 }
 
-// Not needed for TypedLowering.
-ObjectRef ContextRef::get(int index) const {
+base::Optional<ObjectRef> ContextRef::get(int index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     Handle<Object> value(object()->get(index), broker()->isolate());
     return ObjectRef(broker(), value);
   }
-  return ObjectRef(broker(), data()->AsContext()->GetSlot(index));
+  ObjectData* optional_slot = data()->AsContext()->GetSlot(index);
+  if (optional_slot != nullptr) {
+    return ObjectRef(broker(), optional_slot);
+  }
+  return base::nullopt;
 }
 
 JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
@@ -2459,6 +2470,11 @@ bool AllocationSiteRef::IsFastLiteral() const {
   return data()->AsAllocationSite()->IsFastLiteral();
 }
 
+void JSObjectRef::SerializeElements() {
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsJSObject()->SerializeElements(broker());
+}
+
 void JSObjectRef::EnsureElementsTenured() {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation allow_handle_allocation;
@@ -2909,7 +2925,7 @@ MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
   DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   if (broker()->mode() == JSHeapBroker::kDisabled) {
-    return get(index).AsMap();
+    return get(index).value().AsMap();
   }
   return MapRef(broker(), data()->AsNativeContext()->function_maps().at(
                               index - Context::FIRST_FUNCTION_MAP_INDEX));

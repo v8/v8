@@ -229,6 +229,7 @@ class JSObjectRef : public HeapObjectRef {
   ObjectRef RawFastPropertyAt(FieldIndex index) const;
 
   FixedArrayBaseRef elements() const;
+  void SerializeElements();
   void EnsureElementsTenured();
   ElementsKind GetElementsKind() const;
 
@@ -317,10 +318,14 @@ class ContextRef : public HeapObjectRef {
   Handle<Context> object() const;
 
   void SerializeContextChain();
-  ContextRef previous() const;
+
+  // {previous} decrements n by 1 for each previous link successfully
+  // followed. If depth != 0 on function return, then it only got
+  // partway to the desired depth.
+  ContextRef previous(size_t* depth) const;
 
   void SerializeSlot(int index);
-  ObjectRef get(int index) const;
+  base::Optional<ObjectRef> get(int index) const;
 
   // We only serialize the ScopeInfo if certain Promise
   // builtins are called.
