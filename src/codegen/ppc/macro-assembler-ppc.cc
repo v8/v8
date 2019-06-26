@@ -2454,27 +2454,24 @@ void TurboAssembler::LoadP(Register dst, const MemOperand& mem,
                            Register scratch) {
   DCHECK_EQ(mem.rb(), no_reg);
   int offset = mem.offset();
+  int misaligned = (offset & 3);
+  int adj = (offset & 3) - 4;
+  int alignedOffset = (offset & ~3) + 4;
 
-  if (!is_int16(offset)) {
+  if (!is_int16(offset) || (misaligned && !is_int16(alignedOffset))) {
     /* cannot use d-form */
-    DCHECK_NE(scratch, no_reg);
     mov(scratch, Operand(offset));
     LoadPX(dst, MemOperand(mem.ra(), scratch));
   } else {
-#if V8_TARGET_ARCH_PPC64
-    int misaligned = (offset & 3);
     if (misaligned) {
       // adjust base to conform to offset alignment requirements
       // Todo: enhance to use scratch if dst is unsuitable
-      DCHECK(dst != r0);
-      addi(dst, mem.ra(), Operand((offset & 3) - 4));
-      ld(dst, MemOperand(dst, (offset & ~3) + 4));
+      DCHECK_NE(dst, r0);
+      addi(dst, mem.ra(), Operand(adj));
+      ld(dst, MemOperand(dst, alignedOffset));
     } else {
       ld(dst, mem);
     }
-#else
-    lwz(dst, mem);
-#endif
   }
 }
 
