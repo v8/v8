@@ -941,7 +941,6 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
   }
   const WasmTable& table = module_->tables[table_index];
 
-  instance->tables().set(table_index, *value);
   auto table_object = Handle<WasmTableObject>::cast(value);
 
   int imported_table_size = table_object->entries().length();
@@ -985,6 +984,7 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
     return false;
   }
 
+  instance->tables().set(table_index, *value);
   return true;
 }
 
