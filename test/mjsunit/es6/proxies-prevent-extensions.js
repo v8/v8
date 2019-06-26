@@ -105,7 +105,7 @@
 
   assertTrue(Object.isExtensible(target));
   assertTrue(Object.isExtensible(proxy));
-  Object.preventExtensions(proxy);
+  assertSame(proxy, Object.preventExtensions(proxy));
   assertFalse(Object.isExtensible(target));
   assertFalse(Object.isExtensible(proxy));
 })();
@@ -119,7 +119,7 @@
 
   assertTrue(Object.isExtensible(target));
   assertTrue(Object.isExtensible(proxy));
-  Object.preventExtensions(proxy);
+  assertSame(proxy, Object.preventExtensions(proxy));
   assertFalse(Object.isExtensible(target));
   assertFalse(Object.isExtensible(proxy));
 })();
@@ -145,7 +145,7 @@
   assertTrue(Object.isExtensible(proxy));
 
   // Trap returns trueish but target is not extensible.
-  Object.preventExtensions(target);
+  assertSame(target, Object.preventExtensions(target));
   assertThrows(() => { Object.isExtensible(proxy) }, TypeError);
 })();
 
@@ -158,7 +158,7 @@
   var proxy = new Proxy(target, handler);
 
   assertThrows(() => { Object.isExtensible(proxy) }, TypeError);
-  Object.preventExtensions(target);
+  assertSame(target, Object.preventExtensions(target));
   assertFalse(Object.isExtensible(proxy));
 })();
 
@@ -171,7 +171,7 @@
   var proxy = new Proxy(target, handler);
 
   assertFalse(Reflect.preventExtensions(proxy));
-  Object.preventExtensions(target);
+  assertSame(target, Object.preventExtensions(target));
   assertFalse(Reflect.preventExtensions(proxy));
   assertThrows(() => { Object.preventExtensions(proxy) }, TypeError);
 })();
@@ -186,7 +186,7 @@
   assertThrows(() => { Object.preventExtensions(proxy) }, TypeError);
 
   // Trap returns trueish and target is not extensible.
-  Object.preventExtensions(target);
+  assertSame(target, Object.preventExtensions(target));
   assertTrue(Reflect.preventExtensions(proxy));
 })();
 
@@ -194,7 +194,7 @@
 (function () {
   // Target is proxy
   var object = {};
-  Object.preventExtensions(object);
+  assertSame(object, Object.preventExtensions(object));
   var target = new Proxy(object, {});
   var proxy = new Proxy(target, {});
   assertFalse(Object.isExtensible(object));

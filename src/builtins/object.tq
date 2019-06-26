@@ -34,7 +34,8 @@ namespace object {
     const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
         otherwise return runtime::JSReceiverPreventExtensionsThrow(
         objectJSReceiver);
-    return proxy::ProxyPreventExtensions(objectJSProxy, True);
+    const _status: Object = proxy::ProxyPreventExtensions(objectJSProxy, True);
+    return objectJSReceiver;
   }
 
   transitioning macro
