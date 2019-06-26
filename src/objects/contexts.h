@@ -455,6 +455,7 @@ class Context : public HeapObject {
 
   // Setter and getter for elements.
   V8_INLINE Object get(int index) const;
+  V8_INLINE Object get(Isolate* isolate, int index) const;
   V8_INLINE void set(int index, Object value);
   // Setter with explicit barrier mode.
   V8_INLINE void set(int index, Object value, WriteBarrierMode mode);

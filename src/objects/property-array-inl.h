@@ -22,9 +22,15 @@ OBJECT_CONSTRUCTORS_IMPL(PropertyArray, HeapObject)
 CAST_ACCESSOR(PropertyArray)
 
 Object PropertyArray::get(int index) const {
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return get(isolate, index);
+}
+
+Object PropertyArray::get(Isolate* isolate, int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
-  return RELAXED_READ_FIELD(*this, OffsetOfElementAt(index));
+  return TaggedField<Object>::Relaxed_Load(isolate, *this,
+                                           OffsetOfElementAt(index));
 }
 
 void PropertyArray::set(int index, Object value) {

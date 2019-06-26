@@ -627,15 +627,17 @@ class JSObject : public JSReceiver {
                                                   int unused_property_fields,
                                                   const char* reason);
 
-  inline bool IsUnboxedDoubleField(FieldIndex index);
+  inline bool IsUnboxedDoubleField(FieldIndex index) const;
+  inline bool IsUnboxedDoubleField(Isolate* isolate, FieldIndex index) const;
 
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
-  inline Object RawFastPropertyAt(FieldIndex index);
-  inline double RawFastDoublePropertyAt(FieldIndex index);
-  inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index);
+  inline Object RawFastPropertyAt(FieldIndex index) const;
+  inline Object RawFastPropertyAt(Isolate* isolate, FieldIndex index) const;
+  inline double RawFastDoublePropertyAt(FieldIndex index) const;
+  inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
 
   inline void FastPropertyAtPut(FieldIndex index, Object value);
   inline void RawFastPropertyAtPut(

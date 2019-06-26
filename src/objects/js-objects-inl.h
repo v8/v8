@@ -308,29 +308,39 @@ void JSObject::SetEmbedderField(int index, Smi value) {
   EmbedderDataSlot(*this, index).store_smi(value);
 }
 
-bool JSObject::IsUnboxedDoubleField(FieldIndex index) {
+bool JSObject::IsUnboxedDoubleField(FieldIndex index) const {
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return IsUnboxedDoubleField(isolate, index);
+}
+
+bool JSObject::IsUnboxedDoubleField(Isolate* isolate, FieldIndex index) const {
   if (!FLAG_unbox_double_fields) return false;
-  return map().IsUnboxedDoubleField(index);
+  return map(isolate).IsUnboxedDoubleField(isolate, index);
 }
 
 // Access fast-case object properties at index. The use of these routines
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
-Object JSObject::RawFastPropertyAt(FieldIndex index) {
-  DCHECK(!IsUnboxedDoubleField(index));
+Object JSObject::RawFastPropertyAt(FieldIndex index) const {
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return RawFastPropertyAt(isolate, index);
+}
+
+Object JSObject::RawFastPropertyAt(Isolate* isolate, FieldIndex index) const {
+  DCHECK(!IsUnboxedDoubleField(isolate, index));
   if (index.is_inobject()) {
-    return READ_FIELD(*this, index.offset());
+    return TaggedField<Object>::load(isolate, *this, index.offset());
   } else {
-    return property_array().get(index.outobject_array_index());
+    return property_array(isolate).get(isolate, index.outobject_array_index());
   }
 }
 
-double JSObject::RawFastDoublePropertyAt(FieldIndex index) {
+double JSObject::RawFastDoublePropertyAt(FieldIndex index) const {
   DCHECK(IsUnboxedDoubleField(index));
   return ReadField<double>(index.offset());
 }
 
-uint64_t JSObject::RawFastDoublePropertyAsBitsAt(FieldIndex index) {
+uint64_t JSObject::RawFastDoublePropertyAsBitsAt(FieldIndex index) const {
   DCHECK(IsUnboxedDoubleField(index));
   return ReadField<uint64_t>(index.offset());
 }

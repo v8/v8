@@ -114,6 +114,8 @@ class FixedArray : public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline Object get(int index) const;
+  inline Object get(Isolate* isolate, int index) const;
+
   static inline Handle<Object> get(FixedArray array, int index,
                                    Isolate* isolate);
 
@@ -268,6 +270,7 @@ class WeakFixedArray : public HeapObject {
   DECL_CAST(WeakFixedArray)
 
   inline MaybeObject Get(int index) const;
+  inline MaybeObject Get(Isolate* isolate, int index) const;
 
   // Setter that uses write barrier.
   inline void Set(int index, MaybeObject value);
@@ -337,6 +340,7 @@ class WeakArrayList : public HeapObject {
       const MaybeObjectHandle& value);
 
   inline MaybeObject Get(int index) const;
+  inline MaybeObject Get(Isolate* isolate, int index) const;
 
   // Set the element at index to obj. The underlying array must be large enough.
   // If you need to grow the WeakArrayList, use the static AddToEnd() method
@@ -438,6 +442,7 @@ class ArrayList : public FixedArray {
   // storage capacity, i.e., length().
   inline void SetLength(int length);
   inline Object Get(int index) const;
+  inline Object Get(Isolate* isolate, int index) const;
   inline ObjectSlot Slot(int index);
 
   // Set the element at index to obj. The underlying array must be large enough.
@@ -577,6 +582,7 @@ class TemplateList : public FixedArray {
   static Handle<TemplateList> New(Isolate* isolate, int size);
   inline int length() const;
   inline Object get(int index) const;
+  inline Object get(Isolate* isolate, int index) const;
   inline void set(int index, Object value);
   static Handle<TemplateList> Add(Isolate* isolate, Handle<TemplateList> list,
                                   Handle<Object> value);

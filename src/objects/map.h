@@ -852,6 +852,7 @@ class Map : public HeapObject {
 
   // Returns true if given field is unboxed double.
   inline bool IsUnboxedDoubleField(FieldIndex index) const;
+  inline bool IsUnboxedDoubleField(Isolate* isolate, FieldIndex index) const;
 
   void PrintMapDetails(std::ostream& os);
 
