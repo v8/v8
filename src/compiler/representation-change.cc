@@ -462,10 +462,11 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
              use_info.type_check() == TypeCheckKind::kHeapObject) {
     if (!output_type.Maybe(Type::SignedSmall())) {
       op = machine()->ChangeCompressedPointerToTaggedPointer();
+    } else {
+      // TODO(turbofan): Consider adding a Bailout operator that just deopts
+      // for CompressedSigned output representation.
+      op = simplified()->CheckedCompressedToTaggedPointer(use_info.feedback());
     }
-    // TODO(turbofan): Consider adding a Bailout operator that just deopts
-    // for CompressedSigned output representation.
-    op = simplified()->CheckedCompressedToTaggedPointer(use_info.feedback());
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kTaggedPointer);
@@ -654,10 +655,11 @@ Node* RepresentationChanger::GetCompressedPointerRepresentationFor(
              use_info.type_check() == TypeCheckKind::kHeapObject) {
     if (!output_type.Maybe(Type::SignedSmall())) {
       op = machine()->ChangeTaggedPointerToCompressedPointer();
+    } else {
+      // TODO(turbofan): Consider adding a Bailout operator that just deopts
+      // for TaggedSigned output representation.
+      op = simplified()->CheckedTaggedToCompressedPointer(use_info.feedback());
     }
-    // TODO(turbofan): Consider adding a Bailout operator that just deopts
-    // for TaggedSigned output representation.
-    op = simplified()->CheckedTaggedToCompressedPointer(use_info.feedback());
   } else if (output_rep == MachineRepresentation::kBit) {
     // TODO(v8:8977): specialize here and below
     node = GetTaggedPointerRepresentationFor(node, output_rep, output_type,
