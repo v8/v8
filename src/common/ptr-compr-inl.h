@@ -40,10 +40,8 @@ V8_INLINE Address GetIsolateRoot<Isolate*>(Isolate* isolate) {
 
 // Decompresses smi value.
 V8_INLINE Address DecompressTaggedSigned(Tagged_t raw_value) {
-  // Current compression scheme requires |raw_value| to be sign-extended
-  // from int32_t to intptr_t.
-  intptr_t value = static_cast<intptr_t>(static_cast<int32_t>(raw_value));
-  return static_cast<Address>(value);
+  // For runtime code the upper 32-bits of the Smi value do not matter.
+  return static_cast<Address>(raw_value);
 }
 
 // Decompresses weak or strong heap object pointer or forwarding pointer,
@@ -62,18 +60,18 @@ V8_INLINE Address DecompressTaggedPointer(TOnHeapAddress on_heap_addr,
 template <typename TOnHeapAddress>
 V8_INLINE Address DecompressTaggedAny(TOnHeapAddress on_heap_addr,
                                       Tagged_t raw_value) {
-  // Current compression scheme requires |raw_value| to be sign-extended
-  // from int32_t to intptr_t.
-  intptr_t value = static_cast<intptr_t>(static_cast<int32_t>(raw_value));
-  if (kUseBranchlessPtrDecompression) {
+  if (kUseBranchlessPtrDecompressionInRuntime) {
+    // Current compression scheme requires |raw_value| to be sign-extended
+    // from int32_t to intptr_t.
+    intptr_t value = static_cast<intptr_t>(static_cast<int32_t>(raw_value));
     // |root_mask| is 0 if the |value| was a smi or -1 otherwise.
     Address root_mask = static_cast<Address>(-(value & kSmiTagMask));
     Address root_or_zero = root_mask & GetIsolateRoot(on_heap_addr);
     return root_or_zero + static_cast<Address>(value);
   } else {
-    return HAS_SMI_TAG(value)
-               ? static_cast<Address>(value)
-               : (GetIsolateRoot(on_heap_addr) + static_cast<Address>(value));
+    return HAS_SMI_TAG(raw_value)
+               ? DecompressTaggedSigned(raw_value)
+               : DecompressTaggedPointer(on_heap_addr, raw_value);
   }
 }
 

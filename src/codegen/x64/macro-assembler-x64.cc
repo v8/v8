@@ -317,7 +317,7 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
 
 void TurboAssembler::DecompressRegisterAnyTagged(Register destination,
                                                  Register scratch) {
-  if (kUseBranchlessPtrDecompression) {
+  if (kUseBranchlessPtrDecompressionInGeneratedCode) {
     // Branchlessly compute |masked_root|:
     // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
     STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));

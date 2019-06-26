@@ -2725,7 +2725,7 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const MemOperand& field_operand) {
   RecordComment("[ DecompressAnyTagged");
   Ldrsw(destination, field_operand);
-  if (kUseBranchlessPtrDecompression) {
+  if (kUseBranchlessPtrDecompressionInGeneratedCode) {
     UseScratchRegisterScope temps(this);
     // Branchlessly compute |masked_root|:
     // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
@@ -2749,7 +2749,7 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
 void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const Register& source) {
   RecordComment("[ DecompressAnyTagged");
-  if (kUseBranchlessPtrDecompression) {
+  if (kUseBranchlessPtrDecompressionInGeneratedCode) {
     UseScratchRegisterScope temps(this);
     // Branchlessly compute |masked_root|:
     // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
