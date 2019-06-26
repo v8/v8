@@ -285,6 +285,12 @@ V8StackTraceImpl::buildInspectorObject() const {
   return buildInspectorObjectImpl(nullptr);
 }
 
+std::unique_ptr<protocol::Runtime::API::StackTrace>
+V8StackTraceImpl::buildInspectorObject(int maxAsyncDepth) const {
+  return buildInspectorObjectImpl(nullptr,
+                                  std::min(maxAsyncDepth, m_maxAsyncDepth));
+}
+
 std::unique_ptr<StringBuffer> V8StackTraceImpl::toString() const {
   String16Builder stackTrace;
   for (size_t i = 0; i < m_frames.size(); ++i) {
