@@ -544,13 +544,9 @@ class ContextData : public HeapObjectData {
     return nullptr;
   }
 
-  void SerializeScopeInfo(JSHeapBroker* broker);
-  ScopeInfoData* scope_info() const { return scope_info_; }
-
  private:
   ZoneMap<int, ObjectData*> slots_;
   ContextData* previous_ = nullptr;
-  ScopeInfoData* scope_info_ = nullptr;
 };
 
 ContextData::ContextData(JSHeapBroker* broker, ObjectData** storage,
@@ -578,13 +574,6 @@ void ContextData::SerializeSlot(JSHeapBroker* broker, int index) {
   slots_.insert(std::make_pair(index, odata));
 }
 
-void ContextData::SerializeScopeInfo(JSHeapBroker* broker) {
-  TraceScope tracer(broker, this, "ContextData::SerializeScopeInfo");
-  TRACE(broker, "Serializing scope info");
-  Handle<Context> context = Handle<Context>::cast(object());
-  scope_info_ = broker->GetOrCreateData(context->scope_info())->AsScopeInfo();
-}
-
 class NativeContextData : public ContextData {
  public:
 #define DECL_ACCESSOR(type, name) \
@@ -597,6 +586,11 @@ class NativeContextData : public ContextData {
     return function_maps_;
   }
 
+  ScopeInfoData* scope_info() const {
+    CHECK(serialized_);
+    return scope_info_;
+  }
+
   NativeContextData(JSHeapBroker* broker, ObjectData** storage,
                     Handle<NativeContext> object);
   void Serialize(JSHeapBroker* broker);
@@ -607,6 +601,7 @@ class NativeContextData : public ContextData {
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_MEMBER)
 #undef DECL_MEMBER
   ZoneVector<MapData*> function_maps_;
+  ScopeInfoData* scope_info_ = nullptr;
 };
 
 class NameData : public HeapObjectData {
@@ -2921,6 +2916,16 @@ bool StringRef::IsSeqString() const {
   return data()->AsString()->is_seq_string();
 }
 
+ScopeInfoRef NativeContextRef::scope_info() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference handle_dereference;
+    return ScopeInfoRef(broker(),
+                        handle(object()->scope_info(), broker()->isolate()));
+  }
+  return ScopeInfoRef(broker(), data()->AsNativeContext()->scope_info());
+}
+
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
   DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
@@ -3283,6 +3288,8 @@ void NativeContextData::Serialize(JSHeapBroker* broker) {
   for (int i = first; i <= last; ++i) {
     function_maps_.push_back(broker->GetOrCreateData(context->get(i))->AsMap());
   }
+
+  scope_info_ = broker->GetOrCreateData(context->scope_info())->AsScopeInfo();
 }
 
 void JSFunctionRef::Serialize() {
@@ -3390,26 +3397,6 @@ void ContextRef::SerializeSlot(int index) {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsContext()->SerializeSlot(broker(), index);
-}
-
-void ContextRef::SerializeScopeInfo() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsContext()->SerializeScopeInfo(broker());
-}
-
-base::Optional<ScopeInfoRef> ContextRef::scope_info() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleAllocation handle_allocation;
-    AllowHandleDereference handle_dereference;
-    return ScopeInfoRef(broker(),
-                        handle(object()->scope_info(), broker()->isolate()));
-  }
-  ScopeInfoData* scope_info = data()->AsContext()->scope_info();
-  if (scope_info != nullptr) {
-    return ScopeInfoRef(broker(), scope_info);
-  }
-  return base::Optional<ScopeInfoRef>();
 }
 
 void NativeContextRef::Serialize() {

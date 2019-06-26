@@ -1133,18 +1133,10 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
   DCHECK(target->HasBuiltinId());
   const int builtin_id = target->builtin_id();
   switch (builtin_id) {
-    case Builtins::kPromiseConstructor: {
-      TRACE_BROKER(broker(), "Serializing data for builtin PromiseConstructor");
-      // For JSCallReducer::ReducePromiseConstructor.
-      broker()->native_context().SerializeScopeInfo();
-      break;
-    }
     case Builtins::kPromisePrototypeCatch: {
       TRACE_BROKER(broker(),
                    "Serializing data for builtin PromisePrototypeCatch");
       // For JSCallReducer::ReducePromisePrototypeCatch.
-      broker()->native_context().SerializeScopeInfo();
-
       CHECK_GE(arguments.size(), 1);
       Hints const& receiver_hints = arguments[0];
       ProcessMapHintsForPromises(receiver_hints);
@@ -1154,8 +1146,6 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       TRACE_BROKER(broker(),
                    "Serializing data for builtin PromisePrototypeFinally");
       // For JSCallReducer::ReducePromisePrototypeFinally.
-      broker()->native_context().SerializeScopeInfo();
-
       CHECK_GE(arguments.size(), 1);
       Hints const& receiver_hints = arguments[0];
       ProcessMapHintsForPromises(receiver_hints);
