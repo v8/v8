@@ -80,50 +80,6 @@ LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
   return LookupIterator(isolate, receiver, name, configuration);
 }
 
-// TODO(ishell): Consider removing this way of LookupIterator creation.
-// static
-LookupIterator LookupIterator::ForTransitionHandler(
-    Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
-    Handle<Object> value, MaybeHandle<Map> maybe_transition_map) {
-  Handle<Map> transition_map;
-  if (!maybe_transition_map.ToHandle(&transition_map) ||
-      !transition_map->IsPrototypeValidityCellValid()) {
-    // This map is not a valid transition handler, so full lookup is required.
-    return LookupIterator(isolate, receiver, name);
-  }
-
-  PropertyDetails details = PropertyDetails::Empty();
-  bool has_property;
-  if (transition_map->is_dictionary_map()) {
-    details = PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
-    has_property = false;
-  } else {
-    details = transition_map->GetLastDescriptorDetails();
-    has_property = true;
-  }
-#ifdef DEBUG
-  if (name->IsPrivate()) {
-    DCHECK_EQ(DONT_ENUM, details.attributes());
-  } else {
-    DCHECK_EQ(NONE, details.attributes());
-  }
-#endif
-  LookupIterator it(isolate, receiver, name, transition_map, details,
-                    has_property);
-
-  if (!transition_map->is_dictionary_map()) {
-    int descriptor_number = transition_map->LastAdded();
-    Handle<Map> new_map =
-        Map::PrepareForDataProperty(isolate, transition_map, descriptor_number,
-                                    PropertyConstness::kConst, value);
-    // Reload information; this is no-op if nothing changed.
-    it.property_details_ =
-        new_map->instance_descriptors().GetDetails(descriptor_number);
-    it.transition_ = new_map;
-  }
-  return it;
-}
-
 LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
                                Handle<Name> name, Handle<Map> transition_map,
                                PropertyDetails details, bool has_property)
@@ -486,17 +442,25 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   }
 
   Handle<Map> old_map(holder_obj->map(), isolate_);
-  Handle<Map> new_map = Map::PrepareForDataProperty(
-      isolate(), old_map, descriptor_number(), new_constness, value);
+  DCHECK(!old_map->is_dictionary_map());
 
-  if (old_map.is_identical_to(new_map)) {
-    // Update the property details if the representation was None.
-    if (constness() != new_constness || representation().IsNone()) {
-      property_details_ =
-          new_map->instance_descriptors().GetDetails(descriptor_number());
+  Handle<Map> new_map = Map::Update(isolate_, old_map);
+  if (!new_map->is_dictionary_map()) {
+    new_map = Map::PrepareForDataProperty(
+        isolate(), new_map, descriptor_number(), new_constness, value);
+
+    if (old_map.is_identical_to(new_map)) {
+      // Update the property details if the representation was None.
+      if (constness() != new_constness || representation().IsNone()) {
+        property_details_ =
+            new_map->instance_descriptors().GetDetails(descriptor_number());
+      }
+      return;
     }
-    return;
   }
+  // We should only get here if the new_map is different from the old map,
+  // otherwise we would have falled through to the is_identical_to check above.
+  DCHECK_NE(*old_map, *new_map);
 
   JSObject::MigrateToMap(isolate_, holder_obj, new_map);
   ReloadPropertyInformation<false>();

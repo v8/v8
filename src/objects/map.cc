@@ -2077,11 +2077,11 @@ Handle<Map> Map::PrepareForDataProperty(Isolate* isolate, Handle<Map> map,
                                         int descriptor,
                                         PropertyConstness constness,
                                         Handle<Object> value) {
+  // Update to the newest map before storing the property.
+  map = Update(isolate, map);
   // Dictionaries can store any property value.
   DCHECK(!map->is_dictionary_map());
-  // Update to the newest map before storing the property.
-  return UpdateDescriptorForValue(isolate, Update(isolate, map), descriptor,
-                                  constness, value);
+  return UpdateDescriptorForValue(isolate, map, descriptor, constness, value);
 }
 
 Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
