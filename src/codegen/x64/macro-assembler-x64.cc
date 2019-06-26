@@ -917,7 +917,7 @@ void TurboAssembler::Cvtqui2ss(XMMRegister dst, Register src) {
   orq(kScratchRegister, Immediate(1));
   bind(&msb_not_set);
   Cvtqsi2ss(dst, kScratchRegister);
-  addss(dst, dst);
+  Addss(dst, dst);
   bind(&done);
 }
 
@@ -941,7 +941,7 @@ void TurboAssembler::Cvtqui2sd(XMMRegister dst, Register src) {
   orq(kScratchRegister, Immediate(1));
   bind(&msb_not_set);
   Cvtqsi2sd(dst, kScratchRegister);
-  addsd(dst, dst);
+  Addsd(dst, dst);
   bind(&done);
 }
 
@@ -1042,11 +1042,11 @@ void ConvertFloatToUint64(TurboAssembler* tasm, Register dst,
   // and convert it again to see if it is within the uint64 range.
   if (is_double) {
     tasm->Move(kScratchDoubleReg, -9223372036854775808.0);
-    tasm->addsd(kScratchDoubleReg, src);
+    tasm->Addsd(kScratchDoubleReg, src);
     tasm->Cvttsd2siq(dst, kScratchDoubleReg);
   } else {
     tasm->Move(kScratchDoubleReg, -9223372036854775808.0f);
-    tasm->addss(kScratchDoubleReg, src);
+    tasm->Addss(kScratchDoubleReg, src);
     tasm->Cvttss2siq(dst, kScratchDoubleReg);
   }
   tasm->testq(dst, dst);
