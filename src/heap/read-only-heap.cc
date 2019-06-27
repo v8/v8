@@ -36,6 +36,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate, ReadOnlyDeserializer* des) {
 
   base::CallOnce(&setup_ro_heap_once,
                  [isolate, des, des_checksum, &call_once_ran]() {
+                   USE(des_checksum);
                    shared_ro_heap_ = CreateAndAttachToIsolate(isolate);
                    if (des != nullptr) {
 #ifdef DEBUG
