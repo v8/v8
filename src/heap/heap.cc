@@ -4409,7 +4409,7 @@ void Heap::IterateBuiltins(RootVisitor* v) {
 }
 
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
-  // Initialize  max_semi_space_size_.
+  // Initialize max_semi_space_size_.
   {
     if (constraints.max_young_generation_size_in_bytes() > 0) {
       max_semi_space_size_ = SemiSpaceSizeFromYoungGenerationSize(
@@ -4417,6 +4417,20 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
     }
     if (FLAG_max_semi_space_size > 0) {
       max_semi_space_size_ = static_cast<size_t>(FLAG_max_semi_space_size) * MB;
+    } else if (FLAG_max_heap_size > 0) {
+      size_t max_heap_size = static_cast<size_t>(FLAG_max_heap_size) * MB;
+      size_t young_generation_size, old_generation_size;
+      if (FLAG_max_old_space_size > 0) {
+        old_generation_size = static_cast<size_t>(FLAG_max_old_space_size) * MB;
+        young_generation_size = max_heap_size > old_generation_size
+                                    ? max_heap_size - old_generation_size
+                                    : 0;
+      } else {
+        GenerationSizesFromHeapSize(max_heap_size, &young_generation_size,
+                                    &old_generation_size);
+      }
+      max_semi_space_size_ =
+          SemiSpaceSizeFromYoungGenerationSize(young_generation_size);
     }
     if (FLAG_stress_compaction) {
       // This will cause more frequent GCs when stressing.
@@ -4440,12 +4454,22 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
     if (FLAG_max_old_space_size > 0) {
       max_old_generation_size_ =
           static_cast<size_t>(FLAG_max_old_space_size) * MB;
+    } else if (FLAG_max_heap_size > 0) {
+      size_t max_heap_size = static_cast<size_t>(FLAG_max_heap_size) * MB;
+      size_t young_generation_size =
+          YoungGenerationSizeFromSemiSpaceSize(max_semi_space_size_);
+      max_old_generation_size_ = max_heap_size > young_generation_size
+                                     ? max_heap_size - young_generation_size
+                                     : 0;
     }
     max_old_generation_size_ =
         Max(max_old_generation_size_, MinOldGenerationSize());
     max_old_generation_size_ =
         RoundDown<Page::kPageSize>(max_old_generation_size_);
   }
+
+  CHECK_IMPLIES(FLAG_max_heap_size > 0,
+                FLAG_max_semi_space_size == 0 || FLAG_max_old_space_size == 0);
 
   // Initialize initial_semispace_size_.
   {
