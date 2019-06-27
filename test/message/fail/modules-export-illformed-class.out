@@ -1,4 +1,4 @@
-*%(basename)s:7: SyntaxError: Unexpected token ']'
+*%(basename)s:5: SyntaxError: Unexpected token ']'
 export class foo {[]};
                    ^
 SyntaxError: Unexpected token ']'

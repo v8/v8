@@ -521,7 +521,7 @@ class SourceProcessor(SourceFileProcessor):
       print("%s does not end with a single new line." % name)
       result = False
     # Sanitize flags for fuzzer.
-    if ".js" in name and ("mjsunit" in name or "debugger" in name):
+    if (".js" in name or ".mjs" in name) and ("mjsunit" in name or "debugger" in name):
       match = FLAGS_LINE.search(contents)
       if match:
         print("%s Flags should use '-' (not '_')" % name)
