@@ -642,6 +642,27 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   int number_of_pages = space->CountTotalPages();
   size_t area_size = space->AreaSize();
 
+  const bool in_standard_path =
+      !(FLAG_manual_evacuation_candidates_selection ||
+        FLAG_stress_compaction_random || FLAG_stress_compaction ||
+        FLAG_always_compact);
+  // Those variables will only be initialized if |in_standard_path|, and are not
+  // used otherwise.
+  size_t max_evacuated_bytes;
+  int target_fragmentation_percent;
+  size_t free_bytes_threshold;
+  if (in_standard_path) {
+    // We use two conditions to decide whether a page qualifies as an evacuation
+    // candidate, or not:
+    // * Target fragmentation: How fragmented is a page, i.e., how is the ratio
+    //   between live bytes and capacity of this page (= area).
+    // * Evacuation quota: A global quota determining how much bytes should be
+    //   compacted.
+    ComputeEvacuationHeuristics(area_size, &target_fragmentation_percent,
+                                &max_evacuated_bytes);
+    free_bytes_threshold = target_fragmentation_percent * (area_size / 100);
+  }
+
   // Pairs of (live_bytes_in_page, page).
   using LiveBytesPagePair = std::pair<size_t, Page*>;
   std::vector<LiveBytesPagePair> pages;
@@ -665,7 +686,15 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     CHECK_NULL(p->typed_slot_set<OLD_TO_OLD>());
     CHECK(p->SweepingDone());
     DCHECK(p->area_size() == area_size);
-    pages.push_back(std::make_pair(p->allocated_bytes(), p));
+    if (in_standard_path) {
+      // Only the pages with at more than |free_bytes_threshold| free bytes are
+      // considered for evacuation.
+      if (area_size - p->allocated_bytes() >= free_bytes_threshold) {
+        pages.push_back(std::make_pair(p->allocated_bytes(), p));
+      }
+    } else {
+      pages.push_back(std::make_pair(p->allocated_bytes(), p));
+    }
   }
 
   int candidate_count = 0;
@@ -704,25 +733,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   } else {
     // The following approach determines the pages that should be evacuated.
     //
-    // We use two conditions to decide whether a page qualifies as an evacuation
-    // candidate, or not:
-    // * Target fragmentation: How fragmented is a page, i.e., how is the ratio
-    //   between live bytes and capacity of this page (= area).
-    // * Evacuation quota: A global quota determining how much bytes should be
-    //   compacted.
-    //
-    // The algorithm sorts all pages by live bytes and then iterates through
-    // them starting with the page with the most free memory, adding them to the
-    // set of evacuation candidates as long as both conditions (fragmentation
-    // and quota) hold.
-    size_t max_evacuated_bytes;
-    int target_fragmentation_percent;
-    ComputeEvacuationHeuristics(area_size, &target_fragmentation_percent,
-                                &max_evacuated_bytes);
-
-    const size_t free_bytes_threshold =
-        target_fragmentation_percent * (area_size / 100);
-
     // Sort pages from the most free to the least free, then select
     // the first n pages for evacuation such that:
     // - the total size of evacuated objects does not exceed the specified
@@ -735,10 +745,8 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     for (size_t i = 0; i < pages.size(); i++) {
       size_t live_bytes = pages[i].first;
       DCHECK_GE(area_size, live_bytes);
-      size_t free_bytes = area_size - live_bytes;
       if (FLAG_always_compact ||
-          ((free_bytes >= free_bytes_threshold) &&
-           ((total_live_bytes + live_bytes) <= max_evacuated_bytes))) {
+          ((total_live_bytes + live_bytes) <= max_evacuated_bytes)) {
         candidate_count++;
         total_live_bytes += live_bytes;
       }
@@ -748,9 +756,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
                      "fragmentation_limit_kb=%zu "
                      "fragmentation_limit_percent=%d sum_compaction_kb=%zu "
                      "compaction_limit_kb=%zu\n",
-                     space->name(), free_bytes / KB, free_bytes_threshold / KB,
-                     target_fragmentation_percent, total_live_bytes / KB,
-                     max_evacuated_bytes / KB);
+                     space->name(), (area_size - live_bytes) / KB,
+                     free_bytes_threshold / KB, target_fragmentation_percent,
+                     total_live_bytes / KB, max_evacuated_bytes / KB);
       }
     }
     // How many pages we will allocated for the evacuated objects
