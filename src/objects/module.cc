@@ -24,12 +24,14 @@ namespace internal {
 void Module::PrintStatusTransition(Status new_status) {
   if (FLAG_trace_module_status) {
     StdoutStream os;
-    os << "Changing module status from " << status() << " to " << new_status;
+    os << "Changing module status from " << status() << " to " << new_status
+       << " for ";
     if (this->IsSourceTextModule()) {
       Handle<Script> script(SourceTextModule::cast(*this).script(),
                             GetIsolate());
-      os << " for ";
       script->GetNameOrSourceURL().Print(os);
+    } else {
+      SyntheticModule::cast(*this).name().Print(os);
     }
 #ifndef OBJECT_PRINT
     os << "\n";
@@ -69,10 +71,15 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
   DCHECK_NE(module->status(), kInstantiating);
   DCHECK_NE(module->status(), kEvaluating);
   if (module->status() != kPreInstantiating) return;
+
+  Handle<FixedArray> requested_modules =
+      module->IsSourceTextModule()
+          ? Handle<FixedArray>(
+                Handle<SourceTextModule>::cast(module)->requested_modules(),
+                isolate)
+          : Handle<FixedArray>();
+  Reset(isolate, module);
   if (module->IsSourceTextModule()) {
-    Handle<FixedArray> requested_modules(
-        Handle<SourceTextModule>::cast(module)->requested_modules(), isolate);
-    Reset(isolate, module);
     for (int i = 0; i < requested_modules->length(); ++i) {
       Handle<Object> descendant(requested_modules->get(i), isolate);
       if (descendant->IsModule()) {
@@ -82,7 +89,8 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
       }
     }
   } else {
-    Reset(isolate, module);
+    DCHECK(module->IsSyntheticModule());
+    // Nothing else to do here.
   }
 }
 
@@ -99,13 +107,23 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
   module->PrintStatusTransition(kUninstantiated);
 #endif  // DEBUG
 
+  int export_count;
+
   if (module->IsSourceTextModule()) {
-    SourceTextModule::Reset(isolate, Handle<SourceTextModule>::cast(module));
+    Handle<SourceTextModule> source_text_module =
+        Handle<SourceTextModule>::cast(module);
+    export_count = source_text_module->regular_exports().length();
+    SourceTextModule::Reset(isolate, source_text_module);
   } else {
-    UNREACHABLE();
+    export_count =
+        Handle<SyntheticModule>::cast(module)->export_names().length();
+    // Nothing to do here.
   }
 
-  DCHECK_EQ(module->status(), kUninstantiated);
+  Handle<ObjectHashTable> exports = ObjectHashTable::New(isolate, export_count);
+
+  module->set_exports(*exports);
+  module->set_status(kUninstantiated);
 }
 
 Object Module::GetException() {
@@ -125,7 +143,9 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
         isolate, Handle<SourceTextModule>::cast(module), module_specifier,
         export_name, loc, must_resolve, resolve_set);
   } else {
-    UNREACHABLE();
+    return SyntheticModule::ResolveExport(
+        isolate, Handle<SyntheticModule>::cast(module), module_specifier,
+        export_name, loc, must_resolve, resolve_set);
   }
 }
 
@@ -142,7 +162,7 @@ bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
           .GetNameOrSourceURL()
           .Print(os);
     } else {
-      UNREACHABLE();
+      Handle<SyntheticModule>::cast(module)->name().Print(os);
     }
 #ifndef OBJECT_PRINT
     os << "\n";
@@ -183,7 +203,8 @@ bool Module::PrepareInstantiate(Isolate* isolate, Handle<Module> module,
     return SourceTextModule::PrepareInstantiate(
         isolate, Handle<SourceTextModule>::cast(module), context, callback);
   } else {
-    UNREACHABLE();
+    return SyntheticModule::PrepareInstantiate(
+        isolate, Handle<SyntheticModule>::cast(module), context, callback);
   }
 }
 
@@ -200,7 +221,8 @@ bool Module::FinishInstantiate(Isolate* isolate, Handle<Module> module,
         isolate, Handle<SourceTextModule>::cast(module), stack, dfs_index,
         zone);
   } else {
-    UNREACHABLE();
+    return SyntheticModule::FinishInstantiate(
+        isolate, Handle<SyntheticModule>::cast(module));
   }
 }
 
@@ -215,7 +237,7 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
           .GetNameOrSourceURL()
           .Print(os);
     } else {
-      UNREACHABLE();
+      Handle<SyntheticModule>::cast(module)->name().Print(os);
     }
 #ifndef OBJECT_PRINT
     os << "\n";
@@ -263,7 +285,8 @@ MaybeHandle<Object> Module::Evaluate(
     return SourceTextModule::Evaluate(
         isolate, Handle<SourceTextModule>::cast(module), stack, dfs_index);
   } else {
-    UNREACHABLE();
+    return SyntheticModule::Evaluate(isolate,
+                                     Handle<SyntheticModule>::cast(module));
   }
 }
 

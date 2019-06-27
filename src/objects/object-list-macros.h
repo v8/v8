@@ -54,6 +54,7 @@ class ScriptContextTable;
 class SharedFunctionInfo;
 class StringStream;
 class Symbol;
+class SyntheticModule;
 class FeedbackCell;
 class FeedbackMetadata;
 class FeedbackVector;
@@ -214,6 +215,7 @@ class ZoneForwardList;
   V(Struct)                                    \
   V(Symbol)                                    \
   V(SymbolWrapper)                             \
+  V(SyntheticModule)                           \
   V(TemplateInfo)                              \
   V(TemplateList)                              \
   V(ThinString)                                \

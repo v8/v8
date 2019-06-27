@@ -39,6 +39,7 @@
 #include "src/objects/source-text-module.h"
 #include "src/objects/stack-frame-info.h"
 #include "src/objects/string.h"
+#include "src/objects/synthetic-module.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/regexp/regexp.h"
 #include "src/wasm/wasm-objects.h"
@@ -489,6 +490,8 @@ bool Heap::CreateInitialMaps() {
                  shared_function_info)
     ALLOCATE_MAP(SOURCE_TEXT_MODULE_TYPE, SourceTextModule::kSize,
                  source_text_module)
+    ALLOCATE_MAP(SYNTHETIC_MODULE_TYPE, SyntheticModule::kSize,
+                 synthetic_module)
     ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
                  code_data_container)
 

@@ -360,6 +360,8 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case SOURCE_TEXT_MODULE_TYPE:
       return kVisitSourceTextModule;
+    case SYNTHETIC_MODULE_TYPE:
+      return kVisitSyntheticModule;
 
     default:
       UNREACHABLE();

@@ -1326,6 +1326,34 @@ class V8_EXPORT Module {
    * kEvaluated or kErrored.
    */
   Local<UnboundModuleScript> GetUnboundModuleScript();
+
+  /*
+   * Callback defined in the embedder.  This is responsible for setting
+   * the module's exported values with calls to SetSyntheticModuleExport().
+   */
+  typedef bool (*SyntheticModuleEvaluationSteps)(Local<Context> context,
+                                                 Local<Module> module);
+
+  /**
+   * Creates a new SyntheticModule with the specified export names, where
+   * evaluation_steps will be executed upon module evaluation.
+   * export_names must not contain duplicates.
+   * module_name is used solely for logging/debugging and doesn't affect module
+   * behavior.
+   */
+  static Local<Module> CreateSyntheticModule(
+      Isolate* isolate, Local<String> module_name,
+      const std::vector<Local<String>>& export_names,
+      SyntheticModuleEvaluationSteps evaluation_steps);
+
+  /**
+   * Set this module's exported value for the name export_name to the specified
+   * export_value. This method must be called only on Modules created via
+   * CreateSyntheticModule. export_name must be one of the export_names that
+   * were passed in that CreateSyntheticModule call.
+   */
+  void SetSyntheticModuleExport(Local<String> export_name,
+                                Local<Value> export_value);
 };
 
 /**

@@ -119,6 +119,9 @@ namespace internal {
                                                          \
   TORQUE_DEFINED_INSTANCE_TYPES(V)                       \
                                                          \
+  V(SOURCE_TEXT_MODULE_TYPE)                             \
+  V(SYNTHETIC_MODULE_TYPE)                               \
+                                                         \
   V(ALLOCATION_SITE_TYPE)                                \
   V(EMBEDDER_DATA_ARRAY_TYPE)                            \
                                                          \
@@ -166,7 +169,6 @@ namespace internal {
   V(SMALL_ORDERED_HASH_MAP_TYPE)                         \
   V(SMALL_ORDERED_HASH_SET_TYPE)                         \
   V(SMALL_ORDERED_NAME_DICTIONARY_TYPE)                  \
-  V(SOURCE_TEXT_MODULE_TYPE)                             \
   V(STORE_HANDLER_TYPE)                                  \
   V(UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE)          \
   V(UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE)             \

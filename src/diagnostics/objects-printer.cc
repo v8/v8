@@ -420,6 +420,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case SOURCE_TEXT_MODULE_TYPE:
       SourceTextModule::cast(*this).SourceTextModulePrint(os);
       break;
+    case SYNTHETIC_MODULE_TYPE:
+      SyntheticModule::cast(*this).SyntheticModulePrint(os);
+      break;
     case FEEDBACK_METADATA_TYPE:
       FeedbackMetadata::cast(*this).FeedbackMetadataPrint(os);
       break;
@@ -1758,6 +1761,8 @@ static void PrintModuleFields(Module module, std::ostream& os) {
 void Module::ModulePrint(std::ostream& os) {  // NOLINT
   if (this->IsSourceTextModule()) {
     SourceTextModule::cast(*this).SourceTextModulePrint(os);
+  } else if (this->IsSyntheticModule()) {
+    SyntheticModule::cast(*this).SyntheticModulePrint(os);
   } else {
     UNREACHABLE();
   }
@@ -1771,6 +1776,13 @@ void SourceTextModule::SourceTextModulePrint(std::ostream& os) {  // NOLINT
   os << "\n - requested_modules: " << Brief(requested_modules());
   os << "\n - script: " << Brief(script());
   os << "\n - import_meta: " << Brief(import_meta());
+  os << "\n";
+}
+
+void SyntheticModule::SyntheticModulePrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "SyntheticModule");
+  PrintModuleFields(*this, os);
+  os << "\n - export_names: " << Brief(export_names());
   os << "\n";
 }
 

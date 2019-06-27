@@ -23566,6 +23566,11 @@ v8::MaybeLocal<Module> UnexpectedModuleResolveCallback(Local<Context> context,
   CHECK_WITH_MSG(false, "Unexpected call to resolve callback");
 }
 
+bool UnexpectedSyntheticModuleEvaluationStepsCallback(Local<Context> context,
+                                                      Local<Module> module) {
+  CHECK_WITH_MSG(false, "Unexpected call to synthetic module re callback");
+}
+
 namespace {
 
 Local<Module> CompileAndInstantiateModule(v8::Isolate* isolate,
@@ -23582,6 +23587,18 @@ Local<Module> CompileAndInstantiateModule(v8::Isolate* isolate,
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &script_compiler_source)
           .ToLocalChecked();
+  module->InstantiateModule(context, UnexpectedModuleResolveCallback)
+      .ToChecked();
+
+  return module;
+}
+
+Local<Module> CreateAndInstantiateSyntheticModule(
+    v8::Isolate* isolate, Local<String> module_name, Local<Context> context,
+    std::vector<v8::Local<v8::String>> export_names,
+    v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
+  Local<Module> module = v8::Module::CreateSyntheticModule(
+      isolate, module_name, export_names, evaluation_steps);
   module->InstantiateModule(context, UnexpectedModuleResolveCallback)
       .ToChecked();
 
@@ -23674,6 +23691,76 @@ TEST(ModuleCodeCache) {
     }
     isolate->Dispose();
   }
+}
+
+TEST(CreateSyntheticModule) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  std::vector<v8::Local<v8::String>> export_names{v8_str("default")};
+
+  Local<Module> module = CreateAndInstantiateSyntheticModule(
+      isolate, v8_str("CreateSyntheticModule-TestSyntheticModule"), context,
+      export_names, UnexpectedSyntheticModuleEvaluationStepsCallback);
+  i::Handle<i::SyntheticModule> i_module =
+      i::Handle<i::SyntheticModule>::cast(v8::Utils::OpenHandle(*module));
+  i::Handle<i::ObjectHashTable> exports(i_module->exports(), i_isolate);
+  i::Handle<i::String> default_name =
+      i_isolate->factory()->NewStringFromAsciiChecked("default");
+
+  CHECK(
+      i::Handle<i::Object>(exports->Lookup(default_name), i_isolate)->IsCell());
+  CHECK(i::Handle<i::Cell>::cast(
+            i::Handle<i::Object>(exports->Lookup(default_name), i_isolate))
+            ->value()
+            .IsUndefined());
+  CHECK_EQ(i_module->export_names().length(), 1);
+  CHECK(i::String::cast(i_module->export_names().get(0)).Equals(*default_name));
+  CHECK_EQ(i_module->status(), i::Module::kInstantiated);
+}
+
+TEST(SyntheticModuleSetExports) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  Local<String> foo_string = v8_str("foo");
+  Local<String> bar_string = v8_str("bar");
+  std::vector<v8::Local<v8::String>> export_names{foo_string};
+
+  Local<Module> module = CreateAndInstantiateSyntheticModule(
+      isolate, v8_str("SyntheticModuleSetExports-TestSyntheticModule"), context,
+      export_names, UnexpectedSyntheticModuleEvaluationStepsCallback);
+
+  i::Handle<i::SyntheticModule> i_module =
+      i::Handle<i::SyntheticModule>::cast(v8::Utils::OpenHandle(*module));
+  i::Handle<i::ObjectHashTable> exports(i_module->exports(), i_isolate);
+
+  i::Handle<i::Cell> foo_cell = i::Handle<i::Cell>::cast(i::Handle<i::Object>(
+      exports->Lookup(v8::Utils::OpenHandle(*foo_string)), i_isolate));
+
+  // During Instantiation there should be a Cell for the export initialized to
+  // undefined.
+  CHECK(foo_cell->value().IsUndefined());
+
+  module->SetSyntheticModuleExport(foo_string, bar_string);
+
+  // After setting the export the Cell should still have the same idenitity.
+  CHECK_EQ(exports->Lookup(v8::Utils::OpenHandle(*foo_string)), *foo_cell);
+
+  // Test that the export value was actually set.
+  CHECK(i::Handle<i::String>::cast(
+            i::Handle<i::Object>(foo_cell->value(), i_isolate))
+            ->Equals(*v8::Utils::OpenHandle(*bar_string)));
 }
 
 // Tests that the code cache does not confuse the same source code compiled as a

@@ -451,7 +451,8 @@ bool SourceTextModule::FinishInstantiate(
         }));
 
     if (requested_module->status() == kInstantiating) {
-      DCHECK(requested_module->IsSourceTextModule());
+      // SyntheticModules go straight to kInstantiated so this must be a
+      // SourceTextModule
       module->set_dfs_ancestor_index(
           std::min(module->dfs_ancestor_index(),
                    Handle<SourceTextModule>::cast(requested_module)
@@ -613,7 +614,8 @@ MaybeHandle<Object> SourceTextModule::Evaluate(
         }));
 
     if (requested_module->status() == kEvaluating) {
-      DCHECK(requested_module->IsSourceTextModule());
+      // SyntheticModules go straight to kEvaluated so this must be a
+      // SourceTextModule
       module->set_dfs_ancestor_index(
           std::min(module->dfs_ancestor_index(),
                    Handle<SourceTextModule>::cast(requested_module)
@@ -640,8 +642,6 @@ void SourceTextModule::Reset(Isolate* isolate,
 
   DCHECK(module->import_meta().IsTheHole(isolate));
 
-  Handle<ObjectHashTable> exports =
-      ObjectHashTable::New(isolate, module->regular_exports().length());
   Handle<FixedArray> regular_exports =
       factory->NewFixedArray(module->regular_exports().length());
   Handle<FixedArray> regular_imports =
@@ -652,8 +652,6 @@ void SourceTextModule::Reset(Isolate* isolate,
   if (module->status() == kInstantiating) {
     module->set_code(JSFunction::cast(module->code()).shared());
   }
-  module->set_status(kUninstantiated);
-  module->set_exports(*exports);
   module->set_regular_exports(*regular_exports);
   module->set_regular_imports(*regular_imports);
   module->set_requested_modules(*requested_modules);

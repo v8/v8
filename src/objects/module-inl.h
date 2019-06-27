@@ -7,6 +7,7 @@
 
 #include "src/objects/module.h"
 #include "src/objects/source-text-module.h"
+#include "src/objects/synthetic-module.h"
 
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/scope-info.h"
@@ -21,13 +22,16 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(Module, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(SourceTextModule, Module)
 OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfoEntry, Struct)
+OBJECT_CONSTRUCTORS_IMPL(SyntheticModule, Module)
 OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace, JSObject)
 
 NEVER_READ_ONLY_SPACE_IMPL(Module)
 NEVER_READ_ONLY_SPACE_IMPL(SourceTextModule)
+NEVER_READ_ONLY_SPACE_IMPL(SyntheticModule)
 
 CAST_ACCESSOR(Module)
 CAST_ACCESSOR(SourceTextModule)
+CAST_ACCESSOR(SyntheticModule)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
 ACCESSORS(Module, module_namespace, HeapObject, kModuleNamespaceOffset)
 ACCESSORS(Module, exception, Object, kExceptionOffset)
@@ -43,6 +47,10 @@ ACCESSORS(SourceTextModule, script, Script, kScriptOffset)
 ACCESSORS(SourceTextModule, import_meta, Object, kImportMetaOffset)
 SMI_ACCESSORS(SourceTextModule, dfs_index, kDfsIndexOffset)
 SMI_ACCESSORS(SourceTextModule, dfs_ancestor_index, kDfsAncestorIndexOffset)
+
+ACCESSORS(SyntheticModule, name, String, kNameOffset)
+ACCESSORS(SyntheticModule, export_names, FixedArray, kExportNamesOffset)
+ACCESSORS(SyntheticModule, evaluation_steps, Foreign, kEvaluationStepsOffset)
 
 SourceTextModuleInfo SourceTextModule::info() const {
   return (status() >= kEvaluating)

@@ -56,6 +56,7 @@ namespace internal {
   V(SmallOrderedNameDictionary, SmallOrderedNameDictionary)               \
   V(SourceTextModule, SourceTextModule)                                   \
   V(Symbol, Symbol)                                                       \
+  V(SyntheticModule, SyntheticModule)                                     \
   V(ThinString, ThinString)                                               \
   V(TransitionArray, TransitionArray)                                     \
   V(UncompiledDataWithoutPreparseData, UncompiledDataWithoutPreparseData) \

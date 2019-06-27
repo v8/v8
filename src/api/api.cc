@@ -2233,6 +2233,7 @@ Local<Value> Module::GetException() const {
 
 int Module::GetModuleRequestsLength() const {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
+  if (self->IsSyntheticModule()) return 0;
   return i::Handle<i::SourceTextModule>::cast(self)
       ->info()
       .module_requests()
@@ -2322,6 +2323,37 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
   has_pending_exception = !ToLocal(i::Module::Evaluate(isolate, self), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
+}
+
+Local<Module> Module::CreateSyntheticModule(
+    Isolate* isolate, Local<String> module_name,
+    const std::vector<Local<v8::String>>& export_names,
+    v8::Module::SyntheticModuleEvaluationSteps evaluation_steps) {
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::String> i_module_name = Utils::OpenHandle(*module_name);
+  i::Handle<i::FixedArray> i_export_names = i_isolate->factory()->NewFixedArray(
+      static_cast<int>(export_names.size()));
+  for (int i = 0; i < i_export_names->length(); ++i) {
+    i::Handle<i::String> str = Utils::OpenHandle(*export_names[i]);
+    i_export_names->set(i, *str);
+  }
+  return v8::Utils::ToLocal(
+      i::Handle<i::Module>(i_isolate->factory()->NewSyntheticModule(
+          i_module_name, i_export_names, evaluation_steps)));
+}
+
+void Module::SetSyntheticModuleExport(Local<String> export_name,
+                                      Local<v8::Value> export_value) {
+  i::Handle<i::String> i_export_name = Utils::OpenHandle(*export_name);
+  i::Handle<i::Object> i_export_value = Utils::OpenHandle(*export_value);
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  Utils::ApiCheck(self->IsSyntheticModule(),
+                  "v8::Module::SetSyntheticModuleExport",
+                  "v8::Module::SetSyntheticModuleExport must only be called on "
+                  "a SyntheticModule");
+  i::SyntheticModule::SetExport(self->GetIsolate(),
+                                i::Handle<i::SyntheticModule>::cast(self),
+                                i_export_name, i_export_value);
 }
 
 namespace {

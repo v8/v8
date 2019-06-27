@@ -68,6 +68,7 @@ enum InstanceType : uint16_t;
   V(SourceTextModule)                  \
   V(Struct)                            \
   V(Symbol)                            \
+  V(SyntheticModule)                   \
   V(ThinString)                        \
   V(TransitionArray)                   \
   V(UncompiledDataWithoutPreparseData) \

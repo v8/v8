@@ -421,6 +421,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case SOURCE_TEXT_MODULE_TYPE:
       SourceTextModule::cast(*this).SourceTextModuleVerify(isolate);
       break;
+    case SYNTHETIC_MODULE_TYPE:
+      SyntheticModule::cast(*this).SyntheticModuleVerify(isolate);
+      break;
     case CODE_DATA_CONTAINER_TYPE:
       CodeDataContainer::cast(*this).CodeDataContainerVerify(isolate);
       break;
@@ -1580,6 +1583,14 @@ void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
         (code().IsSharedFunctionInfo()));
 
   CHECK_EQ(requested_modules().length(), info().module_requests().length());
+}
+
+void SyntheticModule::SyntheticModuleVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::SyntheticModuleVerify(*this, isolate);
+
+  for (int i = 0; i < export_names().length(); i++) {
+    CHECK(export_names().get(i).IsString());
+  }
 }
 
 void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {

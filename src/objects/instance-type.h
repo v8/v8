@@ -182,7 +182,11 @@ enum InstanceType : uint16_t {
   TORQUE_DEFINED_INSTANCE_TYPES(MAKE_TORQUE_INSTANCE_TYPE)
 #undef MAKE_TORQUE_INSTANCE_TYPE
 
-      ALLOCATION_SITE_TYPE,
+  // Modules
+  SOURCE_TEXT_MODULE_TYPE,  // FIRST_MODULE_TYPE
+  SYNTHETIC_MODULE_TYPE,    // LAST_MODULE_TYPE
+
+  ALLOCATION_SITE_TYPE,
   EMBEDDER_DATA_ARRAY_TYPE,
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
@@ -231,7 +235,6 @@ enum InstanceType : uint16_t {
   SMALL_ORDERED_HASH_MAP_TYPE,
   SMALL_ORDERED_HASH_SET_TYPE,
   SMALL_ORDERED_NAME_DICTIONARY_TYPE,
-  SOURCE_TEXT_MODULE_TYPE,
   STORE_HANDLER_TYPE,
   UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
   UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
@@ -338,6 +341,9 @@ enum InstanceType : uint16_t {
   // Boundaries for testing if given HeapObject is a subclass of Microtask.
   FIRST_MICROTASK_TYPE = CALLABLE_TASK_TYPE,
   LAST_MICROTASK_TYPE = FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,
+  // Boundaries of module record types
+  FIRST_MODULE_TYPE = SOURCE_TEXT_MODULE_TYPE,
+  LAST_MODULE_TYPE = SYNTHETIC_MODULE_TYPE,
   // Boundary for promotion to old space.
   LAST_DATA_TYPE = FILLER_TYPE,
   // Boundary for objects represented as JSReceiver (i.e. JSObject or JSProxy).
@@ -449,7 +455,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(JSWeakSet, JS_WEAK_SET_TYPE)                                             \
   V(LoadHandler, LOAD_HANDLER_TYPE)                                          \
   V(Map, MAP_TYPE)                                                           \
-  V(Module, SOURCE_TEXT_MODULE_TYPE)                                         \
   V(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)                             \
   V(NameDictionary, NAME_DICTIONARY_TYPE)                                    \
   V(NativeContext, NATIVE_CONTEXT_TYPE)                                      \
@@ -473,6 +478,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(StoreHandler, STORE_HANDLER_TYPE)                                        \
   V(StringTable, STRING_TABLE_TYPE)                                          \
   V(Symbol, SYMBOL_TYPE)                                                     \
+  V(SyntheticModule, SYNTHETIC_MODULE_TYPE)                                  \
   V(TransitionArray, TRANSITION_ARRAY_TYPE)                                  \
   V(UncompiledDataWithoutPreparseData,                                       \
     UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE)                              \
@@ -513,6 +519,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(JSMapIterator, FIRST_MAP_ITERATOR_TYPE, LAST_MAP_ITERATOR_TYPE) \
   V(JSSetIterator, FIRST_SET_ITERATOR_TYPE, LAST_SET_ITERATOR_TYPE) \
   V(Microtask, FIRST_MICROTASK_TYPE, LAST_MICROTASK_TYPE)           \
+  V(Module, FIRST_MODULE_TYPE, LAST_MODULE_TYPE)                    \
   V(Name, FIRST_NAME_TYPE, LAST_NAME_TYPE)                          \
   V(String, FIRST_STRING_TYPE, LAST_STRING_TYPE)                    \
   V(WeakFixedArray, FIRST_WEAK_FIXED_ARRAY_TYPE, LAST_WEAK_FIXED_ARRAY_TYPE)

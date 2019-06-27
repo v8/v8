@@ -172,6 +172,7 @@
 //         - PromiseResolveThenableJobTask
 //       - Module
 //         - SourceTextModule
+//         - SyntheticModule
 //       - SourceTextModuleInfoEntry
 //     - FeedbackCell
 //     - FeedbackVector

@@ -98,7 +98,6 @@ class Symbol;
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
   V(Map, module_info_map, ModuleInfoMap)                                       \
   V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
-  V(Map, source_text_module_map, SourceTextModuleMap)                          \
   V(Map, name_dictionary_map, NameDictionaryMap)                               \
   V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
   V(Map, number_dictionary_map, NumberDictionaryMap)                           \
@@ -118,7 +117,9 @@ class Symbol;
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
   V(Map, small_ordered_name_dictionary_map, SmallOrderedNameDictionaryMap)     \
+  V(Map, source_text_module_map, SourceTextModuleMap)                          \
   V(Map, string_table_map, StringTableMap)                                     \
+  V(Map, synthetic_module_map, SyntheticModuleMap)                             \
   V(Map, uncompiled_data_without_preparse_data_map,                            \
     UncompiledDataWithoutPreparseDataMap)                                      \
   V(Map, uncompiled_data_with_preparse_data_map,                               \

@@ -64,6 +64,7 @@ class SourceTextModuleInfo;
 class StackFrameInfo;
 class StackTraceFrame;
 class StoreHandler;
+class SyntheticModule;
 class TemplateObjectDescription;
 class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
@@ -690,6 +691,9 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<JSModuleNamespace> NewJSModuleNamespace();
 
   Handle<SourceTextModule> NewSourceTextModule(Handle<SharedFunctionInfo> code);
+  Handle<SyntheticModule> NewSyntheticModule(
+      Handle<String> module_name, Handle<FixedArray> export_names,
+      v8::Module::SyntheticModuleEvaluationSteps evaluation_steps);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer(
       SharedFlag shared, AllocationType allocation = AllocationType::kYoung);

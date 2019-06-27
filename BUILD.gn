@@ -2607,6 +2607,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/string.h",
     "src/objects/struct-inl.h",
     "src/objects/struct.h",
+    "src/objects/synthetic-module.cc",
+    "src/objects/synthetic-module.h",
     "src/objects/tagged-field-inl.h",
     "src/objects/tagged-field.h",
     "src/objects/tagged-impl-inl.h",
