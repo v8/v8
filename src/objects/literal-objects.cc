@@ -17,56 +17,6 @@
 namespace v8 {
 namespace internal {
 
-Object ObjectBoilerplateDescription::name(int index) const {
-  // get() already checks for out of bounds access, but we do not want to allow
-  // access to the last element, if it is the number of properties.
-  DCHECK_NE(size(), index);
-  return get(2 * index + kDescriptionStartIndex);
-}
-
-Object ObjectBoilerplateDescription::value(int index) const {
-  return get(2 * index + 1 + kDescriptionStartIndex);
-}
-
-void ObjectBoilerplateDescription::set_key_value(int index, Object key,
-                                                 Object value) {
-  DCHECK_LT(index, size());
-  DCHECK_GE(index, 0);
-  set(2 * index + kDescriptionStartIndex, key);
-  set(2 * index + 1 + kDescriptionStartIndex, value);
-}
-
-int ObjectBoilerplateDescription::size() const {
-  DCHECK_EQ(0, (length() - kDescriptionStartIndex -
-                (this->has_number_of_properties() ? 1 : 0)) %
-                   2);
-  // Rounding is intended.
-  return (length() - kDescriptionStartIndex) / 2;
-}
-
-int ObjectBoilerplateDescription::backing_store_size() const {
-  if (has_number_of_properties()) {
-    // If present, the last entry contains the number of properties.
-    return Smi::ToInt(this->get(length() - 1));
-  }
-  // If the number is not given explicitly, we assume there are no
-  // properties with computed names.
-  return size();
-}
-
-void ObjectBoilerplateDescription::set_backing_store_size(
-    Isolate* isolate, int backing_store_size) {
-  DCHECK(has_number_of_properties());
-  DCHECK_NE(size(), backing_store_size);
-  Handle<Object> backing_store_size_obj =
-      isolate->factory()->NewNumberFromInt(backing_store_size);
-  set(length() - 1, *backing_store_size_obj);
-}
-
-bool ObjectBoilerplateDescription::has_number_of_properties() const {
-  return (length() - kDescriptionStartIndex) % 2 != 0;
-}
-
 namespace {
 
 inline int EncodeComputedEntry(ClassBoilerplate::ValueKind value_kind,

@@ -580,7 +580,7 @@ Handle<ObjectBoilerplateDescription> Factory::NewObjectBoilerplateDescription(
   if (has_different_size_backing_store) {
     DCHECK_IMPLIES((boilerplate == (all_properties - index_keys)),
                    has_seen_proto);
-    description->set_backing_store_size(isolate(), backing_store_size);
+    description->set_backing_store_size(backing_store_size);
   }
 
   description->set_flags(0);
