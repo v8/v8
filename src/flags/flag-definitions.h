@@ -412,6 +412,8 @@ DEFINE_BOOL(print_bytecode, false,
 DEFINE_BOOL(enable_lazy_source_positions, V8_LAZY_SOURCE_POSITIONS_BOOL,
             "skip generating source positions during initial compile but "
             "regenerate when actually required")
+DEFINE_BOOL(stress_lazy_source_positions, false,
+            "collect lazy source positions immediately after lazy compile")
 DEFINE_STRING(print_bytecode_filter, "*",
               "filter for selecting which functions to print bytecode")
 #ifdef V8_TRACE_IGNITION

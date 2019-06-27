@@ -1346,6 +1346,13 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   DCHECK(!isolate->has_pending_exception());
   *is_compiled_scope = shared_info->is_compiled_scope();
   DCHECK(is_compiled_scope->is_compiled());
+
+  if (FLAG_stress_lazy_source_positions) {
+    // Collect source positions immediately to try and flush out bytecode
+    // mismatches.
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
+  }
+
   return true;
 }
 
