@@ -899,6 +899,11 @@ extern class WasmExportedFunctionData extends Struct {
   instance: WasmInstanceObject;
   jump_table_offset: Smi;
   function_index: Smi;
+  // The remaining fields are for fast calling from C++. The contract is
+  // that they are lazily populated, and either all will be present or none.
+  c_wrapper_code: Object;
+  wasm_call_target: Smi;  // Pseudo-smi: one-bit shift on all platforms.
+  packed_args_size: Smi;
 }
 
 extern class WasmJSFunctionData extends Struct {

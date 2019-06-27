@@ -151,6 +151,29 @@ own<Trap*> Stage4_GC(void* env, const Val args[], Val results[]) {
   return nullptr;
 }
 
+own<Trap*> FibonacciC(void* env, const Val args[], Val results[]) {
+  int32_t x = args[0].i32();
+  if (x == 0 || x == 1) {
+    results[0] = Val::i32(x);
+    return nullptr;
+  }
+  WasmCapiTest* self = reinterpret_cast<WasmCapiTest*>(env);
+  Func* fibo_wasm = self->GetExportedFunction(1);
+  // Aggressively re-use existing arrays. That's maybe not great coding
+  // style, but this test intentionally ensures that it works if someone
+  // insists on doing it.
+  Val recursive_args[] = {Val::i32(x - 1)};
+  own<Trap*> result = fibo_wasm->call(recursive_args, results);
+  DCHECK_NULL(result);
+  int32_t x1 = results[0].i32();
+  recursive_args[0] = Val::i32(x - 2);
+  result = fibo_wasm->call(recursive_args, results);
+  DCHECK_NULL(result);
+  int32_t x2 = results[0].i32();
+  results[0] = Val::i32(x1 + x2);
+  return nullptr;
+}
+
 }  // namespace
 
 TEST_F(WasmCapiTest, Trap) {
@@ -188,6 +211,39 @@ TEST_F(WasmCapiTest, GC) {
   own<Trap*> result = Run(imports, args, results);
   EXPECT_EQ(result, nullptr);
   EXPECT_EQ(43, results[0].i32());
+}
+
+TEST_F(WasmCapiTest, Recursion) {
+  // Build the following function:
+  // int32 fibonacci_wasm(int32 arg0) {
+  //   if (arg0 == 0) return 0;
+  //   if (arg0 == 1) return 1;
+  //   return fibonacci_c(arg0 - 1) + fibonacci_c(arg0 - 2);
+  // }
+  uint32_t fibo_c_index =
+      builder()->AddImport(ArrayVector("fibonacci_c"), wasm_sig());
+  byte code_fibo[] = {
+      WASM_IF(WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_ZERO),
+              WASM_RETURN1(WASM_ZERO)),
+      WASM_IF(WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_ONE), WASM_RETURN1(WASM_ONE)),
+      // Muck with the parameter to ensure callers don't depend on its value.
+      WASM_SET_LOCAL(0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_ONE)),
+      WASM_RETURN1(WASM_I32_ADD(
+          WASM_CALL_FUNCTION(fibo_c_index, WASM_GET_LOCAL(0)),
+          WASM_CALL_FUNCTION(fibo_c_index,
+                             WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_ONE))))};
+  AddExportedFunction(CStrVector("fibonacci_wasm"), code_fibo,
+                      sizeof(code_fibo));
+  Compile();
+
+  own<Func*> fibonacci = Func::make(store(), cpp_sig(), FibonacciC, this);
+  Extern* imports[] = {stage2(), fibonacci.get()};
+  // Enough iterations to make it interesting, few enough to keep it fast.
+  Val args[] = {Val::i32(15)};
+  Val results[1];
+  own<Trap*> result = Run(imports, args, results);
+  EXPECT_EQ(result, nullptr);
+  EXPECT_EQ(610, results[0].i32());
 }
 
 }  // namespace wasm

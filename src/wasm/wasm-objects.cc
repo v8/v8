@@ -2179,6 +2179,9 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   function_data->set_instance(*instance);
   function_data->set_jump_table_offset(jump_table_offset);
   function_data->set_function_index(func_index);
+  function_data->set_c_wrapper_code(Smi::zero(), SKIP_WRITE_BARRIER);
+  function_data->set_wasm_call_target(Smi::zero(), SKIP_WRITE_BARRIER);
+  function_data->set_packed_args_size(0);
 
   MaybeHandle<String> maybe_name;
   if (instance->module()->origin == wasm::kAsmJsOrigin) {

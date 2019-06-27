@@ -138,13 +138,13 @@ enum CWasmEntryParameters {
   kCodeEntry,
   kObjectRef,
   kArgumentsBuffer,
+  kCEntryFp,
   // marker:
   kNumParameters
 };
 
-// Compiles a stub with JS linkage, taking parameters as described by
-// {CWasmEntryParameters}. It loads the wasm parameters from the argument
-// buffer and calls the wasm function given as first parameter.
+// Compiles a stub with C++ linkage, to be called from Execution::CallWasm,
+// which knows how to feed it its parameters.
 MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig);
 
 // Values from the instance object are cached between WASM-level function calls.

@@ -399,7 +399,8 @@ class PipelineData {
     DCHECK_NULL(frame_);
     int fixed_frame_size = 0;
     if (call_descriptor != nullptr) {
-      fixed_frame_size = call_descriptor->CalculateFixedFrameSize();
+      fixed_frame_size =
+          call_descriptor->CalculateFixedFrameSize(info()->code_kind());
     }
     frame_ = new (codegen_zone()) Frame(fixed_frame_size);
   }
@@ -2961,8 +2962,9 @@ bool PipelineImpl::SelectInstructionsAndAssemble(
 }
 
 MaybeHandle<Code> PipelineImpl::GenerateCode(CallDescriptor* call_descriptor) {
-  if (!SelectInstructionsAndAssemble(call_descriptor))
+  if (!SelectInstructionsAndAssemble(call_descriptor)) {
     return MaybeHandle<Code>();
+  }
   return FinalizeCode();
 }
 

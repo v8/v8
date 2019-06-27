@@ -1049,6 +1049,7 @@ class CWasmEntryFrame : public StubFrame {
 
  private:
   friend class StackFrameIteratorBase;
+  Type GetCallerState(State* state) const override;
 };
 
 class WasmCompileLazyFrame : public StandardFrame {

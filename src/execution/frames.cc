@@ -33,6 +33,23 @@ namespace internal {
 ReturnAddressLocationResolver StackFrame::return_address_location_resolver_ =
     nullptr;
 
+namespace {
+
+Address AddressOf(const StackHandler* handler) {
+  Address raw = handler->address();
+#ifdef V8_USE_ADDRESS_SANITIZER
+  // ASan puts C++-allocated StackHandler markers onto its fake stack.
+  // We work around that by storing the real stack address in the "padding"
+  // field. StackHandlers allocated from generated code have 0 as padding.
+  Address padding =
+      base::Memory<Address>(raw + StackHandlerConstants::kPaddingOffset);
+  if (padding != 0) return padding;
+#endif
+  return raw;
+}
+
+}  // namespace
+
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
 class StackHandlerIterator {
@@ -40,12 +57,18 @@ class StackHandlerIterator {
   StackHandlerIterator(const StackFrame* frame, StackHandler* handler)
       : limit_(frame->fp()), handler_(handler) {
     // Make sure the handler has already been unwound to this frame.
-    DCHECK(frame->sp() <= handler->address());
+    DCHECK(frame->sp() <= AddressOf(handler));
+    // For CWasmEntry frames, the handler was registered by the last C++
+    // frame (Execution::CallWasm), so even though its address is already
+    // beyond the limit, we know we always want to unwind one handler.
+    if (frame->type() == StackFrame::C_WASM_ENTRY) {
+      handler_ = handler_->next();
+    }
   }
 
   StackHandler* handler() const { return handler_; }
 
-  bool done() { return handler_ == nullptr || handler_->address() > limit_; }
+  bool done() { return handler_ == nullptr || AddressOf(handler_) > limit_; }
   void Advance() {
     DCHECK(!done());
     handler_ = handler_->next();
@@ -633,6 +656,12 @@ void EntryFrame::ComputeCallerState(State* state) const {
 
 StackFrame::Type EntryFrame::GetCallerState(State* state) const {
   const int offset = EntryFrameConstants::kCallerFPOffset;
+  Address fp = Memory<Address>(this->fp() + offset);
+  return ExitFrame::GetStateForFramePointer(fp, state);
+}
+
+StackFrame::Type CWasmEntryFrame::GetCallerState(State* state) const {
+  const int offset = CWasmEntryFrameConstants::kCEntryFPOffset;
   Address fp = Memory<Address>(this->fp() + offset);
   return ExitFrame::GetStateForFramePointer(fp, state);
 }

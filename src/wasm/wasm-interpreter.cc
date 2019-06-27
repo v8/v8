@@ -12,7 +12,6 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/objects-inl.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/utils/boxed-float.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/utils.h"
@@ -21,6 +20,7 @@
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/wasm-arguments.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-limits.h"
@@ -3552,118 +3552,71 @@ class ThreadImpl {
     }
 
     Handle<WasmDebugInfo> debug_info(instance_object_->debug_info(), isolate);
-    Handle<JSFunction> wasm_entry =
-        WasmDebugInfo::GetCWasmEntry(debug_info, sig);
+    Handle<Code> wasm_entry = WasmDebugInfo::GetCWasmEntry(debug_info, sig);
 
     TRACE("  => Calling external wasm function\n");
 
     // Copy the arguments to one buffer.
-    // TODO(clemensh): Introduce a helper for all argument buffer
-    // con-/destruction.
-    std::vector<uint8_t> arg_buffer(num_args * 8);
-    size_t offset = 0;
+    CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     sp_t base_index = StackHeight() - num_args;
     for (int i = 0; i < num_args; ++i) {
-      int param_size = ValueTypes::ElementSizeInBytes(sig->GetParam(i));
-      if (arg_buffer.size() < offset + param_size) {
-        arg_buffer.resize(std::max(2 * arg_buffer.size(), offset + param_size));
-      }
-      Address address = reinterpret_cast<Address>(arg_buffer.data()) + offset;
       WasmValue arg = GetStackValue(base_index + i);
       switch (sig->GetParam(i)) {
         case kWasmI32:
-          WriteUnalignedValue(address, arg.to<uint32_t>());
+          packer.Push(arg.to<uint32_t>());
           break;
         case kWasmI64:
-          WriteUnalignedValue(address, arg.to<uint64_t>());
+          packer.Push(arg.to<uint64_t>());
           break;
         case kWasmF32:
-          WriteUnalignedValue(address, arg.to<float>());
+          packer.Push(arg.to<float>());
           break;
         case kWasmF64:
-          WriteUnalignedValue(address, arg.to<double>());
+          packer.Push(arg.to<double>());
           break;
         case kWasmAnyRef:
         case kWasmAnyFunc:
         case kWasmExceptRef:
-          DCHECK_EQ(kSystemPointerSize, param_size);
-          WriteUnalignedValue<Object>(address, *arg.to_anyref());
+          packer.Push(arg.to_anyref()->ptr());
           break;
         default:
           UNIMPLEMENTED();
       }
-      offset += param_size;
     }
 
-    // Ensure that there is enough space in the arg_buffer to hold the return
-    // value(s).
-    size_t return_size = 0;
-    for (ValueType t : sig->returns()) {
-      return_size += ValueTypes::ElementSizeInBytes(t);
-    }
-    if (arg_buffer.size() < return_size) {
-      arg_buffer.resize(return_size);
-    }
-
-    // Wrap the arg_buffer and the code target data pointers in handles. As
-    // these are aligned pointers, to the GC it will look like Smis.
-    Handle<Object> arg_buffer_obj(
-        Object(reinterpret_cast<Address>(arg_buffer.data())), isolate);
-    DCHECK(!arg_buffer_obj->IsHeapObject());
-    Handle<Object> code_entry_obj(Object(code->instruction_start()), isolate);
-    DCHECK(!code_entry_obj->IsHeapObject());
-
-    static_assert(compiler::CWasmEntryParameters::kNumParameters == 3,
-                  "code below needs adaption");
-    Handle<Object> args[compiler::CWasmEntryParameters::kNumParameters];
-    args[compiler::CWasmEntryParameters::kCodeEntry] = code_entry_obj;
-    args[compiler::CWasmEntryParameters::kObjectRef] = object_ref;
-    args[compiler::CWasmEntryParameters::kArgumentsBuffer] = arg_buffer_obj;
-
-    Handle<Object> receiver = isolate->factory()->undefined_value();
-    trap_handler::SetThreadInWasm();
-    MaybeHandle<Object> maybe_retval =
-        Execution::Call(isolate, wasm_entry, receiver, arraysize(args), args);
+    Address call_target = code->instruction_start();
+    Execution::CallWasm(isolate, wasm_entry, call_target, object_ref,
+                        packer.argv());
     TRACE("  => External wasm function returned%s\n",
-          maybe_retval.is_null() ? " with exception" : "");
+          isolate->has_pending_exception() ? " with exception" : "");
 
     // Pop arguments off the stack.
     Drop(num_args);
 
-    if (maybe_retval.is_null()) {
-      // JSEntry may throw a stack overflow before we actually get to wasm code
-      // or back to the interpreter, meaning the thread-in-wasm flag won't be
-      // cleared.
-      if (trap_handler::IsThreadInWasm()) {
-        trap_handler::ClearThreadInWasm();
-      }
+    if (isolate->has_pending_exception()) {
       return TryHandleException(isolate);
     }
 
-    trap_handler::ClearThreadInWasm();
-
     // Push return values.
-    if (sig->return_count() > 0) {
-      // TODO(wasm): Handle multiple returns.
-      DCHECK_EQ(1, sig->return_count());
-      Address address = reinterpret_cast<Address>(arg_buffer.data());
-      switch (sig->GetReturn()) {
+    packer.Reset();
+    for (size_t i = 0; i < sig->return_count(); i++) {
+      switch (sig->GetReturn(i)) {
         case kWasmI32:
-          Push(WasmValue(ReadUnalignedValue<uint32_t>(address)));
+          Push(WasmValue(packer.Pop<uint32_t>()));
           break;
         case kWasmI64:
-          Push(WasmValue(ReadUnalignedValue<uint64_t>(address)));
+          Push(WasmValue(packer.Pop<uint64_t>()));
           break;
         case kWasmF32:
-          Push(WasmValue(ReadUnalignedValue<float>(address)));
+          Push(WasmValue(packer.Pop<float>()));
           break;
         case kWasmF64:
-          Push(WasmValue(ReadUnalignedValue<double>(address)));
+          Push(WasmValue(packer.Pop<double>()));
           break;
         case kWasmAnyRef:
         case kWasmAnyFunc:
         case kWasmExceptRef: {
-          Handle<Object> ref(ReadUnalignedValue<Object>(address), isolate);
+          Handle<Object> ref(Object(packer.Pop<Address>()), isolate);
           Push(WasmValue(ref));
           break;
         }
