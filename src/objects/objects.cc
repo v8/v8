@@ -6773,7 +6773,9 @@ Address StringTable::LookupStringIfExists_NoAllocate(Isolate* isolate,
   }
   if (source.IsThinString()) {
     source = ThinString::cast(source).actual();
-    if (start == 0) return source.ptr();
+    if (string.length() == source.length()) {
+      return source.ptr();
+    }
   }
   if (source.IsOneByteRepresentation()) {
     return i::LookupString<uint8_t>(isolate, string, source, start);
