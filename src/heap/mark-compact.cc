@@ -481,6 +481,9 @@ bool MarkCompactCollector::StartCompaction() {
   if (!compacting_) {
     DCHECK(evacuation_candidates_.empty());
 
+    if (FLAG_gc_experiment_less_compaction && !heap_->ShouldReduceMemory())
+      return false;
+
     CollectEvacuationCandidates(heap()->old_space());
 
     if (FLAG_compact_code_space) {
