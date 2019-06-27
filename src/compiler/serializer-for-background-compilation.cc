@@ -482,6 +482,7 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
   BytecodeArrayRef bytecode_array(
       broker(), handle(environment()->function().shared()->GetBytecodeArray(),
                        broker()->isolate()));
+  bytecode_array.SerializeForCompilation();
   BytecodeArrayIterator iterator(bytecode_array.object());
   ExceptionHandlerMatcher handler_matcher(iterator, bytecode_array.object());
 

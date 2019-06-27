@@ -32,7 +32,7 @@ namespace compiler {
 class BytecodeGraphBuilder {
  public:
   BytecodeGraphBuilder(JSHeapBroker* broker, Zone* local_zone,
-                       Handle<BytecodeArray> bytecode_array,
+                       BytecodeArrayRef bytecode_array,
                        Handle<SharedFunctionInfo> shared,
                        Handle<FeedbackVector> feedback_vector,
                        BailoutId osr_offset, JSGraph* jsgraph,
@@ -318,9 +318,7 @@ class BytecodeGraphBuilder {
     return jsgraph_->simplified();
   }
   Zone* local_zone() const { return local_zone_; }
-  const Handle<BytecodeArray>& bytecode_array() const {
-    return bytecode_array_;
-  }
+  const BytecodeArrayRef bytecode_array() const { return bytecode_array_; }
   const Handle<FeedbackVector>& feedback_vector() const {
     return feedback_vector_;
   }
@@ -382,7 +380,7 @@ class BytecodeGraphBuilder {
   Zone* const local_zone_;
   JSGraph* const jsgraph_;
   CallFrequency const invocation_frequency_;
-  Handle<BytecodeArray> const bytecode_array_;
+  BytecodeArrayRef const bytecode_array_;
   Handle<FeedbackVector> const feedback_vector_;
   JSTypeHintLowering const type_hint_lowering_;
   const FrameStateFunctionInfo* const frame_state_function_info_;
@@ -938,8 +936,7 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
 }
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
-    JSHeapBroker* broker, Zone* local_zone,
-    Handle<BytecodeArray> bytecode_array,
+    JSHeapBroker* broker, Zone* local_zone, BytecodeArrayRef bytecode_array,
     Handle<SharedFunctionInfo> shared_info,
     Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
     JSGraph* jsgraph, CallFrequency const& invocation_frequency,
@@ -958,13 +955,15 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
               : JSTypeHintLowering::kNoFlags),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kInterpretedFunction,
-          bytecode_array->parameter_count(), bytecode_array->register_count(),
+          bytecode_array.parameter_count(), bytecode_array.register_count(),
           shared_info)),
       source_position_iterator_(
-          handle(bytecode_array->SourcePositionTableIfCollected(), isolate())),
-      bytecode_iterator_(bytecode_array),
+          handle(bytecode_array.object()->SourcePositionTableIfCollected(),
+                 isolate())),
+      bytecode_iterator_(
+          base::make_unique<OffHeapBytecodeArray>(bytecode_array)),
       bytecode_analysis_(
-          bytecode_array, local_zone,
+          bytecode_array.object(), local_zone,
           flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness),
       environment_(nullptr),
       osr_offset_(osr_offset),
@@ -1009,21 +1008,18 @@ VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
 }
 
 void BytecodeGraphBuilder::CreateGraph() {
-  BytecodeArrayRef bytecode_array_ref(broker(), bytecode_array());
-
   SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
 
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
   // parameters (including the receiver) plus new target, number of arguments,
   // context and closure.
-  int actual_parameter_count = bytecode_array_ref.parameter_count() + 4;
+  int actual_parameter_count = bytecode_array().parameter_count() + 4;
   graph()->SetStart(graph()->NewNode(common()->Start(actual_parameter_count)));
 
-  Environment env(
-      this, bytecode_array_ref.register_count(),
-      bytecode_array_ref.parameter_count(),
-      bytecode_array_ref.incoming_new_target_or_generator_register(),
-      graph()->start());
+  Environment env(this, bytecode_array().register_count(),
+                  bytecode_array().parameter_count(),
+                  bytecode_array().incoming_new_target_or_generator_register(),
+                  graph()->start());
   set_environment(&env);
 
   VisitBytecodes();
@@ -3289,8 +3285,7 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
   CHECK_EQ(0, first_reg.index());
   int register_count =
       static_cast<int>(bytecode_iterator().GetRegisterCountOperand(2));
-  int parameter_count_without_receiver =
-      bytecode_array()->parameter_count() - 1;
+  int parameter_count_without_receiver = bytecode_array().parameter_count() - 1;
 
   Node* suspend_id = jsgraph()->SmiConstant(
       bytecode_iterator().GetUnsignedImmediateOperand(3));
@@ -3430,8 +3425,7 @@ void BytecodeGraphBuilder::VisitResumeGenerator() {
   const BytecodeLivenessState* liveness = bytecode_analysis().GetOutLivenessFor(
       bytecode_iterator().current_offset());
 
-  int parameter_count_without_receiver =
-      bytecode_array()->parameter_count() - 1;
+  int parameter_count_without_receiver = bytecode_array().parameter_count() - 1;
 
   // Mapping between registers and array indices must match that used in
   // InterpreterAssembler::ExportParametersAndRegisterFile.
@@ -3824,7 +3818,7 @@ Node** BytecodeGraphBuilder::EnsureInputBufferSize(int size) {
 }
 
 void BytecodeGraphBuilder::ExitThenEnterExceptionHandlers(int current_offset) {
-  HandlerTable table(*bytecode_array());
+  HandlerTable table(*(bytecode_array().object()));
 
   // Potentially exit exception handlers.
   while (!exception_handlers_.empty()) {
@@ -4027,7 +4021,9 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             SourcePositionTable* source_positions,
                             Handle<Context> native_context, int inlining_id,
                             BytecodeGraphBuilderFlags flags) {
-  BytecodeGraphBuilder builder(broker, local_zone, bytecode_array, shared,
+  BytecodeArrayRef bytecode_array_ref(broker, bytecode_array);
+  DCHECK(bytecode_array_ref.IsSerializedForCompilation());
+  BytecodeGraphBuilder builder(broker, local_zone, bytecode_array_ref, shared,
                                feedback_vector, osr_offset, jsgraph,
                                invocation_frequency, source_positions,
                                native_context, inlining_id, flags);

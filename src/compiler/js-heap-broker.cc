@@ -1311,18 +1311,74 @@ class BytecodeArrayData : public FixedArrayBaseData {
     return incoming_new_target_or_generator_register_;
   }
 
+  uint8_t get(int index) const {
+    DCHECK(is_serialized_for_compilation_);
+    return bytecodes_[index];
+  }
+
+  Address GetFirstBytecodeAddress() const {
+    return reinterpret_cast<Address>(bytecodes_.data());
+  }
+
+  Handle<Object> GetConstantAtIndex(int index, Isolate* isolate) const {
+    return constant_pool_[index]->object();
+  }
+
+  bool IsConstantAtIndexSmi(int index) const {
+    return constant_pool_[index]->is_smi();
+  }
+
+  Smi GetConstantAtIndexAsSmi(int index) const {
+    return *(Handle<Smi>::cast(constant_pool_[index]->object()));
+  }
+
+  bool IsSerializedForCompilation() const {
+    return is_serialized_for_compilation_;
+  }
+
+  void SerializeForCompilation(JSHeapBroker* broker) {
+    if (is_serialized_for_compilation_) return;
+
+    DCHECK(bytecodes_.empty());
+    DCHECK(constant_pool_.empty());
+
+    Handle<BytecodeArray> bytecode_array =
+        Handle<BytecodeArray>::cast(object());
+
+    bytecodes_.reserve(bytecode_array->length());
+    for (int i = 0; i < bytecode_array->length(); i++) {
+      bytecodes_.push_back(bytecode_array->get(i));
+    }
+
+    Handle<FixedArray> constant_pool(bytecode_array->constant_pool(),
+                                     broker->isolate());
+
+    constant_pool_.reserve(constant_pool->length());
+    for (int i = 0; i < constant_pool->length(); i++) {
+      constant_pool_.push_back(broker->GetOrCreateData(constant_pool->get(i)));
+    }
+
+    is_serialized_for_compilation_ = true;
+  }
+
   BytecodeArrayData(JSHeapBroker* broker, ObjectData** storage,
                     Handle<BytecodeArray> object)
       : FixedArrayBaseData(broker, storage, object),
         register_count_(object->register_count()),
         parameter_count_(object->parameter_count()),
         incoming_new_target_or_generator_register_(
-            object->incoming_new_target_or_generator_register()) {}
+            object->incoming_new_target_or_generator_register()),
+        bytecodes_(broker->zone()),
+        constant_pool_(broker->zone()) {}
 
  private:
   int const register_count_;
   int const parameter_count_;
   interpreter::Register const incoming_new_target_or_generator_register_;
+
+  bool is_serialized_for_compilation_ = false;
+  ZoneVector<uint8_t> bytecodes_;
+  ZoneVector<ObjectData*> constant_pool_;
 };
 
 class JSArrayData : public JSObjectData {
@@ -2639,6 +2695,62 @@ double FixedDoubleArrayRef::get_scalar(int i) const {
   return data()->AsFixedDoubleArray()->Get(i).get_scalar();
 }
 
+uint8_t BytecodeArrayRef::get(int index) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference allow_handle_dereference;
+    return object()->get(index);
+  }
+  return data()->AsBytecodeArray()->get(index);
+}
+
+Address BytecodeArrayRef::GetFirstBytecodeAddress() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference allow_handle_dereference;
+    return object()->GetFirstBytecodeAddress();
+  }
+  return data()->AsBytecodeArray()->GetFirstBytecodeAddress();
+}
+
+Handle<Object> BytecodeArrayRef::GetConstantAtIndex(int index) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference allow_handle_dereference;
+    return handle(object()->constant_pool().get(index), broker()->isolate());
+  }
+  return data()->AsBytecodeArray()->GetConstantAtIndex(index,
+                                                       broker()->isolate());
+}
+
+bool BytecodeArrayRef::IsConstantAtIndexSmi(int index) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference allow_handle_dereference;
+    return object()->constant_pool().get(index).IsSmi();
+  }
+  return data()->AsBytecodeArray()->IsConstantAtIndexSmi(index);
+}
+
+Smi BytecodeArrayRef::GetConstantAtIndexAsSmi(int index) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference allow_handle_dereference;
+    return Smi::cast(object()->constant_pool().get(index));
+  }
+  return data()->AsBytecodeArray()->GetConstantAtIndexAsSmi(index);
+}
+
+bool BytecodeArrayRef::IsSerializedForCompilation() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return true;
+  return data()->AsBytecodeArray()->IsSerializedForCompilation();
+}
+
+void BytecodeArrayRef::SerializeForCompilation() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  data()->AsBytecodeArray()->SerializeForCompilation(broker());
+}
+
 #define IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name) \
   if (broker()->mode() == JSHeapBroker::kDisabled) {     \
     AllowHandleAllocation handle_allocation;             \
@@ -3771,6 +3883,36 @@ ElementAccessFeedback const* ProcessedFeedback::AsElementAccess() const {
 NamedAccessFeedback const* ProcessedFeedback::AsNamedAccess() const {
   CHECK_EQ(kNamedAccess, kind());
   return static_cast<NamedAccessFeedback const*>(this);
+}
+
+OffHeapBytecodeArray::OffHeapBytecodeArray(BytecodeArrayRef bytecode_array)
+    : array_(bytecode_array) {}
+
+int OffHeapBytecodeArray::length() const { return array_.length(); }
+
+int OffHeapBytecodeArray::parameter_count() const {
+  return array_.parameter_count();
+}
+
+uint8_t OffHeapBytecodeArray::get(int index) const { return array_.get(index); }
+
+void OffHeapBytecodeArray::set(int index, uint8_t value) { UNREACHABLE(); }
+
+Address OffHeapBytecodeArray::GetFirstBytecodeAddress() const {
+  return array_.GetFirstBytecodeAddress();
+}
+
+Handle<Object> OffHeapBytecodeArray::GetConstantAtIndex(
+    int index, Isolate* isolate) const {
+  return array_.GetConstantAtIndex(index);
+}
+
+bool OffHeapBytecodeArray::IsConstantAtIndexSmi(int index) const {
+  return array_.IsConstantAtIndexSmi(index);
+}
+
+Smi OffHeapBytecodeArray::GetConstantAtIndexAsSmi(int index) const {
+  return array_.GetConstantAtIndexAsSmi(index);
 }
 
 #undef BIMODAL_ACCESSOR

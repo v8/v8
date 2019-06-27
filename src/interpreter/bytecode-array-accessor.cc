@@ -55,8 +55,8 @@ class OnHeapBytecodeArray final : public AbstractBytecodeArray {
 }  // namespace
 
 BytecodeArrayAccessor::BytecodeArrayAccessor(
-    AbstractBytecodeArray* bytecode_array, int initial_offset)
-    : bytecode_array_(bytecode_array),
+    std::unique_ptr<AbstractBytecodeArray> bytecode_array, int initial_offset)
+    : bytecode_array_(std::move(bytecode_array)),
       bytecode_offset_(initial_offset),
       operand_scale_(OperandScale::kSingle),
       prefix_offset_(0) {
@@ -65,8 +65,9 @@ BytecodeArrayAccessor::BytecodeArrayAccessor(
 
 BytecodeArrayAccessor::BytecodeArrayAccessor(
     Handle<BytecodeArray> bytecode_array, int initial_offset)
-    : BytecodeArrayAccessor(new OnHeapBytecodeArray(bytecode_array),
-                            initial_offset) {}
+    : BytecodeArrayAccessor(
+          base::make_unique<OnHeapBytecodeArray>(bytecode_array),
+          initial_offset) {}
 
 void BytecodeArrayAccessor::SetOffset(int offset) {
   bytecode_offset_ = offset;

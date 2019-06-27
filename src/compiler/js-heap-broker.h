@@ -11,6 +11,7 @@
 #include "src/compiler/refs-map.h"
 #include "src/handles/handles.h"
 #include "src/ic/call-optimization.h"
+#include "src/interpreter/bytecode-array-accessor.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
@@ -605,6 +606,18 @@ class BytecodeArrayRef : public FixedArrayBaseRef {
   int register_count() const;
   int parameter_count() const;
   interpreter::Register incoming_new_target_or_generator_register() const;
+
+  // Bytecode access methods.
+  uint8_t get(int index) const;
+  Address GetFirstBytecodeAddress() const;
+
+  // Constant pool access.
+  Handle<Object> GetConstantAtIndex(int index) const;
+  bool IsConstantAtIndexSmi(int index) const;
+  Smi GetConstantAtIndexAsSmi(int index) const;
+
+  bool IsSerializedForCompilation() const;
+  void SerializeForCompilation();
 };
 
 class JSArrayRef : public JSObjectRef {
@@ -1007,6 +1020,23 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
 // Miscellaneous definitions that should be moved elsewhere once concurrent
 // compilation is finished.
 bool CanInlineElementAccess(MapRef const& map);
+
+class OffHeapBytecodeArray final : public interpreter::AbstractBytecodeArray {
+ public:
+  explicit OffHeapBytecodeArray(BytecodeArrayRef bytecode_array);
+
+  int length() const override;
+  int parameter_count() const override;
+  uint8_t get(int index) const override;
+  void set(int index, uint8_t value) override;
+  Address GetFirstBytecodeAddress() const override;
+  Handle<Object> GetConstantAtIndex(int index, Isolate* isolate) const override;
+  bool IsConstantAtIndexSmi(int index) const override;
+  Smi GetConstantAtIndexAsSmi(int index) const override;
+
+ private:
+  BytecodeArrayRef array_;
+};
 
 }  // namespace compiler
 }  // namespace internal

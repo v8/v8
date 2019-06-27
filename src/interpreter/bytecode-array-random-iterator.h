@@ -16,10 +16,10 @@ namespace interpreter {
 class V8_EXPORT_PRIVATE BytecodeArrayRandomIterator final
     : public BytecodeArrayAccessor {
  public:
-  explicit BytecodeArrayRandomIterator(AbstractBytecodeArray* bytecode_array,
-                                       Zone* zone);
-  explicit BytecodeArrayRandomIterator(Handle<BytecodeArray> bytecode_array,
-                                       Zone* zone);
+  BytecodeArrayRandomIterator(
+      std::unique_ptr<AbstractBytecodeArray> bytecode_array, Zone* zone);
+
+  BytecodeArrayRandomIterator(Handle<BytecodeArray> bytecode_array, Zone* zone);
 
   BytecodeArrayRandomIterator& operator++() {
     ++current_index_;

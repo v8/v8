@@ -83,7 +83,7 @@ class V8_EXPORT_PRIVATE AbstractBytecodeArray {
 
 class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
  public:
-  BytecodeArrayAccessor(AbstractBytecodeArray* bytecode_array,
+  BytecodeArrayAccessor(std::unique_ptr<AbstractBytecodeArray> bytecode_array,
                         int initial_offset);
 
   BytecodeArrayAccessor(Handle<BytecodeArray> bytecode_array,

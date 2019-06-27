@@ -11,8 +11,8 @@ namespace internal {
 namespace interpreter {
 
 BytecodeArrayIterator::BytecodeArrayIterator(
-    AbstractBytecodeArray* bytecode_array)
-    : BytecodeArrayAccessor(bytecode_array, 0) {}
+    std::unique_ptr<AbstractBytecodeArray> bytecode_array)
+    : BytecodeArrayAccessor(std::move(bytecode_array), 0) {}
 
 BytecodeArrayIterator::BytecodeArrayIterator(
     Handle<BytecodeArray> bytecode_array)
