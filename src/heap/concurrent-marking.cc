@@ -83,7 +83,7 @@ class ConcurrentMarkingVisitor final
       ConcurrentMarking::MarkingWorklist* shared,
       MemoryChunkDataMap* memory_chunk_data, WeakObjects* weak_objects,
       ConcurrentMarking::EmbedderTracingWorklist* embedder_objects, int task_id,
-      bool embedder_tracing_enabled, unsigned mark_compact_epoch,
+      bool embedder_tracing_enabled, uintptr_t mark_compact_epoch,
       bool is_forced_gc)
       : shared_(shared, task_id),
         weak_objects_(weak_objects),
@@ -673,7 +673,7 @@ class ConcurrentMarkingVisitor final
   int task_id_;
   SlotSnapshot slot_snapshot_;
   bool embedder_tracing_enabled_;
-  const unsigned mark_compact_epoch_;
+  const uintptr_t mark_compact_epoch_;
   bool is_forced_gc_;
   BytecodeFlushMode bytecode_flush_mode_;
 };

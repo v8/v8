@@ -77,6 +77,11 @@ class Sweeper {
   };
   enum AddPageMode { REGULAR, READD_TEMPORARY_REMOVED_PAGE };
 
+  static bool IsValidSweepingSpace(AllocationSpace space) {
+    return space >= FIRST_GROWABLE_PAGED_SPACE &&
+           space <= LAST_GROWABLE_PAGED_SPACE;
+  }
+
   Sweeper(Heap* heap, MajorNonAtomicMarkingState* marking_state);
 
   bool sweeping_in_progress() const { return sweeping_in_progress_; }
@@ -151,11 +156,6 @@ class Sweeper {
 
   bool IsValidIterabilitySpace(AllocationSpace space) {
     return space == NEW_SPACE || space == RO_SPACE;
-  }
-
-  static bool IsValidSweepingSpace(AllocationSpace space) {
-    return space >= FIRST_GROWABLE_PAGED_SPACE &&
-           space <= LAST_GROWABLE_PAGED_SPACE;
   }
 
   static int GetSweepSpaceIndex(AllocationSpace space) {
