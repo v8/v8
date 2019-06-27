@@ -2326,14 +2326,20 @@ void CodeGenerator::AssembleConstructFrame() {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
     if (call_descriptor->IsCFunctionCall()) {
-      __ mflr(r0);
-      if (FLAG_enable_embedded_constant_pool) {
-        __ Push(r0, fp, kConstantPoolRegister);
-        // Adjust FP to point to saved FP.
-        __ subi(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
+      if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
+        __ StubPrologue(StackFrame::C_WASM_ENTRY);
+        // Reserve stack space for saving the c_entry_fp later.
+        __ addi(sp, sp, Operand(-kSystemPointerSize));
       } else {
-        __ Push(r0, fp);
-        __ mr(fp, sp);
+        __ mflr(r0);
+        if (FLAG_enable_embedded_constant_pool) {
+          __ Push(r0, fp, kConstantPoolRegister);
+          // Adjust FP to point to saved FP.
+          __ subi(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
+        } else {
+          __ Push(r0, fp);
+          __ mr(fp, sp);
+        }
       }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();

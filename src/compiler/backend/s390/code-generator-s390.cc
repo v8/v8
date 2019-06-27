@@ -3024,8 +3024,14 @@ void CodeGenerator::AssembleConstructFrame() {
 
   if (frame_access_state()->has_frame()) {
     if (call_descriptor->IsCFunctionCall()) {
-      __ Push(r14, fp);
-      __ LoadRR(fp, sp);
+      if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
+        __ StubPrologue(StackFrame::C_WASM_ENTRY);
+        // Reserve stack space for saving the c_entry_fp later.
+        __ lay(sp, MemOperand(sp, -kSystemPointerSize));
+      } else {
+        __ Push(r14, fp);
+        __ LoadRR(fp, sp);
+      }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue(ip);
       if (call_descriptor->PushArgumentCount()) {
