@@ -2735,10 +2735,9 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
 
 Reduction JSCallReducer::ReduceCallApiFunction(
     Node* node, const SharedFunctionInfoRef& shared) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-
   DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
 
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   int const argc = static_cast<int>(p.arity()) - 2;
   Node* target = NodeProperties::GetValueInput(node, 0);
@@ -5583,16 +5582,16 @@ Node* JSCallReducer::CreateArtificialFrameState(
 }
 
 Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   int arity = static_cast<int>(p.arity() - 2);
   // We only inline when we have the executor.
   if (arity < 1) return NoChange();
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* executor = NodeProperties::GetValueInput(node, 1);
   Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
-
   Node* context = NodeProperties::GetContextInput(node);
   Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -5816,8 +5815,7 @@ bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
     if (!FLAG_concurrent_inlining) {
       receiver_map.SerializePrototype();
     } else if (!receiver_map.serialized_prototype()) {
-      TRACE_BROKER_MISSING(broker(),
-                           "Unserialized prototype for map " << receiver_map);
+      TRACE_BROKER_MISSING(broker(), "prototype for map " << receiver_map);
       return false;
     }
     if (!receiver_map.prototype().equals(
@@ -5880,9 +5878,10 @@ Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
 
 // ES section #sec-promise.prototype.finally
 Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   int arity = static_cast<int>(p.arity() - 2);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* on_finally = arity >= 1 ? NodeProperties::GetValueInput(node, 2)
@@ -5994,6 +5993,8 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
 }
 
 Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -6012,7 +6013,6 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
 
-  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
   MapInference inference(broker(), receiver, effect);
   if (!DoPromiseChecks(&inference)) return inference.NoChange();
 
@@ -6061,9 +6061,9 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
 
 // ES section #sec-promise.resolve
 Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
 
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* value = node->op()->ValueInputCount() > 2
                     ? NodeProperties::GetValueInput(node, 2)

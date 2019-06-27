@@ -2003,8 +2003,8 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       refs_(new (zone())
                 RefsMap(kMinimalRefsBucketCount, AddressMatcher(), zone())),
       array_and_object_prototypes_(zone()),
-      feedback_(zone()),
-      tracing_enabled_(tracing_enabled) {
+      tracing_enabled_(tracing_enabled),
+      feedback_(zone()) {
   // Note that this initialization of the refs_ pointer with the minimal
   // initial capacity is redundant in the normal use case (concurrent
   // compilation enabled, standard objects to be serialized), as the map
