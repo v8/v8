@@ -50,7 +50,7 @@ class RegExpVisitor {
 // A simple closed interval.
 class Interval {
  public:
-  Interval() : from_(kNone), to_(kNone) {}
+  Interval() : from_(kNone), to_(kNone - 1) {}  // '- 1' for branchless size().
   Interval(int from, int to) : from_(from), to_(to) {}
   Interval Union(Interval that) {
     if (that.from_ == kNone)
@@ -60,12 +60,16 @@ class Interval {
     else
       return Interval(Min(from_, that.from_), Max(to_, that.to_));
   }
+
   bool Contains(int value) { return (from_ <= value) && (value <= to_); }
   bool is_empty() { return from_ == kNone; }
   int from() const { return from_; }
   int to() const { return to_; }
+  int size() const { return to_ - from_ + 1; }
+
   static Interval Empty() { return Interval(); }
-  static const int kNone = -1;
+
+  static constexpr int kNone = -1;
 
  private:
   int from_;

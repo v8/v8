@@ -2564,21 +2564,43 @@ ContainedInLattice AddRange(ContainedInLattice containment, const int* ranges,
   return containment;
 }
 
+int BitsetFirstSetBit(BoyerMoorePositionInfo::Bitset bitset) {
+  STATIC_ASSERT(BoyerMoorePositionInfo::kMapSize ==
+                2 * kInt64Size * kBitsPerByte);
+
+  // Slight fiddling is needed here, since the bitset is of length 128 while
+  // CountTrailingZeros requires an integral type and std::bitset can only
+  // convert to unsigned long long. So we handle the most- and least-significant
+  // bits separately.
+
+  {
+    static constexpr BoyerMoorePositionInfo::Bitset mask(~uint64_t{0});
+    BoyerMoorePositionInfo::Bitset masked_bitset = bitset & mask;
+    STATIC_ASSERT(kInt64Size >= sizeof(decltype(masked_bitset.to_ullong())));
+    uint64_t lsb = masked_bitset.to_ullong();
+    if (lsb != 0) return base::bits::CountTrailingZeros(lsb);
+  }
+
+  {
+    BoyerMoorePositionInfo::Bitset masked_bitset = bitset >> 64;
+    uint64_t msb = masked_bitset.to_ullong();
+    if (msb != 0) return 64 + base::bits::CountTrailingZeros(msb);
+  }
+
+  return -1;
+}
+
 }  // namespace
 
 void BoyerMoorePositionInfo::SetInterval(const Interval& interval) {
-  s_ = AddRange(s_, kSpaceRanges, kSpaceRangeCount, interval);
   w_ = AddRange(w_, kWordRanges, kWordRangeCount, interval);
-  d_ = AddRange(d_, kDigitRanges, kDigitRangeCount, interval);
-  surrogate_ =
-      AddRange(surrogate_, kSurrogateRanges, kSurrogateRangeCount, interval);
-  if (interval.to() - interval.from() >= kMapSize - 1) {
-    if (map_count_ != kMapSize) {
-      map_count_ = kMapSize;
-      for (int i = 0; i < kMapSize; i++) map_.set(i);
-    }
+
+  if (interval.size() >= kMapSize) {
+    map_count_ = kMapSize;
+    map_.set();
     return;
   }
+
   for (int i = interval.from(); i <= interval.to(); i++) {
     int mod_character = (i & kMask);
     if (!map_[mod_character]) {
@@ -2590,7 +2612,7 @@ void BoyerMoorePositionInfo::SetInterval(const Interval& interval) {
 }
 
 void BoyerMoorePositionInfo::SetAll() {
-  s_ = w_ = d_ = kLatticeUnknown;
+  w_ = kLatticeUnknown;
   if (map_count_ != kMapSize) {
     map_count_ = kMapSize;
     map_.set();
@@ -2643,24 +2665,27 @@ int BoyerMooreLookahead::FindBestInterval(int max_number_of_chars,
     while (i < length_ && Count(i) > max_number_of_chars) i++;
     if (i == length_) break;
     int remembered_from = i;
-    bool union_map[kSize];
-    for (int j = 0; j < kSize; j++) union_map[j] = false;
-    while (i < length_ && Count(i) <= max_number_of_chars) {
-      BoyerMoorePositionInfo* map = bitmaps_->at(i);
-      for (int j = 0; j < kSize; j++) union_map[j] |= map->at(j);
-      i++;
+
+    BoyerMoorePositionInfo::Bitset union_bitset;
+    for (; i < length_ && Count(i) <= max_number_of_chars; i++) {
+      union_bitset |= bitmaps_->at(i)->raw_bitset();
     }
+
     int frequency = 0;
-    for (int j = 0; j < kSize; j++) {
-      if (union_map[j]) {
-        // Add 1 to the frequency to give a small per-character boost for
-        // the cases where our sampling is not good enough and many
-        // characters have a frequency of zero.  This means the frequency
-        // can theoretically be up to 2*kSize though we treat it mostly as
-        // a fraction of kSize.
-        frequency += compiler_->frequency_collator()->Frequency(j) + 1;
-      }
+
+    // Iterate only over set bits.
+    int j;
+    while ((j = BitsetFirstSetBit(union_bitset)) != -1) {
+      DCHECK(union_bitset[j]);  // Sanity check.
+      // Add 1 to the frequency to give a small per-character boost for
+      // the cases where our sampling is not good enough and many
+      // characters have a frequency of zero.  This means the frequency
+      // can theoretically be up to 2*kSize though we treat it mostly as
+      // a fraction of kSize.
+      frequency += compiler_->frequency_collator()->Frequency(j) + 1;
+      union_bitset.reset(j);
     }
+
     // We use the probability of skipping times the distance we are skipping to
     // judge the effectiveness of this.  Actually we have a cut-off:  By
     // dividing by 2 we switch off the skipping if the probability of skipping
@@ -2689,25 +2714,25 @@ int BoyerMooreLookahead::FindBestInterval(int max_number_of_chars,
 // can safely skip forwards by the number of characters in the range.
 int BoyerMooreLookahead::GetSkipTable(int min_lookahead, int max_lookahead,
                                       Handle<ByteArray> boolean_skip_table) {
-  const int kSize = RegExpMacroAssembler::kTableSize;
-
   const int kSkipArrayEntry = 0;
   const int kDontSkipArrayEntry = 1;
 
-  for (int i = 0; i < kSize; i++) {
-    boolean_skip_table->set(i, kSkipArrayEntry);
-  }
-  int skip = max_lookahead + 1 - min_lookahead;
+  std::memset(boolean_skip_table->GetDataStartAddress(), kSkipArrayEntry,
+              boolean_skip_table->length());
 
   for (int i = max_lookahead; i >= min_lookahead; i--) {
-    BoyerMoorePositionInfo* map = bitmaps_->at(i);
-    for (int j = 0; j < kSize; j++) {
-      if (map->at(j)) {
-        boolean_skip_table->set(j, kDontSkipArrayEntry);
-      }
+    BoyerMoorePositionInfo::Bitset bitset = bitmaps_->at(i)->raw_bitset();
+
+    // Iterate only over set bits.
+    int j;
+    while ((j = BitsetFirstSetBit(bitset)) != -1) {
+      DCHECK(bitset[j]);  // Sanity check.
+      boolean_skip_table->set(j, kDontSkipArrayEntry);
+      bitset.reset(j);
     }
   }
 
+  const int skip = max_lookahead + 1 - min_lookahead;
   return skip;
 }
 
@@ -2720,22 +2745,26 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
 
   if (!FindWorthwhileInterval(&min_lookahead, &max_lookahead)) return;
 
+  // Check if we only have a single non-empty position info, and that info
+  // contains precisely one character.
   bool found_single_character = false;
   int single_character = 0;
   for (int i = max_lookahead; i >= min_lookahead; i--) {
     BoyerMoorePositionInfo* map = bitmaps_->at(i);
-    if (map->map_count() > 1 ||
-        (found_single_character && map->map_count() != 0)) {
+    if (map->map_count() == 0) continue;
+
+    if (found_single_character || map->map_count() > 1) {
       found_single_character = false;
       break;
     }
-    for (int j = 0; j < kSize; j++) {
-      if (map->at(j)) {
-        found_single_character = true;
-        single_character = j;
-        break;
-      }
-    }
+
+    DCHECK(!found_single_character);
+    DCHECK_EQ(map->map_count(), 1);
+
+    found_single_character = true;
+    single_character = BitsetFirstSetBit(map->raw_bitset());
+
+    DCHECK_NE(single_character, -1);
   }
 
   int lookahead_width = max_lookahead + 1 - min_lookahead;

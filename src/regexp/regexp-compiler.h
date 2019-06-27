@@ -171,16 +171,17 @@ class BoyerMoorePositionInfo : public ZoneObject {
   void Set(int character);
   void SetInterval(const Interval& interval);
   void SetAll();
+
   bool is_non_word() { return w_ == kLatticeOut; }
   bool is_word() { return w_ == kLatticeIn; }
 
+  using Bitset = std::bitset<kMapSize>;
+  Bitset raw_bitset() const { return map_; }
+
  private:
-  std::bitset<kMapSize> map_;
-  int map_count_ = 0;                       // Number of set bits in the map.
-  ContainedInLattice w_ = kNotYet;          // The \w character class.
-  ContainedInLattice s_ = kNotYet;          // The \s character class.
-  ContainedInLattice d_ = kNotYet;          // The \d character class.
-  ContainedInLattice surrogate_ = kNotYet;  // Surrogate UTF-16 code units.
+  Bitset map_;
+  int map_count_ = 0;               // Number of set bits in the map.
+  ContainedInLattice w_ = kNotYet;  // The \w character class.
 };
 
 class BoyerMooreLookahead : public ZoneObject {
