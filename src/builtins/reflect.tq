@@ -30,4 +30,16 @@ namespace reflect {
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.getPrototypeOf');
     return object::JSReceiverGetPrototypeOf(objectJSReceiver);
   }
+
+  // ES6 section 26.1.14 Reflect.setPrototypeOf
+  transitioning javascript builtin ReflectSetPrototypeOf(
+      js-implicit context:
+          Context)(_receiver: Object, object: Object, proto: Object): Object {
+    const objectJSReceiver = Cast<JSReceiver>(object)
+        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.setPrototypeOf');
+    if (proto == Null || Is<JSReceiver>(proto)) {
+      return object::ObjectSetPrototypeOfDontThrow(objectJSReceiver, proto);
+    }
+    ThrowTypeError(kProtoObjectOrNull, proto);
+  }
 }  // namespace reflect

@@ -168,30 +168,5 @@ BUILTIN(ReflectSet) {
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
-// ES6 section 26.1.14 Reflect.setPrototypeOf
-BUILTIN(ReflectSetPrototypeOf) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  Handle<Object> target = args.at(1);
-  Handle<Object> proto = args.at(2);
-
-  if (!target->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "Reflect.setPrototypeOf")));
-  }
-
-  if (!proto->IsJSReceiver() && !proto->IsNull(isolate)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, proto));
-  }
-
-  Maybe<bool> result = JSReceiver::SetPrototype(
-      Handle<JSReceiver>::cast(target), proto, true, kDontThrow);
-  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return *isolate->factory()->ToBoolean(result.FromJust());
-}
-
 }  // namespace internal
 }  // namespace v8

@@ -964,6 +964,7 @@ torque_files = [
   "src/builtins/proxy-revocable.tq",
   "src/builtins/proxy-revoke.tq",
   "src/builtins/proxy-set-property.tq",
+  "src/builtins/proxy-set-prototype-of.tq",
   "src/builtins/proxy.tq",
   "src/builtins/reflect.tq",
   "src/builtins/regexp-replace.tq",

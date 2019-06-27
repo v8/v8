@@ -42,6 +42,8 @@ namespace proxy {
   generates 'MessageTemplate::kProxyGetPrototypeOfInvalid';
   const kProxyGetPrototypeOfNonExtensible: constexpr MessageTemplate
   generates 'MessageTemplate::kProxyGetPrototypeOfNonExtensible';
+  const kProxySetPrototypeOfNonExtensible: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxySetPrototypeOfNonExtensible';
 
   const kProxyGet: constexpr int31
   generates 'JSProxy::AccessKind::kGet';

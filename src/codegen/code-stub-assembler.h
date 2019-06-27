@@ -796,6 +796,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // otherwise goes to {if_false}.
   void BranchIfToBooleanIsTrue(Node* value, Label* if_true, Label* if_false);
 
+  // Branches to {if_false} if ToBoolean applied to {value} yields false,
+  // otherwise goes to {if_true}.
+  void BranchIfToBooleanIsFalse(Node* value, Label* if_false, Label* if_true) {
+    BranchIfToBooleanIsTrue(value, if_true, if_false);
+  }
+
   void BranchIfJSReceiver(Node* object, Label* if_true, Label* if_false);
 
   // Branches to {if_true} when --force-slow-path flag has been passed.

@@ -16,6 +16,14 @@ namespace runtime {
 
   extern transitioning runtime
   JSReceiverGetPrototypeOf(implicit context: Context)(JSReceiver): Object;
+
+  extern transitioning runtime
+  JSReceiverSetPrototypeOfThrow(implicit context: Context)(JSReceiver, Object):
+      Object;
+
+  extern transitioning runtime
+  JSReceiverSetPrototypeOfDontThrow(implicit context:
+                                        Context)(JSReceiver, Object): Object;
 }  // namespace runtime
 
 namespace object {
@@ -34,7 +42,7 @@ namespace object {
     const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
         otherwise return runtime::JSReceiverPreventExtensionsThrow(
         objectJSReceiver);
-    const _status: Object = proxy::ProxyPreventExtensions(objectJSProxy, True);
+    proxy::ProxyPreventExtensions(objectJSProxy, True);
     return objectJSReceiver;
   }
 
@@ -61,6 +69,27 @@ namespace object {
         otherwise return runtime::JSReceiverGetPrototypeOf(object);
     return proxy::ProxyGetPrototypeOf(objectJSProxy);
   }
+
+  transitioning macro
+  ObjectSetPrototypeOfThrow(implicit context: Context)(
+      object: Object, proto: Object): Object {
+    const objectJSReceiver = Cast<JSReceiver>(object) otherwise return object;
+    const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
+        otherwise return runtime::JSReceiverSetPrototypeOfThrow(
+        objectJSReceiver, proto);
+    proxy::ProxySetPrototypeOf(objectJSProxy, proto, True);
+    return objectJSReceiver;
+  }
+
+  transitioning macro
+  ObjectSetPrototypeOfDontThrow(implicit context: Context)(
+      object: Object, proto: Object): Object {
+    const objectJSReceiver = Cast<JSReceiver>(object) otherwise return False;
+    const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
+        otherwise return runtime::JSReceiverSetPrototypeOfDontThrow(
+        objectJSReceiver, proto);
+    return proxy::ProxySetPrototypeOf(objectJSProxy, proto, False);
+  }
 }  // namespace object
 
 namespace object_isextensible {
@@ -86,3 +115,25 @@ namespace object_getprototypeof {
     return object::ObjectGetPrototypeOf(object);
   }
 }  // namespace object_getprototypeof
+
+namespace object_setprototypeof {
+  // ES6 section 19.1.2.21 Object.setPrototypeOf ( O, proto )
+  transitioning javascript builtin ObjectSetPrototypeOf(
+      js-implicit context:
+          Context)(_receiver: Object, object: Object, proto: Object): Object {
+    // 1. Set O to ? RequireObjectCoercible(O).
+    if (IsNullOrUndefined(object)) {
+      ThrowTypeError(kCalledOnNullOrUndefined, 'Object.setPrototypeOf');
+    }
+    // 2. If Type(proto) is neither Object nor Null, throw a TypeError
+    // exception.
+    // 3. If Type(O) is not Object, return O.
+    // 4. Let status be ? O.[[SetPrototypeOf]](proto).
+    // 5. If status is false, throw a TypeError exception.
+    // 6. Return O.
+    if (proto == Null || Is<JSReceiver>(proto)) {
+      return object::ObjectSetPrototypeOfThrow(object, proto);
+    }
+    ThrowTypeError(kProtoObjectOrNull, proto);
+  }
+}  // namespace object_setprototypeof

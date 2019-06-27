@@ -726,7 +726,6 @@ namespace internal {
   CPP(ObjectGetOwnPropertyDescriptors)                                         \
   TFJ(ObjectGetOwnPropertyNames, 1, kReceiver, kObject)                        \
   CPP(ObjectGetOwnPropertySymbols)                                             \
-  CPP(ObjectSetPrototypeOf)                                                    \
   TFJ(ObjectIs, 2, kReceiver, kLeft, kRight)                                   \
   CPP(ObjectIsFrozen)                                                          \
   CPP(ObjectIsSealed)                                                          \
@@ -826,7 +825,6 @@ namespace internal {
   TFJ(ReflectHas, 2, kReceiver, kTarget, kKey)                                 \
   CPP(ReflectOwnKeys)                                                          \
   CPP(ReflectSet)                                                              \
-  CPP(ReflectSetPrototypeOf)                                                   \
                                                                                \
   /* RegExp */                                                                 \
   CPP(RegExpCapture1Getter)                                                    \

@@ -1006,6 +1006,8 @@ const kCalledNonCallable: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledNonCallable';
 const kCalledOnNullOrUndefined: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledOnNullOrUndefined';
+const kProtoObjectOrNull: constexpr MessageTemplate
+    generates 'MessageTemplate::kProtoObjectOrNull';
 const kInvalidOffset: constexpr MessageTemplate
     generates 'MessageTemplate::kInvalidOffset';
 const kInvalidTypedArrayLength: constexpr MessageTemplate
@@ -2833,6 +2835,8 @@ macro NumberIsNaN(number: Number): bool {
 
 extern macro GotoIfForceSlowPath() labels Taken;
 extern macro BranchIfToBooleanIsTrue(Object): never
+    labels Taken, NotTaken;
+extern macro BranchIfToBooleanIsFalse(Object): never
     labels Taken, NotTaken;
 
 macro ToBoolean(obj: Object): bool {

@@ -546,6 +546,32 @@ RUNTIME_FUNCTION(Runtime_JSReceiverGetPrototypeOf) {
                            JSReceiver::GetPrototype(isolate, receiver));
 }
 
+RUNTIME_FUNCTION(Runtime_JSReceiverSetPrototypeOfThrow) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, proto, 1);
+
+  MAYBE_RETURN(JSReceiver::SetPrototype(object, proto, true, kThrowOnError),
+               ReadOnlyRoots(isolate).exception());
+
+  return *object;
+}
+
+RUNTIME_FUNCTION(Runtime_JSReceiverSetPrototypeOfDontThrow) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, proto, 1);
+
+  Maybe<bool> result =
+      JSReceiver::SetPrototype(object, proto, true, kDontThrow);
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
+  return *isolate->factory()->ToBoolean(result.FromJust());
+}
+
 RUNTIME_FUNCTION(Runtime_GetProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
