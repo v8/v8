@@ -6,9 +6,8 @@
 
 namespace proxy {
 
-  extern transitioning runtime
-  GetPropertyWithReceiver(implicit context: Context)(Object, Name, Object, Smi):
-      Object;
+  extern transitioning builtin GetPropertyWithReceiver(
+      implicit context: Context)(Object, Name, Object, Smi): Object;
 
   // ES #sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
   // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
@@ -40,7 +39,6 @@ namespace proxy {
     // 6. Let trap be ? GetMethod(handler, "get").
     // 7. If trap is undefined, then (see 7.a below).
     // 7.a. Return ? target.[[Get]](P, Receiver).
-    // TODO(mslekova): Introduce GetPropertyWithReceiver stub
     const trap: Callable = GetMethod(handler, 'get')
         otherwise return GetPropertyWithReceiver(
         target, name, receiverValue, onNonExistent);

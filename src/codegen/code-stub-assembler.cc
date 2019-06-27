@@ -9856,15 +9856,16 @@ void CodeStubAssembler::BranchIfMaybeSpecialIndex(TNode<String> name_string,
 }
 
 void CodeStubAssembler::TryPrototypeChainLookup(
-    Node* receiver, Node* key, const LookupInHolder& lookup_property_in_holder,
+    Node* receiver, Node* object, Node* key,
+    const LookupInHolder& lookup_property_in_holder,
     const LookupInHolder& lookup_element_in_holder, Label* if_end,
     Label* if_bailout, Label* if_proxy) {
   // Ensure receiver is JSReceiver, otherwise bailout.
   Label if_objectisnotsmi(this);
-  Branch(TaggedIsSmi(receiver), if_bailout, &if_objectisnotsmi);
+  Branch(TaggedIsSmi(object), if_bailout, &if_objectisnotsmi);
   BIND(&if_objectisnotsmi);
 
-  Node* map = LoadMap(receiver);
+  Node* map = LoadMap(object);
   Node* instance_type = LoadMapInstanceType(map);
   {
     Label if_objectisreceiver(this);
@@ -9874,9 +9875,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
            if_bailout);
     BIND(&if_objectisreceiver);
 
-    if (if_proxy) {
-      GotoIf(InstanceTypeEqual(instance_type, JS_PROXY_TYPE), if_proxy);
-    }
+    GotoIf(InstanceTypeEqual(instance_type, JS_PROXY_TYPE), if_proxy);
   }
 
   VARIABLE(var_index, MachineType::PointerRepresentation());
@@ -9888,7 +9887,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
 
   BIND(&if_iskeyunique);
   {
-    VARIABLE(var_holder, MachineRepresentation::kTagged, receiver);
+    VARIABLE(var_holder, MachineRepresentation::kTagged, object);
     VARIABLE(var_holder_map, MachineRepresentation::kTagged, map);
     VARIABLE(var_holder_instance_type, MachineRepresentation::kWord32,
              instance_type);
@@ -9934,7 +9933,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
   }
   BIND(&if_keyisindex);
   {
-    VARIABLE(var_holder, MachineRepresentation::kTagged, receiver);
+    VARIABLE(var_holder, MachineRepresentation::kTagged, object);
     VARIABLE(var_holder_map, MachineRepresentation::kTagged, map);
     VARIABLE(var_holder_instance_type, MachineRepresentation::kWord32,
              instance_type);
@@ -12706,7 +12705,7 @@ TNode<Oddball> CodeStubAssembler::HasProperty(SloppyTNode<Context> context,
                          &return_true, &return_false, next_holder, if_bailout);
       };
 
-  TryPrototypeChainLookup(object, key, lookup_property_in_holder,
+  TryPrototypeChainLookup(object, object, key, lookup_property_in_holder,
                           lookup_element_in_holder, &return_false,
                           &call_runtime, &if_proxy);
 

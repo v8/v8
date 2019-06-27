@@ -548,6 +548,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       Goto(&to_name_failed);
 
       BIND(&to_name_failed);
+      // TODO(duongn): use GetPropertyWithReceiver builtin once
+      // |lookup_element_in_holder| supports elements.
       exit_point->ReturnCallRuntime(Runtime::kGetPropertyWithReceiver,
                                     p->context, holder, p->name, p->receiver,
                                     SmiConstant(on_nonexistent));

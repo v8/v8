@@ -2999,11 +2999,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // If it can't handle the case {receiver}/{key} case then the control goes
   // to {if_bailout}.
   // If {if_proxy} is nullptr, proxies go to if_bailout.
-  void TryPrototypeChainLookup(Node* receiver, Node* key,
+  void TryPrototypeChainLookup(Node* receiver, Node* object, Node* key,
                                const LookupInHolder& lookup_property_in_holder,
                                const LookupInHolder& lookup_element_in_holder,
                                Label* if_end, Label* if_bailout,
-                               Label* if_proxy = nullptr);
+                               Label* if_proxy);
 
   // Instanceof helpers.
   // Returns true if {object} has {prototype} somewhere in it's prototype
