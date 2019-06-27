@@ -1703,6 +1703,8 @@ class Heap {
     return old_generation_allocation_limit_;
   }
 
+  size_t global_allocation_limit() const { return global_allocation_limit_; }
+
   bool always_allocate() { return always_allocate_scope_count_ != 0; }
 
   V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);

@@ -4684,8 +4684,7 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   if (FLAG_stress_incremental_marking) {
     return IncrementalMarkingLimit::kHardLimit;
   }
-  if (OldGenerationSizeOfObjects() <=
-      IncrementalMarking::kActivationThreshold) {
+  if (incremental_marking()->IsBelowActivationThresholds()) {
     // Incremental marking is disabled or it is too early to start.
     return IncrementalMarkingLimit::kNoLimit;
   }

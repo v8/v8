@@ -246,6 +246,10 @@ bool IncrementalMarking::CanBeActivated() {
          !heap_->isolate()->serializer_enabled();
 }
 
+bool IncrementalMarking::IsBelowActivationThresholds() const {
+  return heap_->OldGenerationSizeOfObjects() <= kV8ActivationThreshold &&
+         heap_->GlobalSizeOfObjects() <= kGlobalActivationThreshold;
+}
 
 void IncrementalMarking::Deactivate() {
   DeactivateIncrementalWriteBarrier();
@@ -253,16 +257,23 @@ void IncrementalMarking::Deactivate() {
 
 void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   if (FLAG_trace_incremental_marking) {
-    int old_generation_size_mb =
-        static_cast<int>(heap()->OldGenerationSizeOfObjects() / MB);
-    int old_generation_limit_mb =
-        static_cast<int>(heap()->old_generation_allocation_limit() / MB);
+    const size_t old_generation_size_mb =
+        heap()->OldGenerationSizeOfObjects() / MB;
+    const size_t old_generation_limit_mb =
+        heap()->old_generation_allocation_limit() / MB;
+    const size_t global_size_mb = heap()->GlobalSizeOfObjects() / MB;
+    const size_t global_limit_mb = heap()->global_allocation_limit() / MB;
     heap()->isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Start (%s): old generation %dMB, limit %dMB, "
-        "slack %dMB\n",
+        "[IncrementalMarking] Start (%s): (size/limit/slack) v8: %zuMB / %zuMB "
+        "/ %zuMB global: %zuMB / %zuMB / %zuMB\n",
         Heap::GarbageCollectionReasonToString(gc_reason),
         old_generation_size_mb, old_generation_limit_mb,
-        Max(0, old_generation_limit_mb - old_generation_size_mb));
+        old_generation_size_mb > old_generation_limit_mb
+            ? 0
+            : old_generation_limit_mb - old_generation_size_mb,
+        global_size_mb, global_limit_mb,
+        global_size_mb > global_limit_mb ? 0
+                                         : global_limit_mb - global_size_mb);
   }
   DCHECK(FLAG_incremental_marking);
   DCHECK(state_ == STOPPED);

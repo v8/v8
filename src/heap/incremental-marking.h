@@ -79,9 +79,11 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   static constexpr double kMaxStepSizeInMs = 5;
 
 #ifndef DEBUG
-  static const intptr_t kActivationThreshold = 8 * MB;
+  static constexpr size_t kV8ActivationThreshold = 8 * MB;
+  static constexpr size_t kGlobalActivationThreshold = 16 * MB;
 #else
-  static const intptr_t kActivationThreshold = 0;
+  static constexpr size_t kV8ActivationThreshold = 0;
+  static constexpr size_t kGlobalActivationThreshold = 0;
 #endif
 
 #ifdef V8_CONCURRENT_MARKING
@@ -247,6 +249,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   // Ensures that the given region is black allocated if it is in the old
   // generation.
   void EnsureBlackAllocated(Address allocated, size_t size);
+
+  bool IsBelowActivationThresholds() const;
 
  private:
   class Observer : public AllocationObserver {
