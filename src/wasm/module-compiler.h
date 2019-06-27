@@ -10,7 +10,6 @@
 #include <memory>
 
 #include "src/base/optional.h"
-#include "src/base/platform/time.h"
 #include "src/common/globals.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/wasm/compilation-environment.h"
@@ -222,10 +221,6 @@ class AsyncCompileJob {
   // compilation. The AsyncCompileJob does not actively use the
   // StreamingDecoder.
   std::shared_ptr<StreamingDecoder> stream_;
-
-  // The start time of asychronous compilation. Only set if a high-resolution
-  // clock is available.
-  base::TimeTicks compile_start_time_;
 };
 
 }  // namespace wasm

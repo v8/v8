@@ -13,6 +13,7 @@
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
+#include "src/base/platform/time.h"
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/wasm-compiler.h"
@@ -1048,7 +1049,6 @@ bool ExecuteCompilationUnits(
   return true;
 }
 
-namespace {
 // Returns the number of units added.
 int AddImportWrapperUnits(NativeModule* native_module,
                           CompilationUnitBuilder* builder) {
@@ -1073,7 +1073,6 @@ int AddImportWrapperUnits(NativeModule* native_module,
   }
   return static_cast<int>(keys.size());
 }
-}  // namespace
 
 void InitializeCompilationUnits(NativeModule* native_module) {
   CompilationStateImpl* compilation_state =
@@ -1123,6 +1122,43 @@ bool MayCompriseLazyFunctions(const WasmModule* module,
   return false;
 }
 
+class CompilationTimeCallback {
+ public:
+  enum CompileMode { kSynchronous, kAsync, kStreaming };
+  explicit CompilationTimeCallback(std::shared_ptr<Counters> async_counters,
+                                   CompileMode compile_mode)
+      : start_time_(base::TimeTicks::Now()),
+        async_counters_(std::move(async_counters)),
+        compile_mode_(compile_mode) {}
+
+  void operator()(CompilationEvent event) {
+    DCHECK(base::TimeTicks::IsHighResolution());
+    if (event == CompilationEvent::kFinishedBaselineCompilation) {
+      auto now = base::TimeTicks::Now();
+      auto duration = now - start_time_;
+      // Reset {start_time_} to measure tier-up time.
+      start_time_ = now;
+      if (compile_mode_ != kSynchronous) {
+        TimedHistogram* histogram =
+            compile_mode_ == kAsync
+                ? async_counters_->wasm_async_compile_wasm_module_time()
+                : async_counters_->wasm_streaming_compile_wasm_module_time();
+        histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
+      }
+    }
+    if (event == CompilationEvent::kFinishedTopTierCompilation) {
+      auto duration = base::TimeTicks::Now() - start_time_;
+      TimedHistogram* histogram = async_counters_->wasm_tier_up_module_time();
+      histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
+    }
+  }
+
+ private:
+  base::TimeTicks start_time_;
+  const std::shared_ptr<Counters> async_counters_;
+  const CompileMode compile_mode_;
+};
+
 void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
                          const WasmModule* wasm_module,
                          NativeModule* native_module) {
@@ -1159,6 +1195,10 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
           baseline_finished_semaphore->Signal();
         }
       });
+  if (base::TimeTicks::IsHighResolution()) {
+    compilation_state->AddCallback(CompilationTimeCallback{
+        isolate->async_counters(), CompilationTimeCallback::kSynchronous});
+  }
 
   // Initialize the compilation units and kick off background compile tasks.
   InitializeCompilationUnits(native_module);
@@ -1469,21 +1509,6 @@ class AsyncCompileJob::CompilationStateCallback {
     switch (event) {
       case CompilationEvent::kFinishedBaselineCompilation:
         DCHECK(!last_event_.has_value());
-        // Sample compilation time (if a high-resolution clock is available;
-        // otherwise {job_->compile_start_time_} will be Null).
-        DCHECK_EQ(base::TimeTicks::IsHighResolution(),
-                  !job_->compile_start_time_.IsNull());
-        if (!job_->compile_start_time_.IsNull()) {
-          auto duration = base::TimeTicks::Now() - job_->compile_start_time_;
-          auto* comp_state = Impl(job_->native_module_->compilation_state());
-          auto* counters = comp_state->counters();
-          TimedHistogram* histogram =
-              job_->stream_
-                  ? counters->wasm_async_compile_wasm_module_time()
-                  : counters->wasm_streaming_compile_wasm_module_time();
-          histogram->AddSample(static_cast<int>(duration.InMilliseconds()));
-        }
-
         if (job_->DecrementAndCheckFinisherCount()) {
           job_->DoSync<CompileFinished>();
         }
@@ -1748,11 +1773,12 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     CompilationStateImpl* compilation_state =
         Impl(job->native_module_->compilation_state());
     compilation_state->AddCallback(CompilationStateCallback{job});
-
-    // Record current time as start time of asynchronous compilation.
-    DCHECK(job->compile_start_time_.IsNull());
     if (base::TimeTicks::IsHighResolution()) {
-      job->compile_start_time_ = base::TimeTicks::Now();
+      auto compile_mode = job->stream_ == nullptr
+                              ? CompilationTimeCallback::kAsync
+                              : CompilationTimeCallback::kStreaming;
+      compilation_state->AddCallback(CompilationTimeCallback{
+          job->isolate_->async_counters(), compile_mode});
     }
 
     if (start_compilation_) {
