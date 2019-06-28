@@ -162,7 +162,7 @@ std::unique_ptr<Value> parseValue(
     case cbor::CBORTokenTag::STRING16: {
       span<uint8_t> wire = tokenizer->GetString16WireRep();
       DCHECK_EQ(wire.size() & 1, 0u);
-      std::unique_ptr<Value> value = StringValue::create(StringUtil::fromUTF16(
+      std::unique_ptr<Value> value = StringValue::create(StringUtil::fromUTF16LE(
           reinterpret_cast<const uint16_t*>(wire.data()), wire.size() / 2));
       tokenizer->Next();
       return value;
@@ -204,7 +204,7 @@ std::unique_ptr<DictionaryValue> parseMap(
     } else if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING16) {
       span<uint8_t> key_span = tokenizer->GetString16WireRep();
       if (key_span.size() & 1) return nullptr;  // UTF16 is 2 byte multiple.
-      key = StringUtil::fromUTF16(
+      key = StringUtil::fromUTF16LE(
           reinterpret_cast<const uint16_t*>(key_span.data()),
           key_span.size() / 2);
       tokenizer->Next();

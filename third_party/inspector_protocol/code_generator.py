@@ -65,7 +65,10 @@ def read_config():
         cmdline_parser.add_argument("--jinja_dir", type=unicode, required=True)
         cmdline_parser.add_argument("--config", type=unicode, required=True)
         cmdline_parser.add_argument("--config_value", default=[], action="append")
-        cmdline_parser.add_argument("--inspector_protocol_dir", type=unicode, required=True)
+        cmdline_parser.add_argument(
+            "--inspector_protocol_dir", type=unicode, required=True,
+            help=("directory with code_generator.py and C++ encoding / binding "
+                  "libraries, relative to the root of the source tree."))
         arg_options = cmdline_parser.parse_args()
         jinja_dir = arg_options.jinja_dir
         output_base = arg_options.output_base
