@@ -785,7 +785,7 @@ class ParserBase {
 
     if (scanner()->current_token() == Token::AWAIT && !is_async_function()) {
       ReportMessageAt(scanner()->location(),
-                      MessageTemplate::kAwaitNotInAsyncFunction);
+                      MessageTemplate::kAwaitNotInAsyncFunction, kSyntaxError);
       return;
     }
 
@@ -935,19 +935,21 @@ class ParserBase {
   V8_NOINLINE void ReportMessage(MessageTemplate message) {
     Scanner::Location source_location = scanner()->location();
     impl()->ReportMessageAt(source_location, message,
-                            static_cast<const char*>(nullptr));
+                            static_cast<const char*>(nullptr), kSyntaxError);
   }
 
   template <typename T>
-  V8_NOINLINE void ReportMessage(MessageTemplate message, T arg) {
+  V8_NOINLINE void ReportMessage(MessageTemplate message, T arg,
+                                 ParseErrorType error_type = kSyntaxError) {
     Scanner::Location source_location = scanner()->location();
-    impl()->ReportMessageAt(source_location, message, arg);
+    impl()->ReportMessageAt(source_location, message, arg, error_type);
   }
 
   V8_NOINLINE void ReportMessageAt(Scanner::Location location,
-                                   MessageTemplate message) {
+                                   MessageTemplate message,
+                                   ParseErrorType error_type) {
     impl()->ReportMessageAt(location, message,
-                            static_cast<const char*>(nullptr));
+                            static_cast<const char*>(nullptr), error_type);
   }
 
   V8_NOINLINE void ReportUnexpectedToken(Token::Value token);
@@ -1216,9 +1218,9 @@ class ParserBase {
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
   // we allow calls for web compatibility and rewrite them to a runtime throw.
-  ExpressionT RewriteInvalidReferenceExpression(ExpressionT expression,
-                                                int beg_pos, int end_pos,
-                                                MessageTemplate message);
+  ExpressionT RewriteInvalidReferenceExpression(
+      ExpressionT expression, int beg_pos, int end_pos, MessageTemplate message,
+      ParseErrorType type = kReferenceError);
 
   bool IsValidReferenceExpression(ExpressionT expression);
 
@@ -1570,7 +1572,8 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     if (class_scope == nullptr) {
       impl()->ReportMessageAt(Scanner::Location(pos, pos + 1),
                               MessageTemplate::kInvalidPrivateFieldResolution,
-                              impl()->GetRawNameFromIdentifier(name));
+                              impl()->GetRawNameFromIdentifier(name),
+                              kSyntaxError);
       return impl()->FailureExpression();
     }
     key = impl()->ExpressionFromPrivateName(class_scope, name, pos);
@@ -2658,11 +2661,13 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
         impl()->ReportMessageAt(loc,
                                 MessageTemplate::kInvalidDestructuringTarget);
       } else {
-        // Syntax Error if LHS is neither object literal nor an array literal
+        // Reference Error if LHS is neither object literal nor an array literal
         // (Parenthesized literals are
         // CoverParenthesizedExpressionAndArrowParameterList).
         // #sec-assignment-operators-static-semantics-early-errors
-        impl()->ReportMessageAt(loc, MessageTemplate::kInvalidLhsInAssignment);
+        impl()->ReportMessageAt(loc, MessageTemplate::kInvalidLhsInAssignment,
+                                static_cast<const char*>(nullptr),
+                                kReferenceError);
       }
     }
     expression_scope()->ValidateAsPattern(expression, lhs_beg_pos,
@@ -4301,7 +4306,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     impl()->ReportMessageAt(Scanner::Location(unresolvable->position(),
                                               unresolvable->position() + 1),
                             MessageTemplate::kInvalidPrivateFieldResolution,
-                            unresolvable->raw_name());
+                            unresolvable->raw_name(), kSyntaxError);
     return impl()->FailureExpression();
   }
 
@@ -4452,14 +4457,15 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
                                                     int beg_pos, int end_pos,
-                                                    MessageTemplate message) {
+                                                    MessageTemplate message,
+                                                    ParseErrorType type) {
   DCHECK(!IsValidReferenceExpression(expression));
   if (impl()->IsIdentifier(expression)) {
     DCHECK(is_strict(language_mode()));
     DCHECK(impl()->IsEvalOrArguments(impl()->AsIdentifier(expression)));
 
     ReportMessageAt(Scanner::Location(beg_pos, end_pos),
-                    MessageTemplate::kStrictEvalArguments);
+                    MessageTemplate::kStrictEvalArguments, kSyntaxError);
     return impl()->FailureExpression();
   }
   if (expression->IsCall() && !expression->AsCall()->is_tagged_template()) {
@@ -4476,7 +4482,7 @@ ParserBase<Impl>::RewriteInvalidReferenceExpression(ExpressionT expression,
     ExpressionT error = impl()->NewThrowReferenceError(message, beg_pos);
     return factory()->NewProperty(expression, error, beg_pos);
   }
-  ReportMessageAt(Scanner::Location(beg_pos, end_pos), message);
+  ReportMessageAt(Scanner::Location(beg_pos, end_pos), message, type);
   return impl()->FailureExpression();
 }
 
@@ -4570,7 +4576,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic() {
 
   if (has_spread) {
     ReportMessageAt(Scanner::Location(pos, position()),
-                    MessageTemplate::kIntrinsicWithSpread);
+                    MessageTemplate::kIntrinsicWithSpread, kSyntaxError);
     return impl()->FailureExpression();
   }
 

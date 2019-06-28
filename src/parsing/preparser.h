@@ -1483,9 +1483,11 @@ class PreParser : public ParserBase<PreParser> {
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate message, const char* arg = nullptr) {
-    pending_error_handler()->ReportMessageAt(
-        source_location.beg_pos, source_location.end_pos, message, arg);
+                       MessageTemplate message, const char* arg = nullptr,
+                       ParseErrorType error_type = kSyntaxError) {
+    pending_error_handler()->ReportMessageAt(source_location.beg_pos,
+                                             source_location.end_pos, message,
+                                             arg, error_type);
     scanner()->set_parser_error();
   }
 
@@ -1496,14 +1498,17 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void ReportMessageAt(Scanner::Location source_location,
                                  MessageTemplate message,
-                                 const PreParserIdentifier& arg) {
+                                 const PreParserIdentifier& arg,
+                                 ParseErrorType error_type = kSyntaxError) {
     UNREACHABLE();
   }
 
   void ReportMessageAt(Scanner::Location source_location,
-                       MessageTemplate message, const AstRawString* arg) {
-    pending_error_handler()->ReportMessageAt(
-        source_location.beg_pos, source_location.end_pos, message, arg);
+                       MessageTemplate message, const AstRawString* arg,
+                       ParseErrorType error_type = kSyntaxError) {
+    pending_error_handler()->ReportMessageAt(source_location.beg_pos,
+                                             source_location.end_pos, message,
+                                             arg, error_type);
     scanner()->set_parser_error();
   }
 

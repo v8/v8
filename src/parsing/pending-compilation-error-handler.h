@@ -25,13 +25,17 @@ class Script;
 class PendingCompilationErrorHandler {
  public:
   PendingCompilationErrorHandler()
-      : has_pending_error_(false), stack_overflow_(false) {}
+      : has_pending_error_(false),
+        stack_overflow_(false),
+        error_type_(kSyntaxError) {}
 
   void ReportMessageAt(int start_position, int end_position,
-                       MessageTemplate message, const char* arg = nullptr);
+                       MessageTemplate message, const char* arg = nullptr,
+                       ParseErrorType error_type = kSyntaxError);
 
   void ReportMessageAt(int start_position, int end_position,
-                       MessageTemplate message, const AstRawString* arg);
+                       MessageTemplate message, const AstRawString* arg,
+                       ParseErrorType error_type = kSyntaxError);
 
   void ReportWarningAt(int start_position, int end_position,
                        MessageTemplate message, const char* arg = nullptr);
@@ -106,6 +110,7 @@ class PendingCompilationErrorHandler {
   bool unidentifiable_error_ = false;
 
   MessageDetails error_details_;
+  ParseErrorType error_type_;
 
   std::forward_list<MessageDetails> warning_messages_;
 

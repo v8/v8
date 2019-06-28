@@ -10,5 +10,5 @@ try {
   f();
   assertUnreachable();
 } catch(e) {
-  assertTrue(e instanceof SyntaxError);
+  assertTrue(e instanceof ReferenceError);
 }
