@@ -212,8 +212,8 @@ Handle<Object> Object::WrapForRead(Isolate* isolate, Handle<Object> object,
     DCHECK(object->FitsRepresentation(representation));
     return object;
   }
-  return isolate->factory()->NewHeapNumber(
-      MutableHeapNumber::cast(*object).value());
+  return isolate->factory()->NewHeapNumberFromBits(
+      MutableHeapNumber::cast(*object).value_as_bits());
 }
 
 MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
