@@ -722,7 +722,10 @@ UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
   if (this.apkEmbeddedLibrary && libName.endsWith('.apk')) {
     libName = this.apkEmbeddedLibrary;
   }
-  libName = this.targetRootFS + libName;
+  if (this.targetRootFS) {
+    libName = libName.substring(libName.lastIndexOf('/') + 1);
+    libName = this.targetRootFS + libName;
+  }
   try {
     this.symbols = [
       os.system(this.nmExec, ['-C', '-n', '-S', libName], -1, -1),
