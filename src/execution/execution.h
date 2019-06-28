@@ -31,6 +31,10 @@ class Execution final : public AllStatic {
       Isolate* isolate, Handle<Object> callable, Handle<Object> receiver,
       int argc, Handle<Object> argv[]);
 
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CallBuiltin(
+      Isolate* isolate, Handle<JSFunction> builtin, Handle<Object> receiver,
+      int argc, Handle<Object> argv[]);
+
   // Construct object from function, the caller supplies an array of
   // arguments.
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> New(

@@ -358,6 +358,16 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
                                                     argc, argv));
 }
 
+MaybeHandle<Object> Execution::CallBuiltin(Isolate* isolate,
+                                           Handle<JSFunction> builtin,
+                                           Handle<Object> receiver, int argc,
+                                           Handle<Object> argv[]) {
+  DCHECK(builtin->code().is_builtin());
+  DisableBreak no_break(isolate->debug());
+  return Invoke(isolate, InvokeParams::SetUpForCall(isolate, builtin, receiver,
+                                                    argc, argv));
+}
+
 // static
 MaybeHandle<Object> Execution::New(Isolate* isolate, Handle<Object> constructor,
                                    int argc, Handle<Object> argv[]) {
