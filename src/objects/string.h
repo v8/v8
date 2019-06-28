@@ -153,13 +153,11 @@ class String : public Name {
   inline const Char* GetChars(const DisallowHeapAllocation& no_gc);
 
   // Get and set the length of the string.
-  inline int length() const;
-  inline void set_length(int value);
+  DECL_INT_ACCESSORS(length)
 
   // Get and set the length of the string using acquire loads and release
   // stores.
-  inline int synchronized_length() const;
-  inline void synchronized_set_length(int value);
+  DECL_SYNCHRONIZED_INT_ACCESSORS(length)
 
   // Returns whether this string has only one-byte chars, i.e. all of them can
   // be one-byte encoded.  This might be the case even if the string is
@@ -597,20 +595,18 @@ class SeqTwoByteString : public SeqString {
 class ConsString : public String {
  public:
   // First string of the cons cell.
-  inline String first();
+  DECL_ACCESSORS(first, String)
+
   // Doesn't check that the result is a string, even in debug mode.  This is
   // useful during GC where the mark bits confuse the checks.
   inline Object unchecked_first();
-  inline void set_first(Isolate* isolate, String first,
-                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Second string of the cons cell.
-  inline String second();
+  DECL_ACCESSORS(second, String)
+
   // Doesn't check that the result is a string, even in debug mode.  This is
   // useful during GC where the mark bits confuse the checks.
   inline Object unchecked_second();
-  inline void set_second(Isolate* isolate, String second,
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
   V8_EXPORT_PRIVATE uint16_t Get(int index);

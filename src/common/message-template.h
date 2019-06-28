@@ -580,12 +580,12 @@ enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,
   MESSAGE_TEMPLATES(TEMPLATE)
 #undef TEMPLATE
-      kLastMessage
+      kMessageCount
 };
 
 inline MessageTemplate MessageTemplateFromInt(int message_id) {
-  DCHECK_LE(0, message_id);
-  DCHECK_LT(message_id, static_cast<int>(MessageTemplate::kLastMessage));
+  DCHECK_LT(static_cast<unsigned>(message_id),
+            static_cast<unsigned>(MessageTemplate::kMessageCount));
   return static_cast<MessageTemplate>(message_id);
 }
 

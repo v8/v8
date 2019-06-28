@@ -39,13 +39,10 @@ class HeapObject : public Object {
   // of primitive (non-JS) objects like strings, heap numbers etc.
   inline void set_map_no_write_barrier(Map value);
 
-  // Get the map using acquire load.
-  inline Map synchronized_map() const;
-  inline MapWord synchronized_map_word() const;
-
-  // Set the map using release store
+  // Access the map using acquire load and release store.
+  DECL_GETTER(synchronized_map, Map)
   inline void synchronized_set_map(Map value);
-  inline void synchronized_set_map_word(MapWord map_word);
+
   // Compare-and-swaps map word using release store, returns true if the map
   // word was actually swapped.
   inline bool synchronized_compare_and_swap_map_word(MapWord old_map_word,
@@ -60,6 +57,10 @@ class HeapObject : public Object {
   // necessarily contain a map pointer.
   DECL_GETTER(map_word, MapWord)
   inline void set_map_word(MapWord map_word);
+
+  // Access the map word using acquire load and release store.
+  DECL_GETTER(synchronized_map_word, MapWord)
+  inline void synchronized_set_map_word(MapWord map_word);
 
   // TODO(v8:7464): Once RO_SPACE is shared between isolates, this method can be
   // removed as ReadOnlyRoots will be accessible from a global variable. For now

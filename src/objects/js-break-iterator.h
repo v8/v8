@@ -70,9 +70,12 @@ class JSV8BreakIterator : public JSObject {
   DECL_ACCESSORS(bound_current, Object)
   DECL_ACCESSORS(bound_break_type, Object)
 
-// Layout description.
+  // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_JSV8BREAK_ITERATOR_FIELDS)
+
+ private:
+  DECL_INT_ACCESSORS(raw_type)
 
   OBJECT_CONSTRUCTORS(JSV8BreakIterator, JSObject);
 };

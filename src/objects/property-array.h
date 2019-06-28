@@ -68,6 +68,11 @@ class PropertyArray : public HeapObject {
 
   static const int kNoHashSentinel = 0;
 
+ private:
+  DECL_INT_ACCESSORS(length_and_hash)
+
+  DECL_SYNCHRONIZED_INT_ACCESSORS(length_and_hash)
+
   OBJECT_CONSTRUCTORS(PropertyArray, HeapObject);
 };
 

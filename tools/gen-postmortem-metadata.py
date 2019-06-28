@@ -254,8 +254,6 @@ extras_accessors = [
     'Map, prototype, Object, kPrototypeOffset',
     'Oddball, kind_offset, int, kKindOffset',
     'HeapNumber, value, double, kValueOffset',
-    'ConsString, first, String, kFirstOffset',
-    'ConsString, second, String, kSecondOffset',
     'ExternalString, resource, Object, kResourceOffset',
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',

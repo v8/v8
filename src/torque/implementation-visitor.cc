@@ -3265,7 +3265,7 @@ void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
   // Generate implementation in inline header.
   inl_ << "template <class D, class P>\n";
   inl_ << type << " " << gen_name_ << "<D, P>::" << name << "() const {\n";
-  inl_ << "  return Smi::cast(READ_FIELD(*this, " << offset << "));\n";
+  inl_ << "  return TaggedField<Smi, " << offset << ">::load(*this);\n";
   inl_ << "}\n";
 
   inl_ << "template <class D, class P>\n";
@@ -3290,6 +3290,7 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
     hdr_ << "  // Torque type: " << field_type->ToString() << "\n";
   }
   hdr_ << "  inline " << type << " " << name << "() const;\n";
+  hdr_ << "  inline " << type << " " << name << "(Isolate* isolate) const;\n";
   hdr_ << "  inline void set_" << name << "(" << type
        << " value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);\n\n";
 
@@ -3302,10 +3303,20 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
   // Generate implementation in inline header.
   inl_ << "template <class D, class P>\n";
   inl_ << type << " " << gen_name_ << "<D, P>::" << name << "() const {\n";
-  inl_ << "  Object value = READ_FIELD(*this, " << offset << ");\n";
+  inl_ << "  Isolate* isolate = GetIsolateForPtrCompr(*this);\n";
+  inl_ << "  return " << gen_name_ << "::" << name << "(isolate);\n";
+  inl_ << "}\n";
+
+  inl_ << "template <class D, class P>\n";
+  inl_ << type << " " << gen_name_ << "<D, P>::" << name
+       << "(Isolate* isolate) const {\n";
   if (class_type) {
-    inl_ << "  return " << type << "::cast(value);\n";
+    inl_ << "  return TaggedField<" << type << ", " << offset
+         << ">::load(isolate, *this);\n";
   } else {
+    // TODO(tebbi): load value as HeapObject when possible
+    inl_ << "  Object value = TaggedField<Object, " << offset
+         << ">::load(isolate, *this);\n";
     inl_ << "  DCHECK(" << type_check << ");\n";
     inl_ << "  return value;\n";
   }
@@ -3453,26 +3464,24 @@ void GenerateClassFieldVerifier(const std::string& class_name,
     }
     // We already verified the index field because it was listed earlier, so we
     // can assume it's safe to read here.
-    cc_contents << "  for (int i = 0; i < Smi::ToInt(READ_FIELD(o, "
-                << class_name << "::k"
-                << CamelifyString((*f.index)->name_and_type.name)
-                << "Offset)); ++i) {\n";
+    cc_contents << "  for (int i = 0; i < TaggedField<Smi, " << class_name
+                << "::k" << CamelifyString((*f.index)->name_and_type.name)
+                << "Offset>::load(o).value(); ++i) {\n";
   } else {
     cc_contents << "  {\n";
   }
 
   const char* object_type = f.is_weak ? "MaybeObject" : "Object";
-  const char* read_fn = f.is_weak ? "READ_WEAK_FIELD" : "READ_FIELD";
   const char* verify_fn =
       f.is_weak ? "VerifyMaybeObjectPointer" : "VerifyPointer";
-  const char* index_offset = f.index ? " + i * kTaggedSize" : "";
+  const char* index_offset = f.index ? "i * kTaggedSize" : "0";
   // Name the local var based on the field name for nicer CHECK output.
   const std::string value = f.name_and_type.name + "__value";
 
   // Read the field.
-  cc_contents << "    " << object_type << " " << value << " = " << read_fn
-              << "(o, " << class_name << "::k"
-              << CamelifyString(f.name_and_type.name) << "Offset"
+  cc_contents << "    " << object_type << " " << value << " = TaggedField<"
+              << object_type << ", " << class_name << "::k"
+              << CamelifyString(f.name_and_type.name) << "Offset>::load(o, "
               << index_offset << ");\n";
 
   // Call VerifyPointer or VerifyMaybeObjectPointer on it.

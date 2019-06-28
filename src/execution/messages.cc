@@ -1156,7 +1156,7 @@ const char* MessageFormatter::TemplateString(MessageTemplate index) {
     return STRING;
     MESSAGE_TEMPLATES(CASE)
 #undef CASE
-    case MessageTemplate::kLastMessage:
+    case MessageTemplate::kMessageCount:
     default:
       return nullptr;
   }

@@ -180,6 +180,9 @@ class JSArrayIterator : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_JSARRAY_ITERATOR_FIELDS)
 
+ private:
+  DECL_INT_ACCESSORS(raw_kind)
+
   OBJECT_CONSTRUCTORS(JSArrayIterator, JSObject);
 };
 

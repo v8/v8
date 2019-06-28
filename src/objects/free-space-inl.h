@@ -27,7 +27,8 @@ int FreeSpace::Size() { return size(); }
 
 FreeSpace FreeSpace::next() {
   DCHECK(IsValid());
-  return FreeSpace::unchecked_cast(READ_FIELD(*this, kNextOffset));
+  return FreeSpace::unchecked_cast(
+      TaggedField<Object, kNextOffset>::load(*this));
 }
 
 void FreeSpace::set_next(FreeSpace next) {

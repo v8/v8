@@ -72,12 +72,10 @@ enum FixedArraySubInstanceType {
 class FixedArrayBase : public HeapObject {
  public:
   // [length]: length of the array.
-  inline int length() const;
-  inline void set_length(int value);
+  DECL_INT_ACCESSORS(length)
 
   // Get and set the length using acquire loads and release stores.
-  inline int synchronized_length() const;
-  inline void synchronized_set_length(int value);
+  DECL_SYNCHRONIZED_INT_ACCESSORS(length)
 
   inline Object unchecked_synchronized_length() const;
 
@@ -285,8 +283,7 @@ class WeakFixedArray : public HeapObject {
   DECL_INT_ACCESSORS(length)
 
   // Get and set the length using acquire loads and release stores.
-  inline int synchronized_length() const;
-  inline void synchronized_set_length(int value);
+  DECL_SYNCHRONIZED_INT_ACCESSORS(length)
 
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot data_start();
@@ -364,9 +361,7 @@ class WeakArrayList : public HeapObject {
   DECL_INT_ACCESSORS(length)
 
   // Get and set the capacity using acquire loads and release stores.
-  inline int synchronized_capacity() const;
-  inline void synchronized_set_capacity(int value);
-
+  DECL_SYNCHRONIZED_INT_ACCESSORS(capacity)
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,

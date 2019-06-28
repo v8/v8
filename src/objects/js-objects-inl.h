@@ -421,7 +421,7 @@ int JSObject::GetInObjectPropertyOffset(int index) {
 
 Object JSObject::InObjectPropertyAt(int index) {
   int offset = GetInObjectPropertyOffset(index);
-  return READ_FIELD(*this, offset);
+  return TaggedField<Object>::load(*this, offset);
 }
 
 Object JSObject::InObjectPropertyAtPut(int index, Object value,
@@ -607,11 +607,11 @@ bool JSFunction::has_closure_feedback_cell_array() const {
 }
 
 Context JSFunction::context() {
-  return Context::cast(READ_FIELD(*this, kContextOffset));
+  return TaggedField<Context, kContextOffset>::load(*this);
 }
 
 bool JSFunction::has_context() const {
-  return READ_FIELD(*this, kContextOffset).IsContext();
+  return TaggedField<HeapObject, kContextOffset>::load(*this).IsContext();
 }
 
 JSGlobalProxy JSFunction::global_proxy() { return context().global_proxy(); }
@@ -620,7 +620,7 @@ NativeContext JSFunction::native_context() {
   return context().native_context();
 }
 
-void JSFunction::set_context(Object value) {
+void JSFunction::set_context(HeapObject value) {
   DCHECK(value.IsUndefined() || value.IsContext());
   WRITE_FIELD(*this, kContextOffset, value);
   WRITE_BARRIER(*this, kContextOffset, value);
@@ -747,12 +747,11 @@ int JSMessageObject::GetEndPosition() const {
 }
 
 MessageTemplate JSMessageObject::type() const {
-  Object value = READ_FIELD(*this, kMessageTypeOffset);
-  return MessageTemplateFromInt(Smi::ToInt(value));
+  return MessageTemplateFromInt(raw_type());
 }
 
 void JSMessageObject::set_type(MessageTemplate value) {
-  WRITE_FIELD(*this, kMessageTypeOffset, Smi::FromInt(static_cast<int>(value)));
+  set_raw_type(static_cast<int>(value));
 }
 
 ACCESSORS(JSMessageObject, argument, Object, kArgumentsOffset)
@@ -763,6 +762,7 @@ ACCESSORS(JSMessageObject, bytecode_offset, Smi, kBytecodeOffsetOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
 SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
+SMI_ACCESSORS(JSMessageObject, raw_type, kMessageTypeOffset)
 
 DEF_GETTER(JSObject, GetElementsKind, ElementsKind) {
   ElementsKind kind = map(isolate).elements_kind();

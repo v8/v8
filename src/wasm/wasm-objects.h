@@ -49,7 +49,7 @@ template <class CppType>
 class Managed;
 
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
-  V8_INLINE bool has_##name();              \
+  DECL_GETTER(has_##name, bool)             \
   DECL_ACCESSORS(name, type)
 
 // A helper for an entry in an indirect function table (IFT).

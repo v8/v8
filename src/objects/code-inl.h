@@ -331,7 +331,9 @@ int Code::SizeIncludingMetadata() const {
 }
 
 ByteArray Code::unchecked_relocation_info() const {
-  return ByteArray::unchecked_cast(READ_FIELD(*this, kRelocationInfoOffset));
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return ByteArray::unchecked_cast(
+      TaggedField<HeapObject, kRelocationInfoOffset>::load(isolate, *this));
 }
 
 byte* Code::relocation_start() const {

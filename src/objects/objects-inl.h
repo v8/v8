@@ -708,18 +708,18 @@ HeapObject MapWord::ToForwardingAddress() {
 
 #ifdef VERIFY_HEAP
 void HeapObject::VerifyObjectField(Isolate* isolate, int offset) {
-  VerifyPointer(isolate, READ_FIELD(*this, offset));
+  VerifyPointer(isolate, TaggedField<Object>::load(isolate, *this, offset));
   STATIC_ASSERT(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
 void HeapObject::VerifyMaybeObjectField(Isolate* isolate, int offset) {
-  MaybeObject::VerifyMaybeObjectPointer(isolate,
-                                        READ_WEAK_FIELD(*this, offset));
+  MaybeObject::VerifyMaybeObjectPointer(
+      isolate, TaggedField<MaybeObject>::load(isolate, *this, offset));
   STATIC_ASSERT(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
 void HeapObject::VerifySmiField(int offset) {
-  CHECK(READ_FIELD(*this, offset).IsSmi());
+  CHECK(TaggedField<Object>::load(*this, offset).IsSmi());
   STATIC_ASSERT(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
@@ -753,8 +753,8 @@ void HeapObject::set_map(Map value) {
   }
 }
 
-Map HeapObject::synchronized_map() const {
-  return synchronized_map_word().ToMap();
+DEF_GETTER(HeapObject, synchronized_map, Map) {
+  return synchronized_map_word(isolate).ToMap();
 }
 
 void HeapObject::synchronized_set_map(Map value) {
@@ -803,8 +803,8 @@ void HeapObject::set_map_word(MapWord map_word) {
   MapField::Relaxed_Store(*this, map_word);
 }
 
-MapWord HeapObject::synchronized_map_word() const {
-  return MapField::Acquire_Load(*this);
+DEF_GETTER(HeapObject, synchronized_map_word, MapWord) {
+  return MapField::Acquire_Load(isolate, *this);
 }
 
 void HeapObject::synchronized_set_map_word(MapWord map_word) {

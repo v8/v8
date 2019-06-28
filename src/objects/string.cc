@@ -61,8 +61,8 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     WriteToFlat(*cons, flat->GetChars(no_gc), 0, length);
     result = flat;
   }
-  cons->set_first(isolate, *result);
-  cons->set_second(isolate, ReadOnlyRoots(isolate).empty_string());
+  cons->set_first(*result);
+  cons->set_second(ReadOnlyRoots(isolate).empty_string());
   DCHECK(result->IsFlat());
   return result;
 }

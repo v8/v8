@@ -1232,8 +1232,8 @@ Handle<String> Factory::NewConsString(Handle<String> left, Handle<String> right,
 
   result->set_hash_field(String::kEmptyHashField);
   result->set_length(length);
-  result->set_first(isolate(), *left, mode);
-  result->set_second(isolate(), *right, mode);
+  result->set_first(*left, mode);
+  result->set_second(*right, mode);
   return result;
 }
 

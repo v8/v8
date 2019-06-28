@@ -51,10 +51,11 @@ CAST_ACCESSOR(WasmModuleObject)
 CAST_ACCESSOR(WasmTableObject)
 CAST_ACCESSOR(AsmWasmData)
 
-#define OPTIONAL_ACCESSORS(holder, name, type, offset) \
-  bool holder::has_##name() {                          \
-    return !READ_FIELD(*this, offset).IsUndefined();   \
-  }                                                    \
+#define OPTIONAL_ACCESSORS(holder, name, type, offset)                \
+  DEF_GETTER(holder, has_##name, bool) {                              \
+    Object value = TaggedField<Object, offset>::load(isolate, *this); \
+    return !value.IsUndefined(GetReadOnlyRoots(isolate));             \
+  }                                                                   \
   ACCESSORS(holder, name, type, offset)
 
 #define PRIMITIVE_ACCESSORS(holder, name, type, offset)                       \

@@ -6617,8 +6617,8 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   } else {  // !FLAG_thin_strings
     if (string->IsConsString()) {
       Handle<ConsString> cons = Handle<ConsString>::cast(string);
-      cons->set_first(isolate, *result);
-      cons->set_second(isolate, ReadOnlyRoots(isolate).empty_string());
+      cons->set_first(*result);
+      cons->set_second(ReadOnlyRoots(isolate).empty_string());
     } else if (string->IsSlicedString()) {
       STATIC_ASSERT(static_cast<int>(ConsString::kSize) ==
                     static_cast<int>(SlicedString::kSize));
@@ -6629,8 +6629,8 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
                             : isolate->factory()->cons_string_map();
       string->set_map(*map);
       Handle<ConsString> cons = Handle<ConsString>::cast(string);
-      cons->set_first(isolate, *result);
-      cons->set_second(isolate, ReadOnlyRoots(isolate).empty_string());
+      cons->set_first(*result);
+      cons->set_second(ReadOnlyRoots(isolate).empty_string());
     }
   }
   return result;

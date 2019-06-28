@@ -976,7 +976,7 @@ class JSFunction : public JSObject {
   // [context]: The context for this function.
   inline Context context();
   inline bool has_context() const;
-  inline void set_context(Object context);
+  inline void set_context(HeapObject context);
   inline JSGlobalProxy global_proxy();
   inline NativeContext native_context();
   inline int length();
@@ -1397,8 +1397,7 @@ class JSMessageObject : public JSObject {
   // EnsureSourcePositionsAvailable must have been called before calling this.
   Handle<String> GetSourceLine() const;
 
-  inline int error_level() const;
-  inline void set_error_level(int level);
+  DECL_INT_ACCESSORS(error_level)
 
   DECL_CAST(JSMessageObject)
 
@@ -1414,8 +1413,6 @@ class JSMessageObject : public JSObject {
   using BodyDescriptor = FixedBodyDescriptor<HeapObject::kMapOffset,
                                              kPointerFieldsEndOffset, kSize>;
 
-  OBJECT_CONSTRUCTORS(JSMessageObject, JSObject);
-
  private:
   friend class Factory;
 
@@ -1430,12 +1427,14 @@ class JSMessageObject : public JSObject {
   DECL_ACCESSORS(bytecode_offset, Smi)
 
   // [start_position]: the start position in the script for the error message.
-  inline int start_position() const;
-  inline void set_start_position(int value);
+  DECL_INT_ACCESSORS(start_position)
 
   // [end_position]: the end position in the script for the error message.
-  inline int end_position() const;
-  inline void set_end_position(int value);
+  DECL_INT_ACCESSORS(end_position)
+
+  DECL_INT_ACCESSORS(raw_type)
+
+  OBJECT_CONSTRUCTORS(JSMessageObject, JSObject);
 };
 
 // The [Async-from-Sync Iterator] object

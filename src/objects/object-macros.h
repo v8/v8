@@ -47,9 +47,16 @@
   inline type name() const;                  \
   inline void set_##name(type value);
 
+#define DECL_SYNCHRONIZED_PRIMITIVE_ACCESSORS(name, type) \
+  inline type synchronized_##name() const;                \
+  inline void synchronized_set_##name(type value);
+
 #define DECL_BOOLEAN_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, bool)
 
 #define DECL_INT_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int)
+
+#define DECL_SYNCHRONIZED_INT_ACCESSORS(name) \
+  DECL_SYNCHRONIZED_PRIMITIVE_ACCESSORS(name, int)
 
 #define DECL_INT32_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int32_t)
 
@@ -253,10 +260,6 @@
   }
 
 #define FIELD_ADDR(p, offset) ((p).ptr() + offset - kHeapObjectTag)
-
-#define READ_FIELD(p, offset) TaggedField<Object>::load(p, offset)
-
-#define READ_WEAK_FIELD(p, offset) TaggedField<MaybeObject>::load(p, offset)
 
 #define ACQUIRE_READ_FIELD(p, offset) \
   TaggedField<Object>::Acquire_Load(p, offset)
