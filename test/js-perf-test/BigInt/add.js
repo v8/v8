@@ -6,11 +6,6 @@
 
 load('bigint-util.js');
 
-const TEST_ITERATIONS = 1000;
-const SLOW_TEST_ITERATIONS = 50;
-const BITS_CASES = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192];
-const RANDOM_BIGINTS_MAX_BITS = 64 * 100;
-
 let initial_sum = 0n;
 let a = 0n;
 let random_bigints = [];

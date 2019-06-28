@@ -51,8 +51,10 @@
       "main": "run.js",
       "resources": [
         "bigint-util.js",
+        "test-config.js",
         "to-boolean.js",
-        "add.js"
+        "add.js",
+        "as-uint-n.js"
       ],
       "results_regexp": "^%s\\-BigInt\\(Score\\): (.+)$",
       "tests": [
@@ -79,7 +81,19 @@
         { "name": "Add-DifferentSign-4096" },
         { "name": "Add-SameSign-8192" },
         { "name": "Add-DifferentSign-8192" },
-        { "name": "Add-Random" }
+        { "name": "Add-Random" },
+        { "name": "AsUint64-32" },
+        { "name": "AsUint64-64" },
+        { "name": "AsUint64-128" },
+        { "name": "AsUint64-256" },
+        { "name": "AsUint32-32" },
+        { "name": "AsUint32-64" },
+        { "name": "AsUint32-128" },
+        { "name": "AsUint32-256" },
+        { "name": "AsUint8-32" },
+        { "name": "AsUint8-64" },
+        { "name": "AsUint8-128" },
+        { "name": "AsUint8-256" }
     ]
     },
     {
