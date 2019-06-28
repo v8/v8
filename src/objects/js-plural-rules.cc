@@ -143,7 +143,7 @@ MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
 
   // 9. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3).
   Maybe<Intl::NumberFormatDigitOptions> maybe_digit_options =
-      Intl::SetNumberFormatDigitOptions(isolate, options, 0, 3);
+      Intl::SetNumberFormatDigitOptions(isolate, options, 0, 3, false);
   MAYBE_RETURN(maybe_digit_options, MaybeHandle<JSPluralRules>());
   Intl::NumberFormatDigitOptions digit_options = maybe_digit_options.FromJust();
   icu_number_formatter = JSNumberFormat::SetDigitOptionsToFormatter(

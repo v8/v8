@@ -185,7 +185,8 @@ class Intl {
   };
   V8_WARN_UNUSED_RESULT static Maybe<NumberFormatDigitOptions>
   SetNumberFormatDigitOptions(Isolate* isolate, Handle<JSReceiver> options,
-                              int mnfd_default, int mxfd_default);
+                              int mnfd_default, int mxfd_default,
+                              bool notation_is_compact);
 
   static icu::Locale CreateICULocale(const std::string& bcp47_locale);
 

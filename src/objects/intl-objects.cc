@@ -1186,40 +1186,56 @@ Maybe<int> Intl::GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
 
 Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
     Isolate* isolate, Handle<JSReceiver> options, int mnfd_default,
-    int mxfd_default) {
+    int mxfd_default, bool notation_is_compact) {
   Factory* factory = isolate->factory();
   Intl::NumberFormatDigitOptions digit_options;
 
   // 5. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21,
   // 1).
-  int mnid;
+  int mnid = 1;
   if (!Intl::GetNumberOption(isolate, options,
                              factory->minimumIntegerDigits_string(), 1, 21, 1)
            .To(&mnid)) {
     return Nothing<NumberFormatDigitOptions>();
   }
 
-  // 6. Let mnfd be ? GetNumberOption(options, "minimumFractionDigits", 0, 20,
-  // mnfdDefault).
-  int mnfd;
-  if (!Intl::GetNumberOption(isolate, options,
-                             factory->minimumFractionDigits_string(), 0, 20,
-                             mnfd_default)
-           .To(&mnfd)) {
-    return Nothing<NumberFormatDigitOptions>();
-  }
+  int mnfd = 0;
+  int mxfd = 0;
+  Handle<Object> mnfd_obj;
+  Handle<Object> mxfd_obj;
+  if (FLAG_harmony_intl_numberformat_unified) {
+    // 6. Let mnfd be ? Get(options, "minimumFractionDigits").
+    Handle<String> mnfd_str = factory->minimumFractionDigits_string();
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, mnfd_obj, JSReceiver::GetProperty(isolate, options, mnfd_str),
+        Nothing<NumberFormatDigitOptions>());
 
-  // 7. Let mxfdActualDefault be max( mnfd, mxfdDefault ).
-  int mxfd_actual_default = std::max(mnfd, mxfd_default);
+    // 8. Let mnfd be ? Get(options, "maximumFractionDigits").
+    Handle<String> mxfd_str = factory->maximumFractionDigits_string();
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, mxfd_obj, JSReceiver::GetProperty(isolate, options, mxfd_str),
+        Nothing<NumberFormatDigitOptions>());
+  } else {
+    // 6. Let mnfd be ? GetNumberOption(options, "minimumFractionDigits", 0, 20,
+    // mnfdDefault).
+    if (!Intl::GetNumberOption(isolate, options,
+                               factory->minimumFractionDigits_string(), 0, 20,
+                               mnfd_default)
+             .To(&mnfd)) {
+      return Nothing<NumberFormatDigitOptions>();
+    }
 
-  // 8. Let mxfd be ? GetNumberOption(options,
-  // "maximumFractionDigits", mnfd, 20, mxfdActualDefault).
-  int mxfd;
-  if (!Intl::GetNumberOption(isolate, options,
-                             factory->maximumFractionDigits_string(), mnfd, 20,
-                             mxfd_actual_default)
-           .To(&mxfd)) {
-    return Nothing<NumberFormatDigitOptions>();
+    // 7. Let mxfdActualDefault be max( mnfd, mxfdDefault ).
+    int mxfd_actual_default = std::max(mnfd, mxfd_default);
+
+    // 8. Let mxfd be ? GetNumberOption(options,
+    // "maximumFractionDigits", mnfd, 20, mxfdActualDefault).
+    if (!Intl::GetNumberOption(isolate, options,
+                               factory->maximumFractionDigits_string(), mnfd,
+                               20, mxfd_actual_default)
+             .To(&mxfd)) {
+      return Nothing<NumberFormatDigitOptions>();
+    }
   }
 
   // 9.  Let mnsd be ? Get(options, "minimumSignificantDigits").
@@ -1268,8 +1284,50 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   } else {
     digit_options.minimum_significant_digits = 0;
     digit_options.maximum_significant_digits = 0;
-  }
 
+    if (FLAG_harmony_intl_numberformat_unified) {
+      // 15. Else If mnfd is not undefined or mxfd is not undefined, then
+      if (!mnfd_obj->IsUndefined(isolate) || !mxfd_obj->IsUndefined(isolate)) {
+        // 15. b. Let mnfd be ? DefaultNumberOption(mnfd, 0, 20, mnfdDefault).
+        Handle<String> mnfd_str = factory->minimumFractionDigits_string();
+        if (!DefaultNumberOption(isolate, mnfd_obj, 0, 20, mnfd_default,
+                                 mnfd_str)
+                 .To(&mnfd)) {
+          return Nothing<NumberFormatDigitOptions>();
+        }
+
+        // 15. c. Let mxfdActualDefault be max( mnfd, mxfdDefault ).
+        int mxfd_actual_default = std::max(mnfd, mxfd_default);
+
+        // 15. d. Let mxfd be ? DefaultNumberOption(mxfd, mnfd, 20,
+        // mxfdActualDefault).
+        Handle<String> mxfd_str = factory->maximumFractionDigits_string();
+        if (!DefaultNumberOption(isolate, mxfd_obj, mnfd, 20,
+                                 mxfd_actual_default, mxfd_str)
+                 .To(&mxfd)) {
+          return Nothing<NumberFormatDigitOptions>();
+        }
+        // 15. e. Set intlObj.[[MinimumFractionDigits]] to mnfd.
+        digit_options.minimum_fraction_digits = mnfd;
+
+        // 15. f. Set intlObj.[[MaximumFractionDigits]] to mxfd.
+        digit_options.maximum_fraction_digits = mxfd;
+        // Else If intlObj.[[Notation]] is "compact", then
+      } else if (notation_is_compact) {
+        // a. Set intlObj.[[RoundingType]] to "compact-rounding".
+        // Set minimum_significant_digits to -1 to represent roundingtype is
+        // "compact-rounding".
+        digit_options.minimum_significant_digits = -1;
+        // 17. Else,
+      } else {
+        // 17. b. Set intlObj.[[MinimumFractionDigits]] to mnfdDefault.
+        digit_options.minimum_fraction_digits = mnfd_default;
+
+        // 17. c. Set intlObj.[[MaximumFractionDigits]] to mxfdDefault.
+        digit_options.maximum_fraction_digits = mxfd_default;
+      }
+    }
+  }
   return Just(digit_options);
 }
 
