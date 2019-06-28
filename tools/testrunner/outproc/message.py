@@ -37,13 +37,10 @@ class OutProc(base.OutProc):
     # the extension in the first place.
     base_path = self._basepath + '.js'
     if not os.path.exists(base_path):
-      # d8's output for module tests contains forward slashes for
-      # file paths as opposed to backslashes on Windows. Address this
-      # by normalizing only in this specific case.
-      base_path = self._basepath.replace('\\', '/') + '.mjs'
+      base_path = self._basepath + '.mjs'
 
     env = {
-      'basename': base_path,
+      'basename': os.path.basename(base_path),
     }
     for (expected, actual) in itertools.izip_longest(
         expected_lines, actual_lines, fillvalue=''):
