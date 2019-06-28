@@ -2201,6 +2201,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     VRegister temp = scope.AcquireV(format);               \
     __ Instr(temp, i.InputSimd128Register(0).V##FORMAT()); \
     __ Umov(i.OutputRegister32(), temp, 0);                \
+    __ Cmp(i.OutputRegister32(), 0);                       \
+    __ Cset(i.OutputRegister32(), ne);                     \
     break;                                                 \
   }
       SIMD_REDUCE_OP_CASE(kArm64S1x4AnyTrue, Umaxv, kFormatS, 4S);

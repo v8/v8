@@ -2417,10 +2417,10 @@ WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
   }
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
+    V8_TARGET_ARCH_ARM
 // V8:8665 - Tracking bug to enable reduction tests in the interpreter,
 // and for SIMD lowering.
-// TODO(gdeepti): Enable these tests for ARM/ARM64
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max)                            \
   WASM_SIMD_TEST_NO_LOWERING(S##format##AnyTrue) {                            \
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);               \
@@ -2451,7 +2451,8 @@ WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff)
 WASM_SIMD_ALLTRUE_TEST(32x4, 4, 0xffffffff)
 WASM_SIMD_ALLTRUE_TEST(16x8, 8, 0xffff)
 WASM_SIMD_ALLTRUE_TEST(8x16, 16, 0xff)
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
+        // V8_TARGET_ARCH_ARM
 
 WASM_SIMD_TEST(BitSelect) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);

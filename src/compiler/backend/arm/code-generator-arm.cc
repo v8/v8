@@ -2589,6 +2589,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpmax(NeonU32, scratch, src.low(), src.high());
       __ vpmax(NeonU32, scratch, scratch, scratch);
       __ ExtractLane(i.OutputRegister(), scratch, NeonS32, 0);
+      __ cmp(i.OutputRegister(), Operand(0));
+      __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
       break;
     }
     case kArmS1x4AllTrue: {
@@ -2598,6 +2600,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpmin(NeonU32, scratch, src.low(), src.high());
       __ vpmin(NeonU32, scratch, scratch, scratch);
       __ ExtractLane(i.OutputRegister(), scratch, NeonS32, 0);
+      __ cmp(i.OutputRegister(), Operand(0));
+      __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
       break;
     }
     case kArmS1x8AnyTrue: {
@@ -2608,6 +2612,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpmax(NeonU16, scratch, scratch, scratch);
       __ vpmax(NeonU16, scratch, scratch, scratch);
       __ ExtractLane(i.OutputRegister(), scratch, NeonS16, 0);
+      __ cmp(i.OutputRegister(), Operand(0));
+      __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
       break;
     }
     case kArmS1x8AllTrue: {
@@ -2618,6 +2624,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpmin(NeonU16, scratch, scratch, scratch);
       __ vpmin(NeonU16, scratch, scratch, scratch);
       __ ExtractLane(i.OutputRegister(), scratch, NeonS16, 0);
+      __ cmp(i.OutputRegister(), Operand(0));
+      __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
       break;
     }
     case kArmS1x16AnyTrue: {
@@ -2632,6 +2640,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // kDoubleRegZero is not changed, since it is 0.
       __ vtst(Neon32, q_scratch, q_scratch, q_scratch);
       __ ExtractLane(i.OutputRegister(), d_scratch, NeonS32, 0);
+      __ cmp(i.OutputRegister(), Operand(0));
+      __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
       break;
     }
     case kArmS1x16AllTrue: {
@@ -2643,6 +2653,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpmin(NeonU8, scratch, scratch, scratch);
       __ vpmin(NeonU8, scratch, scratch, scratch);
       __ ExtractLane(i.OutputRegister(), scratch, NeonS8, 0);
+      __ cmp(i.OutputRegister(), Operand(0));
+      __ mov(i.OutputRegister(), Operand(1), LeaveCC, ne);
       break;
     }
     case kWord32AtomicLoadInt8:
