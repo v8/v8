@@ -209,6 +209,24 @@ icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
   return icu::UnicodeString(uchar_buffer, length);
 }
 
+icu::StringPiece Intl::ToICUStringPiece(Isolate* isolate,
+                                        Handle<String> string) {
+  DCHECK(string->IsFlat());
+  DisallowHeapAllocation no_gc;
+
+  const String::FlatContent& flat = string->GetFlatContent(no_gc);
+  if (!flat.IsOneByte()) return icu::StringPiece(nullptr, 0);
+
+  int32_t length = string->length();
+  const char* char_buffer =
+      reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
+  if (!String::IsAscii(char_buffer, length)) {
+    return icu::StringPiece(nullptr, 0);
+  }
+
+  return icu::StringPiece(char_buffer, length);
+}
+
 namespace {
 MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
                                       bool is_to_upper, const char* lang) {
@@ -1044,6 +1062,16 @@ Handle<Object> Intl::CompareStrings(Isolate* isolate,
 
   UCollationResult result;
   UErrorCode status = U_ZERO_ERROR;
+  icu::StringPiece string_piece1 = Intl::ToICUStringPiece(isolate, string1);
+  if (!string_piece1.empty()) {
+    icu::StringPiece string_piece2 = Intl::ToICUStringPiece(isolate, string2);
+    if (!string_piece2.empty()) {
+      result = icu_collator.compareUTF8(string_piece1, string_piece2, status);
+      DCHECK(U_SUCCESS(status));
+      return factory->NewNumberFromInt(result);
+    }
+  }
+
   icu::UnicodeString string_val1 = Intl::ToICUUnicodeString(isolate, string1);
   icu::UnicodeString string_val2 = Intl::ToICUUnicodeString(isolate, string2);
   result = icu_collator.compare(string_val1, string_val2, status);

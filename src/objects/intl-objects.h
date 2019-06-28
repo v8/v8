@@ -324,6 +324,10 @@ class Intl {
   static icu::UnicodeString ToICUUnicodeString(Isolate* isolate,
                                                Handle<String> string);
 
+  // Convert a Handle<String> to icu::StringPiece
+  static icu::StringPiece ToICUStringPiece(Isolate* isolate,
+                                           Handle<String> string);
+
   static const uint8_t* ToLatin1LowerTable();
 
   static String ConvertOneByteToLower(String src, String dst);
