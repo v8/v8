@@ -65,12 +65,14 @@ def read_config():
         cmdline_parser.add_argument("--jinja_dir", type=unicode, required=True)
         cmdline_parser.add_argument("--config", type=unicode, required=True)
         cmdline_parser.add_argument("--config_value", default=[], action="append")
+        cmdline_parser.add_argument("--inspector_protocol_dir", type=unicode, required=True)
         arg_options = cmdline_parser.parse_args()
         jinja_dir = arg_options.jinja_dir
         output_base = arg_options.output_base
         config_file = arg_options.config
         config_base = os.path.dirname(config_file)
         config_values = arg_options.config_value
+        inspector_protocol_dir = arg_options.inspector_protocol_dir.lstrip('/')
     except Exception:
         # Work with python 2 and 3 http://docs.python.org/py3k/howto/pyporting.html
         exc = sys.exc_info()[1]
@@ -103,15 +105,12 @@ def read_config():
             ".lib.export_header": False,
             # The encoding lib consists of encoding/encoding.h and
             # encoding/encoding.cc in its subdirectory, which binaries
-            # may link / depend on, instead of relying on the
-            # JINJA2 templates lib/encoding_{h,cc}.template.
-            # In that case, |header| identifies the include file
-            # and |namespace| is the namespace it's using. Usually
-            # inspector_protocol_encoding but for v8's copy it's
-            # v8_inspector_protocol_encoding.
-            # TODO(johannes): Migrate away from lib/encoding_{h,cc}.template
-            #                 in favor of this.
-            ".encoding_lib": { "header": "", "namespace": []},
+            # must link / depend on.
+            ".encoding_lib.header": os.path.join(inspector_protocol_dir, "encoding/encoding.h"),
+            ".encoding_lib.namespace": "",
+            # Ditto for bindings, see bindings/bindings.h.
+            ".bindings_lib.header": os.path.join(inspector_protocol_dir, "bindings/bindings.h"),
+            ".bindings_lib.namespace": ""
         }
         for key_value in config_values:
             parts = key_value.split("=")
@@ -635,10 +634,8 @@ def main():
             "Values_h.template",
             "Object_h.template",
             "ValueConversions_h.template",
-            "Maybe_h.template",
             "DispatcherBase_h.template",
             "Parser_h.template",
-            "encoding_h.template",
         ]
 
         protocol_cpp_templates = [
@@ -648,12 +645,10 @@ def main():
             "Object_cpp.template",
             "DispatcherBase_cpp.template",
             "Parser_cpp.template",
-            "encoding_cpp.template",
         ]
 
         forward_h_templates = [
             "Forward_h.template",
-            "Allocator_h.template",
             "FrontendChannel_h.template",
         ]
 

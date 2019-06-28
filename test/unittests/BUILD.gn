@@ -301,6 +301,7 @@ v8_source_set("unittests_sources") {
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../../third_party/inspector_protocol:encoding_test",
+    "../../third_party/inspector_protocol:bindings_test",
     "//build/win:default_exe_manifest",
     "//testing/gmock",
     "//testing/gtest",

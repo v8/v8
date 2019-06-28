@@ -47,7 +47,10 @@
     },
 
     "encoding_lib": {
-        "header": "encoding/encoding.h",
-        "namespace": ["v8_inspector_protocol_encoding"]
+        "namespace": "v8_inspector_protocol_encoding"
+    },
+
+    "bindings_lib": {
+        "namespace": "v8_inspector_protocol_bindings"
     }
 }

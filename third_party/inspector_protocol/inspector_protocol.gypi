@@ -5,16 +5,12 @@
 {
   'variables': {
     'inspector_protocol_files': [
-      'lib/encoding_h.template',
-      'lib/encoding_cpp.template',
-      'lib/Allocator_h.template',
       'lib/DispatcherBase_cpp.template',
       'lib/DispatcherBase_h.template',
       'lib/ErrorSupport_cpp.template',
       'lib/ErrorSupport_h.template',
       'lib/Forward_h.template',
       'lib/FrontendChannel_h.template',
-      'lib/Maybe_h.template',
       'lib/Object_cpp.template',
       'lib/Object_h.template',
       'lib/Parser_cpp.template',

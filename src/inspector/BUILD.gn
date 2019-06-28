@@ -67,9 +67,6 @@ config("inspector_config") {
   configs = [ "../../:internal_config" ]
   include_dirs = [
     "../../include",
-
-    # For including encoding/encoding.h.
-    "../../third_party/inspector_protocol",
   ]
 }
 
@@ -101,6 +98,7 @@ v8_source_set("inspector") {
     ":inspector_string_conversions",
     "../..:v8_version",
     "../../third_party/inspector_protocol:encoding",
+    "../../third_party/inspector_protocol:bindings",
   ]
 
   public_deps = [

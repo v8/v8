@@ -18,6 +18,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "{{config.bindings_lib.header}}"
+
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
 {% endfor %}
@@ -53,6 +55,32 @@ struct ArrayTypedef<bool> { typedef std::vector<bool> type; };
 
 template <typename T>
 using Array = typename detail::ArrayTypedef<T>::type;
+
+namespace detail {
+using {{config.bindings_lib.namespace}}::glue::detail::PtrMaybe;
+using {{config.bindings_lib.namespace}}::glue::detail::ValueMaybe;
+
+template <typename T>
+struct MaybeTypedef { typedef PtrMaybe<T> type; };
+
+template <>
+struct MaybeTypedef<bool> { typedef ValueMaybe<bool> type; };
+
+template <>
+struct MaybeTypedef<int> { typedef ValueMaybe<int> type; };
+
+template <>
+struct MaybeTypedef<double> { typedef ValueMaybe<double> type; };
+
+template <>
+struct MaybeTypedef<String> { typedef ValueMaybe<String> type; };
+
+template <>
+struct MaybeTypedef<Binary> { typedef ValueMaybe<Binary> type; };
+}  // namespace detail
+
+template <typename T>
+using Maybe = typename detail::MaybeTypedef<T>::type;
 
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}

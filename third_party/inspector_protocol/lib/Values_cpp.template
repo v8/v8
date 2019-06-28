@@ -6,9 +6,7 @@
 
 //#include "Values.h"
 
-{% if config.encoding_lib.header %}
 #include "{{config.encoding_lib.header}}"
-{% endif %}
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
@@ -68,29 +66,27 @@ void escapeStringForJSONInternal(const Char* str, unsigned len,
 // to this constant.
 static constexpr int kStackLimitValues = 1000;
 
-{% if config.encoding_lib.namespace %}
-using {{"::".join(config.encoding_lib.namespace)}}::Error;
-using {{"::".join(config.encoding_lib.namespace)}}::Status;
-using {{"::".join(config.encoding_lib.namespace)}}::span;
+using {{config.encoding_lib.namespace}}::Error;
+using {{config.encoding_lib.namespace}}::Status;
+using {{config.encoding_lib.namespace}}::span;
 namespace cbor {
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::CBORTokenTag;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::CBORTokenizer;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeBinary;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeDouble;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeFalse;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeFromLatin1;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeFromUTF16;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeIndefiniteLengthArrayStart;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeIndefiniteLengthMapStart;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeInt32;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeNull;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeStop;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeString8;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EncodeTrue;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::EnvelopeEncoder;
-using {{"::".join(config.encoding_lib.namespace + ['cbor'])}}::InitialByteForEnvelope;
+using {{config.encoding_lib.namespace}}::cbor::CBORTokenTag;
+using {{config.encoding_lib.namespace}}::cbor::CBORTokenizer;
+using {{config.encoding_lib.namespace}}::cbor::EncodeBinary;
+using {{config.encoding_lib.namespace}}::cbor::EncodeDouble;
+using {{config.encoding_lib.namespace}}::cbor::EncodeFalse;
+using {{config.encoding_lib.namespace}}::cbor::EncodeFromLatin1;
+using {{config.encoding_lib.namespace}}::cbor::EncodeFromUTF16;
+using {{config.encoding_lib.namespace}}::cbor::EncodeIndefiniteLengthArrayStart;
+using {{config.encoding_lib.namespace}}::cbor::EncodeIndefiniteLengthMapStart;
+using {{config.encoding_lib.namespace}}::cbor::EncodeInt32;
+using {{config.encoding_lib.namespace}}::cbor::EncodeNull;
+using {{config.encoding_lib.namespace}}::cbor::EncodeStop;
+using {{config.encoding_lib.namespace}}::cbor::EncodeString8;
+using {{config.encoding_lib.namespace}}::cbor::EncodeTrue;
+using {{config.encoding_lib.namespace}}::cbor::EnvelopeEncoder;
+using {{config.encoding_lib.namespace}}::cbor::InitialByteForEnvelope;
 }  // namespace cbor
-{% endif %}
 
 // Below are three parsing routines for CBOR, which cover enough
 // to roundtrip JSON messages.
