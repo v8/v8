@@ -5,8 +5,9 @@
 #include "src/diagnostics/crash-key.h"
 #include "components/crash/core/common/crash_key.h"
 
-#include <string>
+#include <atomic>
 #include <sstream>
+#include <string>
 
 namespace v8 {
 namespace internal {
