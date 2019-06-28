@@ -3477,6 +3477,8 @@ void LinearScanAllocator::UpdateDeferredFixedRanges(SpillMode spill_mode,
               RegisterName(other->assigned_register()));
         LiveRange* split_off =
             other->SplitAt(next_start, data()->allocation_zone());
+        // Try to get the same register after the deferred block.
+        split_off->set_controlflow_hint(other->assigned_register());
         DCHECK_NE(split_off, other);
         AddToUnhandled(split_off);
         update_caches(other);
