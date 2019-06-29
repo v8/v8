@@ -6,6 +6,9 @@
 
 #include "src/execution/isolate.h"
 #include "src/regexp/regexp.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/regexp/special-case.h"
+#endif  // V8_INTL_SUPPORT
 #include "src/strings/unicode-inl.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -1137,6 +1140,39 @@ Vector<const int> CharacterRange::GetWordBounds() {
   return Vector<const int>(kWordRanges, kWordRangeCount - 1);
 }
 
+#ifdef V8_INTL_SUPPORT
+struct IgnoreSet {
+  IgnoreSet() : set(BuildIgnoreSet()) {}
+  const icu::UnicodeSet set;
+};
+
+struct SpecialAddSet {
+  SpecialAddSet() : set(BuildSpecialAddSet()) {}
+  const icu::UnicodeSet set;
+};
+
+icu::UnicodeSet BuildAsciiAToZSet() {
+  icu::UnicodeSet set('a', 'z');
+  set.add('A', 'Z');
+  set.freeze();
+  return set;
+}
+
+struct AsciiAToZSet {
+  AsciiAToZSet() : set(BuildAsciiAToZSet()) {}
+  const icu::UnicodeSet set;
+};
+
+static base::LazyInstance<IgnoreSet>::type ignore_set =
+    LAZY_INSTANCE_INITIALIZER;
+
+static base::LazyInstance<SpecialAddSet>::type special_add_set =
+    LAZY_INSTANCE_INITIALIZER;
+
+static base::LazyInstance<AsciiAToZSet>::type ascii_a_to_z_set =
+    LAZY_INSTANCE_INITIALIZER;
+#endif  // V8_INTL_SUPPORT
+
 // static
 void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
                                         ZoneList<CharacterRange>* ranges,
@@ -1144,58 +1180,100 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
   CharacterRange::Canonicalize(ranges);
   int range_count = ranges->length();
 #ifdef V8_INTL_SUPPORT
-  icu::UnicodeSet already_added;
   icu::UnicodeSet others;
   for (int i = 0; i < range_count; i++) {
     CharacterRange range = ranges->at(i);
-    uc32 bottom = range.from();
-    if (bottom > String::kMaxUtf16CodeUnit) continue;
-    uc32 top = Min(range.to(), String::kMaxUtf16CodeUnit);
+    uc32 from = range.from();
+    if (from > String::kMaxUtf16CodeUnit) continue;
+    uc32 to = Min(range.to(), String::kMaxUtf16CodeUnit);
     // Nothing to be done for surrogates.
-    if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) continue;
+    if (from >= kLeadSurrogateStart && to <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
-      if (bottom > String::kMaxOneByteCharCode) continue;
-      if (top > String::kMaxOneByteCharCode) top = String::kMaxOneByteCharCode;
+      if (from > String::kMaxOneByteCharCode) continue;
+      if (to > String::kMaxOneByteCharCode) to = String::kMaxOneByteCharCode;
     }
-    already_added.add(bottom, top);
-    icu::Locale locale = icu::Locale::getRoot();
-    while (bottom <= top) {
-      icu::UnicodeString upper(bottom);
-      upper.toUpper(locale);
-      icu::UnicodeSet expanded(bottom, bottom);
-      expanded.closeOver(USET_CASE_INSENSITIVE);
-      for (int32_t i = 0; i < expanded.getRangeCount(); i++) {
-        UChar32 start = expanded.getRangeStart(i);
-        UChar32 end = expanded.getRangeEnd(i);
-        while (start <= end) {
-          icu::UnicodeString upper2(start);
-          upper2.toUpper(locale);
-          // Only add if the upper case are the same.
-          if (upper[0] == upper2[0]) {
-            // #sec-runtime-semantics-canonicalize-ch
-            // 3.g. If the numeric value of ch ≥ 128 and the numeric value of
-            // cu < 128, return ch.
-            if (bottom >= 128 && start < 128) {
-              others.add(bottom);
-            } else {
-              // 3.h. 3.h. 3.h. Return cu.
-              others.add(start);
-            }
-          }
-          start++;
-        }
-      }
-      bottom++;
+    others.add(from, to);
+  }
+
+  // Set of characters already added to ranges that do not need to be added
+  // again.
+  icu::UnicodeSet already_added(others);
+
+  // Set of characters in ranges that are in the 52 ASCII characters [a-zA-Z].
+  icu::UnicodeSet in_ascii_a_to_z(others);
+  in_ascii_a_to_z.retainAll(ascii_a_to_z_set.Pointer()->set);
+
+  // Remove all chars in [a-zA-Z] from others.
+  others.removeAll(in_ascii_a_to_z);
+
+  // Set of characters in ranges that are overlapping with special add set.
+  icu::UnicodeSet in_special_add(others);
+  in_special_add.retainAll(special_add_set.Pointer()->set);
+
+  others.removeAll(in_special_add);
+
+  // Ignore all chars in ignore set.
+  others.removeAll(ignore_set.Pointer()->set);
+
+  // For most of the chars in ranges that is still in others, find the case
+  // equivlant set by calling closeOver(USET_CASE_INSENSITIVE).
+  others.closeOver(USET_CASE_INSENSITIVE);
+
+  // Because closeOver(USET_CASE_INSENSITIVE) may add ASCII [a-zA-Z] to others,
+  // but ECMA262 "i" mode won't consider that, remove them from others.
+  // Ex: U+017F add 'S' and 's' to others.
+  others.removeAll(ascii_a_to_z_set.Pointer()->set);
+
+  // Special handling for in_ascii_a_to_z.
+  for (int32_t i = 0; i < in_ascii_a_to_z.getRangeCount(); i++) {
+    UChar32 start = in_ascii_a_to_z.getRangeStart(i);
+    UChar32 end = in_ascii_a_to_z.getRangeEnd(i);
+    // Check if it is uppercase A-Z by checking bit 6.
+    if (start & 0x0020) {
+      // Add the lowercases
+      others.add(start & 0x005F, end & 0x005F);
+    } else {
+      // Add the uppercases
+      others.add(start | 0x0020, end | 0x0020);
     }
   }
+
+  // Special handling for chars in "Special Add" set.
+  for (int32_t i = 0; i < in_special_add.getRangeCount(); i++) {
+    UChar32 end = in_special_add.getRangeEnd(i);
+    for (UChar32 ch = in_special_add.getRangeStart(i); ch <= end; ch++) {
+      // Add the uppercase of this character if itself is not an uppercase
+      // character.
+      // Note: The if condiction cannot be u_islower(ch) because ch could be
+      // neither uppercase nor lowercase but Mn.
+      if (!u_isupper(ch)) {
+        others.add(u_toupper(ch));
+      }
+      icu::UnicodeSet candidates(ch, ch);
+      candidates.closeOver(USET_CASE_INSENSITIVE);
+      for (int32_t j = 0; j < candidates.getRangeCount(); j++) {
+        UChar32 end2 = candidates.getRangeEnd(j);
+        for (UChar32 ch2 = candidates.getRangeStart(j); ch2 <= end2; ch2++) {
+          // Add character that is not uppercase to others.
+          if (!u_isupper(ch2)) {
+            others.add(ch2);
+          }
+        }
+      }
+    }
+  }
+
+  // Remove all characters which already in the ranges.
   others.removeAll(already_added);
+
+  // Add others to the ranges
   for (int32_t i = 0; i < others.getRangeCount(); i++) {
-    UChar32 start = others.getRangeStart(i);
-    UChar32 end = others.getRangeEnd(i);
-    if (start == end) {
-      ranges->Add(CharacterRange::Singleton(start), zone);
+    UChar32 from = others.getRangeStart(i);
+    UChar32 to = others.getRangeEnd(i);
+    if (from == to) {
+      ranges->Add(CharacterRange::Singleton(from), zone);
     } else {
-      ranges->Add(CharacterRange::Range(start, end), zone);
+      ranges->Add(CharacterRange::Range(from, to), zone);
     }
   }
 #else
