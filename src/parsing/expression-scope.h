@@ -437,8 +437,7 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
     }
     this->mark_verified();
     return this->parser()->RewriteInvalidReferenceExpression(
-        expression, beg_pos, end_pos, MessageTemplate::kInvalidLhsInFor,
-        kSyntaxError);
+        expression, beg_pos, end_pos, MessageTemplate::kInvalidLhsInFor);
   }
 
   void RecordExpressionError(const Scanner::Location& loc,
