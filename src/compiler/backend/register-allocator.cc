@@ -4559,6 +4559,14 @@ void LinearScanAllocator::SpillBetweenUntil(LiveRange* range,
 
     LiveRange* third_part =
         SplitBetween(second_part, split_start, third_part_end);
+    if (GetInstructionBlock(data()->code(), second_part->Start())
+            ->IsDeferred()) {
+      // Try to use the same register as before.
+      TRACE("Setting control flow hint for %d:%d to %s\n",
+            third_part->TopLevel()->vreg(), third_part->relative_id(),
+            RegisterName(range->controlflow_hint()));
+      third_part->set_controlflow_hint(range->controlflow_hint());
+    }
 
     AddToUnhandled(third_part);
     // This can happen, even if we checked for start < end above, as we fiddle
