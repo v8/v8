@@ -377,7 +377,7 @@ bool IsExtreme(float x) {
 }
 
 #if V8_TARGET_ARCH_X64
-WASM_SIMD_TEST(F64x2Splat) {
+WASM_SIMD_TEST_NO_LOWERING(F64x2Splat) {
   WasmRunner<int32_t, double> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.
   double* g = r.builder().AddGlobal<double>(kWasmS128);
@@ -712,7 +712,7 @@ WASM_SIMD_TEST(F32x4Le) {
 }
 
 #if V8_TARGET_ARCH_X64
-WASM_SIMD_TEST(I64x2Splat) {
+WASM_SIMD_TEST_NO_LOWERING(I64x2Splat) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.
   int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
