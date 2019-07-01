@@ -571,7 +571,8 @@
 	      "array-indexof-includes.js",
 	      "spread-call.js",
         "tagged-template.js",
-        "has-own-property.js"
+        "has-own-property.js",
+        "array-map.js"
       ],
       "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
       "tests": [
