@@ -3755,6 +3755,21 @@ template void JSObject::ApplyAttributesToDictionary(
     Isolate* isolate, ReadOnlyRoots roots, Handle<NumberDictionary> dictionary,
     const PropertyAttributes attributes);
 
+Handle<NumberDictionary> CreateElementDictionary(Isolate* isolate,
+                                                 Handle<JSObject> object) {
+  Handle<NumberDictionary> new_element_dictionary;
+  if (!object->HasTypedArrayElements() && !object->HasDictionaryElements() &&
+      !object->HasSlowStringWrapperElements()) {
+    int length = object->IsJSArray()
+                     ? Smi::ToInt(Handle<JSArray>::cast(object)->length())
+                     : object->elements().length();
+    new_element_dictionary =
+        length == 0 ? isolate->factory()->empty_slow_element_dictionary()
+                    : object->GetElementsAccessor()->Normalize(object);
+  }
+  return new_element_dictionary;
+}
+
 template <PropertyAttributes attrs>
 Maybe<bool> JSObject::PreventExtensionsWithTransition(
     Handle<JSObject> object, ShouldThrow should_throw) {
@@ -3775,10 +3790,12 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   if (attrs == NONE && !object->map().is_extensible()) return Just(true);
-  ElementsKind old_elements_kind = object->map().elements_kind();
-  if (attrs != FROZEN && IsSealedElementsKind(old_elements_kind))
-    return Just(true);
-  if (old_elements_kind == PACKED_FROZEN_ELEMENTS) return Just(true);
+  {
+    ElementsKind old_elements_kind = object->map().elements_kind();
+    if (attrs != FROZEN && IsSealedElementsKind(old_elements_kind))
+      return Just(true);
+    if (old_elements_kind == PACKED_FROZEN_ELEMENTS) return Just(true);
+  }
 
   if (object->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, object);
@@ -3807,17 +3824,6 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     RETURN_FAILURE(isolate, should_throw, NewTypeError(message));
   }
 
-  Handle<NumberDictionary> new_element_dictionary;
-  if (!object->HasTypedArrayElements() && !object->HasDictionaryElements() &&
-      !object->HasSlowStringWrapperElements()) {
-    int length = object->IsJSArray()
-                     ? Smi::ToInt(Handle<JSArray>::cast(object)->length())
-                     : object->elements().length();
-    new_element_dictionary =
-        length == 0 ? isolate->factory()->empty_slow_element_dictionary()
-                    : object->GetElementsAccessor()->Normalize(object);
-  }
-
   Handle<Symbol> transition_marker;
   if (attrs == NONE) {
     transition_marker = isolate->factory()->nonextensible_symbol();
@@ -3827,6 +3833,31 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     DCHECK(attrs == FROZEN);
     transition_marker = isolate->factory()->frozen_symbol();
   }
+
+  // Currently, there are only have sealed/frozen Object element kinds and
+  // Map::MigrateToMap doesn't handle properties' attributes reconfiguring and
+  // elements kind change in one go. If seal or freeze with Smi or Double
+  // elements kind, we will transition to Object elements kind first to make
+  // sure of valid element access.
+  if (FLAG_enable_sealed_frozen_elements_kind &&
+      (attrs == SEALED || attrs == FROZEN)) {
+    switch (object->map().elements_kind()) {
+      case PACKED_SMI_ELEMENTS:
+      case PACKED_DOUBLE_ELEMENTS:
+        JSObject::TransitionElementsKind(object, PACKED_ELEMENTS);
+        break;
+      case HOLEY_SMI_ELEMENTS:
+      case HOLEY_DOUBLE_ELEMENTS:
+        JSObject::TransitionElementsKind(object, HOLEY_ELEMENTS);
+        break;
+      default:
+        break;
+    }
+  }
+
+  // Make sure we only use this element dictionary in case we can't transition
+  // to sealed, frozen elements kind.
+  Handle<NumberDictionary> new_element_dictionary;
 
   Handle<Map> old_map(object->map(), isolate);
   old_map = Map::Update(isolate, old_map);
@@ -3839,11 +3870,17 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
            transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS ||
            transition_map->has_frozen_or_sealed_elements());
     DCHECK(!transition_map->is_extensible());
+    if (!transition_map->has_frozen_or_sealed_elements()) {
+      new_element_dictionary = CreateElementDictionary(isolate, object);
+    }
     JSObject::MigrateToMap(isolate, object, transition_map);
   } else if (transitions.CanHaveMoreTransitions()) {
     // Create a new descriptor array with the appropriate property attributes
     Handle<Map> new_map = Map::CopyForPreventExtensions(
         isolate, old_map, attrs, transition_marker, "CopyForPreventExtensions");
+    if (!new_map->has_frozen_or_sealed_elements()) {
+      new_element_dictionary = CreateElementDictionary(isolate, object);
+    }
     JSObject::MigrateToMap(isolate, object, new_map);
   } else {
     DCHECK(old_map->is_dictionary_map() || !old_map->is_prototype_map());
@@ -3856,6 +3893,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     Handle<Map> new_map = Map::Copy(isolate, handle(object->map(), isolate),
                                     "SlowCopyForPreventExtensions");
     new_map->set_is_extensible(false);
+    DCHECK(!new_map->has_frozen_or_sealed_elements());
+    new_element_dictionary = CreateElementDictionary(isolate, object);
     if (!new_element_dictionary.is_null()) {
       ElementsKind new_kind =
           IsStringWrapperElementsKind(old_map->elements_kind())
@@ -3882,6 +3921,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   if (object->map().has_frozen_or_sealed_elements()) {
+    DCHECK(new_element_dictionary.is_null());
     return Just(true);
   }
 
