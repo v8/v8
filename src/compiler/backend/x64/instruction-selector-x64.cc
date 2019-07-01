@@ -898,7 +898,8 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
       // Omit truncation and turn subtractions of constant values into immediate
       // "leal" instructions by negating the value.
       Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
-           g.DefineAsRegister(node), int64_input, g.TempImmediate(-imm));
+           g.DefineAsRegister(node), int64_input,
+           g.TempImmediate(base::NegateWithWraparound(imm)));
     }
     return;
   }
