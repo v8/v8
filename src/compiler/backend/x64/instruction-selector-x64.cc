@@ -2668,6 +2668,7 @@ void InstructionSelector::VisitS128Zero(Node* node) {
          g.Use(node->InputAt(0)));                           \
   }
 SIMD_TYPES(VISIT_SIMD_SPLAT)
+VISIT_SIMD_SPLAT(F64x2)
 VISIT_SIMD_SPLAT(I64x2)
 #undef VISIT_SIMD_SPLAT
 

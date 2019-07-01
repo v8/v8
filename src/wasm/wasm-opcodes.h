@@ -274,6 +274,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(I32x4Splat, 0xfd0c, s_i)             \
   V(I64x2Splat, 0xfd0f, s_l)             \
   V(F32x4Splat, 0xfd12, s_f)             \
+  V(F64x2Splat, 0xfd15, s_d)             \
   V(I8x16Eq, 0xfd18, s_ss)               \
   V(I8x16Ne, 0xfd19, s_ss)               \
   V(I8x16LtS, 0xfd1a, s_ss)              \
@@ -559,6 +560,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
 #define FOREACH_SIMD_SIGNATURE(V)          \
   V(s_s, kWasmS128, kWasmS128)             \
   V(s_f, kWasmS128, kWasmF32)              \
+  V(s_d, kWasmS128, kWasmF64)              \
   V(s_ss, kWasmS128, kWasmS128, kWasmS128) \
   V(s_i, kWasmS128, kWasmI32)              \
   V(s_l, kWasmS128, kWasmI64)              \

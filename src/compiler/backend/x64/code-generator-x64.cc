@@ -2235,6 +2235,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kX64F64x2Splat: {
+      XMMRegister dst = i.OutputSimd128Register();
+      if (instr->InputAt(0)->IsFPRegister()) {
+        __ pshufd(dst, i.InputDoubleRegister(0), 0x44);
+      } else {
+        __ pshufd(dst, i.InputOperand(0), 0x44);
+      }
+      break;
+    }
     // TODO(gdeepti): Get rid of redundant moves for F32x4Splat/Extract below
     case kX64F32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();

@@ -283,6 +283,7 @@ T Sqrt(T a) {
 #define WASM_SIMD_CONCAT_OP(op, bytes, x, y) \
   x, y, WASM_SIMD_OP(op), TO_BYTE(bytes)
 #define WASM_SIMD_SELECT(format, x, y, z) x, y, z, WASM_SIMD_OP(kExprS128Select)
+#define WASM_SIMD_F64x2_SPLAT(x) WASM_SIMD_SPLAT(F64x2, x)
 #define WASM_SIMD_F32x4_SPLAT(x) WASM_SIMD_SPLAT(F32x4, x)
 #define WASM_SIMD_F32x4_EXTRACT_LANE(lane, x) \
   x, WASM_SIMD_OP(kExprF32x4ExtractLane), TO_BYTE(lane)
@@ -369,6 +370,30 @@ bool IsExtreme(float x) {
   return abs_x != 0.0f &&  // 0 or -0 are fine.
          (abs_x < kSmallFloatThreshold || abs_x > kLargeFloatThreshold);
 }
+
+#if V8_TARGET_ARCH_X64
+WASM_SIMD_TEST(F64x2Splat) {
+  WasmRunner<int32_t, double> r(execution_tier, lower_simd);
+  // Set up a global to hold output vector.
+  double* g = r.builder().AddGlobal<double>(kWasmS128);
+  byte param1 = 0;
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(param1))),
+        WASM_ONE);
+
+  FOR_FLOAT64_INPUTS(x) {
+    r.Call(x);
+    double expected = x;
+    for (int i = 0; i < 2; i++) {
+      double actual = ReadLittleEndianValue<double>(&g[i]);
+      if (std::isnan(expected)) {
+        CHECK(std::isnan(actual));
+      } else {
+        CHECK_EQ(actual, expected);
+      }
+    }
+  }
+}
+#endif  // V8_TARGET_ARCH_X64
 
 WASM_SIMD_TEST(F32x4Splat) {
   WasmRunner<int32_t, float> r(execution_tier, lower_simd);

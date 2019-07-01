@@ -122,6 +122,8 @@ void SimdScalarLowering::LowerGraph() {
   V(S1x16AnyTrue)                 \
   V(S1x16AllTrue)
 
+#define FOREACH_FLOAT64X2_OPCODE(V) V(F64x2Splat)
+
 #define FOREACH_FLOAT32X4_OPCODE(V) \
   V(F32x4Splat)                     \
   V(F32x4ExtractLane)               \
@@ -211,10 +213,12 @@ void SimdScalarLowering::LowerGraph() {
 
 MachineType SimdScalarLowering::MachineTypeFrom(SimdType simdType) {
   switch (simdType) {
-    case SimdType::kInt64x2:
-      return MachineType::Int64();
+    case SimdType::kFloat64x2:
+      return MachineType::Float64();
     case SimdType::kFloat32x4:
       return MachineType::Float32();
+    case SimdType::kInt64x2:
+      return MachineType::Int64();
     case SimdType::kInt32x4:
       return MachineType::Int32();
     case SimdType::kInt16x8:
@@ -228,6 +232,10 @@ MachineType SimdScalarLowering::MachineTypeFrom(SimdType simdType) {
 void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
   switch (node->opcode()) {
 #define CASE_STMT(name) case IrOpcode::k##name:
+    FOREACH_FLOAT64X2_OPCODE(CASE_STMT) {
+      replacements_[node->id()].type = SimdType::kFloat64x2;
+      break;
+    }
     FOREACH_INT64X2_OPCODE(CASE_STMT) {
       replacements_[node->id()].type = SimdType::kInt64x2;
       break;
@@ -335,7 +343,7 @@ static int GetReturnCountAfterLoweringSimd128(
 
 int SimdScalarLowering::NumLanes(SimdType type) {
   int num_lanes = 0;
-  if (type == SimdType::kInt64x2) {
+  if (type == SimdType::kFloat64x2 || type == SimdType::kInt64x2) {
     num_lanes = kNumLanes64;
   } else if (type == SimdType::kFloat32x4 || type == SimdType::kInt32x4) {
     num_lanes = kNumLanes32;
@@ -1234,9 +1242,10 @@ void SimdScalarLowering::LowerNode(Node* node) {
       LowerUnaryOp(node, SimdType::kInt32x4, machine()->RoundUint32ToFloat32());
       break;
     }
+    case IrOpcode::kF64x2Splat:
+    case IrOpcode::kF32x4Splat:
     case IrOpcode::kI64x2Splat:
     case IrOpcode::kI32x4Splat:
-    case IrOpcode::kF32x4Splat:
     case IrOpcode::kI16x8Splat:
     case IrOpcode::kI8x16Splat: {
       Node** rep_node = zone()->NewArray<Node*>(num_lanes);

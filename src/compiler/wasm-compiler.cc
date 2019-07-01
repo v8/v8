@@ -4001,6 +4001,8 @@ Node* WasmGraphBuilder::S128Zero() {
 Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
   has_simd_ = true;
   switch (opcode) {
+    case wasm::kExprF64x2Splat:
+      return graph()->NewNode(mcgraph()->machine()->F64x2Splat(), inputs[0]);
     case wasm::kExprF32x4Splat:
       return graph()->NewNode(mcgraph()->machine()->F32x4Splat(), inputs[0]);
     case wasm::kExprF32x4SConvertI32x4:

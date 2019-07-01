@@ -158,6 +158,7 @@ namespace compiler {
   V(X64Poke)                              \
   V(X64Peek)                              \
   V(X64StackCheck)                        \
+  V(X64F64x2Splat)                        \
   V(X64F32x4Splat)                        \
   V(X64F32x4ExtractLane)                  \
   V(X64F32x4ReplaceLane)                  \

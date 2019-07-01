@@ -1811,6 +1811,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kUnsafePointerAdd:
       MarkAsRepresentation(MachineType::PointerRepresentation(), node);
       return VisitUnsafePointerAdd(node);
+    case IrOpcode::kF64x2Splat:
+      return MarkAsSimd128(node), VisitF64x2Splat(node);
     case IrOpcode::kF32x4Splat:
       return MarkAsSimd128(node), VisitF32x4Splat(node);
     case IrOpcode::kF32x4ExtractLane:
@@ -2495,6 +2497,7 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
         // !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_S390
 
 #if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitF64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64
 

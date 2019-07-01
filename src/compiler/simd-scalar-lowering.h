@@ -33,8 +33,9 @@ class SimdScalarLowering {
   enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
 
   enum class SimdType : uint8_t {
-    kInt64x2,
+    kFloat64x2,
     kFloat32x4,
+    kInt64x2,
     kInt32x4,
     kInt16x8,
     kInt8x16
