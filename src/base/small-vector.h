@@ -107,9 +107,10 @@ class SmallVector {
 
   template <typename... Args>
   void emplace_back(Args&&... args) {
-    if (V8_UNLIKELY(end_ == end_of_storage_)) Grow();
-    new (end_) T(std::forward<Args>(args)...);
-    ++end_;
+    T* end = end_;
+    if (V8_UNLIKELY(end == end_of_storage_)) end = Grow();
+    new (end) T(std::forward<Args>(args)...);
+    end_ = end + 1;
   }
 
   void pop_back(size_t count = 1) {
@@ -141,7 +142,12 @@ class SmallVector {
   typename std::aligned_storage<sizeof(T) * kInlineSize, alignof(T)>::type
       inline_storage_;
 
-  void Grow(size_t min_capacity = 0) {
+  // Grows the backing store by a factor of two. Returns the new end of the used
+  // storage (this reduces binary size).
+  V8_NOINLINE T* Grow() { return Grow(0); }
+
+  // Grows the backing store by a factor of two, and at least to {min_capacity}.
+  V8_NOINLINE T* Grow(size_t min_capacity) {
     size_t in_use = end_ - begin_;
     size_t new_capacity =
         base::bits::RoundUpToPowerOfTwo(std::max(min_capacity, 2 * capacity()));
@@ -151,6 +157,7 @@ class SmallVector {
     begin_ = new_storage;
     end_ = new_storage + in_use;
     end_of_storage_ = new_storage + new_capacity;
+    return end_;
   }
 
   bool is_big() const { return begin_ != inline_storage_begin(); }
