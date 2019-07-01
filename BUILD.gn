@@ -2708,7 +2708,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/regexp/regexp-nodes.h",
     "src/regexp/regexp-parser.cc",
     "src/regexp/regexp-parser.h",
-    "src/regexp/regexp-special-case.h",
     "src/regexp/regexp-stack.cc",
     "src/regexp/regexp-stack.h",
     "src/regexp/regexp-utils.cc",
@@ -3241,8 +3240,6 @@ v8_source_set("v8_base_without_compiler") {
   ]
 
   if (v8_enable_i18n_support) {
-    deps += [ ":run_gen-regexp-special-case" ]
-    sources += [ "$target_gen_dir/src/regexp/special-case.cc" ]
     if (is_win) {
       deps += [ "//third_party/icu:icudata" ]
     }
@@ -3908,48 +3905,6 @@ v8_executable("torque-language-server") {
   if (is_win && is_asan) {
     remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
   }
-}
-
-v8_executable("gen-regexp-special-case") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  sources = [
-    "src/regexp/gen-regexp-special-case.cc",
-  ]
-
-  deps = [
-    ":v8_libbase",
-    "//build/win:default_exe_manifest",
-    "//third_party/icu",
-  ]
-
-  configs = [ ":internal_config" ]
-}
-
-action("run_gen-regexp-special-case") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  script = "tools/run.py"
-
-  sources = v8_extra_library_files
-
-  deps = [
-    ":gen-regexp-special-case",
-  ]
-
-  output_file = "$target_gen_dir/src/regexp/special-case.cc"
-
-  outputs = [
-    output_file,
-  ]
-
-  args = [
-    "./" + rebase_path(
-            get_label_info(":gen-regexp-special-case($v8_generator_toolchain)",
-                           "root_out_dir") + "/gen-regexp-special-case",
-            root_build_dir),
-    rebase_path(output_file, root_build_dir),
-  ]
 }
 
 ###############################################################################
