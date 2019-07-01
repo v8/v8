@@ -958,8 +958,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
           bytecode_array.parameter_count(), bytecode_array.register_count(),
           shared_info)),
       source_position_iterator_(
-          Vector<const byte>(bytecode_array.source_positions_address(),
-                             bytecode_array.source_positions_size())),
+          handle(bytecode_array.object()->SourcePositionTableIfCollected(),
+                 isolate())),
       bytecode_iterator_(
           base::make_unique<OffHeapBytecodeArray>(bytecode_array)),
       bytecode_analysis_(
