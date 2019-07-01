@@ -167,7 +167,7 @@ DebugStackTraceIterator::GetScopeIterator() const {
 bool DebugStackTraceIterator::Restart() {
   DCHECK(!Done());
   if (iterator_.is_wasm()) return false;
-  return !LiveEdit::RestartFrame(iterator_.javascript_frame());
+  return LiveEdit::RestartFrame(iterator_.javascript_frame());
 }
 
 v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
