@@ -969,7 +969,8 @@ void AsmJsParser::ValidateFunctionLocals(size_t param_count,
             if (negate) {
               dvalue = -dvalue;
             }
-            current_function_builder_->EmitF32Const(dvalue);
+            float fvalue = DoubleToFloat32(dvalue);
+            current_function_builder_->EmitF32Const(fvalue);
             current_function_builder_->EmitSetLocal(info->index);
           } else if (CheckForUnsigned(&uvalue)) {
             if (uvalue > 0x7FFFFFFF) {
