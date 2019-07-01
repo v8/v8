@@ -1509,7 +1509,7 @@ class VariableProxy final : public Expression {
   void set_is_assigned() {
     bit_field_ = IsAssignedField::update(bit_field_, true);
     if (is_resolved()) {
-      var()->set_maybe_assigned();
+      var()->SetMaybeAssigned();
     }
   }
 

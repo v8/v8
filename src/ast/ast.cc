@@ -178,7 +178,7 @@ void VariableProxy::BindTo(Variable* var) {
   set_var(var);
   set_is_resolved();
   var->set_is_used();
-  if (is_assigned()) var->set_maybe_assigned();
+  if (is_assigned()) var->SetMaybeAssigned();
 }
 
 Assignment::Assignment(NodeType node_type, Token::Value op, Expression* target,

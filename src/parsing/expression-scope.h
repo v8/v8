@@ -330,7 +330,7 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
         // This also handles marking of loop variables in for-in and for-of
         // loops, as determined by loop-nesting-depth.
         DCHECK_NOT_NULL(var);
-        var->set_maybe_assigned();
+        var->SetMaybeAssigned();
       }
     }
     return var;

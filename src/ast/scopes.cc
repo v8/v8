@@ -508,8 +508,9 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       DCHECK(is_being_lazily_parsed_);
       bool was_added;
       Variable* var = DeclareVariableName(name, VariableMode::kVar, &was_added);
-      if (sloppy_block_function->init() == Token::ASSIGN)
-        var->set_maybe_assigned();
+      if (sloppy_block_function->init() == Token::ASSIGN) {
+        var->SetMaybeAssigned();
+      }
     }
   }
 }
@@ -893,7 +894,7 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   // assigned because they might be accessed by a lazily parsed top-level
   // function, which, for efficiency, we preparse without variable tracking.
   if (is_script_scope() || is_module_scope()) {
-    if (mode != VariableMode::kConst) var->set_maybe_assigned();
+    if (mode != VariableMode::kConst) var->SetMaybeAssigned();
     var->set_is_used();
   }
 
@@ -942,7 +943,7 @@ Variable* Scope::DeclareVariable(
       DCHECK(*was_added);
     }
   } else {
-    var->set_maybe_assigned();
+    var->SetMaybeAssigned();
     if (V8_UNLIKELY(IsLexicalVariableMode(mode) ||
                     IsLexicalVariableMode(var->mode()))) {
       // The name was declared in this scope before; check for conflicting
@@ -1013,7 +1014,7 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
       }
       // Sloppy block function redefinition.
     }
-    var->set_maybe_assigned();
+    var->SetMaybeAssigned();
   }
   var->set_is_used();
   return var;
@@ -1067,7 +1068,7 @@ Variable* Scope::NewTemporary(const AstRawString* name,
   Variable* var = new (zone()) Variable(scope, name, VariableMode::kTemporary,
                                         NORMAL_VARIABLE, kCreatedInitialized);
   scope->AddLocal(var);
-  if (maybe_assigned == kMaybeAssigned) var->set_maybe_assigned();
+  if (maybe_assigned == kMaybeAssigned) var->SetMaybeAssigned();
   return var;
 }
 
@@ -1405,7 +1406,7 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
         }
       } else {
         var->set_is_used();
-        if (proxy->is_assigned()) var->set_maybe_assigned();
+        if (proxy->is_assigned()) var->SetMaybeAssigned();
       }
     }
 
@@ -1887,11 +1888,14 @@ Variable* Scope::LookupWith(VariableProxy* proxy, Scope* scope,
     DCHECK(!scope->already_resolved_);
     var->set_is_used();
     var->ForceContextAllocation();
-    var->set_maybe_assigned();
+    if (proxy->is_assigned()) var->SetMaybeAssigned();
   }
   if (entry_point != nullptr) entry_point->variables_.Remove(var);
   Scope* target = entry_point == nullptr ? scope : entry_point;
-  return target->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
+  Variable* dynamic =
+      target->NonLocal(proxy->raw_name(), VariableMode::kDynamic);
+  dynamic->set_local_if_not_shadowed(var);
+  return dynamic;
 }
 
 Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
@@ -1920,7 +1924,7 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
   // script scope are always dynamic.
   if (var->IsGlobalObjectProperty()) {
     Scope* target = entry_point == nullptr ? scope : entry_point;
-    return target->NonLocal(proxy->raw_name(), VariableMode::kDynamicGlobal);
+    var = target->NonLocal(proxy->raw_name(), VariableMode::kDynamicGlobal);
   }
 
   if (var->is_dynamic()) return var;
@@ -2018,7 +2022,7 @@ void Scope::ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
       var->set_is_used();
       if (!var->is_dynamic()) {
         var->ForceContextAllocation();
-        if (proxy->is_assigned()) var->set_maybe_assigned();
+        if (proxy->is_assigned()) var->SetMaybeAssigned();
         return;
       }
     }
@@ -2062,7 +2066,7 @@ bool Scope::MustAllocate(Variable* var) {
   if (!var->raw_name()->IsEmpty() &&
       (inner_scope_calls_eval_ || is_catch_scope() || is_script_scope())) {
     var->set_is_used();
-    if (inner_scope_calls_eval_) var->set_maybe_assigned();
+    if (inner_scope_calls_eval_) var->SetMaybeAssigned();
   }
   DCHECK(!var->has_forced_context_allocation() || var->is_used());
   // Global variables do not need to be allocated.
@@ -2132,7 +2136,7 @@ void DeclarationScope::AllocateParameterLocals() {
     DCHECK_EQ(this, var->scope());
     if (has_mapped_arguments) {
       var->set_is_used();
-      var->set_maybe_assigned();
+      var->SetMaybeAssigned();
       var->ForceContextAllocation();
     }
     AllocateParameter(var, i);
