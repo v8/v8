@@ -392,7 +392,7 @@ base::Optional<MapRef> NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
 }
 
 // static
-NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
+NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
     JSHeapBroker* broker, Node* receiver, Node* effect,
     ZoneHandleSet<Map>* maps_return) {
   HeapObjectMatcher m(receiver);

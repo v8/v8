@@ -19,7 +19,7 @@ MapInference::MapInference(JSHeapBroker* broker, Node* object, Node* effect)
     : broker_(broker), object_(object) {
   ZoneHandleSet<Map> maps;
   auto result =
-      NodeProperties::InferReceiverMaps(broker_, object_, effect, &maps);
+      NodeProperties::InferReceiverMapsUnsafe(broker_, object_, effect, &maps);
   maps_.insert(maps_.end(), maps.begin(), maps.end());
   maps_state_ = (result == NodeProperties::kUnreliableReceiverMaps)
                     ? kUnreliableDontNeedGuard

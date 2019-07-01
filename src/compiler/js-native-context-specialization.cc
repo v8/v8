@@ -507,8 +507,8 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
     Node* receiver, Node* effect, Handle<HeapObject> prototype) {
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
+      NodeProperties::InferReceiverMapsUnsafe(broker(), receiver, effect,
+                                              &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return kMayBeInPrototypeChain;
 
   // Try to determine either that all of the {receiver_maps} have the given
@@ -3237,7 +3237,8 @@ bool JSNativeContextSpecialization::InferReceiverMaps(
     Node* receiver, Node* effect, MapHandles* receiver_maps) {
   ZoneHandleSet<Map> maps;
   NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect, &maps);
+      NodeProperties::InferReceiverMapsUnsafe(broker(), receiver, effect,
+                                              &maps);
   if (result == NodeProperties::kReliableReceiverMaps) {
     for (size_t i = 0; i < maps.size(); ++i) {
       receiver_maps->push_back(maps[i]);
