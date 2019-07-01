@@ -952,19 +952,6 @@ void StringIncludesIndexOfAssembler::Generate(SearchVariant variant,
   }
 }
 
-void StringBuiltinsAssembler::RequireObjectCoercible(Node* const context,
-                                                     Node* const value,
-                                                     const char* method_name) {
-  Label out(this), throw_exception(this, Label::kDeferred);
-  Branch(IsNullOrUndefined(value), &throw_exception, &out);
-
-  BIND(&throw_exception);
-  ThrowTypeError(context, MessageTemplate::kCalledOnNullOrUndefined,
-                 method_name);
-
-  BIND(&out);
-}
-
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     Node* const context, Node* const object, Node* const maybe_string,
     Handle<Symbol> symbol, DescriptorIndexAndName symbol_index,
@@ -1072,10 +1059,10 @@ compiler::Node* StringBuiltinsAssembler::GetSubstitution(
 TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Label out(this);
 
-  Node* const receiver = Parameter(Descriptor::kReceiver);
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* const search = Parameter(Descriptor::kSearch);
   Node* const replace = Parameter(Descriptor::kReplace);
-  Node* const context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   TNode<Smi> const smi_zero = SmiConstant(0);
 
@@ -1578,7 +1565,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Node* const receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* const separator = args.GetOptionalArgumentValue(kSeparatorArg);
   Node* const limit = args.GetOptionalArgumentValue(kLimitArg);
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));

@@ -114,9 +114,7 @@ namespace array {
   ArraySome(js-implicit context: Context, receiver: Object)(...arguments):
       Object {
     try {
-      if (IsNullOrUndefined(receiver)) {
-        goto NullOrUndefinedError;
-      }
+      RequireObjectCoercible(receiver, 'Array.prototype.some');
 
       // 1. Let O be ? ToObject(this value).
       const o: JSReceiver = ToObject_Inline(context, receiver);
@@ -145,9 +143,6 @@ namespace array {
     }
     label TypeError deferred {
       ThrowTypeError(kCalledNonCallable, arguments[0]);
-    }
-    label NullOrUndefinedError deferred {
-      ThrowTypeError(kCalledOnNullOrUndefined, 'Array.prototype.some');
     }
   }
 }

@@ -122,9 +122,8 @@ namespace object_setprototypeof {
       js-implicit context:
           Context)(_receiver: Object, object: Object, proto: Object): Object {
     // 1. Set O to ? RequireObjectCoercible(O).
-    if (IsNullOrUndefined(object)) {
-      ThrowTypeError(kCalledOnNullOrUndefined, 'Object.setPrototypeOf');
-    }
+    RequireObjectCoercible(object, 'Object.setPrototypeOf');
+
     // 2. If Type(proto) is neither Object nor Null, throw a TypeError
     // exception.
     // 3. If Type(O) is not Object, return O.
