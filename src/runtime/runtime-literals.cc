@@ -33,10 +33,6 @@ void PreInitializeLiteralSite(Handle<FeedbackVector> vector,
   vector->Set(slot, Smi::FromInt(1));
 }
 
-Handle<Object> InnerCreateBoilerplate(Isolate* isolate,
-                                      Handle<Object> description,
-                                      AllocationType allocation);
-
 enum DeepCopyHints { kNoHints = 0, kObjectIsShallow = 1 };
 
 template <class ContextObject>
@@ -86,14 +82,14 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     }
   }
 
-  if (object->map().is_deprecated()) {
+  if (object->map(isolate).is_deprecated()) {
     JSObject::MigrateInstance(isolate, object);
   }
 
   Handle<JSObject> copy;
   if (copying) {
     // JSFunction objects are not allowed to be in normal boilerplates at all.
-    DCHECK(!object->IsJSFunction());
+    DCHECK(!object->IsJSFunction(isolate));
     Handle<AllocationSite> site_to_pass;
     if (site_context()->ShouldCreateMemento(object)) {
       site_to_pass = site_context()->current();
@@ -111,23 +107,23 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   HandleScope scope(isolate);
 
   // Deep copy own properties. Arrays only have 1 property "length".
-  if (!copy->IsJSArray()) {
-    if (copy->HasFastProperties()) {
-      Handle<DescriptorArray> descriptors(copy->map().instance_descriptors(),
-                                          isolate);
-      int limit = copy->map().NumberOfOwnDescriptors();
+  if (!copy->IsJSArray(isolate)) {
+    if (copy->HasFastProperties(isolate)) {
+      Handle<DescriptorArray> descriptors(
+          copy->map(isolate).instance_descriptors(isolate), isolate);
+      int limit = copy->map(isolate).NumberOfOwnDescriptors();
       for (int i = 0; i < limit; i++) {
         DCHECK_EQ(kField, descriptors->GetDetails(i).location());
         DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
-        FieldIndex index = FieldIndex::ForDescriptor(copy->map(), i);
-        if (copy->IsUnboxedDoubleField(index)) continue;
-        Object raw = copy->RawFastPropertyAt(index);
-        if (raw.IsJSObject()) {
+        FieldIndex index = FieldIndex::ForDescriptor(copy->map(isolate), i);
+        if (copy->IsUnboxedDoubleField(isolate, index)) continue;
+        Object raw = copy->RawFastPropertyAt(isolate, index);
+        if (raw.IsJSObject(isolate)) {
           Handle<JSObject> value(JSObject::cast(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(
               isolate, value, VisitElementOrProperty(copy, value), JSObject);
           if (copying) copy->FastPropertyAtPut(index, *value);
-        } else if (copying && raw.IsMutableHeapNumber()) {
+        } else if (copying && raw.IsMutableHeapNumber(isolate)) {
           DCHECK(descriptors->GetDetails(i).representation().IsDouble());
           uint64_t double_value = MutableHeapNumber::cast(raw).value_as_bits();
           auto value =
@@ -136,11 +132,12 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         }
       }
     } else {
-      Handle<NameDictionary> dict(copy->property_dictionary(), isolate);
-      for (int i = 0; i < dict->Capacity(); i++) {
-        Object raw = dict->ValueAt(i);
-        if (!raw.IsJSObject()) continue;
-        DCHECK(dict->KeyAt(i).IsName());
+      Handle<NameDictionary> dict(copy->property_dictionary(isolate), isolate);
+      int capacity = dict->Capacity();
+      for (int i = 0; i < capacity; i++) {
+        Object raw = dict->ValueAt(isolate, i);
+        if (!raw.IsJSObject(isolate)) continue;
+        DCHECK(dict->KeyAt(isolate, i).IsName());
         Handle<JSObject> value(JSObject::cast(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, value, VisitElementOrProperty(copy, value), JSObject);
@@ -149,19 +146,21 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     }
 
     // Assume non-arrays don't end up having elements.
-    if (copy->elements().length() == 0) return copy;
+    if (copy->elements(isolate).length() == 0) return copy;
   }
 
   // Deep copy own elements.
-  switch (copy->GetElementsKind()) {
+  switch (copy->GetElementsKind(isolate)) {
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_ELEMENTS: {
-      Handle<FixedArray> elements(FixedArray::cast(copy->elements()), isolate);
-      if (elements->map() == ReadOnlyRoots(isolate).fixed_cow_array_map()) {
+      Handle<FixedArray> elements(FixedArray::cast(copy->elements(isolate)),
+                                  isolate);
+      if (elements->map(isolate) ==
+          ReadOnlyRoots(isolate).fixed_cow_array_map()) {
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
           DCHECK(!elements->get(i).IsJSObject());
@@ -169,8 +168,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 #endif
       } else {
         for (int i = 0; i < elements->length(); i++) {
-          Object raw = elements->get(i);
-          if (!raw.IsJSObject()) continue;
+          Object raw = elements->get(isolate, i);
+          if (!raw.IsJSObject(isolate)) continue;
           Handle<JSObject> value(JSObject::cast(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(
               isolate, value, VisitElementOrProperty(copy, value), JSObject);
@@ -180,12 +179,12 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      Handle<NumberDictionary> element_dictionary(copy->element_dictionary(),
-                                                  isolate);
+      Handle<NumberDictionary> element_dictionary(
+          copy->element_dictionary(isolate), isolate);
       int capacity = element_dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
-        Object raw = element_dictionary->ValueAt(i);
-        if (!raw.IsJSObject()) continue;
+        Object raw = element_dictionary->ValueAt(isolate, i);
+        if (!raw.IsJSObject(isolate)) continue;
         Handle<JSObject> value(JSObject::cast(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, value, VisitElementOrProperty(copy, value), JSObject);
@@ -392,13 +391,26 @@ Handle<JSObject> CreateObjectLiteral(
   int length = object_boilerplate_description->size();
   // TODO(verwaest): Support tracking representations in the boilerplate.
   for (int index = 0; index < length; index++) {
-    Handle<Object> key(object_boilerplate_description->name(index), isolate);
-    Handle<Object> value(object_boilerplate_description->value(index), isolate);
+    Handle<Object> key(object_boilerplate_description->name(isolate, index),
+                       isolate);
+    Handle<Object> value(object_boilerplate_description->value(isolate, index),
+                         isolate);
 
-    if (value->IsObjectBoilerplateDescription() ||
-        value->IsArrayBoilerplateDescription()) {
-      value = InnerCreateBoilerplate(isolate, value, allocation);
+    if (value->IsHeapObject()) {
+      if (HeapObject::cast(*value).IsArrayBoilerplateDescription(isolate)) {
+        Handle<ArrayBoilerplateDescription> boilerplate =
+            Handle<ArrayBoilerplateDescription>::cast(value);
+        value = CreateArrayLiteral(isolate, boilerplate, allocation);
+
+      } else if (HeapObject::cast(*value).IsObjectBoilerplateDescription(
+                     isolate)) {
+        Handle<ObjectBoilerplateDescription> boilerplate =
+            Handle<ObjectBoilerplateDescription>::cast(value);
+        value = CreateObjectLiteral(isolate, boilerplate, boilerplate->flags(),
+                                    allocation);
+      }
     }
+
     uint32_t element_index = 0;
     if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
@@ -433,7 +445,7 @@ Handle<JSObject> CreateArrayLiteral(
       array_boilerplate_description->elements_kind();
 
   Handle<FixedArrayBase> constant_elements_values(
-      array_boilerplate_description->constant_elements(), isolate);
+      array_boilerplate_description->constant_elements(isolate), isolate);
 
   // Create the JSArray.
   Handle<FixedArrayBase> copied_elements_values;
@@ -442,7 +454,7 @@ Handle<JSObject> CreateArrayLiteral(
         Handle<FixedDoubleArray>::cast(constant_elements_values));
   } else {
     DCHECK(IsSmiOrObjectElementsKind(constant_elements_kind));
-    const bool is_cow = (constant_elements_values->map() ==
+    const bool is_cow = (constant_elements_values->map(isolate) ==
                          ReadOnlyRoots(isolate).fixed_cow_array_map());
     if (is_cow) {
       copied_elements_values = constant_elements_values;
@@ -459,42 +471,34 @@ Handle<JSObject> CreateArrayLiteral(
       Handle<FixedArray> fixed_array_values_copy =
           isolate->factory()->CopyFixedArray(fixed_array_values);
       copied_elements_values = fixed_array_values_copy;
-      FOR_WITH_HANDLE_SCOPE(
-          isolate, int, i = 0, i, i < fixed_array_values->length(), i++, {
-            Handle<Object> value(fixed_array_values->get(i), isolate);
+      for (int i = 0; i < fixed_array_values->length(); i++) {
+        Object value = fixed_array_values_copy->get(isolate, i);
+        HeapObject value_heap_object;
+        if (value.GetHeapObject(isolate, &value_heap_object)) {
+          if (value_heap_object.IsArrayBoilerplateDescription(isolate)) {
+            HandleScope sub_scope(isolate);
+            Handle<ArrayBoilerplateDescription> boilerplate(
+                ArrayBoilerplateDescription::cast(value_heap_object), isolate);
+            Handle<JSObject> result =
+                CreateArrayLiteral(isolate, boilerplate, allocation);
+            fixed_array_values_copy->set(i, *result);
 
-            if (value->IsArrayBoilerplateDescription() ||
-                value->IsObjectBoilerplateDescription()) {
-              Handle<Object> result =
-                  InnerCreateBoilerplate(isolate, value, allocation);
-              fixed_array_values_copy->set(i, *result);
-            }
-          });
+          } else if (value_heap_object.IsObjectBoilerplateDescription(
+                         isolate)) {
+            HandleScope sub_scope(isolate);
+            Handle<ObjectBoilerplateDescription> boilerplate(
+                ObjectBoilerplateDescription::cast(value_heap_object), isolate);
+            Handle<JSObject> result = CreateObjectLiteral(
+                isolate, boilerplate, boilerplate->flags(), allocation);
+            fixed_array_values_copy->set(i, *result);
+          }
+        }
+      }
     }
   }
-
   return isolate->factory()->NewJSArrayWithElements(
       copied_elements_values, constant_elements_kind,
       copied_elements_values->length(), allocation);
-}
-
-Handle<Object> InnerCreateBoilerplate(Isolate* isolate,
-                                      Handle<Object> description,
-                                      AllocationType allocation) {
-  if (description->IsObjectBoilerplateDescription()) {
-    Handle<ObjectBoilerplateDescription> object_boilerplate_description =
-        Handle<ObjectBoilerplateDescription>::cast(description);
-    return ObjectLiteralHelper::Create(isolate, object_boilerplate_description,
-                                       object_boilerplate_description->flags(),
-                                       allocation);
-  } else {
-    DCHECK(description->IsArrayBoilerplateDescription());
-    Handle<ArrayBoilerplateDescription> array_boilerplate_description =
-        Handle<ArrayBoilerplateDescription>::cast(description);
-    return ArrayLiteralHelper::Create(
-        isolate, array_boilerplate_description,
-        array_boilerplate_description->elements_kind(), allocation);
-  }
 }
 
 inline DeepCopyHints DecodeCopyHints(int flags) {

@@ -32,7 +32,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   using Key = typename Shape::Key;
   // Returns the value at entry.
   Object ValueAt(int entry) {
-    return this->get(DerivedHashTable::EntryToIndex(entry) + 1);
+    Isolate* isolate = GetIsolateForPtrCompr(*this);
+    return ValueAt(isolate, entry);
+  }
+  Object ValueAt(Isolate* isolate, int entry) {
+    return this->get(isolate, DerivedHashTable::EntryToIndex(entry) + 1);
   }
 
   // Set the value for entry.
