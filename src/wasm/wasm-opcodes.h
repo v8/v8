@@ -387,6 +387,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(I8x16ExtractLane, 0xfd05, _)                 \
   V(I16x8ExtractLane, 0xfd09, _)                 \
   V(I32x4ExtractLane, 0xfd0d, _)                 \
+  V(I64x2ExtractLane, 0xfd10, _)                 \
   V(F32x4ExtractLane, 0xfd13, _)                 \
   V(I8x16Shl, 0xfd54, _)                         \
   V(I8x16ShrS, 0xfd55, _)                        \
@@ -402,6 +403,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(I8x16ReplaceLane, 0xfd07, _)                 \
   V(I16x8ReplaceLane, 0xfd0b, _)                 \
   V(I32x4ReplaceLane, 0xfd0e, _)                 \
+  V(I64x2ReplaceLane, 0xfd11, _)                 \
   V(F32x4ReplaceLane, 0xfd14, _)
 
 #define FOREACH_SIMD_1_OPERAND_OPCODE(V)   \

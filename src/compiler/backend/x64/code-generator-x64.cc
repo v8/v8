@@ -2419,6 +2419,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ pshufd(dst, dst, 0x44);
       break;
     }
+    case kX64I64x2ExtractLane: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      __ pextrq(i.OutputRegister(), i.InputSimd128Register(0), i.InputInt8(1));
+      break;
+    }
+    case kX64I64x2ReplaceLane: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      if (instr->InputAt(2)->IsRegister()) {
+        __ pinsrq(i.OutputSimd128Register(), i.InputRegister(2),
+                  i.InputInt8(1));
+      } else {
+        __ pinsrq(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+      }
+      break;
+    }
     case kX64I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (instr->InputAt(0)->IsRegister()) {

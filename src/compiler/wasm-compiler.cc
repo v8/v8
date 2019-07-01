@@ -4337,6 +4337,12 @@ Node* WasmGraphBuilder::SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
     case wasm::kExprF32x4ReplaceLane:
       return graph()->NewNode(mcgraph()->machine()->F32x4ReplaceLane(lane),
                               inputs[0], inputs[1]);
+    case wasm::kExprI64x2ExtractLane:
+      return graph()->NewNode(mcgraph()->machine()->I64x2ExtractLane(lane),
+                              inputs[0]);
+    case wasm::kExprI64x2ReplaceLane:
+      return graph()->NewNode(mcgraph()->machine()->I64x2ReplaceLane(lane),
+                              inputs[0], inputs[1]);
     case wasm::kExprI32x4ExtractLane:
       return graph()->NewNode(mcgraph()->machine()->I32x4ExtractLane(lane),
                               inputs[0]);

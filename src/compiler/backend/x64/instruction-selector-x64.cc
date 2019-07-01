@@ -2547,6 +2547,7 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_TYPES(V) \
   V(F32x4)            \
+  V(I64x2)            \
   V(I32x4)            \
   V(I16x8)            \
   V(I8x16)
@@ -2669,7 +2670,6 @@ void InstructionSelector::VisitS128Zero(Node* node) {
   }
 SIMD_TYPES(VISIT_SIMD_SPLAT)
 VISIT_SIMD_SPLAT(F64x2)
-VISIT_SIMD_SPLAT(I64x2)
 #undef VISIT_SIMD_SPLAT
 
 #define VISIT_SIMD_EXTRACT_LANE(Type)                              \

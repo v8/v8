@@ -443,6 +443,7 @@ MachineType AtomicOpType(Operator const* op) {
 
 #define SIMD_LANE_OP_LIST(V) \
   V(F32x4, 4)                \
+  V(I64x2, 2)                \
   V(I32x4, 4)                \
   V(I16x8, 8)                \
   V(I8x16, 16)

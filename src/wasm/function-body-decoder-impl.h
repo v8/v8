@@ -1050,6 +1050,10 @@ class WasmDecoder : public Decoder {
                        SimdLaneImmediate<validate>& imm) {
     uint8_t num_lanes = 0;
     switch (opcode) {
+      case kExprI64x2ExtractLane:
+      case kExprI64x2ReplaceLane:
+        num_lanes = 2;
+        break;
       case kExprF32x4ExtractLane:
       case kExprF32x4ReplaceLane:
       case kExprI32x4ExtractLane:
@@ -2679,6 +2683,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         len = SimdExtractLane(opcode, kWasmF32);
         break;
       }
+      case kExprI64x2ExtractLane: {
+        len = SimdExtractLane(opcode, kWasmI64);
+        break;
+      }
       case kExprI32x4ExtractLane:
       case kExprI16x8ExtractLane:
       case kExprI8x16ExtractLane: {
@@ -2687,6 +2695,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       }
       case kExprF32x4ReplaceLane: {
         len = SimdReplaceLane(opcode, kWasmF32);
+        break;
+      }
+      case kExprI64x2ReplaceLane: {
+        len = SimdReplaceLane(opcode, kWasmI64);
         break;
       }
       case kExprI32x4ReplaceLane:

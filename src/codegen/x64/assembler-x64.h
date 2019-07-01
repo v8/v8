@@ -1069,12 +1069,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void pextrw(Operand dst, XMMRegister src, int8_t imm8);
   void pextrd(Register dst, XMMRegister src, int8_t imm8);
   void pextrd(Operand dst, XMMRegister src, int8_t imm8);
+  void pextrq(Register dst, XMMRegister src, int8_t imm8);
   void pinsrb(XMMRegister dst, Register src, int8_t imm8);
   void pinsrb(XMMRegister dst, Operand src, int8_t imm8);
   void pinsrw(XMMRegister dst, Register src, int8_t imm8);
   void pinsrw(XMMRegister dst, Operand src, int8_t imm8);
   void pinsrd(XMMRegister dst, Register src, int8_t imm8);
   void pinsrd(XMMRegister dst, Operand src, int8_t imm8);
+  void pinsrq(XMMRegister dst, Register src, int8_t imm8);
+  void pinsrq(XMMRegister dst, Operand src, int8_t imm8);
 
   void roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);

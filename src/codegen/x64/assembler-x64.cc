@@ -3082,6 +3082,42 @@ void Assembler::pextrd(Operand dst, XMMRegister src, int8_t imm8) {
   emit(imm8);
 }
 
+void Assembler::pextrq(Register dst, XMMRegister src, int8_t imm8) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_rex_64(src, dst);
+  emit(0x0F);
+  emit(0x3A);
+  emit(0x16);
+  emit_sse_operand(src, dst);
+  emit(imm8);
+}
+
+void Assembler::pinsrq(XMMRegister dst, Register src, int8_t imm8) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x3A);
+  emit(0x22);
+  emit_sse_operand(dst, src);
+  emit(imm8);
+}
+
+void Assembler::pinsrq(XMMRegister dst, Operand src, int8_t imm8) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x3A);
+  emit(0x22);
+  emit_sse_operand(dst, src);
+  emit(imm8);
+}
+
 void Assembler::pinsrd(XMMRegister dst, Register src, int8_t imm8) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);

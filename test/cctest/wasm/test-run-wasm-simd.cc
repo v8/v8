@@ -291,6 +291,11 @@ T Sqrt(T a) {
   x, y, WASM_SIMD_OP(kExprF32x4ReplaceLane), TO_BYTE(lane)
 
 #define WASM_SIMD_I64x2_SPLAT(x) WASM_SIMD_SPLAT(I64x2, x)
+#define WASM_SIMD_I64x2_EXTRACT_LANE(lane, x) \
+  x, WASM_SIMD_OP(kExprI64x2ExtractLane), TO_BYTE(lane)
+#define WASM_SIMD_I64x2_REPLACE_LANE(lane, x, y) \
+  x, y, WASM_SIMD_OP(kExprI64x2ReplaceLane), TO_BYTE(lane)
+
 #define WASM_SIMD_I32x4_SPLAT(x) WASM_SIMD_SPLAT(I32x4, x)
 #define WASM_SIMD_I32x4_EXTRACT_LANE(lane, x) \
   x, WASM_SIMD_OP(kExprI32x4ExtractLane), TO_BYTE(lane)
@@ -722,6 +727,35 @@ WASM_SIMD_TEST(I64x2Splat) {
       int64_t actual = ReadLittleEndianValue<int64_t>(&g[i]);
       CHECK_EQ(actual, expected);
     }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtractWithF64x2) {
+  WasmRunner<int64_t> r(execution_tier, lower_simd);
+  BUILD(r, WASM_IF_ELSE_L(
+               WASM_I64_EQ(WASM_SIMD_I64x2_EXTRACT_LANE(
+                               0, WASM_SIMD_F64x2_SPLAT(WASM_F64(1e15))),
+                           WASM_I64_REINTERPRET_F64(WASM_F64(1e15))),
+               WASM_I64V(1), WASM_I64V(0)));
+  CHECK_EQ(1, r.Call());
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2ReplaceLane) {
+  WasmRunner<int32_t> r(execution_tier, lower_simd);
+  // Set up a global to hold input/output vector.
+  int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
+  // Build function to replace each lane with its index.
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I64x2_SPLAT(WASM_I64V(-1))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I64x2_REPLACE_LANE(
+                                  0, WASM_GET_LOCAL(temp1), WASM_I64V(0))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_I64x2_REPLACE_LANE(
+                               1, WASM_GET_LOCAL(temp1), WASM_I64V(1))),
+        WASM_ONE);
+
+  r.Call();
+  for (int64_t i = 0; i < 2; i++) {
+    CHECK_EQ(i, ReadLittleEndianValue<int64_t>(&g[i]));
   }
 }
 #endif  // V8_TARGET_ARCH_X64
@@ -2471,9 +2505,13 @@ WASM_SIMD_TEST_NO_LOWERING(I16x8GtUMixed) {
 #undef WASM_SIMD_SHIFT_OP
 #undef WASM_SIMD_CONCAT_OP
 #undef WASM_SIMD_SELECT
+#undef WASM_SIMD_F64x2_SPLAT
 #undef WASM_SIMD_F32x4_SPLAT
 #undef WASM_SIMD_F32x4_EXTRACT_LANE
 #undef WASM_SIMD_F32x4_REPLACE_LANE
+#undef WASM_SIMD_I64x2_SPLAT
+#undef WASM_SIMD_I64x2_EXTRACT_LANE
+#undef WASM_SIMD_I64x2_REPLACE_LANE
 #undef WASM_SIMD_I32x4_SPLAT
 #undef WASM_SIMD_I32x4_EXTRACT_LANE
 #undef WASM_SIMD_I32x4_REPLACE_LANE

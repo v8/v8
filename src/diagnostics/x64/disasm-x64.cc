@@ -1715,13 +1715,14 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += 1;
       } else if (third_byte == 0x16) {
         get_modrm(*current, &mod, &regop, &rm);
-        AppendToBuffer("pextrd ");  // reg/m32, xmm, imm8
+        // reg/m32/reg/m64, xmm, imm8
+        AppendToBuffer("pextr%c ", rex_w() ? 'q' : 'd');
         current += PrintRightOperand(current);
         AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
         current += 1;
       } else if (third_byte == 0x20) {
         get_modrm(*current, &mod, &regop, &rm);
-        AppendToBuffer("pinsrd ");  // xmm, reg/m32, imm8
+        AppendToBuffer("pinsrb ");  // xmm, reg/m32, imm8
         AppendToBuffer(" %s,", NameOfXMMRegister(regop));
         current += PrintRightOperand(current);
         AppendToBuffer(",%d", (*current) & 3);
@@ -1735,7 +1736,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += 1;
       } else if (third_byte == 0x22) {
         get_modrm(*current, &mod, &regop, &rm);
-        AppendToBuffer("pinsrd ");  // xmm, reg/m32, imm8
+        // xmm, reg/m32/reg/m64, imm8
+        AppendToBuffer("pinsr%c ", rex_w() ? 'q' : 'd');
         AppendToBuffer(" %s,", NameOfXMMRegister(regop));
         current += PrintRightOperand(current);
         AppendToBuffer(",%d", (*current) & 3);

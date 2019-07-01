@@ -542,8 +542,11 @@ TEST(DisasmX64) {
       __ pinsrw(xmm2, rcx, 1);
       __ pextrd(rbx, xmm15, 0);
       __ pextrd(r12, xmm0, 1);
+      __ pextrq(r12, xmm0, 1);
       __ pinsrd(xmm9, r9, 0);
       __ pinsrd(xmm5, Operand(rax, 4), 1);
+      __ pinsrq(xmm9, r9, 0);
+      __ pinsrq(xmm5, Operand(rax, 4), 1);
       __ pblendw(xmm5, xmm1, 1);
       __ pblendw(xmm9, Operand(rax, 4), 1);
 

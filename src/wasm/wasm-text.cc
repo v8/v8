@@ -307,10 +307,12 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
           case kExprI8x16ExtractLane:
           case kExprI16x8ExtractLane:
           case kExprI32x4ExtractLane:
+          case kExprI64x2ExtractLane:
           case kExprF32x4ExtractLane:
           case kExprI8x16ReplaceLane:
           case kExprI16x8ReplaceLane:
           case kExprI32x4ReplaceLane:
+          case kExprI64x2ReplaceLane:
           case kExprF32x4ReplaceLane: {
             SimdLaneImmediate<Decoder::kNoValidate> imm(&i, i.pc());
             os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.lane;

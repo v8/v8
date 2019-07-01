@@ -754,6 +754,8 @@
   V(F32x4Gt)                    \
   V(F32x4Ge)                    \
   V(I64x2Splat)                 \
+  V(I64x2ExtractLane)           \
+  V(I64x2ReplaceLane)           \
   V(I32x4Splat)                 \
   V(I32x4ExtractLane)           \
   V(I32x4ReplaceLane)           \
