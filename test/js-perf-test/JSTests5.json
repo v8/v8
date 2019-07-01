@@ -572,7 +572,8 @@
 	      "spread-call.js",
         "tagged-template.js",
         "has-own-property.js",
-        "array-map.js"
+        "array-map.js",
+        "array-reduce.js"
       ],
       "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
       "tests": [
