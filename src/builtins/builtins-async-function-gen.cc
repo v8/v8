@@ -95,26 +95,18 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
       Signed(IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
                        formal_parameter_count));
 
-  // Allocate space for the promise, the async function object
-  // and the register file.
-  TNode<IntPtrT> size = IntPtrAdd(
-      IntPtrConstant(JSPromise::kSizeWithEmbedderFields +
-                     JSAsyncFunctionObject::kSize + FixedArray::kHeaderSize),
-      Signed(WordShl(parameters_and_register_length,
-                     IntPtrConstant(kTaggedSizeLog2))));
-  TNode<HeapObject> base = AllocateInNewSpace(size);
-
-  // Initialize the register file.
-  TNode<FixedArray> parameters_and_registers = UncheckedCast<FixedArray>(
-      InnerAllocate(base, JSAsyncFunctionObject::kSize +
-                              JSPromise::kSizeWithEmbedderFields));
-  StoreMapNoWriteBarrier(parameters_and_registers, RootIndex::kFixedArrayMap);
-  StoreObjectFieldNoWriteBarrier(parameters_and_registers,
-                                 FixedArray::kLengthOffset,
-                                 SmiFromIntPtr(parameters_and_register_length));
+  // Allocate and initialize the register file.
+  TNode<FixedArrayBase> parameters_and_registers =
+      AllocateFixedArray(HOLEY_ELEMENTS, parameters_and_register_length,
+                         INTPTR_PARAMETERS, kAllowLargeObjectAllocation);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
                           IntPtrConstant(0), parameters_and_register_length,
                           RootIndex::kUndefinedValue);
+
+  // Allocate space for the promise, the async function object.
+  TNode<IntPtrT> size = IntPtrConstant(JSPromise::kSizeWithEmbedderFields +
+                                       JSAsyncFunctionObject::kSize);
+  TNode<HeapObject> base = AllocateInNewSpace(size);
 
   // Initialize the promise.
   TNode<Context> native_context = LoadNativeContext(context);
