@@ -13,6 +13,7 @@
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
+#include "src/base/platform/time.h"
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/wasm-compiler.h"
@@ -1067,6 +1068,43 @@ bool MayCompriseLazyFunctions(const WasmModule* module,
   return false;
 }
 
+class CompilationTimeCallback {
+ public:
+  enum CompileMode { kSynchronous, kAsync, kStreaming };
+  explicit CompilationTimeCallback(std::shared_ptr<Counters> async_counters,
+                                   CompileMode compile_mode)
+      : start_time_(base::TimeTicks::Now()),
+        async_counters_(std::move(async_counters)),
+        compile_mode_(compile_mode) {}
+
+  void operator()(CompilationEvent event) {
+    DCHECK(base::TimeTicks::IsHighResolution());
+    if (event == CompilationEvent::kFinishedBaselineCompilation) {
+      auto now = base::TimeTicks::Now();
+      auto duration = now - start_time_;
+      // Reset {start_time_} to measure tier-up time.
+      start_time_ = now;
+      if (compile_mode_ != kSynchronous) {
+        TimedHistogram* histogram =
+            compile_mode_ == kAsync
+                ? async_counters_->wasm_async_compile_wasm_module_time()
+                : async_counters_->wasm_streaming_compile_wasm_module_time();
+        histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
+      }
+    }
+    if (event == CompilationEvent::kFinishedTopTierCompilation) {
+      auto duration = base::TimeTicks::Now() - start_time_;
+      TimedHistogram* histogram = async_counters_->wasm_tier_up_module_time();
+      histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
+    }
+  }
+
+ private:
+  base::TimeTicks start_time_;
+  const std::shared_ptr<Counters> async_counters_;
+  const CompileMode compile_mode_;
+};
+
 void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
                          const WasmModule* wasm_module,
                          NativeModule* native_module) {
@@ -1100,6 +1138,10 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
           baseline_finished_semaphore->Signal();
         }
       });
+  if (base::TimeTicks::IsHighResolution()) {
+    compilation_state->AddCallback(CompilationTimeCallback{
+        isolate->async_counters(), CompilationTimeCallback::kSynchronous});
+  }
 
   // Initialize the compilation units and kick off background compile tasks.
   InitializeCompilationUnits(native_module);
@@ -1370,6 +1412,7 @@ void AsyncCompileJob::FinishCompile() {
     // TODO(wasm): compiling wrappers should be made async.
     CompileWrappers();
   }
+
   FinishModule();
 }
 
@@ -1673,6 +1716,14 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     CompilationStateImpl* compilation_state =
         Impl(job->native_module_->compilation_state());
     compilation_state->AddCallback(CompilationStateCallback{job});
+    if (base::TimeTicks::IsHighResolution()) {
+      auto compile_mode = job->stream_ == nullptr
+                              ? CompilationTimeCallback::kAsync
+                              : CompilationTimeCallback::kStreaming;
+      compilation_state->AddCallback(CompilationTimeCallback{
+          job->isolate_->async_counters(), compile_mode});
+    }
+
     if (start_compilation_) {
       // TODO(ahaas): Try to remove the {start_compilation_} check when
       // streaming decoding is done in the background. If
@@ -1935,6 +1986,11 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   // callback from the embedder.
   HandleScope scope(job_->isolate_);
   SaveAndSwitchContext saved_context(job_->isolate_, *job_->native_context_);
+
+  // Record the size of the wire bytes. In synchronous and asynchronous
+  // (non-streaming) compilation, this happens in {DecodeWasmModule}.
+  auto* histogram = job_->isolate_->counters()->wasm_wasm_module_size_bytes();
+  histogram->AddSample(static_cast<int>(bytes.size()));
 
   bool needs_finish = job_->DecrementAndCheckFinisherCount();
   if (job_->native_module_ == nullptr) {
