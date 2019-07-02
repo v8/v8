@@ -184,6 +184,7 @@ namespace compiler {
   V(X64I32x4Splat)                        \
   V(X64I64x2ExtractLane)                  \
   V(X64I64x2ReplaceLane)                  \
+  V(X64I64x2Neg)                          \
   V(X64I32x4ExtractLane)                  \
   V(X64I32x4ReplaceLane)                  \
   V(X64I32x4SConvertF32x4)                \

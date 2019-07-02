@@ -219,6 +219,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     // SIMD opcodes.
     CASE_SIMD_OP(Splat, "splat")
     CASE_SIMD_OP(Neg, "neg")
+    CASE_I64x2_OP(Neg, "neg")
     CASE_SIMD_OP(Eq, "eq")
     CASE_SIMD_OP(Ne, "ne")
     CASE_SIMD_OP(Add, "add")

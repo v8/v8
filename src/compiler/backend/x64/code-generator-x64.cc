@@ -2434,6 +2434,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kX64I64x2Neg: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      if (dst == src) {
+        __ movapd(kScratchDoubleReg, src);
+        src = kScratchDoubleReg;
+      }
+      __ pxor(dst, dst);
+      __ psubq(dst, src);
+      break;
+    }
     case kX64I64x2Add: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddq(i.OutputSimd128Register(), i.InputSimd128Register(1));
