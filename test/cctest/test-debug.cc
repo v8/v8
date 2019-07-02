@@ -569,6 +569,110 @@ TEST(BreakPointBuiltin) {
   CheckDebuggerUnloaded();
 }
 
+TEST(BreakPointApiIntrinsics) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+
+  v8::Local<v8::Function> builtin;
+
+  // === Test that using API-exposed functions won't trigger breakpoints ===
+  {
+    v8::Local<v8::Function> weakmap_get =
+        CompileRun("WeakMap.prototype.get").As<v8::Function>();
+    SetBreakPoint(weakmap_get, 0);
+    v8::Local<v8::Function> weakmap_set =
+        CompileRun("WeakMap.prototype.set").As<v8::Function>();
+    SetBreakPoint(weakmap_set, 0);
+
+    // Run with breakpoint.
+    break_point_hit_count = 0;
+    CompileRun("var w = new WeakMap(); w.set(w, 1); w.get(w);");
+    CHECK_EQ(2, break_point_hit_count);
+
+    break_point_hit_count = 0;
+    v8::Local<v8::debug::WeakMap> weakmap =
+        v8::debug::WeakMap::New(env->GetIsolate());
+    CHECK(!weakmap->Set(env.local(), weakmap, v8_num(1)).IsEmpty());
+    CHECK(!weakmap->Get(env.local(), weakmap).IsEmpty());
+    CHECK_EQ(0, break_point_hit_count);
+  }
+
+  {
+    v8::Local<v8::Function> object_to_string =
+        CompileRun("Object.prototype.toString").As<v8::Function>();
+    SetBreakPoint(object_to_string, 0);
+
+    // Run with breakpoint.
+    break_point_hit_count = 0;
+    CompileRun("var o = {}; o.toString();");
+    CHECK_EQ(1, break_point_hit_count);
+
+    break_point_hit_count = 0;
+    v8::Local<v8::Object> object = v8::Object::New(env->GetIsolate());
+    CHECK(!object->ObjectProtoToString(env.local()).IsEmpty());
+    CHECK_EQ(0, break_point_hit_count);
+  }
+
+  {
+    v8::Local<v8::Function> map_set =
+        CompileRun("Map.prototype.set").As<v8::Function>();
+    v8::Local<v8::Function> map_get =
+        CompileRun("Map.prototype.get").As<v8::Function>();
+    v8::Local<v8::Function> map_has =
+        CompileRun("Map.prototype.has").As<v8::Function>();
+    v8::Local<v8::Function> map_delete =
+        CompileRun("Map.prototype.delete").As<v8::Function>();
+    SetBreakPoint(map_set, 0);
+    SetBreakPoint(map_get, 0);
+    SetBreakPoint(map_has, 0);
+    SetBreakPoint(map_delete, 0);
+
+    // Run with breakpoint.
+    break_point_hit_count = 0;
+    CompileRun(
+        "var m = new Map(); m.set(m, 1); m.get(m); m.has(m); m.delete(m);");
+    CHECK_EQ(4, break_point_hit_count);
+
+    break_point_hit_count = 0;
+    v8::Local<v8::Map> map = v8::Map::New(env->GetIsolate());
+    CHECK(!map->Set(env.local(), map, v8_num(1)).IsEmpty());
+    CHECK(!map->Get(env.local(), map).IsEmpty());
+    CHECK(map->Has(env.local(), map).FromJust());
+    CHECK(map->Delete(env.local(), map).FromJust());
+    CHECK_EQ(0, break_point_hit_count);
+  }
+
+  {
+    v8::Local<v8::Function> set_add =
+        CompileRun("Set.prototype.add").As<v8::Function>();
+    v8::Local<v8::Function> set_get =
+        CompileRun("Set.prototype.has").As<v8::Function>();
+    v8::Local<v8::Function> set_delete =
+        CompileRun("Set.prototype.delete").As<v8::Function>();
+    SetBreakPoint(set_add, 0);
+    SetBreakPoint(set_get, 0);
+    SetBreakPoint(set_delete, 0);
+
+    // Run with breakpoint.
+    break_point_hit_count = 0;
+    CompileRun("var s = new Set(); s.add(s); s.has(s); s.delete(s);");
+    CHECK_EQ(3, break_point_hit_count);
+
+    break_point_hit_count = 0;
+    v8::Local<v8::Set> set = v8::Set::New(env->GetIsolate());
+    CHECK(!set->Add(env.local(), set).IsEmpty());
+    CHECK(set->Has(env.local(), set).FromJust());
+    CHECK(set->Delete(env.local(), set).FromJust());
+    CHECK_EQ(0, break_point_hit_count);
+  }
+
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
 TEST(BreakPointJSBuiltin) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
