@@ -73,13 +73,18 @@ class DescriptorArray : public HeapObject {
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline Name GetKey(int descriptor_number) const;
+  inline Name GetKey(Isolate* isolate, int descriptor_number) const;
   inline Object GetStrongValue(int descriptor_number);
+  inline Object GetStrongValue(Isolate* isolate, int descriptor_number);
   inline MaybeObject GetValue(int descriptor_number);
+  inline MaybeObject GetValue(Isolate* isolate, int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
   inline FieldType GetFieldType(int descriptor_number);
+  inline FieldType GetFieldType(Isolate* isolate, int descriptor_number);
 
   inline Name GetSortedKey(int descriptor_number);
+  inline Name GetSortedKey(Isolate* isolate, int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
   inline void SetSortedKey(int pointer, int descriptor_number);
 

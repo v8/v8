@@ -173,8 +173,8 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   }
 }
 
-PropertyDetails Map::GetLastDescriptorDetails() const {
-  return instance_descriptors().GetDetails(LastAdded());
+PropertyDetails Map::GetLastDescriptorDetails(Isolate* isolate) const {
+  return instance_descriptors(isolate).GetDetails(LastAdded());
 }
 
 int Map::LastAdded() const {

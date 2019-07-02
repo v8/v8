@@ -633,7 +633,7 @@ class Map : public HeapObject {
   // chain state.
   inline bool IsPrototypeValidityCellValid() const;
 
-  inline PropertyDetails GetLastDescriptorDetails() const;
+  inline PropertyDetails GetLastDescriptorDetails(Isolate* isolate) const;
 
   inline int LastAdded() const;
 

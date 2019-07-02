@@ -614,7 +614,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
     property_details_ =
         PropertyDetails(kData, attributes, PropertyCellType::kNoCell);
   } else {
-    property_details_ = transition->GetLastDescriptorDetails();
+    property_details_ = transition->GetLastDescriptorDetails(isolate_);
     has_property_ = true;
   }
 }
@@ -650,7 +650,7 @@ void LookupIterator::ApplyTransitionToDataProperty(
   if (simple_transition) {
     int number = transition->LastAdded();
     number_ = static_cast<uint32_t>(number);
-    property_details_ = transition->GetLastDescriptorDetails();
+    property_details_ = transition->GetLastDescriptorDetails(isolate_);
     state_ = DATA;
   } else if (receiver->map().is_dictionary_map()) {
     Handle<NameDictionary> dictionary(receiver->property_dictionary(),
@@ -736,7 +736,7 @@ void LookupIterator::TransitionToAccessorProperty(
     if (simple_transition) {
       int number = new_map->LastAdded();
       number_ = static_cast<uint32_t>(number);
-      property_details_ = new_map->GetLastDescriptorDetails();
+      property_details_ = new_map->GetLastDescriptorDetails(isolate_);
       state_ = ACCESSOR;
       return;
     }

@@ -102,9 +102,8 @@ PropertyDetails TransitionsAccessor::GetTargetDetails(Name name, Map target) {
   return descriptors.GetDetails(descriptor);
 }
 
-// static
 PropertyDetails TransitionsAccessor::GetSimpleTargetDetails(Map transition) {
-  return transition.GetLastDescriptorDetails();
+  return transition.GetLastDescriptorDetails(isolate_);
 }
 
 // static
