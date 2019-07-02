@@ -1335,7 +1335,7 @@ uint32_t String::ComputeAndSetHash() {
   }
   if (string.IsThinString()) {
     string = ThinString::cast(string).actual();
-    if (start == 0) {
+    if (length() == string.length()) {
       set_hash_field(string.hash_field());
       return hash_field() >> kHashShift;
     }
