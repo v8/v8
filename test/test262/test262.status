@@ -80,6 +80,11 @@
   'intl402/NumberFormat/numbering-system-options': ['--harmony-intl-add-calendar-numbering-system'],
   'intl402/DateTimeFormat/numbering-system-calendar-options': ['--harmony-intl-add-calendar-numbering-system'],
 
+  # Waiting for test262 to land
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9327
+  'intl402/RelativeTimeFormat/prototype/formatToParts/en-us-numeric-auto': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/format/en-us-numeric-auto': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=9319
   'intl402/NumberFormat/prototype/resolvedOptions/order': [FAIL],
 
