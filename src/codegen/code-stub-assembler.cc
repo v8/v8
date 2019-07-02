@@ -1259,6 +1259,8 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
     intptr_t size_constant;
     if (ToIntPtrConstant(size_in_bytes, size_constant)) {
       CHECK_LE(size_constant, kMaxRegularHeapObjectSize);
+    } else {
+      CSA_ASSERT(this, IsRegularHeapObjectSize(size_in_bytes));
     }
   }
   if (!(flags & kDoubleAlignment) && always_allocated_in_requested_space) {
@@ -3888,11 +3890,11 @@ TNode<BoolT> CodeStubAssembler::IsValidFastJSArrayCapacity(
 
 TNode<JSArray> CodeStubAssembler::AllocateJSArray(
     TNode<Map> array_map, TNode<FixedArrayBase> elements, TNode<Smi> length,
-    Node* allocation_site) {
+    Node* allocation_site, int array_header_size) {
   Comment("begin allocation of JSArray passing in elements");
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
 
-  int base_size = JSArray::kSize;
+  int base_size = array_header_size;
   if (allocation_site != nullptr) {
     base_size += AllocationMemento::kSize;
   }
@@ -3908,7 +3910,7 @@ std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
 CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
     Node* allocation_site, Node* capacity, ParameterMode capacity_mode,
-    AllocationFlags allocation_flags) {
+    AllocationFlags allocation_flags, int array_header_size) {
   Comment("begin allocation of JSArray with elements");
   CHECK_EQ(allocation_flags & ~kAllowLargeObjectAllocation, 0);
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
@@ -3922,7 +3924,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   if (TryGetIntPtrOrSmiConstantValue(capacity, &capacity_int, capacity_mode)) {
     if (capacity_int == 0) {
       TNode<FixedArrayBase> empty_array = EmptyFixedArrayConstant();
-      array = AllocateJSArray(array_map, empty_array, length, allocation_site);
+      array = AllocateJSArray(array_map, empty_array, length, allocation_site,
+                              array_header_size);
       return {array.value(), empty_array};
     } else {
       Goto(&nonempty);
@@ -3934,7 +3937,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     BIND(&empty);
     {
       TNode<FixedArrayBase> empty_array = EmptyFixedArrayConstant();
-      array = AllocateJSArray(array_map, empty_array, length, allocation_site);
+      array = AllocateJSArray(array_map, empty_array, length, allocation_site,
+                              array_header_size);
       elements = empty_array;
       Goto(&out);
     }
@@ -3942,7 +3946,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
 
   BIND(&nonempty);
   {
-    int base_size = JSArray::kSize;
+    int base_size = array_header_size;
     if (allocation_site != nullptr) base_size += AllocationMemento::kSize;
 
     const int elements_offset = base_size;
@@ -3979,8 +3983,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
       // The JSArray and possibly allocation memento next. Note that
       // allocation_flags are *not* passed on here and the resulting JSArray
       // will always be in new space.
-      array =
-          AllocateJSArray(array_map, elements.value(), length, allocation_site);
+      array = AllocateJSArray(array_map, elements.value(), length,
+                              allocation_site, array_header_size);
 
       Goto(&out);
 

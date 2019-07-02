@@ -1632,7 +1632,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
       Node* allocation_site, Node* capacity,
       ParameterMode capacity_mode = INTPTR_PARAMETERS,
-      AllocationFlags allocation_flags = kNone);
+      AllocationFlags allocation_flags = kNone,
+      int array_header_size = JSArray::kSize);
 
   // Allocate a JSArray and fill elements with the hole.
   // The ParameterMode argument is only used for the capacity parameter.
@@ -1659,7 +1660,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<JSArray> AllocateJSArray(TNode<Map> array_map,
                                  TNode<FixedArrayBase> elements,
                                  TNode<Smi> length,
-                                 Node* allocation_site = nullptr);
+                                 Node* allocation_site = nullptr,
+                                 int array_header_size = JSArray::kSize);
 
   enum class HoleConversionMode { kDontConvert, kConvertToUndefined };
   // Clone a fast JSArray |array| into a new fast JSArray.

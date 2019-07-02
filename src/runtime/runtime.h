@@ -454,6 +454,7 @@ namespace internal {
   F(HasDictionaryElements, 1, 1)              \
   F(HasPackedElements, 1, 1)                  \
   F(HasDoubleElements, 1, 1)                  \
+  F(HasElementsInALargeObjectSpace, 1, 1)     \
   F(HasFastElements, 1, 1)                    \
   F(HasFastProperties, 1, 1)                  \
   F(HasFixedBigInt64Elements, 1, 1)           \
@@ -475,7 +476,7 @@ namespace internal {
   F(HaveSameMap, 2, 1)                        \
   F(HeapObjectVerify, 1, 1)                   \
   F(ICsAreEnabled, 0, 1)                      \
-  F(InNewSpace, 1, 1)                         \
+  F(InYoungGeneration, 1, 1)                  \
   F(IsAsmWasmCode, 1, 1)                      \
   F(IsConcurrentRecompilationSupported, 0, 1) \
   F(WasmTierUpFunction, 2, 1)                 \
