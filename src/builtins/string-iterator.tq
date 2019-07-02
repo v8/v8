@@ -39,7 +39,7 @@ namespace string_iterator {
     // Move to next codepoint.
     const encoding = UTF16;
     const ch = string::LoadSurrogatePairAt(string, length, position, encoding);
-    const value: String = string::StringFromSingleCodePoint(ch, encoding);
+    const value: String = string::StringFromSingleUTF16EncodedCodePoint(ch);
     iterator.next_index = SmiTag(position + value.length_intptr);
     return AllocateJSIteratorResult(value, False);
   }

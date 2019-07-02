@@ -21,8 +21,7 @@ namespace string {
 
   extern macro StringBuiltinsAssembler::LoadSurrogatePairAt(
       String, intptr, intptr, constexpr UnicodeEncoding): int32;
-  extern macro StringFromSingleCodePoint(int32, constexpr UnicodeEncoding):
-      String;
+  extern macro StringFromSingleUTF16EncodedCodePoint(int32): String;
 
   // This function assumes StringPrimitiveWithNoCustomIteration is true.
   transitioning builtin StringToList(implicit context: Context)(string: String):
@@ -40,7 +39,7 @@ namespace string {
     let i: intptr = 0;
     while (i < stringLength) {
       const ch: int32 = LoadSurrogatePairAt(string, stringLength, i, encoding);
-      const value: String = StringFromSingleCodePoint(ch, encoding);
+      const value: String = StringFromSingleUTF16EncodedCodePoint(ch);
       elements[arrayLength] = value;
       // Increment and continue the loop.
       i = i + value.length_intptr;
@@ -54,9 +53,9 @@ namespace string {
   }
 
   transitioning macro GenerateStringAt(implicit context: Context)(
-      receiver: Object, position: Object, methodName: constexpr string):
-      never labels IfInBounds(String, intptr, intptr),
-      IfOutOfBounds {
+      receiver: Object, position: Object,
+      methodName: constexpr string): never labels
+  IfInBounds(String, intptr, intptr), IfOutOfBounds {
     // Check that {receiver} is coercible to Object and convert it to a String.
     const string: String = ToThisString(receiver, methodName);
     // Convert the {position} to a Smi and check that it's in bounds of

@@ -2683,6 +2683,10 @@ class RepresentationSelector {
                   MachineRepresentation::kTaggedPointer);
         return;
       }
+      case IrOpcode::kStringFromCodePointAt: {
+        return VisitBinop(node, UseInfo::AnyTagged(), UseInfo::Word(),
+                          MachineRepresentation::kTaggedPointer);
+      }
       case IrOpcode::kStringIndexOf: {
         ProcessInput(node, 0, UseInfo::AnyTagged());
         ProcessInput(node, 1, UseInfo::AnyTagged());

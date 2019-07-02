@@ -2068,6 +2068,10 @@ Type Typer::Visitor::TypeStringFromSingleCodePoint(Node* node) {
   return TypeUnaryOp(node, StringFromSingleCodePointTyper);
 }
 
+Type Typer::Visitor::TypeStringFromCodePointAt(Node* node) {
+  return Type::String();
+}
+
 Type Typer::Visitor::TypeStringIndexOf(Node* node) {
   return Type::Range(-1.0, String::kMaxLength, zone());
 }

@@ -2462,8 +2462,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   Node* DerefIndirectString(TNode<String> string, TNode<Int32T> instance_type,
                             Label* cannot_deref);
 
-  TNode<String> StringFromSingleCodePoint(TNode<Int32T> codepoint,
-                                          UnicodeEncoding encoding);
+  TNode<String> StringFromSingleUTF16EncodedCodePoint(TNode<Int32T> codepoint);
 
   // Type conversion helpers.
   enum class BigIntHandling { kConvertToNumber, kThrow };

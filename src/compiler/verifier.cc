@@ -1164,6 +1164,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::String());
       break;
+    case IrOpcode::kStringFromCodePointAt:
+      // (String, Unsigned32) -> UnsignedSmall
+      CheckValueInputIs(node, 0, Type::String());
+      CheckValueInputIs(node, 1, Type::Unsigned32());
+      CheckTypeIs(node, Type::String());
+      break;
     case IrOpcode::kStringIndexOf:
       // (String, String, SignedSmall) -> SignedSmall
       CheckValueInputIs(node, 0, Type::String());

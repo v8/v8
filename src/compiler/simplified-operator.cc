@@ -616,12 +616,6 @@ Type AllocateTypeOf(const Operator* op) {
   return AllocateParametersOf(op).type();
 }
 
-UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kStringFromSingleCodePoint ||
-         op->opcode() == IrOpcode::kStringCodePointAt);
-  return OpParameter<UnicodeEncoding>(op);
-}
-
 AbortReason AbortReasonOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kRuntimeAbort, op->opcode());
   return static_cast<AbortReason>(OpParameter<int>(op));
@@ -736,6 +730,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(StringConcat, Operator::kNoProperties, 3, 0)                   \
   V(StringToNumber, Operator::kNoProperties, 1, 0)                 \
   V(StringFromSingleCharCode, Operator::kNoProperties, 1, 0)       \
+  V(StringFromSingleCodePoint, Operator::kNoProperties, 1, 0)      \
   V(StringIndexOf, Operator::kNoProperties, 3, 0)                  \
   V(StringLength, Operator::kNoProperties, 1, 0)                   \
   V(StringToLowerCaseIntl, Operator::kNoProperties, 1, 0)          \
@@ -802,9 +797,11 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(NewConsString, Operator::kNoProperties, 3, 0)                  \
   V(PoisonIndex, Operator::kNoProperties, 1, 0)
 
-#define EFFECT_DEPENDENT_OP_LIST(V)                  \
-  V(StringCharCodeAt, Operator::kNoProperties, 2, 1) \
-  V(StringSubstring, Operator::kNoProperties, 3, 1)  \
+#define EFFECT_DEPENDENT_OP_LIST(V)                       \
+  V(StringCharCodeAt, Operator::kNoProperties, 2, 1)      \
+  V(StringCodePointAt, Operator::kNoProperties, 2, 1)     \
+  V(StringFromCodePointAt, Operator::kNoProperties, 2, 1) \
+  V(StringSubstring, Operator::kNoProperties, 3, 1)       \
   V(DateNow, Operator::kNoProperties, 0, 1)
 
 #define SPECULATIVE_NUMBER_BINOP_LIST(V)      \
@@ -928,32 +925,6 @@ struct SimplifiedOperatorGlobalCache final {
   CheckIfOperator<DeoptimizeReason::k##Name> kCheckIf##Name;
   DEOPTIMIZE_REASON_LIST(CHECK_IF)
 #undef CHECK_IF
-
-  template <UnicodeEncoding kEncoding>
-  struct StringCodePointAtOperator final : public Operator1<UnicodeEncoding> {
-    StringCodePointAtOperator()
-        : Operator1<UnicodeEncoding>(IrOpcode::kStringCodePointAt,
-                                     Operator::kFoldable | Operator::kNoThrow,
-                                     "StringCodePointAt", 2, 1, 1, 1, 1, 0,
-                                     kEncoding) {}
-  };
-  StringCodePointAtOperator<UnicodeEncoding::UTF16>
-      kStringCodePointAtOperatorUTF16;
-  StringCodePointAtOperator<UnicodeEncoding::UTF32>
-      kStringCodePointAtOperatorUTF32;
-
-  template <UnicodeEncoding kEncoding>
-  struct StringFromSingleCodePointOperator final
-      : public Operator1<UnicodeEncoding> {
-    StringFromSingleCodePointOperator()
-        : Operator1<UnicodeEncoding>(
-              IrOpcode::kStringFromSingleCodePoint, Operator::kPure,
-              "StringFromSingleCodePoint", 1, 0, 0, 1, 0, 0, kEncoding) {}
-  };
-  StringFromSingleCodePointOperator<UnicodeEncoding::UTF16>
-      kStringFromSingleCodePointOperatorUTF16;
-  StringFromSingleCodePointOperator<UnicodeEncoding::UTF32>
-      kStringFromSingleCodePointOperatorUTF32;
 
   struct FindOrderedHashMapEntryOperator final : public Operator {
     FindOrderedHashMapEntryOperator()
@@ -1702,28 +1673,6 @@ const Operator* SimplifiedOperatorBuilder::AllocateRaw(
       Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
       "AllocateRaw", 1, 1, 1, 1, 1, 1,
       AllocateParameters(type, allocation, allow_large_objects));
-}
-
-const Operator* SimplifiedOperatorBuilder::StringCodePointAt(
-    UnicodeEncoding encoding) {
-  switch (encoding) {
-    case UnicodeEncoding::UTF16:
-      return &cache_.kStringCodePointAtOperatorUTF16;
-    case UnicodeEncoding::UTF32:
-      return &cache_.kStringCodePointAtOperatorUTF32;
-  }
-  UNREACHABLE();
-}
-
-const Operator* SimplifiedOperatorBuilder::StringFromSingleCodePoint(
-    UnicodeEncoding encoding) {
-  switch (encoding) {
-    case UnicodeEncoding::UTF16:
-      return &cache_.kStringFromSingleCodePointOperatorUTF16;
-    case UnicodeEncoding::UTF32:
-      return &cache_.kStringFromSingleCodePointOperatorUTF32;
-  }
-  UNREACHABLE();
 }
 
 #define SPECULATIVE_NUMBER_BINOP(Name)                                        \

@@ -545,21 +545,7 @@ TF_BUILTIN(StringCharAt, StringBuiltinsAssembler) {
   Return(result);
 }
 
-TF_BUILTIN(StringCodePointAtUTF16, StringBuiltinsAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* position = Parameter(Descriptor::kPosition);
-  // TODO(sigurds) Figure out if passing length as argument pays off.
-  TNode<IntPtrT> length = LoadStringLengthAsWord(receiver);
-  // Load the character code at the {position} from the {receiver}.
-  TNode<Int32T> code =
-      LoadSurrogatePairAt(receiver, length, position, UnicodeEncoding::UTF16);
-  // And return it as TaggedSigned value.
-  // TODO(turbofan): Allow builtins to return values untagged.
-  TNode<Smi> result = SmiFromInt32(code);
-  Return(result);
-}
-
-TF_BUILTIN(StringCodePointAtUTF32, StringBuiltinsAssembler) {
+TF_BUILTIN(StringCodePointAt, StringBuiltinsAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* position = Parameter(Descriptor::kPosition);
 
@@ -571,6 +557,21 @@ TF_BUILTIN(StringCodePointAtUTF32, StringBuiltinsAssembler) {
   // And return it as TaggedSigned value.
   // TODO(turbofan): Allow builtins to return values untagged.
   TNode<Smi> result = SmiFromInt32(code);
+  Return(result);
+}
+
+TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
+  TNode<String> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<IntPtrT> position =
+      UncheckedCast<IntPtrT>(Parameter(Descriptor::kPosition));
+
+  // TODO(sigurds) Figure out if passing length as argument pays off.
+  TNode<IntPtrT> length = LoadStringLengthAsWord(receiver);
+  // Load the character code at the {position} from the {receiver}.
+  TNode<Int32T> code =
+      LoadSurrogatePairAt(receiver, length, position, UnicodeEncoding::UTF16);
+  // Create a String from the UTF16 encoded code point
+  TNode<String> result = StringFromSingleUTF16EncodedCodePoint(code);
   Return(result);
 }
 

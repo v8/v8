@@ -7481,8 +7481,8 @@ TNode<String> CodeStubAssembler::StringAdd(Node* context, TNode<String> left,
   return result.value();
 }
 
-TNode<String> CodeStubAssembler::StringFromSingleCodePoint(
-    TNode<Int32T> codepoint, UnicodeEncoding encoding) {
+TNode<String> CodeStubAssembler::StringFromSingleUTF16EncodedCodePoint(
+    TNode<Int32T> codepoint) {
   VARIABLE(var_result, MachineRepresentation::kTagged, EmptyStringConstant());
 
   Label if_isword16(this), if_isword32(this), return_result(this);
@@ -7498,27 +7498,6 @@ TNode<String> CodeStubAssembler::StringFromSingleCodePoint(
 
   BIND(&if_isword32);
   {
-    switch (encoding) {
-      case UnicodeEncoding::UTF16:
-        break;
-      case UnicodeEncoding::UTF32: {
-        // Convert UTF32 to UTF16 code units, and store as a 32 bit word.
-        Node* lead_offset = Int32Constant(0xD800 - (0x10000 >> 10));
-
-        // lead = (codepoint >> 10) + LEAD_OFFSET
-        Node* lead =
-            Int32Add(Word32Shr(codepoint, Int32Constant(10)), lead_offset);
-
-        // trail = (codepoint & 0x3FF) + 0xDC00;
-        Node* trail = Int32Add(Word32And(codepoint, Int32Constant(0x3FF)),
-                               Int32Constant(0xDC00));
-
-        // codpoint = (trail << 16) | lead;
-        codepoint = Signed(Word32Or(Word32Shl(trail, Int32Constant(16)), lead));
-        break;
-      }
-    }
-
     Node* value = AllocateSeqTwoByteString(2);
     StoreNoWriteBarrier(
         MachineRepresentation::kWord32, value,

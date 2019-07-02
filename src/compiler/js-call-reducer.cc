@@ -3682,8 +3682,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceStringPrototypeStringAt(simplified()->StringCharCodeAt(),
                                            node);
     case Builtins::kStringPrototypeCodePointAt:
-      return ReduceStringPrototypeStringAt(
-          simplified()->StringCodePointAt(UnicodeEncoding::UTF32), node);
+      return ReduceStringPrototypeStringAt(simplified()->StringCodePointAt(),
+                                           node);
     case Builtins::kStringPrototypeSubstring:
       return ReduceStringPrototypeSubstring(node);
     case Builtins::kStringPrototypeSlice:
@@ -5514,8 +5514,8 @@ Reduction JSCallReducer::ReduceStringFromCodePoint(Node* node) {
         graph()->NewNode(simplified()->CheckBounds(p.feedback()), input,
                          jsgraph()->Constant(0x10FFFF + 1), effect, control);
 
-    Node* value = graph()->NewNode(
-        simplified()->StringFromSingleCodePoint(UnicodeEncoding::UTF32), input);
+    Node* value =
+        graph()->NewNode(simplified()->StringFromSingleCodePoint(), input);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }
@@ -5571,12 +5571,8 @@ Reduction JSCallReducer::ReduceStringIteratorPrototypeNext(Node* node) {
   Node* vtrue0;
   {
     done_true = jsgraph()->FalseConstant();
-    Node* codepoint = etrue0 = graph()->NewNode(
-        simplified()->StringCodePointAt(UnicodeEncoding::UTF16), string, index,
-        etrue0, if_true0);
-    vtrue0 = graph()->NewNode(
-        simplified()->StringFromSingleCodePoint(UnicodeEncoding::UTF16),
-        codepoint);
+    vtrue0 = etrue0 = graph()->NewNode(simplified()->StringFromCodePointAt(),
+                                       string, index, etrue0, if_true0);
 
     // Update iterator.[[NextIndex]]
     Node* char_length = graph()->NewNode(simplified()->StringLength(), vtrue0);

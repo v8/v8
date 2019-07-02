@@ -154,13 +154,14 @@ class EffectControlLinearizer {
   Node* LowerStringConcat(Node* node);
   Node* LowerStringToNumber(Node* node);
   Node* LowerStringCharCodeAt(Node* node);
-  Node* LowerStringCodePointAt(Node* node, UnicodeEncoding encoding);
+  Node* LowerStringCodePointAt(Node* node);
   Node* LowerStringToLowerCaseIntl(Node* node);
   Node* LowerStringToUpperCaseIntl(Node* node);
   Node* LowerStringFromSingleCharCode(Node* node);
   Node* LowerStringFromSingleCodePoint(Node* node);
   Node* LowerStringIndexOf(Node* node);
   Node* LowerStringSubstring(Node* node);
+  Node* LowerStringFromCodePointAt(Node* node);
   Node* LowerStringLength(Node* node);
   Node* LowerStringEqual(Node* node);
   Node* LowerStringLessThan(Node* node);
@@ -1127,6 +1128,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringIndexOf:
       result = LowerStringIndexOf(node);
       break;
+    case IrOpcode::kStringFromCodePointAt:
+      result = LowerStringFromCodePointAt(node);
+      break;
     case IrOpcode::kStringLength:
       result = LowerStringLength(node);
       break;
@@ -1137,7 +1141,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerStringCharCodeAt(node);
       break;
     case IrOpcode::kStringCodePointAt:
-      result = LowerStringCodePointAt(node, UnicodeEncodingOf(node->op()));
+      result = LowerStringCodePointAt(node);
       break;
     case IrOpcode::kStringToLowerCaseIntl:
       result = LowerStringToLowerCaseIntl(node);
@@ -3851,16 +3855,12 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
   return loop_done.PhiAt(0);
 }
 
-Node* EffectControlLinearizer::LowerStringCodePointAt(
-    Node* node, UnicodeEncoding encoding) {
+Node* EffectControlLinearizer::LowerStringCodePointAt(Node* node) {
   Node* receiver = node->InputAt(0);
   Node* position = node->InputAt(1);
 
-  Builtins::Name builtin = encoding == UnicodeEncoding::UTF16
-                               ? Builtins::kStringCodePointAtUTF16
-                               : Builtins::kStringCodePointAtUTF32;
-
-  Callable const callable = Builtins::CallableFor(isolate(), builtin);
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtins::kStringCodePointAt);
   Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -4093,31 +4093,23 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
   __ Bind(&if_not_single_code);
   // Generate surrogate pair string
   {
-    switch (UnicodeEncodingOf(node->op())) {
-      case UnicodeEncoding::UTF16:
-        break;
+    // Convert UTF32 to UTF16 code units, and store as a 32 bit word.
+    Node* lead_offset = __ Int32Constant(0xD800 - (0x10000 >> 10));
 
-      case UnicodeEncoding::UTF32: {
-        // Convert UTF32 to UTF16 code units, and store as a 32 bit word.
-        Node* lead_offset = __ Int32Constant(0xD800 - (0x10000 >> 10));
+    // lead = (codepoint >> 10) + LEAD_OFFSET
+    Node* lead =
+        __ Int32Add(__ Word32Shr(code, __ Int32Constant(10)), lead_offset);
 
-        // lead = (codepoint >> 10) + LEAD_OFFSET
-        Node* lead =
-            __ Int32Add(__ Word32Shr(code, __ Int32Constant(10)), lead_offset);
+    // trail = (codepoint & 0x3FF) + 0xDC00;
+    Node* trail = __ Int32Add(__ Word32And(code, __ Int32Constant(0x3FF)),
+                              __ Int32Constant(0xDC00));
 
-        // trail = (codepoint & 0x3FF) + 0xDC00;
-        Node* trail = __ Int32Add(__ Word32And(code, __ Int32Constant(0x3FF)),
-                                  __ Int32Constant(0xDC00));
-
-        // codpoint = (trail << 16) | lead;
+    // codpoint = (trail << 16) | lead;
 #if V8_TARGET_BIG_ENDIAN
-        code = __ Word32Or(__ Word32Shl(lead, __ Int32Constant(16)), trail);
+    code = __ Word32Or(__ Word32Shl(lead, __ Int32Constant(16)), trail);
 #else
-        code = __ Word32Or(__ Word32Shl(trail, __ Int32Constant(16)), lead);
+    code = __ Word32Or(__ Word32Shl(trail, __ Int32Constant(16)), lead);
 #endif
-        break;
-      }
-    }
 
     // Allocate a new SeqTwoByteString for {code}.
     Node* vfalse0 =
@@ -4155,6 +4147,21 @@ Node* EffectControlLinearizer::LowerStringIndexOf(Node* node) {
       callable.descriptor().GetStackParameterCount(), flags, properties);
   return __ Call(call_descriptor, __ HeapConstant(callable.code()), subject,
                  search_string, position, __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerStringFromCodePointAt(Node* node) {
+  Node* string = node->InputAt(0);
+  Node* index = node->InputAt(1);
+
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kStringFromCodePointAt);
+  Operator::Properties properties = Operator::kEliminatable;
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), flags, properties);
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), string,
+                 index, __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerStringLength(Node* node) {

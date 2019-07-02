@@ -389,6 +389,7 @@
   V(StringCodePointAt)                  \
   V(StringFromSingleCharCode)           \
   V(StringFromSingleCodePoint)          \
+  V(StringFromCodePointAt)              \
   V(StringIndexOf)                      \
   V(StringLength)                       \
   V(StringToLowerCaseIntl)              \
