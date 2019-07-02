@@ -572,6 +572,10 @@ auto v8_valtype_to_wasm(i::wasm::ValueType v8_valtype) -> ::wasm::ValKind {
       return ::wasm::F32;
     case i::wasm::kWasmF64:
       return ::wasm::F64;
+    case i::wasm::kWasmAnyFunc:
+      return ::wasm::FUNCREF;
+    case i::wasm::kWasmAnyRef:
+      return ::wasm::ANYREF;
     default:
       // TODO(wasm+): support new value types
       UNREACHABLE();
@@ -588,6 +592,10 @@ i::wasm::ValueType wasm_valtype_to_v8(::wasm::ValKind type) {
       return i::wasm::kWasmF32;
     case ::wasm::F64:
       return i::wasm::kWasmF64;
+    case ::wasm::FUNCREF:
+      return i::wasm::kWasmAnyFunc;
+    case ::wasm::ANYREF:
+      return i::wasm::kWasmAnyRef;
     default:
       // TODO(wasm+): support new value types
       UNREACHABLE();
@@ -697,6 +705,7 @@ void Engine::operator delete(void* p) { ::operator delete(p); }
 
 auto Engine::make(own<Config*>&& config) -> own<Engine*> {
   i::FLAG_expose_gc = true;
+  i::FLAG_experimental_wasm_anyref = true;
   i::FLAG_experimental_wasm_bigint = true;
   i::FLAG_experimental_wasm_mv = true;
   auto engine = new (std::nothrow) EngineImpl;
@@ -1692,6 +1701,8 @@ void PushArgs(i::wasm::FunctionSig* sig, const Val args[],
         break;
       case i::wasm::kWasmAnyRef:
       case i::wasm::kWasmAnyFunc:
+        packer->Push(impl(args[i].ref())->v8_object()->ptr());
+        break;
       case i::wasm::kWasmExceptRef:
         // TODO(jkummerow): Implement these.
         UNIMPLEMENTED();
@@ -1703,7 +1714,7 @@ void PushArgs(i::wasm::FunctionSig* sig, const Val args[],
 }
 
 void PopArgs(i::wasm::FunctionSig* sig, Val results[],
-             i::wasm::CWasmArgumentsPacker* packer) {
+             i::wasm::CWasmArgumentsPacker* packer, StoreImpl* store) {
   packer->Reset();
   for (size_t i = 0; i < sig->return_count(); i++) {
     i::wasm::ValueType type = sig->GetReturn(i);
@@ -1721,7 +1732,17 @@ void PopArgs(i::wasm::FunctionSig* sig, Val results[],
         results[i] = Val(packer->Pop<double>());
         break;
       case i::wasm::kWasmAnyRef:
-      case i::wasm::kWasmAnyFunc:
+      case i::wasm::kWasmAnyFunc: {
+        i::Address raw = packer->Pop<i::Address>();
+        if (raw == i::kNullAddress) {
+          results[i] = Val(nullptr);
+        } else {
+          i::JSReceiver raw_obj = i::JSReceiver::cast(i::Object(raw));
+          i::Handle<i::JSReceiver> obj(raw_obj, store->i_isolate());
+          results[i] = Val(implement<Ref>::type::make(store, obj));
+        }
+        break;
+      }
       case i::wasm::kWasmExceptRef:
         // TODO(jkummerow): Implement these.
         UNIMPLEMENTED();
@@ -1730,6 +1751,16 @@ void PopArgs(i::wasm::FunctionSig* sig, Val results[],
         UNIMPLEMENTED();
     }
   }
+}
+
+own<Trap*> CallWasmCapiFunction(i::WasmCapiFunctionData data, const Val args[],
+                                Val results[]) {
+  FuncData* func_data = reinterpret_cast<FuncData*>(data.embedder_data());
+  if (func_data->kind == FuncData::kCallback) {
+    return (func_data->callback)(args, results);
+  }
+  DCHECK(func_data->kind == FuncData::kCallbackWithEnv);
+  return (func_data->callback_with_env)(func_data->env, args, results);
 }
 
 }  // namespace
@@ -1743,23 +1774,17 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap*> {
 
   // WasmCapiFunctions can be called directly.
   if (raw_function_data.IsWasmCapiFunctionData()) {
-    i::WasmCapiFunctionData data =
-        i::WasmCapiFunctionData::cast(raw_function_data);
-    FuncData* func_data = reinterpret_cast<FuncData*>(data.embedder_data());
-    if (func_data->kind == FuncData::kCallback) {
-      return (func_data->callback)(args, results);
-    }
-    DCHECK(func_data->kind == FuncData::kCallbackWithEnv);
-    return (func_data->callback_with_env)(func_data->env, args, results);
+    return CallWasmCapiFunction(
+        i::WasmCapiFunctionData::cast(raw_function_data), args, results);
   }
 
   DCHECK(raw_function_data.IsWasmExportedFunctionData());
   i::Handle<i::WasmExportedFunctionData> function_data(
       i::WasmExportedFunctionData::cast(raw_function_data), isolate);
   i::Handle<i::WasmInstanceObject> instance(function_data->instance(), isolate);
+  int function_index = function_data->function_index();
   // Caching {sig} would give a ~10% reduction in overhead.
-  i::wasm::FunctionSig* sig =
-      instance->module()->functions[function_data->function_index()].sig;
+  i::wasm::FunctionSig* sig = instance->module()->functions[function_index].sig;
   PrepareFunctionData(isolate, function_data, sig);
   i::Handle<i::Code> wrapper_code = i::Handle<i::Code>(
       i::Code::cast(function_data->c_wrapper_code()), isolate);
@@ -1769,14 +1794,28 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap*> {
   i::wasm::CWasmArgumentsPacker packer(function_data->packed_args_size());
   PushArgs(sig, args, &packer);
 
-  // Imported and then re-exported functions requiring wrappers are not
-  // supported yet.
-  // TODO(jkummerow): When we have C-API + JavaScript, we'll need to get
-  // the appropriate {instance, function} tuple -- or possibly call the
-  // original JavaScript function directly?
-  DCHECK(function_data->function_index() >=
-         static_cast<int>(instance->module()->num_imported_functions));
   i::Handle<i::Object> object_ref = instance;
+  if (function_index <
+      static_cast<int>(instance->module()->num_imported_functions)) {
+    object_ref = i::handle(
+        instance->imported_function_refs().get(function_index), isolate);
+    if (object_ref->IsTuple2()) {
+      i::JSFunction jsfunc =
+          i::JSFunction::cast(i::Tuple2::cast(*object_ref).value2());
+      i::Object data = jsfunc.shared().function_data();
+      if (data.IsWasmCapiFunctionData()) {
+        return CallWasmCapiFunction(i::WasmCapiFunctionData::cast(data), args,
+                                    results);
+      }
+      // TODO(jkummerow): Imported and then re-exported JavaScript functions
+      // are not supported yet. If we support C-API + JavaScript, we'll need
+      // to call those here.
+      UNIMPLEMENTED();
+    } else {
+      // A WasmFunction from another module.
+      DCHECK(object_ref->IsWasmInstanceObject());
+    }
+  }
 
   i::Execution::CallWasm(isolate, wrapper_code, call_target, object_ref,
                          packer.argv());
@@ -1797,7 +1836,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap*> {
         store, i::Handle<i::JSReceiver>::cast(exception));
   }
 
-  PopArgs(sig, results, &packer);
+  PopArgs(sig, results, &packer, store);
   return nullptr;
 }
 
@@ -1954,9 +1993,16 @@ auto Global::get() const -> Val {
       return Val(v8_global->GetF32());
     case F64:
       return Val(v8_global->GetF64());
-    case ANYREF:
-    case FUNCREF:
-      WASM_UNIMPLEMENTED("globals of reference type");
+    case ANYREF: {
+      i::Handle<i::JSReceiver> obj =
+          i::Handle<i::JSReceiver>::cast(v8_global->GetRef());
+      return Val(RefImpl<Ref, i::JSReceiver>::make(impl(this)->store(), obj));
+    }
+    case FUNCREF: {
+      i::Handle<i::JSFunction> obj =
+          i::Handle<i::JSFunction>::cast(v8_global->GetRef());
+      return Val(implement<Func>::type::make(impl(this)->store(), obj));
+    }
     default:
       // TODO(wasm+): support new value types
       UNREACHABLE();
@@ -1975,8 +2021,14 @@ void Global::set(const Val& val) {
     case F64:
       return v8_global->SetF64(val.f64());
     case ANYREF:
-    case FUNCREF:
-      WASM_UNIMPLEMENTED("globals of reference type");
+      return v8_global->SetAnyRef(impl(val.ref())->v8_object());
+    case FUNCREF: {
+      bool result = v8_global->SetAnyFunc(impl(this)->store()->i_isolate(),
+                                          impl(val.ref())->v8_object());
+      DCHECK(result);
+      USE(result);
+      return;
+    }
     default:
       // TODO(wasm+): support new value types
       UNREACHABLE();

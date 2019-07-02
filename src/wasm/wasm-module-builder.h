@@ -240,6 +240,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void SetIndirectFunction(uint32_t indirect, uint32_t direct);
   void MarkStartFunction(WasmFunctionBuilder* builder);
   void AddExport(Vector<const char> name, WasmFunctionBuilder* builder);
+  void AddExportedImport(Vector<const char> name, int import_index);
   void SetMinMemorySize(uint32_t value);
   void SetMaxMemorySize(uint32_t value);
   void SetHasSharedMemory();
@@ -260,7 +261,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   struct WasmFunctionExport {
     Vector<const char> name;
-    uint32_t function_index;
+    // Can be negative for re-exported imported functions.
+    int function_index;
   };
 
   struct WasmGlobalImport {
@@ -296,6 +298,10 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t max_memory_size_;
   bool has_max_memory_size_;
   bool has_shared_memory_;
+#if DEBUG
+  // Once AddExportedImport is called, no more imports can be added.
+  bool adding_imports_allowed_ = true;
+#endif
 };
 
 inline FunctionSig* WasmFunctionBuilder::signature() {

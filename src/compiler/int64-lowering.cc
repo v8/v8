@@ -97,7 +97,10 @@ int GetReturnCountAfterLowering(CallDescriptor* call_descriptor) {
 int GetParameterIndexAfterLowering(
     Signature<MachineRepresentation>* signature, int old_index) {
   int result = old_index;
-  for (int i = 0; i < old_index; i++) {
+  // Be robust towards special indexes (>= param count).
+  int max_to_check =
+      std::min(old_index, static_cast<int>(signature->parameter_count()));
+  for (int i = 0; i < max_to_check; i++) {
     if (signature->GetParam(i) == MachineRepresentation::kWord64) {
       result++;
     }
@@ -291,18 +294,18 @@ void Int64Lowering::LowerNode(Node* node) {
       // changes.
       if (GetParameterCountAfterLowering(signature()) != param_count) {
         int old_index = ParameterIndexOf(node->op());
-        // Prevent special lowering of wasm's instance or JS
-        // context/closure parameters.
-        if (old_index <= 0 || old_index > param_count) {
-          DefaultLowering(node);
-          break;
-        }
         // Adjust old_index to be compliant with the signature.
         --old_index;
         int new_index = GetParameterIndexAfterLowering(signature(), old_index);
         // Adjust new_index to consider the instance parameter.
         ++new_index;
         NodeProperties::ChangeOp(node, common()->Parameter(new_index));
+
+        if (old_index < 0 || old_index >= param_count) {
+          // Special parameters (JS closure/context) don't have kWord64
+          // representation anyway.
+          break;
+        }
 
         if (signature()->GetParam(old_index) ==
             MachineRepresentation::kWord64) {

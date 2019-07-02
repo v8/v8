@@ -195,7 +195,8 @@ void WasmGlobalObject::SetAnyRef(Handle<Object> value) {
 bool WasmGlobalObject::SetAnyFunc(Isolate* isolate, Handle<Object> value) {
   DCHECK_EQ(type(), wasm::kWasmAnyFunc);
   if (!value->IsNull(isolate) &&
-      !WasmExportedFunction::IsWasmExportedFunction(*value)) {
+      !WasmExportedFunction::IsWasmExportedFunction(*value) &&
+      !WasmCapiFunction::IsWasmCapiFunction(*value)) {
     return false;
   }
   tagged_buffer().set(offset(), *value);

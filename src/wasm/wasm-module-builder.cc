@@ -285,6 +285,7 @@ void WasmModuleBuilder::SetIndirectFunction(uint32_t indirect,
 
 uint32_t WasmModuleBuilder::AddImport(Vector<const char> name,
                                       FunctionSig* sig) {
+  DCHECK(adding_imports_allowed_);
   function_imports_.push_back({name, AddSignature(sig)});
   return static_cast<uint32_t>(function_imports_.size() - 1);
 }
@@ -301,7 +302,18 @@ void WasmModuleBuilder::MarkStartFunction(WasmFunctionBuilder* function) {
 
 void WasmModuleBuilder::AddExport(Vector<const char> name,
                                   WasmFunctionBuilder* function) {
-  function_exports_.push_back({name, function->func_index()});
+  DCHECK(function->func_index() <= std::numeric_limits<int>::max());
+  function_exports_.push_back({name, static_cast<int>(function->func_index())});
+}
+
+void WasmModuleBuilder::AddExportedImport(Vector<const char> name,
+                                          int import_index) {
+#if DEBUG
+  // The size of function_imports_ must not change any more.
+  adding_imports_allowed_ = false;
+#endif
+  function_exports_.push_back(
+      {name, import_index - static_cast<int>(function_imports_.size())});
 }
 
 uint32_t WasmModuleBuilder::AddGlobal(ValueType type, bool exported,
