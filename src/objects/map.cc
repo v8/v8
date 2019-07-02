@@ -352,6 +352,9 @@ VisitorId Map::GetVisitorId(Map map) {
       if (instance_type == WASM_CAPI_FUNCTION_DATA_TYPE) {
         return kVisitWasmCapiFunctionData;
       }
+      if (instance_type == WASM_INDIRECT_FUNCTION_TABLE_TYPE) {
+        return kVisitWasmIndirectFunctionTable;
+      }
       return kVisitStruct;
 
     case LOAD_HANDLER_TYPE:

@@ -82,6 +82,7 @@ namespace internal {
   V(ACCESSOR_PAIR_TYPE)                                  \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                        \
   V(ALLOCATION_MEMENTO_TYPE)                             \
+  V(ARRAY_BOILERPLATE_DESCRIPTION_TYPE)                  \
   V(ASM_WASM_DATA_TYPE)                                  \
   V(ASYNC_GENERATOR_REQUEST_TYPE)                        \
   V(CLASS_POSITIONS_TYPE)                                \
@@ -103,11 +104,11 @@ namespace internal {
   V(TEMPLATE_OBJECT_DESCRIPTION_TYPE)                    \
   V(TUPLE2_TYPE)                                         \
   V(TUPLE3_TYPE)                                         \
-  V(ARRAY_BOILERPLATE_DESCRIPTION_TYPE)                  \
   V(WASM_CAPI_FUNCTION_DATA_TYPE)                        \
   V(WASM_DEBUG_INFO_TYPE)                                \
   V(WASM_EXCEPTION_TAG_TYPE)                             \
   V(WASM_EXPORTED_FUNCTION_DATA_TYPE)                    \
+  V(WASM_INDIRECT_FUNCTION_TABLE_TYPE)                   \
   V(WASM_JS_FUNCTION_DATA_TYPE)                          \
                                                          \
   V(CALLABLE_TASK_TYPE)                                  \
@@ -302,6 +303,8 @@ namespace internal {
   V(_, ALIASED_ARGUMENTS_ENTRY_TYPE, AliasedArgumentsEntry,                    \
     aliased_arguments_entry)                                                   \
   V(_, ALLOCATION_MEMENTO_TYPE, AllocationMemento, allocation_memento)         \
+  V(_, ARRAY_BOILERPLATE_DESCRIPTION_TYPE, ArrayBoilerplateDescription,        \
+    array_boilerplate_description)                                             \
   V(_, ASM_WASM_DATA_TYPE, AsmWasmData, asm_wasm_data)                         \
   V(_, ASYNC_GENERATOR_REQUEST_TYPE, AsyncGeneratorRequest,                    \
     async_generator_request)                                                   \
@@ -329,14 +332,14 @@ namespace internal {
     template_object_description)                                               \
   V(_, TUPLE2_TYPE, Tuple2, tuple2)                                            \
   V(_, TUPLE3_TYPE, Tuple3, tuple3)                                            \
-  V(_, ARRAY_BOILERPLATE_DESCRIPTION_TYPE, ArrayBoilerplateDescription,        \
-    array_boilerplate_description)                                             \
   V(_, WASM_CAPI_FUNCTION_DATA_TYPE, WasmCapiFunctionData,                     \
     wasm_capi_function_data)                                                   \
   V(_, WASM_DEBUG_INFO_TYPE, WasmDebugInfo, wasm_debug_info)                   \
   V(_, WASM_EXCEPTION_TAG_TYPE, WasmExceptionTag, wasm_exception_tag)          \
   V(_, WASM_EXPORTED_FUNCTION_DATA_TYPE, WasmExportedFunctionData,             \
     wasm_exported_function_data)                                               \
+  V(_, WASM_INDIRECT_FUNCTION_TABLE_TYPE, WasmIndirectFunctionTable,           \
+    wasm_indirect_function_table)                                              \
   V(_, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData, wasm_js_function_data)  \
   V(_, CALLABLE_TASK_TYPE, CallableTask, callable_task)                        \
   V(_, CALLBACK_TASK_TYPE, CallbackTask, callback_task)                        \

@@ -6,9 +6,10 @@
 
 #include "src/compiler/types.h"
 
-#include "src/utils/ostreams.h"
 #include "src/handles/handles-inl.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/objects-inl.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -350,6 +351,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case ENUM_CACHE_TYPE:
     case SOURCE_POSITION_TABLE_WITH_FRAME_CACHE_TYPE:
     case WASM_CAPI_FUNCTION_DATA_TYPE:
+    case WASM_INDIRECT_FUNCTION_TABLE_TYPE:
     case WASM_DEBUG_INFO_TYPE:
     case WASM_EXCEPTION_TAG_TYPE:
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:

@@ -251,6 +251,8 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, imported_mutable_globals_buffers,
 OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
                    kDebugInfoOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, tables, FixedArray, kTablesOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_tables, FixedArray,
+                   kIndirectFunctionTablesOffset)
 ACCESSORS(WasmInstanceObject, imported_function_refs, FixedArray,
           kImportedFunctionRefsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_refs, FixedArray,
@@ -348,6 +350,18 @@ PRIMITIVE_ACCESSORS(WasmCapiFunctionData, embedder_data, void*,
 ACCESSORS(WasmCapiFunctionData, wrapper_code, Code, kWrapperCodeOffset)
 ACCESSORS(WasmCapiFunctionData, serialized_signature, PodArray<wasm::ValueType>,
           kSerializedSignatureOffset)
+
+// WasmIndirectFunctionTable
+OBJECT_CONSTRUCTORS_IMPL(WasmIndirectFunctionTable, Struct)
+CAST_ACCESSOR(WasmIndirectFunctionTable)
+PRIMITIVE_ACCESSORS(WasmIndirectFunctionTable, size, uint32_t, kSizeOffset)
+PRIMITIVE_ACCESSORS(WasmIndirectFunctionTable, sig_ids, uint32_t*,
+                    kSigIdsOffset)
+PRIMITIVE_ACCESSORS(WasmIndirectFunctionTable, targets, Address*,
+                    kTargetsOffset)
+OPTIONAL_ACCESSORS(WasmIndirectFunctionTable, managed_native_allocations,
+                   Foreign, kManagedNativeAllocationsOffset)
+ACCESSORS(WasmIndirectFunctionTable, refs, FixedArray, kRefsOffset)
 
 // WasmDebugInfo
 ACCESSORS(WasmDebugInfo, wasm_instance, WasmInstanceObject, kInstanceOffset)

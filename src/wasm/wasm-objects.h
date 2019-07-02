@@ -435,6 +435,7 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
   DECL_OPTIONAL_ACCESSORS(tables, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(indirect_function_tables, FixedArray)
   DECL_ACCESSORS(imported_function_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
@@ -499,6 +500,7 @@ class WasmInstanceObject : public JSObject {
   V(kImportedMutableGlobalsBuffersOffset, kTaggedSize)                    \
   V(kDebugInfoOffset, kTaggedSize)                                        \
   V(kTablesOffset, kTaggedSize)                                           \
+  V(kIndirectFunctionTablesOffset, kTaggedSize)                           \
   V(kManagedNativeAllocationsOffset, kTaggedSize)                         \
   V(kExceptionsTableOffset, kTaggedSize)                                  \
   V(kNullValueOffset, kTaggedSize)                                        \
@@ -540,6 +542,7 @@ class WasmInstanceObject : public JSObject {
       kImportedMutableGlobalsBuffersOffset,
       kDebugInfoOffset,
       kTablesOffset,
+      kIndirectFunctionTablesOffset,
       kManagedNativeAllocationsOffset,
       kExceptionsTableOffset,
       kNullValueOffset,
@@ -719,6 +722,31 @@ class WasmCapiFunction : public JSFunction {
 
   DECL_CAST(WasmCapiFunction)
   OBJECT_CONSTRUCTORS(WasmCapiFunction, JSFunction);
+};
+
+class WasmIndirectFunctionTable : public Struct {
+ public:
+  DECL_PRIMITIVE_ACCESSORS(size, uint32_t)
+  DECL_PRIMITIVE_ACCESSORS(sig_ids, uint32_t*)
+  DECL_PRIMITIVE_ACCESSORS(targets, Address*)
+  DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
+  DECL_ACCESSORS(refs, FixedArray)
+
+  static Handle<WasmIndirectFunctionTable> New(Isolate* isolate, uint32_t size);
+
+  DECL_CAST(WasmIndirectFunctionTable)
+
+  DECL_PRINTER(WasmIndirectFunctionTable)
+  DECL_VERIFIER(WasmIndirectFunctionTable)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      HeapObject::kHeaderSize,
+      TORQUE_GENERATED_WASM_INDIRECT_FUNCTION_TABLE_FIELDS)
+
+  STATIC_ASSERT(kStartOfStrongFieldsOffset == kManagedNativeAllocationsOffset);
+  using BodyDescriptor = FlexibleBodyDescriptor<kStartOfStrongFieldsOffset>;
+
+  OBJECT_CONSTRUCTORS(WasmIndirectFunctionTable, Struct);
 };
 
 class WasmCapiFunctionData : public Struct {

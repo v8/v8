@@ -1184,6 +1184,38 @@ void WasmTableObject::GetFunctionTableEntry(
 }
 
 namespace {
+class IftNativeAllocations {
+ public:
+  IftNativeAllocations(Handle<WasmIndirectFunctionTable> table, uint32_t size)
+      : sig_ids_(size), targets_(size) {
+    table->set_sig_ids(sig_ids_.data());
+    table->set_targets(targets_.data());
+  }
+
+  static size_t SizeInMemory(uint32_t size) {
+    return size * (sizeof(Address) + sizeof(uint32_t));
+  }
+
+ private:
+  std::vector<uint32_t> sig_ids_;
+  std::vector<Address> targets_;
+};
+}  // namespace
+
+Handle<WasmIndirectFunctionTable> WasmIndirectFunctionTable::New(
+    Isolate* isolate, uint32_t size) {
+  auto refs = isolate->factory()->NewFixedArray(static_cast<int>(size));
+  auto table = Handle<WasmIndirectFunctionTable>::cast(
+      isolate->factory()->NewStruct(WASM_INDIRECT_FUNCTION_TABLE_TYPE));
+  table->set_size(size);
+  table->set_refs(*refs);
+  auto native_allocations = Managed<IftNativeAllocations>::Allocate(
+      isolate, IftNativeAllocations::SizeInMemory(size), table, size);
+  table->set_managed_native_allocations(*native_allocations);
+  return table;
+}
+
+namespace {
 bool AdjustBufferPermissions(Isolate* isolate, Handle<JSArrayBuffer> old_buffer,
                              size_t new_size) {
   if (new_size > old_buffer->allocation_length()) return false;

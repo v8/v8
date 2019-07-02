@@ -2071,6 +2071,20 @@ void WasmCapiFunctionData::WasmCapiFunctionDataPrint(
   os << "\n";
 }
 
+void WasmIndirectFunctionTable::WasmIndirectFunctionTablePrint(
+    std::ostream& os) {
+  PrintHeader(os, "WasmIndirectFunctionTable");
+  os << "\n - size: " << size();
+  os << "\n - sig_ids: " << static_cast<void*>(sig_ids());
+  os << "\n - targets: " << static_cast<void*>(targets());
+  if (has_managed_native_allocations()) {
+    os << "\n - managed_native_allocations: "
+       << Brief(managed_native_allocations());
+  }
+  os << "\n - refs: " << Brief(refs());
+  os << "\n";
+}
+
 void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "ObjectTemplateInfo");
   os << "\n - tag: " << Brief(tag());

@@ -1748,6 +1748,8 @@ USE_TORQUE_VERIFIER(WasmCapiFunctionData)
 
 USE_TORQUE_VERIFIER(WasmJSFunctionData)
 
+USE_TORQUE_VERIFIER(WasmIndirectFunctionTable)
+
 USE_TORQUE_VERIFIER(ObjectTemplateInfo)
 
 void AllocationSite::AllocationSiteVerify(Isolate* isolate) {

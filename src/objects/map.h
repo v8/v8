@@ -74,6 +74,7 @@ enum InstanceType : uint16_t;
   V(UncompiledDataWithoutPreparseData) \
   V(UncompiledDataWithPreparseData)    \
   V(WasmCapiFunctionData)              \
+  V(WasmIndirectFunctionTable)         \
   V(WasmInstanceObject)                \
   V(WeakArray)                         \
   V(WeakCell)

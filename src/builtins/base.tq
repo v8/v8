@@ -928,6 +928,16 @@ extern class WasmCapiFunctionData extends Struct {
   serialized_signature: ByteArray;  // PodArray<wasm::ValueType>
 }
 
+extern class WasmIndirectFunctionTable extends Struct {
+  size: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+  sig_ids: RawPtr;
+  targets: RawPtr;
+  managed_native_allocations: Foreign | Undefined;
+  refs: FixedArray;
+}
+
 extern class WasmDebugInfo extends Struct {
   instance: WasmInstanceObject;
   interpreter_handle: Foreign | Undefined;

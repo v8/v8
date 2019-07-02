@@ -397,15 +397,30 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Set up table storage space.
   //--------------------------------------------------------------------------
   int table_count = static_cast<int>(module_->tables.size());
-  Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
-  for (int i = module_->num_imported_tables; i < table_count; i++) {
-    const WasmTable& table = module_->tables[i];
-    Handle<WasmTableObject> table_obj = WasmTableObject::New(
-        isolate_, table.type, table.initial_size, table.has_maximum_size,
-        table.maximum_size, nullptr);
-    tables->set(i, *table_obj);
+  {
+    Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
+    for (int i = module_->num_imported_tables; i < table_count; i++) {
+      const WasmTable& table = module_->tables[i];
+      Handle<WasmTableObject> table_obj = WasmTableObject::New(
+          isolate_, table.type, table.initial_size, table.has_maximum_size,
+          table.maximum_size, nullptr);
+      tables->set(i, *table_obj);
+    }
+    instance->set_tables(*tables);
   }
-  instance->set_tables(*tables);
+
+  {
+    Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
+    for (int i = 0; i < table_count; ++i) {
+      const WasmTable& table = module_->tables[i];
+      if (table.type == kWasmAnyFunc) {
+        Handle<WasmIndirectFunctionTable> table_obj =
+            WasmIndirectFunctionTable::New(isolate_, table.initial_size);
+        tables->set(i, *table_obj);
+      }
+    }
+    instance->set_indirect_function_tables(*tables);
+  }
 
   //--------------------------------------------------------------------------
   // Process the imports for the module.
