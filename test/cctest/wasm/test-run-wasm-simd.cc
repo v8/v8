@@ -2169,6 +2169,18 @@ WASM_SIMD_TEST(SimdF32x4ExtractWithI32x4) {
   CHECK_EQ(1, r.Call());
 }
 
+WASM_SIMD_TEST(SimdF32x4ExtractLane) {
+  WasmRunner<float> r(execution_tier, lower_simd);
+  r.AllocateLocal(kWasmF32);
+  r.AllocateLocal(kWasmS128);
+  BUILD(r,
+        WASM_SET_LOCAL(0, WASM_SIMD_F32x4_EXTRACT_LANE(
+                              0, WASM_SIMD_F32x4_SPLAT(WASM_F32(30.5)))),
+        WASM_SET_LOCAL(1, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SIMD_F32x4_EXTRACT_LANE(1, WASM_GET_LOCAL(1)));
+  CHECK_EQ(30.5, r.Call());
+}
+
 WASM_SIMD_TEST(SimdF32x4AddWithI32x4) {
   // Choose two floating point values whose sum is normal and exactly
   // representable as a float.
