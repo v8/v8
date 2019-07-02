@@ -22,6 +22,7 @@ namespace {
 using FloatUnOp = float (*)(float);
 using FloatBinOp = float (*)(float, float);
 using FloatCompareOp = int (*)(float, float);
+using Int64BinOp = int64_t (*)(int64_t, int64_t);
 using Int32UnOp = int32_t (*)(int32_t);
 using Int32BinOp = int32_t (*)(int32_t, int32_t);
 using Int32CompareOp = int (*)(int32_t, int32_t);
@@ -757,6 +758,42 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ReplaceLane) {
   for (int64_t i = 0; i < 2; i++) {
     CHECK_EQ(i, ReadLittleEndianValue<int64_t>(&g[i]));
   }
+}
+
+void RunI64x2BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
+                       WasmOpcode opcode, Int64BinOp expected_op) {
+  WasmRunner<int32_t, int64_t, int64_t> r(execution_tier, lower_simd);
+  // Global to hold output.
+  int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
+  // Build fn to splat test values, perform binop, and write the result.
+  byte value1 = 0, value2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                           WASM_GET_LOCAL(temp2))),
+        WASM_ONE);
+
+  FOR_INT64_INPUTS(x) {
+    FOR_INT64_INPUTS(y) {
+      r.Call(x, y);
+      int64_t expected = expected_op(x, y);
+      for (int i = 0; i < 2; i++) {
+        CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g[i]));
+      }
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2Add) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Add,
+                    base::AddWithWraparound);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2Sub) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Sub,
+                    base::SubWithWraparound);
 }
 #endif  // V8_TARGET_ARCH_X64
 

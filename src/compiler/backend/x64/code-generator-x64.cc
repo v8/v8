@@ -2434,6 +2434,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kX64I64x2Add: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ paddq(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I64x2Sub: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ psubq(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
     case kX64I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (instr->InputAt(0)->IsRegister()) {

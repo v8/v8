@@ -2177,6 +2177,8 @@ class ThreadImpl {
       BINOP_CASE(F32x4Mul, f32x4, float4, 4, a * b)
       BINOP_CASE(F32x4Min, f32x4, float4, 4, a < b ? a : b)
       BINOP_CASE(F32x4Max, f32x4, float4, 4, a > b ? a : b)
+      BINOP_CASE(I64x2Add, i64x2, int2, 2, base::AddWithWraparound(a, b))
+      BINOP_CASE(I64x2Sub, i64x2, int2, 2, base::SubWithWraparound(a, b))
       BINOP_CASE(I32x4Add, i32x4, int4, 4, base::AddWithWraparound(a, b))
       BINOP_CASE(I32x4Sub, i32x4, int4, 4, base::SubWithWraparound(a, b))
       BINOP_CASE(I32x4Mul, i32x4, int4, 4, base::MulWithWraparound(a, b))
