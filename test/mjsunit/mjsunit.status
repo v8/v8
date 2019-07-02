@@ -244,7 +244,7 @@
 
   # Test doesn't work on 32-bit architectures (it would require a
   # regexp pattern with too many captures).
-  'regress/regress-976627': [FAIL, ['arch == x64 or arch == arm64 or arch == mips64el', PASS]],
+  'regress/regress-976627': [FAIL, ['arch == x64 or arch == arm64 or arch == mips64el or arch == ppc64 or arch == s390x', PASS]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
