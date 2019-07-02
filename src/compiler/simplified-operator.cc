@@ -761,6 +761,8 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(ChangeUint64ToTagged, Operator::kNoProperties, 1, 0)           \
   V(ChangeTaggedToBit, Operator::kNoProperties, 1, 0)              \
   V(ChangeBitToTagged, Operator::kNoProperties, 1, 0)              \
+  V(TruncateBigIntToUint64, Operator::kNoProperties, 1, 0)         \
+  V(ChangeUint64ToBigInt, Operator::kNoProperties, 1, 0)           \
   V(TruncateTaggedToBit, Operator::kNoProperties, 1, 0)            \
   V(TruncateTaggedPointerToBit, Operator::kNoProperties, 1, 0)     \
   V(TruncateTaggedToWord32, Operator::kNoProperties, 1, 0)         \
@@ -832,6 +834,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckNumber, 1, 1)                      \
   V(CheckSmi, 1, 1)                         \
   V(CheckString, 1, 1)                      \
+  V(CheckBigInt, 1, 1)                      \
   V(CheckedInt32ToTaggedSigned, 1, 1)       \
   V(CheckedInt64ToInt32, 1, 1)              \
   V(CheckedInt64ToTaggedSigned, 1, 1)       \
@@ -840,7 +843,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedTaggedToTaggedSigned, 1, 1)      \
   V(CheckedCompressedToTaggedPointer, 1, 1) \
   V(CheckedCompressedToTaggedSigned, 1, 1)  \
-  V(CheckedTaggedToBigInt, 1, 1)            \
   V(CheckedTaggedToCompressedPointer, 1, 1) \
   V(CheckedTaggedToCompressedSigned, 1, 1)  \
   V(CheckedUint32ToInt32, 1, 1)             \
@@ -1266,6 +1268,13 @@ const Operator* SimplifiedOperatorBuilder::RuntimeAbort(AbortReason reason) {
       "RuntimeAbort",                           // name
       0, 1, 1, 0, 1, 0,                         // counts
       static_cast<int>(reason));                // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::BigIntAsUintN(int bits) {
+  CHECK(0 <= bits && bits <= 64);
+
+  return new (zone()) Operator1<int>(IrOpcode::kBigIntAsUintN, Operator::kPure,
+                                     "BigIntAsUintN", 1, 0, 0, 1, 0, 0, bits);
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckIf(

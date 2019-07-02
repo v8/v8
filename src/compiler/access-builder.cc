@@ -72,6 +72,15 @@ FieldAccess AccessBuilder::ForBigIntBitfield() {
 }
 
 // static
+FieldAccess AccessBuilder::ForBigIntLeastSignificantDigit64() {
+  FieldAccess access = {
+      kTaggedBase,        BigInt::kDigitsOffset,        MaybeHandle<Name>(),
+      MaybeHandle<Map>(), TypeCache::Get()->kBigUint64, MachineType::Uint64(),
+      kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSObjectPropertiesOrHash() {
   FieldAccess access = {
       kTaggedBase,          JSObject::kPropertiesOrHashOffset,

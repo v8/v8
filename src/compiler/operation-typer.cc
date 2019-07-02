@@ -578,6 +578,13 @@ Type OperationTyper::NumberSilenceNaN(Type type) {
   return type;
 }
 
+Type OperationTyper::BigIntAsUintN(Type type) {
+  DCHECK(type.Is(Type::BigInt()));
+  return Type::BigInt();
+}
+
+Type OperationTyper::CheckBigInt(Type type) { return Type::BigInt(); }
+
 Type OperationTyper::NumberAdd(Type lhs, Type rhs) {
   DCHECK(lhs.Is(Type::Number()));
   DCHECK(rhs.Is(Type::Number()));

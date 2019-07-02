@@ -682,6 +682,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* SpeculativeBigIntAdd(BigIntOperationHint hint,
                                        const VectorSlotPair& feedback);
+  const Operator* BigIntAsUintN(int bits);
 
   const Operator* ReferenceEqual();
   const Operator* SameValue();
@@ -734,6 +735,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeFloat64ToTaggedPointer();
   const Operator* ChangeTaggedToBit();
   const Operator* ChangeBitToTagged();
+  const Operator* TruncateBigIntToUint64();
+  const Operator* ChangeUint64ToBigInt();
   const Operator* TruncateTaggedToWord32();
   const Operator* TruncateTaggedToFloat64();
   const Operator* TruncateTaggedToBit();
@@ -782,7 +785,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                        const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToTaggedPointer(const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToTaggedSigned(const VectorSlotPair& feedback);
-  const Operator* CheckedTaggedToBigInt(const VectorSlotPair& feedback);
+  const Operator* CheckBigInt(const VectorSlotPair& feedback);
   const Operator* CheckedCompressedToTaggedPointer(
       const VectorSlotPair& feedback);
   const Operator* CheckedCompressedToTaggedSigned(

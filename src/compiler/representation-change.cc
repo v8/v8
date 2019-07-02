@@ -25,6 +25,8 @@ const char* Truncation::description() const {
       return "truncate-to-bool";
     case TruncationKind::kWord32:
       return "truncate-to-word32";
+    case TruncationKind::kWord64:
+      return "truncate-to-word64";
     case TruncationKind::kOddballAndBigIntToNumber:
       switch (identify_zeros()) {
         case kIdentifyZeros:
@@ -51,6 +53,9 @@ const char* Truncation::description() const {
 //  kOddballAndBigIntToNumber |
 //               ^            |
 //               /            |
+//        kWord64             |
+//             ^              |
+//             |              |
 //        kWord32           kBool
 //              ^            ^
 //              \            /
@@ -101,6 +106,11 @@ bool Truncation::LessGeneral(TruncationKind rep1, TruncationKind rep2) {
       return rep2 == TruncationKind::kBool || rep2 == TruncationKind::kAny;
     case TruncationKind::kWord32:
       return rep2 == TruncationKind::kWord32 ||
+             rep2 == TruncationKind::kWord64 ||
+             rep2 == TruncationKind::kOddballAndBigIntToNumber ||
+             rep2 == TruncationKind::kAny;
+    case TruncationKind::kWord64:
+      return rep2 == TruncationKind::kWord64 ||
              rep2 == TruncationKind::kOddballAndBigIntToNumber ||
              rep2 == TruncationKind::kAny;
     case TruncationKind::kOddballAndBigIntToNumber:
@@ -210,7 +220,8 @@ Node* RepresentationChanger::GetRepresentationFor(
                                         use_info);
     case MachineRepresentation::kWord64:
       DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
-             use_info.type_check() == TypeCheckKind::kSigned64);
+             use_info.type_check() == TypeCheckKind::kSigned64 ||
+             use_info.type_check() == TypeCheckKind::kBigInt);
       return GetWord64RepresentationFor(node, output_rep, output_type, use_node,
                                         use_info);
     case MachineRepresentation::kSimd128:
@@ -455,7 +466,7 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
     if (IsAnyCompressed(output_rep)) {
       node = InsertChangeCompressedToTagged(node);
     }
-    op = simplified()->CheckedTaggedToBigInt(use_info.feedback());
+    op = simplified()->CheckBigInt(use_info.feedback());
   } else if (output_rep == MachineRepresentation::kCompressedPointer) {
     op = machine()->ChangeCompressedPointerToTaggedPointer();
   } else if (CanBeCompressedSigned(output_rep) &&
@@ -545,6 +556,9 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
     } else if (output_type.Is(cache_->kSafeInteger)) {
       // int64 -> tagged
       op = simplified()->ChangeInt64ToTagged();
+    } else if (output_type.Is(Type::BigInt())) {
+      // uint64 -> BigInt
+      op = simplified()->ChangeUint64ToBigInt();
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTagged);
@@ -1341,6 +1355,12 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
     }
+  } else if ((IsAnyTagged(output_rep) || IsAnyCompressed(output_rep)) &&
+             output_type.Is(Type::BigInt())) {
+    if (IsAnyCompressed(output_rep)) {
+      node = InsertChangeCompressedToTagged(node);
+    }
+    op = simplified()->TruncateBigIntToUint64();
   } else if (CanBeTaggedPointer(output_rep)) {
     if (output_type.Is(cache_->kInt64)) {
       op = simplified()->ChangeTaggedToInt64();

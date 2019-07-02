@@ -75,6 +75,7 @@ class EffectControlLinearizer {
   Node* LowerCheckReceiver(Node* node, Node* frame_state);
   Node* LowerCheckReceiverOrNullOrUndefined(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
+  Node* LowerCheckBigInt(Node* node, Node* frame_state);
   Node* LowerCheckSymbol(Node* node, Node* frame_state);
   void LowerCheckIf(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Add(Node* node, Node* frame_state);
@@ -101,7 +102,9 @@ class EffectControlLinearizer {
   Node* LowerCheckedTaggedToFloat64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedPointer(Node* node, Node* frame_state);
-  Node* LowerCheckedTaggedToBigInt(Node* node, Node* frame_state);
+  Node* LowerBigIntAsUintN(Node* node, Node* frame_state);
+  Node* LowerChangeUint64ToBigInt(Node* node);
+  Node* LowerTruncateBigIntToUint64(Node* node);
   Node* LowerCheckedCompressedToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedCompressedToTaggedPointer(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToCompressedSigned(Node* node, Node* frame_state);
@@ -913,6 +916,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckString:
       result = LowerCheckString(node, frame_state);
       break;
+    case IrOpcode::kCheckBigInt:
+      result = LowerCheckBigInt(node, frame_state);
+      break;
     case IrOpcode::kCheckInternalizedString:
       result = LowerCheckInternalizedString(node, frame_state);
       break;
@@ -995,8 +1001,14 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedTaggedToTaggedPointer:
       result = LowerCheckedTaggedToTaggedPointer(node, frame_state);
       break;
-    case IrOpcode::kCheckedTaggedToBigInt:
-      result = LowerCheckedTaggedToBigInt(node, frame_state);
+    case IrOpcode::kBigIntAsUintN:
+      result = LowerBigIntAsUintN(node, frame_state);
+      break;
+    case IrOpcode::kChangeUint64ToBigInt:
+      result = LowerChangeUint64ToBigInt(node);
+      break;
+    case IrOpcode::kTruncateBigIntToUint64:
+      result = LowerTruncateBigIntToUint64(node);
       break;
     case IrOpcode::kCheckedCompressedToTaggedSigned:
       result = LowerCheckedCompressedToTaggedSigned(node, frame_state);
@@ -2659,8 +2671,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToTaggedPointer(
   return value;
 }
 
-Node* EffectControlLinearizer::LowerCheckedTaggedToBigInt(Node* node,
-                                                          Node* frame_state) {
+Node* EffectControlLinearizer::LowerCheckBigInt(Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
@@ -2676,6 +2687,93 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToBigInt(Node* node,
                      bi_check, frame_state);
 
   return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntAsUintN(Node* node,
+                                                  Node* frame_state) {
+  DCHECK(machine()->Is64());
+
+  const int bits = OpParameter<int>(node->op());
+  DCHECK(0 <= bits && bits <= 64);
+
+  if (bits == 64) {
+    // Reduce to nop.
+    return node->InputAt(0);
+  } else {
+    const uint64_t msk = (1ULL << bits) - 1ULL;
+    return __ Word64And(node->InputAt(0), __ Int64Constant(msk));
+  }
+}
+
+Node* EffectControlLinearizer::LowerChangeUint64ToBigInt(Node* node) {
+  DCHECK(machine()->Is64());
+
+  Node* value = node->InputAt(0);
+  Node* map = jsgraph()->HeapConstant(factory()->bigint_map());
+  // BigInts with value 0 must be of size 0 (canonical form).
+  auto if_zerodigits = __ MakeLabel();
+  auto if_onedigit = __ MakeLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+
+  __ GotoIf(__ Word64Equal(value, __ IntPtrConstant(0)), &if_zerodigits);
+  __ Goto(&if_onedigit);
+
+  __ Bind(&if_onedigit);
+  {
+    Node* result = __ Allocate(AllocationType::kYoung,
+                               __ IntPtrConstant(BigInt::SizeFor(1)));
+    const auto bitfield = BigInt::LengthBits::update(0, 1);
+    __ StoreField(AccessBuilder::ForMap(), result, map);
+    __ StoreField(AccessBuilder::ForBigIntBitfield(), result,
+                  __ IntPtrConstant(bitfield));
+    __ StoreField(AccessBuilder::ForBigIntLeastSignificantDigit64(), result,
+                  value);
+    __ Goto(&done, result);
+  }
+
+  __ Bind(&if_zerodigits);
+  {
+    Node* result = __ Allocate(AllocationType::kYoung,
+                               __ IntPtrConstant(BigInt::SizeFor(0)));
+    const auto bitfield = BigInt::LengthBits::update(0, 0);
+    __ StoreField(AccessBuilder::ForMap(), result, map);
+    __ StoreField(AccessBuilder::ForBigIntBitfield(), result,
+                  __ IntPtrConstant(bitfield));
+    __ Goto(&done, result);
+  }
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerTruncateBigIntToUint64(Node* node) {
+  DCHECK(machine()->Is64());
+
+  auto done = __ MakeLabel(MachineRepresentation::kWord64);
+  auto if_neg = __ MakeLabel();
+  auto if_not_zero = __ MakeLabel();
+
+  Node* value = node->InputAt(0);
+
+  Node* bitfield = __ LoadField(AccessBuilder::ForBigIntBitfield(), value);
+  __ GotoIfNot(__ Word32Equal(bitfield, __ Int32Constant(0)), &if_not_zero);
+  __ Goto(&done, __ Int64Constant(0));
+
+  __ Bind(&if_not_zero);
+  {
+    Node* lsd =
+        __ LoadField(AccessBuilder::ForBigIntLeastSignificantDigit64(), value);
+    Node* sign =
+        __ Word32And(bitfield, __ Int32Constant(BigInt::SignBits::kMask));
+    __ GotoIf(__ Word32Equal(sign, __ Int32Constant(1)), &if_neg);
+    __ Goto(&done, lsd);
+
+    __ Bind(&if_neg);
+    __ Goto(&done, __ Int64Sub(__ Int64Constant(0), lsd));
+  }
+
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerCheckedCompressedToTaggedSigned(

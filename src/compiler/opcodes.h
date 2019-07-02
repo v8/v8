@@ -250,6 +250,8 @@
   V(ChangeFloat64ToTaggedPointer)    \
   V(ChangeTaggedToBit)               \
   V(ChangeBitToTagged)               \
+  V(ChangeUint64ToBigInt)            \
+  V(TruncateBigIntToUint64)          \
   V(TruncateTaggedToWord32)          \
   V(TruncateTaggedToFloat64)         \
   V(TruncateTaggedToBit)             \
@@ -281,7 +283,6 @@
   V(CheckedTaggedToInt64)             \
   V(CheckedTaggedToTaggedSigned)      \
   V(CheckedTaggedToTaggedPointer)     \
-  V(CheckedTaggedToBigInt)            \
   V(CheckedCompressedToTaggedSigned)  \
   V(CheckedCompressedToTaggedPointer) \
   V(CheckedTaggedToCompressedSigned)  \
@@ -370,6 +371,10 @@
   V(NumberToUint32)                    \
   V(NumberToUint8Clamped)              \
   V(NumberSilenceNaN)
+
+#define SIMPLIFIED_BIGINT_UNOP_LIST(V) \
+  V(BigIntAsUintN)                     \
+  V(CheckBigInt)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V) V(SpeculativeToNumber)
 
@@ -474,6 +479,7 @@
   SIMPLIFIED_NUMBER_BINOP_LIST(V)             \
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
   SIMPLIFIED_NUMBER_UNOP_LIST(V)              \
+  SIMPLIFIED_BIGINT_UNOP_LIST(V)              \
   SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V)  \
   SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
   SIMPLIFIED_OTHER_OP_LIST(V)

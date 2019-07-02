@@ -970,6 +970,8 @@ class RepresentationSelector {
       return MachineRepresentation::kTagged;
     } else if (type.Is(Type::Number())) {
       return MachineRepresentation::kFloat64;
+    } else if (type.Is(Type::BigInt()) && use.IsUsedAsWord64()) {
+      return MachineRepresentation::kWord64;
     } else if (type.Is(Type::ExternalPointer())) {
       return MachineType::PointerRepresentation();
     }
@@ -2463,6 +2465,20 @@ class RepresentationSelector {
             NodeProperties::ChangeOp(node, Float64Op(node));
           }
         }
+        return;
+      }
+      case IrOpcode::kCheckBigInt: {
+        if (InputIs(node, Type::BigInt())) {
+          VisitNoop(node, truncation);
+        } else {
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
+        }
+        return;
+      }
+      case IrOpcode::kBigIntAsUintN: {
+        ProcessInput(node, 0, UseInfo::TruncatedBigIntAsWord64());
+        SetOutput(node, MachineRepresentation::kWord64, Type::BigInt());
         return;
       }
       case IrOpcode::kNumberAcos:

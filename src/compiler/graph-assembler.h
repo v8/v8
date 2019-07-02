@@ -57,6 +57,7 @@ namespace compiler {
   V(Word32Shr)                            \
   V(Word32Shl)                            \
   V(Word32Sar)                            \
+  V(Word64And)                            \
   V(IntAdd)                               \
   V(IntSub)                               \
   V(IntMul)                               \
@@ -71,6 +72,7 @@ namespace compiler {
   V(Uint64LessThan)                       \
   V(Uint64LessThanOrEqual)                \
   V(Int32LessThan)                        \
+  V(Int64Sub)                             \
   V(Float64Add)                           \
   V(Float64Sub)                           \
   V(Float64Div)                           \

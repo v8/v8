@@ -29,6 +29,9 @@ class Truncation final {
   static Truncation Word32() {
     return Truncation(TruncationKind::kWord32, kIdentifyZeros);
   }
+  static Truncation Word64() {
+    return Truncation(TruncationKind::kWord64, kIdentifyZeros);
+  }
   static Truncation OddballAndBigIntToNumber(
       IdentifyZeros identify_zeros = kDistinguishZeros) {
     return Truncation(TruncationKind::kOddballAndBigIntToNumber,
@@ -51,6 +54,9 @@ class Truncation final {
   }
   bool IsUsedAsWord32() const {
     return LessGeneral(kind_, TruncationKind::kWord32);
+  }
+  bool IsUsedAsWord64() const {
+    return LessGeneral(kind_, TruncationKind::kWord64);
   }
   bool TruncatesOddballAndBigIntToNumber() const {
     return LessGeneral(kind_, TruncationKind::kOddballAndBigIntToNumber);
@@ -83,6 +89,7 @@ class Truncation final {
     kNone,
     kBool,
     kWord32,
+    kWord64,
     kOddballAndBigIntToNumber,
     kAny
   };
@@ -165,6 +172,10 @@ class UseInfo {
         feedback_(feedback) {}
   static UseInfo TruncatingWord32() {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32());
+  }
+  static UseInfo TruncatedBigIntAsWord64() {
+    return UseInfo(MachineRepresentation::kWord64, Truncation::Word64(),
+                   TypeCheckKind::kBigInt);
   }
   static UseInfo Word64() {
     return UseInfo(MachineRepresentation::kWord64, Truncation::Any());

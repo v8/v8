@@ -3761,6 +3761,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceDateNow(node);
     case Builtins::kNumberConstructor:
       return ReduceNumberConstructor(node);
+    case Builtins::kBigIntAsUintN:
+      return ReduceBigIntAsUintN(node);
     default:
       break;
   }
@@ -7223,6 +7225,37 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   NodeProperties::ChangeOp(node, javascript()->ToNumberConvertBigInt());
   NodeProperties::ReplaceFrameStateInput(node, continuation_frame_state);
   return Changed(node);
+}
+
+Reduction JSCallReducer::ReduceBigIntAsUintN(Node* node) {
+  if (!jsgraph()->machine()->Is64()) {
+    return NoChange();
+  }
+
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+  if (node->op()->ValueInputCount() < 3) {
+    return NoChange();
+  }
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* bits = NodeProperties::GetValueInput(node, 2);
+  Node* value = NodeProperties::GetValueInput(node, 3);
+
+  NumberMatcher matcher(bits);
+  if (matcher.IsInteger() && matcher.IsInRange(0, 64)) {
+    const int bits_value = static_cast<int>(matcher.Value());
+    value = effect = graph()->NewNode(simplified()->CheckBigInt(p.feedback()),
+                                      value, effect, control);
+    value = graph()->NewNode(simplified()->BigIntAsUintN(bits_value), value);
+    ReplaceWithValue(node, value, effect);
+    return Replace(value);
+  }
+
+  return NoChange();
 }
 
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }

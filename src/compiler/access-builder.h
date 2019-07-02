@@ -42,6 +42,10 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to BigInt's bit field.
   static FieldAccess ForBigIntBitfield();
 
+  // Provides access to BigInt's least significant digit on 64 bit
+  // architectures. Do not use this on 32 bit architectures.
+  static FieldAccess ForBigIntLeastSignificantDigit64();
+
   // Provides access to JSObject::properties() field.
   static FieldAccess ForJSObjectPropertiesOrHash();
 
