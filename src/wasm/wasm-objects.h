@@ -44,6 +44,7 @@ class WasmExportedFunction;
 class WasmInstanceObject;
 class WasmJSFunction;
 class WasmModuleObject;
+class WasmIndirectFunctionTable;
 
 template <class CppType>
 class Managed;
@@ -61,7 +62,11 @@ class Managed;
 // - target = entrypoint to Wasm code or import wrapper code
 class IndirectFunctionTableEntry {
  public:
-  inline IndirectFunctionTableEntry(Handle<WasmInstanceObject>, int index);
+  inline IndirectFunctionTableEntry(Handle<WasmInstanceObject>, int table_index,
+                                    int entry_index);
+
+  inline IndirectFunctionTableEntry(Handle<WasmIndirectFunctionTable> table,
+                                    int entry_index);
 
   void clear();
   V8_EXPORT_PRIVATE void Set(int sig_id,
@@ -77,6 +82,7 @@ class IndirectFunctionTableEntry {
 
  private:
   Handle<WasmInstanceObject> const instance_;
+  Handle<WasmIndirectFunctionTable> const table_;
   int const index_;
 };
 
@@ -552,9 +558,8 @@ class WasmInstanceObject : public JSObject {
   V8_EXPORT_PRIVATE const wasm::WasmModule* module();
 
   V8_EXPORT_PRIVATE static bool EnsureIndirectFunctionTableWithMinimumSize(
-      Handle<WasmInstanceObject> instance, uint32_t minimum_size);
-
-  bool has_indirect_function_table();
+      Handle<WasmInstanceObject> instance, int table_index,
+      uint32_t minimum_size);
 
   V8_EXPORT_PRIVATE void SetRawMemory(byte* mem_start, size_t mem_size);
 
@@ -567,6 +572,10 @@ class WasmInstanceObject : public JSObject {
       Isolate*, Handle<WasmModuleObject>);
 
   Address GetCallTarget(uint32_t func_index);
+
+  static int IndirectFunctionTableSize(Isolate* isolate,
+                                       Handle<WasmInstanceObject> instance,
+                                       uint32_t table_index);
 
   // Copies table entries. Returns {false} if the ranges are out-of-bounds.
   static bool CopyTableEntries(Isolate* isolate,
@@ -609,7 +618,7 @@ class WasmInstanceObject : public JSObject {
   // {WasmJSFunction} is instance-independent and just wraps a JS callable.
   static void ImportWasmJSFunctionIntoTable(Isolate* isolate,
                                             Handle<WasmInstanceObject> instance,
-                                            int table_index,
+                                            int table_index, int entry_index,
                                             Handle<WasmJSFunction> js_function);
 
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
@@ -734,6 +743,8 @@ class WasmIndirectFunctionTable : public Struct {
   DECL_ACCESSORS(refs, FixedArray)
 
   static Handle<WasmIndirectFunctionTable> New(Isolate* isolate, uint32_t size);
+  static void Resize(Isolate* isolate, Handle<WasmIndirectFunctionTable> table,
+                     uint32_t new_size);
 
   DECL_CAST(WasmIndirectFunctionTable)
 

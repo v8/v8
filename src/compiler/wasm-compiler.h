@@ -490,10 +490,10 @@ class WasmGraphBuilder {
   Node* BuildCallNode(wasm::FunctionSig* sig, Node** args,
                       wasm::WasmCodePosition position, Node* instance_node,
                       const Operator* op);
-  // Special implementation for CallIndirect for table 0.
-  Node* BuildIndirectCall(uint32_t sig_index, Node** args, Node*** rets,
-                          wasm::WasmCodePosition position,
-                          IsReturnCall continuation);
+  // Helper function for {BuildIndirectCall}.
+  void LoadIndirectFunctionTable(uint32_t table_index, Node** ift_size,
+                                 Node** ift_sig_ids, Node** ift_targets,
+                                 Node** ift_instances);
   Node* BuildIndirectCall(uint32_t table_index, uint32_t sig_index, Node** args,
                           Node*** rets, wasm::WasmCodePosition position,
                           IsReturnCall continuation);

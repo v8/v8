@@ -139,7 +139,9 @@ class WasmInstanceNativeAllocations {
 
     instance->set_indirect_function_table_refs(*new_refs);
     for (uint32_t j = old_size; j < new_size; j++) {
-      IndirectFunctionTableEntry(instance, static_cast<int>(j)).clear();
+      // {WasmInstanceNativeAllocations} only manages the memory of table 0.
+      // Therefore we pass the {table_index} as a constant here.
+      IndirectFunctionTableEntry(instance, 0, static_cast<int>(j)).clear();
     }
   }
   uint32_t* indirect_function_table_sig_ids_ = nullptr;
@@ -867,15 +869,14 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
        i += kDispatchTableNumElements) {
     int table_index =
         Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset)).value();
-    if (table_index > 0) {
-      continue;
-    }
-    // For Table 0 we have to update the indirect function table.
+
     Handle<WasmInstanceObject> instance(
         WasmInstanceObject::cast(dispatch_tables->get(i)), isolate);
-    DCHECK_EQ(old_size, instance->indirect_function_table_size());
-    WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(instance,
-                                                                   new_size);
+
+    DCHECK_EQ(old_size, WasmInstanceObject::IndirectFunctionTableSize(
+                            isolate, instance, table_index));
+    WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
+        instance, table_index, new_size);
   }
 
   for (uint32_t entry = old_size; entry < new_size; ++entry) {
@@ -1011,11 +1012,6 @@ void WasmTableObject::UpdateDispatchTables(
        i += kDispatchTableNumElements) {
     int table_index =
         Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset)).value();
-    if (table_index > 0) {
-      // Only table 0 has a dispatch table in the instance at the moment.
-      // TODO(ahaas): Introduce dispatch tables for the other tables as well.
-      continue;
-    }
     Handle<WasmInstanceObject> instance(
         WasmInstanceObject::cast(
             dispatch_tables->get(i + kDispatchTableInstanceOffset)),
@@ -1023,7 +1019,7 @@ void WasmTableObject::UpdateDispatchTables(
     // Note that {SignatureMap::Find} may return {-1} if the signature is
     // not found; it will simply never match any check.
     auto sig_id = instance->module()->signature_map.Find(*sig);
-    IndirectFunctionTableEntry(instance, entry_index)
+    IndirectFunctionTableEntry(instance, table_index, entry_index)
         .Set(sig_id, target_instance, target_func_index);
   }
 }
@@ -1041,17 +1037,12 @@ void WasmTableObject::UpdateDispatchTables(Isolate* isolate,
        i += kDispatchTableNumElements) {
     int table_index =
         Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset)).value();
-    if (table_index > 0) {
-      // Only table 0 has a dispatch table in the instance at the moment.
-      // TODO(ahaas): Introduce dispatch tables for the other tables as well.
-      continue;
-    }
     Handle<WasmInstanceObject> instance(
         WasmInstanceObject::cast(
             dispatch_tables->get(i + kDispatchTableInstanceOffset)),
         isolate);
-    WasmInstanceObject::ImportWasmJSFunctionIntoTable(isolate, instance,
-                                                      entry_index, function);
+    WasmInstanceObject::ImportWasmJSFunctionIntoTable(
+        isolate, instance, table_index, entry_index, function);
   }
 }
 
@@ -1085,11 +1076,6 @@ void WasmTableObject::UpdateDispatchTables(
        i += kDispatchTableNumElements) {
     int table_index =
         Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset)).value();
-    if (table_index > 0) {
-      // Only table 0 has a dispatch table in the instance at the moment.
-      // TODO(ahaas): Introduce dispatch tables for the other tables as well.
-      continue;
-    }
     Handle<WasmInstanceObject> instance(
         WasmInstanceObject::cast(
             dispatch_tables->get(i + kDispatchTableInstanceOffset)),
@@ -1110,7 +1096,7 @@ void WasmTableObject::UpdateDispatchTables(
     // Note that {SignatureMap::Find} may return {-1} if the signature is
     // not found; it will simply never match any check.
     auto sig_id = instance->module()->signature_map.Find(sig);
-    IndirectFunctionTableEntry(instance, entry_index)
+    IndirectFunctionTableEntry(instance, table_index, entry_index)
         .Set(sig_id, wasm_code->instruction_start(), *tuple);
   }
 }
@@ -1124,16 +1110,13 @@ void WasmTableObject::ClearDispatchTables(Isolate* isolate,
        i += kDispatchTableNumElements) {
     int table_index =
         Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset)).value();
-    if (table_index > 0) {
-      // Only table 0 has a dispatch table in the instance at the moment.
-      continue;
-    }
     Handle<WasmInstanceObject> target_instance(
         WasmInstanceObject::cast(
             dispatch_tables->get(i + kDispatchTableInstanceOffset)),
         isolate);
-    DCHECK_LT(index, target_instance->indirect_function_table_size());
-    IndirectFunctionTableEntry(target_instance, index).clear();
+    DCHECK_LT(index, WasmInstanceObject::IndirectFunctionTableSize(
+                         isolate, target_instance, table_index));
+    IndirectFunctionTableEntry(target_instance, table_index, index).clear();
   }
 }
 
@@ -1196,6 +1179,17 @@ class IftNativeAllocations {
     return size * (sizeof(Address) + sizeof(uint32_t));
   }
 
+  void resize(Handle<WasmIndirectFunctionTable> table, uint32_t new_size) {
+    DCHECK_GE(new_size, sig_ids_.size());
+    DCHECK_EQ(this, Managed<IftNativeAllocations>::cast(
+                        table->managed_native_allocations())
+                        .raw());
+    sig_ids_.resize(new_size);
+    targets_.resize(new_size);
+    table->set_sig_ids(sig_ids_.data());
+    table->set_targets(targets_.data());
+  }
+
  private:
   std::vector<uint32_t> sig_ids_;
   std::vector<Address> targets_;
@@ -1212,7 +1206,30 @@ Handle<WasmIndirectFunctionTable> WasmIndirectFunctionTable::New(
   auto native_allocations = Managed<IftNativeAllocations>::Allocate(
       isolate, IftNativeAllocations::SizeInMemory(size), table, size);
   table->set_managed_native_allocations(*native_allocations);
+  for (uint32_t i = 0; i < size; ++i) {
+    IndirectFunctionTableEntry(table, static_cast<int>(i)).clear();
+  }
   return table;
+}
+
+void WasmIndirectFunctionTable::Resize(Isolate* isolate,
+                                       Handle<WasmIndirectFunctionTable> table,
+                                       uint32_t new_size) {
+  uint32_t old_size = table->size();
+  if (old_size >= new_size) return;  // Nothing to do.
+
+  Managed<IftNativeAllocations>::cast(table->managed_native_allocations())
+      .raw()
+      ->resize(table, new_size);
+
+  Handle<FixedArray> old_refs(table->refs(), isolate);
+  Handle<FixedArray> new_refs = isolate->factory()->CopyFixedArrayAndGrow(
+      old_refs, static_cast<int>(new_size - old_size));
+  table->set_refs(*new_refs);
+  table->set_size(new_size);
+  for (uint32_t i = old_size; i < new_size; ++i) {
+    IndirectFunctionTableEntry(table, static_cast<int>(i)).clear();
+  }
 }
 
 namespace {
@@ -1499,10 +1516,19 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
 }
 
 void IndirectFunctionTableEntry::clear() {
-  instance_->indirect_function_table_sig_ids()[index_] = -1;
-  instance_->indirect_function_table_targets()[index_] = 0;
-  instance_->indirect_function_table_refs().set(
-      index_, ReadOnlyRoots(instance_->GetIsolate()).undefined_value());
+  if (!instance_.is_null()) {
+    instance_->indirect_function_table_sig_ids()[index_] = -1;
+    instance_->indirect_function_table_targets()[index_] = 0;
+    instance_->indirect_function_table_refs().set(
+        index_, ReadOnlyRoots(instance_->GetIsolate()).undefined_value());
+  } else {
+    DCHECK(!table_.is_null());
+    table_->sig_ids()[index_] = -1;
+    table_->targets()[index_] = 0;
+    table_->refs().set(
+        index_,
+        ReadOnlyRoots(GetIsolateFromWritableObject(*table_)).undefined_value());
+  }
 }
 
 void IndirectFunctionTableEntry::Set(int sig_id,
@@ -1533,21 +1559,34 @@ void IndirectFunctionTableEntry::Set(int sig_id,
 
 void IndirectFunctionTableEntry::Set(int sig_id, Address call_target,
                                      Object ref) {
-  instance_->indirect_function_table_sig_ids()[index_] = sig_id;
-  instance_->indirect_function_table_targets()[index_] = call_target;
-  instance_->indirect_function_table_refs().set(index_, ref);
+  if (!instance_.is_null()) {
+    instance_->indirect_function_table_sig_ids()[index_] = sig_id;
+    instance_->indirect_function_table_targets()[index_] = call_target;
+    instance_->indirect_function_table_refs().set(index_, ref);
+  } else {
+    DCHECK(!table_.is_null());
+    table_->sig_ids()[index_] = sig_id;
+    table_->targets()[index_] = call_target;
+    table_->refs().set(index_, ref);
+  }
 }
 
 Object IndirectFunctionTableEntry::object_ref() const {
-  return instance_->indirect_function_table_refs().get(index_);
+  return !instance_.is_null()
+             ? instance_->indirect_function_table_refs().get(index_)
+             : table_->refs().get(index_);
 }
 
 int IndirectFunctionTableEntry::sig_id() const {
-  return instance_->indirect_function_table_sig_ids()[index_];
+  return !instance_.is_null()
+             ? instance_->indirect_function_table_sig_ids()[index_]
+             : table_->sig_ids()[index_];
 }
 
 Address IndirectFunctionTableEntry::target() const {
-  return instance_->indirect_function_table_targets()[index_];
+  return !instance_.is_null()
+             ? instance_->indirect_function_table_targets()[index_]
+             : table_->targets()[index_];
 }
 
 void IndirectFunctionTableEntry::CopyFrom(
@@ -1608,11 +1647,21 @@ constexpr uint16_t WasmInstanceObject::kTaggedFieldOffsets[];
 
 // static
 bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
-    Handle<WasmInstanceObject> instance, uint32_t minimum_size) {
+    Handle<WasmInstanceObject> instance, int table_index,
+    uint32_t minimum_size) {
+  Isolate* isolate = instance->GetIsolate();
+  if (table_index > 0) {
+    DCHECK_LT(table_index, instance->indirect_function_tables().length());
+    auto table =
+        handle(WasmIndirectFunctionTable::cast(
+                   instance->indirect_function_tables().get(table_index)),
+               isolate);
+    WasmIndirectFunctionTable::Resize(isolate, table, minimum_size);
+    return true;
+  }
   uint32_t old_size = instance->indirect_function_table_size();
   if (old_size >= minimum_size) return false;  // Nothing to do.
 
-  Isolate* isolate = instance->GetIsolate();
   HandleScope scope(isolate);
   auto native_allocations = GetNativeAllocations(*instance);
   native_allocations->resize_indirect_function_table(isolate, instance,
@@ -1768,20 +1817,37 @@ Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {
   return native_module->GetCallTargetForFunction(func_index);
 }
 
+int WasmInstanceObject::IndirectFunctionTableSize(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    uint32_t table_index) {
+  if (table_index == 0) {
+    return instance->indirect_function_table_size();
+  }
+  auto table =
+      handle(WasmIndirectFunctionTable::cast(
+                 instance->indirect_function_tables().get(table_index)),
+             isolate);
+  return table->size();
+}
+
 namespace {
 void CopyTableEntriesImpl(Handle<WasmInstanceObject> instance, uint32_t dst,
                           uint32_t src, uint32_t count, bool copy_backward) {
   DCHECK(IsInBounds(dst, count, instance->indirect_function_table_size()));
   if (copy_backward) {
     for (uint32_t i = count; i > 0; i--) {
-      auto to_entry = IndirectFunctionTableEntry(instance, dst + i - 1);
-      auto from_entry = IndirectFunctionTableEntry(instance, src + i - 1);
+      // TODO(ahaas): Use a table index here once table.copy supports multiple
+      // tables.
+      auto to_entry = IndirectFunctionTableEntry(instance, 0, dst + i - 1);
+      auto from_entry = IndirectFunctionTableEntry(instance, 0, src + i - 1);
       to_entry.CopyFrom(from_entry);
     }
   } else {
     for (uint32_t i = 0; i < count; i++) {
-      auto to_entry = IndirectFunctionTableEntry(instance, dst + i);
-      auto from_entry = IndirectFunctionTableEntry(instance, src + i);
+      // TODO(ahaas): Use a table index here once table.copy supports multiple
+      // tables.
+      auto to_entry = IndirectFunctionTableEntry(instance, 0, dst + i);
+      auto from_entry = IndirectFunctionTableEntry(instance, 0, src + i);
       to_entry.CopyFrom(from_entry);
     }
   }
@@ -1934,7 +2000,7 @@ void WasmInstanceObject::SetWasmExportedFunction(
 // static
 void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int table_index,
-    Handle<WasmJSFunction> js_function) {
+    int entry_index, Handle<WasmJSFunction> js_function) {
   // Deserialize the signature encapsulated with the {WasmJSFunction}.
   // Note that {SignatureMap::Find} may return {-1} if the signature is
   // not found; it will simply never match any check.
@@ -1974,7 +2040,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   // Update the dispatch table.
   Handle<Tuple2> tuple =
       isolate->factory()->NewTuple2(instance, callable, AllocationType::kOld);
-  IndirectFunctionTableEntry(instance, table_index)
+  IndirectFunctionTableEntry(instance, table_index, entry_index)
       .Set(sig_id, call_target, *tuple);
 }
 

@@ -3687,7 +3687,7 @@ class ThreadImpl {
       return {ExternalCallResult::INVALID_FUNC};
     }
 
-    IndirectFunctionTableEntry entry(instance_object_, entry_index);
+    IndirectFunctionTableEntry entry(instance_object_, 0, entry_index);
     // Signature check.
     if (entry.sig_id() != static_cast<int32_t>(expected_sig_id)) {
       return {ExternalCallResult::SIGNATURE_MISMATCH};

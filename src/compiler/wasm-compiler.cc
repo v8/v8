@@ -2854,25 +2854,69 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
 Node* WasmGraphBuilder::CallIndirect(uint32_t table_index, uint32_t sig_index,
                                      Node** args, Node*** rets,
                                      wasm::WasmCodePosition position) {
-  if (table_index == 0) {
-    return BuildIndirectCall(sig_index, args, rets, position, kCallContinues);
-  }
   return BuildIndirectCall(table_index, sig_index, args, rets, position,
                            kCallContinues);
 }
 
-Node* WasmGraphBuilder::BuildIndirectCall(uint32_t sig_index, Node** args,
+void WasmGraphBuilder::LoadIndirectFunctionTable(uint32_t table_index,
+                                                 Node** ift_size,
+                                                 Node** ift_sig_ids,
+                                                 Node** ift_targets,
+                                                 Node** ift_instances) {
+  if (table_index == 0) {
+    *ift_size =
+        LOAD_INSTANCE_FIELD(IndirectFunctionTableSize, MachineType::Uint32());
+    *ift_sig_ids = LOAD_INSTANCE_FIELD(IndirectFunctionTableSigIds,
+                                       MachineType::Pointer());
+    *ift_targets = LOAD_INSTANCE_FIELD(IndirectFunctionTableTargets,
+                                       MachineType::Pointer());
+    *ift_instances = LOAD_INSTANCE_FIELD(
+        IndirectFunctionTableRefs, MachineType::TypeCompressedTaggedPointer());
+    return;
+  }
+
+  Node* ift_tables = LOAD_INSTANCE_FIELD(
+      IndirectFunctionTables, MachineType::TypeCompressedTaggedPointer());
+  Node* ift_table = LOAD_FIXED_ARRAY_SLOT_ANY(ift_tables, table_index);
+
+  *ift_size = LOAD_RAW(
+      ift_table,
+      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kSizeOffset),
+      MachineType::Int32());
+
+  *ift_sig_ids = LOAD_RAW(
+      ift_table,
+      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kSigIdsOffset),
+      MachineType::Pointer());
+
+  *ift_targets = LOAD_RAW(
+      ift_table,
+      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kTargetsOffset),
+      MachineType::Pointer());
+
+  *ift_instances = LOAD_RAW(
+      ift_table,
+      wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kRefsOffset),
+      MachineType::TypeCompressedTaggedPointer());
+}
+
+Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
+                                          uint32_t sig_index, Node** args,
                                           Node*** rets,
                                           wasm::WasmCodePosition position,
                                           IsReturnCall continuation) {
   DCHECK_NOT_NULL(args[0]);
   DCHECK_NOT_NULL(env_);
 
-  // Assume only one table for now.
-  wasm::FunctionSig* sig = env_->module->signatures[sig_index];
+  // First we have to load the table.
+  Node* ift_size;
+  Node* ift_sig_ids;
+  Node* ift_targets;
+  Node* ift_instances;
+  LoadIndirectFunctionTable(table_index, &ift_size, &ift_sig_ids, &ift_targets,
+                            &ift_instances);
 
-  Node* ift_size =
-      LOAD_INSTANCE_FIELD(IndirectFunctionTableSize, MachineType::Uint32());
+  wasm::FunctionSig* sig = env_->module->signatures[sig_index];
 
   MachineOperatorBuilder* machine = mcgraph()->machine();
   Node* key = args[0];
@@ -2895,9 +2939,6 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t sig_index, Node** args,
   }
 
   // Load signature from the table and check.
-  Node* ift_sig_ids =
-      LOAD_INSTANCE_FIELD(IndirectFunctionTableSigIds, MachineType::Pointer());
-
   int32_t expected_sig_id = env_->module->signature_ids[sig_index];
   Node* int32_scaled_key = Uint32ToUintptr(
       graph()->NewNode(machine->Word32Shl(), key, Int32Constant(2)));
@@ -2909,11 +2950,6 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t sig_index, Node** args,
                                      Int32Constant(expected_sig_id));
 
   TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
-
-  Node* ift_targets =
-      LOAD_INSTANCE_FIELD(IndirectFunctionTableTargets, MachineType::Pointer());
-  Node* ift_instances = LOAD_INSTANCE_FIELD(
-      IndirectFunctionTableRefs, MachineType::TypeCompressedTaggedPointer());
 
   Node* tagged_scaled_key;
   if (kTaggedSize == kInt32Size) {
@@ -2956,48 +2992,6 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t sig_index, Node** args,
   }
 }
 
-Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
-                                          uint32_t sig_index, Node** args,
-                                          Node*** rets,
-                                          wasm::WasmCodePosition position,
-                                          IsReturnCall continuation) {
-  DCHECK_NOT_NULL(args[0]);
-  Node* entry_index = args[0];
-  DCHECK_NOT_NULL(env_);
-  BoundsCheckTable(table_index, entry_index, position, wasm::kTrapFuncInvalid,
-                   nullptr);
-
-  DCHECK(Smi::IsValid(table_index));
-  DCHECK(Smi::IsValid(sig_index));
-  Node* runtime_args[]{
-      graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)),
-      BuildChangeUint31ToSmi(entry_index),
-      graph()->NewNode(mcgraph()->common()->NumberConstant(sig_index))};
-
-  Node* target_instance = BuildCallToRuntime(
-      Runtime::kWasmIndirectCallCheckSignatureAndGetTargetInstance,
-      runtime_args, arraysize(runtime_args));
-
-  // We reuse the runtime_args array here, even though we only need the first
-  // two arguments.
-  Node* call_target = BuildCallToRuntime(
-      Runtime::kWasmIndirectCallGetTargetAddress, runtime_args, 2);
-
-  wasm::FunctionSig* sig = env_->module->signatures[sig_index];
-  args[0] = call_target;
-  const UseRetpoline use_retpoline =
-      untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline;
-
-  switch (continuation) {
-    case kCallContinues:
-      return BuildWasmCall(sig, args, rets, position, target_instance,
-                           use_retpoline);
-    case kReturnCall:
-      return BuildWasmReturnCall(sig, args, position, target_instance,
-                                 use_retpoline);
-  }
-}
-
 Node* WasmGraphBuilder::ReturnCall(uint32_t index, Node** args,
                                    wasm::WasmCodePosition position) {
   DCHECK_NULL(args[0]);
@@ -3020,9 +3014,6 @@ Node* WasmGraphBuilder::ReturnCall(uint32_t index, Node** args,
 Node* WasmGraphBuilder::ReturnCallIndirect(uint32_t table_index,
                                            uint32_t sig_index, Node** args,
                                            wasm::WasmCodePosition position) {
-  if (table_index == 0) {
-    return BuildIndirectCall(sig_index, args, nullptr, position, kReturnCall);
-  }
   return BuildIndirectCall(table_index, sig_index, args, nullptr, position,
                            kReturnCall);
 }

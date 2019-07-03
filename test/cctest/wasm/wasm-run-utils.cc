@@ -172,7 +172,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   table.has_maximum_size = true;
   table.type = kWasmAnyFunc;
   WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
-      instance_object(), table_size);
+      instance_object(), 0, table_size);
   Handle<WasmTableObject> table_obj =
       WasmTableObject::New(isolate_, table.type, table.initial_size,
                            table.has_maximum_size, table.maximum_size, nullptr);
@@ -184,7 +184,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
     for (uint32_t i = 0; i < table_size; ++i) {
       WasmFunction& function = test_module_->functions[function_indexes[i]];
       int sig_id = test_module_->signature_map.Find(*function.sig);
-      IndirectFunctionTableEntry(instance, i)
+      IndirectFunctionTableEntry(instance, 0, i)
           .Set(sig_id, instance, function.func_index);
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate_, table_obj, i, instance_object_, function_indexes[i]);

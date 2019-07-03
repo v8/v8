@@ -267,10 +267,6 @@ ACCESSORS(WasmInstanceObject, centry_stub, Code, kCEntryStubOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_exported_functions, FixedArray,
                    kWasmExportedFunctionsOffset)
 
-inline bool WasmInstanceObject::has_indirect_function_table() {
-  return indirect_function_table_sig_ids() != nullptr;
-}
-
 void WasmInstanceObject::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
@@ -280,10 +276,29 @@ void WasmInstanceObject::clear_padding() {
 }
 
 IndirectFunctionTableEntry::IndirectFunctionTableEntry(
-    Handle<WasmInstanceObject> instance, int index)
-    : instance_(instance), index_(index) {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, instance->indirect_function_table_size());
+    Handle<WasmInstanceObject> instance, int table_index, int entry_index)
+    : instance_(table_index == 0 ? instance
+                                 : Handle<WasmInstanceObject>::null()),
+      table_(table_index != 0
+                 ? handle(WasmIndirectFunctionTable::cast(
+                              instance->indirect_function_tables().get(
+                                  table_index)),
+                          instance->GetIsolate())
+                 : Handle<WasmIndirectFunctionTable>::null()),
+      index_(entry_index) {
+  DCHECK_GE(entry_index, 0);
+  DCHECK_LT(entry_index, table_index == 0
+                             ? instance->indirect_function_table_size()
+                             : table_->size());
+}
+
+IndirectFunctionTableEntry::IndirectFunctionTableEntry(
+    Handle<WasmIndirectFunctionTable> table, int entry_index)
+    : instance_(Handle<WasmInstanceObject>::null()),
+      table_(table),
+      index_(entry_index) {
+  DCHECK_GE(entry_index, 0);
+  DCHECK_LT(entry_index, table_->size());
 }
 
 ImportedFunctionEntry::ImportedFunctionEntry(
