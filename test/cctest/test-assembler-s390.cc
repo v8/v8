@@ -934,6 +934,96 @@ TEST(17) {
   CHECK_EQ(0, static_cast<int>(res));
 }
 
+//TMHH, TMHL
+TEST(18) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(AssemblerOptions{});
+
+  Label done, error;
+  Label continue1, continue2, continue3, continue4;
+  Label continue5, continue6, continue7, continue8, continue9;
+
+  // selected bits all 0
+  __ lgfi(r1, Operand(0));
+  __ tmhh(r1, Operand(1));
+  __ beq(&continue1); //8
+  __ b(&error);
+
+  __ bind(&continue1);
+  __ tmhl(r1, Operand(1));
+  __ beq(&continue2); //8
+  __ b(&error);
+
+  // mask = 0
+  __ bind(&continue2);
+  __ lgfi(r1, Operand(-1));
+  __ tmhh(r1, Operand(0));
+  __ beq(&continue3);  //8
+  __ b(&error);
+
+  __ bind(&continue3);
+  __ tmhh(r1, Operand(0));
+  __ beq(&continue4);  //8
+  __ b(&error);
+
+  // selected bits all 1
+  __ bind(&continue4);
+  __ tmhh(r1, Operand(1));
+  __ b(Condition(1), &continue5); //1
+  __ b(&error);
+
+  __ bind(&continue5);
+  __ tmhl(r1, Operand(1));
+  __ b(Condition(1), &continue6); //1
+  __ b(&error);
+
+  // // leftmost = 1
+  __ bind(&continue6);
+  __ lgfi(r1, Operand(0xF000F000));
+  __ tmhh(r1, Operand(0xFFFF));
+  __ b(Condition(2), &continue7); //2
+  __ b(&error);
+
+  __ bind(&continue7);
+  __ tmhl(r1, Operand(0xFFFF));
+  __ b(Condition(2), &continue8); //2
+  __ b(&error);
+
+  // leftmost = 0
+  __ bind(&continue8);
+  __ lgfi(r1, Operand(0x0FF00FF0));
+  __ tmhh(r1, Operand(0xFFFF));
+  __ b(Condition(4), &continue9); //4
+  __ b(&error);
+
+  __ bind(&continue9);
+  __ tmhl(r1, Operand(0xFFFF));
+  __ b(Condition(4), &done); //4
+  __ b(&error);
+
+  __ bind(&error);
+  __ lgfi(r2, Operand(1));
+  __ b(r14);
+
+  __ bind(&done);
+  __ lgfi(r2, Operand::Zero());
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef DEBUG
+  code->Print();
+#endif
+  auto f = GeneratedCode<F1>::FromCode(*code);
+  // f.Call(reg2, reg3, reg4, reg5, reg6) -> set the register value
+  intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
+
 #undef __
 
 }  // namespace internal
