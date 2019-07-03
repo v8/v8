@@ -479,8 +479,8 @@ class JSObject : public JSReceiver {
                                                   int old_index, int new_index);
 
   // Retrieve interceptors.
-  inline InterceptorInfo GetNamedInterceptor();
-  inline InterceptorInfo GetIndexedInterceptor();
+  DECL_GETTER(GetNamedInterceptor, InterceptorInfo)
+  DECL_GETTER(GetIndexedInterceptor, InterceptorInfo)
 
   // Used from JSReceiver.
   V8_WARN_UNUSED_RESULT static Maybe<PropertyAttributes>
@@ -566,13 +566,12 @@ class JSObject : public JSReceiver {
   // JSFunction objects.
   static int GetHeaderSize(InstanceType instance_type,
                            bool function_has_prototype_slot = false);
-  static inline int GetHeaderSize(const Map map);
-  inline int GetHeaderSize() const;
+  static inline int GetHeaderSize(Map map);
 
-  static inline int GetEmbedderFieldsStartOffset(const Map map);
+  static inline int GetEmbedderFieldsStartOffset(Map map);
   inline int GetEmbedderFieldsStartOffset();
 
-  static inline int GetEmbedderFieldCount(const Map map);
+  static inline int GetEmbedderFieldCount(Map map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
   inline Object GetEmbedderField(int index);
@@ -962,7 +961,7 @@ class JSBoundFunction : public JSObject {
 class JSFunction : public JSObject {
  public:
   // [prototype_or_initial_map]:
-  DECL_ACCESSORS(prototype_or_initial_map, Object)
+  DECL_ACCESSORS(prototype_or_initial_map, HeapObject)
 
   // [shared]: The information about the function that
   // can be shared by instances.

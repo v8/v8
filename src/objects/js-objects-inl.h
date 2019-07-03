@@ -241,17 +241,16 @@ void JSObject::initialize_elements() {
   set_elements(elements, SKIP_WRITE_BARRIER);
 }
 
-InterceptorInfo JSObject::GetIndexedInterceptor() {
-  return map().GetIndexedInterceptor();
+DEF_GETTER(JSObject, GetIndexedInterceptor, InterceptorInfo) {
+  return map(isolate).GetIndexedInterceptor(isolate);
 }
 
-InterceptorInfo JSObject::GetNamedInterceptor() {
-  return map().GetNamedInterceptor();
+DEF_GETTER(JSObject, GetNamedInterceptor, InterceptorInfo) {
+  return map(isolate).GetNamedInterceptor(isolate);
 }
 
-int JSObject::GetHeaderSize() const { return GetHeaderSize(map()); }
-
-int JSObject::GetHeaderSize(const Map map) {
+// static
+int JSObject::GetHeaderSize(Map map) {
   // Check for the most common kind of JavaScript object before
   // falling into the generic switch. This speeds up the internal
   // field operations considerably on average.
@@ -262,7 +261,7 @@ int JSObject::GetHeaderSize(const Map map) {
 }
 
 // static
-int JSObject::GetEmbedderFieldsStartOffset(const Map map) {
+int JSObject::GetEmbedderFieldsStartOffset(Map map) {
   // Embedder fields are located after the object header.
   return GetHeaderSize(map);
 }
@@ -272,7 +271,7 @@ int JSObject::GetEmbedderFieldsStartOffset() {
 }
 
 // static
-int JSObject::GetEmbedderFieldCount(const Map map) {
+int JSObject::GetEmbedderFieldCount(Map map) {
   int instance_size = map.instance_size();
   if (instance_size == kVariableSizeSentinel) return 0;
   // Embedder fields are located after the object header, whereas in-object
@@ -626,7 +625,7 @@ void JSFunction::set_context(HeapObject value) {
   WRITE_BARRIER(*this, kContextOffset, value);
 }
 
-ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map, Object,
+ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map, HeapObject,
                   kPrototypeOrInitialMapOffset, map().has_prototype_slot())
 
 DEF_GETTER(JSFunction, has_prototype_slot, bool) {

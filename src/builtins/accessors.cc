@@ -306,7 +306,7 @@ Handle<AccessorInfo> Accessors::MakeStringLengthInfo(Isolate* isolate) {
 static Handle<Object> GetFunctionPrototype(Isolate* isolate,
                                            Handle<JSFunction> function) {
   if (!function->has_prototype()) {
-    Handle<Object> proto = isolate->factory()->NewFunctionPrototype(function);
+    Handle<JSObject> proto = isolate->factory()->NewFunctionPrototype(function);
     JSFunction::SetPrototype(function, proto);
   }
   return Handle<Object>(function->prototype(), isolate);

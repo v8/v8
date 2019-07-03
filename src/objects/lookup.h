@@ -235,7 +235,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   template <bool is_element>
   bool SkipInterceptor(JSObject holder);
   template <bool is_element>
-  static inline InterceptorInfo GetInterceptor(JSObject holder);
+  static inline InterceptorInfo GetInterceptor(Isolate* isolate,
+                                               JSObject holder);
 
   bool check_interceptor() const {
     return (configuration_ & kInterceptor) != 0;
@@ -243,7 +244,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   inline int descriptor_number() const;
   inline int dictionary_entry() const;
 
-  static inline Configuration ComputeConfiguration(Configuration configuration,
+  static inline Configuration ComputeConfiguration(Isolate* isolate,
+                                                   Configuration configuration,
                                                    Handle<Name> name);
 
   static Handle<JSReceiver> GetRootForNonJSReceiver(

@@ -603,8 +603,8 @@ void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
       boilerplate_value = handle(Smi::kZero, isolate);
     }
 
-    kind = GetMoreGeneralElementsKind(kind,
-                                      boilerplate_value->OptimalElementsKind());
+    kind = GetMoreGeneralElementsKind(
+        kind, boilerplate_value->OptimalElementsKind(isolate));
     fixed_array->set(array_index, *boilerplate_value);
   }
 

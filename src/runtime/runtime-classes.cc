@@ -332,7 +332,8 @@ bool AddDescriptorsByTemplate(
           value = GetMethodWithSharedNameAndSetHomeObject(isolate, args, value,
                                                           *receiver);
         }
-        details = details.CopyWithRepresentation(value.OptimalRepresentation());
+        details = details.CopyWithRepresentation(
+            value.OptimalRepresentation(isolate));
       } else {
         DCHECK_EQ(kAccessor, details.kind());
         if (value.IsAccessorPair()) {

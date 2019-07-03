@@ -4597,22 +4597,22 @@ static ElementsKind BestFittingFastElementsKind(JSObject object) {
 void JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
                               Handle<Object> value,
                               PropertyAttributes attributes) {
-  DCHECK(object->map().is_extensible());
-
   Isolate* isolate = object->GetIsolate();
+
+  DCHECK(object->map(isolate).is_extensible());
 
   uint32_t old_length = 0;
   uint32_t new_capacity = 0;
 
-  if (object->IsJSArray()) {
+  if (object->IsJSArray(isolate)) {
     CHECK(JSArray::cast(*object).length().ToArrayLength(&old_length));
   }
 
-  ElementsKind kind = object->GetElementsKind();
-  FixedArrayBase elements = object->elements();
+  ElementsKind kind = object->GetElementsKind(isolate);
+  FixedArrayBase elements = object->elements(isolate);
   ElementsKind dictionary_kind = DICTIONARY_ELEMENTS;
   if (IsSloppyArgumentsElementsKind(kind)) {
-    elements = SloppyArgumentsElements::cast(elements).arguments();
+    elements = SloppyArgumentsElements::cast(elements).arguments(isolate);
     dictionary_kind = SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
   } else if (IsStringWrapperElementsKind(kind)) {
     dictionary_kind = SLOW_STRING_WRAPPER_ELEMENTS;
@@ -4620,7 +4620,7 @@ void JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
 
   if (attributes != NONE) {
     kind = dictionary_kind;
-  } else if (elements.IsNumberDictionary()) {
+  } else if (elements.IsNumberDictionary(isolate)) {
     kind = ShouldConvertToFastElements(
                *object, NumberDictionary::cast(elements), index, &new_capacity)
                ? BestFittingFastElementsKind(*object)
@@ -4631,8 +4631,9 @@ void JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
     kind = dictionary_kind;
   }
 
-  ElementsKind to = value->OptimalElementsKind();
-  if (IsHoleyElementsKind(kind) || !object->IsJSArray() || index > old_length) {
+  ElementsKind to = value->OptimalElementsKind(isolate);
+  if (IsHoleyElementsKind(kind) || !object->IsJSArray(isolate) ||
+      index > old_length) {
     to = GetHoleyElementsKind(to);
     kind = GetHoleyElementsKind(kind);
   }
@@ -4640,7 +4641,7 @@ void JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
   ElementsAccessor* accessor = ElementsAccessor::ForKind(to);
   accessor->Add(object, index, value, attributes, new_capacity);
 
-  if (object->IsJSArray() && index >= old_length) {
+  if (object->IsJSArray(isolate) && index >= old_length) {
     Handle<Object> new_length =
         isolate->factory()->NewNumberFromUint(index + 1);
     JSArray::cast(*object).set_length(*new_length);

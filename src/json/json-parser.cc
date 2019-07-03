@@ -499,7 +499,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     Representation expected_representation = details.representation();
 
     if (!value->FitsRepresentation(expected_representation)) {
-      Representation representation = value->OptimalRepresentation();
+      Representation representation = value->OptimalRepresentation(isolate());
       representation = representation.generalize(expected_representation);
       if (!expected_representation.CanBeInPlaceChangedTo(representation)) {
         map = ParentOfDescriptorOwner(isolate_, map, target, descriptor);
