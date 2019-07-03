@@ -2469,7 +2469,8 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
       Scanner::Location loc = proxy->location();
       info->pending_error_handler()->ReportMessageAt(
           loc.beg_pos, loc.end_pos,
-          MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name());
+          MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name(),
+          kSyntaxError);
       return false;
     } else {
       var->set_is_used();

@@ -1170,6 +1170,8 @@ enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 
 enum RequiresBrandCheckFlag : uint8_t { kNoBrandCheck, kRequiresBrandCheck };
 
+enum ParseErrorType { kSyntaxError = 0, kReferenceError = 1 };
+
 enum class InterpreterPushArgsMode : unsigned {
   kArrayFunction,
   kWithFinalSpread,
