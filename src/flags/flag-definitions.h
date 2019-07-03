@@ -718,8 +718,7 @@ DEFINE_BOOL(wasm_lazy_validation, false,
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, asm_wasm_lazy_compilation)
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_lazy_compilation)
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_tier_up)
-DEFINE_BOOL(wasm_code_gc, false, "enable garbage collection of wasm code")
-DEFINE_IMPLICATION(future, wasm_code_gc)
+DEFINE_BOOL(wasm_code_gc, true, "enable garbage collection of wasm code")
 DEFINE_BOOL(trace_wasm_code_gc, false, "trace garbage collection of wasm code")
 DEFINE_BOOL(stress_wasm_code_gc, false,
             "stress test garbage collection of wasm code")
