@@ -1370,7 +1370,7 @@ class JSONEncoder : public StreamingParserHandler {
 
         // If we have enough bytes in our input, decode the remaining ones
         // belonging to this Unicode character into |codepoint|.
-        if (ii + num_bytes_left > chars.size())
+        if (ii + num_bytes_left >= chars.size())
           continue;
         while (num_bytes_left > 0) {
           c = chars[++ii];

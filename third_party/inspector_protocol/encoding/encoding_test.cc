@@ -1366,6 +1366,32 @@ TEST(JsonEncoder, OverlongEncodings) {
   EXPECT_EQ("\"\"", out);  // Empty string means that 0x7f was rejected (good).
 }
 
+TEST(JsonEncoder, IncompleteUtf8Sequence) {
+  std::string out;
+  Status status;
+  std::unique_ptr<StreamingParserHandler> writer =
+      NewJSONEncoder(&GetTestPlatform(), &out, &status);
+
+  writer->HandleArrayBegin();  // This emits [, which starts an array.
+
+  {  // 🌎 takes four bytes to encode in UTF-8. We test with the first three;
+    // This means we're trying to emit a string that consists solely of an
+    // incomplete UTF-8 sequence. So the string in the JSON output is emtpy.
+    std::string world_utf8 = "🌎";
+    ASSERT_EQ(4u, world_utf8.size());
+    std::vector<uint8_t> chars(world_utf8.begin(), world_utf8.begin() + 3);
+    writer->HandleString8(SpanFrom(chars));
+    EXPECT_EQ("[\"\"", out);  // Incomplete sequence rejected: empty string.
+  }
+
+  {  // This time, the incomplete sequence is at the end of the string.
+    std::string msg = "Hello, \xF0\x9F\x8C";
+    std::vector<uint8_t> chars(msg.begin(), msg.end());
+    writer->HandleString8(SpanFrom(chars));
+    EXPECT_EQ("[\"\",\"Hello, \"", out);  // Incomplete sequence dropped at end.
+  }
+}
+
 TEST(JsonStdStringWriterTest, HelloWorld) {
   std::string out;
   Status status;
