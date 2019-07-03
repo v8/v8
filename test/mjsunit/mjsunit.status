@@ -782,6 +782,11 @@
   # Slow tests.
   'es6/typedarray-of': [PASS, SLOW],
   'regress/regress-crbug-854299': [PASS, SLOW],
+
+  # Runs flakily OOM because multiple isolates are involved which create many
+  # wasm memories each. Before running OOM on a wasm memory allocation we
+  # trigger a GC, but only in the isolate allocating the new memory.
+  'wasm/module-memory': [SKIP],
 }],  # 'isolates'
 
 ##############################################################################
