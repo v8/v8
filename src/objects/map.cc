@@ -2217,11 +2217,11 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
   DCHECK(!getter->IsNull(isolate) || !setter->IsNull(isolate));
   DCHECK(name->IsUniqueName());
 
-  // Dictionary maps can always have additional data properties.
-  if (map->is_dictionary_map()) return map;
-
   // Migrate to the newest map before transitioning to the new property.
   map = Update(isolate, map);
+
+  // Dictionary maps can always have additional data properties.
+  if (map->is_dictionary_map()) return map;
 
   PropertyNormalizationMode mode = map->is_prototype_map()
                                        ? KEEP_INOBJECT_PROPERTIES
