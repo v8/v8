@@ -2445,6 +2445,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ psubq(dst, src);
       break;
     }
+    case kX64I64x2Shl: {
+      __ psllq(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kX64I64x2ShrS: {
+      // TODO(zhin): there is vpsraq but requires AVX512
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      // ShrS on each quadword one at a time
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+
+      // lower quadword
+      __ pextrq(kScratchRegister, src, 0x0);
+      __ sarq(kScratchRegister, Immediate(i.InputInt8(1)));
+      __ pinsrq(dst, kScratchRegister, 0x0);
+
+      // upper quadword
+      __ pextrq(kScratchRegister, src, 0x1);
+      __ sarq(kScratchRegister, Immediate(i.InputInt8(1)));
+      __ pinsrq(dst, kScratchRegister, 0x1);
+      break;
+    }
     case kX64I64x2Add: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddq(i.OutputSimd128Register(), i.InputSimd128Register(1));
@@ -2453,6 +2475,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I64x2Sub: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psubq(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I64x2ShrU: {
+      __ psrlq(i.OutputSimd128Register(), i.InputInt8(1));
       break;
     }
     case kX64I32x4Splat: {

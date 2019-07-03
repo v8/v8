@@ -757,8 +757,11 @@
   V(I64x2ExtractLane)           \
   V(I64x2ReplaceLane)           \
   V(I64x2Neg)                   \
+  V(I64x2Shl)                   \
+  V(I64x2ShrS)                  \
   V(I64x2Add)                   \
   V(I64x2Sub)                   \
+  V(I64x2ShrU)                  \
   V(I32x4Splat)                 \
   V(I32x4ExtractLane)           \
   V(I32x4ReplaceLane)           \

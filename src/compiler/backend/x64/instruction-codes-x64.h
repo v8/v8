@@ -179,12 +179,15 @@ namespace compiler {
   V(X64F32x4Lt)                           \
   V(X64F32x4Le)                           \
   V(X64I64x2Splat)                        \
-  V(X64I64x2Add)                          \
-  V(X64I64x2Sub)                          \
-  V(X64I32x4Splat)                        \
   V(X64I64x2ExtractLane)                  \
   V(X64I64x2ReplaceLane)                  \
   V(X64I64x2Neg)                          \
+  V(X64I64x2Shl)                          \
+  V(X64I64x2ShrS)                         \
+  V(X64I64x2Add)                          \
+  V(X64I64x2Sub)                          \
+  V(X64I64x2ShrU)                         \
+  V(X64I32x4Splat)                        \
   V(X64I32x4ExtractLane)                  \
   V(X64I32x4ReplaceLane)                  \
   V(X64I32x4SConvertF32x4)                \

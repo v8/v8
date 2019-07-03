@@ -452,6 +452,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(I8x16, 16)
 
 #define SIMD_FORMAT_LIST(V) \
+  V(64x2, 64)               \
   V(32x4, 32)               \
   V(16x8, 16)               \
   V(8x16, 8)

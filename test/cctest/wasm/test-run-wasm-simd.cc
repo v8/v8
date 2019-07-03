@@ -24,6 +24,7 @@ using FloatBinOp = float (*)(float, float);
 using FloatCompareOp = int (*)(float, float);
 using Int64UnOp = int64_t (*)(int64_t);
 using Int64BinOp = int64_t (*)(int64_t, int64_t);
+using Int64ShiftOp = int64_t (*)(int64_t, int);
 using Int32UnOp = int32_t (*)(int32_t);
 using Int32BinOp = int32_t (*)(int32_t, int32_t);
 using Int32CompareOp = int (*)(int32_t, int32_t);
@@ -821,6 +822,44 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Add) {
 WASM_SIMD_TEST_NO_LOWERING(I64x2Sub) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Sub,
                     base::SubWithWraparound);
+}
+
+void RunI64x2ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
+                         WasmOpcode opcode, Int64ShiftOp expected_op) {
+  for (int shift = 1; shift < 64; shift++) {
+    WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
+    int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
+    byte value = 0;
+    byte simd1 = r.AllocateLocal(kWasmS128);
+    BUILD(r,
+          WASM_SET_LOCAL(simd1, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value))),
+          WASM_SET_GLOBAL(
+              0, WASM_SIMD_SHIFT_OP(opcode, shift, WASM_GET_LOCAL(simd1))),
+          WASM_ONE);
+
+    FOR_INT64_INPUTS(x) {
+      r.Call(x);
+      int64_t expected = expected_op(x, shift);
+      for (int i = 0; i < 2; i++) {
+        CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g[i]));
+      }
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2Shl) {
+  RunI64x2ShiftOpTest(execution_tier, lower_simd, kExprI64x2Shl,
+                      LogicalShiftLeft);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2ShrS) {
+  RunI64x2ShiftOpTest(execution_tier, lower_simd, kExprI64x2ShrS,
+                      ArithmeticShiftRight);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2ShrU) {
+  RunI64x2ShiftOpTest(execution_tier, lower_simd, kExprI64x2ShrU,
+                      LogicalShiftRight);
 }
 #endif  // V8_TARGET_ARCH_X64
 

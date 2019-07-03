@@ -4369,6 +4369,14 @@ Node* WasmGraphBuilder::SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
                                     Node* const* inputs) {
   has_simd_ = true;
   switch (opcode) {
+    case wasm::kExprI64x2Shl:
+      return graph()->NewNode(mcgraph()->machine()->I64x2Shl(shift), inputs[0]);
+    case wasm::kExprI64x2ShrS:
+      return graph()->NewNode(mcgraph()->machine()->I64x2ShrS(shift),
+                              inputs[0]);
+    case wasm::kExprI64x2ShrU:
+      return graph()->NewNode(mcgraph()->machine()->I64x2ShrU(shift),
+                              inputs[0]);
     case wasm::kExprI32x4Shl:
       return graph()->NewNode(mcgraph()->machine()->I32x4Shl(shift), inputs[0]);
     case wasm::kExprI32x4ShrS:

@@ -2343,6 +2343,11 @@ class ThreadImpl {
     Push(WasmValue(Simd128(res)));                                       \
     return true;                                                         \
   }
+        SHIFT_CASE(I64x2Shl, i64x2, int2, 2,
+                   static_cast<uint64_t>(a) << imm.shift)
+        SHIFT_CASE(I64x2ShrS, i64x2, int2, 2, a >> imm.shift)
+        SHIFT_CASE(I64x2ShrU, i64x2, int2, 2,
+                   static_cast<uint64_t>(a) >> imm.shift)
         SHIFT_CASE(I32x4Shl, i32x4, int4, 4,
                    static_cast<uint32_t>(a) << imm.shift)
         SHIFT_CASE(I32x4ShrS, i32x4, int4, 4, a >> imm.shift)

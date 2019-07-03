@@ -2640,6 +2640,9 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128Not)
 
 #define SIMD_SHIFT_OPCODES(V) \
+  V(I64x2Shl)                 \
+  V(I64x2ShrS)                \
+  V(I64x2ShrU)                \
   V(I32x4Shl)                 \
   V(I32x4ShrS)                \
   V(I32x4ShrU)                \

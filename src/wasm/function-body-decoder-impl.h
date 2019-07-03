@@ -1084,6 +1084,11 @@ class WasmDecoder : public Decoder {
                        SimdShiftImmediate<validate>& imm) {
     uint8_t max_shift = 0;
     switch (opcode) {
+      case kExprI64x2Shl:
+      case kExprI64x2ShrS:
+      case kExprI64x2ShrU:
+        max_shift = 64;
+        break;
       case kExprI32x4Shl:
       case kExprI32x4ShrS:
       case kExprI32x4ShrU:
@@ -2707,6 +2712,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         len = SimdReplaceLane(opcode, kWasmI32);
         break;
       }
+      case kExprI64x2Shl:
+      case kExprI64x2ShrS:
+      case kExprI64x2ShrU:
       case kExprI32x4Shl:
       case kExprI32x4ShrS:
       case kExprI32x4ShrU:
