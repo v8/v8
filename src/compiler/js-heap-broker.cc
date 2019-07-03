@@ -2004,7 +2004,8 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
                 RefsMap(kMinimalRefsBucketCount, AddressMatcher(), zone())),
       array_and_object_prototypes_(zone()),
       tracing_enabled_(tracing_enabled),
-      feedback_(zone()) {
+      feedback_(zone()),
+      ais_for_loading_then_(zone()) {
   // Note that this initialization of the refs_ pointer with the minimal
   // initial capacity is redundant in the normal use case (concurrent
   // compilation enabled, standard objects to be serialized), as the map
@@ -3873,6 +3874,28 @@ base::Optional<NameRef> JSHeapBroker::GetNameFeedback(
   Name raw_name = nexus.GetName();
   if (raw_name.is_null()) return base::nullopt;
   return NameRef(this, handle(raw_name, isolate()));
+}
+
+PropertyAccessInfo JSHeapBroker::GetAccessInfoForLoadingThen(MapRef map) {
+  auto access_info = ais_for_loading_then_.find(map);
+  if (access_info == ais_for_loading_then_.end()) {
+    TRACE_BROKER_MISSING(
+        this, "access info for reducing JSResolvePromise with map " << map);
+    return PropertyAccessInfo::Invalid(zone());
+  }
+  return access_info->second;
+}
+
+void JSHeapBroker::CreateAccessInfoForLoadingThen(
+    MapRef map, CompilationDependencies* dependencies) {
+  auto access_info = ais_for_loading_then_.find(map);
+  if (access_info == ais_for_loading_then_.end()) {
+    AccessInfoFactory access_info_factory(this, dependencies, zone());
+    Handle<Name> then_string = isolate()->factory()->then_string();
+    ais_for_loading_then_.insert(
+        std::make_pair(map, access_info_factory.ComputePropertyAccessInfo(
+                                map.object(), then_string, AccessMode::kLoad)));
+  }
 }
 
 ElementAccessFeedback const* ProcessedFeedback::AsElementAccess() const {

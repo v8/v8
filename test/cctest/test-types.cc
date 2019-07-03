@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "src/compiler/access-info.h"
 #include "src/compiler/types.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"

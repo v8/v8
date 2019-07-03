@@ -680,6 +680,7 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
 
 // ES section #sec-promise-resolve-functions
 Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK_EQ(IrOpcode::kJSResolvePromise, node->opcode());
   Node* promise = NodeProperties::GetValueInput(node, 0);
   Node* resolution = NodeProperties::GetValueInput(node, 1);
@@ -696,9 +697,17 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  access_info_factory.ComputePropertyAccessInfos(
-      resolution_maps, factory()->then_string(), AccessMode::kLoad,
-      &access_infos);
+  if (!FLAG_concurrent_inlining) {
+    access_info_factory.ComputePropertyAccessInfos(
+        resolution_maps, factory()->then_string(), AccessMode::kLoad,
+        &access_infos);
+  } else {
+    // Obtain pre-computed access infos from the broker.
+    for (auto map : resolution_maps) {
+      MapRef map_ref(broker(), map);
+      access_infos.push_back(broker()->GetAccessInfoForLoadingThen(map_ref));
+    }
+  }
   PropertyAccessInfo access_info =
       access_info_factory.FinalizePropertyAccessInfosAsOne(access_infos,
                                                            AccessMode::kLoad);

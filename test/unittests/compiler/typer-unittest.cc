@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "src/base/overflowing-math.h"
+#include "src/compiler/access-info.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"

@@ -143,6 +143,17 @@ class V8_EXPORT_PRIVATE ObjectRef {
 
   Isolate* isolate() const;
 
+  struct Hash {
+    size_t operator()(const ObjectRef& ref) const {
+      return base::hash_combine(ref.object().address());
+    }
+  };
+  struct Equal {
+    bool operator()(const ObjectRef& lhs, const ObjectRef& rhs) const {
+      return lhs.equals(rhs);
+    }
+  };
+
  protected:
   JSHeapBroker* broker() const;
   ObjectData* data() const;
@@ -953,6 +964,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   base::Optional<NameRef> GetNameFeedback(FeedbackNexus const& nexus);
 
+  // If there is no result stored for {map}, we return an Invalid
+  // PropertyAccessInfo.
+  PropertyAccessInfo GetAccessInfoForLoadingThen(MapRef map);
+  void CreateAccessInfoForLoadingThen(MapRef map,
+                                      CompilationDependencies* dependencies);
+
   std::ostream& Trace();
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
@@ -981,6 +998,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
                    FeedbackSource::Hash, FeedbackSource::Equal>
       feedback_;
+  typedef ZoneUnorderedMap<MapRef, PropertyAccessInfo, ObjectRef::Hash,
+                           ObjectRef::Equal>
+      MapToAccessInfos;
+  MapToAccessInfos ais_for_loading_then_;
 
   static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
   static const size_t kInitialRefsBucketCount = 1024;  // must be power of 2

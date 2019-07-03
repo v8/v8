@@ -174,6 +174,7 @@ namespace compiler {
   V(CreateFunctionContext)            \
   V(CreateWithContext)                \
   V(GetSuperConstructor)              \
+  V(InvokeIntrinsic)                  \
   V(LdaConstant)                      \
   V(LdaContextSlot)                   \
   V(LdaCurrentContextSlot)            \
@@ -383,6 +384,7 @@ class SerializerForBackgroundCompilation {
   void ProcessNamedPropertyAccess(Hints const& receiver, NameRef const& name,
                                   FeedbackSlot slot, AccessMode mode);
   void ProcessMapHintsForPromises(Hints const& receiver_hints);
+  void ProcessHintsForPromiseResolve(Hints const& resolution_hints);
 
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
   NamedAccessFeedback const* ProcessFeedbackMapsForNamedAccess(

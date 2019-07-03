@@ -324,7 +324,8 @@ std::ostream& operator<<(
         if (i < env.parameter_count()) {
           output_stream << "Hints for a" << i << ":\n";
         } else if (i < env.parameter_count() + env.register_count()) {
-          output_stream << "Hints for r" << i << ":\n";
+          int local_register = i - env.parameter_count();
+          output_stream << "Hints for r" << local_register << ":\n";
         } else if (i == env.accumulator_index()) {
           output_stream << "Hints for <accumulator>:\n";
         } else {
@@ -584,6 +585,25 @@ void SerializerForBackgroundCompilation::VisitLdaSmi(
   environment()->accumulator_hints().Clear();
   environment()->accumulator_hints().AddConstant(handle(
       Smi::FromInt(iterator->GetImmediateOperand(0)), broker()->isolate()));
+}
+
+void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
+    BytecodeArrayIterator* iterator) {
+  Runtime::FunctionId functionId = iterator->GetIntrinsicIdOperand(0);
+  // For JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve and
+  // JSNativeContextSpecialization::ReduceJSResolvePromise.
+  if (functionId == Runtime::kInlineAsyncFunctionResolve) {
+    interpreter::Register first_reg = iterator->GetRegisterOperand(1);
+    size_t reg_count = iterator->GetRegisterCountOperand(2);
+    CHECK_EQ(reg_count, 3);
+    HintsVector arguments(zone());
+    environment()->ExportRegisterHints(first_reg, reg_count, arguments);
+    Hints const& resolution_hints = arguments[1];  // The resolution object.
+    ProcessHintsForPromiseResolve(resolution_hints);
+    environment()->accumulator_hints().Clear();
+    return;
+  }
+  environment()->ClearEphemeralHints();
 }
 
 void SerializerForBackgroundCompilation::VisitLdaConstant(
@@ -1154,8 +1174,41 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       ProcessMapHintsForPromises(arguments[0]);
       break;
     }
+    case Builtins::kPromiseResolveTrampoline:
+      // For JSCallReducer::ReducePromiseInternalResolve and
+      // JSNativeContextSpecialization::ReduceJSResolvePromise.
+      if (arguments.size() >= 2) {
+        Hints const& resolution_hints = arguments[1];
+        ProcessHintsForPromiseResolve(resolution_hints);
+      }
+      break;
+    case Builtins::kPromiseInternalResolve:
+      // For JSCallReducer::ReducePromiseInternalResolve and
+      // JSNativeContextSpecialization::ReduceJSResolvePromise.
+      if (arguments.size() >= 3) {
+        Hints const& resolution_hints = arguments[2];
+        ProcessHintsForPromiseResolve(resolution_hints);
+      }
+      break;
     default:
       break;
+  }
+}
+
+void SerializerForBackgroundCompilation::ProcessHintsForPromiseResolve(
+    Hints const& resolution_hints) {
+  auto processMap = [&](Handle<Map> map) {
+    broker()->CreateAccessInfoForLoadingThen(MapRef(broker(), map),
+                                             dependencies());
+  };
+
+  for (auto hint : resolution_hints.constants()) {
+    if (!hint->IsJSReceiver()) continue;
+    Handle<JSReceiver> receiver(Handle<JSReceiver>::cast(hint));
+    processMap(handle(receiver->map(), broker()->isolate()));
+  }
+  for (auto map_hint : resolution_hints.maps()) {
+    processMap(map_hint);
   }
 }
 
@@ -1219,8 +1272,7 @@ void SerializerForBackgroundCompilation::VisitSwitchOnSmiNoFeedback(
 
 void SerializerForBackgroundCompilation::Environment::ExportRegisterHints(
     interpreter::Register first, size_t count, HintsVector& dst) {
-  dst.resize(dst.size() + count, Hints(zone()));
-  int reg_base = first.index();
+  const int reg_base = first.index();
   for (int i = 0; i < static_cast<int>(count); ++i) {
     dst.push_back(register_hints(interpreter::Register(reg_base + i)));
   }
