@@ -2033,33 +2033,23 @@ Object Isolate::PromoteScheduledException() {
 }
 
 void Isolate::PrintCurrentStackTrace(FILE* out) {
+  CaptureStackTraceOptions options;
+  options.limit = 0;
+  options.skip_mode = SKIP_NONE;
+  options.capture_builtin_exit_frames = true;
+  options.async_stack_trace = FLAG_async_stack_traces;
+  options.filter_mode = FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
+  options.capture_only_frames_subject_to_debugging = false;
+  options.enable_frame_caching = false;
+
+  Handle<FixedArray> frames = Handle<FixedArray>::cast(
+      CaptureStackTrace(this, this->factory()->undefined_value(), options));
+
   IncrementalStringBuilder builder(this);
-  for (StackTraceFrameIterator it(this); !it.done(); it.Advance()) {
-    if (!it.is_javascript()) continue;
+  for (int i = 0; i < frames->length(); ++i) {
+    Handle<StackTraceFrame> frame(StackTraceFrame::cast(frames->get(i)), this);
 
-    HandleScope scope(this);
-    JavaScriptFrame* frame = it.javascript_frame();
-
-    Handle<Object> receiver(frame->receiver(), this);
-    Handle<JSFunction> function(frame->function(), this);
-    Handle<AbstractCode> code;
-    int offset;
-    if (frame->is_interpreted()) {
-      InterpretedFrame* interpreted_frame = InterpretedFrame::cast(frame);
-      code = handle(AbstractCode::cast(interpreted_frame->GetBytecodeArray()),
-                    this);
-      offset = interpreted_frame->GetBytecodeOffset();
-    } else {
-      code = handle(AbstractCode::cast(frame->LookupCode()), this);
-      offset = static_cast<int>(frame->pc() - code->InstructionStart());
-    }
-
-    // To preserve backwards compatiblity, only append a newline when
-    // the current stringified frame actually has characters.
-    const int old_length = builder.Length();
-    JSStackFrame site(this, receiver, function, code, offset);
-    site.ToString(builder);
-    if (old_length != builder.Length()) builder.AppendCharacter('\n');
+    SerializeStackTraceFrame(this, frame, builder);
   }
 
   Handle<String> stack_trace = builder.Finish().ToHandleChecked();

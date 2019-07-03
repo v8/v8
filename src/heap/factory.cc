@@ -3689,13 +3689,8 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
 
   const bool is_wasm = frame_array->IsAnyWasmFrame(index);
 
-  // Line numbers are 1-based, for Wasm we need to adjust.
   int line = it.Frame()->GetLineNumber();
-  if (is_wasm && line >= 0) line++;
-
-  // Column numbers are 1-based, for Wasm we need to adjust.
   int column = it.Frame()->GetColumnNumber();
-  if (is_wasm && column >= 0) column++;
 
   const int script_id = it.Frame()->GetScriptId();
 
@@ -3711,7 +3706,6 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
     Handle<Object> function = it.Frame()->GetFunction();
     if (function->IsJSFunction()) {
       Handle<JSFunction> fun = Handle<JSFunction>::cast(function);
-      function_name = JSFunction::GetDebugName(fun);
 
       is_user_java_script = fun->shared().IsUserJavaScript();
     }

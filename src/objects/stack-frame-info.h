@@ -85,7 +85,9 @@ class StackTraceFrame : public Struct {
                                 TORQUE_GENERATED_STACK_TRACE_FRAME_FIELDS)
 
   static int GetLineNumber(Handle<StackTraceFrame> frame);
+  static int GetOneBasedLineNumber(Handle<StackTraceFrame> frame);
   static int GetColumnNumber(Handle<StackTraceFrame> frame);
+  static int GetOneBasedColumnNumber(Handle<StackTraceFrame> frame);
   static int GetScriptId(Handle<StackTraceFrame> frame);
   static int GetPromiseAllIndex(Handle<StackTraceFrame> frame);
 
@@ -120,6 +122,12 @@ class StackTraceFrame : public Struct {
 V8_EXPORT_PRIVATE
 Handle<FrameArray> GetFrameArrayFromStackTrace(Isolate* isolate,
                                                Handle<FixedArray> stack_trace);
+
+class IncrementalStringBuilder;
+void SerializeStackTraceFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
+                              IncrementalStringBuilder& builder);
+MaybeHandle<String> SerializeStackTraceFrame(Isolate* isolate,
+                                             Handle<StackTraceFrame> frame);
 
 }  // namespace internal
 }  // namespace v8

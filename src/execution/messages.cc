@@ -322,12 +322,6 @@ bool StackFrameBase::IsEval() {
          GetScript()->compilation_type() == Script::COMPILATION_TYPE_EVAL;
 }
 
-MaybeHandle<String> StackFrameBase::ToString() {
-  IncrementalStringBuilder builder(isolate_);
-  ToString(builder);
-  return builder.Finish();
-}
-
 void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
                                   int frame_ix) {
   DCHECK(!array->IsWasmFrame(frame_ix));
@@ -366,7 +360,7 @@ Handle<Object> JSStackFrame::GetFileName() {
 }
 
 Handle<Object> JSStackFrame::GetFunctionName() {
-  Handle<String> result = JSFunction::GetName(function_);
+  Handle<String> result = JSFunction::GetDebugName(function_);
   if (result->length() != 0) return result;
 
   if (HasScript() &&
@@ -515,171 +509,6 @@ bool JSStackFrame::IsToplevel() {
   return receiver_->IsJSGlobalProxy() || receiver_->IsNullOrUndefined(isolate_);
 }
 
-namespace {
-
-bool IsNonEmptyString(Handle<Object> object) {
-  return (object->IsString() && String::cast(*object).length() > 0);
-}
-
-void AppendFileLocation(Isolate* isolate, StackFrameBase* call_site,
-                        IncrementalStringBuilder* builder) {
-  if (call_site->IsNative()) {
-    builder->AppendCString("native");
-    return;
-  }
-
-  Handle<Object> file_name = call_site->GetScriptNameOrSourceUrl();
-  if (!file_name->IsString() && call_site->IsEval()) {
-    Handle<Object> eval_origin = call_site->GetEvalOrigin();
-    DCHECK(eval_origin->IsString());
-    builder->AppendString(Handle<String>::cast(eval_origin));
-    builder->AppendCString(", ");  // Expecting source position to follow.
-  }
-
-  if (IsNonEmptyString(file_name)) {
-    builder->AppendString(Handle<String>::cast(file_name));
-  } else {
-    // Source code does not originate from a file and is not native, but we
-    // can still get the source position inside the source string, e.g. in
-    // an eval string.
-    builder->AppendCString("<anonymous>");
-  }
-
-  int line_number = call_site->GetLineNumber();
-  if (line_number != StackFrameBase::kNone) {
-    builder->AppendCharacter(':');
-    builder->AppendInt(line_number);
-
-    int column_number = call_site->GetColumnNumber();
-    if (column_number != StackFrameBase::kNone) {
-      builder->AppendCharacter(':');
-      builder->AppendInt(column_number);
-    }
-  }
-}
-
-int StringIndexOf(Isolate* isolate, Handle<String> subject,
-                  Handle<String> pattern) {
-  if (pattern->length() > subject->length()) return -1;
-  return String::IndexOf(isolate, subject, pattern, 0);
-}
-
-// Returns true iff
-// 1. the subject ends with '.' + pattern, or
-// 2. subject == pattern.
-bool StringEndsWithMethodName(Isolate* isolate, Handle<String> subject,
-                              Handle<String> pattern) {
-  if (String::Equals(isolate, subject, pattern)) return true;
-
-  FlatStringReader subject_reader(isolate, String::Flatten(isolate, subject));
-  FlatStringReader pattern_reader(isolate, String::Flatten(isolate, pattern));
-
-  int pattern_index = pattern_reader.length() - 1;
-  int subject_index = subject_reader.length() - 1;
-  for (int i = 0; i <= pattern_reader.length(); i++) {  // Iterate over len + 1.
-    if (subject_index < 0) {
-      return false;
-    }
-
-    const uc32 subject_char = subject_reader.Get(subject_index);
-    if (i == pattern_reader.length()) {
-      if (subject_char != '.') return false;
-    } else if (subject_char != pattern_reader.Get(pattern_index)) {
-      return false;
-    }
-
-    pattern_index--;
-    subject_index--;
-  }
-
-  return true;
-}
-
-void AppendMethodCall(Isolate* isolate, JSStackFrame* call_site,
-                      IncrementalStringBuilder* builder) {
-  Handle<Object> type_name = call_site->GetTypeName();
-  Handle<Object> method_name = call_site->GetMethodName();
-  Handle<Object> function_name = call_site->GetFunctionName();
-
-  if (IsNonEmptyString(function_name)) {
-    Handle<String> function_string = Handle<String>::cast(function_name);
-    if (IsNonEmptyString(type_name)) {
-      Handle<String> type_string = Handle<String>::cast(type_name);
-      bool starts_with_type_name =
-          (StringIndexOf(isolate, function_string, type_string) == 0);
-      if (!starts_with_type_name) {
-        builder->AppendString(type_string);
-        builder->AppendCharacter('.');
-      }
-    }
-    builder->AppendString(function_string);
-
-    if (IsNonEmptyString(method_name)) {
-      Handle<String> method_string = Handle<String>::cast(method_name);
-      if (!StringEndsWithMethodName(isolate, function_string, method_string)) {
-        builder->AppendCString(" [as ");
-        builder->AppendString(method_string);
-        builder->AppendCharacter(']');
-      }
-    }
-  } else {
-    if (IsNonEmptyString(type_name)) {
-      builder->AppendString(Handle<String>::cast(type_name));
-      builder->AppendCharacter('.');
-    }
-    if (IsNonEmptyString(method_name)) {
-      builder->AppendString(Handle<String>::cast(method_name));
-    } else {
-      builder->AppendCString("<anonymous>");
-    }
-  }
-}
-
-}  // namespace
-
-void JSStackFrame::ToString(IncrementalStringBuilder& builder) {
-  Handle<Object> function_name = GetFunctionName();
-
-  const bool is_toplevel = IsToplevel();
-  const bool is_async = IsAsync();
-  const bool is_promise_all = IsPromiseAll();
-  const bool is_constructor = IsConstructor();
-  const bool is_method_call = !(is_toplevel || is_constructor);
-
-  if (is_async) {
-    builder.AppendCString("async ");
-  }
-  if (is_promise_all) {
-    // For `Promise.all(iterable)` frames we interpret the {offset_}
-    // as the element index into `iterable` where the error occurred.
-    builder.AppendCString("Promise.all (index ");
-    builder.AppendInt(offset_);
-    builder.AppendCString(")");
-    return;
-  }
-  if (is_method_call) {
-    AppendMethodCall(isolate_, this, &builder);
-  } else if (is_constructor) {
-    builder.AppendCString("new ");
-    if (IsNonEmptyString(function_name)) {
-      builder.AppendString(Handle<String>::cast(function_name));
-    } else {
-      builder.AppendCString("<anonymous>");
-    }
-  } else if (IsNonEmptyString(function_name)) {
-    builder.AppendString(Handle<String>::cast(function_name));
-  } else {
-    AppendFileLocation(isolate_, this, &builder);
-    return;
-  }
-
-  builder.AppendCString(" (");
-  AppendFileLocation(isolate_, this, &builder);
-  builder.AppendCString(")");
-
-  return;
-}
-
 int JSStackFrame::GetPosition() const {
   Handle<SharedFunctionInfo> shared = handle(function_->shared(), isolate_);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
@@ -742,41 +571,6 @@ Handle<Object> WasmStackFrame::GetWasmModuleName() {
     module_name = isolate_->factory()->null_value();
   }
   return module_name;
-}
-
-void WasmStackFrame::ToString(IncrementalStringBuilder& builder) {
-  Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
-                                         isolate_);
-  MaybeHandle<String> module_name =
-      WasmModuleObject::GetModuleNameOrNull(isolate_, module_object);
-  MaybeHandle<String> function_name = WasmModuleObject::GetFunctionNameOrNull(
-      isolate_, module_object, wasm_func_index_);
-  bool has_name = !module_name.is_null() || !function_name.is_null();
-  if (has_name) {
-    if (module_name.is_null()) {
-      builder.AppendString(function_name.ToHandleChecked());
-    } else {
-      builder.AppendString(module_name.ToHandleChecked());
-      if (!function_name.is_null()) {
-        builder.AppendCString(".");
-        builder.AppendString(function_name.ToHandleChecked());
-      }
-    }
-    builder.AppendCString(" (");
-  }
-
-  builder.AppendCString("wasm-function[");
-  DCHECK(wasm_func_index_ <= kMaxInt);
-  builder.AppendInt(static_cast<int>(wasm_func_index_));
-  builder.AppendCString("]:");
-
-  char buffer[16];
-  SNPrintF(ArrayVector(buffer), "0x%x", GetModuleOffset());
-  builder.AppendCString(buffer);
-
-  if (has_name) builder.AppendCString(")");
-
-  return;
 }
 
 int WasmStackFrame::GetPosition() const {
@@ -859,24 +653,6 @@ int AsmJsWasmStackFrame::GetColumnNumber() {
   Handle<Script> script(wasm_instance_->module_object().script(), isolate_);
   DCHECK(script->IsUserJavaScript());
   return Script::GetColumnNumber(script, GetPosition()) + 1;
-}
-
-void AsmJsWasmStackFrame::ToString(IncrementalStringBuilder& builder) {
-  // The string should look exactly as the respective javascript frame string.
-  // Keep this method in line to
-  // JSStackFrame::ToString(IncrementalStringBuilder&).
-  Handle<Object> function_name = GetFunctionName();
-
-  if (IsNonEmptyString(function_name)) {
-    builder.AppendString(Handle<String>::cast(function_name));
-    builder.AppendCString(" (");
-  }
-
-  AppendFileLocation(isolate_, this, &builder);
-
-  if (IsNonEmptyString(function_name)) builder.AppendCString(")");
-
-  return;
 }
 
 FrameArrayIterator::FrameArrayIterator(Isolate* isolate,
@@ -1094,13 +870,13 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
 
   wasm::WasmCodeRefScope wasm_code_ref_scope;
 
-  Handle<FrameArray> frame_array = GetFrameArrayFromStackTrace(isolate, elems);
-  for (FrameArrayIterator it(isolate, frame_array); it.HasFrame();
-       it.Advance()) {
+  for (int i = 0; i < elems->length(); ++i) {
     builder.AppendCString("\n    at ");
 
-    StackFrameBase* frame = it.Frame();
-    frame->ToString(builder);
+    Handle<StackTraceFrame> frame(StackTraceFrame::cast(elems->get(i)),
+                                  isolate);
+    SerializeStackTraceFrame(isolate, frame, builder);
+
     if (isolate->has_pending_exception()) {
       // CallSite.toString threw. Parts of the current frame might have been
       // stringified already regardless. Still, try to append a string

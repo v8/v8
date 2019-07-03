@@ -2945,11 +2945,11 @@ Local<StackTrace> StackTrace::CurrentStackTrace(Isolate* isolate,
 // --- S t a c k F r a m e ---
 
 int StackFrame::GetLineNumber() const {
-  return i::StackTraceFrame::GetLineNumber(Utils::OpenHandle(this));
+  return i::StackTraceFrame::GetOneBasedLineNumber(Utils::OpenHandle(this));
 }
 
 int StackFrame::GetColumn() const {
-  return i::StackTraceFrame::GetColumnNumber(Utils::OpenHandle(this));
+  return i::StackTraceFrame::GetOneBasedColumnNumber(Utils::OpenHandle(this));
 }
 
 int StackFrame::GetScriptId() const {
