@@ -5963,9 +5963,9 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
                                          wasm::FunctionSig* expected_sig,
                                          bool has_bigint_feature) {
   if (WasmExportedFunction::IsWasmExportedFunction(*target)) {
-    auto imported_function = WasmExportedFunction::cast(*target);
-    auto func_index = imported_function.function_index();
-    auto module = imported_function.instance().module();
+    auto imported_function = Handle<WasmExportedFunction>::cast(target);
+    auto func_index = imported_function->function_index();
+    auto module = imported_function->instance().module();
     wasm::FunctionSig* imported_sig = module->functions[func_index].sig;
     if (*imported_sig != *expected_sig) {
       return WasmImportCallKind::kLinkError;
@@ -5977,9 +5977,17 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
     }
     return WasmImportCallKind::kWasmToWasm;
   }
+  if (WasmJSFunction::IsWasmJSFunction(*target)) {
+    auto js_function = Handle<WasmJSFunction>::cast(target);
+    if (!js_function->MatchesSignature(expected_sig)) {
+      return WasmImportCallKind::kLinkError;
+    }
+    // TODO(7742): Implement proper handling of this case.
+    UNIMPLEMENTED();
+  }
   if (WasmCapiFunction::IsWasmCapiFunction(*target)) {
-    WasmCapiFunction capi_function = WasmCapiFunction::cast(*target);
-    if (!capi_function.IsSignatureEqual(expected_sig)) {
+    auto capi_function = Handle<WasmCapiFunction>::cast(target);
+    if (!capi_function->IsSignatureEqual(expected_sig)) {
       return WasmImportCallKind::kLinkError;
     }
     return WasmImportCallKind::kWasmToCapi;

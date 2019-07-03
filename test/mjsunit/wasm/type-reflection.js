@@ -293,3 +293,39 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   table.set(1, fun3);
   assertTraps(kTrapFuncSigMismatch, () => instance.exports.main(1));
 })();
+
+// TODO(7742): Enable once imported constructed functions are callable.
+/*(function TestFunctionModuleImportMatchingSig() {
+  let builder = new WasmModuleBuilder();
+  let fun = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 7);
+  let fun_index = builder.addImport("m", "fun", kSig_i_v)
+  builder.addFunction('main', kSig_i_v)
+      .addBody([
+        kExprCallFunction, fun_index
+      ])
+      .exportFunc();
+  let instance = builder.instantiate({ m: { fun: fun }});
+  assertEquals(7, instance.exports.main());
+})();*/
+
+(function TestFunctionModuleImportMatchingSig() {
+  let builder = new WasmModuleBuilder();
+  let fun1 = new WebAssembly.Function({parameters:[], results:[]}, _ => 7);
+  let fun2 = new WebAssembly.Function({parameters:["i32"], results:[]}, _ => 8);
+  let fun3 = new WebAssembly.Function({parameters:[], results:["f32"]}, _ => 9);
+  let fun_index = builder.addImport("m", "fun", kSig_i_v)
+  builder.addFunction('main', kSig_i_v)
+      .addBody([
+        kExprCallFunction, fun_index
+      ])
+      .exportFunc();
+  assertThrows(
+    () => builder.instantiate({ m: { fun: fun1 }}), WebAssembly.LinkError,
+    /imported function does not match the expected type/);
+  assertThrows(
+    () => builder.instantiate({ m: { fun: fun2 }}), WebAssembly.LinkError,
+    /imported function does not match the expected type/);
+  assertThrows(
+    () => builder.instantiate({ m: { fun: fun3 }}), WebAssembly.LinkError,
+    /imported function does not match the expected type/);
+})();

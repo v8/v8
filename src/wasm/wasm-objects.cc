@@ -2310,6 +2310,21 @@ wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
   return new (zone) wasm::FunctionSig(return_count, parameter_count, types);
 }
 
+bool WasmJSFunction::MatchesSignature(wasm::FunctionSig* sig) {
+  DCHECK_LE(sig->all().size(), kMaxInt);
+  int sig_size = static_cast<int>(sig->all().size());
+  int return_count = static_cast<int>(sig->return_count());
+  int parameter_count = static_cast<int>(sig->parameter_count());
+  WasmJSFunctionData function_data = shared().wasm_js_function_data();
+  if (return_count != function_data.serialized_return_count() ||
+      parameter_count != function_data.serialized_parameter_count()) {
+    return false;
+  }
+  if (sig_size == 0) return true;  // Prevent undefined behavior.
+  const wasm::ValueType* expected = sig->all().begin();
+  return function_data.serialized_signature().matches(expected, sig_size);
+}
+
 Address WasmCapiFunction::GetHostCallTarget() const {
   return shared().wasm_capi_function_data().call_target();
 }

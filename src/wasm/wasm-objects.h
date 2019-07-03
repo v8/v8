@@ -700,6 +700,7 @@ class WasmJSFunction : public JSFunction {
   // Deserializes the signature of this function using the provided zone. Note
   // that lifetime of the signature is hence directly coupled to the zone.
   wasm::FunctionSig* GetSignature(Zone* zone);
+  bool MatchesSignature(wasm::FunctionSig* sig);
 
   DECL_CAST(WasmJSFunction)
   OBJECT_CONSTRUCTORS(WasmJSFunction, JSFunction);

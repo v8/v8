@@ -558,6 +558,11 @@ class PodArray : public ByteArray {
                        length * sizeof(T));
   }
 
+  bool matches(const T* buffer, int length) {
+    DCHECK_LE(length, this->length());
+    return memcmp(GetDataStartAddress(), buffer, length * sizeof(T)) == 0;
+  }
+
   T get(int index) {
     T result;
     copy_out(index, &result, 1);
