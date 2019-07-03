@@ -824,6 +824,14 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Sub) {
                     base::SubWithWraparound);
 }
 
+WASM_SIMD_TEST_NO_LOWERING(I64x2Eq) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Eq, Equal);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2Ne) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Ne, NotEqual);
+}
+
 void RunI64x2ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int64ShiftOp expected_op) {
   for (int shift = 1; shift < 64; shift++) {

@@ -761,6 +761,8 @@
   V(I64x2ShrS)                  \
   V(I64x2Add)                   \
   V(I64x2Sub)                   \
+  V(I64x2Eq)                    \
+  V(I64x2Ne)                    \
   V(I64x2ShrU)                  \
   V(I32x4Splat)                 \
   V(I32x4ExtractLane)           \

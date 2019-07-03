@@ -1867,6 +1867,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI64x2Add(node);
     case IrOpcode::kI64x2Sub:
       return MarkAsSimd128(node), VisitI64x2Sub(node);
+    case IrOpcode::kI64x2Eq:
+      return MarkAsSimd128(node), VisitI64x2Eq(node);
+    case IrOpcode::kI64x2Ne:
+      return MarkAsSimd128(node), VisitI64x2Ne(node);
     case IrOpcode::kI64x2ShrU:
       return MarkAsSimd128(node), VisitI64x2ShrU(node);
     case IrOpcode::kI32x4Splat:
@@ -2522,6 +2526,8 @@ void InstructionSelector::VisitI64x2Shl(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ShrS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Add(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Sub(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI64x2Ne(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ShrU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64
 

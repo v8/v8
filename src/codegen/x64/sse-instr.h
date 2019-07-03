@@ -68,6 +68,7 @@
   V(psignd, 66, 0F, 38, 0A)
 
 #define SSE4_INSTRUCTION_LIST(V) \
+  V(pcmpeqq, 66, 0F, 38, 29)     \
   V(ptest, 66, 0F, 38, 17)       \
   V(pmovsxbw, 66, 0F, 38, 20)    \
   V(pmovsxwd, 66, 0F, 38, 23)    \

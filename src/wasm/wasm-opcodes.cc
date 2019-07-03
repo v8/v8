@@ -77,7 +77,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     // Standard opcodes
     CASE_INT_OP(Eqz, "eqz")
     CASE_ALL_OP(Eq, "eq")
+    CASE_I64x2_OP(Eq, "eq")
     CASE_ALL_OP(Ne, "ne")
+    CASE_I64x2_OP(Ne, "ne")
     CASE_ALL_OP(Add, "add")
     CASE_ALL_OP(Sub, "sub")
     CASE_ALL_OP(Mul, "mul")

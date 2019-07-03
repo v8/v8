@@ -2477,6 +2477,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ psubq(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
+    case kX64I64x2Eq: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      __ pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I64x2Ne: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      __ pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ pcmpeqq(kScratchDoubleReg, kScratchDoubleReg);
+      __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+      break;
+    }
     case kX64I64x2ShrU: {
       __ psrlq(i.OutputSimd128Register(), i.InputInt8(1));
       break;
