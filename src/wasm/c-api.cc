@@ -1259,11 +1259,12 @@ Foreign::~Foreign() {}
 auto Foreign::copy() const -> own<Foreign*> { return impl(this)->copy(); }
 
 auto Foreign::make(Store* store_abs) -> own<Foreign*> {
-  auto store = impl(store_abs);
-  auto isolate = store->i_isolate();
+  StoreImpl* store = impl(store_abs);
+  i::Isolate* isolate = store->i_isolate();
   i::HandleScope handle_scope(isolate);
 
-  auto obj = i::Handle<i::JSReceiver>();
+  i::Handle<i::JSObject> obj =
+      isolate->factory()->NewJSObject(isolate->object_function());
   return implement<Foreign>::type::make(store, obj);
 }
 
