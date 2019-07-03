@@ -8,6 +8,7 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/diagnostics/compilation-statistics.h"
 #include "src/execution/frames.h"
+#include "src/execution/v8threads.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-promise.h"
@@ -88,6 +89,18 @@ class LogCodesTask : public Task {
   WasmEngine* const engine_;
 };
 
+void CheckNoArchivedThreads(Isolate* isolate) {
+  class ArchivedThreadsVisitor : public ThreadVisitor {
+    void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
+      // Archived threads are rarely used, and not combined with Wasm at the
+      // moment. Implement this and test it properly once we have a use case for
+      // that.
+      FATAL("archived threads in combination with wasm not supported");
+    }
+  } archived_threads_visitor;
+  isolate->thread_manager()->IterateArchivedThreads(&archived_threads_visitor);
+}
+
 class WasmGCForegroundTask : public Task {
  public:
   explicit WasmGCForegroundTask(Isolate* isolate) : isolate_(isolate) {
@@ -114,6 +127,7 @@ class WasmGCForegroundTask : public Task {
       DCHECK_NE(StackFrame::WASM_COMPILED, it.frame()->type());
     }
 #endif
+    CheckNoArchivedThreads(isolate_);
     engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
     // Cancel to signal to the destructor that this task executed.
     Cancel();
@@ -777,6 +791,8 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
     if (frame->type() != StackFrame::WASM_COMPILED) continue;
     live_wasm_code.insert(WasmCompiledFrame::cast(frame)->wasm_code());
   }
+
+  CheckNoArchivedThreads(isolate);
 
   ReportLiveCodeForGC(isolate,
                       OwnedVector<WasmCode*>::Of(live_wasm_code).as_vector());
