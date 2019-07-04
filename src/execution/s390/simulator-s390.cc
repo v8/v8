@@ -5157,8 +5157,16 @@ EVALUATE(TM) {
   intptr_t addr = b1_val + d1_val;
   uint8_t mem_val = ReadB(addr);
   uint8_t selected_bits = mem_val & imm_val;
-  int tm_tmy_checker = 1;
-  condition_reg_ = TestUnderMask(selected_bits, imm_val, tm_tmy_checker);
+  // CC0: Selected bits are zero
+  // CC1: Selected bits mixed zeros and ones
+  // CC3: Selected bits all ones
+  if (0 == selected_bits) {
+    condition_reg_ = CC_EQ;  // CC0
+  } else if (selected_bits == imm_val) {
+    condition_reg_ = 0x1;  // CC3
+  } else {
+    condition_reg_ = 0x4;  // CC1
+  }
   return length;
 }
 
@@ -5587,7 +5595,7 @@ EVALUATE(LLILL) {
   return 0;
 }
 
-inline static int TestUnderMask(uint16_t val, uint16_t mask, bool checker) {
+inline static int TestUnderMask(uint16_t val, uint16_t mask) {
   // Test if all selected bits are zeros or mask is zero
   if (0 == (mask & val)) {
     return 0x8;
@@ -5599,11 +5607,6 @@ inline static int TestUnderMask(uint16_t val, uint16_t mask, bool checker) {
   }
 
   // Now we know selected bits mixed zeros and ones
-  // Test if it is TM or TMY instruction
-  if (checker) {
-    return 0x4;
-  }
-
   // Test if the leftmost bit is zero or one
 #if defined(__GNUC__)
   int leadingZeros = __builtin_clz(mask);
@@ -5636,8 +5639,7 @@ EVALUATE(TMLH) {
   DECODE_RI_A_INSTRUCTION(instr, r1, i2);
   uint32_t value = get_low_register<uint32_t>(r1) >> 16;
   uint32_t mask = i2 & 0x0000FFFF;
-  int tm_tmy_checker = 0;
-  condition_reg_ = TestUnderMask(value, mask, tm_tmy_checker);
+  condition_reg_ = TestUnderMask(value, mask);
   return length;  // DONE
 }
 
@@ -5646,29 +5648,20 @@ EVALUATE(TMLL) {
   DECODE_RI_A_INSTRUCTION(instr, r1, i2);
   uint32_t value = get_low_register<uint32_t>(r1) & 0x0000FFFF;
   uint32_t mask = i2 & 0x0000FFFF;
-  int tm_tmy_checker = 0;
-  condition_reg_ = TestUnderMask(value, mask, tm_tmy_checker);
+  condition_reg_ = TestUnderMask(value, mask);
   return length;  // DONE
 }
 
 EVALUATE(TMHH) {
-  DCHECK_OPCODE(TMHH);
-  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
-  uint32_t value = get_high_register<uint32_t>(r1) >> 16;
-  uint32_t mask = i2 & 0x0000FFFF;
-  int tm_tmy_checker = 0;
-  condition_reg_ = TestUnderMask(value, mask, tm_tmy_checker);
-  return length;
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
 }
 
 EVALUATE(TMHL) {
-  DCHECK_OPCODE(TMHL);
-  DECODE_RI_A_INSTRUCTION(instr, r1, i2);
-  uint32_t value = get_high_register<uint32_t>(r1) & 0x0000FFFF;
-  uint32_t mask = i2 & 0x0000FFFF;
-  int tm_tmy_checker = 0;
-  condition_reg_ = TestUnderMask(value, mask, tm_tmy_checker);
-  return length;
+  UNIMPLEMENTED();
+  USE(instr);
+  return 0;
 }
 
 EVALUATE(BRAS) {
@@ -9989,8 +9982,16 @@ EVALUATE(TMY) {
   uint8_t mem_val = ReadB(addr);
   uint8_t imm_val = i2;
   uint8_t selected_bits = mem_val & imm_val;
-  int tm_tmy_checker = 1;
-  condition_reg_ = TestUnderMask(selected_bits, imm_val, tm_tmy_checker);
+  // CC0: Selected bits are zero
+  // CC1: Selected bits mixed zeros and ones
+  // CC3: Selected bits all ones
+  if (0 == selected_bits) {
+    condition_reg_ = CC_EQ;  // CC0
+  } else if (selected_bits == imm_val) {
+    condition_reg_ = 0x1;  // CC3
+  } else {
+    condition_reg_ = 0x4;  // CC1
+  }
   return length;
 }
 
