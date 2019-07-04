@@ -361,6 +361,20 @@
           ]
         }
       ]
+    },
+    {
+      "name": "InterpreterEntryTrampoline",
+      "path": ["InterpreterEntryTrampoline"],
+      "main": "run.js",
+      "flags": ["--no-opt"],
+      "resources": ["InterpreterEntryTrampoline.js"],
+      "results_regexp": "^%s\\-InterpreterEntryTrampoline\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Calls-No-Argument"},
+        {"name": "Calls-One-Argument"},
+        {"name": "Calls-Six-Arguments"},
+        {"name": "Calls-With-Receiver"}
+      ]
     }
   ]
 }
