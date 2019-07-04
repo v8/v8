@@ -731,7 +731,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     if (num_saved_registers_ > 8) {
       // One slot beyond address of register 0.
       __ lay(r3, MemOperand(frame_pointer(), kRegisterZero + kPointerSize));
-      __ LoadImmP(r4, Operand(num_saved_registers_));
+      __ Load(r4, Operand(num_saved_registers_));
       Label init_loop;
       __ bind(&init_loop);
       __ StoreP(r1, MemOperand(r3, -kPointerSize));
