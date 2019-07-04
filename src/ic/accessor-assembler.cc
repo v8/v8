@@ -107,12 +107,12 @@ void AccessorAssembler::HandlePolymorphicCase(
 
   // Load the {feedback} array length.
   TNode<IntPtrT> length = LoadAndUntagWeakFixedArrayLength(feedback);
-  CSA_ASSERT(this, IntPtrLessThanOrEqual(IntPtrConstant(1), length));
+  CSA_ASSERT(this, IntPtrLessThanOrEqual(IntPtrConstant(kEntrySize), length));
 
-  // This is a hand-crafted loop that only compares against the {length}
-  // in the end, since we already know that we will have at least a single
-  // entry in the {feedback} array anyways.
-  TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
+  // This is a hand-crafted loop that iterates backwards and only compares
+  // against zero at the end, since we already know that we will have at least a
+  // single entry in the {feedback} array anyways.
+  TVARIABLE(IntPtrT, var_index, IntPtrSub(length, IntPtrConstant(kEntrySize)));
   Label loop(this, &var_index), loop_next(this);
   Goto(&loop);
   BIND(&loop);
@@ -131,8 +131,9 @@ void AccessorAssembler::HandlePolymorphicCase(
 
     BIND(&loop_next);
     var_index =
-        Signed(IntPtrAdd(var_index.value(), IntPtrConstant(kEntrySize)));
-    Branch(IntPtrLessThan(var_index.value(), length), &loop, if_miss);
+        Signed(IntPtrSub(var_index.value(), IntPtrConstant(kEntrySize)));
+    Branch(IntPtrGreaterThanOrEqual(var_index.value(), IntPtrConstant(0)),
+           &loop, if_miss);
   }
 }
 
