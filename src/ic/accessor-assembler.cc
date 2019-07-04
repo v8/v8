@@ -423,7 +423,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       interceptor(this, Label::kDeferred), nonexistent(this),
       accessor(this, Label::kDeferred), global(this, Label::kDeferred),
       module_export(this, Label::kDeferred), proxy(this, Label::kDeferred),
-      native_data_property(this), api_getter(this);
+      native_data_property(this, Label::kDeferred),
+      api_getter(this, Label::kDeferred);
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kField)), &field);
 
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kConstant)),
