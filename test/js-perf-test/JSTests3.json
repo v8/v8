@@ -348,6 +348,17 @@
             {"name": "Smi-Constant-ShiftRight"},
             {"name": "Smi-Constant-ShiftRightLogical"}
           ]
+        },
+        {
+          "name": "LdaNamedProperty",
+          "main": "run.js",
+          "resources": [ "LdaNamedProperty.js" ],
+          "test_flags": [ "LdaNamedProperty" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Smi-Value"},
+            {"name": "Prototype-Chain-Value"}
+          ]
         }
       ]
     }
