@@ -2864,6 +2864,13 @@ void Isolate::Delete(Isolate* isolate) {
   SetIsolateThreadLocals(saved_isolate, saved_data);
 }
 
+void Isolate::SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap) {
+  DCHECK_NOT_NULL(ro_heap);
+  DCHECK_IMPLIES(read_only_heap_ != nullptr, read_only_heap_ == ro_heap);
+  read_only_heap_ = ro_heap;
+  heap_.SetUpFromReadOnlyHeap(ro_heap);
+}
+
 v8::PageAllocator* Isolate::page_allocator() {
   return isolate_allocator_->page_allocator();
 }
@@ -3456,7 +3463,7 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
 
     if (create_heap_objects) {
       heap_.read_only_space()->ClearStringPaddingIfNeeded();
-      heap_.read_only_heap()->OnCreateHeapObjectsComplete(this);
+      read_only_heap_->OnCreateHeapObjectsComplete(this);
     } else {
       startup_deserializer->DeserializeInto(this);
     }

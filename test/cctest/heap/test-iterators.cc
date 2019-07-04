@@ -27,7 +27,7 @@ TEST(HeapObjectIteratorNullPastEnd) {
 }
 
 TEST(ReadOnlyHeapObjectIteratorNullPastEnd) {
-  ReadOnlyHeapObjectIterator iterator(CcTest::heap()->read_only_heap());
+  ReadOnlyHeapObjectIterator iterator(CcTest::read_only_heap());
   while (!iterator.Next().is_null()) {
   }
   for (int i = 0; i < 20; i++) {

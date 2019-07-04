@@ -819,8 +819,7 @@ TSlot Deserializer::ReadDataCase(Isolate* isolate, TSlot current,
   } else if (bytecode == kReadOnlyObjectCache) {
     int cache_index = source_.GetInt();
     heap_object = HeapObject::cast(
-        isolate->heap()->read_only_heap()->cached_read_only_object(
-            cache_index));
+        isolate->read_only_heap()->cached_read_only_object(cache_index));
     DCHECK(!Heap::InYoungGeneration(heap_object));
     emit_write_barrier = false;
   } else if (bytecode == kPartialSnapshotCache) {

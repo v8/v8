@@ -63,7 +63,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate, ReadOnlyDeserializer* des) {
   }
 #endif  // DEBUG
 
-  isolate->heap()->SetUpFromReadOnlyHeap(shared_ro_heap_);
+  isolate->SetUpFromReadOnlyHeap(shared_ro_heap_);
   if (des != nullptr) {
     void* const isolate_ro_roots = reinterpret_cast<void*>(
         isolate->roots_table().read_only_roots_begin().address());
@@ -91,7 +91,7 @@ void ReadOnlyHeap::OnCreateHeapObjectsComplete(Isolate* isolate) {
 // static
 ReadOnlyHeap* ReadOnlyHeap::CreateAndAttachToIsolate(Isolate* isolate) {
   auto* ro_heap = new ReadOnlyHeap(new ReadOnlySpace(isolate->heap()));
-  isolate->heap()->SetUpFromReadOnlyHeap(ro_heap);
+  isolate->SetUpFromReadOnlyHeap(ro_heap);
   return ro_heap;
 }
 

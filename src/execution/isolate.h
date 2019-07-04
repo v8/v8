@@ -517,6 +517,8 @@ class Isolate final : private HiddenFactory {
   // for legacy API reasons.
   static void Delete(Isolate* isolate);
 
+  void SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap);
+
   // Returns allocation mode of this isolate.
   V8_INLINE IsolateAllocationMode isolate_allocation_mode();
 
@@ -902,6 +904,7 @@ class Isolate final : private HiddenFactory {
   }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
+  ReadOnlyHeap* read_only_heap() const { return read_only_heap_; }
   static Isolate* FromHeap(Heap* heap) {
     return reinterpret_cast<Isolate*>(reinterpret_cast<Address>(heap) -
                                       OFFSET_OF(Isolate, heap_));
@@ -1652,6 +1655,7 @@ class Isolate final : private HiddenFactory {
 
   std::unique_ptr<IsolateAllocator> isolate_allocator_;
   Heap heap_;
+  ReadOnlyHeap* read_only_heap_ = nullptr;
 
   const int id_;
   EntryStackItem* entry_stack_ = nullptr;

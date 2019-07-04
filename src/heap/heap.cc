@@ -4950,7 +4950,6 @@ void Heap::SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap) {
   DCHECK_NOT_NULL(ro_heap);
   DCHECK_IMPLIES(read_only_space_ != nullptr,
                  read_only_space_ == ro_heap->read_only_space());
-  read_only_heap_ = ro_heap;
   space_[RO_SPACE] = read_only_space_ = ro_heap->read_only_space();
 }
 
@@ -5236,7 +5235,7 @@ void Heap::TearDown() {
 
   tracer_.reset();
 
-  read_only_heap_->OnHeapTearDown();
+  isolate()->read_only_heap()->OnHeapTearDown();
   space_[RO_SPACE] = read_only_space_ = nullptr;
   for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
     delete space_[i];

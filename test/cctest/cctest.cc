@@ -121,7 +121,9 @@ void CcTest::Run() {
 }
 
 i::Heap* CcTest::heap() { return i_isolate()->heap(); }
-i::ReadOnlyHeap* CcTest::read_only_heap() { return heap()->read_only_heap(); }
+i::ReadOnlyHeap* CcTest::read_only_heap() {
+  return i_isolate()->read_only_heap();
+}
 
 void CcTest::CollectGarbage(i::AllocationSpace space) {
   heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);

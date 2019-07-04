@@ -677,8 +677,6 @@ class Heap {
   // Getters to other components. ==============================================
   // ===========================================================================
 
-  ReadOnlyHeap* read_only_heap() const { return read_only_heap_; }
-
   GCTracer* tracer() { return tracer_.get(); }
 
   MemoryAllocator* memory_allocator() { return memory_allocator_.get(); }
@@ -1863,8 +1861,6 @@ class Heap {
   // This separates maps in the retained_maps array that were created before
   // and after context disposal.
   int number_of_disposed_maps_ = 0;
-
-  ReadOnlyHeap* read_only_heap_ = nullptr;
 
   NewSpace* new_space_ = nullptr;
   OldSpace* old_space_ = nullptr;
