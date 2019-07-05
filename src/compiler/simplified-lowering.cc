@@ -2642,8 +2642,8 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeBigIntAdd: {
-        const auto& p = BigIntOperationParametersOf(node->op());
-        VisitBinop(node, UseInfo::CheckedBigIntAsTaggedPointer(p.feedback()),
+        VisitBinop(node,
+                   UseInfo::CheckedBigIntAsTaggedPointer(VectorSlotPair{}),
                    MachineRepresentation::kTaggedPointer);
         return;
       }

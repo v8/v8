@@ -4217,7 +4217,6 @@ Node* EffectControlLinearizer::LowerStringLessThanOrEqual(Node* node) {
 
 Node* EffectControlLinearizer::LowerSpeculativeBigIntAdd(Node* node,
                                                          Node* frame_state) {
-  const auto& p = BigIntOperationParametersOf(node->op());
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
 
@@ -4232,7 +4231,7 @@ Node* EffectControlLinearizer::LowerSpeculativeBigIntAdd(Node* node,
               rhs, __ NoContextConstant());
 
   // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
-  __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, p.feedback(),
+  __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, VectorSlotPair{},
                   ObjectIsSmi(value), frame_state);
 
   return value;

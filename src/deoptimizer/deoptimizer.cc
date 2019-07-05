@@ -4030,21 +4030,10 @@ void TranslatedState::VerifyMaterializedObjects() {
 bool TranslatedState::DoUpdateFeedback() {
   if (!feedback_vector_handle_.is_null()) {
     CHECK(!feedback_slot_.IsInvalid());
-
+    isolate()->CountUsage(v8::Isolate::kDeoptimizerDisableSpeculation);
     FeedbackNexus nexus(feedback_vector_handle_, feedback_slot_);
-
-    const auto kind = feedback_vector_handle_->GetKind(feedback_slot_);
-    if (kind == FeedbackSlotKind::kCall) {
-      isolate()->CountUsage(v8::Isolate::kDeoptimizerDisableSpeculation);
-      nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
-      return true;
-    } else if (kind == FeedbackSlotKind::kBinaryOp) {
-      // To prevent a deopt loop for binary operations (like speculative
-      // addition of BigInts), we generalize feedback to Any.
-      return nexus.SetBinaryOpFeedbackToAny();
-    } else {
-      UNREACHABLE();
-    }
+    nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+    return true;
   }
   return false;
 }

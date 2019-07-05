@@ -487,28 +487,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BigIntOperationHint);
 V8_EXPORT_PRIVATE NumberOperationHint NumberOperationHintOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
-class BigIntOperationParameters {
- public:
-  BigIntOperationParameters(BigIntOperationHint hint,
-                            const VectorSlotPair& feedback)
-      : hint_(hint), feedback_(feedback) {}
-
-  BigIntOperationHint hint() const { return hint_; }
-  const VectorSlotPair& feedback() const { return feedback_; }
-
- private:
-  BigIntOperationHint hint_;
-  VectorSlotPair feedback_;
-};
-
-size_t hash_value(const BigIntOperationParameters&);
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
-                                           const BigIntOperationParameters&);
-bool operator==(const BigIntOperationParameters& lhs,
-                const BigIntOperationParameters& rhs);
-const BigIntOperationParameters& BigIntOperationParametersOf(const Operator* op)
-    V8_WARN_UNUSED_RESULT;
-
 class NumberOperationParameters {
  public:
   NumberOperationParameters(NumberOperationHint hint,
@@ -680,8 +658,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeNumberLessThanOrEqual(NumberOperationHint hint);
   const Operator* SpeculativeNumberEqual(NumberOperationHint hint);
 
-  const Operator* SpeculativeBigIntAdd(BigIntOperationHint hint,
-                                       const VectorSlotPair& feedback);
+  const Operator* SpeculativeBigIntAdd(BigIntOperationHint hint);
   const Operator* BigIntAsUintN(int bits);
 
   const Operator* ReferenceEqual();

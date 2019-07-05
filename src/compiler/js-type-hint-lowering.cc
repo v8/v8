@@ -162,11 +162,10 @@ class JSSpeculativeBinopBuilder final {
     UNREACHABLE();
   }
 
-  const Operator* SpeculativeBigIntOp(BigIntOperationHint hint,
-                                      const VectorSlotPair& feedback) {
+  const Operator* SpeculativeBigIntOp(BigIntOperationHint hint) {
     switch (op_->opcode()) {
       case IrOpcode::kJSAdd:
-        return simplified()->SpeculativeBigIntAdd(hint, feedback);
+        return simplified()->SpeculativeBigIntAdd(hint);
       default:
         break;
     }
@@ -217,9 +216,7 @@ class JSSpeculativeBinopBuilder final {
   Node* TryBuildBigIntBinop() {
     BigIntOperationHint hint;
     if (GetBinaryBigIntOperationHint(&hint)) {
-      FeedbackNexus nexus{feedback_vector(), slot_};
-      VectorSlotPair feedback{feedback_vector(), slot_, nexus.ic_state()};
-      const Operator* op = SpeculativeBigIntOp(hint, feedback);
+      const Operator* op = SpeculativeBigIntOp(hint);
       Node* node = BuildSpeculativeOperation(op);
       return node;
     }

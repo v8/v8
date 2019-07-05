@@ -504,25 +504,6 @@ size_t hash_value(BigIntOperationHint hint) {
   return static_cast<uint8_t>(hint);
 }
 
-bool operator==(const BigIntOperationParameters& lhs,
-                const BigIntOperationParameters& rhs) {
-  return lhs.hint() == rhs.hint() && lhs.feedback() == rhs.feedback();
-}
-
-size_t hash_value(const BigIntOperationParameters& p) {
-  return base::hash_combine(p.hint(), p.feedback());
-}
-
-std::ostream& operator<<(std::ostream& os, const BigIntOperationParameters& p) {
-  return os << p.hint() << " " << p.feedback();
-}
-
-const BigIntOperationParameters& BigIntOperationParametersOf(
-    const Operator* op) {
-  DCHECK_EQ(IrOpcode::kSpeculativeBigIntAdd, op->opcode());
-  return OpParameter<BigIntOperationParameters>(op);
-}
-
 std::ostream& operator<<(std::ostream& os, NumberOperationHint hint) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
@@ -1446,11 +1427,10 @@ const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAdd(
-    BigIntOperationHint hint, const VectorSlotPair& feedback) {
-  return new (zone()) Operator1<BigIntOperationParameters>(
+    BigIntOperationHint hint) {
+  return new (zone()) Operator1<BigIntOperationHint>(
       IrOpcode::kSpeculativeBigIntAdd, Operator::kFoldable | Operator::kNoThrow,
-      "SpeculativeBigIntAdd", 2, 1, 1, 1, 1, 0,
-      BigIntOperationParameters{hint, feedback});
+      "SpeculativeBigIntAdd", 2, 1, 1, 1, 1, 0, hint);
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(
