@@ -17,10 +17,12 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define TRACE(...)                             \
-  do {                                         \
-    if (FLAG_trace_alloc) PrintF(__VA_ARGS__); \
+#define TRACE_COND(cond, ...)      \
+  do {                             \
+    if (cond) PrintF(__VA_ARGS__); \
   } while (false)
+
+#define TRACE(...) TRACE_COND(data()->is_trace_alloc(), __VA_ARGS__)
 
 namespace {
 
@@ -1119,8 +1121,9 @@ void TopLevelLiveRange::Verify() const {
   }
 }
 
-void TopLevelLiveRange::ShortenTo(LifetimePosition start) {
-  TRACE("Shorten live range %d to [%d\n", vreg(), start.value());
+void TopLevelLiveRange::ShortenTo(LifetimePosition start, bool trace_alloc) {
+  TRACE_COND(trace_alloc, "Shorten live range %d to [%d\n", vreg(),
+             start.value());
   DCHECK_NOT_NULL(first_interval_);
   DCHECK(first_interval_->start() <= start);
   DCHECK(start < first_interval_->end());
@@ -1128,9 +1131,10 @@ void TopLevelLiveRange::ShortenTo(LifetimePosition start) {
 }
 
 void TopLevelLiveRange::EnsureInterval(LifetimePosition start,
-                                       LifetimePosition end, Zone* zone) {
-  TRACE("Ensure live range %d in interval [%d %d[\n", vreg(), start.value(),
-        end.value());
+                                       LifetimePosition end, Zone* zone,
+                                       bool trace_alloc) {
+  TRACE_COND(trace_alloc, "Ensure live range %d in interval [%d %d[\n", vreg(),
+             start.value(), end.value());
   LifetimePosition new_end = end;
   while (first_interval_ != nullptr && first_interval_->start() <= end) {
     if (first_interval_->end() > end) {
@@ -1148,9 +1152,10 @@ void TopLevelLiveRange::EnsureInterval(LifetimePosition start,
 }
 
 void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
-                                       LifetimePosition end, Zone* zone) {
-  TRACE("Add to live range %d interval [%d %d[\n", vreg(), start.value(),
-        end.value());
+                                       LifetimePosition end, Zone* zone,
+                                       bool trace_alloc) {
+  TRACE_COND(trace_alloc, "Add to live range %d interval [%d %d[\n", vreg(),
+             start.value(), end.value());
   if (first_interval_ == nullptr) {
     UseInterval* interval = new (zone) UseInterval(start, end);
     first_interval_ = interval;
@@ -1173,9 +1178,10 @@ void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
   }
 }
 
-void TopLevelLiveRange::AddUsePosition(UsePosition* use_pos) {
+void TopLevelLiveRange::AddUsePosition(UsePosition* use_pos, bool trace_alloc) {
   LifetimePosition pos = use_pos->pos();
-  TRACE("Add to live range %d use position %d\n", vreg(), pos.value());
+  TRACE_COND(trace_alloc, "Add to live range %d use position %d\n", vreg(),
+             pos.value());
   UsePosition* prev_hint = nullptr;
   UsePosition* prev = nullptr;
   UsePosition* current = first_pos_;
@@ -1309,13 +1315,8 @@ void LinearScanAllocator::PrintRangeRow(std::ostream& os,
       if (range->spilled()) {
         prefix = snprintf(buffer, max_prefix_length, "|%s", kind_string);
       } else {
-        const char* reg_name;
-        if (range->assigned_register() == kUnassignedRegister) {
-          reg_name = "???";
-        } else {
-          reg_name = RegisterName(range->assigned_register());
-        }
-        prefix = snprintf(buffer, max_prefix_length, "|%s", reg_name);
+        prefix = snprintf(buffer, max_prefix_length, "|%s",
+                          RegisterName(range->assigned_register()));
       }
       os << buffer;
       position += std::min(prefix, max_prefix_length - 1);
@@ -2071,7 +2072,8 @@ void LiveRangeBuilder::AddInitialIntervals(const InstructionBlock* block,
   while (!iterator.Done()) {
     int operand_index = iterator.Current();
     TopLevelLiveRange* range = data()->GetOrCreateLiveRangeFor(operand_index);
-    range->AddUseInterval(start, end, allocation_zone());
+    range->AddUseInterval(start, end, allocation_zone(),
+                          data()->is_trace_alloc());
     iterator.Advance();
   }
 }
@@ -2192,16 +2194,18 @@ UsePosition* LiveRangeBuilder::Define(LifetimePosition position,
 
   if (range->IsEmpty() || range->Start() > position) {
     // Can happen if there is a definition without use.
-    range->AddUseInterval(position, position.NextStart(), allocation_zone());
-    range->AddUsePosition(NewUsePosition(position.NextStart()));
+    range->AddUseInterval(position, position.NextStart(), allocation_zone(),
+                          data()->is_trace_alloc());
+    range->AddUsePosition(NewUsePosition(position.NextStart()),
+                          data()->is_trace_alloc());
   } else {
-    range->ShortenTo(position);
+    range->ShortenTo(position, data()->is_trace_alloc());
   }
   if (!operand->IsUnallocated()) return nullptr;
   UnallocatedOperand* unalloc_operand = UnallocatedOperand::cast(operand);
   UsePosition* use_pos =
       NewUsePosition(position, unalloc_operand, hint, hint_type);
-  range->AddUsePosition(use_pos);
+  range->AddUsePosition(use_pos, data()->is_trace_alloc());
   return use_pos;
 }
 
@@ -2216,9 +2220,10 @@ UsePosition* LiveRangeBuilder::Use(LifetimePosition block_start,
   if (operand->IsUnallocated()) {
     UnallocatedOperand* unalloc_operand = UnallocatedOperand::cast(operand);
     use_pos = NewUsePosition(position, unalloc_operand, hint, hint_type);
-    range->AddUsePosition(use_pos);
+    range->AddUsePosition(use_pos, data()->is_trace_alloc());
   }
-  range->AddUseInterval(block_start, position, allocation_zone());
+  range->AddUseInterval(block_start, position, allocation_zone(),
+                        data()->is_trace_alloc());
   return use_pos;
 }
 
@@ -2279,7 +2284,7 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
         int code = config()->GetAllocatableGeneralCode(i);
         TopLevelLiveRange* range = FixedLiveRangeFor(code, spill_mode);
         range->AddUseInterval(curr_position, curr_position.End(),
-                              allocation_zone());
+                              allocation_zone(), data()->is_trace_alloc());
       }
     }
 
@@ -2291,7 +2296,7 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
         TopLevelLiveRange* range = FixedFPLiveRangeFor(
             code, MachineRepresentation::kFloat64, spill_mode);
         range->AddUseInterval(curr_position, curr_position.End(),
-                              allocation_zone());
+                              allocation_zone(), data()->is_trace_alloc());
       }
       // Clobber fixed float registers on archs with non-simple aliasing.
       if (!kSimpleFPAliasing) {
@@ -2304,7 +2309,7 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
             TopLevelLiveRange* range = FixedFPLiveRangeFor(
                 code, MachineRepresentation::kFloat32, spill_mode);
             range->AddUseInterval(curr_position, curr_position.End(),
-                                  allocation_zone());
+                                  allocation_zone(), data()->is_trace_alloc());
           }
         }
         if (fixed_simd128_live_ranges) {
@@ -2314,7 +2319,7 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
             TopLevelLiveRange* range = FixedFPLiveRangeFor(
                 code, MachineRepresentation::kSimd128, spill_mode);
             range->AddUseInterval(curr_position, curr_position.End(),
-                                  allocation_zone());
+                                  allocation_zone(), data()->is_trace_alloc());
           }
         }
       }
@@ -2574,7 +2579,8 @@ void LiveRangeBuilder::ProcessLoopHeader(const InstructionBlock* block,
   while (!iterator.Done()) {
     int operand_index = iterator.Current();
     TopLevelLiveRange* range = data()->GetOrCreateLiveRangeFor(operand_index);
-    range->EnsureInterval(start, end, allocation_zone());
+    range->EnsureInterval(start, end, allocation_zone(),
+                          data()->is_trace_alloc());
     iterator.Advance();
   }
   // Insert all values into the live in sets of all blocks in the loop.
@@ -2773,7 +2779,7 @@ void BundleBuilder::BuildBundles() {
         LiveRangeBundle* input_bundle = input_range->get_bundle();
         if (input_bundle != nullptr) {
           TRACE("Merge\n");
-          if (out->TryMerge(input_bundle))
+          if (out->TryMerge(input_bundle, data()->is_trace_alloc()))
             TRACE("Merged %d and %d to %d\n", phi->virtual_register(), input,
                   out->id());
         } else {
@@ -2798,7 +2804,7 @@ bool LiveRangeBundle::TryAddRange(LiveRange* range) {
   InsertUses(range->first_interval());
   return true;
 }
-bool LiveRangeBundle::TryMerge(LiveRangeBundle* other) {
+bool LiveRangeBundle::TryMerge(LiveRangeBundle* other, bool trace_alloc) {
   if (other == this) return true;
 
   auto iter1 = uses_.begin();
@@ -2810,8 +2816,8 @@ bool LiveRangeBundle::TryMerge(LiveRangeBundle* other) {
     } else if (iter2->start > iter1->end) {
       ++iter1;
     } else {
-      TRACE("No merge %d:%d %d:%d\n", iter1->start, iter1->end, iter2->start,
-            iter2->end);
+      TRACE_COND(trace_alloc, "No merge %d:%d %d:%d\n", iter1->start,
+                 iter1->end, iter2->start, iter2->end);
       return false;
     }
   }
@@ -3042,6 +3048,7 @@ void RegisterAllocator::Spill(LiveRange* range, SpillMode spill_mode) {
 }
 
 const char* RegisterAllocator::RegisterName(int register_code) const {
+  if (register_code == kUnassignedRegister) return "unassigned";
   return mode() == GENERAL_REGISTERS
              ? i::RegisterName(Register::from_code(register_code))
              : i::RegisterName(DoubleRegister::from_code(register_code));
@@ -3408,7 +3415,7 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
         to_be_live->emplace(val.first, reg);
         TRACE("Reset %d as live due vote %zu in %s\n",
               val.first->TopLevel()->vreg(), val.second.count,
-              reg == kUnassignedRegister ? "unassigned" : RegisterName(reg));
+              RegisterName(reg));
       }
     }
   };
@@ -3576,7 +3583,7 @@ void LinearScanAllocator::AllocateRegisters() {
   SplitAndSpillRangesDefinedByMemoryOperand();
   data()->ResetSpillState();
 
-  if (FLAG_trace_alloc) {
+  if (data()->is_trace_alloc()) {
     PrintRangeOverview(std::cout);
   }
 
@@ -3826,7 +3833,7 @@ void LinearScanAllocator::AllocateRegisters() {
     ProcessCurrentRange(current, spill_mode);
   }
 
-  if (FLAG_trace_alloc) {
+  if (data()->is_trace_alloc()) {
     PrintRangeOverview(std::cout);
   }
 }
@@ -5140,6 +5147,7 @@ void LiveRangeConnector::CommitSpillsInDeferredBlocks(
 }
 
 #undef TRACE
+#undef TRACE_COND
 
 }  // namespace compiler
 }  // namespace internal

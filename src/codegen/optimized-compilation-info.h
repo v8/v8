@@ -60,10 +60,11 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     kTraceTurboJson = 1 << 14,
     kTraceTurboGraph = 1 << 15,
     kTraceTurboScheduled = 1 << 16,
-    kTraceHeapBroker = 1 << 17,
-    kWasmRuntimeExceptionSupport = 1 << 18,
-    kTurboControlFlowAwareAllocation = 1 << 19,
-    kTurboPreprocessRanges = 1 << 20
+    kTraceTurboAllocation = 1 << 17,
+    kTraceHeapBroker = 1 << 18,
+    kWasmRuntimeExceptionSupport = 1 << 19,
+    kTurboControlFlowAwareAllocation = 1 << 20,
+    kTurboPreprocessRanges = 1 << 21
   };
 
   // Construct a compilation info for optimized compilation.
@@ -189,6 +190,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool trace_turbo_json_enabled() const { return GetFlag(kTraceTurboJson); }
 
   bool trace_turbo_graph_enabled() const { return GetFlag(kTraceTurboGraph); }
+
+  bool trace_turbo_allocation_enabled() const {
+    return GetFlag(kTraceTurboAllocation);
+  }
 
   bool trace_turbo_scheduled_enabled() const {
     return GetFlag(kTraceTurboScheduled);

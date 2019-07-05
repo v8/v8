@@ -175,7 +175,8 @@ std::ostream& operator<<(std::ostream& os, const LifetimePosition pos);
 
 enum class RegisterAllocationFlag : unsigned {
   kTurboControlFlowAwareAllocation = 1 << 0,
-  kTurboPreprocessRanges = 1 << 1
+  kTurboPreprocessRanges = 1 << 1,
+  kTraceAllocation = 1 << 2
 };
 
 using RegisterAllocationFlags = base::Flags<RegisterAllocationFlag>;
@@ -196,6 +197,10 @@ class RegisterAllocationData final : public ZoneObject {
 
   bool is_turbo_preprocess_ranges() const {
     return flags_ & RegisterAllocationFlag::kTurboPreprocessRanges;
+  }
+
+  bool is_trace_alloc() {
+    return flags_ & RegisterAllocationFlag::kTraceAllocation;
   }
 
   static constexpr int kNumberOfFixedRangesPerRegister = 2;
@@ -741,7 +746,7 @@ class LiveRangeBundle : public ZoneObject {
       : ranges_(zone), uses_(zone), id_(id) {}
 
   bool TryAddRange(LiveRange* range);
-  bool TryMerge(LiveRangeBundle* other);
+  bool TryMerge(LiveRangeBundle* other, bool trace_alloc);
 
   ZoneSet<LiveRange*, LiveRangeOrdering> ranges_;
   ZoneSet<Range, RangeOrdering> uses_;
@@ -785,12 +790,14 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   SlotUseKind slot_use_kind() const { return HasSlotUseField::decode(bits_); }
 
   // Add a new interval or a new use position to this live range.
-  void EnsureInterval(LifetimePosition start, LifetimePosition end, Zone* zone);
-  void AddUseInterval(LifetimePosition start, LifetimePosition end, Zone* zone);
-  void AddUsePosition(UsePosition* pos);
+  void EnsureInterval(LifetimePosition start, LifetimePosition end, Zone* zone,
+                      bool trace_alloc);
+  void AddUseInterval(LifetimePosition start, LifetimePosition end, Zone* zone,
+                      bool trace_alloc);
+  void AddUsePosition(UsePosition* pos, bool trace_alloc);
 
   // Shorten the most recently added interval by setting a new start.
-  void ShortenTo(LifetimePosition start);
+  void ShortenTo(LifetimePosition start, bool trace_alloc);
 
   // Detaches between start and end, and attributes the resulting range to
   // result.

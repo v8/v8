@@ -242,6 +242,7 @@ void OptimizedCompilationInfo::SetTracingFlags(bool passes_filter) {
   if (FLAG_trace_turbo) SetFlag(kTraceTurboJson);
   if (FLAG_trace_turbo_graph) SetFlag(kTraceTurboGraph);
   if (FLAG_trace_turbo_scheduled) SetFlag(kTraceTurboScheduled);
+  if (FLAG_trace_turbo_alloc) SetFlag(kTraceTurboAllocation);
   if (FLAG_trace_heap_broker) SetFlag(kTraceHeapBroker);
 }
 

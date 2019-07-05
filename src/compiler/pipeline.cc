@@ -3021,6 +3021,9 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   if (data->info()->is_turbo_preprocess_ranges()) {
     flags |= RegisterAllocationFlag::kTurboPreprocessRanges;
   }
+  if (data->info()->trace_turbo_allocation_enabled()) {
+    flags |= RegisterAllocationFlag::kTraceAllocation;
+  }
   data->InitializeRegisterAllocationData(config, call_descriptor, flags);
   if (info()->is_osr()) data->osr_helper()->SetupFrame(data->frame());
 
