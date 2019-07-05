@@ -256,8 +256,12 @@ class ObjectDescriptor {
   void IncPropertiesCount() { ++property_count_; }
   void IncElementsCount() { ++element_count_; }
 
+  explicit ObjectDescriptor(int property_slack)
+      : property_slack_(property_slack) {}
+
   bool HasDictionaryProperties() const {
-    return computed_count_ > 0 || property_count_ > kMaxNumberOfDescriptors;
+    return computed_count_ > 0 ||
+           (property_count_ + property_slack_) > kMaxNumberOfDescriptors;
   }
 
   Handle<Object> properties_template() const {
@@ -274,17 +278,17 @@ class ObjectDescriptor {
     return computed_properties_;
   }
 
-  void CreateTemplates(Isolate* isolate, int slack) {
+  void CreateTemplates(Isolate* isolate) {
     Factory* factory = isolate->factory();
     descriptor_array_template_ = factory->empty_descriptor_array();
     properties_dictionary_template_ = factory->empty_property_dictionary();
-    if (property_count_ || HasDictionaryProperties() || slack) {
+    if (property_count_ || computed_count_ || property_slack_) {
       if (HasDictionaryProperties()) {
         properties_dictionary_template_ = NameDictionary::New(
-            isolate, property_count_ + computed_count_ + slack);
+            isolate, property_count_ + computed_count_ + property_slack_);
       } else {
-        descriptor_array_template_ =
-            DescriptorArray::Allocate(isolate, 0, property_count_ + slack);
+        descriptor_array_template_ = DescriptorArray::Allocate(
+            isolate, 0, property_count_ + property_slack_);
       }
     }
     elements_dictionary_template_ =
@@ -369,6 +373,7 @@ class ObjectDescriptor {
   }
 
  private:
+  const int property_slack_;
   int property_count_ = 0;
   int next_enumeration_index_ = PropertyDetails::kInitialIndex;
   int element_count_ = 0;
@@ -404,8 +409,8 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   // in CanonicalHandleScope.
   HandleScope scope(isolate);
   Factory* factory = isolate->factory();
-  ObjectDescriptor static_desc;
-  ObjectDescriptor instance_desc;
+  ObjectDescriptor static_desc(kMinimumClassPropertiesCount);
+  ObjectDescriptor instance_desc(kMinimumPrototypePropertiesCount);
 
   for (int i = 0; i < expr->properties()->length(); i++) {
     ClassLiteral::Property* property = expr->properties()->at(i);
@@ -425,7 +430,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   //
   // Initialize class object template.
   //
-  static_desc.CreateTemplates(isolate, kMinimumClassPropertiesCount);
+  static_desc.CreateTemplates(isolate);
   STATIC_ASSERT(JSFunction::kLengthDescriptorIndex == 0);
   {
     // Add length_accessor.
@@ -459,7 +464,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   //
   // Initialize prototype object template.
   //
-  instance_desc.CreateTemplates(isolate, kMinimumPrototypePropertiesCount);
+  instance_desc.CreateTemplates(isolate);
   {
     Handle<Object> value(
         Smi::FromInt(ClassBoilerplate::kConstructorArgumentIndex), isolate);
