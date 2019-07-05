@@ -949,6 +949,8 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
       code->index() >= module_->num_imported_functions) {
     DCHECK_LT(code->index(), num_functions());
 
+    code->RegisterTrapHandlerData();
+
     // Assume an order of execution tiers that represents the quality of their
     // generated code.
     static_assert(ExecutionTier::kNone < ExecutionTier::kInterpreter &&
@@ -987,8 +989,6 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
           jump_table_->instruction_start(), slot_idx, code->instruction_start(),
           WasmCode::kFlushICache);
     }
-
-    code->RegisterTrapHandlerData();
   }
   WasmCodeRefScope::AddRef(code.get());
   WasmCode* result = code.get();
