@@ -512,17 +512,18 @@ IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
   // Load receiver.
   Node* recv = LoadRegisterAtOperandIndex(0);
 
-  // Load the name.
-  // TODO(jgruber): Not needed for monomorphic smi handler constant/field case.
-  Node* name = LoadConstantPoolEntryAtOperandIndex(1);
-  Node* context = GetContext();
+  // Load the name and context lazily.
+  LazyNode<Name> name = [=] {
+    return CAST(LoadConstantPoolEntryAtOperandIndex(1));
+  };
+  LazyNode<Context> context = [=] { return CAST(GetContext()); };
 
   Label done(this);
   Variable var_result(this, MachineRepresentation::kTagged);
   ExitPoint exit_point(this, &done, &var_result);
 
-  AccessorAssembler::LoadICParameters params(context, recv, name, smi_slot,
-                                             feedback_vector);
+  AccessorAssembler::LazyLoadICParameters params(context, recv, name, smi_slot,
+                                                 feedback_vector);
   AccessorAssembler accessor_asm(state());
   accessor_asm.LoadIC_BytecodeHandler(&params, &exit_point);
 
