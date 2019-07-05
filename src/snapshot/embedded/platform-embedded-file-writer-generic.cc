@@ -127,15 +127,7 @@ void PlatformEmbeddedFileWriterGeneric::DeclareExternalFilename(
   fprintf(fp_, ".file %d \"%s\"\n", fileid, fixed_filename.c_str());
 }
 
-void PlatformEmbeddedFileWriterGeneric::FileEpilogue() {
-  // Omitting this section can imply an executable stack, which is usually
-  // a linker warning/error. C++ compilers add these automatically, but
-  // compiling assembly requires the .note.GNU-stack section to be inserted
-  // manually.
-  // Additional documentation:
-  // https://wiki.gentoo.org/wiki/Hardened/GNU_stack_quickstart
-  fprintf(fp_, ".section .note.GNU-stack,\"\",%%progbits\n");
-}
+void PlatformEmbeddedFileWriterGeneric::FileEpilogue() {}
 
 int PlatformEmbeddedFileWriterGeneric::IndentedDataDirective(
     DataDirective directive) {
