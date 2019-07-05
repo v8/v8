@@ -615,9 +615,16 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
 bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
   if (mode == Mode::STACK && current_scope_->is_declaration_scope() &&
       current_scope_->AsDeclarationScope()->has_this_declaration()) {
-    Handle<Object> receiver = frame_inspector_ == nullptr
-                                  ? handle(generator_->receiver(), isolate_)
-                                  : frame_inspector_->GetReceiver();
+    // TODO(bmeurer): We should refactor the general variable lookup
+    // around "this", since the current way is rather hacky when the
+    // receiver is context-allocated.
+    auto this_var = current_scope_->AsDeclarationScope()->receiver();
+    Handle<Object> receiver =
+        this_var->location() == VariableLocation::CONTEXT
+            ? handle(context_->get(this_var->index()), isolate_)
+            : frame_inspector_ == nullptr
+                  ? handle(generator_->receiver(), isolate_)
+                  : frame_inspector_->GetReceiver();
     if (receiver->IsOptimizedOut(isolate_) || receiver->IsTheHole(isolate_)) {
       receiver = isolate_->factory()->undefined_value();
     }
