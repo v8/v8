@@ -140,7 +140,7 @@
     'tests': [
       {'name': 'benchmarks'},
       {'name': 'benchmarks', 'variant': 'extra'},
-      {'name': 'gcmole', 'swarming_dimensions': {'os': 'Ubuntu-14.04'}},
+      {'name': 'gcmole'},
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
@@ -651,7 +651,7 @@
     'tests': [
       {'name': 'benchmarks'},
       {'name': 'benchmarks', 'variant': 'extra'},
-      {'name': 'gcmole', 'swarming_dimensions': {'os': 'Ubuntu-14.04'}},
+      {'name': 'gcmole'},
       {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
