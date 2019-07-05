@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/access-info.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"

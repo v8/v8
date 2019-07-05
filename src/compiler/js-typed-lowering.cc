@@ -10,6 +10,7 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"

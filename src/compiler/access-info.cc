@@ -8,6 +8,7 @@
 
 #include "src/builtins/accessors.h"
 #include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/compilation-dependency.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
 #include "src/logging/counters.h"
@@ -78,7 +79,7 @@ PropertyAccessInfo PropertyAccessInfo::NotFound(Zone* zone,
 // static
 PropertyAccessInfo PropertyAccessInfo::DataField(
     Zone* zone, Handle<Map> receiver_map,
-    ZoneVector<CompilationDependencies::Dependency const*>&& dependencies,
+    ZoneVector<CompilationDependency const*>&& dependencies,
     FieldIndex field_index, Representation field_representation,
     Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
     MaybeHandle<Map> transition_map) {
@@ -90,7 +91,7 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
 // static
 PropertyAccessInfo PropertyAccessInfo::DataConstant(
     Zone* zone, Handle<Map> receiver_map,
-    ZoneVector<CompilationDependencies::Dependency const*>&& dependencies,
+    ZoneVector<CompilationDependency const*>&& dependencies,
     FieldIndex field_index, Representation field_representation,
     Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
     MaybeHandle<Map> transition_map) {
@@ -156,8 +157,7 @@ PropertyAccessInfo::PropertyAccessInfo(
     FieldIndex field_index, Representation field_representation,
     Type field_type, MaybeHandle<Map> field_map,
     ZoneVector<Handle<Map>>&& receiver_maps,
-    ZoneVector<CompilationDependencies::Dependency const*>&&
-        unrecorded_dependencies)
+    ZoneVector<CompilationDependency const*>&& unrecorded_dependencies)
     : kind_(kind),
       receiver_maps_(receiver_maps),
       unrecorded_dependencies_(std::move(unrecorded_dependencies)),
@@ -258,11 +258,6 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
   }
 }
 
-CellRef PropertyAccessInfo::export_cell(JSHeapBroker* broker) const {
-  DCHECK_EQ(kModuleExport, kind_);
-  return ObjectRef(broker, constant_).AsCell();
-}
-
 AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
                                      CompilationDependencies* dependencies,
                                      Zone* zone)
@@ -336,8 +331,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   Type field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
   MapRef map_ref(broker(), map);
-  ZoneVector<CompilationDependencies::Dependency const*>
-      unrecorded_dependencies(zone());
+  ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
     map_ref.SerializeOwnDescriptor(descriptor);
@@ -608,8 +602,7 @@ void AccessInfoFactory::ComputePropertyAccessInfos(
 
 void PropertyAccessInfo::RecordDependencies(
     CompilationDependencies* dependencies) {
-  for (CompilationDependencies::Dependency const* d :
-       unrecorded_dependencies_) {
+  for (CompilationDependency const* d : unrecorded_dependencies_) {
     dependencies->RecordDependency(d);
   }
   unrecorded_dependencies_.clear();
@@ -644,6 +637,8 @@ void AccessInfoFactory::MergePropertyAccessInfos(
   }
   CHECK(!result->empty());
 }
+
+Isolate* AccessInfoFactory::isolate() const { return broker()->isolate(); }
 
 namespace {
 
@@ -757,8 +752,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   Type field_type = Type::NonInternal();
   MaybeHandle<Map> field_map;
   MapRef transition_map_ref(broker(), transition_map);
-  ZoneVector<CompilationDependencies::Dependency const*>
-      unrecorded_dependencies(zone());
+  ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
     transition_map_ref.SerializeOwnDescriptor(number);

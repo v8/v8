@@ -9,6 +9,7 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"

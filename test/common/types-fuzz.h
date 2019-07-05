@@ -29,6 +29,7 @@
 #define V8_TEST_CCTEST_TYPES_H_
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/init/v8.h"

@@ -6,6 +6,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/heap-refs.h"
 
 #ifdef ENABLE_SLOW_DCHECKS
 #include <algorithm>

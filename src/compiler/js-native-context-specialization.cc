@@ -2107,7 +2107,8 @@ JSNativeContextSpecialization::BuildPropertyLoad(
     value = InlinePropertyGetterCall(receiver, context, frame_state, &effect,
                                      &control, if_exceptions, access_info);
   } else if (access_info.IsModuleExport()) {
-    Node* cell = jsgraph()->Constant(access_info.export_cell(broker()));
+    Node* cell = jsgraph()->Constant(
+        ObjectRef(broker(), access_info.constant()).AsCell());
     value = effect =
         graph()->NewNode(simplified()->LoadField(AccessBuilder::ForCellValue()),
                          cell, effect, control);

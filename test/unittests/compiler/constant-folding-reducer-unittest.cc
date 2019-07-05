@@ -5,7 +5,6 @@
 #include "src/compiler/constant-folding-reducer.h"
 #include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
-#include "src/compiler/access-info.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"

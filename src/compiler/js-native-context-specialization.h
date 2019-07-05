@@ -7,6 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/objects/map.h"
 

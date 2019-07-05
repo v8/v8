@@ -4,7 +4,6 @@
 
 #include "test/unittests/compiler/graph-unittest.h"
 
-#include "src/compiler/access-info.h"
 #include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/node-properties.h"
 #include "src/heap/factory.h"

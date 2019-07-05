@@ -251,7 +251,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const;
   Factory* factory() const;
-  NativeContextRef native_context() const { return broker()->native_context(); }
+  NativeContextRef native_context() const;
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
