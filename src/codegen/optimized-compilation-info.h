@@ -212,7 +212,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Context context() const;
 
   bool has_native_context() const;
-  Context native_context() const;
+  NativeContext native_context() const;
 
   bool has_global_object() const;
   JSGlobalObject global_object() const;

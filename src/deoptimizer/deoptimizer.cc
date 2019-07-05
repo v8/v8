@@ -270,10 +270,10 @@ class ActivationsFinder : public ThreadVisitor {
 
 // Move marked code from the optimized code list to the deoptimized code list,
 // and replace pc on the stack for codes marked for deoptimization.
-void Deoptimizer::DeoptimizeMarkedCodeForContext(Context context) {
+void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   DisallowHeapAllocation no_allocation;
 
-  Isolate* isolate = context.GetIsolate();
+  Isolate* isolate = native_context.GetIsolate();
   Code topmost_optimized_code;
   bool safe_to_deopt_topmost_optimized_code = false;
 #ifdef DEBUG
@@ -315,7 +315,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context context) {
   // Move marked code from the optimized code list to the deoptimized code list.
   // Walk over all optimized code objects in this native context.
   Code prev;
-  Object element = context.OptimizedCodeListHead();
+  Object element = native_context.OptimizedCodeListHead();
   while (!element.IsUndefined(isolate)) {
     Code code = Code::cast(element);
     CHECK_EQ(code.kind(), Code::OPTIMIZED_FUNCTION);
@@ -329,12 +329,12 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context context) {
         prev.set_next_code_link(next);
       } else {
         // There was no previous node, the next node is the new head.
-        context.SetOptimizedCodeListHead(next);
+        native_context.SetOptimizedCodeListHead(next);
       }
 
       // Move the code to the _deoptimized_ code list.
-      code.set_next_code_link(context.DeoptimizedCodeListHead());
-      context.SetDeoptimizedCodeListHead(code);
+      code.set_next_code_link(native_context.DeoptimizedCodeListHead());
+      native_context.SetDeoptimizedCodeListHead(code);
     } else {
       // Not marked; preserve this element.
       prev = code;
@@ -373,7 +373,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   // For all contexts, mark all code, then deoptimize.
   Object context = isolate->heap()->native_contexts_list();
   while (!context.IsUndefined(isolate)) {
-    Context native_context = Context::cast(context);
+    NativeContext native_context = NativeContext::cast(context);
     MarkAllCodeForContext(native_context);
     DeoptimizeMarkedCodeForContext(native_context);
     context = native_context.next_context_link();
@@ -393,15 +393,15 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   // For all contexts, deoptimize code already marked.
   Object context = isolate->heap()->native_contexts_list();
   while (!context.IsUndefined(isolate)) {
-    Context native_context = Context::cast(context);
+    NativeContext native_context = NativeContext::cast(context);
     DeoptimizeMarkedCodeForContext(native_context);
     context = native_context.next_context_link();
   }
 }
 
-void Deoptimizer::MarkAllCodeForContext(Context context) {
-  Object element = context.OptimizedCodeListHead();
-  Isolate* isolate = context.GetIsolate();
+void Deoptimizer::MarkAllCodeForContext(NativeContext native_context) {
+  Object element = native_context.OptimizedCodeListHead();
+  Isolate* isolate = native_context.GetIsolate();
   while (!element.IsUndefined(isolate)) {
     Code code = Code::cast(element);
     CHECK_EQ(code.kind(), Code::OPTIMIZED_FUNCTION);

@@ -39,7 +39,7 @@ class BytecodeGraphBuilder {
                        BailoutId osr_offset, JSGraph* jsgraph,
                        CallFrequency const& invocation_frequency,
                        SourcePositionTable* source_positions,
-                       Handle<Context> native_context, int inlining_id,
+                       Handle<NativeContext> native_context, int inlining_id,
                        BytecodeGraphBuilderFlags flags);
 
   // Creates a graph by visiting bytecodes.
@@ -369,7 +369,7 @@ class BytecodeGraphBuilder {
 
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
 
-  Handle<Context> native_context() const { return native_context_; }
+  Handle<NativeContext> native_context() const { return native_context_; }
 
   JSHeapBroker* broker() const { return broker_; }
 
@@ -436,7 +436,7 @@ class BytecodeGraphBuilder {
   Handle<SharedFunctionInfo> const shared_info_;
 
   // The native context for which we optimize.
-  Handle<Context> const native_context_;
+  Handle<NativeContext> const native_context_;
 
   static int const kBinaryOperationHintIndex = 1;
   static int const kCountOperationHintIndex = 0;
@@ -941,7 +941,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     Handle<SharedFunctionInfo> shared_info,
     Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
     JSGraph* jsgraph, CallFrequency const& invocation_frequency,
-    SourcePositionTable* source_positions, Handle<Context> native_context,
+    SourcePositionTable* source_positions, Handle<NativeContext> native_context,
     int inlining_id, BytecodeGraphBuilderFlags flags)
     : broker_(broker),
       local_zone_(local_zone),
@@ -4020,8 +4020,8 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             BailoutId osr_offset, JSGraph* jsgraph,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
-                            Handle<Context> native_context, int inlining_id,
-                            BytecodeGraphBuilderFlags flags) {
+                            Handle<NativeContext> native_context,
+                            int inlining_id, BytecodeGraphBuilderFlags flags) {
   BytecodeArrayRef bytecode_array_ref(broker, bytecode_array);
   DCHECK(bytecode_array_ref.IsSerializedForCompilation());
   BytecodeGraphBuilder builder(broker, local_zone, bytecode_array_ref, shared,

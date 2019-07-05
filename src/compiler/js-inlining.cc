@@ -468,9 +468,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       AllowHeapAllocation allow_heap_alloc;
       AllowCodeDependencyChange allow_code_dep_change;
       CallFrequency frequency = call.frequency();
-      Handle<Context> native_context =
-          handle(info_->native_context(), isolate());
-
+      Handle<NativeContext> native_context(info_->native_context(), isolate());
       BuildGraphFromBytecode(broker(), zone(), bytecode_array.object(),
                              shared_info.value().object(),
                              feedback_vector.object(), BailoutId::None(),

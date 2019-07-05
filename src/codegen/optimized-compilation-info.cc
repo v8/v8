@@ -214,7 +214,7 @@ bool OptimizedCompilationInfo::has_native_context() const {
   return !closure().is_null() && !closure()->native_context().is_null();
 }
 
-Context OptimizedCompilationInfo::native_context() const {
+NativeContext OptimizedCompilationInfo::native_context() const {
   DCHECK(has_native_context());
   return closure()->native_context();
 }
