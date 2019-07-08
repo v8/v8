@@ -230,8 +230,8 @@ inline bool decode_local_type(uint8_t val, ValueType* result) {
     case kLocalS128:
       *result = kWasmS128;
       return true;
-    case kLocalAnyFunc:
-      *result = kWasmAnyFunc;
+    case kLocalFuncRef:
+      *result = kWasmFuncRef;
       return true;
     case kLocalAnyRef:
       *result = kWasmAnyRef;
@@ -850,13 +850,13 @@ class WasmDecoder : public Decoder {
           }
           decoder->error(decoder->pc() - 1, "invalid local type");
           return false;
-        case kLocalAnyFunc:
+        case kLocalFuncRef:
           if (enabled.anyref) {
-            type = kWasmAnyFunc;
+            type = kWasmFuncRef;
             break;
           }
           decoder->error(decoder->pc() - 1,
-                         "local type 'anyfunc' is not enabled with "
+                         "local type 'funcref' is not enabled with "
                          "--experimental-wasm-anyref");
           return false;
         case kLocalExceptRef:
@@ -1016,8 +1016,8 @@ class WasmDecoder : public Decoder {
       return false;
     }
     if (!VALIDATE(module_ != nullptr &&
-                  module_->tables[imm.table_index].type == kWasmAnyFunc)) {
-      error("table of call_indirect must be of type anyfunc");
+                  module_->tables[imm.table_index].type == kWasmFuncRef)) {
+      error("table of call_indirect must be of type funcref");
       return false;
     }
     if (!Complete(pc, imm)) {
@@ -2105,7 +2105,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CHECK_PROTOTYPE_OPCODE(anyref);
           FunctionIndexImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
-          auto* value = Push(kWasmAnyFunc);
+          auto* value = Push(kWasmFuncRef);
           CALL_INTERFACE_IF_REACHABLE(RefFunc, imm.index, value);
           len = 1 + imm.length;
           break;

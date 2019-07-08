@@ -1094,7 +1094,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (!value->ToString(context).ToLocal(&string)) return;
     auto enabled_features = i::wasm::WasmFeaturesFromFlags();
     if (string->StringEquals(v8_str(isolate, "anyfunc"))) {
-      type = i::wasm::kWasmAnyFunc;
+      type = i::wasm::kWasmFuncRef;
     } else if (enabled_features.anyref &&
                string->StringEquals(v8_str(isolate, "anyref"))) {
       type = i::wasm::kWasmAnyRef;
@@ -1222,7 +1222,7 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
     *type = i::wasm::kWasmAnyRef;
   } else if (enabled_features.anyref &&
              string->StringEquals(v8_str(isolate, "anyfunc"))) {
-    *type = i::wasm::kWasmAnyFunc;
+    *type = i::wasm::kWasmFuncRef;
   } else {
     // Unrecognized type.
     *type = i::wasm::kWasmStmt;
@@ -1347,15 +1347,15 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetAnyRef(Utils::OpenHandle(*value));
       break;
     }
-    case i::wasm::kWasmAnyFunc: {
+    case i::wasm::kWasmFuncRef: {
       if (args.Length() < 2) {
         // When no inital value is provided, we have to use the WebAssembly
         // default value 'null', and not the JS default value 'undefined'.
-        global_obj->SetAnyFunc(i_isolate, i_isolate->factory()->null_value());
+        global_obj->SetFuncRef(i_isolate, i_isolate->factory()->null_value());
         break;
       }
 
-      if (!global_obj->SetAnyFunc(i_isolate, Utils::OpenHandle(*value))) {
+      if (!global_obj->SetFuncRef(i_isolate, Utils::OpenHandle(*value))) {
         thrower.TypeError(
             "The value of anyfunc globals must be null or an "
             "exported function");
@@ -1685,7 +1685,7 @@ void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   Local<String> element;
   auto enabled_features = i::wasm::WasmFeaturesFromFlags();
-  if (table->type() == i::wasm::ValueType::kWasmAnyFunc) {
+  if (table->type() == i::wasm::ValueType::kWasmFuncRef) {
     element = v8_str(isolate, "anyfunc");
   } else if (enabled_features.anyref &&
              table->type() == i::wasm::ValueType::kWasmAnyRef) {
@@ -1693,7 +1693,6 @@ void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   } else {
     UNREACHABLE();
   }
-  // TODO(aseemgarg): update anyfunc to funcref
   if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
                                v8_str(isolate, "element"), element)
            .IsJust()) {
@@ -1864,7 +1863,7 @@ void WebAssemblyGlobalGetValueCommon(
       return_value.Set(receiver->GetF64());
       break;
     case i::wasm::kWasmAnyRef:
-    case i::wasm::kWasmAnyFunc:
+    case i::wasm::kWasmFuncRef:
     case i::wasm::kWasmExceptRef:
       return_value.Set(Utils::ToLocal(receiver->GetRef()));
       break;
@@ -1938,8 +1937,8 @@ void WebAssemblyGlobalSetValue(
       receiver->SetAnyRef(Utils::OpenHandle(*args[0]));
       break;
     }
-    case i::wasm::kWasmAnyFunc: {
-      if (!receiver->SetAnyFunc(i_isolate, Utils::OpenHandle(*args[0]))) {
+    case i::wasm::kWasmFuncRef: {
+      if (!receiver->SetFuncRef(i_isolate, Utils::OpenHandle(*args[0]))) {
         thrower.TypeError(
             "value of an anyfunc reference must be either null or an "
             "exported function");

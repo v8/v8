@@ -2196,7 +2196,7 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
             graph()->NewNode(m->I32x4ExtractLane(3), value));
         break;
       case wasm::kWasmAnyRef:
-      case wasm::kWasmAnyFunc:
+      case wasm::kWasmFuncRef:
       case wasm::kWasmExceptRef:
         STORE_FIXED_ARRAY_SLOT_ANY(values_array, index, value);
         ++index;
@@ -2335,7 +2335,7 @@ Node** WasmGraphBuilder::GetExceptionValues(
             BuildDecodeException32BitValue(values_array, &index));
         break;
       case wasm::kWasmAnyRef:
-      case wasm::kWasmAnyFunc:
+      case wasm::kWasmFuncRef:
       case wasm::kWasmExceptRef:
         value = LOAD_FIXED_ARRAY_SLOT_ANY(values_array, index);
         ++index;
@@ -3493,7 +3493,7 @@ Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
     return LOAD_RAW_NODE_OFFSET(base, offset,
                                 MachineType::TypeCompressedTagged());
   }
-  // We access anyfunc tables through runtime calls.
+  // We access funcref tables through runtime calls.
   WasmTableGetDescriptor interface_descriptor;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       mcgraph()->zone(),                              // zone
@@ -3522,7 +3522,7 @@ Node* WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
     return STORE_RAW_NODE_OFFSET(
         base, offset, val, MachineRepresentation::kTagged, kFullWriteBarrier);
   } else {
-    // We access anyfunc tables through runtime calls.
+    // We access funcref tables through runtime calls.
     WasmTableSetDescriptor interface_descriptor;
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         mcgraph()->zone(),                              // zone
@@ -5175,7 +5175,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kWasmF64:
         return BuildChangeFloat64ToTagged(node);
       case wasm::kWasmAnyRef:
-      case wasm::kWasmAnyFunc:
+      case wasm::kWasmFuncRef:
       case wasm::kWasmExceptRef:
         return node;
       default:
@@ -5235,10 +5235,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       return node;
     }
 
-    if (type == wasm::kWasmAnyFunc) {
+    if (type == wasm::kWasmFuncRef) {
       Node* check =
           BuildChangeSmiToInt32(SetEffect(BuildCallToRuntimeWithContext(
-              Runtime::kWasmIsValidAnyFuncValue, js_context, &node, 1, effect_,
+              Runtime::kWasmIsValidFuncRefValue, js_context, &node, 1, effect_,
               Control())));
 
       Diamond type_check(graph(), mcgraph()->common(), check,

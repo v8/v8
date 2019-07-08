@@ -123,7 +123,7 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
     case WasmInitExpr::kRefNullConst:
       return kWasmNullRef;
     case WasmInitExpr::kRefFuncConst:
-      return kWasmAnyFunc;
+      return kWasmFuncRef;
     default:
       UNREACHABLE();
   }
@@ -550,7 +550,7 @@ class ModuleDecoderImpl : public Decoder {
           table->imported = true;
           ValueType type = consume_reference_type();
           if (!enabled_features_.anyref) {
-            if (type != kWasmAnyFunc) {
+            if (type != kWasmFuncRef) {
               error(pc_ - 1, "invalid table type");
               break;
             }
@@ -808,16 +808,16 @@ class ModuleDecoderImpl : public Decoder {
           errorf(pos, "out of bounds table index %u", table_index);
           break;
         }
-        if (!ValueTypes::IsSubType(kWasmAnyFunc,
+        if (!ValueTypes::IsSubType(kWasmFuncRef,
                                    module_->tables[table_index].type)) {
           errorf(pos,
-                 "Invalid element segment. Table %u is not of type AnyFunc",
+                 "Invalid element segment. Table %u is not of type FuncRef",
                  table_index);
           break;
         }
       } else {
         ValueType type = consume_reference_type();
-        if (!ValueTypes::IsSubType(kWasmAnyFunc, type)) {
+        if (!ValueTypes::IsSubType(kWasmFuncRef, type)) {
           error(pc_ - 1, "invalid element segment type");
           break;
         }
@@ -1595,8 +1595,8 @@ class ModuleDecoderImpl : public Decoder {
             case kLocalS128:
               if (enabled_features_.simd) return kWasmS128;
               break;
-            case kLocalAnyFunc:
-              if (enabled_features_.anyref) return kWasmAnyFunc;
+            case kLocalFuncRef:
+              if (enabled_features_.anyref) return kWasmFuncRef;
               break;
             case kLocalAnyRef:
               if (enabled_features_.anyref) return kWasmAnyRef;
@@ -1618,8 +1618,8 @@ class ModuleDecoderImpl : public Decoder {
     byte val = consume_u8("reference type");
     ValueTypeCode t = static_cast<ValueTypeCode>(val);
     switch (t) {
-      case kLocalAnyFunc:
-        return kWasmAnyFunc;
+      case kLocalFuncRef:
+        return kWasmFuncRef;
       case kLocalAnyRef:
         if (!enabled_features_.anyref) {
           error(pc_ - 1,

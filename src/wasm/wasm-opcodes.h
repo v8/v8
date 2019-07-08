@@ -436,7 +436,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(TableCopy, 0xfc0e, v_iii)                                                 \
   V(TableGrow, 0xfc0f, i_ai)                                                  \
   V(TableSize, 0xfc10, i_v)                                                   \
-  /*TableFill is polymorph in the second parameter. It's anyref or anyfunc.*/ \
+  /*TableFill is polymorph in the second parameter. It's anyref or funcref.*/ \
   V(TableFill, 0xfc11, v_iii)
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
@@ -565,7 +565,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(i_iil, kWasmI32, kWasmI32, kWasmI32, kWasmI64)  \
   V(i_ill, kWasmI32, kWasmI32, kWasmI64, kWasmI64)  \
   V(i_r, kWasmI32, kWasmAnyRef)                     \
-  V(i_ai, kWasmI32, kWasmAnyFunc, kWasmI32)
+  V(i_ai, kWasmI32, kWasmFuncRef, kWasmI32)
 
 #define FOREACH_SIMD_SIGNATURE(V)          \
   V(s_s, kWasmS128, kWasmS128)             \

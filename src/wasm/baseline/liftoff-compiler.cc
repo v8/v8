@@ -218,7 +218,7 @@ class LiftoffCompiler {
       case kWasmS128:
         return kSimd;
       case kWasmAnyRef:
-      case kWasmAnyFunc:
+      case kWasmFuncRef:
       case kWasmNullRef:
         return kAnyRef;
       case kWasmExceptRef:

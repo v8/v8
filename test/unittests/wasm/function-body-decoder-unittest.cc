@@ -254,7 +254,7 @@ class TestModuleBuilder {
 
   byte AddTable(ValueType type, uint32_t initial_size, bool has_maximum_size,
                 uint32_t maximum_size) {
-    CHECK(type == kWasmAnyRef || type == kWasmAnyFunc);
+    CHECK(type == kWasmAnyRef || type == kWasmFuncRef);
     mod.tables.emplace_back();
     WasmTable& table = mod.tables.back();
     table.type = type;
@@ -1637,7 +1637,7 @@ TEST_F(FunctionBodyDecoderTest, SimpleIndirectReturnCalls) {
 
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.AddTable(kWasmAnyFunc, 20, true, 30);
+  builder.AddTable(kWasmFuncRef, 20, true, 30);
   module = builder.module();
 
   byte f0 = builder.AddSignature(sigs.i_v());
@@ -1656,7 +1656,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsOutOfBounds) {
 
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.AddTable(kWasmAnyFunc, 20, false, 20);
+  builder.AddTable(kWasmFuncRef, 20, false, 20);
   module = builder.module();
 
   ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT0(0, WASM_ZERO)});
@@ -1779,7 +1779,7 @@ TEST_F(FunctionBodyDecoderTest, MultiReturnType) {
 TEST_F(FunctionBodyDecoderTest, SimpleIndirectCalls) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.AddTable(kWasmAnyFunc, 20, false, 20);
+  builder.AddTable(kWasmFuncRef, 20, false, 20);
   module = builder.module();
 
   byte f0 = builder.AddSignature(sigs.i_v());
@@ -1795,7 +1795,7 @@ TEST_F(FunctionBodyDecoderTest, SimpleIndirectCalls) {
 TEST_F(FunctionBodyDecoderTest, IndirectCallsOutOfBounds) {
   FunctionSig* sig = sigs.i_i();
   TestModuleBuilder builder;
-  builder.AddTable(kWasmAnyFunc, 20, false, 20);
+  builder.AddTable(kWasmFuncRef, 20, false, 20);
   module = builder.module();
 
   ExpectFailure(sig, {WASM_CALL_INDIRECT0(0, WASM_ZERO)});
@@ -2036,10 +2036,10 @@ TEST_F(FunctionBodyDecoderTest, TableSet) {
   TestModuleBuilder builder;
   module = builder.module();
   byte tab_ref1 = builder.AddTable(kWasmAnyRef, 10, true, 20);
-  byte tab_func1 = builder.AddTable(kWasmAnyFunc, 20, true, 30);
-  byte tab_func2 = builder.AddTable(kWasmAnyFunc, 10, false, 20);
+  byte tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30);
+  byte tab_func2 = builder.AddTable(kWasmFuncRef, 10, false, 20);
   byte tab_ref2 = builder.AddTable(kWasmAnyRef, 10, false, 20);
-  ValueType sig_types[]{kWasmAnyRef, kWasmAnyFunc, kWasmI32};
+  ValueType sig_types[]{kWasmAnyRef, kWasmFuncRef, kWasmI32};
   FunctionSig sig(0, 3, sig_types);
   byte local_ref = 0;
   byte local_func = 1;
@@ -2053,7 +2053,7 @@ TEST_F(FunctionBodyDecoderTest, TableSet) {
   ExpectValidates(&sig, {WASM_TABLE_SET(tab_ref2, WASM_I32V(8),
                                         WASM_GET_LOCAL(local_ref))});
 
-  // We can store anyfunc values as anyref, but not the other way around.
+  // We can store funcref values as anyref, but not the other way around.
   ExpectValidates(&sig, {WASM_TABLE_SET(tab_ref1, WASM_I32V(4),
                                         WASM_GET_LOCAL(local_func))});
   ExpectFailure(&sig, {WASM_TABLE_SET(tab_func1, WASM_I32V(9),
@@ -2079,10 +2079,10 @@ TEST_F(FunctionBodyDecoderTest, TableGet) {
   TestModuleBuilder builder;
   module = builder.module();
   byte tab_ref1 = builder.AddTable(kWasmAnyRef, 10, true, 20);
-  byte tab_func1 = builder.AddTable(kWasmAnyFunc, 20, true, 30);
-  byte tab_func2 = builder.AddTable(kWasmAnyFunc, 10, false, 20);
+  byte tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30);
+  byte tab_func2 = builder.AddTable(kWasmFuncRef, 10, false, 20);
   byte tab_ref2 = builder.AddTable(kWasmAnyRef, 10, false, 20);
-  ValueType sig_types[]{kWasmAnyRef, kWasmAnyFunc, kWasmI32};
+  ValueType sig_types[]{kWasmAnyRef, kWasmFuncRef, kWasmI32};
   FunctionSig sig(0, 3, sig_types);
   byte local_ref = 0;
   byte local_func = 1;
@@ -2100,7 +2100,7 @@ TEST_F(FunctionBodyDecoderTest, TableGet) {
       &sig,
       {WASM_SET_LOCAL(local_func, WASM_TABLE_GET(tab_func2, WASM_I32V(7)))});
 
-  // We can store anyfunc values as anyref, but not the other way around.
+  // We can store funcref values as anyref, but not the other way around.
   ExpectFailure(&sig, {WASM_SET_LOCAL(local_func,
                                       WASM_TABLE_GET(tab_ref1, WASM_I32V(4)))});
   ExpectValidates(
@@ -2129,13 +2129,13 @@ TEST_F(FunctionBodyDecoderTest, MultiTableCallIndirect) {
   TestModuleBuilder builder;
   module = builder.module();
   byte tab_ref = builder.AddTable(kWasmAnyRef, 10, true, 20);
-  byte tab_func = builder.AddTable(kWasmAnyFunc, 20, true, 30);
+  byte tab_func = builder.AddTable(kWasmFuncRef, 20, true, 30);
 
-  ValueType sig_types[]{kWasmAnyRef, kWasmAnyFunc, kWasmI32};
+  ValueType sig_types[]{kWasmAnyRef, kWasmFuncRef, kWasmI32};
   FunctionSig sig(0, 3, sig_types);
   byte sig_index = builder.AddSignature(sigs.i_v());
 
-  // We can store anyfunc values as anyref, but not the other way around.
+  // We can store funcref values as anyref, but not the other way around.
   ExpectValidates(sigs.i_v(),
                   {kExprI32Const, 0, kExprCallIndirect, sig_index, tab_func});
 
@@ -3220,7 +3220,7 @@ TEST_F(FunctionBodyDecoderTest, TableCopy) {
 
 TEST_F(FunctionBodyDecoderTest, TableGrow) {
   TestModuleBuilder builder;
-  byte tab_func = builder.AddTable(kWasmAnyFunc, 10, true, 20);
+  byte tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20);
   byte tab_ref = builder.AddTable(kWasmAnyRef, 10, true, 20);
 
   module = builder.module();
@@ -3232,10 +3232,10 @@ TEST_F(FunctionBodyDecoderTest, TableGrow) {
                   {WASM_TABLE_GROW(tab_func, WASM_REF_NULL, WASM_ONE)});
   ExpectValidates(sigs.i_r(),
                   {WASM_TABLE_GROW(tab_ref, WASM_REF_NULL, WASM_ONE)});
-  // Anyfunc table cannot be initialized with an anyref value.
+  // FuncRef table cannot be initialized with an anyref value.
   ExpectFailure(sigs.i_r(),
                 {WASM_TABLE_GROW(tab_func, WASM_GET_LOCAL(0), WASM_ONE)});
-  // Anyref table can be initialized with an anyfunc value.
+  // Anyref table can be initialized with an funcref value.
   ExpectValidates(sigs.i_a(),
                   {WASM_TABLE_GROW(tab_ref, WASM_GET_LOCAL(0), WASM_ONE)});
   // Check that the table index gets verified.
@@ -3245,7 +3245,7 @@ TEST_F(FunctionBodyDecoderTest, TableGrow) {
 
 TEST_F(FunctionBodyDecoderTest, TableSize) {
   TestModuleBuilder builder;
-  int tab = builder.AddTable(kWasmAnyFunc, 10, true, 20);
+  int tab = builder.AddTable(kWasmFuncRef, 10, true, 20);
 
   module = builder.module();
 
@@ -3257,7 +3257,7 @@ TEST_F(FunctionBodyDecoderTest, TableSize) {
 
 TEST_F(FunctionBodyDecoderTest, TableFill) {
   TestModuleBuilder builder;
-  byte tab_func = builder.AddTable(kWasmAnyFunc, 10, true, 20);
+  byte tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20);
   byte tab_ref = builder.AddTable(kWasmAnyRef, 10, true, 20);
 
   module = builder.module();
@@ -3269,10 +3269,10 @@ TEST_F(FunctionBodyDecoderTest, TableFill) {
                                                WASM_REF_NULL, WASM_ONE)});
   ExpectValidates(sigs.v_r(), {WASM_TABLE_FILL(tab_ref, WASM_ONE, WASM_REF_NULL,
                                                WASM_ONE)});
-  // Anyfunc table cannot be initialized with an anyref value.
+  // FuncRef table cannot be initialized with an anyref value.
   ExpectFailure(sigs.v_r(), {WASM_TABLE_FILL(tab_func, WASM_ONE,
                                              WASM_GET_LOCAL(0), WASM_ONE)});
-  // Anyref table can be initialized with an anyfunc value.
+  // Anyref table can be initialized with an funcref value.
   ExpectValidates(sigs.v_a(), {WASM_TABLE_FILL(tab_ref, WASM_ONE,
                                                WASM_GET_LOCAL(0), WASM_ONE)});
   // Check that the table index gets verified.

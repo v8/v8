@@ -404,7 +404,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   if (indirect_functions_.size() > 0) {
     size_t start = EmitSection(kTableSectionCode, buffer);
     buffer->write_u8(1);  // table count
-    buffer->write_u8(kLocalAnyFunc);
+    buffer->write_u8(kLocalFuncRef);
     buffer->write_u8(kHasMaximumFlag);
     buffer->write_size(indirect_functions_.size());
     buffer->write_size(indirect_functions_.size());

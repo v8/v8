@@ -226,7 +226,7 @@ auto valtype(const byte_t*& pos)  // NOLINT(runtime/references)
       return ValType::make(F32);
     case i::wasm::kLocalF64:
       return ValType::make(F64);
-    case i::wasm::kLocalAnyFunc:
+    case i::wasm::kLocalFuncRef:
       return ValType::make(FUNCREF);
     case i::wasm::kLocalAnyRef:
       return ValType::make(ANYREF);
@@ -584,7 +584,7 @@ auto v8_valtype_to_wasm(i::wasm::ValueType v8_valtype) -> ::wasm::ValKind {
       return ::wasm::F32;
     case i::wasm::kWasmF64:
       return ::wasm::F64;
-    case i::wasm::kWasmAnyFunc:
+    case i::wasm::kWasmFuncRef:
       return ::wasm::FUNCREF;
     case i::wasm::kWasmAnyRef:
       return ::wasm::ANYREF;
@@ -605,7 +605,7 @@ i::wasm::ValueType wasm_valtype_to_v8(::wasm::ValKind type) {
     case ::wasm::F64:
       return i::wasm::kWasmF64;
     case ::wasm::FUNCREF:
-      return i::wasm::kWasmAnyFunc;
+      return i::wasm::kWasmFuncRef;
     case ::wasm::ANYREF:
       return i::wasm::kWasmAnyRef;
     default:
@@ -1719,7 +1719,7 @@ void PushArgs(i::wasm::FunctionSig* sig, const Val args[],
         packer->Push(args[i].f64());
         break;
       case i::wasm::kWasmAnyRef:
-      case i::wasm::kWasmAnyFunc:
+      case i::wasm::kWasmFuncRef:
         packer->Push(impl(args[i].ref())->v8_object()->ptr());
         break;
       case i::wasm::kWasmExceptRef:
@@ -1751,7 +1751,7 @@ void PopArgs(i::wasm::FunctionSig* sig, Val results[],
         results[i] = Val(packer->Pop<double>());
         break;
       case i::wasm::kWasmAnyRef:
-      case i::wasm::kWasmAnyFunc: {
+      case i::wasm::kWasmFuncRef: {
         i::Address raw = packer->Pop<i::Address>();
         if (raw == i::kNullAddress) {
           results[i] = Val(nullptr);
@@ -2042,7 +2042,7 @@ void Global::set(const Val& val) {
     case ANYREF:
       return v8_global->SetAnyRef(impl(val.ref())->v8_object());
     case FUNCREF: {
-      bool result = v8_global->SetAnyFunc(impl(this)->store()->i_isolate(),
+      bool result = v8_global->SetFuncRef(impl(this)->store()->i_isolate(),
                                           impl(val.ref())->v8_object());
       DCHECK(result);
       USE(result);
@@ -2076,7 +2076,7 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
   i::wasm::ValueType i_type;
   switch (type->element()->kind()) {
     case FUNCREF:
-      i_type = i::wasm::kWasmAnyFunc;
+      i_type = i::wasm::kWasmFuncRef;
       break;
     case ANYREF:
       if (enabled_features.anyref) {

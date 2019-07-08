@@ -898,7 +898,7 @@ bool WasmTableObject::IsValidElement(Isolate* isolate,
                                      Handle<Object> entry) {
   // Anyref tables take everything.
   if (table->type() == wasm::kWasmAnyRef) return true;
-  // Anyfunc tables can store {null}, {WasmExportedFunction}, {WasmJSFunction},
+  // FuncRef tables can store {null}, {WasmExportedFunction}, {WasmJSFunction},
   // or {WasmCapiFunction} objects.
   if (entry->IsNull(isolate)) return true;
   return WasmExportedFunction::IsWasmExportedFunction(*entry) ||
@@ -962,7 +962,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
   // First we handle the easy anyref table case.
   if (table->type() == wasm::kWasmAnyRef) return entry;
 
-  // Now we handle the anyfunc case.
+  // Now we handle the funcref case.
   if (WasmExportedFunction::IsWasmExportedFunction(*entry) ||
       WasmCapiFunction::IsWasmCapiFunction(*entry)) {
     return entry;
@@ -1135,7 +1135,7 @@ void WasmTableObject::GetFunctionTableEntry(
     Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
     bool* is_valid, bool* is_null, MaybeHandle<WasmInstanceObject>* instance,
     int* function_index, MaybeHandle<WasmJSFunction>* maybe_js_function) {
-  DCHECK_EQ(table->type(), wasm::kWasmAnyFunc);
+  DCHECK_EQ(table->type(), wasm::kWasmFuncRef);
   DCHECK_LT(entry_index, table->entries().length());
   // We initialize {is_valid} with {true}. We may change it later.
   *is_valid = true;
@@ -2197,7 +2197,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
         encoded_size += 8;
         break;
       case wasm::kWasmAnyRef:
-      case wasm::kWasmAnyFunc:
+      case wasm::kWasmFuncRef:
       case wasm::kWasmExceptRef:
         encoded_size += 1;
         break;

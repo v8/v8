@@ -62,7 +62,7 @@ Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
 }
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_WasmIsValidAnyFuncValue) {
+RUNTIME_FUNCTION(Runtime_WasmIsValidFuncRefValue) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, function, 0);
@@ -224,7 +224,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
       CASE_ARG_TYPE(kWasmF64, double)
 #undef CASE_ARG_TYPE
       case wasm::kWasmAnyRef:
-      case wasm::kWasmAnyFunc:
+      case wasm::kWasmFuncRef:
       case wasm::kWasmExceptRef: {
         DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),
                   kSystemPointerSize);
@@ -275,7 +275,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
       CASE_RET_TYPE(kWasmF64, double)
 #undef CASE_RET_TYPE
       case wasm::kWasmAnyRef:
-      case wasm::kWasmAnyFunc:
+      case wasm::kWasmFuncRef:
       case wasm::kWasmExceptRef: {
         DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),
                   kSystemPointerSize);

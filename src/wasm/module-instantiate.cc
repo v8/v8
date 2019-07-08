@@ -176,7 +176,7 @@ class InstanceBuilder {
                                Handle<String> import_name,
                                Handle<Object> value);
 
-  // Initialize imported tables of type anyfunc.
+  // Initialize imported tables of type funcref.
   bool InitializeImportedIndirectFunctionTable(
       Handle<WasmInstanceObject> instance, int table_index, int import_index,
       Handle<WasmTableObject> table_object);
@@ -417,7 +417,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // iteration below.
     for (int i = 1; i < table_count; ++i) {
       const WasmTable& table = module_->tables[i];
-      if (table.type == kWasmAnyFunc) {
+      if (table.type == kWasmFuncRef) {
         Handle<WasmIndirectFunctionTable> table_obj =
             WasmIndirectFunctionTable::New(isolate_, table.initial_size);
         tables->set(i, *table_obj);
@@ -750,7 +750,7 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
       break;
     }
     case kWasmAnyRef:
-    case kWasmAnyFunc:
+    case kWasmFuncRef:
     case kWasmExceptRef: {
       tagged_globals_->set(global.offset, *value->GetRef());
       break;
@@ -994,7 +994,7 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
     return false;
   }
 
-  if (table.type == kWasmAnyFunc &&
+  if (table.type == kWasmFuncRef &&
       !InitializeImportedIndirectFunctionTable(instance, table_index,
                                                import_index, table_object)) {
     return false;
@@ -1161,11 +1161,11 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
   if (ValueTypes::IsReferenceType(global.type)) {
     // There shouldn't be any null-ref globals.
     DCHECK_NE(ValueType::kWasmNullRef, global.type);
-    if (global.type == ValueType::kWasmAnyFunc) {
+    if (global.type == ValueType::kWasmFuncRef) {
       if (!value->IsNull(isolate_) &&
           !WasmExportedFunction::IsWasmExportedFunction(*value)) {
         ReportLinkError(
-            "imported anyfunc global must be null or an exported function",
+            "imported funcref global must be null or an exported function",
             import_index, module_name, import_name);
         return false;
       }
@@ -1430,7 +1430,7 @@ Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t initial_pages,
 bool InstanceBuilder::NeedsWrappers() const {
   if (module_->num_exported_functions > 0) return true;
   for (auto& table : module_->tables) {
-    if (table.type == kWasmAnyFunc) return true;
+    if (table.type == kWasmFuncRef) return true;
   }
   return false;
 }
@@ -1613,7 +1613,7 @@ void InstanceBuilder::InitializeIndirectFunctionTables(
   for (int i = 0; i < static_cast<int>(module_->tables.size()); ++i) {
     const WasmTable& table = module_->tables[i];
 
-    if (table.type == kWasmAnyFunc) {
+    if (table.type == kWasmFuncRef) {
       WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
           instance, i, table.initial_size);
     }
@@ -1638,7 +1638,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
     int entry_index = static_cast<int>(dst + i);
 
     if (func_index == WasmElemSegment::kNullIndex) {
-      if (table_object->type() == kWasmAnyFunc) {
+      if (table_object->type() == kWasmFuncRef) {
         IndirectFunctionTableEntry(instance, elem_segment.table_index,
                                    entry_index)
             .clear();
@@ -1651,7 +1651,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
     const WasmFunction* function = &module->functions[func_index];
 
     // Update the local dispatch table first if necessary.
-    if (table_object->type() == kWasmAnyFunc) {
+    if (table_object->type() == kWasmFuncRef) {
       uint32_t sig_id = module->signature_ids[function->sig_index];
       IndirectFunctionTableEntry(instance, elem_segment.table_index,
                                  entry_index)
@@ -1720,7 +1720,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
 
   int table_count = static_cast<int>(module_->tables.size());
   for (int index = 0; index < table_count; ++index) {
-    if (module_->tables[index].type == kWasmAnyFunc) {
+    if (module_->tables[index].type == kWasmFuncRef) {
       auto table_object = handle(
           WasmTableObject::cast(instance->tables().get(index)), isolate_);
 

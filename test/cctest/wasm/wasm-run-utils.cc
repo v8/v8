@@ -170,7 +170,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   table.initial_size = table_size;
   table.maximum_size = table_size;
   table.has_maximum_size = true;
-  table.type = kWasmAnyFunc;
+  table.type = kWasmFuncRef;
   WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
       instance_object(), 0, table_size);
   Handle<WasmTableObject> table_obj =

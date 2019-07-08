@@ -151,7 +151,7 @@
 #define WASM_SELECT_R(tval, fval, cond) \
   tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalAnyRef
 #define WASM_SELECT_A(tval, fval, cond) \
-  tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalAnyFunc
+  tval, fval, cond, kExprSelectWithType, U32V_1(1), kLocalFuncRef
 
 #define WASM_RETURN0 kExprReturn
 #define WASM_RETURN1(val) val, kExprReturn

@@ -416,7 +416,7 @@ class WasmGlobalObject : public JSObject {
   inline void SetF32(float value);
   inline void SetF64(double value);
   inline void SetAnyRef(Handle<Object> value);
-  inline bool SetAnyFunc(Isolate* isolate, Handle<Object> value);
+  inline bool SetFuncRef(Isolate* isolate, Handle<Object> value);
 
  private:
   // This function returns the address of the global's data in the

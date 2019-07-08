@@ -165,7 +165,7 @@ double WasmGlobalObject::GetF64() {
 }
 
 Handle<Object> WasmGlobalObject::GetRef() {
-  // We use this getter for anyref, anyfunc, and except_ref.
+  // We use this getter for anyref, funcref, and except_ref.
   DCHECK(wasm::ValueTypes::IsReferenceType(type()));
   return handle(tagged_buffer().get(offset()), GetIsolate());
 }
@@ -192,8 +192,8 @@ void WasmGlobalObject::SetAnyRef(Handle<Object> value) {
   tagged_buffer().set(offset(), *value);
 }
 
-bool WasmGlobalObject::SetAnyFunc(Isolate* isolate, Handle<Object> value) {
-  DCHECK_EQ(type(), wasm::kWasmAnyFunc);
+bool WasmGlobalObject::SetFuncRef(Isolate* isolate, Handle<Object> value) {
+  DCHECK_EQ(type(), wasm::kWasmFuncRef);
   if (!value->IsNull(isolate) &&
       !WasmExportedFunction::IsWasmExportedFunction(*value) &&
       !WasmCapiFunction::IsWasmCapiFunction(*value)) {
