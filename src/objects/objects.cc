@@ -4248,7 +4248,7 @@ void DescriptorArray::Sort() {
 }
 
 int16_t DescriptorArray::UpdateNumberOfMarkedDescriptors(
-    uintptr_t mark_compact_epoch, int16_t new_marked) {
+    unsigned mark_compact_epoch, int16_t new_marked) {
   STATIC_ASSERT(kMaxNumberOfDescriptors <=
                 NumberOfMarkedDescriptors::kMaxNumberOfMarkedDescriptors);
   int16_t old_raw_marked = raw_number_of_marked_descriptors();

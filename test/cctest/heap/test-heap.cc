@@ -6278,16 +6278,16 @@ HEAP_TEST(MarkCompactEpochCounter) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
-  uintptr_t epoch0 = heap->mark_compact_collector()->epoch();
+  unsigned epoch0 = heap->mark_compact_collector()->epoch();
   CcTest::CollectGarbage(OLD_SPACE);
-  uintptr_t epoch1 = heap->mark_compact_collector()->epoch();
+  unsigned epoch1 = heap->mark_compact_collector()->epoch();
   CHECK_EQ(epoch0 + 1, epoch1);
   heap::SimulateIncrementalMarking(heap, true);
   CcTest::CollectGarbage(OLD_SPACE);
-  uintptr_t epoch2 = heap->mark_compact_collector()->epoch();
+  unsigned epoch2 = heap->mark_compact_collector()->epoch();
   CHECK_EQ(epoch1 + 1, epoch2);
   CcTest::CollectGarbage(NEW_SPACE);
-  uintptr_t epoch3 = heap->mark_compact_collector()->epoch();
+  unsigned epoch3 = heap->mark_compact_collector()->epoch();
   CHECK_EQ(epoch2, epoch3);
 }
 

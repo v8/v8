@@ -153,7 +153,7 @@ class DescriptorArray : public HeapObject {
   // Atomic compare-and-swap operation on the raw_number_of_marked_descriptors.
   int16_t CompareAndSwapRawNumberOfMarkedDescriptors(int16_t expected,
                                                      int16_t value);
-  int16_t UpdateNumberOfMarkedDescriptors(uintptr_t mark_compact_epoch,
+  int16_t UpdateNumberOfMarkedDescriptors(unsigned mark_compact_epoch,
                                           int16_t number_of_marked_descriptors);
 
   static constexpr int SizeFor(int number_of_all_descriptors) {
@@ -245,12 +245,11 @@ class NumberOfMarkedDescriptors {
   static const int kMaxNumberOfMarkedDescriptors = Marked::kMax;
   // Decodes the raw value of the number of marked descriptors for the
   // given mark compact garbage collection epoch.
-  static inline int16_t decode(uintptr_t mark_compact_epoch,
-                               int16_t raw_value) {
+  static inline int16_t decode(unsigned mark_compact_epoch, int16_t raw_value) {
     unsigned epoch_from_value = Epoch::decode(static_cast<uint16_t>(raw_value));
     int16_t marked_from_value =
         Marked::decode(static_cast<uint16_t>(raw_value));
-    uintptr_t actual_epoch = mark_compact_epoch & Epoch::kMask;
+    unsigned actual_epoch = mark_compact_epoch & Epoch::kMask;
     if (actual_epoch == epoch_from_value) return marked_from_value;
     // If the epochs do not match, then either the raw_value is zero (freshly
     // allocated descriptor array) or the epoch from value lags by 1.
@@ -263,7 +262,7 @@ class NumberOfMarkedDescriptors {
 
   // Encodes the number of marked descriptors for the given mark compact
   // garbage collection epoch.
-  static inline int16_t encode(uintptr_t mark_compact_epoch, int16_t value) {
+  static inline int16_t encode(unsigned mark_compact_epoch, int16_t value) {
     // TODO(ulan): avoid casting to int16_t by adding support for uint16_t
     // atomics.
     return static_cast<int16_t>(

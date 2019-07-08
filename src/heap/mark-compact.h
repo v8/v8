@@ -709,7 +709,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void VerifyMarkbitsAreClean(LargeObjectSpace* space);
 #endif
 
-  uintptr_t epoch() const { return epoch_; }
+  unsigned epoch() const { return epoch_; }
 
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() override;
@@ -909,17 +909,12 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
-  // Counts the number of major garbage collections. The counter is
+  // Counts the number of major mark-compact collections. The counter is
   // incremented right after marking. This is used for:
   // - marking descriptor arrays. See NumberOfMarkedDescriptors. Only the lower
   //   two bits are used, so it is okay if this counter overflows and wraps
   //   around.
-  // - identifying if a MemoryChunk is swept. When sweeping starts the epoch
-  //   counter is incremented. When sweeping of a MemoryChunk finishes the
-  //   epoch counter of a MemoryChunk is incremented. A MemoryChunk is swept
-  //   if both counters match. A MemoryChunk still requires sweeping if
-  //   they don't match.
-  uintptr_t epoch_ = 0;
+  unsigned epoch_ = 0;
 
   friend class FullEvacuator;
   friend class RecordMigratedSlotVisitor;
@@ -1013,7 +1008,7 @@ class MarkingVisitor final
   Heap* const heap_;
   MarkCompactCollector* const collector_;
   MarkingState* const marking_state_;
-  const uintptr_t mark_compact_epoch_;
+  const unsigned mark_compact_epoch_;
 };
 
 class EvacuationScope {

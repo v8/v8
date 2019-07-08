@@ -711,7 +711,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->invalidated_slots_ = nullptr;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_ = static_cast<intptr_t>(area_start - base);
-  chunk->InitializeSweepingState();
+  chunk->set_concurrent_sweeping_state(kSweepingDone);
   chunk->page_protection_change_mutex_ = new base::Mutex();
   chunk->write_unprotect_counter_ = 0;
   chunk->mutex_ = new base::Mutex();
@@ -1020,24 +1020,6 @@ void MemoryChunk::SetYoungGenerationPageFlags(bool is_marking) {
   } else {
     ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
     ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
-  }
-}
-
-bool MemoryChunk::SweepingDone() {
-  return !Sweeper::IsValidSweepingSpace(owner()->identity()) ||
-         heap_->mark_compact_collector()->epoch() == mark_compact_epoch_;
-}
-
-void MemoryChunk::MarkUnswept() {
-  DCHECK(Sweeper::IsValidSweepingSpace(owner()->identity()));
-  mark_compact_epoch_ = heap_->mark_compact_collector()->epoch() - 1;
-}
-
-void MemoryChunk::InitializeSweepingState() {
-  if (Sweeper::IsValidSweepingSpace(owner()->identity())) {
-    mark_compact_epoch_ = heap_->mark_compact_collector()->epoch();
-  } else {
-    mark_compact_epoch_ = 0;
   }
 }
 
@@ -1758,6 +1740,7 @@ Page* PagedSpace::RemovePageSafe(int size_in_bytes) {
 }
 
 size_t PagedSpace::AddPage(Page* page) {
+  CHECK(page->SweepingDone());
   page->set_owner(this);
   memory_chunk_list_.PushBack(page);
   AccountCommitted(page->size());
@@ -2140,8 +2123,8 @@ void PagedSpace::VerifyLiveBytes() {
   IncrementalMarking::MarkingState* marking_state =
       heap()->incremental_marking()->marking_state();
   for (Page* page : *this) {
+    CHECK(page->SweepingDone());
     PagedSpaceObjectIterator it(page);
-    DCHECK(page->SweepingDone());
     int black_size = 0;
     for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       // All the interior pointers should be contained in the heap.

@@ -103,8 +103,7 @@ bool ArrayBufferTracker::ProcessBuffers(Page* page, ProcessingMode mode) {
   LocalArrayBufferTracker* tracker = page->local_tracker();
   if (tracker == nullptr) return true;
 
-  DCHECK_IMPLIES(Sweeper::IsValidSweepingSpace(page->owner()->identity()),
-                 !page->SweepingDone());
+  DCHECK(page->SweepingDone());
   tracker->Process([mode](JSArrayBuffer old_buffer, JSArrayBuffer* new_buffer) {
     MapWord map_word = old_buffer.map_word();
     if (map_word.IsForwardingAddress()) {
