@@ -294,6 +294,10 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
   const bool is_async = StackTraceFrame::IsAsync(frame);
   const bool is_promise_all = StackTraceFrame::IsPromiseAll(frame);
   const bool is_constructor = StackTraceFrame::IsConstructor(frame);
+  // Note: Keep the {is_method_call} predicate in sync with the corresponding
+  //       predicate in factory.cc where the StackFrameInfo is created.
+  //       Otherwise necessary fields for serialzing this frame might be
+  //       missing.
   const bool is_method_call = !(is_toplevel || is_constructor);
 
   if (is_async) {

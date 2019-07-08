@@ -3688,22 +3688,23 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   DCHECK(it.HasFrame());
 
   const bool is_wasm = frame_array->IsAnyWasmFrame(index);
+  StackFrameBase* frame = it.Frame();
 
-  int line = it.Frame()->GetLineNumber();
-  int column = it.Frame()->GetColumnNumber();
+  int line = frame->GetLineNumber();
+  int column = frame->GetColumnNumber();
 
-  const int script_id = it.Frame()->GetScriptId();
+  const int script_id = frame->GetScriptId();
 
-  Handle<Object> script_name = it.Frame()->GetFileName();
-  Handle<Object> script_or_url = it.Frame()->GetScriptNameOrSourceUrl();
+  Handle<Object> script_name = frame->GetFileName();
+  Handle<Object> script_or_url = frame->GetScriptNameOrSourceUrl();
 
   // TODO(szuend): Adjust this, once it is decided what name to use in both
   //               "simple" and "detailed" stack traces. This code is for
   //               backwards compatibility to fullfill test expectations.
-  auto function_name = it.Frame()->GetFunctionName();
+  auto function_name = frame->GetFunctionName();
   bool is_user_java_script = false;
   if (!is_wasm) {
-    Handle<Object> function = it.Frame()->GetFunction();
+    Handle<Object> function = frame->GetFunction();
     if (function->IsJSFunction()) {
       Handle<JSFunction> fun = Handle<JSFunction>::cast(function);
 
@@ -3711,10 +3712,24 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
     }
   }
 
-  Handle<Object> method_name = it.Frame()->GetMethodName();
-  Handle<Object> type_name = it.Frame()->GetTypeName();
-  Handle<Object> eval_origin = it.Frame()->GetEvalOrigin();
-  Handle<Object> wasm_module_name = it.Frame()->GetWasmModuleName();
+  Handle<Object> method_name = undefined_value();
+  Handle<Object> type_name = undefined_value();
+  Handle<Object> eval_origin = frame->GetEvalOrigin();
+  Handle<Object> wasm_module_name = frame->GetWasmModuleName();
+
+  // MethodName and TypeName are expensive to look up, so they are only
+  // included when they are strictly needed by the stack trace
+  // serialization code.
+  // Note: The {is_method_call} predicate needs to be kept in sync with
+  //       the corresponding predicate in the stack trace serialization code
+  //       in stack-frame-info.cc.
+  const bool is_toplevel = frame->IsToplevel();
+  const bool is_constructor = frame->IsConstructor();
+  const bool is_method_call = !(is_toplevel || is_constructor);
+  if (is_method_call) {
+    method_name = frame->GetMethodName();
+    type_name = frame->GetTypeName();
+  }
 
   Handle<StackFrameInfo> info = Handle<StackFrameInfo>::cast(
       NewStruct(STACK_FRAME_INFO_TYPE, AllocationType::kYoung));
@@ -3737,12 +3752,12 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   info->set_eval_origin(*eval_origin);
   info->set_wasm_module_name(*wasm_module_name);
 
-  info->set_is_eval(it.Frame()->IsEval());
-  info->set_is_constructor(it.Frame()->IsConstructor());
-  info->set_is_toplevel(it.Frame()->IsToplevel());
-  info->set_is_async(it.Frame()->IsAsync());
-  info->set_is_promise_all(it.Frame()->IsPromiseAll());
-  info->set_promise_all_index(it.Frame()->GetPromiseIndex());
+  info->set_is_eval(frame->IsEval());
+  info->set_is_constructor(is_constructor);
+  info->set_is_toplevel(is_toplevel);
+  info->set_is_async(frame->IsAsync());
+  info->set_is_promise_all(frame->IsPromiseAll());
+  info->set_promise_all_index(frame->GetPromiseIndex());
 
   return info;
 }
