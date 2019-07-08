@@ -38,6 +38,7 @@ class NativeModule;
 class WasmCodeManager;
 struct WasmCompilationResult;
 class WasmEngine;
+class WasmMemoryTracker;
 class WasmImportWrapperCache;
 struct WasmModule;
 
@@ -595,7 +596,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {
  public:
-  explicit WasmCodeManager(size_t max_committed);
+  explicit WasmCodeManager(WasmMemoryTracker* memory_tracker,
+                           size_t max_committed);
 
 #ifdef DEBUG
   ~WasmCodeManager() {
@@ -643,6 +645,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
                         size_t committed_size);
 
   void AssignRange(base::AddressRegion, NativeModule*);
+
+  WasmMemoryTracker* const memory_tracker_;
 
   size_t max_committed_code_space_;
 

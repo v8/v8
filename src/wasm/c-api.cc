@@ -2200,10 +2200,9 @@ auto Memory::make(Store* store_abs, const MemoryType* type) -> own<Memory*> {
     if (maximum < minimum) return nullptr;
     if (maximum > i::wasm::kSpecMaxWasmMemoryPages) return nullptr;
   }
-  // TODO(wasm+): Support shared memory.
-  i::SharedFlag shared = i::SharedFlag::kNotShared;
+  bool is_shared = false;  // TODO(wasm+): Support shared memory.
   i::Handle<i::WasmMemoryObject> memory_obj;
-  if (!i::WasmMemoryObject::New(isolate, minimum, maximum, shared)
+  if (!i::WasmMemoryObject::New(isolate, minimum, maximum, is_shared)
            .ToHandle(&memory_obj)) {
     return own<Memory*>();
   }

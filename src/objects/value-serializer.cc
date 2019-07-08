@@ -923,8 +923,8 @@ Maybe<bool> ValueSerializer::WriteWasmMemory(Handle<WasmMemoryObject> object) {
     return Nothing<bool>();
   }
 
-  GlobalBackingStoreRegistry::Register(
-      object->array_buffer().GetBackingStore());
+  isolate_->wasm_engine()->memory_tracker()->RegisterWasmMemoryAsShared(
+      object, isolate_);
 
   WriteTag(SerializationTag::kWasmMemoryTransfer);
   WriteZigZag<int32_t>(object->maximum_pages());
@@ -1697,13 +1697,16 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
       byte_length > static_cast<size_t>(end_ - position_)) {
     return MaybeHandle<JSArrayBuffer>();
   }
-  MaybeHandle<JSArrayBuffer> result =
-      isolate_->factory()->NewJSArrayBufferAndBackingStore(
-          byte_length, InitializedFlag::kUninitialized, allocation_);
-  Handle<JSArrayBuffer> array_buffer;
-  if (!result.ToHandle(&array_buffer)) return result;
-
-  memcpy(array_buffer->backing_store(), position_, byte_length);
+  const bool should_initialize = false;
+  Handle<JSArrayBuffer> array_buffer = isolate_->factory()->NewJSArrayBuffer(
+      SharedFlag::kNotShared, allocation_);
+  if (!JSArrayBuffer::SetupAllocatingData(array_buffer, isolate_, byte_length,
+                                          should_initialize)) {
+    return MaybeHandle<JSArrayBuffer>();
+  }
+  if (byte_length > 0) {
+    memcpy(array_buffer->backing_store(), position_, byte_length);
+  }
   position_ += byte_length;
   AddObjectWithID(id, array_buffer);
   return array_buffer;
@@ -1869,6 +1872,9 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
 
   Handle<WasmMemoryObject> result =
       WasmMemoryObject::New(isolate_, buffer, maximum_pages);
+
+  isolate_->wasm_engine()->memory_tracker()->RegisterWasmMemoryAsShared(
+      result, isolate_);
 
   AddObjectWithID(id, result);
   return result;

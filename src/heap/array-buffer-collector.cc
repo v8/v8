@@ -14,25 +14,32 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+void FreeAllocationsHelper(
+    Heap* heap, const std::vector<JSArrayBuffer::Allocation>& allocations) {
+  for (JSArrayBuffer::Allocation alloc : allocations) {
+    JSArrayBuffer::FreeBackingStore(heap->isolate(), alloc);
+  }
+}
+
+}  // namespace
+
 void ArrayBufferCollector::QueueOrFreeGarbageAllocations(
-    std::vector<std::shared_ptr<BackingStore>> backing_stores) {
+    std::vector<JSArrayBuffer::Allocation> allocations) {
   if (heap_->ShouldReduceMemory()) {
-    // Destruct the vector, which destructs the std::shared_ptrs, freeing
-    // the backing stores.
-    backing_stores.clear();
+    FreeAllocationsHelper(heap_, allocations);
   } else {
     base::MutexGuard guard(&allocations_mutex_);
-    allocations_.push_back(std::move(backing_stores));
+    allocations_.push_back(std::move(allocations));
   }
 }
 
 void ArrayBufferCollector::PerformFreeAllocations() {
   base::MutexGuard guard(&allocations_mutex_);
-  for (std::vector<std::shared_ptr<BackingStore>>& backing_stores :
+  for (const std::vector<JSArrayBuffer::Allocation>& allocations :
        allocations_) {
-    // Destruct the vector, which destructs the std::shared_ptrs, freeing
-    // the backing stores.
-    backing_stores.clear();
+    FreeAllocationsHelper(heap_, allocations);
   }
   allocations_.clear();
 }

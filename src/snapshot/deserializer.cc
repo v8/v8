@@ -295,23 +295,19 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
     if (!typed_array.is_on_heap()) {
       Smi store_index(
           reinterpret_cast<Address>(typed_array.external_pointer()));
-      auto backing_store = backing_stores_[store_index.value()];
-      auto start = backing_store
-                       ? reinterpret_cast<byte*>(backing_store->buffer_start())
-                       : nullptr;
-      typed_array.set_external_pointer(start + typed_array.byte_offset());
+      byte* backing_store = off_heap_backing_stores_[store_index.value()] +
+                            typed_array.byte_offset();
+      typed_array.set_external_pointer(backing_store);
     }
   } else if (obj.IsJSArrayBuffer()) {
     JSArrayBuffer buffer = JSArrayBuffer::cast(obj);
     // Only fixup for the off-heap case.
     if (buffer.backing_store() != nullptr) {
       Smi store_index(reinterpret_cast<Address>(buffer.backing_store()));
-      auto backing_store = backing_stores_[store_index.value()];
-      if (backing_store) {
-        buffer.Attach(backing_store);
-      } else {
-        buffer.SetupEmpty(SharedFlag::kNotShared);
-      }
+      void* backing_store = off_heap_backing_stores_[store_index.value()];
+
+      buffer.set_backing_store(backing_store);
+      isolate_->heap()->RegisterNewArrayBuffer(buffer);
     }
   } else if (obj.IsBytecodeArray()) {
     // TODO(mythria): Remove these once we store the default values for these
@@ -673,12 +669,12 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
 
       case kOffHeapBackingStore: {
         int byte_length = source_.GetInt();
-        std::unique_ptr<BackingStore> backing_store =
-            BackingStore::Allocate(isolate, byte_length, SharedFlag::kNotShared,
-                                   InitializedFlag::kUninitialized);
+        byte* backing_store = static_cast<byte*>(
+            isolate->array_buffer_allocator()->AllocateUninitialized(
+                byte_length));
         CHECK_NOT_NULL(backing_store);
-        source_.CopyRaw(backing_store->buffer_start(), byte_length);
-        backing_stores_.push_back(std::move(backing_store));
+        source_.CopyRaw(backing_store, byte_length);
+        off_heap_backing_stores_.push_back(backing_store);
         break;
       }
 

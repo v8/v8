@@ -146,10 +146,8 @@ UNINITIALIZED_TEST(PagePromotion_NewToNewJSArrayBuffer) {
     heap::FillCurrentPage(heap->new_space());
     // Allocate a buffer we would like to check against.
     Handle<JSArrayBuffer> buffer =
-        i_isolate->factory()
-            ->NewJSArrayBufferAndBackingStore(100,
-                                              InitializedFlag::kZeroInitialized)
-            .ToHandleChecked();
+        i_isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared);
+    CHECK(JSArrayBuffer::SetupAllocatingData(buffer, i_isolate, 100));
     std::vector<Handle<FixedArray>> handles;
     // Simulate a full space, filling the interesting page with live objects.
     heap::SimulateFullSpace(heap->new_space(), &handles);
@@ -190,10 +188,8 @@ UNINITIALIZED_TEST(PagePromotion_NewToOldJSArrayBuffer) {
     heap::FillCurrentPage(heap->new_space());
     // Allocate a buffer we would like to check against.
     Handle<JSArrayBuffer> buffer =
-        i_isolate->factory()
-            ->NewJSArrayBufferAndBackingStore(100,
-                                              InitializedFlag::kZeroInitialized)
-            .ToHandleChecked();
+        i_isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared);
+    CHECK(JSArrayBuffer::SetupAllocatingData(buffer, i_isolate, 100));
     std::vector<Handle<FixedArray>> handles;
     // Simulate a full space, filling the interesting page with live objects.
     heap::SimulateFullSpace(heap->new_space(), &handles);
