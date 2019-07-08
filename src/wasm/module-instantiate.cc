@@ -1457,6 +1457,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   }
 
   Handle<JSObject> exports_object;
+  MaybeHandle<String> single_function_name;
   bool is_asm_js = false;
   switch (module_->origin) {
     case kWasmOrigin: {
@@ -1468,6 +1469,8 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       Handle<JSFunction> object_function = Handle<JSFunction>(
           isolate_->native_context()->object_function(), isolate_);
       exports_object = isolate_->factory()->NewJSObject(object_function);
+      single_function_name = isolate_->factory()->InternalizeUtf8String(
+          AsmJs::kSingleFunctionName);
       is_asm_js = true;
       break;
     }
@@ -1475,9 +1478,6 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       UNREACHABLE();
   }
   instance->set_exports_object(*exports_object);
-
-  Handle<String> single_function_name =
-      isolate_->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName);
 
   PropertyDescriptor desc;
   desc.set_writable(is_asm_js);
@@ -1489,14 +1489,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
     Handle<String> name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
                               isolate_, module_object_, exp.name)
                               .ToHandleChecked();
-    Handle<JSObject> export_to;
-    if (is_asm_js && exp.kind == kExternalFunction &&
-        String::Equals(isolate_, name, single_function_name)) {
-      export_to = instance;
-    } else {
-      export_to = exports_object;
-    }
-
+    Handle<JSObject> export_to = exports_object;
     switch (exp.kind) {
       case kExternalFunction: {
         // Wrap and export the code as a JSFunction.
@@ -1504,8 +1497,13 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         MaybeHandle<WasmExportedFunction> wasm_exported_function =
             WasmInstanceObject::GetOrCreateWasmExportedFunction(
                 isolate_, instance, exp.index);
-
         desc.set_value(wasm_exported_function.ToHandleChecked());
+
+        if (is_asm_js &&
+            String::Equals(isolate_, name,
+                           single_function_name.ToHandleChecked())) {
+          export_to = instance;
+        }
         break;
       }
       case kExternalTable: {
