@@ -185,16 +185,8 @@ class IdleScavengeObserver : public AllocationObserver {
 
 Heap::Heap()
     : isolate_(isolate()),
-      initial_max_old_generation_size_(max_old_generation_size_),
-      initial_max_old_generation_size_threshold_(0),
-      initial_old_generation_size_(
-          Min(max_old_generation_size_, kMaxInitialOldGenerationSize)),
       memory_pressure_level_(MemoryPressureLevel::kNone),
-      old_generation_allocation_limit_(initial_old_generation_size_),
-      global_allocation_limit_(initial_old_generation_size_),
       global_pretenuring_feedback_(kInitialFeedbackCapacity),
-      current_gc_callback_flags_(GCCallbackFlags::kNoGCCallbackFlags),
-      is_current_gc_forced_(false),
       external_string_table_(this) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size_ & (Page::kPageSize - 1));
@@ -4417,9 +4409,18 @@ void Heap::IterateBuiltins(RootVisitor* v) {
 #endif  // V8_EMBEDDED_BUILTINS
 }
 
+namespace {
+size_t GlobalMemorySizeFromV8Size(size_t v8_size) {
+  const size_t kGlobalMemoryToV8Ratio = 2;
+  return Min(static_cast<uint64_t>(std::numeric_limits<size_t>::max()),
+             static_cast<uint64_t>(v8_size) * kGlobalMemoryToV8Ratio);
+}
+}  // anonymous namespace
+
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
   // Initialize max_semi_space_size_.
   {
+    max_semi_space_size_ = 8 * (kSystemPointerSize / 4) * MB;
     if (constraints.max_young_generation_size_in_bytes() > 0) {
       max_semi_space_size_ = SemiSpaceSizeFromYoungGenerationSize(
           constraints.max_young_generation_size_in_bytes());
@@ -4455,8 +4456,9 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
     max_semi_space_size_ = RoundDown<Page::kPageSize>(max_semi_space_size_);
   }
 
-  // Initialize max_old_generation_size_.
+  // Initialize max_old_generation_size_ and max_global_memory_.
   {
+    max_old_generation_size_ = 700ul * (kSystemPointerSize / 4) * MB;
     if (constraints.max_old_generation_size_in_bytes() > 0) {
       max_old_generation_size_ = constraints.max_old_generation_size_in_bytes();
     }
@@ -4475,6 +4477,9 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
         Max(max_old_generation_size_, MinOldGenerationSize());
     max_old_generation_size_ =
         RoundDown<Page::kPageSize>(max_old_generation_size_);
+
+    max_global_memory_size_ =
+        GlobalMemorySizeFromV8Size(max_old_generation_size_);
   }
 
   CHECK_IMPLIES(FLAG_max_heap_size > 0,
@@ -4482,6 +4487,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
 
   // Initialize initial_semispace_size_.
   {
+    initial_semispace_size_ = kMinSemiSpaceSize;
     if (max_semi_space_size_ == kMaxSemiSpaceSize) {
       // Start with at least 1*MB semi-space on machines with a lot of memory.
       initial_semispace_size_ =
@@ -4524,6 +4530,8 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
     // If the embedder pre-configures the initial old generation size,
     // then allow V8 to skip full GCs below that threshold.
     min_old_generation_size_ = initial_old_generation_size_;
+    min_global_memory_size_ =
+        GlobalMemorySizeFromV8Size(min_old_generation_size_);
   }
 
   if (FLAG_semi_space_growth_factor < 2) {
@@ -4531,6 +4539,8 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
   }
 
   old_generation_allocation_limit_ = initial_old_generation_size_;
+  global_allocation_limit_ =
+      GlobalMemorySizeFromV8Size(old_generation_allocation_limit_);
   initial_max_old_generation_size_ = max_old_generation_size_;
 
   // We rely on being able to allocate new arrays in paged spaces.

@@ -1809,24 +1809,25 @@ class Heap {
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_ = nullptr;
 
+  // These limits are initialized in Heap::ConfigureHeap based on the resource
+  // constraints and flags.
   size_t code_range_size_ = 0;
-  size_t max_semi_space_size_ = 8 * (kSystemPointerSize / 4) * MB;
-  size_t initial_semispace_size_ = kMinSemiSpaceSize;
+  size_t max_semi_space_size_ = 0;
+  size_t initial_semispace_size_ = 0;
   // Full garbage collections can be skipped if the old generation size
   // is below this threshold.
   size_t min_old_generation_size_ = 0;
   // If the old generation size exceeds this limit, then V8 will
   // crash with out-of-memory error.
-  size_t max_old_generation_size_ = 700ul * (kSystemPointerSize / 4) * MB;
+  size_t max_old_generation_size_ = 0;
   // TODO(mlippautz): Clarify whether this should take some embedder
   // configurable limit into account.
   size_t min_global_memory_size_ = 0;
-  size_t max_global_memory_size_ =
-      Min(static_cast<uint64_t>(std::numeric_limits<size_t>::max()),
-          static_cast<uint64_t>(max_old_generation_size_) * 2);
-  size_t initial_max_old_generation_size_;
-  size_t initial_max_old_generation_size_threshold_;
-  size_t initial_old_generation_size_;
+  size_t max_global_memory_size_ = 0;
+
+  size_t initial_max_old_generation_size_ = 0;
+  size_t initial_max_old_generation_size_threshold_ = 0;
+  size_t initial_old_generation_size_ = 0;
   bool old_generation_size_configured_ = false;
   size_t maximum_committed_ = 0;
   size_t old_generation_capacity_after_bootstrap_ = 0;
@@ -1929,8 +1930,8 @@ class Heap {
   // is checked when we have already decided to do a GC to help determine
   // which collector to invoke, before expanding a paged space in the old
   // generation and on every allocation in large object space.
-  size_t old_generation_allocation_limit_;
-  size_t global_allocation_limit_;
+  size_t old_generation_allocation_limit_ = 0;
+  size_t global_allocation_limit_ = 0;
 
   // Indicates that inline bump-pointer allocation has been globally disabled
   // for all spaces. This is used to disable allocations in generated code.
@@ -2031,9 +2032,10 @@ class Heap {
 
   // Currently set GC callback flags that are used to pass information between
   // the embedder and V8's GC.
-  GCCallbackFlags current_gc_callback_flags_;
+  GCCallbackFlags current_gc_callback_flags_ =
+      GCCallbackFlags::kNoGCCallbackFlags;
 
-  bool is_current_gc_forced_;
+  bool is_current_gc_forced_ = false;
 
   ExternalStringTable external_string_table_;
 
