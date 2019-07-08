@@ -2005,23 +2005,22 @@ int LineFromOffset(Local<debug::Script> script, int offset) {
   return location.GetLineNumber();
 }
 
-void WriteLcovDataForRange(
-    std::vector<uint32_t>& lines,  // NOLINT(runtime/references)
-    int start_line, int end_line, uint32_t count) {
+void WriteLcovDataForRange(std::vector<uint32_t>* lines, int start_line,
+                           int end_line, uint32_t count) {
   // Ensure space in the array.
-  lines.resize(std::max(static_cast<size_t>(end_line + 1), lines.size()), 0);
+  lines->resize(std::max(static_cast<size_t>(end_line + 1), lines->size()), 0);
   // Boundary lines could be shared between two functions with different
   // invocation counts. Take the maximum.
-  lines[start_line] = std::max(lines[start_line], count);
-  lines[end_line] = std::max(lines[end_line], count);
+  (*lines)[start_line] = std::max((*lines)[start_line], count);
+  (*lines)[end_line] = std::max((*lines)[end_line], count);
   // Invocation counts for non-boundary lines are overwritten.
-  for (int k = start_line + 1; k < end_line; k++) lines[k] = count;
+  for (int k = start_line + 1; k < end_line; k++) (*lines)[k] = count;
 }
 
-void WriteLcovDataForNamedRange(
-    std::ostream& sink,
-    std::vector<uint32_t>& lines,  // NOLINT(runtime/references)
-    const std::string& name, int start_line, int end_line, uint32_t count) {
+void WriteLcovDataForNamedRange(std::ostream& sink,
+                                std::vector<uint32_t>* lines,
+                                const std::string& name, int start_line,
+                                int end_line, uint32_t count) {
   WriteLcovDataForRange(lines, start_line, end_line, count);
   sink << "FN:" << start_line + 1 << "," << name << std::endl;
   sink << "FNDA:" << count << "," << name << std::endl;
@@ -2069,7 +2068,7 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
           name_stream << start.GetColumnNumber() << ">";
         }
 
-        WriteLcovDataForNamedRange(sink, lines, name_stream.str(), start_line,
+        WriteLcovDataForNamedRange(sink, &lines, name_stream.str(), start_line,
                                    end_line, count);
       }
 
@@ -2079,7 +2078,7 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
         int start_line = LineFromOffset(script, block_data.StartOffset());
         int end_line = LineFromOffset(script, block_data.EndOffset() - 1);
         uint32_t count = block_data.Count();
-        WriteLcovDataForRange(lines, start_line, end_line, count);
+        WriteLcovDataForRange(&lines, start_line, end_line, count);
       }
     }
     // Write per-line coverage. LCOV uses 1-based line numbers.
