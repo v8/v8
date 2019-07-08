@@ -1089,11 +1089,15 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
                                       output_type, use_node, use_info);
   } else if (output_rep == MachineRepresentation::kCompressedSigned) {
     // TODO(v8:8977): Specialise here
-    op = machine()->ChangeCompressedSignedToTaggedSigned();
-    node = jsgraph()->graph()->NewNode(op, node);
-    return GetWord32RepresentationFor(node,
-                                      MachineRepresentation::kTaggedSigned,
-                                      output_type, use_node, use_info);
+    if (output_type.Is(Type::SignedSmall())) {
+      op = simplified()->ChangeCompressedSignedToInt32();
+    } else {
+      op = machine()->ChangeCompressedSignedToTaggedSigned();
+      node = jsgraph()->graph()->NewNode(op, node);
+      return GetWord32RepresentationFor(node,
+                                        MachineRepresentation::kTaggedSigned,
+                                        output_type, use_node, use_info);
+    }
   } else if (output_rep == MachineRepresentation::kCompressedPointer) {
     // TODO(v8:8977): Specialise here
     op = machine()->ChangeCompressedPointerToTaggedPointer();

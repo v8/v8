@@ -720,6 +720,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1, 0)         \
   V(PlainPrimitiveToWord32, Operator::kNoProperties, 1, 0)         \
   V(PlainPrimitiveToFloat64, Operator::kNoProperties, 1, 0)        \
+  V(ChangeCompressedSignedToInt32, Operator::kNoProperties, 1, 0)  \
   V(ChangeTaggedSignedToInt32, Operator::kNoProperties, 1, 0)      \
   V(ChangeTaggedSignedToInt64, Operator::kNoProperties, 1, 0)      \
   V(ChangeTaggedToInt32, Operator::kNoProperties, 1, 0)            \

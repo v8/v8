@@ -58,6 +58,7 @@ class EffectControlLinearizer {
   Node* LowerChangeUint64ToTagged(Node* node);
   Node* LowerChangeFloat64ToTagged(Node* node);
   Node* LowerChangeFloat64ToTaggedPointer(Node* node);
+  Node* LowerChangeCompressedSignedToInt32(Node* node);
   Node* LowerChangeTaggedSignedToInt32(Node* node);
   Node* LowerChangeTaggedSignedToInt64(Node* node);
   Node* LowerChangeTaggedToBit(Node* node);
@@ -228,6 +229,7 @@ class EffectControlLinearizer {
   Node* ChangeUint32ToUintPtr(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
   Node* ChangeSmiToIntPtr(Node* value);
+  Node* ChangeCompressedSmiToInt32(Node* value);
   Node* ChangeSmiToInt32(Node* value);
   Node* ChangeSmiToInt64(Node* value);
   Node* ObjectIsSmi(Node* value);
@@ -853,6 +855,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kChangeFloat64ToTaggedPointer:
       result = LowerChangeFloat64ToTaggedPointer(node);
+      break;
+    case IrOpcode::kChangeCompressedSignedToInt32:
+      result = LowerChangeCompressedSignedToInt32(node);
       break;
     case IrOpcode::kChangeTaggedSignedToInt32:
       result = LowerChangeTaggedSignedToInt32(node);
@@ -1483,6 +1488,11 @@ Node* EffectControlLinearizer::LowerChangeUint64ToTagged(Node* node) {
 Node* EffectControlLinearizer::LowerChangeTaggedSignedToInt32(Node* node) {
   Node* value = node->InputAt(0);
   return ChangeSmiToInt32(value);
+}
+
+Node* EffectControlLinearizer::LowerChangeCompressedSignedToInt32(Node* node) {
+  Node* value = node->InputAt(0);
+  return ChangeCompressedSmiToInt32(value);
 }
 
 Node* EffectControlLinearizer::LowerChangeTaggedSignedToInt64(Node* node) {
@@ -4457,6 +4467,11 @@ Node* EffectControlLinearizer::ChangeSmiToInt32(Node* value) {
     return __ TruncateInt64ToInt32(ChangeSmiToIntPtr(value));
   }
   return ChangeSmiToIntPtr(value);
+}
+
+Node* EffectControlLinearizer::ChangeCompressedSmiToInt32(Node* value) {
+  CHECK(machine()->Is64() && SmiValuesAre31Bits());
+  return __ Word32Sar(value, SmiShiftBitsConstant());
 }
 
 Node* EffectControlLinearizer::ChangeSmiToInt64(Node* value) {
