@@ -217,42 +217,14 @@ RUNTIME_FUNCTION(Runtime_ObjectGetOwnPropertyNames) {
                                      Object::ToObject(isolate, object));
 
   // Collect the own keys for the {receiver}.
+  // TODO(v8:9401): We should extend the fast path of KeyAccumulator::GetKeys to
+  // also use fast path even when filter = SKIP_SYMBOLS.
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
       KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly,
                               SKIP_SYMBOLS,
                               GetKeysConversion::kConvertToString));
-  return *keys;
-}
-
-RUNTIME_FUNCTION(Runtime_ObjectGetOwnPropertyNamesTryFast) {
-  HandleScope scope(isolate);
-  Handle<Object> object = args.at(0);
-
-  // Convert the {object} to a proper {receiver}.
-  Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Object::ToObject(isolate, object));
-
-  Handle<Map> map(receiver->map(), isolate);
-
-  int nod = map->NumberOfOwnDescriptors();
-  Handle<FixedArray> keys;
-  if (nod != 0 && map->NumberOfEnumerableProperties() == nod) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, keys,
-        KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly,
-                                ENUMERABLE_STRINGS,
-                                GetKeysConversion::kConvertToString));
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, keys,
-        KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly,
-                                SKIP_SYMBOLS,
-                                GetKeysConversion::kConvertToString));
-  }
-
   return *keys;
 }
 

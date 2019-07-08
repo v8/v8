@@ -310,7 +310,6 @@ namespace internal {
   F(ObjectEntries, 1, 1)                                        \
   F(ObjectEntriesSkipFastPath, 1, 1)                            \
   F(ObjectGetOwnPropertyNames, 1, 1)                            \
-  F(ObjectGetOwnPropertyNamesTryFast, 1, 1)                     \
   F(ObjectHasOwnProperty, 2, 1)                                 \
   F(ObjectIsExtensible, 1, 1)                                   \
   F(ObjectKeys, 1, 1)                                           \
