@@ -259,10 +259,13 @@ enum FrameSkipMode {
 
 class ErrorUtils : public AllStatic {
  public:
+  // |kNone| is useful when you don't need the stack information at all, for
+  // example when creating a deserialized error.
+  enum class StackTraceCollection { kDetailed, kSimple, kNone };
   static MaybeHandle<Object> Construct(
       Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
       Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
-      bool suppress_detailed_trace);
+      StackTraceCollection stack_trace_collection);
 
   static MaybeHandle<String> ToString(Isolate* isolate, Handle<Object> recv);
 

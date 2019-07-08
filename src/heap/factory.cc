@@ -2290,9 +2290,9 @@ Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
   // as the result.
 
   Handle<Object> no_caller;
-  MaybeHandle<Object> maybe_error =
-      ErrorUtils::Construct(isolate(), constructor, constructor, message,
-                            SKIP_NONE, no_caller, false);
+  MaybeHandle<Object> maybe_error = ErrorUtils::Construct(
+      isolate(), constructor, constructor, message, SKIP_NONE, no_caller,
+      ErrorUtils::StackTraceCollection::kDetailed);
   if (maybe_error.is_null()) {
     DCHECK(isolate()->has_pending_exception());
     maybe_error = handle(isolate()->pending_exception(), isolate());

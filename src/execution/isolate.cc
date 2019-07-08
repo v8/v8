@@ -1378,7 +1378,8 @@ Object Isolate::StackOverflow() {
   Handle<Object> exception;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       this, exception,
-      ErrorUtils::Construct(this, fun, fun, msg, SKIP_NONE, no_caller, true));
+      ErrorUtils::Construct(this, fun, fun, msg, SKIP_NONE, no_caller,
+                            ErrorUtils::StackTraceCollection::kSimple));
 
   Throw(*exception, nullptr);
 

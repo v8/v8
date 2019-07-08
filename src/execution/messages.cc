@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/api/api-inl.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate-inl.h"
 #include "src/logging/counters.h"
@@ -975,7 +976,7 @@ MaybeHandle<String> MessageFormatter::Format(Isolate* isolate,
 MaybeHandle<Object> ErrorUtils::Construct(
     Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
     Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
-    bool suppress_detailed_trace) {
+    StackTraceCollection stack_trace_collection) {
   // 1. If NewTarget is undefined, let newTarget be the active function object,
   // else let newTarget be NewTarget.
 
@@ -1009,17 +1010,19 @@ MaybeHandle<Object> ErrorUtils::Construct(
         Object);
   }
 
-  // Optionally capture a more detailed stack trace for the message.
-  if (!suppress_detailed_trace) {
-    RETURN_ON_EXCEPTION(isolate, isolate->CaptureAndSetDetailedStackTrace(err),
-                        Object);
+  switch (stack_trace_collection) {
+    case StackTraceCollection::kDetailed:
+      RETURN_ON_EXCEPTION(
+          isolate, isolate->CaptureAndSetDetailedStackTrace(err), Object);
+      V8_FALLTHROUGH;
+    case StackTraceCollection::kSimple:
+      RETURN_ON_EXCEPTION(
+          isolate, isolate->CaptureAndSetSimpleStackTrace(err, mode, caller),
+          Object);
+      break;
+    case StackTraceCollection::kNone:
+      break;
   }
-
-  // Capture a simple stack trace for the stack property.
-  RETURN_ON_EXCEPTION(isolate,
-                      isolate->CaptureAndSetSimpleStackTrace(err, mode, caller),
-                      Object);
-
   return err;
 }
 
@@ -1148,7 +1151,7 @@ MaybeHandle<Object> ErrorUtils::MakeGenericError(
 
   Handle<Object> no_caller;
   return ErrorUtils::Construct(isolate, constructor, constructor, msg, mode,
-                               no_caller, false);
+                               no_caller, StackTraceCollection::kDetailed);
 }
 
 }  // namespace internal
