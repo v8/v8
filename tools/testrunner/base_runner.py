@@ -120,8 +120,9 @@ class ModeConfig(object):
     self.execution_mode = execution_mode
 
 
-DEBUG_FLAGS = ["--nohard-abort", "--enable-slow-asserts", "--verify-heap"]
-RELEASE_FLAGS = ["--nohard-abort"]
+DEBUG_FLAGS = ["--nohard-abort", "--enable-slow-asserts", "--verify-heap",
+               "--testing-d8-test-runner"]
+RELEASE_FLAGS = ["--nohard-abort", "--testing-d8-test-runner"]
 MODES = {
   "debug": ModeConfig(
     flags=DEBUG_FLAGS,

@@ -71,14 +71,13 @@ function DefineLoadVar() {
       'var x;' +
       'function ' + name + '() {' +
       '  return x;' +
-      '};' +
-      (cfg.optimize ? '%PrepareFunctionForOptimization(' + name + ');' : '');
+      '};'
   return Realm.eval(test_realm, AddStrict(code, cfg));
 }
 
 function LoadVar() {
   var name = 'LoadVar_' + test_realm;
-  var code =
+  var code = (cfg.optimize ? '%PrepareFunctionForOptimization(' + name + ');' : '') +
       (cfg.optimize ? '%OptimizeFunctionOnNextCall(' + name + ');' : '') +
       name + '();';
   return Realm.eval(test_realm, AddStrict(code, cfg));
@@ -89,16 +88,14 @@ function DefineStoreVar() {
   var code = 'var g = (Function("return this"))();' +
       'var x;' +
       'function ' + name + '(v) {' +
-//      '  %DebugPrint(g);' +
       '  return x = v;' +
-      '};' +
-      (cfg.optimize ? '%PrepareFunctionForOptimization(' + name + ');' : '');
+      '};';
   return Realm.eval(test_realm, AddStrict(code, cfg));
 }
 
 function StoreVar(v) {
   var name = 'StoreVar_' + test_realm;
-  var code =
+  var code = (cfg.optimize ? '%PrepareFunctionForOptimization(' + name + ');' : '') +
       (cfg.optimize ? '%OptimizeFunctionOnNextCall(' + name + ');' : '') +
       name + '(' + v + ');';
   return Realm.eval(test_realm, AddStrict(code, cfg));

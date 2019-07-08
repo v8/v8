@@ -41,9 +41,9 @@ function factory(worker) {
 var f1 = factory(worker1);
 var f2 = factory(f1);
 %PrepareFunctionForOptimization(f1);
-%PrepareFunctionForOptimization(f2);
 assertEquals(11, f2(1));
 %OptimizeFunctionOnNextCall(f1);
+%PrepareFunctionForOptimization(f2);
 assertEquals(10, f1(0));
 %OptimizeFunctionOnNextCall(f2);
 assertEquals(102, f2(2));

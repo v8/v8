@@ -13,6 +13,7 @@ function foo() {
   i['' + 'length'] = 42;
 }
 
+%PrepareFunctionForOptimization(foo);
 foo();
 foo();
 foo();

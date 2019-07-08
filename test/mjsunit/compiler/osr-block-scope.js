@@ -24,8 +24,11 @@ function nest(body, name, depth) {
 }
 
 function test(expected, func, depth) {
+  %PrepareFunctionForOptimization(func);
   assertEquals(expected, func());
+  %PrepareFunctionForOptimization(func);
   assertEquals(expected, func());
+  %PrepareFunctionForOptimization(func);
   assertEquals(expected, func());
 
   var orig = func.toString();

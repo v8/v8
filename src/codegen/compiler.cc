@@ -15,6 +15,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/pending-optimization-table.h"
 #include "src/codegen/unoptimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
@@ -797,18 +798,10 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     return MaybeHandle<Code>();
   }
 
-  // If code was pending optimization for testing, delete remove the strong root
-  // that was preventing the bytecode from being flushed between marking and
-  // optimization.
-  if (!isolate->heap()->pending_optimize_for_test_bytecode().IsUndefined()) {
-    Handle<ObjectHashTable> table =
-        handle(ObjectHashTable::cast(
-                   isolate->heap()->pending_optimize_for_test_bytecode()),
-               isolate);
-    bool was_present;
-    table = table->Remove(isolate, table, handle(function->shared(), isolate),
-                          &was_present);
-    isolate->heap()->SetPendingOptimizeForTestBytecode(*table);
+  // If code was pending optimization for testing, delete remove the entry
+  // from the table that was preventing the bytecode from being flushed
+  if (V8_UNLIKELY(FLAG_testing_d8_test_runner)) {
+    PendingOptimizationTable::FunctionWasOptimized(isolate, function);
   }
 
   Handle<Code> cached_code;
