@@ -286,8 +286,10 @@ void AppendMethodCall(Isolate* isolate, Handle<StackTraceFrame> frame,
   }
 }
 
-void SerializeJSStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
-                           IncrementalStringBuilder& builder) {
+void SerializeJSStackFrame(
+    Isolate* isolate, Handle<StackTraceFrame> frame,
+    IncrementalStringBuilder& builder  // NOLINT(runtime/references)
+) {
   Handle<Object> function_name = StackTraceFrame::GetFunctionName(frame);
 
   const bool is_toplevel = StackTraceFrame::IsToplevel(frame);
@@ -330,9 +332,10 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
   builder.AppendCString(")");
 }
 
-void SerializeAsmJsWasmStackFrame(Isolate* isolate,
-                                  Handle<StackTraceFrame> frame,
-                                  IncrementalStringBuilder& builder) {
+void SerializeAsmJsWasmStackFrame(
+    Isolate* isolate, Handle<StackTraceFrame> frame,
+    IncrementalStringBuilder& builder  // NOLINT(runtime/references)
+) {
   // The string should look exactly as the respective javascript frame string.
   // Keep this method in line to
   // JSStackFrame::ToString(IncrementalStringBuilder&).
@@ -350,8 +353,10 @@ void SerializeAsmJsWasmStackFrame(Isolate* isolate,
   return;
 }
 
-void SerializeWasmStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
-                             IncrementalStringBuilder& builder) {
+void SerializeWasmStackFrame(
+    Isolate* isolate, Handle<StackTraceFrame> frame,
+    IncrementalStringBuilder& builder  // NOLINT(runtime/references)
+) {
   Handle<Object> module_name = StackTraceFrame::GetWasmModuleName(frame);
   Handle<Object> function_name = StackTraceFrame::GetFunctionName(frame);
   const bool has_name = !module_name->IsNull() || !function_name->IsNull();
@@ -384,8 +389,10 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
 
 }  // namespace
 
-void SerializeStackTraceFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
-                              IncrementalStringBuilder& builder) {
+void SerializeStackTraceFrame(
+    Isolate* isolate, Handle<StackTraceFrame> frame,
+    IncrementalStringBuilder& builder  // NOLINT(runtime/references)
+) {
   // Ordering here is important, as AsmJs frames are also marked as Wasm.
   if (StackTraceFrame::IsAsmJsWasm(frame)) {
     SerializeAsmJsWasmStackFrame(isolate, frame, builder);
