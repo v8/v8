@@ -754,7 +754,7 @@ void AsmJsParser::ValidateFunction() {
   // Record start of the function, used as position for the stack check.
   current_function_builder_->SetAsmFunctionStartPosition(scanner_.Position());
 
-  CachedVector<AsmType*> params(cached_asm_type_p_vectors_);
+  CachedVector<AsmType*> params(&cached_asm_type_p_vectors_);
   ValidateFunctionParams(&params);
 
   // Check against limit on number of parameters.
@@ -762,7 +762,7 @@ void AsmJsParser::ValidateFunction() {
     FAIL("Number of parameters exceeds internal limit");
   }
 
-  CachedVector<ValueType> locals(cached_valuetype_vectors_);
+  CachedVector<ValueType> locals(&cached_valuetype_vectors_);
   ValidateFunctionLocals(params.size(), &locals);
 
   function_temp_locals_offset_ = static_cast<uint32_t>(
@@ -837,7 +837,7 @@ void AsmJsParser::ValidateFunctionParams(ZoneVector<AsmType*>* params) {
   scanner_.EnterLocalScope();
   EXPECT_TOKEN('(');
   CachedVector<AsmJsScanner::token_t> function_parameters(
-      cached_token_t_vectors_);
+      &cached_token_t_vectors_);
   while (!failed_ && !Peek(')')) {
     if (!scanner_.IsLocal()) {
       FAIL("Expected parameter name");
@@ -1315,7 +1315,7 @@ void AsmJsParser::SwitchStatement() {
   Begin(pending_label_);
   pending_label_ = 0;
   // TODO(bradnelson): Make less weird.
-  CachedVector<int32_t> cases(cached_int_vectors_);
+  CachedVector<int32_t> cases(&cached_int_vectors_);
   GatherCases(&cases);
   EXPECT_TOKEN('{');
   size_t count = cases.size() + 1;
@@ -2166,8 +2166,8 @@ AsmType* AsmJsParser::ValidateCall() {
   }
 
   // Parse argument list and gather types.
-  CachedVector<AsmType*> param_types(cached_asm_type_p_vectors_);
-  CachedVector<AsmType*> param_specific_types(cached_asm_type_p_vectors_);
+  CachedVector<AsmType*> param_types(&cached_asm_type_p_vectors_);
+  CachedVector<AsmType*> param_specific_types(&cached_asm_type_p_vectors_);
   EXPECT_TOKENn('(');
   while (!failed_ && !Peek(')')) {
     AsmType* t;

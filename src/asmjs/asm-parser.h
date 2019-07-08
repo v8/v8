@@ -154,10 +154,9 @@ class AsmJsParser {
   template <typename T>
   class CachedVector final : public ZoneVector<T> {
    public:
-    explicit CachedVector(
-        CachedVectors<T>& cache)  // NOLINT(runtime/references)
-        : ZoneVector<T>(cache.zone()), cache_(&cache) {
-      cache.fill(this);
+    explicit CachedVector(CachedVectors<T>* cache)
+        : ZoneVector<T>(cache->zone()), cache_(cache) {
+      cache->fill(this);
     }
     ~CachedVector() { cache_->reuse(this); }
 
