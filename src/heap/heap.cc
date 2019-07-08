@@ -171,16 +171,15 @@ struct Heap::StrongRootsList {
 
 class IdleScavengeObserver : public AllocationObserver {
  public:
-  IdleScavengeObserver(Heap& heap,  // NOLINT(runtime/references)
-                       intptr_t step_size)
+  IdleScavengeObserver(Heap* heap, intptr_t step_size)
       : AllocationObserver(step_size), heap_(heap) {}
 
   void Step(int bytes_allocated, Address, size_t) override {
-    heap_.ScheduleIdleScavengeIfNeeded(bytes_allocated);
+    heap_->ScheduleIdleScavengeIfNeeded(bytes_allocated);
   }
 
  private:
-  Heap& heap_;
+  Heap* heap_;
 };
 
 Heap::Heap()
@@ -1328,28 +1327,27 @@ intptr_t CompareWords(int size, HeapObject a, HeapObject b) {
   return 0;
 }
 
-void ReportDuplicates(
-    int size, std::vector<HeapObject>& objects) {  // NOLINT(runtime/references)
-  if (objects.size() == 0) return;
+void ReportDuplicates(int size, std::vector<HeapObject>* objects) {
+  if (objects->size() == 0) return;
 
-  sort(objects.begin(), objects.end(), [size](HeapObject a, HeapObject b) {
+  sort(objects->begin(), objects->end(), [size](HeapObject a, HeapObject b) {
     intptr_t c = CompareWords(size, a, b);
     if (c != 0) return c < 0;
     return a < b;
   });
 
   std::vector<std::pair<int, HeapObject>> duplicates;
-  HeapObject current = objects[0];
+  HeapObject current = (*objects)[0];
   int count = 1;
-  for (size_t i = 1; i < objects.size(); i++) {
-    if (CompareWords(size, current, objects[i]) == 0) {
+  for (size_t i = 1; i < objects->size(); i++) {
+    if (CompareWords(size, current, (*objects)[i]) == 0) {
       count++;
     } else {
       if (count > 1) {
         duplicates.push_back(std::make_pair(count - 1, current));
       }
       count = 1;
-      current = objects[i];
+      current = (*objects)[i];
     }
   }
   if (count > 1) {
@@ -1432,7 +1430,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     }
     for (auto it = objects_by_size.rbegin(); it != objects_by_size.rend();
          ++it) {
-      ReportDuplicates(it->first, it->second);
+      ReportDuplicates(it->first, &it->second);
     }
   }
 }
@@ -5016,7 +5014,7 @@ void Heap::SetUpSpaces() {
   if (FLAG_idle_time_scavenge) {
     scavenge_job_.reset(new ScavengeJob());
     idle_scavenge_observer_.reset(new IdleScavengeObserver(
-        *this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask));
+        this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask));
     new_space()->AddAllocationObserver(idle_scavenge_observer_.get());
   }
 
@@ -5025,12 +5023,12 @@ void Heap::SetUpSpaces() {
 
   if (FLAG_stress_marking > 0) {
     stress_marking_percentage_ = NextStressMarkingLimit();
-    stress_marking_observer_ = new StressMarkingObserver(*this);
+    stress_marking_observer_ = new StressMarkingObserver(this);
     AddAllocationObserversToAllSpaces(stress_marking_observer_,
                                       stress_marking_observer_);
   }
   if (FLAG_stress_scavenge > 0) {
-    stress_scavenge_observer_ = new StressScavengeObserver(*this);
+    stress_scavenge_observer_ = new StressScavengeObserver(this);
     new_space()->AddAllocationObserver(stress_scavenge_observer_);
   }
 

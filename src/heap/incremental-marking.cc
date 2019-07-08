@@ -37,14 +37,14 @@ using IncrementalMarkingMarkingVisitor =
 
 void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
                                         size_t size) {
-  Heap* heap = incremental_marking_.heap();
+  Heap* heap = incremental_marking_->heap();
   VMState<GC> state(heap->isolate());
   RuntimeCallTimerScope runtime_timer(
       heap->isolate(),
       RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
-  incremental_marking_.AdvanceOnAllocation();
+  incremental_marking_->AdvanceOnAllocation();
   // AdvanceIncrementalMarkingOnAllocation can start incremental marking.
-  incremental_marking_.EnsureBlackAllocated(addr, size);
+  incremental_marking_->EnsureBlackAllocated(addr, size);
 }
 
 IncrementalMarking::IncrementalMarking(
@@ -64,8 +64,8 @@ IncrementalMarking::IncrementalMarking(
       black_allocation_(false),
       finalize_marking_completed_(false),
       request_type_(NONE),
-      new_generation_observer_(*this, kYoungGenerationAllocatedThreshold),
-      old_generation_observer_(*this, kOldGenerationAllocatedThreshold) {
+      new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
+      old_generation_observer_(this, kOldGenerationAllocatedThreshold) {
   DCHECK_NOT_NULL(marking_worklist_);
   SetState(STOPPED);
 }
