@@ -2567,6 +2567,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I64x2Sub)              \
   V(I64x2Eq)               \
   V(I64x2Ne)               \
+  V(I64x2GtS)              \
   V(I32x4Add)              \
   V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
@@ -2620,6 +2621,11 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128And)               \
   V(S128Or)                \
   V(S128Xor)
+
+#define SIMD_BINOP_ONE_TEMP_LIST(V) \
+  V(I64x2GeS)                       \
+  V(I64x2GtU)                       \
+  V(I64x2GeU)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F32x4SConvertI32x4)     \
@@ -2731,6 +2737,18 @@ SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
 #undef VISIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
+
+#define VISIT_SIMD_BINOP_ONE_TEMP(Opcode)                                  \
+  void InstructionSelector::Visit##Opcode(Node* node) {                    \
+    X64OperandGenerator g(this);                                           \
+    InstructionOperand temps[] = {g.TempSimd128Register()};                \
+    Emit(kX64##Opcode, g.DefineSameAsFirst(node),                          \
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
+         arraysize(temps), temps);                                         \
+  }
+SIMD_BINOP_ONE_TEMP_LIST(VISIT_SIMD_BINOP_ONE_TEMP)
+#undef VISIT_SIMD_BINOP_ONE_TEMP
+#undef SIMD_BINOP_ONE_TEMP_LIST
 
 #define VISIT_SIMD_ANYTRUE(Opcode)                                        \
   void InstructionSelector::Visit##Opcode(Node* node) {                   \

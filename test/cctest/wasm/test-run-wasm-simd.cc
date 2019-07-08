@@ -832,6 +832,40 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Ne) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Ne, NotEqual);
 }
 
+WASM_SIMD_TEST_NO_LOWERING(I64x2LtS) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2LtS, Less);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2LeS) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2LeS, LessEqual);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2GtS) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2GtS, Greater);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2GeS) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2GeS, GreaterEqual);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2LtU) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2LtU, UnsignedLess);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2LeU) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2LeU,
+                    UnsignedLessEqual);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2GtU) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2GtU, UnsignedGreater);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2GeU) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2GeU,
+                    UnsignedGreaterEqual);
+}
+
 void RunI64x2ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int64ShiftOp expected_op) {
   for (int shift = 1; shift < 64; shift++) {

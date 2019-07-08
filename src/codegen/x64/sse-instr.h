@@ -85,4 +85,6 @@
   V(pmaxud, 66, 0F, 38, 3F)      \
   V(pmulld, 66, 0F, 38, 40)
 
+#define SSE4_2_INSTRUCTION_LIST(V) V(pcmpgtq, 66, 0F, 38, 37)
+
 #endif  // V8_CODEGEN_X64_SSE_INSTR_H_

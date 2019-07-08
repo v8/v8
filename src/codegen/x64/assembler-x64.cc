@@ -78,6 +78,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
+  if (cpu.has_sse42() && FLAG_enable_sse4_2) supported_ |= 1u << SSE4_2;
   if (cpu.has_sse41() && FLAG_enable_sse4_1) {
     supported_ |= 1u << SSE4_1;
     supported_ |= 1u << SSSE3;
@@ -4695,6 +4696,30 @@ void Assembler::sse4_instr(XMMRegister dst, XMMRegister src, byte prefix,
 void Assembler::sse4_instr(XMMRegister dst, Operand src, byte prefix,
                            byte escape1, byte escape2, byte opcode) {
   DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  emit(prefix);
+  emit_optional_rex_32(dst, src);
+  emit(escape1);
+  emit(escape2);
+  emit(opcode);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::sse4_2_instr(XMMRegister dst, XMMRegister src, byte prefix,
+                             byte escape1, byte escape2, byte opcode) {
+  DCHECK(IsEnabled(SSE4_2));
+  EnsureSpace ensure_space(this);
+  emit(prefix);
+  emit_optional_rex_32(dst, src);
+  emit(escape1);
+  emit(escape2);
+  emit(opcode);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::sse4_2_instr(XMMRegister dst, Operand src, byte prefix,
+                             byte escape1, byte escape2, byte opcode) {
+  DCHECK(IsEnabled(SSE4_2));
   EnsureSpace ensure_space(this);
   emit(prefix);
   emit_optional_rex_32(dst, src);

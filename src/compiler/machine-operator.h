@@ -500,7 +500,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I64x2Sub();
   const Operator* I64x2Eq();
   const Operator* I64x2Ne();
+  const Operator* I64x2GtS();
+  const Operator* I64x2GeS();
   const Operator* I64x2ShrU(int32_t);
+  const Operator* I64x2GtU();
+  const Operator* I64x2GeU();
 
   const Operator* I32x4Splat();
   const Operator* I32x4ExtractLane(int32_t);

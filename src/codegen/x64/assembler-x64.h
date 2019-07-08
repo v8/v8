@@ -952,6 +952,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSE4_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
 #undef DECLARE_SSE4_INSTRUCTION
 
+  // SSE4.2
+  void sse4_2_instr(XMMRegister dst, XMMRegister src, byte prefix, byte escape1,
+                    byte escape2, byte opcode);
+  void sse4_2_instr(XMMRegister dst, Operand src, byte prefix, byte escape1,
+                    byte escape2, byte opcode);
+#define DECLARE_SSE4_2_INSTRUCTION(instruction, prefix, escape1, escape2,     \
+                                   opcode)                                    \
+  void instruction(XMMRegister dst, XMMRegister src) {                        \
+    sse4_2_instr(dst, src, 0x##prefix, 0x##escape1, 0x##escape2, 0x##opcode); \
+  }                                                                           \
+  void instruction(XMMRegister dst, Operand src) {                            \
+    sse4_2_instr(dst, src, 0x##prefix, 0x##escape1, 0x##escape2, 0x##opcode); \
+  }
+
+  SSE4_2_INSTRUCTION_LIST(DECLARE_SSE4_2_INSTRUCTION)
+#undef DECLARE_SSE4_2_INSTRUCTION
+
 #define DECLARE_SSE34_AVX_INSTRUCTION(instruction, prefix, escape1, escape2,  \
                                       opcode)                                 \
   void v##instruction(XMMRegister dst, XMMRegister src1, XMMRegister src2) {  \

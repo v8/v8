@@ -154,7 +154,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I64x2Sub:
     case kX64I64x2Eq:
     case kX64I64x2Ne:
+    case kX64I64x2GtS:
+    case kX64I64x2GeS:
     case kX64I64x2ShrU:
+    case kX64I64x2GtU:
+    case kX64I64x2GeU:
     case kX64I32x4Splat:
     case kX64I32x4ExtractLane:
     case kX64I32x4ReplaceLane:

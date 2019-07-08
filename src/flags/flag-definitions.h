@@ -932,6 +932,8 @@ DEFINE_BOOL(enable_sse3, true, "enable use of SSE3 instructions if available")
 DEFINE_BOOL(enable_ssse3, true, "enable use of SSSE3 instructions if available")
 DEFINE_BOOL(enable_sse4_1, true,
             "enable use of SSE4.1 instructions if available")
+DEFINE_BOOL(enable_sse4_2, true,
+            "enable use of SSE4.2 instructions if available")
 DEFINE_BOOL(enable_sahf, true,
             "enable use of SAHF instruction if available (X64 only)")
 DEFINE_BOOL(enable_avx, true, "enable use of AVX instructions if available")

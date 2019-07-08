@@ -2492,8 +2492,65 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
       break;
     }
+    case kX64I64x2GtS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_2);
+      __ pcmpgtq(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64I64x2GeS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_2);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(1);
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+
+      __ movaps(tmp, src);
+      __ pcmpgtq(tmp, dst);
+      __ pcmpeqd(dst, dst);
+      __ pxor(dst, tmp);
+      break;
+    }
     case kX64I64x2ShrU: {
       __ psrlq(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kX64I64x2GtU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_2);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(1);
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+
+      // Sets up a mask to clear the sign bit of the 2 quadwords.
+      __ Set(kScratchRegister, 0x8000000000000000);
+      __ movq(kScratchDoubleReg, kScratchRegister);
+      __ pshufd(kScratchDoubleReg, kScratchDoubleReg, 0x44);
+
+      __ movaps(tmp, src);
+      __ pxor(tmp, kScratchDoubleReg);
+      __ pxor(dst, kScratchDoubleReg);
+      __ pcmpgtq(dst, tmp);
+      break;
+    }
+    case kX64I64x2GeU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_2);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(1);
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+
+      // Sets up a mask to clear the sign bit of the 2 quadwords.
+      __ Set(kScratchRegister, 0x8000000000000000);
+      __ movq(kScratchDoubleReg, kScratchRegister);
+      __ pshufd(kScratchDoubleReg, kScratchDoubleReg, 0x44);
+
+      __ movaps(tmp, src);
+      __ pxor(dst, kScratchDoubleReg);
+      __ pxor(tmp, kScratchDoubleReg);
+      __ pcmpgtq(tmp, dst);
+      __ pcmpeqd(dst, dst);
+      __ pxor(dst, tmp);
       break;
     }
     case kX64I32x4Splat: {
