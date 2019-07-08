@@ -1805,7 +1805,8 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
   while (gc_performed && counter++ < kThreshold) {
     gc_performed = false;
     for (int space = FIRST_SPACE;
-         space < SerializerDeserializer::kNumberOfSpaces; space++) {
+         space < static_cast<int>(SnapshotSpace::kNumberOfHeapSpaces);
+         space++) {
       Reservation* reservation = &reservations[space];
       DCHECK_LE(1, reservation->size());
       if (reservation->at(0).size == 0) {
@@ -1863,8 +1864,7 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
             Address free_space_address = free_space.address();
             CreateFillerObjectAt(free_space_address, size,
                                  ClearRecordedSlots::kNo);
-            DCHECK_GT(SerializerDeserializer::kNumberOfPreallocatedSpaces,
-                      space);
+            DCHECK(IsPreAllocatedSpace(static_cast<SnapshotSpace>(space)));
             chunk.start = free_space_address;
             chunk.end = free_space_address + size;
           } else {
@@ -3376,7 +3376,8 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
   // object space for side effects.
   IncrementalMarking::MarkingState* marking_state =
       incremental_marking()->marking_state();
-  for (int i = OLD_SPACE; i < Serializer::kNumberOfSpaces; i++) {
+  for (int i = OLD_SPACE;
+       i < static_cast<int>(SnapshotSpace::kNumberOfHeapSpaces); i++) {
     const Heap::Reservation& res = reservations[i];
     for (auto& chunk : res) {
       Address addr = chunk.start;
