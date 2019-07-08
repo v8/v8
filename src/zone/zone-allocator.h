@@ -47,11 +47,8 @@ class ZoneAllocator {
   template <typename U>
   friend class ZoneAllocator;
 
-  T* allocate(size_t n, const void* hint = nullptr) {
-    return static_cast<T*>(zone_->NewArray<T>(static_cast<int>(n)));
-  }
-  void deallocate(T* p, size_t) { /* noop for Zones */
-  }
+  T* allocate(size_t n) { return zone_->NewArray<T>(n); }
+  void deallocate(T* p, size_t) {}  // noop for zones
 
   size_t max_size() const {
     return std::numeric_limits<int>::max() / sizeof(T);
@@ -100,16 +97,15 @@ class RecyclingZoneAllocator : public ZoneAllocator<T> {
   template <typename U>
   friend class RecyclingZoneAllocator;
 
-  T* allocate(size_t n, const void* hint = nullptr) {
+  T* allocate(size_t n) {
     // Only check top block in free list, since this will be equal to or larger
     // than the other blocks in the free list.
     if (free_list_ && free_list_->size >= n) {
       T* return_val = reinterpret_cast<T*>(free_list_);
       free_list_ = free_list_->next;
       return return_val;
-    } else {
-      return ZoneAllocator<T>::allocate(n, hint);
     }
+    return ZoneAllocator<T>::allocate(n);
   }
 
   void deallocate(T* p, size_t n) {
