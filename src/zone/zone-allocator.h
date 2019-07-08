@@ -47,9 +47,6 @@ class ZoneAllocator {
   template <typename U>
   friend class ZoneAllocator;
 
-  T* address(T& x) const { return &x; }  // NOLINT(runtime/references)
-  const T* address(const T& x) const { return &x; }
-
   T* allocate(size_t n, const void* hint = nullptr) {
     return static_cast<T*>(zone_->NewArray<T>(static_cast<int>(n)));
   }
