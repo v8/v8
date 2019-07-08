@@ -476,7 +476,7 @@ class Code::OptimizedCodeIterator {
   Code Next();
 
  private:
-  Context next_context_;
+  NativeContext next_context_;
   Code current_code_;
   Isolate* isolate_;
 

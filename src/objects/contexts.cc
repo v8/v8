@@ -396,31 +396,26 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
   return Handle<Object>::null();
 }
 
-void Context::AddOptimizedCode(Code code) {
-  DCHECK(IsNativeContext());
+void NativeContext::AddOptimizedCode(Code code) {
   DCHECK(code.kind() == Code::OPTIMIZED_FUNCTION);
   DCHECK(code.next_code_link().IsUndefined());
   code.set_next_code_link(get(OPTIMIZED_CODE_LIST));
   set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER);
 }
 
-void Context::SetOptimizedCodeListHead(Object head) {
-  DCHECK(IsNativeContext());
+void NativeContext::SetOptimizedCodeListHead(Object head) {
   set(OPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER);
 }
 
-Object Context::OptimizedCodeListHead() {
-  DCHECK(IsNativeContext());
+Object NativeContext::OptimizedCodeListHead() {
   return get(OPTIMIZED_CODE_LIST);
 }
 
-void Context::SetDeoptimizedCodeListHead(Object head) {
-  DCHECK(IsNativeContext());
+void NativeContext::SetDeoptimizedCodeListHead(Object head) {
   set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER);
 }
 
-Object Context::DeoptimizedCodeListHead() {
-  DCHECK(IsNativeContext());
+Object NativeContext::DeoptimizedCodeListHead() {
   return get(DEOPTIMIZED_CODE_LIST);
 }
 
@@ -476,19 +471,14 @@ bool Context::IsBootstrappingOrValidParentContext(Object object,
 
 #endif
 
-void Context::ResetErrorsThrown() {
-  DCHECK(IsNativeContext());
-  set_errors_thrown(Smi::FromInt(0));
-}
+void NativeContext::ResetErrorsThrown() { set_errors_thrown(Smi::FromInt(0)); }
 
-void Context::IncrementErrorsThrown() {
-  DCHECK(IsNativeContext());
-
+void NativeContext::IncrementErrorsThrown() {
   int previous_value = errors_thrown().value();
   set_errors_thrown(Smi::FromInt(previous_value + 1));
 }
 
-int Context::GetErrorsThrown() { return errors_thrown().value(); }
+int NativeContext::GetErrorsThrown() { return errors_thrown().value(); }
 
 STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);
 STATIC_ASSERT(NativeContext::kScopeInfoOffset ==

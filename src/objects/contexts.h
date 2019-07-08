@@ -534,10 +534,6 @@ class Context : public HeapObject {
   static const int kNoContext = 0;
   static const int kInvalidContext = 1;
 
-  void ResetErrorsThrown();
-  void IncrementErrorsThrown();
-  int GetErrorsThrown();
-
   // Direct slot access.
   inline void set_scope_info(ScopeInfo scope_info);
 
@@ -593,14 +589,6 @@ class Context : public HeapObject {
   inline bool IsScriptContext() const;
 
   inline bool HasSameSecurityTokenAs(Context that) const;
-
-  // The native context also stores a list of all optimized code and a
-  // list of all deoptimized code, which are needed by the deoptimizer.
-  V8_EXPORT_PRIVATE void AddOptimizedCode(Code code);
-  void SetOptimizedCodeListHead(Object head);
-  Object OptimizedCodeListHead();
-  void SetDeoptimizedCodeListHead(Object head);
-  Object DeoptimizedCodeListHead();
 
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
 
@@ -705,6 +693,18 @@ class NativeContext : public Context {
 #undef NATIVE_CONTEXT_FIELDS_DEF
 
   class BodyDescriptor;
+
+  // The native context stores a list of all optimized code and a list of all
+  // deoptimized code, which are needed by the deoptimizer.
+  V8_EXPORT_PRIVATE void AddOptimizedCode(Code code);
+  void SetOptimizedCodeListHead(Object head);
+  Object OptimizedCodeListHead();
+  void SetDeoptimizedCodeListHead(Object head);
+  Object DeoptimizedCodeListHead();
+
+  void ResetErrorsThrown();
+  void IncrementErrorsThrown();
+  int GetErrorsThrown();
 
  private:
   STATIC_ASSERT(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==

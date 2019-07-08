@@ -159,7 +159,7 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
   if (function_.IsHeapObject()) {
     // Search all deoptimizing code in the native context of the function.
     Isolate* isolate = isolate_;
-    Context native_context = function_.context().native_context();
+    NativeContext native_context = function_.context().native_context();
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
       Code code = Code::cast(element);
@@ -590,7 +590,7 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
   // Count all entries in the deoptimizing code list of every context.
   Object context = isolate->heap()->native_contexts_list();
   while (!context.IsUndefined(isolate)) {
-    Context native_context = Context::cast(context);
+    NativeContext native_context = NativeContext::cast(context);
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
       Code code = Code::cast(element);

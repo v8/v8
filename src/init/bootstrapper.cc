@@ -343,7 +343,7 @@ void Bootstrapper::LogAllMaps() {
 
 void Bootstrapper::DetachGlobal(Handle<Context> env) {
   isolate_->counters()->errors_thrown_per_context()->AddSample(
-      env->GetErrorsThrown());
+      env->native_context().GetErrorsThrown());
 
   ReadOnlyRoots roots(isolate_);
   Handle<JSGlobalProxy> global_proxy(env->global_proxy(), isolate_);
