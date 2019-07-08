@@ -45,7 +45,7 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
 DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                             const WasmFeatures& enabled,
                             const WasmModule* module, WasmFeatures* detected,
-                            FunctionBody& body) {  // NOLINT(runtime/references)
+                            const FunctionBody& body) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::kValidate, EmptyInterface> decoder(
       &zone, module, enabled, detected, body);

@@ -34,10 +34,11 @@ struct FunctionBody {
       : sig(sig), offset(offset), start(start), end(end) {}
 };
 
-V8_EXPORT_PRIVATE DecodeResult
-VerifyWasmCode(AccountingAllocator* allocator, const WasmFeatures& enabled,
-               const WasmModule* module, WasmFeatures* detected,
-               FunctionBody& body);  // NOLINT(runtime/references)
+V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
+                                              const WasmFeatures& enabled,
+                                              const WasmModule* module,
+                                              WasmFeatures* detected,
+                                              const FunctionBody& body);
 
 enum PrintLocals { kPrintLocals, kOmitLocals };
 V8_EXPORT_PRIVATE

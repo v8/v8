@@ -1921,7 +1921,7 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
   if (section_code == SectionCode::kUnknownSectionCode) {
     Decoder decoder(bytes, offset);
     section_code = ModuleDecoder::IdentifyUnknownSection(
-        decoder, bytes.begin() + bytes.length());
+        &decoder, bytes.begin() + bytes.length());
     if (section_code == SectionCode::kUnknownSectionCode) {
       // Skip unknown sections that we do not know how to handle.
       return true;
