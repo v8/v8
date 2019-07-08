@@ -635,7 +635,7 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeTableSection() {
     // TODO(ahaas): Set the correct limit to {kV8MaxWasmTables} once the
     // implementation of AnyRef landed.
-    uint32_t max_count = enabled_features_.anyref ? 10 : kV8MaxWasmTables;
+    uint32_t max_count = enabled_features_.anyref ? 100000 : kV8MaxWasmTables;
     uint32_t table_count = consume_count("table count", max_count);
 
     for (uint32_t i = 0; ok() && i < table_count; i++) {
