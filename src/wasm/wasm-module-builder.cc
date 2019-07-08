@@ -233,6 +233,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       function_exports_(zone),
       global_imports_(zone),
       global_exports_(zone),
+      memory_exports_(zone),
       functions_(zone),
       data_segments_(zone),
       indirect_functions_(zone),
@@ -340,6 +341,11 @@ void WasmModuleBuilder::SetMinMemorySize(uint32_t value) {
 void WasmModuleBuilder::SetMaxMemorySize(uint32_t value) {
   has_max_memory_size_ = true;
   max_memory_size_ = value;
+}
+
+void WasmModuleBuilder::AddExportedMemory(Vector<const char> name,
+                                          uint32_t index) {
+  memory_exports_.push_back({name, index});
 }
 
 void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
@@ -494,9 +500,11 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // == emit exports ===========================================================
-  if (global_exports_.size() + function_exports_.size() > 0) {
+  size_t num_exports = global_exports_.size() + function_exports_.size() +
+                       memory_exports_.size();
+  if (num_exports > 0) {
     size_t start = EmitSection(kExportSectionCode, buffer);
-    buffer->write_size(global_exports_.size() + function_exports_.size());
+    buffer->write_size(num_exports);
     for (auto global_export : global_exports_) {
       buffer->write_string(global_export.name);
       buffer->write_u8(kExternalGlobal);
@@ -507,6 +515,11 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
       buffer->write_u8(kExternalFunction);
       buffer->write_size(function_export.function_index +
                          function_imports_.size());
+    }
+    for (auto memory_export : memory_exports_) {
+      buffer->write_string(memory_export.name);
+      buffer->write_u8(kExternalMemory);
+      buffer->write_size(memory_export.memory_index);
     }
     FixupSection(buffer, start);
   }

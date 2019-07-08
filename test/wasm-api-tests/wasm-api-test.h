@@ -37,6 +37,7 @@ using ::wasm::Func;
 using ::wasm::FuncType;
 using ::wasm::Global;
 using ::wasm::Instance;
+using ::wasm::Memory;
 using ::wasm::Module;
 using ::wasm::own;
 using ::wasm::Ref;
@@ -103,6 +104,15 @@ class WasmCapiTest : public ::testing::Test {
     Global* global = exported->global();
     DCHECK_NE(global, nullptr);
     return global;
+  }
+
+  Memory* GetExportedMemory(size_t index) {
+    DCHECK_GT(exports_.size(), index);
+    Extern* exported = exports_[index];
+    DCHECK_EQ(exported->kind(), ::wasm::EXTERN_MEMORY);
+    Memory* memory = exported->memory();
+    DCHECK_NE(memory, nullptr);
+    return memory;
   }
 
   void Shutdown() {

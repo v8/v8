@@ -244,6 +244,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AddExportedGlobal(ValueType type, bool mutability,
                              const WasmInitExpr& init, Vector<const char> name);
   void AddExportedImport(Vector<const char> name, int import_index);
+  void AddExportedMemory(Vector<const char> name, uint32_t memory_index);
   void SetMinMemorySize(uint32_t value);
   void SetMaxMemorySize(uint32_t value);
   void SetHasSharedMemory();
@@ -286,6 +287,11 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     WasmInitExpr init;
   };
 
+  struct WasmMemoryExport {
+    Vector<const char> name;
+    uint32_t memory_index;
+  };
+
   struct WasmDataSegment {
     ZoneVector<byte> data;
     uint32_t dest;
@@ -298,6 +304,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmFunctionExport> function_exports_;
   ZoneVector<WasmGlobalImport> global_imports_;
   ZoneVector<WasmGlobalExport> global_exports_;
+  ZoneVector<WasmMemoryExport> memory_exports_;
   ZoneVector<WasmFunctionBuilder*> functions_;
   ZoneVector<WasmDataSegment> data_segments_;
   ZoneVector<uint32_t> indirect_functions_;
