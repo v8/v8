@@ -21,8 +21,8 @@ TEST(LanguageServerMessage, InitializeRequest) {
   request.params();
 
   bool writer_called = false;
-  HandleMessage(request.GetJsonValue(), [&](JsonValue& raw_response) {
-    InitializeResponse response(raw_response);
+  HandleMessage(std::move(request.GetJsonValue()), [&](JsonValue raw_response) {
+    InitializeResponse response(std::move(raw_response));
 
     // Check that the response id matches up with the request id, and that
     // the language server signals its support for definitions.
@@ -41,8 +41,9 @@ TEST(LanguageServerMessage,
   notification.set_method("initialized");
 
   bool writer_called = false;
-  HandleMessage(notification.GetJsonValue(), [&](JsonValue& raw_request) {
-    RegistrationRequest request(raw_request);
+  HandleMessage(std::move(notification.GetJsonValue()), [&](JsonValue
+                                                                raw_request) {
+    RegistrationRequest request(std::move(raw_request));
 
     ASSERT_EQ(request.method(), "client/registerCapability");
     ASSERT_EQ(request.params().registrations_size(), (size_t)1);
@@ -69,8 +70,8 @@ TEST(LanguageServerMessage, GotoDefinitionUnkownFile) {
   request.params().textDocument().set_uri("file:///unknown.tq");
 
   bool writer_called = false;
-  HandleMessage(request.GetJsonValue(), [&](JsonValue& raw_response) {
-    GotoDefinitionResponse response(raw_response);
+  HandleMessage(std::move(request.GetJsonValue()), [&](JsonValue raw_response) {
+    GotoDefinitionResponse response(std::move(raw_response));
     EXPECT_EQ(response.id(), 42);
     EXPECT_TRUE(response.IsNull("result"));
 
@@ -97,8 +98,8 @@ TEST(LanguageServerMessage, GotoDefinition) {
   request.params().position().set_character(0);
 
   bool writer_called = false;
-  HandleMessage(request.GetJsonValue(), [&](JsonValue& raw_response) {
-    GotoDefinitionResponse response(raw_response);
+  HandleMessage(std::move(request.GetJsonValue()), [&](JsonValue raw_response) {
+    GotoDefinitionResponse response(std::move(raw_response));
     EXPECT_EQ(response.id(), 42);
     EXPECT_TRUE(response.IsNull("result"));
 
@@ -115,8 +116,8 @@ TEST(LanguageServerMessage, GotoDefinition) {
   request.params().position().set_character(5);
 
   writer_called = false;
-  HandleMessage(request.GetJsonValue(), [&](JsonValue& raw_response) {
-    GotoDefinitionResponse response(raw_response);
+  HandleMessage(std::move(request.GetJsonValue()), [&](JsonValue raw_response) {
+    GotoDefinitionResponse response(std::move(raw_response));
     EXPECT_EQ(response.id(), 43);
     ASSERT_FALSE(response.IsNull("result"));
 
@@ -144,8 +145,8 @@ TEST(LanguageServerMessage, CompilationErrorSendsDiagnostics) {
   result.source_file_map = SourceFileMap::Get();
 
   bool writer_called = false;
-  CompilationFinished(std::move(result), [&](JsonValue& raw_response) {
-    PublishDiagnosticsNotification notification(raw_response);
+  CompilationFinished(std::move(result), [&](JsonValue raw_response) {
+    PublishDiagnosticsNotification notification(std::move(raw_response));
 
     EXPECT_EQ(notification.method(), "textDocument/publishDiagnostics");
     ASSERT_FALSE(notification.IsNull("params"));
@@ -181,8 +182,8 @@ TEST(LanguageServerMessage, LintErrorSendsDiagnostics) {
   result.source_file_map = SourceFileMap::Get();
 
   bool writer_called = false;
-  CompilationFinished(std::move(result), [&](JsonValue& raw_response) {
-    PublishDiagnosticsNotification notification(raw_response);
+  CompilationFinished(std::move(result), [&](JsonValue raw_response) {
+    PublishDiagnosticsNotification notification(std::move(raw_response));
 
     EXPECT_EQ(notification.method(), "textDocument/publishDiagnostics");
     ASSERT_FALSE(notification.IsNull("params"));
@@ -209,7 +210,7 @@ TEST(LanguageServerMessage, CleanCompileSendsNoDiagnostics) {
   TorqueCompilerResult result;
   result.source_file_map = SourceFileMap::Get();
 
-  CompilationFinished(std::move(result), [](JsonValue& raw_response) {
+  CompilationFinished(std::move(result), [](JsonValue raw_response) {
     FAIL() << "Sending unexpected response!";
   });
 }
@@ -224,8 +225,8 @@ TEST(LanguageServerMessage, NoSymbolsSendsEmptyResponse) {
   request.params().textDocument().set_uri("file://test.tq");
 
   bool writer_called = false;
-  HandleMessage(request.GetJsonValue(), [&](JsonValue& raw_response) {
-    DocumentSymbolResponse response(raw_response);
+  HandleMessage(std::move(request.GetJsonValue()), [&](JsonValue raw_response) {
+    DocumentSymbolResponse response(std::move(raw_response));
     EXPECT_EQ(response.id(), 42);
     EXPECT_EQ(response.result_size(), static_cast<size_t>(0));
 

@@ -24,11 +24,9 @@ namespace ls {
 
 // The message handler might send responses or follow up requests.
 // To allow unit testing, the "sending" function is configurable.
-using MessageWriter = std::function<void(JsonValue&)>;
+using MessageWriter = std::function<void(JsonValue)>;
 
-V8_EXPORT_PRIVATE void HandleMessage(
-    JsonValue& raw_message,  // NOLINT(runtime/references)
-    MessageWriter);
+V8_EXPORT_PRIVATE void HandleMessage(JsonValue raw_message, MessageWriter);
 
 // Called when a compilation run finishes. Exposed for testability.
 V8_EXPORT_PRIVATE void CompilationFinished(TorqueCompilerResult result,

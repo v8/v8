@@ -53,7 +53,7 @@ JsonValue ReadMessage() {
   return ParseJson(content).value;
 }
 
-void WriteMessage(JsonValue& message) {  // NOLINT(runtime/references)
+void WriteMessage(JsonValue message) {
   std::string content = SerializeToString(message);
 
   Logger::Log("[outgoing] ", content, "\n\n");
@@ -74,7 +74,7 @@ void ResetCompilationErrorDiagnostics(MessageWriter writer) {
     // Trigger empty array creation.
     USE(notification.params().diagnostics_size());
 
-    writer(notification.GetJsonValue());
+    writer(std::move(notification.GetJsonValue()));
   }
   DiagnosticsFiles::Get() = {};
 }
@@ -151,7 +151,7 @@ void SendCompilationDiagnostics(const TorqueCompilerResult& result,
 
   for (auto& pair : collector.notifications()) {
     PublishDiagnosticsNotification& notification = pair.second;
-    writer(notification.GetJsonValue());
+    writer(std::move(notification.GetJsonValue()));
 
     // Record all source files for which notifications are sent, so they
     // can be reset before the next compiler run.
@@ -205,7 +205,7 @@ void HandleInitializeRequest(InitializeRequest request, MessageWriter writer) {
   //               "workspace/didChangeWatchedFiles" capability.
   // TODO(szuend): Check if client supports "LocationLink". This will
   //               influence the result of "goto definition".
-  writer(response.GetJsonValue());
+  writer(std::move(response.GetJsonValue()));
 }
 
 void HandleInitializedNotification(MessageWriter writer) {
@@ -224,7 +224,7 @@ void HandleInitializedNotification(MessageWriter writer) {
   reg.set_id("did-change-id");
   reg.set_method("workspace/didChangeWatchedFiles");
 
-  writer(request.GetJsonValue());
+  writer(std::move(request.GetJsonValue()));
 }
 
 void HandleTorqueFileListNotification(TorqueFileListNotification notification,
@@ -258,7 +258,7 @@ void HandleGotoDefinitionRequest(GotoDefinitionRequest request,
   // the definition not beeing found.
   if (!id.IsValid()) {
     response.SetNull("result");
-    writer(response.GetJsonValue());
+    writer(std::move(response.GetJsonValue()));
     return;
   }
 
@@ -272,7 +272,7 @@ void HandleGotoDefinitionRequest(GotoDefinitionRequest request,
     response.SetNull("result");
   }
 
-  writer(response.GetJsonValue());
+  writer(std::move(response.GetJsonValue()));
 }
 
 void HandleChangeWatchedFilesNotification(
@@ -325,14 +325,13 @@ void HandleDocumentSymbolRequest(DocumentSymbolRequest request,
   // Trigger empty array creation in case no symbols were found.
   USE(response.result_size());
 
-  writer(response.GetJsonValue());
+  writer(std::move(response.GetJsonValue()));
 }
 
 }  // namespace
 
-void HandleMessage(JsonValue& raw_message,  // NOLINT(runtime/references)
-                   MessageWriter writer) {
-  Request<bool> request(raw_message);
+void HandleMessage(JsonValue raw_message, MessageWriter writer) {
+  Request<bool> request(std::move(raw_message));
 
   // We ignore responses for now. They are matched to requests
   // by id and don't have a method set.
@@ -345,21 +344,23 @@ void HandleMessage(JsonValue& raw_message,  // NOLINT(runtime/references)
 
   const std::string method = request.method();
   if (method == "initialize") {
-    HandleInitializeRequest(InitializeRequest(request.GetJsonValue()), writer);
+    HandleInitializeRequest(
+        InitializeRequest(std::move(request.GetJsonValue())), writer);
   } else if (method == "initialized") {
     HandleInitializedNotification(writer);
   } else if (method == "torque/fileList") {
     HandleTorqueFileListNotification(
-        TorqueFileListNotification(request.GetJsonValue()), writer);
+        TorqueFileListNotification(std::move(request.GetJsonValue())), writer);
   } else if (method == "textDocument/definition") {
-    HandleGotoDefinitionRequest(GotoDefinitionRequest(request.GetJsonValue()),
-                                writer);
+    HandleGotoDefinitionRequest(
+        GotoDefinitionRequest(std::move(request.GetJsonValue())), writer);
   } else if (method == "workspace/didChangeWatchedFiles") {
     HandleChangeWatchedFilesNotification(
-        DidChangeWatchedFilesNotification(request.GetJsonValue()), writer);
+        DidChangeWatchedFilesNotification(std::move(request.GetJsonValue())),
+        writer);
   } else if (method == "textDocument/documentSymbol") {
-    HandleDocumentSymbolRequest(DocumentSymbolRequest(request.GetJsonValue()),
-                                writer);
+    HandleDocumentSymbolRequest(
+        DocumentSymbolRequest(std::move(request.GetJsonValue())), writer);
   } else {
     Logger::Log("[error] Message of type ", method, " is not handled!\n\n");
   }
