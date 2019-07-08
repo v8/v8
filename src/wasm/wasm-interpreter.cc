@@ -3180,7 +3180,39 @@ class ThreadImpl {
           len = 1 + imm.length;
           break;
         }
-
+        case kExprTableGet: {
+          TableIndexImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          HandleScope handle_scope(isolate_);
+          auto table = handle(
+              WasmTableObject::cast(instance_object_->tables().get(imm.index)),
+              isolate_);
+          uint32_t table_size = table->current_length();
+          uint32_t entry_index = Pop().to<uint32_t>();
+          if (entry_index >= table_size) {
+            return DoTrap(kTrapTableOutOfBounds, pc);
+          }
+          Handle<Object> value =
+              WasmTableObject::Get(isolate_, table, entry_index);
+          Push(WasmValue(value));
+          len = 1 + imm.length;
+          break;
+        }
+        case kExprTableSet: {
+          TableIndexImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          HandleScope handle_scope(isolate_);
+          auto table = handle(
+              WasmTableObject::cast(instance_object_->tables().get(imm.index)),
+              isolate_);
+          uint32_t table_size = table->current_length();
+          Handle<Object> value = Pop().to_anyref();
+          uint32_t entry_index = Pop().to<uint32_t>();
+          if (entry_index >= table_size) {
+            return DoTrap(kTrapTableOutOfBounds, pc);
+          }
+          WasmTableObject::Set(isolate_, table, entry_index, value);
+          len = 1 + imm.length;
+          break;
+        }
 #define LOAD_CASE(name, ctype, mtype, rep)                      \
   case kExpr##name: {                                           \
     if (!ExecuteLoad<ctype, mtype>(&decoder, code, pc, len,     \
