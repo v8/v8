@@ -249,9 +249,9 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
     return FAILED;
   }
   module_ = new (compile_zone) wasm::ZoneBuffer(compile_zone);
-  parser.module_builder()->WriteTo(*module_);
+  parser.module_builder()->WriteTo(module_);
   asm_offsets_ = new (compile_zone) wasm::ZoneBuffer(compile_zone);
-  parser.module_builder()->WriteAsmJsOffsetTable(*asm_offsets_);
+  parser.module_builder()->WriteAsmJsOffsetTable(asm_offsets_);
   stdlib_uses_ = *parser.stdlib_uses();
 
   size_t compile_zone_size =

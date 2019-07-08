@@ -62,7 +62,7 @@ class WasmCapiTest : public ::testing::Test {
 
   void Compile() {
     ZoneBuffer buffer(&zone_);
-    builder_.WriteTo(buffer);
+    builder_.WriteTo(&buffer);
     size_t size = buffer.end() - buffer.begin();
     vec<byte_t> binary = vec<byte_t>::make(
         size, reinterpret_cast<byte_t*>(const_cast<byte*>(buffer.begin())));

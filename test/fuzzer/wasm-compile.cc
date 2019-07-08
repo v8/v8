@@ -867,7 +867,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     }
 
     builder.SetMaxMemorySize(32);
-    builder.WriteTo(buffer);
+    builder.WriteTo(&buffer);
 
     num_args = 3;
     interpreter_args.reset(

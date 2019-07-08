@@ -29,7 +29,7 @@ class WasmTextTest : public TestWithIsolateAndZone {
     fb->Emit(kExprEnd);
 
     ZoneBuffer buffer(zone());
-    mb.WriteTo(buffer);
+    mb.WriteTo(&buffer);
 
     ModuleWireBytes wire_bytes(
         Vector<const byte>(buffer.begin(), buffer.size()));

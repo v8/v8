@@ -207,7 +207,7 @@ ZoneBuffer GetValidModuleBytes(Zone* zone) {
     uint8_t code[] = {kExprGetLocal, 2, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
-  builder.WriteTo(buffer);
+  builder.WriteTo(&buffer);
   return buffer;
 }
 
@@ -330,7 +330,7 @@ ZoneBuffer GetModuleWithInvalidSection(Zone* zone) {
     uint8_t code[] = {kExprGetLocal, 2, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
-  builder.WriteTo(buffer);
+  builder.WriteTo(&buffer);
   return buffer;
 }
 
@@ -1019,7 +1019,7 @@ STREAM_TEST(TestModuleWithImportedFunction) {
     uint8_t code[] = {kExprGetLocal, 0, kExprEnd};
     f->EmitCode(code, arraysize(code));
   }
-  builder.WriteTo(buffer);
+  builder.WriteTo(&buffer);
 
   tester.OnBytesReceived(buffer.begin(), buffer.end() - buffer.begin());
   tester.FinishStream();

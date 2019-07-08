@@ -138,7 +138,7 @@ ZoneBuffer* BuildReturnConstantModule(Zone* zone, int constant) {
   byte code[] = {WASM_I32V_2(constant)};
   f->EmitCode(code, sizeof(code));
   f->Emit(kExprEnd);
-  builder->WriteTo(*buffer);
+  builder->WriteTo(buffer);
   return buffer;
 }
 

@@ -33,7 +33,7 @@ class WasmCodeFuzzer : public WasmExecutionFuzzer {
     builder.AddExport(CStrVector("main"), f);
 
     builder.SetMaxMemorySize(32);
-    builder.WriteTo(buffer);
+    builder.WriteTo(&buffer);
     num_args = 3;
     interpreter_args.reset(
         new WasmValue[3]{WasmValue(1), WasmValue(2), WasmValue(3)});

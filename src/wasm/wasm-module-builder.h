@@ -187,10 +187,9 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   }
   void DeleteCodeAfter(size_t position);
 
-  void WriteSignature(ZoneBuffer& buffer) const;  // NOLINT(runtime/references)
-  void WriteBody(ZoneBuffer& buffer) const;       // NOLINT(runtime/references)
-  void WriteAsmWasmOffsetTable(
-      ZoneBuffer& buffer) const;  // NOLINT(runtime/references)
+  void WriteSignature(ZoneBuffer* buffer) const;
+  void WriteBody(ZoneBuffer* buffer) const;
+  void WriteAsmWasmOffsetTable(ZoneBuffer* buffer) const;
 
   WasmModuleBuilder* builder() const { return builder_; }
   uint32_t func_index() { return func_index_; }
@@ -247,9 +246,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void SetHasSharedMemory();
 
   // Writing methods.
-  void WriteTo(ZoneBuffer& buffer) const;  // NOLINT(runtime/references)
-  void WriteAsmJsOffsetTable(
-      ZoneBuffer& buffer) const;  // NOLINT(runtime/references)
+  void WriteTo(ZoneBuffer* buffer) const;
+  void WriteAsmJsOffsetTable(ZoneBuffer* buffer) const;
 
   Zone* zone() { return zone_; }
 
