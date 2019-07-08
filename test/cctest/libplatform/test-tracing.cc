@@ -11,9 +11,28 @@
 
 #ifdef V8_USE_PERFETTO
 #include "perfetto/trace/chrome/chrome_trace_event.pb.h"
+#include "perfetto/trace/chrome/chrome_trace_event.pbzero.h"
 #include "perfetto/trace/chrome/chrome_trace_packet.pb.h"
+#include "perfetto/trace/trace.pb.h"
+#include "perfetto/tracing.h"
+#include "src/libplatform/tracing/json-trace-event-listener.h"
 #include "src/libplatform/tracing/trace-event-listener.h"
-#endif
+#endif  // V8_USE_PERFETTO
+
+#ifdef V8_USE_PERFETTO
+class TestDataSource : public perfetto::DataSource<TestDataSource> {
+ public:
+  void OnSetup(const SetupArgs&) override {}
+  void OnStart(const StartArgs&) override { started_.Signal(); }
+  void OnStop(const StopArgs&) override {}
+
+  static v8::base::Semaphore started_;
+};
+
+v8::base::Semaphore TestDataSource::started_{0};
+
+PERFETTO_DEFINE_DATA_SOURCE_STATIC_MEMBERS(TestDataSource);
+#endif  // V8_USE_PERFETTO
 
 namespace v8 {
 namespace platform {
@@ -552,8 +571,7 @@ struct TraceEvent {
 
 class TestListener : public TraceEventListener {
  public:
-  void ProcessPacket(
-      const ::perfetto::protos::ChromeTracePacket& packet) override {
+  void ProcessPacket(const ::perfetto::protos::TracePacket& packet) {
     for (const ::perfetto::protos::ChromeTraceEvent& event :
          packet.chrome_events().trace_events()) {
       TraceEvent trace_event{event.name(),       event.timestamp(),
@@ -681,6 +699,54 @@ TEST(Perfetto) {
   timestamp = event->timestamp;
 
   CHECK_EQ(6, harness.events_size());
+}
+
+TEST(TracingPerfetto) {
+  ::perfetto::TraceConfig perfetto_trace_config;
+  perfetto_trace_config.add_buffers()->set_size_kb(4096);
+  auto* ds_config = perfetto_trace_config.add_data_sources()->mutable_config();
+  ds_config->set_name("v8.trace_events");
+
+  perfetto::DataSourceDescriptor dsd;
+  dsd.set_name("v8.trace_events");
+  TestDataSource::Register(dsd);
+
+  auto tracing_session_ =
+      perfetto::Tracing::NewTrace(perfetto::BackendType::kInProcessBackend);
+  tracing_session_->Setup(perfetto_trace_config);
+  tracing_session_->Start();
+  TestDataSource::started_.Wait();
+
+  for (int i = 0; i < 15; i++) {
+    TestDataSource::Trace([&](TestDataSource::TraceContext ctx) {
+      auto packet = ctx.NewTracePacket();
+      auto* trace_event_bundle = packet->set_chrome_events();
+      auto* trace_event = trace_event_bundle->add_trace_events();
+
+      trace_event->set_phase('c');
+      trace_event->set_thread_id(v8::base::OS::GetCurrentThreadId());
+      trace_event->set_timestamp(123);
+      trace_event->set_process_id(v8::base::OS::GetCurrentProcessId());
+      trace_event->set_thread_timestamp(123);
+    });
+  }
+  v8::base::Semaphore stopped_{0};
+  tracing_session_->SetOnStopCallback([&stopped_]() { stopped_.Signal(); });
+  tracing_session_->Stop();
+  stopped_.Wait();
+
+  std::ostringstream perfetto_json_stream_;
+
+  {
+    v8::platform::tracing::JSONTraceEventListener json_listener_(
+        &perfetto_json_stream_);
+
+    std::vector<char> trace = tracing_session_->ReadTraceBlocking();
+    json_listener_.ParseFromArray(trace);
+  }
+
+  printf("%s\n", perfetto_json_stream_.str().c_str());
+  CHECK_GT(perfetto_json_stream_.str().length(), 0);
 }
 
 #endif  // V8_USE_PERFETTO

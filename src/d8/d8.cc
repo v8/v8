@@ -48,6 +48,10 @@
 #include "src/utils/utils.h"
 #include "src/wasm/wasm-engine.h"
 
+#ifdef V8_USE_PERFETTO
+#include "perfetto/tracing.h"
+#endif  // V8_USE_PERFETTO
+
 #ifdef V8_INTL_SUPPORT
 #include "unicode/locid.h"
 #endif  // V8_INTL_SUPPORT
@@ -3366,6 +3370,10 @@ int Shell::Main(int argc, char* argv[]) {
     tracing->Initialize(trace_buffer);
 
 #ifdef V8_USE_PERFETTO
+    perfetto::TracingInitArgs init_args;
+    init_args.backends = perfetto::BackendType::kInProcessBackend;
+    perfetto::Tracing::Initialize(init_args);
+
     perfetto_trace_file.open("v8_perfetto_trace.json");
     DCHECK(trace_file.good());
     tracing->InitializeForPerfetto(&perfetto_trace_file);

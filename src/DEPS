@@ -49,5 +49,6 @@ specific_include_rules = {
   "d8\.cc": [
     "+include/libplatform/libplatform.h",
     "+include/libplatform/v8-tracing.h",
+    "+perfetto/tracing.h"
   ],
 }
