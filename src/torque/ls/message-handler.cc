@@ -53,7 +53,7 @@ JsonValue ReadMessage() {
   return ParseJson(content).value;
 }
 
-void WriteMessage(JsonValue& message) {
+void WriteMessage(JsonValue& message) {  // NOLINT(runtime/references)
   std::string content = SerializeToString(message);
 
   Logger::Log("[outgoing] ", content, "\n\n");
@@ -330,7 +330,8 @@ void HandleDocumentSymbolRequest(DocumentSymbolRequest request,
 
 }  // namespace
 
-void HandleMessage(JsonValue& raw_message, MessageWriter writer) {
+void HandleMessage(JsonValue& raw_message,  // NOLINT(runtime/references)
+                   MessageWriter writer) {
   Request<bool> request(raw_message);
 
   // We ignore responses for now. They are matched to requests

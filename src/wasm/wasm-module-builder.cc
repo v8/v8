@@ -26,7 +26,8 @@ namespace {
 
 // Emit a section code and the size as a padded varint that can be patched
 // later.
-size_t EmitSection(SectionCode code, ZoneBuffer& buffer) {
+size_t EmitSection(SectionCode code,
+                   ZoneBuffer& buffer) {  // NOLINT(runtime/references)
   // Emit the section code.
   buffer.write_u8(code);
 
@@ -35,7 +36,8 @@ size_t EmitSection(SectionCode code, ZoneBuffer& buffer) {
 }
 
 // Patch the size of a section after it's finished.
-void FixupSection(ZoneBuffer& buffer, size_t start) {
+void FixupSection(ZoneBuffer& buffer,  // NOLINT(runtime/references)
+                  size_t start) {
   buffer.patch_u32v(start, static_cast<uint32_t>(buffer.offset() - start -
                                                  kPaddedVarInt32Size));
 }

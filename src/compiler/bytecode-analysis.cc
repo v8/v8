@@ -93,8 +93,10 @@ BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
 
 namespace {
 
-void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
-                      const interpreter::BytecodeArrayAccessor& accessor) {
+void UpdateInLiveness(
+    Bytecode bytecode,
+    BytecodeLivenessState& in_liveness,  // NOLINT(runtime/references)
+    const interpreter::BytecodeArrayAccessor& accessor) {
   int num_operands = Bytecodes::NumberOfOperands(bytecode);
   const OperandType* operand_types = Bytecodes::GetOperandTypes(bytecode);
 
@@ -201,11 +203,13 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
   }
 }
 
-void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState& out_liveness,
-                       BytecodeLivenessState* next_bytecode_in_liveness,
-                       const interpreter::BytecodeArrayAccessor& accessor,
-                       Handle<BytecodeArray> bytecode_array,
-                       const BytecodeLivenessMap& liveness_map) {
+void UpdateOutLiveness(
+    Bytecode bytecode,
+    BytecodeLivenessState& out_liveness,  // NOLINT(runtime/references)
+    BytecodeLivenessState* next_bytecode_in_liveness,
+    const interpreter::BytecodeArrayAccessor& accessor,
+    Handle<BytecodeArray> bytecode_array,
+    const BytecodeLivenessMap& liveness_map) {
   int current_offset = accessor.current_offset();
 
   // Special case Suspend and Resume to just pass through liveness.
@@ -261,7 +265,8 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState& out_liveness,
   }
 }
 
-void UpdateLiveness(Bytecode bytecode, BytecodeLiveness& liveness,
+void UpdateLiveness(Bytecode bytecode,
+                    BytecodeLiveness& liveness,  // NOLINT(runtime/references)
                     BytecodeLivenessState** next_bytecode_in_liveness,
                     const interpreter::BytecodeArrayAccessor& accessor,
                     Handle<BytecodeArray> bytecode_array,
@@ -274,8 +279,10 @@ void UpdateLiveness(Bytecode bytecode, BytecodeLiveness& liveness,
   *next_bytecode_in_liveness = liveness.in;
 }
 
-void UpdateAssignments(Bytecode bytecode, BytecodeLoopAssignments& assignments,
-                       const interpreter::BytecodeArrayAccessor& accessor) {
+void UpdateAssignments(
+    Bytecode bytecode,
+    BytecodeLoopAssignments& assignments,  // NOLINT(runtime/references)
+    const interpreter::BytecodeArrayAccessor& accessor) {
   int num_operands = Bytecodes::NumberOfOperands(bytecode);
   const OperandType* operand_types = Bytecodes::GetOperandTypes(bytecode);
 

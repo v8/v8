@@ -78,7 +78,7 @@ class DataRange {
   DISALLOW_COPY_AND_ASSIGN(DataRange);
 };
 
-ValueType GetValueType(DataRange& data) {
+ValueType GetValueType(DataRange& data) {  // NOLINT(runtime/references)
   switch (data.get<uint8_t>() % 4) {
     case 0:
       return kWasmI32;
@@ -94,7 +94,7 @@ ValueType GetValueType(DataRange& data) {
 
 class WasmGenerator {
   template <WasmOpcode Op, ValueType... Args>
-  void op(DataRange& data) {
+  void op(DataRange& data) {  // NOLINT(runtime/references)
     Generate<Args...>(data);
     builder_->Emit(Op);
   }
@@ -119,13 +119,13 @@ class WasmGenerator {
   };
 
   template <ValueType T>
-  void block(DataRange& data) {
+  void block(DataRange& data) {  // NOLINT(runtime/references)
     BlockScope block_scope(this, kExprBlock, T, T);
     Generate<T>(data);
   }
 
   template <ValueType T>
-  void loop(DataRange& data) {
+  void loop(DataRange& data) {  // NOLINT(runtime/references)
     // When breaking to a loop header, don't provide any input value (hence
     // kWasmStmt).
     BlockScope block_scope(this, kExprLoop, T, kWasmStmt);
@@ -135,7 +135,7 @@ class WasmGenerator {
   enum IfType { kIf, kIfElse };
 
   template <ValueType T, IfType type>
-  void if_(DataRange& data) {
+  void if_(DataRange& data) {  // NOLINT(runtime/references)
     static_assert(T == kWasmStmt || type == kIfElse,
                   "if without else cannot produce a value");
     Generate<kWasmI32>(data);
@@ -147,7 +147,7 @@ class WasmGenerator {
     }
   }
 
-  void br(DataRange& data) {
+  void br(DataRange& data) {  // NOLINT(runtime/references)
     // There is always at least the block representing the function body.
     DCHECK(!blocks_.empty());
     const uint32_t target_block = data.get<uint32_t>() % blocks_.size();
@@ -159,7 +159,7 @@ class WasmGenerator {
   }
 
   template <ValueType wanted_type>
-  void br_if(DataRange& data) {
+  void br_if(DataRange& data) {  // NOLINT(runtime/references)
     // There is always at least the block representing the function body.
     DCHECK(!blocks_.empty());
     const uint32_t target_block = data.get<uint32_t>() % blocks_.size();
@@ -208,7 +208,7 @@ class WasmGenerator {
   }
 
   template <WasmOpcode memory_op, ValueType... arg_types>
-  void memop(DataRange& data) {
+  void memop(DataRange& data) {  // NOLINT(runtime/references)
     const uint8_t align = data.get<uint8_t>() % (max_alignment(memory_op) + 1);
     const uint32_t offset = data.get<uint32_t>();
 
@@ -220,13 +220,13 @@ class WasmGenerator {
     builder_->EmitU32V(offset);
   }
 
-  void drop(DataRange& data) {
+  void drop(DataRange& data) {  // NOLINT(runtime/references)
     Generate(GetValueType(data), data);
     builder_->Emit(kExprDrop);
   }
 
   template <ValueType wanted_type>
-  void call(DataRange& data) {
+  void call(DataRange& data) {  // NOLINT(runtime/references)
     call(data, wanted_type);
   }
 
@@ -258,7 +258,8 @@ class WasmGenerator {
     builder_->Emit(kConvertOpcodes[arr_idx]);
   }
 
-  void ConvertOrGenerate(ValueType src, ValueType dst, DataRange& data) {
+  void ConvertOrGenerate(ValueType src, ValueType dst,
+                         DataRange& data) {  // NOLINT(runtime/references)
     if (src == dst) return;
     if (src == kWasmStmt && dst != kWasmStmt) {
       Generate(dst, data);
@@ -269,7 +270,8 @@ class WasmGenerator {
     }
   }
 
-  void call(DataRange& data, ValueType wanted_type) {
+  void call(DataRange& data,  // NOLINT(runtime/references)
+            ValueType wanted_type) {
     int func_index = data.get<uint8_t>() % functions_.size();
     FunctionSig* sig = functions_[func_index];
     // Generate arguments.
@@ -301,7 +303,7 @@ class WasmGenerator {
     bool is_valid() const { return type != kWasmStmt; }
   };
 
-  Var GetRandomLocal(DataRange& data) {
+  Var GetRandomLocal(DataRange& data) {  // NOLINT(runtime/references)
     uint32_t num_params =
         static_cast<uint32_t>(builder_->signature()->parameter_count());
     uint32_t num_locals = static_cast<uint32_t>(locals_.size());
@@ -313,7 +315,8 @@ class WasmGenerator {
   }
 
   template <ValueType wanted_type>
-  void local_op(DataRange& data, WasmOpcode opcode) {
+  void local_op(DataRange& data,  // NOLINT(runtime/references)
+                WasmOpcode opcode) {
     Var local = GetRandomLocal(data);
     // If there are no locals and no parameters, just generate any value (if a
     // value is needed), or do nothing.
@@ -330,29 +333,32 @@ class WasmGenerator {
   }
 
   template <ValueType wanted_type>
-  void get_local(DataRange& data) {
+  void get_local(DataRange& data) {  // NOLINT(runtime/references)
     static_assert(wanted_type != kWasmStmt, "illegal type");
     local_op<wanted_type>(data, kExprGetLocal);
   }
 
-  void set_local(DataRange& data) { local_op<kWasmStmt>(data, kExprSetLocal); }
+  void set_local(DataRange& data) {  // NOLINT(runtime/references)
+    local_op<kWasmStmt>(data, kExprSetLocal);
+  }
 
   template <ValueType wanted_type>
-  void tee_local(DataRange& data) {
+  void tee_local(DataRange& data) {  // NOLINT(runtime/references)
     local_op<wanted_type>(data, kExprTeeLocal);
   }
 
   template <size_t num_bytes>
-  void i32_const(DataRange& data) {
+  void i32_const(DataRange& data) {  // NOLINT(runtime/references)
     builder_->EmitI32Const(data.get<int32_t, num_bytes>());
   }
 
   template <size_t num_bytes>
-  void i64_const(DataRange& data) {
+  void i64_const(DataRange& data) {  // NOLINT(runtime/references)
     builder_->EmitI64Const(data.get<int64_t, num_bytes>());
   }
 
-  Var GetRandomGlobal(DataRange& data, bool ensure_mutable) {
+  Var GetRandomGlobal(DataRange& data,  // NOLINT(runtime/references)
+                      bool ensure_mutable) {
     uint32_t index;
     if (ensure_mutable) {
       if (mutable_globals_.empty()) return {};
@@ -366,7 +372,7 @@ class WasmGenerator {
   }
 
   template <ValueType wanted_type>
-  void global_op(DataRange& data) {
+  void global_op(DataRange& data) {  // NOLINT(runtime/references)
     constexpr bool is_set = wanted_type == kWasmStmt;
     Var global = GetRandomGlobal(data, is_set);
     // If there are no globals, just generate any value (if a value is needed),
@@ -385,13 +391,13 @@ class WasmGenerator {
   }
 
   template <ValueType wanted_type>
-  void get_global(DataRange& data) {
+  void get_global(DataRange& data) {  // NOLINT(runtime/references)
     static_assert(wanted_type != kWasmStmt, "illegal type");
     global_op<wanted_type>(data);
   }
 
   template <ValueType select_type>
-  void select_with_type(DataRange& data) {
+  void select_with_type(DataRange& data) {  // NOLINT(runtime/references)
     static_assert(select_type != kWasmStmt, "illegal type for select");
     Generate<select_type, select_type, kWasmI32>(data);
     // num_types is always 1.
@@ -400,23 +406,26 @@ class WasmGenerator {
                            ValueTypes::ValueTypeCodeFor(select_type));
   }
 
-  void set_global(DataRange& data) { global_op<kWasmStmt>(data); }
+  void set_global(DataRange& data) {  // NOLINT(runtime/references)
+    global_op<kWasmStmt>(data);
+  }
 
   template <ValueType... Types>
-  void sequence(DataRange& data) {
+  void sequence(DataRange& data) {  // NOLINT(runtime/references)
     Generate<Types...>(data);
   }
 
-  void current_memory(DataRange& data) {
+  void current_memory(DataRange& data) {  // NOLINT(runtime/references)
     builder_->EmitWithU8(kExprMemorySize, 0);
   }
 
-  void grow_memory(DataRange& data);
+  void grow_memory(DataRange& data);  // NOLINT(runtime/references)
 
   using generate_fn = void (WasmGenerator::*const)(DataRange&);
 
   template <size_t N>
-  void GenerateOneOf(generate_fn (&alternates)[N], DataRange& data) {
+  void GenerateOneOf(generate_fn (&alternates)[N],
+                     DataRange& data) {  // NOLINT(runtime/references)
     static_assert(N < std::numeric_limits<uint8_t>::max(),
                   "Too many alternates. Replace with a bigger type if needed.");
     const auto which = data.get<uint8_t>();
@@ -441,7 +450,8 @@ class WasmGenerator {
   WasmGenerator(WasmFunctionBuilder* fn,
                 const std::vector<FunctionSig*>& functions,
                 const std::vector<ValueType>& globals,
-                const std::vector<uint8_t>& mutable_globals, DataRange& data)
+                const std::vector<uint8_t>& mutable_globals,
+                DataRange& data)  // NOLINT(runtime/references)
       : builder_(fn),
         functions_(functions),
         globals_(globals),
@@ -458,13 +468,13 @@ class WasmGenerator {
     }
   }
 
-  void Generate(ValueType type, DataRange& data);
+  void Generate(ValueType type, DataRange& data);  // NOLINT(runtime/references)
 
   template <ValueType T>
-  void Generate(DataRange& data);
+  void Generate(DataRange& data);  // NOLINT(runtime/references)
 
   template <ValueType T1, ValueType T2, ValueType... Ts>
-  void Generate(DataRange& data) {
+  void Generate(DataRange& data) {  // NOLINT(runtime/references)
     // TODO(clemensh): Implement a more even split.
     auto first_data = data.split();
     Generate<T1>(first_data);
@@ -488,7 +498,8 @@ class WasmGenerator {
 };
 
 template <>
-void WasmGenerator::Generate<kWasmStmt>(DataRange& data) {
+void WasmGenerator::Generate<kWasmStmt>(
+    DataRange& data) {  // NOLINT(runtime/references)
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data.size() == 0) return;
 
@@ -525,7 +536,8 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange& data) {
 }
 
 template <>
-void WasmGenerator::Generate<kWasmI32>(DataRange& data) {
+void WasmGenerator::Generate<kWasmI32>(
+    DataRange& data) {  // NOLINT(runtime/references)
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data.size() <= 1) {
     builder_->EmitI32Const(data.get<uint32_t>());
@@ -623,7 +635,8 @@ void WasmGenerator::Generate<kWasmI32>(DataRange& data) {
 }
 
 template <>
-void WasmGenerator::Generate<kWasmI64>(DataRange& data) {
+void WasmGenerator::Generate<kWasmI64>(
+    DataRange& data) {  // NOLINT(runtime/references)
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data.size() <= 1) {
     builder_->EmitI64Const(data.get<int64_t>());
@@ -691,7 +704,8 @@ void WasmGenerator::Generate<kWasmI64>(DataRange& data) {
 }
 
 template <>
-void WasmGenerator::Generate<kWasmF32>(DataRange& data) {
+void WasmGenerator::Generate<kWasmF32>(
+    DataRange& data) {  // NOLINT(runtime/references)
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data.size() <= sizeof(float)) {
     builder_->EmitF32Const(data.get<float>());
@@ -726,7 +740,8 @@ void WasmGenerator::Generate<kWasmF32>(DataRange& data) {
 }
 
 template <>
-void WasmGenerator::Generate<kWasmF64>(DataRange& data) {
+void WasmGenerator::Generate<kWasmF64>(
+    DataRange& data) {  // NOLINT(runtime/references)
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data.size() <= sizeof(double)) {
     builder_->EmitF64Const(data.get<double>());
@@ -782,7 +797,8 @@ void WasmGenerator::Generate(ValueType type, DataRange& data) {
   }
 }
 
-FunctionSig* GenerateSig(Zone* zone, DataRange& data) {
+FunctionSig* GenerateSig(Zone* zone,
+                         DataRange& data) {  // NOLINT(runtime/references)
   // Generate enough parameters to spill some to the stack.
   constexpr int kMaxParameters = 15;
   int num_params = int{data.get<uint8_t>()} % (kMaxParameters + 1);

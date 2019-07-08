@@ -171,7 +171,8 @@ struct Heap::StrongRootsList {
 
 class IdleScavengeObserver : public AllocationObserver {
  public:
-  IdleScavengeObserver(Heap& heap, intptr_t step_size)
+  IdleScavengeObserver(Heap& heap,  // NOLINT(runtime/references)
+                       intptr_t step_size)
       : AllocationObserver(step_size), heap_(heap) {}
 
   void Step(int bytes_allocated, Address, size_t) override {
@@ -1335,7 +1336,8 @@ intptr_t CompareWords(int size, HeapObject a, HeapObject b) {
   return 0;
 }
 
-void ReportDuplicates(int size, std::vector<HeapObject>& objects) {
+void ReportDuplicates(
+    int size, std::vector<HeapObject>& objects) {  // NOLINT(runtime/references)
   if (objects.size() == 0) return;
 
   sort(objects.begin(), objects.end(), [size](HeapObject a, HeapObject b) {
@@ -2742,6 +2744,7 @@ STATIC_ASSERT(IsAligned(ByteArray::kHeaderSize, kDoubleAlignment));
 #endif
 
 #ifdef V8_HOST_ARCH_32_BIT
+// NOLINTNEXTLINE(runtime/references) (false positive)
 STATIC_ASSERT((HeapNumber::kValueOffset & kDoubleAlignmentMask) == kTaggedSize);
 #endif
 

@@ -37,9 +37,12 @@ class WasmExecutionFuzzer {
  protected:
   virtual bool GenerateModule(
       Isolate* isolate, Zone* zone, Vector<const uint8_t> data,
-      ZoneBuffer& buffer, int32_t& num_args,
-      std::unique_ptr<WasmValue[]>& interpreter_args,
-      std::unique_ptr<Handle<Object>[]>& compiler_args) = 0;
+      ZoneBuffer& buffer,  // NOLINT(runtime/references)
+      int32_t& num_args,   // NOLINT(runtime/references)
+      std::unique_ptr<WasmValue[]>&
+          interpreter_args,  // NOLINT(runtime/references)
+      std::unique_ptr<Handle<Object>[]>&
+          compiler_args) = 0;  // NOLINT(runtime/references)
 };
 
 }  // namespace fuzzer

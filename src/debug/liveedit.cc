@@ -937,10 +937,10 @@ class FunctionDataMap : public ThreadVisitor {
   std::map<FuncId, FunctionData> map_;
 };
 
-bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
-                    Handle<Script> new_script,
-                    FunctionDataMap& function_data_map,
-                    debug::LiveEditResult* result) {
+bool CanPatchScript(
+    const LiteralMap& changed, Handle<Script> script, Handle<Script> new_script,
+    FunctionDataMap& function_data_map,  // NOLINT(runtime/references)
+    debug::LiveEditResult* result) {
   debug::LiveEditResult::Status status = debug::LiveEditResult::OK;
   for (const auto& mapping : changed) {
     FunctionData* data = nullptr;
@@ -971,9 +971,10 @@ bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
   return true;
 }
 
-bool CanRestartFrame(Isolate* isolate, Address fp,
-                     FunctionDataMap& function_data_map,
-                     const LiteralMap& changed, debug::LiveEditResult* result) {
+bool CanRestartFrame(
+    Isolate* isolate, Address fp,
+    FunctionDataMap& function_data_map,  // NOLINT(runtime/references)
+    const LiteralMap& changed, debug::LiveEditResult* result) {
   DCHECK_GT(fp, 0);
   StackFrame* restart_frame = nullptr;
   StackFrameIterator it(isolate);

@@ -416,7 +416,8 @@ class LiftoffCompiler {
     DCHECK_EQ(__ num_locals(), __ cache_state()->stack_height());
   }
 
-  void GenerateOutOfLineCode(OutOfLineCode& ool) {
+  void GenerateOutOfLineCode(
+      OutOfLineCode& ool) {  // NOLINT(runtime/references)
     __ bind(ool.label.get());
     const bool is_stack_check = ool.stub == WasmCode::kWasmStackGuard;
     const bool is_mem_out_of_bounds =
@@ -1245,8 +1246,9 @@ class LiftoffCompiler {
     }
   }
 
-  void SetLocalFromStackSlot(LiftoffAssembler::VarState& dst_slot,
-                             uint32_t local_index) {
+  void SetLocalFromStackSlot(
+      LiftoffAssembler::VarState& dst_slot,  // NOLINT(runtime/references)
+      uint32_t local_index) {
     auto& state = *__ cache_state();
     ValueType type = dst_slot.type();
     if (dst_slot.is_reg()) {
@@ -1297,8 +1299,10 @@ class LiftoffCompiler {
     SetLocal(imm.index, true);
   }
 
-  Register GetGlobalBaseAndOffset(const WasmGlobal* global,
-                                  LiftoffRegList& pinned, uint32_t* offset) {
+  Register GetGlobalBaseAndOffset(
+      const WasmGlobal* global,
+      LiftoffRegList& pinned,  // NOLINT(runtime/references)
+      uint32_t* offset) {
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg)).gp();
     if (global->mutability && global->imported) {
       LOAD_INSTANCE_FIELD(addr, ImportedMutableGlobals, kSystemPointerSize);
@@ -1340,13 +1344,15 @@ class LiftoffCompiler {
     __ Store(addr, no_reg, offset, reg, type, {}, nullptr, true);
   }
 
-  void GetTable(FullDecoder* decoder, const Value& index, Value* result,
-                TableIndexImmediate<validate>& imm) {
+  void GetTable(
+      FullDecoder* decoder, const Value& index, Value* result,
+      TableIndexImmediate<validate>& imm) {  // NOLINT(runtime/references)
     unsupported(decoder, kAnyRef, "table_get");
   }
 
-  void SetTable(FullDecoder* decoder, const Value& index, const Value& value,
-                TableIndexImmediate<validate>& imm) {
+  void SetTable(
+      FullDecoder* decoder, const Value& index, const Value& value,
+      TableIndexImmediate<validate>& imm) {  // NOLINT(runtime/references)
     unsupported(decoder, kAnyRef, "table_set");
   }
 
@@ -1414,7 +1420,8 @@ class LiftoffCompiler {
   // Generate a branch table case, potentially reusing previously generated
   // stack transfer code.
   void GenerateBrCase(FullDecoder* decoder, uint32_t br_depth,
-                      std::map<uint32_t, MovableLabel>& br_targets) {
+                      std::map<uint32_t, MovableLabel>&
+                          br_targets) {  // NOLINT(runtime/references)
     MovableLabel& label = br_targets[br_depth];
     if (label.get()->is_bound()) {
       __ jmp(label.get());
@@ -1428,8 +1435,10 @@ class LiftoffCompiler {
   // TODO(wasm): Generate a real branch table (like TF TableSwitch).
   void GenerateBrTable(FullDecoder* decoder, LiftoffRegister tmp,
                        LiftoffRegister value, uint32_t min, uint32_t max,
-                       BranchTableIterator<validate>& table_iterator,
-                       std::map<uint32_t, MovableLabel>& br_targets) {
+                       BranchTableIterator<validate>&
+                           table_iterator,  // NOLINT(runtime/references)
+                       std::map<uint32_t, MovableLabel>&
+                           br_targets) {  // NOLINT(runtime/references)
     DCHECK_LT(min, max);
     // Check base case.
     if (max == min + 1) {
@@ -1636,8 +1645,9 @@ class LiftoffCompiler {
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }
 
-  Register AddMemoryMasking(Register index, uint32_t* offset,
-                            LiftoffRegList& pinned) {
+  Register AddMemoryMasking(
+      Register index, uint32_t* offset,
+      LiftoffRegList& pinned) {  // NOLINT(runtime/references)
     if (!FLAG_untrusted_code_mitigations || env_->use_trap_handler) {
       return index;
     }
@@ -2037,7 +2047,9 @@ class LiftoffCompiler {
     unsupported(decoder, kBulkMemory, "table.copy");
   }
   void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
-                 Value& value, Value& delta, Value* result) {
+                 Value& value,  // NOLINT(runtime/references)
+                 Value& delta,  // NOLINT(runtime/references)
+                 Value* result) {
     unsupported(decoder, kAnyRef, "table.grow");
   }
   void TableSize(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
@@ -2045,7 +2057,8 @@ class LiftoffCompiler {
     unsupported(decoder, kAnyRef, "table.size");
   }
   void TableFill(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
-                 Value& start, Value& value, Value& count) {
+                 Value& start, Value& value,  // NOLINT(runtime/references)
+                 Value& count) {              // NOLINT(runtime/references)
     unsupported(decoder, kAnyRef, "table.fill");
   }
 

@@ -2507,7 +2507,8 @@ float FPAbs<float>(float a) {
 }
 
 template <typename T>
-static bool FPUProcessNaNsAndZeros(T a, T b, MaxMinKind kind, T& result) {
+static bool FPUProcessNaNsAndZeros(T a, T b, MaxMinKind kind,
+                                   T& result) {  // NOLINT(runtime/references)
   if (std::isnan(a) && std::isnan(b)) {
     result = a;
   } else if (std::isnan(a)) {
@@ -5544,7 +5545,8 @@ void Simulator::DecodeTypeMsa3R() {
 }
 
 template <typename T_int, typename T_fp, typename T_reg>
-void Msa3RFInstrHelper(uint32_t opcode, T_reg ws, T_reg wt, T_reg& wd) {
+void Msa3RFInstrHelper(uint32_t opcode, T_reg ws, T_reg wt,
+                       T_reg& wd) {  // NOLINT(runtime/references)
   const T_int all_ones = static_cast<T_int>(-1);
   const T_fp s_element = *reinterpret_cast<T_fp*>(&ws);
   const T_fp t_element = *reinterpret_cast<T_fp*>(&wt);
@@ -5687,7 +5689,8 @@ void Msa3RFInstrHelper(uint32_t opcode, T_reg ws, T_reg wt, T_reg& wd) {
 }
 
 template <typename T_int, typename T_int_dbl, typename T_reg>
-void Msa3RFInstrHelper2(uint32_t opcode, T_reg ws, T_reg wt, T_reg& wd) {
+void Msa3RFInstrHelper2(uint32_t opcode, T_reg ws, T_reg wt,
+                        T_reg& wd) {  // NOLINT(runtime/references)
   //  using T_uint = typename std::make_unsigned<T_int>::type;
   using T_uint_dbl = typename std::make_unsigned<T_int_dbl>::type;
   const T_int max_int = std::numeric_limits<T_int>::max();
@@ -6139,7 +6142,8 @@ static inline bool isSnan(double fp) { return !QUIET_BIT_D(fp); }
 #undef QUIET_BIT_D
 
 template <typename T_int, typename T_fp, typename T_src, typename T_dst>
-T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst& dst,
+T_int Msa2RFInstrHelper(uint32_t opcode, T_src src,
+                        T_dst& dst,  // NOLINT(runtime/references)
                         Simulator* sim) {
   using T_uint = typename std::make_unsigned<T_int>::type;
   switch (opcode) {

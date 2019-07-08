@@ -18,8 +18,8 @@ namespace wasm {
 namespace {
 
 PRINTF_FORMAT(3, 0)
-void VPrintFToString(std::string& str, size_t str_offset, const char* format,
-                     va_list args) {
+void VPrintFToString(std::string& str,  // NOLINT(runtime/references)
+                     size_t str_offset, const char* format, va_list args) {
   DCHECK_LE(str_offset, str.size());
   size_t len = str_offset + strlen(format);
   // Allocate increasingly large buffers until the message fits.
@@ -39,8 +39,8 @@ void VPrintFToString(std::string& str, size_t str_offset, const char* format,
 }
 
 PRINTF_FORMAT(3, 4)
-void PrintFToString(std::string& str, size_t str_offset, const char* format,
-                    ...) {
+void PrintFToString(std::string& str,  // NOLINT(runtime/references)
+                    size_t str_offset, const char* format, ...) {
   va_list args;
   va_start(args, format);
   VPrintFToString(str, str_offset, format, args);

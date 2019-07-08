@@ -14,7 +14,7 @@ namespace torque {
 namespace ls {
 
 JsonValue ReadMessage();
-void WriteMessage(JsonValue& message);
+void WriteMessage(JsonValue& message);  // NOLINT(runtime/references)
 
 }  // namespace ls
 }  // namespace torque

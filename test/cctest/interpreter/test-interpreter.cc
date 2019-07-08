@@ -1485,19 +1485,18 @@ TEST(InterpreterCall) {
   }
 }
 
-static BytecodeArrayBuilder& SetRegister(BytecodeArrayBuilder& builder,
-                                         Register reg, int value,
-                                         Register scratch) {
+static BytecodeArrayBuilder& SetRegister(
+    BytecodeArrayBuilder& builder,  // NOLINT(runtime/references)
+    Register reg, int value, Register scratch) {
   return builder.StoreAccumulatorInRegister(scratch)
       .LoadLiteral(Smi::FromInt(value))
       .StoreAccumulatorInRegister(reg)
       .LoadAccumulatorWithRegister(scratch);
 }
 
-static BytecodeArrayBuilder& IncrementRegister(BytecodeArrayBuilder& builder,
-                                               Register reg, int value,
-                                               Register scratch,
-                                               int slot_index) {
+static BytecodeArrayBuilder& IncrementRegister(
+    BytecodeArrayBuilder& builder,  // NOLINT(runtime/references)
+    Register reg, int value, Register scratch, int slot_index) {
   return builder.StoreAccumulatorInRegister(scratch)
       .LoadLiteral(Smi::FromInt(value))
       .BinaryOperation(Token::Value::ADD, reg, slot_index)

@@ -241,8 +241,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // Build jump to targets[value], where
   // start_index <= value < start_index + size.
-  void BuildIndexedJump(Register value, size_t start_index, size_t size,
-                        ZoneVector<BytecodeLabel>& targets);
+  void BuildIndexedJump(
+      Register value, size_t start_index, size_t size,
+      ZoneVector<BytecodeLabel>& targets);  // NOLINT(runtime/references)
 
   void BuildNewLocalActivationContext();
   void BuildLocalActivationContextInitialization();

@@ -391,7 +391,8 @@ base::Optional<ParseResult> MakeImplicitParameterList(
   return ParseResult{ImplicitParameters{kind, parameters}};
 }
 
-void AddParameter(ParameterList* parameter_list, NameAndTypeExpression& param) {
+void AddParameter(ParameterList* parameter_list,
+                  NameAndTypeExpression& param) {  // NOLINT(runtime/references)
   if (!IsLowerCamelCase(param.name->value)) {
     NamingConventionError("Parameter", param.name, "lowerCamelCase");
   }

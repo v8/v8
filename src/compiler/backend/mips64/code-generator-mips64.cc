@@ -278,8 +278,9 @@ Condition FlagsConditionToConditionOvf(FlagsCondition condition) {
   UNREACHABLE();
 }
 
-FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
-                                             FlagsCondition condition) {
+FPUCondition FlagsConditionToConditionCmpFPU(
+    bool& predicate,  // NOLINT(runtime/references)
+    FlagsCondition condition) {
   switch (condition) {
     case kEqual:
       predicate = true;
@@ -310,9 +311,9 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
   UNREACHABLE();
 }
 
-void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
-                                   InstructionCode opcode, Instruction* instr,
-                                   MipsOperandConverter& i) {
+void EmitWordLoadPoisoningIfNeeded(
+    CodeGenerator* codegen, InstructionCode opcode, Instruction* instr,
+    MipsOperandConverter& i) {  // NOLINT(runtime/references)
   const MemoryAccessMode access_mode =
       static_cast<MemoryAccessMode>(MiscField::decode(opcode));
   if (access_mode == kMemoryAccessPoisoned) {

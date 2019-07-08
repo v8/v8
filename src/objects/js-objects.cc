@@ -1093,7 +1093,8 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
 
 Maybe<bool> DefinePropertyWithInterceptorInternal(
     LookupIterator* it, Handle<InterceptorInfo> interceptor,
-    Maybe<ShouldThrow> should_throw, PropertyDescriptor& desc) {
+    Maybe<ShouldThrow> should_throw,
+    PropertyDescriptor& desc) {  // NOLINT(runtime/references)
   Isolate* isolate = it->isolate();
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.

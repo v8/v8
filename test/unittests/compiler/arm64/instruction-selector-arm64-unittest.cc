@@ -41,8 +41,9 @@ std::ostream& operator<<(std::ostream& os, const Shift& shift) {
 
 // Helper to build Int32Constant or Int64Constant depending on the given
 // machine type.
-Node* BuildConstant(InstructionSelectorTest::StreamBuilder& m, MachineType type,
-                    int64_t value) {
+Node* BuildConstant(
+    InstructionSelectorTest::StreamBuilder& m,  // NOLINT(runtime/references)
+    MachineType type, int64_t value) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return m.Int32Constant(static_cast<int32_t>(value));
@@ -57,7 +58,6 @@ Node* BuildConstant(InstructionSelectorTest::StreamBuilder& m, MachineType type,
   }
   return NULL;
 }
-
 
 // ARM64 logical instructions.
 const MachInst2 kLogicalInstructions[] = {
@@ -4603,9 +4603,11 @@ namespace {
 // Builds a call with the specified signature and nodes as arguments.
 // Then checks that the correct number of kArm64Poke and kArm64PokePair were
 // generated.
-void TestPokePair(InstructionSelectorTest::StreamBuilder& m, Zone* zone,
-                  MachineSignature::Builder& builder, Node* nodes[],
-                  int num_nodes, int expected_poke_pair, int expected_poke) {
+void TestPokePair(
+    InstructionSelectorTest::StreamBuilder& m,  // NOLINT(runtime/references)
+    Zone* zone,
+    MachineSignature::Builder& builder,  // NOLINT(runtime/references)
+    Node* nodes[], int num_nodes, int expected_poke_pair, int expected_poke) {
   auto call_descriptor =
       InstructionSelectorTest::StreamBuilder::MakeSimpleCallDescriptor(
           zone, builder.Build());

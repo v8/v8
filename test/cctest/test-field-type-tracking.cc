@@ -1436,7 +1436,8 @@ struct CheckNormalize {
 //
 template <typename TestConfig, typename Checker>
 static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
-    TestConfig& config, Checker& checker) {
+    TestConfig& config,  // NOLINT(runtime/references)
+    Checker& checker) {  // NOLINT(runtime/references)
   Isolate* isolate = CcTest::i_isolate();
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -1513,7 +1514,6 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
   checker.Check(isolate, map1, new_map, expectations1);
 }
 
-
 TEST(ReconfigureDataFieldAttribute_SameDataConstantAfterTargetMap) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1526,14 +1526,18 @@ TEST(ReconfigureDataFieldAttribute_SameDataConstantAfterTargetMap) {
       js_func_ = factory->NewFunctionForTest(factory->empty_string());
     }
 
-    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations& expectations,
-                                    Handle<Map> map) {
+    Handle<Map> AddPropertyAtBranch(
+        int branch_id,
+        Expectations& expectations,  // NOLINT(runtime/references)
+        Handle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       // Add the same data constant property at both transition tree branches.
       return expectations.AddDataConstant(map, NONE, js_func_);
     }
 
-    void UpdateExpectations(int property_index, Expectations& expectations) {
+    void UpdateExpectations(
+        int property_index,
+        Expectations& expectations) {  // NOLINT(runtime/references)
       // Expectations stay the same.
     }
   };
@@ -1571,14 +1575,18 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
           factory->NewFunction(sloppy_map, info, isolate->native_context());
     }
 
-    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations& expectations,
-                                    Handle<Map> map) {
+    Handle<Map> AddPropertyAtBranch(
+        int branch_id,
+        Expectations& expectations,  // NOLINT(runtime/references)
+        Handle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       Handle<JSFunction> js_func = branch_id == 1 ? js_func1_ : js_func2_;
       return expectations.AddDataConstant(map, NONE, js_func);
     }
 
-    void UpdateExpectations(int property_index, Expectations& expectations) {
+    void UpdateExpectations(
+        int property_index,
+        Expectations& expectations) {  // NOLINT(runtime/references)
       expectations.SetDataField(property_index, PropertyConstness::kConst,
                                 Representation::HeapObject(), function_type_);
     }
@@ -1604,8 +1612,10 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToAccConstantAfterTargetMap) {
       pair_ = CreateAccessorPair(true, true);
     }
 
-    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations& expectations,
-                                    Handle<Map> map) {
+    Handle<Map> AddPropertyAtBranch(
+        int branch_id,
+        Expectations& expectations,  // NOLINT(runtime/references)
+        Handle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       if (branch_id == 1) {
         return expectations.AddDataConstant(map, NONE, js_func_);
@@ -1614,7 +1624,10 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToAccConstantAfterTargetMap) {
       }
     }
 
-    void UpdateExpectations(int property_index, Expectations& expectations) {}
+    void UpdateExpectations(
+        int property_index,
+        Expectations& expectations  // NOLINT(runtime/references)
+    ) {}
   };
 
   TestConfig config;
@@ -1632,15 +1645,19 @@ TEST(ReconfigureDataFieldAttribute_SameAccessorConstantAfterTargetMap) {
     Handle<AccessorPair> pair_;
     TestConfig() { pair_ = CreateAccessorPair(true, true); }
 
-    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations& expectations,
-                                    Handle<Map> map) {
+    Handle<Map> AddPropertyAtBranch(
+        int branch_id,
+        Expectations& expectations,  // NOLINT(runtime/references)
+        Handle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       // Add the same accessor constant property at both transition tree
       // branches.
       return expectations.AddAccessorConstant(map, NONE, pair_);
     }
 
-    void UpdateExpectations(int property_index, Expectations& expectations) {
+    void UpdateExpectations(
+        int property_index,
+        Expectations& expectations) {  // NOLINT(runtime/references)
       // Two branches are "compatible" so the |map1| should NOT be deprecated.
     }
   };
@@ -1663,14 +1680,18 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToAccFieldAfterTargetMap) {
       pair2_ = CreateAccessorPair(true, true);
     }
 
-    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations& expectations,
-                                    Handle<Map> map) {
+    Handle<Map> AddPropertyAtBranch(
+        int branch_id,
+        Expectations& expectations,  // NOLINT(runtime/references)
+        Handle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       Handle<AccessorPair> pair = branch_id == 1 ? pair1_ : pair2_;
       return expectations.AddAccessorConstant(map, NONE, pair);
     }
 
-    void UpdateExpectations(int property_index, Expectations& expectations) {
+    void UpdateExpectations(
+        int property_index,
+        Expectations& expectations) {  // NOLINT(runtime/references)
       if (IS_ACCESSOR_FIELD_SUPPORTED) {
         expectations.SetAccessorField(property_index);
       } else {
@@ -1701,8 +1722,10 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToDataFieldAfterTargetMap) {
     Handle<AccessorPair> pair_;
     TestConfig() { pair_ = CreateAccessorPair(true, true); }
 
-    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations& expectations,
-                                    Handle<Map> map) {
+    Handle<Map> AddPropertyAtBranch(
+        int branch_id,
+        Expectations& expectations,  // NOLINT(runtime/references)
+        Handle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       if (branch_id == 1) {
         return expectations.AddAccessorConstant(map, NONE, pair_);
@@ -1714,7 +1737,10 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToDataFieldAfterTargetMap) {
       }
     }
 
-    void UpdateExpectations(int property_index, Expectations& expectations) {}
+    void UpdateExpectations(
+        int property_index,
+        Expectations& expectations  // NOLINT(runtime/references)
+    ) {}
   };
 
   TestConfig config;
@@ -2115,8 +2141,9 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
 // fixed.
 template <typename TestConfig>
 static void TestGeneralizeFieldWithSpecialTransition(
-    TestConfig& config, const CRFTData& from, const CRFTData& to,
-    const CRFTData& expected, bool expected_deprecation) {
+    TestConfig& config,  // NOLINT(runtime/references)
+    const CRFTData& from, const CRFTData& to, const CRFTData& expected,
+    bool expected_deprecation) {
   Isolate* isolate = CcTest::i_isolate();
 
   Expectations expectations(isolate);
@@ -2357,7 +2384,9 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
       prototype_ = factory->NewJSObjectFromMap(Map::Create(isolate, 0));
     }
 
-    Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
+    Handle<Map> Transition(
+        Handle<Map> map,
+        Expectations& expectations) {  // NOLINT(runtime/references)
       return Map::TransitionToPrototype(CcTest::i_isolate(), map, prototype_);
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
@@ -2397,7 +2426,9 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
       prototype_ = factory->NewJSObjectFromMap(Map::Create(isolate, 0));
     }
 
-    Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
+    Handle<Map> Transition(
+        Handle<Map> map,
+        Expectations& expectations) {  // NOLINT(runtime/references)
       Isolate* isolate = CcTest::i_isolate();
       Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -2453,7 +2484,9 @@ struct TransitionToDataFieldOperator {
         heap_type_(heap_type),
         value_(value) {}
 
-  Handle<Map> DoTransition(Expectations& expectations, Handle<Map> map) {
+  Handle<Map> DoTransition(
+      Expectations& expectations,  // NOLINT(runtime/references)
+      Handle<Map> map) {
     return expectations.TransitionToDataField(
         map, attributes_, constness_, representation_, heap_type_, value_);
   }
@@ -2503,8 +2536,10 @@ struct ReconfigureAsDataPropertyOperator {
         attributes_(attributes),
         heap_type_(heap_type) {}
 
-  Handle<Map> DoTransition(Isolate* isolate, Expectations& expectations,
-                           Handle<Map> map) {
+  Handle<Map> DoTransition(
+      Isolate* isolate,
+      Expectations& expectations,  // NOLINT(runtime/references)
+      Handle<Map> map) {
     expectations.SetDataField(descriptor_, PropertyConstness::kMutable,
                               representation_, heap_type_);
     return Map::ReconfigureExistingProperty(isolate, map, descriptor_, kData,
@@ -2549,8 +2584,9 @@ struct FieldGeneralizationChecker {
         attributes_(attributes),
         heap_type_(heap_type) {}
 
-  void Check(Isolate* isolate, Expectations& expectations2, Handle<Map> map1,
-             Handle<Map> map2) {
+  void Check(Isolate* isolate,
+             Expectations& expectations2,  // NOLINT(runtime/references)
+             Handle<Map> map1, Handle<Map> map2) {
     CHECK(!map2->is_deprecated());
 
     CHECK(map1->is_deprecated());
@@ -2568,8 +2604,9 @@ struct FieldGeneralizationChecker {
 
 // Checks that existing transition was taken as is.
 struct SameMapChecker {
-  void Check(Isolate* isolate, Expectations& expectations, Handle<Map> map1,
-             Handle<Map> map2) {
+  void Check(Isolate* isolate,
+             Expectations& expectations,  // NOLINT(runtime/references)
+             Handle<Map> map1, Handle<Map> map2) {
     CHECK(!map2->is_deprecated());
     CHECK_EQ(*map1, *map2);
     CHECK(expectations.Check(*map2));
@@ -2580,7 +2617,8 @@ struct SameMapChecker {
 // Checks that both |map1| and |map2| should stays non-deprecated, this is
 // the case when property kind is change.
 struct PropertyKindReconfigurationChecker {
-  void Check(Expectations& expectations, Handle<Map> map1, Handle<Map> map2) {
+  void Check(Expectations& expectations,  // NOLINT(runtime/references)
+             Handle<Map> map1, Handle<Map> map2) {
     CHECK(!map1->is_deprecated());
     CHECK(!map2->is_deprecated());
     CHECK_NE(*map1, *map2);
@@ -2605,8 +2643,10 @@ struct PropertyKindReconfigurationChecker {
 // where "p4A" and "p4B" differ only in the attributes.
 //
 template <typename TransitionOp1, typename TransitionOp2, typename Checker>
-static void TestTransitionTo(TransitionOp1& transition_op1,
-                             TransitionOp2& transition_op2, Checker& checker) {
+static void TestTransitionTo(
+    TransitionOp1& transition_op1,  // NOLINT(runtime/references)
+    TransitionOp2& transition_op2,  // NOLINT(runtime/references)
+    Checker& checker) {             // NOLINT(runtime/references)
   Isolate* isolate = CcTest::i_isolate();
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -2631,7 +2671,6 @@ static void TestTransitionTo(TransitionOp1& transition_op1,
   // Let the test customization do the check.
   checker.Check(isolate, expectations2, map1, map2);
 }
-
 
 TEST(TransitionDataFieldToDataField) {
   CcTest::InitializeVM();

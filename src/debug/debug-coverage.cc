@@ -68,7 +68,8 @@ bool CompareCoverageBlock(const CoverageBlock& a, const CoverageBlock& b) {
   return a.start < b.start;
 }
 
-void SortBlockData(std::vector<CoverageBlock>& v) {
+void SortBlockData(
+    std::vector<CoverageBlock>& v) {  // NOLINT(runtime/references)
   // Sort according to the block nesting structure.
   std::sort(v.begin(), v.end(), CompareCoverageBlock);
 }

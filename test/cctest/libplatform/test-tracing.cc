@@ -242,9 +242,10 @@ TEST(TestTracingController) {
   i::V8::SetPlatformForTesting(old_platform);
 }
 
-void GetJSONStrings(std::vector<std::string>& ret, std::string str,
-                    std::string param, std::string start_delim,
-                    std::string end_delim) {
+void GetJSONStrings(
+    std::vector<std::string>& ret,  // NOLINT(runtime/references)
+    std::string str, std::string param, std::string start_delim,
+    std::string end_delim) {
   size_t pos = str.find(param);
   while (pos != std::string::npos) {
     size_t start_pos = str.find(start_delim, pos + param.length());

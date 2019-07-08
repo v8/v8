@@ -92,7 +92,7 @@ class V8_EXPORT_PRIVATE StateValuesAccess {
   class V8_EXPORT_PRIVATE iterator {
    public:
     // Bare minimum of operators needed for range iteration.
-    bool operator!=(iterator& other);
+    bool operator!=(iterator& other);  // NOLINT(runtime/references)
     iterator& operator++();
     TypedNode operator*();
 

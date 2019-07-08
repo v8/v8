@@ -439,7 +439,9 @@ TEST_F(WasmModuleVerifyTest, ExportMutableGlobal) {
   }
 }
 
-static void AppendUint32v(std::vector<byte>& buffer, uint32_t val) {
+static void AppendUint32v(
+    std::vector<byte>& buffer,  // NOLINT(runtime/references)
+    uint32_t val) {
   while (true) {
     uint32_t next = val >> 7;
     uint32_t out = val & 0x7F;

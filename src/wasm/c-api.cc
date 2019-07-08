@@ -45,7 +45,7 @@ namespace bin {
 ////////////////////////////////////////////////////////////////////////////////
 // Encoding
 
-void encode_header(char*& ptr) {
+void encode_header(char*& ptr) {  // NOLINT(runtime/references)
   std::memcpy(ptr,
               "\x00"
               "asm\x01\x00\x00\x00",
@@ -53,7 +53,8 @@ void encode_header(char*& ptr) {
   ptr += 8;
 }
 
-void encode_size32(char*& ptr, size_t n) {
+void encode_size32(char*& ptr,  // NOLINT(runtime/references)
+                   size_t n) {
   assert(n <= 0xffffffff);
   for (int i = 0; i < 5; ++i) {
     *ptr++ = (n & 0x7f) | (i == 4 ? 0x00 : 0x80);
@@ -61,7 +62,8 @@ void encode_size32(char*& ptr, size_t n) {
   }
 }
 
-void encode_valtype(char*& ptr, const ValType* type) {
+void encode_valtype(char*& ptr,  // NOLINT(runtime/references)
+                    const ValType* type) {
   switch (type->kind()) {
     case I32:
       *ptr++ = 0x7f;
@@ -105,7 +107,8 @@ auto zero_size(const ValType* type) -> size_t {
   }
 }
 
-void encode_const_zero(char*& ptr, const ValType* type) {
+void encode_const_zero(char*& ptr,  // NOLINT(runtime/references)
+                       const ValType* type) {
   switch (type->kind()) {
     case I32:
       *ptr++ = 0x41;
@@ -171,7 +174,7 @@ auto wrapper(const FuncType* type) -> vec<byte_t> {
 
 // Numbers
 
-auto u32(const byte_t*& pos) -> uint32_t {
+auto u32(const byte_t*& pos) -> uint32_t {  // NOLINT(runtime/references)
   uint32_t n = 0;
   uint32_t shift = 0;
   byte_t b;
@@ -183,7 +186,7 @@ auto u32(const byte_t*& pos) -> uint32_t {
   return n;
 }
 
-auto u64(const byte_t*& pos) -> uint64_t {
+auto u64(const byte_t*& pos) -> uint64_t {  // NOLINT(runtime/references)
   uint64_t n = 0;
   uint64_t shift = 0;
   byte_t b;
@@ -195,11 +198,13 @@ auto u64(const byte_t*& pos) -> uint64_t {
   return n;
 }
 
-void u32_skip(const byte_t*& pos) { bin::u32(pos); }
+void u32_skip(const byte_t*& pos) {  // NOLINT(runtime/references)
+  bin::u32(pos);
+}
 
 // Names
 
-auto name(const byte_t*& pos) -> Name {
+auto name(const byte_t*& pos) -> Name {  // NOLINT(runtime/references)
   auto size = bin::u32(pos);
   auto start = pos;
   auto name = Name::make_uninitialized(size);
@@ -210,7 +215,8 @@ auto name(const byte_t*& pos) -> Name {
 
 // Types
 
-auto valtype(const byte_t*& pos) -> own<wasm::ValType*> {
+auto valtype(const byte_t*& pos)  // NOLINT(runtime/references)
+    -> own<wasm::ValType*> {
   switch (*pos++) {
     case i::wasm::kLocalI32:
       return ValType::make(I32);
@@ -231,11 +237,12 @@ auto valtype(const byte_t*& pos) -> own<wasm::ValType*> {
   return {};
 }
 
-auto mutability(const byte_t*& pos) -> Mutability {
+auto mutability(const byte_t*& pos)  // NOLINT(runtime/references)
+    -> Mutability {
   return *pos++ ? VAR : CONST;
 }
 
-auto limits(const byte_t*& pos) -> Limits {
+auto limits(const byte_t*& pos) -> Limits {  // NOLINT(runtime/references)
   auto tag = *pos++;
   auto min = bin::u32(pos);
   if ((tag & 0x01) == 0) {
@@ -246,14 +253,16 @@ auto limits(const byte_t*& pos) -> Limits {
   }
 }
 
-auto stacktype(const byte_t*& pos) -> vec<ValType*> {
+auto stacktype(const byte_t*& pos)  // NOLINT(runtime/references)
+    -> vec<ValType*> {
   size_t size = bin::u32(pos);
   auto v = vec<ValType*>::make_uninitialized(size);
   for (uint32_t i = 0; i < size; ++i) v[i] = bin::valtype(pos);
   return v;
 }
 
-auto functype(const byte_t*& pos) -> own<FuncType*> {
+auto functype(const byte_t*& pos)  // NOLINT(runtime/references)
+    -> own<FuncType*> {
   assert(*pos == i::wasm::kWasmFunctionTypeCode);
   ++pos;
   auto params = bin::stacktype(pos);
@@ -261,26 +270,29 @@ auto functype(const byte_t*& pos) -> own<FuncType*> {
   return FuncType::make(std::move(params), std::move(results));
 }
 
-auto globaltype(const byte_t*& pos) -> own<GlobalType*> {
+auto globaltype(const byte_t*& pos)  // NOLINT(runtime/references)
+    -> own<GlobalType*> {
   auto content = bin::valtype(pos);
   auto mutability = bin::mutability(pos);
   return GlobalType::make(std::move(content), mutability);
 }
 
-auto tabletype(const byte_t*& pos) -> own<TableType*> {
+auto tabletype(const byte_t*& pos)  // NOLINT(runtime/references)
+    -> own<TableType*> {
   auto elem = bin::valtype(pos);
   auto limits = bin::limits(pos);
   return TableType::make(std::move(elem), limits);
 }
 
-auto memorytype(const byte_t*& pos) -> own<MemoryType*> {
+auto memorytype(const byte_t*& pos)  // NOLINT(runtime/references)
+    -> own<MemoryType*> {
   auto limits = bin::limits(pos);
   return MemoryType::make(limits);
 }
 
 // Expressions
 
-void expr_skip(const byte_t*& pos) {
+void expr_skip(const byte_t*& pos) {  // NOLINT(runtime/references)
   switch (*pos++) {
     case i::wasm::kExprI32Const:
     case i::wasm::kExprI64Const:
@@ -842,7 +854,8 @@ struct FuncTypeImpl : ExternTypeImpl {
   vec<ValType*> params;
   vec<ValType*> results;
 
-  FuncTypeImpl(vec<ValType*>& params, vec<ValType*>& results)
+  FuncTypeImpl(vec<ValType*>& params,   // NOLINT(runtime/references)
+               vec<ValType*>& results)  // NOLINT(runtime/references)
       : ExternTypeImpl(EXTERN_FUNC),
         params(std::move(params)),
         results(std::move(results)) {}
@@ -895,7 +908,8 @@ struct GlobalTypeImpl : ExternTypeImpl {
   own<ValType*> content;
   Mutability mutability;
 
-  GlobalTypeImpl(own<ValType*>& content, Mutability mutability)
+  GlobalTypeImpl(own<ValType*>& content,  // NOLINT(runtime/references)
+                 Mutability mutability)
       : ExternTypeImpl(EXTERN_GLOBAL),
         content(std::move(content)),
         mutability(mutability) {}
@@ -947,7 +961,8 @@ struct TableTypeImpl : ExternTypeImpl {
   own<ValType*> element;
   Limits limits;
 
-  TableTypeImpl(own<ValType*>& element, Limits limits)
+  TableTypeImpl(own<ValType*>& element,  // NOLINT(runtime/references)
+                Limits limits)
       : ExternTypeImpl(EXTERN_TABLE),
         element(std::move(element)),
         limits(limits) {}
@@ -1039,7 +1054,9 @@ struct ImportTypeImpl {
   Name name;
   own<ExternType*> type;
 
-  ImportTypeImpl(Name& module, Name& name, own<ExternType*>& type)
+  ImportTypeImpl(Name& module,            // NOLINT(runtime/references)
+                 Name& name,              // NOLINT(runtime/references)
+                 own<ExternType*>& type)  // NOLINT(runtime/references)
       : module(std::move(module)),
         name(std::move(name)),
         type(std::move(type)) {}
@@ -1082,7 +1099,8 @@ struct ExportTypeImpl {
   Name name;
   own<ExternType*> type;
 
-  ExportTypeImpl(Name& name, own<ExternType*>& type)
+  ExportTypeImpl(Name& name,              // NOLINT(runtime/references)
+                 own<ExternType*>& type)  // NOLINT(runtime/references)
       : name(std::move(name)), type(std::move(type)) {}
 
   ~ExportTypeImpl() {}

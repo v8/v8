@@ -199,7 +199,7 @@ struct While {
   }
 
   void chain(Node* control) { loop->ReplaceInput(0, control); }
-  void nest(While& that) {
+  void nest(While& that) {  // NOLINT(runtime/references)
     that.loop->ReplaceInput(1, exit);
     this->loop->ReplaceInput(0, that.if_true);
   }
@@ -212,7 +212,8 @@ struct Counter {
   Node* phi;
   Node* add;
 
-  Counter(While& w, int32_t b, int32_t k)
+  Counter(While& w,  // NOLINT(runtime/references)
+          int32_t b, int32_t k)
       : base(w.t.jsgraph.Int32Constant(b)), inc(w.t.jsgraph.Int32Constant(k)) {
     Build(w);
   }
@@ -233,7 +234,7 @@ struct StoreLoop {
   Node* phi;
   Node* store;
 
-  explicit StoreLoop(While& w)
+  explicit StoreLoop(While& w)  // NOLINT(runtime/references)
       : base(w.t.graph.start()), val(w.t.jsgraph.Int32Constant(13)) {
     Build(w);
   }

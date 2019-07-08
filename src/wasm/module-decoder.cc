@@ -131,8 +131,8 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
 
 // Reads a length-prefixed string, checking that it is within bounds. Returns
 // the offset of the string, and the length as an out parameter.
-WireBytesRef consume_string(Decoder& decoder, bool validate_utf8,
-                            const char* name) {
+WireBytesRef consume_string(Decoder& decoder,  // NOLINT(runtime/references)
+                            bool validate_utf8, const char* name) {
   uint32_t length = decoder.consume_u32v("string length");
   uint32_t offset = decoder.pc_offset();
   const byte* string_start = decoder.pc();
@@ -151,7 +151,7 @@ WireBytesRef consume_string(Decoder& decoder, bool validate_utf8,
 // Automatically skips all unknown sections.
 class WasmSectionIterator {
  public:
-  explicit WasmSectionIterator(Decoder& decoder)
+  explicit WasmSectionIterator(Decoder& decoder)  // NOLINT(runtime/references)
       : decoder_(decoder),
         section_code_(kUnknownSectionCode),
         section_start_(decoder.pc()),
@@ -1389,7 +1389,9 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   template <typename T>
-  uint32_t consume_index(const char* name, std::vector<T>& vector, T** ptr) {
+  uint32_t consume_index(const char* name,
+                         std::vector<T>& vector,  // NOLINT(runtime/references)
+                         T** ptr) {
     const byte* pos = pc_;
     uint32_t index = consume_u32v(name);
     if (index >= vector.size()) {
@@ -1985,7 +1987,7 @@ std::vector<CustomSectionOffset> DecodeCustomSections(const byte* start,
 
 namespace {
 
-bool FindNameSection(Decoder& decoder) {
+bool FindNameSection(Decoder& decoder) {  // NOLINT(runtime/references)
   static constexpr int kModuleHeaderSize = 8;
   decoder.consume_bytes(kModuleHeaderSize, "module header");
 

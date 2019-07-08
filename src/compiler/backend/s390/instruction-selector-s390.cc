@@ -447,11 +447,13 @@ void VisitTryTruncateDouble(InstructionSelector* selector, ArchOpcode opcode,
 #endif
 
 template <class CanCombineWithLoad>
-void GenerateRightOperands(InstructionSelector* selector, Node* node,
-                           Node* right, InstructionCode& opcode,
-                           OperandModes& operand_mode,
-                           InstructionOperand* inputs, size_t& input_count,
-                           CanCombineWithLoad canCombineWithLoad) {
+void GenerateRightOperands(
+    InstructionSelector* selector, Node* node, Node* right,
+    InstructionCode& opcode,     // NOLINT(runtime/references)
+    OperandModes& operand_mode,  // NOLINT(runtime/references)
+    InstructionOperand* inputs,
+    size_t& input_count,  // NOLINT(runtime/references)
+    CanCombineWithLoad canCombineWithLoad) {
   S390OperandGenerator g(selector);
 
   if ((operand_mode & OperandMode::kAllowImmediate) &&
@@ -491,11 +493,13 @@ void GenerateRightOperands(InstructionSelector* selector, Node* node,
 }
 
 template <class CanCombineWithLoad>
-void GenerateBinOpOperands(InstructionSelector* selector, Node* node,
-                           Node* left, Node* right, InstructionCode& opcode,
-                           OperandModes& operand_mode,
-                           InstructionOperand* inputs, size_t& input_count,
-                           CanCombineWithLoad canCombineWithLoad) {
+void GenerateBinOpOperands(
+    InstructionSelector* selector, Node* node, Node* left, Node* right,
+    InstructionCode& opcode,     // NOLINT(runtime/references)
+    OperandModes& operand_mode,  // NOLINT(runtime/references)
+    InstructionOperand* inputs,
+    size_t& input_count,  // NOLINT(runtime/references)
+    CanCombineWithLoad canCombineWithLoad) {
   S390OperandGenerator g(selector);
   // left is always register
   InstructionOperand const left_input = g.UseRegister(left);

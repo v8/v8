@@ -1094,8 +1094,9 @@ void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
 
 namespace liftoff {
 
-inline FPUCondition ConditionToConditionCmpFPU(bool& predicate,
-                                               Condition condition) {
+inline FPUCondition ConditionToConditionCmpFPU(
+    bool& predicate,  // NOLINT(runtime/references)
+    Condition condition) {
   switch (condition) {
     case kEqual:
       predicate = true;

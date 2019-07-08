@@ -138,8 +138,9 @@ class ConstantPoolBuilder {
   inline Label* EmittedPosition() { return &emitted_label_; }
 
  private:
-  ConstantPoolEntry::Access AddEntry(ConstantPoolEntry& entry,
-                                     ConstantPoolEntry::Type type);
+  ConstantPoolEntry::Access AddEntry(
+      ConstantPoolEntry& entry,  // NOLINT(runtime/references)
+      ConstantPoolEntry::Type type);
   void EmitSharedEntries(Assembler* assm, ConstantPoolEntry::Type type);
   void EmitGroup(Assembler* assm, ConstantPoolEntry::Access access,
                  ConstantPoolEntry::Type type);

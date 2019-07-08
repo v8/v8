@@ -370,8 +370,9 @@ class SerializerForBackgroundCompilation {
                           bool with_spread = false);
   void ProcessApiCall(Handle<SharedFunctionInfo> target,
                       const HintsVector& arguments);
-  void ProcessReceiverMapForApiCall(FunctionTemplateInfoRef& target,
-                                    Handle<Map> receiver);
+  void ProcessReceiverMapForApiCall(
+      FunctionTemplateInfoRef& target,  // NOLINT(runtime/references)
+      Handle<Map> receiver);
   void ProcessBuiltinCall(Handle<SharedFunctionInfo> target,
                           const HintsVector& arguments);
 
@@ -405,8 +406,8 @@ class SerializerForBackgroundCompilation {
 
   void ProcessContextAccess(const Hints& context_hints, int slot, int depth,
                             ContextProcessingMode mode);
-  void ProcessImmutableLoad(ContextRef& context, int slot,
-                            ContextProcessingMode mode);
+  void ProcessImmutableLoad(ContextRef& context,  // NOLINT(runtime/references)
+                            int slot, ContextProcessingMode mode);
   void ProcessLdaLookupGlobalSlot(interpreter::BytecodeArrayIterator* iterator);
   void ProcessLdaLookupContextSlot(
       interpreter::BytecodeArrayIterator* iterator);

@@ -12,7 +12,7 @@ namespace internal {
 
 class StressScavengeObserver : public AllocationObserver {
  public:
-  explicit StressScavengeObserver(Heap& heap);
+  explicit StressScavengeObserver(Heap& heap);  // NOLINT(runtime/references)
 
   void Step(int bytes_allocated, Address soon_object, size_t size) override;
 

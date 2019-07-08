@@ -85,7 +85,8 @@ MachineType RandomType(InputProvider* input) {
 
 int index(MachineType type) { return static_cast<int>(type.representation()); }
 
-Node* Constant(RawMachineAssembler& m, MachineType type, int value) {
+Node* Constant(RawMachineAssembler& m,  // NOLINT(runtime/references)
+               MachineType type, int value) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return m.Int32Constant(static_cast<int32_t>(value));
@@ -100,7 +101,8 @@ Node* Constant(RawMachineAssembler& m, MachineType type, int value) {
   }
 }
 
-Node* ToInt32(RawMachineAssembler& m, MachineType type, Node* a) {
+Node* ToInt32(RawMachineAssembler& m,  // NOLINT(runtime/references)
+              MachineType type, Node* a) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return a;

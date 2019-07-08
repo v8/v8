@@ -144,7 +144,9 @@ class ModuleDecoder {
   // If a SectionCode other than kUnknownSectionCode is returned, the decoder
   // will point right after the identifier string. Otherwise, the position is
   // undefined.
-  static SectionCode IdentifyUnknownSection(Decoder& decoder, const byte* end);
+  static SectionCode IdentifyUnknownSection(
+      Decoder& decoder,  // NOLINT(runtime/references)
+      const byte* end);
 
  private:
   const WasmFeatures enabled_features_;

@@ -65,7 +65,6 @@ LINT_RULES = """
 -build/include_what_you_use
 -readability/fn_size
 -readability/multiline_comment
--runtime/references
 -whitespace/comments
 """.split()
 

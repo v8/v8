@@ -13,8 +13,9 @@ namespace wasm {
 namespace test_run_wasm_bulk_memory {
 
 namespace {
-void CheckMemoryEquals(TestingModuleBuilder& builder, size_t index,
-                       const std::vector<byte>& expected) {
+void CheckMemoryEquals(
+    TestingModuleBuilder& builder,  // NOLINT(runtime/references)
+    size_t index, const std::vector<byte>& expected) {
   const byte* mem_start = builder.raw_mem_start<byte>();
   const byte* mem_end = builder.raw_mem_end<byte>();
   size_t mem_size = mem_end - mem_start;
@@ -25,8 +26,9 @@ void CheckMemoryEquals(TestingModuleBuilder& builder, size_t index,
   }
 }
 
-void CheckMemoryEqualsZero(TestingModuleBuilder& builder, size_t index,
-                           size_t length) {
+void CheckMemoryEqualsZero(
+    TestingModuleBuilder& builder,  // NOLINT(runtime/references)
+    size_t index, size_t length) {
   const byte* mem_start = builder.raw_mem_start<byte>();
   const byte* mem_end = builder.raw_mem_end<byte>();
   size_t mem_size = mem_end - mem_start;
@@ -37,8 +39,9 @@ void CheckMemoryEqualsZero(TestingModuleBuilder& builder, size_t index,
   }
 }
 
-void CheckMemoryEqualsFollowedByZeroes(TestingModuleBuilder& builder,
-                                       const std::vector<byte>& expected) {
+void CheckMemoryEqualsFollowedByZeroes(
+    TestingModuleBuilder& builder,  // NOLINT(runtime/references)
+    const std::vector<byte>& expected) {
   CheckMemoryEquals(builder, 0, expected);
   CheckMemoryEqualsZero(builder, expected.size(),
                         builder.mem_size() - expected.size());
@@ -381,7 +384,8 @@ void CheckTable(Isolate* isolate, Handle<WasmTableObject> table, Args... args) {
 
 template <typename WasmRunner, typename... Args>
 void CheckTableCall(Isolate* isolate, Handle<WasmTableObject> table,
-                    WasmRunner& r, uint32_t function_index, Args... args) {
+                    WasmRunner& r,  // NOLINT(runtime/references)
+                    uint32_t function_index, Args... args) {
   uint32_t args_length = static_cast<uint32_t>(sizeof...(args));
   CHECK_EQ(table->current_length(), args_length);
   double expected[] = {args...};

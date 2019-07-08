@@ -2135,9 +2135,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> TruncateHeapNumberValueToWord32(TNode<HeapNumber> object);
 
   // Conversions.
-  void TryHeapNumberToSmi(TNode<HeapNumber> number, TVariable<Smi>& output,
+  void TryHeapNumberToSmi(TNode<HeapNumber> number,
+                          TVariable<Smi>& output,  // NOLINT(runtime/references)
                           Label* if_smi);
-  void TryFloat64ToSmi(TNode<Float64T> number, TVariable<Smi>& output,
+  void TryFloat64ToSmi(TNode<Float64T> number,
+                       TVariable<Smi>& output,  // NOLINT(runtime/references)
                        Label* if_smi);
   TNode<Number> ChangeFloat64ToTagged(SloppyTNode<Float64T> value);
   TNode<Number> ChangeInt32ToTagged(SloppyTNode<Int32T> value);

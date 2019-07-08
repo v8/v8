@@ -200,7 +200,7 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
 
   // Appends the hints for the given register range to {dst} (in order).
   void ExportRegisterHints(interpreter::Register first, size_t count,
-                           HintsVector& dst);
+                           HintsVector& dst);  // NOLINT(runtime/references)
 
  private:
   friend std::ostream& operator<<(std::ostream& out, const Environment& env);

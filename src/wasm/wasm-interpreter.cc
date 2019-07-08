@@ -1663,7 +1663,8 @@ class ThreadImpl {
   }
 
   template <typename ctype, typename mtype>
-  bool ExecuteLoad(Decoder* decoder, InterpreterCode* code, pc_t pc, int& len,
+  bool ExecuteLoad(Decoder* decoder, InterpreterCode* code, pc_t pc,
+                   int& len,  // NOLINT(runtime/references)
                    MachineRepresentation rep) {
     MemoryAccessImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc),
                                                     sizeof(ctype));
@@ -1690,7 +1691,8 @@ class ThreadImpl {
   }
 
   template <typename ctype, typename mtype>
-  bool ExecuteStore(Decoder* decoder, InterpreterCode* code, pc_t pc, int& len,
+  bool ExecuteStore(Decoder* decoder, InterpreterCode* code, pc_t pc,
+                    int& len,  // NOLINT(runtime/references)
                     MachineRepresentation rep) {
     MemoryAccessImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc),
                                                     sizeof(ctype));
@@ -1735,7 +1737,8 @@ class ThreadImpl {
 
   template <typename type, typename op_type>
   bool ExtractAtomicOpParams(Decoder* decoder, InterpreterCode* code,
-                             Address& address, pc_t pc, int& len,
+                             Address& address,   // NOLINT(runtime/references)
+                             pc_t pc, int& len,  // NOLINT(runtime/references)
                              type* val = nullptr, type* val2 = nullptr) {
     MemoryAccessImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc + 1),
                                                     sizeof(type));
@@ -1752,7 +1755,8 @@ class ThreadImpl {
   }
 
   bool ExecuteNumericOp(WasmOpcode opcode, Decoder* decoder,
-                        InterpreterCode* code, pc_t pc, int& len) {
+                        InterpreterCode* code, pc_t pc,
+                        int& len) {  // NOLINT(runtime/references)
     switch (opcode) {
       case kExprI32SConvertSatF32:
         Push(WasmValue(ExecuteConvertSaturate<int32_t>(Pop().to<float>())));
@@ -1916,7 +1920,8 @@ class ThreadImpl {
   }
 
   bool ExecuteAtomicOp(WasmOpcode opcode, Decoder* decoder,
-                       InterpreterCode* code, pc_t pc, int& len) {
+                       InterpreterCode* code, pc_t pc,
+                       int& len) {  // NOLINT(runtime/references)
 #if V8_TARGET_BIG_ENDIAN
     constexpr bool kBigEndian = true;
 #else
@@ -2123,7 +2128,7 @@ class ThreadImpl {
   }
 
   bool ExecuteSimdOp(WasmOpcode opcode, Decoder* decoder, InterpreterCode* code,
-                     pc_t pc, int& len) {
+                     pc_t pc, int& len) {  // NOLINT(runtime/references)
     switch (opcode) {
 #define SPLAT_CASE(format, sType, valType, num) \
   case kExpr##format##Splat: {                  \

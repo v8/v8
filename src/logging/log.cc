@@ -1123,10 +1123,10 @@ void Logger::SetterCallbackEvent(Name name, Address entry_point) {
 
 namespace {
 
-void AppendCodeCreateHeader(Log::MessageBuilder& msg,
-                            CodeEventListener::LogEventsAndTags tag,
-                            AbstractCode::Kind kind, uint8_t* address, int size,
-                            base::ElapsedTimer* timer) {
+void AppendCodeCreateHeader(
+    Log::MessageBuilder& msg,  // NOLINT(runtime/references)
+    CodeEventListener::LogEventsAndTags tag, AbstractCode::Kind kind,
+    uint8_t* address, int size, base::ElapsedTimer* timer) {
   msg << kLogEventsNames[CodeEventListener::CODE_CREATION_EVENT]
       << Logger::kNext << kLogEventsNames[tag] << Logger::kNext << kind
       << Logger::kNext << timer->Elapsed().InMicroseconds() << Logger::kNext
@@ -1134,9 +1134,10 @@ void AppendCodeCreateHeader(Log::MessageBuilder& msg,
       << Logger::kNext;
 }
 
-void AppendCodeCreateHeader(Log::MessageBuilder& msg,
-                            CodeEventListener::LogEventsAndTags tag,
-                            AbstractCode code, base::ElapsedTimer* timer) {
+void AppendCodeCreateHeader(
+    Log::MessageBuilder& msg,  // NOLINT(runtime/references)
+    CodeEventListener::LogEventsAndTags tag, AbstractCode code,
+    base::ElapsedTimer* timer) {
   AppendCodeCreateHeader(msg, tag, code.kind(),
                          reinterpret_cast<uint8_t*>(code.InstructionStart()),
                          code.InstructionSize(), timer);
@@ -1336,8 +1337,9 @@ void Logger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
 
 namespace {
 
-void CodeLinePosEvent(JitLogger* jit_logger, Address code_start,
-                      SourcePositionTableIterator& iter) {
+void CodeLinePosEvent(
+    JitLogger* jit_logger, Address code_start,
+    SourcePositionTableIterator& iter) {  // NOLINT(runtime/references)
   if (jit_logger) {
     void* jit_handler_data = jit_logger->StartCodePosInfoEvent();
     for (; !iter.done(); iter.Advance()) {
@@ -1415,9 +1417,10 @@ void Logger::SuspectReadEvent(Name name, Object obj) {
 }
 
 namespace {
-void AppendFunctionMessage(Log::MessageBuilder& msg, const char* reason,
-                           int script_id, double time_delta, int start_position,
-                           int end_position, base::ElapsedTimer* timer) {
+void AppendFunctionMessage(
+    Log::MessageBuilder& msg,  // NOLINT(runtime/references)
+    const char* reason, int script_id, double time_delta, int start_position,
+    int end_position, base::ElapsedTimer* timer) {
   msg << "function" << Logger::kNext << reason << Logger::kNext << script_id
       << Logger::kNext << start_position << Logger::kNext << end_position
       << Logger::kNext << time_delta << Logger::kNext

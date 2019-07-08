@@ -29,8 +29,8 @@ inline bool operator<(const CaseInfo& l, const CaseInfo& r) {
 // Helper struct containing data about a table or lookup switch.
 class SwitchInfo {
  public:
-  SwitchInfo(ZoneVector<CaseInfo>& cases, int32_t min_value, int32_t max_value,
-             BasicBlock* default_branch)
+  SwitchInfo(ZoneVector<CaseInfo>& cases,  // NOLINT(runtime/references)
+             int32_t min_value, int32_t max_value, BasicBlock* default_branch)
       : cases_(cases),
         min_value_(min_value),
         max_value_(max_value),

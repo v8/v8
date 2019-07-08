@@ -45,20 +45,29 @@ class StringUtil {
     return s.find(needle);
   }
   static const size_t kNotFound = String::kNotFound;
-  static void builderAppend(StringBuilder& builder, const String& s) {
+  static void builderAppend(
+      StringBuilder& builder,  // NOLINT(runtime/references)
+      const String& s) {
     builder.append(s);
   }
-  static void builderAppend(StringBuilder& builder, UChar c) {
+  static void builderAppend(
+      StringBuilder& builder,  // NOLINT(runtime/references)
+      UChar c) {
     builder.append(c);
   }
-  static void builderAppend(StringBuilder& builder, const char* s, size_t len) {
+  static void builderAppend(
+      StringBuilder& builder,  // NOLINT(runtime/references)
+      const char* s, size_t len) {
     builder.append(s, len);
   }
   static void builderAppendQuotedString(StringBuilder&, const String&);
-  static void builderReserve(StringBuilder& builder, size_t capacity) {
+  static void builderReserve(
+      StringBuilder& builder,  // NOLINT(runtime/references)
+      size_t capacity) {
     builder.reserveCapacity(capacity);
   }
-  static String builderToString(StringBuilder& builder) {
+  static String builderToString(
+      StringBuilder& builder) {  // NOLINT(runtime/references)
     return builder.toString();
   }
   static std::unique_ptr<protocol::Value> parseJSON(const String16& json);

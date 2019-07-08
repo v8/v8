@@ -3428,7 +3428,8 @@ TEST(AddressToTraceMap) {
 }
 
 static const v8::AllocationProfile::Node* FindAllocationProfileNode(
-    v8::Isolate* isolate, v8::AllocationProfile& profile,
+    v8::Isolate* isolate,
+    v8::AllocationProfile& profile,  // NOLINT(runtime/references)
     const Vector<const char*>& names) {
   v8::AllocationProfile::Node* node = profile.GetRootNode();
   for (int i = 0; node != nullptr && i < names.length(); ++i) {

@@ -131,21 +131,22 @@ std::string BuildActual(const BytecodeExpectationsPrinter& printer,
 }
 
 // inplace left trim
-static inline void ltrim(std::string& str) {
+static inline void ltrim(std::string& str) {  // NOLINT(runtime/references)
   str.erase(str.begin(),
             std::find_if(str.begin(), str.end(),
                          [](unsigned char ch) { return !std::isspace(ch); }));
 }
 
 // inplace right trim
-static inline void rtrim(std::string& str) {
+static inline void rtrim(std::string& str) {  // NOLINT(runtime/references)
   str.erase(std::find_if(str.rbegin(), str.rend(),
                          [](unsigned char ch) { return !std::isspace(ch); })
                 .base(),
             str.end());
 }
 
-static inline std::string trim(std::string& str) {
+static inline std::string trim(
+    std::string& str) {  // NOLINT(runtime/references)
   ltrim(str);
   rtrim(str);
   return str;

@@ -1095,10 +1095,10 @@ bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
   return true;
 }
 
-bool CanInlineArrayResizingBuiltin(JSHeapBroker* broker,
-                                   MapHandles const& receiver_maps,
-                                   std::vector<ElementsKind>& kinds,
-                                   bool builtin_is_push = false) {
+bool CanInlineArrayResizingBuiltin(
+    JSHeapBroker* broker, MapHandles const& receiver_maps,
+    std::vector<ElementsKind>& kinds,  // NOLINT(runtime/references)
+    bool builtin_is_push = false) {
   DCHECK_NE(0, receiver_maps.size());
   for (auto receiver_map : receiver_maps) {
     MapRef map(broker, receiver_map);

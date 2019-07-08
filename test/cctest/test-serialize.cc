@@ -98,7 +98,8 @@ class TestSerializer {
     return v8_isolate;
   }
 
-  static v8::Isolate* NewIsolateFromBlob(StartupBlobs& blobs) {
+  static v8::Isolate* NewIsolateFromBlob(
+      StartupBlobs& blobs) {  // NOLINT(runtime/references)
     SnapshotData startup_snapshot(blobs.startup);
     SnapshotData read_only_snapshot(blobs.read_only);
     ReadOnlyDeserializer read_only_deserializer(&read_only_snapshot);
@@ -203,13 +204,12 @@ Vector<const uint8_t> ConstructSource(Vector<const uint8_t> head,
                                source_length);
 }
 
-
-static v8::Isolate* Deserialize(StartupBlobs& blobs) {
+static v8::Isolate* Deserialize(
+    StartupBlobs& blobs) {  // NOLINT(runtime/references)
   v8::Isolate* isolate = TestSerializer::NewIsolateFromBlob(blobs);
   CHECK(isolate);
   return isolate;
 }
-
 
 static void SanityCheck(v8::Isolate* v8_isolate) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);

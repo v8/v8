@@ -2001,8 +2001,9 @@ int LineFromOffset(Local<debug::Script> script, int offset) {
   return location.GetLineNumber();
 }
 
-void WriteLcovDataForRange(std::vector<uint32_t>& lines, int start_line,
-                           int end_line, uint32_t count) {
+void WriteLcovDataForRange(
+    std::vector<uint32_t>& lines,  // NOLINT(runtime/references)
+    int start_line, int end_line, uint32_t count) {
   // Ensure space in the array.
   lines.resize(std::max(static_cast<size_t>(end_line + 1), lines.size()), 0);
   // Boundary lines could be shared between two functions with different
@@ -2013,10 +2014,10 @@ void WriteLcovDataForRange(std::vector<uint32_t>& lines, int start_line,
   for (int k = start_line + 1; k < end_line; k++) lines[k] = count;
 }
 
-void WriteLcovDataForNamedRange(std::ostream& sink,
-                                std::vector<uint32_t>& lines,
-                                const std::string& name, int start_line,
-                                int end_line, uint32_t count) {
+void WriteLcovDataForNamedRange(
+    std::ostream& sink,
+    std::vector<uint32_t>& lines,  // NOLINT(runtime/references)
+    const std::string& name, int start_line, int end_line, uint32_t count) {
   WriteLcovDataForRange(lines, start_line, end_line, count);
   sink << "FN:" << start_line + 1 << "," << name << std::endl;
   sink << "FNDA:" << count << "," << name << std::endl;

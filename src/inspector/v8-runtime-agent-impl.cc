@@ -107,7 +107,8 @@ bool wrapEvaluateResultAsync(InjectedScript* injectedScript,
 }
 
 void innerCallFunctionOn(
-    V8InspectorSessionImpl* session, InjectedScript::Scope& scope,
+    V8InspectorSessionImpl* session,
+    InjectedScript::Scope& scope,  // NOLINT(runtime/references)
     v8::Local<v8::Value> recv, const String16& expression,
     Maybe<protocol::Array<protocol::Runtime::CallArgument>> optionalArguments,
     bool silent, WrapMode wrapMode, bool userGesture, bool awaitPromise,

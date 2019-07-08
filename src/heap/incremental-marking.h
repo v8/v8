@@ -255,7 +255,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
  private:
   class Observer : public AllocationObserver {
    public:
-    Observer(IncrementalMarking& incremental_marking, intptr_t step_size)
+    Observer(
+        IncrementalMarking& incremental_marking,  // NOLINT(runtime/references)
+        intptr_t step_size)
         : AllocationObserver(step_size),
           incremental_marking_(incremental_marking) {}
 

@@ -728,8 +728,9 @@ class SpecialRPONumberer : public ZoneObject {
     }
   };
 
-  int Push(ZoneVector<SpecialRPOStackFrame>& stack, int depth,
-           BasicBlock* child, int unvisited) {
+  int Push(
+      ZoneVector<SpecialRPOStackFrame>& stack,  // NOLINT(runtime/references)
+      int depth, BasicBlock* child, int unvisited) {
     if (child->rpo_number() == unvisited) {
       stack[depth].block = child;
       stack[depth].index = 0;
@@ -958,8 +959,9 @@ class SpecialRPONumberer : public ZoneObject {
   }
 
   // Computes loop membership from the backedges of the control flow graph.
-  void ComputeLoopInfo(ZoneVector<SpecialRPOStackFrame>& queue,
-                       size_t num_loops, ZoneVector<Backedge>* backedges) {
+  void ComputeLoopInfo(
+      ZoneVector<SpecialRPOStackFrame>& queue,  // NOLINT(runtime/references)
+      size_t num_loops, ZoneVector<Backedge>* backedges) {
     // Extend existing loop membership vectors.
     for (LoopInfo& loop : loops_) {
       loop.members->Resize(static_cast<int>(schedule_->BasicBlockCount()),
