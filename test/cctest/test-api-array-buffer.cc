@@ -17,7 +17,10 @@ class ScopedArrayBufferContents {
  public:
   explicit ScopedArrayBufferContents(const v8::ArrayBuffer::Contents& contents)
       : contents_(contents) {}
-  ~ScopedArrayBufferContents() { free(contents_.AllocationBase()); }
+  ~ScopedArrayBufferContents() {
+    contents_.Deleter()(contents_.Data(), contents_.ByteLength(),
+                        contents_.DeleterData());
+  }
   void* Data() const { return contents_.Data(); }
   size_t ByteLength() const { return contents_.ByteLength(); }
 
@@ -36,7 +39,10 @@ class ScopedSharedArrayBufferContents {
   explicit ScopedSharedArrayBufferContents(
       const v8::SharedArrayBuffer::Contents& contents)
       : contents_(contents) {}
-  ~ScopedSharedArrayBufferContents() { free(contents_.AllocationBase()); }
+  ~ScopedSharedArrayBufferContents() {
+    contents_.Deleter()(contents_.Data(), contents_.ByteLength(),
+                        contents_.DeleterData());
+  }
   void* Data() const { return contents_.Data(); }
   size_t ByteLength() const { return contents_.ByteLength(); }
 

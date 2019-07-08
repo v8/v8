@@ -10,7 +10,6 @@
 
 #include "src/tasks/cancelable-task.h"
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
 
@@ -23,6 +22,7 @@ class CompilationStatistics;
 class HeapNumber;
 class WasmInstanceObject;
 class WasmModuleObject;
+class JSArrayBuffer;
 
 namespace wasm {
 
@@ -119,8 +119,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, std::shared_ptr<NativeModule> shared_module);
 
   WasmCodeManager* code_manager() { return &code_manager_; }
-
-  WasmMemoryTracker* memory_tracker() { return &memory_tracker_; }
 
   AccountingAllocator* allocator() { return &allocator_; }
 
@@ -235,7 +233,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // calling this method.
   void PotentiallyFinishCurrentGC();
 
-  WasmMemoryTracker memory_tracker_;
   WasmCodeManager code_manager_;
   AccountingAllocator allocator_;
 

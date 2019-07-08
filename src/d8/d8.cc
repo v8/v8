@@ -70,6 +70,8 @@
 #define CHECK(condition) assert(condition)
 #endif
 
+#define TRACE_BS(...) /* redefine for tracing backing store operations */
+
 namespace v8 {
 
 namespace {
@@ -3099,6 +3101,17 @@ class Serializer : public ValueSerializer::Delegate {
   std::unique_ptr<SerializationData> Release() { return std::move(data_); }
 
   void AppendExternalizedContentsTo(std::vector<ExternalizedContents>* to) {
+    for (auto& contents : externalized_contents_) {
+      auto bs_indirection = reinterpret_cast<std::shared_ptr<i::BackingStore>*>(
+          contents.DeleterData());
+      if (bs_indirection) {
+        auto backing_store = bs_indirection->get();
+        TRACE_BS("d8:append bs=%p mem=%p (%zu bytes)\n", backing_store,
+                 backing_store->buffer_start(), backing_store->byte_length());
+        USE(backing_store);
+      }
+    }
+
     to->insert(to->end(),
                std::make_move_iterator(externalized_contents_.begin()),
                std::make_move_iterator(externalized_contents_.end()));
@@ -3579,3 +3592,4 @@ int main(int argc, char* argv[]) { return v8::Shell::Main(argc, argv); }
 
 #undef CHECK
 #undef DCHECK
+#undef TRACE_BS

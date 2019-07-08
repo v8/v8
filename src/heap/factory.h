@@ -75,7 +75,8 @@ class WeakCell;
 struct SourceRange;
 template <typename T>
 class ZoneVector;
-enum class SharedFlag : uint32_t;
+enum class SharedFlag : uint8_t;
+enum class InitializedFlag : uint8_t;
 
 enum FunctionMode {
   kWithNameBit = 1 << 0,
@@ -696,7 +697,14 @@ class V8_EXPORT_PRIVATE Factory {
       v8::Module::SyntheticModuleEvaluationSteps evaluation_steps);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer(
-      SharedFlag shared, AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung);
+
+  MaybeHandle<JSArrayBuffer> NewJSArrayBufferAndBackingStore(
+      size_t byte_length, InitializedFlag initialized,
+      AllocationType allocation = AllocationType::kYoung);
+
+  Handle<JSArrayBuffer> NewJSSharedArrayBuffer(
+      AllocationType allocation = AllocationType::kYoung);
 
   static void TypeAndSizeForElementsKind(ElementsKind kind,
                                          ExternalArrayType* array_type,

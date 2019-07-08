@@ -11,6 +11,8 @@
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 
+#define TRACE_BS(...) /* redefine for tracing output */
+
 namespace v8 {
 namespace internal {
 
@@ -20,7 +22,7 @@ LocalArrayBufferTracker::~LocalArrayBufferTracker() {
 
 template <typename Callback>
 void LocalArrayBufferTracker::Process(Callback callback) {
-  std::vector<JSArrayBuffer::Allocation> backing_stores_to_free;
+  std::vector<std::shared_ptr<BackingStore>> backing_stores_to_free;
   TrackingData kept_array_buffers;
 
   JSArrayBuffer new_buffer;
@@ -32,8 +34,9 @@ void LocalArrayBufferTracker::Process(Callback callback) {
     DCHECK_EQ(page_, Page::FromHeapObject(old_buffer));
     const CallbackResult result = callback(old_buffer, &new_buffer);
     if (result == kKeepEntry) {
-      kept_array_buffers.insert(*it);
+      kept_array_buffers.insert(std::move(*it));
     } else if (result == kUpdateEntry) {
+      DCHECK_EQ(old_buffer.byte_length(), new_buffer.byte_length());
       DCHECK(!new_buffer.is_null());
       Page* target_page = Page::FromHeapObject(new_buffer);
       {
@@ -44,22 +47,20 @@ void LocalArrayBufferTracker::Process(Callback callback) {
           tracker = target_page->local_tracker();
         }
         DCHECK_NOT_NULL(tracker);
-        const size_t length = it->second.length;
+        const size_t length = old_buffer.byte_length();
         // We should decrement before adding to avoid potential overflows in
         // the external memory counters.
-        DCHECK_EQ(it->first.is_wasm_memory(), it->second.is_wasm_memory);
-        tracker->AddInternal(new_buffer, length);
+        tracker->AddInternal(new_buffer, std::move(it->second));
         MemoryChunk::MoveExternalBackingStoreBytes(
             ExternalBackingStoreType::kArrayBuffer,
             static_cast<MemoryChunk*>(page_),
             static_cast<MemoryChunk*>(target_page), length);
       }
     } else if (result == kRemoveEntry) {
-      freed_memory += it->second.length;
-      // We pass backing_store() and stored length to the collector for freeing
-      // the backing store. Wasm allocations will go through their own tracker
-      // based on the backing store.
-      backing_stores_to_free.push_back(it->second);
+      freed_memory += old_buffer.byte_length();
+      TRACE_BS("ABT:queue bs=%p mem=%p (%zu bytes)\n", it->second.get(),
+               it->second->buffer_start(), it->second->byte_length());
+      backing_stores_to_free.push_back(std::move(it->second));
     } else {
       UNREACHABLE();
     }
@@ -149,3 +150,4 @@ void ArrayBufferTracker::TearDown(Heap* heap) {
 
 }  // namespace internal
 }  // namespace v8
+#undef TRACE_BS

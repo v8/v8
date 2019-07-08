@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_H_
 
+#include "src/objects/backing-store.h"
 #include "src/objects/js-objects.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -12,9 +13,6 @@
 
 namespace v8 {
 namespace internal {
-
-// Whether a JSArrayBuffer is a SharedArrayBuffer or not.
-enum class SharedFlag : uint32_t { kNotShared, kShared };
 
 class JSArrayBuffer : public JSObject {
  public:
@@ -51,8 +49,8 @@ class JSArrayBuffer : public JSObject {
   V(IsExternalBit, bool, 1, _)                 \
   V(IsDetachableBit, bool, 1, _)               \
   V(WasDetachedBit, bool, 1, _)                \
-  V(IsSharedBit, bool, 1, _)                   \
-  V(IsWasmMemoryBit, bool, 1, _)
+  V(IsAsmJsMemoryBit, bool, 1, _)              \
+  V(IsSharedBit, bool, 1, _)
   DEFINE_BIT_FIELDS(JS_ARRAY_BUFFER_BIT_FIELD_FIELDS)
 #undef JS_ARRAY_BUFFER_BIT_FIELD_FIELDS
 
@@ -61,57 +59,49 @@ class JSArrayBuffer : public JSObject {
   // memory block once all ArrayBuffers referencing it are collected by the GC.
   DECL_BOOLEAN_ACCESSORS(is_external)
 
-  // [is_detachable]: false indicates that this buffer cannot be detached.
+  // [is_detachable]: false => this buffer cannot be detached.
   DECL_BOOLEAN_ACCESSORS(is_detachable)
 
-  // [was_detached]: true if the buffer was previously detached.
+  // [was_detached]: true => the buffer was previously detached.
   DECL_BOOLEAN_ACCESSORS(was_detached)
+
+  // [is_asmjs_memory]: true => this buffer was once used as asm.js memory.
+  DECL_BOOLEAN_ACCESSORS(is_asmjs_memory)
 
   // [is_shared]: tells whether this is an ArrayBuffer or a SharedArrayBuffer.
   DECL_BOOLEAN_ACCESSORS(is_shared)
 
-  // [is_wasm_memory]: whether the buffer is tracked by the WasmMemoryTracker.
-  DECL_BOOLEAN_ACCESSORS(is_wasm_memory)
-
   DECL_CAST(JSArrayBuffer)
 
-  void Detach();
+  // Immediately after creating an array buffer, the internal untagged fields
+  // are garbage. They need to be initialized with either {SetupEmpty()} or
+  // have a backing store attached via {Attach()}.
 
-  struct Allocation {
-    Allocation(void* allocation_base, size_t length, void* backing_store,
-               bool is_wasm_memory)
-        : allocation_base(allocation_base),
-          length(length),
-          backing_store(backing_store),
-          is_wasm_memory(is_wasm_memory) {}
+  // Setup an array buffer with no backing store.
+  V8_EXPORT_PRIVATE void SetupEmpty(SharedFlag shared);
 
-    void* allocation_base;
-    size_t length;
-    void* backing_store;
-    bool is_wasm_memory;
-  };
+  // Attach a backing store to this array buffer.
+  // (note: this registers it with src/heap/array-buffer-tracker.h)
+  V8_EXPORT_PRIVATE void Attach(std::shared_ptr<BackingStore> backing_store);
 
-  V8_EXPORT_PRIVATE void FreeBackingStoreFromMainThread();
-  V8_EXPORT_PRIVATE static void FreeBackingStore(Isolate* isolate,
-                                                 Allocation allocation);
+  // Detach the backing store from this array buffer if it is detachable
+  // and return a reference to the backing store object. This sets the
+  // internal pointer and length to 0 and unregisters the backing store
+  // from the array buffer tracker.
+  // If the array buffer is not detachable, this is a nop.
+  //
+  // Array buffers that wrap wasm memory objects are special in that they
+  // are normally not detachable, but can become detached as a side effect
+  // of growing the underlying memory object. The {force_for_wasm_memory} flag
+  // is used by the implementation of Wasm memory growth in order to bypass the
+  // non-detachable check.
+  V8_EXPORT_PRIVATE std::shared_ptr<BackingStore> Detach(
+      bool force_for_wasm_memory = false);
 
-  V8_EXPORT_PRIVATE static void Setup(
-      Handle<JSArrayBuffer> array_buffer, Isolate* isolate, bool is_external,
-      void* data, size_t allocated_length,
-      SharedFlag shared_flag = SharedFlag::kNotShared,
-      bool is_wasm_memory = false);
-
-  // Initialize the object as empty one to avoid confusing heap verifier if
-  // the failure happened in the middle of JSArrayBuffer construction.
-  V8_EXPORT_PRIVATE static void SetupAsEmpty(Handle<JSArrayBuffer> array_buffer,
-                                             Isolate* isolate);
-
-  // Returns false if array buffer contents could not be allocated.
-  // In this case, |array_buffer| will not be set up.
-  V8_EXPORT_PRIVATE static bool SetupAllocatingData(
-      Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
-      size_t allocated_length, bool initialize = true,
-      SharedFlag shared_flag = SharedFlag::kNotShared) V8_WARN_UNUSED_RESULT;
+  // Get a reference to backing store of this array buffer, if there is a
+  // backing store. Returns nullptr if there is no backing store (e.g. detached
+  // or a zero-length array buffer).
+  std::shared_ptr<BackingStore> GetBackingStore();
 
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
@@ -139,6 +129,8 @@ class JSArrayBuffer : public JSObject {
   class BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(JSArrayBuffer, JSObject);
+
+  std::shared_ptr<BackingStore> ForceDetach();
 };
 
 class JSArrayBufferView : public JSObject {
@@ -250,9 +242,6 @@ class JSTypedArray : public JSArrayBufferView {
 #endif
 
  private:
-  static Handle<JSArrayBuffer> MaterializeArrayBuffer(
-      Handle<JSTypedArray> typed_array);
-
   OBJECT_CONSTRUCTORS(JSTypedArray, JSArrayBufferView);
 };
 
