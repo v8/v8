@@ -4064,6 +4064,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI64x2Sub:
       return graph()->NewNode(mcgraph()->machine()->I64x2Sub(), inputs[0],
                               inputs[1]);
+    case wasm::kExprI64x2Mul:
+      return graph()->NewNode(mcgraph()->machine()->I64x2Mul(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI64x2Eq:
       return graph()->NewNode(mcgraph()->machine()->I64x2Eq(), inputs[0],
                               inputs[1]);

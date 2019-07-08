@@ -190,6 +190,7 @@ namespace compiler {
   V(X64I64x2ShrS)                         \
   V(X64I64x2Add)                          \
   V(X64I64x2Sub)                          \
+  V(X64I64x2Mul)                          \
   V(X64I64x2Eq)                           \
   V(X64I64x2Ne)                           \
   V(X64I64x2GtS)                          \

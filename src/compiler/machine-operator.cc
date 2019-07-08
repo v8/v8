@@ -269,6 +269,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(I64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
   V(I64x2Add, Operator::kCommutative, 2, 0, 1)                                \
   V(I64x2Sub, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I64x2Mul, Operator::kCommutative, 2, 0, 1)                                \
   V(I64x2Eq, Operator::kCommutative, 2, 0, 1)                                 \
   V(I64x2Ne, Operator::kCommutative, 2, 0, 1)                                 \
   V(I64x2GtS, Operator::kNoProperties, 2, 0, 1)                               \

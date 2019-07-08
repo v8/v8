@@ -2512,6 +2512,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ psubq(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
+    case kX64I64x2Mul: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister left = i.InputSimd128Register(0);
+      XMMRegister right = i.InputSimd128Register(1);
+      XMMRegister tmp1 = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp2 = i.ToSimd128Register(instr->TempAt(1));
+
+      __ movaps(tmp1, left);
+      __ movaps(tmp2, right);
+
+      // Multiply high dword of each qword of left with right.
+      __ psrlq(tmp1, 32);
+      __ pmuludq(tmp1, right);
+
+      // Multiply high dword of each qword of right with left.
+      __ psrlq(tmp2, 32);
+      __ pmuludq(tmp2, left);
+
+      __ paddq(tmp2, tmp1);
+      __ psllq(tmp2, 32);
+
+      __ pmuludq(left, right);
+      __ paddq(left, tmp2);  // left == dst
+      break;
+    }
     case kX64I64x2Eq: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);

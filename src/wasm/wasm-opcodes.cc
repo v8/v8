@@ -232,6 +232,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIMD_OP(Sub, "sub")
     CASE_I64x2_OP(Sub, "sub")
     CASE_SIMD_OP(Mul, "mul")
+    CASE_I64x2_OP(Mul, "mul")
     CASE_F64x2_OP(Splat, "splat")
     CASE_F32x4_OP(Abs, "abs")
     CASE_F32x4_OP(AddHoriz, "add_horizontal")
