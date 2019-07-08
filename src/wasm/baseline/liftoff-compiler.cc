@@ -1344,15 +1344,13 @@ class LiftoffCompiler {
     __ Store(addr, no_reg, offset, reg, type, {}, nullptr, true);
   }
 
-  void GetTable(
-      FullDecoder* decoder, const Value& index, Value* result,
-      TableIndexImmediate<validate>& imm) {  // NOLINT(runtime/references)
+  void TableGet(FullDecoder* decoder, const Value& index, Value* result,
+                const TableIndexImmediate<validate>& imm) {
     unsupported(decoder, kAnyRef, "table_get");
   }
 
-  void SetTable(
-      FullDecoder* decoder, const Value& index, const Value& value,
-      TableIndexImmediate<validate>& imm) {  // NOLINT(runtime/references)
+  void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
+                const TableIndexImmediate<validate>& imm) {
     unsupported(decoder, kAnyRef, "table_set");
   }
 

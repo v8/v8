@@ -368,10 +368,10 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_GET_GLOBAL(index) kExprGetGlobal, static_cast<byte>(index)
 #define WASM_SET_GLOBAL(index, val) \
   val, kExprSetGlobal, static_cast<byte>(index)
-#define WASM_GET_TABLE(table_index, index) \
-  index, kExprGetTable, static_cast<byte>(table_index)
-#define WASM_SET_TABLE(table_index, index, val) \
-  index, val, kExprSetTable, static_cast<byte>(table_index)
+#define WASM_TABLE_GET(table_index, index) \
+  index, kExprTableGet, static_cast<byte>(table_index)
+#define WASM_TABLE_SET(table_index, index, val) \
+  index, val, kExprTableSet, static_cast<byte>(table_index)
 #define WASM_LOAD_MEM(type, index)                                           \
   index,                                                                     \
       static_cast<byte>(v8::internal::wasm::LoadStoreOpcodeOf(type, false)), \

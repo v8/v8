@@ -3484,7 +3484,7 @@ void WasmGraphBuilder::GetTableBaseAndOffset(uint32_t table_index,
           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0)));
 }
 
-Node* WasmGraphBuilder::GetTable(uint32_t table_index, Node* index,
+Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
                                  wasm::WasmCodePosition position) {
   if (env_->module->tables[table_index].type == wasm::kWasmAnyRef) {
     Node* base = nullptr;
@@ -3513,7 +3513,7 @@ Node* WasmGraphBuilder::GetTable(uint32_t table_index, Node* index,
       Effect(), Control())));
 }
 
-Node* WasmGraphBuilder::SetTable(uint32_t table_index, Node* index, Node* val,
+Node* WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
                                  wasm::WasmCodePosition position) {
   if (env_->module->tables[table_index].type == wasm::kWasmAnyRef) {
     Node* base = nullptr;

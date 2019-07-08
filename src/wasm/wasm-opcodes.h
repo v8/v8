@@ -51,8 +51,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(TeeLocal, 0x22, _)           \
   V(GetGlobal, 0x23, _)          \
   V(SetGlobal, 0x24, _)          \
-  V(GetTable, 0x25, _)           \
-  V(SetTable, 0x26, _)           \
+  V(TableGet, 0x25, _)           \
+  V(TableSet, 0x26, _)           \
   V(I32Const, 0x41, _)           \
   V(I64Const, 0x42, _)           \
   V(F32Const, 0x43, _)           \

@@ -285,9 +285,9 @@ class WasmGraphBuilder {
 
   Node* GetGlobal(uint32_t index);
   Node* SetGlobal(uint32_t index, Node* val);
-  Node* GetTable(uint32_t table_index, Node* index,
+  Node* TableGet(uint32_t table_index, Node* index,
                  wasm::WasmCodePosition position);
-  Node* SetTable(uint32_t table_index, Node* index, Node* val,
+  Node* TableSet(uint32_t table_index, Node* index, Node* val,
                  wasm::WasmCodePosition position);
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
