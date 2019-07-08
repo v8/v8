@@ -1330,9 +1330,12 @@ class V8_EXPORT Module {
   /*
    * Callback defined in the embedder.  This is responsible for setting
    * the module's exported values with calls to SetSyntheticModuleExport().
+   * The callback must return a Value to indicate success (where no
+   * exception was thrown) and return an empy MaybeLocal to indicate falure
+   * (where an exception was thrown).
    */
-  typedef bool (*SyntheticModuleEvaluationSteps)(Local<Context> context,
-                                                 Local<Module> module);
+  typedef MaybeLocal<Value> (*SyntheticModuleEvaluationSteps)(
+      Local<Context> context, Local<Module> module);
 
   /**
    * Creates a new SyntheticModule with the specified export names, where

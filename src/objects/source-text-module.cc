@@ -173,8 +173,6 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     Isolate* isolate, Handle<SourceTextModule> module,
     Handle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
-  DCHECK_GE(module->status(), kPreInstantiating);
-  DCHECK_NE(module->status(), kEvaluating);
   Handle<Object> object(module->exports().Lookup(export_name), isolate);
   if (object->IsCell()) {
     // Already resolved (e.g. because it's a local export).

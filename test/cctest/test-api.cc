@@ -23566,9 +23566,31 @@ v8::MaybeLocal<Module> UnexpectedModuleResolveCallback(Local<Context> context,
   CHECK_WITH_MSG(false, "Unexpected call to resolve callback");
 }
 
-bool UnexpectedSyntheticModuleEvaluationStepsCallback(Local<Context> context,
-                                                      Local<Module> module) {
+v8::MaybeLocal<Value> UnexpectedSyntheticModuleEvaluationStepsCallback(
+    Local<Context> context, Local<Module> module) {
   CHECK_WITH_MSG(false, "Unexpected call to synthetic module re callback");
+}
+
+static int synthetic_module_callback_count;
+
+v8::MaybeLocal<Value> SyntheticModuleEvaluationStepsCallback(
+    Local<Context> context, Local<Module> module) {
+  synthetic_module_callback_count++;
+  return v8::Undefined(reinterpret_cast<v8::Isolate*>(context->GetIsolate()));
+}
+
+v8::MaybeLocal<Value> SyntheticModuleEvaluationStepsCallbackFail(
+    Local<Context> context, Local<Module> module) {
+  synthetic_module_callback_count++;
+  context->GetIsolate()->ThrowException(
+      v8_str("SyntheticModuleEvaluationStepsCallbackFail exception"));
+  return v8::MaybeLocal<Value>();
+}
+
+v8::MaybeLocal<Value> SyntheticModuleEvaluationStepsCallbackSetExport(
+    Local<Context> context, Local<Module> module) {
+  module->SetSyntheticModuleExport(v8_str("test_export"), v8_num(42));
+  return v8::Undefined(reinterpret_cast<v8::Isolate*>(context->GetIsolate()));
 }
 
 namespace {
@@ -23627,6 +23649,28 @@ Local<Module> CompileAndInstantiateModuleFromCache(
 }
 
 }  // namespace
+
+v8::MaybeLocal<Module> SyntheticModuleResolveCallback(Local<Context> context,
+                                                      Local<String> specifier,
+                                                      Local<Module> referrer) {
+  std::vector<v8::Local<v8::String>> export_names{v8_str("test_export")};
+  Local<Module> module = CreateAndInstantiateSyntheticModule(
+      context->GetIsolate(),
+      v8_str("SyntheticModuleResolveCallback-TestSyntheticModule"), context,
+      export_names, SyntheticModuleEvaluationStepsCallbackSetExport);
+  return v8::MaybeLocal<Module>(module);
+}
+
+v8::MaybeLocal<Module> SyntheticModuleThatThrowsDuringEvaluateResolveCallback(
+    Local<Context> context, Local<String> specifier, Local<Module> referrer) {
+  std::vector<v8::Local<v8::String>> export_names{v8_str("test_export")};
+  Local<Module> module = CreateAndInstantiateSyntheticModule(
+      context->GetIsolate(),
+      v8_str("SyntheticModuleThatThrowsDuringEvaluateResolveCallback-"
+             "TestSyntheticModule"),
+      context, export_names, SyntheticModuleEvaluationStepsCallbackFail);
+  return v8::MaybeLocal<Module>(module);
+}
 
 TEST(ModuleCodeCache) {
   v8::Isolate::CreateParams create_params;
@@ -23761,6 +23805,144 @@ TEST(SyntheticModuleSetExports) {
   CHECK(i::Handle<i::String>::cast(
             i::Handle<i::Object>(foo_cell->value(), i_isolate))
             ->Equals(*v8::Utils::OpenHandle(*bar_string)));
+}
+
+TEST(SyntheticModuleEvaluationStepsNoThrow) {
+  synthetic_module_callback_count = 0;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  std::vector<v8::Local<v8::String>> export_names{v8_str("default")};
+
+  Local<Module> module = CreateAndInstantiateSyntheticModule(
+      isolate,
+      v8_str("SyntheticModuleEvaluationStepsNoThrow-TestSyntheticModule"),
+      context, export_names, SyntheticModuleEvaluationStepsCallback);
+  CHECK_EQ(synthetic_module_callback_count, 0);
+  Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
+  CHECK(completion_value->IsUndefined());
+  CHECK_EQ(synthetic_module_callback_count, 1);
+  CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+}
+
+TEST(SyntheticModuleEvaluationStepsThrow) {
+  synthetic_module_callback_count = 0;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  v8::Context::Scope cscope(context);
+
+  std::vector<v8::Local<v8::String>> export_names{v8_str("default")};
+
+  Local<Module> module = CreateAndInstantiateSyntheticModule(
+      isolate,
+      v8_str("SyntheticModuleEvaluationStepsThrow-TestSyntheticModule"),
+      context, export_names, SyntheticModuleEvaluationStepsCallbackFail);
+  TryCatch try_catch(isolate);
+  CHECK_EQ(synthetic_module_callback_count, 0);
+  v8::MaybeLocal<Value> completion_value = module->Evaluate(context);
+  CHECK(completion_value.IsEmpty());
+  CHECK_EQ(synthetic_module_callback_count, 1);
+  CHECK_EQ(module->GetStatus(), Module::kErrored);
+  CHECK(try_catch.HasCaught());
+}
+
+TEST(SyntheticModuleEvaluationStepsSetExport) {
+  synthetic_module_callback_count = 0;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  Local<String> test_export_string = v8_str("test_export");
+  std::vector<v8::Local<v8::String>> export_names{test_export_string};
+
+  Local<Module> module = CreateAndInstantiateSyntheticModule(
+      isolate,
+      v8_str("SyntheticModuleEvaluationStepsSetExport-TestSyntheticModule"),
+      context, export_names, SyntheticModuleEvaluationStepsCallbackSetExport);
+
+  i::Handle<i::SyntheticModule> i_module =
+      i::Handle<i::SyntheticModule>::cast(v8::Utils::OpenHandle(*module));
+  i::Handle<i::ObjectHashTable> exports(i_module->exports(), i_isolate);
+
+  i::Handle<i::Cell> test_export_cell =
+      i::Handle<i::Cell>::cast(i::Handle<i::Object>(
+          exports->Lookup(v8::Utils::OpenHandle(*test_export_string)),
+          i_isolate));
+  CHECK(test_export_cell->value().IsUndefined());
+
+  Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
+  CHECK(completion_value->IsUndefined());
+  CHECK_EQ(42, test_export_cell->value().Number());
+  CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+}
+
+TEST(ImportFromSyntheticModule) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  Local<String> url = v8_str("www.test.com");
+  Local<String> source_text = v8_str(
+      "import {test_export} from './synthetic.module';"
+      "(function() { return test_export; })();");
+  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
+                          Local<v8::Boolean>(), Local<v8::Integer>(),
+                          Local<v8::Value>(), Local<v8::Boolean>(),
+                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  module->InstantiateModule(context, SyntheticModuleResolveCallback)
+      .ToChecked();
+
+  Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
+  CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+}
+
+TEST(ImportFromSyntheticModuleThrow) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  Local<String> url = v8_str("www.test.com");
+  Local<String> source_text = v8_str(
+      "import {test_export} from './synthetic.module';"
+      "(function() { return test_export; })();");
+  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
+                          Local<v8::Boolean>(), Local<v8::Integer>(),
+                          Local<v8::Value>(), Local<v8::Boolean>(),
+                          Local<v8::Boolean>(), True(isolate));
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  module
+      ->InstantiateModule(
+          context, SyntheticModuleThatThrowsDuringEvaluateResolveCallback)
+      .ToChecked();
+
+  CHECK_EQ(module->GetStatus(), Module::kInstantiated);
+  TryCatch try_catch(isolate);
+  v8::MaybeLocal<Value> completion_value = module->Evaluate(context);
+  CHECK(completion_value.IsEmpty());
+  CHECK_EQ(module->GetStatus(), Module::kErrored);
+  CHECK(try_catch.HasCaught());
 }
 
 // Tests that the code cache does not confuse the same source code compiled as a

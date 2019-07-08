@@ -47,7 +47,7 @@ class SyntheticModule : public Module {
   static V8_WARN_UNUSED_RESULT MaybeHandle<Cell> ResolveExport(
       Isolate* isolate, Handle<SyntheticModule> module,
       Handle<String> module_specifier, Handle<String> export_name,
-      MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
+      MessageLocation loc, bool must_resolve);
 
   static V8_WARN_UNUSED_RESULT bool PrepareInstantiate(
       Isolate* isolate, Handle<SyntheticModule> module,

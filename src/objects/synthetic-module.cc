@@ -34,8 +34,20 @@ void SyntheticModule::SetExport(Isolate* isolate,
 MaybeHandle<Cell> SyntheticModule::ResolveExport(
     Isolate* isolate, Handle<SyntheticModule> module,
     Handle<String> module_specifier, Handle<String> export_name,
-    MessageLocation loc, bool must_resolve, ResolveSet* resolve_set) {
-  UNREACHABLE();  // TODO(SyntheticModules) implement
+    MessageLocation loc, bool must_resolve) {
+  Handle<Object> object(module->exports().Lookup(export_name), isolate);
+  if (object->IsCell()) {
+    return Handle<Cell>::cast(object);
+  }
+
+  if (must_resolve) {
+    return isolate->Throw<Cell>(
+        isolate->factory()->NewSyntaxError(MessageTemplate::kUnresolvableExport,
+                                           module_specifier, export_name),
+        &loc);
+  }
+
+  return MaybeHandle<Cell>();
 }
 
 // Implements Synthetic Module Record's Instantiate concrete method :
@@ -73,7 +85,23 @@ bool SyntheticModule::FinishInstantiate(Isolate* isolate,
 // https://heycam.github.io/webidl/#smr-evaluate
 MaybeHandle<Object> SyntheticModule::Evaluate(Isolate* isolate,
                                               Handle<SyntheticModule> module) {
-  UNREACHABLE();  // TODO(SyntheticModules) implement
+  module->SetStatus(kEvaluating);
+
+  v8::Module::SyntheticModuleEvaluationSteps evaluation_steps =
+      FUNCTION_CAST<v8::Module::SyntheticModuleEvaluationSteps>(
+          module->evaluation_steps().foreign_address());
+  v8::Local<v8::Value> result;
+  if (!evaluation_steps(
+           Utils::ToLocal(Handle<Context>::cast(isolate->native_context())),
+           Utils::ToLocal(Handle<Module>::cast(module)))
+           .ToLocal(&result)) {
+    isolate->PromoteScheduledException();
+    module->RecordError(isolate);
+    return MaybeHandle<Object>();
+  }
+
+  module->SetStatus(kEvaluated);
+  return Utils::OpenHandle(*result);
 }
 
 }  // namespace internal

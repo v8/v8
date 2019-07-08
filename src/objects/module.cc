@@ -138,6 +138,9 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
                                         Handle<String> export_name,
                                         MessageLocation loc, bool must_resolve,
                                         Module::ResolveSet* resolve_set) {
+  DCHECK_GE(module->status(), kPreInstantiating);
+  DCHECK_NE(module->status(), kEvaluating);
+
   if (module->IsSourceTextModule()) {
     return SourceTextModule::ResolveExport(
         isolate, Handle<SourceTextModule>::cast(module), module_specifier,
@@ -145,7 +148,7 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
   } else {
     return SyntheticModule::ResolveExport(
         isolate, Handle<SyntheticModule>::cast(module), module_specifier,
-        export_name, loc, must_resolve, resolve_set);
+        export_name, loc, must_resolve);
   }
 }
 
