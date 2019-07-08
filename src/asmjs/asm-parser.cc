@@ -385,7 +385,8 @@ void AsmJsParser::ValidateModule() {
   module_builder_->MarkStartFunction(start);
   for (auto& global_import : global_imports_) {
     uint32_t import_index = module_builder_->AddGlobalImport(
-        global_import.import_name, global_import.value_type);
+        global_import.import_name, global_import.value_type,
+        false /* mutability */);
     start->EmitWithI32V(kExprGetGlobal, import_index);
     start->EmitWithI32V(kExprSetGlobal, VarIndex(global_import.var_info));
   }

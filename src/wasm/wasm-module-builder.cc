@@ -232,6 +232,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       function_imports_(zone),
       function_exports_(zone),
       global_imports_(zone),
+      global_exports_(zone),
       functions_(zone),
       data_segments_(zone),
       indirect_functions_(zone),
@@ -291,8 +292,9 @@ uint32_t WasmModuleBuilder::AddImport(Vector<const char> name,
 }
 
 uint32_t WasmModuleBuilder::AddGlobalImport(Vector<const char> name,
-                                            ValueType type) {
-  global_imports_.push_back({name, ValueTypes::ValueTypeCodeFor(type)});
+                                            ValueType type, bool mutability) {
+  global_imports_.push_back(
+      {name, ValueTypes::ValueTypeCodeFor(type), mutability});
   return static_cast<uint32_t>(global_imports_.size() - 1);
 }
 
@@ -304,6 +306,14 @@ void WasmModuleBuilder::AddExport(Vector<const char> name,
                                   WasmFunctionBuilder* function) {
   DCHECK(function->func_index() <= std::numeric_limits<int>::max());
   function_exports_.push_back({name, static_cast<int>(function->func_index())});
+}
+
+uint32_t WasmModuleBuilder::AddExportedGlobal(ValueType type, bool mutability,
+                                              const WasmInitExpr& init,
+                                              Vector<const char> name) {
+  uint32_t index = AddGlobal(type, true, mutability, init);
+  global_exports_.push_back({name, index});
+  return index;
 }
 
 void WasmModuleBuilder::AddExportedImport(Vector<const char> name,
@@ -367,7 +377,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
       buffer->write_string(import.name);  // field name
       buffer->write_u8(kExternalGlobal);
       buffer->write_u8(import.type_code);
-      buffer->write_u8(0);  // immutable
+      buffer->write_u8(import.mutability ? 1 : 0);
     }
     for (auto import : function_imports_) {
       buffer->write_u32v(0);              // module name (length)
@@ -484,9 +494,14 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // == emit exports ===========================================================
-  if (!function_exports_.empty()) {
+  if (global_exports_.size() + function_exports_.size() > 0) {
     size_t start = EmitSection(kExportSectionCode, buffer);
-    buffer->write_size(function_exports_.size());
+    buffer->write_size(global_exports_.size() + function_exports_.size());
+    for (auto global_export : global_exports_) {
+      buffer->write_string(global_export.name);
+      buffer->write_u8(kExternalGlobal);
+      buffer->write_size(global_export.global_index + global_imports_.size());
+    }
     for (auto function_export : function_exports_) {
       buffer->write_string(function_export.name);
       buffer->write_u8(kExternalFunction);

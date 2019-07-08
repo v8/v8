@@ -35,6 +35,7 @@ using ::wasm::Extern;
 using ::wasm::Foreign;
 using ::wasm::Func;
 using ::wasm::FuncType;
+using ::wasm::Global;
 using ::wasm::Instance;
 using ::wasm::Module;
 using ::wasm::own;
@@ -79,8 +80,8 @@ class WasmCapiTest : public ::testing::Test {
   }
 
   void AddExportedFunction(Vector<const char> name, byte code[],
-                           size_t code_size) {
-    WasmFunctionBuilder* fun = builder()->AddFunction(wasm_i_i_sig());
+                           size_t code_size, FunctionSig* sig) {
+    WasmFunctionBuilder* fun = builder()->AddFunction(sig);
     fun->EmitCode(code, static_cast<uint32_t>(code_size));
     fun->Emit(kExprEnd);
     builder()->AddExport(name, fun);
@@ -93,6 +94,15 @@ class WasmCapiTest : public ::testing::Test {
     Func* func = exported->func();
     DCHECK_NE(func, nullptr);
     return func;
+  }
+
+  Global* GetExportedGlobal(size_t index) {
+    DCHECK_GT(exports_.size(), index);
+    Extern* exported = exports_[index];
+    DCHECK_EQ(exported->kind(), ::wasm::EXTERN_GLOBAL);
+    Global* global = exported->global();
+    DCHECK_NE(global, nullptr);
+    return global;
   }
 
   void Shutdown() {

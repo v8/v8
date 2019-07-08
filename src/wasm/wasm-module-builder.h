@@ -233,13 +233,16 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
   uint32_t AddGlobal(ValueType type, bool exported, bool mutability = true,
                      const WasmInitExpr& init = WasmInitExpr());
-  uint32_t AddGlobalImport(Vector<const char> name, ValueType type);
+  uint32_t AddGlobalImport(Vector<const char> name, ValueType type,
+                           bool mutability);
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
   uint32_t AllocateIndirectFunctions(uint32_t count);
   void SetIndirectFunction(uint32_t indirect, uint32_t direct);
   void MarkStartFunction(WasmFunctionBuilder* builder);
   void AddExport(Vector<const char> name, WasmFunctionBuilder* builder);
+  uint32_t AddExportedGlobal(ValueType type, bool mutability,
+                             const WasmInitExpr& init, Vector<const char> name);
   void AddExportedImport(Vector<const char> name, int import_index);
   void SetMinMemorySize(uint32_t value);
   void SetMaxMemorySize(uint32_t value);
@@ -268,6 +271,12 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   struct WasmGlobalImport {
     Vector<const char> name;
     ValueTypeCode type_code;
+    bool mutability;
+  };
+
+  struct WasmGlobalExport {
+    Vector<const char> name;
+    uint32_t global_index;
   };
 
   struct WasmGlobal {
@@ -288,6 +297,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmFunctionImport> function_imports_;
   ZoneVector<WasmFunctionExport> function_exports_;
   ZoneVector<WasmGlobalImport> global_imports_;
+  ZoneVector<WasmGlobalExport> global_exports_;
   ZoneVector<WasmFunctionBuilder*> functions_;
   ZoneVector<WasmDataSegment> data_segments_;
   ZoneVector<uint32_t> indirect_functions_;

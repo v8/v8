@@ -16,15 +16,18 @@ int g_foreigns_finalized = 0;
 int g_modules_finalized = 0;
 
 void FinalizeInstance(void* data) {
-  g_instances_finalized += static_cast<int>(reinterpret_cast<intptr_t>(data));
+  int iteration = static_cast<int>(reinterpret_cast<intptr_t>(data));
+  g_instances_finalized += iteration;
 }
 
 void FinalizeFunction(void* data) {
-  g_functions_finalized += static_cast<int>(reinterpret_cast<intptr_t>(data));
+  int iteration = static_cast<int>(reinterpret_cast<intptr_t>(data));
+  g_functions_finalized += iteration;
 }
 
 void FinalizeForeign(void* data) {
-  g_foreigns_finalized += static_cast<int>(reinterpret_cast<intptr_t>(data));
+  int iteration = static_cast<int>(reinterpret_cast<intptr_t>(data));
+  g_foreigns_finalized += iteration;
 }
 
 void FinalizeModule(void* data) {
@@ -36,7 +39,7 @@ void FinalizeModule(void* data) {
 TEST_F(WasmCapiTest, InstanceFinalization) {
   // Add a dummy function: f(x) { return x; }
   byte code[] = {WASM_RETURN1(WASM_GET_LOCAL(0))};
-  AddExportedFunction(CStrVector("f"), code, sizeof(code));
+  AddExportedFunction(CStrVector("f"), code, sizeof(code), wasm_i_i_sig());
   Compile();
   g_instances_finalized = 0;
   g_functions_finalized = 0;
@@ -44,17 +47,18 @@ TEST_F(WasmCapiTest, InstanceFinalization) {
   g_modules_finalized = 0;
   module()->set_host_info(reinterpret_cast<void*>(42), &FinalizeModule);
   static const int kIterations = 10;
-  for (int i = 0; i < kIterations; i++) {
+  for (int iteration = 0; iteration < kIterations; iteration++) {
+    void* finalizer_data = reinterpret_cast<void*>(iteration);
     own<Instance*> instance = Instance::make(store(), module(), nullptr);
     EXPECT_NE(nullptr, instance.get());
-    instance->set_host_info(reinterpret_cast<void*>(i), &FinalizeInstance);
+    instance->set_host_info(finalizer_data, &FinalizeInstance);
 
     own<Func*> func = instance->exports()[0]->func()->copy();
     ASSERT_NE(func, nullptr);
-    func->set_host_info(reinterpret_cast<void*>(i), &FinalizeFunction);
+    func->set_host_info(finalizer_data, &FinalizeFunction);
 
     own<Foreign*> foreign = Foreign::make(store());
-    foreign->set_host_info(reinterpret_cast<void*>(i), &FinalizeForeign);
+    foreign->set_host_info(finalizer_data, &FinalizeForeign);
   }
   Shutdown();
   // Verify that (1) all finalizers were called, and (2) they passed the

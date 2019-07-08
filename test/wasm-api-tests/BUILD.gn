@@ -31,6 +31,7 @@ v8_executable("wasm_api_tests") {
     "../../testing/gtest-support.h",
     "callbacks.cc",
     "finalize.cc",
+    "globals.cc",
     "run-all-wasm-api-tests.cc",
     "wasm-api-test.h",
   ]

@@ -51,6 +51,10 @@ class WasmCapiCallbacksTest : public WasmCapiTest {
   }
 
   Func* stage2() { return stage2_.get(); }
+  void AddExportedFunction(Vector<const char> name, byte code[],
+                           size_t code_size) {
+    WasmCapiTest::AddExportedFunction(name, code, code_size, wasm_i_i_sig());
+  }
 
  private:
   own<Func*> stage2_;
@@ -142,7 +146,7 @@ TEST_F(WasmCapiTest, Recursion) {
           WASM_CALL_FUNCTION(fibo_c_index,
                              WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_ONE))))};
   AddExportedFunction(CStrVector("fibonacci_wasm"), code_fibo,
-                      sizeof(code_fibo));
+                      sizeof(code_fibo), wasm_i_i_sig());
 
   own<Func*> fibonacci = Func::make(store(), cpp_i_i_sig(), FibonacciC, this);
   Extern* imports[] = {fibonacci.get()};
