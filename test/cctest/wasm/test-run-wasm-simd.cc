@@ -2555,6 +2555,7 @@ WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff)
         WASM_SET_LOCAL(simd, WASM_SIMD_I##format##_SPLAT(WASM_GET_LOCAL(0))), \
         WASM_SIMD_UNOP(kExprS1x##lanes##AllTrue, WASM_GET_LOCAL(simd)));      \
     DCHECK_EQ(1, r.Call(max));                                                \
+    DCHECK_EQ(1, r.Call(0x1));                                                \
     DCHECK_EQ(0, r.Call(0));                                                  \
   }
 WASM_SIMD_ALLTRUE_TEST(32x4, 4, 0xffffffff)

@@ -576,6 +576,19 @@ void EmitWordLoadPoisoningIfNeeded(
     __ opcode(i.OutputSimd128Register(), i.InputSimd128Register(1), imm); \
   } while (false)
 
+#define ASSEMBLE_SIMD_ALL_TRUE(opcode)                       \
+  do {                                                       \
+    CpuFeatureScope sse_scope(tasm(), SSE4_1);               \
+    Register dst = i.OutputRegister();                       \
+    Register tmp = i.TempRegister(0);                        \
+    __ movq(tmp, Immediate(1));                              \
+    __ xorq(dst, dst);                                       \
+    __ pxor(kScratchDoubleReg, kScratchDoubleReg);           \
+    __ opcode(kScratchDoubleReg, i.InputSimd128Register(0)); \
+    __ ptest(kScratchDoubleReg, kScratchDoubleReg);          \
+    __ cmovq(zero, dst, tmp);                                \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
   __ movq(rsp, rbp);
@@ -3463,19 +3476,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cmovq(zero, dst, tmp);
       break;
     }
-    case kX64S1x4AllTrue:
-    case kX64S1x8AllTrue:
+    // Need to split up all the different lane structures because the
+    // comparison instruction used matters, e.g. given 0xff00, pcmpeqb returns
+    // 0x0011, pcmpeqw returns 0x0000, ptest will set ZF to 0 and 1
+    // respectively.
+    case kX64S1x4AllTrue: {
+      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqd);
+      break;
+    }
+    case kX64S1x8AllTrue: {
+      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqw);
+      break;
+    }
     case kX64S1x16AllTrue: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      Register dst = i.OutputRegister();
-      XMMRegister src = i.InputSimd128Register(0);
-      Register tmp = i.TempRegister(0);
-      __ movq(tmp, Immediate(1));
-      __ xorq(dst, dst);
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(kScratchDoubleReg, src);
-      __ ptest(kScratchDoubleReg, kScratchDoubleReg);
-      __ cmovq(zero, dst, tmp);
+      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqb);
       break;
     }
     case kX64StackCheck:
@@ -3660,6 +3674,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef ASSEMBLE_SIMD_IMM_INSTR
 #undef ASSEMBLE_SIMD_PUNPCK_SHUFFLE
 #undef ASSEMBLE_SIMD_IMM_SHUFFLE
+#undef ASSEMBLE_SIMD_ALL_TRUE
 
 namespace {
 

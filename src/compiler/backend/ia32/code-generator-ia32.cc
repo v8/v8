@@ -464,6 +464,19 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ opcode(i.OutputSimd128Register(), i.InputOperand(1), imm);      \
   }
 
+#define ASSEMBLE_SIMD_ALL_TRUE(opcode)              \
+  do {                                              \
+    Register dst = i.OutputRegister();              \
+    Operand src = i.InputOperand(0);                \
+    Register tmp = i.TempRegister(0);               \
+    __ mov(tmp, Immediate(1));                      \
+    __ xor_(dst, dst);                              \
+    __ Pxor(kScratchDoubleReg, kScratchDoubleReg);  \
+    __ opcode(kScratchDoubleReg, src);              \
+    __ Ptest(kScratchDoubleReg, kScratchDoubleReg); \
+    __ cmov(zero, dst, tmp);                        \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(esp, ebp);
   __ pop(ebp);
@@ -3665,18 +3678,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cmov(zero, dst, tmp);
       break;
     }
+    // Need to split up all the different lane structures because the
+    // comparison instruction used matters, e.g. given 0xff00, pcmpeqb returns
+    // 0x0011, pcmpeqw returns 0x0000, ptest will set ZF to 0 and 1
+    // respectively.
     case kIA32S1x4AllTrue:
+      ASSEMBLE_SIMD_ALL_TRUE(Pcmpeqd);
+      break;
     case kIA32S1x8AllTrue:
+      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqw);
+      break;
     case kIA32S1x16AllTrue: {
-      Register dst = i.OutputRegister();
-      Operand src = i.InputOperand(0);
-      Register tmp = i.TempRegister(0);
-      __ mov(tmp, Immediate(1));
-      __ xor_(dst, dst);
-      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Pxor(kScratchDoubleReg, src);
-      __ Ptest(kScratchDoubleReg, kScratchDoubleReg);
-      __ cmov(zero, dst, tmp);
+      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqb);
       break;
     }
     case kIA32StackCheck: {
@@ -4636,6 +4649,7 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 #undef ASSEMBLE_MOVX
 #undef ASSEMBLE_SIMD_PUNPCK_SHUFFLE
 #undef ASSEMBLE_SIMD_IMM_SHUFFLE
+#undef ASSEMBLE_SIMD_ALL_TRUE
 
 }  // namespace compiler
 }  // namespace internal
