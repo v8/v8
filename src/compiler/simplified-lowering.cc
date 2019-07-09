@@ -805,6 +805,10 @@ class RepresentationSelector {
   }
 
   void ProcessInput(Node* node, int index, UseInfo use) {
+    DCHECK_IMPLIES(use.type_check() != TypeCheckKind::kNone,
+                   !node->op()->HasProperty(Operator::kNoDeopt) &&
+                       node->op()->EffectInputCount() > 0);
+
     switch (phase_) {
       case PROPAGATE:
         EnqueueInput(node, index, use);
