@@ -95,22 +95,24 @@ namespace compiler {
   V(Uint32Mod)                               \
   V(Uint32Div)
 
-#define JSGRAPH_SINGLETON_CONSTANT_LIST(V) \
-  V(TrueConstant)                          \
-  V(FalseConstant)                         \
-  V(NullConstant)                          \
-  V(BigIntMapConstant)                     \
-  V(BooleanMapConstant)                    \
-  V(HeapNumberMapConstant)                 \
-  V(NoContextConstant)                     \
-  V(EmptyStringConstant)                   \
-  V(UndefinedConstant)                     \
-  V(TheHoleConstant)                       \
-  V(FixedArrayMapConstant)                 \
-  V(FixedDoubleArrayMapConstant)           \
-  V(ToNumberBuiltinConstant)               \
-  V(AllocateInYoungGenerationStubConstant) \
-  V(AllocateInOldGenerationStubConstant)
+#define JSGRAPH_SINGLETON_CONSTANT_LIST(V)        \
+  V(TrueConstant)                                 \
+  V(FalseConstant)                                \
+  V(NullConstant)                                 \
+  V(BigIntMapConstant)                            \
+  V(BooleanMapConstant)                           \
+  V(HeapNumberMapConstant)                        \
+  V(NoContextConstant)                            \
+  V(EmptyStringConstant)                          \
+  V(UndefinedConstant)                            \
+  V(TheHoleConstant)                              \
+  V(FixedArrayMapConstant)                        \
+  V(FixedDoubleArrayMapConstant)                  \
+  V(ToNumberBuiltinConstant)                      \
+  V(AllocateInYoungGenerationStubConstant)        \
+  V(AllocateRegularInYoungGenerationStubConstant) \
+  V(AllocateInOldGenerationStubConstant)          \
+  V(AllocateRegularInOldGenerationStubConstant)
 
 class GraphAssembler;
 

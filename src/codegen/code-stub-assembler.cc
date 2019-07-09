@@ -1127,20 +1127,23 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
   Label runtime_call(this, Label::kDeferred), no_runtime_call(this), out(this);
 
   bool needs_double_alignment = flags & kDoubleAlignment;
+  bool allow_large_object_allocation = flags & kAllowLargeObjectAllocation;
 
-  if (flags & kAllowLargeObjectAllocation) {
+  if (allow_large_object_allocation) {
     Label next(this);
     GotoIf(IsRegularHeapObjectSize(size_in_bytes), &next);
 
+    TNode<Smi> runtime_flags = SmiConstant(Smi::FromInt(
+        AllocateDoubleAlignFlag::encode(needs_double_alignment) |
+        AllowLargeObjectAllocationFlag::encode(allow_large_object_allocation)));
     if (FLAG_young_generation_large_objects) {
-      result = CallRuntime(Runtime::kAllocateInYoungGeneration,
-                           NoContextConstant(), SmiTag(size_in_bytes));
+      result =
+          CallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
+                      SmiTag(size_in_bytes), runtime_flags);
     } else {
-      TNode<Smi> alignment_flag = SmiConstant(Smi::FromInt(
-          AllocateDoubleAlignFlag::encode(needs_double_alignment)));
       result =
           CallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
-                      SmiTag(size_in_bytes), alignment_flag);
+                      SmiTag(size_in_bytes), runtime_flags);
     }
     Goto(&out);
 
@@ -1167,15 +1170,17 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
 
   BIND(&runtime_call);
   {
+    TNode<Smi> runtime_flags = SmiConstant(Smi::FromInt(
+        AllocateDoubleAlignFlag::encode(needs_double_alignment) |
+        AllowLargeObjectAllocationFlag::encode(allow_large_object_allocation)));
     if (flags & kPretenured) {
-      TNode<Smi> runtime_flags = SmiConstant(Smi::FromInt(
-          AllocateDoubleAlignFlag::encode(needs_double_alignment)));
       result =
           CallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
                       SmiTag(size_in_bytes), runtime_flags);
     } else {
-      result = CallRuntime(Runtime::kAllocateInYoungGeneration,
-                           NoContextConstant(), SmiTag(size_in_bytes));
+      result =
+          CallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
+                      SmiTag(size_in_bytes), runtime_flags);
     }
     Goto(&out);
   }

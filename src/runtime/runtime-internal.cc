@@ -287,13 +287,20 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
 
 RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
+  CONVERT_SMI_ARG_CHECKED(flags, 1);
+  bool double_align = AllocateDoubleAlignFlag::decode(flags);
+  bool allow_large_object_allocation =
+      AllowLargeObjectAllocationFlag::decode(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
   CHECK(FLAG_young_generation_large_objects ||
         size <= kMaxRegularHeapObjectSize);
-  return *isolate->factory()->NewFillerObject(size, false,
+  if (!allow_large_object_allocation) {
+    CHECK(size <= kMaxRegularHeapObjectSize);
+  }
+  return *isolate->factory()->NewFillerObject(size, double_align,
                                               AllocationType::kYoung);
 }
 
@@ -302,9 +309,14 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
+  bool double_align = AllocateDoubleAlignFlag::decode(flags);
+  bool allow_large_object_allocation =
+      AllowLargeObjectAllocationFlag::decode(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
-  bool double_align = AllocateDoubleAlignFlag::decode(flags);
+  if (!allow_large_object_allocation) {
+    CHECK(size <= kMaxRegularHeapObjectSize);
+  }
   return *isolate->factory()->NewFillerObject(size, double_align,
                                               AllocationType::kOld);
 }

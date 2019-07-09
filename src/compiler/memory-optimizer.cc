@@ -298,6 +298,21 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
     }
   }
 
+  Node* allocate_builtin;
+  if (allocation_type == AllocationType::kYoung) {
+    if (allocation.allow_large_objects() == AllowLargeObjects::kTrue) {
+      allocate_builtin = __ AllocateInYoungGenerationStubConstant();
+    } else {
+      allocate_builtin = __ AllocateRegularInYoungGenerationStubConstant();
+    }
+  } else {
+    if (allocation.allow_large_objects() == AllowLargeObjects::kTrue) {
+      allocate_builtin = __ AllocateInOldGenerationStubConstant();
+    } else {
+      allocate_builtin = __ AllocateRegularInOldGenerationStubConstant();
+    }
+  }
+
   // Determine the top/limit addresses.
   Node* top_address = __ ExternalConstant(
       allocation_type == AllocationType::kYoung
@@ -373,11 +388,6 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
       __ Bind(&call_runtime);
       {
-        Node* target = allocation_type == AllocationType::kYoung
-                           ? __
-                             AllocateInYoungGenerationStubConstant()
-                           : __
-                             AllocateInOldGenerationStubConstant();
         if (!allocate_operator_.is_set()) {
           auto descriptor = AllocateDescriptor{};
           auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -386,7 +396,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
           allocate_operator_.set(common()->Call(call_descriptor));
         }
         Node* vfalse = __ BitcastTaggedToWord(
-            __ Call(allocate_operator_.get(), target, size));
+            __ Call(allocate_operator_.get(), allocate_builtin, size));
         vfalse = __ IntSub(vfalse, __ IntPtrConstant(kHeapObjectTag));
         __ Goto(&done, vfalse);
       }
@@ -436,11 +446,6 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
                        __ IntAdd(top, __ IntPtrConstant(kHeapObjectTag))));
 
     __ Bind(&call_runtime);
-    Node* target = allocation_type == AllocationType::kYoung
-                       ? __
-                         AllocateInYoungGenerationStubConstant()
-                       : __
-                         AllocateInOldGenerationStubConstant();
     if (!allocate_operator_.is_set()) {
       auto descriptor = AllocateDescriptor{};
       auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -448,7 +453,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
           CallDescriptor::kCanUseRoots, Operator::kNoThrow);
       allocate_operator_.set(common()->Call(call_descriptor));
     }
-    __ Goto(&done, __ Call(allocate_operator_.get(), target, size));
+    __ Goto(&done, __ Call(allocate_operator_.get(), allocate_builtin, size));
 
     __ Bind(&done);
     value = done.PhiAt(0);

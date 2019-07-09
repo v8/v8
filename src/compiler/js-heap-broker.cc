@@ -2093,7 +2093,9 @@ void JSHeapBroker::SerializeShareableObjects() {
   {
     Builtins::Name builtins[] = {
         Builtins::kAllocateInYoungGeneration,
+        Builtins::kAllocateRegularInYoungGeneration,
         Builtins::kAllocateInOldGeneration,
+        Builtins::kAllocateRegularInOldGeneration,
         Builtins::kArgumentsAdaptorTrampoline,
         Builtins::kArrayConstructorImpl,
         Builtins::kCallFunctionForwardVarargs,

@@ -772,6 +772,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kStrictPoisonPillThrower:
     case Builtins::kAllocateInYoungGeneration:
     case Builtins::kAllocateInOldGeneration:
+    case Builtins::kAllocateRegularInYoungGeneration:
+    case Builtins::kAllocateRegularInOldGeneration:
       return DebugInfo::kHasNoSideEffect;
 
     // Set builtins.
