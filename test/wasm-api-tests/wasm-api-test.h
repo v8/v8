@@ -125,6 +125,7 @@ class WasmCapiTest : public ::testing::Test {
   WasmModuleBuilder* builder() { return &builder_; }
   Store* store() { return store_.get(); }
   Module* module() { return module_.get(); }
+  const vec<Extern*>& exports() { return exports_; }
 
   FunctionSig* wasm_i_i_sig() { return &wasm_i_i_sig_; }
   FuncType* cpp_i_i_sig() { return cpp_i_i_sig_.get(); }

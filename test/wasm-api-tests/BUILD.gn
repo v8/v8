@@ -33,6 +33,7 @@ v8_executable("wasm_api_tests") {
     "finalize.cc",
     "globals.cc",
     "memory.cc",
+    "reflect.cc",
     "run-all-wasm-api-tests.cc",
     "wasm-api-test.h",
   ]
