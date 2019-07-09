@@ -1665,8 +1665,7 @@ class ThreadImpl {
 
   template <typename ctype, typename mtype>
   bool ExecuteLoad(Decoder* decoder, InterpreterCode* code, pc_t pc,
-                   int& len,  // NOLINT(runtime/references)
-                   MachineRepresentation rep) {
+                   int* const len, MachineRepresentation rep) {
     MemoryAccessImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc),
                                                     sizeof(ctype));
     uint32_t index = Pop().to<uint32_t>();
@@ -1679,7 +1678,7 @@ class ThreadImpl {
         converter<ctype, mtype>{}(ReadLittleEndianValue<mtype>(addr)));
 
     Push(result);
-    len = 1 + imm.length;
+    *len = 1 + imm.length;
 
     if (FLAG_trace_wasm_memory) {
       MemoryTracingInfo info(imm.offset + index, false, rep);
@@ -1693,8 +1692,7 @@ class ThreadImpl {
 
   template <typename ctype, typename mtype>
   bool ExecuteStore(Decoder* decoder, InterpreterCode* code, pc_t pc,
-                    int& len,  // NOLINT(runtime/references)
-                    MachineRepresentation rep) {
+                    int* const len, MachineRepresentation rep) {
     MemoryAccessImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc),
                                                     sizeof(ctype));
     ctype val = Pop().to<ctype>();
@@ -1706,7 +1704,7 @@ class ThreadImpl {
       return false;
     }
     WriteLittleEndianValue<mtype>(addr, converter<mtype, ctype>{}(val));
-    len = 1 + imm.length;
+    *len = 1 + imm.length;
 
     if (FLAG_trace_wasm_memory) {
       MemoryTracingInfo info(imm.offset + index, true, rep);
@@ -1738,26 +1736,24 @@ class ThreadImpl {
 
   template <typename type, typename op_type>
   bool ExtractAtomicOpParams(Decoder* decoder, InterpreterCode* code,
-                             Address& address,   // NOLINT(runtime/references)
-                             pc_t pc, int& len,  // NOLINT(runtime/references)
+                             Address* address, pc_t pc, int* const len,
                              type* val = nullptr, type* val2 = nullptr) {
     MemoryAccessImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc + 1),
                                                     sizeof(type));
     if (val2) *val2 = static_cast<type>(Pop().to<op_type>());
     if (val) *val = static_cast<type>(Pop().to<op_type>());
     uint32_t index = Pop().to<uint32_t>();
-    address = BoundsCheckMem<type>(imm.offset, index);
+    *address = BoundsCheckMem<type>(imm.offset, index);
     if (!address) {
       DoTrap(kTrapMemOutOfBounds, pc);
       return false;
     }
-    len = 2 + imm.length;
+    *len = 2 + imm.length;
     return true;
   }
 
   bool ExecuteNumericOp(WasmOpcode opcode, Decoder* decoder,
-                        InterpreterCode* code, pc_t pc,
-                        int& len) {  // NOLINT(runtime/references)
+                        InterpreterCode* code, pc_t pc, int* const len) {
     switch (opcode) {
       case kExprI32SConvertSatF32:
         Push(WasmValue(ExecuteConvertSaturate<int32_t>(Pop().to<float>())));
@@ -1786,7 +1782,7 @@ class ThreadImpl {
       case kExprMemoryInit: {
         MemoryInitImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
         DCHECK_LT(imm.data_segment_index, module()->num_declared_data_segments);
-        len += imm.length;
+        *len += imm.length;
         if (!CheckDataSegmentIsPassiveAndNotDropped(imm.data_segment_index,
                                                     pc)) {
           return false;
@@ -1809,7 +1805,7 @@ class ThreadImpl {
       }
       case kExprDataDrop: {
         DataDropImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
-        len += imm.length;
+        *len += imm.length;
         if (!CheckDataSegmentIsPassiveAndNotDropped(imm.index, pc)) {
           return false;
         }
@@ -1835,7 +1831,7 @@ class ThreadImpl {
           memory_copy_wrapper(dst_addr, src_addr, size);
         }
         if (!ok) DoTrap(kTrapMemOutOfBounds, pc);
-        len += imm.length;
+        *len += imm.length;
         return ok;
       }
       case kExprMemoryFill: {
@@ -1848,12 +1844,12 @@ class ThreadImpl {
         bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
         memory_fill_wrapper(dst_addr, value, size);
         if (!ok) DoTrap(kTrapMemOutOfBounds, pc);
-        len += imm.length;
+        *len += imm.length;
         return ok;
       }
       case kExprTableInit: {
         TableInitImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
-        len += imm.length;
+        *len += imm.length;
         if (!CheckElemSegmentIsPassiveAndNotDropped(imm.elem_segment_index,
                                                     pc)) {
           return false;
@@ -1870,7 +1866,7 @@ class ThreadImpl {
       }
       case kExprElemDrop: {
         ElemDropImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
-        len += imm.length;
+        *len += imm.length;
         if (!CheckElemSegmentIsPassiveAndNotDropped(imm.index, pc)) {
           return false;
         }
@@ -1887,7 +1883,7 @@ class ThreadImpl {
             isolate_, instance_object_, imm.table_dst.index,
             imm.table_src.index, dst, src, size);
         if (!ok) DoTrap(kTrapTableOutOfBounds, pc);
-        len += imm.length;
+        *len += imm.length;
         return ok;
       }
       case kExprTableGrow: {
@@ -1901,7 +1897,7 @@ class ThreadImpl {
         auto value = Pop().to_anyref();
         int32_t result = WasmTableObject::Grow(isolate_, table, delta, value);
         Push(WasmValue(result));
-        len += imm.length;
+        *len += imm.length;
         return true;
       }
       case kExprTableSize: {
@@ -1913,7 +1909,7 @@ class ThreadImpl {
             isolate_);
         uint32_t table_size = table->current_length();
         Push(WasmValue(table_size));
-        len += imm.length;
+        *len += imm.length;
         return true;
       }
       default:
@@ -1947,8 +1943,7 @@ class ThreadImpl {
   }
 
   bool ExecuteAtomicOp(WasmOpcode opcode, Decoder* decoder,
-                       InterpreterCode* code, pc_t pc,
-                       int& len) {  // NOLINT(runtime/references)
+                       InterpreterCode* code, pc_t pc, int* const len) {
 #if V8_TARGET_BIG_ENDIAN
     constexpr bool kBigEndian = true;
 #else
@@ -1956,27 +1951,27 @@ class ThreadImpl {
 #endif
     WasmValue result;
     switch (opcode) {
-#define ATOMIC_BINOP_CASE(name, type, op_type, operation, op)               \
-  case kExpr##name: {                                                       \
-    type val;                                                               \
-    Address addr;                                                           \
-    op_type result;                                                         \
-    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, addr, pc, len, \
-                                              &val)) {                      \
-      return false;                                                         \
-    }                                                                       \
-    static_assert(sizeof(std::atomic<type>) == sizeof(type),                \
-                  "Size mismatch for types std::atomic<" #type              \
-                  ">, and " #type);                                         \
-    if (kBigEndian) {                                                       \
-      auto oplambda = [](type a, type b) { return a op b; };                \
-      result = ExecuteAtomicBinopBE<type, op_type>(val, addr, oplambda);    \
-    } else {                                                                \
-      result = static_cast<op_type>(                                        \
-          std::operation(reinterpret_cast<std::atomic<type>*>(addr), val)); \
-    }                                                                       \
-    Push(WasmValue(result));                                                \
-    break;                                                                  \
+#define ATOMIC_BINOP_CASE(name, type, op_type, operation, op)                \
+  case kExpr##name: {                                                        \
+    type val;                                                                \
+    Address addr;                                                            \
+    op_type result;                                                          \
+    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, &addr, pc, len, \
+                                              &val)) {                       \
+      return false;                                                          \
+    }                                                                        \
+    static_assert(sizeof(std::atomic<type>) == sizeof(type),                 \
+                  "Size mismatch for types std::atomic<" #type               \
+                  ">, and " #type);                                          \
+    if (kBigEndian) {                                                        \
+      auto oplambda = [](type a, type b) { return a op b; };                 \
+      result = ExecuteAtomicBinopBE<type, op_type>(val, addr, oplambda);     \
+    } else {                                                                 \
+      result = static_cast<op_type>(                                         \
+          std::operation(reinterpret_cast<std::atomic<type>*>(addr), val));  \
+    }                                                                        \
+    Push(WasmValue(result));                                                 \
+    break;                                                                   \
   }
       ATOMIC_BINOP_CASE(I32AtomicAdd, uint32_t, uint32_t, atomic_fetch_add, +);
       ATOMIC_BINOP_CASE(I32AtomicAdd8U, uint8_t, uint32_t, atomic_fetch_add, +);
@@ -2040,24 +2035,24 @@ class ThreadImpl {
       ATOMIC_BINOP_CASE(I64AtomicExchange32U, uint32_t, uint64_t,
                         atomic_exchange, =);
 #undef ATOMIC_BINOP_CASE
-#define ATOMIC_COMPARE_EXCHANGE_CASE(name, type, op_type)                   \
-  case kExpr##name: {                                                       \
-    type old_val;                                                           \
-    type new_val;                                                           \
-    Address addr;                                                           \
-    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, addr, pc, len, \
-                                              &old_val, &new_val)) {        \
-      return false;                                                         \
-    }                                                                       \
-    static_assert(sizeof(std::atomic<type>) == sizeof(type),                \
-                  "Size mismatch for types std::atomic<" #type              \
-                  ">, and " #type);                                         \
-    old_val = AdjustByteOrder<type>(old_val);                               \
-    new_val = AdjustByteOrder<type>(new_val);                               \
-    std::atomic_compare_exchange_strong(                                    \
-        reinterpret_cast<std::atomic<type>*>(addr), &old_val, new_val);     \
-    Push(WasmValue(static_cast<op_type>(AdjustByteOrder<type>(old_val))));  \
-    break;                                                                  \
+#define ATOMIC_COMPARE_EXCHANGE_CASE(name, type, op_type)                    \
+  case kExpr##name: {                                                        \
+    type old_val;                                                            \
+    type new_val;                                                            \
+    Address addr;                                                            \
+    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, &addr, pc, len, \
+                                              &old_val, &new_val)) {         \
+      return false;                                                          \
+    }                                                                        \
+    static_assert(sizeof(std::atomic<type>) == sizeof(type),                 \
+                  "Size mismatch for types std::atomic<" #type               \
+                  ">, and " #type);                                          \
+    old_val = AdjustByteOrder<type>(old_val);                                \
+    new_val = AdjustByteOrder<type>(new_val);                                \
+    std::atomic_compare_exchange_strong(                                     \
+        reinterpret_cast<std::atomic<type>*>(addr), &old_val, new_val);      \
+    Push(WasmValue(static_cast<op_type>(AdjustByteOrder<type>(old_val))));   \
+    break;                                                                   \
   }
       ATOMIC_COMPARE_EXCHANGE_CASE(I32AtomicCompareExchange, uint32_t,
                                    uint32_t);
@@ -2074,19 +2069,20 @@ class ThreadImpl {
       ATOMIC_COMPARE_EXCHANGE_CASE(I64AtomicCompareExchange32U, uint32_t,
                                    uint64_t);
 #undef ATOMIC_COMPARE_EXCHANGE_CASE
-#define ATOMIC_LOAD_CASE(name, type, op_type, operation)                       \
-  case kExpr##name: {                                                          \
-    Address addr;                                                              \
-    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, addr, pc, len)) { \
-      return false;                                                            \
-    }                                                                          \
-    static_assert(sizeof(std::atomic<type>) == sizeof(type),                   \
-                  "Size mismatch for types std::atomic<" #type                 \
-                  ">, and " #type);                                            \
-    result = WasmValue(static_cast<op_type>(AdjustByteOrder<type>(             \
-        std::operation(reinterpret_cast<std::atomic<type>*>(addr)))));         \
-    Push(result);                                                              \
-    break;                                                                     \
+#define ATOMIC_LOAD_CASE(name, type, op_type, operation)                \
+  case kExpr##name: {                                                   \
+    Address addr;                                                       \
+    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, &addr, pc, \
+                                              len)) {                   \
+      return false;                                                     \
+    }                                                                   \
+    static_assert(sizeof(std::atomic<type>) == sizeof(type),            \
+                  "Size mismatch for types std::atomic<" #type          \
+                  ">, and " #type);                                     \
+    result = WasmValue(static_cast<op_type>(AdjustByteOrder<type>(      \
+        std::operation(reinterpret_cast<std::atomic<type>*>(addr)))));  \
+    Push(result);                                                       \
+    break;                                                              \
   }
       ATOMIC_LOAD_CASE(I32AtomicLoad, uint32_t, uint32_t, atomic_load);
       ATOMIC_LOAD_CASE(I32AtomicLoad8U, uint8_t, uint32_t, atomic_load);
@@ -2096,20 +2092,20 @@ class ThreadImpl {
       ATOMIC_LOAD_CASE(I64AtomicLoad16U, uint16_t, uint64_t, atomic_load);
       ATOMIC_LOAD_CASE(I64AtomicLoad32U, uint32_t, uint64_t, atomic_load);
 #undef ATOMIC_LOAD_CASE
-#define ATOMIC_STORE_CASE(name, type, op_type, operation)                   \
-  case kExpr##name: {                                                       \
-    type val;                                                               \
-    Address addr;                                                           \
-    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, addr, pc, len, \
-                                              &val)) {                      \
-      return false;                                                         \
-    }                                                                       \
-    static_assert(sizeof(std::atomic<type>) == sizeof(type),                \
-                  "Size mismatch for types std::atomic<" #type              \
-                  ">, and " #type);                                         \
-    std::operation(reinterpret_cast<std::atomic<type>*>(addr),              \
-                   AdjustByteOrder<type>(val));                             \
-    break;                                                                  \
+#define ATOMIC_STORE_CASE(name, type, op_type, operation)                    \
+  case kExpr##name: {                                                        \
+    type val;                                                                \
+    Address addr;                                                            \
+    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, &addr, pc, len, \
+                                              &val)) {                       \
+      return false;                                                          \
+    }                                                                        \
+    static_assert(sizeof(std::atomic<type>) == sizeof(type),                 \
+                  "Size mismatch for types std::atomic<" #type               \
+                  ">, and " #type);                                          \
+    std::operation(reinterpret_cast<std::atomic<type>*>(addr),               \
+                   AdjustByteOrder<type>(val));                              \
+    break;                                                                   \
   }
       ATOMIC_STORE_CASE(I32AtomicStore, uint32_t, uint32_t, atomic_store);
       ATOMIC_STORE_CASE(I32AtomicStore8U, uint8_t, uint32_t, atomic_store);
@@ -2155,7 +2151,7 @@ class ThreadImpl {
   }
 
   bool ExecuteSimdOp(WasmOpcode opcode, Decoder* decoder, InterpreterCode* code,
-                     pc_t pc, int& len) {  // NOLINT(runtime/references)
+                     pc_t pc, int* const len) {
     switch (opcode) {
 #define SPLAT_CASE(format, sType, valType, num) \
   case kExpr##format##Splat: {                  \
@@ -2176,7 +2172,7 @@ class ThreadImpl {
 #define EXTRACT_LANE_CASE(format, name)                                 \
   case kExpr##format##ExtractLane: {                                    \
     SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
-    ++len;                                                              \
+    *len += 1;                                                          \
     WasmValue val = Pop();                                              \
     Simd128 s = val.to_s128();                                          \
     auto ss = s.to_##name();                                            \
@@ -2355,7 +2351,7 @@ class ThreadImpl {
 #define REPLACE_LANE_CASE(format, name, stype, ctype)                   \
   case kExpr##format##ReplaceLane: {                                    \
     SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
-    ++len;                                                              \
+    *len += 1;                                                          \
     WasmValue new_val = Pop();                                          \
     WasmValue simd_val = Pop();                                         \
     stype s = simd_val.to_s128().to_##name();                           \
@@ -2378,7 +2374,7 @@ class ThreadImpl {
 #define SHIFT_CASE(op, name, stype, count, expr)                         \
   case kExpr##op: {                                                      \
     SimdShiftImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
-    ++len;                                                               \
+    *len += 1;                                                           \
     WasmValue v = Pop();                                                 \
     stype s = v.to_s128().to_##name();                                   \
     stype res;                                                           \
@@ -2515,7 +2511,7 @@ class ThreadImpl {
       case kExprS8x16Shuffle: {
         Simd8x16ShuffleImmediate<Decoder::kNoValidate> imm(decoder,
                                                            code->at(pc));
-        len += 16;
+        *len += 16;
         int16 v2 = Pop().to_s128().to_i8x16();
         int16 v1 = Pop().to_s128().to_i8x16();
         int16 res;
@@ -3250,7 +3246,7 @@ class ThreadImpl {
         }
 #define LOAD_CASE(name, ctype, mtype, rep)                      \
   case kExpr##name: {                                           \
-    if (!ExecuteLoad<ctype, mtype>(&decoder, code, pc, len,     \
+    if (!ExecuteLoad<ctype, mtype>(&decoder, code, pc, &len,    \
                                    MachineRepresentation::rep)) \
       return;                                                   \
     break;                                                      \
@@ -3274,7 +3270,7 @@ class ThreadImpl {
 
 #define STORE_CASE(name, ctype, mtype, rep)                      \
   case kExpr##name: {                                            \
-    if (!ExecuteStore<ctype, mtype>(&decoder, code, pc, len,     \
+    if (!ExecuteStore<ctype, mtype>(&decoder, code, pc, &len,    \
                                     MachineRepresentation::rep)) \
       return;                                                    \
     break;                                                       \
@@ -3391,16 +3387,16 @@ class ThreadImpl {
         }
         case kNumericPrefix: {
           ++len;
-          if (!ExecuteNumericOp(opcode, &decoder, code, pc, len)) return;
+          if (!ExecuteNumericOp(opcode, &decoder, code, pc, &len)) return;
           break;
         }
         case kAtomicPrefix: {
-          if (!ExecuteAtomicOp(opcode, &decoder, code, pc, len)) return;
+          if (!ExecuteAtomicOp(opcode, &decoder, code, pc, &len)) return;
           break;
         }
         case kSimdPrefix: {
           ++len;
-          if (!ExecuteSimdOp(opcode, &decoder, code, pc, len)) return;
+          if (!ExecuteSimdOp(opcode, &decoder, code, pc, &len)) return;
           break;
         }
 
