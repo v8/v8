@@ -1890,6 +1890,32 @@ class ThreadImpl {
         len += imm.length;
         return ok;
       }
+      case kExprTableGrow: {
+        TableIndexImmediate<Decoder::kNoValidate> imm(decoder,
+                                                      code->at(pc + 1));
+        HandleScope handle_scope(isolate_);
+        auto table = handle(
+            WasmTableObject::cast(instance_object_->tables().get(imm.index)),
+            isolate_);
+        auto delta = Pop().to<uint32_t>();
+        auto value = Pop().to_anyref();
+        int32_t result = WasmTableObject::Grow(isolate_, table, delta, value);
+        Push(WasmValue(result));
+        len += imm.length;
+        return true;
+      }
+      case kExprTableSize: {
+        TableIndexImmediate<Decoder::kNoValidate> imm(decoder,
+                                                      code->at(pc + 1));
+        HandleScope handle_scope(isolate_);
+        auto table = handle(
+            WasmTableObject::cast(instance_object_->tables().get(imm.index)),
+            isolate_);
+        uint32_t table_size = table->current_length();
+        Push(WasmValue(table_size));
+        len += imm.length;
+        return true;
+      }
       default:
         FATAL("Unknown or unimplemented opcode #%d:%s", code->start[pc],
               OpcodeName(code->start[pc]));
