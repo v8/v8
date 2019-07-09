@@ -2210,7 +2210,7 @@ void Assembler::stm(BlockAddrMode am, Register base, RegList src,
 // Exception-generating instructions and debugging support.
 // Stops with a non-negative code less than kNumOfWatchedStops support
 // enabling/disabling and a counter feature. See simulator-arm.h .
-void Assembler::stop(const char* msg, Condition cond, int32_t code) {
+void Assembler::stop(Condition cond, int32_t code) {
 #ifndef __arm__
   DCHECK_GE(code, kDefaultStopCode);
   {

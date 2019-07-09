@@ -1570,7 +1570,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
                 RelocInfo::CODE_TARGET);
       }
-      __ stop("kArchAbortJS");
+      __ stop();
       break;
     case kArchAbortCSAAssert:
       DCHECK(i.InputRegister(0) == r3);
@@ -1586,10 +1586,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             isolate()->builtins()->builtin_handle(Builtins::kAbortCSAAssert),
             RelocInfo::CODE_TARGET);
       }
-      __ stop("kArchAbortCSAAssert");
+      __ stop();
       break;
     case kArchDebugBreak:
-      __ stop("kArchDebugBreak");
+      __ stop();
       break;
     case kArchNop:
     case kArchThrowTerminator:
@@ -2918,7 +2918,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
             new (gen_->zone()) ReferenceMap(gen_->zone());
         gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
         if (FLAG_debug_code) {
-          __ stop(GetAbortReason(AbortReason::kUnexpectedReturnFromWasmTrap));
+          __ stop();
         }
       }
     }
@@ -3127,7 +3127,7 @@ void CodeGenerator::AssembleConstructFrame() {
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
       RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
       if (FLAG_debug_code) {
-        __ stop(GetAbortReason(AbortReason::kUnexpectedReturnFromThrow));
+        __ stop();
       }
 
       __ bind(&done);

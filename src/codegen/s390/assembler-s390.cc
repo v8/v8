@@ -636,8 +636,7 @@ void Assembler::branchOnCond(Condition c, int branch_offset, bool is_bound) {
 // Exception-generating instructions and debugging support.
 // Stops with a non-negative code less than kNumOfWatchedStops support
 // enabling/disabling and a counter feature. See simulator-s390.h .
-void Assembler::stop(const char* msg, Condition cond, int32_t code,
-                     CRegister cr) {
+void Assembler::stop(Condition cond, int32_t code, CRegister cr) {
   if (cond != al) {
     Label skip;
     b(NegateCondition(cond), &skip, Label::kNear);

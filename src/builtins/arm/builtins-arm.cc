@@ -2580,7 +2580,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
       __ tst(sp, Operand(frame_alignment_mask));
       __ b(eq, &alignment_as_expected);
       // Don't use Check here, as it will call Runtime_Abort re-entering here.
-      __ stop("Unexpected alignment");
+      __ stop();
       __ bind(&alignment_as_expected);
     }
   }
@@ -2609,7 +2609,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ CompareRoot(r3, RootIndex::kTheHoleValue);
     // Cannot use check here as it attempts to generate call into runtime.
     __ b(eq, &okay);
-    __ stop("Unexpected pending exception");
+    __ stop();
     __ bind(&okay);
   }
 

@@ -841,8 +841,8 @@ class Assembler : public AssemblerBase {
   void function_descriptor();
 
   // Exception-generating instructions and debugging support
-  void stop(const char* msg, Condition cond = al,
-            int32_t code = kDefaultStopCode, CRegister cr = cr7);
+  void stop(Condition cond = al, int32_t code = kDefaultStopCode,
+            CRegister cr = cr7);
 
   void bkpt(uint32_t imm16);  // v5 and above
 

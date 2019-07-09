@@ -2344,7 +2344,7 @@ void Assembler::break_(uint32_t code, bool break_as_stop) {
   emit(break_instr);
 }
 
-void Assembler::stop(const char* msg, uint32_t code) {
+void Assembler::stop(uint32_t code) {
   DCHECK_GT(code, kMaxWatchpointCode);
   DCHECK_LE(code, kMaxStopCode);
 #if defined(V8_HOST_ARCH_MIPS) || defined(V8_HOST_ARCH_MIPS64)

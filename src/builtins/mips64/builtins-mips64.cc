@@ -2605,7 +2605,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ LoadRoot(a4, RootIndex::kTheHoleValue);
     // Cannot use check here as it attempts to generate call into runtime.
     __ Branch(&okay, eq, a4, Operand(a2));
-    __ stop("Unexpected pending exception");
+    __ stop();
     __ bind(&okay);
   }
 

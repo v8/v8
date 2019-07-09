@@ -1490,8 +1490,7 @@ void Assembler::mtfprwa(DoubleRegister dst, Register src) {
 // Exception-generating instructions and debugging support.
 // Stops with a non-negative code less than kNumOfWatchedStops support
 // enabling/disabling and a counter feature. See simulator-ppc.h .
-void Assembler::stop(const char* msg, Condition cond, int32_t code,
-                     CRegister cr) {
+void Assembler::stop(Condition cond, int32_t code, CRegister cr) {
   if (cond != al) {
     Label skip;
     b(NegateCondition(cond), &skip, cr);

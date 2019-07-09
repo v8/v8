@@ -2755,7 +2755,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ CompareRoot(r1, RootIndex::kTheHoleValue);
     // Cannot use check here as it attempts to generate call into runtime.
     __ beq(&okay, Label::kNear);
-    __ stop("Unexpected pending exception");
+    __ stop();
     __ bind(&okay);
   }
 
@@ -3319,7 +3319,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   // Unused.
-  __ stop(0);
+  __ stop();
 }
 
 #undef __
