@@ -3833,7 +3833,10 @@ Node** BytecodeGraphBuilder::EnsureInputBufferSize(int size) {
 }
 
 void BytecodeGraphBuilder::ExitThenEnterExceptionHandlers(int current_offset) {
-  HandlerTable table(*(bytecode_array().object()));
+  DisallowHeapAllocation no_allocation;
+  HandlerTable table(bytecode_array().handler_table_address(),
+                     bytecode_array().handler_table_size(),
+                     HandlerTable::kRangeBasedEncoding);
 
   // Potentially exit exception handlers.
   while (!exception_handlers_.empty()) {

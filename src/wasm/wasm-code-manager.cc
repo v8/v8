@@ -286,7 +286,8 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   os << "\n";
 
   if (handler_table_size() > 0) {
-    HandlerTable table(handler_table(), handler_table_size());
+    HandlerTable table(handler_table(), handler_table_size(),
+                       HandlerTable::kReturnAddressBasedEncoding);
     os << "Exception Handler Table (size = " << table.NumberOfReturnEntries()
        << "):\n";
     table.HandlerTableReturnPrint(os);

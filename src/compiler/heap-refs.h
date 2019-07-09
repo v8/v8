@@ -621,6 +621,10 @@ class BytecodeArrayRef : public FixedArrayBaseRef {
   bool IsConstantAtIndexSmi(int index) const;
   Smi GetConstantAtIndexAsSmi(int index) const;
 
+  // Exception handler table.
+  Address handler_table_address() const;
+  int handler_table_size() const;
+
   bool IsSerializedForCompilation() const;
   void SerializeForCompilation();
 };
