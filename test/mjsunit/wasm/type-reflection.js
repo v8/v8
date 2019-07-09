@@ -294,6 +294,31 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapFuncSigMismatch, () => instance.exports.main(1));
 })();
 
+(function TestFunctionTableSetIncompatibleSig() {
+  let builder = new WasmModuleBuilder();
+  let fun = new WebAssembly.Function({parameters:[], results:["i64"]}, _ => 0);
+  let table = new WebAssembly.Table({element: "anyfunc", initial: 2});
+  let table_index = builder.addImportedTable("m", "table", 2);
+  let sig_index = builder.addType(kSig_l_v);
+  table.set(0, fun);
+  builder.addFunction('main', kSig_v_i)
+      .addBody([
+        kExprGetLocal, 0,
+        kExprCallIndirect, sig_index, table_index,
+        kExprDrop
+      ])
+      .exportFunc();
+  let instance = builder.instantiate({ m: { table: table }});
+  assertThrows(
+    () => instance.exports.main(0), TypeError,
+    /wasm function signature contains illegal type/);
+  assertTraps(kTrapFuncSigMismatch, () => instance.exports.main(1));
+  table.set(1, fun);
+  assertThrows(
+    () => instance.exports.main(1), TypeError,
+    /wasm function signature contains illegal type/);
+})();
+
 // TODO(7742): Enable once imported constructed functions are callable.
 /*(function TestFunctionModuleImportMatchingSig() {
   let builder = new WasmModuleBuilder();
