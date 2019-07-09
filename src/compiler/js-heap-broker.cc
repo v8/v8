@@ -1359,8 +1359,21 @@ class BytecodeArrayData : public FixedArrayBaseData {
       constant_pool_.push_back(broker->GetOrCreateData(constant_pool->get(i)));
     }
 
+    Handle<ByteArray> source_position_table(
+        bytecode_array->SourcePositionTableIfCollected(), broker->isolate());
+    source_positions_.reserve(source_position_table->length());
+    for (int i = 0; i < source_position_table->length(); i++) {
+      source_positions_.push_back(source_position_table->get(i));
+    }
+
     is_serialized_for_compilation_ = true;
   }
+
+  const byte* source_positions_address() const {
+    return source_positions_.data();
+  }
+
+  size_t source_positions_size() const { return source_positions_.size(); }
 
   BytecodeArrayData(JSHeapBroker* broker, ObjectData** storage,
                     Handle<BytecodeArray> object)
@@ -1370,6 +1383,7 @@ class BytecodeArrayData : public FixedArrayBaseData {
         incoming_new_target_or_generator_register_(
             object->incoming_new_target_or_generator_register()),
         bytecodes_(broker->zone()),
+        source_positions_(broker->zone()),
         constant_pool_(broker->zone()) {}
 
  private:
@@ -1379,6 +1393,7 @@ class BytecodeArrayData : public FixedArrayBaseData {
 
   bool is_serialized_for_compilation_ = false;
   ZoneVector<uint8_t> bytecodes_;
+  ZoneVector<uint8_t> source_positions_;
   ZoneVector<ObjectData*> constant_pool_;
 };
 
@@ -2751,6 +2766,22 @@ bool BytecodeArrayRef::IsSerializedForCompilation() const {
 void BytecodeArrayRef::SerializeForCompilation() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   data()->AsBytecodeArray()->SerializeForCompilation(broker());
+}
+
+const byte* BytecodeArrayRef::source_positions_address() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    return object()->SourcePositionTableIfCollected().GetDataStartAddress();
+  }
+  return data()->AsBytecodeArray()->source_positions_address();
+}
+
+int BytecodeArrayRef::source_positions_size() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    return object()->SourcePositionTableIfCollected().length();
+  }
+  return static_cast<int>(data()->AsBytecodeArray()->source_positions_size());
 }
 
 #define IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name) \

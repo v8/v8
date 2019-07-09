@@ -331,7 +331,7 @@ class BytecodeGraphBuilder {
   }
 
   SourcePositionTableIterator& source_position_iterator() {
-    return source_position_iterator_;
+    return *source_position_iterator_.get();
   }
 
   interpreter::BytecodeArrayIterator& bytecode_iterator() {
@@ -385,7 +385,7 @@ class BytecodeGraphBuilder {
   Handle<FeedbackVector> const feedback_vector_;
   JSTypeHintLowering const type_hint_lowering_;
   const FrameStateFunctionInfo* const frame_state_function_info_;
-  SourcePositionTableIterator source_position_iterator_;
+  std::unique_ptr<SourcePositionTableIterator> source_position_iterator_;
   interpreter::BytecodeArrayIterator bytecode_iterator_;
   BytecodeAnalysis bytecode_analysis_;
   Environment* environment_;
@@ -958,9 +958,6 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
           FrameStateType::kInterpretedFunction,
           bytecode_array.parameter_count(), bytecode_array.register_count(),
           shared_info)),
-      source_position_iterator_(
-          handle(bytecode_array.object()->SourcePositionTableIfCollected(),
-                 isolate())),
       bytecode_iterator_(
           base::make_unique<OffHeapBytecodeArray>(bytecode_array)),
       bytecode_analysis_(
@@ -983,7 +980,20 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       source_positions_(source_positions),
       start_position_(shared_info->StartPosition(), inlining_id),
       shared_info_(shared_info),
-      native_context_(native_context) {}
+      native_context_(native_context) {
+  if (FLAG_concurrent_inlining) {
+    // With concurrent inlining on, the source position address doesn't change
+    // because it's been copied from the heap.
+    source_position_iterator_ = base::make_unique<SourcePositionTableIterator>(
+        Vector<const byte>(bytecode_array.source_positions_address(),
+                           bytecode_array.source_positions_size()));
+  } else {
+    // Otherwise, we need to access the table through a handle.
+    source_position_iterator_ = base::make_unique<SourcePositionTableIterator>(
+        handle(bytecode_array.object()->SourcePositionTableIfCollected(),
+               isolate()));
+  }
+}
 
 Node* BytecodeGraphBuilder::GetFunctionClosure() {
   if (!function_closure_.is_set()) {
