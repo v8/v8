@@ -372,7 +372,7 @@ bool Heap::InToPage(HeapObject heap_object) {
 bool Heap::InOldSpace(Object object) { return old_space_->Contains(object); }
 
 // static
-Heap* Heap::FromWritableHeapObject(const HeapObject obj) {
+Heap* Heap::FromWritableHeapObject(HeapObject obj) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
   // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
   // find a heap. The exception is when the ReadOnlySpace is writeable, during

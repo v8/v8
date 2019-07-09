@@ -713,7 +713,7 @@ class MemoryChunk {
     return reinterpret_cast<MemoryChunk*>(BaseAddress(a));
   }
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static MemoryChunk* FromHeapObject(const HeapObject o) {
+  static MemoryChunk* FromHeapObject(HeapObject o) {
     return reinterpret_cast<MemoryChunk*>(BaseAddress(o.ptr()));
   }
 
@@ -1145,7 +1145,7 @@ class Page : public MemoryChunk {
   static Page* FromAddress(Address addr) {
     return reinterpret_cast<Page*>(addr & ~kPageAlignmentMask);
   }
-  static Page* FromHeapObject(const HeapObject o) {
+  static Page* FromHeapObject(HeapObject o) {
     return reinterpret_cast<Page*>(o.ptr() & ~kAlignmentMask);
   }
 
@@ -1268,7 +1268,7 @@ class LargePage : public MemoryChunk {
   // x64 and ia32 architectures.
   static const int kMaxCodePageSize = 512 * MB;
 
-  static LargePage* FromHeapObject(const HeapObject o) {
+  static LargePage* FromHeapObject(HeapObject o) {
     return static_cast<LargePage*>(MemoryChunk::FromHeapObject(o));
   }
 

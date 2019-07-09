@@ -993,7 +993,7 @@ class Heap {
   // with off-heap Addresses.
   bool InSpaceSlow(Address addr, AllocationSpace space);
 
-  static inline Heap* FromWritableHeapObject(const HeapObject obj);
+  static inline Heap* FromWritableHeapObject(HeapObject obj);
 
   // ===========================================================================
   // Object statistics tracking. ===============================================
