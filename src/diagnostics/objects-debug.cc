@@ -711,8 +711,6 @@ void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(Struct)
-
 USE_TORQUE_VERIFIER(FixedArrayBase)
 
 USE_TORQUE_VERIFIER(FixedArray)
@@ -928,8 +926,6 @@ void JSAsyncGeneratorObject::JSAsyncGeneratorObjectVerify(Isolate* isolate) {
   queue().HeapObjectVerify(isolate);
 }
 
-USE_TORQUE_VERIFIER(JSPrimitiveWrapper)
-
 void JSDate::JSDateVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSDateVerify(*this, isolate);
 
@@ -965,8 +961,6 @@ void JSDate::JSDateVerify(Isolate* isolate) {
 
 USE_TORQUE_VERIFIER(JSMessageObject)
 
-USE_TORQUE_VERIFIER(Name)
-
 void String::StringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::StringVerify(*this, isolate);
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
@@ -1000,8 +994,6 @@ void SlicedString::SlicedStringVerify(Isolate* isolate) {
   CHECK(!this->parent().IsSlicedString());
   CHECK_GE(this->length(), SlicedString::kMinLength);
 }
-
-USE_TORQUE_VERIFIER(SeqString)
 
 USE_TORQUE_VERIFIER(ExternalString)
 
@@ -1644,8 +1636,6 @@ void EnumCache::EnumCacheVerify(Isolate* isolate) {
     CHECK_EQ(ReadOnlyRoots(heap).empty_fixed_array(), indices());
   }
 }
-
-USE_TORQUE_VERIFIER(SourcePositionTableWithFrameCache)
 
 USE_TORQUE_VERIFIER(ClassPositions)
 

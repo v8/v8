@@ -8,6 +8,7 @@
 #include "src/objects/embedder-data-slot.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-array.h"
+#include "torque-generated/class-definitions-tq.h"
 #include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -276,7 +277,7 @@ class JSReceiver : public HeapObject {
 // properties.
 // Note that the map of JSObject changes during execution to enable inline
 // caching.
-class JSObject : public JSReceiver {
+class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
  public:
   static bool IsUnmodifiedApiObject(FullObjectSlot o);
 
@@ -291,23 +292,6 @@ class JSObject : public JSReceiver {
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> ObjectCreate(
       Isolate* isolate, Handle<Object> prototype);
 
-  // [elements]: The elements (properties with names that are integers).
-  //
-  // Elements can be in two general modes: fast and slow. Each mode
-  // corresponds to a set of object representations of elements that
-  // have something in common.
-  //
-  // In the fast mode elements is a FixedArray and so each element can be
-  // quickly accessed. The elements array can have one of several maps in this
-  // mode: fixed_array_map, fixed_double_array_map,
-  // sloppy_arguments_elements_map or fixed_cow_array_map (for copy-on-write
-  // arrays). In the latter case the elements array may be shared by a few
-  // objects and so before writing to any element the array must be copied. Use
-  // EnsureWritableFastElements in this case.
-  //
-  // In the slow mode the elements is either a NumberDictionary or a
-  // FixedArray parameter map for a (sloppy) arguments object.
-  DECL_ACCESSORS(elements, FixedArrayBase)
   inline void initialize_elements();
   static inline void SetMapAndElements(Handle<JSObject> object, Handle<Map> map,
                                        Handle<FixedArrayBase> elements);
@@ -683,8 +667,6 @@ class JSObject : public JSReceiver {
 
   static bool IsExtensible(Handle<JSObject> object);
 
-  DECL_CAST(JSObject)
-
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
   DECL_PRINTER(JSObject)
@@ -768,15 +750,6 @@ class JSObject : public JSReceiver {
   STATIC_ASSERT(kMaxNumberOfDescriptors + kFieldsAdded <=
                 PropertyArray::kMaxLength);
 
-// Layout description.
-#define JS_OBJECT_FIELDS(V)       \
-  V(kElementsOffset, kTaggedSize) \
-  /* Header size. */              \
-  V(kHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSReceiver::kHeaderSize, JS_OBJECT_FIELDS)
-#undef JS_OBJECT_FIELDS
-
   STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
   static const int kMaxInObjectProperties =
       (kMaxInstanceSize - kHeaderSize) >> kTaggedSizeLog2;
@@ -829,7 +802,7 @@ class JSObject : public JSReceiver {
   V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensionsWithTransition(
       Handle<JSObject> object, ShouldThrow should_throw);
 
-  OBJECT_CONSTRUCTORS(JSObject, JSReceiver);
+  TQ_OBJECT_CONSTRUCTORS(JSObject)
 };
 
 // JSAccessorPropertyDescriptor is just a JSObject with a specific initial
@@ -1178,14 +1151,9 @@ class JSFunction : public JSObject {
 //
 // Accessing a JSGlobalProxy requires security check.
 
-class JSGlobalProxy : public JSObject {
+class JSGlobalProxy
+    : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSObject> {
  public:
-  // [native_context]: the owner native context of this global proxy object.
-  // It is null value if this object is not used by any context.
-  DECL_ACCESSORS(native_context, Object)
-
-  DECL_CAST(JSGlobalProxy)
-
   inline bool IsDetachedFrom(JSGlobalObject global) const;
 
   static int SizeWithEmbedderFields(int embedder_field_count);
@@ -1194,11 +1162,7 @@ class JSGlobalProxy : public JSObject {
   DECL_PRINTER(JSGlobalProxy)
   DECL_VERIFIER(JSGlobalProxy)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSGLOBAL_PROXY_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSGlobalProxy, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSGlobalProxy)
 };
 
 // JavaScript global object.
@@ -1237,22 +1201,13 @@ class JSGlobalObject : public JSObject {
 };
 
 // Representation for JS Wrapper objects, String, Number, Boolean, etc.
-class JSPrimitiveWrapper : public JSObject {
+class JSPrimitiveWrapper
+    : public TorqueGeneratedJSPrimitiveWrapper<JSPrimitiveWrapper, JSObject> {
  public:
-  // [value]: the object being wrapped.
-  DECL_ACCESSORS(value, Object)
-
-  DECL_CAST(JSPrimitiveWrapper)
-
   // Dispatched behavior.
   DECL_PRINTER(JSPrimitiveWrapper)
-  DECL_VERIFIER(JSPrimitiveWrapper)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSPrimitiveWrapper::kHeaderSize,
-                                TORQUE_GENERATED_JSPRIMITIVE_WRAPPER_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSPrimitiveWrapper, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSPrimitiveWrapper)
 };
 
 class DateCache;

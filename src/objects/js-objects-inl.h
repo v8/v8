@@ -30,16 +30,16 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(JSReceiver, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(JSObject, JSReceiver)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSAsyncFromSyncIterator, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSBoundFunction, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSDate, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSFunction, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSGlobalObject, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSGlobalProxy, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSGlobalProxy)
 JSIteratorResult::JSIteratorResult(Address ptr) : JSObject(ptr) {}
 OBJECT_CONSTRUCTORS_IMPL(JSMessageObject, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSPrimitiveWrapper, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSPrimitiveWrapper)
 OBJECT_CONSTRUCTORS_IMPL(JSStringIterator, JSObject)
 
 NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
@@ -49,11 +49,8 @@ CAST_ACCESSOR(JSBoundFunction)
 CAST_ACCESSOR(JSDate)
 CAST_ACCESSOR(JSFunction)
 CAST_ACCESSOR(JSGlobalObject)
-CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSIteratorResult)
 CAST_ACCESSOR(JSMessageObject)
-CAST_ACCESSOR(JSObject)
-CAST_ACCESSOR(JSPrimitiveWrapper)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSStringIterator)
 
@@ -130,8 +127,6 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject object) {
 }
 
 ACCESSORS(JSReceiver, raw_properties_or_hash, Object, kPropertiesOrHashOffset)
-
-ACCESSORS(JSObject, elements, FixedArrayBase, kElementsOffset)
 
 void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
   JSObject::ValidateElements(*object);
@@ -465,8 +460,6 @@ ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
 ACCESSORS(JSGlobalObject, native_context, NativeContext, kNativeContextOffset)
 ACCESSORS(JSGlobalObject, global_proxy, JSGlobalProxy, kGlobalProxyOffset)
 
-ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
-
 FeedbackVector JSFunction::feedback_vector() const {
   DCHECK(has_feedback_vector());
   return FeedbackVector::cast(raw_feedback_cell().value());
@@ -718,8 +711,6 @@ void JSFunction::ResetIfBytecodeFlushed() {
     raw_feedback_cell().reset();
   }
 }
-
-ACCESSORS(JSPrimitiveWrapper, value, Object, kValueOffset)
 
 ACCESSORS(JSDate, value, Object, kValueOffset)
 ACCESSORS(JSDate, cache_stamp, Object, kCacheStampOffset)

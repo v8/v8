@@ -3055,8 +3055,8 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
     hdr_ << "  static constexpr int " << field << " = " << previous_field_end_
          << ";\n";
     hdr_ << "  static constexpr int " << field_end << " = " << field << " + "
-         << size_string << ";\n";
-    previous_field_end_ = field_end;
+         << size_string << " - 1;\n";
+    previous_field_end_ = field_end + " + 1";
   }
   virtual void WriteMarker(const std::string& marker) {
     hdr_ << "  static constexpr int " << marker << " = " << previous_field_end_

@@ -22,21 +22,11 @@ class Handle;
 class Isolate;
 
 // An EnumCache is a pair used to hold keys and indices caches.
-class EnumCache : public Struct {
+class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
  public:
-  DECL_ACCESSORS(keys, FixedArray)
-  DECL_ACCESSORS(indices, FixedArray)
-
-  DECL_CAST(EnumCache)
-
-  DECL_PRINTER(EnumCache)
   DECL_VERIFIER(EnumCache)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
-                                TORQUE_GENERATED_ENUM_CACHE_FIELDS)
-
-  OBJECT_CONSTRUCTORS(EnumCache, Struct);
+  TQ_OBJECT_CONSTRUCTORS(EnumCache)
 };
 
 // A DescriptorArray is a custom array that holds instance descriptors.

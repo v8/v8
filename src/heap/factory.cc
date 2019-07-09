@@ -1314,7 +1314,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
 
   slice->set_hash_field(String::kEmptyHashField);
   slice->set_length(length);
-  slice->set_parent(isolate(), *str);
+  slice->set_parent(*str);
   slice->set_offset(offset);
   return slice;
 }

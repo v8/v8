@@ -22,8 +22,6 @@
 namespace v8 {
 namespace internal {
 
-INT32_ACCESSORS(String, length, kLengthOffset)
-
 int String::synchronized_length() const {
   return base::AsAtomic32::Acquire_Load(
       reinterpret_cast<const int32_t*>(FIELD_ADDR(*this, kLengthOffset)));
@@ -34,29 +32,21 @@ void String::synchronized_set_length(int value) {
       reinterpret_cast<int32_t*>(FIELD_ADDR(*this, kLengthOffset)), value);
 }
 
-OBJECT_CONSTRUCTORS_IMPL(String, Name)
-OBJECT_CONSTRUCTORS_IMPL(SeqString, String)
-OBJECT_CONSTRUCTORS_IMPL(SeqOneByteString, SeqString)
-OBJECT_CONSTRUCTORS_IMPL(SeqTwoByteString, SeqString)
-OBJECT_CONSTRUCTORS_IMPL(InternalizedString, String)
-OBJECT_CONSTRUCTORS_IMPL(ConsString, String)
-OBJECT_CONSTRUCTORS_IMPL(ThinString, String)
-OBJECT_CONSTRUCTORS_IMPL(SlicedString, String)
+TQ_OBJECT_CONSTRUCTORS_IMPL(String)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SeqString)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SeqOneByteString)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SeqTwoByteString)
+TQ_OBJECT_CONSTRUCTORS_IMPL(InternalizedString)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ConsString)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ThinString)
+TQ_OBJECT_CONSTRUCTORS_IMPL(SlicedString)
 OBJECT_CONSTRUCTORS_IMPL(ExternalString, String)
 OBJECT_CONSTRUCTORS_IMPL(ExternalOneByteString, ExternalString)
 OBJECT_CONSTRUCTORS_IMPL(ExternalTwoByteString, ExternalString)
 
-CAST_ACCESSOR(ConsString)
 CAST_ACCESSOR(ExternalOneByteString)
 CAST_ACCESSOR(ExternalString)
 CAST_ACCESSOR(ExternalTwoByteString)
-CAST_ACCESSOR(InternalizedString)
-CAST_ACCESSOR(SeqOneByteString)
-CAST_ACCESSOR(SeqString)
-CAST_ACCESSOR(SeqTwoByteString)
-CAST_ACCESSOR(SlicedString)
-CAST_ACCESSOR(String)
-CAST_ACCESSOR(ThinString)
 
 StringShape::StringShape(const String str) : type_(str.map().instance_type()) {
   set_valid();
@@ -528,32 +518,20 @@ int SeqOneByteString::SeqOneByteStringSize(InstanceType instance_type) {
   return SizeFor(length());
 }
 
-String SlicedString::parent() {
-  return TaggedField<String, kParentOffset>::load(*this);
-}
-
-void SlicedString::set_parent(Isolate* isolate, String parent,
-                              WriteBarrierMode mode) {
+void SlicedString::set_parent(String parent, WriteBarrierMode mode) {
   DCHECK(parent.IsSeqString() || parent.IsExternalString());
-  WRITE_FIELD(*this, kParentOffset, parent);
-  CONDITIONAL_WRITE_BARRIER(*this, kParentOffset, parent, mode);
+  TorqueGeneratedSlicedString<SlicedString, Super>::set_parent(parent, mode);
 }
 
-SMI_ACCESSORS(SlicedString, offset, kOffsetOffset)
-
-ACCESSORS(ConsString, first, String, kFirstOffset)
+TQ_SMI_ACCESSORS(SlicedString, offset)
 
 Object ConsString::unchecked_first() {
   return TaggedField<Object, kFirstOffset>::load(*this);
 }
 
-ACCESSORS(ConsString, second, String, kSecondOffset)
-
 Object ConsString::unchecked_second() {
   return RELAXED_READ_FIELD(*this, kSecondOffset);
 }
-
-ACCESSORS(ThinString, actual, String, kActualOffset)
 
 DEF_GETTER(ThinString, unchecked_actual, HeapObject) {
   return TaggedField<HeapObject, kActualOffset>::load(isolate, *this);

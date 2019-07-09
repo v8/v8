@@ -16,14 +16,9 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Name, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(Symbol, Name)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Name)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Symbol)
 
-CAST_ACCESSOR(Name)
-CAST_ACCESSOR(Symbol)
-
-ACCESSORS(Symbol, name, Object, kNameOffset)
-INT_ACCESSORS(Symbol, flags, kFlagsOffset)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_private, Symbol::IsPrivateBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_well_known_symbol,
                     Symbol::IsWellKnownSymbolBit)
@@ -50,12 +45,6 @@ DEF_GETTER(Name, IsUniqueName, bool) {
                 (kStringTag | kNotInternalizedTag);
   SLOW_DCHECK(result == HeapObject::IsUniqueName());
   return result;
-}
-
-uint32_t Name::hash_field() { return ReadField<uint32_t>(kHashFieldOffset); }
-
-void Name::set_hash_field(uint32_t value) {
-  WriteField<uint32_t>(kHashFieldOffset, value);
 }
 
 bool Name::Equals(Name other) {

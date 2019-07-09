@@ -93,20 +93,24 @@ type Number = Smi | HeapNumber;
 type Numeric = Number | BigInt;
 
 @abstract
+@generateCppClass
 extern class Name extends HeapObject {
-  hash_field: int32;
+  hash_field: uint32;
 }
 
+@generateCppClass
 extern class Symbol extends Name {
   flags: int32;
-  name: Object;
+  name: Object;  // The print name of a symbol, or undefined if none.
 }
 
 @abstract
+@generateCppClass
 extern class String extends Name {
-  length: uint32;
+  length: int32;
 }
 
+@generateCppClass
 extern class ConsString extends String {
   first: String;
   second: String;
@@ -121,21 +125,32 @@ extern class ExternalString extends String {
 extern class ExternalOneByteString extends ExternalString {}
 extern class ExternalTwoByteString extends ExternalString {}
 
-extern class InternalizedString extends String {}
+@generateCppClass
+extern class InternalizedString extends String {
+}
 
 // TODO(v8:8983): Add declaration for variable-sized region.
 @abstract
+@generateCppClass
 extern class SeqString extends String {
 }
-extern class SeqOneByteString extends SeqString {}
-extern class SeqTwoByteString extends SeqString {}
+@generateCppClass
+extern class SeqOneByteString extends SeqString {
+}
+@generateCppClass
+extern class SeqTwoByteString extends SeqString {
+}
 
+@generateCppClass
 extern class SlicedString extends String {
   parent: String;
   offset: Smi;
 }
 
-extern class ThinString extends String { actual: String; }
+@generateCppClass
+extern class ThinString extends String {
+  actual: String;
+}
 
 // The HeapNumber value NaN
 type NaN extends HeapNumber;
@@ -219,12 +234,14 @@ extern class Map extends HeapObject {
 }
 
 @generatePrint
+@generateCppClass
 extern class EnumCache extends Struct {
   keys: FixedArray;
   indices: FixedArray;
 }
 
 @generatePrint
+@generateCppClass
 extern class SourcePositionTableWithFrameCache extends Struct {
   source_position_table: ByteArray;
   stack_frame_cache: Object;
@@ -287,7 +304,24 @@ type Constructor extends JSReceiver;
 
 @abstract
 @dirtyInstantiatedAbstractClass
+@generateCppClass
 extern class JSObject extends JSReceiver {
+  // [elements]: The elements (properties with names that are integers).
+  //
+  // Elements can be in two general modes: fast and slow. Each mode
+  // corresponds to a set of object representations of elements that
+  // have something in common.
+  //
+  // In the fast mode elements is a FixedArray and so each element can be
+  // quickly accessed. The elements array can have one of several maps in this
+  // mode: fixed_array_map, fixed_double_array_map,
+  // sloppy_arguments_elements_map or fixed_cow_array_map (for copy-on-write
+  // arrays). In the latter case the elements array may be shared by a few
+  // objects and so before writing to any element the array must be copied. Use
+  // EnsureWritableFastElements in this case.
+  //
+  // In the slow mode the elements is either a NumberDictionary or a
+  // FixedArray parameter map for a (sloppy) arguments object.
   elements: FixedArrayBase;
 }
 
@@ -339,6 +373,7 @@ extern class JSFunction extends JSObject {
   @noVerifier weak prototype_or_initial_map: JSReceiver | Map;
 }
 
+@generateCppClass
 extern class JSProxy extends JSReceiver {
   target: JSReceiver | Null;
   handler: JSReceiver | Null;
@@ -362,9 +397,17 @@ macro NewJSProxyRevocableResult(implicit context: Context)(
   };
 }
 
-extern class JSGlobalProxy extends JSObject { native_context: Object; }
+@generateCppClass
+extern class JSGlobalProxy extends JSObject {
+  // [native_context]: the owner native context of this global proxy object.
+  // It is null value if this object is not used by any context.
+  native_context: Object;
+}
 
-extern class JSPrimitiveWrapper extends JSObject { value: Object; }
+@generateCppClass
+extern class JSPrimitiveWrapper extends JSObject {
+  value: Object;
+}
 
 extern class JSArgumentsObject extends JSObject {}
 

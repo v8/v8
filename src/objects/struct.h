@@ -22,7 +22,6 @@ class Struct : public TorqueGeneratedStruct<Struct, HeapObject> {
  public:
   inline void InitializeBody(int object_size);
   void BriefPrintDetails(std::ostream& os);
-  DECL_VERIFIER(Struct)
 
   TQ_OBJECT_CONSTRUCTORS(Struct)
 };
