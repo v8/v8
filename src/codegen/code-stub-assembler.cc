@@ -3484,16 +3484,16 @@ TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionary(
 }
 
 TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionary(
-    TNode<IntPtrT> at_least_space_for) {
+    TNode<IntPtrT> at_least_space_for, AllocationFlags flags) {
   CSA_ASSERT(this, UintPtrLessThanOrEqual(
                        at_least_space_for,
                        IntPtrConstant(NameDictionary::kMaxCapacity)));
   TNode<IntPtrT> capacity = HashTableComputeCapacity(at_least_space_for);
-  return AllocateNameDictionaryWithCapacity(capacity);
+  return AllocateNameDictionaryWithCapacity(capacity, flags);
 }
 
 TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionaryWithCapacity(
-    TNode<IntPtrT> capacity) {
+    TNode<IntPtrT> capacity, AllocationFlags flags) {
   CSA_ASSERT(this, WordIsPowerOfTwo(capacity));
   CSA_ASSERT(this, IntPtrGreaterThan(capacity, IntPtrConstant(0)));
   TNode<IntPtrT> length = EntryToIndex<NameDictionary>(capacity);
@@ -3501,39 +3501,51 @@ TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionaryWithCapacity(
       TimesTaggedSize(length), IntPtrConstant(NameDictionary::kHeaderSize));
 
   TNode<NameDictionary> result =
-      UncheckedCast<NameDictionary>(AllocateInNewSpace(store_size));
-  Comment("Initialize NameDictionary");
+      UncheckedCast<NameDictionary>(Allocate(store_size, flags));
+
   // Initialize FixedArray fields.
-  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kNameDictionaryMap));
-  StoreMapNoWriteBarrier(result, RootIndex::kNameDictionaryMap);
-  StoreObjectFieldNoWriteBarrier(result, FixedArray::kLengthOffset,
-                                 SmiFromIntPtr(length));
+  {
+    DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kNameDictionaryMap));
+    StoreMapNoWriteBarrier(result, RootIndex::kNameDictionaryMap);
+    StoreObjectFieldNoWriteBarrier(result, FixedArray::kLengthOffset,
+                                   SmiFromIntPtr(length));
+  }
+
   // Initialized HashTable fields.
-  TNode<Smi> zero = SmiConstant(0);
-  StoreFixedArrayElement(result, NameDictionary::kNumberOfElementsIndex, zero,
-                         SKIP_WRITE_BARRIER);
-  StoreFixedArrayElement(result, NameDictionary::kNumberOfDeletedElementsIndex,
-                         zero, SKIP_WRITE_BARRIER);
-  StoreFixedArrayElement(result, NameDictionary::kCapacityIndex,
-                         SmiTag(capacity), SKIP_WRITE_BARRIER);
-  // Initialize Dictionary fields.
-  TNode<HeapObject> filler = UndefinedConstant();
-  StoreFixedArrayElement(result, NameDictionary::kNextEnumerationIndexIndex,
-                         SmiConstant(PropertyDetails::kInitialIndex),
-                         SKIP_WRITE_BARRIER);
-  StoreFixedArrayElement(result, NameDictionary::kObjectHashIndex,
-                         SmiConstant(PropertyArray::kNoHashSentinel),
-                         SKIP_WRITE_BARRIER);
+  {
+    TNode<Smi> zero = SmiConstant(0);
+    StoreFixedArrayElement(result, NameDictionary::kNumberOfElementsIndex, zero,
+                           SKIP_WRITE_BARRIER);
+    StoreFixedArrayElement(result,
+                           NameDictionary::kNumberOfDeletedElementsIndex, zero,
+                           SKIP_WRITE_BARRIER);
+    StoreFixedArrayElement(result, NameDictionary::kCapacityIndex,
+                           SmiTag(capacity), SKIP_WRITE_BARRIER);
+    // Initialize Dictionary fields.
+    StoreFixedArrayElement(result, NameDictionary::kNextEnumerationIndexIndex,
+                           SmiConstant(PropertyDetails::kInitialIndex),
+                           SKIP_WRITE_BARRIER);
+    StoreFixedArrayElement(result, NameDictionary::kObjectHashIndex,
+                           SmiConstant(PropertyArray::kNoHashSentinel),
+                           SKIP_WRITE_BARRIER);
+  }
 
   // Initialize NameDictionary elements.
-  TNode<WordT> result_word = BitcastTaggedToWord(result);
-  TNode<WordT> start_address = IntPtrAdd(
-      result_word, IntPtrConstant(NameDictionary::OffsetOfElementAt(
-                                      NameDictionary::kElementsStartIndex) -
-                                  kHeapObjectTag));
-  TNode<WordT> end_address = IntPtrAdd(
-      result_word, IntPtrSub(store_size, IntPtrConstant(kHeapObjectTag)));
-  StoreFieldsNoWriteBarrier(start_address, end_address, filler);
+  {
+    TNode<WordT> result_word = BitcastTaggedToWord(result);
+    TNode<WordT> start_address = IntPtrAdd(
+        result_word, IntPtrConstant(NameDictionary::OffsetOfElementAt(
+                                        NameDictionary::kElementsStartIndex) -
+                                    kHeapObjectTag));
+    TNode<WordT> end_address = IntPtrAdd(
+        result_word, IntPtrSub(store_size, IntPtrConstant(kHeapObjectTag)));
+
+    TNode<HeapObject> filler = UndefinedConstant();
+    DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kUndefinedValue));
+
+    StoreFieldsNoWriteBarrier(start_address, end_address, filler);
+  }
+
   return result;
 }
 
