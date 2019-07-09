@@ -111,59 +111,45 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 #endif
 
 #ifdef DEBUG
-// Add stringified versions to the given values, except the first. That is,
-// transform
-//   x, a, b, c, d, e, f
-// to
-//   a, "a", b, "b", c, "c", d, "d", e, "e", f, "f"
-//
-// __VA_ARGS__  is ignored to allow the caller to pass through too many
-// parameters, and the first element is ignored to support having no extra
-// values without empty __VA_ARGS__ (which cause all sorts of problems with
-// extra commas).
-#define CSA_ASSERT_STRINGIFY_EXTRA_VALUES_5(_, v1, v2, v3, v4, v5, ...) \
-  v1, #v1, v2, #v2, v3, #v3, v4, #v4, v5, #v5
+// CSA_ASSERT_ARGS generates an
+// std::initializer_list<CodeStubAssembler::ExtraNode> from __VA_ARGS__. It
+// currently supports between 0 and 2 arguments.
 
-// Stringify the given variable number of arguments. The arguments are trimmed
-// to 5 if there are too many, and padded with nullptr if there are not enough.
-#define CSA_ASSERT_STRINGIFY_EXTRA_VALUES(...)                                \
-  CSA_ASSERT_STRINGIFY_EXTRA_VALUES_5(__VA_ARGS__, nullptr, nullptr, nullptr, \
-                                      nullptr, nullptr)
-
-#define CSA_ASSERT_GET_FIRST(x, ...) (x)
-#define CSA_ASSERT_GET_FIRST_STR(x, ...) #x
+// clang-format off
+#define CSA_ASSERT_0_ARGS(...) {}
+#define CSA_ASSERT_1_ARG(a, ...) {{a, #a}}
+#define CSA_ASSERT_2_ARGS(a, b, ...) {{a, #a}, {b, #b}}
+// clang-format on
+#define SWITCH_CSA_ASSERT_ARGS(dummy, a, b, FUNC, ...) FUNC(a, b)
+#define CSA_ASSERT_ARGS(...)                                      \
+  SWITCH_CSA_ASSERT_ARGS(dummy, ##__VA_ARGS__, CSA_ASSERT_2_ARGS, \
+                         CSA_ASSERT_1_ARG, CSA_ASSERT_0_ARGS)
 
 // CSA_ASSERT(csa, <condition>, <extra values to print...>)
 
-// We have to jump through some hoops to allow <extra values to print...> to be
-// empty.
-#define CSA_ASSERT(csa, ...)                                             \
-  (csa)->Assert(                                                         \
-      [&]() -> compiler::Node* {                                         \
-        return implicit_cast<compiler::SloppyTNode<Word32T>>(            \
-            EXPAND(CSA_ASSERT_GET_FIRST(__VA_ARGS__)));                  \
-      },                                                                 \
-      EXPAND(CSA_ASSERT_GET_FIRST_STR(__VA_ARGS__)), __FILE__, __LINE__, \
-      CSA_ASSERT_STRINGIFY_EXTRA_VALUES(__VA_ARGS__))
+#define CSA_ASSERT(csa, condition_node, ...)                                  \
+  (csa)->Assert(                                                              \
+      [&]() -> compiler::Node* {                                              \
+        return implicit_cast<compiler::SloppyTNode<Word32T>>(condition_node); \
+      },                                                                      \
+      #condition_node, __FILE__, __LINE__, CSA_ASSERT_ARGS(__VA_ARGS__))
 
 // CSA_ASSERT_BRANCH(csa, [](Label* ok, Label* not_ok) {...},
 //     <extra values to print...>)
 
-#define CSA_ASSERT_BRANCH(csa, ...)                                      \
-  (csa)->Assert(EXPAND(CSA_ASSERT_GET_FIRST(__VA_ARGS__)),               \
-                EXPAND(CSA_ASSERT_GET_FIRST_STR(__VA_ARGS__)), __FILE__, \
-                __LINE__, CSA_ASSERT_STRINGIFY_EXTRA_VALUES(__VA_ARGS__))
+#define CSA_ASSERT_BRANCH(csa, gen, ...) \
+  (csa)->Assert(gen, #gen, __FILE__, __LINE__, CSA_ASSERT_ARGS(__VA_ARGS__))
 
-#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                       \
-  (csa)->Assert(                                                           \
-      [&]() -> compiler::Node* {                                           \
-        compiler::Node* const argc =                                       \
-            (csa)->Parameter(Descriptor::kJSActualArgumentsCount);         \
-        return (csa)->Op(argc, (csa)->Int32Constant(expected));            \
-      },                                                                   \
-      "argc " #op " " #expected, __FILE__, __LINE__,                       \
-      SmiFromInt32((csa)->Parameter(Descriptor::kJSActualArgumentsCount)), \
-      "argc")
+#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                         \
+  (csa)->Assert(                                                             \
+      [&]() -> compiler::Node* {                                             \
+        compiler::Node* const argc =                                         \
+            (csa)->Parameter(Descriptor::kJSActualArgumentsCount);           \
+        return (csa)->Op(argc, (csa)->Int32Constant(expected));              \
+      },                                                                     \
+      "argc " #op " " #expected, __FILE__, __LINE__,                         \
+      {{SmiFromInt32((csa)->Parameter(Descriptor::kJSActualArgumentsCount)), \
+        "argc"}})
 
 #define CSA_ASSERT_JS_ARGC_EQ(csa, expected) \
   CSA_ASSERT_JS_ARGC_OP(csa, Word32Equal, ==, expected)
@@ -628,43 +614,22 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   using BranchGenerator = std::function<void(Label*, Label*)>;
   using NodeGenerator = std::function<Node*()>;
+  using ExtraNode = std::pair<Node*, const char*>;
 
-  void Assert(const BranchGenerator& branch, const char* message = nullptr,
-              const char* file = nullptr, int line = 0,
-              Node* extra_node1 = nullptr, const char* extra_node1_name = "",
-              Node* extra_node2 = nullptr, const char* extra_node2_name = "",
-              Node* extra_node3 = nullptr, const char* extra_node3_name = "",
-              Node* extra_node4 = nullptr, const char* extra_node4_name = "",
-              Node* extra_node5 = nullptr, const char* extra_node5_name = "");
-  void Assert(const NodeGenerator& condition_body,
-              const char* message = nullptr, const char* file = nullptr,
-              int line = 0, Node* extra_node1 = nullptr,
-              const char* extra_node1_name = "", Node* extra_node2 = nullptr,
-              const char* extra_node2_name = "", Node* extra_node3 = nullptr,
-              const char* extra_node3_name = "", Node* extra_node4 = nullptr,
-              const char* extra_node4_name = "", Node* extra_node5 = nullptr,
-              const char* extra_node5_name = "");
-  void Check(const BranchGenerator& branch, const char* message = nullptr,
-             const char* file = nullptr, int line = 0,
-             Node* extra_node1 = nullptr, const char* extra_node1_name = "",
-             Node* extra_node2 = nullptr, const char* extra_node2_name = "",
-             Node* extra_node3 = nullptr, const char* extra_node3_name = "",
-             Node* extra_node4 = nullptr, const char* extra_node4_name = "",
-             Node* extra_node5 = nullptr, const char* extra_node5_name = "");
-  void Check(const NodeGenerator& condition_body, const char* message = nullptr,
-             const char* file = nullptr, int line = 0,
-             Node* extra_node1 = nullptr, const char* extra_node1_name = "",
-             Node* extra_node2 = nullptr, const char* extra_node2_name = "",
-             Node* extra_node3 = nullptr, const char* extra_node3_name = "",
-             Node* extra_node4 = nullptr, const char* extra_node4_name = "",
-             Node* extra_node5 = nullptr, const char* extra_node5_name = "");
-  void FailAssert(
-      const char* message = nullptr, const char* file = nullptr, int line = 0,
-      Node* extra_node1 = nullptr, const char* extra_node1_name = "",
-      Node* extra_node2 = nullptr, const char* extra_node2_name = "",
-      Node* extra_node3 = nullptr, const char* extra_node3_name = "",
-      Node* extra_node4 = nullptr, const char* extra_node4_name = "",
-      Node* extra_node5 = nullptr, const char* extra_node5_name = "");
+  void Assert(const BranchGenerator& branch, const char* message,
+              const char* file, int line,
+              std::initializer_list<ExtraNode> extra_nodes = {});
+  void Assert(const NodeGenerator& condition_body, const char* message,
+              const char* file, int line,
+              std::initializer_list<ExtraNode> extra_nodes = {});
+  void Check(const BranchGenerator& branch, const char* message,
+             const char* file, int line,
+             std::initializer_list<ExtraNode> extra_nodes = {});
+  void Check(const NodeGenerator& condition_body, const char* message,
+             const char* file, int line,
+             std::initializer_list<ExtraNode> extra_nodes = {});
+  void FailAssert(const char* message, const char* file, int line,
+                  std::initializer_list<ExtraNode> extra_nodes = {});
 
   void FastCheck(TNode<BoolT> condition);
 
