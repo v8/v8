@@ -837,8 +837,10 @@ bool InstanceBuilder::ProcessImportedFunction(
   }
   auto js_receiver = Handle<JSReceiver>::cast(value);
   FunctionSig* expected_sig = module_->functions[func_index].sig;
-  auto kind = compiler::GetWasmImportCallKind(js_receiver, expected_sig,
-                                              enabled_.bigint);
+  auto resolved = compiler::ResolveWasmImportCall(js_receiver, expected_sig,
+                                                  enabled_.bigint);
+  compiler::WasmImportCallKind kind = resolved.first;
+  js_receiver = resolved.second;
   switch (kind) {
     case compiler::WasmImportCallKind::kLinkError:
       ReportLinkError("imported function does not match the expected type",
@@ -846,7 +848,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       return false;
     case compiler::WasmImportCallKind::kWasmToWasm: {
       // The imported function is a WASM function from another instance.
-      auto imported_function = Handle<WasmExportedFunction>::cast(value);
+      auto imported_function = Handle<WasmExportedFunction>::cast(js_receiver);
       Handle<WasmInstanceObject> imported_instance(
           imported_function->instance(), isolate_);
       // The import reference is the instance object itself.
@@ -861,7 +863,8 @@ bool InstanceBuilder::ProcessImportedFunction(
     }
     case compiler::WasmImportCallKind::kWasmToCapi: {
       NativeModule* native_module = instance->module_object().native_module();
-      Address host_address = WasmCapiFunction::cast(*value).GetHostCallTarget();
+      Address host_address =
+          WasmCapiFunction::cast(*js_receiver).GetHostCallTarget();
       WasmCodeRefScope code_ref_scope;
       WasmCode* wasm_code = compiler::CompileWasmCapiCallWrapper(
           isolate_->wasm_engine(), native_module, expected_sig, host_address);
@@ -1216,8 +1219,9 @@ void InstanceBuilder::CompileImportWrappers(
     auto js_receiver = Handle<JSReceiver>::cast(value);
     uint32_t func_index = module_->import_table[index].index;
     FunctionSig* sig = module_->functions[func_index].sig;
-    auto kind =
-        compiler::GetWasmImportCallKind(js_receiver, sig, enabled_.bigint);
+    auto resolved =
+        compiler::ResolveWasmImportCall(js_receiver, sig, enabled_.bigint);
+    compiler::WasmImportCallKind kind = resolved.first;
     if (kind == compiler::WasmImportCallKind::kWasmToWasm ||
         kind == compiler::WasmImportCallKind::kLinkError ||
         kind == compiler::WasmImportCallKind::kWasmToCapi) {

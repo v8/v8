@@ -6,6 +6,7 @@
 #define V8_COMPILER_WASM_COMPILER_H_
 
 #include <memory>
+#include <utility>
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
@@ -110,8 +111,12 @@ enum class WasmImportCallKind : uint8_t {
 constexpr WasmImportCallKind kDefaultImportCallKind =
     WasmImportCallKind::kJSFunctionArityMatchSloppy;
 
-V8_EXPORT_PRIVATE WasmImportCallKind
-GetWasmImportCallKind(Handle<JSReceiver> callable, wasm::FunctionSig* sig,
+// Resolves which import call wrapper is required for the given JS callable.
+// Returns the kind of wrapper need and the ultimate target callable. Note that
+// some callables (e.g. a {WasmExportedFunction} or {WasmJSFunction}) just wrap
+// another target, which is why the ultimate target is returned as well.
+V8_EXPORT_PRIVATE std::pair<WasmImportCallKind, Handle<JSReceiver>>
+ResolveWasmImportCall(Handle<JSReceiver> callable, wasm::FunctionSig* sig,
                       bool has_bigint_feature);
 
 // Compiles an import call wrapper, which allows WASM to call imports.

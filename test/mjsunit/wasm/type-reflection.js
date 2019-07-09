@@ -333,7 +333,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(7, instance.exports.main());
 })();*/
 
-(function TestFunctionModuleImportMatchingSig() {
+(function TestFunctionModuleImportMismatchingSig() {
   let builder = new WasmModuleBuilder();
   let fun1 = new WebAssembly.Function({parameters:[], results:[]}, _ => 7);
   let fun2 = new WebAssembly.Function({parameters:["i32"], results:[]}, _ => 8);

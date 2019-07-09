@@ -2017,8 +2017,10 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
         instance->module_object().native_module();
     // TODO(mstarzinger): Cache and reuse wrapper code.
     const wasm::WasmFeatures enabled = native_module->enabled_features();
-    compiler::WasmImportCallKind kind =
-        compiler::GetWasmImportCallKind(callable, sig, enabled.bigint);
+    auto resolved =
+        compiler::ResolveWasmImportCall(callable, sig, enabled.bigint);
+    compiler::WasmImportCallKind kind = resolved.first;
+    callable = resolved.second;  // Update to ultimate target.
     DCHECK_NE(compiler::WasmImportCallKind::kLinkError, kind);
     wasm::CompilationEnv env = native_module->CreateCompilationEnv();
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(

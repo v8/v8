@@ -5990,47 +5990,49 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
       std::move(debug_name), WasmAssemblerOptions());
 }
 
-WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
-                                         wasm::FunctionSig* expected_sig,
-                                         bool has_bigint_feature) {
-  if (WasmExportedFunction::IsWasmExportedFunction(*target)) {
-    auto imported_function = Handle<WasmExportedFunction>::cast(target);
+std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
+    Handle<JSReceiver> callable, wasm::FunctionSig* expected_sig,
+    bool has_bigint_feature) {
+  if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
+    auto imported_function = Handle<WasmExportedFunction>::cast(callable);
     auto func_index = imported_function->function_index();
     auto module = imported_function->instance().module();
     wasm::FunctionSig* imported_sig = module->functions[func_index].sig;
     if (*imported_sig != *expected_sig) {
-      return WasmImportCallKind::kLinkError;
+      return std::make_pair(WasmImportCallKind::kLinkError, callable);
     }
-    if (static_cast<uint32_t>(func_index) < module->num_imported_functions) {
-      // TODO(wasm): this redirects all imported-reexported functions
-      // through the call builtin. Fall through to JS function cases below?
-      return WasmImportCallKind::kUseCallBuiltin;
+    if (static_cast<uint32_t>(func_index) >= module->num_imported_functions) {
+      return std::make_pair(WasmImportCallKind::kWasmToWasm, callable);
     }
-    return WasmImportCallKind::kWasmToWasm;
+    Isolate* isolate = callable->GetIsolate();
+    // Resolve the short-cut to the underlying callable and continue.
+    Handle<WasmInstanceObject> instance(imported_function->instance(), isolate);
+    ImportedFunctionEntry entry(instance, func_index);
+    callable = handle(entry.callable(), isolate);
   }
-  if (WasmJSFunction::IsWasmJSFunction(*target)) {
-    auto js_function = Handle<WasmJSFunction>::cast(target);
+  if (WasmJSFunction::IsWasmJSFunction(*callable)) {
+    auto js_function = Handle<WasmJSFunction>::cast(callable);
     if (!js_function->MatchesSignature(expected_sig)) {
-      return WasmImportCallKind::kLinkError;
+      return std::make_pair(WasmImportCallKind::kLinkError, callable);
     }
     // TODO(7742): Implement proper handling of this case.
     UNIMPLEMENTED();
   }
-  if (WasmCapiFunction::IsWasmCapiFunction(*target)) {
-    auto capi_function = Handle<WasmCapiFunction>::cast(target);
+  if (WasmCapiFunction::IsWasmCapiFunction(*callable)) {
+    auto capi_function = Handle<WasmCapiFunction>::cast(callable);
     if (!capi_function->IsSignatureEqual(expected_sig)) {
-      return WasmImportCallKind::kLinkError;
+      return std::make_pair(WasmImportCallKind::kLinkError, callable);
     }
-    return WasmImportCallKind::kWasmToCapi;
+    return std::make_pair(WasmImportCallKind::kWasmToCapi, callable);
   }
   // Assuming we are calling to JS, check whether this would be a runtime error.
   if (!wasm::IsJSCompatibleSignature(expected_sig, has_bigint_feature)) {
-    return WasmImportCallKind::kRuntimeTypeError;
+    return std::make_pair(WasmImportCallKind::kRuntimeTypeError, callable);
   }
   // For JavaScript calls, determine whether the target has an arity match
   // and whether it has a sloppy receiver.
-  if (target->IsJSFunction()) {
-    Handle<JSFunction> function = Handle<JSFunction>::cast(target);
+  if (callable->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(callable);
     SharedFunctionInfo shared = function->shared();
 
 // Check for math intrinsics.
@@ -6039,7 +6041,9 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
     wasm::FunctionSig* sig = wasm::WasmOpcodes::Signature(wasm::kExpr##name); \
     if (!sig) sig = wasm::WasmOpcodes::AsmjsSignature(wasm::kExpr##name);     \
     DCHECK_NOT_NULL(sig);                                                     \
-    if (*expected_sig == *sig) return WasmImportCallKind::k##name;            \
+    if (*expected_sig == *sig) {                                              \
+      return std::make_pair(WasmImportCallKind::k##name, callable);           \
+    }                                                                         \
   }
 #define COMPARE_SIG_FOR_BUILTIN_F64(name) \
   case Builtins::kMath##name:             \
@@ -6086,19 +6090,23 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
 
     if (IsClassConstructor(shared.kind())) {
       // Class constructor will throw anyway.
-      return WasmImportCallKind::kUseCallBuiltin;
+      return std::make_pair(WasmImportCallKind::kUseCallBuiltin, callable);
     }
     bool sloppy = is_sloppy(shared.language_mode()) && !shared.native();
     if (shared.internal_formal_parameter_count() ==
         expected_sig->parameter_count()) {
-      return sloppy ? WasmImportCallKind::kJSFunctionArityMatchSloppy
-                    : WasmImportCallKind::kJSFunctionArityMatch;
+      return std::make_pair(
+          sloppy ? WasmImportCallKind::kJSFunctionArityMatchSloppy
+                 : WasmImportCallKind::kJSFunctionArityMatch,
+          callable);
     }
-    return sloppy ? WasmImportCallKind::kJSFunctionArityMismatchSloppy
-                  : WasmImportCallKind::kJSFunctionArityMismatch;
+    return std::make_pair(
+        sloppy ? WasmImportCallKind::kJSFunctionArityMismatchSloppy
+               : WasmImportCallKind::kJSFunctionArityMismatch,
+        callable);
   }
   // Unknown case. Use the call builtin.
-  return WasmImportCallKind::kUseCallBuiltin;
+  return std::make_pair(WasmImportCallKind::kUseCallBuiltin, callable);
 }
 
 wasm::WasmOpcode GetMathIntrinsicOpcode(WasmImportCallKind kind,

@@ -47,8 +47,10 @@ TestingModuleBuilder::TestingModuleBuilder(
   if (maybe_import) {
     // Manually compile an import wrapper and insert it into the instance.
     CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
-    auto kind = compiler::GetWasmImportCallKind(maybe_import->js_function,
-                                                maybe_import->sig, false);
+    auto resolved = compiler::ResolveWasmImportCall(maybe_import->js_function,
+                                                    maybe_import->sig, false);
+    compiler::WasmImportCallKind kind = resolved.first;
+    Handle<JSReceiver> callable = resolved.second;
     WasmImportWrapperCache::ModificationScope cache_scope(
         native_module_->import_wrapper_cache());
     WasmImportWrapperCache::CacheKey key(kind, maybe_import->sig);
@@ -60,7 +62,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     }
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
-        .SetWasmToJs(isolate_, maybe_import->js_function, import_wrapper);
+        .SetWasmToJs(isolate_, callable, import_wrapper);
   }
 
   if (tier == ExecutionTier::kInterpreter) {
