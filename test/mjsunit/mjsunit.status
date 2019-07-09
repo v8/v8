@@ -446,6 +446,9 @@
   # OOMing tests
   'regress/regress-500980': [SKIP],
 
+  # BUG(v8:9337).
+  'compiler/regress-9017': [SKIP],
+
   # Slow tests.
   'array-concat': [PASS, SLOW],
   'array-indexing': [PASS, SLOW],
@@ -610,6 +613,9 @@
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
+
+  # BUG(v8:9337).
+  'compiler/regress-9017': [SKIP],
 
   # Slow tests.
   'array-sort': [PASS, SLOW],
