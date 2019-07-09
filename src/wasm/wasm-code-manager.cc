@@ -150,7 +150,8 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
   // The return value is cached in {WasmEngine::IsolateData::log_codes}. Ensure
   // to call {WasmEngine::EnableCodeLogging} if this return value would change
   // for any isolate. Otherwise we might lose code events.
-  return isolate->code_event_dispatcher()->IsListeningToCodeEvents() ||
+  return isolate->logger()->is_listening_to_code_events() ||
+         isolate->code_event_dispatcher()->IsListeningToCodeEvents() ||
          isolate->is_profiling();
 }
 
