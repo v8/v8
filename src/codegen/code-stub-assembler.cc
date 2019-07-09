@@ -9857,9 +9857,8 @@ void CodeStubAssembler::TryPrototypeChainLookup(
     const LookupInHolder& lookup_element_in_holder, Label* if_end,
     Label* if_bailout, Label* if_proxy) {
   // Ensure receiver is JSReceiver, otherwise bailout.
-  Label if_objectisnotsmi(this);
-  Branch(TaggedIsSmi(object), if_bailout, &if_objectisnotsmi);
-  BIND(&if_objectisnotsmi);
+  GotoIf(TaggedIsSmi(receiver), if_bailout);
+  CSA_ASSERT(this, TaggedIsNotSmi(object));
 
   Node* map = LoadMap(object);
   Node* instance_type = LoadMapInstanceType(map);
