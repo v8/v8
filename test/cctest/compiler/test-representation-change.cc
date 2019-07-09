@@ -522,6 +522,9 @@ TEST(SingleChanges) {
   CheckChange(IrOpcode::kChangeBitToTagged, MachineRepresentation::kBit,
               Type::Boolean(), MachineRepresentation::kTagged);
 
+  CheckChange(IrOpcode::kChangeInt31ToCompressedSigned,
+              MachineRepresentation::kWord32, Type::Signed31(),
+              MachineRepresentation::kCompressedSigned);
   CheckChange(IrOpcode::kChangeInt31ToTaggedSigned,
               MachineRepresentation::kWord32, Type::Signed31(),
               MachineRepresentation::kTagged);

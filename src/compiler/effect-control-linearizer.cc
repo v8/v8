@@ -51,6 +51,7 @@ class EffectControlLinearizer {
   bool TryWireInStateEffect(Node* node, Node* frame_state, Node** effect,
                             Node** control);
   Node* LowerChangeBitToTagged(Node* node);
+  Node* LowerChangeInt31ToCompressedSigned(Node* node);
   Node* LowerChangeInt31ToTaggedSigned(Node* node);
   Node* LowerChangeInt32ToTagged(Node* node);
   Node* LowerChangeInt64ToTagged(Node* node);
@@ -221,6 +222,7 @@ class EffectControlLinearizer {
   Node* LowerStringComparison(Callable const& callable, Node* node);
   Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
 
+  Node* ChangeInt32ToCompressedSmi(Node* value);
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeInt32ToIntPtr(Node* value);
   Node* ChangeInt64ToSmi(Node* value);
@@ -835,6 +837,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kChangeBitToTagged:
       result = LowerChangeBitToTagged(node);
       break;
+    case IrOpcode::kChangeInt31ToCompressedSigned:
+      result = LowerChangeInt31ToCompressedSigned(node);
+      break;
     case IrOpcode::kChangeInt31ToTaggedSigned:
       result = LowerChangeInt31ToTaggedSigned(node);
       break;
@@ -1384,6 +1389,11 @@ Node* EffectControlLinearizer::LowerChangeBitToTagged(Node* node) {
 
   __ Bind(&done);
   return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerChangeInt31ToCompressedSigned(Node* node) {
+  Node* value = node->InputAt(0);
+  return ChangeInt32ToCompressedSmi(value);
 }
 
 Node* EffectControlLinearizer::LowerChangeInt31ToTaggedSigned(Node* node) {
@@ -4418,6 +4428,11 @@ Node* EffectControlLinearizer::ChangeIntPtrToInt32(Node* value) {
     value = __ TruncateInt64ToInt32(value);
   }
   return value;
+}
+
+Node* EffectControlLinearizer::ChangeInt32ToCompressedSmi(Node* value) {
+  CHECK(machine()->Is64() && SmiValuesAre31Bits());
+  return __ Word32Shl(value, SmiShiftBitsConstant());
 }
 
 Node* EffectControlLinearizer::ChangeInt32ToSmi(Node* value) {

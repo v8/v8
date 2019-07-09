@@ -242,6 +242,7 @@
   V(ChangeTaggedToTaggedSigned)      \
   V(ChangeCompressedToTaggedSigned)  \
   V(ChangeTaggedToCompressedSigned)  \
+  V(ChangeInt31ToCompressedSigned)   \
   V(ChangeInt31ToTaggedSigned)       \
   V(ChangeInt32ToTagged)             \
   V(ChangeInt64ToTagged)             \
