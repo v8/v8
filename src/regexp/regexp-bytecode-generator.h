@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
-#define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
+#ifndef V8_REGEXP_REGEXP_BYTECODE_GENERATOR_H_
+#define V8_REGEXP_REGEXP_BYTECODE_GENERATOR_H_
 
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
 namespace internal {
 
-// A light-weight assembler for the Irregexp byte code.
-class V8_EXPORT_PRIVATE RegExpMacroAssemblerIrregexp
-    : public RegExpMacroAssembler {
+// An assembler/generator for the Irregexp byte code.
+class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the
@@ -22,8 +21,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIrregexp
   // The assembler allocates and grows its own buffer, and buffer_size
   // determines the initial buffer size. The buffer is owned by the assembler
   // and deallocated upon destruction of the assembler.
-  RegExpMacroAssemblerIrregexp(Isolate* isolate, Zone* zone);
-  virtual ~RegExpMacroAssemblerIrregexp();
+  RegExpBytecodeGenerator(Isolate* isolate, Zone* zone);
+  virtual ~RegExpBytecodeGenerator();
   // The byte-code interpreter checks on each push anyway.
   virtual int stack_limit_slack() { return 1; }
   virtual bool CanReadUnaligned() { return false; }
@@ -47,13 +46,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIrregexp
   virtual void ReadCurrentPositionFromRegister(int reg);
   virtual void WriteStackPointerToRegister(int reg);
   virtual void ReadStackPointerFromRegister(int reg);
-  virtual void LoadCurrentCharacter(int cp_offset,
-                                    Label* on_end_of_input,
+  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input,
                                     bool check_bounds = true,
                                     int characters = 1);
   virtual void CheckCharacter(unsigned c, Label* on_equal);
-  virtual void CheckCharacterAfterAnd(unsigned c,
-                                      unsigned mask,
+  virtual void CheckCharacterAfterAnd(unsigned c, unsigned mask,
                                       Label* on_equal);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
@@ -61,18 +58,12 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIrregexp
   virtual void CheckAtStart(Label* on_at_start);
   virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start);
   virtual void CheckNotCharacter(unsigned c, Label* on_not_equal);
-  virtual void CheckNotCharacterAfterAnd(unsigned c,
-                                         unsigned mask,
+  virtual void CheckNotCharacterAfterAnd(unsigned c, unsigned mask,
                                          Label* on_not_equal);
-  virtual void CheckNotCharacterAfterMinusAnd(uc16 c,
-                                              uc16 minus,
-                                              uc16 mask,
+  virtual void CheckNotCharacterAfterMinusAnd(uc16 c, uc16 minus, uc16 mask,
                                               Label* on_not_equal);
-  virtual void CheckCharacterInRange(uc16 from,
-                                     uc16 to,
-                                     Label* on_in_range);
-  virtual void CheckCharacterNotInRange(uc16 from,
-                                        uc16 to,
+  virtual void CheckCharacterInRange(uc16 from, uc16 to, Label* on_in_range);
+  virtual void CheckCharacterNotInRange(uc16 from, uc16 to,
                                         Label* on_not_in_range);
   virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
   virtual void CheckNotBackReference(int start_reg, bool read_backward,
@@ -115,10 +106,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIrregexp
 
   static const int kInvalidPC = -1;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpMacroAssemblerIrregexp);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpBytecodeGenerator);
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
+#endif  // V8_REGEXP_REGEXP_BYTECODE_GENERATOR_H_

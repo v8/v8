@@ -36,10 +36,10 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
+#include "src/regexp/regexp-bytecode-generator.h"
 #include "src/regexp/regexp-compiler.h"
 #include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
-#include "src/regexp/regexp-macro-assembler-irregexp.h"
 #include "src/regexp/regexp-parser.h"
 #include "src/regexp/regexp.h"
 #include "src/strings/char-predicates-inl.h"
@@ -1254,7 +1254,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
 
 TEST(MacroAssembler) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  RegExpMacroAssemblerIrregexp m(CcTest::i_isolate(), &zone);
+  RegExpBytecodeGenerator m(CcTest::i_isolate(), &zone);
   // ^f(o)o.
   Label start, fail, backtrack;
 

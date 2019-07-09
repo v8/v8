@@ -7,11 +7,11 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/regexp/regexp-bytecode-generator.h"
 #include "src/regexp/regexp-compiler.h"
 #include "src/regexp/regexp-dotprinter.h"
 #include "src/regexp/regexp-interpreter.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
-#include "src/regexp/regexp-macro-assembler-irregexp.h"
 #include "src/regexp/regexp-parser.h"
 #include "src/strings/string-search.h"
 
@@ -755,7 +755,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     DCHECK(FLAG_regexp_interpret_all);
 
     // Interpreted regexp implementation.
-    macro_assembler.reset(new RegExpMacroAssemblerIrregexp(isolate, zone));
+    macro_assembler.reset(new RegExpBytecodeGenerator(isolate, zone));
   }
 
   macro_assembler->set_slow_safe(TooMuchRegExpCode(isolate, pattern));
