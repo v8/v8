@@ -398,24 +398,14 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
     DCHECK(FLAG_use_marking_progress_bar);
     DCHECK(heap_->IsLargeObject(object));
     size_t current_progress_bar = chunk->ProgressBar();
-    if (current_progress_bar == 0) {
-      // Try to move the progress bar forward to start offset. This solves the
-      // problem of not being able to observe a progress bar reset when
-      // processing the first kProgressBarScanningChunk.
-      if (!chunk->TrySetProgressBar(0,
-                                    FixedArray::BodyDescriptor::kStartOffset))
-        return 0;
-      current_progress_bar = FixedArray::BodyDescriptor::kStartOffset;
-    }
     int start = static_cast<int>(current_progress_bar);
+    if (start == 0) start = FixedArray::BodyDescriptor::kStartOffset;
     int end = Min(size, start + kProgressBarScanningChunk);
     if (start < end) {
       VisitPointers(object, object.RawField(start), object.RawField(end));
-      // Setting the progress bar can fail if the object that is currently
-      // scanned is also revisited. In this case, there may be two tasks racing
-      // on the progress counter. The looser can bail out because the progress
-      // bar is reset before the tasks race on the object.
-      if (chunk->TrySetProgressBar(current_progress_bar, end) && (end < size)) {
+      bool success = chunk->TrySetProgressBar(current_progress_bar, end);
+      CHECK(success);
+      if (end < size) {
         DCHECK(marking_state()->IsBlack(object));
         // The object can be pushed back onto the marking worklist only after
         // progress bar was updated.
@@ -493,10 +483,18 @@ void MarkCompactCollector::RecordSlot(HeapObject object, ObjectSlot slot,
 
 void MarkCompactCollector::RecordSlot(HeapObject object, HeapObjectSlot slot,
                                       HeapObject target) {
-  Page* target_page = Page::FromHeapObject(target);
-  Page* source_page = Page::FromHeapObject(object);
+  MemoryChunk* target_page = MemoryChunk::FromHeapObject(target);
+  MemoryChunk* source_page = MemoryChunk::FromHeapObject(object);
   if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>() &&
       !source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
+    RememberedSet<OLD_TO_OLD>::Insert(source_page, slot.address());
+  }
+}
+
+void MarkCompactCollector::RecordSlot(MemoryChunk* source_page,
+                                      HeapObjectSlot slot, HeapObject target) {
+  MemoryChunk* target_page = MemoryChunk::FromHeapObject(target);
+  if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>()) {
     RememberedSet<OLD_TO_OLD>::Insert(source_page, slot.address());
   }
 }

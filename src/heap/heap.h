@@ -366,8 +366,8 @@ class Heap {
   V8_EXPORT_PRIVATE static void MarkingBarrierSlow(HeapObject object,
                                                    Address slot,
                                                    HeapObject value);
-  V8_EXPORT_PRIVATE static void MarkingBarrierForElementsSlow(
-      Heap* heap, HeapObject object);
+  V8_EXPORT_PRIVATE static void MarkingBarrierForElementsSlow(Heap* heap,
+                                                              FixedArray array);
   V8_EXPORT_PRIVATE static void MarkingBarrierForCodeSlow(Code host,
                                                           RelocInfo* rinfo,
                                                           HeapObject value);

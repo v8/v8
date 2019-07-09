@@ -202,6 +202,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   V8_INLINE void RecordWrite(HeapObject obj, ObjectSlot slot, Object value);
   V8_INLINE void RecordMaybeWeakWrite(HeapObject obj, MaybeObjectSlot slot,
                                       MaybeObject value);
+  void RecordWrites(FixedArray array);
   void RevisitObject(HeapObject obj);
   // Ensures that all descriptors int range [0, number_of_own_descripts)
   // are visited.
@@ -284,8 +285,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   V8_INLINE intptr_t ProcessMarkingWorklist(
       intptr_t bytes_to_process,
       ForceCompletionAction completion = DO_NOT_FORCE_COMPLETION);
-
-  V8_INLINE bool IsFixedArrayWithProgressBar(HeapObject object);
 
   // Visits the object and returns its size.
   V8_INLINE int VisitObject(Map map, HeapObject obj);
