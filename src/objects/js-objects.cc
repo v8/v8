@@ -3895,7 +3895,6 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     Handle<Map> new_map = Map::Copy(isolate, handle(object->map(), isolate),
                                     "SlowCopyForPreventExtensions");
     new_map->set_is_extensible(false);
-    DCHECK(!new_map->has_frozen_or_sealed_elements());
     new_element_dictionary = CreateElementDictionary(isolate, object);
     if (!new_element_dictionary.is_null()) {
       ElementsKind new_kind =
