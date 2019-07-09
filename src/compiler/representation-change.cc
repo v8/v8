@@ -593,7 +593,11 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTagged);
     }
-  } else if (IsAnyCompressed(output_rep)) {
+  } else if (output_rep == MachineRepresentation::kCompressedSigned) {
+    op = machine()->ChangeCompressedSignedToTaggedSigned();
+  } else if (output_rep == MachineRepresentation::kCompressedPointer) {
+    op = machine()->ChangeCompressedPointerToTaggedPointer();
+  } else if (output_rep == MachineRepresentation::kCompressed) {
     op = machine()->ChangeCompressedToTagged();
   } else {
     return TypeError(node, output_rep, output_type,
