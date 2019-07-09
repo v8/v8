@@ -125,7 +125,11 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
                     arguments.get());
   WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
 
-  isolate->clear_pending_exception();
+  if (isolate->has_pending_exception()) {
+    // Stack overflow during interpretation.
+    isolate->clear_pending_exception();
+    return false;
+  }
 
   return interpreter_result != WasmInterpreter::PAUSED;
 }
