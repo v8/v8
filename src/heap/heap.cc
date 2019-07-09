@@ -3120,7 +3120,7 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
   // We do not create a filler for objects in a large object space.
   if (!IsLargeObject(object)) {
     HeapObject filler =
-        CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kYes);
+        CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kNo);
     DCHECK(!filler.is_null());
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
