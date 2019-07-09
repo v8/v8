@@ -6140,15 +6140,20 @@ template <typename Char>
 int CountRequiredEscapes(Handle<String> source) {
   DisallowHeapAllocation no_gc;
   int escapes = 0;
+  bool in_char_class = false;
   Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   for (int i = 0; i < src.length(); i++) {
     const Char c = src[i];
     if (c == '\\') {
       // Escape. Skip next character;
       i++;
-    } else if (c == '/') {
+    } else if (c == '/' && !in_char_class) {
       // Not escaped forward-slash needs escape.
       escapes++;
+    } else if (c == '[') {
+      in_char_class = true;
+    } else if (c == ']') {
+      in_char_class = false;
     } else if (c == '\n') {
       escapes++;
     } else if (c == '\r') {
@@ -6161,6 +6166,7 @@ int CountRequiredEscapes(Handle<String> source) {
       DCHECK(!unibrow::IsLineTerminator(static_cast<unibrow::uchar>(c)));
     }
   }
+  DCHECK(!in_char_class);
   return escapes;
 }
 
@@ -6178,16 +6184,19 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
   Vector<Char> dst(result->GetChars(no_gc), result->length());
   int s = 0;
   int d = 0;
-  // TODO(v8:1982): Fully implement
-  // https://tc39.github.io/ecma262/#sec-escaperegexppattern
+  bool in_char_class = false;
   while (s < src.length()) {
     if (src[s] == '\\') {
       // Escape. Copy this and next character.
       dst[d++] = src[s++];
       if (s == src.length()) break;
-    } else if (src[s] == '/') {
+    } else if (src[s] == '/' && !in_char_class) {
       // Not escaped forward-slash needs escape.
       dst[d++] = '\\';
+    } else if (src[s] == '[') {
+      in_char_class = true;
+    } else if (src[s] == ']') {
+      in_char_class = false;
     } else if (src[s] == '\n') {
       WriteStringToCharVector(dst, &d, "\\n");
       s++;
@@ -6208,6 +6217,7 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
     dst[d++] = src[s++];
   }
   DCHECK_EQ(result->length(), d);
+  DCHECK(!in_char_class);
   return result;
 }
 
@@ -6264,12 +6274,12 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
 
   source = String::Flatten(isolate, source);
 
+  RETURN_ON_EXCEPTION(isolate, RegExp::Compile(isolate, regexp, source, flags),
+                      JSRegExp);
+
   Handle<String> escaped_source;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, escaped_source,
                              EscapeRegExpSource(isolate, source), JSRegExp);
-
-  RETURN_ON_EXCEPTION(isolate, RegExp::Compile(isolate, regexp, source, flags),
-                      JSRegExp);
 
   regexp->set_source(*escaped_source);
   regexp->set_flags(Smi::FromInt(flags));
