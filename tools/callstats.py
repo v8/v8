@@ -355,37 +355,6 @@ def statistics(data):
   return { 'samples': N, 'average': average, 'median': median,
            'stddev': stddev, 'min': low, 'max': high, 'ci': ci }
 
-def experimental_statistics(data):
-  # TODO(tmrts): copied from statistics for experimenting, will be removed
-  # afterwards
-  N = len(data)
-  average = numpy.average(data)
-  median = numpy.median(data)
-  low = numpy.min(data)
-  high= numpy.max(data)
-  if N > 1:
-    # evaluate sample variance by setting delta degrees of freedom (ddof) to
-    # 1. The degree used in calculations is N - ddof
-    stddev = numpy.std(data, ddof=1)
-    # Get the endpoints of the range that contains 95% of the distribution
-    t_bounds = scipy.stats.t.interval(0.95, N-1)
-    #assert abs(t_bounds[0] + t_bounds[1]) < 1e-6
-    # sum mean to the confidence interval
-    ci = {
-        'abs': t_bounds[1] * stddev / sqrt(N),
-        'low': average + t_bounds[0] * stddev / sqrt(N),
-        'high': average + t_bounds[1] * stddev / sqrt(N)
-    }
-  else:
-    stddev = 0
-    ci = { 'abs': 0, 'low': average, 'high': average }
-  if abs(stddev) > 0.0001 and abs(average) > 0.0001:
-    ci['perc'] = t_bounds[1] * stddev / sqrt(N) / average * 100
-  else:
-    ci['perc'] = 0
-  return { 'samples': N, 'average': average, 'median': median,
-           'stddev': stddev, 'min': low, 'max': high, 'ci': ci }
-
 
 def add_category_total(entries, groups, category_prefix):
   group_data = { 'time': 0, 'count': 0 }
@@ -692,9 +661,6 @@ def main():
     subparser.add_argument(
         "--sites", type=str, metavar="<URL>", nargs="*",
         help="specify benchmark website")
-    subparser.add_argument(
-        "--experimental", action="store_true", default=False,
-        help="enable the experimental mode")
   add_replay_args(subparsers["run"])
 
   # Command: replay-server
@@ -753,8 +719,6 @@ def main():
   # Execute the command.
   args = parser.parse_args()
   setattr(args, 'script_path', os.path.dirname(sys.argv[0]))
-  if args.experimental:
-    statistics = experimental_statistics
   if args.command == "run" and coexist(args.sites_file, args.sites):
     args.error("use either option --sites-file or site URLs")
     sys.exit(1)
