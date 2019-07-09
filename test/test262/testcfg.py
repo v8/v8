@@ -56,6 +56,8 @@ FEATURE_FLAGS = {
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
   'BigInt': '--harmony-intl-bigint',
   'Promise.allSettled': '--harmony-promise-all-settled',
+  'FinalizationGroup': '--harmony-weak-refs',
+  'WeakRef': '--harmony-weak-refs',
 }
 
 SKIPPED_FEATURES = set(['class-methods-private',

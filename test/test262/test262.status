@@ -80,11 +80,6 @@
   'intl402/NumberFormat/numbering-system-options': ['--harmony-intl-add-calendar-numbering-system'],
   'intl402/DateTimeFormat/numbering-system-calendar-options': ['--harmony-intl-add-calendar-numbering-system'],
 
-  # Waiting for test262 to land
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9327
-  'intl402/RelativeTimeFormat/prototype/formatToParts/en-us-numeric-auto': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/en-us-numeric-auto': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9319
   'intl402/NumberFormat/prototype/resolvedOptions/order': [FAIL],
 
@@ -536,6 +531,47 @@
   'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-function-expression': [FAIL],
   'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8179
+  'built-ins/FinalizationGroup/newtarget-prototype-is-not-object': [FAIL],
+  'built-ins/FinalizationGroup/proto-from-ctor-realm': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/length': [FAIL],
+  'built-ins/FinalizationGroup/prototype/register/length': [FAIL],
+  'built-ins/FinalizationGroup/prototype/register/return-undefined-register-itself': [FAIL],
+  'built-ins/FinalizationGroup/prototype/register/unregisterToken-not-object-or-undefined-throws': [FAIL],
+  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
+  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-length': [FAIL],
+  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-missing-internal-throws': [FAIL],
+  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-name': [FAIL],
+  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-not-object-throws': [FAIL],
+  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-prop-desc': [FAIL],
+  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/proto': [FAIL],
+  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/Symbol.toStringTag': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/callback-iterator-proto': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanupcallback-iterator-proto': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-reference': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/iterator-dynamic': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/iterator-holdings-multiple-values': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/return-undefined-with-gc': [FAIL],
+  'built-ins/FinalizationGroup/prototype/register/holdings-same-as-target': [FAIL],
+  'built-ins/FinalizationGroup/prototype/register/unregisterToken-same-as-holdings-and-target': [FAIL],
+  'built-ins/WeakRef/newtarget-prototype-is-not-object': [FAIL],
+  'built-ins/WeakRef/proto-from-ctor-realm': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9433
+  'built-ins/FinalizationGroup/prototype-from-newtarget-custom': [SKIP],
+  'built-ins/WeakRef/prototype-from-newtarget-custom': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9431
+  'built-ins/Promise/all/invoke-resolve-get-error-close': [FAIL],
+  'built-ins/Promise/allSettled/invoke-resolve-get-error-close': [FAIL],
+  'built-ins/Promise/race/invoke-resolve-get-error-close': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9430
+  'language/statements/class/elements/private-getter-visible-to-direct-eval-on-initializer': [FAIL],
+  'language/statements/class/elements/private-method-visible-to-direct-eval-on-initializer': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
@@ -901,23 +937,6 @@
   'language/expressions/dynamic-import/reuse-namespace-object': [SKIP],
   'language/expressions/dynamic-import/reuse-namespace-object-from-import': [SKIP],
   'language/expressions/dynamic-import/reuse-namespace-object-from-script': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-10-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-11-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-12-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-13-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-14-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-15-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-16-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-17-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-1-update-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-2-update-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-3-update-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-4-update-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-5-lhs-equals-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-6-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-7-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-8-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-9-lhs-assignment-operator-assignment-expression': [SKIP],
   'language/expressions/dynamic-import/syntax/invalid/nested-arrow-assignment-expression-assignment-expr-not-optional': [SKIP],
   'language/expressions/dynamic-import/syntax/invalid/nested-arrow-assignment-expression-no-new-call-expression': [SKIP],
   'language/expressions/dynamic-import/syntax/invalid/nested-arrow-assignment-expression-no-rest-param': [SKIP],
