@@ -3808,7 +3808,7 @@ void Page::Print() {
   // Make a best-effort to print the objects in the page.
   PrintF("Page@%p in %s\n", reinterpret_cast<void*>(this->address()),
          Heap::GetSpaceName(this->owner_identity()));
-  printf(" --------------------------------------\n");
+  PrintF(" --------------------------------------\n");
   PagedSpaceObjectIterator objects(this);
   unsigned mark_size = 0;
   for (HeapObject object = objects.Next(); !object.is_null();
@@ -3822,8 +3822,8 @@ void Page::Print() {
     object.ShortPrint();
     PrintF("\n");
   }
-  printf(" --------------------------------------\n");
-  printf(" Marked: %x, LiveCount: %" V8PRIdPTR "\n", mark_size,
+  PrintF(" --------------------------------------\n");
+  PrintF(" Marked: %x, LiveCount: %" V8PRIdPTR "\n", mark_size,
          heap()->incremental_marking()->marking_state()->live_bytes(this));
 }
 
