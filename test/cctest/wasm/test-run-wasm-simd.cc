@@ -562,7 +562,8 @@ void RunF32x4UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
     }
   }
 
-  FOR_FLOAT32_NAN_INPUTS(x) {
+  FOR_FLOAT32_NAN_INPUTS(i) {
+    float x = bit_cast<float>(nan_test_array[i]);
     if (!PlatformCanRepresent(x)) continue;
     // Extreme values have larger errors so skip them for approximation tests.
     if (!exact && IsExtreme(x)) continue;
