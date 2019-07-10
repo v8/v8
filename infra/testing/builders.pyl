@@ -1446,12 +1446,14 @@
       {
         'name': 'mozilla',
         'suffix': 'armv8-a',
-        'test_args': ['--extra-flags', '--enable-armv8']
+        'test_args': ['--extra-flags', '--enable-armv8'],
+        'shards': 2,
       },
       {
         'name': 'test262',
         'suffix': 'armv8-a',
-        'test_args': ['--extra-flags', '--enable-armv8']
+        'test_args': ['--extra-flags', '--enable-armv8'],
+        'shards': 2,
       },
       {
         'name': 'v8testing',
