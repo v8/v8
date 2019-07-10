@@ -541,6 +541,24 @@ bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
   return false;
 }
 
+void WasmEngine::DeleteCompileJobsOnContext(Handle<Context> context) {
+  // Under the mutex get all jobs to delete. Then delete them without holding
+  // the mutex, such that deletion can reenter the WasmEngine.
+  std::vector<std::unique_ptr<AsyncCompileJob>> jobs_to_delete;
+  {
+    base::MutexGuard guard(&mutex_);
+    for (auto it = async_compile_jobs_.begin();
+         it != async_compile_jobs_.end();) {
+      if (!it->first->context().is_identical_to(context)) {
+        ++it;
+        continue;
+      }
+      jobs_to_delete.push_back(std::move(it->second));
+      it = async_compile_jobs_.erase(it);
+    }
+  }
+}
+
 void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
   // Under the mutex get all jobs to delete. Then delete them without holding
   // the mutex, such that deletion can reenter the WasmEngine.

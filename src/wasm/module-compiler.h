@@ -119,6 +119,8 @@ class AsyncCompileJob {
 
   Isolate* isolate() const { return isolate_; }
 
+  Handle<Context> context() const { return native_context_; }
+
  private:
   class CompileTask;
   class CompileStep;

@@ -140,6 +140,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Isolate is currently running.
   bool HasRunningCompileJob(Isolate* isolate);
 
+  // Deletes all AsyncCompileJobs that belong to the given context. All
+  // compilation is aborted, no more callbacks will be triggered. This is used
+  // when a context is disposed, e.g. because of browser navigation.
+  void DeleteCompileJobsOnContext(Handle<Context> context);
+
   // Deletes all AsyncCompileJobs that belong to the given Isolate. All
   // compilation is aborted, no more callbacks will be triggered. This is used
   // for tearing down an isolate, or to clean it up to be reused.
