@@ -94,8 +94,6 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   Vector<byte> buffer_;
   // The program counter.
   int pc_;
-  // True if the assembler owns the buffer, false if buffer is external.
-  bool own_buffer_;
   Label backtrack_;
 
   int advance_current_start_;

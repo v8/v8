@@ -17,13 +17,12 @@ RegExpBytecodeGenerator::RegExpBytecodeGenerator(Isolate* isolate, Zone* zone)
     : RegExpMacroAssembler(isolate, zone),
       buffer_(Vector<byte>::New(1024)),
       pc_(0),
-      own_buffer_(true),
       advance_current_end_(kInvalidPC),
       isolate_(isolate) {}
 
 RegExpBytecodeGenerator::~RegExpBytecodeGenerator() {
   if (backtrack_.is_linked()) backtrack_.Unuse();
-  if (own_buffer_) buffer_.Dispose();
+  buffer_.Dispose();
 }
 
 RegExpBytecodeGenerator::IrregexpImplementation
@@ -369,14 +368,10 @@ void RegExpBytecodeGenerator::Copy(byte* a) {
 }
 
 void RegExpBytecodeGenerator::Expand() {
-  bool old_buffer_was_our_own = own_buffer_;
   Vector<byte> old_buffer = buffer_;
   buffer_ = Vector<byte>::New(old_buffer.length() * 2);
-  own_buffer_ = true;
   MemCopy(buffer_.begin(), old_buffer.begin(), old_buffer.length());
-  if (old_buffer_was_our_own) {
-    old_buffer.Dispose();
-  }
+  old_buffer.Dispose();
 }
 
 }  // namespace internal
