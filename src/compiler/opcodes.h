@@ -741,6 +741,8 @@
 
 #define MACHINE_SIMD_OP_LIST(V) \
   V(F64x2Splat)                 \
+  V(F64x2ExtractLane)           \
+  V(F64x2ReplaceLane)           \
   V(F32x4Splat)                 \
   V(F32x4ExtractLane)           \
   V(F32x4ReplaceLane)           \

@@ -451,6 +451,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(Exchange)
 
 #define SIMD_LANE_OP_LIST(V) \
+  V(F64x2, 2)                \
   V(F32x4, 4)                \
   V(I64x2, 2)                \
   V(I32x4, 4)                \

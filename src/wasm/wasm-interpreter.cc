@@ -2206,9 +2206,10 @@ class ThreadImpl {
     Push(WasmValue(ss.val[LANE(imm.lane, ss)]));                        \
     return true;                                                        \
   }
+      EXTRACT_LANE_CASE(F64x2, f64x2)
+      EXTRACT_LANE_CASE(F32x4, f32x4)
       EXTRACT_LANE_CASE(I64x2, i64x2)
       EXTRACT_LANE_CASE(I32x4, i32x4)
-      EXTRACT_LANE_CASE(F32x4, f32x4)
       EXTRACT_LANE_CASE(I16x8, i16x8)
       EXTRACT_LANE_CASE(I8x16, i8x16)
 #undef EXTRACT_LANE_CASE
@@ -2386,6 +2387,7 @@ class ThreadImpl {
     Push(WasmValue(Simd128(s)));                                        \
     return true;                                                        \
   }
+      REPLACE_LANE_CASE(F64x2, f64x2, float2, double)
       REPLACE_LANE_CASE(F32x4, f32x4, float4, float)
       REPLACE_LANE_CASE(I64x2, i64x2, int2, int64_t)
       REPLACE_LANE_CASE(I32x4, i32x4, int4, int32_t)

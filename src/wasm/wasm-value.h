@@ -16,7 +16,7 @@ namespace internal {
 namespace wasm {
 
 #define FOREACH_SIMD_TYPE(V)  \
-  V(double, float2, f64x4, 2) \
+  V(double, float2, f64x2, 2) \
   V(float, float4, f32x4, 4)  \
   V(int64_t, int2, i64x2, 2)  \
   V(int32_t, int4, i32x4, 4)  \

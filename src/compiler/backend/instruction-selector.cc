@@ -1813,6 +1813,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitUnsafePointerAdd(node);
     case IrOpcode::kF64x2Splat:
       return MarkAsSimd128(node), VisitF64x2Splat(node);
+    case IrOpcode::kF64x2ExtractLane:
+      return MarkAsFloat64(node), VisitF64x2ExtractLane(node);
+    case IrOpcode::kF64x2ReplaceLane:
+      return MarkAsSimd128(node), VisitF64x2ReplaceLane(node);
     case IrOpcode::kF32x4Splat:
       return MarkAsSimd128(node), VisitF32x4Splat(node);
     case IrOpcode::kF32x4ExtractLane:
@@ -2526,6 +2530,8 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
 
 #if !V8_TARGET_ARCH_X64
 void InstructionSelector::VisitF64x2Splat(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }

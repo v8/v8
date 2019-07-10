@@ -248,6 +248,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_CONVERT_OP(Convert, I16x8, I8x16Low, "i32", "convert")
     CASE_CONVERT_OP(Convert, I16x8, I8x16High, "i32", "convert")
     CASE_CONVERT_OP(Convert, I8x16, I16x8, "i32", "convert")
+    CASE_F64x2_OP(ExtractLane, "extract_lane")
+    CASE_F64x2_OP(ReplaceLane, "replace_lane")
     CASE_F32x4_OP(ExtractLane, "extract_lane")
     CASE_F32x4_OP(ReplaceLane, "replace_lane")
     CASE_I64x2_OP(ExtractLane, "extract_lane")

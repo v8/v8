@@ -2253,6 +2253,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kX64F64x2ReplaceLane: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      if (instr->InputAt(2)->IsFPRegister()) {
+        __ movq(kScratchRegister, i.InputDoubleRegister(2));
+        __ pinsrq(i.OutputSimd128Register(), kScratchRegister, i.InputInt8(1));
+      } else {
+        __ pinsrq(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+      }
+      break;
+    }
+    case kX64F64x2ExtractLane: {
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      __ pextrq(kScratchRegister, i.InputSimd128Register(0), i.InputInt8(1));
+      __ movq(i.OutputDoubleRegister(), kScratchRegister);
+      break;
+    }
     // TODO(gdeepti): Get rid of redundant moves for F32x4Splat/Extract below
     case kX64F32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();

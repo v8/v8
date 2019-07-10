@@ -286,7 +286,13 @@ T Sqrt(T a) {
 #define WASM_SIMD_CONCAT_OP(op, bytes, x, y) \
   x, y, WASM_SIMD_OP(op), TO_BYTE(bytes)
 #define WASM_SIMD_SELECT(format, x, y, z) x, y, z, WASM_SIMD_OP(kExprS128Select)
+
 #define WASM_SIMD_F64x2_SPLAT(x) WASM_SIMD_SPLAT(F64x2, x)
+#define WASM_SIMD_F64x2_EXTRACT_LANE(lane, x) \
+  x, WASM_SIMD_OP(kExprF64x2ExtractLane), TO_BYTE(lane)
+#define WASM_SIMD_F64x2_REPLACE_LANE(lane, x, y) \
+  x, y, WASM_SIMD_OP(kExprF64x2ReplaceLane), TO_BYTE(lane)
+
 #define WASM_SIMD_F32x4_SPLAT(x) WASM_SIMD_SPLAT(F32x4, x)
 #define WASM_SIMD_F32x4_EXTRACT_LANE(lane, x) \
   x, WASM_SIMD_OP(kExprF32x4ExtractLane), TO_BYTE(lane)
@@ -378,30 +384,6 @@ bool IsExtreme(float x) {
   return abs_x != 0.0f &&  // 0 or -0 are fine.
          (abs_x < kSmallFloatThreshold || abs_x > kLargeFloatThreshold);
 }
-
-#if V8_TARGET_ARCH_X64
-WASM_SIMD_TEST_NO_LOWERING(F64x2Splat) {
-  WasmRunner<int32_t, double> r(execution_tier, lower_simd);
-  // Set up a global to hold output vector.
-  double* g = r.builder().AddGlobal<double>(kWasmS128);
-  byte param1 = 0;
-  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(param1))),
-        WASM_ONE);
-
-  FOR_FLOAT64_INPUTS(x) {
-    r.Call(x);
-    double expected = x;
-    for (int i = 0; i < 2; i++) {
-      double actual = ReadLittleEndianValue<double>(&g[i]);
-      if (std::isnan(expected)) {
-        CHECK(std::isnan(actual));
-      } else {
-        CHECK_EQ(actual, expected);
-      }
-    }
-  }
-}
-#endif  // V8_TARGET_ARCH_X64
 
 WASM_SIMD_TEST(F32x4Splat) {
   WasmRunner<int32_t, float> r(execution_tier, lower_simd);
@@ -715,6 +697,79 @@ WASM_SIMD_TEST(F32x4Le) {
 }
 
 #if V8_TARGET_ARCH_X64
+WASM_SIMD_TEST_NO_LOWERING(F64x2Splat) {
+  WasmRunner<int32_t, double> r(execution_tier, lower_simd);
+  // Set up a global to hold output vector.
+  double* g = r.builder().AddGlobal<double>(kWasmS128);
+  byte param1 = 0;
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(param1))),
+        WASM_ONE);
+
+  FOR_FLOAT64_INPUTS(x) {
+    r.Call(x);
+    double expected = x;
+    for (int i = 0; i < 2; i++) {
+      double actual = ReadLittleEndianValue<double>(&g[i]);
+      if (std::isnan(expected)) {
+        CHECK(std::isnan(actual));
+      } else {
+        CHECK_EQ(actual, expected);
+      }
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2ExtractLaneWithI64x2) {
+  WasmRunner<int64_t> r(execution_tier, lower_simd);
+  BUILD(r, WASM_IF_ELSE_L(
+               WASM_F64_EQ(WASM_SIMD_F64x2_EXTRACT_LANE(
+                               0, WASM_SIMD_I64x2_SPLAT(WASM_I64V(1e15))),
+                           WASM_F64_REINTERPRET_I64(WASM_I64V(1e15))),
+               WASM_I64V(1), WASM_I64V(0)));
+  CHECK_EQ(1, r.Call());
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2ExtractLane) {
+  WasmRunner<double, double> r(execution_tier, lower_simd);
+  byte param1 = 0;
+  byte temp1 = r.AllocateLocal(kWasmF64);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  BUILD(r,
+        WASM_SET_LOCAL(temp1,
+                       WASM_SIMD_F64x2_EXTRACT_LANE(
+                           0, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(param1)))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(temp1))),
+        WASM_SIMD_F64x2_EXTRACT_LANE(1, WASM_GET_LOCAL(temp2)));
+  FOR_FLOAT64_INPUTS(x) {
+    double actual = r.Call(x);
+    double expected = x;
+    if (std::isnan(expected)) {
+      CHECK(std::isnan(actual));
+    } else {
+      CHECK_EQ(actual, expected);
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2ReplaceLane) {
+  WasmRunner<int32_t> r(execution_tier, lower_simd);
+  // Set up a global to hold input/output vector.
+  double* g = r.builder().AddGlobal<double>(kWasmS128);
+  // Build function to replace each lane with its (FP) index.
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_SPLAT(WASM_F64(1e100))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_REPLACE_LANE(
+                                  0, WASM_GET_LOCAL(temp1), WASM_F64(0.0f))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_F64x2_REPLACE_LANE(
+                               1, WASM_GET_LOCAL(temp1), WASM_F64(1.0f))),
+        WASM_ONE);
+
+  r.Call();
+  for (int i = 0; i < 2; i++) {
+    CHECK_EQ(static_cast<double>(i), ReadLittleEndianValue<double>(&g[i]));
+  }
+}
+
 WASM_SIMD_TEST_NO_LOWERING(I64x2Splat) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.
@@ -2666,6 +2721,8 @@ WASM_SIMD_TEST_NO_LOWERING(I16x8GtUMixed) {
 #undef WASM_SIMD_CONCAT_OP
 #undef WASM_SIMD_SELECT
 #undef WASM_SIMD_F64x2_SPLAT
+#undef WASM_SIMD_F64x2_EXTRACT_LANE
+#undef WASM_SIMD_F64x2_REPLACE_LANE
 #undef WASM_SIMD_F32x4_SPLAT
 #undef WASM_SIMD_F32x4_EXTRACT_LANE
 #undef WASM_SIMD_F32x4_REPLACE_LANE
