@@ -173,12 +173,12 @@ class PipelineData {
 
   // For CodeStubAssembler and machine graph testing entry point.
   PipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
-               Isolate* isolate, Graph* graph, Schedule* schedule,
-               SourcePositionTable* source_positions,
+               Isolate* isolate, AccountingAllocator* allocator, Graph* graph,
+               Schedule* schedule, SourcePositionTable* source_positions,
                NodeOriginTable* node_origins, JumpOptimizationInfo* jump_opt,
                const AssemblerOptions& assembler_options)
       : isolate_(isolate),
-        allocator_(isolate->allocator()),
+        allocator_(allocator),
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
@@ -1056,16 +1056,19 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
       // we pass it to the CompilationJob constructor, but it is not
       // dereferenced there.
       : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), &info_,
-                                "TurboFan"),
+                                "TurboFan", State::kReadyToExecute),
         debug_name_(std::move(debug_name)),
         info_(CStrVector(debug_name_.get()), graph->zone(), kind),
         call_descriptor_(call_descriptor),
-        zone_stats_(isolate->allocator()),
+        zone_stats_(isolate->wasm_engine()->allocator()),
         zone_(std::move(zone)),
         graph_(graph),
-        data_(&zone_stats_, &info_, isolate, graph_, nullptr, source_positions,
-              new (zone_.get()) NodeOriginTable(graph_), nullptr, options),
-        pipeline_(&data_) {}
+        data_(&zone_stats_, &info_, isolate,
+              isolate->wasm_engine()->allocator(), graph_, nullptr,
+              source_positions, new (zone_.get()) NodeOriginTable(graph_),
+              nullptr, options),
+        pipeline_(&data_),
+        wasm_engine_(isolate->wasm_engine()) {}
 
   ~WasmHeapStubCompilationJob() = default;
 
@@ -1083,6 +1086,7 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
   Graph* graph_;
   PipelineData data_;
   PipelineImpl pipeline_;
+  wasm::WasmEngine* wasm_engine_;
 
   DISALLOW_COPY_AND_ASSIGN(WasmHeapStubCompilationJob);
 };
@@ -1103,10 +1107,14 @@ Pipeline::NewWasmHeapStubCompilationJob(Isolate* isolate,
 
 CompilationJob::Status WasmHeapStubCompilationJob::PrepareJobImpl(
     Isolate* isolate) {
+  return CompilationJob::SUCCEEDED;
+}
+
+CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl() {
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
-        &info_, isolate->GetTurboStatistics(), &zone_stats_));
+        &info_, wasm_engine_->GetOrCreateTurboStatistics(), &zone_stats_));
     pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
   }
   if (info_.trace_turbo_json_enabled() || info_.trace_turbo_graph_enabled()) {
@@ -1128,10 +1136,6 @@ CompilationJob::Status WasmHeapStubCompilationJob::PrepareJobImpl(
             << "\", \"source\":\"\",\n\"phases\":[";
   }
   pipeline_.RunPrintAndVerify("V8.WasmMachineCode", true);
-  return CompilationJob::SUCCEEDED;
-}
-
-CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl() {
   pipeline_.ComputeScheduledGraph();
   if (pipeline_.SelectInstructionsAndAssemble(call_descriptor_)) {
     return CompilationJob::SUCCEEDED;
@@ -2332,8 +2336,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   JumpOptimizationInfo jump_opt;
   bool should_optimize_jumps =
       isolate->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
-  PipelineData data(&zone_stats, &info, isolate, graph, nullptr,
-                    source_positions, &node_origins,
+  PipelineData data(&zone_stats, &info, isolate, isolate->allocator(), graph,
+                    nullptr, source_positions, &node_origins,
                     should_optimize_jumps ? &jump_opt : nullptr, options);
   data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
@@ -2378,10 +2382,10 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   // First run code generation on a copy of the pipeline, in order to be able to
   // repeat it for jump optimization. The first run has to happen on a temporary
   // pipeline to avoid deletion of zones on the main pipeline.
-  PipelineData second_data(&zone_stats, &info, isolate, data.graph(),
-                           data.schedule(), data.source_positions(),
-                           data.node_origins(), data.jump_optimization_info(),
-                           options);
+  PipelineData second_data(&zone_stats, &info, isolate, isolate->allocator(),
+                           data.graph(), data.schedule(),
+                           data.source_positions(), data.node_origins(),
+                           data.jump_optimization_info(), options);
   second_data.set_verify_graph(FLAG_verify_csa);
   PipelineImpl second_pipeline(&second_data);
   second_pipeline.SelectInstructionsAndAssemble(call_descriptor);
@@ -2527,8 +2531,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
   NodeOriginTable* node_positions = new (info->zone()) NodeOriginTable(graph);
-  PipelineData data(&zone_stats, info, isolate, graph, schedule, nullptr,
-                    node_positions, nullptr, options);
+  PipelineData data(&zone_stats, info, isolate, isolate->allocator(), graph,
+                    schedule, nullptr, node_positions, nullptr, options);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
