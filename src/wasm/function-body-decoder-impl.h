@@ -574,14 +574,14 @@ struct ElemDropImmediate {
 
 template <Decoder::ValidateFlag validate>
 struct TableCopyImmediate {
-  TableIndexImmediate<validate> table_src;
   TableIndexImmediate<validate> table_dst;
+  TableIndexImmediate<validate> table_src;
   unsigned length = 0;
 
   inline TableCopyImmediate(Decoder* decoder, const byte* pc) {
-    table_src = TableIndexImmediate<validate>(decoder, pc + 1);
-    table_dst =
-        TableIndexImmediate<validate>(decoder, pc + 1 + table_src.length);
+    table_dst = TableIndexImmediate<validate>(decoder, pc + 1);
+    table_src =
+        TableIndexImmediate<validate>(decoder, pc + 1 + table_dst.length);
     length = table_src.length + table_dst.length;
   }
 };

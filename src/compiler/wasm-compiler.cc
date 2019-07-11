@@ -4837,13 +4837,13 @@ Node* WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
                        mcgraph()->Int32Constant(1), Effect(), Control()));
 }
 
-Node* WasmGraphBuilder::TableCopy(uint32_t table_src_index,
-                                  uint32_t table_dst_index, Node* dst,
+Node* WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
+                                  uint32_t table_src_index, Node* dst,
                                   Node* src, Node* size,
                                   wasm::WasmCodePosition position) {
   Node* args[] = {
-      graph()->NewNode(mcgraph()->common()->NumberConstant(table_src_index)),
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_dst_index)),
+      graph()->NewNode(mcgraph()->common()->NumberConstant(table_src_index)),
       BuildConvertUint32ToSmiWithSaturation(dst, FLAG_wasm_max_table_size),
       BuildConvertUint32ToSmiWithSaturation(src, FLAG_wasm_max_table_size),
       BuildConvertUint32ToSmiWithSaturation(size, FLAG_wasm_max_table_size)};

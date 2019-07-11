@@ -502,16 +502,18 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
 RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
+  DCHECK(isolate->context().is_null());
+  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   auto instance =
       Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
-  CONVERT_UINT32_ARG_CHECKED(table_src_index, 0);
-  CONVERT_UINT32_ARG_CHECKED(table_dst_index, 1);
+  CONVERT_UINT32_ARG_CHECKED(table_dst_index, 0);
+  CONVERT_UINT32_ARG_CHECKED(table_src_index, 1);
   CONVERT_UINT32_ARG_CHECKED(dst, 2);
   CONVERT_UINT32_ARG_CHECKED(src, 3);
   CONVERT_UINT32_ARG_CHECKED(count, 4);
 
   bool oob = !WasmInstanceObject::CopyTableEntries(
-      isolate, instance, table_src_index, table_dst_index, dst, src, count);
+      isolate, instance, table_dst_index, table_src_index, dst, src, count);
   if (oob) return ThrowTableOutOfBounds(isolate, instance);
   return ReadOnlyRoots(isolate).undefined_value();
 }

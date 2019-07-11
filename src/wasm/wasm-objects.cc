@@ -1589,11 +1589,6 @@ Address IndirectFunctionTableEntry::target() const {
              : table_->targets()[index_];
 }
 
-void IndirectFunctionTableEntry::CopyFrom(
-    const IndirectFunctionTableEntry& that) {
-  Set(that.sig_id(), that.target(), that.object_ref());
-}
-
 void ImportedFunctionEntry::SetWasmToJs(
     Isolate* isolate, Handle<JSReceiver> callable,
     const wasm::WasmCode* wasm_to_js_wrapper) {
@@ -1830,86 +1825,40 @@ int WasmInstanceObject::IndirectFunctionTableSize(
   return table->size();
 }
 
-namespace {
-void CopyTableEntriesImpl(Handle<WasmInstanceObject> instance, uint32_t dst,
-                          uint32_t src, uint32_t count, bool copy_backward) {
-  DCHECK(IsInBounds(dst, count, instance->indirect_function_table_size()));
-  if (copy_backward) {
-    for (uint32_t i = count; i > 0; i--) {
-      // TODO(ahaas): Use a table index here once table.copy supports multiple
-      // tables.
-      auto to_entry = IndirectFunctionTableEntry(instance, 0, dst + i - 1);
-      auto from_entry = IndirectFunctionTableEntry(instance, 0, src + i - 1);
-      to_entry.CopyFrom(from_entry);
-    }
-  } else {
-    for (uint32_t i = 0; i < count; i++) {
-      // TODO(ahaas): Use a table index here once table.copy supports multiple
-      // tables.
-      auto to_entry = IndirectFunctionTableEntry(instance, 0, dst + i);
-      auto from_entry = IndirectFunctionTableEntry(instance, 0, src + i);
-      to_entry.CopyFrom(from_entry);
-    }
-  }
-}
-}  // namespace
-
 // static
 bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
                                           Handle<WasmInstanceObject> instance,
-                                          uint32_t table_src_index,
                                           uint32_t table_dst_index,
+                                          uint32_t table_src_index,
                                           uint32_t dst, uint32_t src,
                                           uint32_t count) {
-  if (static_cast<int>(table_dst_index) >= instance->tables().length()) {
-    return false;
-  }
-  if (static_cast<int>(table_src_index) >= instance->tables().length()) {
-    return false;
-  }
-
-  // TODO(titzer): multiple tables in TableCopy
-  CHECK_EQ(0, table_src_index);
-  CHECK_EQ(0, table_dst_index);
-  auto table = handle(
+  CHECK_LT(table_dst_index, instance->tables().length());
+  CHECK_LT(table_src_index, instance->tables().length());
+  auto table_dst = handle(
+      WasmTableObject::cast(instance->tables().get(table_dst_index)), isolate);
+  auto table_src = handle(
       WasmTableObject::cast(instance->tables().get(table_src_index)), isolate);
-  uint32_t max = static_cast<uint32_t>(table->entries().length());
+  uint32_t max_dst = static_cast<uint32_t>(table_dst->entries().length());
+  uint32_t max_src = static_cast<uint32_t>(table_src->entries().length());
   bool copy_backward = src < dst && dst - src < count;
-  bool ok = ClampToBounds(dst, &count, max);
+  bool ok = ClampToBounds(dst, &count, max_dst);
   // Use & instead of && so the clamp is not short-circuited.
-  ok &= ClampToBounds(src, &count, max);
+  ok &= ClampToBounds(src, &count, max_src);
 
   // If performing a partial copy when copying backward, then the first access
   // will be out-of-bounds, so no entries should be copied.
   if (copy_backward && !ok) return ok;
 
-  if (dst == src || count == 0) return ok;  // no-op
-
-  // Broadcast table copy operation to all instances that import this table.
-  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
-  for (int i = 0; i < dispatch_tables->length();
-       i += kDispatchTableNumElements) {
-    Handle<WasmInstanceObject> target_instance(
-        WasmInstanceObject::cast(
-            dispatch_tables->get(i + kDispatchTableInstanceOffset)),
-        isolate);
-    CopyTableEntriesImpl(target_instance, dst, src, count, copy_backward);
+  // no-op
+  if ((dst == src && table_dst_index == table_src_index) || count == 0) {
+    return ok;
   }
 
-  // Copy the function entries.
-  auto dst_table = handle(
-      WasmTableObject::cast(instance->tables().get(table_dst_index)), isolate);
-  auto src_table = handle(
-      WasmTableObject::cast(instance->tables().get(table_src_index)), isolate);
-  if (copy_backward) {
-    for (uint32_t i = count; i > 0; i--) {
-      dst_table->entries().set(dst + i - 1,
-                               src_table->entries().get(src + i - 1));
-    }
-  } else {
-    for (uint32_t i = 0; i < count; i++) {
-      dst_table->entries().set(dst + i, src_table->entries().get(src + i));
-    }
+  for (uint32_t i = 0; i < count; ++i) {
+    uint32_t src_index = copy_backward ? (src + count - i - 1) : src + i;
+    uint32_t dst_index = copy_backward ? (dst + count - i - 1) : dst + i;
+    auto value = WasmTableObject::Get(isolate, table_src, src_index);
+    WasmTableObject::Set(isolate, table_dst, dst_index, value);
   }
   return ok;
 }

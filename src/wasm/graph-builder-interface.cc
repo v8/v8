@@ -567,7 +567,7 @@ class WasmGraphBuildingInterface {
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
                  Vector<Value> args) {
-    BUILD(TableCopy, imm.table_src.index, imm.table_dst.index, args[0].node,
+    BUILD(TableCopy, imm.table_dst.index, imm.table_src.index, args[0].node,
           args[1].node, args[2].node, decoder->position());
   }
 

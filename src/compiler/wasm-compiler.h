@@ -405,7 +405,7 @@ class WasmGraphBuilder {
   Node* TableInit(uint32_t table_index, uint32_t elem_segment_index, Node* dst,
                   Node* src, Node* size, wasm::WasmCodePosition position);
   Node* ElemDrop(uint32_t elem_segment_index, wasm::WasmCodePosition position);
-  Node* TableCopy(uint32_t table_src_index, uint32_t table_dst_index, Node* dst,
+  Node* TableCopy(uint32_t table_dst_index, uint32_t table_src_index, Node* dst,
                   Node* src, Node* size, wasm::WasmCodePosition position);
   Node* TableGrow(uint32_t table_index, Node* value, Node* delta);
   Node* TableSize(uint32_t table_index);

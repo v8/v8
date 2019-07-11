@@ -3218,10 +3218,11 @@ TEST_F(FunctionBodyDecoderTest, TableCopy) {
   builder.InitializeTable();
   module = builder.module();
 
-  ExpectFailure(sigs.v_v(), {WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  ExpectFailure(sigs.v_v(),
+                {WASM_TABLE_COPY(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
   WASM_FEATURE_SCOPE(bulk_memory);
   ExpectValidates(sigs.v_v(),
-                  {WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+                  {WASM_TABLE_COPY(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, TableGrow) {
@@ -3302,7 +3303,57 @@ TEST_F(FunctionBodyDecoderTest, TableOpsWithoutTable) {
     ExpectFailure(sigs.v_v(),
                   {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
     ExpectFailure(sigs.v_v(),
-                  {WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+                  {WASM_TABLE_COPY(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, TableCopyMultiTable) {
+  WASM_FEATURE_SCOPE(bulk_memory);
+  WASM_FEATURE_SCOPE(anyref);
+  {
+    TestModuleBuilder builder;
+    builder.AddTable(kWasmAnyRef, 10, true, 20);
+    builder.AddPassiveElementSegment();
+    module = builder.module();
+    // We added one table, therefore table.copy on table 0 should work.
+    int table_src = 0;
+    int table_dst = 0;
+    ExpectValidates(sigs.v_v(),
+                    {WASM_TABLE_COPY(table_dst, table_src, WASM_ZERO, WASM_ZERO,
+                                     WASM_ZERO)});
+    // There is only one table, so table.copy on table 1 should fail.
+    table_src = 0;
+    table_dst = 1;
+    ExpectFailure(sigs.v_v(), {WASM_TABLE_COPY(table_dst, table_src, WASM_ZERO,
+                                               WASM_ZERO, WASM_ZERO)});
+    table_src = 1;
+    table_dst = 0;
+    ExpectFailure(sigs.v_v(), {WASM_TABLE_COPY(table_dst, table_src, WASM_ZERO,
+                                               WASM_ZERO, WASM_ZERO)});
+  }
+  {
+    TestModuleBuilder builder;
+    builder.AddTable(kWasmAnyRef, 10, true, 20);
+    builder.AddTable(kWasmAnyRef, 10, true, 20);
+    builder.AddPassiveElementSegment();
+    module = builder.module();
+    // We added two tables, therefore table.copy on table 0 should work.
+    int table_src = 0;
+    int table_dst = 0;
+    ExpectValidates(sigs.v_v(),
+                    {WASM_TABLE_COPY(table_dst, table_src, WASM_ZERO, WASM_ZERO,
+                                     WASM_ZERO)});
+    // Also table.copy on table 1 should work now.
+    table_src = 1;
+    table_dst = 0;
+    ExpectValidates(sigs.v_v(),
+                    {WASM_TABLE_COPY(table_dst, table_src, WASM_ZERO, WASM_ZERO,
+                                     WASM_ZERO)});
+    table_src = 0;
+    table_dst = 1;
+    ExpectValidates(sigs.v_v(),
+                    {WASM_TABLE_COPY(table_dst, table_src, WASM_ZERO, WASM_ZERO,
+                                     WASM_ZERO)});
   }
 }
 
