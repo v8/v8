@@ -277,13 +277,22 @@ uint32_t WasmModuleBuilder::AllocateIndirectFunctions(uint32_t count) {
   if (count > FLAG_wasm_max_table_size - index) {
     return std::numeric_limits<uint32_t>::max();
   }
-  indirect_functions_.resize(indirect_functions_.size() + count);
+  DCHECK(max_table_size_ == 0 ||
+         indirect_functions_.size() + count <= max_table_size_);
+  indirect_functions_.resize(indirect_functions_.size() + count,
+                             WasmElemSegment::kNullIndex);
   return index;
 }
 
 void WasmModuleBuilder::SetIndirectFunction(uint32_t indirect,
                                             uint32_t direct) {
   indirect_functions_[indirect] = direct;
+}
+
+void WasmModuleBuilder::SetMaxTableSize(uint32_t max) {
+  DCHECK_GE(FLAG_wasm_max_table_size, max);
+  DCHECK_GE(max, indirect_functions_.size());
+  max_table_size_ = max;
 }
 
 uint32_t WasmModuleBuilder::AddImport(Vector<const char> name,
@@ -419,7 +428,10 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_u8(kLocalFuncRef);
     buffer->write_u8(kHasMaximumFlag);
     buffer->write_size(indirect_functions_.size());
-    buffer->write_size(indirect_functions_.size());
+    size_t max =
+        max_table_size_ > 0 ? max_table_size_ : indirect_functions_.size();
+    DCHECK_GE(max, indirect_functions_.size());
+    buffer->write_size(max);
     FixupSection(buffer, start);
   }
 
@@ -547,13 +559,24 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kElementSectionCode, buffer);
     buffer->write_u8(1);              // count of entries
     buffer->write_u8(0);              // table index
+    uint32_t first_element = 0;
+    while (first_element < indirect_functions_.size() &&
+           indirect_functions_[first_element] == WasmElemSegment::kNullIndex) {
+      first_element++;
+    }
+    uint32_t last_element =
+        static_cast<uint32_t>(indirect_functions_.size() - 1);
+    while (last_element >= first_element &&
+           indirect_functions_[last_element] == WasmElemSegment::kNullIndex) {
+      last_element--;
+    }
     buffer->write_u8(kExprI32Const);  // offset
-    buffer->write_u32v(0);
+    buffer->write_u32v(first_element);
     buffer->write_u8(kExprEnd);
-    buffer->write_size(indirect_functions_.size());  // element count
-
-    for (auto index : indirect_functions_) {
-      buffer->write_size(index + function_imports_.size());
+    uint32_t element_count = last_element - first_element + 1;
+    buffer->write_size(element_count);
+    for (uint32_t i = first_element; i <= last_element; i++) {
+      buffer->write_size(indirect_functions_[i] + function_imports_.size());
     }
 
     FixupSection(buffer, start);

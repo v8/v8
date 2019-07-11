@@ -237,8 +237,12 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
                            bool mutability);
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
+  // In the current implementation, it's supported to have uninitialized slots
+  // at the beginning and/or end of the indirect function table, as long as
+  // the filled slots form a contiguous block in the middle.
   uint32_t AllocateIndirectFunctions(uint32_t count);
   void SetIndirectFunction(uint32_t indirect, uint32_t direct);
+  void SetMaxTableSize(uint32_t max);
   void MarkStartFunction(WasmFunctionBuilder* builder);
   void AddExport(Vector<const char> name, WasmFunctionBuilder* builder);
   uint32_t AddExportedGlobal(ValueType type, bool mutability,
@@ -318,6 +322,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmGlobal> globals_;
   ZoneUnorderedMap<FunctionSig, uint32_t> signature_map_;
   int start_function_index_;
+  uint32_t max_table_size_ = 0;
   uint32_t min_memory_size_;
   uint32_t max_memory_size_;
   bool has_max_memory_size_;

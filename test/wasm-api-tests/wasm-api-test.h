@@ -42,6 +42,7 @@ using ::wasm::Module;
 using ::wasm::own;
 using ::wasm::Ref;
 using ::wasm::Store;
+using ::wasm::Table;
 using ::wasm::Trap;
 using ::wasm::Val;
 using ::wasm::ValType;
@@ -113,6 +114,15 @@ class WasmCapiTest : public ::testing::Test {
     Memory* memory = exported->memory();
     DCHECK_NE(memory, nullptr);
     return memory;
+  }
+
+  Table* GetExportedTable(size_t index) {
+    DCHECK_GT(exports_.size(), index);
+    Extern* exported = exports_[index];
+    DCHECK_EQ(exported->kind(), ::wasm::EXTERN_TABLE);
+    Table* table = exported->table();
+    DCHECK_NE(table, nullptr);
+    return table;
   }
 
   void Shutdown() {
