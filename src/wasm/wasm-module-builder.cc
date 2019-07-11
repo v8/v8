@@ -306,7 +306,7 @@ void WasmModuleBuilder::MarkStartFunction(WasmFunctionBuilder* function) {
 
 void WasmModuleBuilder::AddExport(Vector<const char> name,
                                   WasmFunctionBuilder* function) {
-  DCHECK(function->func_index() <= std::numeric_limits<int>::max());
+  DCHECK_LE(function->func_index(), std::numeric_limits<int>::max());
   function_exports_.push_back({name, static_cast<int>(function->func_index())});
 }
 
