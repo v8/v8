@@ -1259,6 +1259,10 @@ class Isolate final : private HiddenFactory {
   void UpdateNoElementsProtectorOnNormalizeElements(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
+
+  // The `protector_name` C string must be statically allocated.
+  void TraceProtectorInvalidation(const char* protector_name);
+
   void InvalidateArrayConstructorProtector();
   void InvalidateArraySpeciesProtector();
   void InvalidateTypedArraySpeciesProtector();

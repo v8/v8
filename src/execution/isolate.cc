@@ -3949,13 +3949,31 @@ void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   if (!IsNoElementsProtectorIntact()) return;
   if (!IsArrayOrObjectOrStringPrototype(*object)) return;
   PropertyCell::SetValueWithInvalidation(
-      this, factory()->no_elements_protector(),
+      this, "no_elements_protector", factory()->no_elements_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
+}
+
+void Isolate::TraceProtectorInvalidation(const char* protector_name) {
+  static constexpr char kInvalidateProtectorTracingCategory[] =
+      "V8.InvalidateProtector";
+  static constexpr char kInvalidateProtectorTracingArg[] = "protector-name";
+
+  DCHECK(FLAG_trace_protector_invalidation);
+
+  // TODO(jgruber): Remove the PrintF once tracing can output to stdout.
+  i::PrintF("Invalidating protector cell %s in isolate %p\n", protector_name,
+            this);
+  TRACE_EVENT_INSTANT1("v8", kInvalidateProtectorTracingCategory,
+                       TRACE_EVENT_SCOPE_THREAD, kInvalidateProtectorTracingArg,
+                       protector_name);
 }
 
 void Isolate::InvalidateIsConcatSpreadableProtector() {
   DCHECK(factory()->is_concat_spreadable_protector()->value().IsSmi());
   DCHECK(IsIsConcatSpreadableLookupChainIntact());
+  if (FLAG_trace_protector_invalidation) {
+    TraceProtectorInvalidation("is_concat_spreadable_protector");
+  }
   factory()->is_concat_spreadable_protector()->set_value(
       Smi::FromInt(kProtectorInvalid));
   DCHECK(!IsIsConcatSpreadableLookupChainIntact());
@@ -3964,6 +3982,9 @@ void Isolate::InvalidateIsConcatSpreadableProtector() {
 void Isolate::InvalidateArrayConstructorProtector() {
   DCHECK(factory()->array_constructor_protector()->value().IsSmi());
   DCHECK(IsArrayConstructorIntact());
+  if (FLAG_trace_protector_invalidation) {
+    TraceProtectorInvalidation("array_constructor_protector");
+  }
   factory()->array_constructor_protector()->set_value(
       Smi::FromInt(kProtectorInvalid));
   DCHECK(!IsArrayConstructorIntact());
@@ -3973,7 +3994,7 @@ void Isolate::InvalidateArraySpeciesProtector() {
   DCHECK(factory()->array_species_protector()->value().IsSmi());
   DCHECK(IsArraySpeciesLookupChainIntact());
   PropertyCell::SetValueWithInvalidation(
-      this, factory()->array_species_protector(),
+      this, "array_species_protector", factory()->array_species_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsArraySpeciesLookupChainIntact());
 }
@@ -3982,7 +4003,8 @@ void Isolate::InvalidateTypedArraySpeciesProtector() {
   DCHECK(factory()->typed_array_species_protector()->value().IsSmi());
   DCHECK(IsTypedArraySpeciesLookupChainIntact());
   PropertyCell::SetValueWithInvalidation(
-      this, factory()->typed_array_species_protector(),
+      this, "typed_array_species_protector",
+      factory()->typed_array_species_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsTypedArraySpeciesLookupChainIntact());
 }
@@ -3995,7 +4017,8 @@ void Isolate::InvalidateRegExpSpeciesProtector(
   Handle<PropertyCell> species_cell(native_context->regexp_species_protector(),
                                     this);
   PropertyCell::SetValueWithInvalidation(
-      this, species_cell, handle(Smi::FromInt(kProtectorInvalid), this));
+      this, "regexp_species_protector", species_cell,
+      handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsRegExpSpeciesLookupChainIntact(native_context));
 }
 
@@ -4003,7 +4026,7 @@ void Isolate::InvalidatePromiseSpeciesProtector() {
   DCHECK(factory()->promise_species_protector()->value().IsSmi());
   DCHECK(IsPromiseSpeciesLookupChainIntact());
   PropertyCell::SetValueWithInvalidation(
-      this, factory()->promise_species_protector(),
+      this, "promise_species_protector", factory()->promise_species_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsPromiseSpeciesLookupChainIntact());
 }
@@ -4011,6 +4034,9 @@ void Isolate::InvalidatePromiseSpeciesProtector() {
 void Isolate::InvalidateStringLengthOverflowProtector() {
   DCHECK(factory()->string_length_protector()->value().IsSmi());
   DCHECK(IsStringLengthOverflowIntact());
+  if (FLAG_trace_protector_invalidation) {
+    TraceProtectorInvalidation("string_length_protector");
+  }
   factory()->string_length_protector()->set_value(
       Smi::FromInt(kProtectorInvalid));
   DCHECK(!IsStringLengthOverflowIntact());
@@ -4020,7 +4046,7 @@ void Isolate::InvalidateArrayIteratorProtector() {
   DCHECK(factory()->array_iterator_protector()->value().IsSmi());
   DCHECK(IsArrayIteratorLookupChainIntact());
   PropertyCell::SetValueWithInvalidation(
-      this, factory()->array_iterator_protector(),
+      this, "array_iterator_protector", factory()->array_iterator_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsArrayIteratorLookupChainIntact());
 }
@@ -4029,7 +4055,7 @@ void Isolate::InvalidateMapIteratorProtector() {
   DCHECK(factory()->map_iterator_protector()->value().IsSmi());
   DCHECK(IsMapIteratorLookupChainIntact());
   PropertyCell::SetValueWithInvalidation(
-      this, factory()->map_iterator_protector(),
+      this, "map_iterator_protector", factory()->map_iterator_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsMapIteratorLookupChainIntact());
 }
@@ -4038,7 +4064,7 @@ void Isolate::InvalidateSetIteratorProtector() {
   DCHECK(factory()->set_iterator_protector()->value().IsSmi());
   DCHECK(IsSetIteratorLookupChainIntact());
   PropertyCell::SetValueWithInvalidation(
-      this, factory()->set_iterator_protector(),
+      this, "set_iterator_protector", factory()->set_iterator_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsSetIteratorLookupChainIntact());
 }
@@ -4047,7 +4073,7 @@ void Isolate::InvalidateStringIteratorProtector() {
   DCHECK(factory()->string_iterator_protector()->value().IsSmi());
   DCHECK(IsStringIteratorLookupChainIntact());
   PropertyCell::SetValueWithInvalidation(
-      this, factory()->string_iterator_protector(),
+      this, "string_iterator_protector", factory()->string_iterator_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsStringIteratorLookupChainIntact());
 }
@@ -4056,7 +4082,8 @@ void Isolate::InvalidateArrayBufferDetachingProtector() {
   DCHECK(factory()->array_buffer_detaching_protector()->value().IsSmi());
   DCHECK(IsArrayBufferDetachingIntact());
   PropertyCell::SetValueWithInvalidation(
-      this, factory()->array_buffer_detaching_protector(),
+      this, "array_buffer_detaching_protector",
+      factory()->array_buffer_detaching_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsArrayBufferDetachingIntact());
 }
@@ -4065,7 +4092,7 @@ void Isolate::InvalidatePromiseHookProtector() {
   DCHECK(factory()->promise_hook_protector()->value().IsSmi());
   DCHECK(IsPromiseHookProtectorIntact());
   PropertyCell::SetValueWithInvalidation(
-      this, factory()->promise_hook_protector(),
+      this, "promise_hook_protector", factory()->promise_hook_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsPromiseHookProtectorIntact());
 }
@@ -4073,6 +4100,9 @@ void Isolate::InvalidatePromiseHookProtector() {
 void Isolate::InvalidatePromiseResolveProtector() {
   DCHECK(factory()->promise_resolve_protector()->value().IsSmi());
   DCHECK(IsPromiseResolveLookupChainIntact());
+  if (FLAG_trace_protector_invalidation) {
+    TraceProtectorInvalidation("promise_resolve_protector");
+  }
   factory()->promise_resolve_protector()->set_value(
       Smi::FromInt(kProtectorInvalid));
   DCHECK(!IsPromiseResolveLookupChainIntact());
@@ -4082,7 +4112,7 @@ void Isolate::InvalidatePromiseThenProtector() {
   DCHECK(factory()->promise_then_protector()->value().IsSmi());
   DCHECK(IsPromiseThenLookupChainIntact());
   PropertyCell::SetValueWithInvalidation(
-      this, factory()->promise_then_protector(),
+      this, "promise_then_protector", factory()->promise_then_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsPromiseThenLookupChainIntact());
 }

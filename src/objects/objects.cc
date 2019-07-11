@@ -7851,9 +7851,13 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
 
 // static
 void PropertyCell::SetValueWithInvalidation(Isolate* isolate,
+                                            const char* cell_name,
                                             Handle<PropertyCell> cell,
                                             Handle<Object> new_value) {
   if (cell->value() != *new_value) {
+    if (FLAG_trace_protector_invalidation) {
+      isolate->TraceProtectorInvalidation(cell_name);
+    }
     cell->set_value(*new_value);
     cell->dependent_code().DeoptimizeDependentCodeGroup(
         isolate, DependentCode::kPropertyCellChangedGroup);
