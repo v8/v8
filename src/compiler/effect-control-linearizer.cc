@@ -2755,6 +2755,11 @@ Node* EffectControlLinearizer::LowerChangeUint64ToBigInt(Node* node) {
     __ StoreField(AccessBuilder::ForMap(), result, map);
     __ StoreField(AccessBuilder::ForBigIntBitfield(), result,
                   __ IntPtrConstant(bitfield));
+    // BigInts have no padding on 64 bit architectures with pointer compression.
+    if (BigInt::HasOptionalPadding()) {
+      __ StoreField(AccessBuilder::ForBigIntOptionalPadding(), result,
+                    __ IntPtrConstant(0));
+    }
     __ StoreField(AccessBuilder::ForBigIntLeastSignificantDigit64(), result,
                   value);
     __ Goto(&done, result);
@@ -2768,6 +2773,11 @@ Node* EffectControlLinearizer::LowerChangeUint64ToBigInt(Node* node) {
     __ StoreField(AccessBuilder::ForMap(), result, map);
     __ StoreField(AccessBuilder::ForBigIntBitfield(), result,
                   __ IntPtrConstant(bitfield));
+    // BigInts have no padding on 64 bit architectures with pointer compression.
+    if (BigInt::HasOptionalPadding()) {
+      __ StoreField(AccessBuilder::ForBigIntOptionalPadding(), result,
+                    __ IntPtrConstant(0));
+    }
     __ Goto(&done, result);
   }
 

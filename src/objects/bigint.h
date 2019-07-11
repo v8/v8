@@ -72,6 +72,10 @@ class BigIntBase : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, BIGINT_FIELDS)
 #undef BIGINT_FIELDS
 
+  static constexpr bool HasOptionalPadding() {
+    return FIELD_SIZE(kOptionalPaddingOffset) > 0;
+  }
+
  private:
   friend class ::v8::internal::BigInt;  // MSVC wants full namespace.
   friend class MutableBigInt;

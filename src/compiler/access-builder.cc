@@ -72,7 +72,18 @@ FieldAccess AccessBuilder::ForBigIntBitfield() {
 }
 
 // static
+FieldAccess AccessBuilder::ForBigIntOptionalPadding() {
+  DCHECK_EQ(FIELD_SIZE(BigInt::kOptionalPaddingOffset), 4);
+  FieldAccess access = {
+      kTaggedBase,        BigInt::kOptionalPaddingOffset, MaybeHandle<Name>(),
+      MaybeHandle<Map>(), TypeCache::Get()->kInt32,       MachineType::Uint32(),
+      kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForBigIntLeastSignificantDigit64() {
+  DCHECK_EQ(BigInt::SizeFor(1) - BigInt::SizeFor(0), 8);
   FieldAccess access = {
       kTaggedBase,        BigInt::kDigitsOffset,        MaybeHandle<Name>(),
       MaybeHandle<Map>(), TypeCache::Get()->kBigUint64, MachineType::Uint64(),
