@@ -148,9 +148,9 @@ class StackFrame {
   static Type MarkerToType(intptr_t marker) {
     DCHECK(IsTypeMarker(marker));
     intptr_t type = marker >> kSmiTagSize;
-    // TODO(petermarshall): There is a bug in the arm64 simulator that causes
+    // TODO(petermarshall): There is a bug in the arm simulators that causes
     // invalid frame markers.
-#if !(defined(USE_SIMULATOR) && V8_TARGET_ARCH_ARM64)
+#if !(defined(USE_SIMULATOR) && (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM))
     DCHECK_LT(static_cast<uintptr_t>(type), Type::NUMBER_OF_TYPES);
 #endif
     return static_cast<Type>(type);
