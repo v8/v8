@@ -1626,6 +1626,7 @@ void InstanceBuilder::InitializeIndirectFunctionTables(
 
 bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
                          Handle<WasmTableObject> table_object,
+                         uint32_t table_index,
                          const WasmElemSegment& elem_segment, uint32_t dst,
                          uint32_t src, size_t count) {
   // TODO(wasm): Move this functionality into wasm-objects, since it is used
@@ -1643,9 +1644,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
 
     if (func_index == WasmElemSegment::kNullIndex) {
       if (table_object->type() == kWasmFuncRef) {
-        IndirectFunctionTableEntry(instance, elem_segment.table_index,
-                                   entry_index)
-            .clear();
+        IndirectFunctionTableEntry(instance, table_index, entry_index).clear();
       }
       WasmTableObject::Set(isolate, table_object, entry_index,
                            isolate->factory()->null_value());
@@ -1657,8 +1656,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
     // Update the local dispatch table first if necessary.
     if (table_object->type() == kWasmFuncRef) {
       uint32_t sig_id = module->signature_ids[function->sig_index];
-      IndirectFunctionTableEntry(instance, elem_segment.table_index,
-                                 entry_index)
+      IndirectFunctionTableEntry(instance, table_index, entry_index)
           .Set(sig_id, instance, func_index);
     }
 
@@ -1699,6 +1697,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     // Passive segments are not copied during instantiation.
     if (!elem_segment.active) continue;
 
+    uint32_t table_index = elem_segment.table_index;
     uint32_t dst = EvalUint32InitExpr(instance, elem_segment.offset);
     uint32_t src = 0;
     size_t count = elem_segment.entries.size();
@@ -1708,7 +1707,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
         handle(WasmTableObject::cast(
                    instance->tables().get(elem_segment.table_index)),
                isolate_),
-        elem_segment, dst, src, count);
+        table_index, elem_segment, dst, src, count);
     if (enabled_.bulk_memory) {
       if (!success) {
         thrower_->LinkError("table initializer is out of bounds");
@@ -1749,19 +1748,12 @@ void InstanceBuilder::InitializeExceptions(
 bool LoadElemSegment(Isolate* isolate, Handle<WasmInstanceObject> instance,
                      uint32_t table_index, uint32_t segment_index, uint32_t dst,
                      uint32_t src, uint32_t count) {
-  // This code path is only used for passive element segments with the
-  // table.init instruction. This instruction was introduced in the
-  // bulk-memory-operations proposal. At the moment, table.init can only operate
-  // on table-0. If table.init should work for tables with higher indices, then
-  // we have to adjust the code in {LoadElemSegmentImpl}. The code there uses
-  // {IndirectFunctionTableEntry} at the moment, which only works for table-0.
-  CHECK_EQ(table_index, 0);
   auto& elem_segment = instance->module()->elem_segments[segment_index];
   return LoadElemSegmentImpl(
       isolate, instance,
       handle(WasmTableObject::cast(instance->tables().get(table_index)),
              isolate),
-      elem_segment, dst, src, count);
+      table_index, elem_segment, dst, src, count);
 }
 
 }  // namespace wasm

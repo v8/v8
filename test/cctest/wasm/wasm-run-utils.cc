@@ -173,8 +173,23 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   table.maximum_size = table_size;
   table.has_maximum_size = true;
   table.type = kWasmFuncRef;
+
+  {
+    // Allocate the indirect function table.
+    Handle<FixedArray> old_tables =
+        table_index == 0
+            ? isolate_->factory()->empty_fixed_array()
+            : handle(instance_object_->indirect_function_tables(), isolate_);
+    Handle<FixedArray> new_tables =
+        isolate_->factory()->CopyFixedArrayAndGrow(old_tables, 1);
+    Handle<WasmIndirectFunctionTable> table_obj =
+        WasmIndirectFunctionTable::New(isolate_, table.initial_size);
+    new_tables->set(table_index, *table_obj);
+    instance_object_->set_indirect_function_tables(*new_tables);
+  }
+
   WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
-      instance_object(), 0, table_size);
+      instance_object(), table_index, table_size);
   Handle<WasmTableObject> table_obj =
       WasmTableObject::New(isolate_, table.type, table.initial_size,
                            table.has_maximum_size, table.maximum_size, nullptr);
@@ -194,8 +209,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   }
 
   Handle<FixedArray> old_tables(instance_object_->tables(), isolate_);
-  Handle<FixedArray> new_tables = isolate_->factory()->CopyFixedArrayAndGrow(
-      old_tables, old_tables->length() + 1);
+  Handle<FixedArray> new_tables =
+      isolate_->factory()->CopyFixedArrayAndGrow(old_tables, 1);
   new_tables->set(old_tables->length(), *table_obj);
   instance_object_->set_tables(*new_tables);
 }

@@ -742,7 +742,8 @@ class WasmIndirectFunctionTable : public Struct {
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
   DECL_ACCESSORS(refs, FixedArray)
 
-  static Handle<WasmIndirectFunctionTable> New(Isolate* isolate, uint32_t size);
+  V8_EXPORT_PRIVATE static Handle<WasmIndirectFunctionTable> New(
+      Isolate* isolate, uint32_t size);
   static void Resize(Isolate* isolate, Handle<WasmIndirectFunctionTable> table,
                      uint32_t new_size);
 

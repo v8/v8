@@ -274,6 +274,11 @@ class TestModuleBuilder {
 
   byte AddPassiveElementSegment() {
     mod.elem_segments.emplace_back();
+    auto& init = mod.elem_segments.back();
+    // Add 5 empty elements.
+    for (uint32_t j = 0; j < 5; j++) {
+      init.entries.push_back(WasmElemSegment::kNullIndex);
+    }
     return static_cast<byte>(mod.elem_segments.size() - 1);
   }
 
@@ -3104,7 +3109,7 @@ TEST_F(FunctionBodyDecoderTest, MemoryInit) {
   ExpectValidates(sigs.v_v(),
                   {WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
   ExpectFailure(sigs.v_v(),
-                {WASM_TABLE_INIT(1, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+                {WASM_TABLE_INIT(0, 1, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, MemoryInitInvalid) {
@@ -3174,12 +3179,12 @@ TEST_F(FunctionBodyDecoderTest, TableInit) {
   module = builder.module();
 
   ExpectFailure(sigs.v_v(),
-                {WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+                {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
   WASM_FEATURE_SCOPE(bulk_memory);
   ExpectValidates(sigs.v_v(),
-                  {WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+                  {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
   ExpectFailure(sigs.v_v(),
-                {WASM_TABLE_INIT(1, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+                {WASM_TABLE_INIT(0, 1, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, TableInitInvalid) {
@@ -3189,7 +3194,8 @@ TEST_F(FunctionBodyDecoderTest, TableInitInvalid) {
   module = builder.module();
 
   WASM_FEATURE_SCOPE(bulk_memory);
-  byte code[] = {WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO), WASM_END};
+  byte code[] = {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO),
+                 WASM_END};
   for (size_t i = 0; i <= arraysize(code); ++i) {
     Validate(i == arraysize(code), sigs.v_v(), VectorOf(code, i), kOmitEnd);
   }
@@ -3282,7 +3288,7 @@ TEST_F(FunctionBodyDecoderTest, TableFill) {
 
 TEST_F(FunctionBodyDecoderTest, TableOpsWithoutTable) {
   TestModuleBuilder builder;
-  builder.AddTable(kWasmAnyRef, 10, true, 20);
+  module = builder.module();
   {
     WASM_FEATURE_SCOPE(anyref);
     ExpectFailure(sigs.i_v(), {WASM_TABLE_GROW(0, WASM_REF_NULL, WASM_ONE)});
@@ -3294,10 +3300,43 @@ TEST_F(FunctionBodyDecoderTest, TableOpsWithoutTable) {
     WASM_FEATURE_SCOPE(bulk_memory);
     builder.AddPassiveElementSegment();
     ExpectFailure(sigs.v_v(),
-                  {WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
-    ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(0)});
+                  {WASM_TABLE_INIT(0, 0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
     ExpectFailure(sigs.v_v(),
                   {WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  }
+}
+
+TEST_F(FunctionBodyDecoderTest, TableInitMultiTable) {
+  WASM_FEATURE_SCOPE(bulk_memory);
+  WASM_FEATURE_SCOPE(anyref);
+  {
+    TestModuleBuilder builder;
+    builder.AddTable(kWasmAnyRef, 10, true, 20);
+    builder.AddPassiveElementSegment();
+    module = builder.module();
+    // We added one table, therefore table.init on table 0 should work.
+    int table_index = 0;
+    ExpectValidates(sigs.v_v(), {WASM_TABLE_INIT(table_index, 0, WASM_ZERO,
+                                                 WASM_ZERO, WASM_ZERO)});
+    // There is only one table, so table.init on table 1 should fail.
+    table_index = 1;
+    ExpectFailure(sigs.v_v(), {WASM_TABLE_INIT(table_index, 0, WASM_ZERO,
+                                               WASM_ZERO, WASM_ZERO)});
+  }
+  {
+    TestModuleBuilder builder;
+    builder.AddTable(kWasmAnyRef, 10, true, 20);
+    builder.AddTable(kWasmAnyRef, 10, true, 20);
+    builder.AddPassiveElementSegment();
+    module = builder.module();
+    // We added two tables, therefore table.init on table 0 should work.
+    int table_index = 0;
+    ExpectValidates(sigs.v_v(), {WASM_TABLE_INIT(table_index, 0, WASM_ZERO,
+                                                 WASM_ZERO, WASM_ZERO)});
+    // Also table.init on table 1 should work now.
+    table_index = 1;
+    ExpectValidates(sigs.v_v(), {WASM_TABLE_INIT(table_index, 0, WASM_ZERO,
+                                                 WASM_ZERO, WASM_ZERO)});
   }
 }
 
