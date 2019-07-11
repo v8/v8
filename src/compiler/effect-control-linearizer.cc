@@ -169,8 +169,8 @@ class EffectControlLinearizer {
   Node* LowerStringEqual(Node* node);
   Node* LowerStringLessThan(Node* node);
   Node* LowerStringLessThanOrEqual(Node* node);
-  Node* LowerSpeculativeBigIntAdd(Node* node, Node* frame_state);
-  Node* LowerSpeculativeBigIntNegate(Node* node, Node* frame_state);
+  Node* LowerBigIntAdd(Node* node, Node* frame_state);
+  Node* LowerBigIntNegate(Node* node);
   Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
   Node* LowerCheckNotTaggedHole(Node* node, Node* frame_state);
   Node* LowerConvertTaggedHoleToUndefined(Node* node);
@@ -1174,11 +1174,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringLessThanOrEqual:
       result = LowerStringLessThanOrEqual(node);
       break;
-    case IrOpcode::kSpeculativeBigIntAdd:
-      result = LowerSpeculativeBigIntAdd(node, frame_state);
+    case IrOpcode::kBigIntAdd:
+      result = LowerBigIntAdd(node, frame_state);
       break;
-    case IrOpcode::kSpeculativeBigIntNegate:
-      result = LowerSpeculativeBigIntNegate(node, frame_state);
+    case IrOpcode::kBigIntNegate:
+      result = LowerBigIntNegate(node);
       break;
     case IrOpcode::kNumberIsFloat64Hole:
       result = LowerNumberIsFloat64Hole(node);
@@ -4254,8 +4254,7 @@ Node* EffectControlLinearizer::LowerStringLessThanOrEqual(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kStringLessThanOrEqual), node);
 }
 
-Node* EffectControlLinearizer::LowerSpeculativeBigIntAdd(Node* node,
-                                                         Node* frame_state) {
+Node* EffectControlLinearizer::LowerBigIntAdd(Node* node, Node* frame_state) {
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
 
@@ -4276,8 +4275,7 @@ Node* EffectControlLinearizer::LowerSpeculativeBigIntAdd(Node* node,
   return value;
 }
 
-Node* EffectControlLinearizer::LowerSpeculativeBigIntNegate(Node* node,
-                                                            Node* frame_state) {
+Node* EffectControlLinearizer::LowerBigIntNegate(Node* node) {
   Callable const callable =
       Builtins::CallableFor(isolate(), Builtins::kBigIntUnaryMinus);
   auto call_descriptor = Linkage::GetStubCallDescriptor(

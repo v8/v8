@@ -708,6 +708,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(NumberToUint32, Operator::kNoProperties, 1, 0)                 \
   V(NumberToUint8Clamped, Operator::kNoProperties, 1, 0)           \
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)               \
+  V(BigIntNegate, Operator::kNoProperties, 1, 0)                   \
   V(StringConcat, Operator::kNoProperties, 3, 0)                   \
   V(StringToNumber, Operator::kNoProperties, 1, 0)                 \
   V(StringFromSingleCharCode, Operator::kNoProperties, 1, 0)       \
@@ -781,6 +782,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(PoisonIndex, Operator::kNoProperties, 1, 0)
 
 #define EFFECT_DEPENDENT_OP_LIST(V)                       \
+  V(BigIntAdd, Operator::kNoProperties, 2, 1)             \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)      \
   V(StringCodePointAt, Operator::kNoProperties, 2, 1)     \
   V(StringFromCodePointAt, Operator::kNoProperties, 2, 1) \

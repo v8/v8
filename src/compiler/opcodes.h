@@ -323,6 +323,8 @@
   V(NumberMin)                          \
   V(NumberPow)
 
+#define SIMPLIFIED_BIGINT_BINOP_LIST(V) V(BigIntAdd)
+
 #define SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
   V(SpeculativeNumberAdd)                           \
   V(SpeculativeNumberSubtract)                      \
@@ -376,6 +378,7 @@
 
 #define SIMPLIFIED_BIGINT_UNOP_LIST(V) \
   V(BigIntAsUintN)                     \
+  V(BigIntNegate)                      \
   V(CheckBigInt)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V) V(SpeculativeToNumber)
@@ -482,6 +485,7 @@
   SIMPLIFIED_CHECKED_OP_LIST(V)               \
   SIMPLIFIED_COMPARE_BINOP_LIST(V)            \
   SIMPLIFIED_NUMBER_BINOP_LIST(V)             \
+  SIMPLIFIED_BIGINT_BINOP_LIST(V)             \
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
   SIMPLIFIED_NUMBER_UNOP_LIST(V)              \
   SIMPLIFIED_BIGINT_UNOP_LIST(V)              \

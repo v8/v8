@@ -639,6 +639,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* NumberSilenceNaN();
 
+  const Operator* BigIntAdd();
+  const Operator* BigIntNegate();
+
   const Operator* SpeculativeSafeIntegerAdd(NumberOperationHint hint);
   const Operator* SpeculativeSafeIntegerSubtract(NumberOperationHint hint);
 

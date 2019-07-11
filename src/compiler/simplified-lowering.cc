@@ -2711,6 +2711,9 @@ class RepresentationSelector {
           VisitBinop(node,
                      UseInfo::CheckedBigIntAsTaggedPointer(VectorSlotPair{}),
                      MachineRepresentation::kTaggedPointer);
+          if (lower()) {
+            NodeProperties::ChangeOp(node, lowering->simplified()->BigIntAdd());
+          }
         }
         return;
       }
@@ -2727,6 +2730,9 @@ class RepresentationSelector {
           VisitUnop(node,
                     UseInfo::CheckedBigIntAsTaggedPointer(VectorSlotPair{}),
                     MachineRepresentation::kTaggedPointer);
+          if (lower()) {
+            ChangeToPureOp(node, lowering->simplified()->BigIntNegate());
+          }
         }
         return;
       }
