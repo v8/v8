@@ -24,7 +24,16 @@ FOOZZIE_EXPERIMENTS = [
 ]
 
 class Config(object):
-  def __init__(self, name, rng=None):
+  def __init__(self, name, rng=None, random_seed=None):
+    """
+    Args:
+      name: Name of the used fuzzer.
+      rng: Random number generator for generating experiments.
+      random_seed: Random-seed used for d8 throughout one fuzz session.
+      TODO(machenbach): Remove random_seed after a grace period of a couple of
+      days. We only have it to keep bisection stable. Afterwards we can just
+      use rng.
+    """
     self.name = name
     self.rng = rng or random.Random()
 
