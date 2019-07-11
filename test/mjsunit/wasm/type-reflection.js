@@ -319,8 +319,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
     /wasm function signature contains illegal type/);
 })();
 
-// TODO(7742): Enable once imported constructed functions are callable.
-/*(function TestFunctionModuleImportMatchingSig() {
+(function TestFunctionModuleImportMatchingSig() {
   let builder = new WasmModuleBuilder();
   let fun = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 7);
   let fun_index = builder.addImport("m", "fun", kSig_i_v)
@@ -331,7 +330,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
       .exportFunc();
   let instance = builder.instantiate({ m: { fun: fun }});
   assertEquals(7, instance.exports.main());
-})();*/
+})();
 
 (function TestFunctionModuleImportMismatchingSig() {
   let builder = new WasmModuleBuilder();

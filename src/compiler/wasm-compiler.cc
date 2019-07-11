@@ -6015,8 +6015,9 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
     if (!js_function->MatchesSignature(expected_sig)) {
       return std::make_pair(WasmImportCallKind::kLinkError, callable);
     }
-    // TODO(7742): Implement proper handling of this case.
-    UNIMPLEMENTED();
+    Isolate* isolate = callable->GetIsolate();
+    // Resolve the short-cut to the underlying callable and continue.
+    callable = handle(js_function->GetCallable(), isolate);
   }
   if (WasmCapiFunction::IsWasmCapiFunction(*callable)) {
     auto capi_function = Handle<WasmCapiFunction>::cast(callable);
