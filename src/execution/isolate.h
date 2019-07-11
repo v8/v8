@@ -1176,7 +1176,8 @@ class Isolate final : private HiddenFactory {
 
   inline bool IsArraySpeciesLookupChainIntact();
   inline bool IsTypedArraySpeciesLookupChainIntact();
-  inline bool IsRegExpSpeciesLookupChainIntact();
+  inline bool IsRegExpSpeciesLookupChainIntact(
+      Handle<NativeContext> native_context);
 
   // Check that the @@species protector is intact, which guards the lookup of
   // "constructor" on JSPromise instances, whose [[Prototype]] is the initial
@@ -1261,7 +1262,7 @@ class Isolate final : private HiddenFactory {
   void InvalidateArrayConstructorProtector();
   void InvalidateArraySpeciesProtector();
   void InvalidateTypedArraySpeciesProtector();
-  void InvalidateRegExpSpeciesProtector();
+  void InvalidateRegExpSpeciesProtector(Handle<NativeContext> native_context);
   void InvalidatePromiseSpeciesProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();

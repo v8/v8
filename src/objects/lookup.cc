@@ -233,11 +233,13 @@ bool IsTypedArrayFunctionInAnyContext(Isolate* isolate, JSReceiver holder) {
 void LookupIterator::InternalUpdateProtector() {
   if (isolate_->bootstrapper()->IsActive()) return;
 
+  Handle<NativeContext> native_context = isolate_->native_context();
+
   ReadOnlyRoots roots(isolate_);
   if (*name_ == roots.constructor_string()) {
     if (!isolate_->IsArraySpeciesLookupChainIntact() &&
         !isolate_->IsPromiseSpeciesLookupChainIntact() &&
-        !isolate_->IsRegExpSpeciesLookupChainIntact() &&
+        !isolate_->IsRegExpSpeciesLookupChainIntact(native_context) &&
         !isolate_->IsTypedArraySpeciesLookupChainIntact()) {
       return;
     }
@@ -253,8 +255,8 @@ void LookupIterator::InternalUpdateProtector() {
       isolate_->InvalidatePromiseSpeciesProtector();
       return;
     } else if (holder_->IsJSRegExp(isolate_)) {
-      if (!isolate_->IsRegExpSpeciesLookupChainIntact()) return;
-      isolate_->InvalidateRegExpSpeciesProtector();
+      if (!isolate_->IsRegExpSpeciesLookupChainIntact(native_context)) return;
+      isolate_->InvalidateRegExpSpeciesProtector(native_context);
       return;
     } else if (holder_->IsJSTypedArray(isolate_)) {
       if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
@@ -280,8 +282,8 @@ void LookupIterator::InternalUpdateProtector() {
         isolate_->InvalidatePromiseSpeciesProtector();
       } else if (isolate_->IsInAnyContext(*holder_,
                                           Context::REGEXP_PROTOTYPE_INDEX)) {
-        if (!isolate_->IsRegExpSpeciesLookupChainIntact()) return;
-        isolate_->InvalidateRegExpSpeciesProtector();
+        if (!isolate_->IsRegExpSpeciesLookupChainIntact(native_context)) return;
+        isolate_->InvalidateRegExpSpeciesProtector(native_context);
       } else if (isolate_->IsInAnyContext(
                      holder_->map(isolate_).prototype(isolate_),
                      Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
@@ -315,7 +317,7 @@ void LookupIterator::InternalUpdateProtector() {
   } else if (*name_ == roots.species_symbol()) {
     if (!isolate_->IsArraySpeciesLookupChainIntact() &&
         !isolate_->IsPromiseSpeciesLookupChainIntact() &&
-        !isolate_->IsRegExpSpeciesLookupChainIntact() &&
+        !isolate_->IsRegExpSpeciesLookupChainIntact(native_context) &&
         !isolate_->IsTypedArraySpeciesLookupChainIntact()) {
       return;
     }
@@ -332,8 +334,8 @@ void LookupIterator::InternalUpdateProtector() {
       isolate_->InvalidatePromiseSpeciesProtector();
     } else if (isolate_->IsInAnyContext(*holder_,
                                         Context::REGEXP_FUNCTION_INDEX)) {
-      if (!isolate_->IsRegExpSpeciesLookupChainIntact()) return;
-      isolate_->InvalidateRegExpSpeciesProtector();
+      if (!isolate_->IsRegExpSpeciesLookupChainIntact(native_context)) return;
+      isolate_->InvalidateRegExpSpeciesProtector(native_context);
     } else if (IsTypedArrayFunctionInAnyContext(isolate_, *holder_)) {
       if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
       isolate_->InvalidateTypedArraySpeciesProtector();

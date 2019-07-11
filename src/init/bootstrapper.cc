@@ -2597,6 +2597,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<RegExpMatchInfo> last_match_info = factory->NewRegExpMatchInfo();
     native_context()->set_regexp_last_match_info(*last_match_info);
 
+    // Install the species protector cell.
+    {
+      Handle<PropertyCell> cell =
+          factory->NewPropertyCell(factory->empty_string());
+      cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+      native_context()->set_regexp_species_protector(*cell);
+    }
+
     // Force the RegExp constructor to fast properties, so that we can use the
     // fast paths for various things like
     //

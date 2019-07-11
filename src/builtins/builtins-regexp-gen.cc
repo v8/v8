@@ -928,9 +928,9 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(
 
   // This should only be needed for String.p.(split||matchAll), but we are
   // conservative here.
-  GotoIf(IsRegExpSpeciesProtectorCellInvalid(), if_ismodified);
+  TNode<Context> native_context = LoadNativeContext(context);
+  GotoIf(IsRegExpSpeciesProtectorCellInvalid(native_context), if_ismodified);
 
-  Node* const native_context = LoadNativeContext(context);
   Node* const regexp_fun =
       LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
   Node* const initial_map =

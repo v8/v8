@@ -6098,10 +6098,13 @@ TNode<BoolT> CodeStubAssembler::IsTypedArraySpeciesProtectorCellInvalid() {
   return WordEqual(cell_value, invalid);
 }
 
-TNode<BoolT> CodeStubAssembler::IsRegExpSpeciesProtectorCellInvalid() {
-  Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
-  Node* cell = LoadRoot(RootIndex::kRegExpSpeciesProtector);
-  Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+TNode<BoolT> CodeStubAssembler::IsRegExpSpeciesProtectorCellInvalid(
+    TNode<Context> native_context) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+  TNode<PropertyCell> cell = CAST(LoadContextElement(
+      native_context, Context::REGEXP_SPECIES_PROTECTOR_INDEX));
+  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  TNode<Smi> invalid = SmiConstant(Isolate::kProtectorInvalid);
   return WordEqual(cell_value, invalid);
 }
 
