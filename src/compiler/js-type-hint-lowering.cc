@@ -308,6 +308,15 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceUnaryOperation(
                                   operand, jsgraph()->SmiConstant(-1), effect,
                                   control, slot);
       node = b.TryBuildNumberBinop();
+      if (!node) {
+        FeedbackNexus nexus(feedback_vector(), slot);
+        if (nexus.GetBinaryOperationFeedback() ==
+            BinaryOperationHint::kBigInt) {
+          const Operator* op = jsgraph()->simplified()->SpeculativeBigIntNegate(
+              BigIntOperationHint::kBigInt);
+          node = jsgraph()->graph()->NewNode(op, operand, effect, control);
+        }
+      }
       break;
     }
     default:

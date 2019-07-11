@@ -748,21 +748,32 @@ class RepresentationSelector {
            !GetUpperBound(node->InputAt(1)).Maybe(type);
   }
 
+  void ChangeToDeadValue(Node* node, Node* effect, Node* control) {
+    DCHECK(TypeOf(node).IsNone());
+    // If the node is unreachable, insert an Unreachable node and mark the
+    // value dead.
+    // TODO(jarin,tebbi) Find a way to unify/merge this insertion with
+    // InsertUnreachableIfNecessary.
+    Node* unreachable = effect =
+        graph()->NewNode(jsgraph_->common()->Unreachable(), effect, control);
+    const Operator* dead_value =
+        jsgraph_->common()->DeadValue(GetInfo(node)->representation());
+    node->ReplaceInput(0, unreachable);
+    node->TrimInputCount(dead_value->ValueInputCount());
+    ReplaceEffectControlUses(node, effect, control);
+    NodeProperties::ChangeOp(node, dead_value);
+  }
+
   void ChangeToPureOp(Node* node, const Operator* new_op) {
     DCHECK(new_op->HasProperty(Operator::kPure));
+    DCHECK_EQ(new_op->ValueInputCount(), node->op()->ValueInputCount());
     if (node->op()->EffectInputCount() > 0) {
       DCHECK_LT(0, node->op()->ControlInputCount());
       Node* control = NodeProperties::GetControlInput(node);
       Node* effect = NodeProperties::GetEffectInput(node);
       if (TypeOf(node).IsNone()) {
-        // If the node is unreachable, insert an Unreachable node and mark the
-        // value dead.
-        // TODO(jarin,tebbi) Find a way to unify/merge this insertion with
-        // InsertUnreachableIfNecessary.
-        Node* unreachable = effect = graph()->NewNode(
-            jsgraph_->common()->Unreachable(), effect, control);
-        new_op = jsgraph_->common()->DeadValue(GetInfo(node)->representation());
-        node->ReplaceInput(0, unreachable);
+        ChangeToDeadValue(node, effect, control);
+        return;
       }
       // Rewire the effect and control chains.
       node->TrimInputCount(new_op->ValueInputCount());
@@ -770,6 +781,30 @@ class RepresentationSelector {
     } else {
       DCHECK_EQ(0, node->op()->ControlInputCount());
     }
+    NodeProperties::ChangeOp(node, new_op);
+  }
+
+  void ChangeUnaryToPureBinaryOp(Node* node, const Operator* new_op,
+                                 int new_input_index, Node* new_input) {
+    DCHECK(new_op->HasProperty(Operator::kPure));
+    DCHECK_EQ(new_op->ValueInputCount(), 2);
+    DCHECK_EQ(node->op()->ValueInputCount(), 1);
+    DCHECK_LE(0, new_input_index);
+    DCHECK_LE(new_input_index, 1);
+    if (node->op()->EffectInputCount() > 0) {
+      DCHECK_LT(0, node->op()->ControlInputCount());
+      Node* control = NodeProperties::GetControlInput(node);
+      Node* effect = NodeProperties::GetEffectInput(node);
+      if (TypeOf(node).IsNone()) {
+        ChangeToDeadValue(node, effect, control);
+        return;
+      }
+      node->TrimInputCount(node->op()->ValueInputCount());
+      ReplaceEffectControlUses(node, effect, control);
+    } else {
+      DCHECK_EQ(0, node->op()->ControlInputCount());
+    }
+    node->InsertInput(jsgraph_->zone(), new_input_index, new_input);
     NodeProperties::ChangeOp(node, new_op);
   }
 
@@ -2676,6 +2711,22 @@ class RepresentationSelector {
           VisitBinop(node,
                      UseInfo::CheckedBigIntAsTaggedPointer(VectorSlotPair{}),
                      MachineRepresentation::kTaggedPointer);
+        }
+        return;
+      }
+      case IrOpcode::kSpeculativeBigIntNegate: {
+        if (truncation.IsUsedAsWord64()) {
+          VisitUnop(node,
+                    UseInfo::CheckedBigIntTruncatingWord64(VectorSlotPair{}),
+                    MachineRepresentation::kWord64);
+          if (lower()) {
+            ChangeUnaryToPureBinaryOp(node, lowering->machine()->Int64Sub(), 0,
+                                      jsgraph_->Int64Constant(0));
+          }
+        } else {
+          VisitUnop(node,
+                    UseInfo::CheckedBigIntAsTaggedPointer(VectorSlotPair{}),
+                    MachineRepresentation::kTaggedPointer);
         }
         return;
       }

@@ -170,6 +170,7 @@ class EffectControlLinearizer {
   Node* LowerStringLessThan(Node* node);
   Node* LowerStringLessThanOrEqual(Node* node);
   Node* LowerSpeculativeBigIntAdd(Node* node, Node* frame_state);
+  Node* LowerSpeculativeBigIntNegate(Node* node, Node* frame_state);
   Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
   Node* LowerCheckNotTaggedHole(Node* node, Node* frame_state);
   Node* LowerConvertTaggedHoleToUndefined(Node* node);
@@ -1175,6 +1176,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kSpeculativeBigIntAdd:
       result = LowerSpeculativeBigIntAdd(node, frame_state);
+      break;
+    case IrOpcode::kSpeculativeBigIntNegate:
+      result = LowerSpeculativeBigIntNegate(node, frame_state);
       break;
     case IrOpcode::kNumberIsFloat64Hole:
       result = LowerNumberIsFloat64Hole(node);
@@ -4268,6 +4272,21 @@ Node* EffectControlLinearizer::LowerSpeculativeBigIntAdd(Node* node,
   // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
   __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, VectorSlotPair{},
                   ObjectIsSmi(value), frame_state);
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerSpeculativeBigIntNegate(Node* node,
+                                                            Node* frame_state) {
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtins::kBigIntUnaryMinus);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value =
+      __ Call(call_descriptor, jsgraph()->HeapConstant(callable.code()),
+              node->InputAt(0), __ NoContextConstant());
 
   return value;
 }

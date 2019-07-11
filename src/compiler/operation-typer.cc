@@ -1125,6 +1125,11 @@ Type OperationTyper::SpeculativeBigIntAdd(Type lhs, Type rhs) {
   return Type::BigInt();
 }
 
+Type OperationTyper::SpeculativeBigIntNegate(Type type) {
+  if (type.IsNone()) return type;
+  return Type::BigInt();
+}
+
 Type OperationTyper::SpeculativeToNumber(Type type) {
   return ToNumber(Type::Intersect(type, Type::NumberOrOddball(), zone()));
 }

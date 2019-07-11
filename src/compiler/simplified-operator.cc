@@ -1442,6 +1442,14 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAdd(
       "SpeculativeBigIntAdd", 2, 1, 1, 1, 1, 0, hint);
 }
 
+const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntNegate(
+    BigIntOperationHint hint) {
+  return new (zone()) Operator1<BigIntOperationHint>(
+      IrOpcode::kSpeculativeBigIntNegate,
+      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntNegate", 1, 1,
+      1, 1, 1, 0, hint);
+}
+
 const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(
     NumberOperationHint hint, const VectorSlotPair& feedback) {
   if (!feedback.IsValid()) {

@@ -659,6 +659,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeNumberEqual(NumberOperationHint hint);
 
   const Operator* SpeculativeBigIntAdd(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntNegate(BigIntOperationHint hint);
   const Operator* BigIntAsUintN(int bits);
 
   const Operator* ReferenceEqual();
