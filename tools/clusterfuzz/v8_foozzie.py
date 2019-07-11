@@ -88,22 +88,6 @@ CONFIGS = dict(
   ],
 )
 
-# Additional flag experiments. List of tuples like
-# (<likelihood to use flags in [0,1)>, <flag>).
-ADDITIONAL_FLAGS = [
-  (0.1, '--stress-marking=100'),
-  (0.1, '--stress-scavenge=100'),
-  (0.1, '--stress-compaction-random'),
-  (0.1, '--random-gc-interval=2000'),
-  (0.2, '--noanalyze-environment-liveness'),
-  (0.1, '--stress-delay-tasks'),
-  (0.01, '--thread-pool-size=1'),
-  (0.01, '--thread-pool-size=2'),
-  (0.01, '--thread-pool-size=4'),
-  (0.01, '--thread-pool-size=8'),
-  (0.1, '--interrupt-budget=1000'),
-]
-
 # Timeout in seconds for one d8 run.
 TIMEOUT = 3
 
@@ -316,7 +300,6 @@ def print_difference(
 
 def main():
   options = parse_args()
-  rng = random.Random(options.random_seed)
 
   # Suppressions are architecture and configuration specific.
   suppress = v8_suppressions.get_suppression(
@@ -338,13 +321,6 @@ def main():
                         options.first_config_extra_flags)
   second_config_flags = (common_flags + CONFIGS[options.second_config] +
                          options.second_config_extra_flags)
-
-  # TODO(machenbach): Deprecate calculating flag experiements in this script
-  # and instead pass flags as extra flags on command line.
-  # Add additional flags to second config based on experiment percentages.
-  for p, flag in ADDITIONAL_FLAGS:
-    if rng.random() < p:
-      second_config_flags.append(flag)
 
   def run_d8(d8, config_flags, config_label=None, testcase=options.testcase):
     preamble = PREAMBLE[:]
