@@ -211,10 +211,6 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V)                              \
   HARMONY_INPROGRESS_BASE(V)                               \
-  V(harmony_intl_dateformat_day_period,                    \
-    "Add dayPeriod option to DateTimeFormat")              \
-  V(harmony_intl_dateformat_fractional_second_digits,      \
-    "Add fractionalSecondDigits option to DateTimeFormat") \
   V(harmony_intl_dateformat_quarter, "Add quarter option to DateTimeFormat")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
@@ -224,10 +220,14 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 #define HARMONY_STAGED_BASE(V)
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V)                                                    \
-  HARMONY_STAGED_BASE(V)                                                     \
-  V(harmony_intl_add_calendar_numbering_system,                              \
-    "Add calendar and numberingSystem to DateTimeFormat")                    \
+#define HARMONY_STAGED(V)                                  \
+  HARMONY_STAGED_BASE(V)                                   \
+  V(harmony_intl_add_calendar_numbering_system,            \
+    "Add calendar and numberingSystem to DateTimeFormat")  \
+  V(harmony_intl_dateformat_day_period,                    \
+    "Add dayPeriod option to DateTimeFormat")              \
+  V(harmony_intl_dateformat_fractional_second_digits,      \
+    "Add fractionalSecondDigits option to DateTimeFormat") \
   V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
