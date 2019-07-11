@@ -39,7 +39,7 @@ void ExpectResult(int expected, const Func* func, int arg1, int arg2) {
 TEST_F(WasmCapiTest, Table) {
   builder()->AllocateIndirectFunctions(2);
   builder()->SetMaxTableSize(10);
-  builder()->AddExportedTable(CStrVector("table"), 0);
+  builder()->AddExport(CStrVector("table"), kExternalTable, 0);
   const uint32_t sig_i_i_index = builder()->AddSignature(wasm_i_i_sig());
   ValueType reps[] = {kWasmI32, kWasmI32, kWasmI32};
   FunctionSig call_sig(1, 2, reps);
@@ -56,10 +56,10 @@ TEST_F(WasmCapiTest, Table) {
 
   Instantiate(nullptr);
 
-  Func* call_indirect = GetExportedFunction(0);
-  Func* f = GetExportedFunction(1);
-  Func* g = GetExportedFunction(2);
-  Table* table = GetExportedTable(3);
+  Table* table = GetExportedTable(0);
+  Func* call_indirect = GetExportedFunction(1);
+  Func* f = GetExportedFunction(2);
+  Func* g = GetExportedFunction(3);
   own<Func*> h = Func::make(store(), cpp_i_i_sig(), Negate);
 
   // Check initial table state.

@@ -429,8 +429,8 @@ TEST(Run_WasmModule_Global) {
     TestSignatures sigs;
 
     WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-    uint32_t global1 = builder->AddGlobal(kWasmI32, false);
-    uint32_t global2 = builder->AddGlobal(kWasmI32, false);
+    uint32_t global1 = builder->AddGlobal(kWasmI32);
+    uint32_t global2 = builder->AddGlobal(kWasmI32);
     WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
     byte code1[] = {
         WASM_I32_ADD(WASM_GET_GLOBAL(global1), WASM_GET_GLOBAL(global2))};
@@ -745,9 +745,9 @@ TEST(Run_WasmModule_Global_init) {
 
     WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
     uint32_t global1 =
-        builder->AddGlobal(kWasmI32, false, false, WasmInitExpr(777777));
+        builder->AddGlobal(kWasmI32, false, WasmInitExpr(777777));
     uint32_t global2 =
-        builder->AddGlobal(kWasmI32, false, false, WasmInitExpr(222222));
+        builder->AddGlobal(kWasmI32, false, WasmInitExpr(222222));
     WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
     byte code[] = {
         WASM_I32_ADD(WASM_GET_GLOBAL(global1), WASM_GET_GLOBAL(global2))};
@@ -773,12 +773,11 @@ static void RunWasmModuleGlobalInitTest(ValueType type, CType expected) {
       WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
 
       for (int i = 0; i < padding; i++) {  // pad global before
-        builder->AddGlobal(kWasmI32, false, false, WasmInitExpr(i + 20000));
+        builder->AddGlobal(kWasmI32, false, WasmInitExpr(i + 20000));
       }
-      uint32_t global =
-          builder->AddGlobal(type, false, false, WasmInitExpr(expected));
+      uint32_t global = builder->AddGlobal(type, false, WasmInitExpr(expected));
       for (int i = 0; i < padding; i++) {  // pad global after
-        builder->AddGlobal(kWasmI32, false, false, WasmInitExpr(i + 30000));
+        builder->AddGlobal(kWasmI32, false, WasmInitExpr(i + 30000));
       }
 
       WasmFunctionBuilder* f1 = builder->AddFunction(&sig);

@@ -230,11 +230,8 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
     : zone_(zone),
       signatures_(zone),
       function_imports_(zone),
-      function_exports_(zone),
       global_imports_(zone),
-      global_exports_(zone),
-      memory_exports_(zone),
-      table_exports_(zone),
+      exports_(zone),
       functions_(zone),
       data_segments_(zone),
       indirect_functions_(zone),
@@ -314,33 +311,33 @@ void WasmModuleBuilder::MarkStartFunction(WasmFunctionBuilder* function) {
 }
 
 void WasmModuleBuilder::AddExport(Vector<const char> name,
-                                  WasmFunctionBuilder* function) {
-  DCHECK_LE(function->func_index(), std::numeric_limits<int>::max());
-  function_exports_.push_back({name, static_cast<int>(function->func_index())});
+                                  ImportExportKindCode kind, uint32_t index) {
+  DCHECK_LE(index, std::numeric_limits<int>::max());
+  exports_.push_back({name, kind, static_cast<int>(index)});
 }
 
 uint32_t WasmModuleBuilder::AddExportedGlobal(ValueType type, bool mutability,
                                               const WasmInitExpr& init,
                                               Vector<const char> name) {
-  uint32_t index = AddGlobal(type, true, mutability, init);
-  global_exports_.push_back({name, index});
+  uint32_t index = AddGlobal(type, mutability, init);
+  AddExport(name, kExternalGlobal, index);
   return index;
 }
 
-void WasmModuleBuilder::AddExportedImport(Vector<const char> name,
-                                          int import_index) {
+void WasmModuleBuilder::ExportImportedFunction(Vector<const char> name,
+                                               int import_index) {
 #if DEBUG
   // The size of function_imports_ must not change any more.
   adding_imports_allowed_ = false;
 #endif
-  function_exports_.push_back(
-      {name, import_index - static_cast<int>(function_imports_.size())});
+  exports_.push_back(
+      {name, kExternalFunction,
+       import_index - static_cast<int>(function_imports_.size())});
 }
 
-uint32_t WasmModuleBuilder::AddGlobal(ValueType type, bool exported,
-                                      bool mutability,
+uint32_t WasmModuleBuilder::AddGlobal(ValueType type, bool mutability,
                                       const WasmInitExpr& init) {
-  globals_.push_back({type, exported, mutability, init});
+  globals_.push_back({type, mutability, init});
   return static_cast<uint32_t>(globals_.size() - 1);
 }
 
@@ -351,16 +348,6 @@ void WasmModuleBuilder::SetMinMemorySize(uint32_t value) {
 void WasmModuleBuilder::SetMaxMemorySize(uint32_t value) {
   has_max_memory_size_ = true;
   max_memory_size_ = value;
-}
-
-void WasmModuleBuilder::AddExportedMemory(Vector<const char> name,
-                                          uint32_t index) {
-  memory_exports_.push_back({name, index});
-}
-
-void WasmModuleBuilder::AddExportedTable(Vector<const char> name,
-                                         uint32_t index) {
-  table_exports_.push_back({name, index});
 }
 
 void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
@@ -518,31 +505,28 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   }
 
   // == emit exports ===========================================================
-  size_t num_exports = global_exports_.size() + function_exports_.size() +
-                       memory_exports_.size() + table_exports_.size();
-  if (num_exports > 0) {
+  if (exports_.size() > 0) {
     size_t start = EmitSection(kExportSectionCode, buffer);
-    buffer->write_size(num_exports);
-    for (auto global_export : global_exports_) {
-      buffer->write_string(global_export.name);
-      buffer->write_u8(kExternalGlobal);
-      buffer->write_size(global_export.global_index + global_imports_.size());
-    }
-    for (auto function_export : function_exports_) {
-      buffer->write_string(function_export.name);
-      buffer->write_u8(kExternalFunction);
-      buffer->write_size(function_export.function_index +
-                         function_imports_.size());
-    }
-    for (auto memory_export : memory_exports_) {
-      buffer->write_string(memory_export.name);
-      buffer->write_u8(kExternalMemory);
-      buffer->write_size(memory_export.memory_index);
-    }
-    for (auto table_export : table_exports_) {
-      buffer->write_string(table_export.name);
-      buffer->write_u8(kExternalTable);
-      buffer->write_size(table_export.table_index);
+    buffer->write_size(exports_.size());
+    for (auto ex : exports_) {
+      buffer->write_string(ex.name);
+      buffer->write_u8(ex.kind);
+      switch (ex.kind) {
+        case kExternalFunction:
+          buffer->write_size(ex.index + function_imports_.size());
+          break;
+        case kExternalGlobal:
+          buffer->write_size(ex.index + global_imports_.size());
+          break;
+        case kExternalMemory:
+        case kExternalTable:
+          // The WasmModuleBuilder doesn't support importing tables or memories
+          // yet, so there is no index offset to add.
+          buffer->write_size(ex.index);
+          break;
+        case kExternalException:
+          UNREACHABLE();
+      }
     }
     FixupSection(buffer, start);
   }

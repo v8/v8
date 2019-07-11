@@ -44,10 +44,10 @@ TEST_F(WasmCapiTest, Reflect) {
                                CStrVector(kGlobalName));
 
   builder()->AllocateIndirectFunctions(12);
-  builder()->AddExportedTable(CStrVector(kTableName), 0);
+  builder()->AddExport(CStrVector(kTableName), kExternalTable, 0);
 
   builder()->SetMinMemorySize(1);
-  builder()->AddExportedMemory(CStrVector(kMemoryName), 0);
+  builder()->AddExport(CStrVector(kMemoryName), kExternalMemory, 0);
 
   Instantiate(nullptr);
 

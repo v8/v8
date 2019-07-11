@@ -193,7 +193,7 @@ TEST_F(WasmCapiTest, DirectCallCapiFunction) {
                             kWasmF64,    kWasmAnyRef};
   FunctionSig wasm_sig(5, 5, wasm_types);
   int func_index = builder()->AddImport(CStrVector("func"), &wasm_sig);
-  builder()->AddExportedImport(CStrVector("func"), func_index);
+  builder()->ExportImportedFunction(CStrVector("func"), func_index);
   Instantiate(imports);
   int32_t a0 = 42;
   int64_t a1 = 0x1234c0ffee;

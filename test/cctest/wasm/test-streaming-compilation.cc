@@ -313,7 +313,7 @@ ZoneBuffer GetModuleWithInvalidSection(Zone* zone) {
   TestSignatures sigs;
   WasmModuleBuilder builder(zone);
   // Add an invalid global to the module. The decoder will fail there.
-  builder.AddGlobal(kWasmStmt, false, true,
+  builder.AddGlobal(kWasmStmt, true,
                     WasmInitExpr(WasmInitExpr::kGlobalIndex, 12));
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());

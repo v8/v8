@@ -14,7 +14,7 @@ using ::wasm::MemoryType;
 TEST_F(WasmCapiTest, Memory) {
   builder()->SetMinMemorySize(2);
   builder()->SetMaxMemorySize(3);
-  builder()->AddExportedMemory(CStrVector("memory"), 0);
+  builder()->AddExport(CStrVector("memory"), kExternalMemory, 0);
 
   ValueType i32_type[] = {kWasmI32, kWasmI32};
   FunctionSig return_i32(1, 0, i32_type);
@@ -36,12 +36,10 @@ TEST_F(WasmCapiTest, Memory) {
 
   Instantiate(nullptr);
 
-  // TODO(jkummerow): Getting exports by index leaks implementation details
-  // of the module builder. It would be nicer to get exports by name instead.
-  Func* size_func = GetExportedFunction(0);
-  Func* load_func = GetExportedFunction(1);
-  Func* store_func = GetExportedFunction(2);
-  Memory* memory = GetExportedMemory(3);
+  Memory* memory = GetExportedMemory(0);
+  Func* size_func = GetExportedFunction(1);
+  Func* load_func = GetExportedFunction(2);
+  Func* store_func = GetExportedFunction(3);
 
   // Check initial state.
   EXPECT_EQ(2u, memory->size());

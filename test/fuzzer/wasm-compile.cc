@@ -825,10 +825,9 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
     for (int i = 0; i < num_globals; ++i) {
       ValueType type = GetValueType(&range);
-      const bool exported = range.get<bool>();
       // 1/8 of globals are immutable.
       const bool mutability = (range.get<uint8_t>() % 8) != 0;
-      builder.AddGlobal(type, exported, mutability, WasmInitExpr());
+      builder.AddGlobal(type, mutability, WasmInitExpr());
       globals.push_back(type);
       if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));
     }
