@@ -300,6 +300,11 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   if (!allow_large_object_allocation) {
     CHECK(size <= kMaxRegularHeapObjectSize);
   }
+
+  // TODO(v8:9472): Until double-aligned allocation is fixed for new-space
+  // allocations, don't request it.
+  double_align = false;
+
   return *isolate->factory()->NewFillerObject(size, double_align,
                                               AllocationType::kYoung);
 }
