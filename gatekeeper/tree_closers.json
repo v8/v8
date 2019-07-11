@@ -122,7 +122,8 @@
         "Failure reason",
         "update_scripts",
         "steps",
-        "* (flakes)"
+        "* (flakes)",
+        "Bisect *"
       ],
       "forgiving_optional": [
         "bot_update",
