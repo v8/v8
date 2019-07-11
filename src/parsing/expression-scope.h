@@ -694,15 +694,9 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
       }
     }
 
-    auto var_it = this->variable_list()->begin();
+    int initializer_position = this->parser()->end_position();
     for (auto declaration : *result->declarations()) {
-      // If it's not the last variable, then use the position of the next
-      // variable. For the last one, use the end position of the arrow head.
-      int end_position = var_it + 1 == this->variable_list()->end()
-                             ? this->parser()->end_position()
-                             : (*(var_it + 1))->position();
-      declaration->var()->set_initializer_position(end_position);
-      var_it++;
+      declaration->var()->set_initializer_position(initializer_position);
     }
     if (uses_this_) result->UsesThis();
     return result;
