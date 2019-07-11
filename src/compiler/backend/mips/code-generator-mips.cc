@@ -827,17 +827,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
       break;
-    case kArchAbortJS:
-      DCHECK(i.InputRegister(0) == a0);
-      {
-        // We don't actually want to generate a pile of code for this, so just
-        // claim there is a stack frame, without generating one.
-        FrameScope scope(tasm(), StackFrame::NONE);
-        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
-                RelocInfo::CODE_TARGET);
-      }
-      __ stop();
-      break;
     case kArchAbortCSAAssert:
       DCHECK(i.InputRegister(0) == a0);
       {

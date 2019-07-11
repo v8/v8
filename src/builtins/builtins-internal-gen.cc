@@ -860,11 +860,6 @@ TF_BUILTIN(Abort, CodeStubAssembler) {
   TailCallRuntime(Runtime::kAbort, NoContextConstant(), message_id);
 }
 
-TF_BUILTIN(AbortJS, CodeStubAssembler) {
-  TNode<String> message = CAST(Parameter(Descriptor::kMessageOrMessageId));
-  TailCallRuntime(Runtime::kAbortJS, NoContextConstant(), message);
-}
-
 TF_BUILTIN(AbortCSAAssert, CodeStubAssembler) {
   TNode<String> message = CAST(Parameter(Descriptor::kMessageOrMessageId));
   TailCallRuntime(Runtime::kAbortCSAAssert, NoContextConstant(), message);

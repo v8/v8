@@ -173,11 +173,6 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
-void InstructionSelector::VisitAbortJS(Node* node) {
-  PPCOperandGenerator g(this);
-  Emit(kArchAbortJS, g.NoOutput(), g.UseFixed(node->InputAt(0), r4));
-}
-
 void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   PPCOperandGenerator g(this);
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), r4));

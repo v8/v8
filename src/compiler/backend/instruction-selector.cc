@@ -1326,9 +1326,6 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kStateValues:
     case IrOpcode::kObjectState:
       return;
-    case IrOpcode::kAbortJS:
-      VisitAbortJS(node);
-      return;
     case IrOpcode::kAbortCSAAssert:
       VisitAbortCSAAssert(node);
       return;

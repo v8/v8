@@ -893,7 +893,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   void ReturnRaw(Node* value);
 
-  void AbortJS(Node* message);
   void AbortCSAAssert(Node* message);
   void DebugBreak();
   void Unreachable();

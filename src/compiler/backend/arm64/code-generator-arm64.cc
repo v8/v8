@@ -794,18 +794,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchLookupSwitch:
       AssembleArchLookupSwitch(instr);
       break;
-    case kArchAbortJS:
-      DCHECK(i.InputRegister(0).is(x1));
-      {
-        // We don't actually want to generate a pile of code for this, so just
-        // claim there is a stack frame, without generating one.
-        FrameScope scope(tasm(), StackFrame::NONE);
-        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
-                RelocInfo::CODE_TARGET);
-      }
-      __ Debug("kArchAbortJS", 0, BREAK);
-      unwinding_info_writer_.MarkBlockWillExit();
-      break;
     case kArchAbortCSAAssert:
       DCHECK(i.InputRegister(0).is(x1));
       {

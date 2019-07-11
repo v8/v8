@@ -966,18 +966,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchComment:
       __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)));
       break;
-    case kArchAbortJS:
-      DCHECK(i.InputRegister(0) == rdx);
-      {
-        // We don't actually want to generate a pile of code for this, so just
-        // claim there is a stack frame, without generating one.
-        FrameScope scope(tasm(), StackFrame::NONE);
-        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
-                RelocInfo::CODE_TARGET);
-      }
-      __ int3();
-      unwinding_info_writer_.MarkBlockWillExit();
-      break;
     case kArchAbortCSAAssert:
       DCHECK(i.InputRegister(0) == rdx);
       {

@@ -226,11 +226,12 @@ void CodeAssembler::GenerateCheckMaybeObjectIsObject(Node* node,
                               IntPtrConstant(kHeapObjectTagMask)),
                       IntPtrConstant(kWeakHeapObjectTag)),
          &ok);
-  Node* message_node = StringConstant(location);
-  // TODO(clemensh): Avoid {AbortJS} here, as it will be disabled by fuzzers
-  // (via --disable-abortjs). Remove the {AbortJS} opcode and builtin
-  // afterwards.
-  AbortJS(message_node);
+  EmbeddedVector<char, 1024> message;
+  SNPrintF(message, "no Object: %s", location);
+  Node* message_node = StringConstant(message.begin());
+  // This somewhat misuses the AbortCSAAssert runtime function. This will print
+  // "abort: CSA_ASSERT failed: <message>", which is good enough.
+  AbortCSAAssert(message_node);
   Unreachable();
   Bind(&ok);
 }
@@ -410,10 +411,6 @@ void CodeAssembler::ReturnIf(Node* condition, Node* value) {
 
 void CodeAssembler::ReturnRaw(Node* value) {
   return raw_assembler()->Return(value);
-}
-
-void CodeAssembler::AbortJS(Node* message) {
-  raw_assembler()->AbortJS(message);
 }
 
 void CodeAssembler::AbortCSAAssert(Node* message) {

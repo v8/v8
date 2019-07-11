@@ -907,7 +907,6 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtins::Name caller,
   switch (callee) {
       // Transitively called Builtins:
     case Builtins::kAbort:
-    case Builtins::kAbortJS:
     case Builtins::kAbortCSAAssert:
     case Builtins::kAdaptorWithBuiltinExitFrame:
     case Builtins::kArrayConstructorImpl:

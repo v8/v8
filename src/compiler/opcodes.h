@@ -629,7 +629,6 @@
   MACHINE_FLOAT64_BINOP_LIST(V)             \
   MACHINE_FLOAT64_UNOP_LIST(V)              \
   MACHINE_WORD64_ATOMIC_OP_LIST(V)          \
-  V(AbortJS)                                \
   V(AbortCSAAssert)                         \
   V(DebugBreak)                             \
   V(Comment)                                \

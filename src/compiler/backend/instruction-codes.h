@@ -82,7 +82,6 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchLookupSwitch)                     \
   V(ArchTableSwitch)                      \
   V(ArchNop)                              \
-  V(ArchAbortJS)                          \
   V(ArchAbortCSAAssert)                   \
   V(ArchDebugBreak)                       \
   V(ArchComment)                          \

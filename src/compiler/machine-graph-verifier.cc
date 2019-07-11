@@ -558,7 +558,6 @@ class MachineRepresentationChecker {
           case IrOpcode::kParameter:
           case IrOpcode::kProjection:
             break;
-          case IrOpcode::kAbortJS:
           case IrOpcode::kAbortCSAAssert:
             CheckValueInputIsTagged(node, 0);
             break;

@@ -556,10 +556,6 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3,
   current_block_ = nullptr;
 }
 
-void RawMachineAssembler::AbortJS(Node* message) {
-  AddNode(machine()->AbortJS(), message);
-}
-
 void RawMachineAssembler::AbortCSAAssert(Node* message) {
   AddNode(machine()->AbortCSAAssert(), message);
 }

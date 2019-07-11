@@ -272,11 +272,6 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
-void InstructionSelector::VisitAbortJS(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kArchAbortJS, g.NoOutput(), g.UseFixed(node->InputAt(0), edx));
-}
-
 void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), edx));

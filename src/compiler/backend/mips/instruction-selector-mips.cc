@@ -274,11 +274,6 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(alignment)), 0, nullptr);
 }
 
-void InstructionSelector::VisitAbortJS(Node* node) {
-  MipsOperandGenerator g(this);
-  Emit(kArchAbortJS, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
-}
-
 void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   MipsOperandGenerator g(this);
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));

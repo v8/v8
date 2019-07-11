@@ -821,13 +821,6 @@ struct MachineOperatorGlobalCache {
   };
   Word64PoisonOnSpeculation kWord64PoisonOnSpeculation;
 
-  struct AbortJSOperator : public Operator {
-    AbortJSOperator()
-        : Operator(IrOpcode::kAbortJS, Operator::kNoThrow, "AbortJS", 1, 1, 1,
-                   0, 1, 0) {}
-  };
-  AbortJSOperator kAbortJS;
-
   struct AbortCSAAssertOperator : public Operator {
     AbortCSAAssertOperator()
         : Operator(IrOpcode::kAbortCSAAssert, Operator::kNoThrow,
@@ -1025,8 +1018,6 @@ const Operator* MachineOperatorBuilder::BitcastTaggedToWord() {
 const Operator* MachineOperatorBuilder::BitcastMaybeObjectToWord() {
   return &cache_.kBitcastMaybeObjectToWord;
 }
-
-const Operator* MachineOperatorBuilder::AbortJS() { return &cache_.kAbortJS; }
 
 const Operator* MachineOperatorBuilder::AbortCSAAssert() {
   return &cache_.kAbortCSAAssert;
